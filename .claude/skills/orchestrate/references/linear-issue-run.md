@@ -68,7 +68,7 @@ run (go to Run end) when any of these holds:
   Codex down, a broken connector), and more attempts would only burn budget.
 
 Issues run in parallel only when their expected file sets are disjoint. How many run at once
-depends on the lane: the Mac's 2-heavy-job cap governs the local lane and every review, and the
+depends on the lane: the Mac's 3-heavy-job cap governs the local lane and every review, and the
 cloud in-flight limit governs the cloud lane.
 
 ## Lanes

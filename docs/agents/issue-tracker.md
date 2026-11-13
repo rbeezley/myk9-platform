@@ -123,13 +123,19 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
 The root agent running a command or pipeline owns the tracking issue through every delegated
 phase. OpenSpec task checkboxes do not update Linear.
 
-| Stage                            | Status                                               |
-| -------------------------------- | ---------------------------------------------------- |
-| Not started, or held before work | Unchanged (Backlog/Todo)                             |
-| Implementation started           | In Progress, through the unmerged PR's review gate   |
-| Merged, only acceptance owed     | In Review, with the `verify:*` labels still owed     |
-| Merged, more implementation owed | In Progress (set it back if a linked merge moved it) |
-| Every criterion evidenced        | Done, after a fresh `get_issue` read                 |
+| Stage                            | Status                                                 |
+| -------------------------------- | ------------------------------------------------------ |
+| Not started, or held before work | Unchanged (Backlog/Todo)                               |
+| Implementation started           | In Progress, through the unmerged PR's review gate     |
+| Merged, only acceptance owed     | In Review, with the `verify:*` labels still owed       |
+| Merged, more implementation owed | In Progress (set it back if a linked merge moved it)   |
+| Merged, rest parked for later    | Backlog **with `changes-needed`**, never plain Backlog |
+| Every criterion evidenced        | Done, after a fresh `get_issue` read                   |
+
+A Backlog issue whose code already merged is the costliest kind to triage: it reads as unstarted
+work (owner, 2026-11-13, after six such issues each cost a triage pass). So an issue moved back
+to Backlog after a merge carries `changes-needed` and a comment naming the criterion still open,
+and triage reads every `changes-needed` issue's latest comments before counting it as work.
 
 Team automations, owner-approved and read back on 2026-10-25: PR open → In Progress; PR
 review activity → no action; **PR merge → In Review**; parent and sub-issue auto-close off. A

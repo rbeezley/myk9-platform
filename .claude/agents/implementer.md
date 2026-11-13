@@ -94,12 +94,23 @@ CONCERNS.
 3. Lint what you changed: `pnpm --filter @myk9/show lint:changed` (every changed `.ts`/`.tsx`
    under the app against `origin/main`, uncommitted and untracked files included). An error
    here is a red CI check, so fix it before reporting; warnings are not yours to chase.
-4. Commit `wip: <task>` before any verification that takes longer than a minute, so a reaped
+4. The repo-wide checks CI runs on every PR that an implementer most often trips (owner,
+   2026-11-13, after about half of one day's cloud PRs needed a fix round for these):
+   - added or renamed an e2e spec: `pnpm qa:e2e-map:check` (every spec needs a row in
+     `docs/qa/e2e-suite-map.md`);
+   - changed visible text: `pnpm qa:em-dash-ratchet` (when it reports fewer em dashes, run
+     `pnpm qa:em-dash-ratchet:update` and commit the baseline);
+   - a spec that needs a state (an entry awaiting review, a scored dog, a trial today): check the
+     seed has it (`supabase/seed-demo.sql`) before relying on it; otherwise stage it in the
+     browser or a fixture, never by writing to the shared database;
+   - wording for a failure: a change that failed for good "could not be sent", not "not sent
+     yet" (that is a change still waiting).
+5. Commit `wip: <task>` before any verification that takes longer than a minute, so a reaped
    worktree does not lose the work. The orchestrator folds `wip:` commits before shipping.
-5. Bounded waits only: the Bash tool's timeout or `for i in $(seq 1 40)`; macOS has no
+6. Bounded waits only: the Bash tool's timeout or `for i in $(seq 1 40)`; macOS has no
    `timeout` command. Never an open-ended `sleep` or polling loop. Wait for every test run you
    started to finish before you end your turn.
-6. End your turn with the report below as your final message, nothing after it.
+7. End your turn with the report below as your final message, nothing after it.
 
 ```
 FILES: <paths touched>

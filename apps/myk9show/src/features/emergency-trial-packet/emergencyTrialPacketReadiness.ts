@@ -9,7 +9,7 @@ export function emergencyPacketReadinessCopy(
     return 'Registration details are unavailable. Reconnect before preparing the packet.';
   }
   if (!hasCompleteRows) {
-    return 'The complete packet data is unavailable. Reload Show Desk before preparing the packet.';
+    return 'The complete packet data is unavailable. Restart the app before preparing the packet.';
   }
   switch (dataState) {
     case 'loading':
@@ -21,7 +21,7 @@ export function emergencyPacketReadinessCopy(
     case 'refreshing':
       return 'The show data just changed and is updating. Prepare the packet when this finishes.';
     case 'error':
-      return 'The complete show data could not be loaded. Reload Show Desk before preparing the packet.';
+      return 'The complete show data could not be loaded. Restart the app before preparing the packet.';
     case 'ready':
       return undefined;
   }

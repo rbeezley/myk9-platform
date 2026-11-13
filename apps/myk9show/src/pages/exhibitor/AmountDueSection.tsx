@@ -86,8 +86,8 @@ export function AmountDueSection({
               the same money from the same unconfirmed rows (MYK9-629), so the
               old copy pointed at a second blank. Say what is true instead. */}
           <p className="mt-1 text-sm text-muted-foreground">
-            We haven&apos;t been able to confirm your balance with the server, so we&apos;re not
-            showing a figure. Your payment history is still below.
+            We haven&apos;t been able to confirm your balance, so we&apos;re not showing a figure.
+            Your payment history is still below.
           </p>
         </CardContent>
       </Card>
@@ -102,8 +102,8 @@ export function AmountDueSection({
         <CardContent className="py-5">
           <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            We couldn&apos;t confirm every show balance with the server, so we&apos;re not showing a
-            total yet. Your payment history is still below.
+            We couldn&apos;t confirm every show balance, so we&apos;re not showing a total yet. Your
+            payment history is still below.
           </p>
         </CardContent>
       </Card>

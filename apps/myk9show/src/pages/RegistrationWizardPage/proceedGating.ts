@@ -91,7 +91,7 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       // agree to, so nothing below this can be decided either. Unavailable
       // outranks loading — never ask someone to wait for a failed read.
       if (ctx.entryWindowTimezoneUnavailable) {
-        return 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.';
+        return 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection, then restart the app.';
       }
       if (!ctx.entryWindowTimezoneReady) {
         return 'Loading show details. Please wait, then try again.';

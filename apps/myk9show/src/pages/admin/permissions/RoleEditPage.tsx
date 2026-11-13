@@ -136,7 +136,9 @@ const RoleEditPage: React.FC = () => {
       const codes = rolePermissions.map(rp => {
         const code = codeById.get(rp.permission_id);
         if (!code)
-          throw new Error('A permission on this role could not be loaded. Reload and try again.');
+          throw new Error(
+            'A permission on this role could not be loaded. Restart the app and try again.'
+          );
         return code;
       });
       await rbacService.updateRole(roleId, { permissions: codes });

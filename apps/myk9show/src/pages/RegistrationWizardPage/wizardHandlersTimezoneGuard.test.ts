@@ -80,7 +80,7 @@ describe('handleNext — the show timezone guard (MYK9-642 N-F6)', () => {
     expect(submitPaymentStep).not.toHaveBeenCalled();
     const message = vi.mocked(notifications.error).mock.calls[0]?.[0] as string;
     expect(message).toMatch(/could not load/i);
-    expect(message).toMatch(/reload/i);
+    expect(message).toMatch(/restart the app/i);
     expect(message).not.toMatch(/still loading/i);
   });
 

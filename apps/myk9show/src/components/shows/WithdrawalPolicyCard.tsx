@@ -288,8 +288,8 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
         */}
         {isError && (
           <p className="text-sm text-destructive" role="alert">
-            Could not load the current policy. Reload before editing — saving now would overwrite
-            it.
+            We could not load the current policy. Restart the app before editing, or saving now
+            would overwrite it.
           </p>
         )}
         <Button

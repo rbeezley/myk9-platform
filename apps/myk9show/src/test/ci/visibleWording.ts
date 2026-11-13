@@ -36,8 +36,8 @@ const NON_VISIBLE_MATCH_KEYS = new Set([
 /**
  * Offline and update words (MYK9-1848; ui-vocabulary.md, "Offline and updates"). Phrases, not
  * bare words: "sync", "server" and "cache" also name developer logs, admin tools and code, so
- * each rule names the shape a person was shown. "reload" is not checked: "Reload the page" is
- * still the copy on cart and wizard errors that are not offline messages.
+ * each rule names the shape a person was shown. "reload" is not checked yet: the screens say
+ * "restart the app" since MYK9-1926, and MYK9-1928 tightens this guard to bare words.
  */
 const OFFLINE_RULES: ReadonlyArray<{ pattern: RegExp; rule: string }> = [
   {

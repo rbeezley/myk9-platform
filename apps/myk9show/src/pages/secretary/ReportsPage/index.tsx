@@ -282,7 +282,7 @@ export default function ReportsPage() {
       if (!printStatusKnown || !printState) {
         toast(
           printStatusUnavailable
-            ? 'Print dialog opened. Reload before recording it printed because print status is unavailable.'
+            ? 'Print dialog opened. Restart the app before recording it printed because print status is unavailable.'
             : 'Print dialog opened. Wait for print status to finish loading before recording it printed.'
         );
         return;
@@ -301,7 +301,7 @@ export default function ReportsPage() {
 
   const confirmPrinted = async (descriptor: PaperworkDescriptor) => {
     if (!user || !printStatusKnown || !printState) {
-      toast.error('Print status is unavailable. Reload before recording it printed.');
+      toast.error('Print status is unavailable. Restart the app before recording it printed.');
       return;
     }
     try {

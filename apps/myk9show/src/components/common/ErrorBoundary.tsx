@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorClassificationService } from '@/services/error/ErrorClassificationService';
 import type { ErrorDetails } from '@/services/error/GlobalErrorHandler';
+import { RESTART_THE_APP_LABEL } from '@/lib/offlineCopy';
 import { logger } from '@/services/LoggingService';
 import { captureErrorBoundaryException } from '@/services/observability/sentry';
 
@@ -207,7 +208,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   )}
                   <Button variant="outline" onClick={this.handleReload} className="w-full">
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Reload Page
+                    {RESTART_THE_APP_LABEL}
                   </Button>
                   <Button variant="outline" onClick={this.handleGoHome} className="w-full">
                     <Home className="h-4 w-4 mr-2" />

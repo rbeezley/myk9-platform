@@ -7,7 +7,7 @@
 
 /** Plain language for the desk: a raw storage error means nothing there. */
 export const CAPACITY_UNREADABLE =
-  "We couldn't check class capacity on this device. Reload the page and try again.";
+  "We couldn't check class capacity on this device. Restart the app and try again.";
 
 /** Plain language for the desk when the show's classes or trials are not on this device. */
 export const STRUCTURE_NOT_LOADED =
@@ -15,4 +15,4 @@ export const STRUCTURE_NOT_LOADED =
 
 /** The show's entries could not be read on this device before run order was assigned. */
 export const SHOW_ENTRIES_UNREADABLE =
-  "We couldn't read this show's entries on this device. Reload the page and try again.";
+  "We couldn't read this show's entries on this device. Restart the app and try again.";

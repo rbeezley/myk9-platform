@@ -60,13 +60,13 @@ describe('CartPage when the re-check emptied the cart', () => {
     const saved = { cart: cartState.cart, error: cartState.error };
     cartState.cart = null;
     cartState.error =
-      'We could not check the entries in your payment link. Please reload the page to try again.';
+      'We could not check the entries in your payment link. Please restart the app to try again.';
     try {
       render(<CartPage />);
 
       expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
       expect(screen.getByRole('alert')).toHaveTextContent(
-        'We could not check the entries in your payment link. Please reload the page to try again.'
+        'We could not check the entries in your payment link. Please restart the app to try again.'
       );
     } finally {
       Object.assign(cartState, saved);

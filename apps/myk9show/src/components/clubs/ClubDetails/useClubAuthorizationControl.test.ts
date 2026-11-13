@@ -197,7 +197,7 @@ describe('useClubAuthorizationControl', () => {
 
       await waitFor(() => {
         expect(mockedNotifications.warning).toHaveBeenCalledWith(
-          'Club authorization revoked. This page could not refresh yet; reload to see the change.'
+          'Club authorization revoked. This page could not update yet. Restart the app to see the change.'
         );
       });
       expect(mockedNotifications.success).not.toHaveBeenCalled();

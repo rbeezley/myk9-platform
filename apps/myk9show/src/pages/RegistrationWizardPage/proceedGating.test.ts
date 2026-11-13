@@ -137,7 +137,7 @@ describe('proceedBlockedReason', () => {
         })
       );
       expect(reason).toMatch(/could not load/i);
-      expect(reason).toMatch(/reload/i);
+      expect(reason).toMatch(/restart the app/i);
       expect(reason).not.toMatch(/please wait/i);
     });
 

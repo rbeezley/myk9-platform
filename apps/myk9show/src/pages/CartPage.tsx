@@ -341,7 +341,7 @@ export default function CartPage() {
         const removed = await removeItem(itemId);
         if (!removed) {
           setError(
-            'Your waitlist request was saved, but we could not refresh your entry for payment. Please reload the page before trying again.'
+            'Your waitlist request was saved, but we could not refresh your entry for payment. Please restart the app before trying again.'
           );
           stopCheckingOut();
           return;

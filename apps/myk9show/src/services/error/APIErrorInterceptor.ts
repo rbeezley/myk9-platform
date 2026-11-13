@@ -69,7 +69,7 @@ class APIErrorInterceptor {
     409: 'This action conflicts with the current state. Please refresh and try again.',
     422: 'Invalid data provided. Please check the form and try again.',
     429: 'Too many requests. Please wait a moment and try again.',
-    500: 'Server error occurred. Our team has been notified.',
+    500: 'Something went wrong on our side. Try again. Our team has been notified.',
     502: 'Service temporarily unavailable. Please try again in a moment.',
     503: 'Service under maintenance. Please try again later.',
     504: 'Request timed out. Please try again.',

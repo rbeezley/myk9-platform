@@ -14,14 +14,14 @@ import { toLocalDateOnly } from '@/utils/date-format';
 // (PUBLIC_SHOW_STATUSES below) — not only on 'published'.
 
 export const PUBLISH_BLOCKED_MESSAGE =
-  "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.";
+  "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.";
 
 /** Mirrors enforce_show_publish_gate()'s club_id IS NULL refusal verbatim
- * (supabase/migrations/20260916003500). Distinct from PUBLISH_BLOCKED_MESSAGE
+ * (latest definition: supabase/migrations/20261113204300, MYK9-1887). Distinct from PUBLISH_BLOCKED_MESSAGE
  * so callers can decide whether a "connect Stripe" action makes sense --
  * it never does for this refusal. */
 export const CLUB_REQUIRED_MESSAGE =
-  'Assign a club to this show before publishing — entry fees are paid out to the club.';
+  'Assign a club to this show before publishing. Entry fees are paid out to the club.';
 
 export function canEnableOnlineEntries(
   account: { payouts_enabled: boolean } | null | undefined
@@ -35,7 +35,8 @@ export function canEnableOnlineEntries(
 // ONLY when the show takes online entries; a mail-in show publishes without a
 // payment account. Turning the switch on for an already-public show needs the
 // payouts too. Mirrors enforce_show_publish_gate()
-// (supabase/migrations/20261003221700).
+// (supabase/migrations/20261003221700; its refusal text last changed in
+// 20261113204300, MYK9-1887).
 // ---------------------------------------------------------------------------
 
 /** Help text under the switch, in the wizard and the show edit panel. */
@@ -55,7 +56,7 @@ export const ONLINE_ENTRIES_LOCKED_HINT = "Change online entries from the show's
 /** The trigger's refusal to turn online entries on for a public show without
  * Stripe payouts (MK003), verbatim. */
 export const ONLINE_ENTRIES_BLOCKED_MESSAGE =
-  "Connect your club's payment account before turning on online entries — online entry fees need somewhere to go. Find it under My Club → Payments.";
+  "Connect your club's payment account before turning on online entries. Online entry fees need somewhere to go. Find it under My Club → Payments.";
 
 /** What exhibitors read on a show that takes no online entries. */
 export const MAIL_IN_ENTRY_NOTE =
@@ -154,7 +155,7 @@ export const CLUB_UNAUTHORIZED_MESSAGE =
 export const PUBLISH_GATE_ERRCODE_ENTRY_WINDOW = 'MK005';
 
 export const ENTRY_WINDOW_REQUIRED_MESSAGE =
-  'Set the entry window before publishing — exhibitors need to know when entries open and close.';
+  'Set the entry window before publishing. Exhibitors need to know when entries open and close.';
 
 export const ENTRY_WINDOW_ORDER_MESSAGE =
   "The entry window can't close before it opens. Fix the entry dates, then publish.";

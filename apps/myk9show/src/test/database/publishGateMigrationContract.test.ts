@@ -54,6 +54,16 @@ function gateFunctionBody(): string {
   return sql.slice(start, end);
 }
 
+/** MYK9-979's migration: it created private.show_status_is_public and the
+ * online_entries_enabled backfill. A later migration that only re-creates the
+ * gate function (MYK9-1887) carries neither, so these are read from here. */
+function onlineEntriesSwitchSql(): string {
+  return readFileSync(
+    resolve(MIGRATIONS_DIR, '20261003221700_myk9_979_online_entries_switch.sql'),
+    'utf8'
+  );
+}
+
 function triggerSql(): string {
   return latestMigrationContaining(/CREATE TRIGGER trg_enforce_show_publish_gate\b/);
 }
@@ -67,7 +77,15 @@ function sqlEscaped(text: string): string {
 describe('enforce_show_publish_gate migration text', () => {
   it('resolves the latest enforce_show_publish_gate definition', () => {
     expect(() => migrationSql()).not.toThrow();
-    expect(migrationSql()).toMatch(/MYK9-979/);
+    expect(migrationSql()).toMatch(/MYK9-1887/);
+  });
+
+  // MYK9-1887: secretary-facing refusal text carries no em dash. The
+  // client constants mirror it, so checking the function body covers both.
+  it('raises no message with an em dash', () => {
+    const raised = [...gateFunctionBody().matchAll(/RAISE EXCEPTION '((?:[^']|'')*)'/g)];
+    expect(raised).toHaveLength(7);
+    for (const [, message] of raised) expect(message).not.toContain('\u2014');
   });
 
   it('raises PUBLISH_BLOCKED_MESSAGE verbatim for the no-Stripe-readiness refusal', () => {
@@ -101,7 +119,9 @@ describe('enforce_show_publish_gate migration text', () => {
   });
 
   it('keys the gate on the one public-status predicate, whose list matches the client mirror', () => {
-    const sql = migrationSql();
+    const sql = latestMigrationContaining(
+      /CREATE OR REPLACE FUNCTION private\.show_status_is_public\b/
+    );
     const predicate = sql.match(
       /CREATE OR REPLACE FUNCTION private\.show_status_is_public[\s\S]*?ARRAY\[([^\]]+)\]/
     );
@@ -185,7 +205,7 @@ describe('enforce_show_publish_gate migration text', () => {
     const BACKFILL = /UPDATE public\.shows s\n {3}SET online_entries_enabled = \([\s\S]*?\);/;
 
     it('writes every show and bumps updated_at', () => {
-      const statement = migrationSql().match(BACKFILL)?.[0] ?? '';
+      const statement = onlineEntriesSwitchSql().match(BACKFILL)?.[0] ?? '';
       // Everything after the SET value expression: only the updated_at bump,
       // no WHERE that could leave a row at the column default.
       const tail = statement.split('\n       ),\n')[1];
@@ -193,7 +213,7 @@ describe('enforce_show_publish_gate migration text', () => {
     });
 
     it('is exercised verbatim by the behavioral SQL test', () => {
-      const statement = migrationSql().match(BACKFILL)?.[0];
+      const statement = onlineEntriesSwitchSql().match(BACKFILL)?.[0];
       const sqlTest = readFileSync(
         resolve(MIGRATIONS_DIR, '../tests/myk9_979_online_entries_switch_test.sql'),
         'utf8'

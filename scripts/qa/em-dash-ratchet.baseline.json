@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-11T23:00:59.198Z",
-  "total": 408,
+  "updatedAt": "2026-11-13T15:25:11.261Z",
+  "total": 404,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -153,7 +153,6 @@
     "apps/myk9show/src/features/monogram/landing/sections/HeroBlock.tsx": 1,
     "apps/myk9show/src/features/payments/ClubFeeTransparencyNote.tsx": 1,
     "apps/myk9show/src/features/payments/PlatformFeeSplitLines.tsx": 1,
-    "apps/myk9show/src/features/payments/onlineEntryGate.ts": 4,
     "apps/myk9show/src/features/payments/useClubStripeAccount.ts": 2,
     "apps/myk9show/src/features/pipeline/constants.ts": 1,
     "apps/myk9show/src/features/pipeline/mission-control-types.ts": 1,

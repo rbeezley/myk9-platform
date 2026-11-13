@@ -65,6 +65,23 @@ describe('useAuth sign-out purges warm tokens', () => {
     expect(loadRbacPermissionsCache('user-a')).not.toBeNull();
   });
 
+  it('signs this device out locally when the server sign-out fails (offline, 5xx)', async () => {
+    // supabase-js 2.119 keeps the session when a global sign-out's request fails.
+    seedCaches();
+    auth.signOut
+      .mockResolvedValueOnce({ error: new Error('Failed to fetch') })
+      .mockResolvedValueOnce({ error: null });
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(auth.signOut).toHaveBeenLastCalledWith({ scope: 'local' });
+    expect(hasFreshRbacWarmToken('user-a')).toBe(false);
+  });
+
   it('a SIGNED_OUT event (expiry, suspension, another tab) clears them', async () => {
     seedCaches();
     const { result } = renderHook(() => useAuth());

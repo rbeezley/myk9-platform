@@ -365,9 +365,14 @@ export function useAuth() {
    * @throws {AuthError} If sign out fails
    */
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
+    const { error: globalError } = await supabase.auth.signOut();
+    if (globalError) {
+      // supabase-js 2.119+ keeps the session when the server request fails (offline, 5xx).
+      // Signing out must still sign this device out; `local` drops the session first.
+      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+      if (localError) {
+        throw localError;
+      }
     }
     await replicatedClassesTable.clearCachedHideCounts();
     // Appearance cache holds the signed-out user's per-user preferences;

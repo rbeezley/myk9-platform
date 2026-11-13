@@ -37,7 +37,7 @@ On a show of two days, four trials and 24 classes with two judges a day, that is
 | Three places count "ready to close" differently: the Visibility settings sheet counts cancelled classes as unreleased; the finish row leaves them out; the finish row's "all done" ignores printing, while a class's "Done" requires it.                                   | They can disagree for one show.                                                                                       |
 | Show Desk marks every class "Submitted to registry" from the one show-level submission.                                                                                                                                                                                    | True for the show, misleading per class.                                                                              |
 | Exhibitors get a phone alert when a class is released. The "results available" email exists but is switched off, because nothing sends it.                                                                                                                                 | An exhibitor without alerts hears nothing.                                                                            |
-| The payout to the club runs automatically three days after the show's end date, whether or not the show is closed. Not checked: whether undecided refunds hold it.                                                                                                         | Money may move before close-out is settled.                                                                           |
+| The payout to the club runs automatically three days after the show's end date, whether or not the show is closed, and does not wait for undecided refunds (re-read). After it is sent the app refuses further refunds for that show. Nothing tells the secretary.         | Money may move before close-out is settled.                                                                           |
 
 ## Design
 
@@ -50,9 +50,10 @@ The finish row on the Results tab becomes the "Finish the show" list: everything
 > - 3 classes to release
 > - Paperwork to print for 2 trials
 > - Initials from 1 judge: Pat Donovan, Monday
-> - 2 entries unpaid · 1 refund to decide
-> - Send results to AKC
-> - Mail to AKC by Dec 15: signed catalog, Trial Secretary Report, Certification, Judge's Report · fee $216
+> - 2 entries unpaid
+> - 1 refund to decide before Thursday's payout. After that the club refunds directly.
+> - Results file sent to AKC · Mon 7:40 PM ✓
+> - Paperwork to mail by Dec 15: signed catalog, three forms, fee about $216 (48 runs at $4.50) · Mark as mailed
 > - Close the show
 
 Rules:
@@ -63,29 +64,57 @@ Rules:
 - **It lives on the Results tab**, the home of the After phase. Show Desk's existing pills link to it. No new page.
 - **The registry lines come from the registry**, not from app constants scattered in forms: what to send, how, by when, and what it costs. Read through the `@/features/registries` helpers.
 
+### What the app knows, and what she tells it
+
+The list never claims more than the app knows.
+
+- **The AKC results file ticks itself.** The app sends it (`supabase/functions/send-results`), so "sent Mon 7:40 PM" is a fact, and the copy of what was sent is permanent. A corrected file is a second send recorded after the first.
+- **Everything else is her tick**: the AKC paperwork, and all of UKC and ASCA. Those lines read "Marked as mailed Tuesday" or "Marked as submitted", never "received". The app does not hear whether a registry accepted anything.
+- **"Results changed since they were sent."** If a score changes after the results file went, the list says so and offers to resend. This is what protects the record, whether or not the show is closed.
+
+Not yet verified against the regulations: exactly what AKC requires on paper when results are sent electronically. The forms named above come from the text on one form in the app. Check before the list tells a secretary what to mail.
+
 ### Close reads the same list
 
-"Close the show" shows the list's unticked lines as what is still open. What she saw while working down the list is what she sees before closing.
+"Close the show" shows the list's unticked lines as what is still open, each with its link. Nothing blocks. When she closes with lines still open, the show records which ones.
+
+### Closing locks nothing for staff, and can be reopened
+
+A search of the database rules on 2026-11-13 found one thing a completed show refuses: an exhibitor withdrawing or pulling their own entry. In the app an exhibitor also cannot edit their own entry, the show moves to "Past", and the public page stops offering entry. Nothing was found that stops a secretary correcting a score, editing an entry or changing a class on a closed show.
+
+That stays. Closing is a marker that the show is finished, not a lock.
+
+- **"Reopen show"** for the mis-tap: the show's secretary, any time, with the reason kept. It flips the status back and nothing else.
+- "Mark completed" on the Shows list is removed, or opens the show's close step. It must not set the status by itself.
 
 ### Fewer taps
 
-"Release all checked classes" on the Results tab, for classes already checked against paper. The per-class release stays.
+She ticks classes in the Results list and releases them together. The dialog names them: "Release results for these 9 classes? You're confirming their scores match the paper sheets." She chooses which, so the record of checking stays honest. The Results list's existing bulk bar gains the button; the per-class release stays.
 
-### One door, and a way back
+### The registry deadline
 
-- "Mark completed" on the Shows list is removed, or opens the show's close step. It must not set the status by itself.
-- A closed show can be reopened.
+The list shows the date, counted from the last trial day in the show's own time zone. The secretary gets one reminder two days before, for whichever line is still open, and none once it is ticked. The fee is shown as an estimate with the rate beside it, since the rate changes yearly.
 
-## Decisions for the owner
+### Exhibitors
 
-1. **Warn or block at close.** Today everything is a warning. Proposal: keep warnings ("smart defaults, never a restriction"), with one exception to consider: results not sent to the registry.
-2. **Reopening.** Who may reopen a closed show, and for how long? Proposal: the show's secretary, any time, with the reason recorded.
-3. **What a closed show locks.** Proposal: scoring, entry edits and late entries are refused on a closed show, and reopening is the way to change anything. Depends on what Phase 0 finds the server does today.
-4. **Release all.** Proposal: only classes already checked against paper; never an unchecked class.
-5. **The registry deadline.** Proposal: show the date on the list and send the secretary one reminder two days before. No more than that.
-6. **The exhibitors' results email.** Turn it on when a show's results are all released, or leave it off? It is one email per exhibitor per show, and results privacy is unaffected because it links to their own results.
-7. **Undoing "Mark as submitted".** Proposal: allow it, with the reason recorded, since the alternative is a record of something that did not happen.
-8. **The payout.** If Phase 0 finds it does not wait for undecided refunds, decide whether it should.
+One email per exhibitor when the last class of the show is released: "Results from {show} are ready", linking to their own results on My Shows. It lists nobody's results, so privacy is unaffected, and a show the club keeps private still sends it. A class released after the email has gone sends the phone alert as today and no second email. Following the link is where an exhibitor whose dog placed is asked once about showing results publicly (MYK9-1944).
+
+### Money
+
+The club's payout goes out three days after the show's last day, whether or not the show is closed, and does not wait for refunds that are undecided (`cron-process-payouts`, re-read 2026-11-13). Once it has been sent, the app refuses any further refund for that show (`_shared/refundValidation.ts`: `payout_already_sent`). So the secretary has three days to decide refunds in the app.
+
+The payout is left alone. The list shows the date on the refund line. When a refund is refused because the payout has gone, the message says so plainly and tells her the club now pays the exhibitor directly.
+
+## Decisions (owner, 2026-11-13)
+
+1. **Close warns about everything and blocks nothing**, and records what was still open.
+2. **Reopening:** the show's secretary, any time, reason kept.
+3. **A closed show locks nothing for staff.** Decided with 2: adding a lock would have meant building a second feature to get round it.
+4. **Tick and release.** She chooses the classes; no "release everything".
+5. **The registry deadline:** the date on the list and one reminder two days before.
+6. **The exhibitors' results email:** one per exhibitor when all results are released.
+7. **"Mark as submitted" and "Mark as mailed" can be undone**, with a reason kept. The AKC results file's record cannot.
+8. **The payout is left alone;** the list shows its date. Holding back only the amounts in question is recorded as a later option, MYK9-1947.
 
 ## Phases
 
@@ -94,7 +123,9 @@ Rules:
 - Walk the sequence end to end and count the actions.
 - What a closed show refuses, in the app and on the server (score, edit an entry, add a late entry, change a class).
 - Whether "Mark completed" on the Shows list leaves trials and classes open.
-- Whether the payout waits for undecided refunds (`apps/myk9show/supabase/functions/cron-process-payouts`).
+- That a secretary can still correct a score and edit an entry on a closed show, as the search suggests.
+- What the secretary reads today when a refund is refused after the payout.
+- What AKC requires on paper when results are sent electronically, from the current regulations.
 - For UKC and ASCA: the deadline and what is owed, from the rulebooks in `docs/rulebooks/`. The July review (`docs/roles/secretary-registry-closeout-verification.md`) lists what was unfinished then; re-check each row.
 - Whether `ShowCompletionWorkflow.tsx` is used anywhere. If not, delete it.
 
@@ -102,9 +133,11 @@ Rules:
 
 **Phase 2: the list.** The finish row becomes the list, each line a link. Show Desk's pills point at it. Submit points on to Close.
 
-**Phase 3: close and reopen.** The close step reads the list. The second door goes. Reopen, and whatever locking the owner decides.
+**Phase 3: close and reopen.** The close step reads the list and records what was open. The second door goes. "Reopen show". Undo for the lines she ticks herself.
 
-**Phase 4: fewer taps.** Release all checked classes.
+**Phase 4: fewer taps.** Tick and release.
+
+**Phase 4b: the deadline reminder and the exhibitors' email.** Each is one scheduled email with a clear stop condition.
 
 **Phase 5: testing.**
 

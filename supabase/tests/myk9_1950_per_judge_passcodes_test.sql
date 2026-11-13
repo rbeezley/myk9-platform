@@ -16,6 +16,10 @@
 --      hash and generation; removing a judge's last class retires their code
 --   E. per-code revocation: regenerating one judge's code stales only that code's claim
 --   F. get_show_access_codes: a manager reads every judge's code with name and person_id
+--   G/H. regenerate / insert_show_passcodes keep one code per judge and no show-wide code
+--   I. ringside_update_class and ringside_complete_stale_class share the per-judge scope; a
+--      show-level assignment mints no code; a soft-deleted judge is refused; the judge/person CHECK;
+--      assigning a judge succeeds when code minting fails
 --
 -- Fixtures roll back. Conventions match myk9_1754_entry_score_audit_test.sql. Runs only in CI.
 
@@ -713,6 +717,210 @@ begin
     raise exception 'FAIL H.3 insert_show_passcodes replaced the judge code';
   end if;
   raise notice 'PASS H insert_show_passcodes after judge assignment keeps the judge code';
+end;
+$$;
+
+-- ===========================================================================
+-- I. Class writes (ringside_update_class, ringside_complete_stale_class) share the per-judge scope;
+--    show-level rows mint no code; a soft-deleted judge is refused; the CHECK constraint; and an
+--    assignment write survives a minting failure.
+-- ===========================================================================
+insert into public.people (id, first_name, last_name) values
+  ('00000000-0000-0000-0000-000001950024', 'Dan', 'JudgeD'),
+  ('00000000-0000-0000-0000-000001950025', 'Eve', 'JudgeE');
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status)
+values ('00000000-0000-0000-0000-000001950081', 'MYK9-1950 Class Scope Show', 'AKC',
+        current_date, current_date, '00000000-0000-0000-0000-000001950030', 'published');
+insert into public.trials (id, show_id, name, date)
+values ('00000000-0000-0000-0000-000001950082', '00000000-0000-0000-0000-000001950081',
+        'MYK9-1950 Class Scope Trial', current_date);
+insert into public.classes (id, trial_id, name, status) values
+  ('00000000-0000-0000-0000-000001950083', '00000000-0000-0000-0000-000001950082', 'K1', 'upcoming'),
+  ('00000000-0000-0000-0000-000001950084', '00000000-0000-0000-0000-000001950082', 'K2', 'upcoming');
+insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, confirmed_at) values
+  ('00000000-0000-0000-0000-000001950024', '00000000-0000-0000-0000-000001950081', NULL,
+   '00000000-0000-0000-0000-000001950083', 'confirmed', now()),
+  ('00000000-0000-0000-0000-000001950025', '00000000-0000-0000-0000-000001950081', NULL,
+   '00000000-0000-0000-0000-000001950084', 'confirmed', now());
+-- A show-level panel row (class_id NULL) is a roster entry: it must mint no code.
+insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, confirmed_at)
+values ('00000000-0000-0000-0000-000001950023', '00000000-0000-0000-0000-000001950081', NULL, NULL,
+        'confirmed', now());
+
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000001950101');
+select * from public.insert_show_passcodes('00000000-0000-0000-0000-000001950081');
+reset role;
+
+create or replace function pg_temp.as_passcode_in(p_show text, p_role text, p_person text, p_generation text)
+returns void language sql as $$
+  select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001950199', true),
+         set_config('request.jwt.claims', jsonb_build_object(
+           'sub', '00000000-0000-0000-0000-000001950199',
+           'role', 'authenticated',
+           'is_anonymous', true,
+           'app_metadata', jsonb_strip_nulls(jsonb_build_object(
+             'kind', 'ringside_passcode',
+             'show_id', p_show,
+             'ringside_role', p_role,
+             'ringside_person_id', p_person,
+             'passcode_generation', p_generation)))::text, true);
+$$;
+grant execute on function pg_temp.as_passcode_in(text, text, text, text) to authenticated;
+
+-- One class-RPC attempt. Records SQLSTATE | message | detail, or 'ok'.
+create or replace function pg_temp.attempt_class(p_label text, p_which text, p_class uuid)
+returns void language plpgsql as $$
+declare
+  v_detail text;
+  v_outcome text;
+begin
+  begin
+    if p_which = 'update' then
+      perform public.ringside_update_class(p_class, jsonb_build_object('start_time', '09:00'), null);
+    else
+      perform public.ringside_complete_stale_class(p_class, '{}'::uuid[]);
+    end if;
+    v_outcome := 'ok';
+  exception when others then
+    get stacked diagnostics v_detail = pg_exception_detail;
+    v_outcome := sqlstate || '|' || sqlerrm || '|' || coalesce(v_detail, '');
+  end;
+  insert into myk9_1950 values (p_label, v_outcome)
+  on conflict (step) do update set value = excluded.value;
+end;
+$$;
+grant execute on function pg_temp.attempt_class(text, text, uuid) to authenticated;
+
+insert into myk9_1950
+select 'd_gen', created_at::text from public.show_passcodes
+ where show_id = '00000000-0000-0000-0000-000001950081' and person_id = '00000000-0000-0000-0000-000001950024';
+insert into myk9_1950
+select 'e_gen', created_at::text from public.show_passcodes
+ where show_id = '00000000-0000-0000-0000-000001950081' and person_id = '00000000-0000-0000-0000-000001950025';
+insert into myk9_1950
+select 'k_admin_gen', created_at::text from public.show_passcodes
+ where show_id = '00000000-0000-0000-0000-000001950081' and role = 'admin';
+
+set local role authenticated;
+select pg_temp.as_passcode_in('00000000-0000-0000-0000-000001950081', 'judge',
+  '00000000-0000-0000-0000-000001950024', (select value from myk9_1950 where step = 'd_gen'));
+select pg_temp.attempt_class('k_update_own', 'update', '00000000-0000-0000-0000-000001950083');
+select pg_temp.attempt_class('k_update_other', 'update', '00000000-0000-0000-0000-000001950084');
+select pg_temp.attempt_class('k_stale_own', 'stale', '00000000-0000-0000-0000-000001950083');
+select pg_temp.attempt_class('k_stale_other', 'stale', '00000000-0000-0000-0000-000001950084');
+select pg_temp.as_passcode_in('00000000-0000-0000-0000-000001950081', 'admin', NULL,
+  (select value from myk9_1950 where step = 'k_admin_gen'));
+select pg_temp.attempt_class('k_update_admin', 'update', '00000000-0000-0000-0000-000001950084');
+select pg_temp.attempt_class('k_stale_admin', 'stale', '00000000-0000-0000-0000-000001950084');
+reset role;
+
+do $$
+declare
+  v_e_id text := '00000000-0000-0000-0000-000001950025';
+  v_out text;
+begin
+  if exists (select 1 from public.show_passcodes
+              where show_id = '00000000-0000-0000-0000-000001950081'
+                and person_id = '00000000-0000-0000-0000-000001950023') then
+    raise exception 'FAIL I.1 a show-level (class_id NULL) assignment must not mint a judge code';
+  end if;
+  if (select count(*) from public.show_passcodes
+       where show_id = '00000000-0000-0000-0000-000001950081' and role = 'judge') <> 2 then
+    raise exception 'FAIL I.2 expected exactly the two class-level judges to have codes';
+  end if;
+
+  for v_out in select value from myk9_1950 where step in ('k_update_own', 'k_stale_own', 'k_update_admin', 'k_stale_admin') loop
+    if v_out <> 'ok' then
+      raise exception 'FAIL I.3 own-class and admin class writes must be allowed, got %', v_out;
+    end if;
+  end loop;
+  for v_out in select value from myk9_1950 where step in ('k_update_other', 'k_stale_other') loop
+    if v_out not like '%RS403|This class is judged by Eve JudgeE|' || v_e_id then
+      raise exception 'FAIL I.4 another judge''s class must refuse with RS403 naming the judge, got %', v_out;
+    end if;
+  end loop;
+  raise notice 'PASS I.1-I.4 class writes share the per-judge scope; show-level rows mint no code';
+end;
+$$;
+
+-- A soft-deleted judge is refused on their own class, through all three RPCs.
+update public.people set deleted_at = now() where id = '00000000-0000-0000-0000-000001950024';
+set local role authenticated;
+select pg_temp.as_passcode_in('00000000-0000-0000-0000-000001950081', 'judge',
+  '00000000-0000-0000-0000-000001950024', (select value from myk9_1950 where step = 'd_gen'));
+select pg_temp.attempt_class('k_deleted_update', 'update', '00000000-0000-0000-0000-000001950083');
+select pg_temp.attempt_class('k_deleted_stale', 'stale', '00000000-0000-0000-0000-000001950083');
+reset role;
+do $$
+declare
+  v_out text;
+begin
+  for v_out in select value from myk9_1950 where step in ('k_deleted_update', 'k_deleted_stale') loop
+    if v_out not like 'RS403|%' then
+      raise exception 'FAIL I.5 a soft-deleted judge must be refused with RS403, got %', v_out;
+    end if;
+  end loop;
+  if public._ringside_judge_in_scope('00000000-0000-0000-0000-000001950083',
+       '00000000-0000-0000-0000-000001950024') then
+    raise exception 'FAIL I.6 _ringside_judge_in_scope must be false for a soft-deleted judge';
+  end if;
+  raise notice 'PASS I.5-I.6 a soft-deleted judge is out of scope';
+end;
+$$;
+update public.people set deleted_at = NULL where id = '00000000-0000-0000-0000-000001950024';
+
+-- The CHECK: only judge codes carry a person, and every judge code carries one.
+do $$
+begin
+  begin
+    insert into public.show_passcodes (show_id, role, passcode_hash, person_id)
+    values ('00000000-0000-0000-0000-000001950081', 'judge', repeat('a', 64), NULL);
+    raise exception 'FAIL I.7 a judge code without a person must be refused';
+  exception when check_violation then
+    null;
+  end;
+  begin
+    insert into public.show_passcodes (show_id, role, passcode_hash, person_id)
+    values ('00000000-0000-0000-0000-000001950081', 'steward', repeat('b', 64),
+            '00000000-0000-0000-0000-000001950024');
+    raise exception 'FAIL I.8 a non-judge code carrying a person must be refused';
+  exception when check_violation then
+    null;
+  end;
+  raise notice 'PASS I.7-I.8 show_passcodes_judge_person_check';
+end;
+$$;
+
+-- Assigning a judge never fails because a code cannot be minted. Simulate the failure the cheapest
+-- honest way: the code generator raises 55000, as it does when the Vault pepper is unset. This
+-- replaces the function for the rest of this rolled-back transaction, so it stays last.
+create or replace function public._generate_unique_role_code(p_role text)
+returns table (plaintext text, hash text)
+language plpgsql
+as $$
+begin
+  raise exception 'simulated: vault pepper unset' using errcode = '55000';
+end;
+$$;
+do $$
+declare
+  v_class constant uuid := '00000000-0000-0000-0000-000001950085';
+begin
+  insert into public.classes (id, trial_id, name, status)
+  values (v_class, '00000000-0000-0000-0000-000001950082', 'K3', 'upcoming');
+  insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, confirmed_at)
+  values ('00000000-0000-0000-0000-000001950023', '00000000-0000-0000-0000-000001950081', NULL,
+          v_class, 'confirmed', now());
+  if not exists (select 1 from public.judge_assignments where class_id = v_class) then
+    raise exception 'FAIL I.9 the assignment must be written when minting fails';
+  end if;
+  if exists (select 1 from public.show_passcodes
+              where show_id = '00000000-0000-0000-0000-000001950081'
+                and person_id = '00000000-0000-0000-0000-000001950023') then
+    raise exception 'FAIL I.10 no code can exist when minting failed';
+  end if;
+  raise notice 'PASS I.9-I.10 assigning a judge succeeds when code minting fails';
 end;
 $$;
 

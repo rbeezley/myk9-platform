@@ -231,16 +231,20 @@ from (
 ) as grants(person_id, auth_id, role_name, club_id, show_id, is_active, expires_at)
 join public.roles on roles.name = grants.role_name;
 
+-- MYK9-1950: a judge code belongs to a judge; the assignment trigger may already have minted it.
 insert into public.show_passcodes (
-  id, show_id, role, passcode_hash, passcode_ciphertext, created_at
+  id, show_id, role, passcode_hash, passcode_ciphertext, created_at, person_id
 ) values (
   '00000000-0000-0000-0000-000000114051',
   '00000000-0000-0000-0000-000000114002',
   'judge',
   'myk9-114-fixture-hash',
   null,
-  '2026-07-28 20:00:00+00'::timestamptz
-);
+  '2026-07-28 20:00:00+00'::timestamptz,
+  '00000000-0000-0000-0000-000000114013'
+)
+on conflict (show_id, person_id) where person_id is not null
+do update set passcode_hash = excluded.passcode_hash, created_at = excluded.created_at;
 
 set local role authenticated;
 
@@ -433,7 +437,7 @@ $$;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000114199', true);
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000114199","role":"authenticated","app_metadata":{"kind":"ringside_passcode","show_id":"00000000-0000-0000-0000-000000114002","ringside_role":"judge","passcode_generation":"2026-07-28T20:00:00+00:00"}}',
+  '{"sub":"00000000-0000-0000-0000-000000114199","role":"authenticated","app_metadata":{"kind":"ringside_passcode","show_id":"00000000-0000-0000-0000-000000114002","ringside_role":"judge","ringside_person_id":"00000000-0000-0000-0000-000000114013","passcode_generation":"2026-07-28T20:00:00+00:00"}}',
   true
 );
 do $$
@@ -455,7 +459,7 @@ $$;
 -- A stale generation loses all claim-based access.
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000114199","role":"authenticated","app_metadata":{"kind":"ringside_passcode","show_id":"00000000-0000-0000-0000-000000114002","ringside_role":"judge","passcode_generation":"2026-07-28T19:00:00+00:00"}}',
+  '{"sub":"00000000-0000-0000-0000-000000114199","role":"authenticated","app_metadata":{"kind":"ringside_passcode","show_id":"00000000-0000-0000-0000-000000114002","ringside_role":"judge","ringside_person_id":"00000000-0000-0000-0000-000000114013","passcode_generation":"2026-07-28T19:00:00+00:00"}}',
   true
 );
 do $$

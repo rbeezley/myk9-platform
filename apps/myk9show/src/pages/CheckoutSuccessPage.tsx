@@ -25,6 +25,7 @@ import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerif
 import { overflowRefundMessage } from '@/features/payments/overflowRefundCopy';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import { retireDraftsForCheckout } from '@/features/registration/retireDraftsForCheckout';
+import { EntryStatus } from '@/types/show-registration-types';
 
 interface EntryDetails {
   id: string;
@@ -34,6 +35,8 @@ interface EntryDetails {
   // Armband is claimed at registration (per dog, per show), so it is usually
   // already known here. Null only when the claim failed or hasn't run yet.
   armband_number: string | null;
+  /** Raw `entries.entry_status`: paying does not accept an entry (MYK9-1896). */
+  entry_status: string | null;
 }
 
 type SuccessfulCheckoutVerification = Extract<CheckoutVerificationResult, { success: true }>;
@@ -147,6 +150,7 @@ export default function CheckoutSuccessPage() {
                 `
                   id,
                   armband,
+                  entry_status,
                   dog_id,
                   class_id,
                   dogs:dog_id (name, call_name),
@@ -166,6 +170,7 @@ export default function CheckoutSuccessPage() {
                   class_name: (e.classes as { name: string })?.name || 'Unknown',
                   class_level: (e.classes as { level?: string })?.level || null,
                   armband_number: (e.armband as string | null) ?? null,
+                  entry_status: (e.entry_status as string | null) ?? null,
                 }))
               );
               // MYK9-509: the draft survives the cart hand-off so a CANCELLED
@@ -367,6 +372,10 @@ export default function CheckoutSuccessPage() {
   const waitlistEntries = splitSummary?.waitlistEntries ?? [];
   const isWaitlistOnlySuccess = confirmedEntryCount === 0 && waitlistEntries.length > 0;
   const isFullOverflowRefund = orderDetails?.checkoutOutcome === 'full_overflow_refund';
+  // "Paid stays pending": payment never accepts an entry, so "confirmed" is said
+  // only when every entry shown is accepted, the receipt step's own test.
+  const allEntriesAccepted =
+    entries.length > 0 && entries.every(e => e.entry_status === EntryStatus.ACCEPTED);
   const pageTitle = isWaitlistOnlySuccess
     ? 'Added to Waitlist'
     : isFullOverflowRefund
@@ -376,7 +385,9 @@ export default function CheckoutSuccessPage() {
     ? 'Your waitlist request has been recorded for the full classes in this entry.'
     : isFullOverflowRefund
       ? 'The remaining spots filled before your paid entries could be created.'
-      : 'Your payment has been processed and your entries are confirmed.';
+      : allEntriesAccepted
+        ? 'Your payment has been recorded and your entries are confirmed.'
+        : "Your payment has been recorded. Your entries are submitted, awaiting the secretary's review.";
 
   if (isLoading) {
     return (

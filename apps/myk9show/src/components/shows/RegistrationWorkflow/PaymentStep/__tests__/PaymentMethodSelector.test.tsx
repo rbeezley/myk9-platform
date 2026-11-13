@@ -91,6 +91,18 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/Online card payment is coming soon/)).not.toBeInTheDocument();
   });
+
+  // MYK9-1896: paying does not accept an entry ("paid stays pending").
+  it('tells card payers their entry goes to the secretary for review, not that it is confirmed', () => {
+    render(<PaymentMethodSelector {...baseProps} paymentMethod="credit_card" />);
+
+    expect(
+      screen.getByText(
+        "You'll be taken to our secure checkout to complete payment. Once payment is recorded, your entries are submitted, awaiting the secretary's review."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/confirmed/i)).not.toBeInTheDocument();
+  });
   // The check option's identifying icon must not be a check mark: a tick inside
   // an unselected option reads as "already selected" (entry-wizard-guidance —
   // payment-method options do not use a selection glyph as their icon).

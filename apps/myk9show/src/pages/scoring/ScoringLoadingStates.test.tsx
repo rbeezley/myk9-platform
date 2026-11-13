@@ -46,12 +46,6 @@ vi.mock('@myk9/scoring-ui', () => ({
     pendingEntries: [],
     completedEntries: [],
   }),
-  useDragAndDropEntries: () => ({
-    sensors: [],
-    handleDragStart: vi.fn(),
-    handleDragEnd: vi.fn(),
-    isDragging: false,
-  }),
 }));
 
 vi.mock('./hooks/usePaperScoring', () => ({

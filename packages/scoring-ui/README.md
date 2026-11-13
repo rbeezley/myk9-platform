@@ -10,7 +10,7 @@ Unused entry-mode sheets and registry slots were removed. Both mounted app scori
 
 ## Shared hooks
 
-`useStopwatch`, `useElementTimer`, and `useScoresheetScoring` support live scoring. Entry-list filtering, drag-and-drop, haptics, debounce, touch detection, and long-press helpers remain exported; see [the package barrel](src/index.ts).
+`useStopwatch`, `useElementTimer`, and `useScoresheetScoring` support live scoring. Haptics, debounce, touch detection, and long-press helpers remain exported; see [the package barrel](src/index.ts).
 
 `useElementTimer` is required by the live UKC Nosework sheet. The unmounted animation-settings, swipe-gesture, notification-permission, and dialog-state hook clusters were removed, not replaced with new UI.
 

@@ -16,6 +16,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
+import { classIdsOnDay, firstClassLine } from './firstClassForExhibitor';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
@@ -71,6 +72,7 @@ export function CheckInDesk({
     () => buildCheckInDeskPeople(entries, classes, now),
     [classes, now, entries]
   );
+  const dayClassIds = useMemo(() => classIdsOnDay(classes, now), [classes, now]);
   const rowsByEntryId = useMemo(
     () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),
     [people]
@@ -167,6 +169,7 @@ export function CheckInDesk({
             const dogs = groupCheckInDeskDogs(person);
             const waitingDogs = dogs.filter(dog => dog.pendingEntryIds.length > 0);
             const anyBusy = person.classRows.some(row => busyIds.has(row.entryId));
+            const firstClass = firstClassLine(person.classRows, dayClassIds);
             return (
               <section key={person.id} aria-label={person.name} className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-2">
@@ -198,6 +201,8 @@ export function CheckInDesk({
                     </Button>
                   )}
                 </div>
+                {/* Below the header row, so "Check in all" keeps its place beside the name. */}
+                {firstClass && <p className="text-sm text-muted-foreground">{firstClass}</p>}
                 {dogs.map(dog => (
                   <CheckInDeskDogCard
                     key={dog.key}

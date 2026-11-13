@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { StatusBadge } from '@/components/status';
-import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import type { CheckInDeskDog } from './checkInDeskModel';
+import { deskClassLine } from './deskClassLine';
 import { flaggedPullLabel, isFlaggedPull } from './deskStatus';
 import {
   DESK_CHECK_IN_STATUSES,
@@ -36,11 +36,6 @@ const ARRIVED_STATUSES: ReadonlySet<CheckInStatus> = new Set([
   'at-gate',
   'come-to-gate',
 ]);
-
-function classLine(row: PeopleRosterClassRow): string {
-  const time = formatStartTime(row.time);
-  return [row.dayLabel, row.className, row.ring, time].filter(Boolean).join(' · ');
-}
 
 /**
  * One dog on the Check-in desk (MYK9-1736): the armband badge the entry cards use, one tap to
@@ -111,7 +106,7 @@ export function CheckInDeskDogCard({
               className="flex flex-wrap items-center justify-between gap-x-2 border-t pt-1 text-sm first:border-t-0 first:pt-0"
             >
               <span className="min-w-0 flex-1 basis-48 text-muted-foreground">
-                {classLine(row)}
+                {deskClassLine(row)}
               </span>
               {row.deskStatusEditable || row.deskCanUnpull ? (
                 <button

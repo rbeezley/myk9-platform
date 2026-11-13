@@ -209,6 +209,31 @@ describe('CheckInDesk', () => {
     expect(beaRow).toHaveTextContent('Checked-in');
   });
 
+  it("answers what's first under each exhibitor, across their dogs", () => {
+    const cooper = entry({
+      id: 'entry-4',
+      dogId: 'dog-4',
+      dogName: 'Cooper',
+      armbandNumber: '115',
+      classes: [{ ...poppyInterior().classes[0]!, id: 'entry-4' }],
+    });
+    renderDesk([cooper, entry(), bea()]);
+
+    const alice = screen.getByRole('region', { name: 'Alice Martin' });
+    expect(within(alice).getByText(/^First class:/)).toHaveTextContent(
+      'First class: Container Novice A · Trial 1 · 9:00 AM (Poppy)'
+    );
+    expect(
+      within(screen.getByRole('region', { name: 'Bea Handler' })).getByText(/^First class:/)
+    ).toHaveTextContent('First class: Interior Novice A · Trial 1 · 10:30 AM (Biscuit)');
+  });
+
+  it('gives an exhibitor no first-class line once everything that day has run', () => {
+    renderDesk([entry({ isScored: true })]);
+    const alice = screen.getByRole('region', { name: 'Alice Martin' });
+    expect(within(alice).queryByText(/^First class:/)).not.toBeInTheDocument();
+  });
+
   it('puts focus in the search box on open', () => {
     renderDesk([entry()]);
     expect(screen.getByPlaceholderText('Search name, dog, armband')).toHaveFocus();

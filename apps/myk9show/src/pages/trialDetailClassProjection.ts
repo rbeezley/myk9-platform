@@ -20,7 +20,7 @@ export function toTrialDetailClass(classData: SyncableClassData, entries: number
       classData.status === 'Scheduled'
         ? 'Upcoming'
         : (classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled'),
-    judgeId: ((classData as unknown as Record<string, unknown>).judgeId as string) || 'TBD',
+    judgeId: ((classData as unknown as Record<string, unknown>).judgeId as string) || '',
     judgeName: classData.judge || '',
     startTime,
     entries,

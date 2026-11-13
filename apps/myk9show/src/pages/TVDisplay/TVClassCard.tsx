@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/status';
 import { TVClass, TVEntry, getTVStatusLabel, getDisplayName, formatArmband } from './types';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 
 interface TVClassCardProps {
   tvClass: TVClass;
@@ -59,7 +60,7 @@ export function TVClassCard({ tvClass, highlighted, maxNextUp = 5 }: TVClassCard
       <div className="px-3 py-2 flex items-center justify-between border-b border-zinc-700">
         <div>
           <span className="font-bold text-zinc-100 text-sm">{tvClass.name}</span>
-          {tvClass.judgeName && (
+          {!isUnsetJudgeName(tvClass.judgeName) && (
             <span className="text-zinc-500 text-xs ml-2">Judge: {tvClass.judgeName}</span>
           )}
         </div>

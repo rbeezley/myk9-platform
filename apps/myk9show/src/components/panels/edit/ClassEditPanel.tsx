@@ -52,8 +52,8 @@ export function resolveJudgeDisplay(
   judgeName: string | undefined,
   assignedJudges: ReadonlyArray<{ judgeId: string; judgeName: string }>
 ): string | undefined {
-  if (judgeId === 'TBD') return 'TBD';
-  if (!judgeId) return undefined;
+  // A legacy 'TBD' id is unset like an empty one (MYK9-1850): show the placeholder.
+  if (!judgeId || judgeId === 'TBD') return undefined;
   return getJudgeNameById(assignedJudges, judgeId) ?? judgeName;
 }
 

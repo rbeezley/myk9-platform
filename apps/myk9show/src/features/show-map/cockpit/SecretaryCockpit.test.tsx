@@ -250,43 +250,58 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it('selects a class from anywhere on its card, but not from its own controls', async () => {
+  it('selects a class from anywhere on its card', async () => {
     const { user } = render(
-      <SecretaryCockpit
-        snapshot={twoClassSnapshot()}
-        canManageShow
-        onCommand={vi.fn()}
-        entryBreakdownByClassId={new Map([['class-2', { entered: 1, pending: 2 }]])}
-      />,
+      <SecretaryCockpit snapshot={twoClassSnapshot()} canManageShow onCommand={vi.fn()} />,
       { initialRoute: '/shows/show-1' }
     );
     const card = document.getElementById('cockpit-anchor-class-2')!;
     const nameButton = within(card).getByRole('button', { name: 'Interior Novice' });
-    // Keep the link from navigating, so only the card's own handler is observed.
-    card.addEventListener('click', event => event.preventDefault(), { capture: true });
-
-    await user.click(within(card).getByRole('link', { name: '2 pending in Interior Novice' }));
     expect(nameButton).toHaveAttribute('aria-pressed', 'false');
 
-    // The card's plain text, well below the name row.
-    await user.click(within(card).getByText(/of 7 steps done/));
+    // The card's status line, well below the name row.
+    await user.click(within(card).getByTestId('class-status-line'));
     expect(nameButton).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('draws one square per checklist item on each class card', () => {
+  it('gives each class card two lines and no checklist strip (MYK9-1782)', () => {
     render(<SecretaryCockpit snapshot={twoClassSnapshot()} canManageShow onCommand={vi.fn()} />, {
       initialRoute: '/shows/show-1',
     });
-    const strip = within(document.getElementById('cockpit-anchor-class-2')!).getByTestId(
-      'class-checklist-strip'
-    );
-    const squares = strip.querySelectorAll('[data-state]');
+    const card = document.getElementById('cockpit-anchor-class-2')!;
 
-    expect(squares).toHaveLength(7);
-    expect(within(strip).getByText(/^\d of 7 steps done/)).toBeInTheDocument();
+    expect(within(card).queryByTestId('class-checklist-strip')).toBeNull();
+    expect(within(card).queryByText(/steps done/)).toBeNull();
+    expect(within(card).getByTestId('class-status-line')).toHaveTextContent('Not started');
+    expect(within(card).getByText('Judge to be announced')).toBeInTheDocument();
   });
 
-  it('shows "N of M scored" in place of the entered count once scoring has begun', () => {
+  it('marks a class on the Needs attention list with a red dot', () => {
+    const flaggedSnapshot = twoClassSnapshot();
+    const [first, second] = flaggedSnapshot.classes;
+    render(
+      <SecretaryCockpit
+        snapshot={{
+          ...flaggedSnapshot,
+          classes: [{ ...first!, attention: snapshot.classes[0]!.attention }, second!],
+        }}
+        canManageShow
+        onCommand={vi.fn()}
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+
+    expect(
+      within(document.getElementById('cockpit-anchor-class-1')!).getByTestId('class-attention-dot')
+    ).toBeInTheDocument();
+    expect(
+      within(document.getElementById('cockpit-anchor-class-2')!).queryByTestId(
+        'class-attention-dot'
+      )
+    ).toBeNull();
+  });
+
+  it('reads "Running · N of M" once scoring has begun', () => {
     const base = twoClassSnapshot();
     const snapshotScoring: SecretaryCockpitSnapshot = {
       ...base,
@@ -296,31 +311,15 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
           : cls
       ),
     };
-    render(
-      <SecretaryCockpit
-        snapshot={snapshotScoring}
-        canManageShow
-        onCommand={vi.fn()}
-        entryBreakdownByClassId={
-          new Map([
-            ['class-1', { entered: 4, pending: 0 }],
-            ['class-2', { entered: 3, pending: 1 }],
-          ])
-        }
-      />,
-      { initialRoute: '/shows/show-1' }
-    );
+    render(<SecretaryCockpit snapshot={snapshotScoring} canManageShow onCommand={vi.fn()} />, {
+      initialRoute: '/shows/show-1',
+    });
     const scoring = document.getElementById('cockpit-anchor-class-2')!;
-    const notStarted = document.getElementById('cockpit-anchor-class-1')!;
 
-    expect(within(scoring).getByText('1 of 3 scored')).toBeInTheDocument();
-    expect(within(scoring).queryByText(/entered/)).toBeNull();
+    expect(within(scoring).getByTestId('class-status-line')).toHaveTextContent('Running · 1 of 3');
     expect(
-      within(scoring).getByRole('link', { name: '1 pending in Interior Novice' })
-    ).toBeVisible();
-    // Before scoring can begin, the entered count stays.
-    expect(within(notStarted).getByText('4 entered')).toBeInTheDocument();
-    expect(within(notStarted).queryByText(/scored/)).toBeNull();
+      within(document.getElementById('cockpit-anchor-class-1')!).getByTestId('class-status-line')
+    ).toHaveTextContent('Not started');
   });
 
   it('writes the URL once per click on the class name', async () => {

@@ -15,7 +15,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
-import { useShowRefundAll, type ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
+import {
+  showRefundAllErrorMessage,
+  useShowRefundAll,
+  type ShowRefundAllResult,
+} from '@/features/payments/useShowRefundAll';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import { RefundResultDetail } from '@/components/shows/RefundResultDetail';
 
@@ -101,21 +105,26 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
         const { entriesRefunded, skipped, failed } = data.summary;
         const noun = (n: number) => `entr${n === 1 ? 'y' : 'ies'}`;
         if (entriesRefunded === 0) {
-          // Nothing was actually refunded — never a success toast.
-          if (failed > 0) toast.error(`No refunds issued — ${failed} failed.`);
+          // Nothing was recorded as refunded, so never a success toast. A failed row
+          // can still be a refund that went through (entry stamp did not save), so the
+          // failed copy makes no claim either way and points to the safe re-run.
+          if (failed > 0)
+            toast.error(
+              `${failed} ${failed === 1 ? 'payment' : 'payments'} may not have been refunded. See the details, then run Refund all again: it will not refund anyone twice.`
+            );
           else if (skipped > 0)
-            toast.warning(`No refunds issued — ${skipped} skipped, handle manually.`);
+            toast.warning(`No refunds issued. ${skipped} skipped, handle manually.`);
           else toast.info('Nothing to refund.');
         } else if (failed > 0) {
           toast.warning(
-            `Refunded ${entriesRefunded} ${noun(entriesRefunded)}, ${failed} failed — see details.`
+            `Refunded ${entriesRefunded} ${noun(entriesRefunded)}. ${failed} ${failed === 1 ? 'payment' : 'payments'} may not have been refunded: see the details.`
           );
         } else {
           toast.success(`Refunded the entry fees of ${entriesRefunded} ${noun(entriesRefunded)}.`);
         }
       },
-      onError: err =>
-        toast.error(friendlyDbError(err, 'Could not refund entries. Please try again.')),
+      // The hook's message is already plain; never the server's own text (MYK9-1824).
+      onError: err => toast.error(showRefundAllErrorMessage(err)),
     });
   };
 
@@ -181,12 +190,14 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
                 {result.summary.skipped > 0 && (
                   <p className="text-muted-foreground">
                     {result.summary.skipped} skipped (cash/check, already refunded, or shared
-                    payment) — handle manually.
+                    payment), handle manually.
                   </p>
                 )}
                 {result.summary.failed > 0 && (
                   <p className="text-destructive">
-                    {result.summary.failed} failed — retry is safe (refunds are not duplicated).
+                    {result.summary.failed} {result.summary.failed === 1 ? 'payment' : 'payments'}{' '}
+                    may not have been refunded. Run Refund all again: it will not refund anyone
+                    twice.
                   </p>
                 )}
                 <RefundResultDetail result={result} />
@@ -204,7 +215,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
               This refunds the entry fees of {count ?? 0} online-paid entr
               {count === 1 ? 'y' : 'ies'} for this cancelled show back to each exhibitor’s card. The
               service fee is not refunded. It cannot be undone. Cash and check payments are not
-              touched — refund those manually.
+              touched. Refund those manually.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

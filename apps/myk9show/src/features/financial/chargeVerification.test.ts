@@ -33,7 +33,7 @@ describe('isDeskPaymentLabel', () => {
     for (const label of [
       'Check',
       'Cash',
-      'Waived/Comped',
+      'Free entry',
       'Secretary Paid',
       'Group Payment',
       'Pending',
@@ -98,9 +98,7 @@ describe('resolveEntryChargeVerification', () => {
   it('NoFeeBreakdown for check, cash, or waived (no Stripe trace, stays in totals)', () => {
     expect(resolveEntryChargeVerification({ paymentLabel: 'Check' })).toBe('NoFeeBreakdown');
     expect(resolveEntryChargeVerification({ paymentLabel: 'Cash' })).toBe('NoFeeBreakdown');
-    expect(resolveEntryChargeVerification({ paymentLabel: 'Waived/Comped' })).toBe(
-      'NoFeeBreakdown'
-    );
+    expect(resolveEntryChargeVerification({ paymentLabel: 'Free entry' })).toBe('NoFeeBreakdown');
   });
 
   it('FeeBreakdown when an online line has a matched order snapshot', () => {

@@ -1,3 +1,4 @@
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 /**
  * Phase 1a data-dependency adapter — myK9Show replication → ringside.
  *
@@ -18,7 +19,6 @@
 
 import type { Entry, ClassInfo, EntryListData, EntryListDataDependencies } from '@myk9/ringside';
 import { buildCombinedClassName } from '@myk9/ringside/run-queue';
-import type { EntryStatus } from '@myk9/core';
 import {
   replicatedArmbandsTable,
   replicatedEntriesTable,
@@ -37,12 +37,13 @@ import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSigna
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
+import { settleRingRestores } from '@/utils/checkInTransitions';
 import type { AtShowSyncInFlight } from './atShowSyncOutcome';
 import { startAtShowSyncRun } from './atShowSyncRun';
+import { ringsideEntryRingState } from './atShowEntryRingState';
 import {
   classifyEntries,
   countEntryAccounting,
-  isNonRunningEntry,
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 
@@ -202,14 +203,7 @@ function timeLimitString(seconds?: number): string | undefined {
  */
 export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null): Entry {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
-  const lifecycleStatus = re.entryStatus ?? re.entry_status ?? re.status;
-  const status: EntryStatus = (
-    checkinStatus === 'pulled' || checkinStatus === 'in-ring'
-      ? checkinStatus
-      : isNonRunningEntry({ entryStatus: lifecycleStatus })
-        ? 'pulled'
-        : (checkinStatus ?? 'no-status')
-  ) as EntryStatus;
+  const { status, inRing } = ringsideEntryRingState(re);
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
   const resultText = re.resultStatus ?? re.result_status;
@@ -241,7 +235,8 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     isScored: re.isScored ?? re.is_scored ?? false,
     status,
     // Deprecated compat fields.
-    inRing: status === 'in-ring',
+    // The shared in-ring rule (MYK9-1892), never ring_entry_time: atShowEntryRingState.ts.
+    inRing,
     checkedIn: checkinStatus === 'checked-in',
 
     // Class-derived header fields.
@@ -270,6 +265,9 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     ...(finalPlacement != null && { placement: Number(finalPlacement) }),
     ...(totalPoints != null && { totalPoints }),
     ...(scoredAt != null && { scoredAt }),
+    // ring_entry_time is passed through as a TIMESTAMP only (ringside derives the class's actual
+    // start time from it). In-ring is decided above from `status` and never from this stamp,
+    // so a leftover stamp cannot make a dog look in the ring (MYK9-1892).
     ...(re.ring_entry_time != null && { ringEntryTime: re.ring_entry_time }),
     ...(re.ring_exit_time != null && { ringExitTime: re.ring_exit_time }),
     ...(re.disqualification_reason != null && { nqReason: re.disqualification_reason }),
@@ -326,7 +324,7 @@ export function buildClassInfo(
     level: cls.level ?? '',
     section: resolveClassSection(cls.section),
     trialDate: trial?.date ?? trial?.trial_date ?? entries[0]?.trialDate ?? '',
-    judgeName: cls.judgeName ?? 'No Judge Assigned',
+    judgeName: isUnsetJudgeName(cls.judgeName) ? 'No Judge Assigned' : cls.judgeName!.trim(),
     actualClassId: cls.id,
     // Resolved visibility-cascade values, denormalized onto ReplicatedClass at
     // sync time so they survive offline (Phase 1h). Fall back to enabled/
@@ -381,6 +379,8 @@ async function fetchClassData(
   rawEntries: ReplicatedEntry[];
   perAreaMaxTimes: boolean;
 }> {
+  // MYK9-1779: a list mounted by leaving a scoresheet reads after the dog is put back.
+  await settleRingRestores();
   const cls = await replicatedClassesTable.getClassById(classId);
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
   const armbandMaps = buildShowArmbandMaps(await replicatedArmbandsTable.getByShow(showId));
@@ -458,7 +458,9 @@ export function createAtShowDataDependencies(): Pick<
               : {}),
             actualClassIdA: classIdA,
             actualClassIdB: classIdB,
-            judgeNameB: b.cls?.judgeName ?? 'No Judge Assigned',
+            judgeNameB: isUnsetJudgeName(b.cls?.judgeName)
+              ? 'No Judge Assigned'
+              : b.cls!.judgeName!.trim(),
             isScoringFinalized: bothFinalized,
             resultsReleasedAt: bothReleasedAt,
           }

@@ -268,7 +268,7 @@ describe('My Entries terminal status display', () => {
     rerender(
       React.createElement(React.Fragment, null, getPaymentStatusBadge(PaymentStatus.WAIVED))
     );
-    expect(screen.getByText('Fee waived')).toBeInTheDocument();
+    expect(screen.getByText('Free entry')).toBeInTheDocument();
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
   });
 

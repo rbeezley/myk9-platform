@@ -373,7 +373,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 onCheckedChange={checked => updateConfig('venueWifi', checked === true)}
                 disabled={!wifiAvailable}
               />
-              <span>Venue WiFi {!wifiAvailable && '(not configured)'}</span>
+              <span>Venue Wi-Fi {!wifiAvailable && '(not configured)'}</span>
             </label>
           </div>
         </div>

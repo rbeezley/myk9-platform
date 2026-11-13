@@ -17,6 +17,7 @@
  *    so enqueueing the inverse while offline preserves ordering. We surface a
  *    "queued — will sync" outcome rather than claiming an immediate revert.
  */
+import { SENT_WHEN_ONLINE } from '@/lib/offlineCopy';
 import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
@@ -119,7 +120,7 @@ export function buildStatusUndoToastMessage(outcome: StatusUndoOutcome): UndoToa
     case 'reverted':
       return { kind: 'success', message: 'Change undone' };
     case 'queued':
-      return { kind: 'info', message: 'Undo queued — will sync when back online' };
+      return { kind: 'info', message: `Undo saved on this device. It ${SENT_WHEN_ONLINE}.` };
     case 'superseded':
       return { kind: 'error', message: 'Changed by someone else — not undone' };
     case 'missing':
@@ -136,7 +137,10 @@ export function buildBulkStatusUndoToastMessage(result: BulkStatusUndoResult): U
 
   if (problems === 0) {
     if (result.queued > 0 && result.reverted === 0) {
-      return { kind: 'info', message: `Undo queued for ${result.queued} — will sync when online` };
+      return {
+        kind: 'info',
+        message: `${result.queued} ${result.queued === 1 ? 'undo' : 'undos'} saved on this device. ${result.queued === 1 ? 'It' : 'They'} ${SENT_WHEN_ONLINE}.`,
+      };
     }
     return { kind: 'success', message: `Undid ${done} ${done === 1 ? 'change' : 'changes'}` };
   }

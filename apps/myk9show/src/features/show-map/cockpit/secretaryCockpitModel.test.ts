@@ -44,7 +44,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         lifecycle: 'complete',
         scoredCount: 10,
         closeout: 'needs-closeout',
-        operationalArea: { kind: 'search-area', labels: ['Gym · Search Area 2'] },
         attention: [
           {
             id: 'closeout',
@@ -65,7 +64,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         revisedExpectedStart: '10:12',
         lifecycle: 'in-progress',
         scoredCount: 8,
-        operationalArea: { kind: 'search-area', labels: ['Kitchen · Search Area 1'] },
         attention: [
           {
             id: 'scores',
@@ -83,7 +81,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         name: 'Container Novice A',
         scheduledStart: '10:00',
         lifecycle: 'not-started',
-        operationalArea: { kind: 'search-area', labels: ['Gym · Search Area 1'] },
         attention: [
           {
             id: 'move-up',
@@ -110,7 +107,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         classOrder: 1,
         lifecycle: 'not-started',
         judgeName: 'Judge Morgan',
-        operationalArea: null,
         paperwork: [
           {
             reportId: 'scoresheet',
@@ -410,45 +406,19 @@ describe('buildSecretaryCockpitModel attention projection', () => {
 });
 
 describe('buildSecretaryCockpitModel truth projection', () => {
-  it('keeps unknown evidence unknown and does not infer Operational Area from Judge', () => {
+  it('keeps unknown paperwork evidence unknown', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
       statuses: [],
       focusedClassId: 'untimed',
     });
 
-    expect(model.focusedClass?.operationalArea).toEqual({ evidence: 'unknown', value: null });
-    expect(model.focusedClass?.operationalArea.value).not.toBe('Judge Morgan');
     expect(model.focusedClass?.paperwork[0]).toMatchObject({
       evidence: 'unknown',
       state: 'unknown',
     });
   });
 
-  it('preserves sport-aware Operational Area kind and supplied wording', () => {
-    const scent = buildSecretaryCockpitModel(makeSnapshot(), {
-      statuses: [],
-      focusedClassId: 'active',
-    });
-    expect(scent.focusedClass?.operationalArea).toEqual({
-      evidence: 'recorded',
-      value: { kind: 'search-area', label: 'Kitchen · Search Area 1' },
-    });
-
-    const ringSnapshot = makeSnapshot({
-      classes: makeSnapshot().classes.map(cls =>
-        cls.id === 'active'
-          ? { ...cls, operationalArea: { kind: 'ring' as const, labels: ['Ring 2'] } }
-          : cls
-      ),
-    });
-    const ring = buildSecretaryCockpitModel(ringSnapshot, {
-      statuses: [],
-      focusedClassId: 'active',
-    });
-    expect(ring.focusedClass?.operationalArea.value).toEqual({ kind: 'ring', label: 'Ring 2' });
-  });
-
-  it('classifies lifecycle as recorded, progress as computed, and action groups outside lifecycle', () => {
+  it('classifies lifecycle as recorded, progress as computed', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
       statuses: [],
       focusedClassId: 'active',
@@ -459,8 +429,6 @@ describe('buildSecretaryCockpitModel truth projection', () => {
       evidence: 'computed',
       value: { completed: 8, total: 10 },
     });
-    expect(model.focusedClass).toHaveProperty('prepareActions');
-    expect(model.focusedClass).toHaveProperty('finishActions');
     expect(['not-started', 'in-progress', 'complete', 'cancelled']).toContain(
       model.focusedClass?.lifecycle.value
     );
@@ -618,14 +586,6 @@ describe('buildSecretaryCockpitModel show home', () => {
     expect(model.attention.all.filter(item => item.kind === 'preparation')).toEqual([]);
     expect(model.trialGroups.every(group => group.nowMarkerIndex === null)).toBe(true);
   });
-
-  it('carries the checklist count on each row', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
-    const complete = model.trialGroups[0]?.classes.find(row => row.id === 'complete');
-
-    expect(complete?.checklist).toMatchObject({ total: 7 });
-    expect(complete?.checklist?.done).toBeGreaterThan(0);
-  });
 });
 
 describe('the schedule shows the real start once a class has started (owner, 2026-10-03)', () => {
@@ -680,13 +640,10 @@ describe('the schedule shows the real start once a class has started (owner, 202
 
 describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1620)', () => {
   const unused = () => makeSnapshot({ printTrackingInUse: false, checklistInUse: false });
-  const rows = (model: ReturnType<typeof buildSecretaryCockpitModel>) =>
-    model.trialGroups.flatMap(group => group.classes);
 
-  it('shows no checklist strip and no Prepare chips on a show that never used them', () => {
+  it('shows no Prepare chips on a show that never used them', () => {
     const model = buildSecretaryCockpitModel(unused(), { statuses: [] });
 
-    expect(rows(model).map(row => row.checklist)).toEqual(rows(model).map(() => null));
     expect(model.attention.all.map(item => item.id)).not.toContain(
       'prepare:upcoming:check-in-sheet'
     );
@@ -695,26 +652,22 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
     expect(model.attention.all.map(item => item.id)).toEqual(
       expect.arrayContaining(['move-up', 'scores'])
     );
-    expect(model.focusedClass).toMatchObject({ printTrackingInUse: false, checklistInUse: false });
+    expect(model.focusedClass).toMatchObject({ printTrackingInUse: false });
   });
 
-  it('shows the strip and Prepare chips on every class once the show uses them', () => {
+  it('shows the Prepare chips once the show uses them', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
 
-    expect(rows(model).filter(row => row.id !== 'complete')).toSatisfy(
-      (list: ReturnType<typeof rows>) => list.every(row => row.checklist !== null)
-    );
     expect(model.attention.all.map(item => item.id)).toContain('prepare:upcoming:check-in-sheet');
-    expect(model.focusedClass).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
+    expect(model.focusedClass).toMatchObject({ printTrackingInUse: true });
   });
 
-  it('keeps the strip but drops Prepare chips when only a sign-off was recorded', () => {
+  it('drops Prepare chips when only a sign-off was recorded', () => {
     const model = buildSecretaryCockpitModel(
       makeSnapshot({ printTrackingInUse: false, checklistInUse: true }),
       { statuses: [] }
     );
 
-    expect(rows(model).every(row => row.checklist !== null)).toBe(true);
     expect(model.attention.all.some(item => item.kind === 'preparation')).toBe(false);
   });
 });

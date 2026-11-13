@@ -1,31 +1,6 @@
-const targetName = process.env.MYK9_MUTATION_TARGET;
+import { MUTATION_TARGET_DEFS as targets } from './scripts/qa/mutation/targets.mjs';
 
-const targets = {
-  cart: {
-    mutate: ['apps/myk9show/src/store/cartStore.helpers.ts'],
-    testFiles: ['apps/myk9show/src/store/cartStore.helpers.test.ts'],
-  },
-  'score-validator': {
-    mutate: ['apps/myk9show/src/services/scoring/ScoreValidatorService.ts'],
-    testFiles: ['apps/myk9show/src/services/scoring/ScoreValidatorService.test.ts'],
-  },
-  placement: {
-    mutate: ['apps/myk9show/src/services/scoring/PlacementCalculatorService.helpers.ts'],
-    testFiles: ['apps/myk9show/src/services/scoring/PlacementCalculatorService.helpers.test.ts'],
-  },
-  'replication-conflict': {
-    mutate: [
-      'packages/replication/src/conflict/ConflictResolver.ts',
-      'packages/replication/src/conflict/detectDirtyRowConflict.ts',
-      'packages/replication/src/core/ReplicatedTableConflict.ts',
-    ],
-    testFiles: [
-      'packages/replication/src/conflict/ConflictResolver.test.ts',
-      'packages/replication/src/conflict/detectDirtyRowConflict.test.ts',
-      'packages/replication/src/core/ReplicatedTableConflict.test.ts',
-    ],
-  },
-};
+const targetName = process.env.MYK9_MUTATION_TARGET;
 
 if (!targetName || !(targetName in targets)) {
   throw new Error(`Set MYK9_MUTATION_TARGET to one of: ${Object.keys(targets).join(', ')}`);
@@ -39,7 +14,17 @@ export default {
   testRunner: 'vitest',
   coverageAnalysis: 'perTest',
   mutate: target.mutate,
-  testFiles: target.testFiles,
+  // No `testFiles` here on purpose (MYK9-1829). Stryker turns a non-empty
+  // `testFiles` into a test filter on every mutant run, and any mutant with a
+  // filter is activated "at runtime" (vitest-runner stryker-setup.js L14-21:
+  // `beforeAll`, after the test file has imported the mutated module). A
+  // module-level (static) mutant is evaluated at import, so it was never active:
+  // parseDuration.ts L93 `const fail = ...` => `() => undefined` reported
+  // Survived with every test green. Without `testFiles`, static mutants run all
+  // tests with 'static' activation (set at setup time) and are Killed
+  // (experiment: that mutant is Killed by 23 tests). Which tests run is decided
+  // by `test.include` in vitest.mutation.config.ts; both come from
+  // scripts/qa/mutation/targets.mjs. assertTestsSawMutants.ts pins the L93 answer.
   vitest: {
     configFile: 'vitest.mutation.config.ts',
     related: false,

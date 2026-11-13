@@ -11,6 +11,7 @@ import type { User } from '@/types/user-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
 import { NewJudgeForm, type CreateJudgeData } from './NewJudgeForm';
 import { OrgAndJudgeNumberFields } from './OrgAndJudgeNumberFields';
+import { SHOW_ADMIN_COPY } from '@/components/shows/showAdminErrorCopy';
 
 export interface SaveCredentialsData {
   organization: string;
@@ -133,7 +134,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
       onAddJudge(formState.person.id);
       resetForm();
     } catch {
-      setSaveError('Failed to save. Please try again.');
+      setSaveError(SHOW_ADMIN_COPY.judgeCredentialsFailed);
     } finally {
       setSaving(false);
     }

@@ -14,6 +14,7 @@ import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { getEntryRegistrationRowId } from './showRegistrationProjection';
 import { EntryFocusedRegistration } from './EntryFocusedRegistration';
 import { EntryManagementBulkBar } from './EntryManagementBulkBar';
+import { useDecisionEmailedStatusChange } from './useDecisionEmailedStatusChange';
 import {
   entryCockpitResponsiveReducer,
   initialEntryCockpitResponsiveState,
@@ -25,12 +26,16 @@ import {
 import { downloadCsv } from '@/utils/downloadCsv';
 import type {
   BulkActionResult,
+  BulkStatusChangeOptions,
   EntryClass,
   EntryManagementEntry,
+  StatusChangeOptions,
 } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
-import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
+import { ENTRY_ACTION_COPY } from '@/hooks/entryManagementErrorCopy';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 // INTENT: `cockpit.state.queues` (the Filter menu's Status values) is
 // the single source of registration-status filtering on Entry Management. Do
@@ -61,8 +66,11 @@ interface EntryManagementCockpitProps {
   onStatusChange: (
     entryId: string,
     status: EntryStatus,
-    withdrawalReason?: string
+    withdrawalReason?: string,
+    options?: StatusChangeOptions
   ) => boolean | void | Promise<boolean | void>;
+  /** This show's decisions are emailed with no preview (`showSendsDecisionEmailsUnasked`). */
+  sendDecisionEmailsUnasked?: boolean;
   onCheckInStatusChange: (
     entry: EntryManagementEntry,
     entryClass: EntryClass,
@@ -76,7 +84,8 @@ interface EntryManagementCockpitProps {
   onBulkStatusChange: (
     entryIds: string[],
     status: EntryStatus,
-    onFullSuccess?: () => void
+    onFullSuccess?: () => void,
+    options?: BulkStatusChangeOptions
   ) => BulkActionResult | Promise<BulkActionResult>;
   onSendDecisionEmail: (
     registrationId: string,
@@ -84,6 +93,8 @@ interface EntryManagementCockpitProps {
     amountDue?: number
   ) => Promise<void>;
   onRefresh: () => void | Promise<void>;
+  /** The re-read after a desk write; handed what the write stored so the list takes it at once. */
+  onRefreshEntries?: EntriesRefresh | undefined;
   paymentLedger: EnrollmentLedgerControls;
 }
 
@@ -99,6 +110,7 @@ export function EntryManagementCockpit({
   busy = false,
   lastEmailedMap = {},
   onStatusChange,
+  sendDecisionEmailsUnasked = false,
   onCheckInStatusChange,
   onOpenEditEntry,
   onOpenArmbandDialog,
@@ -108,6 +120,7 @@ export function EntryManagementCockpit({
   onBulkStatusChange,
   onSendDecisionEmail,
   onRefresh,
+  onRefreshEntries,
   paymentLedger,
 }: EntryManagementCockpitProps) {
   const focusedKey = cockpit.focusedGroup?.groupKey ?? null;
@@ -141,7 +154,12 @@ export function EntryManagementCockpit({
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
   const { data: juniorDeclaredEntryIds } = useJuniorDeclaredEntryIds(showId);
-  const lifecycleEmails = useEntryDecisionLifecycleEmails({ showId, showName, entries });
+  const lifecycleEmails = useEntryDecisionLifecycleEmails({
+    showId,
+    showName,
+    entries,
+    sendUnasked: sendDecisionEmailsUnasked,
+  });
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
   const isResendDisabled = (registrationId: string) =>
     (resendCooldowns[registrationId] ?? 0) > Date.now();
@@ -158,7 +176,7 @@ export function EntryManagementCockpit({
         delete next[registrationId];
         return next;
       });
-      toast.error('Failed to resend email');
+      toast.error(ENTRY_ACTION_COPY.resendEmailFailed);
     }
   };
 
@@ -179,26 +197,13 @@ export function EntryManagementCockpit({
     downloadCsv(selectedEntriesExportFilename(), buildSelectedEntriesExportCsv(selectedEntries));
   };
 
-  const handleStatusChangeWithDecisionPrompt = async (
-    entryId: string,
-    status: EntryStatus,
-    withdrawalReason?: string
-  ) => {
-    const entry = entries.find(candidate => candidate.id === entryId);
-    const statusSaved = await onStatusChange(entryId, status, withdrawalReason);
-    if (
-      entry &&
-      statusSaved !== false &&
-      entry.registrationId &&
-      (status === EntryStatus.ACCEPTED || status === EntryStatus.WAITLIST)
-    ) {
-      lifecycleEmails.openDecisionPrompt(
-        { ...entry, entryStatus: status },
-        status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted'
-      );
-    }
-    return statusSaved;
-  };
+  const decisionEmailed = useDecisionEmailedStatusChange({
+    entries,
+    showName,
+    lifecycleEmails,
+    onStatusChange,
+    onBulkStatusChange,
+  });
 
   const selectedEntries = cockpit.selection.selectedItems.flatMap(group => group.entries);
   const showQueue = !responsive.compact || !responsive.detailOpen;
@@ -256,8 +261,11 @@ export function EntryManagementCockpit({
           className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
         >
           <span className="text-foreground">
-            Couldn&rsquo;t load the classes for the picked trials, so the list below is not limited
-            to those trials.
+            We couldn&rsquo;t load the classes for the trials you picked, so the list below shows
+            the whole show.{' '}
+            {onRetryTrialClasses
+              ? 'Press Try again to load them.'
+              : 'Refresh the page to try again.'}
           </span>
           {onRetryTrialClasses && (
             <Button
@@ -267,7 +275,7 @@ export function EntryManagementCockpit({
               className="min-h-11"
               onClick={onRetryTrialClasses}
             >
-              Retry
+              Try again
             </Button>
           )}
         </div>
@@ -344,10 +352,10 @@ export function EntryManagementCockpit({
                     },
                   }
                 : {})}
-              onStatusChange={handleStatusChangeWithDecisionPrompt}
+              onStatusChange={decisionEmailed.onStatusChange}
               onEntryRefunded={onRefresh}
               onEntryRestored={onRefresh}
-              onRefreshEntries={onRefresh}
+              onRefreshEntries={onRefreshEntries ?? onRefresh}
               onCheckInStatusChange={onCheckInStatusChange}
               onOpenEditEntry={onOpenEditEntry}
               onOpenArmbandDialog={onOpenArmbandDialog}
@@ -361,7 +369,7 @@ export function EntryManagementCockpit({
               matchingEntryIds={
                 new Set(cockpit.matchingEntryIdsByGroup.get(cockpit.focusedGroup.groupKey) ?? [])
               }
-              onBulkStatusChange={onBulkStatusChange}
+              onBulkStatusChange={decisionEmailed.onBulkStatusChange}
               paymentLedger={paymentLedger}
               emailStatusMap={emailStatusMap}
               juniorDeclaredEntryIds={juniorDeclaredEntryIds}
@@ -384,7 +392,7 @@ export function EntryManagementCockpit({
       <EntryManagementBulkBar
         registrations={cockpit.selection.selectedCount}
         selectedEntries={selectedEntries}
-        onBulkStatusChange={onBulkStatusChange}
+        onBulkStatusChange={decisionEmailed.onBulkStatusChange}
         onClear={cockpit.selection.clearSelection}
         busy={busy}
         isResendDisabled={isResendDisabled}

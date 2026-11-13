@@ -10,9 +10,11 @@ Keep responses concise, short, and to the point. Lead with the answer or action.
 
 This block is the one rulebook for Claude Code and Codex. Edit it HERE (`docs/agents/shared-rules.md`), then run `pnpm qa:shared-rules:write`; CI fails if `CLAUDE.md` or `AGENTS.md` drifts from it. Harness-specific material lives outside the markers in each file.
 
+It is the always-loaded summary. The full text is equally binding and lives where the work happens: `docs/agents/rules-reference.md`, and the `db-push`, `deploy`, `playwright-cli`, `commit` and `ship-pr` skills, which also carry the lessons for their kind of work. Read the named one before starting that work.
+
 ## Product Goal
 
-Default long-term goal: make myK9 launch-ready for fall 2026, with secretary/show-day reliability as the highest priority. Use [`docs/goals/fall-2026-launch-readiness.md`](docs/goals/fall-2026-launch-readiness.md) as the prioritization frame when choosing and executing backlog work.
+Default long-term goal: make myK9 launch-ready for fall 2026, with secretary/show-day reliability as the highest priority. Use `docs/goals/fall-2026-launch-readiness.md` as the prioritization frame when choosing and executing backlog work.
 
 ## Project Overview
 
@@ -20,245 +22,139 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 
 ## Current development phase — consolidate, don't duplicate
 
-The project is **pre-launch with no real users yet** for the monorepo myK9Show app. The old monorepo `apps/myk9q` app has been deleted after being absorbed into myK9Show `/at-show`; do not rebuild it. The current phase is focused on **simplifying and consolidating** — making a smooth, intuitive, logical workflow across the app. We are **not** in a phase of building new isolated features or adding more surface area.
+Pre-launch, **no real users yet**. The old `apps/myk9q` app was absorbed into myK9Show `/at-show` and deleted; do not rebuild it. This phase **simplifies and consolidates** one coherent workflow; it does not add surface area. Before proposing a page, sheet, dialog or affordance:
 
-This shapes every UX decision. Before proposing a new page, sheet, dialog, or affordance:
-
-1. **Search for the existing surface first.** If a feature looks like it duplicates an existing page (e.g., "approve entries" exists on both the workbench _and_ the Entries Management page), that is a smell. Add a _link_ between the surfaces; do not reimplement.
-2. **A fast path is not always new UI.** If the user needs a quicker way to do something that exists on page B, the answer is often a deep-link from page A to page B with filters pre-applied — not a re-implementation on page A.
-3. **One concern, one page.** When in doubt about whether work belongs on page A or page B, ask. Don't guess by adding both. The workbench-collapse plan ([`docs/archive/plan-show-map-workbench-collapse.md`](docs/archive/plan-show-map-workbench-collapse.md)) is the precedent: it deleted Today + Wrap-up tabs not because they were wrong, but because their concerns belonged in fewer places.
-4. **State the duplication question explicitly when proposing a feature.** Before building, answer: _"Does this duplicate an existing page? If so, why is duplication justified instead of a link?"_ If the answer is "yes, no strong justification," narrow scope before writing code.
-5. **Deletions are a feature.** Removing a redundant surface is as valuable as adding a missing one — often more so at this phase. If you find yourself building something that overlaps an existing page, propose deleting the overlap.
-
-The mental model: the user's experience is a single coherent workflow, not a menu of independent screens. Every new affordance either tightens that workflow or fragments it. Default to tightening.
+1. **Search for the existing surface first.** A duplicate is a smell: link the surfaces, do not reimplement.
+2. **A fast path is often a deep-link** with filters pre-applied, not new UI.
+3. **One concern, one page.** Unsure which page owns it? Ask; never add both.
+4. **State the duplication question before building:** _"Does this duplicate an existing page? If so, why is duplication justified instead of a link?"_ No strong justification: narrow the scope.
+5. **Deletions are a feature.** Propose deleting an overlap instead of building into it.
 
 ## Intent & Emotional Design
 
-**Before making UX-facing changes, read [`docs/INTENT.md`](docs/INTENT.md).** It defines the emotional intent behind each role's experience. Every optimization, refactoring, or "improvement" to user-facing code should preserve the target feeling for that role. If code has an `// INTENT:` comment, do not remove or change the described behavior without explicit approval.
+**Before making UX-facing changes, read `docs/INTENT.md`.** Every optimization, refactoring, or "improvement" to user-facing code should preserve the target feeling for that role. If code has an `// INTENT:` comment, do not remove or change the described behavior without explicit approval.
 
 ## Development Principles
 
 1. **Don't guess or assume** — Verify facts, check actual code, ask if uncertain
-2. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
-3. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
-4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules. Only `pnpm qa:code-quality-ratchet` (Gates step 2) measures this; typecheck, lint and tests do not.
+2. **Follow DRY** — create reusable components where possible
+3. **Follow SLC** — Simple (no feature bloat), Lovable (UX polish, error states, delight), Complete (end-to-end, zero placeholders or TODOs)
+4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules. Only `pnpm qa:code-quality-ratchet` measures this.
 5. **Evidence over confidence** — Compilation is necessary but not sufficient. Before declaring work complete, verify the real artifact and relevant user-visible side effects. Trace bugs to their root cause. For non-trivial work, establish the data shape first, sequence changes into independently verifiable units, and prefer reusable tests or scripts for checks that will recur.
 
 ## Commands
 
-Package manager: **pnpm** (never `npm` or `npx`). Root scripts (`dev:show`, `build`, `typecheck`, `lint`) are in `package.json`; `pnpm dev:show` serves myK9Show at http://localhost:5173. The non-obvious ones:
+Package manager: **pnpm** (never `npm` or `npx`). Root scripts (`dev:show`, `build`, `typecheck`, `lint`) are in `package.json`; `pnpm dev:show` serves myK9Show at http://localhost:5173. Tests run from `apps/myk9show`: `pnpm test` (vitest; runs `qa:dist-fresh` first), `pnpm test:e2e` (playwright), `pnpm vitest run <files>` or `-t "pattern"` for a targeted run.
 
-```bash
-# Testing (run from app directories)
-cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest); runs qa:dist-fresh first
-cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
-
-# Run targeted test files
-cd apps/myk9show && pnpm vitest run src/path/to/first.test.ts src/path/to/second.test.ts
-# Run tests matching a name pattern
-cd apps/myk9show && pnpm vitest run -t "pattern"
-```
-
-Redirect check output to a file and echo the real exit status — a pipe through `tail`/`grep` reports the filter's exit code, not the runner's: `pnpm test > .logs/suite.log 2>&1; echo "EXIT=$?"`. `.logs/` at the worktree root is gitignored and per-worktree, so two sessions never share a log file — never log to `/tmp/<name>.log`, which every session on this Mac shares.
+Redirect check output to a file and echo the real exit status, because a pipe through `tail`/`grep` reports the filter's exit code: `pnpm test > .logs/suite.log 2>&1; echo "EXIT=$?"`. `.logs/` at the worktree root is gitignored and per-worktree; never log to `/tmp/<name>.log`, which every session on this Mac shares.
 
 ## Architecture Decisions
 
 - **UI library (myK9Show):** Base UI via shadcn/ui — NOT Radix (Radix stagnated after WorkOS acquisition)
 - **Database:** Unified Supabase project (`myk9-platform`)
 - **Refunds are never automatic; they require human approval.** Code that finds money it cannot honor queues a `refund_requests` row and alerts; only a person's action (a refund dialog, or the admin approval in `stripe-approve-refund`) may call `refunds.create`.
-- **Formatting:** Prettier (`.prettierrc` at the root). Claude Code formats on every file edit through a hook; Codex's PostToolUse hook runs `scripts/qa/format-changed.sh` after every tool call; CI's Quality Checks runs `pnpm format:check:changed` on the files changed since the merge base. `.astro` files and one runbook are deliberately ignored, with the reason in `.prettierignore`.
+- **Formatting:** Prettier (`.prettierrc` at the root). Both harnesses format on edit through a hook, and CI runs `pnpm format:check:changed`.
 
 ## Database Configuration
 
 - **Project ref:** `sojmvhhwsjxmfistvzbe`
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
-- **Migrations:** `supabase/migrations/` — versioned `YYYYMMDDHHMMSS_description.sql` (14-digit UTC timestamp). The `NNN_` files are the pre-2026 convention; read them, never extend them. Picking a version: see § Database Migrations below.
-- **Heritage / registry columns** (migrations 192–195): schema notes in [`docs/reference/heritage-registry-columns.md`](docs/reference/heritage-registry-columns.md) — always read via the `@/features/registries` helpers (`getShowStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
+- **Migrations:** `supabase/migrations/` — versioned `YYYYMMDDHHMMSS_description.sql` (14-digit UTC timestamp). The `NNN_` files are the pre-2026 convention; read them, never extend them.
+- **Heritage / registry columns** (migrations 192–195): always read via the `@/features/registries` helpers (`getShowStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
 
 ## Deployment
 
-- **What ships today:** nothing deploys on merge. `apps/myk9show/vercel.json` sets `git.deploymentEnabled: false`, so Vercel builds neither `main` nor PR branches for myK9Show. Production (myk9show.com and myk9-platform-myk9show.vercel.app) moves only when someone runs the **Deploy myK9Show** workflow (`gh workflow run deploy-myk9show.yml`), which builds the newest `main` commit with green CI and uploads it prebuilt. Running it is a shared-system write: only when the user asks, or under [standing approvals](docs/agents/standing-approvals.md). `main` routinely runs ahead of production; the run summary names the deployed commit.
-- **Dormant until MYK9-44:** the CI-gated path in `deploy-staging.yml` / `deploy-production.yml`. `STAGING_RELEASE_ENABLED` is unset, so every run is skipped and the `staging-release` / `guides-release` refs are frozen far behind `main`. Do not reason from it, fix it, or gate on it until that issue is In Progress; it is sequenced with the Stripe live cutover (MYK9-11). Runbook: `docs/operations/ci-vercel-deploys.md`.
-- **Legacy production myK9Qv3:** myk9q.com (separate repo, untouched)
-
-### Vercel Hobby quota / preview deploy discipline
-
-Vercel projects here share a Hobby account's 100-a-day deployment limit. Neither myK9Show nor the guides project (`apps/docs`) builds from Git any more: the guides publish only when someone runs `gh workflow run deploy-guides.yml`. A production deploy that fails with `api-deployments-free-per-day` is the quota, not the code. Follow [`docs/operations/vercel-preview-quota.md`](docs/operations/vercel-preview-quota.md) for the full runbook.
-
-- Before pushing a PR branch, batch local fixes and run local checks first; avoid micro-pushes.
-- PRs no longer get Vercel preview contexts; one that appears is not in the `main-required-checks` ruleset, so it never blocks, and say which check you ignored.
-- Confirm with the user before changing Vercel project settings.
+- **Nothing deploys on merge.** Production (myk9show.com) moves only when someone runs the **Deploy myK9Show** workflow (`gh workflow run deploy-myk9show.yml`), which builds the newest `main` commit with green CI. Running it is a shared-system write: only when the user asks, or under standing approvals. `main` routinely runs ahead of production. **Cadence:** at set points in the day and on demand before the owner tests, not after each merge.
+- **Dormant until MYK9-44:** `deploy-staging.yml` / `deploy-production.yml`. Do not reason from them, fix them, or gate on them.
+- **Vercel Hobby quota:** 100 deployments a day, shared. No project builds from Git; guides publish only via `gh workflow run deploy-guides.yml`. A deploy failing with `api-deployments-free-per-day` is the quota, not the code. Batch local fixes before pushing. A Vercel preview context never blocks a PR (say which check you ignored). Confirm with the user before changing Vercel project settings.
+- **Legacy production myK9Qv3:** myk9q.com (separate repo, untouched).
 
 ## Key Patterns
 
-### Offline-first data
+**Offline-first data.** myK9Show and its shared ringside packages are offline-first where show-day reliability requires it. Persistent app data that must work offline goes through replicated tables / replication-backed query functions (`@myk9/replication`); never bypass with direct Supabase reads in core flows. Direct PostgREST is acceptable only for explicitly online-only or auth-adjacent paths (user/auth queries, RPCs, checkout/promo flows, out-of-scope admin utilities). Mutations use the established mutation manager / replication workflow for the area.
 
-myK9Show and its shared ringside packages are offline-first where show-day reliability requires it. Always use replicated tables / replication-backed query functions for persistent app data that must work offline — never bypass with direct Supabase reads in core flows (breaks offline):
-
-```typescript
-import { replicatedClassesTable } from '@myk9/replication';
-await replicatedClassesTable.updateClassStatus(classId, status);
-```
-
-Direct PostgREST remains acceptable only for explicitly online-only or auth-adjacent paths documented in the migration design (for example user/auth queries, RPCs, checkout/promo flows, or other out-of-scope admin utilities). Mutations should use the established mutation manager / replication workflow for the area being changed.
-
-### State Management
-
-| Tool                  | Use For                                  | Examples                                   |
-| --------------------- | ---------------------------------------- | ------------------------------------------ |
-| **Zustand**           | Client/UI state shared across components | Modals, filters, selections, domain stores |
-| **React Query**       | Server state, async data fetching        | Lists, detail views, search results        |
-| **React Context**     | Cross-cutting concerns (rarely changes)  | Auth/RBAC, theme, app-wide config          |
-| **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, ringside scoring |
-| **Local `useState`**  | Ephemeral, component-scoped state        | Form inputs, timers, dialog open/close     |
+**State management.** Zustand for client/UI state shared across components; React Query for server state; React Context for rarely changing cross-cutting concerns (auth, theme); `@myk9/replication` for persistent data that must work offline; local `useState` for ephemeral component state.
 
 ## Testing
 
-Always ensure generated test code compiles cleanly: no `await` outside `async`, no unused variables (remove them rather than underscore-prefixing — the prefix silences the lint rule without removing the dead binding), and run the relevant suite before considering work complete.
-
-When a test runner hangs for more than 30 seconds, stop and report it rather than retrying in a loop. Known issue: the test suite has pre-existing timeout/hanging problems.
-
-Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render` — it wraps with QueryClient, Auth, and Router providers.
-
-**Assertion-first for value-sensitive bugs.** When a bug involves a specific value going to a specific place (enum string to a DB column, key in a response object, header in an HTTP call), write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation. A failing test proves the current wrong value; the fix then flips it green. This catches silent overwrites that visual inspection and typechecking miss.
-
-**Shuffled runs.** CI runs vitest with `--sequence.shuffle`; local runs do not. Run the whole app suite shuffled (`pnpm vitest run --sequence.shuffle`, never `pnpm test --sequence.shuffle`, which pnpm swallows) before pushing any test you added or touched — once when the change adds no module-scope mutable state, six or more times when it does. The `/commit` skill carries the arithmetic.
-
-App tests import every package's built `dist`; after editing a package, rebuild it (`pnpm --filter @myk9/<pkg> build`) or `pnpm qa:dist-fresh` will fail. Behavioral SQL tests under `supabase/tests/` run only in CI (no container runtime on the development Mac), so registering one is not the same as having run it.
+- Test code compiles cleanly: no `await` outside `async`, no unused variables (remove them, never underscore-prefix). Run the relevant suite before calling work complete.
+- A test runner that hangs for more than 30 seconds: stop and report, never retry in a loop.
+- Use the custom render from `src/test/utils/testUtils.tsx`, not raw `render`.
+- **Assertion-first for value-sensitive bugs.** When a specific value goes to a specific place, write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation.
+- **Shuffled runs.** CI shuffles, local runs do not. Before pushing a test you added or touched, run the whole app suite with `pnpm vitest run --sequence.shuffle` (never `pnpm test --sequence.shuffle`): once, or six or more times when the change adds module-scope mutable state.
+- App tests import every package's built `dist`; after editing a package, rebuild it (`pnpm --filter @myk9/<pkg> build`) or `pnpm qa:dist-fresh` fails. Behavioral SQL tests under `supabase/tests/` run only in CI, so registering one is not having run it.
 
 ## Workflow
 
-Linear (workspace `myk9-platform`, team **MyK9-platform**, issue prefix `MYK9-*`) is the tracker of record. Full querying rules: [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+Linear (workspace `myk9-platform`, team **MyK9-platform**, prefix `MYK9-*`) is the tracker of record; rules in `docs/agents/issue-tracker.md`. Every new issue gets a priority at creation (`1` Urgent to `4` Low by launch relevance, default `3`).
 
 ### Gates, in order
 
-1. **Before starting** work that will produce a PR: `pnpm qa:inflight` (exit 1 = an open PR, worktree or recent branch touches these paths; exit 2 = could not decide, not a pass), then the two checks a shell cannot make: Linear issues **In Progress** naming the paths, and (Claude Code) `list_sessions`. Set the Linear issue to In Progress and keep it there through review. In the same step, post one claim comment: `Claimed <YYYY-MM-DD HH:MM TZ> by <session title or run name> (<session link if any>) · branch <name or "none yet, prefix claude/myk9-<n>-"> · worktree <path or "cloud session <url>">`. One claim per worktree at a time, only once the worktree or cloud session exists; a second waits for a PR.
-2. **Before pushing**: the `/commit` skill's validation ladder (micro / low-risk / high-risk), and `pnpm qa:code-quality-ratchet` from the worktree when the change adds lines to an existing file.
-3. **Before merging**: scrutiny scales with risk — `pnpm qa:review-tier --base origin/main` reports the review floor and optional-review eligibility; authoritative rules are in `scripts/qa/review-tier.ts` and `docs/PLAYBOOK.md` § 4. `scripts/qa/post-review-gate.sh` is the only writer of a `Review gate:` line. **`independent`** — guardrails/security-sensitive paths require the OTHER harness (Codex for Claude-authored, Claude for Codex-authored; same-harness never suffices), via `pnpm qa:codex-review`; the verdict is pinned to the head SHA, so a later push needs a fresh review. PLAYBOOK § 4 specifies the rest: **optional review** (docs-only, small app-source, and labeled dependency-only diffs; CI stays required), **`adversarial`** (2+ same-harness bug-finding lenses, weaker than `independent`), **`none`**, and the **`owner` override**, which defers scrutiny to a named issue when the harness is unavailable. **Convergence.** Stop and restructure at the SECOND finding on the same path across rounds, or when findings describe code the PREVIOUS fix introduced. Both mean the design is wrong: ask whether to delete the feature first. Read severity, not count. **Filing.** A finding becomes a Linear issue only if a real user could plausibly hit it before launch and it causes real harm (wrong or lost data, money, blocked show-day work, a privacy or security exposure); note anything else in one line on the PR, and an override with nothing worth filing cites MYK9-1591 as its deferred review. Orchestrated changes ship one PR per batch and review after the structural batch ([`docs/lessons/README.md#orchestrated-change-rounds`](docs/lessons/README.md#orchestrated-change-rounds)). On stopping, post the restructure proposal instead of another patch. **Docs-only budget:** a documentation-only diff at the `independent` floor whose Codex round returns only P2 or lower stops at two rounds; P0/P1 fixed, residual findings triaged per **Filing**, exit per [`ship-pr`](.claude/skills/ship-pr/SKILL.md) Step 4.
-4. **Before calling checks green**: `bash scripts/qa/watch-pr-checks.sh <pr>` (0 green · 1 a REQUIRED check failed, named · 2 head moved · 3 timeout, NOT a verdict · 5 required green but a non-required check failed · 6 PR conflicts with its base, merge the base in). Never eyeball `statusCheckRollup`: "no pending checks" fires before CI registers, and the watcher reports only the FIRST required failure, so read the whole rollup before diagnosing.
-5. **After merge**: a merge is not a deploy. Migrations need `supabase db push`, edge functions need `supabase functions deploy` (see the `deploy` skill), and the frontend changes only on the next Deploy myK9Show run. Merged implementation awaiting acceptance evidence belongs In Review; unmerged implementation stays In Progress through code review. Apply the single disposition/hold table in [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md), including required production evidence from a run whose summary names a commit at or after the merge. Done requires a fresh full-issue read and every criterion satisfied.
+1. **Before starting** work that will produce a PR: `pnpm qa:inflight` (exit 1 = an open PR, worktree or recent branch touches these paths; exit 2 = could not decide, not a pass), then Linear issues **In Progress** naming the paths and (Claude Code) `list_sessions`. Set the issue In Progress through review and post one claim comment (format in the rules reference); one claim per worktree. **Batch by surface:** open issues naming the same page, sheet or flow share one branch, PR and deploy, each claimed and closed on its own; money work and anything adding a migration never joins a batch.
+2. **Before pushing**: the `/commit` validation ladder, and `pnpm qa:code-quality-ratchet` when the change adds lines to an existing file.
+3. **Before merging**: `pnpm qa:review-tier --base origin/main` reports the review floor (`none`, `adversarial`, `independent`, or optional review); rules in `scripts/qa/review-tier.ts` and `docs/PLAYBOOK.md` § 4. `scripts/qa/post-review-gate.sh` is the only writer of a `Review gate:` line. **`independent`** requires the OTHER harness (`pnpm qa:codex-review` for Claude-authored work; same-harness never suffices), and the verdict is pinned to the head SHA, so a later push needs a fresh review. **Convergence:** stop and restructure at the SECOND finding on the same path across rounds, when findings describe code the PREVIOUS fix introduced, or at a second bug fix on the same file or flow within seven days; ask whether to delete the feature first, and post the restructure proposal instead of another patch. **Filing:** a finding becomes a Linear issue only if a real user could plausibly hit it before launch and it causes real harm (wrong or lost data, money, blocked show-day work, a privacy or security exposure); anything else is one line on the PR. Overrides, lenses and the docs-only two-round budget: `ship-pr`.
+4. **Before calling checks green**: `bash scripts/qa/watch-pr-checks.sh <pr>` (0 green · 1 a REQUIRED check failed · 2 head moved · 3 timeout, NOT a verdict · 5 required green but a non-required check failed · 6 PR conflicts with its base, merge the base in). Never eyeball `statusCheckRollup`; the watcher names only the FIRST required failure, so read the whole rollup before diagnosing.
+5. **After merge**: a merge is not a deploy. Migrations need `supabase db push`, edge functions `supabase functions deploy` (the `deploy` skill), the frontend the next Deploy myK9Show run. Merged work awaiting acceptance evidence is In Review; unmerged work stays In Progress. Done requires a fresh full-issue read and every criterion met.
 
 ### Reading the board
 
-A default `list_issues` call sends `includeArchived: false`, and closed issues auto-archive, so Done issues vanish from default queries. Pass `includeArchived: true` on any query that asks "has this already been filed, fixed, or rejected?" — deduplicating a finding, reconciling an audit ledger, checking closure, or resolving a `MYK9-<n>` cited in code. Without the flag an empty result means "not open", never "never existed". `get_issue` by id resolves archived issues with no flag; prefer it whenever the id is known, and never move an issue to Done from a `list_issues` result — it truncates descriptions, hiding acceptance criteria.
+Closed issues auto-archive and a default `list_issues` hides them: pass `includeArchived: true` on any "has this been filed, fixed, or rejected?" query, or an empty result means only "not open". Prefer `get_issue` by id, and never move an issue to Done from a `list_issues` result (it truncates descriptions).
 
-### Before editing
+### Doing the work
 
-- Read the Linear issue, linked spec/plan, and relevant existing files; identify acceptance criteria and non-goals.
-- Inspect the current implementation patterns, `git status`, and the worktree state before changing files. Preserve unrelated work.
-- For show-day, persistent-data, or authorization work, verify the established replication and RBAC paths before adding a new one.
-
-### While editing
-
-- Implement only the stated acceptance criteria. Do not change unrelated files or alter existing behavior unless the issue requires it; refactor only when the criteria need it, minimally, explained in the PR.
-- Follow existing architecture, naming, code style, and UI conventions. Preserve offline-first behavior and established mutation flows.
-- Add or update tests for changes to logic, data flow, permissions, integrations, or user-visible behavior.
-
-### Before opening a PR
-
-- Run the narrowest useful verification for the touched files, review the diff for unrelated changes, and report any known unrelated broad-check failure alongside the targeted passes.
-- The PR description follows `.github/pull_request_template.md` when present and includes: what and why, Linear issue, checked acceptance criteria, relevant visual evidence, risk, how to test, intentional non-goals, material agent involvement, and follow-up issues.
-- Browser re-walks, OpenSpec verification, and operator/shared-system gates need recorded evidence or an explicit, owned acceptance before Done.
-
-### After implementation
-
-Post a comment on the Linear issue with:
-
-- **What changed** — summary of the implementation
-- **Tests/checks run** — what was executed and the result
-- **Branch or PR link**
-- **Risks or remaining work**
-- **Whether the acceptance criteria passed**
-
-Two files still take entries, but only when the work leaves something the issue does not carry: [`docs/qa/findings.md`](docs/qa/findings.md) for a QA finding that outlived the task, and [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md) for standing debt that is deliberately _not_ a Linear task. Static code-quality debt goes in neither; the ratchet measures it.
-
-### PR review standard
-
-Review against the linked Linear issue and its acceptance criteria. Check for scope gaps, defects, data-flow regressions, unnecessary expansion, security concerns, poor abstractions, missing loading/error states, and code that will be hard to maintain. Do not suggest unrelated improvements unless they are severe. Return findings in three groups: must fix before merge; should fix soon; no blocking findings / safe to merge. Which review to use when, and the Codex second-opinion policy: [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.
+- **Before editing:** read the Linear issue, its plan and the existing code; name the acceptance criteria and non-goals; check `git status` and preserve unrelated work. For show-day, persistent-data or authorization work, verify the established replication and RBAC paths first.
+- **While editing:** only the acceptance criteria, in the existing conventions; tests for changed logic, data flow, permissions, integrations or user-visible behavior.
+- **Before a PR:** the narrowest useful verification and a diff read for unrelated changes; body per `.github/pull_request_template.md`.
+- **After:** comment on the Linear issue with what changed, checks and results, branch or PR, risks, and whether the criteria passed.
+- **Reviewing a PR:** against the acceptance criteria; findings grouped must fix before merge / should fix soon / safe to merge.
 
 ## Worktree & Merge Workflow — hard rules
 
-Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md). The non-negotiable rules:
+Mechanics: `docs/reference/git-workflow.md`.
 
-1. **Work in a worktree, never the primary checkout,** whenever concurrent agents may be active — `.githooks/pre-commit` enforces this. Bypass once with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` only for the docs-only-direct-to-`main` flow. Git worktrees share history but **not** gitignored files; `bash scripts/bootstrap-worktree.sh` installs deps, copies `.env`, builds packages and activates the hooks.
-2. **Never run `gh pr merge` from inside a feature worktree** — run it from the main repo directory.
-3. **Merge with `gh pr merge --squash`, never `--delete-branch`** — its local half fails while a worktree holds the branch, and the weekly branch-janitor reaps merged remotes.
-4. **Leave the local branch.** Claude Code cannot delete it (`git branch -D` is a denied command there) and `-d` refuses squash-merged history. Codex may delete it after the worktree is removed, and only after proving the merge by SHA: `git rev-parse <branch>` must equal the merged PR's `headRefOid` — a PR matching the branch NAME is not proof, commits pushed after the merge are not in `main`.
-5. **Worktree removal is always the final command of the cleanup sequence**, run from a path that still exists.
-6. **Before a destructive history rewrite** (`reset --hard`, rebase drops, force-push), check for uncommitted edits in the working tree first — they get wiped, not carried.
-7. **Own a merge through completion.** When asked to merge or enable auto-merge, re-check against current `main`, resolve or update the branch if needed, run focused verification, and keep monitoring until the PR merges or hits a real blocker. A red check is a verdict on the base it ran against: if its run predates the `main` commit that fixed that failure, merge `origin/main` in and push (a rerun keeps the stale merge ref) — and that push is a new head, so the review gate runs again. Stop for user input only when the failure is unrelated to the PR, risky to fix, or needs a product decision.
+1. **Work in a worktree, never the primary checkout** (`.githooks/pre-commit` enforces it; `MYK9_ALLOW_PRIMARY_COMMIT=1` only for the docs-only-direct-to-`main` flow). Worktrees do not share gitignored files: `bash scripts/bootstrap-worktree.sh`.
+2. **Never run `gh pr merge` from inside a feature worktree**; run it from the main repo directory.
+3. **Merge with `gh pr merge --squash`, never `--delete-branch`.**
+4. **Leave the local branch.** Claude Code cannot delete it; Codex may, only after `git rev-parse <branch>` equals the merged PR's `headRefOid`.
+5. **Worktree removal is the final command of cleanup**, run from a path that still exists.
+6. **Before a destructive history rewrite** (`reset --hard`, rebase drops, force-push), check for uncommitted edits; they get wiped.
+7. **Own a merge through completion:** re-check against current `main`, verify, and monitor until it merges or hits a real blocker. A red check whose run predates the `main` fix: merge `origin/main` in and push, which is a new head, so the review gate runs again. Stop for the user only on a failure that is unrelated, risky to fix, or a product decision.
 
 ## Database Migrations
 
-- Before writing a migration that references existing rows (e.g., permissions), QUERY the target table first to confirm referenced values exist.
-- Run migration commands from the worktree linked to Supabase, not the main repo.
-- Pick a migration timestamp against `origin/main` AND the linked database, not your branch (`pnpm qa:migrations:guard` runs in CI; a version another PR merged first dies at `INSERT INTO supabase_migrations.schema_migrations`). Use a specific odd time such as `174500`, never a shared default like `120000`, and never `supabase db push` from an unmerged branch.
-- **Every `CREATE TABLE public.<name>` must include explicit `GRANT`s** to `anon` / `authenticated` / `service_role` as appropriate. As of Oct 30, 2026 Supabase no longer auto-exposes new `public` tables to the Data API (PostgREST / GraphQL / `supabase-js`); without a grant the table will silently 404 from the client. Template:
+Load the `db-push` skill before writing or pushing a migration; it carries these rules in full and the SQL lessons.
 
-  ```sql
-  GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table> TO authenticated;
-  GRANT SELECT ON public.<table> TO anon;  -- only if anon should read
-  REVOKE ALL ON public.<table> FROM anon;  -- REQUIRED if anon should have NO access
-  ```
-
-  Match the access level the table actually needs — never blanket-grant write to `anon`. Grants are orthogonal to RLS; both are still required.
-
-- **Omitting a `GRANT` does NOT keep `anon` out — you must `REVOKE` explicitly.** This project carries `ALTER DEFAULT PRIVILEGES` in schema `public` granting `anon` full CRUD (`arwdDxtm`) on **every newly created table** (verified via `pg_default_acl`; grantors are both `postgres` and `supabase_admin`). Those default privileges take precedence over the Oct 30 change above, so a table meant to exclude `anon` gets full anon CRUD unless the migration says otherwise, and RLS masks the gap when every policy is `TO authenticated` (MYK9-93).
-
-- **Verify grants against the applied database, not the migration text.** After `db push`:
-
-  ```sql
-  select unnest(relacl)::text from pg_class where oid = 'public.<table>'::regclass;
-  ```
-
-  Table-level ACLs are only half the picture — check column-level grants too. A broad `REVOKE ALL ON ALL TABLES ... FROM anon` silently drops them, `pg_class.relacl` will not show it, and a `select=*` PostgREST probe returns 200 either way:
-
-  ```sql
-  select a.attname, unnest(a.attacl)::text
-  from pg_attribute a
-  where a.attrelid = 'public.<table>'::regclass and a.attacl is not null;
-  ```
-
-  Do **not** use `information_schema.role_table_grants` for this: it only shows grants visible to the querying role and returns empty over the MCP connection, so it cannot prove absence.
+- Query the target table before a migration that references existing rows. Run migration commands from the worktree linked to Supabase.
+- Pick the timestamp against `origin/main` AND the linked database, at a specific odd time such as `174500`; never `supabase db push` from an unmerged branch.
+- **Every `CREATE TABLE public.<name>` carries explicit `GRANT`s, and an explicit `REVOKE ALL ... FROM anon` when anon gets no access.** Default privileges here grant `anon` full CRUD on every new table, so omitting a `GRANT` does not keep `anon` out. Grants are orthogonal to RLS; both are required.
+- Verify grants against the applied database (`pg_class.relacl` and column-level `pg_attribute.attacl`), never the migration text or `information_schema.role_table_grants`.
 
 ## Auto Mode — shared-system writes
 
-Tracked `.githooks/pre-push` enforces trusted `PUSH HOLD` / newer `PUSH RELEASE` directives, failing closed on GitHub errors. Verify `core.hooksPath` in every active checkout; old worktrees remain unguarded until updated.
+"Execute immediately" does NOT extend to shared-system mutations. Confirm before each, even when the request implied consent ("not destructive" is not the test). `.githooks/pre-push` enforces `PUSH HOLD` directives; verify `core.hooksPath` in every checkout.
 
-Auto Mode's "execute immediately" guidance does NOT extend to shared-system mutations. Confirm before each of these even when the initial request implied consent — adding rows to a shared DB counts, "not destructive" is not the test:
-
-- `supabase db push` on a linked project (writes to staging/prod DB)
-- `supabase functions deploy`
-- `git push --force` to any branch, or any push to `main` when on a feature branch
+- `supabase db push` on a linked project, and `supabase functions deploy`
+- `git push --force` to any branch, or any push to `main` from a feature branch
 - Creating/closing PRs, issues, or comments on GitHub
 - Posting to Slack, email, or any external service
 
-**Exception — standing approvals while pre-launch (owner, 2026-10-29):** while [`docs/agents/standing-approvals.md`](docs/agents/standing-approvals.md) says `status: ACTIVE` and the tripwire exits 0 right before the action (`pnpm qa:prelaunch-tripwire --merge` for a merge, plain `pnpm qa:prelaunch-tripwire` for Deploy myK9Show), merging a green PR and running Deploy myK9Show need no confirmation; `supabase db push` and `supabase functions deploy` always do. Read that file fresh each time; it lists what stays with the owner and the record each action leaves. Anything that needs the owner goes to Linear (`needs:decision` / `needs:operator`), not a chat question.
+One confirmation covers related pushes in a session; re-confirm for a new system or operation type. "Ship this", "create a PR" or `/ship-pr` authorizes the push, the PR and the review-gate comment for that branch; merging needs its own authorization unless the request said to ship through completion or standing approvals cover it.
 
-**Exception — Linear updates are pre-authorized (owner, 2026-10-26):** create MYK9 issues, change their status, labels or description, and comment, without asking. Done still needs a fresh read with every criterion met, and owner decisions are recorded, never made. Deletions, team settings, saved views and label definitions still need confirmation.
-
-One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type. An explicit "ship this", "create a PR" or `/ship-pr` request authorizes the push, the PR creation and the review-gate comment for that branch; merging still needs its own authorization unless the request said to ship through completion or standing approvals cover it.
-
-**Exception — docs-only changes may go direct to `main`.** When a commit touches _only_ documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. `CLAUDE.md`, `AGENTS.md`, `docs/agents/shared-rules.md`, `.claude/**`, `.codex/**`, `.agents/**` and `.github/**` are always out of scope for this exception — they need a PR regardless of how small the change. Full in-scope/out-of-scope file list and the bypass mechanism: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md) § "Docs-only direct-to-`main`." Verify the commit's filelist matches the scope before pushing.
+- **Standing approvals (pre-launch):** while `docs/agents/standing-approvals.md` says `status: ACTIVE` (read it fresh each time) and the tripwire exits 0 right before the action (`pnpm qa:prelaunch-tripwire --merge` for a merge, plain for Deploy myK9Show), merging a green PR and running Deploy myK9Show need no confirmation. `supabase db push` and `supabase functions deploy` always do. What needs the owner goes to Linear (`needs:decision` / `needs:operator`), not a chat question.
+- **Linear updates are pre-authorized:** create issues, change status, labels or description, and comment, without asking. Owner decisions are recorded, never made. Deletions, team settings, saved views and label definitions still need confirmation.
+- **Docs-only changes may go direct to `main`** with no confirmation beyond the request to commit/push. Never in scope (always a PR): `CLAUDE.md`, `AGENTS.md`, `docs/agents/shared-rules.md`, `docs/agents/rules-reference.md`, `.claude/**`, `.codex/**`, `.agents/**`, `.github/**`. Scope and bypass: `docs/reference/git-workflow.md`; verify the commit's filelist first.
 
 ## Debugging seed-data / config bugs
 
-Survey every related table in one query pass before writing a migration or code fix — the role table(s), the permission/config table(s), and the join/link table(s) together. The full recipe, when to collapse the systematic-debugging ceremony, and when `incident-triage` applies instead, is [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 3.
+Survey every related table in one query pass before writing a migration or code fix (role, permission/config and join/link tables). The full recipe, when to collapse the systematic-debugging ceremony, and when `incident-triage` applies instead, is `docs/PLAYBOOK.md` § 3.
 
 ## Planning
 
-Save plans to `docs/plan-<topic>.md`, never chat-only. Follow existing plans when they exist. **Every plan must include a testing phase** — a phase isn't complete until its tests pass. Directly under the `# Title`, add `> **Status:** Active` (`Active` / `Complete` / `Abandoned`) and register one row in [`docs/README.md`](docs/README.md); on merge, flip to `Complete`, `git mv` into `docs/archive/`, drop the index row. Full lifecycle rules: [`docs/README.md`](docs/README.md).
-
-**OpenSpec carve-out.** When a single unit of buildable work goes through the opsx skills, the OpenSpec change (`openspec/changes/<id>/`) _is_ the plan — do not also author a `docs/plan-*.md` for the same work. When each format applies, and how to cross-link if both exist: [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 1.
+Save plans to `docs/plan-<topic>.md`, never chat-only, and follow existing plans. **Every plan includes a testing phase.** Under the `# Title` add `> **Status:** Active` (`Active` / `Complete` / `Abandoned`) and register one row in `docs/README.md`; on merge flip to `Complete`, `git mv` into `docs/archive/`, drop the row. Work that goes through the opsx skills uses its OpenSpec change (`openspec/changes/<id>/`) as the plan; do not also write a `docs/plan-*.md`.
 
 ## Browser automation session ownership
 
-- Each task/run must own a unique Playwright CLI session. Never reuse a generic name such as `myk9-todo`, the default session, or another task's session.
-- For scripted browser work, run `pnpm qa:browser-session sh path/to/browser-work.sh`. The wrapper supplies a unique `PLAYWRIGHT_CLI_SESSION`; commands inside the script must inherit it and must not override it with `-s` or another environment value. Keep the script in the foreground and wait for all browser work before returning.
-- The wrapper closes only its own session, including on SIGINT/SIGTERM, and fails the run naming the session when cleanup fails or times out. After SIGKILL, a runtime crash or power loss, nothing has closed it.
-- For interactive agent work spanning separate tool calls, choose a unique task/run name, pass `-s=<name>` on every command, and close that exact session before finishing, handing off, or abandoning the task.
-- Check `playwright-cli list` before starting and after cleanup. Do not use `close-all`, `kill-all`, or blanket Chrome process termination as routine cleanup: concurrent agents may own other sessions. Do not delete browser profiles to resolve a hung session.
-- If an owner is interrupted before cleanup, verify that its task has ended before closing the recorded session. Process age or low CPU alone is not evidence that a session is abandoned.
+Each task owns a unique Playwright CLI session; never the default, a generic name, or another task's. Scripted work: `pnpm qa:browser-session sh path/to/browser-work.sh`. Interactive work: pass `-s=<unique name>` on every command and close that exact session before finishing. Never `close-all`, `kill-all`, blanket Chrome termination, or profile deletion. Full rules: the `playwright-cli` skill.
 
 <!-- shared-rules:end -->
 

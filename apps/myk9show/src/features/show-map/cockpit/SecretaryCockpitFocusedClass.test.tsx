@@ -8,6 +8,7 @@ import { showUndoToast } from '@/lib/undoToast';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
+import { queueFor } from './__tests__/queueFixture';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -16,6 +17,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
       email: 'secretary@example.com',
       user_metadata: { full_name: 'Jannie' },
     },
+    hasRole: () => true,
   }),
 }));
 vi.mock('@/services/replication', () => ({
@@ -40,14 +42,11 @@ const focused: FocusedClassModel = {
   startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
-  operationalArea: { evidence: 'unknown', value: null },
   judgeName: null,
   attentionCount: 0,
   closeout: 'none',
-  primaryAction: null,
-  checklist: null,
+  statusLine: { text: 'Not started', parts: ['Not started'] },
   printTrackingInUse: true,
-  checklistInUse: true,
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [
@@ -63,11 +62,16 @@ const focused: FocusedClassModel = {
       },
     },
   ],
-  primaryActions: [],
-  prepareActions: [],
-  finishActions: [],
   classWorkActions: [],
   entryRows: [],
+  entries: [],
+  entriesHidden: 0,
+};
+
+/** A report outside the seven steps: its rows (record, undo, history) live under Other paperwork. */
+const armbandFocused: FocusedClassModel = {
+  ...focused,
+  paperwork: [{ ...focused.paperwork[0]!, reportId: 'armband-labels', label: 'Armband labels' }],
 };
 
 const sourceClass: SecretaryCockpitClass = {
@@ -95,7 +99,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
     const { user } = render(
       <SecretaryCockpitFocusedClass
         showId="show-1"
-        focused={focused}
+        focused={armbandFocused}
         sourceClass={sourceClass}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
         attention={[]}
@@ -105,31 +109,32 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
       />
     );
 
+    await user.click(screen.getByText('Other paperwork (1)'));
     await user.click(screen.getByRole('button', { name: 'Record as printed' }));
     expect(
-      screen.getByRole('heading', { name: 'Did the Check-in sheet print correctly?' })
+      screen.getByRole('heading', { name: 'Did the Armband labels print correctly?' })
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Mark printed' }));
 
     expect(replicatedPaperworkPrintsTable.confirmPrinted).toHaveBeenCalledWith(
       expect.objectContaining({
-        reportId: 'check-in-sheet',
+        reportId: 'armband-labels',
         printedBy: 'user-1',
         printedByName: 'Jannie',
       })
     );
     expect(showUndoToast).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Check-in sheet recorded as printed.' })
+      expect.objectContaining({ message: 'Armband labels recorded as printed.' })
     );
     expect(screen.getByText('Not confirmed printed')).toBeInTheDocument();
   });
 
   it('shows stale broader-scope print evidence and append-only history', async () => {
     const staleFocused: FocusedClassModel = {
-      ...focused,
+      ...armbandFocused,
       paperwork: [
         {
-          ...focused.paperwork[0]!,
+          ...armbandFocused.paperwork[0]!,
           state: 'stale',
           printedAt: '2026-07-20T14:42:00.000Z',
           printedBy: 'Jannie',
@@ -164,6 +169,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
       />
     );
 
+    await user.click(screen.getByText('Other paperwork (1)'));
     expect(
       screen.getByText(/Printed 9:42 AM by Jannie · Printed with the whole trial/)
     ).toBeInTheDocument();
@@ -191,14 +197,13 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     );
   }
 
-  it('lists all seven items with a done count, keeping print controls on print items', () => {
+  it('lists all seven items with a done count, opening print from print items', () => {
     renderChecklist(sourceClass);
 
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
     const items = within(checklist).getAllByRole('listitem');
     expect(items.map(item => item.textContent)).toEqual([
-      expect.stringContaining('Check-in sheet'),
-      expect.stringContaining('Score sheets'),
+      expect.stringContaining('Print paperwork'),
       expect.stringContaining('Class started'),
       expect.stringContaining('Scoring complete'),
       expect.stringContaining('Preliminary results'),
@@ -206,10 +211,13 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
       expect.stringContaining("Judge's initials collected"),
     ]);
     expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();
+    // The card opens the print records, so it is a button even when the sheet has no print link.
     expect(
-      within(items[0]!).getByRole('button', { name: 'Record as printed' })
+      within(items[0]!).getByRole('button', {
+        name: 'Print paperwork: check-in sheet. Not done, 0 of 1 printed. Show print records',
+      })
     ).toBeInTheDocument();
-    expect(within(items[4]!).getByText('Nothing to print yet')).toBeInTheDocument();
+    expect(within(items[3]!).getByText('Nothing to print yet')).toBeInTheDocument();
   });
 
   it('checks items off from class state and print records, in any order', () => {
@@ -227,7 +235,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     expect(within(checklist).getByText('3 of 7 done')).toBeInTheDocument();
   });
 
-  it('keeps armband labels as other paperwork, outside the checklist', () => {
+  it('names armband labels on the Print paperwork card and lists them under Other paperwork, outside the checklist count', () => {
     renderChecklist(sourceClass, {
       ...focused,
       paperwork: [
@@ -242,16 +250,15 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     });
 
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
-    expect(within(checklist).queryByText('Armband labels')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Other paperwork' })).toBeInTheDocument();
-    expect(screen.getByText('Armband labels')).toBeInTheDocument();
-    // Armbands come first, above the checklist's check-in sheet (MYK9-1233).
     expect(
-      screen
-        .getByText('Armband labels')
-        .compareDocumentPosition(within(checklist).getByText('Check-in sheet')) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+      within(checklist).getByRole('button', {
+        name: 'Print paperwork: armband labels, check-in sheet. Not done, 0 of 2 printed. Show print records',
+      })
+    ).toBeInTheDocument();
+    expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();
+    // Other paperwork sits under the step bar, behind a disclosure.
+    expect(screen.getByText('Other paperwork and print records (2)')).toBeInTheDocument();
+    expect(screen.getByText('Armband labels')).toBeInTheDocument();
   });
 });
 
@@ -279,7 +286,8 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
       revisedExpectedStart: '2026-07-20T14:45:00.000Z',
     });
 
-    await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
+    await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Announce a delay' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
     // A slide-out, not a centered dialog (docs/INTENT.md, Decision vs Work).
@@ -293,13 +301,23 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     );
   });
 
-  it('is not offered when the class is on time, or to a viewer who cannot manage the show', () => {
-    const { unmount } = renderPanel(sourceClass);
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
-    unmount();
+  async function expectDelayItem(source: SecretaryCockpitClass, offered: boolean) {
+    const { user } = renderPanel(source);
+    await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+    // Positive control: the menu opened and holds its other items.
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
+    const item = screen.queryByRole('menuitem', { name: 'Announce a delay' });
+    if (offered) expect(item).not.toBeNull();
+    else expect(item).toBeNull();
+  }
 
+  it('is not offered when the class is on time', async () => {
+    await expectDelayItem(sourceClass, false);
+  });
+
+  it('is not offered to a viewer who cannot manage the show', () => {
     renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T14:45:00.000Z' }, false);
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Actions for/ })).toBeNull();
   });
 
   it('is offered with editable minutes when the class has no scheduled start', async () => {
@@ -309,24 +327,29 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
       revisedExpectedStart: '2026-07-20T14:45:00.000Z',
     });
 
-    await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
+    await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Announce a delay' }));
     const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
     expect(within(dialog).getByText(/is running behind\. Set the minutes/)).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Delay minutes')).toHaveValue('30');
   });
 
-  it('is not offered when a revised start runs early', () => {
-    renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T13:45:00.000Z' });
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  it('is not offered when a revised start runs early', async () => {
+    await expectDelayItem(
+      { ...sourceClass, revisedExpectedStart: '2026-07-20T13:45:00.000Z' },
+      false
+    );
   });
 
-  it('is not offered once the class has started, even with a revised start on record', () => {
-    renderPanel({
-      ...sourceClass,
-      lifecycle: 'in-progress',
-      revisedExpectedStart: '2026-07-20T14:45:00.000Z',
-    });
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  it('is not offered once the class has started, even with a revised start on record', async () => {
+    await expectDelayItem(
+      {
+        ...sourceClass,
+        lifecycle: 'in-progress',
+        revisedExpectedStart: '2026-07-20T14:45:00.000Z',
+      },
+      false
+    );
   });
 });
 
@@ -351,13 +374,35 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     );
   }
 
-  it('groups what the secretary sets under Class settings, apart from the work', () => {
+  it('shows what the secretary sets as inline fields in the class header', () => {
     renderPanel(sourceClass);
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Status')).toBeInTheDocument();
     expect(within(settings).getByText('Expected start')).toBeInTheDocument();
     expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
+  });
+
+  it('closes an open expected-start editor when the secretary moves to another class', async () => {
+    const { user, rerender } = renderPanel(sourceClass);
+    await user.click(
+      within(screen.getByTestId('focused-class-header')).getByRole('button', { name: /9:00/ })
+    );
+    expect(screen.getByRole('button', { name: 'Save expected start' })).toBeInTheDocument();
+
+    rerender(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={{ ...focused, id: 'class-2', name: 'Container Advanced' }}
+        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Container Advanced' }}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Save expected start' })).not.toBeInTheDocument();
   });
 
   it('heads a started class with its scored count, not a redundant entry count', () => {
@@ -383,22 +428,22 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
       { ...focused, lifecycle: { evidence: 'recorded', value: 'complete' } }
     );
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Start not recorded')).toBeInTheDocument();
     expect(within(settings).queryByText('Not started')).toBeNull();
   });
 
-  it('labels the entry list as the entries that can still move up', () => {
+  it('no longer lists "Can change class" apart from the entries table (MYK9-1798)', () => {
     renderPanel(sourceClass, {
       ...focused,
       entryRows: [
         {
-          nodeId: 'entry:e1',
-          label: '#101 Scout',
+          nodeId: 'entry:e-1',
+          label: '#101 Moss',
           actions: [
             {
               id: 'move-up-entry',
-              commandId: 'move-up-entry:entry:e1',
+              commandId: 'move-up-entry:entry:e-1',
               label: 'Change class',
               why: '',
             },
@@ -407,8 +452,9 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
       ],
     });
 
-    expect(screen.getByRole('heading', { name: 'Can change class' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Entries' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Can change class' })).toBeNull();
+    // Menus closed: no standalone per-dog "Change class" button remains.
+    expect(screen.queryByRole('button', { name: /^Change class/ })).toBeNull();
   });
 
   it('counts entries the way the schedule row does: entered and pending (MYK9-1727)', () => {
@@ -420,5 +466,159 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
 
     expect(screen.getByText('0 entered · 1 pending')).toBeInTheDocument();
     expect(screen.queryByText('0 entries')).toBeNull();
+  });
+});
+
+// MYK9-1797: the Check-in cell changes a dog's status for a manager only.
+describe('SecretaryCockpitFocusedClass Check-in cell', () => {
+  const notCheckedIn = {
+    nodeId: 'entry:e-1',
+    queue: queueFor('entry:e-1', '101', 'waiting'),
+    entryId: 'e-1',
+    armband: '101',
+    dogName: 'Moss',
+    checkIn: { value: 'no-status', label: 'Not checked in', kind: 'neutral' },
+    checkInValue: 'no-status',
+    deskEditable: true,
+    lockedReason: 'Scored, so the status is locked',
+    state: 'waiting',
+    counted: true,
+    notCheckedIn: true,
+    place: 1,
+    result: null,
+  } as const;
+  const withEntries: FocusedClassModel = { ...focused, entries: [notCheckedIn] };
+
+  function renderEntries(canManageShow: boolean) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={withEntries}
+        sourceClass={sourceClass}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow={canManageShow}
+        onCommand={vi.fn()}
+      />
+    );
+  }
+
+  it('gives a manager a button on a dog that is not checked in, saying "Not checked in" once', () => {
+    renderEntries(true);
+    const row = screen.getByTestId('class-entry-row');
+    expect(
+      within(row).getByRole('button', { name: 'Change check-in for Moss: Not checked in' })
+    ).toBeInTheDocument();
+    expect(within(row).getAllByText('Not checked in')).toHaveLength(1);
+  });
+
+  it('gives a non-manager no Check-in button and no locked reason, even for a dog not checked in', () => {
+    renderEntries(false);
+    const row = screen.getByTestId('class-entry-row');
+    expect(within(row).queryByRole('button', { name: /Change check-in/ })).toBeNull();
+    expect(within(row).getAllByText('Not checked in')).toHaveLength(1);
+    expect(within(row).queryByText('Scored, so the status is locked')).toBeNull();
+  });
+});
+
+// MYK9-1798: the per-dog menu in the entries table, joined to the engine's rows by nodeId.
+describe('SecretaryCockpitFocusedClass per-dog menu', () => {
+  const entry = (id: string, dogName: string) =>
+    ({
+      nodeId: `entry:${id}`,
+      queue: queueFor(`entry:${id}`, '101', 'waiting'),
+      entryId: id,
+      armband: '101',
+      dogName,
+      checkIn: { value: 'no-status', label: 'Not checked in', kind: 'neutral' },
+      checkInValue: 'no-status',
+      deskEditable: true,
+      lockedReason: null,
+      state: 'waiting',
+      counted: true,
+      notCheckedIn: true,
+      place: 1,
+      result: null,
+    }) as const;
+  const moveUp = (id: string) => ({
+    id: 'move-up-entry',
+    commandId: `move-up-entry:entry:${id}`,
+    label: 'Change class',
+    why: 'Move this dog to another class',
+  });
+  const both = (id: string) => [
+    moveUp(id),
+    {
+      id: 'other-entry-action',
+      commandId: `other-entry-action:entry:${id}`,
+      label: 'Move up a level',
+      why: '',
+    },
+  ];
+  const model: FocusedClassModel = {
+    ...focused,
+    entries: [entry('e-1', 'Moss'), entry('e-2', 'Scout'), entry('e-3', 'Juno')],
+    entryRows: [
+      { nodeId: 'entry:e-1', label: '#101 Moss', actions: both('e-1') },
+      { nodeId: 'entry:e-2', label: '#102 Scout', actions: [moveUp('e-2')] },
+      { nodeId: 'entry:e-3', label: '#103 Juno', actions: [] },
+    ],
+  };
+
+  function renderMenu(canManageShow: boolean, onCommand = vi.fn(), focusedModel = model) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={focusedModel}
+        sourceClass={sourceClass}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow={canManageShow}
+        onCommand={onCommand}
+      />
+    );
+  }
+
+  it('shows the engine items first, then Edit entry and Mark absent, for an eligible row', async () => {
+    const { user } = renderMenu(true);
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
+    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
+      'Change class',
+      'Move up a level',
+      'Edit entry',
+      'Mark absent',
+    ]);
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Scout' }));
+    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
+      'Change class',
+      'Edit entry',
+      'Mark absent',
+    ]);
+  });
+
+  it('keeps the menu on a row with no engine action, without Change class', async () => {
+    const { user } = renderMenu(true);
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Juno' }));
+    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
+      'Edit entry',
+      'Mark absent',
+    ]);
+  });
+
+  it('shows no trigger to a non-manager', () => {
+    renderMenu(false);
+    expect(screen.queryByRole('button', { name: /^Actions for (Moss|Scout|Juno)$/ })).toBeNull();
+  });
+
+  it("calls onCommand with the chosen item's commandId", async () => {
+    const onCommand = vi.fn();
+    const { user } = renderMenu(true, onCommand);
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Move up a level' }));
+    expect(onCommand).toHaveBeenCalledWith('other-entry-action:entry:e-1');
   });
 });

@@ -68,17 +68,18 @@ describe('AKCNationalsLiveScoresheet', () => {
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 
-  it('renders placement chips (1st–4th) alongside Q/NQ/EX/ABS', () => {
+  // MYK9-1806: the server's ranking is the only placement. The sheet offers no
+  // placement chips and no placement bonus.
+  it('offers Q/NQ/ABS/EX/DQ and no placement chips', () => {
     render(<AKCNationalsLiveScoresheet {...defaultProps} />);
 
-    expect(screen.getByTestId('result-Q')).toBeInTheDocument();
-    expect(screen.getByTestId('result-NQ')).toBeInTheDocument();
-    expect(screen.getByTestId('result-ABS')).toBeInTheDocument();
-    expect(screen.getByTestId('result-EX')).toBeInTheDocument();
-    expect(screen.getByTestId('result-1st')).toBeInTheDocument();
-    expect(screen.getByTestId('result-2nd')).toBeInTheDocument();
-    expect(screen.getByTestId('result-3rd')).toBeInTheDocument();
-    expect(screen.getByTestId('result-4th')).toBeInTheDocument();
+    for (const code of ['Q', 'NQ', 'ABS', 'EX', 'DQ']) {
+      expect(screen.getByTestId(`result-${code}`)).toBeInTheDocument();
+    }
+    for (const chip of ['1st', '2nd', '3rd', '4th']) {
+      expect(screen.queryByTestId(`result-${chip}`)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText('Placement (optional)')).not.toBeInTheDocument();
   });
 
   it('points calculation: correct=3, incorrect=1 → (3×10)-(1×5)=25 points', () => {
@@ -130,6 +131,29 @@ describe('AKCNationalsLiveScoresheet', () => {
         expect.objectContaining({
           points: 20,
         })
+      );
+    });
+  });
+
+  it('Q submits resultText Q with points from the alert arithmetic alone', async () => {
+    const onSubmit = vi.fn();
+    render(<AKCNationalsLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByTestId('correct-inc'));
+    fireEvent.click(screen.getByTestId('correct-inc'));
+    fireEvent.click(screen.getByTestId('correct-inc'));
+    fireEvent.click(screen.getByTestId('incorrect-inc'));
+    fireEvent.click(screen.getByTestId('result-Q'));
+    fireEvent.click(screen.getByTestId('submit-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('confirm-submit-btn')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ resultText: 'Q', points: 25 })
       );
     });
   });

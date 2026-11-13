@@ -84,8 +84,10 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     render(<ShowCreationWizardPage />);
     await waitFor(() => expect(useWizardStore.getState().allowedSteps).toEqual([2, 3]));
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+    // The edit draft loads once the store has read its saved draft (MYK9-1794), which on a
+    // first page load is a moment after the step lock is set.
+    await waitFor(() => expect([2, 3]).toContain(useWizardStore.getState().currentStep));
     const stepNow = useWizardStore.getState().currentStep;
-    expect([2, 3]).toContain(stepNow);
 
     useWizardStore.getState().setCurrentStep(1);
     useWizardStore.getState().goToStep(0);
@@ -198,18 +200,20 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
       const backButtons = screen.getAllByRole('button', { name: /^back$/i });
       await user.click(backButtons[0]!); // header Back (Close)
       expect(navigate).toHaveBeenCalledWith('/shows/show-1?anchor=trial-1');
-      expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       navigate.mockClear();
       await user.click(backButtons[backButtons.length - 1]!); // step Back
       expect(navigate).toHaveBeenCalledWith('/shows/show-1?anchor=trial-1');
-      expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
     it('asks first when a new class is selected', async () => {
       const { user } = await openWithClasses([cls('Container'), cls('Interior')]);
       const backButtons = screen.getAllByRole('button', { name: /^back$/i });
       await user.click(backButtons[backButtons.length - 1]!);
-      expect(await screen.findByText('Unsaved Changes')).toBeInTheDocument();
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+      ).toBeInTheDocument();
       expect(navigate).not.toHaveBeenCalled();
     });
   });

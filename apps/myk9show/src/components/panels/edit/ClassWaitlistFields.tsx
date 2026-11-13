@@ -11,7 +11,7 @@ import type { CapacityControl } from './ClassEditPanel.types';
 
 interface ClassWaitlistFormData extends Record<string, unknown> {
   maxEntries?: number | null;
-  /** null: the class follows the show's "Allow wait lists" (MYK9-1019). */
+  /** null: the class follows the show's "Allow waitlists" (MYK9-1019). */
   allowsWaitlist?: boolean | null;
   editedCapacity?: CapacityControl[];
 }
@@ -19,13 +19,13 @@ interface ClassWaitlistFormData extends Record<string, unknown> {
 const onOff = (value: boolean) => (value ? 'On' : 'Off');
 
 /**
- * The class's entry limit (`classes.max_entries`) and "Allow wait list" switch
+ * The class's entry limit (`classes.max_entries`) and "Allow waitlist" switch
  * (`classes.allow_waitlist`) inside Edit class (MYK9-998). Shared by the full and the
  * simple form, because which one Edit class renders depends on the shape of the class it was
  * handed. The queue itself is managed from Entry Forms: Actions, then Waitlist (MYK9-1583).
  *
  * MYK9-1019: the switch shows the class's effective setting. A class with no setting of its own
- * follows the show's "Allow wait lists" (set on the Waitlist list), and says so; flipping the switch makes
+ * follows the show's "Allow waitlists" (set on the Waitlist list), and says so; flipping the switch makes
  * it this class's own exception, which "Use the show setting" clears again. The show's value
  * comes from the replicated show row, so this reads correctly offline.
  */
@@ -49,7 +49,7 @@ export function ClassWaitlistFields({ showId }: { showId?: string | undefined })
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Entry limit and wait list</CardTitle>
+        <CardTitle>Entry limit and waitlist</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <FormField
@@ -88,16 +88,16 @@ export function ClassWaitlistFields({ showId }: { showId?: string | undefined })
           <div className="space-y-1">
             {/* The label is the switch's 44px target (docs/INTENT.md § Accessibility First). */}
             <Label htmlFor="allowsWaitlist" className="flex min-h-11 items-center">
-              Allow wait list
+              Allow waitlist
             </Label>
             <p className="text-sm text-muted-foreground">
-              When this class or the judge's day is full, new entries join the wait list instead of
+              When this class or the judge's day is full, new entries join the waitlist instead of
               being turned away. Manage the queue from Entry Forms: open Actions, then Waitlist.
             </p>
             <p className="text-sm" id="allowsWaitlist-source">
               {followsShow
                 ? showAllowsWaitlist === undefined
-                  ? "Follows the show's Allow wait lists setting. Change it from Entry Forms: open Actions, then Waitlist."
+                  ? "Follows the show's Allow waitlists setting. Change it from Entry Forms: open Actions, then Waitlist."
                   : `Follows show: ${onOff(showAllowsWaitlist)}. Change it for every class from Entry Forms: open Actions, then Waitlist.`
                 : `Set for this class only. ${showState ?? ''}`.trim()}
             </p>

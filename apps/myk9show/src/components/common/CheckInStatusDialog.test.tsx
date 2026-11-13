@@ -115,7 +115,7 @@ describe('CheckInStatusDialog — exhibitor voice', () => {
       />
     );
 
-    expect(screen.getByText('Confirmation #MK9-000056')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation number MK9-000056')).toBeInTheDocument();
     expect(screen.queryByText(/^Armband #/)).not.toBeInTheDocument();
   });
 

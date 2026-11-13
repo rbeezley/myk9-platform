@@ -141,7 +141,9 @@ describe('useRemoveEntryLine', () => {
     });
 
     expect(onClassSelectionChange).not.toHaveBeenCalled();
-    expect(toastError).toHaveBeenCalledWith('Failed to remove from your entry');
+    expect(toastError).toHaveBeenCalledWith(
+      "We couldn't take that class off your entry. Try again."
+    );
   });
 
   it('does nothing without a selection handler', async () => {

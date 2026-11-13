@@ -2,7 +2,11 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import {
-  DESK_STATUS_SET,
+  deskStatusEditableFor,
+  TERMINAL_CLASS_STATUSES,
+  TERMINAL_ENTRY_STATUSES,
+} from './deskEditable';
+import {
   deskDayLabel,
   deskLockedReason,
   deskUnpullState,
@@ -99,16 +103,6 @@ interface BuildPeopleRosterOptions {
 const TERMINAL_CHECK_IN_STATUSES = new Set<CheckInStatus>(['checked-in', 'pulled', 'completed']);
 /** Past check-in already: writing 'checked-in' now would walk the run backwards (MYK9-1691). */
 const UNDERWAY_CHECK_IN_STATUSES = new Set<CheckInStatus>(['at-gate', 'come-to-gate', 'in-ring']);
-const TERMINAL_ENTRY_STATUSES = new Set<EntryStatus>([
-  EntryStatus.REJECTED,
-  EntryStatus.WAITLIST,
-  EntryStatus.CANCELLED,
-  EntryStatus.SCRATCHED,
-  EntryStatus.COMPLETED,
-]);
-// MYK9-632: 'withdrawn' is its own class status now. It is as terminal as a
-// pull for roster purposes — neither dog is going in the ring.
-const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>(['scratched', 'withdrawn', 'absent']);
 
 export {
   DESK_CHECK_IN_STATUSES,
@@ -231,13 +225,11 @@ function classInfoMap(classes: readonly PeopleRosterClassInfo[] = []) {
 const NOT_TODAY_REASON = 'Not today';
 const DATE_UNAVAILABLE_REASON = 'Date unavailable';
 
-/** `ignoreDate`: only the desk's "can SET a status" rule passes it (MYK9-1765); Check in stays today-only. */
 function checkInEligibility(
   entry: EntryManagementEntry,
   cls: EntryClass,
   info: PeopleRosterClassInfo | undefined,
-  currentDate: Date | null | undefined,
-  ignoreDate = false
+  currentDate: Date | null | undefined
 ): { eligible: boolean; reason: string | null } {
   const status = cls.checkInStatus ?? 'no-status';
   if (TERMINAL_CHECK_IN_STATUSES.has(status)) {
@@ -271,7 +263,7 @@ function checkInEligibility(
     return { eligible: false, reason: 'Not active' };
   }
 
-  if (currentDate && !ignoreDate) {
+  if (currentDate) {
     if (!info?.trialDate) {
       return { eligible: false, reason: DATE_UNAVAILABLE_REASON };
     }
@@ -337,15 +329,13 @@ function buildClassRows(
       const info = classesById.get(classId);
       const eligibility = checkInEligibility(entry, cls, info, currentDate);
       const current = cls.checkInStatus ?? 'no-status';
-      // Settable exactly when the class could be checked in were it still waiting, on ANY day:
-      // accepted and active, not underway or closed, not scored. A scored run keeps its check-in
-      // status (ringside scoring never writes it), so the score is what says it is finished.
-      // `is_scored`, not `result_status`: that is 'pending' on every unscored entry.
-      const deskStatusEditable =
-        DESK_STATUS_SET.has(current) &&
-        !entry.isScored &&
-        checkInEligibility(entry, { ...cls, checkInStatus: 'no-status' }, info, currentDate, true)
-          .eligible;
+      // Settable on ANY day (MYK9-1765); Check in stays today-only. The rule is `deskEditable.ts`.
+      const deskStatusEditable = deskStatusEditableFor({
+        entryStatus: entry.entryStatus,
+        classStatus: cls.status,
+        checkInStatus: current,
+        isScored: entry.isScored,
+      });
       // Held back only by its date: still reads as its real status; `dayLabel` says which day.
       const dateOnly =
         !eligibility.eligible &&

@@ -68,7 +68,7 @@ describe('AtShowScoresheetPage: judge identity that cannot resolve', () => {
 
   it('shows Retry and Entries instead of the skeleton when no person row exists', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByText(/couldn.t confirm your account/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /entries/i })).toBeInTheDocument();
   });
@@ -77,22 +77,22 @@ describe('AtShowScoresheetPage: judge identity that cannot resolve', () => {
     identity.state = 'unresolved';
     identity.failed = true;
     renderPage();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('Retry re-runs the identity lookup, and the page waits while it is in flight', () => {
     const { rerender } = renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(retryIdentity).toHaveBeenCalledTimes(1);
 
     identity.fetching = true;
     rerender(cloneElement(page));
-    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 
   it('keeps the skeleton (no recovery screen) while the first lookup is still pending', () => {
     identity.state = 'unresolved';
     renderPage();
-    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 });

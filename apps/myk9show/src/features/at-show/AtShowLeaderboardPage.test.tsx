@@ -196,7 +196,7 @@ describe('AtShowLeaderboardPage', () => {
     mocks.showFails = fails;
     mocks.show = show;
     renderPage();
-    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /back to ringside/i })).toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: 'Nationals Leaderboard' })
@@ -207,7 +207,7 @@ describe('AtShowLeaderboardPage', () => {
     mocks.rows = null;
     mocks.isError = true;
     renderPage();
-    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /back to ringside/i })).toHaveAttribute(
       'href',
       '/at-show/show-1'

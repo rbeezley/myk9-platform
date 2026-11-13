@@ -1,4 +1,5 @@
-import type { ClassChecklistSummary } from './classChecklist';
+import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
+import type { StatusLine } from './scheduleStatusLine';
 
 export type EvidenceKind = 'recorded' | 'computed' | 'staff-confirmed' | 'unknown';
 
@@ -8,12 +9,11 @@ export interface EvidenceValue<T> {
 }
 
 /** One status the schedule can be narrowed to; ticking several shows a class matching any (MYK9-1727). */
-export type CockpitStatus = 'in-progress' | 'needs-attention' | 'needs-closeout';
 export type CockpitLifecycle = 'not-started' | 'in-progress' | 'complete' | 'cancelled';
+export type CockpitStatus = CockpitLifecycle | 'needs-attention' | 'needs-closeout';
 export type CockpitCloseoutState = 'none' | 'needs-closeout' | 'closed';
 export type CockpitAttentionKind =
   'blocker' | 'active-work' | 'preparation' | 'closeout' | 'administrative';
-export type OperationalAreaKind = 'search-area' | 'ring' | 'course';
 export type PaperworkState = 'current' | 'stale' | 'unconfirmed' | 'unknown';
 
 export type CockpitDestination =
@@ -35,14 +35,7 @@ export interface SecretaryCockpitAction {
   id: string;
   label: string;
   destination: CockpitDestination;
-  group: 'primary' | 'prepare' | 'finish' | 'class-work' | 'paperwork';
-  /**
-   * True when this action's destination requires the operational trial-secretary
-   * (or judge / site-admin) role, so a manager who is not one gets it greyed
-   * with a reason rather than a dead end (REV-2341 R-1).
-   */
-  operatorOnly?: boolean;
-  priority?: number;
+  group: 'class-work' | 'paperwork';
 }
 
 export interface SecretaryCockpitPaperwork {
@@ -82,8 +75,8 @@ export interface SecretaryCockpitTrial {
  *
  * F29b: `ShowMapRowActionsMenu` is the only renderer of the entry action set, and it
  * mounts only inside `ShowMapTab` -- the public show page, read-only by intent (#291).
- * The cockpit's own action surface filters to `recommended` actions, and no entry
- * action sets that flag, so `ShowDeskPanel`'s move-up dialog could never open. These
+ * The cockpit's own action surface never read the entry action set, so `ShowDeskPanel`'s
+ * move-up dialog could never open. These
  * rows are what emit the commandId `runCommand` already knows how to resolve.
  *
  * Deliberately narrow: check-in, edit-score, scratch and message-handler already have
@@ -127,6 +120,10 @@ export interface SecretaryCockpitClass {
   registryId?: string | null;
   /** Entries of this class carrying stranded operational actions (F29b). */
   entryRows: readonly SecretaryCockpitEntryRow[];
+  /** Every entry in run order with its run status; absent in a snapshot built without the tree. */
+  entries?: readonly SecretaryCockpitClassEntry[] | undefined;
+  /** Entries the tree left out (its preview cap); the entries table says so rather than truncate. */
+  entriesHidden?: number | undefined;
   trialId: string;
   name: string;
   /** Registry element/level/section (MYK9-825) — the label is composed from these, not `name` alone. */
@@ -150,10 +147,6 @@ export interface SecretaryCockpitClass {
   judgeName?: string | null;
   /** The assigned judge's person id, for the class panel's judge picker (MYK9-1323). */
   judgeId?: string | null;
-  operationalArea?: {
-    kind: OperationalAreaKind;
-    labels: readonly string[];
-  } | null;
   attention: readonly SecretaryCockpitAttention[];
   actions: readonly SecretaryCockpitAction[];
   paperwork: readonly SecretaryCockpitPaperwork[];
@@ -170,21 +163,39 @@ export interface SecretaryCockpitSnapshot {
    * print records could not be read. False hides "Not confirmed printed" and "Prepare" chips.
    */
   printTrackingInUse: boolean;
-  /** `printTrackingInUse` or a judge sign-off is recorded. False hides the checklist strip. */
+  /** `printTrackingInUse` or a judge sign-off is recorded. False leaves a complete class's status line at "Complete", with no checklist next step. */
   checklistInUse: boolean;
   trials: readonly SecretaryCockpitTrial[];
   classes: readonly SecretaryCockpitClass[];
   administrativeAttention?: readonly SecretaryCockpitAttention[];
 }
 
-export interface SecretaryCockpitState {
+/**
+ * The schedule's ticked filters (MYK9-1785). Empty or absent means every class; several ticks in
+ * one group show a class matching ANY of them, and groups combine with AND.
+ */
+export interface CockpitClassFilters {
+  statuses?: readonly CockpitStatus[] | undefined;
+  /** Judge ids (the name when a judge has no id), or the "Unassigned" sentinel. */
+  judges?: readonly string[] | undefined;
+  elements?: readonly string[] | undefined;
+  levels?: readonly string[] | undefined;
+}
+
+export interface SecretaryCockpitState extends CockpitClassFilters {
   /** The ticked show days; empty or absent means every day (MYK9-1719). */
   selectedDays?: readonly string[] | undefined;
   focusedClassId?: string | undefined;
   /** The URL's anchor; when it names a trial, that trial opens whatever the day (MYK9-1320). */
   anchor?: string | undefined;
-  /** The ticked statuses; empty means every class (MYK9-1727). */
-  statuses?: readonly CockpitStatus[] | undefined;
+}
+
+export interface CockpitFilterFacts {
+  lifecycle: CockpitLifecycle | null;
+  closeout: CockpitCloseoutState;
+  judge: { value: string; label: string };
+  element: string | null;
+  level: string | null;
 }
 
 export interface ScheduledClassModel {
@@ -198,13 +209,13 @@ export interface ScheduledClassModel {
   startedLabel: string | null;
   lifecycle: EvidenceValue<CockpitLifecycle>;
   progress: EvidenceValue<{ completed: number; total: number }>;
-  operationalArea: EvidenceValue<{ kind: OperationalAreaKind; label: string }>;
   judgeName: string | null;
+  /** What the Filter menu matches on (MYK9-1785), so its counts read the rows, not the names. */
+  filterFacts: CockpitFilterFacts;
   attentionCount: number;
   closeout: CockpitCloseoutState;
-  primaryAction: SecretaryCockpitAction | null;
-  /** The class checklist's count (MYK9-948), or null for a cancelled class. */
-  checklist: ClassChecklistSummary | null;
+  /** Line 2 of the schedule row: one status-and-next-step phrase. */
+  statusLine: StatusLine;
 }
 
 export interface TrialScheduleGroupModel {
@@ -223,18 +234,17 @@ export interface TrialScheduleGroupModel {
   };
 }
 
-export interface FocusedClassModel extends ScheduledClassModel {
+// The focused class is never filtered, so it carries no filter facts.
+export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFacts'> {
   /** From the snapshot (MYK9-1620): false hides "Not confirmed printed" on paperwork rows. */
   printTrackingInUse: boolean;
-  /** From the snapshot (MYK9-1620): false collapses the checklist under a quiet disclosure. */
-  checklistInUse: boolean;
   entryRows: readonly SecretaryCockpitEntryRow[];
+  /** Every entry in run order with its run status (the entries table). */
+  entries: readonly SecretaryCockpitClassEntry[];
+  entriesHidden: number;
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;
   paperwork: readonly (SecretaryCockpitPaperwork & { evidence: EvidenceKind })[];
-  primaryActions: readonly SecretaryCockpitAction[];
-  prepareActions: readonly SecretaryCockpitAction[];
-  finishActions: readonly SecretaryCockpitAction[];
   classWorkActions: readonly SecretaryCockpitAction[];
 }
 

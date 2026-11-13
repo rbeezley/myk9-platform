@@ -350,7 +350,7 @@ export class ErrorClassifier {
           steps: [
             'Verify internet connectivity',
             'Check if the service is available',
-            'Retry the operation',
+            'Try the operation again',
             'Try again later if the issue persists',
           ],
         };
@@ -373,7 +373,7 @@ export class ErrorClassifier {
           automated: false,
           steps: [
             'Log out and log back in',
-            'Clear browser cache and cookies',
+            "Clear this browser's saved data and cookies",
             'Reset password if needed',
             'Contact support if problem persists',
           ],
@@ -384,7 +384,7 @@ export class ErrorClassifier {
           suggested: 'You do not have permission to perform this action',
           automated: false,
           steps: [
-            'Contact your administrator for access',
+            'Contact myK9Show support for access',
             'Verify your user role',
             'Check if your account is active',
             'Try a different approach if available',

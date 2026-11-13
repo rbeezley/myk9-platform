@@ -6,8 +6,15 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
-const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
-vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: vi.fn() } }));
+const { toastSuccess, toastInfo, getEntryById } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastInfo: vi.fn(),
+  getEntryById: vi.fn(),
+}));
+vi.mock('sonner', () => ({
+  toast: { success: toastSuccess, error: vi.fn(), info: toastInfo },
+}));
+vi.mock('@/services/replication', () => ({ replicatedEntriesTable: { getEntryById } }));
 
 import { useMyEntriesDialogs } from './useMyEntriesDialogs';
 import type { EntryClass, MyEntry } from './my-entries-types';
@@ -67,6 +74,9 @@ function deferred() {
 describe('useMyEntriesDialogs', () => {
   beforeEach(() => {
     toastSuccess.mockClear();
+    toastInfo.mockClear();
+    getEntryById.mockReset();
+    getEntryById.mockResolvedValue(null);
   });
 
   it('opens each dialog with the entry that was acted on', () => {
@@ -305,5 +315,41 @@ describe('useMyEntriesDialogs', () => {
 
     expect(newer).toHaveBeenCalledWith('order-1', 'class-row-1', CHECKED_IN);
     expect(updateEntryCheckIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('Undo writes nothing when the dog was pulled again after this Pull', async () => {
+    const { result, updateEntryCheckIn } = setup();
+    const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
+
+    act(() => result.current.openCheckIn(ENTRY, checkedInClass));
+    await act(() => result.current.submitCheckInStatus('pulled'));
+    const firstToast = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+    act(() => result.current.openCheckIn(ENTRY, checkedInClass));
+    await act(() => result.current.submitCheckInStatus('pulled'));
+
+    getEntryById.mockResolvedValue({ checkInStatus: 'pulled' });
+    await act(async () => {
+      firstToast.action.onClick();
+    });
+
+    expect(updateEntryCheckIn).toHaveBeenCalledTimes(2);
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+  });
+
+  it('Undo restores even when the replica holds a different, stale status', async () => {
+    const { result, updateEntryCheckIn } = setup();
+    const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
+
+    act(() => result.current.openCheckIn(ENTRY, checkedInClass));
+    await act(() => result.current.submitCheckInStatus('pulled'));
+    const toastOptions = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+
+    getEntryById.mockResolvedValue({ checkInStatus: 'no-status' });
+    await act(async () => {
+      toastOptions.action.onClick();
+    });
+
+    expect(updateEntryCheckIn).toHaveBeenLastCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(toastInfo).not.toHaveBeenCalled();
   });
 });

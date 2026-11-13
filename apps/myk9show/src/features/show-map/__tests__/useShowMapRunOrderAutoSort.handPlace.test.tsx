@@ -262,3 +262,48 @@ describe('controls stay busy until the panel shows the new order', () => {
     }
   });
 });
+
+describe('placeEntry by the dog dropped on (MYK9-1872)', () => {
+  const written = () =>
+    Object.fromEntries(updateEntryMock.mock.calls.map(([id, u]) => [id, u.runOrder]));
+
+  it('resolves the slot in the write from the model it just read', async () => {
+    const { result } = render();
+    // Waiting: e1, e3, e4 (e2 is scored). Drop e4 on e1: slot 1.
+    act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', overEntryId: 'e1' }));
+    await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+    expect(result.current.lastAutoSort?.summary).toBe('Moved dog to position 1');
+    expect(written()).toEqual({ e4: 3, e1: 4, e3: 5 });
+  });
+
+  it('a second drop after the model changed resolves against the new model', async () => {
+    const { result } = render();
+    act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', overEntryId: 'e1' }));
+    await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+    // The replica now holds the new order (e4, e1, e3) plus e1 sent to the ring elsewhere.
+    getEntriesByClassMock.mockResolvedValue([
+      e('e1', 3, { isInRing: true }),
+      e('e2', 2, { isScored: true }),
+      e('e3', 4),
+      e('e4', 1),
+    ]);
+    updateEntryMock.mockClear();
+    await waitFor(() => expect(result.current.isAutoSorting).toBe(false));
+    act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e3', overEntryId: 'e4' }));
+    await waitFor(() => expect(updateEntryMock).toHaveBeenCalled());
+    // Waiting is now e4, e3 after the ring dog's 3: e3 takes slot 1 (4) and e4 moves to 5.
+    expect(written()).toEqual({ e4: 5 });
+  });
+
+  it('refuses cleanly when the dog dropped on is no longer waiting', async () => {
+    getEntriesByClassMock.mockResolvedValue([
+      e('e1', 1),
+      e('e2', 2, { isInRing: true }),
+      e('e3', 3),
+    ]);
+    const { result } = render();
+    act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e3', overEntryId: 'e2' }));
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    expect(updateEntryMock).not.toHaveBeenCalled();
+  });
+});

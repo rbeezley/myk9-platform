@@ -21,7 +21,21 @@ import {
 
 interface DbResult<T> {
   data: T | null;
-  error: { message: string } | null;
+  error: { message: string; code?: string } | null;
+}
+
+/**
+ * MYK9-1824: a refused or failed enrollment payment write, keeping the Postgres
+ * error code so the caller can tell the RPC's own refusals from everything else.
+ */
+export class EnrollmentPaymentError extends Error {
+  readonly code: string | undefined;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = 'EnrollmentPaymentError';
+    this.code = code || undefined;
+  }
 }
 
 interface ShowPaymentsSelectQuery {
@@ -73,7 +87,7 @@ export async function recordEnrollmentPayment(
     'record_enrollment_payment',
     ledgerActionRpcArgs(enrollmentId, action)
   );
-  if (error) throw new Error(error.message);
+  if (error) throw new EnrollmentPaymentError(error.message, error.code);
   if (!data) throw new Error('The payment was not recorded. Please try again.');
   return data;
 }
@@ -90,7 +104,7 @@ export async function markEnrollmentPaidOnline(
   const { data, error } = await supabase.rpc('mark_enrollment_paid_online', {
     p_enrollment_id: enrollmentId,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new EnrollmentPaymentError(error.message, error.code);
   if (!data) throw new Error('The payment was not recorded. Please try again.');
   return data as unknown as RecordedEnrollmentPayment;
 }

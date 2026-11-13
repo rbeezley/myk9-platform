@@ -24,6 +24,7 @@ export const contentSpy: {
   onEntryClick?: (entry: unknown) => void;
   onStatusClick?: (...args: unknown[]) => void;
   onOpenDragMode?: () => void;
+  entries?: Array<{ id: string }>;
 } = {};
 
 /**
@@ -38,6 +39,7 @@ export function resetContentSpy(): void {
   delete contentSpy.onEntryClick;
   delete contentSpy.onStatusClick;
   delete contentSpy.onOpenDragMode;
+  delete contentSpy.entries;
   for (const key of Object.keys(uiActionSpy)) delete uiActionSpy[key];
 }
 
@@ -151,6 +153,7 @@ export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
     ),
     derived: {
       currentEntries: entries,
+      dragEntries: entries,
       completedEntries: [],
       pendingEntries: entries,
       entryCounts: { pending: 0, completed: 0, all: 0 },

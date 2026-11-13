@@ -198,3 +198,47 @@ describe('useEntryListFilters — combined A/B counts', () => {
     expect(result.current.pendingEntries).toHaveLength(3);
   });
 });
+
+describe('useEntryListFilters - run order tie-break (MYK9-1808)', () => {
+  it('orders dogs sharing a run order by armband, whatever order the replica returned them in', () => {
+    const tied: Entry[] = [
+      entry({ id: 'z', armband: 9, exhibitorOrder: 5 }),
+      entry({ id: 'y', armband: 4, exhibitorOrder: 5 }),
+      entry({ id: 'x', armband: 2, exhibitorOrder: 1 }),
+    ];
+    const { result } = renderHook(() =>
+      useEntryListFilters({ entries: tied, prioritizeInRing: true, defaultSort: 'run' })
+    );
+    expect(result.current.pendingEntries.map(e => e.id)).toEqual(['x', 'y', 'z']);
+  });
+});
+
+describe('useEntryListFilters - dragEntries (MYK9-1808)', () => {
+  const all: Entry[] = [
+    entry({ id: 'a1', armband: 11, section: 'A', exhibitorOrder: 3 }),
+    entry({ id: 'b1', armband: 21, section: 'B', exhibitorOrder: 1 }),
+    entry({ id: 'a2', armband: 12, section: 'A', exhibitorOrder: 2 }),
+    entry({ id: 'done', armband: 13, section: 'A', exhibitorOrder: 4, isScored: true }),
+  ];
+
+  it('is every pending dog in run order whatever the search, Section and status tab say', () => {
+    const { result } = renderHook(() =>
+      useEntryListFilters({
+        entries: all,
+        supportSectionFilter: true,
+        prioritizeInRing: true,
+        defaultSort: 'section-armband',
+      })
+    );
+    act(() => {
+      result.current.setSearchTerm('12');
+      result.current.setSectionFilter('A');
+      result.current.setActiveTab('completed');
+    });
+
+    expect(result.current.dragEntries.map(e => e.id)).toEqual(['b1', 'a2', 'a1']);
+    // The filters themselves are untouched, so they apply again when drag mode ends.
+    expect(result.current.searchTerm).toBe('12');
+    expect(result.current.filteredEntries.map(e => e.id)).not.toContain('b1');
+  });
+});

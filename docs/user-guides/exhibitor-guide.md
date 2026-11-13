@@ -46,7 +46,7 @@ If this is your first time, you'll need an account before entering a show.
 1. From the show detail page, click **Enter This Show**.
 2. On the sign-in screen, click **Sign up** (under "Don't have an account?").
 3. Under **I am…**, tick **Exhibitor (I show dogs)**.
-4. Enter your first name, last name, email address and a password (at least 6 characters).
+4. Enter your first name, last name, email address and a password (at least 8 characters).
 5. Check your inbox for a confirmation email → click the link to verify your address. If it does not arrive, use **Resend email**.
 6. You're signed in and ready to enter.
 

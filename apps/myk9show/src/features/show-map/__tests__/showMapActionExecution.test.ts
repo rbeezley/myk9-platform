@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { ShowMapAction } from '../showMapActions';
 import { showMapActionIds } from '../showMapActions';
 import {
-  isShowMapActionEnabled,
   resolveShowMapActionExecution,
   showMapActionExecutionById,
 } from '../showMapActionExecution';
@@ -37,7 +36,6 @@ describe('showMapActionExecution', () => {
       kind: 'navigate',
       href: '/scoring/classes/class-1/entries?mode=split',
     });
-    expect(isShowMapActionEnabled(action)).toBe(true);
   });
 
   it('disables navigation actions when the row has no destination', () => {
@@ -48,7 +46,6 @@ describe('showMapActionExecution', () => {
       futureKind: 'navigate',
       disabledReason: 'No destination is available for this action.',
     });
-    expect(isShowMapActionEnabled(action)).toBe(false);
   });
 
   it('never resolves a navigation execution for an action without a usable href', () => {
@@ -76,7 +73,6 @@ describe('showMapActionExecution', () => {
       mutation: 'mark-checked-in',
       successMessage: 'Entry checked in',
     });
-    expect(isShowMapActionEnabled(markCheckedIn)).toBe(true);
   });
 
   it('enables class lifecycle actions through the shared mutation lane', () => {
@@ -101,14 +97,12 @@ describe('showMapActionExecution', () => {
       mutation: 'mark-class-complete',
       successMessage: 'Class marked complete',
     });
-    expect(isShowMapActionEnabled(markStarted)).toBe(true);
-    expect(isShowMapActionEnabled(markComplete)).toBe(true);
   });
 
   it('enables scratch / no-show through the shared dialog lane', () => {
     const scratch = makeAction({
       id: 'scratch-entry',
-      label: 'Pull / no-show',
+      label: 'Pull',
       href: null,
     });
 
@@ -116,7 +110,6 @@ describe('showMapActionExecution', () => {
       kind: 'dialog',
       dialog: 'scratch-entry',
     });
-    expect(isShowMapActionEnabled(scratch)).toBe(true);
   });
 
   it('enables move-up through the shared dialog lane', () => {
@@ -130,7 +123,6 @@ describe('showMapActionExecution', () => {
       kind: 'dialog',
       dialog: 'move-up-entry',
     });
-    expect(isShowMapActionEnabled(moveUp)).toBe(true);
   });
 
   it('enables message handler through the shared dialog lane', () => {
@@ -144,6 +136,5 @@ describe('showMapActionExecution', () => {
       kind: 'dialog',
       dialog: 'message-handler',
     });
-    expect(isShowMapActionEnabled(messageHandler)).toBe(true);
   });
 });

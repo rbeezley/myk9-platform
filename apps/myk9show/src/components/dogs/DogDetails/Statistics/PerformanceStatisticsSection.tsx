@@ -47,7 +47,7 @@ const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> 
           We couldn&rsquo;t load performance statistics. Please try again.
         </p>
         <Button size="sm" variant="outline" onClick={() => refetch()}>
-          Retry
+          Try again
         </Button>
       </div>
     );

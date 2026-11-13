@@ -252,3 +252,16 @@ Report the commit hash and confirm push succeeded.
 - Include the harness `Co-Authored-By` trailer for AI-assisted commits
 - Do NOT create new test files during a commit — only run existing ones
 - Do NOT merge from this skill — hand off to `/ship-pr`
+
+## Lessons
+
+Traps that belong to this work, moved from `CLAUDE.md` § LESSONS (MYK9-1790). Each points at its incident in `docs/lessons/README.md`; `lessonGuards.test.ts` checks every anchor here has a `**Guard:**` line.
+
+- **A timeout-class flake needs shuffle order AND a slow environment**: replay with `taskpolicy -b pnpm vitest run <file> --coverage --sequence.shuffle`, and keep the `beforeEach` reset O(1) in the leaked state's size (`store.clear()`, not per-row deletes). (docs/lessons/README.md#timeout-class-flake)
+- **A stale package `dist` gives a false `tsc` failure and a false vitest pass at once**, and `pnpm exec vitest` skips the `qa:dist-fresh` check that the app's `pnpm test` runs first. (docs/lessons/README.md#stale-package-dist)
+- **A test that greps source text proves someone typed the thing, not that it does anything**, so it certifies a no-op as a fix. Assert rendered geometry or behavior, and when a fix's premise is "library X defaults to Y", read the installed package first. (docs/lessons/README.md#source-text-tests)
+- **A vitest `Test timed out in Nms` names the `it()`, not what was running when the clock expired.** Instrument phases with `performance.now()` before concluding anything; `userEvent.type` into a controlled input bound to a persisted zustand store costs ~512ms/char under coverage, so type the fewest characters the assertion needs. (docs/lessons/README.md#vitest-timeout-names-it)
+- **A field plumbed through the data layer can be dropped at the last hop** by a hand-picked `.map(…)` projection, and a unit test on the pure function cannot see it. When a fix adds a field to a prop, check every projection over that prop, and pin it with a test that renders the component on the real prop shape. (docs/lessons/README.md#last-hop-drop)
+- **A comment naming the thing satisfies any grep-based test or guard.** Assert behavior (extract and run the shell/function against a stub); when a guard must know "does anything invoke X", prefer a declared list that fails loud on omission over a scan that guesses. (docs/lessons/README.md#comment-satisfies-grep)
+- **A mutation test you don't confirm actually mutated is a green light you trust too much** — as is a guard test whose setup never reaches the condition. Match headings exactly, never `index()`; print WHERE the change landed; break the implementation and watch THAT test go red. (docs/lessons/README.md#mutation-actually-mutated)
+- **When a suite has never run, every red is a claim about the harness first**, and a green in it may be a test that cannot fail. Read the failure artifact before theorising, audit every stale locator in one pass rather than one CI round trip each, and give any absence-assertion a positive control on the same page and collector. (docs/lessons/README.md#dead-suite-reds)

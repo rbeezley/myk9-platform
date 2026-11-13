@@ -17,6 +17,8 @@ export interface TabBarProps {
   rightElement?: React.ReactNode;
   /** Variant: 'default' | 'compact' | 'full-width' */
   variant?: 'default' | 'compact' | 'full-width';
+  /** Greys the tabs out and ignores taps; the buttons are natively disabled so they announce it. */
+  disabled?: boolean;
 }
 
 /**
@@ -48,6 +50,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   className,
   rightElement,
   variant = 'default',
+  disabled = false,
 }) => {
   return (
     <div
@@ -84,6 +87,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               'hover:text-[var(--foreground)] hover:bg-[var(--muted)]',
               'active:scale-[0.98] active:transition-[100ms]',
               'motion-reduce:transition-none',
+              'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
               activeTab === tab.id && [
                 'text-[var(--primary)]',
                 'border-b-[var(--primary)]',
@@ -99,6 +103,7 @@ export const TabBar: React.FC<TabBarProps> = ({
             )}
             onClick={() => onTabChange(tab.id)}
             type="button"
+            disabled={disabled}
           >
             {tab.icon && (
               <span

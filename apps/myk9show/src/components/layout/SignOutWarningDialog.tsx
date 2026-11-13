@@ -39,7 +39,7 @@ export function SignOutWarningDialog({ context, onCancel, onConfirm }: SignOutWa
               ? 'If you sign out now, you cannot sign back in until you have internet again.'
               : 'If you lose internet at the show site, you cannot sign back in until it returns. Stay signed in unless this is a shared device.'}
             {isOffline && context.hasUnsyncedChanges
-              ? " You also have changes on this device that haven't synced yet."
+              ? ' You also have changes saved on this device that have not been sent yet.'
               : null}
           </AlertDialogDescription>
         </AlertDialogHeader>

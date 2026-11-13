@@ -42,7 +42,7 @@ export function EntrySubmissionOutcomeAlert({ outcomes }: EntrySubmissionOutcome
         )}
         {waitlisted.length > 0 && (
           <p>
-            {`${waitlisted.length} ${waitlisted.length === 1 ? 'selection joined' : 'selections joined'} the wait list. Payment is not due unless a spot is offered.`}
+            {`${waitlisted.length} ${waitlisted.length === 1 ? 'selection joined' : 'selections joined'} the waitlist. Payment is not due unless a spot is offered.`}
           </p>
         )}
         {deniedCount > 0 && (
@@ -50,7 +50,7 @@ export function EntrySubmissionOutcomeAlert({ outcomes }: EntrySubmissionOutcome
         )}
         {waitlisted.map(outcome => (
           <p key={`${outcome.dogId}:${outcome.classId}:waitlisted`}>
-            {`${selectionLabel(outcome)}: joined the wait list; no payment is due unless a spot is offered.`}
+            {`${selectionLabel(outcome)}: joined the waitlist; no payment is due unless a spot is offered.`}
           </p>
         ))}
         {denied.map(outcome => (

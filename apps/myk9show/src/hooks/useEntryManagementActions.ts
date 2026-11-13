@@ -12,17 +12,21 @@ import {
   compEntry,
   uncompEntry,
   executeStatusChange,
-  COMP_REFUSED_PAID_CODE,
-  COMP_REFUSED_PAID_MESSAGE,
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { optimisticPulledBy } from '@/utils/optimisticPulledBy';
 import { getEligibleForBulkStatusChange } from '@/components/entries/management/bulkActionEligibility';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
-import { showUndoToast } from '@/lib/undoToast';
+import { createBulkDecisionSnapshot } from './bulkDecisionSnapshot';
+import { showUndoToast, STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
+import {
+  ENTRY_ACTION_COPY as COPY,
+  armbandSaveErrorMessage,
+  compErrorMessage,
+} from './entryManagementErrorCopy';
 
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
@@ -32,6 +36,8 @@ import type {
   EntryManagementEntry,
   EntryClass,
   ArmbandDialogState,
+  StatusChangeOptions,
+  BulkStatusChangeHandler,
 } from '@/types/entry-management-types';
 
 /**
@@ -62,7 +68,8 @@ interface UseEntryManagementActionsReturn {
   handleStatusChange: (
     entryId: string,
     newStatus: EntryStatus,
-    withdrawalReason?: string
+    withdrawalReason?: string,
+    options?: StatusChangeOptions
   ) => Promise<boolean>;
   handleAssignArmband: () => Promise<void>;
   handleNextArmband: () => Promise<void>;
@@ -71,7 +78,7 @@ interface UseEntryManagementActionsReturn {
     cls: EntryClass,
     status: CheckInStatus
   ) => Promise<void>;
-  handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<boolean>;
+  handleEnrollmentBulkStatusChange: BulkStatusChangeHandler;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
@@ -145,20 +152,35 @@ export function useEntryManagementActions({
   });
 
   const handleStatusChange = useCallback(
-    async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
+    async (
+      entryId: string,
+      newStatus: EntryStatus,
+      withdrawalReason?: string,
+      options?: StatusChangeOptions
+    ) => {
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return false;
       const priorStatus = entry.entryStatus;
       // MYK9-1384: Undo of a Pull must put the dog back exactly as it was.
       const priorCheckInStatus = entry.classes[0]?.checkInStatus;
       const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      // The decision as it was made, kept for an Undo window that outlives this show's list
+      // (she may switch shows before it closes). The patches below land on it too, so it
+      // carries the armband an Accept assigns.
+      let decided: EntryManagementEntry = { ...entry, entryStatus: newStatus };
       const ok = await executeStatusChange(
         { entryId, newStatus, withdrawalReason, entry, userId: user?.id },
-        { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
+        {
+          changeSecretaryStatus: changeSecretaryEntryStatus,
+          patchEntries: update => {
+            setEntries(update);
+            decided = { ...(update([decided])[0] ?? decided), entryStatus: newStatus };
+          },
+        }
       );
 
       if (!ok) {
-        toast.error("Couldn't update entry status");
+        toast.error(COPY.statusChangeFailed);
         return false;
       }
 
@@ -171,13 +193,28 @@ export function useEntryManagementActions({
           onUndo: () => {
             void runSingleUndo(entryId, priorStatus, newStatus, priorCheckInStatus);
           },
-          ...(offline ? { description: 'Queued — will sync when online' } : {}),
+          duration: STATUS_UNDO_WINDOW_MS,
+          // The decision stood: Undo is off the screen and the entry still has this status
+          // (a later change to the same entry, inside the window, supersedes this one).
+          onStood: options?.onStood
+            ? () => {
+                const current = entriesRef.current.find(e => e.id === entryId);
+                if (current) {
+                  if (current.entryStatus === newStatus) options.onStood?.(current);
+                } else {
+                  // Not on this list: she switched shows inside the window (and perhaps back
+                  // to a list still loading). The decision still stood.
+                  options.onStood?.(decided);
+                }
+              }
+            : undefined,
+          ...(offline ? { description: COPY.savedOffline } : {}),
         });
       }
 
       return true;
     },
-    [entries, setEntries, user, runSingleUndo]
+    [entries, entriesRef, setEntries, user, runSingleUndo]
   );
 
   // Handle armband assignment
@@ -194,7 +231,7 @@ export function useEntryManagementActions({
       if (dbError) {
         setArmbandDialog(prev => ({
           ...prev,
-          error: (dbError as { message?: string })?.message || 'Failed to assign armband',
+          error: armbandSaveErrorMessage(dbError, armbandDialog.value.trim()),
         }));
         return;
       }
@@ -212,7 +249,7 @@ export function useEntryManagementActions({
 
       setArmbandDialog({ open: false, entry: null, value: '' });
     } catch (err) {
-      setError('Failed to assign armband');
+      setError(COPY.armbandFailed);
       logger.error('Error assigning armband:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);
@@ -242,8 +279,8 @@ export function useEntryManagementActions({
   // executeStatusChange (the same optimistic-update-with-rollback path the single-entry
   // handler uses) via useBulkDispatch's Promise.allSettled fold, so one entry's failure
   // can't roll back or block the others — see design.md decision D3.
-  const handleEnrollmentBulkStatusChange = useCallback(
-    async (entryIds: string[], status: EntryStatus, onFullSuccess?: () => void) => {
+  const handleEnrollmentBulkStatusChange = useCallback<BulkStatusChangeHandler>(
+    async (entryIds, status, onFullSuccess, options) => {
       const requested = entriesRef.current.filter(e => entryIds.includes(e.id));
       // Narrow to the entries this status change may validly touch, HERE rather
       // than in each caller. `bulkActionEligibility` says a bulk status change
@@ -259,6 +296,7 @@ export function useEntryManagementActions({
       // Capture each entry's prior status BEFORE the change so undo can revert
       // each item to exactly where it started (design.md D6).
       const priorById = new Map(targets.map(e => [e.id, e.entryStatus]));
+      const snapshot = createBulkDecisionSnapshot(status);
       setIsProcessing(true);
       try {
         const outcome = await bulkStatusDispatch.run(
@@ -266,9 +304,12 @@ export function useEntryManagementActions({
           async entry => {
             const ok = await executeStatusChange(
               { entryId: entry.id, newStatus: status, entry, userId: user?.id },
-              { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
+              {
+                changeSecretaryStatus: changeSecretaryEntryStatus,
+                patchEntries: snapshot.patchFor(entry, setEntries),
+              }
             );
-            if (!ok) throw new Error('Failed to update entry status');
+            if (!ok) throw new Error(COPY.statusChangeFailed);
           },
           {
             buildUndo: result =>
@@ -278,6 +319,7 @@ export function useEntryManagementActions({
                   }
                 : undefined,
             onFullSuccess,
+            ...snapshot.stoodRunOption(options, () => entriesRef.current),
             applicableWhen: entry => {
               const fresh = entriesRef.current.find(e => e.id === entry.id) ?? entry;
               // Retry ONLY if no other actor has touched this entry since our first
@@ -294,7 +336,7 @@ export function useEntryManagementActions({
         if (outcome === null) return false;
         return outcome.failed.length === 0;
       } catch (err) {
-        setError('Failed to update entry statuses');
+        setError(COPY.bulkStatusChangeFailed);
         logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
         return false;
       } finally {
@@ -381,7 +423,7 @@ export function useEntryManagementActions({
       const { data, error: dbError } = await getEntriesForExport(selectedShowId);
 
       if (dbError) {
-        setError(friendlyDbError(dbError, 'Failed to export entries'));
+        setError(friendlyDbError(dbError, COPY.exportLoadFailed));
         return;
       }
 
@@ -444,7 +486,7 @@ export function useEntryManagementActions({
         },
       });
     } catch (err) {
-      setError('Failed to export entries');
+      setError(COPY.exportFailed);
       logger.error('Error exporting entries:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);
@@ -466,11 +508,7 @@ export function useEntryManagementActions({
 
         if (dbError) {
           // MYK9-1407: the server refuses a comp on a paid or refunded entry.
-          setError(
-            dbError.code === COMP_REFUSED_PAID_CODE
-              ? COMP_REFUSED_PAID_MESSAGE
-              : 'Failed to comp entry'
-          );
+          setError(compErrorMessage(dbError));
           return;
         }
 
@@ -495,7 +533,7 @@ export function useEntryManagementActions({
           metadata: { action: 'comp_entry', reason, secretaryId: user?.id },
         });
       } catch (err) {
-        setError('Failed to comp entry');
+        setError(COPY.compUnfinished);
         logger.error('Error comping entry:', 'secretary', {}, err as Error);
       } finally {
         setIsProcessing(false);
@@ -514,7 +552,7 @@ export function useEntryManagementActions({
         const { data, error: dbError } = await uncompEntry(entryId);
 
         if (dbError) {
-          setError('Failed to remove comp');
+          setError(COPY.uncompFailed);
           return;
         }
 
@@ -539,7 +577,7 @@ export function useEntryManagementActions({
           metadata: { action: 'uncomp_entry', secretaryId: user?.id },
         });
       } catch (err) {
-        setError('Failed to remove comp');
+        setError(COPY.uncompUnfinished);
         logger.error('Error uncomping entry:', 'secretary', {}, err as Error);
       } finally {
         setIsProcessing(false);

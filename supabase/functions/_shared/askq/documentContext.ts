@@ -19,6 +19,8 @@ export interface BuildDocumentContextInput {
   guides: AskQGuideAsset[];
   rulebook?: AskQRulebookAsset | null;
   rulebooks?: AskQRulebookAsset[];
+  /** Leave out the rulebook section entirely, for a source that must not see rulebook text. */
+  omitRulebookSection?: boolean;
 }
 
 export interface AskQRulebookScopeOption {
@@ -63,6 +65,8 @@ export function buildDocumentContext(input: BuildDocumentContextInput): string {
 ${input.guides.map(formatGuide).join('\n\n')}
 </verified_user_guides>`,
   ];
+
+  if (input.omitRulebookSection) return sections.join('\n\n');
 
   if (rulebooks.length > 0) {
     sections.push(rulebooks.map(formatRulebook).join('\n\n'));

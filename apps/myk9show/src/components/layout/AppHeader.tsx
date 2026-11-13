@@ -317,8 +317,11 @@ const AppHeader: React.FC = () => {
                 <Button asChild variant="ghost" size="touch">
                   <Link to="/sign-in">Sign In</Link>
                 </Button>
-                <Button asChild size="touch">
-                  <Link to="/sign-up">Sign Up</Link>
+                {/* MYK9-1857: "Create account" is wider than the old "Sign Up" and squeezed the
+                    wordmark at phone widths (header-wordmark-fits). Phones reach account
+                    creation from the Sign In page, which links to it. */}
+                <Button asChild size="touch" className="hidden sm:inline-flex">
+                  <Link to="/sign-up">Create account</Link>
                 </Button>
               </>
             )}

@@ -12,7 +12,7 @@
 export const ONLINE_ENTRIES_NOT_OPEN_ERROR = 'Online entries are not currently open for this show.';
 
 export const ONLINE_ENTRIES_OFF_ERROR =
-  "This show doesn't take online entries. Mail your entry to the trial secretary — the premium has the details.";
+  "This show doesn't take online entries. Mail your entry to the show secretary — the premium has the details.";
 
 // 'accepting_entries' is not a permitted shows.status (072_align_show_class_
 // statuses.sql); kept so this gate refuses nothing it accepted before.

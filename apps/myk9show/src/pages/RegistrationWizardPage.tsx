@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { helpUrl } from '@/lib/help';
 import { cn } from '@/lib/utils';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
-import type { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatus } from '@/types/show-registration-types';
 import { useShowStore } from '@/store/showStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -37,6 +37,7 @@ import { WizardLeaveGuard } from './RegistrationWizardPage/WizardLeaveGuard';
 import { EntriesClosedNotice } from './RegistrationWizardPage/EntriesClosedNotice';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
+import { useOnlyDogPreselect } from './RegistrationWizardPage/useOnlyDogPreselect';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 import { EMPTY_ENTRY_NOTICE } from './RegistrationWizardPage/proceedGating';
 import {
@@ -81,14 +82,10 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     liveFeeCalculation,
     entryWindowTimezoneState,
     paymentDetailsRef,
-    waiveFees,
-    setWaiveFees,
     paymentResolution,
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
     setJuniorHandlerDog,
-    feeOverride,
-    setFeeOverride,
     classSelections,
     capacityReady,
     capacityError,
@@ -108,7 +105,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     retryDogLoad,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
-    setPaymentStatus,
     setEntryStatus,
     handleDogSelectionChange,
     handleClassSelectionChange,
@@ -116,7 +112,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,
-    handlePaymentStatusChange,
     handleEntryStatusChange,
     proceedBlocked,
     emptyEntryNoticeShown,
@@ -129,6 +124,8 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
 
   // Dog Details' "Enter a show" carries `?dogId=` here (MYK9-519).
   useEntryDogHandoff(wiz);
+  // An exhibitor's only dog arrives ticked, without counting as a started entry (MYK9-1795).
+  useOnlyDogPreselect(wiz);
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
   // True only while the exhibitor's OWN clearing of the dog step is the reason
@@ -205,8 +202,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,
               feeCalculation: liveFeeCalculation,
-              waiveFees,
-              feeOverride,
               onRemoveLine: removeLine,
               removingLineKey,
             }
@@ -383,8 +378,8 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
                   className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
                 >
                   {ownerResolution.owners.length >= 2
-                    ? "This wizard processes one exhibitor's entries at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
-                    : 'One or more selected dogs has no owner on file. An enrollment must be filed under an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
+                    ? "Entries are made for one exhibitor at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
+                    : 'One or more selected dogs has no owner on file. An entry must belong to an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
                 </div>
               )}
 
@@ -425,22 +420,14 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               onPaymentDetailsChange={(details: PaymentDetails) =>
                 handlePaymentDetailsChange(details)
               }
-              onPaymentStatusChange={(regId: string, status: PaymentStatus) =>
-                handlePaymentStatusChange(regId, status)
-              }
               onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) =>
                 handleEntryStatusChange(regId, status, reason)
               }
-              setPaymentStatus={setPaymentStatus}
               setEntryStatus={setEntryStatus}
               dogsLoading={dogsLoading}
               offlineFirstCreate={isLateEntryMode && currentWorkflowMode !== 'exhibitor'}
               agreedToEntryAgreement={agreedToEntryAgreement}
               onAgreementChange={setAgreedToEntryAgreement}
-              waiveFees={waiveFees}
-              feeOverride={feeOverride}
-              onWaiveFeesChange={setWaiveFees}
-              onFeeOverrideChange={setFeeOverride}
               juniorDeclaration={{
                 canDeclare: canDeclareJuniorHandler,
                 dogIds: juniorHandlerDogIds,

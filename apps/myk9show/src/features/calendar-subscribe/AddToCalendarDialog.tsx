@@ -75,7 +75,7 @@ export function AddToCalendarDialog({
     try {
       await navigator.clipboard.writeText(urls.displayUrl);
       setCopied(true);
-      notifications.success('Link copied.');
+      notifications.success('Link copied');
     } catch {
       // Clipboard permissions vary; the link is on screen to copy by hand.
       notifications.error('Could not copy it for you. Select the link below and copy it yourself.');

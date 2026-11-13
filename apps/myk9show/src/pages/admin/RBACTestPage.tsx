@@ -244,7 +244,7 @@ export const RBACTestPage: React.FC = () => {
             )}
 
             <Button onClick={testDatabaseConnection} variant="outline" size="sm" className="mt-2">
-              Retry Connection
+              Try connection again
             </Button>
           </CardContent>
         </Card>

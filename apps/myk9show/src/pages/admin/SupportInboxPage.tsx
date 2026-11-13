@@ -108,7 +108,7 @@ export default function SupportInboxPage() {
               disabled={tickets.isFetching}
               onClick={() => void tickets.refetch()}
             >
-              {tickets.isFetching ? 'Retrying…' : 'Retry'}
+              {tickets.isFetching ? 'Trying again…' : 'Try again'}
             </Button>
           </AlertDescription>
         </Alert>

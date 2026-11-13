@@ -72,7 +72,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
+  replicatedClassesTable: {
+    getClassById: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => undefined),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
@@ -155,6 +159,7 @@ const StubLiveScoresheet = ({
   onBack,
   backLabel,
   onDirtyChange,
+  onRunStart,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -165,6 +170,7 @@ const StubLiveScoresheet = ({
   onBack: () => void;
   backLabel?: string;
   onDirtyChange?: (dirty: boolean) => void;
+  onRunStart?: () => void;
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
@@ -175,6 +181,7 @@ const StubLiveScoresheet = ({
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
     <div data-testid="back-label">{backLabel}</div>
     <button onClick={() => onDirtyChange?.(true)}>Mark dirty</button>
+    <button onClick={onRunStart}>Start timer</button>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     {/* Like the real sheet, a refused save is caught (and shown) by the sheet. */}
     <button
@@ -363,7 +370,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
   });
 
@@ -406,7 +413,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       } as never);
 
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(2);
@@ -479,7 +486,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Live scoresheet for #105')).not.toBeInTheDocument();
   });
@@ -508,7 +515,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
 
@@ -522,7 +529,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Submit Score'));
 
     await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
 
     // Offline at the ring: every network sync hangs until the venue reconnects.
     const offline = () => new Promise<never>(() => undefined);
@@ -582,7 +589,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     view.rerender(<QuickAdvancePanel {...actions} scoredEntryId="entry-2" />);
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
-    expect(screen.getByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(screen.getByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
   });
 
   it('changes a queued confirmation to server-saved after upload and readback', async () => {
@@ -592,7 +599,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     renderPage();
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.getScoreUploadState).toHaveBeenCalled());
 
     vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
@@ -624,7 +631,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
@@ -654,7 +661,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
@@ -669,7 +676,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Submit Score'));
 
     expect(
-      await screen.findByText(/Saved on this device.*sync needs attention/i)
+      await screen.findByText(/Saved on this device, but it could not be sent/i)
     ).toBeInTheDocument();
     expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
   });
@@ -1009,7 +1016,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByText('No Scoring Access');
 
     // The scoring engine (useAtShowScoresheet) never mounts for a denied role,
-    // so neither the submit nor the on-load `transitionToInRing` auto-advance
+    // so neither the submit nor the Start timer ring move
     // fires — the block is structural, not just a hidden submit button.
     expect(screen.queryByText('Submit Score')).not.toBeInTheDocument();
     expect(submitScoreOptimistically).not.toHaveBeenCalled();
@@ -1384,7 +1391,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     });
   });
 
-  it('Check again re-reads the sheet: once the number is added, the dog opens and goes in-ring', async () => {
+  it('Check again re-reads the sheet: once the number is added, the judge can explicitly start', async () => {
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
     renderPage();
     const checkAgain = await screen.findByRole('button', { name: 'Check again' });
@@ -1396,14 +1403,18 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(checkAgain);
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
-    expect(transitionToInRing).toHaveBeenCalledWith('entry-1', 'no-status', undefined);
+    expect(transitionToInRing).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start timer' }));
+    expect(transitionToInRing).toHaveBeenCalledWith('entry-1');
   });
 
-  it('moves an unheld dog in-ring when its sheet opens', async () => {
+  it('moves an unheld dog in-ring only after Start timer', async () => {
     renderPage();
 
     await screen.findByTestId('live-scoresheet');
-    await waitFor(() => expect(transitionToInRing).toHaveBeenCalledTimes(1));
+    expect(transitionToInRing).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start timer' }));
+    expect(transitionToInRing).toHaveBeenCalledTimes(1);
     expect(vi.mocked(transitionToInRing).mock.calls[0]?.[0]).toBe('entry-1');
   });
 

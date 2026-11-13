@@ -9,7 +9,7 @@ import {
 } from '@/components/shows/ShowDetails/showStickyLayout';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useElementWidth } from '@/hooks/useElementWidth';
-import { COCKPIT_SPLIT_COLUMNS, isCockpitSplit } from './cockpitSplit';
+import { cockpitSplitTemplate, isCockpitSplit } from './cockpitSplit';
 
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
@@ -17,7 +17,8 @@ import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { cockpitDaysKey } from './cockpitDayFilter';
 import { CockpitFilterMenu } from './CockpitFilterMenu';
 import { CockpitFocusOutlet } from './CockpitSplitFocusColumn';
-import { focusedPanelShows, statusesUpdate } from './cockpitFocusRules';
+import { pruneCockpitFilters, hasActiveCockpitFilters } from './cockpitClassFilters';
+import { filtersUpdate, focusedPanelShows } from './cockpitFocusRules';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
@@ -35,6 +36,7 @@ import type {
   SecretaryCockpitRunOrderControls,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 export function SecretaryCockpit({
   snapshot,
@@ -42,6 +44,7 @@ export function SecretaryCockpit({
   onCommand,
   runOrder,
   entryBreakdownByClassId,
+  onRefreshEntries,
 }: {
   snapshot: SecretaryCockpitSnapshot;
   canManageShow: boolean;
@@ -53,12 +56,18 @@ export function SecretaryCockpit({
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
+  onRefreshEntries?: EntriesRefresh | undefined;
 }) {
   const { state: urlState, updateState } = useSecretaryCockpitUrlState();
   // A Select classes link's trial or class (MYK9-1324) opens and scrolls like the cockpit's own.
   const [searchParams] = useSearchParams();
   const legacyAnchor = urlState.anchor ? undefined : selectClassesAnchor(searchParams);
-  const state = legacyAnchor ? { ...urlState, anchor: legacyAnchor } : urlState;
+  // Ticks the show does not offer (a stale link, a hidden group) are dropped before they filter.
+  const state = pruneCockpitFilters(
+    snapshot,
+    legacyAnchor ? { ...urlState, anchor: legacyAnchor } : urlState
+  );
   // The class panel's judge picker (MYK9-1323). Held here so a split/stack remount of the panel
   // cannot drop an assignment mid-write. The write puts the judge on the local class row
   // (MYK9-1327), which the snapshot already reads, so the panel and the schedule row both show it.
@@ -66,7 +75,7 @@ export function SecretaryCockpit({
   // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a split/stack switch cannot close an open editor.
-  const { renderClassActions, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
+  const { editClassAction, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
   // Add classes and High in Trial live in the trial's menu (MYK9-1727), so the heading holds
   // only the menu and it stays in the card's top-right corner on a phone.
   const renderTrialActions = (trialId: string, label: string) =>
@@ -123,6 +132,7 @@ export function SecretaryCockpit({
       canManageShow={canManageShow}
       onCommand={onCommand}
       entryBreakdownByClassId={entryBreakdownByClassId}
+      onRefreshEntries={onRefreshEntries}
       {...(runOrder !== undefined && { runOrder })}
       {...(canManageShow &&
         sourceClass && {
@@ -143,11 +153,7 @@ export function SecretaryCockpit({
         })}
       {...(canManageShow &&
         trial && {
-          setupActions: renderClassActions(
-            model.focusedClass.id,
-            trial.id,
-            model.focusedClass.name
-          ),
+          editClass: editClassAction(model.focusedClass.id, trial.id),
         })}
     />
   ) : null;
@@ -210,7 +216,13 @@ export function SecretaryCockpit({
   // before the line or chip that was clicked disappears.
   const clearFilters = () => {
     document.querySelector<HTMLElement>('[data-testid="cockpit-filter"] button')?.focus();
-    updateState({ selectedDays: [], statuses: [] });
+    updateState({
+      selectedDays: [],
+      statuses: [],
+      judges: [],
+      elements: [],
+      levels: [],
+    });
   };
 
   return (
@@ -237,8 +249,19 @@ export function SecretaryCockpit({
           'grid items-start',
           isSplit ? 'grid-rows-[auto_auto] gap-5' : 'grid-cols-[minmax(0,1fr)] gap-4'
         )}
-        style={isSplit ? { gridTemplateColumns: COCKPIT_SPLIT_COLUMNS } : undefined}
+        style={
+          isSplit
+            ? {
+                gridTemplateColumns: cockpitSplitTemplate(
+                  panelShows && model.focusedClass !== null
+                ),
+              }
+            : undefined
+        }
         data-cockpit-layout={isSplit ? 'split' : 'stacked'}
+        data-cockpit-rail={
+          isSplit && panelShows && model.focusedClass !== null ? 'true' : undefined
+        }
       >
         <SecretaryCockpitSchedule
           showId={snapshot.showId}
@@ -248,17 +271,17 @@ export function SecretaryCockpit({
           model={model}
           sourceClasses={snapshot.classes}
           sourceTrials={snapshot.trials}
-          filtered={(state.statuses?.length ?? 0) > 0}
+          filtered={hasActiveCockpitFilters(state)}
           filterBar={
             <CockpitFilterMenu
               snapshot={snapshot}
               model={model}
-              statuses={state.statuses ?? []}
+              filters={state}
               onDaysChange={selectedDays =>
                 updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
               }
-              onStatusesChange={statuses =>
-                updateState(statusesUpdate(model, state.focusedClassId, statuses))
+              onFiltersChange={update =>
+                updateState(filtersUpdate(model, state.focusedClassId, state, update))
               }
               onClearAll={clearFilters}
             />

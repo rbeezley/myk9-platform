@@ -14,7 +14,9 @@ describe('LoadingErrorBoundary (MYK9-1114)', () => {
         <Boom />
       </SuspenseWrapper>
     );
-    const fallback = screen.getByText('Failed to load component').closest('[data-boundary-error]');
+    const fallback = screen
+      .getByText("We couldn't open this page")
+      .closest('[data-boundary-error]');
     expect(fallback).toHaveAttribute(
       'data-boundary-error',
       'ResultsTab: TypeError: Failed to fetch dynamically imported module: /assets/reads.js'

@@ -29,6 +29,7 @@ import { blockedPrintMessage, resolvePrintReadiness } from './reportReadinessCop
 import { ReportPrintStatus } from './ReportPrintStatus';
 import { TrialFinancialsCard } from './TrialFinancialsCard';
 import { isReportForeignToScope } from './reportScopedRegistries';
+import { officialFormJudgeBlock } from './reportJudgeGate';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -233,7 +234,21 @@ export default function ReportsPage() {
   const previewClasses = judgeDay.scoped?.classes ?? classes;
   const previewEntries = judgeDay.scoped?.entries ?? entries;
 
+  // MYK9-1854: an official AKC form never prints, or downloads, while a class has no judge.
+  const judgeBlock = officialFormJudgeBlock(
+    reportType,
+    show,
+    resolvedTrials as Parameters<typeof officialFormJudgeBlock>[2],
+    previewClasses as Parameters<typeof officialFormJudgeBlock>[3],
+    trialId,
+    classId
+  );
+
   const handlePrint = () => {
+    if (judgeBlock) {
+      toast(judgeBlock);
+      return;
+    }
     // Check the DATA before the iframe. A paused query renders an empty report
     // whose iframe body is non-empty, so printIframe() happily returns true and
     // the secretary gets a roster with no dogs on it.
@@ -319,7 +334,11 @@ export default function ReportsPage() {
 
   // A deep link keeps a foreign-registry report reachable; it gets no Print and no Download.
   const isForeignReport = isReportForeignToScope(reportType, trialOptions, trialId);
-  const officialPdfAction = isForeignReport ? undefined : downloadAction;
+  const officialPdfAction = isForeignReport
+    ? undefined
+    : downloadAction && judgeBlock
+      ? { ...downloadAction, disabled: true, disabledReason: judgeBlock }
+      : downloadAction;
 
   return (
     // px-4: this project's `.container` compiles to width + max-widths only,
@@ -334,7 +353,7 @@ export default function ReportsPage() {
           Print check-in sheets, catalogs, official forms, and labels. Pick a report below, narrow
           it to a trial or class, then print or download. Print opens your print dialog; choose Mark
           printed on the notice that follows to record it. Until then a report reads Not confirmed
-          printed here and in Overview's class checklist.
+          printed here and in Show Desk's class checklist.
         </p>
       </div>
       {linkShowId && (

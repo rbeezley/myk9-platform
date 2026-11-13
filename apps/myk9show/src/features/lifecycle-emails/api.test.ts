@@ -4,6 +4,7 @@ import {
   LifecycleSendPartialError,
   fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
+  LifecycleEmailAlreadySavedError,
   saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
   skipLifecycleEmailJobsForReview,
@@ -271,6 +272,29 @@ describe('lifecycle email api helpers', () => {
     expect(widest('show_lifecycle_email_jobs', 'id')).toBeLessThanOrEqual(100);
     expect(inFilters.filter(f => f.column === 'related_id')).toHaveLength(5);
     expect(inFilters.filter(f => f.column === 'id')).toHaveLength(5);
+  });
+
+  it('names a duplicate-key refusal, so a caller can tell "already on file" from a failure', async () => {
+    const refuse = (status: number): LifecycleEmailFunctionsClient => ({
+      functions: {
+        invoke: async () => ({ data: null, error: { message: 'non-2xx', context: { status } } }),
+      },
+    });
+    const save = (client: LifecycleEmailFunctionsClient) =>
+      saveLifecycleEmailJobForLater({
+        supabase: client,
+        showId: 'show-1',
+        stepType: 'accepted',
+        recipientScope: 'enrollment',
+        entryId: 'entry-1',
+        subject: 's',
+        body: 'b',
+        secretaryNote: '',
+        idempotencyKey: 'idem',
+      });
+
+    await expect(save(refuse(409))).rejects.toBeInstanceOf(LifecycleEmailAlreadySavedError);
+    await expect(save(refuse(500))).rejects.not.toBeInstanceOf(LifecycleEmailAlreadySavedError);
   });
 
   it('passes correction ids when saving a ready lifecycle email', async () => {

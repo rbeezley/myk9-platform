@@ -14,7 +14,7 @@ export function useSyncNote(): { label: string; needsAttention: boolean } {
         ? `Offline · ${sync.queueSize} ${sync.queueSize === 1 ? 'change' : 'changes'} saved on this device`
         : 'Offline · scores saved on this device'
       : needsAttention
-        ? 'Sync needs attention'
+        ? 'Some changes need attention'
         : sync.status === 'pending'
           ? `${sync.queueSize} ${sync.queueSize === 1 ? 'change' : 'changes'} saved on this device`
           : 'All changes saved';

@@ -136,9 +136,9 @@ describe('CheckoutSuccessPage split checkout summary', () => {
       initialRoute: '/checkout/success?waitlist=1&split=split-2',
     });
 
-    await waitFor(() => expect(screen.getByText('Added to Wait List')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Added to Waitlist')).toBeInTheDocument());
     expect(
-      screen.getByText(/We'll notify you if a spot opens up from the wait list\./i)
+      screen.getByText(/We'll notify you if a spot opens up from the waitlist\./i)
     ).toBeInTheDocument();
     expect(screen.queryByText('Order Total')).not.toBeInTheDocument();
     expect(verifyCheckoutSessionMock).not.toHaveBeenCalled();
@@ -174,9 +174,9 @@ describe('CheckoutSuccessPage split checkout summary', () => {
       { initialRoute: '/checkout/success?waitlist=1&split=split-strict' }
     );
 
-    await waitFor(() => expect(screen.getByText('Added to Wait List')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Added to Waitlist')).toBeInTheDocument());
     expect(
-      screen.queryByRole('heading', { name: 'Wait List Confirmation Unavailable' })
+      screen.queryByRole('heading', { name: 'Waitlist Confirmation Unavailable' })
     ).not.toBeInTheDocument();
   });
 

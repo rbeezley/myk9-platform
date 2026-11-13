@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import { formatTrialLabel } from '@myk9/core';
 import { getEntryAttention } from './attention';
 import { getTrialTimezone } from '@/features/registries';
@@ -140,9 +141,15 @@ function dogEntryDisplayFor(
   };
 }
 
-function dogEntrySubtitle(display: ShowMapDogEntryDisplay): string | undefined {
+export function dogEntrySubtitle(display: ShowMapDogEntryDisplay): string | undefined {
   return (
-    [display.trialLabel, display.trialDate, display.ringLabel, display.judgeName, display.startTime]
+    [
+      display.trialLabel,
+      display.trialDate,
+      display.ringLabel,
+      display.judgeName ? judgeNameOrUnsetLabel(display.judgeName) : undefined,
+      display.startTime,
+    ]
       .filter(Boolean)
       .join(' · ') || undefined
   );

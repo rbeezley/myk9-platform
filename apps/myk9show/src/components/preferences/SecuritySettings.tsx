@@ -1,3 +1,4 @@
+import { friendlyAuthError, MIN_PASSWORD_LENGTH, PASSWORD_TOO_SHORT } from '@/lib/authErrorCopy';
 import { useState } from 'react';
 import { Lock, Eye, EyeOff, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { PasswordNonceRequired } from '@/features/step-up/passwordChange';
+import { PasswordChangeError, PasswordNonceRequired } from '@/features/step-up/passwordChange';
 import { PasswordNonceField } from '@/features/step-up/PasswordNonceField';
 
 export function SecuritySettings() {
@@ -26,7 +27,7 @@ export function SecuritySettings() {
 
   const validationError = (): string | null => {
     if (!newPassword || !confirmPassword) return 'Please fill in both password fields.';
-    if (newPassword.length < 8) return 'Password must be at least 8 characters.';
+    if (newPassword.length < MIN_PASSWORD_LENGTH) return PASSWORD_TOO_SHORT;
     if (!passwordsMatch) return 'Passwords do not match.';
     return null;
   };
@@ -56,7 +57,9 @@ export function SecuritySettings() {
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       if (err instanceof PasswordNonceRequired) setNeedsCode(true);
-      setError(err instanceof Error ? err.message : 'Failed to update password');
+      setError(
+        err instanceof PasswordChangeError ? err.message : friendlyAuthError(err, 'changePassword')
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -81,7 +84,9 @@ export function SecuritySettings() {
             <Lock className="h-5 w-5" />
             Change Password
           </CardTitle>
-          <CardDescription>Update your password. Must be at least 8 characters.</CardDescription>
+          <CardDescription>
+            Choose a new password of at least {MIN_PASSWORD_LENGTH} characters.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
@@ -113,8 +118,8 @@ export function SecuritySettings() {
                 />
                 {passwordToggle}
               </div>
-              {newPassword && newPassword.length < 8 && (
-                <p className="text-xs text-destructive">Must be at least 8 characters</p>
+              {newPassword && newPassword.length < MIN_PASSWORD_LENGTH && (
+                <p className="text-xs text-destructive">{PASSWORD_TOO_SHORT}</p>
               )}
             </div>
 

@@ -242,8 +242,8 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     await expect(page.getByRole('heading', { name: /Entry Confirmed!/i })).toBeVisible({
       timeout: 30000,
     });
-    // Confirmation # badge is rendered with the registration number.
-    await expect(page.getByText(/Confirmation #:/i)).toBeVisible();
+    // Confirmation number badge is rendered with the registration number.
+    await expect(page.getByText(/Confirmation number:/i)).toBeVisible();
 
     // Capture the dog row text so the entries-list test can locate it.
     // Use the "Registered Dogs & Classes" section heading as the anchor.

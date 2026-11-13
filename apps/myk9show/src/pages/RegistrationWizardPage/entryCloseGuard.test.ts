@@ -24,7 +24,7 @@ describe('getEntryCloseSubmitBlocker', () => {
         isLateEntryMode: false,
         workflowMode: 'exhibitor',
       })
-    ).toBe('Entries are closed for this show. Contact the trial secretary for late-entry help.');
+    ).toBe('Entries are closed for this show. Contact the show secretary for late-entry help.');
   });
 
   it('does not block secretary late-entry mode after close', () => {
@@ -66,7 +66,7 @@ describe('getEntryCloseSubmitBlocker', () => {
         isLateEntryMode: true,
         workflowMode: 'exhibitor',
       })
-    ).toBe('Entries are closed for this show. Contact the trial secretary for late-entry help.');
+    ).toBe('Entries are closed for this show. Contact the show secretary for late-entry help.');
   });
 
   it('does not block the demo-style close date after show start', () => {
@@ -94,7 +94,7 @@ describe('getEntryCloseSubmitBlocker', () => {
     ).toStrictEqual({
       canEnter: false,
       unavailableReason: 'closed',
-      reason: 'Entries are closed for this show. Contact the trial secretary for late-entry help.',
+      reason: 'Entries are closed for this show. Contact the show secretary for late-entry help.',
       recoveryHref: '/messages/show-1',
     });
   });

@@ -13,12 +13,12 @@ import { TEST_USERS } from '../helpers/testUsers';
  *     dispatches a `replication:conflict` window CustomEvent (see
  *     `packages/replication/src/syncReplicatedTable.ts`).
  *   - `ReplicationSyncProvider` listens for that event and surfaces a *persistent*
- *     Sonner toast: title "This record was changed elsewhere", `action` button
- *     "Take theirs" and `cancel` button "Keep mine".
- *   - "Keep mine"  -> `table.resolveReplicationConflict(rowId, 'keep-local')`  (clears the
+ *     Sonner toast: title "This was changed somewhere else at the same time", `action` button
+ *     "Keep the other change" and `cancel` button "Keep my change".
+ *   - "Keep my change"  -> `table.resolveReplicationConflict(rowId, 'keep-local')`  (clears the
  *                     conflict, row goes back to `syncStatus: 'pending'`, the queued
  *                     mutation re-uploads with the corrected OCC server version).
- *   - "Take theirs" -> `table.resolveReplicationConflict(rowId, 'take-remote')` +
+ *   - "Keep the other change" -> `table.resolveReplicationConflict(rowId, 'take-remote')` +
  *                     `mutationManager.discardPendingMutationsForRow(...)` (local row is
  *                     replaced with the remote value, marked `synced`, pending mutation
  *                     dropped).
@@ -77,7 +77,7 @@ const REPLICATION_DB_NAME = 'myK9_Replication';
 const REPLICATED_TABLES_STORE = 'replicated_tables';
 const CONFLICT_TABLE = 'entries';
 
-const TOAST_TITLE = 'This record was changed elsewhere';
+const TOAST_TITLE = 'This was changed somewhere else at the same time';
 
 interface SeededConflict {
   rowId: string;
@@ -292,19 +292,19 @@ test.describe('Show conflict surfacing — toast + both resolution branches pers
         .poll(() => seedConflictRow(pageB, conflict), { timeout: 30_000, intervals: [1000] })
         .toBe(true);
 
-      // ── Context A: surface the conflict, resolve "Keep mine" ──────────────────────
+      // ── Context A: surface the conflict, resolve "Keep my change" ──────────────────────
       await dispatchConflict(pageA, conflict);
 
       const toastA = pageA.getByText(TOAST_TITLE, { exact: false });
       await expect(toastA).toBeVisible({ timeout: 15_000 });
       // The shipped toast spells out the changed field(s).
       await expect(pageA.getByText(/check_in_status/i)).toBeVisible();
-      await expect(pageA.getByRole('button', { name: /Take theirs/i })).toBeVisible();
-      await expect(pageA.getByRole('button', { name: /Keep mine/i })).toBeVisible();
+      await expect(pageA.getByRole('button', { name: /Keep the other change/i })).toBeVisible();
+      await expect(pageA.getByRole('button', { name: /Keep my change/i })).toBeVisible();
 
-      // "Keep mine" -> resolveReplicationConflict('keep-local'): conflict cleared, row
+      // "Keep my change" -> resolveReplicationConflict('keep-local'): conflict cleared, row
       // back to 'pending', local value retained.
-      await pageA.getByRole('button', { name: /Keep mine/i }).click();
+      await pageA.getByRole('button', { name: /Keep my change/i }).click();
       await expect(toastA).toBeHidden({ timeout: 10_000 });
 
       await expect
@@ -315,16 +315,16 @@ test.describe('Show conflict surfacing — toast + both resolution branches pers
       expect(rowAfterKeepMine?.isDirty).toBe(true);
       expect(rowAfterKeepMine?.data?.check_in_status).toBe('checked-in'); // local value kept
 
-      // ── Context B: surface the same conflict, resolve "Take theirs" ───────────────
+      // ── Context B: surface the same conflict, resolve "Keep the other change" ───────────────
       await dispatchConflict(pageB, conflict);
 
       const toastB = pageB.getByText(TOAST_TITLE, { exact: false });
       await expect(toastB).toBeVisible({ timeout: 15_000 });
-      await expect(pageB.getByRole('button', { name: /Take theirs/i })).toBeVisible();
+      await expect(pageB.getByRole('button', { name: /Keep the other change/i })).toBeVisible();
 
-      // "Take theirs" -> resolveReplicationConflict('take-remote'): local row replaced
+      // "Keep the other change" -> resolveReplicationConflict('take-remote'): local row replaced
       // with the remote value, marked synced, conflict cleared.
-      await pageB.getByRole('button', { name: /Take theirs/i }).click();
+      await pageB.getByRole('button', { name: /Keep the other change/i }).click();
       await expect(toastB).toBeHidden({ timeout: 10_000 });
 
       await expect

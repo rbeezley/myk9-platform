@@ -75,4 +75,13 @@ describe('TabBar', () => {
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBe(3);
   });
+
+  it('disables every tab, announced as disabled, and ignores taps when disabled', async () => {
+    const onTabChange = vi.fn();
+    render(<TabBar tabs={sampleTabs} activeTab="pending" onTabChange={onTabChange} disabled />);
+
+    for (const button of screen.getAllByRole('button')) expect(button).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: /completed/i }));
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
 });

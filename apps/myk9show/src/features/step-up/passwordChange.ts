@@ -11,6 +11,7 @@
  * If GoTrue still asks for reauthentication, a code is emailed and the caller shows a code
  * field; the change is retried with `updateUser({ password, nonce })`.
  */
+import { friendlyAuthError } from '@/lib/authErrorCopy';
 import { supabase } from '@/services/database/supabaseClient';
 import { requestStepUp } from './stepUpStore';
 import { isFreshRecoverySession, isFreshlyReauthenticated } from './stepUpToken';
@@ -20,8 +21,14 @@ export const PASSWORD_STEP_UP_CANCELLED =
 export const PASSWORD_NONCE_SENT =
   "For your security, confirm it's you first. We've emailed you a code.";
 
+/**
+ * Every failure `changePassword` reports. Its message is written for the person and is safe
+ * to show as it is; anything else a page catches is not (MYK9-1815).
+ */
+export class PasswordChangeError extends Error {}
+
 /** GoTrue asked for a reauthentication nonce; one has been emailed. */
-export class PasswordNonceRequired extends Error {
+export class PasswordNonceRequired extends PasswordChangeError {
   constructor() {
     super(PASSWORD_NONCE_SENT);
   }
@@ -50,7 +57,8 @@ export async function changePassword(
     const token = data.session?.access_token ?? null;
     const fresh =
       isFreshlyReauthenticated(token) || (acceptRecoverySession && isFreshRecoverySession(token));
-    if (!fresh && !(await requestStepUp(token))) throw new Error(PASSWORD_STEP_UP_CANCELLED);
+    if (!fresh && !(await requestStepUp(token)))
+      throw new PasswordChangeError(PASSWORD_STEP_UP_CANCELLED);
   }
 
   const { error } = await supabase.auth.updateUser({
@@ -60,8 +68,8 @@ export async function changePassword(
   if (!error) return;
   if (!nonce && needsReauthentication(error)) {
     const { error: sendError } = await supabase.auth.reauthenticate();
-    if (sendError) throw sendError;
+    if (sendError) throw new PasswordChangeError(friendlyAuthError(sendError, 'changePassword'));
     throw new PasswordNonceRequired();
   }
-  throw error;
+  throw new PasswordChangeError(friendlyAuthError(error, 'changePassword'));
 }

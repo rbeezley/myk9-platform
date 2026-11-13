@@ -10,6 +10,7 @@ import { groupPeopleForOfficial, getPersonName } from './ShowDetailsStep.helpers
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import { FieldError, useFieldError } from '@/components/forms';
+import { SHOW_ADMIN_COPY } from '@/components/shows/showAdminErrorCopy';
 
 export interface CreatePersonData {
   firstName: string;
@@ -102,7 +103,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
       onSelect(newId);
       handleCancelCreate();
     } catch {
-      setSaveError('Failed to save. Please try again.');
+      setSaveError(SHOW_ADMIN_COPY.officialSaveFailed);
     } finally {
       setSaving(false);
     }

@@ -4,8 +4,10 @@ import {
   COCKPIT_SPLIT_COLUMNS,
   COCKPIT_SPLIT_MIN_WIDTH,
   FOCUS_MIN_PX,
+  RAIL_PX,
   SPLIT_GAP_PX,
   cockpitSplitColumns,
+  cockpitSplitTemplate,
   isCockpitSplit,
 } from '../cockpitSplit';
 
@@ -47,5 +49,11 @@ describe('the cockpit split geometry', () => {
 
   it('writes the same fractions and minimum into the grid template', () => {
     expect(COCKPIT_SPLIT_COLUMNS).toBe('minmax(0, 1.15fr) minmax(360px, 0.85fr)');
+  });
+
+  it('narrows the schedule to a rail only while a class is focused', () => {
+    expect(RAIL_PX).toBe(300);
+    expect(cockpitSplitTemplate(true)).toBe('300px minmax(0, 1fr)');
+    expect(cockpitSplitTemplate(false)).toBe(COCKPIT_SPLIT_COLUMNS);
   });
 });

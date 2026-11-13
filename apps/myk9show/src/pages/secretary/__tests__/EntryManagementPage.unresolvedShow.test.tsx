@@ -122,7 +122,7 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
     render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entries' });
 
     expect(screen.getByText(/couldn't open this show/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
   it('never claims the show is empty when the show itself could not be read', () => {
@@ -140,7 +140,7 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
       initialRoute: '/shows/show-1/entries',
     });
 
-    await user.click(screen.getByRole('button', { name: /retry/i }));
+    await user.click(screen.getByRole('button', { name: /try again/i }));
     // Wired to `retryShowResolution`, not `loadShows`: the deep-link lookup is
     // latched behind `didApplyInitial`, so `loadShows` alone cleared the error
     // without re-attempting the read that failed.

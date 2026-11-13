@@ -58,20 +58,16 @@ for (const width of [375, 1280]) {
     const page = secretary.page;
     await page.setViewportSize({ width, height: 900 });
     await page.reload();
-    // The checklist is expanded while the print read is unavailable, then collapses once it
-    // settles with no records (MYK9-1620), so a disclosure opened early can close again. Tick
-    // both sheets in one retried step that re-opens it whenever it is there and closed; the
-    // ticks live in section state and survive the collapse.
-    const checklist = page.getByTestId('class-checklist-disclosure');
+    // The sheets' print records sit behind a disclosure under the step bar (MYK9-1783).
+    const openRecords = async () => {
+      const summary = page.locator('summary', { hasText: /^(Other paperwork|Print records)/ });
+      const records = summary.locator('xpath=..');
+      if (!(await records.evaluate(el => (el as HTMLDetailsElement).open))) await summary.click();
+    };
     const sheet = (name: string) =>
       page.getByRole('checkbox', { name: `Select ${name} to print`, exact: true });
     await expect(async () => {
-      if (
-        (await checklist.count()) > 0 &&
-        !(await checklist.evaluate(el => (el as HTMLDetailsElement).open))
-      ) {
-        await checklist.getByText('Class checklist', { exact: true }).click({ timeout: 2_000 });
-      }
+      await openRecords();
       await sheet('Check-in sheet').check({ timeout: 3_000 });
       await sheet('Score sheets').check({ timeout: 3_000 });
       await expect(
@@ -142,6 +138,7 @@ for (const width of [375, 1280]) {
     await expect
       .poll(async () => (await readPrints()).filter(r => !r.voided_at).map(r => r.report_id))
       .toEqual(['check-in-sheet', 'scoresheet']);
+    await openRecords();
     for (const label of ['Check-in sheet', 'Score sheets']) {
       const undo = page.getByRole('button', { name: `Mark ${label} not printed`, exact: true });
       await expect(undo).toBeVisible();
@@ -150,6 +147,7 @@ for (const width of [375, 1280]) {
     await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
     await screenshot(page, info, `overview-printed-${width}`);
     await page.reload();
+    await openRecords();
     for (const label of ['Check-in sheet', 'Score sheets'])
       await expect(
         page.getByRole('button', { name: `Mark ${label} not printed`, exact: true })
@@ -164,10 +162,12 @@ for (const width of [375, 1280]) {
       await screenshot(page, info, `reports-${report}-printed-${width}`);
     }
     await page.goto(`/shows/${f.showId}?focus=${f.classId}`);
+    await openRecords();
     for (const label of ['Check-in sheet', 'Score sheets'])
       await page.getByRole('button', { name: `Mark ${label} not printed`, exact: true }).click();
     await expect.poll(async () => (await readPrints()).filter(r => !r.voided_at).length).toBe(0);
     await page.reload();
+    await openRecords();
     for (const label of ['Check-in sheet', 'Score sheets'])
       await expect(
         page.getByRole('button', { name: `Mark ${label} not printed`, exact: true })

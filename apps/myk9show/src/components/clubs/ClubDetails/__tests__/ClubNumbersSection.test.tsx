@@ -120,7 +120,7 @@ describe('ClubNumbersSection', () => {
 
     const dialog = await openDialog(user);
     expect(await within(dialog).findByText(/couldn't load the club numbers/i)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Retry' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Try again' }));
 
     expect(await within(dialog).findByLabelText('AKC club number')).toHaveValue('4521');
     expect(mocks.get).toHaveBeenCalledTimes(2);

@@ -9,7 +9,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
-import { notifications } from '@/lib/notifications';
 import { markUnreachableIfTransportFailure, timeoutSignal } from '@/lib/serverReachability';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
 import { settingsQueryKeys, type ShowSettings } from '../queries/useShowSettingsDatabase';
@@ -407,9 +406,8 @@ export function useBulkUpdateClassOverrides() {
       });
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
     },
-    onError: () => {
-      notifications.error('Failed to update class overrides');
-    },
+    // No hook-level error toast: both callers (ResultsBulkBar, SelfCheckinBulkBar)
+    // show their own, more specific one, and two stacked toasts repeated each other.
   });
 }
 

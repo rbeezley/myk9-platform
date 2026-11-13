@@ -38,7 +38,7 @@ export const StaleShowNotice: React.FC<StaleShowNoticeProps> = ({ onRetry }) => 
     </span>
     <Button variant="outline" size="sm" onClick={onRetry}>
       <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-      Retry
+      Try again
     </Button>
   </div>
 );

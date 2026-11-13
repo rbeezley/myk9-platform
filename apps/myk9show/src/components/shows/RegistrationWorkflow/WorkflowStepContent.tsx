@@ -25,7 +25,7 @@ import {
   EntryStatus,
 } from '@/types/show-registration-types';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
-import { getErrorMessage } from '@myk9/core';
+import { notifyStatusSaveFailed } from './statusSaveError';
 import { notifications } from '@/lib/notifications';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
@@ -41,6 +41,7 @@ import {
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
 import { getDogRegisteredName } from '@/types/dog-types';
+import { FREE_ENTRY_AMOUNT_LABEL, isFreeEntry } from '@/utils/entryAmountOwed';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -84,13 +85,11 @@ interface WorkflowStepContentProps {
   onPaymentMethodClear?: (() => void) | undefined;
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   getPaymentDetails?: (() => PaymentDetails) | undefined;
-  onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => void | Promise<unknown>;
   onEntryStatusChange: (
     registrationId: string,
     status: EntryStatus,
     reason?: string
   ) => void | Promise<unknown>;
-  setPaymentStatus: (status: PaymentStatus) => void;
   setEntryStatus: (status: EntryStatus) => void;
   /** True while dogs are loading (used for auto-select loading state) */
   dogsLoading?: boolean;
@@ -100,12 +99,7 @@ interface WorkflowStepContentProps {
   agreedToEntryAgreement?: boolean | undefined;
   /** Callback when the entry agreement checkbox is toggled on the payment step. */
   onAgreementChange?: ((agreed: boolean) => void) | undefined;
-  /** Secretary fee waiver / manual override, owned by the wizard page. */
-  waiveFees?: boolean | undefined;
-  feeOverride?: number | null | undefined;
-  onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
   juniorDeclaration?: JuniorHandlerDeclaration | undefined;
-  onFeeOverrideChange?: ((override: number | null) => void) | undefined;
 }
 
 export function WorkflowStepContent({
@@ -135,19 +129,13 @@ export function WorkflowStepContent({
   onPaymentMethodClear,
   onPaymentDetailsChange,
   getPaymentDetails,
-  onPaymentStatusChange,
   onEntryStatusChange,
-  setPaymentStatus,
   setEntryStatus,
   dogsLoading,
   offlineFirstCreate = false,
   agreedToEntryAgreement,
   onAgreementChange,
-  waiveFees,
-  feeOverride,
-  onWaiveFeesChange,
   juniorDeclaration,
-  onFeeOverrideChange,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
@@ -158,6 +146,11 @@ export function WorkflowStepContent({
   );
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
+  // MYK9-1908: a Free entry owes nothing, so its receipt says so rather than quoting the class
+  // fee. The server records a `waived` submission as payment_status 'waived'.
+  const receiptIsFree =
+    optimisticState.formData.paymentMethod === 'waived' ||
+    isFreeEntry({ paymentStatus: optimisticState.paymentStatus });
 
   // Styled receipt branch — hooks must be top-level (Rules of Hooks);
   // expensive .find() lookups are memoized and only compute during confirmation step.
@@ -334,7 +327,9 @@ export function WorkflowStepContent({
           dogRegisteredName: styledReceipt.dogRegisteredName,
           dogCallName: styledReceipt.dogCallName,
           classSummary: styledReceipt.classSummary,
-          totalFeesFormatted: `$${receiptTotalFees.toFixed(2)}`,
+          totalFeesFormatted: receiptIsFree
+            ? FREE_ENTRY_AMOUNT_LABEL
+            : `$${receiptTotalFees.toFixed(2)}`,
           registrationNumber: registrationNumber ?? null,
           confirmationDateLabel: styledReceipt.confirmationDateLabel,
           // INTENT: Exhibitor self-service still waits for the post-draw blank.
@@ -424,44 +419,17 @@ export function WorkflowStepContent({
           <PaymentStep
             paymentResolution={paymentResolution}
             selectedDogs={optimisticState.formData.selectedDogs}
-            classSelections={optimisticState.classSelections}
             paymentMethod={optimisticState.formData.paymentMethod || ''}
-            paymentStatus={optimisticState.paymentStatus}
-            entryStatus={optimisticState.entryStatus}
             onPaymentMethodChange={onPaymentMethodChange}
             onPaymentMethodClear={onPaymentMethodClear}
             onPaymentDetailsChange={onPaymentDetailsChange}
             getPaymentDetails={getPaymentDetails}
-            onPaymentStatusChange={async (status: PaymentStatus) => {
-              setPaymentStatus(status);
-              if (registrationId) {
-                try {
-                  await onPaymentStatusChange(registrationId, status);
-                } catch (error: unknown) {
-                  notifications.error(getErrorMessage(error));
-                }
-              }
-            }}
-            onEntryStatusChange={async (status: EntryStatus, reason?: string) => {
-              setEntryStatus(status);
-              if (registrationId) {
-                try {
-                  await onEntryStatusChange(registrationId, status, reason);
-                } catch (error: unknown) {
-                  notifications.error(getErrorMessage(error));
-                }
-              }
-            }}
             showId={showId}
             registrationId={registrationId}
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
             preTickAgreement={currentWorkflowMode !== 'exhibitor'}
-            waiveFees={waiveFees}
-            feeOverride={feeOverride}
-            onWaiveFeesChange={onWaiveFeesChange}
             juniorDeclaration={juniorDeclaration}
-            onFeeOverrideChange={onFeeOverrideChange}
             capacityReady={capacityReady}
             capacityError={capacityError}
             capacityUnavailable={capacityUnavailable}
@@ -503,7 +471,7 @@ export function WorkflowStepContent({
                 try {
                   await onEntryStatusChange(registrationId, status);
                 } catch (error: unknown) {
-                  notifications.error(getErrorMessage(error));
+                  notifyStatusSaveFailed('entry', error);
                 }
               }
             }}

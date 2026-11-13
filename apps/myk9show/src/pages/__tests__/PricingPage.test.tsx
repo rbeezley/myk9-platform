@@ -239,7 +239,7 @@ describe('PricingPage unresolved entitlement', () => {
     expect(screen.getByRole('button', { name: /couldn't check your access/i })).toBeDisabled();
     expect(screen.queryByRole('button', { name: /subscribe now/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /retry/i }));
+    await user.click(screen.getByRole('button', { name: /try again/i }));
     expect(entitlementRefetch).toHaveBeenCalled();
     expect(mockedCheckout).not.toHaveBeenCalled();
   });

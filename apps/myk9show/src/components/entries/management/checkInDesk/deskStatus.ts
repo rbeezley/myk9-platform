@@ -112,7 +112,7 @@ export function flaggedPullLabel(source: string | null | undefined): string {
 
 /** Why a row stays locked when its badge alone does not say (a scored run, a run in the ring). */
 export function deskLockedReason(
-  entry: EntryManagementEntry,
+  entry: Pick<EntryManagementEntry, 'isScored'>,
   current: CheckInStatus,
   editable: boolean
 ): string | null {

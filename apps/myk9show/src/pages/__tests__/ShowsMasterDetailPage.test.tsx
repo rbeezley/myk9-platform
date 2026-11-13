@@ -121,8 +121,8 @@ describe('ShowsMasterDetailPage', () => {
     );
     expect(screen.getByRole('region', { name: 'Show' })).toHaveTextContent('show page (in pane)');
     // 1304 - 320 - 33 = 951px for the cockpit, past its 868px split; nothing folds the list.
-    // Where the list fits, nothing folds it: no Hide, no Shows button.
-    expect(screen.queryByRole('button', { name: /Hide shows list/ })).not.toBeInTheDocument();
+    // Where the list fits nothing folds it by default: Hide is offered, the Shows button is not.
+    expect(screen.getByRole('button', { name: 'Hide shows list' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
     // Measured on the box around the split, which folding never resizes.
     expect(split.ref.current).toBe(screen.getByTestId('master-detail-layout').parentElement);
@@ -218,6 +218,40 @@ describe('ShowsMasterDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
     expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Shows' })).toHaveFocus();
+  });
+
+  it('lets the viewer hide the list where it fits, remembers it apart from the narrow choice, and brings it back', async () => {
+    const user = userEvent.setup();
+    setWindow(1440);
+    renderAt('/shows/show-1');
+
+    await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
+    expect(showPageMounts).toBe(1);
+    expect(window.localStorage.getItem('view-pref-shows-pane-wide')).toBe('folded');
+    expect(window.localStorage.getItem('view-pref-shows-pane')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Shows' }));
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
+    expect(window.localStorage.getItem('view-pref-shows-pane-wide')).toBe('open');
+    expect(showPageMounts).toBe(1);
+  });
+
+  it('keeps a list hidden where it fits hidden on the next visit, on every tab', () => {
+    window.localStorage.setItem('view-pref-shows-pane-wide', 'folded');
+    setWindow(1600);
+    renderAt('/shows/show-1/entries');
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shows' })).toBeInTheDocument();
+  });
+
+  it('does not let a hidden-where-it-fits choice fold the list where the viewer opened it narrow', () => {
+    window.localStorage.setItem('view-pref-shows-pane-wide', 'folded');
+    window.localStorage.setItem('view-pref-shows-pane', 'open');
+    setWindow(1100);
+    renderAt('/shows/show-1');
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
   });
 
   it('never remounts the open show when the list folds or unfolds', async () => {

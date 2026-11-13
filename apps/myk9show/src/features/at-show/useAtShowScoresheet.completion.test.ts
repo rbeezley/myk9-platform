@@ -45,6 +45,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
     getClassById: mocks.getClassById,
     sync: mocks.syncClasses,
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 
@@ -245,7 +246,7 @@ describe('useAtShowScoresheet completion wiring', () => {
       'show-1',
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
-    expect(mocks.transitionToInRing).toHaveBeenCalledOnce();
+    expect(mocks.transitionToInRing).not.toHaveBeenCalled();
   });
 
   it("passes the entry's own status and ring entry time to the in-ring transition (MYK9-1169)", async () => {
@@ -259,11 +260,8 @@ describe('useAtShowScoresheet completion wiring', () => {
     ]);
     const { result } = renderScoresheet(vi.fn());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(mocks.transitionToInRing).toHaveBeenCalledWith(
-      'entry-1',
-      'in-ring',
-      '2026-10-14T18:00:00.000Z'
-    );
+    act(() => result.current.startRun());
+    expect(mocks.transitionToInRing).toHaveBeenCalledWith('entry-1');
   });
 
   it('does not record completion, transition, or navigate when score submission fails', async () => {
@@ -286,7 +284,7 @@ describe('useAtShowScoresheet completion wiring', () => {
     expect(onScored).not.toHaveBeenCalled();
   });
 
-  // MYK9-1762: leaving the sheet without a saved score undoes what opening it did.
+  // MYK9-1762: leaving a started run without a saved score restores its status.
   describe('leaving the sheet', () => {
     const move = {
       entryId: 'entry-1',
@@ -297,6 +295,7 @@ describe('useAtShowScoresheet completion wiring', () => {
       mocks.transitionToInRing.mockReturnValue(move);
       const { result, unmount } = renderScoresheet(vi.fn());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
+      act(() => result.current.startRun());
 
       unmount();
 
@@ -310,6 +309,7 @@ describe('useAtShowScoresheet completion wiring', () => {
       });
       const { result, unmount } = renderScoresheet(vi.fn());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
+      act(() => result.current.startRun());
       await act(async () => {
         await result.current.submit({ resultText: 'Qualified' } as never);
       });
@@ -319,10 +319,11 @@ describe('useAtShowScoresheet completion wiring', () => {
       expect(mocks.restoreFromInRing).not.toHaveBeenCalled();
     });
 
-    it('does nothing when opening the sheet moved nothing (Resume)', async () => {
+    it('does nothing when starting a resumed run moved nothing (Resume)', async () => {
       mocks.transitionToInRing.mockReturnValue(null);
       const { result, unmount } = renderScoresheet(vi.fn());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
+      act(() => result.current.startRun());
 
       unmount();
 

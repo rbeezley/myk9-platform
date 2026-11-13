@@ -128,7 +128,7 @@ export const CloneStatusBanner: React.FC = () => {
                 size="touch"
                 onClick={() => void startClone(retrySource)}
               >
-                Retry clone
+                Try clone again
               </Button>
             )}
             <Button type="button" variant="outline" size="touch" onClick={dismiss}>

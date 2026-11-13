@@ -44,10 +44,12 @@ vi.mock('../components/EntryListContent', () => ({
     onEntryClick?: (entry: unknown) => void;
     onStatusClick?: (...args: unknown[]) => void;
     onOpenDragMode?: () => void;
+    entries?: Array<{ id: string }>;
   }) => {
     contentSpy.onEntryClick = props.onEntryClick;
     contentSpy.onStatusClick = props.onStatusClick;
     contentSpy.onOpenDragMode = props.onOpenDragMode;
+    contentSpy.entries = props.entries;
     return <div data-testid="entry-list-content" />;
   },
 }));
@@ -179,6 +181,99 @@ describe.each(PAGES)('entry-list parity — $name', page => {
       expect(uiActionSpy.setSortOrder).toHaveBeenCalledWith('run');
       expect(uiActionSpy.setRunOrderDialogOpen).toHaveBeenCalledWith(false);
       expect(uiActionSpy.setManualOrder).toHaveBeenCalled();
+    });
+  });
+
+  describe('drag mode shows the whole pending list (MYK9-1808)', () => {
+    // A search is narrowing the list to one dog (and, combined, Section B is selected), but two more
+    // pending dogs are hidden. A drop numbers what is on screen 1..N, so drag mode must show all three.
+    const entries = [
+      { id: 'e1', classId: 'class-a' },
+      { id: 'e2', classId: 'class-a' },
+      { id: 'e3', classId: 'class-b' },
+    ];
+    function renderFiltered(isDragMode: boolean) {
+      const props = makeProps({ entries, loaded: true });
+      props.derived.currentEntries = [props.derived.currentEntries[0]];
+      props.derived.filteredEntries = props.derived.currentEntries;
+      props.derived.dragEntries = props.derived.pendingEntries;
+      props.derived.searchTerm = 'x';
+      props.uiState.isDragMode = isDragMode;
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+      return props;
+    }
+
+    it('renders every pending dog, not the filtered subset', () => {
+      renderFiltered(true);
+
+      expect(contentSpy.entries?.map(e => e.id)).toEqual(['e1', 'e2', 'e3']);
+    });
+
+    it('applies the filter again once drag mode is off', () => {
+      renderFiltered(false);
+
+      expect(contentSpy.entries?.map(e => e.id)).toEqual(['e1']);
+    });
+
+    it('disables the status tabs, and the Section tabs when combined, until Done', () => {
+      const props = renderFiltered(true);
+
+      for (const name of [/pending/i, /completed/i]) {
+        expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+      }
+      if (props.combined) {
+        expect(
+          (screen.getByRole('button', { name: /section a/i }) as HTMLButtonElement).disabled
+        ).toBe(true);
+      }
+    });
+
+    it('leaves the tabs live outside drag mode', () => {
+      renderFiltered(false);
+
+      expect(
+        (screen.getByRole('button', { name: /completed/i }) as HTMLButtonElement).disabled
+      ).toBe(false);
+    });
+
+    it('shows the Pending tab as selected while dragging from the Completed tab', () => {
+      const props = makeProps({ entries, loaded: true });
+      props.derived.activeTab = 'completed';
+      props.derived.dragEntries = props.derived.pendingEntries;
+      props.uiState.isDragMode = true;
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      expect(contentSpy.entries?.map(e => e.id)).toEqual(['e1', 'e2', 'e3']);
+    });
+  });
+
+  describe('long press into drag mode', () => {
+    it('is withheld from a viewer who may not change run order (MYK9-1808)', () => {
+      // A card with no `onOpenDragMode` has no long press, so a viewer without the permission
+      // cannot reach the drag handles through it.
+      const props = makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+      props.context.hasPermission = permission => permission !== 'canChangeRunOrder';
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      expect(contentSpy.onOpenDragMode).toBeUndefined();
+    });
+
+    it('is offered to a viewer who may change run order', () => {
+      page.render({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+
+      expect(contentSpy.onOpenDragMode).toBeTypeOf('function');
     });
   });
 

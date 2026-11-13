@@ -110,8 +110,6 @@ function paymentPanel(props: Partial<React.ComponentProps<typeof EntriesPanel>> 
       variant="payment"
       paymentMethod="credit_card"
       feeCalculation={fees()}
-      waiveFees={false}
-      feeOverride={null}
       {...props}
     />
   );
@@ -161,18 +159,9 @@ describe('EntriesPanel payment total agrees with the retired PaymentSummaryCard'
     }
   );
 
-  it.each([{ paymentMethod: 'waived' as const }, { waiveFees: true }])(
-    'keeps waived fees at zero: %j',
-    props => {
-      render(paymentPanel(props));
-      expect(aside().getByText('$0.00 (Waived)')).toBeInTheDocument();
-      expect(aside().queryByText(/Service fee/)).not.toBeInTheDocument();
-    }
-  );
-
-  it('preserves a manual non-card fee override', () => {
-    render(paymentPanel({ paymentMethod: 'check', feeOverride: 15 }));
-    expect(aside().getAllByText('$15.00').length).toBeGreaterThan(0);
+  it('keeps a free entry (the waived method) at zero', () => {
+    render(paymentPanel({ paymentMethod: 'waived' }));
+    expect(aside().getByText('$0.00 (Free entry)')).toBeInTheDocument();
     expect(aside().queryByText(/Service fee/)).not.toBeInTheDocument();
   });
 
@@ -198,7 +187,7 @@ describe('EntriesPanel payment total agrees with the retired PaymentSummaryCard'
 
   it('drops the missing-method hint once a method is chosen', () => {
     render(paymentPanel({ paymentMethod: 'check' }));
-    expect(aside().getByText('Check at Show')).toBeInTheDocument();
+    expect(aside().getByText('Check (pay at show)')).toBeInTheDocument();
     expect(aside().queryByText(/Choose a payment method to continue/i)).not.toBeInTheDocument();
   });
 });
@@ -350,7 +339,7 @@ describe('EntriesPanel fee-line removal (payment step)', () => {
         waitlistClassIds: new Set(['class-0']),
       })
     );
-    expect(aside().getByText('(Wait list request)')).toBeInTheDocument();
+    expect(aside().getByText('(Waitlist request)')).toBeInTheDocument();
     expect(aside().getByText('No payment due')).toBeInTheDocument();
   });
 });
@@ -366,15 +355,10 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
     return within(screen.getByTestId('entries-panel-bar'));
   }
 
-  it('quotes the waived entry as waived, not as the full fee', () => {
-    render(paymentPanel({ waiveFees: true }));
-    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Waived)');
-    expect(bar().getByTestId('entries-panel-total')).not.toHaveTextContent('$30.00');
-  });
-
-  it('quotes the waived payment method as waived', () => {
+  it('quotes the waived payment method as waived, not as the full fee', () => {
     render(paymentPanel({ paymentMethod: 'waived' as PaymentMethod }));
-    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Waived)');
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Free entry)');
+    expect(bar().getByTestId('entries-panel-total')).not.toHaveTextContent('$30.00');
   });
 
   it('shows the availability placeholder rather than a figure while capacity is unread', () => {
@@ -417,59 +401,42 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
 });
 
 /**
- * A staff fee override replaced `totals.entryFeeCents` wholesale, so "Entry
- * fees" and "Subtotal" quoted the override while the lines above them still
- * itemised the real classes — $30.00 claimed over two visible $25.00 rows
- * (Codex #2210 round 6 P2). The itemised sum is now what those rows say, and
- * the difference is named.
+ * The lines carry the server's per-line price (`entry_fee_cents`); Total due is
+ * the client's computed total. Any gap between them (junior minimum fee, a
+ * wait-list line, rounding, a stale line price) is named on its own row, so
+ * Subtotal and Total due never disagree silently. MYK9-1822 removed the staff
+ * override, so the row is a neutral "Adjustment", not a secretary's.
  */
-describe('EntriesPanel reconciles a staff fee override with the lines', () => {
-  function overridePanel(feeOverride: number | null, paymentMethod: PaymentMethod = 'check') {
-    return paymentPanel({
-      groups: groupsFor(2),
-      feeCalculation: fees(2),
-      paymentMethod,
-      feeOverride,
-    });
-  }
+describe('EntriesPanel reconciles the computed total with the lines', () => {
+  const dollars = (text: string | null | undefined) =>
+    Number((text ?? '').replace(/[^0-9.-]/g, ''));
 
-  it('keeps Entry fees and Subtotal as the sum of the lines actually shown', () => {
-    render(overridePanel(30));
+  it('names a gap between the lines and the computed total as an Adjustment', () => {
+    // Two $30 lines, but the computed total prices one class: $30.
+    render(paymentPanel({ groups: groupsFor(2), feeCalculation: fees(1), paymentMethod: 'check' }));
     const panel = aside();
 
-    // Two lines at $30 each — this fixture's class fee — against a $30
-    // override. The rows must read the LINES, not the override.
+    const subtotal = panel.getByText('Subtotal').parentElement;
+    const adjustment = panel.getByText('Adjustment').parentElement;
+    const totalDue = panel.getByText('Total due').parentElement;
+    expect(subtotal).toHaveTextContent('$60.00');
+    expect(adjustment).toHaveTextContent('-$30.00');
+    expect(totalDue).toHaveTextContent('$30.00');
+    expect(
+      dollars(subtotal?.lastElementChild?.textContent) +
+        dollars(adjustment?.lastElementChild?.textContent)
+    ).toBe(dollars(totalDue?.lastElementChild?.textContent));
+    expect(panel.queryByText('Secretary adjustment')).not.toBeInTheDocument();
+  });
+
+  it('adds no Adjustment row when the lines equal the computed total', () => {
+    render(paymentPanel({ groups: groupsFor(2), feeCalculation: fees(2), paymentMethod: 'check' }));
+    const panel = aside();
+
     expect(panel.getByText('Entry fees').parentElement).toHaveTextContent('$60.00');
     expect(panel.getByText('Subtotal').parentElement).toHaveTextContent('$60.00');
-  });
-
-  it('names the difference as a Secretary adjustment', () => {
-    render(overridePanel(30));
-    const panel = aside();
-
-    const row = panel.getByText('Secretary adjustment').parentElement;
-    expect(row).toHaveTextContent('-$30.00');
-  });
-
-  it('still quotes the override as the amount due', () => {
-    render(overridePanel(30));
-    expect(aside().getByText('Total due').parentElement).toHaveTextContent('$30.00');
-  });
-
-  it('shows a positive adjustment when the override is higher', () => {
-    render(overridePanel(80));
-    expect(aside().getByText('Secretary adjustment').parentElement).toHaveTextContent('+$20.00');
-  });
-
-  it('adds no adjustment row when there is no override', () => {
-    render(overridePanel(null));
-    expect(aside().queryByText('Secretary adjustment')).not.toBeInTheDocument();
-    expect(aside().getByText('Entry fees').parentElement).toHaveTextContent('$60.00');
-  });
-
-  it('adds no adjustment row when the override equals the itemised sum', () => {
-    render(overridePanel(60));
-    expect(aside().queryByText('Secretary adjustment')).not.toBeInTheDocument();
+    expect(panel.getByText('Total due').parentElement).toHaveTextContent('$60.00');
+    expect(panel.queryByText('Adjustment')).not.toBeInTheDocument();
   });
 });
 

@@ -8,9 +8,6 @@ import {
   buildScentWorkEntries,
 } from '../ClassDetailsMain.helpers';
 import type { ClassData, EntryData } from '../types/classTypes';
-import type { ScentWorkResult } from '@/types/scent-work-types';
-import type { ValidationResult } from '@/types/scoring-types';
-import { validateScentWorkScore } from '@/services/scoring/formatValidators';
 
 describe('shouldShowSection', () => {
   it('returns true for Novice level with section', () => {
@@ -131,7 +128,7 @@ describe('buildClassConfig time limit', () => {
     expect(buildClassConfig(data as ClassData).timeLimit).toBe(0);
   });
 
-  it('carries no limit onto a stored result, so a 4:00 qualifier draws no over-time warning', async () => {
+  it('carries no limit (0) onto the stored result of a 4:00 qualifier', () => {
     const classData = { id: 'c1', entryFee: 0 } as ClassData;
     const config = buildClassConfig(classData);
     const [entry] = buildScentWorkEntries(
@@ -142,10 +139,6 @@ describe('buildClassConfig time limit', () => {
     );
     const stored = entry?.judgingState?.currentResult;
     expect(stored?.maxTimeAllowed).toBe(0);
-
-    const validation: ValidationResult = { isValid: true, errors: [], warnings: [] };
-    await validateScentWorkScore(stored as ScentWorkResult, validation);
-    expect(validation.warnings).toEqual([]);
   });
 });
 

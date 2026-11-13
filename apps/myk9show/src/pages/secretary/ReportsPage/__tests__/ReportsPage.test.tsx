@@ -7,6 +7,8 @@ const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
   trialTwoRegistryId: null as string | null,
   isLoading: false,
+  /** True leaves the Buried Novice class with no judge. */
+  classOneUnjudged: false,
   /** Overrides the derived state so the paused/stale paths are reachable. */
   dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'refreshing' | 'error' | 'ready',
 }));
@@ -74,7 +76,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             level: 'Novice',
             section: '',
             trial_id: 'trial-1',
-            judge_name: 'Pat Judge',
+            judge: mockReportState.classOneUnjudged ? 'TBD' : 'Pat Judge',
             time_limit_seconds: 120,
             time_limit_area2_seconds: null,
             time_limit_area3_seconds: null,
@@ -86,7 +88,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             level: 'Advanced',
             section: '',
             trial_id: 'trial-2',
-            judge_name: 'Sam Judge',
+            judge: 'Sam Judge',
           },
         ],
     entries: mockReportState.isLoading
@@ -221,17 +223,25 @@ vi.mock('../ReportPreview', () => ({
   ),
 }));
 
+// Every describe in this file resets ALL the mock state. The page-level one used to reset it
+// alone, so under --sequence.shuffle a `classOneUnjudged = true` test leaked into the
+// resolveInitialReportScope tests below and replaced their "Pick a trial" reason (MYK9-1893).
+function resetMockState() {
+  mockReportState.trialOneRegistryId = 'AKC';
+  mockReportState.trialTwoRegistryId = null;
+  mockReportState.isLoading = false;
+  mockReportState.classOneUnjudged = false;
+  mockReportState.dataState = null;
+  mockPrintState.records = [];
+  mockPrintState.isLoading = false;
+  mockPrintState.isError = false;
+  mockPrintState.syncFailed = false;
+  toastSpy.called.mockClear();
+}
+
 describe('ReportsPage', () => {
   beforeEach(() => {
-    mockReportState.trialOneRegistryId = 'AKC';
-    mockReportState.trialTwoRegistryId = null;
-    mockReportState.isLoading = false;
-    mockReportState.dataState = null;
-    mockPrintState.records = [];
-    mockPrintState.isLoading = false;
-    mockPrintState.isError = false;
-    mockPrintState.syncFailed = false;
-    toastSpy.called.mockClear();
+    resetMockState();
   });
 
   describe('Trial financials (MYK9-1320)', () => {
@@ -678,6 +688,43 @@ describe('ReportsPage', () => {
     ).toBeEnabled();
   });
 
+  it.each([
+    ['judges-certification', /Download AKC Certification Page PDF/i],
+    ['akc-judge-report', /Download AKC Judge PDF/i],
+    ['trial-chairman-report', /Download AKC Trial Chairman PDF/i],
+    ['trial-secretary-report', /Download AKC Trial Secretary PDF/i],
+  ])(
+    'withholds the %s download and names the class that needs a judge (MYK9-1854)',
+    async (report, buttonName) => {
+      mockReportState.classOneUnjudged = true;
+      render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${report}&trialId=trial-1`,
+      });
+
+      expect(await screen.findByRole('button', { name: buttonName })).toBeDisabled();
+      expect(
+        screen.getByText(
+          /These classes need a judge before you can print this form: Buried Novice\./
+        )
+      ).toBeInTheDocument();
+    }
+  );
+
+  it('refuses Print on an official AKC form with the same message (MYK9-1854)', async () => {
+    mockReportState.classOneUnjudged = true;
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=trial-chairman-report&trialId=trial-1',
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /^Print/ }));
+
+    expect(toastSpy.called).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'These classes need a judge before you can print this form: Buried Novice.'
+      )
+    );
+  });
+
   it('offers the official AKC transfer form PDF when a dog and class are selected', async () => {
     render(<ReportsPage />, {
       initialRoute:
@@ -736,9 +783,7 @@ describe('resolveInitialReportId', () => {
 
 describe('resolveInitialReportScope', () => {
   beforeEach(() => {
-    mockReportState.trialOneRegistryId = 'AKC';
-    mockReportState.trialTwoRegistryId = null;
-    mockReportState.dataState = null;
+    resetMockState();
   });
 
   it('uses all scopes when no query params are provided', () => {

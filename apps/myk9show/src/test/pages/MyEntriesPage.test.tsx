@@ -114,7 +114,7 @@ vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: () => <div data-testid="add-dog-panel" />,
 }));
 
-// The wait-list section reads `waitlist_entries` — a table the entries axis
+// The waitlist section reads `waitlist_entries` — a table the entries axis
 // knows nothing about. Both hooks default to "no positions" so every existing
 // test in this file is unchanged; the MYK9-417 block below seeds a real one.
 const mockUseMyWaitlistEntries = vi.hoisted(() =>
@@ -616,7 +616,7 @@ describe('MyEntriesPage UI Improvements', () => {
     beforeEach(() => {
       seedAuthWithPerson();
       // The file's own `beforeEach` restores every other default but not this
-      // one, and a later describe sets held wait-list positions on it. Under
+      // one, and a later describe sets held waitlist positions on it. Under
       // `--sequence.shuffle` that describe can run FIRST, and a held position
       // sends this page down a different branch entirely — so restore the
       // no-positions default here rather than depend on declaration order.
@@ -648,7 +648,7 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(screen.queryByText(/add your first dog/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/let's get you set up/i)).not.toBeInTheDocument();
       // The exhibitor still gets the action.
-      expect(screen.getByRole('button', { name: /retry/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
     });
 
     it('DOES make the first-run claim once the same empty read is confirmed', async () => {
@@ -1378,9 +1378,9 @@ describe('Receipt deep-link scope from My Payments', () => {
 });
 
 /**
- * MYK9-417. My Shows read the wait list from two places that never spoke:
+ * MYK9-417. My Shows read the waitlist from two places that never spoke:
  * the `Waitlist` chip and its list from `entries` (via `isWaitlistEntry`), the
- * "My Wait List Positions" section from the `waitlist_entries` table. An
+ * "My Waitlist Positions" section from the `waitlist_entries` table. An
  * exhibitor holding position #1 was shown a `Waitlist 0` chip and, on clicking
  * it, "No waitlisted entries … Nothing to do here right now" — printed inches
  * above the live position it denied.
@@ -1389,7 +1389,7 @@ describe('Receipt deep-link scope from My Payments', () => {
  * in waitlistSurface.test.ts, and a fix that never reaches the chip, the empty
  * state or the section would pass that file and change nothing here.
  */
-describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
+describe('Waitlist positions with no waitlisted entry row (MYK9-417)', () => {
   /** The reproduction's shape: an entry that is NOT waitlisted... */
   const submittedEntry = {
     is_scored: false,
@@ -1482,14 +1482,14 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     await screen.findByRole('radiogroup', { name: /filter by entry status/i });
     await user.click(waitlistChip());
 
-    expect(await screen.findByText('My Wait List Positions')).toBeInTheDocument();
+    expect(await screen.findByText('My Waitlist Positions')).toBeInTheDocument();
     expect(screen.getByText('Juni')).toBeInTheDocument();
     const filteredSection = screen.getByTestId('entries-filter-section');
     const timeAxis = within(filteredSection).getByRole('radiogroup', { name: /filter by time/i });
     expect(within(timeAxis).getByRole('radio', { name: /^all\s*1$/i })).toBeInTheDocument();
-    expect(within(filteredSection).getByText('My Wait List Positions')).toBeInTheDocument();
-    expect(within(filteredSection).getByRole('status')).toHaveTextContent('1 wait list position');
-    expect(screen.getAllByText('My Wait List Positions')).toHaveLength(1);
+    expect(within(filteredSection).getByText('My Waitlist Positions')).toBeInTheDocument();
+    expect(within(filteredSection).getByRole('status')).toHaveTextContent('1 waitlist position');
+    expect(screen.getAllByText('My Waitlist Positions')).toHaveLength(1);
     // The sentence the page had no business saying.
     expect(screen.queryByText('No waitlisted entries')).not.toBeInTheDocument();
     expect(screen.queryByText(/Nothing to do here right now/)).not.toBeInTheDocument();
@@ -1507,7 +1507,7 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     await user.click(waitlistChip());
 
     expect(await screen.findByText('No waitlisted entries')).toBeInTheDocument();
-    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+    expect(screen.queryByText('My Waitlist Positions')).not.toBeInTheDocument();
   });
 
   it('explains a deep-linked expired offer without counting it on the chip', async () => {
@@ -1525,15 +1525,15 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
 
     await screen.findByRole('radiogroup', { name: /filter by entry status/i });
     expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*0$/);
-    expect(screen.getByText('My Wait List Positions')).toBeInTheDocument();
+    expect(screen.getByText('My Waitlist Positions')).toBeInTheDocument();
     expect(
       within(screen.getByTestId('entries-filter-section')).getByRole('status')
-    ).toHaveTextContent('1 wait list offer update');
+    ).toHaveTextContent('1 waitlist offer update');
     const user = userEvent.setup();
     await user.click(waitlistChip());
     expect(
       within(screen.getByTestId('entries-filter-section')).getByRole('status')
-    ).toHaveTextContent(/^1 wait list offer update$/);
+    ).toHaveTextContent(/^1 waitlist offer update$/);
   });
 
   it('does not greet an exhibitor who holds a position as brand new', async () => {
@@ -1547,7 +1547,7 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     });
     renderWithProviders(<MyEntriesPage />);
 
-    expect(await screen.findByText('My Wait List Positions')).toBeInTheDocument();
+    expect(await screen.findByText('My Waitlist Positions')).toBeInTheDocument();
     expect(screen.getByText('Juni')).toBeInTheDocument();
     expect(screen.queryByText(/Welcome! Let’s get you set up/)).not.toBeInTheDocument();
     expect(screen.queryByText(/You haven’t entered any shows yet/)).not.toBeInTheDocument();
@@ -1566,10 +1566,10 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
 
     const section = await screen.findByTestId('entries-filter-section');
     const timeAxis = within(section).getByRole('radiogroup', { name: /filter by time/i });
-    expect(within(section).getByRole('status')).toHaveTextContent('1 wait list position');
+    expect(within(section).getByRole('status')).toHaveTextContent('1 waitlist position');
     await user.click(within(timeAxis).getByRole('radio', { name: /^all/i }));
     expect(within(timeAxis).getByRole('radio', { name: /^all\s*1$/i })).toBeInTheDocument();
-    expect(within(section).getByRole('status')).toHaveTextContent('1 wait list position');
+    expect(within(section).getByRole('status')).toHaveTextContent('1 waitlist position');
   });
 
   it('keeps focus on status chips after the deep-linked offer has received focus', async () => {
@@ -1610,11 +1610,11 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     renderWithProviders(<MyEntriesPage />);
 
     expect(await screen.findByText(/Welcome! Let’s get you set up/)).toBeInTheDocument();
-    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+    expect(screen.queryByText('My Waitlist Positions')).not.toBeInTheDocument();
   });
 
   it('explains itself rather than going blank when a filter hides the only position', async () => {
-    // Suppressing the first-run state for a wait-list-only exhibitor must not
+    // Suppressing the first-run state for a waitlist-only exhibitor must not
     // leave them with nothing: under `?status=accepted` the section is hidden
     // by design, so the filters and the matching empty state have to be there.
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -1628,7 +1628,7 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     expect(screen.getByRole('radiogroup', { name: /filter by entry status/i })).toBeInTheDocument();
     // The position is still countable from here, one click away.
     expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*1$/);
-    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+    expect(screen.queryByText('My Waitlist Positions')).not.toBeInTheDocument();
   });
 
   it('hides the positions section behind a status filter that excludes them', async () => {
@@ -1636,7 +1636,7 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     renderWithProviders(<MyEntriesPage />);
 
     await screen.findByRole('radiogroup', { name: /filter by entry status/i });
-    expect(screen.getByText('My Wait List Positions')).toBeInTheDocument();
+    expect(screen.getByText('My Waitlist Positions')).toBeInTheDocument();
 
     const statusAxis = screen.getByRole('radiogroup', { name: /filter by entry status/i });
     await user.click(within(statusAxis).getByRole('radio', { name: /accepted/i }));
@@ -1644,7 +1644,136 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     // Leaving it up under Accepted is the same contradiction pointing the
     // other way: a section the active filter says should not be there.
     await waitFor(() =>
-      expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument()
+      expect(screen.queryByText('My Waitlist Positions')).not.toBeInTheDocument()
     );
+  });
+
+  describe('declining an offered spot (MYK9-1839)', () => {
+    // Confirming runs the page's real `onDecline`, which sets `?waitlistOffer=` and
+    // fires the focus-scroll effect; jsdom has no `scrollIntoView`.
+    let priorScrollIntoView: PropertyDescriptor | undefined;
+    beforeEach(() => {
+      priorScrollIntoView = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        'scrollIntoView'
+      );
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: vi.fn(),
+      });
+    });
+    afterEach(() => {
+      if (priorScrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', priorScrollIntoView);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+      }
+    });
+
+    const seedOffer = () => {
+      const decline = {
+        mutate: vi.fn(),
+        isPending: false,
+        isError: false,
+        error: null,
+        variables: undefined,
+      };
+      mockUseMyWaitlistEntries.mockReturnValue({
+        ...WAITLIST_NONE,
+        entries: [
+          {
+            ...junisPosition,
+            status: 'offered',
+            joinedVia: 'online',
+            offeredAt: '2026-09-02T12:00:00.000Z',
+            offerExpiresAt: '2999-01-01T12:00:00.000Z',
+            promotedEntryId: 'entry-1',
+          },
+        ],
+        activePositionCount: 1,
+        decline,
+      });
+      return decline;
+    };
+
+    it('asks first, and sends nothing until the exhibitor confirms', async () => {
+      const decline = seedOffer();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Decline' }));
+
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Give up this spot?')).toBeInTheDocument();
+      expect(dialog).toHaveTextContent('Interior Advanced');
+      expect(dialog).toHaveTextContent('You cannot get it back.');
+      expect(decline.mutate).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Give up spot' }));
+      expect(decline.mutate).toHaveBeenCalledTimes(1);
+      expect(decline.mutate).toHaveBeenCalledWith('waitlist-1');
+    });
+
+    it('leaves the offer as it was when the exhibitor keeps the spot', async () => {
+      const decline = seedOffer();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Decline' }));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Keep my spot' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(decline.mutate).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Decline' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Complete payment' })).toBeEnabled();
+    });
+  });
+
+  describe('leaving the waitlist (MYK9-1842)', () => {
+    const seedWaiting = () => {
+      const withdraw = { mutate: vi.fn(), isPending: false };
+      mockUseMyWaitlistEntries.mockReturnValue({ ...WAITLIST_NONE, withdraw });
+      seedPosition([junisPosition]);
+      mockUseMyWaitlistEntries.mockReturnValue({
+        ...mockUseMyWaitlistEntries(),
+        withdraw,
+      });
+      return withdraw;
+    };
+
+    it('asks first, and sends nothing until the exhibitor confirms', async () => {
+      const withdraw = seedWaiting();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Leave waitlist' }));
+
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Leave the waitlist?')).toBeInTheDocument();
+      expect(dialog).toHaveTextContent(
+        'Juni will lose its place in line for Interior Advanced. You cannot get that place back.'
+      );
+      expect(withdraw.mutate).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Leave waitlist' }));
+      expect(withdraw.mutate).toHaveBeenCalledTimes(1);
+      expect(withdraw.mutate).toHaveBeenCalledWith('waitlist-1');
+    });
+
+    it('leaves the position as it was when the exhibitor stays on the list', async () => {
+      const withdraw = seedWaiting();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Leave waitlist' }));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Stay on the list' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(withdraw.mutate).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Leave waitlist' })).toBeEnabled();
+      expect(screen.getByText('Juni')).toBeInTheDocument();
+    });
   });
 });

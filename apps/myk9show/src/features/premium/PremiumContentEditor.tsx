@@ -367,7 +367,7 @@ export function PremiumContentEditor({
                       void handleGenerate();
                     }}
                   >
-                    Retry narrative generation
+                    Try narrative generation again
                   </Button>
                 </AlertDescription>
               </Alert>

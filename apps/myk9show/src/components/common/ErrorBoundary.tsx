@@ -233,14 +233,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-gray-600">
-                The {context.toLowerCase()} section encountered an error and couldn't load.
+                We couldn't load the {context.toLowerCase()} part of this page. Try again, or
+                refresh the page.
               </p>
 
               <div className="flex gap-2">
                 {canRetry && (
                   <Button size="sm" variant="outline" onClick={this.handleRetry}>
                     <RefreshCw className="h-3 w-3 mr-1" />
-                    Retry
+                    Try again
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={this.handleReload}>
@@ -269,7 +270,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 onClick={this.handleRetry}
                 className="text-xs px-2 py-1 bg-card border rounded hover:bg-gray-50"
               >
-                Retry
+                Try again
               </button>
             )}
           </div>

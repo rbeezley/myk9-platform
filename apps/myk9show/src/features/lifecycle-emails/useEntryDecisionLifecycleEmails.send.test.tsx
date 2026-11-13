@@ -11,6 +11,7 @@ import { sendLifecycleEmailJobs } from './api';
 const dialogProps = vi.hoisted(() => ({
   current: null as null | {
     onSend: (values: { subject: string; body: string; secretaryNote: string }) => Promise<void>;
+    entry: { dogName?: string | null; className?: string | null; alsoDecided?: unknown[] };
   },
 }));
 
@@ -43,10 +44,10 @@ const entry = {
 
 async function sendDecisionEmail() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  let openPrompt: ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'] | null =
+  let announce: ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'] | null =
     null;
-  type OpenPrompt = ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'];
-  function Harness({ onReady }: { onReady: (open: OpenPrompt) => void }) {
+  type Announce = ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'];
+  function Harness({ onReady }: { onReady: (open: Announce) => void }) {
     const hook = useEntryDecisionLifecycleEmails({
       showId: 'show-1',
       showName: 'Show',
@@ -59,12 +60,12 @@ async function sendDecisionEmail() {
     <QueryClientProvider client={queryClient}>
       <Harness
         onReady={open => {
-          openPrompt = open;
+          announce = open;
         }}
       />
     </QueryClientProvider>
   );
-  act(() => openPrompt?.(entry, 'accepted'));
+  act(() => announce?.([entry], 'accepted'));
   await act(async () => {
     await dialogProps.current?.onSend({ subject: 's', body: 'b', secretaryNote: '' });
   });
@@ -99,5 +100,54 @@ describe('useEntryDecisionLifecycleEmails send result', () => {
     expect(toast.error).toHaveBeenCalledWith(
       'Entry decision is saved. The email did not send yet.'
     );
+  });
+});
+
+describe('reopening a ready email that covers several classes (MYK9-1800)', () => {
+  it('opens with every covered entry on the list, so the preview shows all the classes', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const entries = ['entry-1', 'entry-2', 'entry-3'].map(id => ({
+      ...entry,
+      id,
+      dogName: 'Rex',
+      classes: [{ name: `Class ${id}` }],
+    })) as unknown as EntryManagementEntry[];
+    let review: ReturnType<typeof useEntryDecisionLifecycleEmails>['reviewReadyEmail'] | null =
+      null;
+    function Harness() {
+      const hook = useEntryDecisionLifecycleEmails({ showId: 'show-1', showName: 'Show', entries });
+      useEffect(() => {
+        review = hook.reviewReadyEmail;
+      });
+      return <>{hook.dialog}</>;
+    }
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Harness />
+      </QueryClientProvider>
+    );
+
+    act(() =>
+      review?.(
+        {
+          id: 'job-1',
+          entryId: 'entry-2',
+          stepType: 'accepted',
+          status: 'ready',
+          subject: 's',
+          body: 'b',
+          secretaryNote: '',
+          dueAt: null,
+          preparedAt: null,
+          sentAt: null,
+          correctionForJobId: null,
+          coveredEntryIds: ['entry-1', 'entry-2', 'entry-3'],
+        },
+        entries[1]!
+      )
+    );
+
+    expect(dialogProps.current?.entry.className).toBe('Class entry-1');
+    expect(dialogProps.current?.entry.alsoDecided).toHaveLength(2);
   });
 });

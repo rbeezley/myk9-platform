@@ -260,3 +260,51 @@ behind `any`; fix it, never suppress it.
 - **Always source the env file** — never hardcode or type the password
 - **IPv4 only:** User's network requires the session pooler endpoint, not direct connection
 - **Project ref:** `sojmvhhwsjxmfistvzbe`
+
+## Migration rules
+
+_Moved here from the shared rulebook (MYK9-1790), which keeps a summary. Equally binding._
+
+- Before writing a migration that references existing rows (e.g., permissions), QUERY the target table first to confirm referenced values exist.
+- Run migration commands from the worktree linked to Supabase, not the main repo.
+- Pick a migration timestamp against `origin/main` AND the linked database, not your branch (`pnpm qa:migrations:guard` runs in CI; a version another PR merged first dies at `INSERT INTO supabase_migrations.schema_migrations`). Use a specific odd time such as `174500`, never a shared default like `120000`, and never `supabase db push` from an unmerged branch.
+- **Every `CREATE TABLE public.<name>` must include explicit `GRANT`s** to `anon` / `authenticated` / `service_role` as appropriate. As of Oct 30, 2026 Supabase no longer auto-exposes new `public` tables to the Data API (PostgREST / GraphQL / `supabase-js`); without a grant the table will silently 404 from the client. Template:
+
+  ```sql
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table> TO authenticated;
+  GRANT SELECT ON public.<table> TO anon;  -- only if anon should read
+  REVOKE ALL ON public.<table> FROM anon;  -- REQUIRED if anon should have NO access
+  ```
+
+  Match the access level the table actually needs — never blanket-grant write to `anon`. Grants are orthogonal to RLS; both are still required.
+
+- **Omitting a `GRANT` does NOT keep `anon` out — you must `REVOKE` explicitly.** This project carries `ALTER DEFAULT PRIVILEGES` in schema `public` granting `anon` full CRUD (`arwdDxtm`) on **every newly created table** (verified via `pg_default_acl`; grantors are both `postgres` and `supabase_admin`). Those default privileges take precedence over the Oct 30 change above, so a table meant to exclude `anon` gets full anon CRUD unless the migration says otherwise, and RLS masks the gap when every policy is `TO authenticated` (MYK9-93).
+
+- **Verify grants against the applied database, not the migration text.** After `db push`:
+
+  ```sql
+  select unnest(relacl)::text from pg_class where oid = 'public.<table>'::regclass;
+  ```
+
+  Table-level ACLs are only half the picture — check column-level grants too. A broad `REVOKE ALL ON ALL TABLES ... FROM anon` silently drops them, `pg_class.relacl` will not show it, and a `select=*` PostgREST probe returns 200 either way:
+
+  ```sql
+  select a.attname, unnest(a.attacl)::text
+  from pg_attribute a
+  where a.attrelid = 'public.<table>'::regclass and a.attacl is not null;
+  ```
+
+  Do **not** use `information_schema.role_table_grants` for this: it only shows grants visible to the querying role and returns empty over the MCP connection, so it cannot prove absence.
+
+## Lessons
+
+Traps that belong to this work, moved from `CLAUDE.md` § LESSONS (MYK9-1790). Each points at its incident in `docs/lessons/README.md`; `lessonGuards.test.ts` checks every anchor here has a `**Guard:**` line.
+
+- **A "missing" column is not automatically drift.** Check `supabase_migrations.schema_migrations` and recently merged PRs for a deliberate `drop_*` before writing a repair migration; a stale branch makes an intentional deletion look unapplied. (docs/lessons/README.md#missing-column-not-drift)
+- **Keep scratch `.sql` out of `supabase/migrations/`** — migration-parsing tests read the whole directory and fail an untracked file with a confusing ACL error. (docs/lessons/README.md#untracked-migration-sql)
+- **`anonEntriesGrantContract` hoists `EXECUTE '…'` payloads out of `DO $$` blocks to the end of the file**, so a version-guarded blanket `REVOKE` inside a `DO` reads as running last. Keep blanket revokes as plain statements ordered before the grants. (docs/lessons/README.md#grant-contract-splitter)
+- **Before `CREATE OR REPLACE`-ing a Postgres function, copy from the LATEST migration that defines it** (`grep -l "CREATE OR REPLACE FUNCTION public.<fn>" supabase/migrations/`), never from the canonical-looking file; rebuilding from an old one silently reverts later shape changes that typecheck and tests cannot see. (docs/lessons/README.md#replace-function-latest)
+- **`pg_get_viewdef(...) ilike '%deleted_at is null%'` reports false positives** (nested subqueries, and `%e.deleted_at%` matches `own_e.deleted_at`). Slice the view's own top-level `WHERE` and anchor the alias; check `security_invoker` too, since `false` means the view body is the only guard. (docs/lessons/README.md#view-predicate-audit)
+- **A `SECURITY DEFINER` function that omits a filter its calling policy applies may be a deliberate edge, not drift** (`manageable_show_ids()` keeps draft and soft-deleted shows visible on purpose). Before restating a predicate inside, grep `supabase/tests/` for a test naming the function and read its header; behavioral SQL tests only ever run in CI. (docs/lessons/README.md#definer-deliberate-edge)
+- **Replacing a cascading DELETE with an upsert drops three properties**: clearing soft-delete columns, resetting declared rows, and removing undeclared ones. Enumerate the children from `pg_constraint` (`confdeltype='c'`), replicate the cascade explicitly with no exemptions, and pin the list in a test. Collision-safety and reset are different properties. (docs/lessons/README.md#cascade-delete-vs-upsert)
+- **A rule derived from free-text database columns must be measured against the real values before shipping**: one tested on invented fixtures passed red-green, a shuffled suite, typecheck and lint while harmfully rewriting most live labels. (docs/lessons/README.md#label-rule-vs-real-columns)

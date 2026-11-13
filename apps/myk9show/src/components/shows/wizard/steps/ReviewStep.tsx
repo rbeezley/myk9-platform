@@ -2,6 +2,7 @@ import {
   getReviewBlockingErrors,
   type ValidationScope,
 } from '@/pages/secretary/ShowCreationWizard/showCreationWizardValidation';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { trialScheduleLabel } from '@/components/trials/trialDateTime';
 import { isWizardStepAllowed } from '@/pages/secretary/ShowCreationWizard/show-creation-wizard-types';
 import React, { useEffect, useMemo } from 'react';
@@ -175,7 +176,9 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
               <div className="relative">
                 <p className="text-sm font-medium text-muted-foreground">Show Dates</p>
                 <p className="text-lg font-bold mt-1 text-foreground">
-                  {show.startDate ? format(new Date(show.startDate), 'MMM d') : 'TBD'}
+                  {show.startDate
+                    ? format(new Date(show.startDate), 'MMM d')
+                    : TO_BE_ANNOUNCED_LABEL}
                   {show.endDate && show.endDate !== show.startDate && (
                     <span> – {format(new Date(show.endDate), 'MMM d')}</span>
                   )}
@@ -189,7 +192,9 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
               <div className="relative">
                 <p className="text-sm font-medium text-muted-foreground">Entry Window</p>
                 <p className="text-lg font-bold mt-1 text-foreground">
-                  {show.entryOpenDate ? format(new Date(show.entryOpenDate), 'MMM d') : 'TBD'}
+                  {show.entryOpenDate
+                    ? format(new Date(show.entryOpenDate), 'MMM d')
+                    : TO_BE_ANNOUNCED_LABEL}
                   {show.entryCloseDate && (
                     <span> – {format(new Date(show.entryCloseDate), 'MMM d')}</span>
                   )}

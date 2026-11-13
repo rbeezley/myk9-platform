@@ -11,6 +11,14 @@ import { HeaderActions } from '@/components/layout/HeaderActions';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
+const readStoredSecretaryRowsMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/database/entries/secretaryStoredRows', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/entries/secretaryStoredRows')>()),
+  readStoredSecretaryRows: readStoredSecretaryRowsMock,
+}));
+/** How each `onRefreshEntries` call the panel made settled. */
+const refreshOutcomes = vi.hoisted<Array<'resolved' | 'rejected'>>(() => []);
 /**
  * The manage gate, as `useShowManageScope` reports it. `canManage` decides the
  * page; `canOperate` is strictly narrower and decides the three controls that
@@ -148,7 +156,9 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
     entries,
     classes,
     tools,
+    onRefreshEntries,
   }: {
+    onRefreshEntries?: (storedIds?: string[]) => Promise<void>;
     entries: unknown[];
     classes: Array<{ entryCount: number; scoredCount: number }>;
     tools: Array<{
@@ -160,6 +170,29 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
     }>;
   }) => (
     <div data-testid="show-desk-panel">
+      <button
+        type="button"
+        data-testid="panel-refresh-entries"
+        onClick={() => {
+          void onRefreshEntries?.().then(
+            () => refreshOutcomes.push('resolved'),
+            () => refreshOutcomes.push('rejected')
+          );
+        }}
+      />
+      <button
+        type="button"
+        data-testid="panel-refresh-after-write"
+        onClick={() => {
+          void onRefreshEntries?.(['entry-1']).then(
+            () => refreshOutcomes.push('resolved'),
+            () => refreshOutcomes.push('rejected')
+          );
+        }}
+      />
+      <div data-testid="panel-entry-check-ins">
+        {(entries as Array<{ check_in_status?: string }>).map(e => e.check_in_status).join(',')}
+      </div>
       <div data-testid="panel-entry-count">{entries.length}</div>
       <div data-testid="panel-class-entry-counts">
         {classes.map(cls => cls.entryCount).join(',')}
@@ -237,6 +270,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
   beforeEach(() => {
     usePageEditTargetStore.setState({ showTools: null, showToolsOwner: null });
     getEntriesForShowMock.mockReset();
+    refreshOutcomes.length = 0;
     deskSignals.incidents = [];
     deskSignals.tasks = [];
     usesSwitches.show = {};
@@ -471,6 +505,70 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(screen.queryByText("Couldn't load show entries.")).not.toBeInTheDocument();
   });
 
+  it('rejects the Check-in cell re-read when it fails, so the cell keeps the status just written (MYK9-1803)', async () => {
+    trialStoreState.trials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    trialStoreState.trialClasses = {
+      'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice', status: 'Scheduled' }],
+    };
+    getEntriesForShowMock.mockResolvedValue({ data: null, error: new Error('Refresh failed') });
+
+    renderPage([{ id: 'entry-1', show_id: 'show-1', class_id: 'class-1', is_scored: false }]);
+    fireEvent.click(await screen.findByTestId('panel-refresh-entries'));
+
+    await waitFor(() => expect(refreshOutcomes).toEqual(['rejected']));
+  });
+
+  it('keeps the status a desk write stored when the entries re-read fails (MYK9-1812)', async () => {
+    trialStoreState.trials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    trialStoreState.trialClasses = {
+      'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice', status: 'Scheduled' }],
+    };
+    getEntriesForShowMock.mockResolvedValue({ data: null, error: new Error('not synced') });
+    // The replica holds what the write stored.
+    readStoredSecretaryRowsMock.mockResolvedValue([
+      {
+        id: 'entry-1',
+        entry_status: 'confirmed',
+        check_in_status: 'checked-in',
+        check_in_pulled_by: null,
+        withdrawal_reason: null,
+        special_requests: null,
+        updated_at: null,
+      },
+    ]);
+
+    renderPage([
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        class_id: 'class-1',
+        is_scored: false,
+        check_in_status: 'no-status',
+      },
+    ]);
+    expect(await screen.findByTestId('panel-entry-check-ins')).toHaveTextContent('no-status');
+    fireEvent.click(screen.getByTestId('panel-refresh-after-write'));
+
+    await waitFor(() => expect(refreshOutcomes).toEqual(['rejected']));
+    expect(screen.getByTestId('panel-entry-check-ins')).toHaveTextContent('checked-in');
+  });
+
   it('pauses Show Desk claims and retries both schedule reads after an initial failure', async () => {
     trialStoreState.trialsReadStatus = 'error';
     trialStoreState.trialsReadError = 'Trial read failed';
@@ -488,7 +586,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(usePageEditTargetStore.getState().showTools).toBeNull();
     expect(screen.queryByText(/Show-day work has not started/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry schedule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try schedule again' }));
 
     expect(trialStoreState.loadTrials).toHaveBeenCalledTimes(1);
     expect(trialStoreState.loadTrialClasses).toHaveBeenCalledTimes(1);

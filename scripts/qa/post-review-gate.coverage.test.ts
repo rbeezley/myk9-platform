@@ -155,3 +155,62 @@ describe('post-review-gate.sh coverage record (MYK9-1603)', () => {
     expect(r.body).toBe('');
   });
 });
+
+/**
+ * MYK9-1787: the poster asks the phone-width walk before any clean post. The
+ * stub stands in for `qa:phone-walk --pr <n>` and records how it was called.
+ */
+function stubWalk(exit: number): { bin: string; calls: string } {
+  const dir = tmp('walk-stub-');
+  const calls = join(dir, 'calls.log');
+  const bin = join(dir, 'walk');
+  writeFileSync(bin, `#!/usr/bin/env bash\nprintf '%s\\n' "$*" >> '${calls}'\nexit ${exit}\n`);
+  chmodSync(bin, 0o755);
+  return { bin, calls };
+}
+const walkEnv = (walk: { bin: string }) => ({
+  PHONE_WALK_BIN: walk.bin,
+  PHONE_WALK_WAIT_SECONDS: '0',
+});
+
+describe('post-review-gate.sh phone-width walk (MYK9-1787)', () => {
+  it('posts when the walk is green or not required, asking about this PR', () => {
+    const walk = stubWalk(0);
+    const r = post(CLEAN_ARGS, CLEAN, walkEnv(walk));
+    expect(r.code).toBe(0);
+    expect(r.body).toContain('Review gate: codex reviewed');
+    expect(readFileSync(walk.calls, 'utf8')).toBe('--pr 42\n');
+  });
+
+  it.each([1, 2, 3])('posts nothing when the walk exits %i', exit => {
+    const r = post(CLEAN_ARGS, CLEAN, walkEnv(stubWalk(exit)));
+    expect(r.code).toBe(2);
+    expect(r.out).toContain(`exited ${exit}`);
+    expect(r.body).toBe('');
+  });
+
+  it('holds the none tier to the walk too, which has no review to wait behind', () => {
+    const args = ['42', 'none', '0a2020c7a', '5af9af158', 'low-risk paths, CI green', '/dev/null'];
+    expect(post(args, '', walkEnv(stubWalk(0))).code).toBe(0);
+    const red = post(args, '', walkEnv(stubWalk(1)));
+    expect(red.code).toBe(2);
+    expect(red.body).toBe('');
+  });
+
+  it('never asks the walk before a withdrawal', () => {
+    const walk = stubWalk(1);
+    const args = [
+      '--withdraw',
+      '42',
+      'codex',
+      '0a2020c7a',
+      '5af9af158',
+      '1 findings, not addressed',
+      'LOG',
+    ];
+    const r = post(args, FINDING, walkEnv(walk));
+    expect(r.code).toBe(0);
+    expect(r.body).toContain('1 findings, not addressed');
+    expect(() => readFileSync(walk.calls, 'utf8')).toThrow();
+  });
+});

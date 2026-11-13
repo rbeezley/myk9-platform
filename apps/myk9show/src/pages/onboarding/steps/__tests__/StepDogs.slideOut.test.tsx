@@ -40,9 +40,7 @@ async function findAddDogButton() {
 
 describe('StepDogs Add Dog', () => {
   it('opens a slide-out whose fixed overlay is outside the step’s space-y stack', async () => {
-    const { user } = render(
-      <StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} onSkip={vi.fn()} />
-    );
+    const { user } = render(<StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} />);
 
     await user.click(await findAddDogButton());
     // Add Dog opens on the registration number (MYK9-1162).
@@ -65,9 +63,7 @@ describe('StepDogs Add Dog', () => {
   // PR #2920 review: Add Dog was a dialog here, where Escape asked before
   // dropping edits; as a slide-out it must ask too, not ignore Escape.
   it('asks before Escape drops a typed registration number, and Discard returns focus to Add a dog', async () => {
-    const { user } = render(
-      <StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} onSkip={vi.fn()} />
-    );
+    const { user } = render(<StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} />);
     const opener = await findAddDogButton();
     opener.focus();
     await user.click(opener);

@@ -167,7 +167,7 @@ describe('useAccountNotifications', () => {
     expect(mockAddAlert).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'notif-wl-1',
-        title: 'Wait list offer sent',
+        title: 'Waitlist offer sent',
         actionUrl: '/shows/show-1/entries?tab=waitlist',
       })
     );

@@ -9,6 +9,7 @@
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { exportRowsCsv } from '@/utils/downloadCsv';
 import { updateShow } from '@/services/database/shows';
 import { DeleteObjectDialog, showDeleteDetail } from '@/features/delete';
 import { Trash2, AlertCircle, Download, XCircle, CalendarCheck } from 'lucide-react';
@@ -24,6 +25,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
+import { SHOW_STATUS_VALUES, getStatusDescriptor } from '@/components/status';
+import { SHOW_ADMIN_COPY, bulkStatusPartialFailed } from '@/components/shows/showAdminErrorCopy';
 
 // Must stay in sync with the shows_status_check CHECK constraint
 // (migration 072): draft | published | upcoming | in_progress | completed | cancelled.
@@ -31,12 +34,19 @@ import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 // go through the Stripe-payouts gate (onlineEntryGate), which is per-club —
 // a bulk write can't evaluate it. Publish from the show's own status pill.
 type ShowStatus = 'completed' | 'cancelled';
-type DialogType = 'status' | 'export' | 'delete' | null;
+type DialogType = 'status' | 'delete' | null;
 
 interface ShowBulkActionsBarProps {
   selectedShows: EnhancedShow[];
   onClearSelection: () => void;
   onBulkComplete: () => void;
+}
+
+/** The show's status as the status pill and the shows table word it. */
+function showStatusLabel(status: string): string {
+  return (SHOW_STATUS_VALUES as readonly string[]).includes(status)
+    ? getStatusDescriptor('show', status).label
+    : status;
 }
 
 const STATUS_OPTIONS: { value: ShowStatus; label: string; icon: React.ElementType }[] = [
@@ -74,14 +84,15 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
       );
       const failedCount = results.filter(result => result.error).length;
       if (failedCount === selectedShows.length) {
-        setError('Failed to update the selected shows. Please try again.');
+        setError(SHOW_ADMIN_COPY.bulkStatusAllFailed);
         return;
       }
       if (failedCount > 0) {
         // Partial failure: refresh + clear selection so the succeeded subset
         // reflects immediately and a retry can't re-hit already-updated shows.
-        notifications.error(`Failed to update ${failedCount} of ${selectedShows.length} shows.`, {
-          description: 'The other shows were updated. Re-select the failed shows to retry.',
+        notifications.error(bulkStatusPartialFailed(failedCount, selectedShows.length), {
+          description:
+            'The other shows were updated. Select the ones that did not change and try again.',
         });
         closeDialog();
         onBulkComplete();
@@ -96,52 +107,37 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
       closeDialog();
       onBulkComplete();
     } catch {
-      setError('Failed to update show status. Please try again.');
+      setError(SHOW_ADMIN_COPY.bulkStatusUnfinished);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleBulkExport = async () => {
-    setIsProcessing(true);
-    setError(null);
-
+  // A download changes nothing, so it runs on the press with no confirm step (MYK9-1793).
+  const handleBulkExport = () => {
     try {
       logger.debug('Bulk show export', 'shows', {
         showIds: selectedShows.map(s => s.id),
       });
 
-      // Build CSV content
-      const headers = ['Name', 'Organization', 'Start Date', 'End Date', 'Location', 'Status'];
-      const rows = selectedShows.map(show => [
-        show.name,
-        show.organization,
-        show.startDate,
-        show.endDate,
-        show.location,
-        show.status,
-      ]);
-
-      const csvContent = [headers, ...rows]
-        .map(row => row.map(cell => `"${cell}"`).join(','))
-        .join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `shows-export-${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      exportRowsCsv(
+        'shows',
+        ['Name', 'Organization', 'Start Date', 'End Date', 'Location', 'Status'],
+        selectedShows.map(show => [
+          show.name,
+          show.organization,
+          show.startDate,
+          show.endDate,
+          show.location,
+          show.status,
+        ])
+      );
 
       logger.info('Bulk export complete', 'shows', { count: selectedShows.length });
 
-      closeDialog();
       onBulkComplete();
     } catch {
-      setError('Failed to export shows. Please try again.');
-    } finally {
-      setIsProcessing(false);
+      notifications.error(SHOW_ADMIN_COPY.exportFailed);
     }
   };
 
@@ -178,7 +174,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
           Mark cancelled
         </BulkBarButton>
         <BulkBarButton
-          onClick={() => setCurrentDialog('export')}
+          onClick={handleBulkExport}
           icon={<Download className="h-4 w-4" aria-hidden="true" />}
         >
           Export
@@ -214,7 +210,8 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
             <div className="max-h-40 overflow-y-auto space-y-1">
               {selectedShows.map(show => (
                 <div key={show.id} className="text-sm p-2 bg-muted rounded">
-                  {show.name} — currently <span className="font-medium">{show.status}</span>
+                  {show.name}, currently{' '}
+                  <span className="font-medium">{showStatusLabel(show.status)}</span>
                 </div>
               ))}
             </div>
@@ -226,43 +223,6 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
             </Button>
             <Button onClick={handleBulkStatusChange} disabled={isProcessing}>
               {isProcessing ? 'Processing...' : (statusOption?.label ?? 'Apply')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Export Dialog */}
-      <Dialog open={currentDialog === 'export'} onOpenChange={() => closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Export Shows</DialogTitle>
-            <DialogDescription>
-              Export {selectedShows.length} selected show
-              {selectedShows.length !== 1 ? 's' : ''} as CSV.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <p className="text-sm text-muted-foreground">
-              The export will include name, organization, dates, location, and status for each
-              selected show.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              Cancel
-            </Button>
-            <Button onClick={handleBulkExport} disabled={isProcessing}>
-              <Download className="h-4 w-4 mr-2" />
-              {isProcessing ? 'Exporting...' : 'Download CSV'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -10,7 +10,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { configure, getConfig } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
@@ -267,7 +267,7 @@ describe('Results tab on the real replicated class rows', () => {
       // A local correction: the row is dirty until the upload is acknowledged.
       await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
       await waitFor(() =>
-        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
+        expect(screen.getByText('Waiting for score changes to be sent')).toBeInTheDocument()
       );
       expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
 
@@ -387,7 +387,7 @@ describe('Results tab on the real replicated class rows', () => {
       await replicatedClassesTable.updateClass('class-open', { classStatus: 'Completed' });
 
       await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
-      expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+      expect(screen.getByText(/Waiting for this class.s changes to be sent/)).toBeInTheDocument();
 
       // The upload is acknowledged, then an ordinary class sync brings the server's check down.
       await replicatedClassesTable.markAsSynced('class-open');
@@ -416,7 +416,7 @@ describe('Results tab on the real replicated class rows', () => {
         const row = (await replicatedClassesTable.get('class-open'))!;
         await replicatedClassesTable.set('class-open', { ...row }, false);
         await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
-        expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+        expect(screen.getByText(/Waiting for this class.s changes to be sent/)).toBeInTheDocument();
 
         // Let every notice from that write drain (leading and trailing debounce edges), so
         // nothing table-driven is left to re-read for us.
@@ -428,30 +428,43 @@ describe('Results tab on the real replicated class rows', () => {
           timeout: 4_000,
         });
         expect(
-          screen.queryByText(/Waiting for this class.s changes to sync/)
+          screen.queryByText(/Waiting for this class.s changes to be sent/)
         ).not.toBeInTheDocument();
       } finally {
         spy.mockRestore();
       }
     });
 
-    it('names an unresolved conflict and points at the Keep mine / Take theirs choice, then unlocks once resolved', async () => {
+    it('names an unresolved conflict and points at the Keep the other change / Keep my change choice, then unlocks once resolved', async () => {
       await renderUnchecked();
 
       await conflictClass('class-open');
 
-      expect(await screen.findByText(/changed elsewhere/)).toBeInTheDocument();
+      expect(await screen.findByText(/changed somewhere else/)).toBeInTheDocument();
       expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
-      expect(screen.getByText(/Keep mine or Take theirs/)).toBeInTheDocument();
-      // A dismissed notice is not a dead end: the copy says how to bring it back.
-      expect(screen.getByText(/reload the page to bring it back/)).toBeInTheDocument();
+      expect(screen.getByText(/Keep the other change" or "Keep my change/)).toBeInTheDocument();
+      // A dismissed notice is not a dead end: the copy names a button that brings it back.
+      expect(
+        screen.getByText(/If you closed the notice, choose "Show the choice again"/)
+      ).toBeInTheDocument();
+      const raised: unknown[] = [];
+      const listen = (event: Event) => raised.push((event as CustomEvent).detail);
+      window.addEventListener('replication:conflict', listen);
+      try {
+        await userEvent.click(screen.getByRole('button', { name: 'Show the choice again' }));
+        await waitFor(() => expect(raised).toHaveLength(1));
+      } finally {
+        window.removeEventListener('replication:conflict', listen);
+      }
+      // The same conflict from this device's kept copy, so the provider shows the existing notice.
+      expect(raised[0]).toMatchObject({ tableName: 'classes', rowId: 'class-open' });
 
-      // Take theirs: the server's row, check included, replaces the local one.
+      // Keep the other change: the server's row, check included, replaces the local one.
       await replicatedClassesTable.resolveReplicationConflict('class-open', 'take-remote');
 
       await waitFor(() => expect(screen.getByText(/Scores checked by you/)).toBeInTheDocument());
       expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
-      expect(screen.queryByText(/changed elsewhere/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/changed somewhere else/)).not.toBeInTheDocument();
     });
   });
 });

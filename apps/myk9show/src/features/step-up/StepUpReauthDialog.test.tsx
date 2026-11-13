@@ -273,4 +273,61 @@ describe('StepUpReauthDialog', () => {
     await expect(answer).resolves.toBe(fresh);
     await waitFor(() => expect(screen.queryByText('Confirm it is you')).not.toBeInTheDocument());
   });
+
+  it('says it could not confirm, not "something went wrong", when the provider fails unexpectedly', async () => {
+    mockSupabase.auth.signInWithPassword.mockRejectedValue(new Error('kaboom'));
+    const user = userEvent.setup();
+    await openPrompt('email');
+
+    await user.type(await screen.findByLabelText('Password'), 'pw');
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "We couldn't confirm it's you. Try again."
+    );
+  });
+
+  it('says the connection is the problem when the request cannot reach the provider', async () => {
+    mockSupabase.auth.signInWithPassword.mockRejectedValue(new Error('Failed to fetch'));
+    const user = userEvent.setup();
+    await openPrompt('email');
+
+    await user.type(await screen.findByLabelText('Password'), 'pw');
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not reach myK9Show. Check your connection and try again.'
+    );
+  });
+
+  it('says to sign in again when the confirmation comes back with no session', async () => {
+    mockSupabase.auth.signInWithPassword.mockResolvedValue({
+      data: { user: null, session: null },
+      error: null,
+    });
+    const user = userEvent.setup();
+    await openPrompt('email');
+
+    await user.type(await screen.findByLabelText('Password'), 'pw');
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your session has expired. Sign in again.'
+    );
+  });
+
+  it('says it could not confirm when sending the emailed code fails with no useful reason', async () => {
+    mockSupabase.auth.signInWithOtp.mockResolvedValue({
+      data: {},
+      error: { status: 500, message: 'db exploded' },
+    });
+    const user = userEvent.setup();
+    await openPrompt('google');
+
+    await user.click(await screen.findByRole('button', { name: 'Email me a code' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "We couldn't confirm it's you. Try again."
+    );
+  });
 });

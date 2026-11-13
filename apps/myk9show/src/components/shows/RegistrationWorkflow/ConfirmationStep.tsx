@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { getDogBreedLabel } from '@/types/dog-types';
 import {
@@ -103,7 +104,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         ? `${formatDateMMDDYYYY(show.startDate)} - ${formatDateMMDDYYYY(show.endDate)}`
         : show?.startDate
           ? formatDateMMDDYYYY(show.startDate)
-          : 'TBD';
+          : TO_BE_ANNOUNCED_LABEL;
 
     const receiptDogs = receiptSelectedDogs
       .map(dogId => {
@@ -138,7 +139,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       showName: show?.name || SHOW_NOT_PUBLISHED_LABEL,
       showClub: show?.clubName || '',
       showDate,
-      showLocation: show?.location || 'TBD',
+      showLocation: show?.location || TO_BE_ANNOUNCED_LABEL,
       dogs: receiptDogs,
       totalFees: receiptTotalFees,
       paymentMethod,
@@ -276,12 +277,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const heroTitle = everyOutcomeDenied
     ? 'No entries were added'
     : onlyWaitlisted
-      ? 'Added to the wait list'
+      ? 'Added to the waitlist'
       : workflowMode === 'exhibitor'
         ? heroCopy.title
         : 'Mail-in entry submitted';
   const heroDescription = everyOutcomeDenied
-    ? 'The selected classes were full and did not have an available wait-list place.'
+    ? 'The selected classes were full and did not have an available waitlist place.'
     : onlyWaitlisted
       ? 'No payment is due unless a spot is offered.'
       : heroCopy.description;
@@ -320,10 +321,10 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             )}
             <span>
               {waitlistEntries.length} {waitlistEntries.length === 1 ? 'entry' : 'entries'} added to
-              wait list
+              waitlist
             </span>
             {'. '}
-            <span>Wait list positions: </span>
+            <span>Waitlist positions: </span>
             {waitlistEntries.map((entry, idx) => {
               // MYK9-832 #12: without the trial name, two identically-named
               // waitlisted classes in different trials read as the same line

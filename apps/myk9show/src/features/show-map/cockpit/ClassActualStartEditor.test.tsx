@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,30 +34,53 @@ describe('ClassActualStartEditor', () => {
     vi.clearAllMocks();
   });
 
-  const renderEditor = (hasStart: boolean) =>
-    render(
+  function Harness({
+    classId = 'class-1',
+    className = 'Vehicle Elite B',
+    hasStart,
+    startOpen = true,
+  }: {
+    classId?: string;
+    className?: string;
+    hasStart: boolean;
+    startOpen?: boolean;
+  }) {
+    const [open, setOpen] = useState(startOpen);
+    return (
       <ClassActualStartEditor
-        classId="class-1"
-        className="Vehicle Elite B"
+        classId={classId}
+        className={className}
         trialDate="2026-10-10"
         timeZone="America/Chicago"
         hasStart={hasStart}
+        open={open}
+        onOpenChange={setOpen}
       />
     );
+  }
 
-  it('clears a recorded start through the replicated classes table', async () => {
-    const { user } = renderEditor(true);
+  const field = () => screen.getByLabelText('Start time for Vehicle Elite B');
+
+  it('renders nothing while closed', () => {
+    render(<Harness hasStart startOpen={false} />);
+
+    expect(screen.queryByLabelText('Start time for Vehicle Elite B')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('clears a recorded start from the open form and closes it', async () => {
+    const { user } = render(<Harness hasStart />);
 
     await user.click(screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' }));
 
     expect(updateClass).toHaveBeenCalledWith('class-1', { actual_start_time: undefined });
+    expect(screen.queryByLabelText('Start time for Vehicle Elite B')).not.toBeInTheDocument();
   });
 
   it('saves an edited start as the trial-local instant', async () => {
-    const { user } = renderEditor(true);
+    const { user } = render(<Harness hasStart />);
 
-    await user.click(screen.getByRole('button', { name: 'Edit start time for Vehicle Elite B' }));
-    await user.type(screen.getByLabelText('Start time for Vehicle Elite B'), '9:42 AM');
+    await user.type(field(), '9:42 AM');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(updateClass).toHaveBeenCalledWith('class-1', {
@@ -64,19 +88,38 @@ describe('ClassActualStartEditor', () => {
     });
   });
 
-  it('refuses an unreadable time without writing', async () => {
-    const { user } = renderEditor(false);
+  it('keeps the time input, Save and Cancel in a wrapping group with Save and Cancel kept together (MYK9-1866)', () => {
+    render(<Harness hasStart />);
+    const row = screen.getByTestId('class-start-row');
+    expect(row.className).toContain('flex-wrap');
+    const actions = screen.getByTestId('clock-time-actions');
+    expect(actions.className).toContain('shrink-0');
+    expect(actions).toContainElement(screen.getByRole('button', { name: 'Save' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: 'Cancel' }));
+    expect(row).toContainElement(screen.getByRole('textbox'));
+    expect(row).toContainElement(screen.getByRole('button', { name: 'Save' }));
+    expect(row).toContainElement(screen.getByRole('button', { name: 'Cancel' }));
+    expect(row).not.toContainElement(screen.getByRole('button', { name: /Clear start/ }));
+  });
+
+  it('offers no Clear start when no start is recorded', () => {
+    render(<Harness hasStart={false} />);
 
     expect(screen.queryByRole('button', { name: /Clear start/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Set start time for Vehicle Elite B' }));
+  });
+
+  it('refuses an unreadable time without writing', async () => {
+    const { user } = render(<Harness hasStart={false} />);
+
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a time like 9:42 AM.');
     expect(updateClass).not.toHaveBeenCalled();
   });
+
   it('shows a retryable error after a rejected clear, then recovers on retry', async () => {
     updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
-    const { user } = renderEditor(true);
+    const { user } = render(<Harness hasStart />);
     const clear = () =>
       screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' });
 
@@ -96,68 +139,27 @@ describe('ClassActualStartEditor', () => {
 
   it('keeps the form open with feedback when saving an edit is rejected', async () => {
     updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
-    const { user } = renderEditor(true);
+    const { user } = render(<Harness hasStart />);
 
-    await user.click(screen.getByRole('button', { name: 'Edit start time for Vehicle Elite B' }));
-    await user.type(screen.getByLabelText('Start time for Vehicle Elite B'), '9:42 AM');
+    await user.type(field(), '9:42 AM');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Could not save the start time. Try again.'
     );
-    expect(screen.getByLabelText('Start time for Vehicle Elite B')).toBeInTheDocument();
+    expect(field()).toBeInTheDocument();
   });
 
   it('does not carry a clear error or a draft onto a different class', async () => {
     updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
-    const editorFor = (classId: string, className: string) => (
-      <ClassActualStartEditor
-        classId={classId}
-        className={className}
-        trialDate="2026-10-10"
-        timeZone="America/Chicago"
-        hasStart
-      />
-    );
-    const { user, rerender } = render(editorFor('class-1', 'Vehicle Elite B'));
+    const { user, rerender } = render(<Harness hasStart />);
 
     await user.click(screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' }));
     expect(screen.getByRole('alert')).toBeInTheDocument();
 
-    rerender(editorFor('class-2', 'Interior Elite A'));
+    rerender(<Harness classId="class-2" className="Interior Elite A" hasStart />);
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Edit start time for Interior Elite A' })
-    ).toBeEnabled();
-  });
-
-  it('cannot start an edit while a clear is still saving', async () => {
-    let finish: () => void = () => {};
-    updateClass.mockImplementationOnce(
-      () => new Promise<string>(resolve => (finish = () => resolve('mutation-1')))
-    );
-    const { user } = renderEditor(true);
-
-    await user.click(screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' }));
-
-    expect(
-      screen.getByRole('button', { name: 'Edit start time for Vehicle Elite B' })
-    ).toBeDisabled();
-    finish();
-    expect(
-      await screen.findByRole('button', { name: 'Edit start time for Vehicle Elite B' })
-    ).toBeEnabled();
-  });
-
-  it('drops a stale clear error when an edit is started', async () => {
-    updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
-    const { user } = renderEditor(true);
-
-    await user.click(screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' }));
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Edit start time for Vehicle Elite B' }));
-
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Start time for Interior Elite A')).toHaveValue('');
   });
 });

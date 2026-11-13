@@ -200,7 +200,7 @@ class ErrorClassificationService {
       {
         type: 'contact_support',
         label: 'Contact Support',
-        description: 'You need additional permissions. Contact your administrator.',
+        description: 'You need additional permissions. Contact myK9Show support.',
         automated: false,
         priority: 1,
       },
@@ -224,7 +224,7 @@ class ErrorClassificationService {
     network: [
       {
         type: 'retry',
-        label: 'Retry',
+        label: 'Try again',
         description: 'Check your internet connection and try again.',
         automated: true,
         priority: 1,
@@ -272,8 +272,8 @@ class ErrorClassificationService {
       },
       {
         type: 'clear_cache',
-        label: 'Clear Cache',
-        description: 'Clear your browser cache and try again.',
+        label: 'Clear saved data',
+        description: "Clear this browser's saved data for myK9Show and try again.",
         automated: false,
         priority: 2,
       },

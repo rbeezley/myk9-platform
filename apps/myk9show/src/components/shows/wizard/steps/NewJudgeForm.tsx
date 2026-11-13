@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { OrgAndJudgeNumberFields } from './OrgAndJudgeNumberFields';
+import { SHOW_ADMIN_COPY } from '@/components/shows/showAdminErrorCopy';
 
 export interface CreateJudgeData {
   firstName: string;
@@ -85,7 +86,7 @@ export const NewJudgeForm: React.FC<NewJudgeFormProps> = ({
     } catch (err) {
       if (mountedRef.current) {
         setSaveError(
-          err instanceof NewJudgeFormError ? err.message : 'Failed to save. Please try again.'
+          err instanceof NewJudgeFormError ? err.message : SHOW_ADMIN_COPY.newJudgeFailed
         );
       }
     } finally {

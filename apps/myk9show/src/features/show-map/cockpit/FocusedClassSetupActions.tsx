@@ -1,8 +1,6 @@
-import { Pencil } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
 import { SetupClassDialogs } from '@/components/shows/tabs/SetupClassDialogs';
 import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
+import type { FocusedClassEditAction } from './FocusedClassActionsMenu';
 
 /**
  * Edit class on the show home's class panel (MYK9-956): resolve the class,
@@ -12,7 +10,7 @@ import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
  * A hook, held by the cockpit rather than the panel: the focused panel moves
  * between the inline and split layouts, which remounts it, and an
  * editor living inside it would close and lose its edits on a tablet rotation
- * (Codex review of #2691). The buttons render in the panel; the pending
+ * (Codex review of #2691). The Edit class menu item renders in the panel; the pending
  * action and the dialogs stay with the cockpit.
  */
 export function useFocusedClassSetupActions(showId: string) {
@@ -20,23 +18,11 @@ export function useFocusedClassSetupActions(showId: string) {
     useClassRowActions();
   const locked = hydratingClassId !== null || pendingAction !== null;
 
-  const renderClassActions = (classId: string, trialId: string, classLabel: string) => {
-    const target = { id: classId, trialId };
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="min-h-11 gap-2"
-        disabled={locked}
-        aria-label={`Edit class ${classLabel}`}
-        onClick={() => void openClassAction(target)}
-      >
-        <Pencil className="h-4 w-4" aria-hidden="true" />
-        Edit class
-      </Button>
-    );
-  };
+  // The class header's Actions menu renders the item (MYK9-1796); the lock stays here.
+  const editClassAction = (classId: string, trialId: string): FocusedClassEditAction => ({
+    disabled: locked,
+    onSelect: () => void openClassAction({ id: classId, trialId }),
+  });
 
   const classDialogs = pendingAction ? (
     <SetupClassDialogs
@@ -52,5 +38,5 @@ export function useFocusedClassSetupActions(showId: string) {
     />
   ) : null;
 
-  return { renderClassActions, classDialogs };
+  return { editClassAction, classDialogs };
 }

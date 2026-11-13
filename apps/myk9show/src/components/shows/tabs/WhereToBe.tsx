@@ -1,3 +1,4 @@
+import { judgeLine } from '@/utils/classJudgeDisplay';
 import { Link } from 'react-router-dom';
 import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
@@ -190,7 +191,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
         </p>
         {(entry.startTime || entry.trialName || entry.judgeName) && (
           <p className="text-xs text-muted-foreground truncate">
-            {[entry.startTime, entry.trialName, entry.judgeName ? `Judge ${entry.judgeName}` : '']
+            {[entry.startTime, entry.trialName, entry.judgeName ? judgeLine(entry.judgeName) : '']
               .filter(Boolean)
               .join(' · ')}
           </p>

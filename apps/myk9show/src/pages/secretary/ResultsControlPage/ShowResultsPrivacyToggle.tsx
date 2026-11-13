@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { useUpdateShowResultsPrivacy } from '@/hooks/mutations/useShowSettingsMutations';
 import { useConnectionHint } from '@/hooks/useConnectionHint';
 import { toast } from 'sonner';
+import { RESULTS_CONTROL_COPY } from './resultsControlErrorCopy';
 
 interface ShowResultsPrivacyToggleProps {
   showId: string;
@@ -37,7 +38,7 @@ export function ShowResultsPrivacyToggle({
               ? 'Results are now private for this show'
               : 'Results privacy follows each exhibitor'
           ),
-        onError: () => toast.error('Failed to update results privacy'),
+        onError: () => toast.error(RESULTS_CONTROL_COPY.privacyFailed),
       }
     );
   }

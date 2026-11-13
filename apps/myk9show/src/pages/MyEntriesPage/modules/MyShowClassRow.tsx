@@ -198,12 +198,12 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
               // ("Check in …", "Change …"); this one did not.
               aria-label={
                 classWhen
-                  ? `Leave class: withdraw or pull ${dogName} from ${cls.name}, ${classWhen}`
-                  : `Leave class: withdraw or pull ${dogName} from ${cls.name}`
+                  ? `Pull or withdraw: ${dogName} from ${cls.name}, ${classWhen}`
+                  : `Pull or withdraw: ${dogName} from ${cls.name}`
               }
               className={`${LINK_CLASS} text-muted-foreground`}
             >
-              Leave class…
+              Pull or withdraw…
             </button>
           </>
         )}

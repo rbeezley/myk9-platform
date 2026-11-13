@@ -38,7 +38,7 @@ import { registryResolutionKey, type ShowRegistryResolution } from './useShowReg
  * an ASCA exhibitor invites them to record a reason their registry does not have.
  */
 const RESOLVING_NOTE = "Checking the show's rules…";
-const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now — Pull is still available";
+const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now. Pull is still available";
 
 /**
  * Pull's refund sentence is the same on every configured registry, so it does
@@ -190,7 +190,7 @@ function RemoveFromClassBody({
 
   const title =
     effectiveStep === 'choose'
-      ? 'Leave this class?'
+      ? 'Pull or withdraw?'
       : effectiveStep === 'reason'
         ? 'Why are you withdrawing?'
         : kind === 'withdraw'
@@ -203,7 +203,7 @@ function RemoveFromClassBody({
         <AlertDialogTitle>{title}</AlertDialogTitle>
         <AlertDialogDescription>
           {effectiveStep === 'choose' ? (
-            <>{classLabel}. Pick one — the club handles the fee differently for each.</>
+            <>{classLabel}. Pick one. The club handles the fee differently for each.</>
           ) : effectiveStep === 'reason' ? (
             <>
               {policy?.registryId} recognises{' '}
@@ -239,8 +239,8 @@ function RemoveFromClassBody({
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
               {policy
-                ? `${policy.reasons.map(entry => entry.label).join(' or ')} only. ${policy.withdrawRefundNote}`
-                : 'Only for a reason this show\u2019s registry recognises.'}
+                ? `For a reason this show\u2019s registry recognises (${policy.reasons.map(entry => entry.label.toLowerCase()).join(' or ')}). ${policy.withdrawRefundNote}`
+                : 'For a reason this show\u2019s registry recognises. Refund per the premium\u2019s rules; the show secretary confirms it.'}
             </p>
             {withdrawBlockedBecause && (
               <p className="mt-2 text-sm text-muted-foreground">{withdrawBlockedBecause}</p>
@@ -258,7 +258,7 @@ function RemoveFromClassBody({
               Pull
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
-              Any other reason. {PULL_REFUND_FALLBACK}
+              The dog will not run, for any other reason. {PULL_REFUND_FALLBACK}
             </p>
             {pullDisabledReason && (
               <p className="mt-2 text-sm text-muted-foreground">{pullDisabledReason}</p>

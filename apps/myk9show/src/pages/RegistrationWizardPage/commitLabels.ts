@@ -16,9 +16,9 @@ export function getPaymentSubmitLabel(paymentMethod: PaymentMethod | undefined):
     case 'credit_card':
       return 'Submit & pay';
     case 'cash':
-      return 'Submit — pay cash at show';
+      return 'Submit, pay cash at show';
     case 'check':
-      return 'Submit — bring check to show';
+      return 'Submit, bring check to show';
     // secretary_paid / group_payment / waived are staff-recorded or no-charge:
     // the money side is already handled, so the button is a plain honest commit.
     case 'secretary_paid':

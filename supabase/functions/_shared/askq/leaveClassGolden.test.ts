@@ -3,11 +3,10 @@
 // context the model would see, and on the quote verifier for a stubbed answer.
 import { describe, expect, it } from 'vitest';
 import { ASKQ_GUIDES } from './documentAssets.ts';
-import { callerHoldsStaffRole, getDocumentGuides } from './guideScope.ts';
-import { buildAskQSystemPrompt } from './systemPrompt.ts';
-import { parseSupportAnswer } from './supportMode.ts';
-import { getSupportEscalationForQuestion } from './supportMode.ts';
-import type { AskQQuestionMode, UserContext } from './types.ts';
+import { callerHoldsStaffRole, scopeGuidesToRole } from './guideScope.ts';
+import { buildGuidesPrompt, buildShowDataPrompt } from './sourcePrompts.ts';
+import { getSupportEscalationForQuestion, parseSupportAnswer } from './supportMode.ts';
+import type { UserContext } from './types.ts';
 
 const LEAVE_CLASS_QUESTION =
   "I can't make it to the show anymore. How do I drop my dog from the class, and do I get my money back?";
@@ -22,22 +21,15 @@ const userContext: UserContext = {
   showRegistries: [],
 };
 
-const assemble = (questionMode: AskQQuestionMode, hasStaffRole: boolean) =>
-  buildAskQSystemPrompt({
-    userContext,
-    questionMode,
-    effectiveSupportMode: questionMode === 'app-help',
-    hasStaffRole,
-    allGuides: ASKQ_GUIDES,
-    rulebooks: [],
-  });
+const assemble = (hasStaffRole: boolean) =>
+  buildGuidesPrompt({ userContext, hasStaffRole, allGuides: ASKQ_GUIDES });
 
 const ENTRY_FEE_ONLY = 'Any refund returns the entry fee only.';
 const SERVICE_FEE =
   'The service fee you paid at checkout is not refunded, including when the show is cancelled.';
 
-describe('MYK9-1775 leave class / refund (exhibitor, App help)', () => {
-  const { systemPrompt, guides } = assemble('app-help', false);
+describe('MYK9-1775 leave class / refund (exhibitor, guides source)', () => {
+  const { systemPrompt, guides } = assemble(false);
 
   it('does not escalate the question before the model sees it', () => {
     expect(getSupportEscalationForQuestion(LEAVE_CLASS_QUESTION)).toBeNull();
@@ -92,8 +84,8 @@ describe('MYK9-1775 leave class / refund (exhibitor, App help)', () => {
   });
 });
 
-describe('MYK9-1775 secretary late entry (App help, manager)', () => {
-  const { systemPrompt } = assemble('app-help', true);
+describe('MYK9-1775 secretary late entry (guides source, manager)', () => {
+  const { systemPrompt } = assemble(true);
 
   it('keeps the secretary guide late-entry path for a show manager', () => {
     expect(getSupportEscalationForQuestion(LATE_ENTRY_QUESTION)).toBeNull();
@@ -103,22 +95,22 @@ describe('MYK9-1775 secretary late entry (App help, manager)', () => {
   });
 });
 
-describe('MYK9-1775 This show mode', () => {
-  const { systemPrompt, guides } = assemble('show-data', false);
+describe('MYK9-1825 show-data source', () => {
+  const systemPrompt = buildShowDataPrompt({ userContext });
 
-  it('has no guides and routes how-to questions to App help', () => {
-    expect(guides).toEqual([]);
+  it('carries no guide text and never tells the user to switch modes or tabs', () => {
     expect(systemPrompt).toContain('GROUNDING RULES (this show)');
-    expect(systemPrompt).toContain('switch to App help');
     expect(systemPrompt).toContain('which entries are withdrawn or pulled');
     expect(systemPrompt).not.toContain('Leave a Class');
+    expect(systemPrompt).not.toContain('<verified_user_guides>');
+    expect(systemPrompt).not.toMatch(/switch to|switch modes/i);
   });
 });
 
 describe('role scoping', () => {
   it('returns every guide to a show manager and none of the management guides otherwise', () => {
-    expect(getDocumentGuides(ASKQ_GUIDES, 'app-help', true)).toEqual(ASKQ_GUIDES);
-    expect(getDocumentGuides(ASKQ_GUIDES, 'app-help', false).map(guide => guide.id)).toEqual([
+    expect(scopeGuidesToRole(ASKQ_GUIDES, true)).toEqual(ASKQ_GUIDES);
+    expect(scopeGuidesToRole(ASKQ_GUIDES, false).map(guide => guide.id)).toEqual([
       'exhibitor-guide',
       'judge-steward-quickstart',
     ]);
@@ -139,9 +131,8 @@ const clientReturning = (data: unknown, error: { message: string } | null = null
   return { from: () => query } as never;
 };
 const guideIdsFor = async (rows: unknown, error: { message: string } | null = null) =>
-  getDocumentGuides(
+  scopeGuidesToRole(
     ASKQ_GUIDES,
-    'app-help',
     await callerHoldsStaffRole(clientReturning(rows, error), 'user-1')
   ).map(guide => guide.id);
 const ALL_IDS = ASKQ_GUIDES.map(guide => guide.id);

@@ -87,6 +87,8 @@ export interface BaseScoresheetProps {
 
 /** Additional props for LiveScoresheet variants */
 export interface LiveScoresheetProps extends BaseScoresheetProps {
+  /** Called when the judge starts a timed run. */
+  onRunStart?: () => void;
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;

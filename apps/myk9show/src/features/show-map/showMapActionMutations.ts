@@ -86,6 +86,15 @@ export interface ShowMapScratchUndoInput {
   previousWithdrawalReasonCode: string | null;
 }
 
+/** `scratchShowMapEntry` found the entry already pulled. Matched by `code`, not by class. */
+export class AlreadyPulledError extends Error {
+  readonly code = 'already-pulled';
+  constructor(readonly entryId: string) {
+    super(`Entry ${entryId} is already pulled`);
+    this.name = 'AlreadyPulledError';
+  }
+}
+
 /**
  * The day-of Pull (scratched, the same write as Entries' Pull, MYK9-918) with everything Undo
  * needs to put the entry back. Show Map and the Check-in desk (MYK9-1749) share it.
@@ -93,7 +102,7 @@ export interface ShowMapScratchUndoInput {
 export async function scratchShowMapEntry(
   entryId: string,
   reason: string | undefined,
-  fallbackReason = 'Marked no-show from Show Map'
+  fallbackReason = 'Pulled from Show Map'
 ): Promise<ShowMapScratchUndoInput> {
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
   const previousEntryStatus =
@@ -107,6 +116,11 @@ export async function scratchShowMapEntry(
 
   const previousWithdrawalReasonCode =
     currentEntry?.withdrawalReasonCode ?? currentEntry?.withdrawal_reason_code ?? null;
+
+  // The stored entry is the authority, not the row the caller was looking at: a second Pull of a
+  // dog already pulled would write over its reason and hand back an Undo that "restores" the
+  // pulled state. Stop before writing.
+  if (previousEntryStatus === 'scratched') throw new AlreadyPulledError(entryId);
 
   const trimmed = reason?.trim();
   await updateReplicatedDayOfScratch(entryId, trimmed || fallbackReason);

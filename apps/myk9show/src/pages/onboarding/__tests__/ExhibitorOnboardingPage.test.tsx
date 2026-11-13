@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent } from '@testing-library/react';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { User } from '@supabase/supabase-js';
+import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
 import ExhibitorOnboardingPage from '../ExhibitorOnboardingPage';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -27,11 +28,11 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 }));
 
 vi.mock('../steps/StepDogs', () => ({
-  StepDogs: ({ onSkip }: { onSkip: () => void }) => (
+  StepDogs: ({ onNext }: { onNext: () => void }) => (
     <div>
       <div>Add your dogs</div>
-      <button type="button" onClick={onSkip}>
-        Skip for now
+      <button type="button" onClick={onNext}>
+        Leave dogs step
       </button>
     </div>
   ),
@@ -295,12 +296,110 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     fireEvent.click(screen.getByRole('button', { name: /browse shows/i }));
 
     await waitFor(() => {
       expect(completeOnboarding).toHaveBeenCalledOnce();
       expect(navigateMock).toHaveBeenCalledWith('/shows', { replace: true });
+    });
+  });
+
+  // MYK9-1843: an unknown error never reaches the screen as its own text.
+  describe('when a save fails with an error the page did not word', () => {
+    const rawText = 'duplicate key value violates unique constraint "people_email_key"';
+
+    it('shows a fixed sentence on the profile step, keeping what was typed', async () => {
+      setupAuth([UserRole.EXHIBITOR]);
+      const createProfileAsync = vi.fn().mockRejectedValue(new Error(rawText));
+      mockUseExhibitorProfile.mockReturnValue({
+        profile: null,
+        isLoading: false,
+        error: null,
+        createProfileAsync,
+        isCreatingProfile: false,
+        completeOnboarding: vi.fn(),
+        isCompletingOnboarding: false,
+      } as unknown as ReturnType<typeof useExhibitorProfile>);
+
+      render(<ExhibitorOnboardingPage />);
+      fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Casey' } });
+      fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Morgan' } });
+      fireEvent.change(screen.getByLabelText(/street address/i), {
+        target: { value: '1 Main St' },
+      });
+      fireEvent.change(screen.getByLabelText(/^city/i), { target: { value: 'Tulsa' } });
+      fireEvent.change(screen.getByLabelText(/^state/i), { target: { value: 'OK' } });
+      fireEvent.change(screen.getByLabelText(/zip \/ postal code/i), {
+        target: { value: '74101' },
+      });
+      fireEvent.submit(screen.getByTestId('step-profile'));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(
+        "We couldn't save your details. What you typed is still here. Try again."
+      );
+      expect(alert).not.toHaveTextContent('duplicate key');
+    });
+
+    it('logs a PostgREST-shaped failure as an Error carrying its message and code', async () => {
+      const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+      setupAuth([UserRole.EXHIBITOR]);
+      mockUseExhibitorProfile.mockReturnValue({
+        profile: {
+          id: 'profile-id',
+          person_id: 'person-id',
+          auth_user_id: 'auth-user-id',
+          onboarding_completed_at: null,
+        },
+        isLoading: false,
+        error: null,
+        createProfileAsync: vi.fn(),
+        isCreatingProfile: false,
+        completeOnboarding: vi.fn().mockRejectedValue({ message: rawText, code: '23505' }),
+        isCompletingOnboarding: false,
+      } as unknown as ReturnType<typeof useExhibitorProfile>);
+
+      render(<ExhibitorOnboardingPage />);
+      fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
+      fireEvent.click(screen.getByRole('button', { name: /browse shows/i }));
+      await screen.findByRole('alert');
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.any(String),
+        'onboarding',
+        { code: '23505' },
+        expect.objectContaining({ message: rawText })
+      );
+      expect(logSpy.mock.calls[0]?.[3]).toBeInstanceOf(Error);
+      logSpy.mockRestore();
+    });
+
+    it('shows a fixed sentence when finishing fails', async () => {
+      setupAuth([UserRole.EXHIBITOR]);
+      mockUseExhibitorProfile.mockReturnValue({
+        profile: {
+          id: 'profile-id',
+          person_id: 'person-id',
+          auth_user_id: 'auth-user-id',
+          onboarding_completed_at: null,
+        },
+        isLoading: false,
+        error: null,
+        createProfileAsync: vi.fn(),
+        isCreatingProfile: false,
+        completeOnboarding: vi.fn().mockRejectedValue(new Error(rawText)),
+        isCompletingOnboarding: false,
+      } as unknown as ReturnType<typeof useExhibitorProfile>);
+
+      render(<ExhibitorOnboardingPage />);
+      fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
+      fireEvent.click(screen.getByRole('button', { name: /browse shows/i }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent("We couldn't finish setting up your account. Try again.");
+      expect(alert).not.toHaveTextContent('duplicate key');
+      expect(navigateMock).not.toHaveBeenCalled();
     });
   });
 
@@ -336,7 +435,7 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     fireEvent.click(screen.getByRole('link', { name: /account profile/i }));
 
     await waitFor(() => {
@@ -372,7 +471,7 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     fireEvent.click(screen.getByRole('link', { name: /account notifications/i }));
 
     await waitFor(() => {

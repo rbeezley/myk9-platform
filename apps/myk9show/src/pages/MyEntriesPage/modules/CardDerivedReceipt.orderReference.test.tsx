@@ -9,7 +9,7 @@
  * which meant the one moment that branch could fire — the offline replica path,
  * where the confirmation number had not replicated — printed
  * `Reference: cdc232e8-6d0a-408b-8e14-2f4be11adc36` for an order that says
- * `Confirmation #: MK9-000146` online. Two identifiers for one order, and the
+ * `Confirmation number: MK9-000146` online. Two identifiers for one order, and the
  * raw-UUID-as-label shape MYK9-631 Q7 removed.
  */
 import { describe, it, expect, vi } from 'vitest';

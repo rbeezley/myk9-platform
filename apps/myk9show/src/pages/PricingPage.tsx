@@ -224,7 +224,7 @@ export default function PricingPage() {
                                 onClick={() => refetch()}
                                 className="w-full py-2 px-6 rounded-xl text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/80"
                               >
-                                Retry
+                                Try again
                               </button>
                             )}
                           </div>

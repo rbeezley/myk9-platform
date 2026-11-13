@@ -37,6 +37,12 @@ interface UseEditModeInitializationArgs {
    * arriving later would never reach it (add-classes builds its trials from this list).
    */
   trialsReady?: boolean;
+  /**
+   * False until the wizard store has read its saved draft from this device. The edit draft
+   * sets the new-show draft aside as it loads (MYK9-1794); before the read there is only the
+   * empty pre-load state to set aside, and that would then be written over the saved draft.
+   */
+  draftReady?: boolean;
   loadDraft: (draft: ReturnType<typeof buildEditModeDraft>) => void;
 }
 
@@ -83,13 +89,14 @@ export function useEditModeInitialization({
   people,
   isDirty,
   trialsReady = true,
+  draftReady = true,
   loadDraft,
 }: UseEditModeInitializationArgs): EditModeInitializationState {
   const initializedRef = useRef<string | null>(null);
   const [officialsUnavailable, setOfficialsUnavailable] = useState(false);
 
   useEffect(() => {
-    if (!editMode || !trialsReady) return;
+    if (!editMode || !trialsReady || !draftReady) return;
 
     const existingShow =
       editModeResolution.state === 'resolved' ? editModeResolution.show : undefined;
@@ -125,6 +132,9 @@ export function useEditModeInitialization({
     getShowOfficials(existingShow.id)
       .then(officials => {
         setOfficialsUnavailable(false);
+        // She may have left before this answered. Outside an edit visit the store holds a
+        // new-show draft (or nothing), and this show's officials do not belong on it.
+        if (useWizardStore.getState().parkedCreateDraft === null) return;
         useWizardStore.setState(state => ({
           show: {
             ...state.show,
@@ -150,6 +160,7 @@ export function useEditModeInitialization({
     people,
     isDirty,
     trialsReady,
+    draftReady,
     loadDraft,
   ]);
 

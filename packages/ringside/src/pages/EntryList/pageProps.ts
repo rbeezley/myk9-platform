@@ -185,6 +185,8 @@ export interface FilterTriggerButtonProps {
   onClick: () => void;
   hasActiveFilters?: boolean;
   activeFilterCount?: number;
+  /** Drag mode renders the whole pending list, so search and sort wait until Done. */
+  disabled?: boolean;
   className?: string;
 }
 
@@ -520,6 +522,11 @@ export interface EntryListDerived {
   notRunningEntries?: Entry[];
   /** Pending or completed depending on `activeTab`. */
   currentEntries: Entry[];
+  /**
+   * Every pending dog in run order, ignoring search, Section tab and status tab. Drag mode renders
+   * and reorders this list instead of `currentEntries` (MYK9-1808).
+   */
+  dragEntries: Entry[];
   /**
    * Counts from the unfiltered `localEntries` array (NOT
    * `filteredEntries`). Used by the tab badges so the inactive tab

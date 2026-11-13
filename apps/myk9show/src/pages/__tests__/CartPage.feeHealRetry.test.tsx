@@ -122,6 +122,10 @@ vi.mock('@/components/cart/CartSummary', () => ({
 
 import { CheckoutSessionError } from '@/lib/stripe';
 import CartPage from '@/pages/CartPage';
+import { CART_ERROR } from '@/pages/cartErrorCopy';
+
+const RAW_STRIPE = 'No such customer: cus_123; a similar object exists in test mode';
+const RAW_TRANSPORT = 'Edge Function returned a non-2xx status code';
 
 describe('CartPage retry after a fee heal (MYK9-838)', () => {
   beforeEach(() => {
@@ -134,7 +138,7 @@ describe('CartPage retry after a fee heal (MYK9-838)', () => {
 
   it('reloads the healed cart from the database before a retry, and retries with the cart id only', async () => {
     createEntryCheckoutSessionMock
-      .mockRejectedValueOnce(new CheckoutSessionError(HEAL_MESSAGE, 409))
+      .mockRejectedValueOnce(new CheckoutSessionError(HEAL_MESSAGE, 409, null, true))
       .mockResolvedValueOnce(undefined);
     // The mount-time hydrate passes `recoveryEntryIds`; the 409 reload does not.
     let finishReload: () => void = () => {};
@@ -173,7 +177,7 @@ describe('CartPage retry after a fee heal (MYK9-838)', () => {
 
   it('keeps the URL show scope on the 409 reload (MYK9-1661)', async () => {
     createEntryCheckoutSessionMock.mockRejectedValueOnce(
-      new CheckoutSessionError(HEAL_MESSAGE, 409)
+      new CheckoutSessionError(HEAL_MESSAGE, 409, null, true)
     );
 
     const { user } = render(<CartPage />, { initialRoute: '/cart?showId=show-a' });
@@ -186,7 +190,7 @@ describe('CartPage retry after a fee heal (MYK9-838)', () => {
 
   it('does not reload the cart for a failure that is not a re-pricing', async () => {
     createEntryCheckoutSessionMock.mockRejectedValueOnce(
-      new CheckoutSessionError('This club cannot take card payments yet.', 403)
+      new CheckoutSessionError('This club cannot take card payments yet.', 403, null, true)
     );
 
     const { user } = render(<CartPage />, { initialRoute: '/cart' });
@@ -197,5 +201,21 @@ describe('CartPage retry after a fee heal (MYK9-838)', () => {
       expect(setErrorMock).toHaveBeenCalledWith('This club cannot take card payments yet.')
     );
     expect(loadActiveCartMock).not.toHaveBeenCalledWith('exhibitor-1', {});
+  });
+
+  // MYK9-1823: a transport or catch-all message is not the server talking to the
+  // exhibitor, so Pay shows the fixed sentence instead.
+  it.each([
+    ['a 500 body (raw catch-all)', new CheckoutSessionError(RAW_STRIPE, 500, null, true)],
+    ['a transport message', new CheckoutSessionError(RAW_TRANSPORT, 409)],
+    ['a plain Error', new Error('No checkout URL returned from server')],
+  ])('shows the fixed sentence, never the raw text, for %s', async (_label, failure) => {
+    createEntryCheckoutSessionMock.mockRejectedValueOnce(failure);
+
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+    await waitFor(() => expect(setErrorMock).toHaveBeenCalledWith(CART_ERROR.checkoutFailed));
+    expect(setErrorMock).not.toHaveBeenCalledWith(failure.message);
   });
 });

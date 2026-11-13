@@ -32,6 +32,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   backLabel,
   onDirtyChange,
   headerActions,
+  onRunStart,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -61,6 +62,11 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const finalScore = Math.max(0, 100 - deductions);
   const autoQualifying = finalScore >= 70 ? 'Q' : 'NQ';
+
+  const handleStartTimer = () => {
+    onRunStart?.();
+    stopwatch.start();
+  };
 
   const handleStopTimer = useCallback(() => {
     const elapsedMs = stopwatch.pause();
@@ -186,7 +192,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           ) : (
             <Button
               className={cn(timerPrimaryButtonClass, 'bg-green-600 hover:bg-green-700')}
-              onClick={stopwatch.start}
+              onClick={handleStartTimer}
               data-testid="timer-start"
             >
               Start

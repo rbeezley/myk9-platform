@@ -7,9 +7,6 @@ interface EmptyEntryReturnArgs {
   /** Step ids in wizard order. */
   stepIds: readonly string[];
   setCurrentStep: (step: number) => void;
-  /** Whatever every other way out of Payment resets (the entry agreement), so a
-   * person sent back here re-agrees on their next visit, as after Back. */
-  onLeavePayment?: () => void;
 }
 
 /**
@@ -31,7 +28,6 @@ export function useEmptyEntryReturn({
   entryCount,
   stepIds,
   setCurrentStep,
-  onLeavePayment,
 }: EmptyEntryReturnArgs): boolean {
   // The notice is derived during render from how the count and step changed
   // (React's "adjust state when a prop changes" pattern), so no effect sets it.
@@ -59,10 +55,9 @@ export function useEmptyEntryReturn({
     previousCount.current = entryCount;
     const classesIndex = stepIds.indexOf('class-selection');
     if (emptied && currentStepId === 'payment' && classesIndex >= 0) {
-      onLeavePayment?.();
       setCurrentStep(classesIndex);
     }
-  }, [entryCount, currentStepId, stepIds, setCurrentStep, onLeavePayment]);
+  }, [entryCount, currentStepId, stepIds, setCurrentStep]);
 
   return tracked.notice && currentStepId === 'class-selection' && entryCount === 0;
 }

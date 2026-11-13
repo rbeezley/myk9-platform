@@ -123,6 +123,7 @@ export function LifecycleEmailPreviewDialog({
             <p className="text-muted-foreground">{recipient.email || 'No email on file'}</p>
             <p className="mt-1 text-muted-foreground">
               {[entry.dogName, entry.className].filter(Boolean).join(' - ') || 'Entry decision'}
+              {entry.alsoDecided?.length ? ` and ${entry.alsoDecided.length} more` : ''}
             </p>
           </div>
 

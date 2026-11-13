@@ -37,7 +37,7 @@ describe('FieldGuideEntryReceived', () => {
 
   it('shows the confirmation number in both the top strip and a chip', () => {
     const { container } = render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(container.textContent).toContain('Confirmation # MK9-000137');
+    expect(container.textContent).toContain('Confirmation number MK9-000137');
     expect(container.textContent).not.toContain('Entry #');
     expect(container.textContent).not.toContain('Registration #');
   });
@@ -46,7 +46,7 @@ describe('FieldGuideEntryReceived', () => {
     const { container } = render(
       <FieldGuideEntryReceived {...BASE_PROPS} registrationNumber={null} />
     );
-    expect(container.textContent).not.toContain('Confirmation #');
+    expect(container.textContent).not.toContain('Confirmation number');
   });
 
   it('renders the submitted orange chip in the header', () => {

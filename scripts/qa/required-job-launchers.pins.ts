@@ -113,6 +113,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     script: 'qa:review-tier:test',
     command: 'vitest run scripts/qa/review-tier.test.ts scripts/qa/optional-review-inputs.test.ts',
   },
+  {
+    pkgDir: '.',
+    script: 'qa:phone-walk:test',
+    command: 'vitest run scripts/qa/phone-walk.test.ts',
+  },
   // This pin's own contract test. Self-covering on purpose: dropping the CI
   // step that runs it is itself a drift the pin reports.
   {
@@ -218,6 +223,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     script: 'qa:code-quality-ratchet:test',
     command: 'vitest run scripts/qa/code-quality-ratchet.test.ts',
   },
+  {
+    pkgDir: '.',
+    script: 'qa:em-dash-ratchet:test',
+    command: 'vitest run scripts/qa/em-dash-ratchet.test.ts',
+  },
   { pkgDir: '.', script: 'qa:db-drift:test', command: 'vitest run scripts/qa/db-drift/*.test.ts' },
   {
     pkgDir: '.',
@@ -268,8 +278,18 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:commit-review:test',
+    command: 'vitest run scripts/qa/commit-review',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:code-quality-ratchet',
     command: 'tsx scripts/qa/code-quality-ratchet.ts',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:em-dash-ratchet',
+    command: 'tsx scripts/qa/em-dash-ratchet.ts',
   },
   {
     pkgDir: '.',

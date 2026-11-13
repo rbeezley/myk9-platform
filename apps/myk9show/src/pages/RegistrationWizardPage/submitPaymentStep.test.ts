@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
 import { PaymentStatus } from '@/types/show-registration-types';
+import { ENTRY_SUBMIT_FAILED, PlainEntryError } from '@/features/registration/entrySubmitErrorCopy';
+import {
+  CAPACITY_UNREADABLE,
+  SHOW_ENTRIES_UNREADABLE,
+  STRUCTURE_NOT_LOADED,
+} from '@/features/registration/offlineLateEntryCopy';
+import { ShowEntriesNotSyncedError } from '@/services/database/entries/requireShowEntriesSynced';
 
 const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
 const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn());
@@ -288,7 +295,9 @@ describe('submitPaymentStep', () => {
     expect(ctx.updateShowRegistration).toHaveBeenCalledWith('registration-1', {
       status: 'draft',
     });
-    expect(notificationErrorMock).toHaveBeenCalledWith(
+    // MYK9-1823: the database text goes to the log, never the toast.
+    expect(notificationErrorMock).toHaveBeenCalledWith(ENTRY_SUBMIT_FAILED.exhibitorSubmit);
+    expect(notificationErrorMock).not.toHaveBeenCalledWith(
       'permission denied for sequence registration_confirmation_seq'
     );
   });
@@ -325,7 +334,7 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
     expect(ctx.cart.clearCart).not.toHaveBeenCalled();
     expect(notificationErrorMock).toHaveBeenCalledWith(
-      'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+      'Entries are closed for this show. Contact the show secretary for late-entry help.'
     );
   });
 
@@ -405,5 +414,79 @@ describe('submitPaymentStep', () => {
     ]);
     expect(order).toEqual(['clearCart', 'triggerSync']);
     expect(ctx.markStepComplete).toHaveBeenCalledWith(ctx.currentStep);
+  });
+
+  describe('the toast never shows raw error text (MYK9-1823)', () => {
+    it.each([
+      [
+        'card checkout',
+        { paymentMethod: 'credit_card' as const },
+        submitRegistrationCartCheckoutMock,
+        'cardCheckout' as const,
+      ],
+      [
+        'an organizer submit',
+        { currentWorkflowMode: 'secretary_new' as const },
+        submitShowRegistrationMock,
+        'organizerSubmit' as const,
+      ],
+      [
+        'an offline late entry',
+        { currentWorkflowMode: 'secretary_new' as const, isLateEntryMode: true },
+        submitOfflineLateEntryMock,
+        'organizerSubmit' as const,
+      ],
+    ])('shows the fixed sentence for %s', async (_label, overrides, failingStep, path) => {
+      const raw = 'Failed to add entry';
+      failingStep.mockRejectedValueOnce(new Error(raw));
+      const { ctx } = makeContextAndOrder(overrides);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        await submitPaymentStep(ctx);
+
+        expect(notificationErrorMock).toHaveBeenCalledWith(ENTRY_SUBMIT_FAILED[path]);
+        expect(notificationErrorMock).not.toHaveBeenCalledWith(raw);
+        // The raw failure still reaches the log.
+        expect(consoleError).toHaveBeenCalledWith(
+          'Registration payment submission failed:',
+          expect.objectContaining({ message: raw })
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
+    });
+
+    // The desk's offline late entry stops before anything is queued when this
+    // device cannot read what it needs; its own sentence says what to do.
+    it.each([
+      Object.assign(new Error(CAPACITY_UNREADABLE), { name: 'ReplicaReadError' }),
+      new Error(STRUCTURE_NOT_LOADED),
+      Object.assign(new Error(SHOW_ENTRIES_UNREADABLE), { name: 'ReplicaReadError' }),
+      new ShowEntriesNotSyncedError(),
+    ])('shows the late entry sentence "$message" as it is', async failure => {
+      submitOfflineLateEntryMock.mockRejectedValueOnce(failure);
+      const { ctx } = makeContextAndOrder({ currentWorkflowMode: 'secretary_new' });
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        await submitPaymentStep({ ...ctx, isLateEntryMode: true });
+      } finally {
+        consoleError.mockRestore();
+      }
+
+      expect(notificationErrorMock).toHaveBeenCalledWith(failure.message);
+    });
+
+    it('shows a sentence the flow worded on purpose as it is', async () => {
+      submitShowRegistrationMock.mockRejectedValueOnce(
+        new PlainEntryError('Choose whether the payment was received as cash or check.')
+      );
+      const { ctx } = makeContextAndOrder();
+
+      await submitPaymentStep(ctx);
+
+      expect(notificationErrorMock).toHaveBeenCalledWith(
+        'Choose whether the payment was received as cash or check.'
+      );
+    });
   });
 });

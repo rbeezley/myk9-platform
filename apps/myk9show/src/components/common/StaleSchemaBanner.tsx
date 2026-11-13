@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
+import { UPDATE_THE_APP_LABEL } from '@/lib/offlineCopy';
 import { applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 import { getStaleSchemaSnapshot, subscribeStaleSchema } from '@/services/pwa/staleSchemaRecovery';
 
@@ -45,8 +46,8 @@ export function StaleSchemaBanner() {
     >
       <span>
         {online
-          ? 'myK9Show was updated. Reload to keep working offline.'
-          : 'Reconnect to the internet, then reload.'}
+          ? 'myK9Show was updated. Update the app to keep working offline.'
+          : 'Connect to the internet, then update the app.'}
       </span>
       <Button
         type="button"
@@ -54,7 +55,7 @@ export function StaleSchemaBanner() {
         disabled={!online}
         onClick={() => void reload()}
       >
-        Reload
+        {UPDATE_THE_APP_LABEL}
       </Button>
     </div>
   );

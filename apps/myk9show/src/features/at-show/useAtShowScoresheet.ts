@@ -39,6 +39,8 @@ import {
   toOptimisticScorePayload,
 } from '@/pages/scoring/types';
 import { resolveLiveScoringBreed } from '@/pages/scoring/liveScoringBreed';
+import { isCancelledClassStatus } from './ringsideClassStatusMap';
+import { CANCELLED_CLASS_MESSAGE, useIsClassCancelled } from './cancelledClassGuard';
 
 /** Shown while a cold sheet's show sync keeps failing; retried automatically. */
 export const NOT_LOADED_YET_MESSAGE = "Couldn't load this dog from the server yet. Trying again…";
@@ -71,6 +73,11 @@ export interface UseAtShowScoresheetResult {
    * leaves the sheet working and the server refuses the save.
    */
   awaitingRegistrationNumber: boolean;
+  /**
+   * MYK9-1847: the class is cancelled. Read live from the replicated class row, so it flips
+   * while the sheet is open. The page shows the cancelled message and no save is made.
+   */
+  classCancelled: boolean;
   error: string | null;
   loadedClassId: string | null;
   loadedEntryId: string | null;
@@ -78,6 +85,7 @@ export interface UseAtShowScoresheetResult {
   retry: () => void;
   /** Re-read from the local replica; never waits on the network (MYK9-1106). */
   reload: () => void;
+  startRun: () => void;
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
   hasSyncError: boolean;
@@ -94,6 +102,7 @@ export function useAtShowScoresheet({
   onScored,
 }: UseAtShowScoresheetOptions): UseAtShowScoresheetResult {
   const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
+  const classCancelled = useIsClassCancelled(classId);
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -228,11 +237,11 @@ export function useAtShowScoresheet({
         }
 
         // MYK9-1162: decided here, once the class and the entry are confirmed. A
-        // held dog's sheet is locked and the dog is not moved in-ring.
+        // held dog's sheet is locked and the dog is not moved in-ring. MYK9-1847: so is a
+        // cancelled class's (the page shows the cancelled message instead of a sheet).
         const held = isHeldEntry(rawEntry);
         setAwaitingRegistrationNumber(held);
-        // Auto-set check-in status to in-ring when the scoresheet opens.
-        if (!held) ringMove.opened(rawEntry);
+        if (!held && !isCancelledClassStatus(cls.classStatus)) ringMove.opened(rawEntry.id);
 
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
         if (cancelled) return;
@@ -281,6 +290,11 @@ export function useAtShowScoresheet({
 
   const submit = async (scoreData: ScoreData): Promise<void> => {
     if (!entry || !classInfo) return;
+    // MYK9-1847: a class cancelled while the sheet was open saves nothing.
+    if (classCancelled) {
+      setSubmitError(CANCELLED_CLASS_MESSAGE);
+      throw new Error(CANCELLED_CLASS_MESSAGE);
+    }
     // Clear any prior failure before this attempt.
     setSubmitError(null);
     const completionClassId = classInfo.id;
@@ -345,6 +359,7 @@ export function useAtShowScoresheet({
     trialName,
     isLoading,
     awaitingRegistrationNumber,
+    classCancelled,
     error,
     loadedClassId,
     loadedEntryId,
@@ -353,6 +368,7 @@ export function useAtShowScoresheet({
       setLoadAttempt(attempt => attempt + 1);
     },
     reload: () => setReloadCount(count => count + 1),
+    startRun: ringMove.start,
     submit,
     isSyncing,
     hasSyncError,

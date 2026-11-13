@@ -69,10 +69,10 @@ describe('ContainmentBanner', () => {
 
     const banner = screen.getByTestId('at-show-containment-banner');
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveTextContent(/Score sync paused/);
-    expect(banner).toHaveTextContent(/scores are saved here/i);
+    expect(banner).toHaveTextContent(/Sending scores is paused/);
+    expect(banner).toHaveTextContent(/scores are saved on this device/i);
     // Named as the server's decision, not the device's or the network's.
-    expect(banner).toHaveTextContent(/the server asked this device to wait/i);
+    expect(banner).toHaveTextContent(/myK9Show asked this device to wait/i);
   });
 
   it('offers no retry control — retrying is what the breaker is stopping', () => {
@@ -161,7 +161,7 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
     expect(screen.queryByText(/saved on this device/)).toBeNull();
   });
 
-  it('ready and offline shows the amber note on one truncated line', () => {
+  it('ready and offline shows the amber note, wrapping rather than truncating (MYK9-1899)', () => {
     network.isOnline = false;
     syncState.status = 'offline';
     renderReady();
@@ -171,7 +171,7 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
     expect(line.className).toContain('text-warning');
     expect(line.className).toContain('max-sm:hidden'); // phones get the icon button instead
     expect(line.title).toBe('You are offline. Everything you enter is saved on this device.');
-    expect(note.className).toContain('truncate');
+    expect(note.className).not.toContain('truncate');
     expect(screen.queryByText('Offline ready')).toBeNull();
   });
 

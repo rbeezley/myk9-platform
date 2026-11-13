@@ -19,6 +19,14 @@ import React from 'react';
 import { History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+/** A draft worth offering back: it names a show or holds a trial. */
+export function hasDraftContent(input: {
+  showName: string | undefined;
+  trialCount: number;
+}): boolean {
+  return Boolean(input.showName?.trim()) || input.trialCount > 0;
+}
+
 /**
  * Decides whether to offer the resume banner. Pure and DERIVED — deliberately
  * not latched on mount: `getOptimalStorage` returns an async `getItem` on both
@@ -39,7 +47,7 @@ export function shouldOfferDraftResume(input: {
   trialCount: number;
 }): boolean {
   if (input.isEditMode || input.dismissed || input.isDirty) return false;
-  return Boolean(input.showName?.trim()) || input.trialCount > 0;
+  return hasDraftContent(input);
 }
 
 interface WizardDraftResumeBannerProps {

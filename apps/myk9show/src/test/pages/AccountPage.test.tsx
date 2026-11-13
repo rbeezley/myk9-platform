@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useLocation } from 'react-router-dom';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import AccountPage from '@/pages/AccountPage';
+import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
+import { NEEDS_CONNECTION_MESSAGE } from '@/hooks/useUserPreferences';
 
 const mockForm = {
   personId: 'p-1',
@@ -47,7 +50,8 @@ vi.mock('@/hooks/useUsers', () => ({
 
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 let mockAuthUserId = 'u-1';
-const mockGetUserRoles = vi.fn(() => [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR]);
+const STAFF_ROLES = [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR];
+const mockGetUserRoles = vi.fn<() => UserRole[]>(() => STAFF_ROLES);
 let mockRbacUserRoles: Array<{
   role: { name: string };
   scope_type?: string;
@@ -82,12 +86,14 @@ vi.mock('@/hooks/useAuthUser', () => ({
   useAuthUser: () => ({ id: 'u-1', email: 'jane@example.com' }),
 }));
 
-vi.mock('@/hooks/useUserPreferences', () => ({
+const mockResetToDefaults = vi.fn();
+vi.mock('@/hooks/useUserPreferences', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useUserPreferences')>()),
   useUserPreferences: () => ({
     preferences: null,
     loading: false,
     updatePreferences: vi.fn().mockResolvedValue(undefined),
-    resetToDefaults: vi.fn().mockResolvedValue(undefined),
+    resetToDefaults: (...args: unknown[]) => mockResetToDefaults(...args),
   }),
 }));
 
@@ -128,6 +134,11 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => ({ profile: null }),
 }));
 
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname + location.search}</output>;
+}
+
 describe('AccountPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -138,6 +149,8 @@ describe('AccountPage', () => {
     mockForm.saving = false;
     mockRbacUserRoles = [];
     mockClubs = [];
+    mockGetUserRoles.mockImplementation(() => STAFF_ROLES);
+    mockResetToDefaults.mockResolvedValue(undefined);
   });
 
   const render = (initialRoute = '/account') =>
@@ -320,6 +333,53 @@ describe('AccountPage', () => {
     expect(screen.getByTestId('data-settings')).toBeInTheDocument();
   });
 
+  // MYK9-1818: Storage is a staff tool; an exhibitor-only account never sees it.
+  it('hides Storage from an exhibitor-only account and still lists the other sections', () => {
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    render();
+    expect(screen.queryByRole('button', { name: 'Storage' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install app' })).toBeInTheDocument();
+  });
+
+  it('falls back to Profile when an exhibitor-only account deep links to Storage', () => {
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    render('/account?section=data');
+    expect(screen.queryByTestId('data-settings')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  // Roles can arrive after the first render: Storage may show for a moment, and then the page
+  // must fall back AND drop the section from the address.
+  it('drops section=data from the URL once roles show an exhibitor-only account', async () => {
+    mockGetUserRoles.mockImplementation(() => []);
+    const view = renderWithProviders(
+      <>
+        <AccountPage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/account?section=data' }
+    );
+    expect(screen.getByTestId('data-settings')).toBeInTheDocument();
+
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    view.rerender(
+      <>
+        <AccountPage />
+        <LocationProbe />
+      </>
+    );
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/account'));
+    expect(screen.getByTestId('location').textContent).not.toContain('section=data');
+    expect(screen.queryByTestId('data-settings')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps Storage for a staff account that deep links to it', () => {
+    render('/account?section=data');
+    expect(screen.getByTestId('data-settings')).toBeInTheDocument();
+  });
+
   it('switches to Install app section', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Install app' }));
@@ -441,7 +501,7 @@ describe('AccountPage', () => {
     expect(mockDeleteUser).toHaveBeenCalledOnce();
     expect(mockSignOut).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /retry disabling sign-in/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try disabling sign-in again/i }));
 
     await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce());
@@ -456,7 +516,7 @@ describe('AccountPage', () => {
     fireEvent.change(screen.getByLabelText(/type.*delete.*to confirm/i), {
       target: { value: 'DELETE' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /retry disabling sign-in/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try disabling sign-in again/i }));
 
     await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledOnce());
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce());
@@ -524,6 +584,46 @@ describe('AccountPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/reset to defaults/i)).toBeInTheDocument();
     });
+  });
+
+  // MYK9-1843: an unknown error never reaches the screen as its own text.
+  it('shows a fixed sentence, not the thrown text, when a reset fails', async () => {
+    mockResetToDefaults.mockRejectedValueOnce(
+      new Error('relation "user_preferences" does not exist')
+    );
+    render();
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    const flash = await screen.findByTestId('account-flash-overlay');
+    expect(flash).toHaveTextContent("We couldn't reset your settings. Try again.");
+    expect(flash).not.toHaveTextContent('user_preferences');
+  });
+
+  it('logs a PostgREST-shaped reset failure as an Error carrying its message and code', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    mockResetToDefaults.mockRejectedValueOnce({
+      message: 'permission denied for table prefs',
+      code: '42501',
+    });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    await screen.findByTestId('account-flash-overlay');
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      'account',
+      { code: '42501' },
+      expect.objectContaining({ message: 'permission denied for table prefs' })
+    );
+    expect(logSpy.mock.calls[0]?.[3]).toBeInstanceOf(Error);
+    logSpy.mockRestore();
+  });
+
+  it('says a setting needs a connection when the hook refuses it for being offline', async () => {
+    mockResetToDefaults.mockRejectedValueOnce(new Error(NEEDS_CONNECTION_MESSAGE));
+    render();
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    expect(await screen.findByTestId('account-flash-overlay')).toHaveTextContent(
+      'That needs a connection. Connect to the internet and try again.'
+    );
   });
 
   it('renders the flash as a fixed overlay so it never reflows the nav', async () => {

@@ -40,7 +40,7 @@ Branches named `pr-###`, scratch branches, or temporary review branches should b
 
 **Out of scope — still requires a PR:**
 
-- `CLAUDE.md`, `AGENTS.md` (load-bearing project instructions)
+- `CLAUDE.md`, `AGENTS.md`, `docs/agents/shared-rules.md`, `docs/agents/rules-reference.md` (load-bearing project instructions)
 - `.claude/**`, `.github/**` (settings, hooks, workflows)
 - Any commit that _also_ touches non-doc files — mixed commits go through PR
 - Deletions or rewrites of plans authored by others, even if the file is in scope

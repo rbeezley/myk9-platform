@@ -9,12 +9,17 @@
 import { useState, type RefObject } from 'react';
 import type { TurnstileChallengeHandle } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey } from '@/config/turnstile';
-import { StepUpError, confirmWithCode, confirmWithPassword, sendStepUpCode } from './stepUpAuth';
+import { commonAuthFailure } from '@/lib/authErrorCopy';
+import {
+  STEP_UP_FAILED_MESSAGE,
+  StepUpError,
+  confirmWithCode,
+  confirmWithPassword,
+  sendStepUpCode,
+} from './stepUpAuth';
 import { settleStepUp, type StepUpAccount } from './stepUpStore';
 
 export type StepUpMode = 'password' | 'code';
-
-const FALLBACK_ERROR = 'Something went wrong. Please try again.';
 
 export function useStepUpReauth(
   account: StepUpAccount,
@@ -37,7 +42,11 @@ export function useStepUpReauth(
     try {
       await action(captchaRequired ? (captchaToken ?? undefined) : undefined);
     } catch (err) {
-      setError(err instanceof StepUpError ? err.message : FALLBACK_ERROR);
+      setError(
+        err instanceof StepUpError
+          ? err.message
+          : (commonAuthFailure(err) ?? STEP_UP_FAILED_MESSAGE)
+      );
     } finally {
       if (captchaRequired) turnstileRef.current?.reset();
       setBusy(false);

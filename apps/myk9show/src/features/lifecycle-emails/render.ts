@@ -1,4 +1,5 @@
 import type { LifecycleEmailStepType } from './types';
+import { buildMultiEntryDecisionLines } from './multiEntryDecision';
 
 export interface LifecycleEmailShowContext {
   name: string;
@@ -16,11 +17,20 @@ export interface LifecycleEmailRecipientContext {
 export interface LifecycleEmailEntryContext {
   dogName?: string | null;
   className?: string | null;
+  /** The class's trial day (YYYY-MM-DD): tells apart the same class entered on two days. */
+  trialDate?: string | null;
+  /** The class's trial number, listed with the day when one email covers several classes. */
+  trialNumber?: string | null;
   armbandNumber?: string | null;
   /** The trial registry whose number is missing (registration_number_needed). */
   registryName?: string | null;
   paymentStatus?: string | null;
   amountDue?: number | null;
+  /**
+   * The other entries of the same registration decided in the same action. Present only when
+   * one Accept or Waitlist covered several classes: the email then lists them all.
+   */
+  alsoDecided?: LifecycleEmailEntryContext[];
 }
 
 export interface LifecycleEmailPreviewInput {
@@ -102,13 +112,20 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
   switch (input.stepType) {
     case 'accepted':
       return {
-        subject: `Entry accepted - ${showName}`,
+        subject: `${input.entry?.alsoDecided?.length ? 'Entries' : 'Entry'} accepted - ${showName}`,
         body: joinLines([
           greeting,
           '',
-          `Your entry${input.entry?.dogName ? ` for ${input.entry.dogName}` : ''} has been accepted for ${showName}.`,
-          input.entry?.className ? `Class: ${input.entry.className}` : null,
-          input.entry?.armbandNumber ? `Armband: ${input.entry.armbandNumber}` : null,
+          ...(input.entry?.alsoDecided?.length
+            ? buildMultiEntryDecisionLines(input.entry, showName, {
+                verb: 'have been accepted for',
+                withArmbands: true,
+              })
+            : [
+                `Your entry${input.entry?.dogName ? ` for ${input.entry.dogName}` : ''} has been accepted for ${showName}.`,
+                input.entry?.className ? `Class: ${input.entry.className}` : null,
+                input.entry?.armbandNumber ? `Armband: ${input.entry.armbandNumber}` : null,
+              ]),
           input.entry?.amountDue && input.entry.amountDue > 0
             ? `Amount due: $${input.entry.amountDue.toFixed(2)}`
             : null,
@@ -119,12 +136,19 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
       };
     case 'waitlisted':
       return {
-        subject: `Entry waitlisted - ${showName}`,
+        subject: `${input.entry?.alsoDecided?.length ? 'Entries' : 'Entry'} waitlisted - ${showName}`,
         body: joinLines([
           greeting,
           '',
-          `Your entry${input.entry?.dogName ? ` for ${input.entry.dogName}` : ''} is on the waitlist for ${showName}.`,
-          input.entry?.className ? `Class: ${input.entry.className}` : null,
+          ...(input.entry?.alsoDecided?.length
+            ? buildMultiEntryDecisionLines(input.entry, showName, {
+                verb: 'are on the waitlist for',
+                withArmbands: false,
+              })
+            : [
+                `Your entry${input.entry?.dogName ? ` for ${input.entry.dogName}` : ''} is on the waitlist for ${showName}.`,
+                input.entry?.className ? `Class: ${input.entry.className}` : null,
+              ]),
           'We will let you know if a spot opens.',
           showLine,
         ]),

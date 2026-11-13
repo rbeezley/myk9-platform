@@ -1,10 +1,14 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type {
+  BulkStatusChangeOptions,
+  EntryManagementEntry,
+  StatusChangeOptions,
+} from '@/types/entry-management-types';
 import type { EntryManagementCockpitState } from './entryManagementCockpitParams';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
 import {
@@ -21,15 +25,31 @@ vi.mock('@/hooks/useEmailStatus', () => ({
   useEmailStatus: () => ({ data: {} }),
 }));
 
+const decisionEmails = vi.hoisted(() => ({
+  plan: 'none' as 'send' | 'preview' | 'none',
+  openDecisionPrompt: vi.fn(),
+  sendDecisionEmail: vi.fn(),
+  hookArgs: vi.fn(),
+}));
+
 vi.mock('@/features/lifecycle-emails', () => ({
-  useEntryDecisionLifecycleEmails: () => ({
+  useEntryDecisionLifecycleEmails: (args: unknown) => {
+    decisionEmails.hookArgs(args);
+    return decisionEmailsResult();
+  },
+}));
+
+function decisionEmailsResult() {
+  return {
     statusMap: {},
     dialog: null,
-    openDecisionPrompt: vi.fn(),
+    decisionEmailPlan: () => decisionEmails.plan,
+    openDecisionPrompt: decisionEmails.openDecisionPrompt,
+    sendDecisionEmail: decisionEmails.sendDecisionEmail,
     reviewReadyEmail: vi.fn(),
     prepareCorrectionEmail: vi.fn(),
-  }),
-}));
+  };
+}
 
 vi.mock('./EntryFocusedRegistration', async () => {
   const { EntryStatusPopover } = await import('./EntryStatusPopover');
@@ -38,10 +58,12 @@ vi.mock('./EntryFocusedRegistration', async () => {
     EntryFocusedRegistration: ({
       registration,
       onStatusChange,
+      onBulkStatusChange,
       onBack,
     }: {
       registration: Pick<ShowRegistrationGroup, 'entries'>;
       onBack?: () => void;
+      onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
       onStatusChange: (
         entryId: string,
         status: EntryStatus,
@@ -56,6 +78,17 @@ vi.mock('./EntryFocusedRegistration', async () => {
               Back to list
             </button>
           )}
+          <button
+            type="button"
+            onClick={() =>
+              onBulkStatusChange(
+                registration.entries.map(candidate => candidate.id),
+                EntryStatus.ACCEPTED
+              )
+            }
+          >
+            Accept whole form
+          </button>
           <EntryStatusPopover
             entry={entry}
             entryClassName={entry.classes[0]!.name}
@@ -65,6 +98,15 @@ vi.mock('./EntryFocusedRegistration', async () => {
       );
     },
   };
+});
+
+// File-wide, not per describe: CI shuffles test order, and a plan left on 'send' changes what
+// every other test here sees `onStatusChange` called with.
+beforeEach(() => {
+  decisionEmails.plan = 'none';
+  decisionEmails.openDecisionPrompt.mockClear();
+  decisionEmails.sendDecisionEmail.mockClear();
+  decisionEmails.hookArgs.mockClear();
 });
 
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
@@ -100,7 +142,8 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 type StatusChangeHandler = (
   entryId: string,
   status: EntryStatus,
-  withdrawalReason?: string
+  withdrawalReason?: string,
+  options?: StatusChangeOptions
 ) => void | boolean | Promise<boolean | void>;
 
 interface RenderCockpitOptions {
@@ -109,7 +152,16 @@ interface RenderCockpitOptions {
   classId?: string | null;
   trialId?: string | null;
   registrationKey?: string | null;
+  sendDecisionEmailsUnasked?: boolean;
+  onBulkStatusChange?: BulkHandler;
 }
+
+type BulkHandler = (
+  entryIds: string[],
+  status: EntryStatus,
+  onFullSuccess?: () => void,
+  options?: BulkStatusChangeOptions
+) => boolean | void | Promise<boolean | void>;
 
 // MYK9-795: `EntryManagementCockpit` no longer computes its own cockpit state
 // (queue buttons, search, Trial/Class filters moved to the page-level
@@ -144,13 +196,16 @@ function Harness({
       showHasNoRegistrations={registrationGroups.length === 0}
       trialScopePending={false}
       showId="show-1"
+      {...(options.sendDecisionEmailsUnasked === undefined
+        ? {}
+        : { sendDecisionEmailsUnasked: options.sendDecisionEmailsUnasked })}
       onStatusChange={onStatusChange}
       onCheckInStatusChange={vi.fn()}
       onOpenArmbandDialog={vi.fn()}
       onOpenCompDialog={vi.fn()}
       onUncompEntry={vi.fn()}
       onEntryRemoved={vi.fn()}
-      onBulkStatusChange={vi.fn()}
+      onBulkStatusChange={options.onBulkStatusChange ?? vi.fn()}
       paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
       onSendDecisionEmail={vi.fn().mockResolvedValue(undefined)}
       onRefresh={vi.fn()}
@@ -229,7 +284,113 @@ describe('EntryManagementCockpit status seam', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
-    expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED, undefined);
+    expect(onStatusChange).toHaveBeenCalledWith(
+      'entry-1',
+      EntryStatus.ACCEPTED,
+      undefined,
+      undefined
+    );
+  });
+});
+
+describe('EntryManagementCockpit decision email after Accept (MYK9-1800)', () => {
+  async function accept(onStatusChange: StatusChangeHandler) {
+    const user = userEvent.setup();
+    renderCockpit(onStatusChange);
+    await user.click(
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalled());
+  }
+
+  it('live show: hands the save an onStood that sends the email from the entry as it then is', async () => {
+    decisionEmails.plan = 'send';
+    const onStatusChange = vi.fn<StatusChangeHandler>(async () => true);
+    await accept(onStatusChange);
+
+    expect(decisionEmails.sendDecisionEmail).not.toHaveBeenCalled();
+    expect(decisionEmails.openDecisionPrompt).not.toHaveBeenCalled();
+
+    const stood = makeEntry({ entryStatus: EntryStatus.ACCEPTED, armbandNumber: '742' });
+    onStatusChange.mock.calls[0]?.[3]?.onStood?.(stood);
+
+    expect(decisionEmails.sendDecisionEmail).toHaveBeenCalledWith([stood], 'accepted', 'this show');
+    expect(decisionEmails.openDecisionPrompt).not.toHaveBeenCalled();
+  });
+
+  it('draft or finished show: opens the preview after the save, and arms no automatic send', async () => {
+    decisionEmails.plan = 'preview';
+    const onStatusChange = vi.fn<StatusChangeHandler>(async () => true);
+    await accept(onStatusChange);
+
+    await waitFor(() =>
+      expect(decisionEmails.openDecisionPrompt).toHaveBeenCalledWith(
+        [expect.objectContaining({ id: 'entry-1', entryStatus: EntryStatus.ACCEPTED })],
+        'accepted'
+      )
+    );
+    expect(onStatusChange.mock.calls[0]?.[3]).toBeUndefined();
+  });
+
+  it('does not open the preview when the status did not save', async () => {
+    decisionEmails.plan = 'preview';
+    const onStatusChange = vi.fn<StatusChangeHandler>(async () => false);
+    await accept(onStatusChange);
+
+    await screen.findByRole('alert');
+    expect(decisionEmails.openDecisionPrompt).not.toHaveBeenCalled();
+  });
+
+  it('tells the email hook whether this show sends unasked, and defaults to the preview', () => {
+    const noop = vi.fn<StatusChangeHandler>(async () => true);
+    renderCockpit(noop).unmount();
+    expect(decisionEmails.hookArgs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sendUnasked: false })
+    );
+
+    renderCockpit(noop, { sendDecisionEmailsUnasked: true });
+    expect(decisionEmails.hookArgs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sendUnasked: true })
+    );
+  });
+
+  it('email switched off: no send is armed and nothing opens', async () => {
+    decisionEmails.plan = 'none';
+    const onStatusChange = vi.fn<StatusChangeHandler>(async () => true);
+    await accept(onStatusChange);
+
+    expect(onStatusChange.mock.calls[0]?.[3]).toBeUndefined();
+    expect(decisionEmails.openDecisionPrompt).not.toHaveBeenCalled();
+  });
+});
+
+describe('EntryManagementCockpit decision email from an entry form (MYK9-1800)', () => {
+  it("the form's Accept all sends ONE email for the whole form once the decision stands", async () => {
+    decisionEmails.plan = 'send';
+    const user = userEvent.setup();
+    const entries = [
+      makeEntry({ id: 'entry-1' }),
+      makeEntry({
+        id: 'entry-2',
+        classes: [{ id: 'c2', name: 'Open B', number: '102', fee: 25, status: 'entered' }],
+      }),
+    ];
+    const onBulkStatusChange = vi.fn<BulkHandler>(async () => true);
+    renderCockpit(
+      vi.fn<StatusChangeHandler>(async () => true),
+      { entries, onBulkStatusChange }
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Accept whole form' }));
+    await waitFor(() => expect(onBulkStatusChange).toHaveBeenCalled());
+    expect(decisionEmails.sendDecisionEmail).not.toHaveBeenCalled();
+
+    const stood = entries.map(entry => ({ ...entry, entryStatus: EntryStatus.ACCEPTED }));
+    onBulkStatusChange.mock.calls[0]?.[3]?.onStood?.(stood);
+
+    expect(decisionEmails.sendDecisionEmail).toHaveBeenCalledTimes(1);
+    expect(decisionEmails.sendDecisionEmail).toHaveBeenCalledWith(stood, 'accepted', 'this show');
   });
 });
 

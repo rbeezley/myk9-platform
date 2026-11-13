@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { WorkflowConfig } from '../RegistrationWorkflow.types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
+import type { PaymentMethod } from '@/types/show-registration-types';
 
 const {
   mockUseShowStore,
@@ -195,7 +196,8 @@ function createdOutcome(dogId: string, classId: string, entryId: string): EntryS
 
 function renderConfirmation(
   outcomes: EntrySubmissionOutcome[] | undefined,
-  createdEntryOutcomes?: EntrySubmissionOutcome[]
+  createdEntryOutcomes?: EntrySubmissionOutcome[],
+  paymentMethod: PaymentMethod = 'credit_card'
 ) {
   const selections = [
     { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
@@ -212,14 +214,14 @@ function renderConfirmation(
         selectedDogs: ['dog-1', 'dog-2'],
         entries: [],
         documents: [],
-        paymentMethod: 'credit_card',
+        paymentMethod,
       }}
       optimisticState={{
         formData: {
           selectedDogs: ['dog-1', 'dog-2'],
           entries: [],
           documents: [],
-          paymentMethod: 'credit_card',
+          paymentMethod,
         },
         classSelections: selections,
         handlerAssignments: {
@@ -242,9 +244,7 @@ function renderConfirmation(
       onClassSelectionChange={vi.fn()}
       onHandlerAssignmentChange={vi.fn()}
       onPaymentMethodChange={vi.fn()}
-      onPaymentStatusChange={vi.fn()}
       onEntryStatusChange={vi.fn()}
-      setPaymentStatus={vi.fn()}
       setEntryStatus={vi.fn()}
     />
   );
@@ -324,5 +324,27 @@ describe('WorkflowStepContent entry blanks', () => {
         }),
       ])
     );
+  });
+});
+
+// MYK9-1908: a Free entry's receipt printed the class fee ($35.00) as if it were owed.
+describe('WorkflowStepContent receipt amount', () => {
+  const outcomes = () => [
+    createdOutcome('dog-1', 'class-1', 'entry-1'),
+    createdOutcome('dog-2', 'class-2', 'entry-2'),
+  ];
+
+  it('prints $0.00 (Free entry) on the receipt for a Free entry', () => {
+    renderConfirmation(outcomes(), undefined, 'waived');
+
+    expect(screen.getByText('$0.00 (Free entry)')).toBeInTheDocument();
+    expect(screen.queryByText('$50.00')).not.toBeInTheDocument();
+  });
+
+  it('prints the fees on the receipt for an entry that is not free', () => {
+    renderConfirmation(outcomes(), undefined, 'check');
+
+    expect(screen.getByText('$50.00')).toBeInTheDocument();
+    expect(screen.queryByText(/Free entry/)).not.toBeInTheDocument();
   });
 });

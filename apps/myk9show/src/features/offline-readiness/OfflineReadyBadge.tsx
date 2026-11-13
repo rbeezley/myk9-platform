@@ -80,12 +80,12 @@ export function OfflineReadyBadge({
         })
       : null;
     const readyDetail = asOfDetail
-      ? `This show and your permissions are saved on this device. Oldest sync: ${asOfDetail}.`
+      ? `This show and your permissions are saved on this device. The oldest part was saved ${asOfDetail}.`
       : 'This show and your permissions are saved on this device.';
     return (
       <span
         role="status"
-        // "Oldest sync" rather than "as of": some scopes (the show row, judge
+        // "The oldest part" rather than "as of": some scopes (the show row, judge
         // assignments) have no per-scope watermark, so this is the oldest
         // KNOWN sync, not a guarantee about every cached row.
         title={readyDetail}

@@ -226,7 +226,9 @@ export function useDragAndDropEntries({
       // Create new reordered array from the snapshot
       const reorderedEntries = arrayMove(snapshot, oldIndex, targetIndex);
 
-      // Update exhibitor_order values locally
+      // Update exhibitor_order values locally. Drag mode opens on the whole list (the page clears
+      // the search and Section tab first, MYK9-1808), so 1..N never collides with a hidden dog,
+      // and renumbering also heals dogs that shared a run order.
       const entriesWithNewOrder = reorderedEntries.map((entry, index) => ({
         ...entry,
         exhibitorOrder: index + 1,

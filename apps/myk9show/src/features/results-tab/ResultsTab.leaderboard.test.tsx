@@ -148,7 +148,7 @@ describe('Results tab: Nationals leaderboard (MYK9-1516)', () => {
       const { user } = mount('?view=leaderboard');
       expect(screen.getByText("Couldn't load the scores")).toBeInTheDocument();
       expect(screen.queryByRole('list', { name: 'Classes' })).not.toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
       expect(hook.retry).toHaveBeenCalledTimes(1);
     });
 
@@ -213,7 +213,7 @@ describe('Results tab: Nationals leaderboard (MYK9-1516)', () => {
     hook.refreshFailed = true;
     mount('?view=leaderboard');
     expect(screen.getByText("Couldn't refresh the scores")).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('says so when nothing is released and scored', () => {

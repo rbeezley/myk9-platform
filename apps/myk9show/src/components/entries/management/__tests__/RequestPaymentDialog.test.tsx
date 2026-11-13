@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
@@ -8,6 +8,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { fromAny } from '@total-typescript/shoehorn';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 
 vi.mock('@/lib/supabase', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/supabase')>();
@@ -51,6 +52,12 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+const LINK_FAILED = 'We could not make the payment link. No one was charged. Try again.';
+
 describe('RequestPaymentDialog', () => {
   it('generates a link for the entry and shows the fee-on-top breakdown', async () => {
     mockedInvoke.mockResolvedValue({
@@ -92,15 +99,55 @@ describe('RequestPaymentDialog', () => {
       data: null,
       error: {
         message: 'non-2xx',
-        context: { json: async () => ({ error: "This club's payment account is not set up." }) },
+        // The exact sentence stripe-payment-link sends (MYK9-1824: only known answers show).
+        context: {
+          json: async () => ({
+            error: "This club's payment account is not set up to receive online entry fees.",
+          }),
+        },
       } as unknown as Error,
     });
 
     renderDialog();
     await userEvent.click(screen.getByRole('button', { name: /generate link/i }));
 
-    expect(await screen.findByText(/payment account is not set up/i)).toBeInTheDocument();
+    expect(await screen.findByText(/bank account is not set up/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/payment link/i)).not.toBeInTheDocument();
+  });
+
+  // MYK9-1824: the function's catch-all returns Stripe's own text; it never reaches the screen.
+  it('shows the fixed sentence, not the raw text, for an unknown server answer', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const invokeError = {
+      message: 'Edge Function returned a non-2xx status code',
+      context: { json: async () => ({ error: 'Invalid API Key provided: sk_test_123' }) },
+    } as unknown as Error;
+    mockedInvoke.mockResolvedValue({ data: null, error: invokeError });
+
+    renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: /generate link/i }));
+
+    expect(await screen.findByText(LINK_FAILED)).toBeInTheDocument();
+    expect(screen.queryByText(/api key|non-2xx/i)).not.toBeInTheDocument();
+    expect(logSpy).toHaveBeenCalledWith(
+      'Payment link failed',
+      'secretary',
+      { serverMessage: 'Invalid API Key provided: sk_test_123' },
+      invokeError
+    );
+  });
+
+  it('shows the fixed sentence, not the raw text, when the call throws', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const thrown = new TypeError('Failed to fetch');
+    mockedInvoke.mockRejectedValue(thrown);
+
+    renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: /generate link/i }));
+
+    expect(await screen.findByText(LINK_FAILED)).toBeInTheDocument();
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument();
+    expect(logSpy).toHaveBeenCalledWith('Payment link failed', 'secretary', {}, thrown);
   });
 
   it('requests payment against the money root for a moved-up entry', async () => {

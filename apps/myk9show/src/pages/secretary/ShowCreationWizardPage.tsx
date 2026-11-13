@@ -6,20 +6,13 @@ import { resolveFocusTrialId } from './ShowCreationWizard/editModeResolution';
 import { getEditModeReturnPath } from './ShowCreationWizard/showSaveCompletion';
 import { hasUnsavedEditWork } from './ShowCreationWizard/hasUnsavedEditWork';
 import { WizardEditModeGuard } from './ShowCreationWizard/WizardEditModeGuard';
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { DiscardChangesDialog } from '@/components/panels/edit/DiscardChangesDialog';
+import { notifications } from '@/lib/notifications';
 import { useWizardStore } from '@/store/wizardStore';
+import { useWizardDraftRead } from '@/store/wizardDraftRead';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
@@ -40,6 +33,7 @@ import {
   WizardStepContent,
   WizardEditModeGate,
   WizardDraftResumeBanner,
+  hasDraftContent,
   shouldOfferDraftResume,
   useEditModeInitialization,
   useWritableEditModeResolution,
@@ -103,7 +97,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
     markStepCompleted,
     goToStep,
     resetWizard,
-    loadDraft,
+    loadEditDraft,
     cloneHydration,
     show,
     trials,
@@ -228,8 +222,8 @@ const ShowCreationWizardPageContent: React.FC = () => {
   // offered to discard the whole show.
   //
   // No convention maps Escape to "abandon this form", and nothing is lost by
-  // dropping it: `handleClose` still raises the same dialog for the deliberate exit,
-  // which is the action that warrants a confirmation.
+  // dropping it: `handleClose` owns the deliberate exit (create mode keeps its draft,
+  // edit modes confirm).
 
   // Focus the step's first control shortly after mount or a step change,
   // unless the secretary has already scrolled or focused something (MYK9-764).
@@ -241,6 +235,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const requireEntryWindow =
     editModeResolution.state === 'resolved' && isShowListingLive(editModeResolution.show.status);
 
+  const draftReady = useWizardDraftRead();
   const { officialsUnavailable, resetInitialization } = useEditModeInitialization({
     editMode,
     editModeResolution,
@@ -249,9 +244,10 @@ const ShowCreationWizardPageContent: React.FC = () => {
     people,
     isDirty: hasUnsavedWork,
     // add-classes builds its draft FROM the trial list, so it waits for the list. add-trials
-    // builds an empty trial set and must not be delayed (a stale persisted draft would show).
+    // builds an empty trial set and must not wait for the trial list (a stale draft would show).
     trialsReady: editMode?.mode !== 'add-classes' || existingTrialsReady,
-    loadDraft,
+    draftReady,
+    loadDraft: loadEditDraft,
   });
 
   const handleRetryWritableShow = useCallback(() => {
@@ -266,14 +262,30 @@ const ShowCreationWizardPageContent: React.FC = () => {
       ? getEditModeReturnPath(editMode.showId, focusTrialId)
       : '/shows';
 
-  // Handle wizard close
+  // Handle wizard close. Create mode keeps its draft (the store persists it and the resume
+  // banner offers "Start a new show" next visit), so leaving loses nothing and asks nothing
+  // (MYK9-1793). Edit modes rebuild from what is stored, so their unsaved work is confirmed.
+  const isEditMode = Boolean(editMode);
   const handleClose = useCallback(() => {
-    if (hasUnsavedWork) {
+    if (hasUnsavedWork && isEditMode) {
       setShowConfirmDialog(true);
       return;
     }
+    // Said once, and only for a draft the resume banner would offer back: auto-fill alone
+    // marks the form dirty, and "kept" would then describe a show that does not exist.
+    if (!isEditMode && hasDraftContent({ showName: show.name, trialCount: trials.length })) {
+      notifications.info('We kept this show so you can finish it later.');
+    }
     navigate(closeTarget);
-  }, [hasUnsavedWork, navigate, closeTarget]);
+  }, [hasUnsavedWork, isEditMode, show.name, trials.length, navigate, closeTarget]);
+
+  // Create mode persists as she types, so once she leaves nothing is "unsaved". Clearing the
+  // flag on the way out is what lets the resume banner (hidden while dirty) appear when she
+  // comes back without a page reload; without it she silently inherits the old show's fields.
+  useEffect(() => {
+    if (isEditMode) return undefined;
+    return () => useWizardStore.getState().setDirty(false);
+  }, [isEditMode]);
 
   // Handle confirmation dialog result
   const handleConfirmClose = useCallback(() => {
@@ -410,10 +422,10 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const bannerMessages = bannerIssues(validationIssues, registeredFields).map(i => i.message);
   const fieldErrors = hasAttemptedNext ? fieldErrorsFromIssues(validationIssues) : undefined;
 
-  // Wizard state is reset explicitly on cancel (handleConfirmClose) or
-  // successful creation (saveShow). No unmount cleanup needed — the Zustand
-  // persist middleware preserves form data across navigations so users don't
-  // lose work if they briefly leave the page.
+  // Wizard state is reset explicitly on an edit-mode discard (handleConfirmClose), by
+  // "Start a new show" on the resume banner, or on successful creation (saveShow). Leaving
+  // never clears the form: the Zustand persist middleware preserves it across navigations so
+  // users don't lose work if they briefly leave the page (only the dirty flag is cleared).
 
   return (
     <>
@@ -523,9 +535,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
               >
                 {editModeResolution.state === 'loading' ||
-                editModeResolution.state === 'unavailable' ? (
+                editModeResolution.state === 'unavailable' ||
+                (editMode && !draftReady) ? (
+                  // Also held while the saved draft is unread: the edit draft has not loaded
+                  // yet, so the steps would show (and Save would write) the pre-load store.
                   <WizardEditModeGate
-                    state={editModeResolution.state}
+                    state={editModeResolution.state === 'unavailable' ? 'unavailable' : 'loading'}
                     onRetry={handleRetryWritableShow}
                     onLeave={() => navigate('/shows')}
                   />
@@ -586,26 +601,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
         </div>
       </div>
 
-      {/* Unsaved Changes Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes that will be lost. Are you sure you want to leave the wizard?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmClose}
-              className="bg-warning text-warning-foreground hover:bg-warning/90"
-            >
-              Leave Wizard
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Edit modes only: create mode keeps its draft and never asks. */}
+      <DiscardChangesDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        onDiscard={handleConfirmClose}
+      />
     </>
   );
 };
@@ -620,6 +621,16 @@ const ShowCreationWizardPageContent: React.FC = () => {
 const ShowCreationWizardPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const target = parseEditMode(searchParams.get('showId'), searchParams.get('mode'));
+  // An Add trials / Add classes visit sets the new-show draft aside and leaves its own draft
+  // in memory when it ends. Add Show puts the new-show draft back BEFORE anything renders, so
+  // no step ever mounts (or auto-fills) over an existing show's fields (MYK9-1794).
+  const mustRestoreNewShowDraft = useWizardStore(
+    state => target === undefined && state.parkedCreateDraft !== null
+  );
+  useLayoutEffect(() => {
+    if (mustRestoreNewShowDraft) useWizardStore.getState().endEditVisit();
+  }, [mustRestoreNewShowDraft]);
+  if (mustRestoreNewShowDraft) return null;
   return (
     <ShowCreationWizardPageContent key={target ? `${target.mode}:${target.showId}` : 'create'} />
   );

@@ -50,7 +50,9 @@ import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRp
 import { ringTimeClearPayload, staleRingTimeClear } from './entryRingTime';
 import {
   classifyMoveUpRpcError,
+  MOVE_BACK_FAILED,
   MOVE_UP_ENTRY_RPC,
+  MOVE_UP_FAILED,
   REVERSE_MOVE_UP_ENTRY_RPC,
 } from './moveUpEntryRpc';
 import {
@@ -856,14 +858,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * score reset that also moves a `completed` check-in back, MYK9-1737). The
    * builder sees the same row the write is based on, hydrated from the server
    * on a cold replica, so a decision is never made against a missing or
-   * different row than the one written.
+   * different row than the one written. Return null to skip the write.
    */
   async updateEntryWith(
     entryId: string,
-    build: (current: ReplicatedEntry) => Partial<ReplicatedEntry>
+    build: (current: ReplicatedEntry) => Partial<ReplicatedEntry> | null
   ): Promise<string | null> {
     const entry = await this.getOrHydrateEntryForWrite(entryId);
-    return this.applyEntryUpdate(entryId, entry, build(entry));
+    const updates = build(entry);
+    return updates && this.applyEntryUpdate(entryId, entry, updates);
   }
 
   private async applyEntryUpdate(
@@ -1384,9 +1387,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       p_new_entry_id: input.newEntryId,
       p_reason: input.reason ?? null,
     });
-    if (error) {
-      throw classifyMoveUpRpcError(error, 'That entry\u2019s class could not be changed.');
-    }
+    if (error) throw classifyMoveUpRpcError(error, MOVE_UP_FAILED);
 
     const destinationId = data ? data : input.newEntryId;
     await this.hydrateMovedPair([input.sourceEntryId, destinationId], sourceWasCached);
@@ -1408,9 +1409,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const { data, error } = await this.callMoveUpRpc(REVERSE_MOVE_UP_ENTRY_RPC, {
       p_destination_entry_id: destinationEntryId,
     });
-    if (error) {
-      throw classifyMoveUpRpcError(error, 'That class change could not be reversed.');
-    }
+    if (error) throw classifyMoveUpRpcError(error, MOVE_BACK_FAILED);
 
     const sourceId = data ? data : null;
 

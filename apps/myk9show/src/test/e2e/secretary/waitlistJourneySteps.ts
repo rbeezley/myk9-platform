@@ -59,7 +59,7 @@ export async function joinFullClassAsWillow(exhibitor: Page, admin: SupabaseClie
     { timeout: 15_000 }
   );
   const card = exhibitor.locator('.myk9-element-card').filter({ hasText: CLASS_LABEL });
-  await expect(card.getByText('Full: join wait list')).toBeVisible({ timeout: 15_000 });
+  await expect(card.getByText('Full: join waitlist')).toBeVisible({ timeout: 15_000 });
   const chip = chipById(exhibitor, `chip-${FULL_CLASS_ID}`);
   await expect(chip).toBeEnabled();
   await clickClearOfStickyChrome(exhibitor, chip);
@@ -71,18 +71,18 @@ export async function joinFullClassAsWillow(exhibitor: Page, admin: SupabaseClie
   await expect(exhibitor.getByRole('heading', { name: 'Payment Information' })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(exhibitor.getByText(/joining a wait list is free/)).toBeVisible({
+  await expect(exhibitor.getByText(/joining a waitlist is free/)).toBeVisible({
     timeout: 15_000,
   });
   const cardPayment = exhibitor.getByRole('button', {
-    name: /Credit\/Debit Card \(Online Payment\)/i,
+    name: /^Credit\/Debit Card/i,
   });
   await cardPayment.evaluate((button: HTMLElement) => button.click());
   await exhibitor.getByText(/I have read and agree to the .* entry agreement/i).click();
   await exhibitor.getByRole('button', { name: /^Submit & pay$/ }).click();
 
   await expect(exhibitor).toHaveURL(`/cart?showId=${SHOW_ID}`, { timeout: 15_000 });
-  await exhibitor.getByRole('button', { name: /^Join the wait list \(1 request\)$/ }).click();
+  await exhibitor.getByRole('button', { name: /^Join the waitlist \(1 request\)$/ }).click();
   await expect(exhibitor).toHaveURL(/\/checkout\/success\?waitlist=1/, { timeout: 20_000 });
 
   const willow = await rowFor(admin, DOGS.willow);

@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from '../SecretaryCockpit';
 import { resetHonouredAnchorForTests } from '../cockpitAnchorHonoured';
-import { COCKPIT_SPLIT_COLUMNS, COCKPIT_SPLIT_MIN_WIDTH } from '../cockpitSplit';
+import { COCKPIT_SPLIT_MIN_WIDTH, RAIL_PX, cockpitSplitTemplate } from '../cockpitSplit';
 import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
 // jsdom has no layout: feed the cockpit the width it would measure.
@@ -74,7 +74,8 @@ describe('the class editor survives the split/stack switch', () => {
       { initialRoute: '/shows/show-1' }
     );
 
-    await user.click(screen.getByRole('button', { name: 'Edit class Container Novice' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Container Novice' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit class' }));
     expect(await screen.findByTestId('class-editor')).toHaveTextContent('class-1');
 
     expect(
@@ -156,7 +157,10 @@ describe('the class editor survives the split/stack switch', () => {
     // The width that decides the layout is the grid's own.
     expect(cockpit.ref.current).toBe(grid);
     if (layout === 'split') {
-      expect(grid?.style.gridTemplateColumns).toBe(COCKPIT_SPLIT_COLUMNS);
+      // A class is focused, so the schedule is the rail and the class takes the rest (MYK9-1782).
+      expect(grid?.style.gridTemplateColumns).toBe(cockpitSplitTemplate(true));
+      expect(grid?.style.gridTemplateColumns).toBe(`${RAIL_PX}px minmax(0, 1fr)`);
+      expect(grid).toHaveAttribute('data-cockpit-rail', 'true');
       expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
       // The focused column is a sticky panel with its own scroll, so a short class follows the
       // schedule and a tall one scrolls inside it (MYK9-1266); the card itself is not sticky.
@@ -166,6 +170,7 @@ describe('the class editor survives the split/stack switch', () => {
       expect(screen.getByRole('complementary')).not.toHaveClass('sticky');
     } else {
       expect(grid?.style.gridTemplateColumns).toBe('');
+      expect(grid).not.toHaveAttribute('data-cockpit-rail');
       expect(screen.queryByTestId('cockpit-split-focus')).not.toBeInTheDocument();
       expect(screen.getByRole('complementary')).not.toHaveClass('sticky');
     }

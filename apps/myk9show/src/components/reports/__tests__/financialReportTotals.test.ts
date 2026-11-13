@@ -237,7 +237,7 @@ describe('financialReportTotals', () => {
       getFinancialPaymentLabel(entry({ paymentStatus: 'paid', paymentMethod: 'secretary_paid' }))
     ).toBe('Secretary Paid');
     expect(getFinancialPaymentLabel(entry({ paymentStatus: PaymentStatus.WAIVED }))).toBe(
-      'Waived/Comped'
+      'Free entry'
     );
   });
 
@@ -308,10 +308,10 @@ describe('financialReportTotals', () => {
     expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual([
       'Cash',
       'Check',
+      'Free entry',
       'Partial Refund',
       'Pending',
       'Refunded',
-      'Waived/Comped',
     ]);
   });
 

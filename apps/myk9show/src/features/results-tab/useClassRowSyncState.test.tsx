@@ -16,14 +16,14 @@ describe('classRowSyncBlockedReason', () => {
 
   it('says honestly when the queue cannot be read', () => {
     expect(classRowSyncBlockedReason('unreadable')).toMatch(
-      /Still checking this class. If this message stays, reload the page./
+      /Still checking this class. If this message stays, restart the app./
     );
   });
 
   it('is clear only when the class is known to be settled', () => {
     expect(classRowSyncBlockedReason('settled')).toBeNull();
     expect(classRowSyncBlockedReason('waiting')).toMatch(/Waiting for this class/);
-    expect(classRowSyncBlockedReason('conflict')).toMatch(/changed elsewhere/);
+    expect(classRowSyncBlockedReason('conflict')).toMatch(/changed somewhere else/);
   });
 });
 

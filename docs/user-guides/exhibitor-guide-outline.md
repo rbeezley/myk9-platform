@@ -299,7 +299,7 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 
 **Rough steps (qa-draft):**
 
-1. On My Shows, tap **Leave class…** on the class row (MYK9-631).
+1. On My Shows, tap **Pull or withdraw…** on the class row (MYK9-631).
 2. Choose **Withdraw** (a rulebook reason: in season or judge change) or **Pull** (any other reason).
 3. Confirm; the row reads **withdrawn** or **pulled**.
 

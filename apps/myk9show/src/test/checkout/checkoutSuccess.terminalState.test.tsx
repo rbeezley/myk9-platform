@@ -287,7 +287,7 @@ describe('CheckoutSuccessPage terminal verification states', () => {
     expect(screen.queryByText(/do not submit another payment/i)).not.toBeInTheDocument();
   });
 
-  it('uses wait-list copy when a waitlist-only confirmation cannot be recovered', async () => {
+  it('uses waitlist copy when a waitlist-only confirmation cannot be recovered', async () => {
     render(<CheckoutSuccessPage />, {
       initialRoute: '/checkout/success?waitlist=1&split=missing-summary',
     });
@@ -295,7 +295,7 @@ describe('CheckoutSuccessPage terminal verification states', () => {
     await finishVerificationTimers();
 
     expect(
-      screen.getByRole('heading', { name: 'Wait List Confirmation Unavailable' })
+      screen.getByRole('heading', { name: 'Waitlist Confirmation Unavailable' })
     ).toBeInTheDocument();
     expect(screen.getByText(/no payment was submitted/i)).toBeInTheDocument();
   });

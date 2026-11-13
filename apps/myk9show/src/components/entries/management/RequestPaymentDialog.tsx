@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { ensureError } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
+import { PAYMENT_LINK_FAILED, PAYMENT_LINK_SERVER_MESSAGES } from './paymentLinkMessages';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
@@ -80,7 +83,7 @@ export function RequestPaymentDialog({
       });
 
       if (invokeError) {
-        // Edge fn returns a user-facing message in the response body; surface it.
+        // The response body says why; only the answers in PAYMENT_LINK_SERVER_MESSAGES are shown.
         let message: string | undefined;
         const context = (invokeError as { context?: Response }).context;
         if (context) {
@@ -90,7 +93,11 @@ export function RequestPaymentDialog({
             // fall through to the generic message
           }
         }
-        setError(message ?? invokeError.message ?? 'Could not create the payment link');
+        const known = PAYMENT_LINK_SERVER_MESSAGES[message ?? ''];
+        if (!known) {
+          logger.error('Payment link failed', 'secretary', { serverMessage: message }, invokeError);
+        }
+        setError(known ?? PAYMENT_LINK_FAILED);
         return;
       }
 
@@ -102,7 +109,8 @@ export function RequestPaymentDialog({
       });
       onRequested?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the payment link');
+      logger.error('Payment link failed', 'secretary', {}, ensureError(err));
+      setError(PAYMENT_LINK_FAILED);
     } finally {
       inFlightRef.current = false;
       setSubmitting(false);
@@ -128,7 +136,7 @@ export function RequestPaymentDialog({
           <DialogTitle>Request payment</DialogTitle>
           <DialogDescription>
             {entry
-              ? `Generate a secure Stripe payment link for ${entry.dogName ?? 'this entry'}. A card processing fee is added on top of the entry fee, so the exhibitor pays the total shown.`
+              ? `Generate a secure payment link for ${entry.dogName ?? 'this entry'}. A service fee is added on top of the entry fee, so the exhibitor pays the total shown.`
               : ''}
           </DialogDescription>
         </DialogHeader>
@@ -136,8 +144,8 @@ export function RequestPaymentDialog({
         {!result ? (
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Entry fee {entry ? dollars(Math.round((entry.totalFee ?? 0) * 100)) : ''} + a card
-              processing fee, shown on the next screen before you send.
+              Entry fee {entry ? dollars(Math.round((entry.totalFee ?? 0) * 100)) : ''} + a service
+              fee, shown on the next screen before you send.
             </p>
             {entry?.showId && (
               <WithdrawalPolicyDisclosure showId={entry.showId} className="rounded-md border p-2" />
@@ -153,7 +161,7 @@ export function RequestPaymentDialog({
                 <span>{dollars(result.subtotalCents)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Card processing fee</span>
+                <span>Service fee</span>
                 <span>{dollars(result.platformFeeCents)}</span>
               </div>
               <div className="mt-1 flex justify-between border-t pt-1 font-medium">

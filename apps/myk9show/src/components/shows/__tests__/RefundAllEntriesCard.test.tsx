@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { RefundAllEntriesCard } from '../RefundAllEntriesCard';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { logger } from '@/services/LoggingService';
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -61,6 +62,10 @@ beforeEach(() => {
   fromMock.mockImplementation((table: string) =>
     table === 'shows' ? showsChain(currentStatus) : entriesChain(currentCount)
   );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('RefundAllEntriesCard — cancellation gate', () => {
@@ -128,7 +133,7 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     // only when needed).
     await user.click(screen.getByRole('button', { name: /view details/i }));
     expect(await screen.findByText(/entry c/i)).toBeInTheDocument();
-    expect(screen.getByText(/offline_paid/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid by cash or check/i)).toBeInTheDocument();
   });
 
   it('identifies every skipped and failed entry in a mixed outcome (spec: refund-result-transparency)', async () => {
@@ -156,14 +161,34 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     await screen.findByText(/Refunded 1 entry across 1 payment/i);
     await user.click(screen.getByRole('button', { name: /view details/i }));
 
-    // Skipped entry: identity + reason, not just a count.
-    expect(await screen.findByText(/skip-entry/i)).toBeInTheDocument();
-    expect(screen.getByText(/offline_paid/i)).toBeInTheDocument();
+    // Skipped entry: identity + plain reason, not just a count.
+    expect(await screen.findByText(/entry skip-entry/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid by cash or check/i)).toBeInTheDocument();
 
-    // Failed payment intent: entry ids + error message, not just a count.
-    expect(screen.getByText(/pi_bad/i)).toBeInTheDocument();
-    expect(screen.getByText(/failed-entry/i)).toBeInTheDocument();
-    expect(screen.getByText(/card_declined: insufficient funds/i)).toBeInTheDocument();
+    // Failed payment: a plain line plus its entry ids. A "failed" row can be a
+    // refund that went through (entry stamp failed), so nothing says it was not
+    // refunded, and the raw id/error stay out of the main line.
+    expect(
+      screen.getByText(
+        'This payment may not have been refunded. Run Refund all again: it will not refund anyone twice.'
+      )
+    ).toBeVisible();
+    expect(screen.getByText(/entry failed-entry/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /payments? (was|were|is|are|has|have) not (been )?refunded|no refunds issued|\d+ failed\b/i
+      )
+    ).toBeNull();
+    expect(screen.queryByText(/pi_bad/)).toBeNull();
+    expect(screen.queryByText(/card_declined/)).toBeNull();
+    expect(screen.queryByText(/offline_paid/)).toBeNull();
+
+    // The exact failure stays available for support.
+    await user.click(screen.getByRole('button', { name: /details for support/i }));
+    expect(
+      await screen.findByText('pi_bad: card_declined: insufficient funds')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Skipped offline_paid: skip-entry')).toBeInTheDocument();
   });
 
   it('shows the summary with no empty detail sections on a clean run (spec: refund-result-transparency)', async () => {
@@ -212,5 +237,88 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     await waitFor(() => expect(toast.warning).toHaveBeenCalled());
     expect(toast.success).not.toHaveBeenCalled();
     expect(vi.mocked(toast.warning).mock.calls[0][0]).toMatch(/no refunds issued/i);
+  });
+
+  it('never claims nothing was refunded when a payment failed (MYK9-1837)', async () => {
+    // A "failed" row can be a refund that went through whose entry stamp did not save.
+    mockedInvoke.mockResolvedValue({
+      data: {
+        refunded: [],
+        skipped: [],
+        failed: [{ paymentIntentId: 'pi_bad', entryIds: ['e1'], error: 'stamp failed' }],
+        summary: { intentsRefunded: 0, entriesRefunded: 0, skipped: 0, failed: 1 },
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<RefundAllEntriesCard showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: /refund all entries/i }));
+    await user.click(screen.getByRole('button', { name: /yes, refund/i }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        '1 payment may not have been refunded. See the details, then run Refund all again: it will not refund anyone twice.'
+      )
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringMatching(/no refunds issued/i));
+  });
+
+  // MYK9-1824: a failed Refund all can follow refunds that went through. The secretary
+  // sees a fixed sentence (never the server's text) and a known code keeps its message.
+  async function runRefundAll() {
+    const user = userEvent.setup();
+    render(<RefundAllEntriesCard showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: /refund all entries/i }));
+    await user.click(screen.getByRole('button', { name: /yes, refund/i }));
+  }
+
+  it('an unknown failure shows the fixed sentence, not the raw text, and logs it', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const invokeError = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: new Response(
+        JSON.stringify({ error: 'Could not load the show’s entries — try again.' }),
+        { status: 500 }
+      ),
+    });
+    mockedInvoke.mockResolvedValue({ data: null, error: invokeError });
+
+    await runRefundAll();
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'We could not finish refunding all entries. Some refunds may already have gone through. Run Refund all again: it will not refund anyone twice.'
+      )
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      'Refund all failed',
+      'secretary',
+      { code: 'Could not load the show’s entries — try again.' },
+      invokeError
+    );
+  });
+
+  it.each([
+    ['show_not_cancelled', 422, 'Mark the show cancelled before refunding all entries.'],
+    // Refused before any refund is made: must not say some may have gone through.
+    [
+      'money_operation_in_progress',
+      409,
+      'Another payout or refund is already running for this show. Try again in a moment.',
+    ],
+    ['money_lock_failed', 500, 'We could not safely start the refunds. Try again in a moment.'],
+  ])('the known code %s keeps its own plain message', async (code, status, copy) => {
+    mockedInvoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+        context: new Response(JSON.stringify({ error: code }), { status }),
+      }),
+    });
+
+    await runRefundAll();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(copy));
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('may already have'));
   });
 });

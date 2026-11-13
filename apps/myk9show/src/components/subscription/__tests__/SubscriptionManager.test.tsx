@@ -252,7 +252,7 @@ describe('SubscriptionManager', () => {
     render(<SubscriptionManager />);
 
     expect(await screen.findByText(/couldn't verify your account access/i)).toBeInTheDocument();
-    const retryButton = screen.getByRole('button', { name: /retry/i });
+    const retryButton = screen.getByRole('button', { name: /try again/i });
     retryButton.click();
     expect(refetchMock).toHaveBeenCalled();
   });
@@ -277,7 +277,7 @@ describe('SubscriptionManager', () => {
     expect(screen.queryByRole('heading', { name: /^premium$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /manage subscription/i })).not.toBeInTheDocument();
     // Non-destructive: a retry path is offered, nothing is erased.
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
   it('renders a dateless truthful phrase when an expired result has no knowable end date', async () => {

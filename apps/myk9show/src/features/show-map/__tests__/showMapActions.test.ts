@@ -8,8 +8,6 @@ import {
   getDirectActionsForNode,
   getPrimaryActionForNode,
   getRankedActions,
-  getRecommendedActions,
-  SHOW_MAP_RECOMMENDED_ACTION_LIMIT,
   showMapBadgeTargets,
 } from '../showMapActions';
 import { resolveShowMapActionExecution } from '../showMapActionExecution';
@@ -123,44 +121,6 @@ describe('showMapActions', () => {
 
     expect(ids).not.toContain('resolve-check-in-conflict');
     expect(ids).not.toContain('review-entry');
-  });
-
-  it('caps recommended actions at two in deterministic ranked order', () => {
-    const tree = buildShowMapTree({
-      show,
-      trials: [trial],
-      classes,
-      entries: [
-        {
-          id: 'entry-submitted-a',
-          class_id: 'class-active',
-          dog: { call_name: 'Bella' },
-          entry_status: 'submitted',
-        },
-        {
-          id: 'entry-submitted-b',
-          class_id: 'class-future',
-          dog: { call_name: 'Scout' },
-          entry_status: 'submitted',
-        },
-      ],
-    });
-
-    const allRecommendedActions = getRecommendedActions('root', { tree }, Number.POSITIVE_INFINITY);
-    const recommendedActions = getRecommendedActions('root', { tree });
-
-    expect(allRecommendedActions.length).toBeGreaterThan(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
-    expect(recommendedActions).toHaveLength(SHOW_MAP_RECOMMENDED_ACTION_LIMIT);
-    expect(recommendedActions).toEqual([
-      expect.objectContaining({
-        id: 'review-entry',
-        why: 'Bella — Entry is waiting for secretary review',
-      }),
-      expect.objectContaining({
-        id: 'review-entry',
-        why: 'Scout — Entry is waiting for secretary review',
-      }),
-    ]);
   });
 
   it('exposes only human-attention actions for the Attention lens', () => {
@@ -363,7 +323,6 @@ describe('showMapActions', () => {
       expect.objectContaining({
         id: 'review-entry',
         nodeId: 'dog-entry:entry-capped',
-        recommended: true,
         createsAttention: true,
       }),
     ]);
@@ -504,7 +463,6 @@ describe('showMapActions', () => {
       label: 'Mark Class Started',
       classId: 'class-future',
       trialId: 'trial-1',
-      recommended: true,
     });
     const scoreAction = findAction(actions, 'score-class');
     expect(scoreAction).toMatchObject({
@@ -513,7 +471,6 @@ describe('showMapActions', () => {
       trialId: 'trial-1',
       href: '/scoring/classes/class-future/entries?mode=split',
     });
-    expect(scoreAction.recommended).toBeUndefined();
     expect(getPrimaryActionForNode(notStartedClass, { tree })).toMatchObject({
       id: 'mark-class-started',
       label: 'Mark Class Started',
@@ -545,7 +502,6 @@ describe('showMapActions', () => {
       label: 'Mark Class Started',
       classId: 'class-future',
       trialId: 'trial-1',
-      recommended: true,
     });
     expect(
       getRankedActions(tree.nodesById['class:class-future'], { tree }).map(action => action.id)
@@ -793,7 +749,7 @@ describe('showMapActions', () => {
     });
   });
 
-  it('keeps empty-class check-in sheet actions out of global recommendations', () => {
+  it('links the check-in sheet from an empty class', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -808,11 +764,7 @@ describe('showMapActions', () => {
       )
     ).toMatchObject({
       href: '/shows/show-1/reports?report=check-in-sheet&trialId=trial-1&classId=class-active',
-      recommended: false,
     });
-    expect(getRecommendedActions('root', { tree }).map(action => action.id)).not.toContain(
-      'print-check-in-sheet'
-    );
   });
 
   it('emits mark checked-in only for entries that still need check-in', () => {
@@ -986,7 +938,7 @@ describe('showMapActions', () => {
     );
   });
 
-  it('surfaces wrap-up actions in the recommended set', () => {
+  it('surfaces wrap-up actions in the ranked set', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -1013,7 +965,7 @@ describe('showMapActions', () => {
       ],
     });
 
-    expect(getRecommendedActions('root', { tree })).toEqual(
+    expect(getRankedActions('root', { tree })).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: 'collect-judge-signature',
@@ -1023,7 +975,7 @@ describe('showMapActions', () => {
     );
   });
 
-  it('does not recommend stale wrap-up work at show scope before the trial date', () => {
+  it('does not rank stale wrap-up work at show scope before the trial date', () => {
     const futureTrial = {
       ...trial,
       trialDate: '2026-06-12',
@@ -1061,17 +1013,17 @@ describe('showMapActions', () => {
       ],
     });
 
-    const recommendedIds = getRecommendedActions('root', {
+    const rankedIds = getRankedActions('root', {
       tree,
       now: new Date('2026-05-28T15:00:00.000Z'),
     }).map(action => action.id);
 
-    expect(recommendedIds).not.toContain('collect-judge-signature');
-    expect(recommendedIds).not.toContain('mark-class-started');
-    expect(recommendedIds).toContain('print-check-in-sheet');
+    expect(rankedIds).not.toContain('collect-judge-signature');
+    expect(rankedIds).not.toContain('mark-class-started');
+    expect(rankedIds).toContain('print-check-in-sheet');
   });
 
-  it('keeps direct wrap-up recommendations available on the class before the trial date', () => {
+  it('keeps direct wrap-up actions available on the class before the trial date', () => {
     const futureTrial = {
       ...trial,
       trialDate: '2026-06-12',
@@ -1098,7 +1050,7 @@ describe('showMapActions', () => {
     });
 
     expect(
-      getRecommendedActions(tree.nodesById['class:class-needs-signature']!, {
+      getRankedActions(tree.nodesById['class:class-needs-signature']!, {
         tree,
         now: new Date('2026-05-28T15:00:00.000Z'),
       })
@@ -1182,7 +1134,7 @@ describe('showMapActions', () => {
     expect(() => getRankedActions('root', { tree })).not.toThrow();
   });
 
-  it('keeps disabled navigation actions out of the recommended contract', () => {
+  it('emits a print check-in sheet with no href when the class has no trial', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -1205,13 +1157,7 @@ describe('showMapActions', () => {
       'print-check-in-sheet'
     );
 
-    expect(printAction).toMatchObject({
-      recommended: true,
-    });
     expect(printAction.href).toBeUndefined();
-    expect(getRecommendedActions(classWithoutTrial, { tree })).not.toContainEqual(
-      expect.objectContaining({ id: 'print-check-in-sheet' })
-    );
   });
 
   it('treats unsigned and unsubmitted completed classes as wrap-up attention work', () => {
@@ -1734,6 +1680,24 @@ describe('showMapActions', () => {
         tree,
       }).find(a => a.id === 'move-up-entry');
       expect(action?.label).toBe('Change class');
+    });
+
+    it('labels the Show Desk pull "Pull" with no day-of claim (MYK9-1858)', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'Upcoming' },
+        ],
+        entries: [{ id: 'entry-pending', class_id: 'class-source', entry_status: 'accepted' }],
+      });
+
+      const action = getDirectActionsForNode(tree.nodesById['entry:entry-pending']!, {
+        tree,
+      }).find(a => a.id === 'scratch-entry');
+      expect(action?.label).toBe('Pull');
+      expect(action?.why).toMatch(/^Pull this entry\b/);
+      expect(action?.why).not.toMatch(/at the show|no-show|absent/i);
     });
 
     // Owner, 2026-10-03: a move-up happens before the dog runs, on the next

@@ -24,14 +24,10 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 2. `superpowers:test-driven-development` — write the test first.
 3. Implement.
 4. `/simplify` — constructive cleanup pass (3 parallel agents: efficiency, quality, reuse). Auto-fixes safe wins.
-5. `/harden` — adversarial stress-test (3 parallel agents try to break it: edge cases, state corruption, security holes).
-6. `/commit`
-7. Open PR.
-8. `/review` (own-branch review) — and `/codex:review` alongside it if the diff changes **user-visible behavior**: RLS, migrations, payment flows, auth, RBAC seed data, gates, state, ranking, hook shape. Default ON for those; skip on docs/trivial fixes.
-9. Fix findings, merge.
-10. `cleanup` skill — worktree/branch hygiene, stale todos.
+5. `/harden` — adversarial stress-test (3 parallel agents try to break it: edge cases, state corruption, security holes). **Skip it when the review floor is `independent`**: Codex hunts the same class of defect at the gate, so harden there is three agents of latency ahead of a stronger reviewer (MYK9-1789). Nothing is committed yet, so read the floor from the working diff: `{ git diff --name-only "$(git merge-base origin/main HEAD)"; git ls-files --others --exclude-standard; } | sort -u | pnpm --silent qa:review-tier --files-stdin`. Run harden when it prints `adversarial` or `none` (which covers optional review), or prints nothing. If the gate later ends on an `owner` override because Codex is unavailable, run harden before posting the override.
+6. `ship-pr` — its Step A is the same simplify pass and finds nothing new after step 4. It runs `/commit`, opens the PR, reads `pnpm qa:review-tier` for the floor, satisfies that gate (§ 4), fixes findings, merges from the main repo, closes out the Linear issue and cleans up the worktree. Below the `independent` floor, the § 4 table still adds `/codex:review` by default for user-visible behavior changes. Run the `cleanup` skill afterwards when stale todos or other loose ends remain.
 
-This is the canonical 8-step loop: implement → simplify → commit → PR → review → fix → merge → cleanup.
+This is the canonical loop: implement → simplify → harden (unless Codex reviews) → `ship-pr`. `ship-it` Step 3c applies the same harden rule for plan-driven work.
 
 ## 3. Bug / troubleshooting
 
@@ -46,7 +42,7 @@ This is the canonical 8-step loop: implement → simplify → commit → PR → 
 
 | Situation                                                        | Use                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Uncommitted working diff, pre-commit                             | `/code-review` (cleanup order: `/simplify` → `/harden` → commit)                                                                                                          |
+| Uncommitted working diff, pre-commit                             | `/code-review` (cleanup order: `/simplify` → `/harden` unless the floor is `independent`, § 2 → commit)                                                                   |
 | Open GitHub PR                                                   | `/review`                                                                                                                                                                 |
 | Shipping a branch or PR to `main`                                | `ship-pr` — runs the independent gate (Codex for Claude-authored, Claude for Codex-authored) at Step 4, **before** merge; a same-harness subagent is never the gate       |
 | Commits already on `main` / a finished phase, no PR              | `phase-review` skill                                                                                                                                                      |

@@ -259,6 +259,37 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
     expect(merged).toHaveLength(4);
   });
 
+  it('renumbers 1..N so two dogs that shared a run order can be reordered (MYK9-1808)', async () => {
+    const updateExhibitorOrder = defaultUpdater();
+    const tied = [
+      makeEntry({ id: 'a', armband: 1, exhibitorOrder: 5 }),
+      makeEntry({ id: 'b', armband: 2, exhibitorOrder: 5 }),
+      makeEntry({ id: 'c', armband: 3, exhibitorOrder: 6 }),
+    ];
+    const { result } = renderHook(() =>
+      useDragAndDropEntries({
+        localEntries: tied,
+        setLocalEntries: vi.fn(),
+        currentEntries: tied,
+        updateExhibitorOrder,
+      })
+    );
+
+    act(() => {
+      result.current.handleDragStart(dragStartEvent('b'));
+    });
+    await act(async () => {
+      await result.current.handleDragEnd(dragEvent('b', 'a'));
+    });
+
+    const reordered = updateExhibitorOrder.mock.calls[0][0] as Entry[];
+    expect(reordered.map(e => [e.id, e.exhibitorOrder])).toEqual([
+      ['b', 1],
+      ['a', 2],
+      ['c', 3],
+    ]);
+  });
+
   it('uses the drag-start snapshot, not the live currentEntries prop, for index math', async () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();

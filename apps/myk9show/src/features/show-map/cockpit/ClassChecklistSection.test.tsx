@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fromPartial } from '@total-typescript/shoehorn';
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 
 import { readResultsTabUrlState } from '@/features/results-tab/resultsTabRoutes';
+import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
@@ -44,25 +45,14 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
         timeZone="America/New_York"
         onCommand={vi.fn()}
         printTrackingInUse
-        checklistInUse
+        canManageShow
+        trialDate="2026-07-20"
       />
     );
 
-  it('shows the after-scoring items as status, with one Continue on Results link for a complete class (MYK9-1319)', () => {
+  it('offers one Continue on Results handoff for a complete class, beside the Judge signature step (MYK9-1319, MYK9-1783)', () => {
     renderSection(completeClass);
-    const items = within(screen.getByRole('region', { name: 'Class checklist' })).getAllByRole(
-      'listitem'
-    );
-    for (const index of [4, 5, 6]) {
-      expect(within(items[index]!).queryByRole('link')).toBeNull();
-      expect(within(items[index]!).queryByRole('button')).toBeNull();
-    }
-    const links = screen
-      .queryAllByRole('link')
-      .filter(link => (link.getAttribute('href') ?? '').includes('/results'));
-    expect(links).toHaveLength(1);
     const link = screen.getByRole('link', { name: 'Continue on Results' });
-    expect(links[0]).toBe(link);
     const url = new URL(link.getAttribute('href')!, 'https://x.test');
     expect(url.pathname).toBe('/shows/show-1/results');
     expect(url.searchParams.get('classId')).toBe('c1');
@@ -72,37 +62,63 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
       classId: 'c1',
       trialId: 't1',
     });
+    const signature = screen.getByRole('link', { name: /Open on Results$/ });
+    expect(signature.getAttribute('href')).toBe(link.getAttribute('href'));
   });
 
   it('has no link into Results for a class that is not complete', () => {
     renderSection({ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null });
     expect(screen.queryByRole('link', { name: 'Continue on Results' })).toBeNull();
+    // Only the Judge signature step reaches Results.
     expect(
       screen
         .queryAllByRole('link')
         .filter(link => (link.getAttribute('href') ?? '').includes('/results'))
-    ).toHaveLength(0);
+    ).toHaveLength(1);
   });
 
-  it('offers print only for check-in and score sheets, never the results sheet or result labels', () => {
-    render(
-      <ClassChecklistSection
-        showId="show-1"
-        sourceClass={completeClass}
-        paperwork={paperwork}
-        timeZone="America/New_York"
-        onCommand={vi.fn()}
-        printTrackingInUse
-        checklistInUse
-      />
-    );
-    // Print opens beside the page (no link to Reports), and only these two sheets can be ticked.
-    const printable = screen.getAllByRole('checkbox').map(box => box.getAttribute('aria-label'));
-    expect(printable).toEqual(['Select Check-in sheet to print', 'Select Score sheets to print']);
-    expect(screen.getAllByRole('button', { name: 'Print' })).toHaveLength(2);
+  it('opens print from the two results cards, reaches the documents through the Print paperwork card, and ticks only the check-in and score sheet records', async () => {
+    const { user } = renderSection(completeClass);
+    expect(screen.getAllByRole('button', { name: /Open print preview$/ })).toHaveLength(2);
+    expect(
+      screen.getByRole('button', { name: /^Print paperwork.*Show print records$/ })
+    ).toBeInTheDocument();
+    await user.click(screen.getByText('Print records'));
+    const ticks = screen.getAllByRole('checkbox').map(box => box.getAttribute('aria-label'));
+    expect(ticks).toEqual(['Select Check-in sheet to print', 'Select Score sheets to print']);
     const hrefs = screen.queryAllByRole('link').map(link => link.getAttribute('href'));
     expect(hrefs).not.toContain('/print/check-in-sheet');
-    expect(screen.queryByText('Other paperwork')).toBeNull();
+    expect(screen.queryByText(/Other paperwork/)).toBeNull();
+  });
+
+  it('opens paper scoring from the Scoring complete step for someone who can operate the show', () => {
+    renderSection({ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null });
+    expect(screen.getByRole('link', { name: /Open paper scoring$/ })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/scoring\//)
+    );
+  });
+
+  it('keeps a manager who is not the trial secretary off paper scoring: no link, and the step says why (MYK9-1802)', () => {
+    const { container } = render(
+      <TrialSecretaryAccessProvider reason="Trial secretary access only">
+        <ClassChecklistSection
+          showId="show-1"
+          sourceClass={{ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null }}
+          paperwork={paperwork}
+          timeZone="America/New_York"
+          onCommand={vi.fn()}
+          printTrackingInUse
+          canManageShow
+          trialDate="2026-07-20"
+        />
+      </TrialSecretaryAccessProvider>
+    );
+    expect(container.querySelector('a[href^="/scoring/"]')).toBeNull();
+    const step = screen.getByRole('group', {
+      name: /^Scoring complete.*Trial secretary access only$/,
+    });
+    expect(step).toHaveTextContent('Trial secretary access only');
   });
 });
 
@@ -132,10 +148,12 @@ describe('ClassChecklistSection batch print', () => {
         timeZone="America/New_York"
         onCommand={vi.fn()}
         printTrackingInUse
-        checklistInUse
+        canManageShow
+        trialDate="2026-07-20"
       />
     );
     expect(screen.queryByRole('button', { name: /Print selected/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('Print records'));
     const boxes = screen.getAllByRole('checkbox');
     expect(boxes.length).toBeGreaterThanOrEqual(2);
     for (const box of boxes.slice(0, 2)) await userEvent.click(box);
@@ -172,17 +190,20 @@ describe('ClassChecklistSection batch print', () => {
         timeZone="America/New_York"
         onCommand={vi.fn()}
         printTrackingInUse
-        checklistInUse
+        canManageShow
+        trialDate="2026-07-20"
       />
     );
     // Desktop keeps this section mounted while the focused class changes.
     const { rerender } = render(section(classOf('c1', 'Novice Container')));
+    await userEvent.click(screen.getByText('Print records'));
     await userEvent.click(screen.getAllByRole('checkbox')[0]!);
     expect(screen.getByRole('button', { name: 'Print selected (1)' })).toBeInTheDocument();
 
     rerender(section(classOf('c2', 'Advanced Interior')));
     expect(screen.queryByRole('button', { name: /Print selected/ })).not.toBeInTheDocument();
-    for (const box of screen.getAllByRole('checkbox')) expect(box).not.toBeChecked();
+    // The disclosure is still open on the next class; none of its ticks carried over.
+    for (const box of screen.queryAllByRole('checkbox')) expect(box).not.toBeChecked();
 
     // Going back does not resurrect the old ticks either: they belonged to that visit.
     rerender(section(classOf('c1', 'Novice Container')));
@@ -214,10 +235,12 @@ describe('ClassChecklistSection batch print without checklist items', () => {
         timeZone="America/New_York"
         onCommand={vi.fn()}
         printTrackingInUse
-        checklistInUse
+        canManageShow
+        trialDate="2026-07-20"
       />
     );
     expect(screen.queryByRole('region', { name: 'Class checklist' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('Other paperwork (1)'));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select Armband labels to print' }));
     expect(screen.getByRole('button', { name: 'Print selected (1)' })).toBeInTheDocument();
   });

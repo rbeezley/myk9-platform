@@ -52,13 +52,23 @@ thing the prompt's `approach:` line decided, not the issue's suggested fix.
 - Test code compiles cleanly: no `await` outside `async`, no unused variables (remove them,
   do not underscore-prefix them).
 - Run only the affected test files, never the full app suite (another agent's suite may be
-  running; CI runs the whole thing). Logs go to `.logs/` at the worktree root, which is
-  gitignored and per-worktree; anchor the path there, because the test command `cd`s into
-  `apps/myk9show`:
+  running; CI runs the whole thing). "Affected" is three sets, and all three run before you
+  report (on MYK9-1795 the second and third were skipped and ten tests failed a review round
+  later):
+  1. every test file you added or edited;
+  2. every test that imports a source file you changed, wherever it lives:
+     `pnpm vitest related <changed source files> --run`, from `apps/myk9show` with paths
+     relative to it, like every test command here (seconds, not minutes; a page test
+     under `src/pages/__tests__` breaks when a hook under `src/pages/<Page>/` changes);
+  3. `pnpm vitest run src/test/ci` whenever you added or edited any test file (repo-wide
+     guards on test shape, about four seconds).
+- Logs go to `.logs/` at the worktree root, which is gitignored and per-worktree; anchor the
+  path there, because the test command `cd`s into `apps/myk9show`:
   `LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"`, then
   `cd apps/myk9show && pnpm vitest run <files> > "$LOGS/<name>.log" 2>&1; echo "EXIT=$?"`.
   Redirect to a file and echo the exit status; a pipe through `tail` or `grep` reports the
   filter's exit code.
+
 - A layout or behavior fix is proven by rendered geometry or behavior, never by a class name or
   a source-text assertion.
 - If a test runner hangs or sits silent for more than 30 seconds, stop and report it under
@@ -79,18 +89,24 @@ CONCERNS.
 2. Typecheck: `pnpm --filter @myk9/show typecheck:app` for app code (incremental)
    (`pnpm typecheck` from the worktree root when you touched a package or script). Note that
    `tsc --noEmit -p tsconfig.json` in `apps/myk9show` checks nothing and exits 0.
-3. Commit `wip: <task>` before any verification that takes longer than a minute, so a reaped
+   `typecheck:app` does not read test files: when you added or edited one, also run
+   `pnpm --filter @myk9/show typecheck:tests`.
+3. Lint what you changed: `pnpm --filter @myk9/show lint:changed` (every changed `.ts`/`.tsx`
+   under the app against `origin/main`, uncommitted and untracked files included). An error
+   here is a red CI check, so fix it before reporting; warnings are not yours to chase.
+4. Commit `wip: <task>` before any verification that takes longer than a minute, so a reaped
    worktree does not lose the work. The orchestrator folds `wip:` commits before shipping.
-4. Bounded waits only: the Bash tool's timeout or `for i in $(seq 1 40)`; macOS has no
+5. Bounded waits only: the Bash tool's timeout or `for i in $(seq 1 40)`; macOS has no
    `timeout` command. Never an open-ended `sleep` or polling loop. Wait for every test run you
    started to finish before you end your turn.
-5. End your turn with the report below as your final message, nothing after it.
+6. End your turn with the report below as your final message, nothing after it.
 
 ```
 FILES: <paths touched>
 APPROACH: <2-4 sentences: what you built and why this shape>
-TESTS: <commands run + pass/fail counts, verbatim tail of each log>
-TYPECHECK: <command + pass/fail>
+TESTS: <commands run + pass/fail counts, verbatim tail of each log; name the `vitest related` run>
+TYPECHECK: <command(s) + pass/fail>
+LINT: <command + pass/fail, or "no app .ts/.tsx changed">
 CONCERNS: <anything ambiguous, skipped, smelly or left undone; "none" only if true>
 ```
 

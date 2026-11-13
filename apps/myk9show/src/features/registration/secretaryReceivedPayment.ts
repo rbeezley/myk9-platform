@@ -1,5 +1,6 @@
 import type { LedgerMethod } from '@/features/payments/showPaymentLedger';
 import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
+import { PlainEntryError } from './entrySubmitErrorCopy';
 
 export const RECEIVED_METHOD_REQUIRED_MESSAGE =
   'Choose whether the payment was received as cash or check.';
@@ -30,6 +31,6 @@ export function assertReceivedMethodChosen(
     totalDollars > 0 &&
     !secretaryReceivedMethod(paymentMethod, paymentDetails)
   ) {
-    throw new Error(RECEIVED_METHOD_REQUIRED_MESSAGE);
+    throw new PlainEntryError(RECEIVED_METHOD_REQUIRED_MESSAGE);
   }
 }

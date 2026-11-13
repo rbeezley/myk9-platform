@@ -119,8 +119,8 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
           <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
           <p className="mb-2 text-lg font-medium">We couldn&apos;t confirm your entries.</p>
           <p className="text-sm text-muted-foreground">
-            We couldn&apos;t reach the server to check whether you&apos;re entered in this show, so
-            we can&apos;t open ringside yet. Try again when you have a signal — or use a show-day
+            We could not reach myK9Show to check whether you&apos;re entered in this show, so we
+            can&apos;t open ringside yet. Try again when you have a signal, or use a show-day
             passcode if the secretary gave you one.
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">

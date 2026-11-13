@@ -20,7 +20,6 @@ interface StepDogsProps {
   personId: string;
   onNext: () => void;
   onBack: () => void;
-  onSkip: () => void;
   canGoBack?: boolean;
 }
 
@@ -49,7 +48,7 @@ function useMyDogs(personId: string) {
   });
 }
 
-export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }: StepDogsProps) {
+export function StepDogs({ personId, onNext, onBack, canGoBack = true }: StepDogsProps) {
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const { data: dogs = [], isLoading, refetch } = useMyDogs(personId);
 
@@ -66,8 +65,8 @@ export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }:
         <div>
           <h2 className="text-xl font-semibold">Do you show dogs?</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Add them now so entering a show takes seconds. Not showing dogs? Skip this step. You can
-            add dogs from Account any time.
+            Add them now so entering a show takes seconds. Not showing dogs? Press Next. You can add
+            dogs from Account any time.
           </p>
         </div>
 
@@ -115,14 +114,9 @@ export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }:
           ) : (
             <span aria-hidden="true" />
           )}
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" onClick={onSkip}>
-              Skip for now
-            </Button>
-            <Button type="button" onClick={onNext}>
-              Next
-            </Button>
-          </div>
+          <Button type="button" onClick={onNext}>
+            Next
+          </Button>
         </div>
       </div>
 

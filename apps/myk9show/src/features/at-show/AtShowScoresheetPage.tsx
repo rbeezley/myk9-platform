@@ -11,9 +11,8 @@
  *
  * Authorization: the outer component is a thin `canScore` gate. The scoring
  * engine (`useAtShowScoresheet`) lives in `ScoresheetContent`, which only mounts
- * when scoring is allowed — so a denied role runs NONE of the scoring-flow side
- * effects (notably `transitionToInRing`, which auto-advances an entry to in-ring
- * on load). The block is structural, not a hidden submit button.
+ * when scoring is allowed. Starting a run or submitting a score requires that
+ * same structural permission gate.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -49,6 +48,7 @@ import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { MaxTimeNotSetNotice } from './MaxTimeNotSetNotice';
+import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 import { HeldEntryNotice } from './HeldEntryNotice';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
@@ -139,8 +139,8 @@ export const AtShowScoresheetPage: React.FC = () => {
   const assignmentCheck = useJudgeAssignedToClass({ showRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
-  // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
-  // denial blocks every side effect, not just the final submit.
+  // `useAtShowScoresheet` (whose Start marks the dog in-ring via `transitionToInRing`),
+  // so the denial blocks every side effect, not just the final submit.
   if (!hasPermission('canScore')) {
     return (
       <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
@@ -216,7 +216,7 @@ interface ScoresheetContentProps {
 
 /**
  * The authorized scoresheet body. Mounted only when `canScore` is true, so its
- * `useAtShowScoresheet` engine (data load + `transitionToInRing` + submit) runs
+ * `useAtShowScoresheet` engine (data load, Start's `transitionToInRing`, submit) runs
  * exclusively for roles allowed to score.
  */
 const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
@@ -266,12 +266,14 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialName,
     isLoading,
     awaitingRegistrationNumber,
+    classCancelled,
     error,
     loadedClassId,
     loadedEntryId,
     retry,
     reload,
     submit,
+    startRun,
     isSyncing,
     hasSyncError,
     submitError,
@@ -341,7 +343,22 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           {error || 'Failed to load scoresheet'}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={retry}>Retry</Button>
+          <Button onClick={retry}>Try again</Button>
+          <RingsideUpButton label="Entries" onClick={onBack} />
+        </div>
+      </main>
+    );
+  }
+
+  // MYK9-1847: a cancelled class takes no score. Read live from the class row, so a class
+  // cancelled while the sheet is open lands here too, and un-cancelling restores the sheet.
+  if (classCancelled) {
+    return (
+      <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+        <div role="status" className="rounded-xl border bg-card p-6 text-center">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">Class cancelled</p>
+          <p className="text-muted-foreground">{CANCELLED_CLASS_MESSAGE}</p>
           <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </main>
@@ -444,6 +461,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
           rules={rules}
           onSubmit={submit}
+          onRunStart={startRun}
           onBack={onBack}
           backLabel="Entries"
           onDirtyChange={setSheetDirty}

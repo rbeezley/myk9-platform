@@ -171,7 +171,7 @@ function isPaid(entry: ReportEntry): boolean {
 }
 
 export function getFinancialPaymentLabel(entry: ReportEntry): string {
-  if (isWaived(entry)) return 'Waived/Comped';
+  if (isWaived(entry)) return 'Free entry';
   if (isPending(entry)) return 'Pending';
   if (isFullyRefunded(entry)) return 'Refunded';
   if (isPartiallyRefunded(entry)) return 'Partial Refund';

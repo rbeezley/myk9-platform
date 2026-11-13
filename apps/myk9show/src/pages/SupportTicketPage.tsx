@@ -42,7 +42,7 @@ export default function SupportTicketPage() {
               <h2 className="text-2xl font-semibold">Support</h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Replies from the myK9Show team appear here.
+              Replies from myK9Show support appear here.
             </p>
           </div>
           {ticket && <StatusBadge status={ticket.status} />}
@@ -90,8 +90,14 @@ export default function SupportTicketPage() {
   );
 }
 
+const SUPPORT_STATUS_LABELS: Record<string, string> = {
+  open: 'Open',
+  waiting: 'Waiting on you',
+  resolved: 'Resolved',
+};
+
 function StatusBadge({ status }: { status: string }) {
-  const label = status === 'waiting' ? 'Waiting on you' : status;
+  const label = SUPPORT_STATUS_LABELS[status] ?? status;
   return (
     <span className="inline-flex rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground">
       {label}

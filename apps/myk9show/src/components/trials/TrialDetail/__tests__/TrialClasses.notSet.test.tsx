@@ -48,12 +48,13 @@ describe('trial class table Not set (MYK9-930)', () => {
     localStorage.setItem('view-pref-trial-classes', 'table');
   });
 
-  it('reads Not set, muted, for a class with no judge and no start time', () => {
+  it('reads To be announced for the judge and Not set for the start time, both muted', () => {
     render(<TrialClassesTable showId="s1" classes={[blank]} />);
 
     const notSet = screen.getAllByText('Not set');
-    expect(notSet).toHaveLength(2);
+    expect(notSet).toHaveLength(1);
     for (const el of notSet) expect(el).toHaveClass('text-muted-foreground');
+    expect(screen.getByText('To be announced')).toHaveClass('text-muted-foreground');
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
   });
 
@@ -62,14 +63,28 @@ describe('trial class table Not set (MYK9-930)', () => {
 
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+    expect(screen.queryByText('To be announced')).not.toBeInTheDocument();
   });
 });
 
 describe('trial class cards Not set (MYK9-930)', () => {
-  it('says Not set, not TBD, for a class with no judge', () => {
+  it('says To be announced, not TBD, for a class with no judge', () => {
     render(<TrialClassesCards classes={[blank]} showId="s1" trialId="t1" />);
 
-    expect(screen.getByTestId('class-card')).toHaveTextContent('Judge: Not set');
+    expect(screen.getByTestId('class-card')).toHaveTextContent(/^Judge: To be announced$/);
     expect(screen.queryByText(/TBD/)).not.toBeInTheDocument();
+  });
+
+  it('says To be announced for a stored TBD judge, in the cards and the table', () => {
+    const stored = { ...blank, judgeName: 'TBD' } as unknown as TrialClass;
+    const { unmount } = render(<TrialClassesCards classes={[stored]} showId="s1" trialId="t1" />);
+    expect(screen.getByTestId('class-card')).toHaveTextContent(/^Judge: To be announced$/);
+    unmount();
+
+    localStorage.setItem('view-pref-trial-classes', 'table');
+    render(<TrialClassesTable showId="s1" classes={[stored]} />);
+    expect(screen.getByText('To be announced')).toBeInTheDocument();
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Judge to be announced/)).not.toBeInTheDocument();
   });
 });

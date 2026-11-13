@@ -155,6 +155,36 @@ comments for every tier — never type an evidence line by hand.
   `docs/PLAYBOOK.md` § 4. No review log required, but a withdrawal at any
   tier always needs a log carrying `[P*]` bullets.
 
+### Step 3b: Phone-width walk — enforced by the poster, on ringside and check-in desk PRs
+
+```bash
+pnpm qa:phone-walk --pr $PR_NUMBER
+```
+
+`scripts/qa/phone-walk.ts` holds the declared path list. When the diff touches one,
+the walk (`ringsidePhoneWalk.spec.ts`, in the `proof` job of "Isolated scoring and
+paperwork verification") must be green on the PR head before a clean `Review gate:`
+line exists for it. That workflow is not a required check, so nothing else stops a red
+walk from merging.
+
+You do not have to remember this step: `scripts/qa/post-review-gate.sh` runs the
+command itself before every clean post, for every tier (`none`, `adversarial`,
+`independent`, `owner`) and on every new head, including a re-post after a fix push or
+a merge of `origin/main`. It waits up to 20 minutes while the walk is unfinished
+(`PHONE_WALK_WAIT_SECONDS`), then refuses with exit 2 and posts nothing unless the
+walk exits 0. A withdrawal is never blocked. Run the command by hand to see where the
+walk stands, and before a long review when you would rather know early.
+
+- **0** — not required, or required and green: the poster posts.
+- **1** — the walk failed. Download the `isolated-batch3-proof` artifact, read the
+  screenshots and trace, fix, push, and start Step 3 again. The poster refuses.
+- **2** — could not decide: a declared path is gone (fix the list in the same PR that
+  moved the code), the PR head is not local HEAD (push first), or git/`gh` failed. Not a
+  pass; the poster refuses.
+- **3** — the run has not finished. The poster waits, then refuses; a wrapper that
+  exits 2 for this reason did not lose the review, so re-run the poster command it
+  prints once the walk is green. Not a verdict.
+
 ### Step 4: Independent Review Gate — BEFORE merge
 
 The gate is a review by the **other** harness. A subagent of your own harness is never a substitute (see `docs/PLAYBOOK.md` § 4 — that substitution is a recorded lapse). The review must finish, and its findings must be acted on, before Step 5. A review that finishes after the merge is an audit, not a gate: on 2026-09-05 PR #2040 merged while its review was still running and both findings shipped to `main`.
@@ -202,6 +232,8 @@ Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
 The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The verdict is the whole remainder of the line and must be exactly `no findings` or `<N> findings, all addressed` / `<N> findings, all fixed` — `finding(s)` is **not** accepted, and neither is a parenthetical, "not all addressed", or "no findings yet"; `1 findings, all addressed` is the singular, ugly but green. `scripts/qa/review-gate.ts --verdict "<text>"` answers 0/2 for any candidate, and the poster asks it rather than carrying its own copy of the grammar. Put detail on the comment's later lines. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point. Editing or deleting the evidence comment re-evaluates it too.
 
 **If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), this PR's floor is `independent` (see Step 3a) — use the `owner` override documented there and in `docs/PLAYBOOK.md` § 4: claim `override, floor was independent`, set `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop — <detail>"` when the reviewer is reachable but the convergence rule says to stop the round — never write "unavailable" for that) and `DEFERRED_REVIEW=<ISSUE-ID>`, then run `post-review-gate.sh $PR_NUMBER owner <base-sha> <head-sha> "override, floor was independent" /dev/null`. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes the override, mark it ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
+
+An override with nothing worth filing cites MYK9-1591 as its deferred review. Orchestrated changes ship one PR per batch and review after the structural batch ([`docs/lessons/README.md#orchestrated-change-rounds`](../../../docs/lessons/README.md#orchestrated-change-rounds)).
 
 **Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward (the docs-only budget below is the one case where a P2 may be deferred). Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
 
@@ -330,3 +362,11 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
 - Use `pnpm`, not `npm` or `npx`
 - Max 5 verify iterations, max 5 review rounds — escalate if limits hit
+
+## Lessons
+
+Traps that belong to this work, moved from `CLAUDE.md` § LESSONS (MYK9-1790). Each points at its incident in `docs/lessons/README.md`; `lessonGuards.test.ts` checks every anchor here has a `**Guard:**` line.
+
+- **A review that finishes after the merge is an audit, not a gate.** The `Review gate` status is pinned to the head SHA; finish the review and act on its findings before announcing a PR as ready, and say "review running" out loud as a blocking state. (docs/lessons/README.md#review-after-merge)
+- **A run whose conclusion is `cancelled` may be one job hitting its own `timeout-minutes`, not concurrency.** Both read identically at run level; `gh run view <id> --json jobs` tells them apart, and a timed-out job's `startedAt`/`completedAt` span is exactly its cap. (docs/lessons/README.md#cancelled-may-be-timeout)
+- **Once a review reports no P0/P1 and a core that holds, route every finding against the base commit**: fix the regressions, FILE what the change only exposed. Shared-component work splits out. (docs/lessons/README.md#review-scope-boundary)

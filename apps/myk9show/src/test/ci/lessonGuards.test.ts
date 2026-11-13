@@ -45,19 +45,40 @@ describe('lessonGuardProblems known answers', () => {
 });
 
 describe('real lessons', () => {
-  it('every LESSONS bullet has a valid Guard line in its narrative', () => {
-    const claude = readFileSync(resolve(root, 'CLAUDE.md'), 'utf8');
-    const start = claude.indexOf('## LESSONS');
-    const next = claude.indexOf('\n## ', start + 1);
-    const anchors = [
-      ...claude
+  // MYK9-1790: domain lessons live in the skill that does the work, so the
+  // guard check reads those sections as well as CLAUDE.md's.
+  const LESSON_SKILLS = ['commit', 'db-push', 'deploy', 'playwright-cli', 'ship-pr'];
+  const anchorsIn = (file: string, heading: string): string[] => {
+    const text = readFileSync(resolve(root, file), 'utf8');
+    const start = text.indexOf(`\n${heading}\n`);
+    if (start < 0) return [];
+    const next = text.indexOf('\n## ', start + 1);
+    return [
+      ...text
         .slice(start, next < 0 ? undefined : next)
         .matchAll(/docs\/lessons\/README\.md#([a-z0-9-]+)/g),
     ].map(m => m[1]);
+  };
+
+  it('every lesson in CLAUDE.md and the skills has a valid Guard line in its narrative', () => {
+    const claude = anchorsIn('CLAUDE.md', '## LESSONS');
+    expect(claude.length).toBeGreaterThan(5); // vacuity guard
+    const perSkill = LESSON_SKILLS.map(skill =>
+      anchorsIn(`.claude/skills/${skill}/SKILL.md`, '## Lessons')
+    );
+    // Every listed skill carries at least one lesson; a renamed heading would
+    // otherwise drop its lessons out of the check silently.
+    expect(perSkill.map(a => a.length > 0)).toEqual(LESSON_SKILLS.map(() => true));
+    const anchors = [...claude, ...perSkill.flat()];
     expect(anchors.length).toBeGreaterThan(20); // vacuity guard
+    expect(new Set(anchors).size).toBe(anchors.length); // one home per lesson
     const narratives = readFileSync(resolve(root, 'docs/lessons/README.md'), 'utf8');
     expect(
-      lessonGuardProblems({ anchors, narratives, fileExists: p => existsSync(resolve(root, p)) })
+      lessonGuardProblems({
+        anchors,
+        narratives,
+        fileExists: p => existsSync(resolve(root, p)),
+      })
     ).toEqual([]);
   });
 });

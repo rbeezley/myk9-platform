@@ -107,7 +107,7 @@ describe('WaitlistManagementPage judge-day capacity', () => {
     await screen.findByText('Judge One');
     expect(screen.getAllByText('2 over the limit')).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'View Wait List' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View Waitlist' }));
 
     await waitFor(() => expect(screen.getAllByText('2 over the limit')).toHaveLength(2));
     expect(screen.getAllByText(/The limit was lowered after entries came in/)).toHaveLength(2);

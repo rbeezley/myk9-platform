@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { RUN_ORDER_COPY, ShowDayRefusal, showDayErrorMessage } from './showDayErrorCopy';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import {
   planPresetPlacement,
@@ -29,13 +29,19 @@ export interface ShowMapAutoSortInput {
   classLabel?: string | undefined;
 }
 
-export interface ShowMapHandPlaceInput {
+interface ShowMapHandPlaceBase {
   classId: string;
   entryId: string;
-  /** 1-based slot in the class run list. */
-  toPosition: number;
   entryLabel?: string | undefined;
 }
+
+/**
+ * Where the dog goes: a 1-based slot among the waiting dogs, or (the drag) the dog it was dropped
+ * on. The drop names the dog, never a number, so the slot is resolved against the placement model
+ * as the write reads it, and a list that went stale cannot put the dog in the wrong place.
+ */
+export type ShowMapHandPlaceInput = ShowMapHandPlaceBase &
+  ({ toPosition: number } | { overEntryId: string });
 
 export interface ShowMapAutoSortSnapshot {
   classId: string;
@@ -107,7 +113,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
   ) => {
     if (failedCount > 0) {
       toast.warning(
-        `Run order partially updated — ${failedCount} ${failedCount === 1 ? 'entry' : 'entries'} could not be saved. Use Undo to roll back.`
+        `The run order was only partly saved: ${failedCount} ${failedCount === 1 ? 'dog was' : 'dogs were'} not moved. Press Undo to put it back, then try again.`
       );
     } else {
       toast.success(successLabel);
@@ -127,7 +133,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     mutationFn: async (input: ShowMapAutoSortInput): Promise<ShowMapAutoSortResult> => {
       const { model } = await loadClassPlacement(showId, input.classId);
       if (model.waiting.length < 2) {
-        throw new Error('Auto-sort needs at least two dogs still waiting to run.');
+        throw new ShowDayRefusal('Auto-sort needs at least two dogs still waiting to run.');
       }
       const assignments = planPresetPlacement(model, input.kind);
       const snapshot: ShowMapAutoSortSnapshot = {
@@ -145,7 +151,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     onSuccess: ({ snapshot, failedCount }, input) =>
       announceChange(snapshot, failedCount, SUCCESS_LABELS[input.kind]),
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      toast.error(showDayErrorMessage(error, RUN_ORDER_COPY.sortFailed));
     },
     onSettled: (_data, _error, variables) => {
       return variables?.classId ? invalidateForClass(variables.classId) : undefined;
@@ -160,16 +166,23 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     networkMode: 'always',
     mutationFn: async (input: ShowMapHandPlaceInput): Promise<ShowMapAutoSortResult> => {
       const { model } = await loadClassPlacement(showId, input.classId);
-      const changes = movePlacement(model, input.entryId, input.toPosition);
+      const waitingIds = model.waiting.map(row => row.id);
+      const toPosition =
+        'toPosition' in input
+          ? input.toPosition
+          : waitingIds.includes(input.entryId) && waitingIds.includes(input.overEntryId)
+            ? waitingIds.indexOf(input.overEntryId) + 1
+            : 0;
+      const changes = movePlacement(model, input.entryId, toPosition);
       if (changes.length === 0) {
-        throw new Error(
+        throw new ShowDayRefusal(
           'That dog cannot go in that spot. Only dogs still waiting to run can be moved.'
         );
       }
       const snapshot: ShowMapAutoSortSnapshot = {
         classId: input.classId,
         kind: 'hand',
-        summary: `Moved ${input.entryLabel ?? 'dog'} to position ${input.toPosition}`,
+        summary: `Moved ${input.entryLabel ?? 'dog'} to position ${toPosition}`,
         priorOrders: toPriorSnapshot(changes),
       };
       const { failedCount } = await applyAssignments(changes);
@@ -178,7 +191,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     onSuccess: ({ snapshot, failedCount }) =>
       announceChange(snapshot, failedCount, snapshot.summary ?? 'Run order updated'),
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      toast.error(showDayErrorMessage(error, RUN_ORDER_COPY.placeFailed));
     },
     onSettled: (_data, _error, variables) => {
       return variables?.classId ? invalidateForClass(variables.classId) : undefined;
@@ -221,7 +234,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
       setLastAutoSort(null);
     },
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      toast.error(showDayErrorMessage(error, RUN_ORDER_COPY.undoFailed));
     },
     onSettled: (_data, _error, snapshot) => {
       return snapshot?.classId ? invalidateForClass(snapshot.classId) : undefined;

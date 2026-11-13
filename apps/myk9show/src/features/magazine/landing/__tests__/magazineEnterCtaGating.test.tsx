@@ -114,7 +114,7 @@ describe('Magazine landing Enter CTA gating', () => {
       );
 
       expect(queryByRole('link', { name: /open the entry wizard/i })).toBeNull();
-      expect(getByText(/Contact the trial secretary for late-entry help/i)).toBeInTheDocument();
+      expect(getByText(/Contact the show secretary for late-entry help/i)).toBeInTheDocument();
       expect(queryByText(/classes are assigned/i)).toBeNull();
     });
   });

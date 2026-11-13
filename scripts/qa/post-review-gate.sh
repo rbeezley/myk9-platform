@@ -18,8 +18,9 @@
 #
 # Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude|adversarial|none|owner> <base-sha> <head-sha> "<verdict>" <log>
 # Exit:  0 posted · 2 refused (bad reviewer/verdict grammar, missing or
-#        malformed owner env vars, or — codex/claude/adversarial only —
-#        an empty/incomplete log); nothing posted
+#        malformed owner env vars, the phone-width walk not green on a PR
+#        that needs it, or — codex/claude/adversarial only — an
+#        empty/incomplete log); nothing posted
 #
 # `owner` and `none` have no review log BY DEFINITION (owner defers scrutiny
 # entirely; none asserts the paths were low-risk enough that no review ran),
@@ -427,6 +428,35 @@ else
   fi
   BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\n%slog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
     "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$COVERAGE_LINE" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+fi
+# MYK9-1787: a clean post says this head is ready to merge, so the phone-width
+# walk (scripts/qa/phone-walk.ts) must be green on it first. Enforced HERE, in
+# the only writer of evidence, because every tier and every re-post after a fix
+# push ends at this line; a step in a skill can be skipped. A withdrawal is
+# never blocked. Exit 3 (the run has not finished) is waited out for up to
+# PHONE_WALK_WAIT_SECONDS (default 1200), so a finished review is not thrown
+# away over a few minutes of CI. PHONE_WALK_BIN replaces the command (tests);
+# with GH_BIN stubbed and no PHONE_WALK_BIN the check is skipped, because the
+# real command would ask the real GitHub about a fixture PR.
+if [ "$WITHDRAW" != 1 ] && { [ -n "${PHONE_WALK_BIN:-}" ] || [ -z "${GH_BIN:-}" ]; }; then
+  WALK_WAIT="${PHONE_WALK_WAIT_SECONDS:-1200}"
+  WALK_WAITED=0
+  while :; do
+    WALK_CODE=0
+    if [ -n "${PHONE_WALK_BIN:-}" ]; then
+      "$PHONE_WALK_BIN" --pr "$PR" >&2 || WALK_CODE=$?
+    else
+      node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+        "$HERE/phone-walk.ts" --pr "$PR" >&2 || WALK_CODE=$?
+    fi
+    if [ "$WALK_CODE" != 3 ] || [ "$WALK_WAITED" -ge "$WALK_WAIT" ]; then break; fi
+    sleep 30
+    WALK_WAITED=$((WALK_WAITED + 30))
+  done
+  if [ "$WALK_CODE" != 0 ]; then
+    echo "post-review-gate: the phone-width walk is not green on this head (qa:phone-walk --pr $PR exited $WALK_CODE: 1 failed, 2 could not decide, 3 not finished); nothing posted" >&2
+    exit 2
+  fi
 fi
 "$GH" pr comment "$PR" --body "$BODY"
 echo "post-review-gate: posted '$VERDICT' for ${HEAD:0:9} on #$PR (log sha256 ${HASH:0:12})"

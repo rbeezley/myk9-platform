@@ -96,7 +96,7 @@ describe('mapConnectOnboardingError', () => {
 
   it('maps a real permission denial (403) to an ask-an-admin next step', () => {
     expect(mapConnectOnboardingError('Not authorized for this club')).toMatch(
-      /club administrator/i
+      /ask myK9Show support to give you access/i
     );
   });
 
@@ -105,7 +105,7 @@ describe('mapConnectOnboardingError', () => {
     // not that the caller lacks access — an admin must not be told to go get
     // permission they already have.
     const mapped = mapConnectOnboardingError('Authorization check failed');
-    expect(mapped).not.toMatch(/club administrator/i);
+    expect(mapped).not.toMatch(/give you access/i);
     expect(mapped).toMatch(/try again|contact support/i);
   });
 
@@ -121,7 +121,7 @@ describe('mapConnectOnboardingError', () => {
   it('prefers the specific match when patterns could overlap (order matters)', () => {
     // Contains both "authorization" wording and would otherwise be ambiguous;
     // the auth-session matcher is listed first and must win.
-    expect(mapConnectOnboardingError('Authentication failed')).not.toMatch(/club administrator/i);
+    expect(mapConnectOnboardingError('Authentication failed')).not.toMatch(/give you access/i);
   });
 });
 

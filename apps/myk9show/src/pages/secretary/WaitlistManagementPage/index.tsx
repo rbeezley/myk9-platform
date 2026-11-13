@@ -117,7 +117,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
           the tab is showing. The card also holds the show's automatic-offer switch (MYK9-1003). */}
       <details className="rounded-lg border bg-card" data-testid="waitlist-settings-disclosure">
         <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium">
-          Wait list settings: automatic offers, judge-day capacity, offer window, mail-in hold
+          Waitlist settings: automatic offers, judge-day capacity, offer window, mail-in hold
         </summary>
         <div className="px-4 pb-4">
           <WaitListSettingsCard key={showId} showId={showId} />
@@ -152,8 +152,8 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
 
       {isCapacityUnavailable && judgeDays.length === 0 && (
         <p className="text-sm text-muted-foreground" data-testid="judge-day-capacity-offline">
-          Judge-day capacity needs a connection, so the cards are unavailable offline. The wait
-          lists below are read from this device.
+          Judge-day capacity needs a connection, so the cards are unavailable offline. The waitlists
+          below are read from this device.
         </p>
       )}
 
@@ -178,7 +178,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-semibold">
-              Wait list for {selectedJudgeDay.judgeName},{' '}
+              Waitlist for {selectedJudgeDay.judgeName},{' '}
               {formatWeekdayMonthDay(selectedJudgeDay.showDate)}
             </h3>
             <Button variant="outline" onClick={showAllClasses}>
@@ -230,7 +230,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
             <ListOrdered className="mx-auto mb-4 h-12 w-12 text-muted-foreground opacity-50" />
             <h3 className="mb-2 text-lg font-medium">
               {isLoading
-                ? 'Loading wait lists...'
+                ? 'Loading waitlists...'
                 : searchTerm
                   ? 'No dogs match your search'
                   : selectedJudgeDay

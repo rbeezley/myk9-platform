@@ -47,10 +47,10 @@ function Where() {
  * | Trials: row Edit / Delete            | Trial heading menu (Edit); edit panel footer (Delete) |
  * | Trials: row opens the trial page     | The home itself; Entry Forms and Reports tabs (MYK9-1727) |
  * | Classes: Add Classes                 | Trial heading menu "Add classes" (MYK9-1727) |
- * | Classes: row Edit / Delete           | Class panel "Edit class"; edit panel footer (Delete) |
- * | Classes: status change               | Class panel / row status control (unchanged)  |
+ * | Classes: row Edit / Delete           | Class Actions menu "Edit class"; edit panel footer (Delete) |
+ * | Classes: status change               | Class header Status field (MYK9-1867)        |
  * | Classes: judge, waitlist, bulk bar   | Actions menu "Select classes" (in place)      |
- * | Classes: row opens class details     | Class panel "View entries and results"        |
+ * | Classes: row opens class details     | Class Actions menu "View entries and results" |
  */
 describe('show home carries every Setup action (MYK9-956)', () => {
   function renderCockpit(canManageShow: boolean) {
@@ -139,10 +139,14 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     });
   });
 
-  it('gives the class panel Edit class, with Delete left to the edit panel', () => {
-    renderCockpit(true);
+  it('gives the class Actions menu Edit class, with Delete left to the edit panel', async () => {
+    const { user } = renderCockpit(true);
 
-    expect(screen.getByRole('button', { name: 'Edit class Container Novice' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Actions for Container Novice' }));
+    expect(await screen.findByRole('menuitem', { name: 'Edit class' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
     expect(screen.queryByRole('button', { name: /delete class/i })).toBeNull();
   });
 

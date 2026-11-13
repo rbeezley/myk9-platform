@@ -1,3 +1,4 @@
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 /**
  * MYK9-1030: a judge's day — every class one judge judges on one calendar date.
  *
@@ -33,8 +34,8 @@ export interface JudgeDay {
 function judgeIdentity(cls: JudgeDayClassInput): string | null {
   const id = cls.judgeId?.trim();
   if (id) return `judge:${id}`;
-  const name = cls.judgeName?.trim().toLowerCase();
-  return name ? `name:${name}` : null;
+  if (isUnsetJudgeName(cls.judgeName)) return null;
+  return `name:${cls.judgeName!.trim().toLowerCase()}`;
 }
 
 /** The key two classes share exactly when the same judge judges both on the same date. */
@@ -60,7 +61,7 @@ export function groupClassesByJudgeDay(
     days.set(key, {
       key,
       ...(!isOwnDay && cls.judgeId?.trim() ? { judgeId: cls.judgeId.trim() } : {}),
-      ...(cls.judgeName?.trim() ? { judgeName: cls.judgeName.trim() } : {}),
+      ...(isUnsetJudgeName(cls.judgeName) ? {} : { judgeName: cls.judgeName!.trim() }),
       ...(cls.trialDate?.trim() ? { date: cls.trialDate.trim() } : {}),
       classIds: [cls.id],
     });

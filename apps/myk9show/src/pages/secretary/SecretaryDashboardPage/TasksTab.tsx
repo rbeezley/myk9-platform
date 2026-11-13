@@ -16,6 +16,7 @@ import type { ListView } from '@/components/list-toolkit';
 import { TaskTimelineView } from './TaskTimelineView';
 import { useTaskViewPreference, TASK_VIEW_MODES } from './useTaskViewPreference';
 import type { SecretaryTask } from './types';
+import { TASK_COPY } from '@/features/show-workbench/taskErrorCopy';
 
 // Reserve vertical space while the tasks query is in flight so deferred-load
 // shifts don't push the rest of the page down. ~280px matches the rendered
@@ -76,11 +77,11 @@ export function TasksTab({ clubId }: TasksTabProps) {
   }
 
   function handleUpdate(id: string, update: Parameters<typeof updateTask.mutate>[0]['update']) {
-    updateTask.mutate({ id, update }, { onError: () => toast.error('Failed to update task.') });
+    updateTask.mutate({ id, update }, { onError: () => toast.error(TASK_COPY.updateFailed) });
   }
 
   function handleDelete(id: string) {
-    deleteTask.mutate(id, { onError: () => toast.error('Failed to delete task.') });
+    deleteTask.mutate(id, { onError: () => toast.error(TASK_COPY.deleteFailed) });
   }
 
   return (
@@ -132,7 +133,7 @@ export function TasksTab({ clubId }: TasksTabProps) {
             onAdd={input => {
               createTask.mutate(input, {
                 onSuccess: () => setShowAddForm(false),
-                onError: () => toast.error('Failed to add task. Please try again.'),
+                onError: () => toast.error(TASK_COPY.addFailed),
               });
             }}
             onCancel={() => setShowAddForm(false)}
@@ -142,12 +143,12 @@ export function TasksTab({ clubId }: TasksTabProps) {
 
       {isError ? (
         <div className="flex items-center justify-between rounded border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
-          <span className="text-destructive">Couldn't load your tasks.</span>
+          <span className="text-destructive">{TASK_COPY.loadMineFailed}</span>
           <button
             onClick={() => refetch()}
             className="font-medium text-destructive underline hover:opacity-80"
           >
-            Retry
+            Try again
           </button>
         </div>
       ) : isLoading ? (

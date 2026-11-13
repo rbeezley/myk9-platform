@@ -7,7 +7,6 @@ import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-t
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
-  applyOptimisticDeskStatuses,
   buildCheckInDeskClasses,
   buildCheckInDeskPeople,
   filterCheckInDesk,
@@ -20,8 +19,9 @@ import { CheckInDeskDogCard } from './CheckInDeskDogCard';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
-import { PullAtShowDialog } from './PullAtShowDialog';
-import { ConfirmDialog } from '@/components/ui/alert-dialog';
+import { DeskPullDialogs } from './DeskPullDialogs';
+import { changeDeskRowStatus } from './deskRowStatus';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 interface CheckInDeskProps {
   showId: string;
@@ -30,8 +30,8 @@ interface CheckInDeskProps {
   loading: boolean;
   unknown: boolean;
   onRetry: () => void;
-  /** Re-reads the page's entries; the optimistic status flip lasts only until it lands. */
-  onRefreshEntries?: () => void | Promise<void>;
+  /** Re-reads the page's entries after a write, handed the ids whose writes were stored. */
+  onRefreshEntries?: EntriesRefresh;
   /** Fixed clock for tests; the desk otherwise ticks once a minute. */
   currentDate?: Date | null;
 }
@@ -58,10 +58,7 @@ export function CheckInDesk({
   const [search, setSearch] = useState('');
   const now = useMinuteClock(currentDate);
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
-  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
-    entries,
-    onRefreshEntries
-  );
+  const { busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(onRefreshEntries);
   const classes = useMemo(
     () =>
       buildCheckInDeskClasses(
@@ -70,13 +67,9 @@ export function CheckInDesk({
       ),
     [showId, trialClasses, trials]
   );
-  const shownEntries = useMemo(
-    () => applyOptimisticDeskStatuses(entries, changes),
-    [changes, entries]
-  );
   const people = useMemo(
-    () => buildCheckInDeskPeople(shownEntries, classes, now),
-    [classes, now, shownEntries]
+    () => buildCheckInDeskPeople(entries, classes, now),
+    [classes, now, entries]
   );
   const rowsByEntryId = useMemo(
     () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),
@@ -121,7 +114,7 @@ export function CheckInDesk({
             if (readFailed) void retry();
           }}
         >
-          Retry
+          Try again
         </Button>
       </div>
     );
@@ -216,10 +209,7 @@ export function CheckInDesk({
                       void setStatus(target.dogName, target.pendingEntryIds, 'checked-in')
                     }
                     onSetStatus={(row, status) =>
-                      // Pulled is the real Pull, so it asks first (MYK9-1749).
-                      status === 'pulled'
-                        ? pull.requestPull(row)
-                        : void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
+                      changeDeskRowStatus(row, status, { setStatus }, pull)
                     }
                     onUnpull={pull.requestUnpull}
                     clearingId={pull.clearingId}
@@ -231,31 +221,7 @@ export function CheckInDesk({
           })}
         </div>
       )}
-      {pull.pullRow && (
-        <PullAtShowDialog
-          open
-          dogName={pull.pullRow.dogName}
-          armband={pull.pullRow.armband}
-          className={pull.pullRow.className}
-          isSubmitting={pull.isWorking}
-          onOpenChange={open => {
-            if (!open) pull.cancel();
-          }}
-          onConfirm={reason => void pull.confirmPull(reason)}
-        />
-      )}
-      {pull.unpullRow && (
-        <ConfirmDialog
-          open
-          onOpenChange={open => {
-            if (!open) pull.cancel();
-          }}
-          title={`Put ${pull.unpullRow.dogName} back in ${pull.unpullRow.className}?`}
-          description={`The pull is undone, ${pull.unpullRow.dogName} is entered again, and the check-in goes back to what it was before the pull.`}
-          confirmLabel="Put back"
-          onConfirm={() => void pull.confirmUnpull()}
-        />
-      )}
+      <DeskPullDialogs pull={pull} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { getRoleLabel } from '@/components/admin/users/UserTable/types';
 import { formatTime } from '@/utils/dateFormat';
 import type { MessageThread } from '@/features/messages/types';
 
@@ -26,7 +27,7 @@ export function ThreadListItem({ thread, isActive, onClick }: ThreadListItemProp
           <span className="font-medium truncate">{thread.participant_name ?? 'Unknown'}</span>
           {thread.participant_role && (
             <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 shrink-0">
-              {thread.participant_role}
+              {getRoleLabel(thread.participant_role)}
             </Badge>
           )}
         </div>

@@ -55,7 +55,7 @@ describe('missingShowCopy', () => {
     // The whole point of the `unreachable` arm: navigator.onLine is true and
     // lying, so telling the user to "check your connection" reads as nonsense.
     expect(missingShowCopy('unreachable').description).toMatch(/venue wi-fi/i);
-    expect(missingShowCopy('unreachable').description).toMatch(/couldn't reach the server/i);
+    expect(missingShowCopy('unreachable').description).toMatch(/could not reach myK9Show/i);
   });
 });
 

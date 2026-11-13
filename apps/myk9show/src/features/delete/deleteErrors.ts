@@ -92,11 +92,18 @@ export function deleteErrorMessage(kind: DeleteObjectKind, error: unknown): stri
   }
 }
 
+/** The guard sentence when a delete throws something `deleteRecords` did not map. */
+export function deleteGuardMessage(kind: DeleteObjectKind, count: number, error: unknown): string {
+  return count > 1
+    ? `We couldn't delete those ${objectNoun(kind, count)}. Try again.`
+    : deleteErrorMessage(kind, error);
+}
+
 /** The sentence shown when Undo (restore_<object>) fails. */
 export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): string {
   const { code } = fieldsOf(error);
   if (code === PG_INSUFFICIENT_PRIVILEGE) {
-    return 'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.';
+    return 'The 10 minutes to undo this are over. Ask myK9Show support to restore it.';
   }
   if (code === 'MK013') {
     const parent =

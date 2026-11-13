@@ -68,6 +68,7 @@ import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
+import { useIsClassCancelledFor } from './cancelledClassGuard';
 import { resolveClassListRoute } from './atShowScoresheetRoutes';
 
 export const AtShowEntryListPage: React.FC = () => {
@@ -188,6 +189,7 @@ export const AtShowEntryListPage: React.FC = () => {
     pendingEntries,
     completedEntries,
     notRunningEntries,
+    dragEntries,
     entryCounts,
   } = useEntryListFilters({
     entries: localEntries,
@@ -230,7 +232,8 @@ export const AtShowEntryListPage: React.FC = () => {
   const { sensors, handleDragStart, handleDragEnd, isDragging } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
-    currentEntries,
+    // Drag mode shows every pending dog, so the snapshot is never a filtered subset (MYK9-1808).
+    currentEntries: dragEntries,
     updateExhibitorOrder,
     isDraggingRef,
     setManualOrder,
@@ -282,6 +285,8 @@ export const AtShowEntryListPage: React.FC = () => {
   );
 
   // ── Handlers ────────────────────────────────────────────────────────────
+  // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
+  const isClassCancelled = useIsClassCancelledFor([classId]);
   const handlers = useAtShowEntryListHandlers({
     actions,
     replication,
@@ -291,6 +296,7 @@ export const AtShowEntryListPage: React.FC = () => {
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
+    isClassCancelled,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
@@ -385,6 +391,7 @@ export const AtShowEntryListPage: React.FC = () => {
             completedEntries,
             notRunningEntries,
             currentEntries,
+            dragEntries,
             entryCounts,
           }}
           favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}

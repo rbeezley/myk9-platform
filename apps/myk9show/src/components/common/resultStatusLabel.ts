@@ -1,10 +1,13 @@
 /** Known result status values from the scoring system */
-export type ResultStatus = 'qualified' | 'nq' | 'absent' | 'excused' | 'disqualified' | 'withdrawn';
+export type ResultStatus =
+  'qualified' | 'nq' | 'non_qualifying' | 'absent' | 'excused' | 'disqualified' | 'withdrawn';
 
 /** Map from raw result_status to abbreviated label */
 const STATUS_LABELS: Record<ResultStatus, string> = {
   qualified: 'Q',
   nq: 'NQ',
+  // The scoring rows spell it out; it is the same result as `nq`.
+  non_qualifying: 'NQ',
   absent: 'ABS',
   excused: 'EX',
   disqualified: 'DQ',

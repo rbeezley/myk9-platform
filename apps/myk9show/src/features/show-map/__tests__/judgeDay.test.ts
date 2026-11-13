@@ -7,6 +7,25 @@ import {
   openJudgeDayKeys,
 } from '../judgeDay';
 
+describe('judge day with no judge (MYK9-1853)', () => {
+  it('never groups null, blank and legacy TBD classes into one judge day', () => {
+    for (const judgeName of [null, '', 'TBD']) {
+      const a = judgeDayKey({ id: 'a', judgeName, trialDate: '2026-10-10' });
+      const b = judgeDayKey({ id: 'b', judgeName, trialDate: '2026-10-10' });
+      expect(a).toBe('class:a');
+      expect(b).toBe('class:b');
+    }
+    expect(judgeDayKey({ id: 'a', judgeName: 'Jane', trialDate: '2026-10-10' })).toBe(
+      'name:jane|2026-10-10'
+    );
+  });
+
+  it("never carries a legacy TBD as the day's judge name", () => {
+    const [day] = groupClassesByJudgeDay([{ id: 'a', judgeName: 'TBD', trialDate: '2026-10-10' }]);
+    expect(day?.[1].judgeName).toBeUndefined();
+  });
+});
+
 describe("judge's day grouping (MYK9-1030)", () => {
   it('keys on the judge and the date, never the trial', () => {
     expect(judgeDayKey({ id: 'c1', judgeId: 'jane', trialDate: '2026-10-10' })).toBe(

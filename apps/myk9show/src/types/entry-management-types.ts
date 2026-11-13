@@ -182,6 +182,31 @@ export interface CheckInDialogState {
   classEntry: EntryClass | null;
 }
 
+/** Extras a caller can hang on a single entry-status change. */
+export interface StatusChangeOptions {
+  /**
+   * Called with the live entry once the change can no longer be undone from its toast and
+   * the entry still has that status. Never called for a change that shows no Undo.
+   */
+  onStood?: (entry: EntryManagementEntry) => void;
+}
+
+/** Extras a caller can hang on a bulk entry-status change. */
+export interface BulkStatusChangeOptions {
+  /**
+   * Called once with the entries whose change can no longer be undone from the bulk toast and
+   * that still have that status (as decided, armband included). Never called after Undo.
+   */
+  onStood?: (entries: EntryManagementEntry[]) => void;
+}
+
+export type BulkStatusChangeHandler = (
+  entryIds: string[],
+  status: EntryStatus,
+  onFullSuccess?: () => void,
+  options?: BulkStatusChangeOptions
+) => Promise<boolean>;
+
 export interface ArmbandDialogState {
   open: boolean;
   entry: EntryManagementEntry | null;

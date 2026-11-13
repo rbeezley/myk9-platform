@@ -7,6 +7,7 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { vi, describe, it, expect } from 'vitest';
 import CartPage from '@/pages/CartPage';
+import { CART_ERROR } from '@/pages/cartErrorCopy';
 
 const { cartState } = vi.hoisted(() => ({
   cartState: {
@@ -67,6 +68,22 @@ describe('CartPage when the re-check emptied the cart', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(
         'We could not check the entries in your payment link. Please reload the page to try again.'
       );
+    } finally {
+      Object.assign(cartState, saved);
+    }
+  });
+
+  // MYK9-1823: the store keeps raw failure text on `error` for its logs; the page
+  // shows the fixed sentence instead.
+  it('shows the fixed sentence, not the raw text, for an error the store did not word', () => {
+    const raw = 'duplicate key value violates unique constraint "entry_cart_items_pkey"';
+    const saved = { error: cartState.error };
+    cartState.error = raw;
+    try {
+      render(<CartPage />);
+
+      expect(screen.getByText(CART_ERROR.unknown)).toBeInTheDocument();
+      expect(screen.queryByText(raw)).not.toBeInTheDocument();
     } finally {
       Object.assign(cartState, saved);
     }

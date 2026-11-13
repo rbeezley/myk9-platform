@@ -7,9 +7,9 @@ export function PrintStatusUnavailable({ onRetry }: { onRetry: () => void }) {
       role="status"
       className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm"
     >
-      <span>Print status unknown. You can still print; Retry checks again.</span>
+      <span>Print status unknown. You can still print, or use Try again to check once more.</span>
       <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={onRetry}>
-        Retry
+        Try again
       </Button>
     </div>
   );

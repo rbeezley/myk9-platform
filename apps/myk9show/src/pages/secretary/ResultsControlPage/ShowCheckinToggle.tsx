@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { useUpdateShowCheckin } from '@/hooks/mutations/useShowSettingsMutations';
 import { useConnectionHint } from '@/hooks/useConnectionHint';
 import { toast } from 'sonner';
+import { RESULTS_CONTROL_COPY } from './resultsControlErrorCopy';
 
 interface ShowCheckinToggleProps {
   showId: string;
@@ -23,7 +24,7 @@ export function ShowCheckinToggle({ showId, enabled }: ShowCheckinToggleProps) {
       { showId, enabled: next },
       {
         onSuccess: () => toast.success(`Self check-in ${next ? 'enabled' : 'disabled'} for show`),
-        onError: () => toast.error('Failed to update check-in setting'),
+        onError: () => toast.error(RESULTS_CONTROL_COPY.checkinFailed),
       }
     );
   }

@@ -1,116 +1,29 @@
-import { useState, type ReactNode } from 'react';
-import {
-  ArrowRight,
-  CheckCircle2,
-  ChevronDown,
-  CircleHelp,
-  Clock3,
-  Printer,
-  RefreshCw,
-} from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { ArrowRight, ChevronDown, Printer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { getCockpitResultsControlHref, getShowHomeHref } from './cockpitRoutes';
+import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
+import {
+  getCockpitPaperScoringHref,
+  getCockpitResultsControlHref,
+  getShowHomeHref,
+} from './cockpitRoutes';
+import { ClassActualStartEditor } from './ClassActualStartEditor';
+import { ClassStepBar } from './ClassStepBar';
+import { resolveClassStepAction } from './classStepActions';
+import {
+  BUNDLED_DOCUMENTS,
+  buildClassSteps,
+  PRINT_BUNDLE_ID,
+  type ClassStep,
+} from './classStepBarModel';
 import { ClassPrintPanel } from './ClassPrintPanel';
 import { CockpitPaperworkRow } from './CockpitPaperworkRow';
-import {
-  buildClassChecklist,
-  summarizeClassChecklist,
-  type ClassChecklistItem,
-  type ClassChecklistState,
-} from './classChecklist';
+import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
 import type { SecretaryCockpitClass, SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
-const STATE_TEXT: Record<ClassChecklistState, string> = {
-  done: 'Done',
-  todo: 'Not done',
-  reprint: 'Needs reprint',
-  unknown: 'Unknown',
-};
-
-function StateIcon({ state }: { state: ClassChecklistState }) {
-  if (state === 'done') return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />;
-  if (state === 'reprint') return <RefreshCw className="h-4 w-4 text-warning" aria-hidden="true" />;
-  if (state === 'unknown')
-    return <CircleHelp className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
-  return <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
-}
-
-function ChecklistStepRow({
-  item,
-  quiet,
-}: {
-  item: ClassChecklistItem;
-  /** Never used: "Not done" is dropped, because nothing here was ever chosen. */
-  quiet: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        'flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3',
-        item.state === 'done' && 'border-success/30 bg-success/10'
-      )}
-    >
-      <div className="flex items-center gap-2 font-medium">
-        <StateIcon state={item.state} />
-        {item.label}
-      </div>
-      {!(quiet && item.state === 'todo' && !item.detail) && (
-        <span className="text-xs text-muted-foreground">
-          {item.detail ?? STATE_TEXT[item.state]}
-        </span>
-      )}
-    </div>
-  );
-}
-
 const HEADING_CLASS = 'text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground';
-
-/**
- * The checklist's heading and count. Until the show uses the checklist (MYK9-1620) it sits
- * collapsed under a quiet "Class checklist" disclosure with no "0 of 7 done"; reachable, not nagging.
- */
-function ChecklistFrame({
-  summary,
-  collapsed,
-  children,
-}: {
-  summary: ReturnType<typeof summarizeClassChecklist>;
-  collapsed: boolean;
-  children: ReactNode;
-}) {
-  if (collapsed) {
-    return (
-      <details className="group" data-testid="class-checklist-disclosure">
-        <summary className={cn(HEADING_CLASS, 'flex min-h-11 cursor-pointer items-center')}>
-          Class checklist
-          {/* Turns with the disclosure, as the Needs attention strip's chevron does. */}
-          <ChevronDown
-            className="ml-2 h-4 w-4 -rotate-90 transition-transform group-open:rotate-0"
-            aria-hidden="true"
-          />
-        </summary>
-        {children}
-      </details>
-    );
-  }
-  return (
-    <section aria-labelledby="class-checklist-heading">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id="class-checklist-heading" className={HEADING_CLASS}>
-          Class checklist
-        </h3>
-        <span className="text-xs font-medium text-muted-foreground">
-          {summary.done} of {summary.total} done
-          {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
-        </span>
-      </div>
-      {children}
-    </section>
-  );
-}
 
 const NO_TICKS: ReadonlySet<string> = new Set();
 
@@ -121,7 +34,10 @@ export function ClassChecklistSection({
   timeZone,
   onCommand,
   printTrackingInUse,
-  checklistInUse,
+  canManageShow,
+  trialDate,
+  editingStart: controlledStart,
+  onEditingStartChange,
 }: {
   showId: string;
   sourceClass: SecretaryCockpitClass;
@@ -130,23 +46,36 @@ export function ClassChecklistSection({
   onCommand: (commandId: string) => void;
   /** From the cockpit snapshot (MYK9-1620). False drops "Not confirmed printed" on the rows. */
   printTrackingInUse: boolean;
-  /** From the cockpit snapshot (MYK9-1620). False collapses the checklist and drops its counts. */
-  checklistInUse: boolean;
+  /** Class started opens the actual-start editor only for someone who can manage the show. */
+  canManageShow: boolean;
+  /** The trial's date, which the actual-start editor reads a typed clock time against. */
+  trialDate: string;
+  /**
+   * The class whose actual-start editor is open. Held by the focused-class panel so the header's
+   * Actual timing field opens the same editor the Class started step does.
+   * Omit both and the section keeps the state itself.
+   */
+  editingStart?: string | null;
+  onEditingStartChange?: (classId: string | null) => void;
 }) {
-  // MYK9-1319: the after-scoring items are status only; a complete class has ONE handoff to Results.
+  const returnTo = getShowHomeHref({
+    showId,
+    state: { statuses: [], focusedClassId: sourceClass.id },
+  });
+  // MYK9-1319: a complete class has ONE handoff to Results; the Judge signature step links there too.
   const resultsHref = getCockpitResultsControlHref({
     showId,
     trialId: sourceClass.trialId,
     classId: sourceClass.id,
-    returnTo: getShowHomeHref({
-      showId,
-      state: { statuses: [], focusedClassId: sourceClass.id },
-    }),
+    returnTo,
   });
+  const scoringHref = getCockpitPaperScoringHref({ classId: sourceClass.id, returnTo });
+  const secretaryOnlyReason = useTrialSecretaryOnlyReason();
   const items = buildClassChecklist({ ...sourceClass, paperwork });
   const checklistIds = new Set<string>(items.map(item => item.id));
   const otherPaperwork = paperwork.filter(item => !checklistIds.has(item.reportId));
   const summary = summarizeClassChecklist(items);
+  const stepSheets = items.filter(item => item.paperwork);
   // Sheets ticked for one batch, and the sheets the open print panel is showing. Print on a row
   // previews just that sheet; "Print selected" previews every ticked sheet in one panel. Both
   // belong to the class they were made for: this section stays mounted while the focused class
@@ -167,9 +96,36 @@ export function ClassChecklistSection({
   const printIds = printFor?.classId === classId ? printFor.ids : null;
   const setPrintIds = (ids: readonly string[] | null) =>
     setPrintFor(ids === null ? null : { classId, ids });
-  const printable = [...items.map(item => item.paperwork), ...otherPaperwork].filter(
-    (item): item is SecretaryCockpitPaperwork => Boolean(item?.printHref)
-  );
+  // The print records are open when the Print paperwork card asked for them (or the user opened
+  // them); like the ticks, that belongs to one class and is spent on a class change.
+  const [recordsFor, setRecordsFor] = useState<{ classId: string; open: boolean }>({
+    classId,
+    open: false,
+  });
+  if (recordsFor.classId !== classId) setRecordsFor({ classId, open: false });
+  const recordsOpen = recordsFor.classId === classId && recordsFor.open;
+  const recordsRef = useRef<HTMLDetailsElement>(null);
+  const recordsSummaryRef = useRef<HTMLElement>(null);
+  const recordsId = useId();
+  // Each press of the card bumps the token; the effect runs after the open render, so the revealed
+  // rows are what gets scrolled into view, and a second press scrolls again.
+  const [recordsRequest, setRecordsRequest] = useState(0);
+  const showRecords = () => {
+    setRecordsFor({ classId, open: true });
+    setRecordsRequest(count => count + 1);
+  };
+  useEffect(() => {
+    if (recordsRequest === 0) return;
+    recordsRef.current?.scrollIntoView?.({ block: 'nearest' });
+    recordsSummaryRef.current?.focus();
+  }, [recordsRequest]);
+  const printable = paperwork.filter(item => Boolean(item.printHref));
+  const [localStart, setLocalStart] = useState<string | null>(null);
+  const editingStart = onEditingStartChange ? (controlledStart ?? null) : localStart;
+  const setEditingStart = onEditingStartChange ?? setLocalStart;
+  // Same reset as the ticks above: the editor must not reopen on returning to a class.
+  if (!onEditingStartChange && localStart !== null && localStart !== classId) setLocalStart(null);
+  const startStepRef = useRef<HTMLButtonElement>(null);
   const labelFor = new Map<string, string>(items.map(item => [item.id, item.label]));
   const panelItems = printable
     .filter(item => printIds?.includes(item.reportId))
@@ -190,65 +146,142 @@ export function ClassChecklistSection({
         }
       : {};
 
+  // The three documents usually printed together lead the section and sit side by side; the
+  // armband labels live outside the checklist and the two sheets inside it.
+  const bundledIds: readonly string[] = BUNDLED_DOCUMENTS.map(doc => doc.reportId);
+  const bundledRows = BUNDLED_DOCUMENTS.flatMap(doc => {
+    const other = otherPaperwork.find(item => item.reportId === doc.reportId);
+    if (other) return [{ key: other.reportId, item: other }];
+    const sheet = stepSheets.find(step => step.id === doc.reportId);
+    return sheet?.paperwork
+      ? [{ key: sheet.id, item: { ...sheet.paperwork, label: sheet.label } }]
+      : [];
+  });
+  const otherRest = otherPaperwork.filter(item => !bundledIds.includes(item.reportId));
+  const sheetRest = stepSheets.filter(step => !bundledIds.includes(step.id));
+  const renderRow = ({ key, item }: { key: string; item: SecretaryCockpitPaperwork }) => (
+    <CockpitPaperworkRow
+      key={key}
+      item={item}
+      timeZone={timeZone}
+      onCommand={onCommand}
+      printTrackingInUse={printTrackingInUse}
+      {...rowProps(item)}
+    />
+  );
+
+  const steps = buildClassSteps(items, paperwork);
+  const actionFor = (step: ClassStep) =>
+    step.id === PRINT_BUNDLE_ID
+      ? null
+      : resolveClassStepAction(
+          items.find(item => item.id === step.id)!,
+          {
+            paperwork,
+            canManageShow,
+            scoringHref,
+            resultsHref,
+            secretaryOnlyReason,
+          }
+        );
+
   return (
     <>
+      {items.length > 0 && (
+        <section aria-labelledby="class-checklist-heading">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 id="class-checklist-heading" className={HEADING_CLASS}>
+              Class checklist
+            </h3>
+            <span className="text-xs font-medium text-muted-foreground">
+              {summary.done} of {summary.total} done
+              {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
+            </span>
+          </div>
+          <ClassStepBar
+            steps={steps}
+            actionFor={actionFor}
+            onPrint={reportId => setPrintIds([reportId])}
+            onOpenRecords={showRecords}
+            recordsId={recordsId}
+            recordsOpen={recordsOpen}
+            onEditStart={() => setEditingStart(classId)}
+            editorTriggerRef={startStepRef}
+          />
+          {canManageShow && (
+            <ClassActualStartEditor
+              classId={classId}
+              className={sourceClass.name}
+              trialDate={trialDate}
+              timeZone={timeZone}
+              hasStart={Boolean(sourceClass.actualStart)}
+              open={editingStart === classId}
+              onOpenChange={next => {
+                setEditingStart(next ? classId : null);
+                // Closing (save, clear or cancel) hands the keyboard back to the step that opened it.
+                if (!next) startStepRef.current?.focus();
+              }}
+            />
+          )}
+        </section>
+      )}
       {tickedPrintable.length > 0 && (
         <Button
           type="button"
-          className="mt-2 min-h-11 w-full sm:w-auto"
+          className="min-h-11 w-full sm:w-auto"
           onClick={() => setPrintIds(tickedPrintable.map(item => item.reportId))}
         >
           <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
           {`Print selected (${tickedPrintable.length})`}
         </Button>
       )}
-      {/* Armband labels first: exhibitors need them before check-in (owner, MYK9-1233). */}
-      {otherPaperwork.length > 0 && (
-        <section>
-          <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Other paperwork
-          </h3>
+      {/* Armband labels first: exhibitors need them before check-in (owner, MYK9-1233). The
+          sheets behind the steps keep their print record here (Undo, history, tick to print
+          together), because the step bar only opens the preview. */}
+      {(otherPaperwork.length > 0 || stepSheets.length > 0) && (
+        <details
+          id={recordsId}
+          ref={recordsRef}
+          className="group"
+          open={recordsOpen}
+          onToggle={event => setRecordsFor({ classId, open: event.currentTarget.open })}
+        >
+          <summary
+            ref={recordsSummaryRef}
+            className={`${HEADING_CLASS} flex min-h-11 cursor-pointer items-center`}
+          >
+            {otherPaperwork.length === 0
+              ? 'Print records'
+              : stepSheets.length === 0
+                ? `Other paperwork (${otherPaperwork.length})`
+                : `Other paperwork and print records (${otherPaperwork.length + stepSheets.length})`}
+            <ChevronDown
+              className="ml-2 h-4 w-4 -rotate-90 transition-transform group-open:rotate-0"
+              aria-hidden="true"
+            />
+          </summary>
           <div className="mt-2 space-y-2">
-            {otherPaperwork.map(item => (
-              <CockpitPaperworkRow
-                key={item.reportId}
-                item={item}
-                timeZone={timeZone}
-                onCommand={onCommand}
-                printTrackingInUse={printTrackingInUse}
-                {...rowProps(item)}
-              />
-            ))}
+            {bundledRows.map(renderRow)}
+            {otherRest.map(item => renderRow({ key: item.reportId, item }))}
+            {otherRest.length > 0 && sheetRest.length > 0 && (
+              <p className="pt-1 text-xs font-medium text-muted-foreground">Print records</p>
+            )}
+            {sheetRest.map(item =>
+              renderRow({
+                key: item.id,
+                item: { ...item.paperwork!, label: item.label },
+              })
+            )}
           </div>
-        </section>
-      )}
-      {items.length > 0 && (
-        <ChecklistFrame summary={summary} collapsed={!checklistInUse}>
-          <ol className="mt-2 space-y-2">
-            {items.map(item => (
-              <li key={item.id}>
-                {item.paperwork ? (
-                  <CockpitPaperworkRow
-                    item={{ ...item.paperwork, label: item.label }}
-                    timeZone={timeZone}
-                    onCommand={onCommand}
-                    printTrackingInUse={printTrackingInUse}
-                    {...rowProps(item.paperwork)}
-                  />
-                ) : (
-                  <ChecklistStepRow item={item} quiet={!checklistInUse} />
-                )}
-              </li>
-            ))}
-          </ol>
-        </ChecklistFrame>
+        </details>
       )}
       {/* INTENT: starting and scoring end on Overview; check, release, print and initials
           happen on Results. This is the one handoff between them, offered once the class is
-          complete (MYK9-1319). It stays outside the checklist disclosure: a class that never
-          printed still has this handoff (MYK9-1620). */}
+          complete (MYK9-1319). The Judge signature step on the step bar also links to Results,
+          by owner decision (MYK9-1783). It is always shown (MYK9-1620's collapsed checklist is
+          gone from this view), so a class that never printed still has this handoff. */}
       {items.length > 0 && sourceClass.lifecycle === 'complete' && (
-        <Button asChild variant="outline" className="mt-2 min-h-11 gap-2">
+        <Button asChild variant="outline" className="min-h-11 gap-2">
           <Link to={resultsHref}>
             Continue on Results
             <ArrowRight className="h-4 w-4" aria-hidden="true" />

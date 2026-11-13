@@ -58,7 +58,7 @@ export function useUserFriendlyErrors() {
           action:
             showRecovery && structuredError.retryable
               ? {
-                  label: 'Retry',
+                  label: 'Try again',
                   onClick: () => {
                     window.location.reload();
                   },

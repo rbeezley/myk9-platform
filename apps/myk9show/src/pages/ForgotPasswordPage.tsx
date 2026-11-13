@@ -1,15 +1,24 @@
 import React, { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
+import { Link, useLocation } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { commonAuthFailure } from '@/lib/authErrorCopy';
 import {
   TurnstileChallenge,
   type TurnstileChallengeHandle,
 } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey, isCaptchaFailure } from '@/config/turnstile';
 
+/** The email the sign-in page carried over in router state, if it sent one. */
+function carriedEmail(state: unknown): string {
+  if (typeof state !== 'object' || state === null || !('email' in state)) return '';
+  return typeof state.email === 'string' ? state.email : '';
+}
+
 const ForgotPasswordPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const [email, setEmail] = useState(() => carriedEmail(location.state));
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -39,11 +48,8 @@ const ForgotPasswordPage: React.FC = () => {
       // Auth errors (user not found, etc.) — show success to prevent enumeration
       if (isCaptchaFailure(err)) {
         setError('Security verification expired. Please complete it again.');
-      } else if (
-        err instanceof Error &&
-        (err.name === 'FetchError' || err.message === 'Failed to fetch')
-      ) {
-        setError('Something went wrong. Please try again.');
+      } else if (isAuthRetryableFetchError(err)) {
+        setError(commonAuthFailure(err) ?? "We couldn't send the reset link. Try again.");
       } else {
         setSubmitted(true);
       }
@@ -68,7 +74,8 @@ const ForgotPasswordPage: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Check your email</h2>
           <p className="text-muted-foreground mb-6">
-            We sent a password reset link to your email address. The link will expire in 24 hours.
+            If an account exists for this email, check your inbox. If no link arrives, wait a minute
+            and try again. Reset links expire in 24 hours.
           </p>
           <Link to="/sign-in" className="text-primary hover:underline font-medium">
             &larr; Back to sign in

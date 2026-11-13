@@ -174,7 +174,7 @@ describe('ShowStatsSubTab', () => {
 
     expect(screen.getByText(/Judge filter unavailable, try again/)).toBeInTheDocument();
     expect(screen.getAllByText('Rex').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

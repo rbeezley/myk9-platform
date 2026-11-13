@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildShowMapTree,
-  getDefaultExpandedNodeIds,
-  getTrialsExpandedNodeIds,
-} from '../showMapTree';
+import { buildShowMapTree } from '../showMapTree';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowMapClassInput } from '../showMapTypes';
@@ -103,6 +99,7 @@ describe('buildShowMapTree', () => {
     expect(tree.nodesById['entry:entry-1']?.label).toBe('#12 Bella');
     expect(tree.nodesById['entry:entry-1']?.entryDisplay).toEqual({
       entryStatus: 'accepted',
+      checkInStatus: 'checked-in',
       armband: '12',
       dogName: 'Bella',
       dogId: 'dog-1',
@@ -401,17 +398,7 @@ describe('buildShowMapTree', () => {
     expect(tree.childIdsByParentId[tree.root.id]).toEqual([]);
   });
 
-  it('defaults expansion to the root so trial rows render but class rows stay hidden', () => {
-    const tree = buildShowMapTree({ show, trials: [trial], classes, entries: [] });
-    expect(getDefaultExpandedNodeIds(tree)).toEqual(new Set([tree.root.id]));
-  });
-
-  it('exposes a "trials expanded" helper for the toolbar action', () => {
-    const tree = buildShowMapTree({ show, trials: [trial], classes, entries: [] });
-    expect(getTrialsExpandedNodeIds(tree)).toEqual(new Set([tree.root.id, 'trial:trial-1']));
-  });
-
-  it('does not expand the All Exhibitors branch from the "trials expanded" helper', () => {
+  it('does not expand the All Exhibitors branch under the trial rows', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -430,26 +417,6 @@ describe('buildShowMapTree', () => {
       'all-exhibitors:show-1',
       'trial:trial-1',
     ]);
-    expect(getTrialsExpandedNodeIds(tree)).toEqual(new Set([tree.root.id, 'trial:trial-1']));
-  });
-
-  it('keeps dog branch collapsed by default and out of expand-trials', () => {
-    const tree = buildShowMapTree({
-      show,
-      trials: [trial],
-      classes,
-      entries: [
-        {
-          id: 'entry-1',
-          class_id: 'class-1',
-          dog_id: 'dog-1',
-          dog: { id: 'dog-1', call_name: 'Bella' },
-        },
-      ],
-    });
-
-    expect(getDefaultExpandedNodeIds(tree)).toEqual(new Set([tree.root.id]));
-    expect(getTrialsExpandedNodeIds(tree)).toEqual(new Set([tree.root.id, 'trial:trial-1']));
   });
 
   it('adds a deterministic marker when entries are capped', () => {

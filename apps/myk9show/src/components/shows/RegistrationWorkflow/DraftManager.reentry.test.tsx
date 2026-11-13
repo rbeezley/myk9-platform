@@ -165,7 +165,7 @@ describe('DraftManager reentry', () => {
         onRetryDogs={onRetryDogs}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Retry loading dogs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try loading dogs again' }));
     expect(onRetryDogs).toHaveBeenCalledOnce();
 
     rerender(
@@ -179,7 +179,7 @@ describe('DraftManager reentry', () => {
         onRetryDogs={onRetryDogs}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Retry loading dogs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try loading dogs again' }));
     expect(onRetryDogs).toHaveBeenCalledTimes(2);
   });
 
@@ -187,7 +187,9 @@ describe('DraftManager reentry', () => {
     const onRetryDogs = vi.fn();
     renderManager({ dogsReady: false, identityPending: true, onRetryDogs });
 
-    expect(screen.queryByRole('button', { name: 'Retry loading dogs' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Try loading dogs again' })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Resume entry' })).toBeDisabled();
     expect(screen.getByText(/waiting for your account to finish loading/i)).toBeInTheDocument();
     expect(onRetryDogs).not.toHaveBeenCalled();

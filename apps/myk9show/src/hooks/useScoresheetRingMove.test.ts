@@ -9,7 +9,7 @@ vi.mock('@/utils/checkInTransitions', () => ({
 }));
 
 const move = { entryId: 'e1', previousStatus: 'checked-in' };
-const entry = { id: 'e1', checkInStatus: 'checked-in' as const };
+const entryId = 'e1';
 
 // MYK9-1762: shared by the ringside and secretary scoresheets.
 describe('useScoresheetRingMove', () => {
@@ -18,13 +18,27 @@ describe('useScoresheetRingMove', () => {
     vi.mocked(restoreFromInRing).mockClear();
   });
 
+  it('does not mark a dog in-ring on open or leave without an explicit start', () => {
+    vi.mocked(transitionToInRing).mockReturnValue(move as never);
+    const { result, unmount } = renderHook(() => useScoresheetRingMove('e1'));
+
+    result.current.opened(entryId);
+    unmount();
+
+    expect(transitionToInRing).not.toHaveBeenCalled();
+    expect(restoreFromInRing).not.toHaveBeenCalled();
+  });
+
   it('puts the dog back when the sheet is left without a score', () => {
     vi.mocked(transitionToInRing).mockReturnValue(move as never);
     const { result, unmount } = renderHook(() => useScoresheetRingMove('e1'));
 
-    result.current.opened(entry);
+    result.current.opened(entryId);
+    result.current.start();
+    result.current.start();
     unmount();
 
+    expect(transitionToInRing).toHaveBeenCalledExactlyOnceWith(entryId);
     expect(restoreFromInRing).toHaveBeenCalledExactlyOnceWith(move);
   });
 
@@ -34,7 +48,8 @@ describe('useScoresheetRingMove', () => {
       initialProps: { id: 'e1' },
     });
 
-    result.current.opened(entry);
+    result.current.opened(entryId);
+    result.current.start();
     rerender({ id: 'e2' });
 
     expect(restoreFromInRing).toHaveBeenCalledExactlyOnceWith(move);
@@ -44,7 +59,8 @@ describe('useScoresheetRingMove', () => {
     vi.mocked(transitionToInRing).mockReturnValue(move as never);
     const { result, unmount } = renderHook(() => useScoresheetRingMove('e1'));
 
-    result.current.opened(entry);
+    result.current.opened(entryId);
+    result.current.start();
     result.current.scored();
     unmount();
 
@@ -54,10 +70,11 @@ describe('useScoresheetRingMove', () => {
   it('does not move a dog whose sheet was already left (a slow load finishing late)', () => {
     vi.mocked(transitionToInRing).mockReturnValue(move as never);
     const { result, unmount } = renderHook(() => useScoresheetRingMove('e1'));
-    const { opened } = result.current;
+    const { opened, start } = result.current;
 
     unmount();
-    opened(entry);
+    opened(entryId);
+    start();
 
     expect(transitionToInRing).not.toHaveBeenCalled();
     expect(restoreFromInRing).not.toHaveBeenCalled();
@@ -70,18 +87,9 @@ describe('useScoresheetRingMove', () => {
     });
 
     rerender({ id: 'e2' });
-    result.current.opened(entry);
+    result.current.opened(entryId);
+    result.current.start();
 
     expect(transitionToInRing).not.toHaveBeenCalled();
-  });
-
-  it('does nothing when opening moved nothing (Resume)', () => {
-    vi.mocked(transitionToInRing).mockReturnValue(null);
-    const { result, unmount } = renderHook(() => useScoresheetRingMove('e1'));
-
-    result.current.opened(entry);
-    unmount();
-
-    expect(restoreFromInRing).not.toHaveBeenCalled();
   });
 });

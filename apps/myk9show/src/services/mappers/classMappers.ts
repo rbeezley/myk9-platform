@@ -261,7 +261,7 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     is_scoring_finalized: dbClass.is_scoring_finalized ?? null,
     scored_count: dbClass.scored_count ?? null,
     reopened_after_closeout_at: dbClass.reopened_after_closeout_at ?? null,
-    judge: assignmentJudgeName || 'TBD',
+    judge: assignmentJudgeName || '',
     judgeId: firstJudge?.person_id || '',
 
     // Class details

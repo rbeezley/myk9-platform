@@ -41,7 +41,7 @@ const TRIAL: SecretaryCockpitTrial = {
   order: 0,
 };
 
-/** Two entries minimum: ShowMapRunOrderMenu hides itself below 2 (sorting one is a no-op). */
+/** Two entries minimum: the Actions menu hides Run order below 2 (sorting one is a no-op). */
 const ENTRY_ROWS = [
   { nodeId: 'entry:e1', label: '#101 Ranger', actions: [] },
   { nodeId: 'entry:e2', label: '#102 Juni', actions: [] },
@@ -57,22 +57,18 @@ const FOCUSED: FocusedClassModel = {
   startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 2 } },
-  operationalArea: { evidence: 'unknown', value: null },
   judgeName: null,
   attentionCount: 0,
   closeout: 'none',
-  primaryAction: null,
-  checklist: null,
+  statusLine: { text: 'Not started', parts: ['Not started'] },
   printTrackingInUse: true,
-  checklistInUse: true,
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [],
-  primaryActions: [],
-  prepareActions: [],
-  finishActions: [],
   classWorkActions: [],
   entryRows: ENTRY_ROWS,
+  entries: [],
+  entriesHidden: 0,
 };
 
 const SOURCE_CLASS = {
@@ -116,17 +112,30 @@ function renderPanel(overrides: Record<string, unknown> = {}) {
   return { onAutoSort };
 }
 
-describe('run order is reachable from the focused-class panel', () => {
-  it('offers the run-order menu beside the entries', async () => {
+const actionsButton = () => screen.getByRole('button', { name: /^Actions for/ });
+
+async function openRunOrderPresets(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(actionsButton());
+  await user.click(await screen.findByRole('menuitem', { name: 'Auto-sort run order' }));
+}
+
+describe('run order is reachable from the Actions menu (MYK9-1796)', () => {
+  it('offers auto-sort (and no Place by hand item) beside the other class actions', async () => {
     renderPanel();
-    expect(screen.getByRole('button', { name: /run order/i })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(actionsButton());
+    expect(
+      await screen.findByRole('menuitem', { name: 'Auto-sort run order' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Place by hand' })).toBeNull();
   });
 
   it('fires the auto-sort mutation with the focused class', async () => {
     const { onAutoSort } = renderPanel();
-    const user = userEvent.setup();
+    // A submenu parks pointer-events: none on its parent while open, which user-event would refuse.
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-    await user.click(screen.getByRole('button', { name: /run order/i }));
+    await openRunOrderPresets(user);
     await user.click(await screen.findByRole('menuitem', { name: /Armband ↑/ }));
 
     // A menu that renders but fires nothing would still pass a render-only assertion.
@@ -135,38 +144,35 @@ describe('run order is reachable from the focused-class panel', () => {
     );
   });
 
-  it.each([0, 1])(
-    'hides the empty Run order label for a class with %i entries (MYK9-1727)',
-    count => {
-      renderPanel({
-        sourceClass: { ...SOURCE_CLASS, entryCount: count },
-        focused: { ...FOCUSED, entryRows: [] },
-      });
-      expect(screen.queryByText('Run order')).toBeNull();
-    }
-  );
-
-  it('keeps the Run order label for a class with 2 entries (positive control)', () => {
-    renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 2 } });
-    expect(screen.getAllByText('Run order').length).toBeGreaterThan(0);
+  it.each([0, 1])('omits the run-order items for a class with %i entries', async count => {
+    renderPanel({
+      sourceClass: { ...SOURCE_CLASS, entryCount: count },
+      focused: { ...FOCUSED, entryRows: [] },
+    });
+    const user = userEvent.setup();
+    await user.click(actionsButton());
+    // Positive control: the menu opened and holds its other items.
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
   });
 
   it('is absent for a non-manager, like the entry actions beside it', () => {
     renderPanel({ canManageShow: false });
-    expect(screen.queryByRole('button', { name: /run order/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Actions for/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
   });
 
-  it('is absent when no run-order controls are supplied', () => {
+  it('is absent when no run-order controls are supplied', async () => {
     renderPanel({ runOrder: undefined });
-    expect(screen.queryByRole('button', { name: /run order/i })).toBeNull();
+    const user = userEvent.setup();
+    await user.click(actionsButton());
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
   });
 
-  it('renders for a class with entries but NO stranded actions', () => {
-    // The regression this guards: the menu used to live inside the Entries section,
-    // which is gated on `entryRows` -- filtered by STRANDED_ENTRY_ACTION_IDS. A class
-    // with entries to sort but no move-up actions would have had entries and no menu
-    // to sort them with. Auto-sort availability is unrelated to stranded actions.
-    const onAutoSort = vi.fn();
+  it('is offered for a class with entries but NO stranded actions', async () => {
+    // The menu used to live inside the Entries section, which is gated on `entryRows` --
+    // filtered by STRANDED_ENTRY_ACTION_IDS. Auto-sort availability is unrelated to them.
     render(
       <SecretaryCockpitFocusedClass
         showId="show-1"
@@ -177,24 +183,35 @@ describe('run order is reachable from the focused-class panel', () => {
         timeZone="America/Chicago"
         canManageShow
         onCommand={vi.fn()}
-        runOrder={controls(onAutoSort)}
+        runOrder={controls(vi.fn())}
       />
     );
+    const user = userEvent.setup();
+    await user.click(actionsButton());
 
-    expect(screen.getByRole('button', { name: /run order/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('menuitem', { name: 'Auto-sort run order' })
+    ).toBeInTheDocument();
     // ...and the entry-action list is correctly absent, since there are none.
     expect(screen.queryAllByRole('button', { name: /^Change class/i })).toHaveLength(0);
   });
 
-  it('counts pending dogs on the run list, not only the dogs left to score', () => {
-    // One accepted dog and two pending: the scoring count is 1, but Run order
-    // still sorts three rows, so the menu must stay.
+  it('counts pending dogs on the run list, not only the dogs left to score', async () => {
+    // One accepted dog and two pending: the scoring count is 1, but the run list
+    // still sorts three rows, so the items must stay.
     renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 1, runListCount: 3 } });
-    expect(screen.getByRole('button', { name: /run order/i })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(actionsButton());
+    expect(
+      await screen.findByRole('menuitem', { name: 'Auto-sort run order' })
+    ).toBeInTheDocument();
   });
 
-  it('hides Run order when the run list itself has fewer than two rows', () => {
+  it('omits the items when the run list itself has fewer than two rows', async () => {
     renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 1, runListCount: 1 } });
-    expect(screen.queryByRole('button', { name: /run order/i })).toBeNull();
+    const user = userEvent.setup();
+    await user.click(actionsButton());
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
   });
 });

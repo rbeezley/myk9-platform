@@ -417,6 +417,31 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     expect(screen.getByText(/Self check-in is off for this class/)).toBeInTheDocument();
   });
 
+  // MYK9-1847 (review P2): the page must carry the raw cancelled fact through to the row;
+  // the class list's class_status is ringside-mapped, where cancelled reads no-status.
+  it('offers no Check In and shows Cancelled for a dog in a cancelled class', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([
+      {
+        id: 'class-1',
+        element: 'Container',
+        level: 'Novice',
+        section: '-',
+        classStatus: 'cancelled',
+        classOrder: 1,
+        judgeName: 'Judge J',
+      },
+    ] as never);
+    seedOwnedEntry();
+
+    renderPage();
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Check in/ })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Cancelled').length).toBeGreaterThan(0);
+  });
+
   // MYK9-800 follow-up P1 (Codex): the batch cascade query errors (or the
   // device is offline) must never fall open. Red on 73dec6f89, where the
   // page defaulted a missing map entry to `true` (open).

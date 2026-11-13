@@ -47,12 +47,23 @@ export class CheckoutSessionError extends Error {
   readonly status: number | null;
   /** The server's machine-readable reason, when it sent one. */
   readonly code: string | null;
+  /**
+   * True only when `message` is the sentence stripe-checkout put in its JSON body.
+   * A transport or library message never sets it (MYK9-1823).
+   */
+  readonly fromServerBody: boolean;
 
-  constructor(message: string, status: number | null = null, code: string | null = null) {
+  constructor(
+    message: string,
+    status: number | null = null,
+    code: string | null = null,
+    fromServerBody = false
+  ) {
     super(message);
     this.name = 'CheckoutSessionError';
     this.status = status;
     this.code = code;
+    this.fromServerBody = fromServerBody;
   }
 }
 
@@ -196,7 +207,7 @@ export async function createEntryCheckoutSession(
       throw new CheckoutSessionError('Session expired. Please sign in again.', 401);
     }
     if (parsed.message) {
-      throw new CheckoutSessionError(parsed.message, parsed.status, parsed.code);
+      throw new CheckoutSessionError(parsed.message, parsed.status, parsed.code, true);
     }
     throw new CheckoutSessionError(
       error.message || 'Failed to create checkout session',

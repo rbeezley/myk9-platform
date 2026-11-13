@@ -77,7 +77,6 @@ function PaymentStepHarness(props: Omit<PaymentStepProps, 'paymentResolution'>) 
 
 const baseProps = {
   selectedDogs: [],
-  classSelections: [],
   paymentMethod: '' as const,
   onPaymentMethodChange: vi.fn(),
   showId: 'show-1',
@@ -168,7 +167,7 @@ describe('PaymentStep — entry agreement integration', () => {
 
   it('offers card payment only when the hosting club has a usable Stripe account', () => {
     render(<PaymentStepHarness {...baseProps} />);
-    expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+    expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
 
     vi.mocked(useClubStripePaymentReadiness).mockReturnValue({
       data: false,
@@ -191,7 +190,7 @@ describe('PaymentStep — entry agreement integration', () => {
 
     cleanup();
     render(<PaymentStepHarness {...baseProps} showId="show-no-stripe" />);
-    expect(screen.queryByText('Credit/Debit Card (Online Payment)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Credit/Debit Card')).not.toBeInTheDocument();
     expect(
       screen.getByText(/Online card payment isn't available for this club/)
     ).toBeInTheDocument();

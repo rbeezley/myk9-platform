@@ -285,7 +285,7 @@ describe('ShowStatusPill', () => {
       // The client-side check above passed (payouts enabled here), but a
       // stale cache or race let the write reach enforce_show_publish_gate()
       // anyway. Its SQLSTATE (MK003) must map to the trigger's own friendly
-      // text, not the generic "Failed to update show status" fallback.
+      // text, not the generic "We couldn't change this show's status" fallback.
       mockAccount(true);
       mutateAsync.mockRejectedValueOnce({
         code: 'MK003',
@@ -336,7 +336,7 @@ describe('ShowStatusPill', () => {
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
 
-      expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.');
+      expect(toast.error).toHaveBeenCalledWith("We couldn't change this show's status. Try again.");
     });
 
     it('shows error toast when mutation fails', async () => {
@@ -345,7 +345,9 @@ describe('ShowStatusPill', () => {
       fireEvent.click(screen.getByRole('button', { name: /draft/i }));
       fireEvent.click(await screen.findByText('Publish Show'));
       await waitFor(() =>
-        expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.')
+        expect(toast.error).toHaveBeenCalledWith(
+          "We couldn't change this show's status. Try again."
+        )
       );
     });
   });
@@ -427,7 +429,9 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     await user.click(await screen.findByText(/publish show/i));
 
     expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith('Checking the club’s status — try again in a moment.');
+    expect(toast.info).toHaveBeenCalledWith(
+      'Still checking the club’s status. Try again in a moment.'
+    );
   });
 
   it('shows the exact error copy and refetches both queries when either query errors', async () => {
@@ -452,7 +456,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
 
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(
-      'Could not check the club’s status. Please try again.'
+      "We couldn't check the club's status, so the show was not published. Try again."
     );
     expect(refetchAccount).toHaveBeenCalled();
     expect(refetchAuth).toHaveBeenCalled();

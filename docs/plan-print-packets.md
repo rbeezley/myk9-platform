@@ -114,7 +114,39 @@ Scope choices in the sentence: one class, a trial, a day, one judge's classes, t
 
 The only disabled state is having nothing to print. "Only what changed" with no changes says so and offers "Print every dog instead".
 
-Not yet mocked: the print preview, one dog's label from its row, and the night-before checklist row.
+### The preview (owner approved the mock-up, 2026-11-13)
+
+The preview is the panel's second step. Its mock-up is also linked from MYK9-1924.
+
+- **"Change what's included"** goes back with every choice kept.
+- **A rail of packets** on the left, each with its sheet count. Picking one shows its pages in the order they print.
+- **Buttons:** "Print all N packets" (primary), "Print <judge>'s only", and "Save as PDF".
+- **After printing:** one line, for example "All 4 classes marked as printed with Trial 1", with Undo. This keeps what `ClassPrintPanel` does today: the record is written when the print dialog closes, and nobody is asked "did it print?". Save as PDF marks nothing as printed.
+
+### The judge's cover sheet (new page)
+
+- Judge, show, trial and date, registry.
+- A table of the judge's classes in schedule order: start time, number of dogs, max time, and a total.
+- What is in the packet and in what order: the check-in sheet ("Hand it to your gate steward"), then one scoresheet per dog in run order.
+- A line saying scores entered at the ring are the working copy and these sheets are the paper record.
+- On every page of a packet, a footer with the judge's name, when it was printed with "Later changes are in the app", and "Page n of N".
+
+### The results page a judge initials (new page)
+
+- One page per class: armband, dog, handler, result with any NQ reason, time, faults.
+- A score changed after the judge submitted it is highlighted, with a line beneath: "Changed after you submitted: time was 0:38.50, corrected by the secretary at 10:42 AM".
+- At the bottom: "I have compared this page with my scoresheets. Initials ___ Date ___".
+- Its cover says how many pages to initial, lists the classes with a tick box each, and cites AKC Chapter 4 §17.
+
+The existing Check-in Sheet and Score Sheet are not redesigned.
+
+Assumed in the mock-up and to confirm before building:
+
+- Ten armband labels per sheet, each with armband, call name, handler and the day. The real label stock and layout were not checked.
+- Max time belongs on the cover sheet.
+- The certification page a judge signs is the existing "AKC Trial Secretary Certification" report.
+
+Not yet mocked: one dog's label from its row, and the night-before checklist row.
 
 Defaults that read the current state:
 
@@ -159,7 +191,7 @@ One pull request per phase. A phase is not done until its tests pass.
 
 ### Phase 0: mock-up and open questions
 
-- Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). Still to mock: the preview, one dog's label, and the checklist row.
+- Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). The preview, the judge's cover sheet and the initials page were mocked and approved the same day (see "The preview"). Still to mock: one dog's label and the checklist row.
 - Answer the open questions below.
 - **Tests:** none; the output is the mock-up and recorded decisions.
 

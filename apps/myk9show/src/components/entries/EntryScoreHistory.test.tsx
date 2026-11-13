@@ -116,7 +116,7 @@ describe('EntryScoreHistory', () => {
 
     expect(screen.getByText('Jo Judge')).toBeInTheDocument();
     expect(
-      screen.getByText('Saved on device Nov 7, 10:42 AM EST · Reached server Nov 7, 11:05 AM EST')
+      screen.getByText('Saved on device Nov 7, 10:42 AM EST · Reached myK9Show Nov 7, 11:05 AM EST')
     ).toBeInTheDocument();
     expect(screen.getByText('Is scored: no → yes')).toBeInTheDocument();
     expect(screen.getByText('Search time seconds: empty → 74.5')).toBeInTheDocument();

@@ -15,7 +15,7 @@ describe('classifyMoveUpRpcError', () => {
   it('names the deploy window rather than blaming the data', () => {
     const error = classifyMoveUpRpcError({ code: 'PGRST202' }, 'fallback');
     expect(error.kind).toBe('not-deployed');
-    expect(error.message).toMatch(/not available on this server yet/i);
+    expect(error.message).toMatch(/not available in myK9Show yet/i);
     expect(error.message).toMatch(/nothing was changed/i);
   });
 
@@ -71,7 +71,7 @@ describe('getMoveUpErrorMessage', () => {
 
   it('shows the deploy-window notice, which only ever happens in production', () => {
     expect(getMoveUpErrorMessage(classifyMoveUpRpcError({ code: 'PGRST202' }, 'x'), 'y')).toMatch(
-      /not available on this server yet/i
+      /not available in myK9Show yet/i
     );
   });
 

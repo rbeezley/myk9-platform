@@ -49,7 +49,7 @@ describe('ScoresheetDemo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Excused' }));
     fireEvent.click(save());
     fireEvent.click(sw());
-    expect(screen.getByText('Syncing 2…')).toBeInTheDocument();
+    expect(screen.getByText('Sending 2…')).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(1000);
     });

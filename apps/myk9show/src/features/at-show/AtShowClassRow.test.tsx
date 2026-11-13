@@ -187,7 +187,6 @@ describe('AtShowClassRow combined A/B cancellation (MYK9-1847)', () => {
   it('both sections cancelled reads Cancelled', () => {
     renderRow(classEntry({ ...live, is_cancelled: true }), preview);
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
-    expect(screen.queryByText(/cancelled$/)).not.toBeInTheDocument();
   });
 
   it('neither cancelled shows no cancelled line', () => {

@@ -80,15 +80,15 @@ export type CancellationSource = Pick<ClassEntry, 'section' | 'is_cancelled'>;
 export interface MergedSectionCancellation {
   /** Both sections are cancelled: the pair reads Cancelled. */
   allCancelled: boolean;
-  /** The section letters that are cancelled. Exactly one means the pair is still running. */
+  /** The section letters that are cancelled. Exactly one means the pair is not combined. */
   cancelledSections: string[];
 }
 
 /**
- * The one decision of an A/B pair's cancellation (MYK9-1847), read by the combined card
- * (`withMergedSectionState`) and the entry-list header alike so they cannot disagree. The pair is
- * cancelled only when BOTH sections are; with one cancelled the other still runs, so the pair stays
- * live and the cancelled section is named instead.
+ * The one decision of an A/B pair's cancellation (MYK9-1847), read by the grouping
+ * (`groupSectionedClasses`), the combined card (`withMergedSectionState`) and the entry-list header,
+ * so they cannot disagree. The pair is cancelled only when BOTH sections are. With exactly one
+ * cancelled the pair is not combined: each section keeps its own card.
  */
 export function mergeSectionCancellation(
   a: CancellationSource,

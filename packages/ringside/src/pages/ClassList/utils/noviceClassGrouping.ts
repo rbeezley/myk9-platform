@@ -96,6 +96,7 @@ export function findPairedSectionedClass(
  * - UKC Nosework: ALL levels with section 'A' or 'B' are combined
  * - AKC (default): Only Novice level classes are combined
  * - Classes must match on `element`, `level` and judge (different judges stay separate)
+ * - A pair with exactly one section cancelled is not combined (MYK9-1847)
  * - Status, release, finalization and times reflect BOTH sections
  * - Combined entry uses section 'A' as primary ID
  * - Entry counts, completion counts, and dog arrays are merged

@@ -27,14 +27,19 @@ async function brandLinkColor(page: Page, rowState: ReturnType<Page['locator']>)
   }
   // A row with only the leave verb (no change/check-in): compare with the
   // brand token through a throwaway probe instead.
-  return page.evaluate(() => {
+  const { color, bodyColor } = await page.evaluate(() => {
     const probe = document.createElement('span');
     probe.className = 'text-primary';
     document.body.appendChild(probe);
-    const color = getComputedStyle(probe).color;
+    const probed = getComputedStyle(probe).color;
     probe.remove();
-    return color;
+    return { color: probed, bodyColor: getComputedStyle(document.body).color };
   });
+  // A probe that only inherited the body colour proves nothing about the brand token.
+  expect(color, 'text-primary probe must resolve to the brand colour, not inherit').not.toBe(
+    bodyColor
+  );
+  return color;
 }
 
 for (const viewport of VIEWPORTS) {

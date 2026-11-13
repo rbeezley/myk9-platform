@@ -93,7 +93,9 @@ Exhibitors interact with the platform before and after show day. Every touchpoin
 | Viewing results     | "There it is"                | Results appear quickly, easy to find their dog, shareable          |
 | Managing their dogs | "Everything is in one place" | Dog profiles, entry history, title progress — no hunting           |
 
-**Anti-patterns to avoid:** Long registration forms. Requiring re-entry of information the system already knows. Burying results behind login walls. Making the user feel like they're doing data entry.
+**Anti-patterns to avoid:** Long registration forms. Requiring re-entry of information the system already knows. Making an exhibitor hunt for their own results. Making the user feel like they're doing data entry.
+
+**Results are private unless the exhibitor says otherwise** (owner, 2026-11-13; built in MYK9-969). An exhibitor always sees their own dogs' results. Anyone else, signed in or not, sees a result only when everyone on the entry (owner, co-owner, handler) has turned on "Show my results publicly" in their account and the club has not made the show private; otherwise they see "Private entry" in its place. "Easy to find" and "shareable" describe an exhibitor's own results and results they chose to make public. Never widen who can see a result to make a page simpler.
 
 ### Site Admin — _"The platform is healthy"_
 

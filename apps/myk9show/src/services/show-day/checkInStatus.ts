@@ -44,7 +44,7 @@ export async function updateSelfCheckInStatus(
 }
 
 /**
- * Show Day's "Pull / no-show" fast path. MYK9-918: it is the SAME mutation as
+ * Show Day's Pull fast path. MYK9-918: it is the SAME mutation as
  * Entry Management's Pull (`updateEntryStatus` → `buildReplicatedEntryStatusUpdate`),
  * so both write identical fields — `scratched`, `check_in_status='pulled'`, the
  * typed reason in `withdrawal_reason` (shown as "Pulled · <reason>"),

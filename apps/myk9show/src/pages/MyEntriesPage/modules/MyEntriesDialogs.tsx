@@ -139,7 +139,7 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
       {/* MYK9-535: no `asShowManager` — /my-entries IS the exhibitor surface, so
           the owner-tier withdraw guards must apply here.
           MYK9-631 Q4: `allowLeaveClass={false}` — the show card's class row
-          carries "Leave class…" now, one step from the card. Offering it here
+          carries "Pull or withdraw…" now, one step from the card. Offering it here
           too would be the same verb in two places, which is the duplication
           this issue is about. */}
       <EntryEditDialog

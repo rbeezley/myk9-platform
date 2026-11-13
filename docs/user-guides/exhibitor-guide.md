@@ -117,11 +117,13 @@ Your dog now appears in your list and is ready to enter shows. The confirmation 
 9. After payment, you're returned to myK9Show with **Entry Submitted Successfully!** and your confirmation number.
 10. Your entry starts as **Pending review** — it moves to **Accepted** once the secretary reviews it.
 
-**Entered the wrong class?** Leaving a class and entering another are separate steps. On **My Shows**, use **Leave class…** on the class row (Section 9), then **Actions → Add Entry** for the show to pick the right class. **Actions → Change handler or jump height** edits only those two things. If the entry deadline has passed, use **Message the show team** (also under **Actions**) to contact the secretary.
+**Entered the wrong class?** Leaving a class and entering another are separate steps. On **My Shows**, use **Pull or withdraw…** on the class row (Section 9), then **Actions → Add Entry** for the show to pick the right class. **Actions → Change handler or jump height** edits only those two things. If the entry deadline has passed, use **Message the show team** (also under **Actions**) to contact the secretary.
 
 ### Waitlists are free
 
 If a class is full and the show allows a waitlist, you can join it at no cost. You're never charged just for joining a waitlist. If a spot opens, you'll get an email and a push notification, and you pay only if you decide to claim the spot, before the deadline shown in the message. If you don't claim it, nothing is charged and the offer moves to the next dog.
+
+To leave a waitlist, open **My Shows**, find the dog under **My Waitlist Positions**, tap **Leave waitlist**, then confirm it in the dialog.
 
 ---
 
@@ -225,12 +227,14 @@ A result you have not opened yet shows a **New result** button. Tap it to reveal
 
 Leaving a class is one of two different acts, and the app records which one you chose:
 
-- **Withdraw** — only for a reason the show's rulebook recognises (for AKC and UKC: your dog is in season, or the judge changed). The show secretary confirms any refund under the premium's rules.
-- **Pull** — any other reason: you have decided not to run. Refunds for a pull are at the club's discretion.
+- **Withdraw.** For a reason this show's registry recognises (dog in season or judge change). Refund per the premium's rules; the show secretary confirms it.
+- **Pull.** The dog will not run, for any other reason. Refunds for a pull are at the club's discretion.
+
+The reasons a show accepts depend on its registry: AKC and UKC accept both; ASCA accepts judge change only.
 
 To leave a class:
 
-1. On **My Shows**, find the class on your dog's card and tap **Leave class…**.
+1. On **My Shows**, find the class on your dog's card and tap **Pull or withdraw…**.
 2. Choose **Withdraw** (and pick the reason) or **Pull**.
 3. Confirm with **Withdraw entry** or **Pull entry**. **Keep my entry** closes without changing anything.
 

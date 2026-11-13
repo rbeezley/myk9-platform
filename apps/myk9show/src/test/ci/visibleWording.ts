@@ -83,13 +83,17 @@ const OFFLINE_EXEMPT_PATHS = [
 /**
  * Visible text that keeps an offline word on purpose. Each entry says why; keep this short.
  */
+/** Allowed only in the file that owns it, so the same words elsewhere are still caught. */
+const DEV_MENU_FILE = 'components/layout/AccountMenuContent.tsx';
+const OFFLINE_ALLOWED_IN_FILE = new Map<string, string>([
+  // The Developer submenu, shown only to a site admin in a development build.
+  ['Clear development cache and browser storage?', DEV_MENU_FILE],
+  ['Clear cache', DEV_MENU_FILE],
+  ['Clear Cache', DEV_MENU_FILE],
+  ['This preserves templates and UI preferences, then reloads the page.', DEV_MENU_FILE],
+  ['This will reload the page.', DEV_MENU_FILE],
+]);
 const OFFLINE_ALLOWED_TEXT = new Set([
-  // The Developer submenu in AccountMenuContent, shown only in development builds.
-  'Clear development cache and browser storage?',
-  'Clear cache',
-  'Clear Cache',
-  'This preserves templates and UI preferences, then reloads the page.',
-  'This will reload the page.',
   // A push alert queued on the server for sending, not a change held on this device.
   'Message posted and push alert queued',
   'Schedule announcement posted and push alert queued',
@@ -114,6 +118,7 @@ const isOfflineExempt = (file: string, trimmed: string) =>
   KEY_SHAPED.test(trimmed) ||
   trimmed.startsWith('[') ||
   OFFLINE_ALLOWED_TEXT.has(trimmed) ||
+  OFFLINE_ALLOWED_IN_FILE.get(trimmed) === file ||
   OFFLINE_EXEMPT_PATHS.some(p => file.startsWith(p));
 
 /** Walk-up skip folders: tests and dependencies never ship as visible text. */

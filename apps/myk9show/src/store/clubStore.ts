@@ -184,7 +184,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
         // Reload from local cache after sync
         await get().loadClubs();
       } else {
-        logger.error('Clubs could not be updated', 'clubs', { error: result.error });
+        logger.error('Sync failed', 'clubs', { error: result.error });
         set({ error: result.error || 'Clubs could not be updated' });
       }
     } catch (error) {

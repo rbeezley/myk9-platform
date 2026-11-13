@@ -35,7 +35,7 @@ describe('checkoutErrorMessage (MYK9-1823)', () => {
       'a transport message on a worded status',
       new CheckoutSessionError('Edge Function returned a non-2xx status code', 409),
     ],
-    ['a plain Error', new Error('No checkout URL returned from server')],
+    ['a plain Error', new Error('No checkout URL returned')],
     ['a thrown string', 'boom'],
   ])('falls back to the fixed sentence for %s', (_label, err) => {
     expect(checkoutErrorMessage(err)).toBe(CART_ERROR.checkoutFailed);
@@ -50,7 +50,7 @@ describe('checkoutErrorMessage (MYK9-1823)', () => {
   it('logs the raw failure when reporting it', () => {
     const spy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     try {
-      const raw = new Error('No checkout URL returned from server');
+      const raw = new Error('No checkout URL returned');
       expect(reportCheckoutFailure(raw, 'cart-1')).toBe(CART_ERROR.checkoutFailed);
       expect(spy).toHaveBeenCalledWith(
         'Checkout did not start',

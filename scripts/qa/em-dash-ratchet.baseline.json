@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-13T18:16:14.079Z",
-  "total": 402,
+  "updatedAt": "2026-11-13T19:16:42.331Z",
+  "total": 401,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -44,7 +44,6 @@
     "apps/myk9show/src/components/panels/edit/ShowEditBasicInfoTab.tsx": 1,
     "apps/myk9show/src/components/panels/edit/ShowEditForm.tsx": 1,
     "apps/myk9show/src/components/panels/edit/ShowOfficialsEditor.tsx": 1,
-    "apps/myk9show/src/components/preferences/InstallAppSettings.tsx": 1,
     "apps/myk9show/src/components/preferences/ThemeSelector.tsx": 1,
     "apps/myk9show/src/components/reports/AKCJudgeReport.tsx": 1,
     "apps/myk9show/src/components/reports/AKCScentWorkEntryForm.tsx": 2,

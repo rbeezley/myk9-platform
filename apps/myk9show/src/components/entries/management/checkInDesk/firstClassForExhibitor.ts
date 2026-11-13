@@ -50,7 +50,7 @@ export function firstClassForExhibitor(
   );
 }
 
-/** "First class: Container Novice A · Trial 1 · 8:00 AM (Cooper)", or null when nothing is left. */
+/** "First class: Container Novice A · Ring 1 · 8:00 AM (Cooper)", or null when nothing is left. */
 export function firstClassLine(
   rows: readonly PeopleRosterClassRow[],
   dayClassIds: ReadonlySet<string>

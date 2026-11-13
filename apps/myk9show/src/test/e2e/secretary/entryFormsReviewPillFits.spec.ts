@@ -21,16 +21,49 @@ const ENTRIES = `/shows/${SHOW_ID}/entries`;
 // A cold dev server compiles the show page on first load.
 test.setTimeout(90_000);
 
+/**
+ * The seed has no form awaiting review, and this spec must never write to the shared database to
+ * make one. So the entries replica's two reads are passed through with one form's rows turned
+ * back to "pending": the server's real rows, one status changed, in the browser only (the method
+ * the landing prototype used, MYK9-1894). Both reads change the same form.
+ */
+async function stageOneFormNeedingReview(page: Page) {
+  let registrationId: string | null = null;
+  for (const table of ['entries', 'view_authenticated_entry_results_replication']) {
+    await page.route(`**/rest/v1/${table}{,?*}`, async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      const response = await route.fetch();
+      const rows = (await response.json()) as unknown;
+      if (Array.isArray(rows)) {
+        const candidates = (rows as Array<{ registration_id?: string; entry_status?: string }>)
+          .filter(row => row.entry_status === 'confirmed' && row.registration_id)
+          .map(row => row.registration_id as string)
+          .sort();
+        registrationId ??= candidates[0] ?? null;
+        for (const row of rows as Array<{ registration_id?: string; entry_status?: string }>) {
+          if (registrationId && row.registration_id === registrationId)
+            row.entry_status = 'pending';
+        }
+      }
+      await route.fulfill({ response, json: rows });
+    });
+  }
+}
+
 async function openEntryForms(page: Page, viewport: { width: number; height: number }) {
   // Default guard: strict mode would also refuse the secretary page's read RPCs.
   await installSharedStagingWriteGuard(page);
+  await stageOneFormNeedingReview(page);
   await page.setViewportSize(viewport);
   await signInAsSecretary(page, ENTRIES);
   await page.goto(ENTRIES);
   await expect(page.getByRole('list', { name: 'Entry form work queue' })).toBeVisible({
     timeout: 60_000,
   });
-  // Positive control: the seeded show has a form awaiting review, so the pill is on screen.
+  // Positive control: the staged form awaits review, so the pill is on screen.
   await expect(page.getByTestId('needs-review-marker').first()).toBeVisible({ timeout: 30_000 });
 }
 

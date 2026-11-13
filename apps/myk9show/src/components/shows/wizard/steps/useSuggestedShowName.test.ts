@@ -38,8 +38,18 @@ interface Props {
   name?: string;
 }
 
-function setup(initial: Props = {}, options: { strict?: boolean } = {}) {
+/** The wizard store's record of the name the hook wrote; it outlives a step remount. */
+function createOwnership() {
+  const owned = { value: null as string | null };
+  return { owned, setOwned: (value: string | null) => void (owned.value = value) };
+}
+
+function setup(
+  initial: Props = {},
+  options: { strict?: boolean; ownership?: ReturnType<typeof createOwnership> } = {}
+) {
   const setName = vi.fn<(name: string) => void>();
+  const ownership = options.ownership ?? createOwnership();
   const withDefaults = (props: Props) => ({
     enabled: props.enabled ?? true,
     draftGeneration: props.draftGeneration ?? 0,
@@ -47,12 +57,14 @@ function setup(initial: Props = {}, options: { strict?: boolean } = {}) {
     startDate: props.startDate ?? day(2026, 10, 10),
     name: props.name ?? '',
     setName,
+    suggestedName: ownership.owned.value,
+    setSuggestedName: ownership.setOwned,
   });
   const hook = renderHook((props: Props) => useSuggestedShowName(withDefaults(props)), {
     initialProps: initial,
     ...(options.strict ? { wrapper: StrictMode } : {}),
   });
-  return { setName, rerender: hook.rerender };
+  return { setName, rerender: hook.rerender, unmount: hook.unmount };
 }
 
 describe('useSuggestedShowName', () => {
@@ -75,11 +87,13 @@ describe('useSuggestedShowName', () => {
   });
 
   it('goes on following the dates after she leaves the step and comes back', () => {
-    const first = setup();
+    const ownership = createOwnership();
+    const first = setup({}, { ownership });
     first.rerender({ name: 'Heartland October 2026' });
+    first.unmount();
 
     // A new mount, as Next then Back gives: the name is still the suggestion for these dates.
-    const { setName, rerender } = setup({ name: 'Heartland October 2026' });
+    const { setName, rerender } = setup({ name: 'Heartland October 2026' }, { ownership });
     expect(setName).not.toHaveBeenCalled();
     rerender({ name: 'Heartland October 2026', startDate: day(2026, 11, 14) });
 
@@ -135,5 +149,55 @@ describe('useSuggestedShowName', () => {
     rerender({ draftGeneration: 1, name: '' });
 
     expect(setName).toHaveBeenCalledWith('Heartland October 2026');
+  });
+
+  it('does not rename a name she typed that equals the suggestion, after a look at Trials', () => {
+    const ownership = createOwnership();
+    // She typed the exact suggestion herself, before the hook wrote anything.
+    const first = setup({ clubName: undefined, name: 'Heartland October 2026' }, { ownership });
+    first.rerender({ name: 'Heartland October 2026' });
+    first.rerender({ name: 'Heartland October 2026', clubName: 'Heartland' });
+    first.unmount();
+
+    const { setName, rerender } = setup({ name: 'Heartland October 2026' }, { ownership });
+    rerender({ name: 'Heartland October 2026', startDate: day(2026, 11, 14) });
+
+    expect(setName).not.toHaveBeenCalled();
+  });
+
+  it('does not rename a draft resumed from this device whose name equals the suggestion', () => {
+    const { setName, rerender } = setup({ name: 'Heartland October 2026' });
+
+    rerender({ name: 'Heartland October 2026', startDate: day(2026, 11, 14) });
+
+    expect(setName).not.toHaveBeenCalled();
+  });
+
+  it('forgets the ownership when she edits its name, so a remount leaves her name alone', () => {
+    const ownership = createOwnership();
+    const first = setup({}, { ownership });
+    first.rerender({ name: 'Heartland October 2026' });
+    first.rerender({ name: 'Heartland October 2026!' });
+    first.rerender({ name: 'Heartland October 2026' });
+    first.unmount();
+
+    const { setName, rerender } = setup({ name: 'Heartland October 2026' }, { ownership });
+    rerender({ name: 'Heartland October 2026', startDate: day(2026, 11, 14) });
+
+    expect(setName).not.toHaveBeenCalled();
+  });
+
+  it('keeps following the dates when a clone is begun and cancelled over its own name', () => {
+    const ownership = createOwnership();
+    const { setName, rerender } = setup({}, { ownership });
+    rerender({ name: 'Heartland October 2026' });
+    setName.mockClear();
+
+    // beginCloneHydration bumps the generation and leaves the draft and the record alone.
+    rerender({ name: 'Heartland October 2026', draftGeneration: 1 });
+    rerender({ name: 'Heartland October 2026', draftGeneration: 2 });
+    rerender({ name: 'Heartland October 2026', draftGeneration: 2, startDate: day(2026, 11, 14) });
+
+    expect(setName).toHaveBeenCalledWith('Heartland November 2026');
   });
 });

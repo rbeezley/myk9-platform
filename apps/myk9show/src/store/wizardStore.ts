@@ -1,11 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_PREMIUM_STYLE, type PremiumStyle } from '@/types/premium-types';
-import {
-  getRegistrySportName,
-  listRegistries,
-  resolveBrowserTrialTimezone,
-} from '@/features/registries';
+import { resolveBrowserTrialTimezone } from '@/features/registries';
+import { defaultTrialType } from './wizardStore.trialType';
 import { stepTransitionPatch } from './wizardStore.stepTransition';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
 import { createWizardPersistStorage } from './wizardStorage';
@@ -16,32 +13,14 @@ import {
   type PersistedWizardDraft,
 } from './wizardStore.draft';
 
-/** Maps show organization to a default trial type (discipline); undefined for an unknown org. */
-function defaultTrialType(organization: string): string | undefined {
-  const id = organization.trim().toUpperCase();
-  return (listRegistries() as string[]).includes(id) ? getRegistrySportName(id) : undefined;
-}
+import type { CloneHydrationState, CloneHydrationSnapshot } from './wizardStore.cloneTypes';
 
+export type {
+  CloneHydrationState,
+  CloneHydrationSnapshot,
+  CloneHydrationStatus,
+} from './wizardStore.cloneTypes';
 export type ShowDraft = WizardState['show'];
-export type CloneHydrationStatus = 'idle' | 'hydrating' | 'ready' | 'failed';
-
-export interface CloneHydrationState {
-  status: CloneHydrationStatus;
-  sourceShowId: string | null;
-  sourceShowName: string | null;
-  /** What the clone applied, kept for the banner's summary. Set when status is 'ready'. */
-  snapshot?: CloneHydrationSnapshot | undefined;
-  failureReason?: 'load-failed' | undefined;
-}
-
-export interface CloneHydrationSnapshot {
-  sourceShowId: string;
-  sourceShowName: string;
-  show: Partial<WizardState['show']>;
-  judgeDetails: WizardState['judgeDetails'];
-  trials: Array<Omit<WizardState['trials'][number], 'id'>>;
-}
-
 export interface WizardState {
   currentStep: number;
   completedSteps: number[];
@@ -51,6 +30,8 @@ export interface WizardState {
   lastSaved: Date | null;
   cloneHydration: CloneHydrationState;
   cloneGeneration: number;
+  /** Name useSuggestedShowName wrote and she has not touched (MYK9-1832). Transient: a resumed draft's name is hers. */
+  suggestedShowName: string | null;
   /**
    * Edit mode only: the show-level judge ids the edit draft was BUILT from.
    * The save writes the difference between this and `show.judgeIds`
@@ -66,6 +47,8 @@ export interface WizardState {
   trialsMovedCount: number;
   /** The new-show draft set aside while Add trials / Add classes is open (wizardStore.draft). */
   parkedCreateDraft: PersistedWizardDraft | null;
+  /** `suggestedShowName` of the parked draft, kept off disk like the flag itself. */
+  parkedSuggestedShowName: string | null;
   /** The saved draft could not be read from this device (see wizardDraftRead). */
   draftReadFailed: boolean;
 
@@ -150,6 +133,7 @@ interface WizardActions {
 
   // Show data
   updateShowData: (data: Partial<WizardState['show']>) => void;
+  setSuggestedShowName: (name: string | null) => void;
 
   // Trial management
   addTrial: (trial: Omit<WizardState['trials'][0], 'id'>) => void;
@@ -184,6 +168,7 @@ function loadDraftPatch(state: WizardState, draft: Partial<WizardState>) {
     ...state,
     ...draft,
     cloneGeneration: state.cloneGeneration + 1,
+    suggestedShowName: null,
     cloneHydration: initialState.cloneHydration,
     trialsMovedCount: 0,
     isDirty: false,
@@ -198,9 +183,11 @@ const initialState: WizardState = {
   lastSaved: null,
   cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
   cloneGeneration: 0,
+  suggestedShowName: null,
   editBaselineJudgeIds: null,
   trialsMovedCount: 0,
   parkedCreateDraft: null,
+  parkedSuggestedShowName: null,
   draftReadFailed: false,
   show: {
     name: '',
@@ -279,6 +266,8 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           show: { ...state.show, ...data },
           isDirty: true,
         })),
+
+      setSuggestedShowName: name => set({ suggestedShowName: name }),
 
       // Trial management
       addTrial: trial =>
@@ -438,6 +427,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           ...initialState,
           draftReadFailed: state.draftReadFailed,
           parkedCreateDraft: state.parkedCreateDraft,
+          parkedSuggestedShowName: state.parkedSuggestedShowName,
           cloneGeneration: state.cloneGeneration + 1,
         })),
 
@@ -448,6 +438,9 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         set(state => ({
           ...loadDraftPatch(state, draft),
           parkedCreateDraft: state.parkedCreateDraft ?? pickPersistedDraft(state),
+          parkedSuggestedShowName: state.parkedCreateDraft
+            ? state.parkedSuggestedShowName
+            : state.suggestedShowName,
         })),
 
       endEditVisit: () =>
@@ -458,6 +451,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
                 ...state,
                 ...initialState,
                 ...state.parkedCreateDraft,
+                suggestedShowName: state.parkedSuggestedShowName,
                 draftReadFailed: state.draftReadFailed,
                 cloneGeneration: state.cloneGeneration + 1,
               })

@@ -23,6 +23,13 @@ interface SuggestedShowNameArgs {
   startDate: string;
   name: string;
   setName: (name: string) => void;
+  /**
+   * The name this hook last wrote and she has not touched since, kept where the draft lives so
+   * it outlives a remount of the step. Null once the name is hers. Not persisted: a draft
+   * resumed from disk is hers.
+   */
+  suggestedName: string | null;
+  setSuggestedName: (name: string | null) => void;
 }
 
 /**
@@ -40,8 +47,14 @@ export function useSuggestedShowName({
   startDate,
   name,
   setName,
+  suggestedName,
+  setSuggestedName,
 }: SuggestedShowNameArgs): void {
-  const lastWritten = useRef<string | null>(null);
+  // Back on this step after a look at Trials the refs are new, but the record is not: a name
+  // is ours only if we wrote it. Equality with the suggestion proves nothing, since she may
+  // have typed exactly that.
+  const ownedName = () => (name !== '' && name === suggestedName ? name : null);
+  const lastWritten = useRef<string | null>(ownedName());
   /** The name our last write replaced, until a render shows the write has landed. */
   const replaced = useRef<string | null>(null);
   const hers = useRef(false);
@@ -50,7 +63,8 @@ export function useSuggestedShowName({
   useEffect(() => {
     if (generation.current !== draftGeneration) {
       generation.current = draftGeneration;
-      lastWritten.current = null;
+      // A generation bump that keeps the draft (a clone begun, then cancelled) keeps its record.
+      lastWritten.current = ownedName();
       replaced.current = null;
       hers.current = false;
     }
@@ -62,17 +76,25 @@ export function useSuggestedShowName({
     }
 
     const suggestion = suggestShowName(clubName, startDate);
-    // Back on this step after a look at Trials: the refs are new, but a name that still
-    // matches the suggestion is ours, so it goes on following the dates.
-    if (lastWritten.current === null && name !== '' && name === suggestion) {
-      lastWritten.current = name;
-    }
     const untouchedBlank = lastWritten.current === null && name === '';
-    if (name !== lastWritten.current && !untouchedBlank) hers.current = true;
+    if (name !== lastWritten.current && !untouchedBlank && !hers.current) {
+      hers.current = true;
+      if (suggestedName !== null) setSuggestedName(null);
+    }
     if (hers.current || !enabled || !suggestion || suggestion === name) return;
 
     replaced.current = name;
     lastWritten.current = suggestion;
+    setSuggestedName(suggestion);
     setName(suggestion);
-  }, [enabled, draftGeneration, clubName, startDate, name, setName]);
+  }, [
+    enabled,
+    draftGeneration,
+    clubName,
+    startDate,
+    name,
+    setName,
+    suggestedName,
+    setSuggestedName,
+  ]);
 }

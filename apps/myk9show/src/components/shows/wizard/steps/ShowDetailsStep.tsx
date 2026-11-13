@@ -42,6 +42,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
     trials,
     cloneHydration,
     cloneGeneration,
+    suggestedShowName,
+    setSuggestedShowName,
     updateShowData,
     addJudgeToShow,
     removeJudgeFromShow,
@@ -52,6 +54,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
       trials: state.trials,
       cloneHydration: state.cloneHydration,
       cloneGeneration: state.cloneGeneration,
+      suggestedShowName: state.suggestedShowName,
+      setSuggestedShowName: state.setSuggestedShowName,
       updateShowData: state.updateShowData,
       addJudgeToShow: state.addJudgeToShow,
       removeJudgeFromShow: state.removeJudgeFromShow,
@@ -162,6 +166,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
     startDate: show.startDate,
     name: show.name,
     setName: setShowName,
+    suggestedName: suggestedShowName,
+    setSuggestedName: setSuggestedShowName,
   });
 
   // Derived data

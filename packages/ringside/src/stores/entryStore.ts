@@ -65,6 +65,12 @@ export interface Entry {
    * until the secretary adds the number. Absent means not held.
    */
   awaitingRegistrationNumber?: boolean;
+  /**
+   * The entry lifecycle (scratched, withdrawn, absent) says this dog will not run, whatever the
+   * check-in column holds (MYK9-1809). Only the secretary can bring the entry back, so no
+   * check-in status change helps. Absent means the host did not say, which reads as running.
+   */
+  notRunningByEntryStatus?: boolean;
   /** Scoring/ring timestamps used by the class-completion elapsed-time summary. */
   scoredAt?: string;
   ringEntryTime?: string;

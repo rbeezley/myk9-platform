@@ -71,6 +71,7 @@ import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
+import { useEntryStatusAccess } from './useEntryStatusAccess';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
 import {
@@ -274,6 +275,14 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     [showId, classIdA, classIdB]
   );
 
+  const { ownEntryIds } = useMyAtShowEntries(showId);
+  const { statusAccess, maySetEntryStatus } = useEntryStatusAccess({
+    role: ringsideRole,
+    ownEntryIds,
+    selfCheckinEnabled: classInfo?.selfCheckin ?? true,
+  });
+  const entriesIncomplete = showHydration === 'not-arrived';
+
   const baseHandlers = useAtShowEntryListHandlers({
     actions,
     replication,
@@ -286,6 +295,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     buildScoreSheetRoute,
     gateEntryClick,
     isClassCancelled,
+    maySetEntryStatus,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
@@ -398,14 +408,12 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     [baseHandlers, handleApplyRunOrder]
   );
 
-  // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────
-  // Combined A/B run together, so the queue is computed over the merged
-  // localEntries — exactly what the page renders.
-  const { ownEntryIds } = useMyAtShowEntries(showId);
+  // Ownership annotations: the queue is computed over the merged localEntries the page renders,
+  // with no place in line while the show's entries have not all arrived (MYK9-1809).
   const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels),
-    [localEntries, ownEntryIds, conflictLabels]
+    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels, !entriesIncomplete),
+    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete]
   );
 
   // ── Context ────────────────────────────────────────────────────────────
@@ -461,6 +469,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             role: ringsideRole,
             showContext: pageShowContext,
             hasPermission,
+            statusAccess,
+            entriesIncomplete,
             hideMaxTimeOption: !canManageClasses,
             // A combined A/B view has no single class to carry to the Settings links (the page's
             // dialog gets an empty class id), so it never offers Settings (MYK9-1627).

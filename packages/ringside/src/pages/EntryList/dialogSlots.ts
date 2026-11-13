@@ -305,6 +305,8 @@ export interface CheckinStatusDialogProps {
   showRingManagement?: boolean;
   /** The dog's current status, marked selected in the options. */
   currentStatus?: CheckInStatus | undefined;
+  /** The viewer writes through self check-in, so only the statuses it accepts are listed. */
+  selfCheckinOnly?: boolean;
 }
 
 /**

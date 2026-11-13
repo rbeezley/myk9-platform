@@ -35,6 +35,7 @@ import { persistRunOrderResults } from './persistRunOrderResults';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
 import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 import { useAtShowResetHandlers, type ResetConfirmState } from './useAtShowResetHandlers';
+import { SELF_CHECKIN_REFUSED_MESSAGE, isSelfCheckinRefusal } from './entryStatusAccess';
 
 export interface UseAtShowEntryListHandlersDeps {
   /** Mutation bag from `useAtShowEntryListActions`. */
@@ -63,6 +64,11 @@ export interface UseAtShowEntryListHandlersDeps {
    * status back restores them.
    */
   isClassCancelled?: (classId: string) => boolean;
+  /**
+   * MYK9-1807: whether this viewer may set `status` on this entry (entryStatusAccess.ts). A change
+   * it refuses is turned away with a message before anything is sent or shown. Omitted allows all.
+   */
+  maySetEntryStatus?: (entry: Entry, status: string) => boolean;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
   /** Manual refresh control: syncs and records the done/failed/offline answer (MYK9-1746). */
@@ -101,6 +107,7 @@ export function useAtShowEntryListHandlers(
     buildScoreSheetRoute,
     gateEntryClick,
     isClassCancelled = NEVER_CANCELLED,
+    maySetEntryStatus,
     refresh,
     manualRefresh,
     setActiveStatusPopup,
@@ -245,6 +252,10 @@ export function useAtShowEntryListHandlers(
       }
 
       const previous = entriesRef.current.find(entry => entry.id === entryId);
+      if (previous && maySetEntryStatus && !maySetEntryStatus(previous, status)) {
+        toast.error(SELF_CHECKIN_REFUSED_MESSAGE);
+        return;
+      }
       setLocalEntries(prev =>
         prev.map(entry =>
           entry.id === entryId
@@ -284,10 +295,13 @@ export function useAtShowEntryListHandlers(
         // Showing a status the server rejected is worse than showing none: the
         // gate would be worked from a check-in that does not exist.
         rollback();
+        // The server turned the change away (not their dog, or check-in went off meanwhile): say
+        // so in plain words. The writer already kept it off the "could not be sent" pill.
+        if (isSelfCheckinRefusal(error)) toast.error(SELF_CHECKIN_REFUSED_MESSAGE);
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, isEntryCancelled, setActiveStatusPopup, setLocalEntries]
+    [actions, isEntryCancelled, maySetEntryStatus, setActiveStatusPopup, setLocalEntries]
   );
 
   useEffect(() => {

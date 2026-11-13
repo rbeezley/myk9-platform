@@ -163,6 +163,8 @@ export type {
   EntryListDerived,
   EntryListDrag,
   EntryListLayoutSlots,
+  EntryListStatusAccess,
+  EntryStatusControl,
   // Per-primitive Props interfaces (PR E2d-2a)
   CompactOfflineIndicatorProps,
   SyncIndicatorProps,

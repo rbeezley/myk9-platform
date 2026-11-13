@@ -87,6 +87,8 @@ export interface EntryListDialogsProps {
 
   // Permission predicate over narrow EntryList union.
   hasPermission: (permission: EntryListPermission) => boolean;
+  /** The viewer checks in through self check-in, so the picker lists only what it accepts (MYK9-1807). */
+  selfCheckinOnly?: boolean;
 
   /**
    * True when the user cannot modify the class-level "max time"
@@ -180,6 +182,12 @@ export interface EntryListDialogsProps {
   AreaCountSelectionDialog?: ComponentType<AreaCountSelectionDialogProps>;
 }
 
+/** The status the card shows (in-ring and not-running included), so "Current" matches the row (MYK9-1809). */
+function displayedStatus(entry: Entry | undefined) {
+  if (!entry) return undefined;
+  return entry.inRing ? 'in-ring' : entry.status;
+}
+
 export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   classId,
   combined,
@@ -187,6 +195,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   localEntries,
   upTo,
   hasPermission,
+  selfCheckinOnly = false,
   hideMaxTimeOption,
   hideSettingsOption,
   activeStatusPopup,
@@ -278,9 +287,10 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
         className={
           localEntries.find(e => e.id === activeStatusPopup)?.className || classInfo?.className
         }
-        currentStatus={localEntries.find(e => e.id === activeStatusPopup)?.checkinStatus}
+        currentStatus={displayedStatus(localEntries.find(e => e.id === activeStatusPopup))}
         showDescriptions={true}
         showRingManagement={hasPermission('canScore')}
+        selfCheckinOnly={selfCheckinOnly}
       />
 
       <RunOrderDialog

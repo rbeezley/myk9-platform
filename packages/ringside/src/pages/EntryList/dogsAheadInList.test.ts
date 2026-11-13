@@ -128,3 +128,21 @@ describe('computeDogsAheadInList with a check-in-completed dog (MYK9-996)', () =
     expect(computeDogsAheadInList(entries, 'ran')).toBeNull();
   });
 });
+
+describe('buildEntryListOwnership while the show has not fully arrived (MYK9-1809)', () => {
+  const entries = [
+    entry({ id: 'a', armband: 1, exhibitorOrder: 1 }),
+    entry({ id: 'b', armband: 2, exhibitorOrder: 2 }),
+  ];
+
+  it("still marks the dog as the exhibitor's own but gives it no place in line", () => {
+    const ownership = buildEntryListOwnership(entries, new Set(['b']), undefined, false);
+    expect(ownership?.ownEntryIds.has('b')).toBe(true);
+    expect(ownership?.dogsAheadByEntryId.get('b')).toBeNull();
+  });
+
+  it('counts the place in line once everything has arrived', () => {
+    const ownership = buildEntryListOwnership(entries, new Set(['b']), undefined, true);
+    expect(ownership?.dogsAheadByEntryId.get('b')).toEqual({ kind: 'waiting', dogsAhead: 1 });
+  });
+});

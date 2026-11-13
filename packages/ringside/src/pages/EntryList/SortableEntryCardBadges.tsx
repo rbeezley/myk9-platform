@@ -17,16 +17,19 @@ import { CheckInIndicator, getCheckInPresentation } from './CheckInIndicator';
  */
 interface StatusBadgeProps {
   entry: Entry;
-  isDisabled: boolean;
-  onClick: (e: React.MouseEvent) => void;
+  isDisabled?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+  /** Show the status without a control: this viewer cannot change it (MYK9-1807). */
+  readOnly?: boolean;
   /** Draw on the solid primary hero card. */
   inverse?: boolean;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({
   entry,
-  isDisabled,
+  isDisabled = false,
   onClick,
+  readOnly = false,
   inverse,
 }) => {
   const displayStatus = entry.inRing ? 'in-ring' : entry.status;
@@ -50,6 +53,19 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   }, [changeKey]);
 
   const pulseClass = isAnimating ? 'status-just-changed' : '';
+
+  if (readOnly) {
+    return (
+      <span
+        role="img"
+        aria-label={`Check-in: ${getCheckInPresentation(displayStatus).label}`}
+        className={cn('inline-flex min-h-11 min-w-11 items-center justify-center', pulseClass)}
+        data-testid="check-in-status"
+      >
+        <CheckInIndicator status={displayStatus} inverse={inverse} />
+      </span>
+    );
+  }
 
   return (
     // A <button>, not a <div onClick>. This is the most-used steward control on
@@ -159,4 +175,23 @@ export const ResetButton: React.FC<ResetButtonProps> = ({ onClick, callName }) =
   >
     <span aria-hidden="true">⋯</span>
   </button>
+);
+
+/**
+ * Shown in place of the status control on a dog that is not running because its entry was
+ * scratched or withdrawn (MYK9-1809). A check-in status cannot bring it back, so no control is
+ * offered, and the row says who can.
+ */
+export const ReinstateNotice: React.FC<{ inverse?: boolean }> = ({ inverse }) => (
+  <span
+    role="note"
+    data-testid="reinstate-notice"
+    className={cn(
+      'inline-flex flex-col rounded-lg border px-2 py-1 text-xs font-semibold leading-tight',
+      inverse ? 'border-white/60 bg-white/10 text-white' : 'border-border bg-muted text-foreground'
+    )}
+  >
+    <span>Not running</span>
+    <span className="font-normal">The secretary must reinstate this entry</span>
+  </span>
 );

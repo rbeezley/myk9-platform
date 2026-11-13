@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { testJwt } from '@/features/step-up/stepUpTestTokens';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth } from '@/hooks/useAuth';
+import { AuthTimeoutError } from '@/lib/authErrorCopy';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -335,7 +336,9 @@ describe('useAuth', () => {
       act(() => {
         signInPromise = result.current.signIn('test@example.com', 'password');
       });
-      const rejection = expect(signInPromise!).rejects.toThrow('Sign-in request timed out');
+      // MYK9-1834: the timeout must be an AuthTimeoutError, or sign-in shows the
+      // generic sentence instead of "Could not reach myK9Show".
+      const rejection = expect(signInPromise!).rejects.toBeInstanceOf(AuthTimeoutError);
 
       await act(async () => {
         vi.advanceTimersByTime(15_000);

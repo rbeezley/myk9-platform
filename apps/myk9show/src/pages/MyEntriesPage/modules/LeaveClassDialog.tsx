@@ -4,7 +4,7 @@
  * Before this, withdrawing meant: Edit entry → an order picker labelled with an
  * 8-hex fragment of a UUID → a per-class button inside the sheet. Richard, who
  * knows the product, could not find it. Now the class row itself carries a
- * "Leave class…" control and this component is what it opens.
+ * "Pull or withdraw…" control and this component is what it opens.
  *
  * Nothing here is new UX. It RE-WIRES what MYK9-632 shipped:
  * `RemoveFromClassDialog` is the chooser and confirm, `useShowRegistryId`
@@ -71,7 +71,7 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   const rowEligibility = target ? eligibility[target.classId] : undefined;
 
   // MYK9-658: where focus goes once a leave LANDS. On success the row's
-  // "Leave class…" button unmounts with the row state it belonged to, so the
+  // "Pull or withdraw…" button unmounts with the row state it belonged to, so the
   // AlertDialog's own restore targets a removed node and focus fell to
   // `<body>`. The card itself survives the refresh, so focus goes to its
   // anchor, keyed on `MyShowDog.id` (`dogCardAnchor.ts`) — unique per rendered

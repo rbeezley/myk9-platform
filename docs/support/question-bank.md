@@ -77,7 +77,7 @@ Common customer questions, seeded from UX journey audit findings, payment walkth
 | S-24 | "How do I edit entry fees after publishing the show?"          | Post-publish            | low      | Show Setup — status and fee fields                    |
 | S-25 | "Where do I see entries for just one class?"                   | Show day                | medium   | Entry Management → class filter                       |
 | S-26 | "An exhibitor says they paid but I don't see a payment"        | Payment                 | high     | Investigation: Stripe dashboard → stripe_orders table |
-| S-27 | "How do I mark a dog absent (no-show) without scratching?"     | Show day                | medium   | Show Map → Pull / no-show action                      |
+| S-27 | "How do I mark a dog absent (no-show) without scratching?"     | Show day                | medium   | Show Map → Pull action                                |
 
 ### Exhibitor — deeper questions
 

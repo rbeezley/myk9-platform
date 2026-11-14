@@ -16,7 +16,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
-import { deskAmountOwed, deskOwedHref, owesLabel } from './deskAmountOwed';
+import { AMOUNT_NOT_AVAILABLE, deskOwedByPayer, deskOwedHref, owesLabel } from './deskAmountOwed';
 import { classIdsOnDay, firstClassLine } from './firstClassForExhibitor';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
@@ -73,6 +73,7 @@ export function CheckInDesk({
     () => buildCheckInDeskPeople(entries, classes, now),
     [classes, now, entries]
   );
+  const owedByPayer = useMemo(() => deskOwedByPayer(entries), [entries]);
   const dayClassIds = useMemo(() => classIdsOnDay(classes, now), [classes, now]);
   const rowsByEntryId = useMemo(
     () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),
@@ -171,7 +172,7 @@ export function CheckInDesk({
             const waitingDogs = dogs.filter(dog => dog.pendingEntryIds.length > 0);
             const anyBusy = person.classRows.some(row => busyIds.has(row.entryId));
             const firstClass = firstClassLine(person.classRows, dayClassIds);
-            const owed = deskAmountOwed([...new Set(person.classRows.map(row => row.sourceEntry))]);
+            const owed = owedByPayer.get(person.id);
             return (
               <section key={person.id} aria-label={person.name} className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-2">
@@ -182,12 +183,12 @@ export function CheckInDesk({
                         Also entered as {person.alternateNames.join(', ')}
                       </p>
                     )}
-                    {(owed.amount > 0 || owed.unknown) && (
+                    {owed && (
                       <Link
                         to={deskOwedHref(showId, person.name, owed.formKeys)}
                         className="inline-flex min-h-11 items-center text-xs font-medium text-warning underline-offset-2 hover:underline"
                       >
-                        {owed.amount > 0 ? owesLabel(owed.amount) : 'Amount not available'}
+                        {owed.unknown ? AMOUNT_NOT_AVAILABLE : owesLabel(owed.amount)}
                       </Link>
                     )}
                   </div>

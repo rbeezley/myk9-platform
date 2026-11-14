@@ -215,6 +215,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     ...(entry.registration?.payment_reference != null
       ? { enrollmentPaymentReference: entry.registration.payment_reference }
       : {}),
+    enrollmentPayerId: entry.registration?.handler_id ?? null,
     enrollmentTotalAmount: entry.registration?.total_amount ?? null,
     enrollmentPaidAmount: entry.registration?.paid_amount ?? null,
     enrollmentCardCoveredCents: entry.registration?.card_covered_cents ?? null,

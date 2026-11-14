@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { deskAmountOwed, deskOwedHref, owesLabel } from './deskAmountOwed';
+import { deskOwedByPayer, deskOwedHref, owesLabel } from './deskAmountOwed';
 
 function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -14,6 +14,7 @@ function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEn
     ownerName: 'Alice Martin',
     ownerEmail: 'alice@example.com',
     handlerName: 'Alice Martin',
+    ownerId: 'owner-1',
     classes: [],
     totalFee: 25,
     paidAmount: 0,
@@ -25,51 +26,73 @@ function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEn
   };
 }
 
-describe('deskAmountOwed', () => {
-  it('owes nothing when the entry is paid', () => {
+const owedFor = (entries: EntryManagementEntry[], payerId: string) =>
+  deskOwedByPayer(entries).get(payerId);
+
+describe('deskOwedByPayer', () => {
+  it('owes nothing when the form is paid', () => {
     const paid = entry({ paymentStatus: PaymentStatus.PAID_BY_CASH, paidAmount: 25 });
-    expect(deskAmountOwed([paid]).amount).toBe(0);
+    expect(owedFor([paid], 'owner-1')).toBeUndefined();
   });
 
-  it('owes nothing on a Free (comped) entry', () => {
-    expect(deskAmountOwed([entry({ comped: true })]).amount).toBe(0);
+  it('puts a form on its payer, not on the handler running the dog', () => {
+    const forms = [
+      entry({ id: 'a', registrationId: 'reg-a', enrollmentPayerId: 'client-a', handlerId: 'pro' }),
+      entry({ id: 'b', registrationId: 'reg-b', enrollmentPayerId: 'client-b', handlerId: 'pro' }),
+    ];
+    const owed = deskOwedByPayer(forms);
+    expect(owed.get('pro')).toBeUndefined();
+    expect(owed.get('client-a')).toEqual({ amount: 25, unknown: false, formKeys: ['reg-a'] });
+    expect(owed.get('client-b')).toEqual({ amount: 25, unknown: false, formKeys: ['reg-b'] });
   });
 
-  it('sums an unpaid form and names it', () => {
-    const owed = deskAmountOwed([entry(), entry({ id: 'entry-2', dogId: 'dog-2' })]);
-    expect(owed).toEqual({ amount: 50, unknown: false, formKeys: ['reg-1'] });
+  it('counts a form split across two handlers once, at the form due', () => {
+    const slice = (id: string, handlerId: string) =>
+      entry({
+        id,
+        handlerId,
+        enrollmentPayerId: 'payer',
+        enrollmentTotalAmount: 5000,
+        enrollmentPaidAmount: 0,
+      });
+    const owed = deskOwedByPayer([slice('a', 'h1'), slice('b', 'h2')]);
+    expect(owed.get('payer')).toEqual({ amount: 50, unknown: false, formKeys: ['reg-1'] });
+    expect(owed.size).toBe(1);
   });
 
   it('quotes the form balance when part has been received', () => {
     const partPaid = (id: string) =>
-      entry({
-        id,
-        dogId: id,
-        enrollmentTotalAmount: 5000,
-        enrollmentPaidAmount: 30,
-      });
-    const owed = deskAmountOwed([partPaid('a'), partPaid('b')]);
-    expect(owed.amount).toBe(20);
+      entry({ id, dogId: id, enrollmentTotalAmount: 5000, enrollmentPaidAmount: 30 });
+    expect(owedFor([partPaid('a'), partPaid('b')], 'owner-1')?.amount).toBe(20);
+  });
+
+  it('counts a waitlisted entry with an accepted one, as the form does', () => {
+    const owed = owedFor(
+      [entry(), entry({ id: 'w', dogId: 'dog-2', entryStatus: EntryStatus.WAITLIST })],
+      'owner-1'
+    );
+    expect(owed?.amount).toBe(50);
+  });
+
+  it('shows the waitlisted fee when the accepted entry is paid', () => {
+    const paid = entry({ paymentStatus: PaymentStatus.PAID_BY_CASH, paidAmount: 25 });
+    const waitlisted = entry({ id: 'w', dogId: 'dog-2', entryStatus: EntryStatus.WAITLIST });
+    expect(owedFor([paid, waitlisted], 'owner-1')?.amount).toBe(25);
   });
 
   it('sums across several forms and lists each', () => {
-    const owed = deskAmountOwed([entry(), entry({ id: 'entry-2', registrationId: 'reg-2' })]);
-    expect(owed.amount).toBe(50);
-    expect(owed.formKeys).toEqual(['reg-1', 'reg-2']);
-  });
-
-  it('owes nothing for an entry that is not accepted yet', () => {
-    expect(deskAmountOwed([entry({ entryStatus: EntryStatus.PENDING })]).amount).toBe(0);
+    const owed = owedFor([entry(), entry({ id: 'entry-2', registrationId: 'reg-2' })], 'owner-1');
+    expect(owed).toEqual({ amount: 50, unknown: false, formKeys: ['reg-1', 'reg-2'] });
   });
 
   it('says the amount is unknown when the money root could not be reached', () => {
-    expect(deskAmountOwed([entry({ moneyRootUnresolved: true })]).unknown).toBe(true);
+    expect(owedFor([entry({ moneyRootUnresolved: true })], 'owner-1')?.unknown).toBe(true);
   });
 });
 
 describe('owesLabel and deskOwedHref', () => {
-  it('words the amount', () => {
-    expect(owesLabel(25)).toBe('Owes $25');
+  it('always shows two decimals', () => {
+    expect(owesLabel(25)).toBe('Owes $25.00');
     expect(owesLabel(25.5)).toBe('Owes $25.50');
   });
 

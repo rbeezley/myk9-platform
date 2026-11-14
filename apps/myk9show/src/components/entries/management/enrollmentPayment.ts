@@ -166,6 +166,26 @@ export function netReceivedDollars(
 }
 
 /**
+ * What the entry form itself shows as due (`$X.XX due`): its total less everything received,
+ * in dollars. One rule for the form's footer and the Check-in desk's "Owes" figure (MYK9-1937).
+ * May be negative on an overpaid form; callers that show it clamp at zero.
+ */
+export function enrollmentRemainingDollars(
+  group: Pick<
+    EnrollmentGroup,
+    | 'totalAmount'
+    | 'totalAmountUnit'
+    | 'paidAmount'
+    | 'cardCoveredAmount'
+    | 'enrollmentId'
+    | 'entries'
+  >
+): number {
+  const total = group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
+  return total - receivedDollars(group);
+}
+
+/**
  * MYK9-1637: money received on an enrollment, desk and card: `netReceivedDollars`
  * plus the card money its Stripe orders hold. The balance due and "Paid in Full"
  * read this; a desk refund is capped by `netReceivedDollars` alone, because card

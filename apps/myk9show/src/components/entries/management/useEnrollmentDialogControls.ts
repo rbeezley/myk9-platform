@@ -5,6 +5,7 @@ import {
   EMPTY_FULL_PAYMENT_DIALOG,
   EMPTY_LEDGER_CONFIRM,
   EMPTY_PARTIAL_DIALOG,
+  enrollmentRemainingDollars,
   netReceivedDollars,
   receivedDollars,
   resolvePartialPayment,
@@ -39,7 +40,7 @@ export function useEnrollmentDialogControls(
   const paidDollars = receivedDollars(group);
   // What the desk may hand back: desk money only (card money is refunded through Stripe).
   const refundableDollars = netReceivedDollars(group);
-  const remainingDollars = totalDollars - paidDollars;
+  const remainingDollars = enrollmentRemainingDollars(group);
   const today = paymentLedger.todayInShowZone;
 
   // MYK9-1841: "Paid in Full: Online" and "Payment Due" change what the whole

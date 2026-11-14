@@ -84,7 +84,7 @@ describe('CheckInDesk money (MYK9-1937)', () => {
   it('shows what a person owes and links to their entry form', () => {
     renderDesk([entry()]);
     const link = within(screen.getByRole('region', { name: 'Alice Martin' })).getByRole('link', {
-      name: 'Owes $25',
+      name: 'Owes $25.00',
     });
     expect(link).toHaveAttribute('href', '/shows/show-1/entries?registration=reg-1');
   });
@@ -102,7 +102,39 @@ describe('CheckInDesk money (MYK9-1937)', () => {
 
   it('links to Entries filtered to the person when several forms owe', () => {
     renderDesk([entry(), entry({ id: 'entry-2', dogId: 'dog-2', registrationId: 'reg-2' })]);
-    const link = screen.getByRole('link', { name: 'Owes $50' });
+    const link = screen.getByRole('link', { name: 'Owes $50.00' });
     expect(link).toHaveAttribute('href', '/shows/show-1/entries?search=Alice+Martin');
+  });
+
+  it("shows a client's form on the client's card, not the pro handler's", () => {
+    const forPro = (id: string, reg: string, payer: string, name: string) =>
+      entry({
+        id,
+        dogId: id,
+        registrationId: reg,
+        enrollmentPayerId: payer,
+        ownerName: name,
+        handlerName: 'Pat Pro',
+        handlerPersonName: 'Pat Pro',
+        handlerId: 'pro',
+        ownerId: payer,
+      });
+    renderDesk([
+      forPro('a', 'reg-a', 'client-a', 'Ann'),
+      forPro('b', 'reg-b', 'client-b', 'Bo'),
+      entry({ id: 'c', dogId: 'c', registrationId: 'reg-c', handlerId: 'client-a' }),
+    ]);
+    expect(screen.getByRole('region', { name: 'Pat Pro' })).not.toHaveTextContent(/owes/i);
+    expect(
+      within(screen.getByRole('region', { name: 'Alice Martin' })).getByRole('link', {
+        name: /Owes/,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it('says the amount is not available when the money could not be traced', () => {
+    renderDesk([entry({ moneyRootUnresolved: true })]);
+    const link = screen.getByRole('link', { name: 'Amount not available' });
+    expect(link).toHaveAttribute('href', '/shows/show-1/entries?registration=reg-1');
   });
 });

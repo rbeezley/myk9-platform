@@ -113,11 +113,10 @@ export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
     },
     actions: {},
     // Mirrors EntryListUiState exactly (pageProps.ts) rather than a guess —
-    // the page reads `resetConfirmDialog`, `printDialogType`, `activeResetMenu`
+    // the page reads `resetConfirmDialog`, `activeResetMenu`
     // and the area-count fields straight off this bag.
     uiState: {
       localEntries: entries,
-      manualOrder: [],
       activeStatusPopup: null,
       isManualRefreshing: false,
       isLoaded: loaded,
@@ -129,15 +128,12 @@ export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
       maxTimeDialogOpen: false,
       maxTimeRequiredWarning: false,
       settingsDialogOpen: false,
-      noStatsDialogOpen: false,
       statusDialogOpen: false,
       selfCheckinDisabledDialog: false,
       showSuccessMessage: false,
       areaCountDialogOpen: false,
       areaCountRequirements: null,
       isFilterPanelOpen: false,
-      isRecalculatingPlacements: false,
-      printDialogType: null,
       activeResetMenu: null,
       resetMenuPosition: null,
       resetConfirmDialog: { show: false, entry: null },

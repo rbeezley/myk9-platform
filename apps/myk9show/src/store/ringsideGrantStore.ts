@@ -18,7 +18,7 @@
  * - **Set by the 1b confirmation flow.** This PR (1c) ships the model + the
  *   precedence wiring; the smart-input field and confirmation dialog that call
  *   `setGrant` land in Phase 1b. With no grant set, role resolution falls back
- *   to the account RBAC mapping (current behavior — see `buildRingsideAuth`).
+ *   to the account RBAC mapping (current behavior — see `resolveRingsideAccess`).
  */
 
 import { create } from 'zustand';

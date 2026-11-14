@@ -32,9 +32,7 @@ import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import {
-  RingsideProvider,
   EntryListPage,
   useEntryListData,
   useEntryListFilters,
@@ -42,19 +40,17 @@ import {
   buildEntryListOwnership,
   type Entry,
   type EntryListDataDependencies,
-  type RingsideShowContext,
   type RunOrderPreset,
   type RunOrderScope,
   type RenumberMode,
 } from '@myk9/ringside';
 
-import { replicatedShowsTable } from '@/services/replication';
 import { applyCombinedRunOrder } from './applyCombinedRunOrder';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { createRunOrderUpdater } from './runOrderUpdater';
-import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
+import { buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { EntryListNotices } from './StaleReadNotice';
@@ -92,37 +88,12 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // show-scoped passcode grant overriding the mapping. Shared with the
   // single-class and scoresheet shims via `useRingsideEffectiveRole`.
   const navigate = useNavigate();
-  const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
+  const { showRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
   // Device-local favorites, mirrored to `dog_favorites` when signed in so the
   // notification monitor can watch them for "your turn" push (MYK9-79).
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(showId);
   const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =
     useAtShowFavoriteAlertNudge(favoriteArmbands);
-
-  // ── Show metadata + provider value ─────────────────────────────────────
-  const { data: show } = useQuery({
-    queryKey: ['at-show', 'show', showId],
-    queryFn: () => replicatedShowsTable.getShowById(showId as string),
-    enabled: !!showId,
-  });
-  const ringsideShowContext = useMemo<RingsideShowContext | null>(() => {
-    if (!showId) return null;
-    return {
-      showId,
-      showName: show?.name ?? '',
-      clubName: '',
-      showDate: show?.startDate ?? '',
-      licenseKey: showId,
-      org: show?.organization ?? '',
-      // Drives ringside Nationals detection (isNationalsCompetition matches
-      // the substring 'national'); map from the show's is_nationals flag.
-      competition_type: show?.isNationals ? 'Nationals' : 'Regular',
-    };
-  }, [showId, show]);
-  const contextValue = useMemo(
-    () => buildRingsideContextValue({ showRole, showContext: ringsideShowContext, grantRole }),
-    [showRole, ringsideShowContext, grantRole]
-  );
 
   // ── Data (combined: both class ids) ────────────────────────────────────
   const isDraggingRef = useRef<boolean>(false);
@@ -191,7 +162,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       <AtShowEntriesNotOnDeviceAction showId={showId} refresh={refresh} />
     ) : undefined;
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
-  const [manualOrder, setManualOrder] = useState<Entry[]>([]);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
   // empty ring as settled truth while the FIRST replication sync was still
   // running -- `isRefreshing` alone only covers a refetch, not the cold boot.
@@ -232,7 +202,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     // and a manual order that survives a drag.
     prioritizeInRing: true,
     deprioritizePulled: true,
-    manualOrder,
     defaultSort: 'section-armband',
   });
 
@@ -245,8 +214,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const { uiState, uiActions } = useAtShowEntryListUiState({
     localEntries,
     setLocalEntries,
-    manualOrder,
-    setManualOrder,
     setActiveTab,
     setSortOrder,
     setSearchTerm,
@@ -338,7 +305,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     currentEntries: dragEntries,
     updateExhibitorOrder,
     isDraggingRef,
-    setManualOrder,
     onPersistError: handleRunOrderPersistError,
   });
 
@@ -419,13 +385,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
 
   // ── Context ────────────────────────────────────────────────────────────
   const canManageClasses = hasPermission('canManageClasses');
-  const pageShowContext = useMemo(
-    () => (showId ? { ...(show?.organization ? { org: show.organization } : {}) } : null),
-    [showId, show]
-  );
-
   return (
-    <RingsideProvider value={contextValue}>
+    <>
       <main className="ringside-root">
         {showAddToHomeNudge && (
           <AtShowAddToHomeNudge
@@ -468,7 +429,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           layout={atShowLayoutSlots}
           context={{
             role: ringsideRole,
-            showContext: pageShowContext,
             hasPermission,
             statusAccess,
             entriesIncomplete,
@@ -476,8 +436,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // A combined A/B view has no single class to carry to the Settings links (the page's
             // dialog gets an empty class id), so it never offers Settings (MYK9-1627).
             hideSettingsOption: true,
-            // No printing at ringside — reports live on the secretary Reports page.
-            hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
             // One menu (MYK9-1697): the class actions list inside it.
             menu: classActions => (
@@ -493,7 +451,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           }}
         />
       </main>
-    </RingsideProvider>
+    </>
   );
 };
 

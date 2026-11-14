@@ -9,22 +9,17 @@
  * asides in the middle of a render function.
  */
 import { useCallback } from 'react';
-import type { Entry } from '../../../stores/entryStore';
-import type { PrintSortOrder, RenumberMode, RunOrderPreset, RunOrderScope } from '../dialogSlots';
+import type { RenumberMode, RunOrderPreset, RunOrderScope } from '../dialogSlots';
 import type { EntryListHandlers } from '../hookContracts';
-import type { EntryListUiActions, EntryListUiState } from '../pageProps';
+import type { EntryListUiActions } from '../pageProps';
 import { useAutoDismiss } from './useAutoDismiss';
 
 export interface UseEntryListPageActionsDeps {
   handlers: EntryListHandlers;
   uiActions: EntryListUiActions;
-  printDialogType: EntryListUiState['printDialogType'];
-  /** The order drag mode opens on (every pending dog) — seeded as the starting manual order. */
-  currentEntries: Entry[];
 }
 
 export interface EntryListPageActions {
-  handlePrintSortOrder: (selectedSortOrder: PrintSortOrder) => void;
   handleOpenDragMode: () => void;
   handleApplyRunOrder: (
     preset: RunOrderPreset,
@@ -36,29 +31,11 @@ export interface EntryListPageActions {
 export function useEntryListPageActions({
   handlers,
   uiActions,
-  printDialogType,
-  currentEntries,
 }: UseEntryListPageActionsDeps): EntryListPageActions {
-  const { setPrintDialogType, setRunOrderDialogOpen, setManualOrder, setSortOrder } = uiActions;
-
-  const handlePrintSortOrder = useCallback(
-    (selectedSortOrder: PrintSortOrder) => {
-      const type = printDialogType;
-      setPrintDialogType(null);
-      if (type === 'check-in') handlers.handlePrintCheckIn({ sortOrder: selectedSortOrder });
-      else if (type === 'results')
-        handlers.handlePrintResults({
-          sortOrder: selectedSortOrder === 'run-order' ? 'placement' : 'armband',
-        });
-      else if (type === 'scoresheet')
-        handlers.handlePrintScoresheet({ sortOrder: selectedSortOrder });
-    },
-    [printDialogType, handlers, setPrintDialogType]
-  );
+  const { setRunOrderDialogOpen, setSortOrder } = uiActions;
 
   // Entering drag mode: close the run-order dialog it was launched from,
-  // snapshot the visible order as the starting manual order, and switch to
-  // run-order sort.
+  // and switch to run-order sort.
   //
   // The shared host handler only flips `isDragMode`. That was survivable on the
   // single-class route, whose sort already defaults to 'run' -- but only until
@@ -68,10 +45,9 @@ export function useEntryListPageActions({
   // steward's finger the moment they let go.
   const handleOpenDragMode = useCallback(() => {
     setRunOrderDialogOpen(false);
-    setManualOrder([...currentEntries]);
     handlers.handleOpenDragMode();
     setSortOrder('run');
-  }, [setRunOrderDialogOpen, setManualOrder, currentEntries, handlers, setSortOrder]);
+  }, [setRunOrderDialogOpen, handlers, setSortOrder]);
 
   // Applying a run-order preset: close the dialog, confirm, and drop back to
   // run-order sort so the steward SEES the order they just applied.
@@ -112,5 +88,5 @@ export function useEntryListPageActions({
     [handlers, setRunOrderDialogOpen, showSuccess, setSortOrder, handleOpenDragMode]
   );
 
-  return { handlePrintSortOrder, handleOpenDragMode, handleApplyRunOrder };
+  return { handleOpenDragMode, handleApplyRunOrder };
 }

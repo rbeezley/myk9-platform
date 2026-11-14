@@ -24,6 +24,7 @@ import { TrialSecretaryCertification } from '@/components/reports/TrialSecretary
 import { JudgeSupplyChecklistReport } from '@/components/reports/JudgeSupplyChecklistReport';
 import { HospitalityPlanReport } from '@/components/reports/HospitalityPlanReport';
 import { HighInTrialReport } from '@/components/reports/HighInTrialReport';
+import { AscaHighInTrialReport } from '@/components/reports/AscaHighInTrialReport';
 import { UKCSetupCheatSheetReport } from '@/components/reports/UKCSetupCheatSheetReport';
 import { AKCSetupCheatSheetReport } from '@/components/reports/AKCSetupCheatSheetReport';
 import type React from 'react';
@@ -148,6 +149,22 @@ export const reportRegistry: ReportDefinition[] = [
     // AKC-specific: UKC and ASCA define their own high-scoring awards with different
     // eligibility, so offering this on their trials would state AKC's rules as theirs.
     registryId: 'AKC',
+  },
+  {
+    id: 'asca-high-in-trial',
+    name: 'ASCA High in Trial',
+    phase: 'after',
+    // Trial-scoped by rule: ASCA Program Rules §1.10.2 awards one HIT per level across the
+    // elements a TRIAL offers, so a class-scoped view cannot compute it.
+    scopes: ['trial'],
+    sortOptions: [],
+    defaultSort: '',
+    component: AscaHighInTrialReport,
+    enabled: true,
+    // Decided by which CLASSES ran, so it explains itself for a trial with no entries.
+    rendersWithoutEntries: true,
+    // ASCA-specific: AKC's and UKC's high-scoring awards have different eligibility.
+    registryId: 'ASCA',
   },
   {
     id: 'ukc-nosework-entry-form',

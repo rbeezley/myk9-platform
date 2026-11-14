@@ -18,8 +18,6 @@ import type { Entry } from '../../stores/entryStore';
 import { formatArmband } from '../../utils/armband';
 import type { DogCardProps, EntryStatusControl } from './pageProps';
 import type { EntryListPermission } from './permissions';
-import { isNationalsCompetition } from './sortableEntryCardUtils';
-import { ResultBadges } from './SortableEntryCardComponents';
 import type { DogsAheadResult } from './dogsAheadInList';
 import { CompletedResult } from './CompletedResult';
 import {
@@ -36,7 +34,6 @@ export interface SortableEntryCardBodyProps {
   entry: Entry;
   isDragMode: boolean;
   scoringDisabled: boolean;
-  showContext?: { competition_type?: string } | null;
   classInfo?: { selfCheckin?: boolean; registry?: string } | null;
   hasPermission: (permission: EntryListPermission) => boolean;
   handleEntryClick: (entry: Entry) => void;
@@ -65,7 +62,6 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
   entry,
   scoringDisabled,
   isDragMode,
-  showContext,
   classInfo,
   hasPermission,
   handleEntryClick,
@@ -149,9 +145,7 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
     e.stopPropagation();
   };
 
-  // MYK9-1086: the result replaces the badge strip on a scored row, except at
-  // Nationals, whose per-area badges have no compact form yet.
-  const isNationals = isNationalsCompetition(showContext);
+  // MYK9-1086: the result replaces the badge strip on a scored row.
   const showStatus = !entry.isScored || scoringDisabled;
   // The judge's NQ/excused reason is for the ring and the dog's own team, not
   // every exhibitor reading the list (MYK9-1086 review).
@@ -251,14 +245,14 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
     ) : showStatus ? (
       <>
         {/* A dog scored and then moved to Not running keeps its result visible. */}
-        {entry.isScored && !isNationals && result}
+        {entry.isScored && result}
         {statusControlView(false)}
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
         {keyboardScoreButton}
       </>
     ) : (
       <>
-        {!isNationals && result}
+        {result}
         {scoringAllowed && <ResetButton onClick={handleResetClick} callName={entry.callName} />}
       </>
     );
@@ -305,12 +299,7 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
       trailing={trailing}
       {...(variant ? { variant } : {})}
       resultBadges={
-        (isOwnEntry && conflictLabel) || isNationals ? (
-          <>
-            {isOwnEntry && conflictLabel && <OwnDogConflictChip label={conflictLabel} />}
-            {isNationals && <ResultBadges entry={entry} showContext={showContext} />}
-          </>
-        ) : undefined
+        isOwnEntry && conflictLabel ? <OwnDogConflictChip label={conflictLabel} /> : undefined
       }
       sectionBadge={sectionBadge}
       favoriteButton={

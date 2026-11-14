@@ -64,7 +64,6 @@ function setup(over: { canManage?: boolean; requirements?: boolean; combined?: b
     ClassRequirementsDialog: Null,
     MaxTimeDialog: Null,
     ClassSettingsDialog: Null,
-    NoStatsDialog: Null,
     ClassStatusDialog: Null,
     AreaCountSelectionDialog: AreaStub,
   } as unknown as React.ComponentProps<typeof EntryListDialogs>;

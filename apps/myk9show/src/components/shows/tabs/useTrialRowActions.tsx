@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { FileText, Plus, Trophy } from 'lucide-react';
+import { FileText, Plus, Printer, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -18,6 +18,12 @@ import { SetupRowActionsMenu } from './SetupRowActionsMenu';
  *
  * `enabled` is the caller's manage gate: with it false, no dialog mounts.
  */
+/** Each registry's High in Trial report; UKC has none. */
+const HIGH_IN_TRIAL_REPORT_ID: Record<string, string> = {
+  AKC: 'high-in-trial',
+  ASCA: 'asca-high-in-trial',
+};
+
 /** Each registry's end-of-trial report, the paperwork filed once per trial (MYK9-1727). */
 const TRIAL_REPORT_ID: Record<string, string> = {
   AKC: 'trial-secretary-report',
@@ -93,7 +99,13 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
   // (Codex review of #2691).
   const actionLocked = hydratingTrialId !== null || pendingTrialAction !== null;
   const trialRowMenu = useCallback(
-    (trialId: string, label: string, withDetails = false, registryId?: string) => (
+    (
+      trialId: string,
+      label: string,
+      withDetails = false,
+      registryId?: string,
+      onPrintPacket?: (trialId: string) => void
+    ) => (
       <SetupRowActionsMenu
         subject="Trial"
         rowLabel={label}
@@ -106,12 +118,23 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
               onSelect: () => navigate(getAddClassesHref(showId, trialId)),
             },
             {
-              // The AKC High in Trial report, already scoped to this trial (MYK9-1727).
+              // The before-trial packet: a cover sheet, then each class's sheets, per judge (MYK9-1924).
+              id: 'trial-print-packet',
+              label: 'Print before-trial packet',
+              icon: <Printer />,
+              hidden: !onPrintPacket,
+              onSelect: () => onPrintPacket?.(trialId),
+            },
+            {
+              // The registry's High in Trial report, already scoped to this trial (MYK9-1727).
               id: 'trial-high-in-trial',
               label: 'High in Trial',
               icon: <Trophy />,
-              hidden: registryId !== 'AKC',
-              onSelect: () => navigate(trialReportHref(showId, trialId, 'high-in-trial')),
+              hidden: !registryId || !HIGH_IN_TRIAL_REPORT_ID[registryId],
+              onSelect: () =>
+                navigate(
+                  trialReportHref(showId, trialId, HIGH_IN_TRIAL_REPORT_ID[registryId ?? ''] ?? '')
+                ),
             },
             {
               // The registry's end-of-trial report, already set to this trial (MYK9-1727).

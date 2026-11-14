@@ -33,6 +33,10 @@ export {
 } from './helpers';
 export type { ShowStyle } from './helpers';
 
+// MYK9-1945: what each registry owes at the end of a show.
+export { getCloseoutDuties } from './closeoutDuties';
+export type { RegistryCloseoutDuty, RegistryCloseoutDutyKind } from './closeoutDuties';
+
 // MYK9-632: Withdraw vs Pull. Rulebook facts, per registry.
 export {
   WITHDRAWAL_REASON_CODES,

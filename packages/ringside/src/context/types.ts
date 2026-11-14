@@ -1,79 +1,13 @@
 /**
- * RingsideContext type definitions.
- *
- * The Q5 dependency-injection surface for `@myk9/ringside`.
- *
- * Design intent
- * -------------
- * Ringside is a shared package mounted by two hosts: `apps/myk9q` today,
- * and `apps/myk9show`'s `/at-show` route from Phase 1. Both hosts own
- * their own auth, replication, and caching infrastructure — the package
- * deliberately does NOT include those concerns.
- *
- * Instead, the host injects a small set of capability bags into a
- * React context. Page code inside ringside reads from that context
- * via `useRingside()`.
- *
- * Empirically scoped
- * ------------------
- * Surveying `apps/myk9q/src/pages/ClassList` + `EntryList`, the actual
- * runtime singleton-call surface across both pages is exactly two
- * functions:
- *
- *   - `prefetchCache.get(key)` — 3 sites in `useClassListFetch.ts`
- *   - `replicatedClassesTable.updateClassStatus(...)` — 1 site in
- *     `useEntryListHandlers.ts`
- *
- * Plus `useAuth()` returning a role + show context + permission check.
- * Everything else those pages import from the host is type-only and
- * can be relocated to package-local type modules (the pattern PR E0
- * established with `pages/ClassList/types.ts`).
- *
- * Capabilities are therefore narrowly typed below. As future PRs (E1,
- * E2, F, G) discover additional calls that need to cross the boundary,
- * extend the interfaces here in a follow-up — do NOT widen the surface
- * speculatively.
+ * Host-injected replication capability for ringside pages: the one write
+ * that crosses the package boundary (`updateClassStatus`).
  */
 
-import type { UserRole, UserPermissions } from '../auth/passcodes';
 import type { ClassStatusValue } from '../pages/ClassList/types';
 
 export type { ClassStatusValue };
 
 // ── Auth ─────────────────────────────────────────────────────────────────
-
-/**
- * Show identity + organization metadata that ringside pages display and
- * route on. Lifted from `apps/myk9q/src/contexts/AuthContext.tsx`'s
- * `ShowContext` interface.
- */
-export interface RingsideShowContext {
-  showId: string;
-  showName: string;
-  clubName: string;
-  showDate: string;
-  licenseKey: string;
-  /** Organization (e.g. 'UKC Obedience', 'AKC Scent Work'). */
-  org: string;
-  /** Competition type (e.g. 'National', 'Regular'). */
-  competition_type: string;
-  /** Show type used by ringside's Nationals-detection paths. */
-  showType?: string;
-}
-
-/**
- * Auth state slice ringside reads from. A **value snapshot**, not a hook
- * — the host calls its own `useAuth()` (or equivalent) and passes the
- * result to `RingsideProvider`.
- */
-export interface RingsideAuth {
-  /** Currently authenticated role, or `null` if not signed in. */
-  role: UserRole | null;
-  /** Show the user authenticated against, or `null` pre-login. */
-  showContext: RingsideShowContext | null;
-  /** Returns true if the current role has the named permission. */
-  canAccess: (permission: keyof UserPermissions) => boolean;
-}
 
 // ── Replication ──────────────────────────────────────────────────────────
 
@@ -109,48 +43,4 @@ export interface RingsideReplication {
     status: ClassStatusValue,
     additionalFields?: ClassStatusUpdateFields
   ) => Promise<void>;
-}
-
-// ── Prefetch ─────────────────────────────────────────────────────────────
-
-/**
- * Read-only prefetch reader. Ringside pages query keys the host has
- * already populated — they do NOT write to or clear the cache. Cache
- * management stays in the host.
- *
- * Returns the cached data directly (not the host's `{ key, data,
- * timestamp, ttl, size }` envelope) because callers in the surveyed
- * code paths only access `.data` — passing it through unwrapped keeps
- * the boundary minimal and lets the host adapter strip metadata.
- */
-export interface RingsidePrefetch {
-  /**
-   * Returns the cached data for `key`, or `null` if not present.
-   *
-   * @remarks
-   * **Host adapter contract:** the underlying host singleton in
-   * `apps/myk9q/src/services/replication/PrefetchCacheManager.ts` returns a
-   * `PrefetchCacheEntry<T>` envelope (`{ key, data, timestamp, ttl?, size? }`),
-   * not a bare `T`. Adapters wiring this capability MUST strip the envelope
-   * and return `entry.data` (or `null` if the entry is absent / expired).
-   * The boundary type here is intentionally unwrapped so ringside callers
-   * never see host-internal cache metadata — see the design note at the top
-   * of the `RingsidePrefetch` block.
-   */
-  get: <T = unknown>(key: string) => Promise<T | null>;
-}
-
-// ── Provider value ───────────────────────────────────────────────────────
-
-/**
- * The full value bag a host passes to `<RingsideProvider value={...}>`.
- *
- * Bags rather than a flat shape so future additions (e.g. notifications,
- * realtime channels) land as additive properties without touching
- * existing capabilities. Each bag is independently mockable in tests.
- */
-export interface RingsideContextValue {
-  auth: RingsideAuth;
-  replication: RingsideReplication;
-  prefetch: RingsidePrefetch;
 }

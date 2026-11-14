@@ -31,11 +31,6 @@ export interface ResetConfirmState {
   entry: Entry | null;
 }
 
-export interface OrgData {
-  organization: string;
-  activity_type: string;
-}
-
 // =============================================================================
 // useEntryListData — data shape (PR E2b)
 // =============================================================================

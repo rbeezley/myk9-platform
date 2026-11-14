@@ -207,8 +207,21 @@ describe('buildReadyForShowDay', () => {
   it('links failing paperwork to the first day of the Overview', () => {
     const result = buildReadyForShowDay(allGood({ paperwork: { status: 'fail', outstanding: 3 } }));
     const line = result.lines.find(candidate => candidate.id === 'paperwork');
-    expect(line?.href).toBe('/shows/show-1?day=2026-10-20');
+    // The packet panel opens on the first trial of the first day (MYK9-1924).
+    expect(line?.href).toBe('/shows/show-1?day=2026-10-20&packet=t1');
     expect(line?.detail).toBe('3 sheets for the first day need printing');
+  });
+
+  it('opens the packet of the first trial of the first day, not a later day', () => {
+    const later = { id: 't0', trialDate: '2026-10-21' } as SyncableTrial;
+    const sameDay = { id: 't2', trialDate: '2026-10-20' } as SyncableTrial;
+    const result = buildReadyForShowDay(
+      allGood({
+        paperwork: { status: 'fail', outstanding: 3 },
+        setup: { show: show(), trials: [later, trial, sameDay], classes: [{ judgeName: 'Jane' }] },
+      })
+    );
+    expect(result.lines.find(line => line.id === 'paperwork')?.href).toContain('packet=t1');
   });
 
   it('omits the paperwork line, rather than passing it, while print tracking is unused (MYK9-1620)', () => {

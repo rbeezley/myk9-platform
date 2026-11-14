@@ -20,7 +20,6 @@ import type {
   EntryListActions,
   EntryStatusChange,
   EntryStatusCheckIn,
-  LongPressHandlers,
   RunOrderPreset,
   RingsideReplication,
   Entry,
@@ -60,7 +59,7 @@ export interface UseAtShowEntryListHandlersDeps {
   replication: RingsideReplication;
   /** Route param. */
   classId: string | undefined;
-  /** Current (optimistically-updated) entries — used by setDogInRingStatus. */
+  /** Current (optimistically-updated) entries — read for the cancelled-class check. */
   localEntries: Entry[];
   /** Permission predicate (already narrowed from RBAC by the auth adapter). */
   hasPermission: (permission: 'canScore') => boolean;
@@ -104,14 +103,6 @@ export interface UseAtShowEntryListHandlersDeps {
 
 const NEVER_CANCELLED = () => false;
 
-const NOOP_LONG_PRESS: LongPressHandlers = {
-  onMouseDown: () => {},
-  onMouseUp: () => {},
-  onMouseLeave: () => {},
-  onTouchStart: () => {},
-  onTouchEnd: () => {},
-};
-
 export function useAtShowEntryListHandlers(
   deps: UseAtShowEntryListHandlersDeps
 ): EntryListHandlers {
@@ -137,9 +128,9 @@ export function useAtShowEntryListHandlers(
     setLocalEntries,
   } = deps;
 
-  // Mirror the latest entries into a ref so the serialized in-ring guard
-  // (setDogInRingStatus) reads the freshest committed snapshot instead of a
-  // stale closure capture — rapid taps fire handlers bound to the same render.
+  // Mirror the latest entries into a ref so id-only handlers read the freshest
+  // committed snapshot instead of a stale closure capture — rapid taps fire
+  // handlers bound to the same render.
   const entriesRef = useRef(localEntries);
   useEffect(() => {
     entriesRef.current = localEntries;
@@ -152,55 +143,6 @@ export function useAtShowEntryListHandlers(
       return row ? isClassCancelled(row.classId) : false;
     },
     [isClassCancelled]
-  );
-
-  // Serializes setDogInRingStatus calls: in-ring is single-occupancy, so
-  // overlapping calls must not interleave their read→clear→mark and both end
-  // up in-ring. Within-tab only; true cross-device exclusivity needs a
-  // server-side constraint (deferred with the /at-show service layer).
-  const inRingMutex = useRef<Promise<void>>(Promise.resolve());
-
-  // ── Routing ──────────────────────────────────────────────────────────
-  const getScoreSheetRoute = useCallback<EntryListHandlers['getScoreSheetRoute']>(
-    entry => buildScoreSheetRoute(entry),
-    [buildScoreSheetRoute]
-  );
-
-  // ── In-ring set (ring management) ────────────────────────────────────
-  const setDogInRingStatus = useCallback<EntryListHandlers['setDogInRingStatus']>(
-    async (dogId, inRing) => {
-      if (isEntryCancelled(dogId)) {
-        toast.info(CANCELLED_CLASS_MESSAGE);
-        return false;
-      }
-      // Chain onto the prior call so the read→clear→mark sequence runs
-      // atomically relative to other in-ring changes (see inRingMutex above).
-      const run = inRingMutex.current.then(async () => {
-        if (inRing) {
-          // Other entries must leave the ring first. `handleToggleInRing(id,
-          // true)` clears them to 'no-status' (in-ring is single-occupancy);
-          // calling handleMarkInRing here would re-mark them in-ring instead.
-          const others = entriesRef.current.filter(
-            e => e.id !== dogId && (e.inRing || e.status === 'in-ring')
-          );
-          await Promise.all(others.map(e => actions.handleToggleInRing(e.id, true)));
-          await actions.handleMarkInRing(dogId);
-        } else {
-          await actions.handleToggleInRing(dogId, true);
-        }
-      });
-      // Keep the mutex chain alive even if this call rejects, so one failure
-      // doesn't wedge every subsequent in-ring change.
-      inRingMutex.current = run.catch(() => {});
-      try {
-        await run;
-        return true;
-      } catch (error) {
-        logger.error('[at-show] setDogInRingStatus failed', 'at-show', { error: String(error) });
-        return false;
-      }
-    },
-    [actions, isEntryCancelled]
   );
 
   // ── Entry tap ────────────────────────────────────────────────────────
@@ -424,10 +366,6 @@ export function useAtShowEntryListHandlers(
     }
   }, [manualRefresh, setIsManualRefreshing]);
 
-  const handleHardRefresh = useCallback<EntryListHandlers['handleHardRefresh']>(() => {
-    window.location.reload();
-  }, []);
-
   // ── Class-status dialog (real via replication adapter) ───────────────
   const handleStatusDialogChange = useCallback<EntryListHandlers['handleStatusDialogChange']>(
     async (status, timeValue) => {
@@ -474,26 +412,6 @@ export function useAtShowEntryListHandlers(
     }
   }, [deps, refresh]);
 
-  // Printing is intentionally NOT offered at /at-show — reports live on the
-  // secretary Reports page (the ringside print menu is hidden via
-  // context.hidePrintOptions). These remain as no-ops only to satisfy the
-  // EntryListHandlers contract; they are unreachable from the at-show UI.
-  const stubPrint = useCallback((kind: string) => {
-    logger.warn(`[at-show] print (${kind}) is not offered at ringside — use the Reports page`);
-  }, []);
-  const handlePrintCheckIn = useCallback<EntryListHandlers['handlePrintCheckIn']>(
-    () => stubPrint('check-in'),
-    [stubPrint]
-  );
-  const handlePrintResults = useCallback<EntryListHandlers['handlePrintResults']>(
-    () => stubPrint('results'),
-    [stubPrint]
-  );
-  const handlePrintScoresheet = useCallback<EntryListHandlers['handlePrintScoresheet']>(
-    async () => stubPrint('scoresheet'),
-    [stubPrint]
-  );
-
   // Statistics opens from ClassOptionsDialog itself (ClassStatisticsDialog reads the
   // replicated entries), so the page has nothing to do. The contract requires the
   // handler; its presence is only what shows the tile.
@@ -505,8 +423,6 @@ export function useAtShowEntryListHandlers(
   void setLocalEntries;
 
   return {
-    getScoreSheetRoute,
-    setDogInRingStatus,
     handleEntryClick,
     handleEntryPrefetch,
     handleStatusChange,
@@ -515,12 +431,7 @@ export function useAtShowEntryListHandlers(
     handleApplyRunOrder,
     handleOpenDragMode,
     handleManualRefresh,
-    handleHardRefresh,
-    refreshLongPressHandlers: NOOP_LONG_PRESS,
     handleRecalculatePlacements,
-    handlePrintCheckIn,
-    handlePrintResults,
-    handlePrintScoresheet,
     handleStatusDialogChange,
     handleStatisticsClick,
   };

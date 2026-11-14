@@ -229,7 +229,7 @@ REVOKE ALL ON FUNCTION private.refresh_enrollment_money(uuid) FROM PUBLIC;
 -- The status guard (from 20261101213300): the two MYK9-1961 derived moves of
 -- refresh_enrollment_money (a refunded form to pending, and the settle to paid) are allowed
 -- inside an exhibitor's own add-on, class change or removal.
--- CREATE OR REPLACE keeps its grants.
+-- The grant decision is restated below for the grant contract (same as 20261101213300).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.restrict_payment_status_update()
  RETURNS trigger
@@ -309,6 +309,8 @@ BEGIN
     RETURN NEW;
 END;
 $function$;
+REVOKE ALL ON FUNCTION public.restrict_payment_status_update() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.restrict_payment_status_update() TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- The entries cascade (from 20261101213300): a payment never reopens a refunded entry

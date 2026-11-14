@@ -6,7 +6,7 @@ import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { getTrialTimezone } from '@/features/registries';
 import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePromptWindow';
-import { reopenHeldConflicts } from '@/features/replication-conflicts/heldConflicts';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { Show } from '@/types/show-types';
 
 /**
@@ -24,6 +24,15 @@ export const ShowHeaderControls: React.FC<{ show: Show }> = ({ show }) => {
     timeZone: trials?.[0] ? getTrialTimezone(trials[0]) : null,
     now: new Date(),
   });
+  // Auto-save only on KNOWN dates and timezone: the window helper fails open while trials load,
+  // and a show months away must never be saved on that guess (MYK9-1994). The key names the user,
+  // this sign-in and the show, so one attempt covers the page session and a new sign-in restores.
+  const { user } = useAuthContext();
+  const datesKnown = Boolean(show.startDate && trials?.[0]);
+  const autoSaveKey =
+    datesKnown && inPromptWindow && user && !user.is_anonymous
+      ? `${user.id}:${user.last_sign_in_at ?? ''}:${show.id}`
+      : undefined;
   return (
     <>
       {/* Offline readiness and "Save for show day" (MYK9-957: was on Show Day). */}
@@ -31,9 +40,8 @@ export const ShowHeaderControls: React.FC<{ show: Show }> = ({ show }) => {
         showId={show.id}
         note={note.label}
         noteNeedsAttention={note.needsAttention}
-        onNoteClick={note.choiceNeeded ? () => void reopenHeldConflicts() : undefined}
         inPromptWindow={inPromptWindow}
-        autoSave={inPromptWindow}
+        autoSaveKey={autoSaveKey}
       />
       <LiveUpdateIndicator />
       <ShowPresenceStack />

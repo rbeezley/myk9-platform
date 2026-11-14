@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { SyncMetrics } from '@/types/sync-types';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
-import { useHeldConflictCount } from '@/hooks/useHeldConflictCount';
 
 export type SyncStatus = 'synced' | 'pending' | 'error' | 'conflict' | 'offline';
 
@@ -29,7 +28,6 @@ interface GlobalSyncState {
 export function useGlobalSyncStatus(): GlobalSyncState {
   const { status: replication } = useReplicationSync();
   const queueSize = usePendingMutationCount();
-  const conflictCount = useHeldConflictCount();
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -50,11 +48,7 @@ export function useGlobalSyncStatus(): GlobalSyncState {
   const hasError = Boolean(replication.error) || errorCount > 0;
 
   let status: SyncStatus;
-  // A change held for a choice outranks everything: it never sends until the person picks, and
-  // the choice needs no connection (MYK9-1995).
-  if (conflictCount > 0) {
-    status = 'conflict';
-  } else if (!isOnline) {
+  if (!isOnline) {
     status = 'offline';
   } else if (hasError) {
     status = 'error';
@@ -68,7 +62,7 @@ export function useGlobalSyncStatus(): GlobalSyncState {
     status,
     queueSize,
     isOnline,
-    conflictCount,
+    conflictCount: 0,
     errorCount,
   };
   if (replication.lastSyncAt) {

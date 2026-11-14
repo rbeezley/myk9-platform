@@ -148,7 +148,7 @@ export function classRowSyncBlockedReason(state: ClassRowSyncState | null): stri
   }
   if (state === 'conflict') {
     // The notice can be closed; the header's "needs your choice" raises it again: never a dead end.
-    return `This class was changed somewhere else. Choose "${CONFLICT_TAKE_REMOTE_LABEL}" or "${CONFLICT_KEEP_LOCAL_LABEL}" on the notice to settle it, then the check can show. If you closed the notice, choose "needs your choice" at the top of the page.`;
+    return `This class was changed somewhere else. Choose "${CONFLICT_TAKE_REMOTE_LABEL}" or "${CONFLICT_KEEP_LOCAL_LABEL}" on the notice to settle it, then the check can show. If you closed the notice, scroll to the top of the page and press the amber button that says the change needs your choice.`;
   }
   if (state === 'waiting') {
     return "Waiting for this class's changes to be sent before the check can show";

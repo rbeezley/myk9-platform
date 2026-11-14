@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
-import { toast } from 'sonner';
+import { Toaster, toast } from 'sonner';
+import { CONFLICT_TOAST_TITLE } from '@/lib/offlineCopy';
 import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 // ── hoisted spies ────────────────────────────────────────────────────────────
@@ -58,16 +59,19 @@ vi.mock('@/lib/notifications', () => ({
   notifications: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
-vi.mock('sonner', async importOriginal => ({
-  ...(await importOriginal<typeof import('sonner')>()),
-  toast: Object.assign(vi.fn(), {
-    warning: vi.fn(),
-    dismiss: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    success: vi.fn(),
-  }),
-}));
+// The real toaster, with spies on the two calls the provider makes, so a test can count the
+// notices a person would actually see.
+vi.mock('sonner', async importOriginal => {
+  const actual = await importOriginal<typeof import('sonner')>();
+  return {
+    ...actual,
+    toast: Object.assign(vi.fn(actual.toast), {
+      ...actual.toast,
+      warning: vi.fn(actual.toast.warning),
+      dismiss: vi.fn(actual.toast.dismiss),
+    }),
+  };
+});
 
 vi.mock('@/hooks/useStoreSubscriptions', () => ({
   useStoreSubscriptions: () => undefined,
@@ -369,15 +373,26 @@ describe('ReplicationSyncProvider: the conflict notice (MYK9-1995)', () => {
     vi.mocked(toast.dismiss).mockClear();
   });
 
-  it('keys the notice by table and row, so a reconnect replay never shows a second one', async () => {
+  it('shows one notice per conflict when the live conflict and the sign-in replay both fire', async () => {
     renderProvider();
+    render(<Toaster />);
+    // The sync raises the conflict on reconnect; the sign-in replays every persisted one. The
+    // replay carries the same classes/row-1 conflict the sync just raised.
     const detail = makeConflictSnapshot('classes');
     await act(async () => {
       window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
-      window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
     });
-    const ids = vi.mocked(toast.warning).mock.calls.map(([, options]) => options?.id);
-    expect(ids).toEqual(['conflict:classes:row-1', 'conflict:classes:row-1']);
+    await triggerAuth(fakeSession());
+    await waitFor(() =>
+      expect(screen.getAllByText(CONFLICT_TOAST_TITLE).length).toBeGreaterThan(0)
+    );
+    const forClasses = vi
+      .mocked(toast.warning)
+      .mock.calls.filter(([, options]) => options?.id === 'conflict:classes:row-1');
+    expect(forClasses.length).toBeGreaterThanOrEqual(2);
+    // 11 tables replay one conflict each, plus the live one on classes which the replay repeats:
+    // 11 notices, never 12.
+    expect(screen.getAllByText(CONFLICT_TOAST_TITLE)).toHaveLength(11);
   });
 
   it('tells the header a choice was saved, after the resolve lands', async () => {

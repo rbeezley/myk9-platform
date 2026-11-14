@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { CloudDownload, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useOnlineStatus } from '@/lib/networkUtils';
-import { NoteChoiceButton, OfflineStatusLine } from './OfflineStatusLine';
+import { ChoiceNeededButton } from './ChoiceNeededButton';
+import { OfflineStatusLine } from './OfflineStatusLine';
+import { hasTriedAutoSave, markAutoSaveTried } from './autoSaveAttempts';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
 interface OfflineReadyBadgeProps {
@@ -11,21 +13,18 @@ interface OfflineReadyBadgeProps {
   /** Whether the note needs the secretary's attention (conflict, error) rather than reassures. */
   noteNeedsAttention?: boolean | undefined;
   /**
-   * MYK9-1995: set when a change is held for the person's choice. The note then renders as a
-   * button that brings the existing choice notice back, instead of as plain text.
-   */
-  onNoteClick?: (() => void) | undefined;
-  /**
    * MYK9-1621: false = before the show's prompt window (`isInOfflinePromptWindow`). An unsaved
    * device then shows no amber sentence, only a quiet "Save for show day" button. Defaults to
    * true so ringside surfaces keep the prompt.
    */
   inPromptWindow?: boolean | undefined;
   /**
-   * MYK9-1994: save the offline copy without being asked (staff in the show-day window, online).
-   * Tried once per device and show; a failed save leaves the "Try again" button, never a loop.
+   * MYK9-1994: save the offline copy without being asked. Set only when the show's dates are
+   * known and today is inside the show-day window. The value names who is signed in and which
+   * show, and one attempt is made per value for the whole page session, so a remount (a tab or
+   * route change) never starts another full sync; a new sign-in is a new value.
    */
-  autoSave?: boolean | undefined;
+  autoSaveKey?: string | undefined;
 }
 
 /**
@@ -49,31 +48,34 @@ interface OfflineReadyBadgeProps {
  * contain the visible words breaks WCAG 2.5.3 (Label in Name) for anyone
  * driving the app by voice.
  */
-export function OfflineReadyBadge({
+export function OfflineReadyBadge(props: OfflineReadyBadgeProps) {
+  // The choice button is its own element, outside the status line's live region (MYK9-1995).
+  return (
+    <>
+      <ChoiceNeededButton showId={props.showId} />
+      <OfflineReadyStatus {...props} />
+    </>
+  );
+}
+
+function OfflineReadyStatus({
   showId,
   note,
   noteNeedsAttention,
-  onNoteClick,
   inPromptWindow = true,
-  autoSave = false,
+  autoSaveKey,
 }: OfflineReadyBadgeProps) {
   const { readiness, priming, primeFailed, prime } = useOfflineReadiness(showId);
   const isOnline = useOnlineStatus();
-  const autoSavedFor = useRef<string | null>(null);
   const needsCopy = readiness !== null && !readiness.ready;
   useEffect(() => {
-    if (!autoSave || !needsCopy || !isOnline || priming || !showId) return;
-    if (autoSavedFor.current === showId) return;
-    autoSavedFor.current = showId;
+    if (!autoSaveKey || !needsCopy || !isOnline || priming || hasTriedAutoSave(autoSaveKey)) return;
+    markAutoSaveTried(autoSaveKey);
     void prime();
-  }, [autoSave, needsCopy, isOnline, priming, showId, prime]);
+  }, [autoSaveKey, needsCopy, isOnline, priming, prime]);
 
   const noteText = note ? (
-    onNoteClick ? (
-      <NoteChoiceButton note={note} onClick={onNoteClick} />
-    ) : (
-      <span className={noteNeedsAttention ? 'text-warning' : 'text-muted-foreground'}>{note}</span>
-    )
+    <span className={noteNeedsAttention ? 'text-warning' : 'text-muted-foreground'}>{note}</span>
   ) : null;
 
   if (!readiness) {
@@ -90,7 +92,6 @@ export function OfflineReadyBadge({
     return (
       <OfflineStatusLine
         note={note ?? 'Offline · scores saved on this device'}
-        onNoteClick={onNoteClick}
         className="min-h-11 flex-wrap gap-x-2 gap-y-1 text-sm"
       />
     );

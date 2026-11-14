@@ -445,7 +445,9 @@ describe('Results tab on the real replicated class rows', () => {
       expect(screen.getByText(/Keep the other change" or "Keep my change/)).toBeInTheDocument();
       // A dismissed notice is not a dead end: the copy points at the header's button.
       expect(
-        screen.getByText(/If you closed the notice, choose "needs your choice" at the top/)
+        screen.getByText(
+          /If you closed the notice, scroll to the top of the page and press the amber button/
+        )
       ).toBeInTheDocument();
 
       // Keep the other change: the server's row, check included, replaces the local one.

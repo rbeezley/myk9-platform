@@ -25,7 +25,6 @@ describe('useSyncNote', () => {
     expect(renderHook(() => useSyncNote()).result.current).toEqual({
       label: 'Offline · scores saved on this device',
       needsAttention: false,
-      choiceNeeded: false,
     });
 
     mocks.sync.queueSize = 3;
@@ -49,25 +48,12 @@ describe('useSyncNote', () => {
     expect(renderHook(() => useSyncNote()).result.current).toEqual({
       label: 'Some changes need attention',
       needsAttention: true,
-      choiceNeeded: false,
     });
-
-    mocks.sync.conflictCount = 1;
-    mocks.sync.queueSize = 1;
-    expect(renderHook(() => useSyncNote()).result.current).toEqual({
-      label: '1 change needs your choice',
-      needsAttention: true,
-      choiceNeeded: true,
-    });
-    mocks.sync.conflictCount = 2;
-    expect(renderHook(() => useSyncNote()).result.current.label).toBe('2 changes need your choice');
-    mocks.sync.conflictCount = 0;
 
     mocks.sync.status = 'synced';
     expect(renderHook(() => useSyncNote()).result.current).toEqual({
       label: 'All changes saved',
       needsAttention: false,
-      choiceNeeded: false,
     });
   });
 });

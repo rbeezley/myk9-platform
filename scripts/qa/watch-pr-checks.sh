@@ -153,7 +153,8 @@ JQ_OUTSTANDING='
   | join(", ")
 '
 
-# Payloads reach jq on stdin or through a process substitution, never as an
+# Payloads reach jq on stdin, never through a process substitution (Git Bash
+# turns it into a /proc path native jq.exe cannot open) or as an
 # --argjson argument: Linux caps ONE argument at 128 KiB (MAX_ARG_STRLEN), and a
 # full REST check-runs page for a 33-check head is already ~98 KB. Past the cap
 # jq never starts, every poll reads as "could not read", and an all-green PR
@@ -201,8 +202,11 @@ JQ_REST_ROLLUP='
 
 # rest_rollup <check-runs-array> <statuses-array> <workflow-runs-array>. Pure.
 rest_rollup() {
-  jq -cn --slurpfile c <(printf '%s' "$1") --slurpfile s <(printf '%s' "$2") --slurpfile w <(printf '%s' "$3") \
-    "\$c[0] as \$checks | \$s[0] as \$statuses | \$w[0] as \$runs | $JQ_REST_ROLLUP"
+  # One combined document on stdin: a process substitution becomes a
+  # /proc/<pid>/fd path under Git Bash that a native Windows jq.exe cannot open
+  # (MYK9-1910), and --argjson would hit the argument cap described above.
+  printf '{"c":%s,"s":%s,"w":%s}' "$1" "$2" "$3" |
+    jq -c ".c as \$checks | .s as \$statuses | .w as \$runs | $JQ_REST_ROLLUP"
 }
 
 # preview_note_applies <comma-joined names>: true only when EVERY name is a
@@ -363,6 +367,12 @@ self_test() {
   fi
   echo "self-test 11/11 + 7 current-attempt fixtures x2 orders + 4 REST: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red, stale-conclusion, unknown-conclusion, neutral-and-skipped, draft-ready-stale-skip, draft-ready-both-registered, cancelled-then-success, fresh-failure-beats-old-success, required-cancelled-then-success, single-intentional-skip, fresh-failure-beats-old-skip, rest-failure, rest-status-failure, rest-stale-skip, rest-green"
 }
+
+# Every fixture and poll needs jq; say so once, before any of them runs.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required but not installed. Install: winget install jqlang.jq (Windows), brew install jq (macOS), apt install jq (Linux)." >&2
+  exit 4
+fi
 
 if [ "${1:-}" = "--self-test" ]; then
   self_test

@@ -122,6 +122,7 @@ const launchCriticalSqlTests = [
   'myk9_1098_ringside_update_class_area_times_test.sql',
   'myk9_1513_class_ring_phase_test.sql',
   'myk9_1945_show_close_reopen_storage_test.sql',
+  'myk9_1945_show_close_notes_test.sql',
   'myk9_1625_ringside_class_num_areas_test.sql',
   'myk9_677_show_payments_ledger_test.sql',
   'myk9_677_submit_entries_payment_test.sql',

@@ -137,6 +137,8 @@ BEGIN
     ('secretary_tasks','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_announcement_reads','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_announcements','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    -- MYK9-1945: staff-only close notes; no DELETE (rows go via the shows cascade), anon revoked.
+    ('show_close_notes','SELECT,INSERT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_eve_nudge_log','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_incidents','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_judge_supplies','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -260,7 +262,7 @@ BEGIN
       'ringside_containment','ringside_containment_audit','ringside_sessions',
       'role_permissions','role_requests','roles','rule_organizations','rule_sports','rulebooks',
       'rules','rules_feedback','rules_query_log','secretary_tasks','show_announcement_reads',
-      'show_announcements','show_eve_nudge_log','show_incidents','show_judge_supplies','show_lifecycle_email_attempts',
+      'show_announcements','show_close_notes','show_eve_nudge_log','show_incidents','show_judge_supplies','show_lifecycle_email_attempts',
       'show_lifecycle_email_job_requests','show_lifecycle_email_jobs','show_lifecycle_email_steps','show_message_threads',
       'show_messages','show_money_locks','show_officials','show_passcodes','show_payments','show_payouts',
       'show_templates',

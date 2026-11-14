@@ -7035,6 +7035,35 @@ export type Database = {
           },
         ]
       }
+      show_close_notes: {
+        Row: {
+          closed_open_lines: Json | null
+          reopen_reason: string | null
+          show_id: string
+          updated_at: string
+        }
+        Insert: {
+          closed_open_lines?: Json | null
+          reopen_reason?: string | null
+          show_id: string
+          updated_at?: string
+        }
+        Update: {
+          closed_open_lines?: Json | null
+          reopen_reason?: string | null
+          show_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_close_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       show_eve_nudge_log: {
         Row: {
           auth_user_id: string
@@ -8746,7 +8775,6 @@ export type Database = {
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
           closed_at: string | null
-          closed_open_lines: Json | null
           club_id: string
           confirmation_message: string | null
           cover_image_url: string | null
@@ -8788,7 +8816,6 @@ export type Database = {
           published_premium_url: string | null
           published_premium_version: number | null
           publishes_own_premium: boolean
-          reopen_reason: string | null
           reopened_at: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
@@ -8826,7 +8853,6 @@ export type Database = {
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
           closed_at?: string | null
-          closed_open_lines?: Json | null
           club_id: string
           confirmation_message?: string | null
           cover_image_url?: string | null
@@ -8868,7 +8894,6 @@ export type Database = {
           published_premium_url?: string | null
           published_premium_version?: number | null
           publishes_own_premium?: boolean
-          reopen_reason?: string | null
           reopened_at?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
@@ -8906,7 +8931,6 @@ export type Database = {
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
           closed_at?: string | null
-          closed_open_lines?: Json | null
           club_id?: string
           confirmation_message?: string | null
           cover_image_url?: string | null
@@ -8948,7 +8972,6 @@ export type Database = {
           published_premium_url?: string | null
           published_premium_version?: number | null
           publishes_own_premium?: boolean
-          reopen_reason?: string | null
           reopened_at?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null

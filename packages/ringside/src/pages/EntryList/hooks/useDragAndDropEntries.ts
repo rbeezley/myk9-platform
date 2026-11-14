@@ -56,8 +56,6 @@ interface UseDragAndDropEntriesOptions {
   updateExhibitorOrder: (entries: Entry[], previous: Entry[]) => Promise<unknown>;
   /** External isDraggingRef - if provided, hook uses it instead of creating its own */
   isDraggingRef?: React.MutableRefObject<boolean>;
-  /** External manualOrder state setter - if provided, hook updates it instead of internal state */
-  setManualOrder?: React.Dispatch<React.SetStateAction<Entry[]>>;
   /** Grace period in ms before accepting new sync data after drag (default: 1500) */
   gracePeriodMs?: number;
   /**
@@ -108,7 +106,6 @@ export function useDragAndDropEntries({
   currentEntries,
   updateExhibitorOrder,
   isDraggingRef: externalIsDraggingRef,
-  setManualOrder: externalSetManualOrder,
   gracePeriodMs = 1500,
   onPersistError,
 }: UseDragAndDropEntriesOptions): UseDragAndDropEntriesReturn {
@@ -117,11 +114,6 @@ export function useDragAndDropEntries({
   const internalIsDraggingRef = useRef<boolean>(false);
   // Use external ref if provided, otherwise use internal
   const isDraggingRef = externalIsDraggingRef || internalIsDraggingRef;
-
-  // Internal manual order state (only used if no external setter provided)
-  const [_internalManualOrder, setInternalManualOrder] = useState<Entry[]>([]);
-  // Use external setter if provided, otherwise use internal
-  const setManualOrder = externalSetManualOrder || setInternalManualOrder;
 
   const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -232,7 +224,7 @@ export function useDragAndDropEntries({
       // Scored and other hidden dogs keep their run orders; the drag only permutes the dragged
       // dogs among the slots they held, or heals the whole class when those slots are unusable
       // (MYK9-1914). When the whole class is dragged this is a plain 1..N renumber.
-      const { written, previous, allEntries, dragged } = computeDragRunOrder(
+      const { written, previous, allEntries } = computeDragRunOrder(
         snapshot,
         reorderedEntries,
         localEntries
@@ -240,7 +232,6 @@ export function useDragAndDropEntries({
 
       // Single atomic state update for smooth UX
       setLocalEntries(allEntries);
-      setManualOrder(dragged);
 
       // Update database and AWAIT it to prevent race conditions with sync
       setIsUpdatingOrder(true);
@@ -289,7 +280,6 @@ export function useDragAndDropEntries({
     [
       localEntries,
       setLocalEntries,
-      setManualOrder,
       isDraggingRef,
       gracePeriodMs,
       updateExhibitorOrder,

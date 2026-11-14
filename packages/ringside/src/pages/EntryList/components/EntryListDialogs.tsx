@@ -5,7 +5,7 @@
  *  - 9 dialog components are now required slot props (`dialogs` bag):
  *    CheckinStatusDialog, RunOrderDialog, ClassOptionsDialog,
  *    ClassRequirementsDialog, MaxTimeDialog, ClassSettingsDialog,
- *    NoStatsDialog, ClassStatusDialog, AreaCountSelectionDialog.
+ *    ClassStatusDialog, AreaCountSelectionDialog.
  *  - `useAuth` is dropped entirely — `showContext` only existed to
  *    feed organizationUtils chains, which now happen in the shim and
  *    arrive as precomputed booleans (`hideMaxTimeOption`,
@@ -37,7 +37,6 @@ import type {
   MaxTimeDialogProps,
   MaxTimeClassData,
   ClassSettingsDialogProps,
-  NoStatsDialogProps,
   ClassStatusDialogProps,
   AreaCountSelectionDialogProps,
   RunOrderPreset,
@@ -125,9 +124,6 @@ export interface EntryListDialogsProps {
   setSettingsDialogOpen: Dispatch<SetStateAction<boolean>>;
   setStatusDialogOpen: Dispatch<SetStateAction<boolean>>;
   handleStatisticsClick: () => void | boolean;
-  handlePrintCheckIn: () => void;
-  handlePrintResults: () => void;
-  handlePrintScoresheet: () => void;
 
   // ── Class requirements dialog ─────────────────────────────────────
   requirementsDialogOpen: boolean;
@@ -140,10 +136,6 @@ export interface EntryListDialogsProps {
 
   // ── Class settings dialog ─────────────────────────────────────────
   settingsDialogOpen: boolean;
-
-  // ── No stats dialog ───────────────────────────────────────────────
-  noStatsDialogOpen: boolean;
-  setNoStatsDialogOpen: Dispatch<SetStateAction<boolean>>;
 
   // ── Class status dialog ───────────────────────────────────────────
   statusDialogOpen: boolean;
@@ -176,7 +168,6 @@ export interface EntryListDialogsProps {
   ClassRequirementsDialog: ComponentType<ClassRequirementsDialogProps>;
   MaxTimeDialog: ComponentType<MaxTimeDialogProps>;
   ClassSettingsDialog: ComponentType<ClassSettingsDialogProps>;
-  NoStatsDialog: ComponentType<NoStatsDialogProps>;
   ClassStatusDialog: ComponentType<ClassStatusDialogProps>;
   /** Optional — only renders when class has flexible area count. */
   AreaCountSelectionDialog?: ComponentType<AreaCountSelectionDialogProps>;
@@ -212,17 +203,12 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   setSettingsDialogOpen,
   setStatusDialogOpen,
   handleStatisticsClick,
-  handlePrintCheckIn,
-  handlePrintResults,
-  handlePrintScoresheet,
   requirementsDialogOpen,
   maxTimeDialogOpen,
   maxTimeRequiredWarning,
   setMaxTimeRequiredWarning,
   refresh,
   settingsDialogOpen,
-  noStatsDialogOpen,
-  setNoStatsDialogOpen,
   statusDialogOpen,
   handleStatusDialogChange,
   areaCountDialogOpen,
@@ -243,7 +229,6 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   ClassRequirementsDialog,
   MaxTimeDialog,
   ClassSettingsDialog,
-  NoStatsDialog,
   ClassStatusDialog,
   AreaCountSelectionDialog,
 }) => {
@@ -339,9 +324,6 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             setStatusDialogOpen(true);
             return false;
           }}
-          onPrintCheckIn={handlePrintCheckIn}
-          onPrintResults={handlePrintResults}
-          onPrintScoresheet={handlePrintScoresheet}
           hideMaxTime={hideMaxTimeOption}
           hideSettings={hideSettingsOption}
         />
@@ -398,12 +380,6 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           onSettingsUpdate={refresh}
         />
       )}
-
-      <NoStatsDialog
-        isOpen={noStatsDialogOpen}
-        onClose={() => setNoStatsDialogOpen(false)}
-        className={classInfo?.className || ''}
-      />
 
       {classInfo && (
         <ClassStatusDialog

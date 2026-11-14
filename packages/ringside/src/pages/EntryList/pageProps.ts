@@ -372,7 +372,6 @@ export interface EntryListUiState {
   // because the page applies optimistic updates locally before the
   // refresh round-trip)
   localEntries: Entry[];
-  manualOrder: Entry[];
 
   // Status popup (per-entry checkin status picker)
   activeStatusPopup: string | null;
@@ -392,7 +391,6 @@ export interface EntryListUiState {
   maxTimeDialogOpen: boolean;
   maxTimeRequiredWarning: boolean;
   settingsDialogOpen: boolean;
-  noStatsDialogOpen: boolean;
   statusDialogOpen: boolean;
   selfCheckinDisabledDialog: boolean;
   showSuccessMessage: boolean;
@@ -404,12 +402,6 @@ export interface EntryListUiState {
 
   // Filter panel
   isFilterPanelOpen: boolean;
-
-  // Placement recalc spinner
-  isRecalculatingPlacements: boolean;
-
-  // Print dialog routing — null = closed, else which report to print
-  printDialogType: 'check-in' | 'results' | 'scoresheet' | null;
 
   // Reset menu / confirm dialog
   activeResetMenu: string | null;
@@ -429,7 +421,6 @@ export interface EntryListUiState {
  */
 export interface EntryListUiActions {
   setLocalEntries: Dispatch<SetStateAction<Entry[]>>;
-  setManualOrder: Dispatch<SetStateAction<Entry[]>>;
 
   setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
 
@@ -445,7 +436,6 @@ export interface EntryListUiActions {
   setMaxTimeDialogOpen: Dispatch<SetStateAction<boolean>>;
   setMaxTimeRequiredWarning: Dispatch<SetStateAction<boolean>>;
   setSettingsDialogOpen: Dispatch<SetStateAction<boolean>>;
-  setNoStatsDialogOpen: Dispatch<SetStateAction<boolean>>;
   setStatusDialogOpen: Dispatch<SetStateAction<boolean>>;
   setSelfCheckinDisabledDialog: Dispatch<SetStateAction<boolean>>;
   setShowSuccessMessage: Dispatch<SetStateAction<boolean>>;
@@ -455,10 +445,6 @@ export interface EntryListUiActions {
   >;
 
   setIsFilterPanelOpen: Dispatch<SetStateAction<boolean>>;
-
-  setIsRecalculatingPlacements: Dispatch<SetStateAction<boolean>>;
-
-  setPrintDialogType: Dispatch<SetStateAction<'check-in' | 'results' | 'scoresheet' | null>>;
 
   setActiveResetMenu: Dispatch<SetStateAction<string | null>>;
   setResetMenuPosition: Dispatch<SetStateAction<{ top: number; left: number } | null>>;
@@ -702,15 +688,13 @@ export interface EntryListPageProps {
   context: {
     /** Currently authenticated role identifier (or null when unauthenticated). */
     role: string | null;
-    /** Show metadata the page reads for org-specific behavior. */
-    showContext: { org?: string; competition_type?: string } | null;
     /** Permission checker — flattened so ringside doesn't see the host's helper hook. */
     hasPermission: (
       permission: 'canScore' | 'canCheckInDogs' | 'canChangeRunOrder' | 'canManageClasses'
     ) => boolean;
     /**
      * Precomputed by the shim from
-     * `hasRuleDefinedMaxTimes(parseOrganizationData(showContext.org)) || !canModifyClassSettings`.
+     * `!canModifyClassSettings`.
      * True means the ClassOptionsDialog should hide the "Set Max Time"
      * option (org rule fixes max times, or user lacks permission).
      */
@@ -732,14 +716,6 @@ export interface EntryListPageProps {
      * option.
      */
     hideSettingsOption: boolean;
-    /**
-     * True means the class actions omit the print options entirely. Reports are
-     * a host concern: the at-show ringside surface deliberately offers no
-     * printing (reports live on the secretary Reports page), so the host sets
-     * this. Optional — omitting it preserves the default (print shown for
-     * non-exhibitor roles).
-     */
-    hidePrintOptions?: boolean;
     /**
      * The header's Up control (MYK9-1500): the parent's name and its FIXED route,
      * never history, so a deep link or reload still goes somewhere sensible.

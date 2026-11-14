@@ -39,9 +39,6 @@ import { areSortableEntryCardPropsEqual } from './sortableEntryCardMemo';
 export interface SortableEntryCardProps {
   entry: Entry;
   isDragMode: boolean;
-  showContext?: {
-    competition_type?: string;
-  } | null;
   classInfo?: {
     selfCheckin?: boolean;
     /** Registry id for ribbon colours (MYK9-1086). */
@@ -104,7 +101,6 @@ const SortableEntryCardImpl: React.FC<SortableEntryCardProps> = ({
   entry,
   scoringDisabled = false,
   isDragMode,
-  showContext,
   classInfo,
   hasPermission,
   handleEntryClick,
@@ -180,7 +176,6 @@ const SortableEntryCardImpl: React.FC<SortableEntryCardProps> = ({
         entry={entry}
         isDragMode={isDragMode}
         scoringDisabled={scoringDisabled}
-        showContext={showContext}
         classInfo={classInfo}
         hasPermission={hasPermission}
         handleEntryClick={handleEntryClick}

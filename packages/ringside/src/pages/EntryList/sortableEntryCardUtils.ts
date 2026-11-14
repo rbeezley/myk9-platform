@@ -47,25 +47,6 @@ export function normalizeResultText(result: string | null | undefined): string {
 }
 
 /**
- * Check if result is non-qualifying (for placement display logic)
- */
-export function isNonQualifyingResult(result: string | null | undefined): boolean {
-  const resultLower = (result || '').toLowerCase();
-  return (
-    resultLower.includes('nq') ||
-    resultLower.includes('non-qualifying') ||
-    resultLower.includes('abs') ||
-    resultLower.includes('absent') ||
-    resultLower.includes('ex') ||
-    resultLower.includes('excused') ||
-    resultLower.includes('dq') ||
-    resultLower.includes('disqualified') ||
-    resultLower.includes('wd') ||
-    resultLower.includes('withdrawn')
-  );
-}
-
-/**
  * Get result-border reinforcement without duplicating entry lifecycle status.
  */
 export function getStatusBorderClass(entry: Entry): StatusBorderClass {
@@ -86,49 +67,8 @@ export function getStatusBorderClass(entry: Entry): StatusBorderClass {
 }
 
 /**
- * Get placement emoji based on position
- */
-export function getPlacementEmoji(placement: number): string {
-  switch (placement) {
-    case 1:
-      return '🥇';
-    case 2:
-      return '🥈';
-    case 3:
-      return '🥉';
-    default:
-      return '🎖️';
-  }
-}
-
-/**
  * Get placement text (1st, 2nd, etc.)
  */
 export function getPlacementText(placement: number): string {
   return ordinal(placement);
-}
-
-/**
- * Check if show context indicates a nationals competition
- */
-export function isNationalsCompetition(
-  showContext?: { competition_type?: string } | null
-): boolean {
-  return !!showContext?.competition_type?.toLowerCase().includes('national');
-}
-
-/**
- * Get the display time for an entry based on result status.
- * Non-qualifying results (NQ, Absent, Excused, Withdrawn) show "00:00.00"
- * Qualified results show actual time.
- */
-export function getDisplayTime(
-  searchTime: number | string | null | undefined,
-  resultText: string | null | undefined,
-  formatFn: (time: number | string | null) => string
-): string {
-  if (isNonQualifyingResult(resultText)) {
-    return '00:00.00';
-  }
-  return formatFn(searchTime ?? null);
 }

@@ -27,9 +27,8 @@
  *   8. DB failure does NOT roll back the optimistic UI update
  *      (offline-first)
  *
- * The hook accepts an external `isDraggingRef` and `setManualOrder` —
- * both branches are covered so the move doesn't drop the
- * external-injection API.
+ * The hook accepts an external `isDraggingRef`; both branches are covered
+ * so the move doesn't drop the external-injection API.
  */
 
 import { renderHook, act } from '@testing-library/react';
@@ -176,7 +175,6 @@ describe('useDragAndDropEntries — handleDragStart', () => {
 describe('useDragAndDropEntries — handleDragEnd reorder', () => {
   it('moves the active entry to the target position and renumbers exhibitorOrder 1..N', async () => {
     const setLocalEntries = vi.fn();
-    const setManualOrder = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
     const currentEntries = [
       makeEntry({ id: '1', armband: 1, exhibitorOrder: 1 }),
@@ -189,7 +187,6 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,
-        setManualOrder,
       })
     );
 
@@ -215,9 +212,6 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
       ['2', 2],
       ['3', 3],
     ]);
-
-    // External setManualOrder receives the same reordered list
-    expect(setManualOrder).toHaveBeenCalledWith(reordered);
 
     // setLocalEntries gets the full localEntries merge (here identical to
     // currentEntries — see the "preserves filtered-out entries" test below
@@ -486,7 +480,6 @@ describe('useDragAndDropEntries — sync race protection', () => {
   it('does NOT roll back the optimistic UI update when updateExhibitorOrder rejects', async () => {
     const updateExhibitorOrder = vi.fn().mockRejectedValueOnce(new Error('Offline'));
     const setLocalEntries = vi.fn();
-    const setManualOrder = vi.fn();
     const currentEntries = [makeEntry({ id: '1', armband: 1 }), makeEntry({ id: '2', armband: 2 })];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
@@ -494,7 +487,6 @@ describe('useDragAndDropEntries — sync race protection', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,
-        setManualOrder,
         gracePeriodMs: 100,
       })
     );
@@ -510,7 +502,6 @@ describe('useDragAndDropEntries — sync race protection', () => {
     // tried to undo it — if one did, the UI would visibly snap back, which
     // is exactly the bug class we're guarding against.
     expect(setLocalEntries).toHaveBeenCalledTimes(1);
-    expect(setManualOrder).toHaveBeenCalledTimes(1);
 
     // Grace period should still elapse even on failure — drag flag clears.
     act(() => {

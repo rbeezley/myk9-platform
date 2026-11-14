@@ -9,8 +9,8 @@
  * the ringside permission bag from the resolved role and exposes a
  * `hasPermission` checker.
  *
- * Consumers: `AtShowEntryListPage` + `AtShowCombinedEntryListPage` (build the
- * provider auth bag + per-page context) and `AtShowScoresheetPage` (gates
+ * Consumers: `AtShowEntryListPage` + `AtShowCombinedEntryListPage` (role +
+ * permission checks) and `AtShowScoresheetPage` (gates
  * `canScore`). Keeping the derivation here means the precedence rule — which
  * Phase 1b changes when it actually wires grant-setting — lives in exactly one
  * place, and no surface can drift out of agreement with the others.
@@ -27,7 +27,7 @@ import { resolveRingsideAccess } from './ringsideAuthAdapter';
 import { useRingsideGrantRole } from './useRingsideGrantRole';
 
 export interface RingsideEffectiveRole {
-  /** Account RBAC primary role — drives the provider auth + the grant fallback. */
+  /** Account RBAC primary role — drives the RBAC mapping + the grant fallback. */
   showRole: ShowRole;
   /** Phase 1c show-scoped passcode grant role, or null when none applies. */
   grantRole: RingsideRole | null;

@@ -67,7 +67,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const isCombined = Boolean(combined);
   const { entries, classInfo } = data;
   const { isRefreshing, fetchError, refresh, notOnDevice } = dataStatus;
-  const { showContext, hasPermission, role } = context;
+  const { hasPermission } = context;
   const {
     localEntries,
     activeStatusPopup,
@@ -81,13 +81,10 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     maxTimeDialogOpen,
     maxTimeRequiredWarning,
     settingsDialogOpen,
-    noStatsDialogOpen,
     statusDialogOpen,
     selfCheckinDisabledDialog,
     showSuccessMessage,
     isFilterPanelOpen,
-    isRecalculatingPlacements,
-    printDialogType,
     activeResetMenu,
     resetMenuPosition,
     resetConfirmDialog,
@@ -102,13 +99,11 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     setMaxTimeDialogOpen,
     setSettingsDialogOpen,
     setStatusDialogOpen,
-    setNoStatsDialogOpen,
     setSelfCheckinDisabledDialog,
     setMaxTimeRequiredWarning,
     setAreaCountDialogOpen,
     setIsFilterPanelOpen,
     setIsDragMode,
-    setPrintDialogType,
     setActiveTab,
     setSortOrder,
   } = uiActions;
@@ -131,9 +126,10 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const { sensors, handleDragStart, handleDragEnd } = drag;
   const { isSyncing, hasError } = actions;
 
-  const { handlePrintSortOrder, handleOpenDragMode, handleApplyRunOrder } = useEntryListPageActions(
-    { handlers, uiActions, printDialogType, currentEntries: dragEntries }
-  );
+  const { handleOpenDragMode, handleApplyRunOrder } = useEntryListPageActions({
+    handlers,
+    uiActions,
+  });
 
   const statusTabs = useMemo(
     () =>
@@ -243,7 +239,6 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         filterDisabled={isDragMode}
         onFilterClick={() => setIsFilterPanelOpen(true)}
         onRefresh={handlers.handleManualRefresh}
-        refreshLongPressHandlers={handlers.refreshLongPressHandlers}
         showSectionsBadge={isCombined}
         actionsMenu={{
           showRunOrder: hasPermission('canChangeRunOrder'),
@@ -252,29 +247,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           // unambiguous target. (Max time, above, is one search for both.)
           showRecalculatePlacements: !isCombined && hasPermission('canManageClasses'),
           showClassSettings: !isCombined && hasPermission('canManageClasses'),
-          showPrintOptions: Boolean(role && role !== 'exhibitor') && !context.hidePrintOptions,
-          isRecalculatingPlacements,
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           onRecalculatePlacements: handlers.handleRecalculatePlacements,
           onClassSettingsClick: () => setClassOptionsDialogOpen(true),
-          printOptions: [
-            {
-              label: 'Check-In Sheet',
-              onClick: () => setPrintDialogType('check-in'),
-              icon: 'checkin',
-            },
-            {
-              label: 'Results Sheet',
-              onClick: () => setPrintDialogType('results'),
-              icon: 'results',
-              disabled: (classInfo?.completedEntries ?? 0) < 1,
-            },
-            {
-              label: 'Scoresheet',
-              onClick: () => setPrintDialogType('scoresheet'),
-              icon: 'scoresheet',
-            },
-          ],
         }}
         up={context.up}
         menu={context.menu}
@@ -334,7 +309,6 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               entries={shownEntries}
               activeTab={shownTab}
               isDragMode={isDragMode}
-              showContext={showContext}
               classInfo={classInfo}
               hasPermission={hasPermission}
               onEntryClick={handlers.handleEntryClick}
@@ -400,7 +374,6 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
                       // still the way back (MYK9-645).
                       scoringDisabled
                       isDragMode={false}
-                      showContext={showContext}
                       classInfo={classInfo}
                       hasPermission={hasPermission}
                       onEntryClick={handlers.handleEntryClick}
@@ -436,7 +409,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         sortOptions={sortOptions}
         sortOrder={sortOrder}
         onSortChange={order => {
-          setSortOrder(order as 'run' | 'armband' | 'placement' | 'manual');
+          setSortOrder(order as 'run' | 'armband' | 'placement');
           setIsDragMode(false);
         }}
         resultsLabel={
@@ -470,17 +443,12 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         setSettingsDialogOpen={setSettingsDialogOpen}
         setStatusDialogOpen={setStatusDialogOpen}
         handleStatisticsClick={handlers.handleStatisticsClick}
-        handlePrintCheckIn={() => setPrintDialogType('check-in')}
-        handlePrintResults={() => setPrintDialogType('results')}
-        handlePrintScoresheet={() => setPrintDialogType('scoresheet')}
         requirementsDialogOpen={requirementsDialogOpen}
         maxTimeDialogOpen={maxTimeDialogOpen}
         maxTimeRequiredWarning={maxTimeRequiredWarning}
         setMaxTimeRequiredWarning={setMaxTimeRequiredWarning}
         refresh={refresh}
         settingsDialogOpen={settingsDialogOpen}
-        noStatsDialogOpen={noStatsDialogOpen}
-        setNoStatsDialogOpen={setNoStatsDialogOpen}
         statusDialogOpen={statusDialogOpen}
         handleStatusDialogChange={handlers.handleStatusDialogChange}
         areaCountDialogOpen={areaCountDialogOpen}
@@ -501,30 +469,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         ClassRequirementsDialog={dialogs.ClassRequirementsDialog}
         MaxTimeDialog={dialogs.MaxTimeDialog}
         ClassSettingsDialog={dialogs.ClassSettingsDialog}
-        NoStatsDialog={dialogs.NoStatsDialog}
         ClassStatusDialog={dialogs.ClassStatusDialog}
         AreaCountSelectionDialog={dialogs.AreaCountSelectionDialog}
-      />
-
-      <dialogs.ScoresheetPrintDialog
-        isOpen={printDialogType !== null}
-        onClose={() => setPrintDialogType(null)}
-        onPrint={handlePrintSortOrder}
-        title={
-          printDialogType === 'check-in'
-            ? 'Print Check-In Sheet'
-            : printDialogType === 'results'
-              ? 'Print Results'
-              : 'Print Scoresheet'
-        }
-        options={
-          printDialogType === 'results'
-            ? {
-                primary: { label: 'Placement', sortOrder: 'placement' },
-                secondary: { label: 'Armband Number', sortOrder: 'armband' },
-              }
-            : undefined
-        }
       />
 
       {/* SuccessToast + FloatingDoneButton are leaf components from

@@ -176,18 +176,21 @@ export interface PremiumContact {
 }
 
 /** The junior fee is charged per class entry; the landing prints it as the sub-line, the premium inline. */
-export const JUNIOR_HANDLER_FEE_UNIT = 'per class entry';
+const JUNIOR_HANDLER_FEE_PER_ENTRY = 'per class entry';
+/** Checkout charges the lesser of the junior and the regular fee, so every surface says so. */
+const JUNIOR_HANDLER_FEE_CAP = 'never more than the regular fee';
+export const JUNIOR_HANDLER_FEE_UNIT = `${JUNIOR_HANDLER_FEE_PER_ENTRY}, ${JUNIOR_HANDLER_FEE_CAP}`;
 /** The junior fee applies only when the handler is under 18; every surface says so. */
 const JUNIOR_HANDLER_FEE_BASE = 'Junior handler fee';
 const JUNIOR_HANDLER_FEE_QUALIFIER = '(handler under 18)';
 /** The landing's label; its unit (`JUNIOR_HANDLER_FEE_UNIT`) goes in the sub-line. */
 export const JUNIOR_HANDLER_FEE_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
 /** The premium's row: the unit sits in the label, because the PDF prints only label and value. */
-const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_UNIT} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
+const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_PER_ENTRY} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
 
 /** One labelled line of the premium's entry terms: the same words in every style. */
 export interface PremiumTermRow {
-  id: 'juniorHandlerFee' | 'withdrawals' | 'pulls';
+  id: 'juniorHandlerFee' | 'refundPolicy' | 'withdrawals' | 'pulls';
   label: string;
   value: string;
 }
@@ -209,7 +212,7 @@ function buildTermRows(show: GeneratedPremium['show'], registry: RegistryId): Pr
     rows.push({
       id: 'juniorHandlerFee',
       label: JUNIOR_HANDLER_FEE_PREMIUM_LABEL,
-      value: formatAmount(junior),
+      value: `${formatAmount(junior)}, ${JUNIOR_HANDLER_FEE_CAP}`,
     });
   }
   const policy = show.withdrawal
@@ -217,12 +220,21 @@ function buildTermRows(show: GeneratedPremium['show'], registry: RegistryId): Pr
     : null;
   if (policy) {
     const { refundLine, notes } = describeWithdrawalPolicy(policy);
+    const registryPolicy = getWithdrawalPolicy(registry);
+    const reasons = registryPolicy.reasons.map(r => r.label).join(' or ');
+    rows.push({
+      id: 'refundPolicy',
+      label: 'General Refund Policy',
+      value: notes ? `${refundLine} ${notes}` : refundLine,
+    });
+    // A withdrawal is a recognised reason with the registry's own rules, so the general terms
+    // above do not decide it (an AKC in-season withdrawal can fall after the cutoff).
     rows.push({
       id: 'withdrawals',
       label: 'Withdrawals',
-      value: notes ? `${refundLine} ${notes}` : refundLine,
+      value: `A withdrawal for ${reasons} follows the registry's rules rather than the general policy above. The show secretary confirms the refund.`,
     });
-    rows.push({ id: 'pulls', label: 'Pulls', value: getWithdrawalPolicy(registry).pullRefundNote });
+    rows.push({ id: 'pulls', label: 'Pulls', value: registryPolicy.pullRefundNote });
   }
   return rows;
 }

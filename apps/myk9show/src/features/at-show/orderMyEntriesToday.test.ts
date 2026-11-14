@@ -1,3 +1,4 @@
+import { queuePlaces } from '@/test/utils/queuePlaces';
 import { describe, expect, it } from 'vitest';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 import {
@@ -7,7 +8,7 @@ import {
   summarizeDogs,
 } from './orderMyEntriesToday';
 
-const NO_PLACES: ReadonlyMap<string, number> = new Map();
+const NO_PLACES = queuePlaces([]);
 
 function row(overrides: Partial<AtShowEntryDetail> & { entryId: string }): AtShowEntryDetail {
   return {
@@ -104,7 +105,7 @@ describe('orderMyEntriesToday', () => {
       row({ entryId: 'b', runOrder: 2, armband: '102' }),
     ];
     // Server count disagrees with the stored order (a run-order gap or re-place).
-    const places = new Map([
+    const places = queuePlaces([
       ['a', 3],
       ['b', 1],
     ]);
@@ -119,7 +120,7 @@ describe('orderMyEntriesToday', () => {
       row({ entryId: 'first', runOrder: 2, armband: '300' }),
     ];
     // One row has a place, the rest do not: the class falls back to run order.
-    const places = new Map([['z', 1]]);
+    const places = queuePlaces([['z', 1]]);
     expect(ids(orderMyEntriesToday(entries, places))).toEqual(['first', 'b', 'y', 'z']);
   });
 

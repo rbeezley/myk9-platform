@@ -49,6 +49,11 @@ export interface ClassEntry {
    * the Change Status dialog tiles read back.
    */
   is_cancelled?: boolean;
+  /**
+   * MYK9-1970: the class is scored on paper (its own flag, else the show's device-scoring switch,
+   * resolved by the host through `classScoresOnPaper`). A place in line is position only.
+   */
+  on_paper?: boolean;
   time_limit_seconds?: number;
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;

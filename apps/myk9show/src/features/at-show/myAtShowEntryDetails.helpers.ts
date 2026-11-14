@@ -19,6 +19,7 @@ import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { ClassEntry } from '@myk9/ringside';
 import { formatAtShowClassTime } from './atShowClassTiming';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
+import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import { deriveResultReleaseDisplay } from '@/features/result-card/resultReleaseDisplay';
 
@@ -51,6 +52,8 @@ export interface AtShowClassSummary {
    * reads as `no-status`, so it can never answer this question.
    */
   isCancelled?: boolean | undefined;
+  /** MYK9-1970: the class is scored on paper; a place in line is position only. */
+  onPaper?: boolean | undefined;
   resultsReleasedAt?: string | null | undefined;
   expectedStartLabel?: string | undefined;
   /** The class's raw `start_time` (ISO instant or clock string), for ordering only. */
@@ -79,6 +82,7 @@ export function toAtShowClassSummary(
     classStatus: cls.class_status,
     // MYK9-1847: the raw cancelled fact; class_status is ringside-mapped (cancelled reads no-status).
     ...(cls.is_cancelled === true ? { isCancelled: true } : {}),
+    ...(cls.on_paper === true ? { onPaper: true } : {}),
     ...(cls.start_time
       ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
       : {}),
@@ -138,6 +142,8 @@ export interface AtShowEntryDetail {
   classStatus?: string | undefined;
   /** MYK9-1847: the class is cancelled (see `AtShowClassSummary.isCancelled`). */
   isCancelled?: boolean | undefined;
+  /** MYK9-1970: the class is scored on paper (see `AtShowClassSummary.onPaper`). */
+  onPaper?: boolean | undefined;
   /** The class's `class_order`; breaks ties between classes with equal or unknown starts. */
   classOrder?: number | undefined;
   /** The dog's id, so two dogs sharing a call name stay two dogs. Falls back to the name. */
@@ -251,6 +257,7 @@ export function buildMyAtShowEntryDetails(
       startTime: classSummary?.startTime ?? null,
       classStatus: classSummary?.classStatus,
       isCancelled: classSummary?.isCancelled === true,
+      onPaper: classSummary?.onPaper === true,
       classOrder: classSummary?.classOrder,
       trialTimezone: trial?.timezone ?? null,
     });
@@ -311,11 +318,13 @@ export function isAwaitingPlaceInLine(detail: AtShowEntryDetail): boolean {
  */
 export function deriveAtShowQueueLine(
   detail: AtShowEntryDetail,
-  place: number | undefined
+  answer: QueuePlace | undefined
 ): RunQueueState | { kind: 'pending' } | null {
   if (detail.isScored || NO_PLACE_STATUSES.has(detail.checkInStatus)) return null;
   // MYK9-1847: a cancelled class never runs, so there is no place in line to wait for.
   if (detail.isCancelled === true) return null;
   if (!detail.hasRunOrder) return { kind: 'pending' };
-  return withServerPlace({ kind: 'waiting-unknown' }, place);
+  // MYK9-1970: a paper class holds its paper line offline; the server's answer adds the place and
+  // says whether it is live, paper or stale.
+  return withServerPlace(detail.onPaper ? { kind: 'paper' } : { kind: 'waiting-unknown' }, answer);
 }

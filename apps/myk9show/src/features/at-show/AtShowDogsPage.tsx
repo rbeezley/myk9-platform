@@ -9,7 +9,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getStatusDescriptor } from '@/components/status';
-import { formatPlaceInLine } from '@myk9/ringside';
+import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside';
 import { cn } from '@/lib/utils';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
@@ -24,6 +24,7 @@ import {
   type StaffDogSort,
   type StaffDogTab,
 } from './staffDogIndex';
+import { runPositionState } from './exhibitorDogIndex';
 import { atShowDogPath, loadDogTab, saveDogTab } from './staffDogRoutes';
 import { PartialReplicaNotice, StaleReadNotice } from './StaleReadNotice';
 
@@ -51,18 +52,26 @@ const DogRowBody: React.FC<{ to: string | null; children: React.ReactNode }> = (
 /** Trial, class and check-in status: the approved exhibitor fields. */
 const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
   <span className="block text-xs text-muted-foreground">
-    {dog.entries.map(entry => (
-      <span key={entry.entryId} className="block truncate">
-        {[
-          entry.trialLabel,
-          entry.className,
-          entry.notRunningWord ?? getStatusDescriptor('entry', entry.checkInStatus).label,
-          entry.runPosition ? formatPlaceInLine(entry.runPosition) : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-      </span>
-    ))}
+    {dog.entries.map(entry => {
+      // MYK9-1970: the server's claim decides the wording; paper adds its one sentence.
+      const position = runPositionState(entry);
+      const note = runQueueStateNote(position);
+      return (
+        <span key={entry.entryId} className="block">
+          <span className="block truncate">
+            {[
+              entry.trialLabel,
+              entry.className,
+              entry.notRunningWord ?? getStatusDescriptor('entry', entry.checkInStatus).label,
+              position ? formatRunQueueState(position) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          {note && <span className="block">{note}</span>}
+        </span>
+      );
+    })}
   </span>
 );
 

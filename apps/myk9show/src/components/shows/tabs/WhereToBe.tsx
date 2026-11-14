@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
-import { formatRunQueueState } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
@@ -29,9 +29,11 @@ interface WhereToBeProps {
 
 export function WhereToBe({ entries, showId }: WhereToBeProps) {
   const scheduleEntries = entries.filter(entry => isRunnableScheduleStatus(entry.entryStatus));
-  // Only dogs the row already calls waiting can take a server-counted place.
+  // Only dogs the row already calls waiting (or paper) can take a server-counted place.
   const places = useMyEntryQueuePlaces(
-    scheduleEntries.filter(entry => entry.queue?.kind === 'waiting-unknown').map(e => e.entryId)
+    scheduleEntries
+      .filter(entry => entry.queue?.kind === 'waiting-unknown' || entry.queue?.kind === 'paper')
+      .map(e => e.entryId)
   );
   const { data: trials } = useShowTrials(showId);
   if (scheduleEntries.length === 0) return null;
@@ -100,7 +102,7 @@ function neverRan(entry: EnrichedShowEntry, trialTimezone: string | undefined): 
   if (entry.hasResult || entry.result) return false;
   if (entry.checkInStatus && entry.checkInStatus !== 'no-status') return false;
   const kind = entry.queue?.kind;
-  if (kind && kind !== 'waiting' && kind !== 'waiting-unknown') return false;
+  if (kind && kind !== 'waiting' && kind !== 'waiting-unknown' && kind !== 'paper') return false;
   // Never declare a day over before the trial's own zone is known: a guessed
   // zone would call a West Coast trial "Not run" while it is still that day.
   if (!trialTimezone) return false;
@@ -134,6 +136,8 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
         : isRunnableScheduleStatus(entry.entryStatus)
           ? 'Order not set yet'
           : null;
+  // MYK9-1970: the paper class's one sentence, said where its position is.
+  const positionNote = positionLabel === null ? null : runQueueStateNote(queue);
   const checkInLabel = didNotRun
     ? null
     : entry.checkInStatus
@@ -200,6 +204,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
           {positionLabel && <span>{positionLabel}</span>}
           {checkInLabel && <span>{checkInLabel}</span>}
         </p>
+        {positionNote && <p className="text-xs text-muted-foreground">{positionNote}</p>}
       </div>
 
       <ResultChip entry={entry} didNotRun={didNotRun} />

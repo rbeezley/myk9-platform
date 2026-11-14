@@ -74,7 +74,15 @@ handle<WebhookPayload>(
     // The class-name read needs only classId, so it runs alongside the queue
     // read. The reads below stay sequential: favorites need the queue's
     // armbands, and preferences need the candidate user ids.
-    const { entryRows, entriesError, className } = await fetchQueueAndClassName(supabase, classId);
+    const { entryRows, entriesError, className, onPaper } = await fetchQueueAndClassName(
+      supabase,
+      classId
+    );
+
+    // MYK9-1970: nobody records progress on a paper class, so no "N dogs away" push or SMS.
+    if (onPaper) {
+      return { status: 'paper_class' };
+    }
 
     if (entriesError) {
       console.error('push-trigger-run-proximity: class queue query failed', entriesError.message);

@@ -90,6 +90,12 @@ export interface ReplicatedClass {
   ringPhaseTime?: string | null | undefined;
   /** MYK9-1945: the status the close step overwrote with completed; set by close, cleared by reopen. */
   statusBeforeClose?: string | null | undefined;
+  /**
+   * MYK9-1969/1970: true = judged on paper, false = scored on devices, null = follow the show's
+   * device-scoring switch. Server-owned (an Offline Scoring phase sets it by trigger), so a
+   * full-row rebuild never re-emits a stale value. Read through `classScoresOnPaper`.
+   */
+  scoresOnPaper?: boolean | null | undefined;
   estimatedDuration?: number | undefined;
 
   // Scent Work specific fields (camelCase)
@@ -247,6 +253,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     revisedExpectedStart: (dbRow.revised_expected_start as string | null | undefined) ?? null,
     ...ringPhaseFromRow(dbRow),
     statusBeforeClose: (dbRow.status_before_close as string | null | undefined) ?? null,
+    scoresOnPaper: (dbRow.scores_on_paper as boolean | null | undefined) ?? null,
     estimatedDuration: row.estimated_duration ?? undefined,
 
     // CamelCase fields
@@ -355,6 +362,9 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
   ['ring_phase_time', 'ringPhaseTime'],
   // MYK9-1945: only the close/reopen step writes it, so an unrelated edit must not re-emit a stale local value.
   ['status_before_close', 'statusBeforeClose'],
+  // MYK9-1970: set by trigger when the Offline Scoring phase starts; only an explicit switch
+  // back to live scoring writes it, so an unrelated edit must not re-emit a stale local value.
+  ['scores_on_paper', 'scoresOnPaper'],
 ];
 
 /**
@@ -600,6 +610,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       revised_expected_start: cls.revisedExpectedStart ?? null,
       ...ringPhaseToRow(cls),
       status_before_close: cls.statusBeforeClose ?? null,
+      scores_on_paper: cls.scoresOnPaper ?? null,
       estimated_duration: cls.estimatedDuration ?? null,
       element: cls.element ?? null,
       section: cls.section ?? null,

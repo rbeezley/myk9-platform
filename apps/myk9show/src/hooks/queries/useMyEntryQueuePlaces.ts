@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import type { QueueClaim } from '@myk9/ringside/run-queue';
 import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -21,8 +22,23 @@ import { useEntriesReplicaInvalidation } from './useEntriesReplicaInvalidation';
  * worse than no place at all.
  */
 
-/** Entry id -> 1-based place. Only waiting entries with a set run order appear. */
-export type QueuePlaces = ReadonlyMap<string, number>;
+/**
+ * One own entry's answer: its 1-based place and the server's say on whether that place may be
+ * shown as a live countdown (MYK9-1969): `live`, `paper` (position only) or `stale`. Nothing
+ * downstream decides this itself.
+ */
+export interface QueuePlace {
+  place: number;
+  claim: QueueClaim;
+}
+
+/** Entry id -> its place and claim. Only waiting entries with a set run order appear. */
+export type QueuePlaces = ReadonlyMap<string, QueuePlace>;
+
+/** An unknown or missing claim state reads as live: the answer the RPC gave before part 1. */
+function toClaim(value: unknown): QueueClaim {
+  return value === 'paper' || value === 'stale' ? value : 'live';
+}
 
 const NO_PLACES: QueuePlaces = new Map();
 
@@ -41,11 +57,15 @@ export async function fetchMyEntryQueuePlaces(entryIds: readonly string[]): Prom
     { p_entry_ids: [...entryIds] }
   );
   if (error) throw error;
-  const places = new Map<string, number>();
+  const places = new Map<string, QueuePlace>();
   for (const row of Array.isArray(data) ? data : []) {
-    const { entry_id: entryId, place } = (row ?? {}) as { entry_id?: unknown; place?: unknown };
+    const {
+      entry_id: entryId,
+      place,
+      claim_state: claim,
+    } = (row ?? {}) as { entry_id?: unknown; place?: unknown; claim_state?: unknown };
     if (typeof entryId === 'string' && typeof place === 'number' && place >= 1) {
-      places.set(entryId, place);
+      places.set(entryId, { place, claim: toClaim(claim) });
     }
   }
   return places;

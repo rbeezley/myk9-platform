@@ -11,9 +11,10 @@
  */
 import { parseClassTime } from '@myk9/ringside';
 import { compareByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
+import type { QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
-type Places = ReadonlyMap<string, number>;
+type Places = QueuePlaces;
 
 /** Minutes after midnight on the trial's clock, from an instant or a clock string. */
 function startMinutes(detail: AtShowEntryDetail): number {
@@ -86,7 +87,8 @@ export function orderMyEntriesToday(
         return slotA.classOrder < slotB.classOrder ? -1 : 1;
       return keyA < keyB ? -1 : 1;
     }
-    if (slotA.placed) return (places.get(a.entryId) as number) - (places.get(b.entryId) as number);
+    if (slotA.placed)
+      return (places.get(a.entryId)?.place as number) - (places.get(b.entryId)?.place as number);
     return compareByRunOrder(toQueueEntry(a), toQueueEntry(b));
   });
 }

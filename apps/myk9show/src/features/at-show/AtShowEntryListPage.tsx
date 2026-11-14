@@ -26,6 +26,7 @@
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useOwnEntryClaims } from './useOwnEntryClaims';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   EntryListPage,
@@ -324,9 +325,18 @@ export const AtShowEntryListPage: React.FC = () => {
   // entries here (staff, passcode grantees) — rendering is then unchanged.
   // While the show's entries have not all arrived, no place in line (MYK9-1809).
   const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
+  // MYK9-1970: paper and stale places read as such, from the server or the replica's class flag.
+  const claims = useOwnEntryClaims(showId, localEntries, ownEntryIds);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels, !entriesIncomplete),
-    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete]
+    () =>
+      buildEntryListOwnership(
+        localEntries,
+        ownEntryIds,
+        conflictLabels,
+        !entriesIncomplete,
+        claims
+      ),
+    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete, claims]
   );
 
   // ── Context bag ──────────────────────────────────────────────────────────

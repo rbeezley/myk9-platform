@@ -64,6 +64,8 @@ export interface ClassData {
   displayOrder?: number | undefined;
   // Results release timestamp (for manual_release visibility timing)
   results_released_at?: string | null | undefined;
+  /** MYK9-1970: judged on paper (true), on devices (false), or following the show (null). */
+  scoresOnPaper?: boolean | null | undefined;
 }
 
 export interface CompetitionResult {

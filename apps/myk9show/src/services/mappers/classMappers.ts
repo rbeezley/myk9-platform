@@ -302,6 +302,9 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     // Results release timestamp
     results_released_at: dbClass.results_released_at ?? null,
 
+    // MYK9-1970: kept null (follow the show) rather than false, so the show switch still decides
+    scoresOnPaper: dbClass.scores_on_paper ?? null,
+
     // Sync metadata
     _version: 1,
     _lastModified: new Date(dbClass.updated_at || dbClass.created_at || new Date().toISOString()),
@@ -523,6 +526,7 @@ export const mapReplicatedClassToDbRow = (
     results_verified_fingerprint: null,
     ring_phase: cls.ringPhase ?? null,
     ring_phase_time: cls.ringPhaseTime ?? null,
+    scores_on_paper: cls.scoresOnPaper ?? null,
     deleted_at: null,
   };
 

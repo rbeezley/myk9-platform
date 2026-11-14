@@ -8,6 +8,25 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 export const DEFAULT_CLASS_NAME = 'your class';
 
+/**
+ * MYK9-1970: a class scored on paper has no live place to count down, so no dogs-away alert goes
+ * out. The same rule as `classScoresOnPaper` in @myk9/ringside and the server's claim state: the
+ * class's own flag, else the show's device-scoring switch turned off. Mirrored here because an
+ * edge function cannot import the package.
+ */
+export function isClassOnPaper(
+  classRow:
+    | {
+        scores_on_paper?: boolean | null;
+        trial?: { show?: { uses_device_scoring?: boolean | null } | null } | null;
+      }
+    | null
+    | undefined
+): boolean {
+  if (!classRow) return false;
+  return classRow.scores_on_paper ?? classRow.trial?.show?.uses_device_scoring === false;
+}
+
 export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: string) {
   const [{ data: entryRows, error: entriesError }, { data: classRow }] = await Promise.all([
     // Whole class queue: the dogs-ahead index is only meaningful against every
@@ -20,7 +39,11 @@ export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: 
       .eq('class_id', classId)
       .is('deleted_at', null)
       .not('entry_status', 'in', '("withdrawn","scratched","absent")'),
-    supabase.from('classes').select('name').eq('id', classId).single(),
+    supabase
+      .from('classes')
+      .select('name, scores_on_paper, trial:trials(show:shows(uses_device_scoring))')
+      .eq('id', classId)
+      .single(),
   ]);
 
   return {
@@ -28,5 +51,7 @@ export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: 
     entriesError,
     // A failed name read only degrades the alert copy; it never blocks the send.
     className: (classRow as { name?: string } | null)?.name ?? DEFAULT_CLASS_NAME,
+    // A failed class read must not silence an alert that is otherwise right to send.
+    onPaper: isClassOnPaper(classRow as Parameters<typeof isClassOnPaper>[0]),
   };
 }

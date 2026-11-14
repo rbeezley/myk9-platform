@@ -11,13 +11,14 @@ import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
  * Not a full ringside ClassList extraction — a lean host-side picker (plan D3).
  */
 
-import type { ClassEntry } from '@myk9/ringside';
+import { classScoresOnPaper, type ClassEntry } from '@myk9/ringside';
 import type { SyncMetadata } from '@myk9/replication';
 import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import {
   replicatedTrialsTable,
   replicatedClassesTable,
   replicatedEntriesTable,
+  replicatedShowsTable,
 } from '@/services/replication';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -56,7 +57,9 @@ function normalizeSection(section: string | undefined): string {
 export function toClassEntry(
   cls: ReplicatedClass,
   entries: ReplicatedEntry[],
-  favoriteClassIds: Set<string>
+  favoriteClassIds: Set<string>,
+  /** The show's device-scoring switch: a class with no flag of its own follows it (MYK9-1970). */
+  showUsesDeviceScoring?: boolean | undefined
 ): ClassEntry {
   // MYK9-645: the counter is the canonical accounting pair, not raw rows --
   // a withdrawn or pulled entry left in the denominator makes a finished class
@@ -77,6 +80,8 @@ export function toClassEntry(
     class_status: toRingsideClassStatus(cls),
     // MYK9-1847: cancelled has no ringside status value, so it travels as its own fact.
     ...(isCancelledClassStatus(cls.classStatus) ? { is_cancelled: true } : {}),
+    // MYK9-1970: read from the replica, so the paper line holds offline.
+    ...(classScoresOnPaper(cls.scoresOnPaper, showUsesDeviceScoring) ? { on_paper: true } : {}),
     ...(cls.ringPhase === 'briefing' && cls.ringPhaseTime
       ? { briefing_time: cls.ringPhaseTime }
       : {}),
@@ -208,9 +213,10 @@ export async function areAtShowEntryCountsKnown(showId: string): Promise<boolean
  * one full-table scan per class (matters on show-day / offline IndexedDB).
  */
 export async function fetchAtShowClassList(showId: string): Promise<AtShowClassGroup[]> {
-  const [trials, allEntries] = await Promise.all([
+  const [trials, allEntries, show] = await Promise.all([
     replicatedTrialsTable.getTrialsByShow(showId),
     replicatedEntriesTable.getEntriesByShow(showId),
+    replicatedShowsTable.getShowById(showId),
   ]);
 
   const entriesByClass = groupEntriesByClass(allEntries);
@@ -225,7 +231,7 @@ export async function fetchAtShowClassList(showId: string): Promise<AtShowClassG
         // the preview stays offline-first and costs nothing on show day.
         const classEntriesForClass = entriesByClass.get(cls.id) ?? [];
         nextUpByClassId.set(cls.id, buildNextUpPreview(classEntriesForClass));
-        return toClassEntry(cls, classEntriesForClass, favoriteClassIds);
+        return toClassEntry(cls, classEntriesForClass, favoriteClassIds, show?.usesDeviceScoring);
       });
       classEntries.sort((a, b) => a.class_order - b.class_order);
       return { trial, classes: classEntries, nextUpByClassId, entriesByClassId: entriesByClass };

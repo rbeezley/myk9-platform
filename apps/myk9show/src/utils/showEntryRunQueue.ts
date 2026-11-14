@@ -21,12 +21,14 @@
 // The run-queue subpath keeps the ringside UI out of the entry chunk: this
 // module is reached eagerly from App's notification monitor.
 import {
+  applyQueueClaim,
   compareByRunOrder,
   isInQueue,
   isInRingEntry,
   notRunningReasonOf,
   pendingByRunOrder,
   runQueueStateOf,
+  type QueueClaim,
   type RunQueueEntry,
   type RunQueueState,
 } from '@myk9/ringside/run-queue';
@@ -117,27 +119,30 @@ export function dogsAheadInClass(entries: readonly ShowEntry[], entryId: string)
  * "Waiting" once the secretary has set an order, and nothing before that.
  * A true place needs the full queue from the server.
  */
-export function ownEntryQueueState(entry: ShowEntry): RunQueueState | null {
+export function ownEntryQueueState(entry: ShowEntry, onPaper = false): RunQueueState | null {
   // `toShowEntryQueueRow` folds every not-running lifecycle onto 'pulled' for
   // queue membership; a withdrawal is a different act and keeps its own label.
   if (entry.status === 'withdrawn') return { kind: 'withdrawn' };
   const state = runQueueStateOf([toShowEntryQueueRow(entry)], entry.id);
   if (state?.kind !== 'waiting') return state;
-  return (entry.registrationData?.runOrder ?? 0) > 0 ? { kind: 'waiting-unknown' } : null;
+  if ((entry.registrationData?.runOrder ?? 0) <= 0) return null;
+  // MYK9-1970: a class the replica says is scored on paper reads so offline, with no place to
+  // count from own rows; the server's answer (`withServerPlace`) adds the place when online.
+  return onPaper ? { kind: 'paper' } : { kind: 'waiting-unknown' };
 }
 
 /**
- * An own-row state upgraded by the server's count (MYK9-995). Only a dog the
- * row already calls waiting, with an order set, may take a place; every other
- * state is the row's own fact and wins. No place (offline, loading, or the
- * server says it is not waiting) leaves the state label as it was.
+ * An own-row state upgraded by the server's answer (MYK9-995, MYK9-1969). Only a dog the row
+ * already calls waiting, with an order set, may take a place; every other state is the row's own
+ * fact and wins. The server decides whether the place is live, paper or stale. No answer
+ * (offline, loading, or the server says it is not waiting) leaves the state label as it was,
+ * which is still the paper line for a class the replica holds as paper.
  */
 export function withServerPlace(
   state: RunQueueState | null,
-  place: number | undefined
+  answer: { place: number; claim: QueueClaim } | undefined
 ): RunQueueState | null {
-  if (state?.kind !== 'waiting-unknown' || place === undefined || place < 1) return state;
-  return { kind: 'waiting', place };
+  return applyQueueClaim(state, answer);
 }
 
 /**

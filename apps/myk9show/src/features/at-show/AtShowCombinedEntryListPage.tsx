@@ -31,6 +31,7 @@ import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useOwnEntryClaims } from './useOwnEntryClaims';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   EntryListPage,
@@ -378,9 +379,18 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // Ownership annotations: the queue is computed over the merged localEntries the page renders,
   // with no place in line while the show's entries have not all arrived (MYK9-1809).
   const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
+  // MYK9-1970: paper and stale places read as such, from the server or the replica's class flag.
+  const claims = useOwnEntryClaims(showId, localEntries, ownEntryIds);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels, !entriesIncomplete),
-    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete]
+    () =>
+      buildEntryListOwnership(
+        localEntries,
+        ownEntryIds,
+        conflictLabels,
+        !entriesIncomplete,
+        claims
+      ),
+    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete, claims]
   );
 
   // ── Context ────────────────────────────────────────────────────────────

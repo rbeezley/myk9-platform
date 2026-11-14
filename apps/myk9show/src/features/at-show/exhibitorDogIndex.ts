@@ -6,6 +6,7 @@
  * @module at-show/exhibitorDogIndex
  */
 import { formatTrialDate } from '@myk9/core';
+import type { RunQueueState } from '@myk9/ringside/run-queue';
 import type { StaffDog, StaffDogClassEntry } from './staffDogIndex';
 
 /** One row of the server function, exactly its approved columns. */
@@ -25,6 +26,16 @@ export interface ShowDogLimitedRow {
    * before that migration is applied.
    */
   run_position?: number | null;
+  /** Whether `run_position` may be shown as live, paper (position only) or stale (MYK9-1969). */
+  run_claim_state?: string | null;
+}
+
+/** What the dogs list says about a waiting dog's place, from the server's claim state. */
+export function runPositionState(entry: StaffDogClassEntry): RunQueueState | null {
+  if (!entry.runPosition) return null;
+  if (entry.runClaim === 'paper') return { kind: 'paper', place: entry.runPosition };
+  if (entry.runClaim === 'stale') return { kind: 'stale' };
+  return { kind: 'waiting', place: entry.runPosition };
 }
 
 /** Group the per-class rows into one dog per armband (armbands are unique per show). */
@@ -63,6 +74,9 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
       placement: null,
       resultsReleased: false,
       runPosition: row.run_position ?? null,
+      ...(row.run_claim_state === 'paper' || row.run_claim_state === 'stale'
+        ? { runClaim: row.run_claim_state }
+        : {}),
     };
     dog.entries.push(entry);
   }

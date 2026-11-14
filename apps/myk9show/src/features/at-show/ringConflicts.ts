@@ -37,6 +37,11 @@ export interface RingConflictClass {
   classId: string;
   className: string;
   inProgress: boolean;
+  /**
+   * MYK9-1970: scored on paper. "N away" is a countdown nobody keeps on a paper class, so it
+   * never makes a conflict.
+   */
+  onPaper?: boolean | undefined;
 }
 
 export interface DetectMyRingConflictsInput {
@@ -100,7 +105,7 @@ export function detectMyRingConflicts(
   if (ownEntryIds.size === 0) return result;
 
   const inProgress = new Map(
-    classes.filter(cls => cls.inProgress).map(cls => [cls.classId, cls.className])
+    classes.filter(cls => cls.inProgress && !cls.onPaper).map(cls => [cls.classId, cls.className])
   );
   if (inProgress.size < 2) return result;
 

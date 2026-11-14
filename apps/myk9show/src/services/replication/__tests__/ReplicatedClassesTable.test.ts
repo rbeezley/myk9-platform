@@ -74,6 +74,7 @@ vi.mock('../resolveClassHideCounts', () => ({
 import {
   ReplicatedClassesTable,
   rowToClass,
+  stripUnsetServerOwnedKeys,
   type ReplicatedClass,
 } from '../ReplicatedClassesTable';
 import { REPLICATION_STORES } from '@myk9/replication';
@@ -900,7 +901,40 @@ describe('ReplicatedClassesTable', () => {
         'ring_phase',
         'ring_phase_time',
         'status_before_close',
+        'scores_on_paper',
       ]);
+    });
+
+    it('reads scores_on_paper from the DB row, null when the class follows the show (MYK9-1970)', () => {
+      const read = (value: unknown) =>
+        rowToClass({
+          ...createDbRow({ id: '1' }),
+          scores_on_paper: value,
+        } as unknown as Database['public']['Tables']['classes']['Row']).scoresOnPaper;
+
+      expect(read(true)).toBe(true);
+      expect(read(false)).toBe(false);
+      expect(read(null)).toBeNull();
+      expect(read(undefined)).toBeNull();
+    });
+
+    it('never re-emits a stale scores_on_paper on an unrelated edit, but writes an explicit one', () => {
+      const stale = createMockClass({ scoresOnPaper: true });
+      const full = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(stale);
+      expect(full).toHaveProperty('scores_on_paper', true);
+
+      // An unrelated edit (no scoresOnPaper among its updates) drops the server-owned key ...
+      expect(stripUnsetServerOwnedKeys(full, { displayOrder: 4 })).not.toHaveProperty(
+        'scores_on_paper'
+      );
+      // ... the one-tap switch back to live scoring names it, so it goes out.
+      expect(
+        stripUnsetServerOwnedKeys({ ...full, scores_on_paper: false }, { scoresOnPaper: false })
+      ).toHaveProperty('scores_on_paper', false);
     });
 
     it('reads status_source and reopened_after_closeout_at from the DB row (DB→domain)', () => {

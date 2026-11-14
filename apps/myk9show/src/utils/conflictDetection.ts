@@ -11,6 +11,8 @@ export interface ClassContext {
   className: string;
   status: string;
   entries: ShowEntry[];
+  /** MYK9-1970: scored on paper, so no countdown alert and no "N away" conflict. */
+  onPaper?: boolean | undefined;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { Star, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Chip } from '@/components/base/Chip';
-import { formatRunQueueState } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
@@ -17,6 +17,8 @@ interface ExhibitorClassCalloutProps {
   /** The class's trial day (YYYY-MM-DD) and the trial's own IANA zone. */
   trialDate?: string | undefined;
   trialTimezone?: string | undefined;
+  /** The class is scored on paper (MYK9-1970): its own flag, else the show's switch. */
+  onPaper?: boolean | undefined;
 }
 
 export function ExhibitorClassCallout({
@@ -24,8 +26,9 @@ export function ExhibitorClassCallout({
   releasedRows,
   trialDate,
   trialTimezone,
+  onPaper = false,
 }: ExhibitorClassCalloutProps) {
-  const { myEntries, isAfterClass } = useMyEntriesInClass(classId, releasedRows);
+  const { myEntries, isAfterClass } = useMyEntriesInClass(classId, releasedRows, onPaper);
 
   if (myEntries.length === 0) return null;
 
@@ -89,7 +92,9 @@ function BeforeEntryRow({
       ? null
       : entry.queue
     : withServerPlace(entry.queue, places.get(entry.entryId));
+  // Only a live place counts down; paper and stale say their own line instead (MYK9-1970).
   const dogsAhead = queue?.kind === 'waiting' && queue.place > 1 ? queue.place - 1 : 0;
+  const note = runQueueStateNote(queue);
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
@@ -118,6 +123,7 @@ function BeforeEntryRow({
             {dogsAhead} {dogsAhead === 1 ? 'dog' : 'dogs'} ahead
           </p>
         )}
+        {note && <p className="text-xs text-muted-foreground">{note}</p>}
       </div>
     </div>
   );
@@ -198,5 +204,10 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
 }
 
 function isWaitingState(queue: MyClassEntry['queue']): boolean {
-  return queue?.kind === 'waiting' || queue?.kind === 'waiting-unknown';
+  return (
+    queue?.kind === 'waiting' ||
+    queue?.kind === 'waiting-unknown' ||
+    queue?.kind === 'paper' ||
+    queue?.kind === 'stale'
+  );
 }

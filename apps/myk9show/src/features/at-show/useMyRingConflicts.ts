@@ -3,8 +3,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
+  replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
+import { classScoresOnPaper } from '@myk9/ringside/run-queue';
 import { useNotificationStore } from '@/store/notificationStore';
 import { buildClassName } from './atShowClassListAdapter';
 import { detectMyRingConflicts, type RingConflictClass } from './ringConflicts';
@@ -28,9 +30,10 @@ export function useMyRingConflicts(
   const query = useQuery({
     queryKey: ['at-show', 'ring-conflict-rows', showId],
     queryFn: async () => {
-      const [entries, trials] = await Promise.all([
+      const [entries, trials, show] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId as string),
         replicatedTrialsTable.getTrialsByShow(showId as string),
+        replicatedShowsTable.getShowById(showId as string),
       ]);
       const classGroups = await Promise.all(
         trials.map(trial => replicatedClassesTable.getClassesByTrial(trial.id))
@@ -39,6 +42,7 @@ export function useMyRingConflicts(
         classId: cls.id,
         className: buildClassName(cls),
         inProgress: cls.classStatus === 'in_progress',
+        onPaper: classScoresOnPaper(cls.scoresOnPaper, show?.usesDeviceScoring),
       }));
       return { entries, classes };
     },

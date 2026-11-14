@@ -24,6 +24,7 @@ import {
 import { queueCheckInStatus, type NotificationEntryRow } from '@/hooks/queueCheckInStatus';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
+import { classScoresOnPaper } from '@myk9/ringside/run-queue';
 import { hasRunOrder } from '@/utils/showEntryRunQueue';
 import type { ShowEntry } from '@/store/entry-store-types';
 
@@ -38,6 +39,9 @@ interface ClassRow {
   status: string | null;
   is_scoring_finalized: boolean;
   results_released_at: string | null;
+  /** MYK9-1970: the class's own paper flag; null follows the show's device-scoring switch. */
+  scores_on_paper?: boolean | null;
+  trial?: { show?: { uses_device_scoring?: boolean | null } | null } | null;
 }
 
 interface NotificationSnapshot {
@@ -205,11 +209,13 @@ export function useNotificationMonitor(): void {
   const notifyUpcomingDogs = useCallback((classId: string, inRingEntryId: string) => {
     const context = classContextRef.current.get(classId);
     if (!context) return;
+    // MYK9-1970: nobody records progress on a paper class, so "N dogs away" would be a guess.
+    if (context.onPaper) return;
 
     if (!context.entries.some(entry => entry.id === inRingEntryId)) return;
 
     const leadDogs = preferencesRef.current.leadDogs;
-    const allClasses = [...classContextRef.current.values()];
+    const allClasses = [...classContextRef.current.values()].filter(cls => !cls.onPaper);
     // Watched = owned dogs UNION favorited armbands, deduped to one entry each.
     // `dogsAhead` is the index into the shared run queue — in-ring, scored and
     // pulled dogs already excluded — so it is the same number the entry-list
@@ -289,6 +295,10 @@ export function useNotificationMonitor(): void {
           className: classRow?.name ?? classId,
           status: classRow?.status ?? '',
           entries,
+          onPaper: classScoresOnPaper(
+            classRow?.scores_on_paper,
+            classRow?.trial?.show?.uses_device_scoring
+          ),
         });
       }
 

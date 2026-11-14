@@ -8,7 +8,7 @@
 import type { ReplicatedEntry } from '@/services/replication';
 import { isExpectedEntry, isPulledEntry } from '@/features/_shared/entryAccounting';
 import { resolveEntryArmband, type ShowArmbandMaps } from '@/features/_shared/entryArmband';
-import { notRunningLabel } from '@myk9/ringside/run-queue';
+import { notRunningLabel, type QueueClaim } from '@myk9/ringside/run-queue';
 import { transformEntry } from './atShowDataAdapter';
 
 /** What the page needs to know about a class an entry sits in. */
@@ -42,6 +42,8 @@ export interface StaffDogClassEntry {
   resultsReleased: boolean;
   /** Place in the ringside waiting queue (exhibitor view only; null/absent when not waiting). */
   runPosition?: number | null | undefined;
+  /** Whether `runPosition` may be shown as a live countdown (MYK9-1969); absent reads live. */
+  runClaim?: QueueClaim | undefined;
 }
 
 export interface StaffDog {

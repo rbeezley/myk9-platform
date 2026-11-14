@@ -1,3 +1,4 @@
+import { queuePlaces } from '@/test/utils/queuePlaces';
 import { describe, expect, it } from 'vitest';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 import { detectPlaceRingConflicts } from './placeRingConflicts';
@@ -31,7 +32,7 @@ describe('detectPlaceRingConflicts', () => {
   it('flags two running classes when both server places are within the lead window', () => {
     const result = detectPlaceRingConflicts(
       [juni, rex],
-      new Map([
+      queuePlaces([
         ['juni', 1],
         ['rex', 3],
       ]),
@@ -44,7 +45,7 @@ describe('detectPlaceRingConflicts', () => {
   it('does not flag a dog the server says is 30th, however few rows this account holds', () => {
     const result = detectPlaceRingConflicts(
       [juni, rex],
-      new Map([
+      queuePlaces([
         ['juni', 1],
         ['rex', 30],
       ]),
@@ -55,7 +56,7 @@ describe('detectPlaceRingConflicts', () => {
 
   it('puts the edge at place leadDogs + 1, like dogsAhead <= leadDogs', () => {
     const places = (rexPlace: number) =>
-      new Map([
+      queuePlaces([
         ['juni', 1],
         ['rex', rexPlace],
       ]);
@@ -65,7 +66,7 @@ describe('detectPlaceRingConflicts', () => {
 
   it('needs different classes, both running', () => {
     const sameClass = row({ entryId: 'rex', dogName: 'Rex' });
-    const places = new Map([
+    const places = queuePlaces([
       ['juni', 1],
       ['rex', 2],
     ]);
@@ -76,20 +77,20 @@ describe('detectPlaceRingConflicts', () => {
 
   it('says nothing without confirmed places', () => {
     expect(detectPlaceRingConflicts([juni, rex], undefined, 2).size).toBe(0);
-    expect(detectPlaceRingConflicts([juni, rex], new Map(), 2).size).toBe(0);
+    expect(detectPlaceRingConflicts([juni, rex], queuePlaces([]), 2).size).toBe(0);
   });
 
   describe('a dog in the ring', () => {
     const inRing = { ...juni, checkInStatus: 'in-ring' as const };
 
     it('counts with a near dog at another running class, and is worded as in the ring', () => {
-      const result = detectPlaceRingConflicts([inRing, rex], new Map([['rex', 2]]), 2);
+      const result = detectPlaceRingConflicts([inRing, rex], queuePlaces([['rex', 2]]), 2);
       expect(result.get('rex')).toBe('Juni in the ring in Container Novice');
       expect(result.get('juni')).toBe('Rex 1 away in Interior Excellent');
     });
 
     it('does not count when the other dog is 30th', () => {
-      expect(detectPlaceRingConflicts([inRing, rex], new Map([['rex', 30]]), 2).size).toBe(0);
+      expect(detectPlaceRingConflicts([inRing, rex], queuePlaces([['rex', 30]]), 2).size).toBe(0);
     });
 
     it('is fact even offline, but alone it is no conflict', () => {
@@ -99,7 +100,16 @@ describe('detectPlaceRingConflicts', () => {
 
     it('needs its class to be running', () => {
       const idle = { ...inRing, classStatus: 'upcoming' };
-      expect(detectPlaceRingConflicts([idle, rex], new Map([['rex', 1]]), 2).size).toBe(0);
+      expect(detectPlaceRingConflicts([idle, rex], queuePlaces([['rex', 1]]), 2).size).toBe(0);
     });
+  });
+
+  // MYK9-1970: "N away" is a countdown; a paper or stale place never makes a conflict.
+  it.each(['paper', 'stale'] as const)('ignores a %s place', claim => {
+    const places = queuePlaces([
+      ['juni', 1],
+      ['rex', 2, claim],
+    ]);
+    expect(detectPlaceRingConflicts([juni, rex], places, 2).size).toBe(0);
   });
 });

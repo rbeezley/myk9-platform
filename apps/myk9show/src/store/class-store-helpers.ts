@@ -26,6 +26,7 @@ export function replicatedToClass(replicated: ReplicatedClass): SyncableClassDat
     entryFee: replicated.entryFee || 25,
     maxEntries: replicated.maxEntries || 40,
     results_released_at: replicated.results_released_at ?? null,
+    scoresOnPaper: replicated.scoresOnPaper ?? null,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

@@ -16,7 +16,7 @@ import {
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import { dogsAheadInClass, ownEntryQueueState } from '@/utils/showEntryRunQueue';
-import type { RunQueueState } from '@myk9/ringside/run-queue';
+import { classScoresOnPaper, type RunQueueState } from '@myk9/ringside/run-queue';
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
@@ -395,8 +395,12 @@ export function useShowEntriesForUser(
       // excluded, so this is the same number the entry-list pill, the ring
       // conflict label and the "your turn" push all report.
       const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
-      // Own rows only (see ownEntryQueueState): state, never a counted place.
-      const queue = ownEntryQueueState(entry);
+      // Own rows only (see ownEntryQueueState): state, never a counted place. A paper class
+      // reads as paper from the replica, so it says so offline too (MYK9-1970).
+      const queue = ownEntryQueueState(
+        entry,
+        classScoresOnPaper(cls?.scoresOnPaper, currentShow?.usesDeviceScoring)
+      );
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
@@ -490,6 +494,7 @@ export function useShowEntriesForUser(
     classes,
     dogs,
     currentShow?.assignedJudges,
+    currentShow?.usesDeviceScoring,
     isLoading,
     error,
     canonicalSource,

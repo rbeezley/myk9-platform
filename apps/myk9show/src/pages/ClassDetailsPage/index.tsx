@@ -32,6 +32,7 @@ import {
 import { resolveEntryToRemove } from './resolveEntryToRemove';
 import { DeleteObjectDialog, classDeleteDetail, entryDeleteDetail } from '@/features/delete';
 import { getTrialTimezone } from '@/features/registries';
+import { classScoresOnPaper } from '@myk9/ringside/run-queue';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { ClassReadinessStrip } from './ClassReadinessStrip';
@@ -315,6 +316,7 @@ const ClassDetailsPage: React.FC = () => {
             releasedRows={releasedResults.rawEntries}
             trialDate={parentTrial?.trialDate}
             trialTimezone={parentTrial ? getTrialTimezone(parentTrial) : undefined}
+            onPaper={classScoresOnPaper(currentClass.scoresOnPaper, parentShow?.usesDeviceScoring)}
           />
         )}
 

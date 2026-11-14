@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
-import { formatRunQueueState } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
+import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 import {
   deriveAtShowNextAction,
   deriveAtShowQueueLine,
@@ -28,7 +29,7 @@ function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
 
 export function MyEntryRow({
   detail,
-  place,
+  place: answer,
   placeUpdatedAt,
   conflictLabel,
   onOpenClass,
@@ -36,8 +37,8 @@ export function MyEntryRow({
   checkInPending,
 }: {
   detail: AtShowEntryDetail;
-  /** The server-counted place in line, when known (`useMyEntryQueuePlaces`). */
-  place: number | undefined;
+  /** The server's place in line and claim, when known (`useMyEntryQueuePlaces`). */
+  place: QueuePlace | undefined;
   /** When that place was counted (null = unconfirmed, so no number is shown). */
   placeUpdatedAt: number | null;
   /** Ring-conflict label for this entry (`useMyRingConflicts`), when it has one. */
@@ -48,7 +49,8 @@ export function MyEntryRow({
 }) {
   const action = deriveAtShowNextAction(detail);
   // A place with no confirmed timestamp is a number with no freshness: show none.
-  const queueLine = deriveAtShowQueueLine(detail, placeUpdatedAt === null ? undefined : place);
+  const queueLine = deriveAtShowQueueLine(detail, placeUpdatedAt === null ? undefined : answer);
+  const queueNote = queueLine && queueLine.kind !== 'pending' ? runQueueStateNote(queueLine) : null;
 
   return (
     <li
@@ -91,11 +93,18 @@ export function MyEntryRow({
             {queueLine.kind === 'pending'
               ? 'Position pending: running order not posted yet'
               : formatRunQueueState(queueLine)}
-            {queueLine.kind === 'waiting' && placeUpdatedAt !== null && (
-              <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                {formatPlaceUpdatedAt(placeUpdatedAt, detail.trialTimezone)}
-              </span>
-            )}
+            {(queueLine.kind === 'waiting' ||
+              (queueLine.kind === 'paper' && queueLine.place !== undefined)) &&
+              placeUpdatedAt !== null && (
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                  {formatPlaceUpdatedAt(placeUpdatedAt, detail.trialTimezone)}
+                </span>
+              )}
+          </div>
+        )}
+        {queueNote && (
+          <div className="text-xs text-muted-foreground" data-testid="at-show-my-entry-place-note">
+            {queueNote}
           </div>
         )}
         {conflictLabel && (

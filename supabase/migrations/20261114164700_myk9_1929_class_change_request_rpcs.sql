@@ -52,8 +52,7 @@ COMMENT ON COLUMN public.shows.allow_class_changes_after_close IS
   'MYK9-1929: when false, an exhibitor cannot ask for a class change once entries have closed. The secretary''s own Change class ignores it.';
 
 ALTER TABLE public.entries
-  ADD COLUMN IF NOT EXISTS class_change_target_class_id uuid
-    REFERENCES public.classes (id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS class_change_target_class_id uuid,
   ADD COLUMN IF NOT EXISTS class_change_reason text,
   ADD COLUMN IF NOT EXISTS class_change_requested_at timestamptz;
 
@@ -72,8 +71,13 @@ BEGIN
 END;
 $$;
 
+-- Deliberately NO foreign key to classes: hard_delete_show fingerprints every FK
+-- into shows, trials and classes (stripe_ledger_fks_restrict_test F527.6), and a
+-- new edge needs a re-reviewed copy of that 486-line function. The class is
+-- checked at request time, and move_up_entry already refuses a target that has
+-- since gone ('That class no longer exists.'), so a dangling id is harmless.
 COMMENT ON COLUMN public.entries.class_change_target_class_id IS
-  'MYK9-1929: the class an exhibitor asked to move this entry to. Meaningful only while entry_status = move-up-requested.';
+  'MYK9-1929: the class an exhibitor asked to move this entry to (no FK, see migration). Meaningful only while entry_status = move-up-requested.';
 COMMENT ON COLUMN public.entries.class_change_reason IS
   'MYK9-1929: why the exhibitor asked (finished_level, wrong_level, wrong_section). Meaningful only while entry_status = move-up-requested.';
 COMMENT ON COLUMN public.entries.class_change_requested_at IS

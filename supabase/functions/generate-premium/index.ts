@@ -7,7 +7,6 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
-import { buildWithdrawalPayload, type ClubWithdrawalRow } from './withdrawalPayload.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -80,13 +79,7 @@ handle<GeneratePremiumPayload>(
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, club_id,
         junior_handler_fee,
-        withdrawal_cutoff_date, withdrawal_retention_type,
-        withdrawal_retention_value, withdrawal_policy_notes,
-        clubs(
-          name, logo_url,
-          default_withdrawal_retention_type, default_withdrawal_retention_value,
-          default_withdrawal_policy_notes
-        ),
+        clubs(name, logo_url),
         trials(
           id, name, date, planned_start_time, event_number, trial_type,
           judge_assignments(
@@ -270,12 +263,7 @@ handle<GeneratePremiumPayload>(
       })),
     }));
 
-    const clubData = show.clubs as
-      | (ClubWithdrawalRow & {
-          name: string;
-          logo_url: string | null;
-        })
-      | null;
+    const clubData = show.clubs as { name: string; logo_url: string | null } | null;
 
     // Build vetClinic as nested object matching PremiumSupplemental.vetClinic
     const vetClinicName =
@@ -325,7 +313,6 @@ handle<GeneratePremiumPayload>(
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
         juniorHandlerFee: show.junior_handler_fee ?? null,
-        withdrawal: buildWithdrawalPayload(show, clubData),
       },
       club: {
         name: clubData?.name ?? null,

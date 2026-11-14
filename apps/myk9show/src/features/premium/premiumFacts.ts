@@ -11,8 +11,6 @@
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
 import type { RegistryId } from '@/features/registries';
-import { describeWithdrawalPolicy } from '@/features/payments/formatWithdrawalPolicy';
-import { getEffectiveWithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
@@ -31,7 +29,6 @@ export type PremiumFactId =
   | 'trialInformation'
   | 'fees'
   | 'juniorHandlerFee'
-  | 'refundPolicy'
   | 'classes'
   | 'judges'
   | 'secretary'
@@ -63,12 +60,6 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'trialInformation', label: 'Trial information', source: 'show', requiredBy: [] },
   { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
   { id: 'juniorHandlerFee', label: 'Junior handler fee', source: 'show', requiredBy: [] },
-  {
-    id: 'refundPolicy',
-    label: 'Refund and withdrawal policy',
-    source: 'show',
-    requiredBy: ['AKC'],
-  },
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
@@ -175,11 +166,9 @@ export interface PremiumContact {
   phone: string;
 }
 
-/** The junior fee is charged per class entry; the landing prints it as the sub-line, the premium inline. */
+/** The junior fee is charged per class entry; the landing prints it as the sub-line, the premium in the label. */
 const JUNIOR_HANDLER_FEE_PER_ENTRY = 'per class entry';
-/** Checkout charges the lesser of the junior and the regular fee, so every surface says so. */
-const JUNIOR_HANDLER_FEE_CAP = 'never more than the regular fee';
-export const JUNIOR_HANDLER_FEE_UNIT = `${JUNIOR_HANDLER_FEE_PER_ENTRY}, ${JUNIOR_HANDLER_FEE_CAP}`;
+export const JUNIOR_HANDLER_FEE_UNIT = JUNIOR_HANDLER_FEE_PER_ENTRY;
 /** The junior fee applies only when the handler is under 18; every surface says so. */
 const JUNIOR_HANDLER_FEE_BASE = 'Junior handler fee';
 const JUNIOR_HANDLER_FEE_QUALIFIER = '(handler under 18)';
@@ -190,7 +179,7 @@ const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HA
 
 /** One labelled line of the premium's entry terms: the same words in every style. */
 export interface PremiumTermRow {
-  id: 'juniorHandlerFee' | 'refundPolicy';
+  id: 'juniorHandlerFee';
   label: string;
   value: string;
 }
@@ -202,7 +191,6 @@ function formatAmount(n: number): string {
 /**
  * The show's own terms an exhibitor must see before entering. A row exists only when the show
  * holds a value for it, so a show that sets none prints nothing (never a placeholder).
- * Withdrawals and Pulls rows are not printed: the club writes its own policy (MYK9-1976).
  */
 function buildTermRows(show: GeneratedPremium['show']): PremiumTermRow[] {
   const rows: PremiumTermRow[] = [];
@@ -211,18 +199,7 @@ function buildTermRows(show: GeneratedPremium['show']): PremiumTermRow[] {
     rows.push({
       id: 'juniorHandlerFee',
       label: JUNIOR_HANDLER_FEE_PREMIUM_LABEL,
-      value: `${formatAmount(junior)}, ${JUNIOR_HANDLER_FEE_CAP}`,
-    });
-  }
-  const policy = show.withdrawal
-    ? getEffectiveWithdrawalPolicy(show.withdrawal.show, show.withdrawal.club)
-    : null;
-  if (policy) {
-    const { refundLine, notes } = describeWithdrawalPolicy(policy);
-    rows.push({
-      id: 'refundPolicy',
-      label: 'General Refund Policy',
-      value: notes ? `${refundLine} ${notes}` : refundLine,
+      value: formatAmount(junior),
     });
   }
   return rows;
@@ -260,7 +237,7 @@ export interface PremiumFacts {
     /** "Checks", "Cash" in that order, only those the show accepts. */
     paymentMethods: string[];
   };
-  /** Junior fee and refund wording; empty when the show sets none. */
+  /** Junior fee row; empty when the show sets none. */
   terms: PremiumTermRow[];
   entry: {
     /** Long display dates, null when unset. */

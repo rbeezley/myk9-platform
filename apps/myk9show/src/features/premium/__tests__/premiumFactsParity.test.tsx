@@ -39,15 +39,6 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
       acceptChecks: true,
       acceptCash: true,
       juniorHandlerFee: 15,
-      withdrawal: {
-        show: {
-          withdrawal_cutoff_date: '2026-05-15',
-          withdrawal_retention_type: 'percent',
-          withdrawal_retention_value: 10,
-          withdrawal_policy_notes: null,
-        },
-        club: null,
-      },
     },
     club: { name: 'Test Club', logoUrl: null },
     secretary: {
@@ -171,23 +162,15 @@ describe('premium PDF facts parity (8 styles)', () => {
 });
 
 describe('premium terms never bring fee placeholders with them', () => {
-  const withPolicyOnly = (style: PremiumStyle): GeneratedPremium => {
+  const withJuniorOnly = (style: PremiumStyle): GeneratedPremium => {
     const premium = sparsePremium('AKC', style);
-    premium.show.withdrawal = {
-      show: {
-        withdrawal_cutoff_date: '2026-05-15',
-        withdrawal_retention_type: 'percent',
-        withdrawal_retention_value: 10,
-        withdrawal_policy_notes: null,
-      },
-      club: null,
-    };
+    premium.show.juniorHandlerFee = 15;
     return premium;
   };
 
-  it('gazette prints the policy and no fee placeholder when the show has no fees', () => {
-    const text = pdfText('AKC', withPolicyOnly('gazette'));
-    expect(text).toContain('General Refund Policy: ');
+  it('gazette prints the junior fee and no fee placeholder when the show has no other fees', () => {
+    const text = pdfText('AKC', withJuniorOnly('gazette'));
+    expect(text).toContain('Junior handler fee per class entry (handler under 18): $15');
     expect(text).not.toContain('Pre-entry: $—');
     expect(text).not.toContain('Day-of: $—');
     expect(text).not.toContain('Payment TBD');

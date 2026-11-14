@@ -39,47 +39,21 @@ describe('premiumFacts', () => {
     expect(facts.terms).toEqual([]);
   });
 
-  it('builds the junior fee and refund wording once', () => {
+  it('builds the junior fee row once, with just the amount', () => {
     const premium = generatedPremium();
     premium.show.juniorHandlerFee = 12.5;
-    premium.show.withdrawal = {
-      show: {
-        withdrawal_cutoff_date: '2026-05-01',
-        withdrawal_retention_type: 'flat',
-        withdrawal_retention_value: 500,
-        withdrawal_policy_notes: null,
-      },
-      club: null,
-    };
     expect(buildPremiumFacts(premium, 'AKC').terms).toEqual([
       {
         id: 'juniorHandlerFee',
         label: 'Junior handler fee per class entry (handler under 18)',
-        value: '$12.50, never more than the regular fee',
-      },
-      {
-        id: 'refundPolicy',
-        label: 'General Refund Policy',
-        value:
-          'Full refund of the entry fee until May 1, 2026; after that, $5.00 is kept. Service fees are non-refundable.',
+        value: '$12.50',
       },
     ]);
-  });
-
-  it('falls back to the club default when the show declares no policy', () => {
-    const premium = generatedPremium();
-    premium.show.withdrawal = {
-      show: {},
-      club: { default_withdrawal_policy_notes: 'Contact the secretary.' },
-    };
-    const ids = buildPremiumFacts(premium).terms.map(t => t.id);
-    expect(ids).toEqual(['refundPolicy']);
   });
 
   it('treats a zero junior fee as unset', () => {
     const premium = generatedPremium();
     premium.show.juniorHandlerFee = 0;
-    premium.show.withdrawal = { show: {}, club: null };
     expect(buildPremiumFacts(premium).terms).toEqual([]);
   });
 

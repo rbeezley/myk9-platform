@@ -70,7 +70,11 @@ the ledger core for desk money, the MYK9-1634 trigger for the total.
    - **Money still held covers a later add-on.** $50 paid, $10 refunded at the desk ($40
      held), then a $30 class: the add-on is settled (paid) by the held money, and every
      screen reads "Paid in full" (footer, checklist, the add-on's row). "Paid in Full"
-     charges $0 and reopens nothing. `private.refresh_enrollment_money` settles it.
+     charges $0 and reopens nothing. `private.refresh_enrollment_money` settles it from
+     state, not from which way the total moved: after any change to what a form owes, a
+     pending form (or a paid or refunded one holding an add-on) whose money received covers
+     a non-zero total is paid with its pending desk entries. So a $50 class that left the
+     form pending, then changed to a $30 class or removed, settles too.
    - **A payment covers only what it is for; it never reopens refunded entries.** $50
      paid, fully refunded, then a $30 class: the form reads "$30 due", "Paid in Full"
      quotes and charges $30, and recording $30 (Paid in Full or a custom amount) leaves the

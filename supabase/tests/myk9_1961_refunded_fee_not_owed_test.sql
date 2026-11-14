@@ -18,6 +18,11 @@
 --   9. OWNER CASE 2 (2026-11-13): a payment covers only what it is for. $50 paid, fully
 --      refunded, then a $30 class: the form owes $30, and recording $30 (Paid in Full, or
 --      the custom amount) leaves the refunded entries refunded and the form paid in full;
+--  10. SETTLE FROM STATE (Codex P2): a form whose money received covers what it owes is
+--      settled however it got there. $40 held, a $50 class (pending), changed to a $30
+--      class: paid, the add-on paid. $40 held, $30 and $50 classes, the $50 removed: paid.
+--      An emptied form (owes 0) is not settled, a form with no money held stays pending,
+--      and a part payment that a removal leaves covering the form pays it;
 --   8. the helper and the changed function keep their grants (no client role executes them).
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated database; fixtures roll back.
@@ -48,7 +53,12 @@ VALUES
   ('00000000-0000-0000-0000-000001961055', 'Comped', 'Entry', NULL),
   ('00000000-0000-0000-0000-000001961056', 'Payment', 'Due', NULL),
   ('00000000-0000-0000-0000-000001961057', 'Refunded', 'PaidInFull', NULL),
-  ('00000000-0000-0000-0000-000001961058', 'Refunded', 'Custom', NULL);
+  ('00000000-0000-0000-0000-000001961058', 'Refunded', 'Custom', NULL),
+  ('00000000-0000-0000-0000-000001961059', 'Class', 'Changed', NULL),
+  ('00000000-0000-0000-0000-00000196105a', 'Class', 'Removed', NULL),
+  ('00000000-0000-0000-0000-00000196105b', 'Form', 'Emptied', NULL),
+  ('00000000-0000-0000-0000-00000196105c', 'Nothing', 'Held', NULL),
+  ('00000000-0000-0000-0000-00000196105d', 'Part', 'Payment', NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000001961051', id, '00000000-0000-0000-0000-000001961001',
@@ -72,7 +82,17 @@ VALUES
   ('00000000-0000-0000-0000-00000196100f', '00000000-0000-0000-0000-000001961011',
    '00000000-0000-0000-0000-000001961057', 'pending', 'cash'),
   ('00000000-0000-0000-0000-000001961010', '00000000-0000-0000-0000-000001961011',
-   '00000000-0000-0000-0000-000001961058', 'pending', 'cash');
+   '00000000-0000-0000-0000-000001961058', 'pending', 'cash'),
+  ('00000000-0000-0000-0000-00000196101a', '00000000-0000-0000-0000-000001961011',
+   '00000000-0000-0000-0000-000001961059', 'pending', 'cash'),
+  ('00000000-0000-0000-0000-00000196101b', '00000000-0000-0000-0000-000001961011',
+   '00000000-0000-0000-0000-00000196105a', 'pending', 'cash'),
+  ('00000000-0000-0000-0000-00000196101c', '00000000-0000-0000-0000-000001961011',
+   '00000000-0000-0000-0000-00000196105b', 'pending', 'cash'),
+  ('00000000-0000-0000-0000-00000196101d', '00000000-0000-0000-0000-000001961011',
+   '00000000-0000-0000-0000-00000196105c', 'pending', 'cash'),
+  ('00000000-0000-0000-0000-00000196101e', '00000000-0000-0000-0000-000001961011',
+   '00000000-0000-0000-0000-00000196105d', 'pending', 'cash');
 
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
@@ -90,6 +110,16 @@ SELECT ('00000000-0000-0000-0000-0000019611' || x.suffix)::uuid,
        '00000000-0000-0000-0000-000001961011', '00000000-0000-0000-0000-000001961021',
        '00000000-0000-0000-0000-000001961010', 'submitted', 'pending', 'cash', 25
   FROM (VALUES ('91'), ('92')) AS x(suffix);
+
+-- Forms ...196101a to ...196101e (case 10) have two $25 entries each, ...19612<form><n>.
+INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
+                            payment_status, payment_method, entry_fee)
+SELECT ('00000000-0000-0000-0000-0000019612' || x.suffix)::uuid,
+       '00000000-0000-0000-0000-000001961011', '00000000-0000-0000-0000-000001961021',
+       ('00000000-0000-0000-0000-00000196101' || left(x.suffix, 1))::uuid,
+       'submitted', 'pending', 'cash', 25
+  FROM (VALUES ('a1'), ('a2'), ('b1'), ('b2'), ('c1'), ('c2'), ('d1'), ('d2'), ('e1'),
+               ('e2')) AS x(suffix);
 
 CREATE TEMP TABLE t1961_expect (label text, got text, want text) ON COMMIT DROP;
 GRANT ALL ON t1961_expect TO authenticated;
@@ -114,12 +144,14 @@ LANGUAGE sql AS $$
     FROM public.entries e WHERE e.registration_id = p_id $$;
 
 -- An add-on class on a form, as submit_show_entries inserts it (pending, its own fee).
-CREATE OR REPLACE FUNCTION pg_temp.addon1961(p_id uuid, p_entry uuid) RETURNS void
+CREATE OR REPLACE FUNCTION pg_temp.addon1961(p_id uuid, p_entry uuid, p_fee numeric DEFAULT 30)
+RETURNS void
 LANGUAGE sql AS $$
   INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                               payment_status, payment_method, entry_fee)
   VALUES (p_entry, '00000000-0000-0000-0000-000001961011',
-          '00000000-0000-0000-0000-000001961021', p_id, 'submitted', 'pending', 'cash', 30) $$;
+          '00000000-0000-0000-0000-000001961021', p_id, 'submitted', 'pending', 'cash',
+          p_fee) $$;
 
 -- Every desk action below is the secretary's, through the public RPC.
 SET LOCAL ROLE authenticated;
@@ -272,6 +304,98 @@ SELECT '9c a $30 payment by amount pays the form in full and reopens nothing',
        || pg_temp.entries1961('00000000-0000-0000-0000-000001961010'),
        'total=3000 paid=80.00 refund=50.00 status=paid_by_cash due=0.00 '
        || '91=refunded 92=refunded 93=paid payments=2';
+
+-- 10. SETTLE FROM STATE. Forms 1a, 1b, 1c: $50 paid, $10 refunded in cash, $40 held.
+-- Form 1d holds nothing. Form 1e: $25 of its $50 paid in cash.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001961151', true);
+SELECT public.record_enrollment_payment(
+  x.id::uuid, 'payment', NULL, 'cash', NULL, NULL, NULL)
+  FROM (VALUES ('00000000-0000-0000-0000-00000196101a'),
+               ('00000000-0000-0000-0000-00000196101b'),
+               ('00000000-0000-0000-0000-00000196101c')) AS x(id);
+SELECT public.record_enrollment_payment(
+  x.id::uuid, 'refund', 10, 'cash', NULL, NULL, 'Cash Returned')
+  FROM (VALUES ('00000000-0000-0000-0000-00000196101a'),
+               ('00000000-0000-0000-0000-00000196101b'),
+               ('00000000-0000-0000-0000-00000196101c')) AS x(id);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-00000196101e', 'payment', 25, 'cash', NULL, NULL, NULL);
+RESET ROLE;
+
+-- 10a. The Codex case: a $50 class the $40 held does not cover, then changed to a $30
+-- class the $40 does cover. The form and the add-on are paid.
+SELECT pg_temp.addon1961('00000000-0000-0000-0000-00000196101a',
+                         '00000000-0000-0000-0000-0000019612a3', 50);
+INSERT INTO t1961_expect
+SELECT '10a1 a $50 class the held $40 does not cover leaves the form pending',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196101a') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196101a'),
+       'total=5000 paid=50.00 refund=10.00 status=pending due=10.00 '
+       || 'a1=refunded a2=refunded a3=pending payments=1';
+UPDATE public.entries SET entry_fee = 30
+ WHERE id = '00000000-0000-0000-0000-0000019612a3';
+INSERT INTO t1961_expect
+SELECT '10a2 changing it to a $30 class the held $40 covers settles the form and the add-on',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196101a') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196101a'),
+       'total=3000 paid=50.00 refund=10.00 status=paid due=-10.00 '
+       || 'a1=refunded a2=refunded a3=paid payments=1';
+
+-- 10b. Removal: a $30 class (settled by the $40 held), then a $50 class (pending), then
+-- the $50 class removed. The removed entry keeps its pending status; it is deleted.
+SELECT pg_temp.addon1961('00000000-0000-0000-0000-00000196101b',
+                         '00000000-0000-0000-0000-0000019612b3', 30);
+SELECT pg_temp.addon1961('00000000-0000-0000-0000-00000196101b',
+                         '00000000-0000-0000-0000-0000019612b4', 50);
+INSERT INTO t1961_expect
+SELECT '10b1 $30 and $50 classes on $40 held leave the form pending',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196101b') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196101b'),
+       'total=8000 paid=50.00 refund=10.00 status=pending due=40.00 '
+       || 'b1=refunded b2=refunded b3=paid b4=pending payments=1';
+UPDATE public.entries SET deleted_at = now()
+ WHERE id = '00000000-0000-0000-0000-0000019612b4';
+INSERT INTO t1961_expect
+SELECT '10b2 removing the $50 class settles the form',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196101b') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196101b'),
+       'total=3000 paid=50.00 refund=10.00 status=paid due=-10.00 '
+       || 'b1=refunded b2=refunded b3=paid b4=pending payments=1';
+
+-- 10c. An emptied form: a $50 class the $40 does not cover, then removed. The form owes
+-- nothing and is not settled to paid.
+SELECT pg_temp.addon1961('00000000-0000-0000-0000-00000196101c',
+                         '00000000-0000-0000-0000-0000019612c3', 50);
+UPDATE public.entries SET deleted_at = now()
+ WHERE id = '00000000-0000-0000-0000-0000019612c3';
+INSERT INTO t1961_expect
+SELECT '10c an emptied form is not settled to paid',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196101c') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196101c'),
+       'total=0 paid=50.00 refund=10.00 status=pending due=-40.00 '
+       || 'c1=refunded c2=refunded c3=pending payments=1';
+
+-- 10d. No money held: a class removed leaves the form pending.
+UPDATE public.entries SET deleted_at = now()
+ WHERE id = '00000000-0000-0000-0000-0000019612d2';
+INSERT INTO t1961_expect
+SELECT '10d a pending form with no money held stays pending when a class is removed',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196101d') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196101d'),
+       'total=2500 paid=0.00 refund=0.00 status=pending due=25.00 '
+       || 'd1=pending d2=pending payments=0';
+
+-- 10e. A part payment a removal leaves covering the form: $25 of $50 paid, a $25 class
+-- removed. Nothing is due, so the form and its remaining entry are paid.
+UPDATE public.entries SET deleted_at = now()
+ WHERE id = '00000000-0000-0000-0000-0000019612e2';
+INSERT INTO t1961_expect
+SELECT '10e a part payment that covers the form after a removal pays it',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196101e') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196101e'),
+       'total=2500 paid=25.00 refund=0.00 status=paid due=0.00 '
+       || 'e1=paid e2=pending payments=1';
 
 -- 8. Grants: no client role may execute the owed rule or the reopen helper.
 INSERT INTO t1961_expect

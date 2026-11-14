@@ -23,9 +23,11 @@
 -- reopens the entries the form refunded" and Decision 1 of docs/plan-card-money-received.md.
 --   1. MONEY STILL HELD COVERS A LATER ADD-ON. $50 paid, $10 refunded at the desk ($40
 --      held), then a $30 class: the add-on is settled (paid) by the held money and the form
---      is paid in full. private.refresh_enrollment_money settles it: when an add-on raises
---      what a paid or refunded form owes and the money received still covers it, the form
---      becomes 'paid' and its pending desk entries 'paid'. "Paid in Full" then charges $0.
+--      is paid in full. private.refresh_enrollment_money settles it from state: after any
+--      change to what a form owes, a pending form (or a paid or refunded one holding an
+--      add-on) whose money received covers a non-zero total becomes 'paid' and its pending
+--      desk entries 'paid'; so does an add-on changed or removed until the form is
+--      covered. "Paid in Full" then charges $0.
 --   2. A PAYMENT COVERS ONLY WHAT IT IS FOR; IT NEVER REOPENS REFUNDED ENTRIES. $50 paid,
 --      fully refunded, then a $30 class: the form owes $30, "Paid in Full" charges $30, and
 --      the refunded entries stay refunded. The entries cascade
@@ -149,12 +151,35 @@ BEGIN
   END IF;
   v_received := v_desk_cents + v_card;
 
-  -- MYK9-1961 (owner decision 1, 2026-11-13): an add-on raised what a settled or refunded
-  -- form owes, and the money it still holds covers the new total. The held money pays for
-  -- the add-on, so the form is paid and the add-on settled, below.
-  v_settle := v_status IN ('paid', 'paid_by_cash', 'paid_by_check', 'refunded', 'partial_refund')
-              AND v_total > COALESCE(v_old_total, 0)
-              AND v_received >= v_total;
+  -- MYK9-1961 (owner decision 1, 2026-11-13): SETTLE FROM STATE, not from the direction the
+  -- total moved. After any change to what the form owes or to its card money, a form whose
+  -- money received (desk net + card) covers a non-zero total settles: the pending desk
+  -- entries that money covers are paid (below), and a form in an owed state is paid. It
+  -- settles when it is
+  --   * 'pending': whatever made it pending (an add-on the held money did not cover, a part
+  --     payment), it is paid once nothing is due: a class removed, a fee lowered, card money
+  --     captured;
+  --   * paid, refunded or partial_refund, holding a pending desk entry: an add-on, since a
+  --     payment's or a refund's cascade left none. A paid form stays as it is labelled; a
+  --     refunded one is paid. Without an add-on, a refunded form whose card money covers its
+  --     card-paid entries is not a settled form and stays refunded.
+  -- Guards: no money held never settles (received 0 < total); an emptied form (total 0) is
+  -- not settled by this rule; 'waived' is untouched. The add-on test is the entry filter of
+  -- the settle UPDATE below.
+  v_settle := v_total > 0
+              AND v_received >= v_total
+              AND (v_status = 'pending'
+                   OR (v_status IN ('paid', 'paid_by_cash', 'paid_by_check',
+                                    'refunded', 'partial_refund')
+                       AND EXISTS (
+                         SELECT 1
+                           FROM public.entries e
+                          WHERE e.registration_id = p_enrollment_id
+                            AND e.deleted_at IS NULL
+                            AND e.payment_status = 'pending'
+                            AND e.comped IS NOT TRUE
+                            AND e.payment_method IS DISTINCT FROM 'online'
+                            AND NOT private.entry_is_card_paid(e.id, e.refund_amount))));
 
   UPDATE public.enrollments en
      SET total_amount = v_total,
@@ -170,7 +195,7 @@ BEGIN
             AND v_total > COALESCE(v_old_total, 0)
             AND v_received < v_total
            THEN 'pending'
-           WHEN v_status IN ('refunded', 'partial_refund') AND v_settle
+           WHEN v_settle AND v_status IN ('pending', 'refunded', 'partial_refund')
            THEN 'paid'
            WHEN v_status IN ('pending', 'waived')
             AND v_card > v_old_card
@@ -180,7 +205,7 @@ BEGIN
          END
    WHERE en.id = p_enrollment_id;
 
-  -- The add-on the held money covers is paid. Only a pending desk entry: a refunded,
+  -- The add-ons the money received covers are paid. Only a pending desk entry: a refunded,
   -- waived or comped one is closed, a card-paid one is the card's (MYK9-1637), and an
   -- online-method entry is marked paid only by the payment service. The status moves
   -- between two statuses the total does not read, so no trigger here fires again.
@@ -202,7 +227,8 @@ REVOKE ALL ON FUNCTION private.refresh_enrollment_money(uuid) FROM PUBLIC;
 
 -- ---------------------------------------------------------------------------
 -- The status guard (from 20261101213300): the two MYK9-1961 derived moves of
--- refresh_enrollment_money are allowed inside an exhibitor's own add-on request.
+-- refresh_enrollment_money (a refunded form to pending, and the settle to paid) are allowed
+-- inside an exhibitor's own add-on, class change or removal.
 -- CREATE OR REPLACE keeps its grants.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.restrict_payment_status_update()
@@ -257,15 +283,20 @@ BEGIN
             RETURN NEW;
         END IF;
 
-        -- MYK9-1961 (owner decision 1, 2026-11-13): an exhibitor's own add-on onto a refunded
-        -- form whose money still held covers it: refunded / partial_refund -> 'paid', when the
-        -- derived total grew and the money received, desk and card, covers it. The total is
-        -- recomputed from the entries by trg_enrollments_derive_total before this guard
-        -- runs, and the money columns have their own guard, so no caller makes this true by
-        -- writing it.
+        -- MYK9-1961 (owner decision 1, 2026-11-13): the settle of
+        -- private.refresh_enrollment_money, inside an exhibitor's own add-on, class change or
+        -- removal: pending / refunded / partial_refund -> 'paid' when what the form owes or
+        -- its card money just changed and the money received, desk and card, covers a
+        -- non-zero total. Both figures are recomputed (from the entries and from succeeded
+        -- orders) by trg_enrollments_derive_total before this guard runs, and the money
+        -- columns have their own guard, so a direct UPDATE cannot change either one: it
+        -- meets the "changed" test only where the stored figures were stale, and then the
+        -- move is the state the database derives for the form. It moves no money.
         IF NEW.payment_status = 'paid'
-           AND OLD.payment_status IN ('refunded', 'partial_refund')
-           AND COALESCE(NEW.total_amount, 0) > COALESCE(OLD.total_amount, 0)
+           AND OLD.payment_status IN ('pending', 'refunded', 'partial_refund')
+           AND (NEW.total_amount IS DISTINCT FROM OLD.total_amount
+                OR NEW.card_covered_cents IS DISTINCT FROM OLD.card_covered_cents)
+           AND COALESCE(NEW.total_amount, 0) > 0
            AND (COALESCE(NEW.paid_amount, 0) - COALESCE(NEW.refund_amount, 0)) * 100
                  + NEW.card_covered_cents >= COALESCE(NEW.total_amount, 0) THEN
             RETURN NEW;

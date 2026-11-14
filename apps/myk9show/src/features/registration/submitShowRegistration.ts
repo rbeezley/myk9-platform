@@ -34,6 +34,8 @@ export interface ShowRegistrationSubmissionResult {
   aborted: false;
   registrationNumber?: string | undefined;
   dbRegistrationId: string;
+  /** The server's id for this submission; present when entries were submitted. */
+  submissionId?: string | undefined;
   armbandAssignments: ArmbandAssignment[];
   /**
    * Dogs whose armband claim or replicated armband sync failed. The entries
@@ -165,6 +167,7 @@ export async function submitShowRegistration({
   let armbandAssignments: ArmbandAssignment[] = [];
   let armbandFailures: ArmbandAssignmentFailure[] = [];
   let submissionOutcomes: EntrySubmissionOutcome[] | undefined;
+  let submissionId: string | undefined;
 
   if (entryInputs.length > 0) {
     const rpcResult = await resolvedDeps.submitShowEntries({
@@ -198,6 +201,7 @@ export async function submitShowRegistration({
     if (!isStillActive(isActive)) return { aborted: true };
 
     submissionOutcomes = rpcResult.outcomes;
+    submissionId = rpcResult.submissionId;
     const createdAny = rpcResult.outcomes.some(outcome => outcome.outcome === 'created');
 
     // MYK9-1634: the RPC already set the form's total and payment status in the
@@ -259,6 +263,7 @@ export async function submitShowRegistration({
     aborted: false,
     registrationNumber: enrollment.registrationNumber,
     dbRegistrationId: enrollment.dbRegistrationId,
+    ...(submissionId ? { submissionId } : {}),
     armbandAssignments,
     armbandFailures,
     ...(surfacedOutcomes ? { entryOutcomes: surfacedOutcomes } : {}),

@@ -28,7 +28,12 @@ export interface ReplayedCartOrder {
   /** Who paid: the person the receipt goes to, or null when unresolvable. */
   exhibitorPersonId: string | null;
   subtotalCents: number;
+  /** Cents of the paid entries and their service fee (metadata.paid_amount_cents). */
   totalCents: number;
+  /** Cents charged to the card (stripe_orders.amount_cents): what the success page shows. */
+  chargedCents: number;
+  /** enrollments.confirmation_number of the order, as the success page shows it; null when none. */
+  confirmationNumber: string | null;
 }
 
 /** The session's run, as the receipt gate reads it. */

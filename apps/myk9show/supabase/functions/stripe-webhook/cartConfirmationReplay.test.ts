@@ -115,6 +115,8 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
             exhibitorPersonId: 'person-1',
             subtotalCents: 6000,
             totalCents: 6600,
+            chargedCents: 6600,
+            confirmationNumber: 'MYK9-TEST-0001',
           }
         : null,
     // sendEntryConfirmationEmail: also stamps the entries, a separate concern.
@@ -260,6 +262,8 @@ describe('sendCartReceiptOnce', () => {
     exhibitorPersonId: 'p',
     subtotalCents: 3000,
     totalCents: 3300,
+    chargedCents: 3300,
+    confirmationNumber: 'MYK9-TEST-0001',
   };
   const run = async (
     state: { latched: boolean; receiptSentAt: string | null } | null,

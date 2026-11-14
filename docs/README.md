@@ -337,6 +337,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [operations/unit-economics.md](operations/unit-economics.md)                                             | Reference | Unit Economics & Break-Even — net per entry, cost base, break-even volume          |
 | [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)                               | Reference | Stripe Platform Setup — Operator Runbook (Richard)                                 |
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md)                             | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers)            |
+| [operations/mock-show-test-sheet.md](operations/mock-show-test-sheet.md)                                 | Reference | Mock Show Test Sheet — one page of tasks for a secretary testing a mock show       |
 | [operations/supabase-auth-email.md](operations/supabase-auth-email.md)                                   | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation                    |
 | [operations/scheduled-audits-claude.md](operations/scheduled-audits-claude.md)                           | Reference | Scheduled Audits — Claude Code task prompts paired against the Codex nightly set   |
 | [operations/cloud-agent-workflow.md](operations/cloud-agent-workflow.md)                                 | Reference | Cloud Agent Workflow — setup, preflight, branch prefixes and the PR handoff ledger |

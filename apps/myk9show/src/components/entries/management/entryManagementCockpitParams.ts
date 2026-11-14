@@ -149,7 +149,12 @@ function getRegistrationKey(
 export function normalizeEntryManagementCockpitParams(
   source: URLSearchParams,
   context: CockpitNormalizationContext = {}
-): { params: URLSearchParams; state: EntryManagementCockpitState } {
+): {
+  params: URLSearchParams;
+  state: EntryManagementCockpitState;
+  /** Class ids the link named that this page cannot show, so the page can say so (MYK9-1996). */
+  droppedClassIds: string[];
+} {
   const exception = getLegacyException(source) ?? 'move-ups';
   const tab: EntryManagementCockpitTab = getLegacyException(source)
     ? 'exceptions'
@@ -167,6 +172,10 @@ export function normalizeEntryManagementCockpitParams(
             !context.selectedTrialClassIds ||
             context.selectedTrialClassIds.has(id)
         )
+      : [];
+  const droppedClassIds =
+    tab === 'registrations'
+      ? parseListParam(source.get('class')).filter(id => !classIds.includes(id))
       : [];
   const registrationKey = tab === 'registrations' ? getRegistrationKey(source, context) : null;
   const params = new URLSearchParams();
@@ -188,6 +197,7 @@ export function normalizeEntryManagementCockpitParams(
 
   return {
     params,
+    droppedClassIds,
     state: {
       tab,
       exception,

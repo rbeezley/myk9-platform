@@ -42,6 +42,7 @@ import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
 import { showHeroParent } from './showHeroParent';
+import { carriedClassSearch } from './showTabClass';
 import type { HeroViewer } from '@/components/common/heroParentLink';
 
 const ShowHomeCockpit = lazy(() =>
@@ -210,11 +211,17 @@ function AuthorizedShowManagementShell({
   // show home it lands on.
   const activeTabId: ShowTabId =
     SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ?? 'overview';
+  const location = useLocation();
+  const { hash, search } = location;
   const goToTab = (id: string) => {
     const tab = SHOW_TABS.find(item => item.id === id);
     if (!tab) return;
+    // The class being worked on travels with the secretary (MYK9-1996).
+    const classSearch = carriedClassSearch(activeTabId, tab.id, location.search);
     // Replace, never push (owner decision 5): Back from a tab leaves the show.
-    navigate(tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref, { replace: true });
+    navigate(`${tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref}${classSearch}`, {
+      replace: true,
+    });
   };
 
   // The shared dialog has already purged the show and refreshed its lists.
@@ -224,7 +231,6 @@ function AuthorizedShowManagementShell({
   const isShowDesk = !activeManagementSection;
   // Every `#setup-publish*` link (readiness signals, the status-line nudge) means the publish
   // cards, and those live on About (MYK9-1683). Replace, like a tab click, so Back leaves the show.
-  const { hash, search } = useLocation();
   const publishAnchor = publishAnchorFromHash(hash);
   useEffect(() => {
     if (publishAnchor && activeManagementSection !== 'about') {

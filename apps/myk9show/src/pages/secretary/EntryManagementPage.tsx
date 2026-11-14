@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { CarriedClassNotice } from '@/components/shows/ShowDetails/CarriedClassNotice';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useDroppedCarriedClass } from '@/hooks/useDroppedCarriedClass';
 import { auditService } from '@/services/AuditService';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAccess';
@@ -147,6 +149,10 @@ const EntryManagementPage: React.FC = () => {
     [normalizationContext, searchParams]
   );
   const { trialIds } = cockpitUrl.state;
+  const missedClassId = useDroppedCarriedClass(
+    cockpitUrl.droppedClassIds,
+    cockpitUrl.state.classIds.length
+  );
   // The command menu's trial commands need one trial; with several picked there is none to name.
   const trialParam = trialIds.length === 1 ? trialIds[0] : null;
 
@@ -409,6 +415,9 @@ const EntryManagementPage: React.FC = () => {
           swaps this toolbar for its own title and a way back. */}
       {selectedShowId && cockpitUrl.state.tab === 'exceptions' && (
         <EntryListViewHeader exception={cockpitUrl.state.exception} />
+      )}
+      {selectedShowId && cockpitUrl.state.tab === 'registrations' && missedClassId && (
+        <CarriedClassNotice name={trialClassScope.classNameById.get(missedClassId) ?? undefined} />
       )}
       {selectedShowId && cockpitUrl.state.tab === 'registrations' && (
         <EntryManagementViewToolbar

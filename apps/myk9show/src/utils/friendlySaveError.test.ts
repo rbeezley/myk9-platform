@@ -112,7 +112,7 @@ describe('friendlySaveError', () => {
     const { description } = friendlySaveError(
       pg('23505', 'duplicate key value violates unique constraint "people_email_key"')
     );
-    expect(description).toContain('This record already exists.');
+    expect(description).toContain('one like it already exists.');
     expect(description).not.toContain('people_email_key');
     expect(description).not.toContain('Try again');
   });

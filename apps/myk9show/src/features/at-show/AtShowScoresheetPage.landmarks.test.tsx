@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1555: the ringside scoresheet owns exactly one `main` landmark in every
  * full-page state (axe `landmark-one-main` / `region`), and its headings never

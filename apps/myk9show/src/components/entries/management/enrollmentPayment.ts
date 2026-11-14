@@ -176,3 +176,39 @@ export function receivedDollars(
 ): number {
   return netReceivedDollars(group) + group.cardCoveredAmount;
 }
+
+type FormMoneyGroup = Pick<
+  EnrollmentGroup,
+  | 'totalAmount'
+  | 'totalAmountUnit'
+  | 'paidAmount'
+  | 'cardCoveredAmount'
+  | 'enrollmentId'
+  | 'entries'
+>;
+
+/** What the form owes, in dollars (the server's figure when it has an enrollment row). */
+export function formTotalDollars(group: Pick<EnrollmentGroup, 'totalAmount' | 'totalAmountUnit'>) {
+  return group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
+}
+
+/**
+ * The form's "due": what it owes less the money received, desk and card. Negative
+ * when the money received is more than the form owes; callers clamp for display.
+ * MYK9-1961: a refunded or Free entry's fee is not in what the form owes
+ * (`entryCountsTowardFormTotal`), so a refunded or comped form reads nothing due.
+ */
+export function enrollmentRemainingDollars(group: FormMoneyGroup): number {
+  return formTotalDollars(group) - receivedDollars(group);
+}
+
+/**
+ * What "Paid in Full" charges: the form's due, never below zero. The server's figure
+ * (`record_enrollment_payment` with no amount), so the dialog quotes what is recorded.
+ * MYK9-1961 (owner, 2026-11-13): a payment covers only what it is for and never reopens a
+ * refunded entry, so a refunded fee is never charged again; money the form still holds
+ * covers a later add-on, so a covered form quotes $0.
+ */
+export function paidInFullDollars(group: FormMoneyGroup): number {
+  return Math.max(0, enrollmentRemainingDollars(group));
+}

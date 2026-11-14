@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-977 — a withdrawn dog with NO armband under "Not running" rendered a
  * "0" badge: `atShowDataAdapter` turned a missing armband into the number 0.

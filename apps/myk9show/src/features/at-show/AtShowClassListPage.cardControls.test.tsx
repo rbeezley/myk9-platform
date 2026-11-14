@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1506 through the real page: tabs with counts, search, sort, the heart
  * (persisting across a reload), the info and options controls, the upload

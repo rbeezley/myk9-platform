@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 import { describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';

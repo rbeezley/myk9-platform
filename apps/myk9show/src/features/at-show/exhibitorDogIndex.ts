@@ -54,6 +54,7 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
           .filter(Boolean)
           .join(' · ') || null,
       checkInStatus,
+      notRunningWord: null,
       isPulled: checkInStatus === 'pulled',
       isMoved: false,
       isScored: false,

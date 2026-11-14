@@ -160,6 +160,7 @@ export {
   formatPlaceInLine,
   formatRunQueueState,
   notRunningLabel,
+  notRunningReasonOf,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,

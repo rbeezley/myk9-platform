@@ -70,6 +70,7 @@ export {
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
+  notRunningReasonOf,
   pendingByRunOrder,
   placeInLine,
   runQueueStateOf,

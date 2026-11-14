@@ -8,6 +8,7 @@
 import type { ReplicatedEntry } from '@/services/replication';
 import { isExpectedEntry, isPulledEntry } from '@/features/_shared/entryAccounting';
 import { resolveEntryArmband, type ShowArmbandMaps } from '@/features/_shared/entryArmband';
+import { notRunningLabel } from '@myk9/ringside/run-queue';
 import { transformEntry } from './atShowDataAdapter';
 
 /** What the page needs to know about a class an entry sits in. */
@@ -28,6 +29,8 @@ export interface StaffDogClassEntry {
   className: string;
   trialLabel: string | null;
   checkInStatus: string;
+  /** Pulled, Withdrawn, Absent or Moved when the dog is not running; null when it is running. */
+  notRunningWord: string | null;
   isPulled: boolean;
   /** The source row of a move-up: shown as Moved, never offered a check-in. */
   isMoved: boolean;
@@ -108,8 +111,9 @@ export function buildStaffDogs(
     }
     const pulled = isPulledEntry(re);
     const isMoved = lifecycleOf(re) === 'moved';
-    // Derived display status: a withdrawn dog reads Pulled even if it was checked in earlier.
+    // The shared not-running word (MYK9-1940), so a withdrawn dog reads Withdrawn, never Pulled.
     const checkInStatus = view.status;
+    const notRunningWord = view.notRunningReason ? notRunningLabel(view.notRunningReason) : null;
     dog.entries.push({
       entryId: re.id,
       classId: re.classId ?? null,
@@ -117,6 +121,7 @@ export function buildStaffDogs(
       className: classInfo?.className ?? 'Class not on this device yet',
       trialLabel: classInfo?.trialLabel ?? null,
       checkInStatus,
+      notRunningWord,
       isPulled: pulled,
       isMoved,
       isScored: view.isScored,

@@ -14,6 +14,7 @@ import {
   formatPlaceInLine,
   formatRunQueueState,
   notRunningLabel,
+  notRunningReasonOf,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
@@ -356,5 +357,18 @@ describe('a dog that is not running reads its own word (MYK9-1940)', () => {
     expect(
       ['moved', 'absent', 'pulled', 'withdrawn'].map(r => notRunningLabel(r as never))
     ).toEqual(['Moved', 'Absent', 'Pulled', 'Withdrawn']);
+  });
+});
+
+describe('notRunningReasonOf precedence (MYK9-1940)', () => {
+  it.each([
+    ['moved', 'pulled', 'moved'],
+    ['absent', 'pulled', 'absent'],
+    ['withdrawn', 'pulled', 'withdrawn'],
+    ['scratched', 'checked-in', 'pulled'],
+    ['confirmed', 'pulled', 'pulled'],
+    ['confirmed', 'at-gate', undefined],
+  ])('lifecycle %s with check-in %s reads %s', (lifecycle, checkIn, reason) => {
+    expect(notRunningReasonOf(lifecycle, checkIn)).toBe(reason);
   });
 });

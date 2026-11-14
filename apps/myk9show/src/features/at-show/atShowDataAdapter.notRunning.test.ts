@@ -36,6 +36,8 @@ describe('transformEntry notRunningReason (MYK9-1940)', () => {
     ['withdrawn', 'confirmed', 'withdrawn'],
     ['scratched', 'confirmed', 'pulled'],
     ['confirmed', 'pulled', 'pulled'],
+    ['moved', 'pulled', 'moved'],
+    ['absent', 'pulled', 'absent'],
   ])('%s entry with check-in %s reads %s', (entryStatus, checkIn, reason) => {
     const entry = row({
       entry_status: entryStatus,

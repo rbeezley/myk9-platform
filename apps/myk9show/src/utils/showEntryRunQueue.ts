@@ -24,6 +24,7 @@ import {
   compareByRunOrder,
   isInQueue,
   isInRingEntry,
+  notRunningReasonOf,
   pendingByRunOrder,
   runQueueStateOf,
   type RunQueueEntry,
@@ -42,15 +43,6 @@ function parseArmband(entry: ShowEntry): number {
 }
 
 /**
- * Entry-lifecycle states that mean "this dog is not going to run", but which the
- * show-day check-in flow never sets. `entry_status` (migration 003) allows
- * no-status / draft / submitted / paid / confirmed / checked-in / competing /
- * completed / withdrawn / scratched / absent — it contains neither `pulled` nor
- * `in-ring`. `moved` marks the dead source row of a move-up.
- */
-const NOT_RUNNING_LIFECYCLE = new Set(['withdrawn', 'scratched', 'absent', 'moved']);
-
-/**
  * The status the run queue actually cares about.
  *
  * `ShowEntry` carries TWO status axes: `checkInStatus` (the show-day flow —
@@ -63,10 +55,10 @@ const NOT_RUNNING_LIFECYCLE = new Set(['withdrawn', 'scratched', 'absent', 'move
  */
 function queueStatus(entry: ShowEntry): string | undefined {
   const checkIn = entry.checkInStatus;
-  if (checkIn === 'pulled' || checkIn === 'in-ring') return checkIn;
-  // absent and moved keep their own word (MYK9-1940); withdrawn is handled by ownEntryQueueState.
-  if (entry.status === 'absent' || entry.status === 'moved') return entry.status;
-  if (NOT_RUNNING_LIFECYCLE.has(entry.status)) return 'pulled';
+  // The shared precedence (MYK9-1940): a lifecycle absent, moved or withdrawn beats a check-in pulled.
+  const reason = notRunningReasonOf(entry.status, checkIn);
+  if (reason) return reason;
+  if (checkIn === 'in-ring') return checkIn;
   return checkIn ?? entry.status;
 }
 

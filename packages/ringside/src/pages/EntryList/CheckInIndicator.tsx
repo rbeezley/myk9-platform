@@ -76,7 +76,9 @@ export const CheckInIndicator: React.FC<{
   /** Replaces the status word, e.g. Absent or Moved for a dog that is not running (MYK9-1940). */
   label?: string | undefined;
 }> = ({ status, inverse = false, label: labelOverride }) => {
-  const presentation = getCheckInPresentation(status);
+  // A label override means the dog is not running (Absent, Moved, Withdrawn): it takes the pulled
+  // icon and colour, not the stale check-in's (MYK9-1940).
+  const presentation = getCheckInPresentation(labelOverride ? 'pulled' : status);
   const { Icon } = presentation;
   const label = labelOverride ?? presentation.label;
   const colorClass = inverse ? 'text-primary-foreground' : presentation.colorClass;

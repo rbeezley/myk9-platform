@@ -231,6 +231,23 @@ export function formatRunQueueState(state: RunQueueState): string {
   }
 }
 
+/**
+ * Why a dog is not running, from its lifecycle status and its check-in status. The lifecycle
+ * status (withdrawn, absent, moved, scratched) wins over a check-in `pulled`: it is the later,
+ * more definite fact. The one precedence the judge's list, the exhibitor's rows and the staff
+ * dog page share (MYK9-1940). Undefined means the dog is running.
+ */
+export function notRunningReasonOf(
+  lifecycleStatus: string | null | undefined,
+  checkInStatus: string | null | undefined
+): NotRunningReason | undefined {
+  if (lifecycleStatus === 'withdrawn') return 'withdrawn';
+  if (lifecycleStatus === 'absent') return 'absent';
+  if (lifecycleStatus === 'moved') return 'moved';
+  if (lifecycleStatus === 'scratched' || checkInStatus === 'pulled') return 'pulled';
+  return undefined;
+}
+
 /** The word for a dog that is not running; the judge's list and the exhibitor's rows share it. */
 export function notRunningLabel(reason: NotRunningReason): string {
   return formatRunQueueState({ kind: reason });

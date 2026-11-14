@@ -24,8 +24,9 @@ function status(entry: WaitlistSpotEntry): string {
  * keeps it open for the secretary to resolve, so a past deadline on one is not a lapse.
  *
  * Expired rows are never deleted, so they only count while someone is waiting in the class to be
- * offered the freed spot; with nobody waiting there is nothing for the secretary to do and the
- * row would otherwise count forever.
+ * offered the freed spot, and only until another offer is made there: a live open offer issued after
+ * the expiry (a later deadline) supersedes it. A dog counts once per class however many of its
+ * offers lapsed.
  */
 export function findExpiredOffers(input: {
   waitlist: readonly WaitlistSpotEntry[];
@@ -36,18 +37,40 @@ export function findExpiredOffers(input: {
       .filter(entry => isQueuedWaitlistEntry({ status: entry.status ?? null }))
       .map(entry => entry.classId)
   );
-  const rows: ExpiredOfferRow[] = [];
+  const deadlineOf = (entry: WaitlistSpotEntry): number =>
+    entry.offerExpiresAt ? Date.parse(entry.offerExpiresAt) : Number.NaN;
+  // An offer is superseded once another open offer was issued after it ran out (a later deadline
+  // means a later offer); a live open offer with no deadline counts as newer; an expired row with no deadline is never
+  // treated as replaced.
+  const supersededBy = (offer: WaitlistSpotEntry): boolean => {
+    const own = deadlineOf(offer);
+    if (!Number.isFinite(own)) return false; // no deadline to compare: cannot show it was replaced
+    return input.waitlist.some(other => {
+      if (other.classId !== offer.classId || status(other) !== 'offered') return false;
+      if (other.id === offer.id) return false;
+      const theirs = deadlineOf(other);
+      // An offer past its deadline is itself lapsed (counted on its own), not a live replacement.
+      if (other.joinedVia !== 'mail_in' && theirs <= input.now.getTime()) return false;
+      return !Number.isFinite(theirs) || theirs > own;
+    });
+  };
+  const byDog = new Map<string, ExpiredOfferRow>();
   for (const offer of input.waitlist) {
     if (!classesWithQueue.has(offer.classId)) continue;
+    let closed: boolean;
     if (status(offer) === 'expired') {
-      rows.push({ offer, classId: offer.classId, closed: true });
+      closed = true;
+    } else if (status(offer) === 'offered' && offer.joinedVia !== 'mail_in') {
+      const deadline = deadlineOf(offer);
+      if (!Number.isFinite(deadline) || deadline > input.now.getTime()) continue;
+      closed = false;
+    } else {
       continue;
     }
-    if (status(offer) !== 'offered' || offer.joinedVia === 'mail_in') continue;
-    const deadline = offer.offerExpiresAt ? Date.parse(offer.offerExpiresAt) : Number.NaN;
-    if (Number.isFinite(deadline) && deadline <= input.now.getTime()) {
-      rows.push({ offer, classId: offer.classId, closed: false });
-    }
+    if (supersededBy(offer)) continue;
+    const key = `${offer.classId}:${offer.dogId}`;
+    if (!byDog.has(key)) byDog.set(key, { offer, classId: offer.classId, closed });
   }
+  const rows = [...byDog.values()];
   return { count: rows.length, rows };
 }

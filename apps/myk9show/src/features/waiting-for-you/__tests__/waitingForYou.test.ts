@@ -217,6 +217,42 @@ describe('findOpenWaitlistSpots', () => {
     expect(result.classes[0]?.reason).toBe('judge-day-unknown');
   });
 
+  it('flags unknown, so a caller never shows a zero for figures that are not loaded', () => {
+    const waitlist = [wl('w1')];
+    expect(findOpenWaitlistSpots({ classes: [cls()], waitlist, judgeDays: null }).unknown).toBe(
+      true
+    );
+    expect(findOpenWaitlistSpots({ classes: [cls()], waitlist, judgeDays: [day()] }).unknown).toBe(
+      false
+    );
+    expect(
+      findOpenWaitlistSpots({
+        classes: [cls({ maxEntries: 5, seatHoldingCount: 5 })],
+        waitlist,
+        judgeDays: [day()],
+      }).unknown
+    ).toBe(false);
+  });
+
+  it('a class full of accepted dogs with an unrelated open offer is class-full', () => {
+    // Five accepted dogs fill the limit of 5 on their own; the offer sits over the limit.
+    const result = findOpenWaitlistSpots({
+      classes: [cls({ maxEntries: 5, seatHoldingCount: 6 })],
+      waitlist: [wl('w1', { status: 'offered' }), wl('w2')],
+      judgeDays: [day()],
+    });
+    expect(result.classes[0]?.reason).toBe('class-full');
+  });
+
+  it("a judge's full day with an unrelated open offer is judge-day-full", () => {
+    const result = findOpenWaitlistSpots({
+      classes: [cls()],
+      waitlist: [wl('w1', { status: 'offered' }), wl('w2')],
+      judgeDays: [day({ confirmedCount: 11, availableSpots: -1 })],
+    });
+    expect(result.classes[0]?.reason).toBe('judge-day-full');
+  });
+
   it('a class with no judge-day and no limit is open, and a class with nobody waiting is left out', () => {
     const result = findOpenWaitlistSpots({
       classes: [cls(), cls({ id: 'c2', name: 'Empty' })],
@@ -239,7 +275,8 @@ describe('findExpiredOffers', () => {
       waitlist: [
         wl('w1', { status: 'expired' }),
         wl('w2', { status: 'offered', offerExpiresAt: past, dogId: 'a' }),
-        wl('w3', { status: 'offered', offerExpiresAt: future, dogId: 'b' }),
+        wl('w3', { status: 'offered', offerExpiresAt: future, dogId: 'b', classId: 'c2' }),
+        wl('w6', { dogId: 'e', classId: 'c2' }),
         wl('w4', { status: 'offered', offerExpiresAt: past, joinedVia: 'mail_in', dogId: 'c' }),
         wl('w5', { dogId: 'd' }),
       ],
@@ -256,5 +293,42 @@ describe('findExpiredOffers', () => {
       count: 0,
       rows: [],
     });
+  });
+
+  it('stops counting an expired offer once a newer open offer is out in the class', () => {
+    const list = findExpiredOffers({
+      now,
+      waitlist: [
+        wl('w1', { status: 'expired', offerExpiresAt: past, dogId: 'a' }),
+        wl('w2', { status: 'offered', offerExpiresAt: future, dogId: 'b' }),
+        wl('w3', { dogId: 'c' }),
+      ],
+    });
+    expect(list).toEqual({ count: 0, rows: [] });
+  });
+
+  it('still counts an expired offer when the open offer in the class is older', () => {
+    const list = findExpiredOffers({
+      now,
+      waitlist: [
+        wl('w1', { status: 'expired', offerExpiresAt: future, dogId: 'a' }),
+        wl('w2', { status: 'offered', offerExpiresAt: past, joinedVia: 'mail_in', dogId: 'b' }),
+        wl('w3', { dogId: 'c' }),
+      ],
+    });
+    expect(list.count).toBe(1);
+  });
+
+  it('counts a dog once even when it has several expired rows in a class', () => {
+    const list = findExpiredOffers({
+      now,
+      waitlist: [
+        wl('w1', { status: 'expired', dogId: 'a' }),
+        wl('w2', { status: 'expired', dogId: 'a' }),
+        wl('w3', { dogId: 'c' }),
+      ],
+    });
+    expect(list.count).toBe(1);
+    expect(list.rows).toHaveLength(1);
   });
 });

@@ -54,6 +54,12 @@ export interface ClassSpotState {
 export interface WaitlistSpots extends WaitingList<ClassSpotState> {
   /** Every class that has dogs waiting or an open offer, whether or not it has a spot. */
   classes: ClassSpotState[];
+  /**
+   * True when the judge-day figures are not loaded (or any class could not be decided without
+   * them). `count` is 0 then, but that is "not known", not "no spot": callers must not show a
+   * zero when `unknown` is true.
+   */
+  unknown: boolean;
 }
 
 function weekdayOf(showDate: string): string {
@@ -111,9 +117,19 @@ export function findOpenWaitlistSpots(input: {
       : Number.POSITIVE_INFINITY;
 
     const held = openOffers.length;
-    // Would both limits have room if the open offers were not holding their seats?
-    const roomWithoutOffers = Math.min(classRoom, judgeRoom) + held;
-    const offersHoldTheSpots = held > 0 && roomWithoutOffers > 0;
+    // Raw (unclamped) room per limit, to ask of each limit that blocks: would it have room if the
+    // open offers were not holding their seats? If a blocking limit stays full without them,
+    // accepted dogs fill it and the offers do not account for it.
+    const rawClassRoom = cls.maxEntries
+      ? cls.maxEntries - cls.seatHoldingCount
+      : Number.POSITIVE_INFINITY;
+    const rawJudgeRoom = classJudgeDays.length
+      ? Math.min(...classJudgeDays.map(day => day.availableSpots))
+      : Number.POSITIVE_INFINITY;
+    const offersHoldTheSpots =
+      held > 0 &&
+      (classRoom > 0 || rawClassRoom + held > 0) &&
+      (judgeRoom > 0 || rawJudgeRoom + held > 0);
 
     let state: ClassSpotState;
     if (!nextInLine) {
@@ -156,5 +172,6 @@ export function findOpenWaitlistSpots(input: {
     states.push(state);
   }
   const rows = states.filter(state => state.reason === 'open');
-  return { count: rows.length, rows, classes: states };
+  const unknown = input.judgeDays === null || states.some(s => s.reason === 'judge-day-unknown');
+  return { count: rows.length, rows, classes: states, unknown };
 }

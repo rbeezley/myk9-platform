@@ -1,6 +1,6 @@
 -- MYK9-1929 phase 1: behavioral test for public.request_own_entry_class_change
 -- and public.cancel_own_entry_class_change
--- (20261114164700_myk9_1929_class_change_request_rpcs.sql).
+-- (20261114201300_myk9_1929_class_change_request_rpcs.sql).
 --
 -- Executes the INSTALLED functions as each caller tier (never a source-string
 -- contract). Run with psql -X -v ON_ERROR_STOP=1 against a migrated local
@@ -13,7 +13,7 @@
 -- a stale version on the request and on the take-back, the show's switch (off
 -- after entries close, irrelevant before), taking the request back, the retired
 -- underscore spelling of the status, and that a waiting request keeps holding its seat in its class and
--- judge day (20261114171500): nobody else can take it, and the take-back never
+-- judge day (20261114201700): nobody else can take it, and the take-back never
 -- leaves the class or the day over its limit.
 
 begin;
@@ -399,7 +399,7 @@ select pg_temp.call_as('handler takes it back',
   pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
 
 -- ---- Only the hyphen spelling exists ---------------------------------------
--- The underscore twin was retired in 20261114171500: the constraint refuses it,
+-- The underscore twin was retired in 20261114201700: the constraint refuses it,
 -- on an insert-shaped update as well as any other write.
 do $$
 declare
@@ -417,7 +417,7 @@ begin
 end;
 $$;
 
--- ---- A waiting request keeps its seat (20261114171500) ---------------------
+-- ---- A waiting request keeps its seat (20261114201700) ---------------------
 -- Class 23 is at its limit (2 of 2) and class 20's judge day is at its limit
 -- (1 of 1). Their entries ask to leave; nothing has moved, so both must still
 -- be full, nobody else can take the seat, and the take-back leaves them at the

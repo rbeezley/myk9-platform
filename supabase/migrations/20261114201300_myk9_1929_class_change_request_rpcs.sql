@@ -26,7 +26,7 @@
 --   cancel_own_entry_class_change(entry, expected version)
 --
 -- The entry stays in its class and keeps its seat there (the capacity readers count
--- 'move-up-requested', see 20261114171500). Nothing moves and no money moves: accepting is
+-- 'move-up-requested', see 20261114201700). Nothing moves and no money moves: accepting is
 -- the secretary's act, through the unchanged move_up_entry.
 --
 -- THE SWITCH. The plan's Phase 4 adds two per-show switches. Phase 1 needs the

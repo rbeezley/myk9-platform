@@ -28,7 +28,9 @@ It records the upstream and hash to reinstall from. The skill's files stay out o
 | `domain-modeling`                  | Matt Pocock skills             | routed from `docs/agents/domain.md` when the glossary has a real gap                                       |
 | `impeccable`                       | local-only, pbakaus/impeccable | routed from `docs/playbook-impeccable-page-improvements.md`; gitignored, reinstall from `skills-lock.json` |
 | `launch-readiness-triage`          | ours                           | PLAYBOOK-adjacent: daily P0/P1 and the Friday findings review                                              |
+| `plan-recheck`                     | ours                           | re-checks a shipped plan against the owner's decisions and its baseline count (MYK9-1980)                  |
 | `quality-finding-lifecycle`        | ours                           | finding identity, severity and closure proof for every audit skill                                         |
+| `role-journey-plan`                | ours                           | one role's journey to owner decisions and a plan, walked with every write refused (MYK9-1980)              |
 | `role-journey-ux-audit`            | ours                           | PLAYBOOK § 6 — role-scoped, multi-viewport UX walk                                                         |
 | `supabase-health-drift-audit`      | ours                           | scheduled read-only Supabase drift and posture audit                                                       |
 | `supabase-postgres-best-practices` | Supabase agent skills          | routed from `.claude/skills/debugging-patterns/SKILL.md` for slow-query and index symptoms                 |

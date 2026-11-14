@@ -24,12 +24,12 @@ describe('reportRegistry', () => {
   // UKC Nosework Trial Report was split from the legacy dynamic report id. 39 since
   // MYK9-1078 added the UKC and AKC judge setup cheat sheets. 40 since MYK9-1695 added
   // the hospitality plan report.
-  it('has 40 total entries', () => {
-    expect(reportRegistry).toHaveLength(40);
+  it('has 41 total entries', () => {
+    expect(reportRegistry).toHaveLength(41);
   });
 
-  it('has exactly 40 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(40);
+  it('has exactly 41 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(41);
   });
 
   // MYK9-661: under the show-phase headings a registry form sits beside generic
@@ -132,6 +132,20 @@ describe('reportRegistry', () => {
       expect(visibleIds).toContain('akc-scent-work-entry-form');
       expect(visibleIds).toContain('asca-scent-detection-entry-form');
       expect(visibleIds).not.toContain('ukc-nosework-entry-form');
+    });
+
+    it('offers ASCA High in Trial on ASCA trials only (MYK9-1925)', () => {
+      const idsFor = (registry: 'UKC' | 'AKC' | 'ASCA') =>
+        getReportsForRegistries([registry]).map(report => report.id);
+
+      expect(idsFor('ASCA')).toContain('asca-high-in-trial');
+      expect(idsFor('AKC')).not.toContain('asca-high-in-trial');
+      expect(idsFor('UKC')).not.toContain('asca-high-in-trial');
+      expect(getReportById('asca-high-in-trial')).toMatchObject({
+        phase: 'after',
+        scopes: ['trial'],
+        registryId: 'ASCA',
+      });
     });
 
     it('keeps a deep-linked report reachable outside the current registry scope', () => {

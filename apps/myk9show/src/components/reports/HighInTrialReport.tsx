@@ -67,11 +67,13 @@ const ExclusionNote: React.FC<{ exclusions: HighInTrialExclusion[] }> = ({ exclu
   );
 };
 
-const LevelSection: React.FC<{
+export const LevelSection: React.FC<{
   level: HighInTrialLevel<string>;
   award?: string;
   section?: string;
-}> = ({ level, award = 'High in Trial', section = '8' }) => {
+  /** Names the rulebook in tie and ranking copy; AKC's chapter numbering is the default. */
+  rulebook?: string;
+}> = ({ level, award = 'High in Trial', section = '8', rulebook = 'Chapter 6 ' }) => {
   const winners = level.teams.filter(team => team.rank === 1);
 
   return (
@@ -111,7 +113,7 @@ const LevelSection: React.FC<{
         <>
           {level.needsCoinFlip && (
             <p className="nq-text">
-              TIE — {winners.length} teams are tied on both faults and time. Chapter 6 §{section}{' '}
+              TIE — {winners.length} teams are tied on both faults and time. {rulebook}§{section}{' '}
               requires a coin flip to decide the winner. Record the outcome by hand.
             </p>
           )}
@@ -156,7 +158,7 @@ const LevelSection: React.FC<{
 
           <p className="qualified-count">
             Per-element cells show faults / time. Ranked by fewest total faults, then fastest total
-            time (Chapter 6 §{section}).
+            time ({rulebook}§{section}).
           </p>
         </>
       )}

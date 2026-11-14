@@ -7,7 +7,11 @@ import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
-import { JUNIOR_HANDLER_FEE_LABEL, pickSupplementalFacts } from '@/features/premium/premiumFacts';
+import {
+  JUNIOR_HANDLER_FEE_LABEL,
+  JUNIOR_HANDLER_FEE_UNIT,
+  pickSupplementalFacts,
+} from '@/features/premium/premiumFacts';
 import { hasShowHappened } from './showResults';
 
 /**
@@ -318,7 +322,7 @@ export function buildLandingData(
     fees.push({
       label: JUNIOR_HANDLER_FEE_LABEL,
       amount: formatFee(show?.juniorHandlerFee),
-      unit: 'per class entry',
+      unit: JUNIOR_HANDLER_FEE_UNIT,
     });
   }
 

@@ -175,8 +175,15 @@ export interface PremiumContact {
   phone: string;
 }
 
+/** The junior fee is charged per class entry; the landing prints it as the sub-line, the premium inline. */
+export const JUNIOR_HANDLER_FEE_UNIT = 'per class entry';
 /** The junior fee applies only when the handler is under 18; every surface says so. */
-export const JUNIOR_HANDLER_FEE_LABEL = 'Junior handler fee (handler under 18)';
+const JUNIOR_HANDLER_FEE_BASE = 'Junior handler fee';
+const JUNIOR_HANDLER_FEE_QUALIFIER = '(handler under 18)';
+/** The landing's label; its unit (`JUNIOR_HANDLER_FEE_UNIT`) goes in the sub-line. */
+export const JUNIOR_HANDLER_FEE_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
+/** The premium's row: the unit sits in the label, because the PDF prints only label and value. */
+const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_UNIT} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
 
 /** One labelled line of the premium's entry terms: the same words in every style. */
 export interface PremiumTermRow {
@@ -201,7 +208,7 @@ function buildTermRows(show: GeneratedPremium['show'], registry: RegistryId): Pr
   if (junior > 0) {
     rows.push({
       id: 'juniorHandlerFee',
-      label: JUNIOR_HANDLER_FEE_LABEL,
+      label: JUNIOR_HANDLER_FEE_PREMIUM_LABEL,
       value: formatAmount(junior),
     });
   }

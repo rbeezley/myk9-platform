@@ -52,7 +52,11 @@ describe('premiumFacts', () => {
       club: null,
     };
     expect(buildPremiumFacts(premium, 'AKC').terms).toEqual([
-      { id: 'juniorHandlerFee', label: 'Junior handler fee (handler under 18)', value: '$12.50' },
+      {
+        id: 'juniorHandlerFee',
+        label: 'Junior handler fee per class entry (handler under 18)',
+        value: '$12.50',
+      },
       {
         id: 'withdrawals',
         label: 'Withdrawals',

@@ -11,14 +11,19 @@ import { AlreadyEnteredNotice } from '../AlreadyEnteredNotice';
  * thread whose participant is the staff user themselves.
  */
 describe('AlreadyEnteredNotice', () => {
-  it('points an exhibitor at My Shows, where she can change or withdraw an entry herself', () => {
+  it('points an exhibitor at My Shows to see or pull an entry, and at the secretary to change a class', () => {
     render(<AlreadyEnteredNotice showId="show-1" dogName="Willow" />);
 
     expect(screen.getByText(/Willow is already entered/i)).toBeInTheDocument();
-    expect(screen.getByText(/To change or withdraw this entry, open it in/)).toBeInTheDocument();
+    expect(screen.getByText(/To see or pull this entry, open it in/)).toBeInTheDocument();
+    expect(screen.getByText(/To change a class,/)).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'My Shows' });
     expect(link).toHaveAttribute('href', '/exhibitor/entries');
-    expect(screen.queryByRole('link', { name: /message the show secretary/i })).toBeNull();
+    expect(screen.getByRole('link', { name: 'message the secretary' })).toHaveAttribute(
+      'href',
+      '/messages/show-1'
+    );
+    expect(screen.queryByText(/withdraw/i)).toBeNull();
   });
 
   it.each(['secretary_new', 'club_admin', 'site_admin'] as const)(
@@ -26,7 +31,7 @@ describe('AlreadyEnteredNotice', () => {
     mode => {
       render(<AlreadyEnteredNotice showId="show-1" dogName="Willow" workflowMode={mode} />);
 
-      expect(screen.queryByRole('link', { name: /message the show secretary/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /message the (show )?secretary/i })).toBeNull();
       const link = screen.getByRole('link', { name: /entry forms/i });
       expect(link).toHaveAttribute('href', '/shows/show-1/entries');
     }

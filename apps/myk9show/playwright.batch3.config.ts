@@ -18,6 +18,7 @@ export default defineConfig({
     '**/batch4Paperwork.spec.ts',
     '**/batch1Followups.spec.ts',
     '**/ringsidePhoneWalk.spec.ts',
+    '**/showDayLiveSync.spec.ts',
   ],
   projects: [{ name: 'isolated-batch3-proof' }],
   timeout: 6 * 60_000,

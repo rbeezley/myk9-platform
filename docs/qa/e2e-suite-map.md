@@ -400,6 +400,8 @@ It runs in the short `playwright.batch3.config.ts` job. Every non-loopback reque
 
 `apps/myk9show/src/test/e2e/verification/ringsidePhoneWalk.spec.ts` is the MYK9-1787 phone-width walk at 375 px: a judge opens the class list and a scoresheet, leaves it unscored, scores, and the score is reset; a secretary checks a dog in on the check-in desk, clears a flagged pull, and undoes the check-in. Each step asserts the row in the database and that the page fits the phone. It runs in the same `playwright.batch3.config.ts` job against the disposable local stack. `pnpm qa:phone-walk` decides which PRs must have it green, and `scripts/qa/post-review-gate.sh` refuses a clean review-gate post until it is. Never target shared staging.
 
+`apps/myk9show/src/test/e2e/verification/showDayLiveSync.spec.ts` is the MYK9-1939 two-context check that a judge's change reaches Show Desk with no navigation. A secretary sits on Show Desk with a class selected while a judge at Ringside checks a dog in, puts another in the ring and saves its score; each change must show on the In ring tile, Next up list, entries table and schedule row. Variant 1 (realtime up) requires it within 10 seconds; variant 2 closes the secretary's realtime websocket and requires it within 75 seconds, the 60 second fallback poll (MYK9-1923). It seeds its own class and entries and runs in the `playwright.batch3.config.ts` job against the disposable local stack. Never target shared staging.
+
 MYK9-427 location fallback replay:
 `apps/myk9show/src/test/e2e/viewer-location-fallback.spec.ts` exercises the signed-in
 Near field with isolated empty-profile and approximate-location responses. Run

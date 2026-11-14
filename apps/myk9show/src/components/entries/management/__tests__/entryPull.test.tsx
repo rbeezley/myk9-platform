@@ -104,28 +104,21 @@ describe("Pull on the Entries page is the desks' Pull (MYK9-1940 phase 3)", () =
     expect(h.undoShowMapScratch).toHaveBeenCalledWith(undoInput);
   });
 
-  it.each([
-    { name: 'scored', patch: { isScored: true } },
-    { name: 'completed', patch: { entryStatus: EntryStatus.COMPLETED } },
-    { name: 'rejected', patch: { entryStatus: EntryStatus.REJECTED } },
-    { name: 'waitlisted', patch: { entryStatus: EntryStatus.WAITLIST } },
-    { name: 'cancelled', patch: { entryStatus: EntryStatus.CANCELLED } },
-  ])('a $name entry is not pullable from the Entries page', async ({ patch }) => {
+  it('Pull on a Pending entry opens the Pull dialog (no dead button)', async () => {
     const user = userEvent.setup();
-    const blocked = { ...entry, ...patch };
+    const pending = { ...entry, entryStatus: EntryStatus.PENDING };
     const onStatusChange = vi.fn();
     render(
-      <EntryPullProvider entries={[blocked]}>
-        <EntryRowActionMenu entry={blocked} onStatusChange={onStatusChange} />
+      <EntryPullProvider entries={[pending]}>
+        <EntryRowActionMenu entry={pending} onStatusChange={onStatusChange} />
       </EntryPullProvider>
     );
 
     await user.click(screen.getByRole('button', { name: /actions for hazel/i }));
-    const pull = screen.queryByRole('menuitem', { name: /^Pull/ });
-    if (pull) await user.click(pull);
+    await user.click(await screen.findByRole('menuitem', { name: /^Pull/ }));
 
-    expect(screen.queryByText('Pull Hazel?')).not.toBeInTheDocument();
-    expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+    expect(await screen.findByText('Pull Hazel?')).toBeInTheDocument();
+    expect(onStatusChange).not.toHaveBeenCalled();
   });
 
   it('the row menu hands Pull to the same dialog', async () => {

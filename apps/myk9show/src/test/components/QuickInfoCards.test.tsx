@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import { describe, it, expect } from 'vitest';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import type { Show } from '@/types/show-types';

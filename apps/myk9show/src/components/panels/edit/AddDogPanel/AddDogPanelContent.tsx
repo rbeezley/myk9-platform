@@ -18,6 +18,7 @@ import { AdditionalInfoTab } from './AdditionalInfoTab';
 import type { DogIdentityCandidate, DogRegistrationIdentity } from '@/utils/dogIdentity';
 import { isAdminRole } from '../DogEditPanel.helpers';
 import { DuplicateDogAlert } from './DuplicateDogAlert';
+import { NoRegistrationNumberHelp } from '@/components/dogs/NoRegistrationNumberHelp';
 import type { RegistrationLookupResult } from './registrationLookup';
 
 /** Inner component rendered within EditPanelWrapper so it can access useEditPanel context */
@@ -51,6 +52,8 @@ interface AddDogPanelContentProps {
   saveRegistrationRef?: MutableRefObject<((registration: Registration) => void) | null> | undefined;
   /** Keeps the photo control inline (MYK9-1116); defaults to off inline, on otherwise. */
   showPhoto?: boolean | undefined;
+  /** The show being entered, when Add Dog opens from its wizard (MYK9-1059). */
+  createdFromShowId?: string | undefined;
 }
 
 export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
@@ -73,6 +76,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   onOpenRegistration,
   saveRegistrationRef,
   showPhoto = !onOpenRegistration,
+  createdFromShowId,
 }) => {
   const { form, runSelfNavigation, requestTab } = useEditPanel<DogFormData>();
   const inline = !!onOpenRegistration;
@@ -213,6 +217,15 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               defaultRegistryId={defaultRegistryId}
               flat={inline}
             />
+            {/* MYK9-1963: the rule is deliberate (MYK9-1162), so the way on is said
+                where she is stopped. Staff skip the step and never meet the rule. */}
+            {!isAdminRole(userRole) && !hasRegistrations && (
+              <NoRegistrationNumberHelp
+                showId={createdFromShowId}
+                opensInNewTab
+                className="text-sm text-muted-foreground"
+              />
+            )}
           </TabsContent>
 
           <TabsContent

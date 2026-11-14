@@ -213,8 +213,10 @@ secretary refunds its $32. Your club receives **$1,248**.
 Entries paid by check or cash at the show are not part of the deposit. Your club already has that
 money.
 
-**How you will know.** Stripe emails you when a deposit is sent. In myK9Show, the Payments tab
-lists each show, what was collected, what was refunded, and what was paid to the club.
+**How you will know.** myK9Show emails your club's contact address when a deposit is sent. That is
+the email address on your club's page, which may not be yours, so check that it reaches someone
+who will tell you. In myK9Show, the Payments tab lists each of your shows with the amount and
+whether it has been sent.
 
 **For your treasurer's report.** Your show secretary can print the show's Financial Report from
 the show's Reports tab. It lists every entry and what was paid.

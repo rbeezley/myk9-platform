@@ -88,6 +88,8 @@ export interface ReplicatedClass {
   ringPhase?: string | null | undefined;
   /** MYK9-1513: the briefing time or "Break until" time (time of day) for a briefing/break phase. */
   ringPhaseTime?: string | null | undefined;
+  /** MYK9-1945: the status the close step overwrote with completed; set by close, cleared by reopen. */
+  statusBeforeClose?: string | null | undefined;
   estimatedDuration?: number | undefined;
 
   // Scent Work specific fields (camelCase)
@@ -244,6 +246,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     startTime: row.start_time ?? undefined,
     revisedExpectedStart: (dbRow.revised_expected_start as string | null | undefined) ?? null,
     ...ringPhaseFromRow(dbRow),
+    statusBeforeClose: (dbRow.status_before_close as string | null | undefined) ?? null,
     estimatedDuration: row.estimated_duration ?? undefined,
 
     // CamelCase fields
@@ -350,6 +353,8 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
   ['num_hides', 'hideCount'],
   ['ring_phase', 'ringPhase'],
   ['ring_phase_time', 'ringPhaseTime'],
+  // MYK9-1945: only the close/reopen step writes it, so an unrelated edit must not re-emit a stale local value.
+  ['status_before_close', 'statusBeforeClose'],
 ];
 
 /**
@@ -594,6 +599,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       start_time: cls.startTime ?? null,
       revised_expected_start: cls.revisedExpectedStart ?? null,
       ...ringPhaseToRow(cls),
+      status_before_close: cls.statusBeforeClose ?? null,
       estimated_duration: cls.estimatedDuration ?? null,
       element: cls.element ?? null,
       section: cls.section ?? null,

@@ -28,84 +28,23 @@ import { requireShowClubId } from '@/services/database/shows/requireShowClub';
 import { getLiveShowCount } from './liveShowCount';
 import { verifyShowsGone } from './showScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
-import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import type { Database } from '@/types/supabase';
 import { withStoredDays, withTypedDays } from './showCalendarDays';
 import { rowToShow } from './showRowMapping';
 import { SHOW_USES_FIELD_COLUMNS, showUsesColumns, withShowUsesDefaults } from './showUsesColumns';
 import { holdOwnedSwitches } from './showUsesOwnership';
+import { showCloseRecordColumns, stripUnsetCloseRecordColumns } from './showCloseRecordColumns';
 import { mapShowStatusToDb } from './showStatusMapping';
 import { formatDateLocal } from '@/utils/dateLocal';
+import type { ReplicatedShow, ReplicatedShowCreateInput } from './replicatedShowTypes';
+
+export type { ReplicatedShow, ReplicatedShowCreateInput };
 
 /**
  * Database row type from Supabase schema
  */
 type ShowRow = Database['public']['Tables']['shows']['Row'];
-
-/**
- * App-level Show type with camelCase fields and sync metadata
- */
-export interface ReplicatedShow {
-  id: string;
-  name: string;
-  organization: string;
-  startDate: string;
-  endDate: string;
-  location?: string | undefined;
-  latitude?: number | null | undefined;
-  longitude?: number | null | undefined;
-  venueName?: string | undefined;
-  city?: string | undefined;
-  state?: string | undefined;
-  status?: string | undefined;
-  deletedAt?: string | null | undefined;
-  entryOpenDate?: string | undefined;
-  entryCloseDate?: string | undefined;
-  preEntryFee?: number | undefined;
-  dayOfShowFee?: number | undefined;
-  juniorHandlerFee?: number | null | undefined;
-  startingArmbandNumber?: number | undefined;
-  clubId?: string | undefined;
-  maxEntriesPerDog?: number | undefined;
-  maxTotalEntries?: number | undefined;
-  defaultJudgeDayCapacity?: number | undefined;
-  allowsNonOwnerHandlers?: boolean | undefined;
-  isNationals?: boolean | undefined;
-  acceptCheckPayments?: boolean | undefined;
-  acceptCashPayments?: boolean | undefined;
-  onlineEntriesEnabled?: boolean | undefined;
-  /** MYK9-1685 "This show uses…" switches (shows.uses_* / publishes_own_premium). */
-  usesDeviceScoring?: boolean | undefined;
-  usesPaperPacket?: boolean | undefined;
-  usesVolunteers?: boolean | undefined;
-  usesLandingPage?: boolean | undefined;
-  publishesOwnPremium?: boolean | undefined;
-  /**
-   * shows.allow_waitlist (MYK9-1019), read-only here: the Waitlist tab's settings card writes it
-   * directly, so a rebuilt row never carries a cached copy back over it.
-   */
-  allowsWaitlist?: boolean | undefined;
-  /** shows.version as last read from the server (read-only; never written). */
-  serverVersion?: number | undefined;
-  logoUrl?: string | undefined;
-  coverImageUrl?: string | undefined;
-  accentColor?: string | undefined;
-  style?: string | undefined;
-  experienceIsPublished?: boolean | undefined;
-  experiencePublishedAt?: string | null | undefined;
-  experiencePublishedStyle?: string | null | undefined;
-  experiencePublishedContent?: ShowExperienceSnapshot | null | undefined;
-  // Sync metadata
-  _version?: number | undefined;
-  _lastModified?: Date | undefined;
-  _lastModifiedBy?: string | undefined;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
-  _localOnly?: boolean | undefined;
-}
-
-/** A new show: no id yet, and a club is required (MYK9-1008). */
-export type ReplicatedShowCreateInput = Omit<ReplicatedShow, 'id' | 'clubId'> & { clubId: string };
 
 export { rowToShow };
 
@@ -174,6 +113,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
         ? { online_entries_enabled: show.onlineEntriesEnabled }
         : {}),
       ...showUsesColumns(show),
+      ...showCloseRecordColumns(show),
       logo_url: show.logoUrl ?? null,
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,
@@ -438,6 +378,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     for (const [field, column] of SHOW_USES_FIELD_COLUMNS) {
       if (!(field in resolvedUpdates)) delete updatePayload[column];
     }
+
+    stripUnsetCloseRecordColumns(updatePayload, resolvedUpdates); // MYK9-1945
 
     const { mutationId } = await this.writeAndQueue(showId, updatedShow, {
       operation: 'UPDATE',

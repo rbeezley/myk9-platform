@@ -106,7 +106,7 @@ describe('DogSelectionStep — the registration this show will use', () => {
 
     // The whole point of the label rule: the long form is normalized for
     // display, and the accessible name reads as a sentence, not a run-on.
-    expect(usedBadge()!.textContent).toBe('AKC: SR12345601, Used for this show');
+    expect(usedBadge()!.textContent).toBe('AKC: SR12345601, Number this show uses');
 
     const others = otherBadges();
     expect(others).toHaveLength(2);
@@ -125,7 +125,7 @@ describe('DogSelectionStep — the registration this show will use', () => {
   ])('marks the %s registration for that show', (registry, expectedNumber) => {
     mountWith([AKC, UKC, ASCA], registry);
 
-    expect(usedBadge()!.textContent).toBe(`${registry}: ${expectedNumber}, Used for this show`);
+    expect(usedBadge()!.textContent).toBe(`${registry}: ${expectedNumber}, Number this show uses`);
     expect(otherBadges()).toHaveLength(2);
     expectNoOpacityOnAnyBadge();
   });

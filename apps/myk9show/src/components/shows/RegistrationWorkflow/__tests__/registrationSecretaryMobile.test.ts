@@ -11,18 +11,19 @@ import path from 'node:path';
 const dir = path.join(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(dir, rel), 'utf8');
 
-const secretaryPayment = read('PaymentStep/SecretaryPaymentManagement.tsx');
+const deskPayment = read('PaymentStep/DeskPaymentOptions.tsx');
 const handlerDialog = read('HandlerSelectionDialog.tsx');
 const enhancedDog = read('DogSelectionStepEnhanced.tsx');
 const dogSearch = read('DogSearchInterface.tsx');
 const dogSearchFilters = read('DogSearchFilters.tsx');
 
 describe('secretary surfaces — dark-mode + grid-stacking guards', () => {
-  it('SecretaryPaymentManagement uses theme tokens and stacks its actions on mobile', () => {
-    expect(secretaryPayment).not.toContain('text-gray-600');
-    expect(secretaryPayment).not.toContain('bg-gray-50');
-    // MYK9-1822: one card, no tabs; the action grid stacks on mobile
-    expect(secretaryPayment).toContain('grid-cols-1 gap-3 sm:grid-cols-2');
+  // MYK9-2020: the desk payment list replaced SecretaryPaymentManagement.
+  it('the desk payment list uses theme tokens and stacks its received-payment fields on mobile', () => {
+    expect(deskPayment).not.toMatch(
+      /\b(?:text|bg|border)-(?:red|gray|slate|blue|green|amber)-\d{2,3}\b/
+    );
+    expect(deskPayment).toContain('grid-cols-1 gap-3 sm:grid-cols-2');
   });
 });
 

@@ -470,7 +470,9 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           result={scoring.qualifying}
           rows={[
             ...timeRows(scoring.areas, scoring.calculateTotalTime(), 'Search Time'),
-            ...(isDual
+            // The element time is not saved (MYK9-2016), so a reopened score that
+            // never ran the element clock has none to read back.
+            ...(isDual && (!entry.existingScore || isStarted)
               ? [
                   {
                     label: 'Element Time',

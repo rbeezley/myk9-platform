@@ -61,6 +61,13 @@ function calculatePoints(correctAlerts: number[], incorrectAlerts: number[]): nu
   return Math.max(0, pts);
 }
 
+/** Per-area alert counts with a saved total placed under Area 1. */
+function seedAlerts(areaCount: number, savedTotal: number | undefined): number[] {
+  const counts = Array<number>(areaCount).fill(0);
+  counts[0] = Math.max(0, savedTotal ?? 0);
+  return counts;
+}
+
 export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
   classInfo,
@@ -77,9 +84,17 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 }) => {
   const areaCount = rules.areaCount ?? NATIONALS_AREA_COUNT;
   const [currentArea, setCurrentArea] = useState(0);
-  const [correctAlerts, setCorrectAlerts] = useState<number[]>(() => Array(areaCount).fill(0));
-  const [incorrectAlerts, setIncorrectAlerts] = useState<number[]>(() => Array(areaCount).fill(0));
-  const [finishCallErrors, setFinishCallErrors] = useState(0);
+  // A saved score keeps only alert TOTALS, not which area each came from
+  // (MYK9-2006). Reopened, they sit under Area 1 so the total, the points and a
+  // save without edits all match what was saved.
+  const saved = entry.existingScore;
+  const [correctAlerts, setCorrectAlerts] = useState<number[]>(() =>
+    seedAlerts(areaCount, saved?.correctCount)
+  );
+  const [incorrectAlerts, setIncorrectAlerts] = useState<number[]>(() =>
+    seedAlerts(areaCount, saved?.incorrectCount)
+  );
+  const [finishCallErrors, setFinishCallErrors] = useState(saved?.finishCallErrors ?? 0);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const areaMaxSeconds =
@@ -368,6 +383,12 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </div>
           </Card>
         </div>
+
+        {saved && (saved.correctCount > 0 || saved.incorrectCount > 0) && (
+          <p className="text-center text-xs text-muted-foreground" data-testid="saved-alerts-note">
+            Saved alerts are shown together under Area 1. The areas were not saved.
+          </p>
+        )}
 
         {/* Finish Call Errors */}
         <Card className="p-2">

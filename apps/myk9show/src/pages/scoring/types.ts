@@ -20,7 +20,7 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 import type { SecretaryEntry } from '@/services/database/entries';
 import { applyShowNationals } from './scoresheetNationals';
 import { canonicalizeTrialType } from '@/types/template.types';
-import { canPrefillSheet, toExistingScore } from './toExistingScore';
+import { canPrefillSheet, toExistingScore, withNationalsFifthArea } from './toExistingScore';
 
 /**
  * Extended entry type for scoring UI
@@ -564,7 +564,13 @@ export function toScoresheetEntry(
     className: classInfo.name,
     ...(classInfo.element != null && { element: classInfo.element }),
     ...(classInfo.level != null && { level: classInfo.level }),
-    ...(entry.existingScore && canPrefillSheet(sheetKey) && { existingScore: entry.existingScore }),
+    ...(entry.existingScore &&
+      canPrefillSheet(sheetKey) && {
+        existingScore:
+          sheetKey === 'AKC_SCENT_WORK_NATIONAL'
+            ? withNationalsFifthArea(entry.existingScore)
+            : entry.existingScore,
+      }),
   };
 }
 

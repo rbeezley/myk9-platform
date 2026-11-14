@@ -1,5 +1,6 @@
 import type { ScoreData, ScoresheetSportType } from '@myk9/scoring-ui';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import { formatSecondsAsMSSCC, parseDuration } from '@myk9/core';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 
 /** Saved `result_status` -> the short code the live scoresheets select on. */
@@ -63,18 +64,49 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
 }
 
 /**
- * Sheets whose every authoritative input is hydrated from `existingScore` (result,
- * area times, faults, reason, and the saved find totals/points through
- * `useScoresheetScoring`). The rest hold extra inputs in local state that start at
- * zero (Rally deductions, Nationals alert counts, FastCAT result, Obedience
- * result, Nosework element time), so a time-only correction would overwrite real
- * saved data. They keep opening blank until each is hydrated.
+ * Sheets that reopen a saved score filled in (MYK9-2006): every input a save
+ * replaces is hydrated from `existingScore`, so correcting one field leaves the
+ * rest as saved. AKC and ASCA read result, area times, faults, reason and the
+ * saved find totals; Nationals also seeds its alert totals and finish call errors
+ * and recovers its fifth area time; UKC Nosework holds only result, search time,
+ * faults and reason. The rest hold extra inputs in local state that start at zero
+ * (Rally deductions, FastCAT result, Obedience result), so a time-only correction
+ * would overwrite real saved data. They keep opening blank until each is hydrated.
  */
 const PREFILL_SHEETS: ReadonlySet<ScoresheetSportType> = new Set([
   'AKC_SCENT_WORK',
+  'AKC_SCENT_WORK_NATIONAL',
   'ASCA_SCENT_DETECTION',
+  'UKC_NOSEWORK',
 ]);
 
 export function canPrefillSheet(key: ScoresheetSportType | null | undefined): boolean {
   return !!key && PREFILL_SHEETS.has(key);
+}
+
+/** The entry table has four area columns; Nationals scores five (MYK9-2016). */
+const STORED_AREA_COLUMNS = 4;
+
+/**
+ * Nationals saves five area times but only the first four have a column; the
+ * fifth survives only inside the total. Recover it as the part of the saved total
+ * the four stored areas do not account for, so reopening and saving again keeps
+ * the same total instead of silently dropping the fifth area's time.
+ */
+export function withNationalsFifthArea(score: ScoreData): ScoreData {
+  const total = parseDuration(score.searchTime, 'search');
+  if (!total.ok) return score;
+  const stored = Array.from({ length: STORED_AREA_COLUMNS }, (_, i) => score.areaTimes[i] ?? '');
+  const storedSeconds = stored.reduce((sum, time) => {
+    const parsed = time ? parseDuration(time, 'search') : null;
+    return parsed?.ok ? sum + parsed.seconds : sum;
+  }, 0);
+  const remainder = Math.round((total.seconds - storedSeconds) * 100) / 100;
+  if (remainder <= 0) return score;
+  const fifth = formatSecondsAsMSSCC(remainder);
+  return {
+    ...score,
+    areaTimes: [...stored, fifth],
+    areas: { ...score.areas, 'area 5': `${fifth} NOT FOUND INCORRECT` },
+  };
 }

@@ -116,15 +116,25 @@ $fn$;
 REVOKE ALL ON FUNCTION private.entries_record_ring_activity() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS trg_entries_record_ring_activity ON public.entries;
+DROP TRIGGER IF EXISTS trg_entries_record_ring_activity_ins ON public.entries;
+-- WHEN cannot read TG_OP, so insert and update are two triggers.
+CREATE TRIGGER trg_entries_record_ring_activity_ins
+  AFTER INSERT ON public.entries
+  FOR EACH ROW
+  WHEN (NEW.class_id IS NOT NULL
+        AND (COALESCE(NEW.is_scored, false)
+             OR COALESCE(NEW.is_in_ring, false)
+             OR NEW.check_in_status = 'in-ring'))
+  EXECUTE FUNCTION private.entries_record_ring_activity();
+
 CREATE TRIGGER trg_entries_record_ring_activity
-  AFTER INSERT OR UPDATE OF is_scored, is_in_ring, check_in_status ON public.entries
+  AFTER UPDATE OF is_scored, is_in_ring, check_in_status ON public.entries
   FOR EACH ROW
   WHEN (NEW.class_id IS NOT NULL
         AND (COALESCE(NEW.is_scored, false)
              OR COALESCE(NEW.is_in_ring, false)
              OR NEW.check_in_status = 'in-ring')
-        AND (TG_OP = 'INSERT'
-             OR COALESCE(NEW.is_scored, false) IS DISTINCT FROM COALESCE(OLD.is_scored, false)
+        AND (COALESCE(NEW.is_scored, false) IS DISTINCT FROM COALESCE(OLD.is_scored, false)
              OR COALESCE(NEW.is_in_ring, false) IS DISTINCT FROM COALESCE(OLD.is_in_ring, false)
              OR NEW.check_in_status IS DISTINCT FROM OLD.check_in_status))
   EXECUTE FUNCTION private.entries_record_ring_activity();

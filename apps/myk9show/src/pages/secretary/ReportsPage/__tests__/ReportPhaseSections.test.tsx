@@ -46,15 +46,15 @@ describe('ReportPhaseSections', () => {
       expect(new Set(ids).size).toBe(reportRegistry.length);
     });
 
-    it('has exactly 40 reports, in the buckets the phase table on MYK9-630 states', () => {
-      expect(reportRegistry).toHaveLength(40);
+    it('has exactly 41 reports, in the buckets the phase table on MYK9-630 states', () => {
+      expect(reportRegistry).toHaveLength(41);
       const sizes = Object.fromEntries(
         (Object.keys(PHASE_COPY) as Array<keyof typeof PHASE_COPY>).map(phase => [
           phase,
           reportRegistry.filter(r => r.phase === phase).length,
         ])
       );
-      expect(sizes).toEqual({ before: 16, during: 11, after: 12, anytime: 1 });
+      expect(sizes).toEqual({ before: 16, during: 11, after: 13, anytime: 1 });
     });
 
     it('lists Result labels under During the show, not Before or After (MYK9-1233)', () => {
@@ -330,6 +330,7 @@ describe('report registry names', () => {
     'akc-scent-work-entry-form': 'AKC Scent Work Entry Form',
     'akc-scent-work-transfer-form': 'AKC Scent Work Transfer Form',
     'high-in-trial': 'AKC High in Trial',
+    'asca-high-in-trial': 'ASCA High in Trial',
     'ukc-nosework-entry-form': 'UKC Nosework Entry Form',
     'ukc-nosework-change-entry-form': 'UKC Nosework Change Entry Form',
     'ukc-nosework-judges-book-element': 'UKC Nosework Judges Book: Element Trial',

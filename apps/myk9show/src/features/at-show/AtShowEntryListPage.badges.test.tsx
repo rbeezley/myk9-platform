@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-645 — the at-show class page's tab badges, asserted through the SHIM.
  *

@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1675: an online signed-in judge whose person lookup finished without an
  * id must get Retry + Entries, not the skeleton forever.

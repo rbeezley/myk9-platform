@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1046: one time-ordered list across dogs, a dog filter, ring conflicts in
  * words, and the saved-information notice. Place in line runs through the REAL

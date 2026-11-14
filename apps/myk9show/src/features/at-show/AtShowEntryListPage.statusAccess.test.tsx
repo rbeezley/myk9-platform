@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1807 + MYK9-1809 through the at-show shim: who gets a check-in control on which row, what the
  * picker offers, and what the list claims while the show's entries have not all arrived.

@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1847 — page wiring: tapping a dog in a cancelled class does not open the scoresheet and
  * says why; with the class running the same tap opens it.

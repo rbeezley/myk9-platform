@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * Tests for RingsideEntryPage — the bare `/at-show` routing logic: anon → sign
  * in, auth loading / show resolving → spinners, one live show → auto-jump,

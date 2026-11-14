@@ -1,5 +1,6 @@
-import { screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, screen, waitFor } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
 
 const byTrial = new Map([
@@ -63,7 +64,12 @@ function supply(overrides: Partial<ShowJudgeSupplyRow>): ShowJudgeSupplyRow {
 describe('ShowJudgeSuppliesTool (MYK9-1728)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    onlineManager.setOnline(true);
     listForShow.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
   });
 
   it('lists a judge on two trials once, naming both trials', async () => {
@@ -141,5 +147,62 @@ describe('ShowJudgeSuppliesTool (MYK9-1728)', () => {
     );
     expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  describe('offline first read (MYK9-1882)', () => {
+    it('says supplies are not available offline instead of Loading forever when the read is paused', async () => {
+      onlineManager.setOnline(false);
+      render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />);
+      await waitFor(() =>
+        expect(screen.getByTestId('judge-row-j1')).toHaveTextContent(
+          'Not available offline. Connect to load supplies.'
+        )
+      );
+      expect(screen.getByTestId('judge-row-j2')).toHaveTextContent('Not available offline');
+      expect(screen.getByTestId('judge-row-j1')).not.toHaveTextContent('Loading');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(listForShow).not.toHaveBeenCalled();
+    });
+
+    it('still says Loading while an online read is in flight', async () => {
+      let resolve: (rows: ShowJudgeSupplyRow[]) => void = () => {};
+      listForShow.mockReturnValueOnce(new Promise<ShowJudgeSupplyRow[]>(r => (resolve = r)));
+      render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />);
+      await waitFor(() => expect(listForShow).toHaveBeenCalledTimes(1));
+      expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('Loading…');
+      expect(screen.getByTestId('judge-row-j1')).not.toHaveTextContent('offline');
+      await act(async () => resolve([supply({ id: 'a' })]));
+      await waitFor(() => expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item'));
+    });
+
+    it('reconnecting loads the rows and replaces the notice without an error', async () => {
+      onlineManager.setOnline(false);
+      listForShow.mockResolvedValueOnce([supply({ id: 'a' })]);
+      render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />);
+      await waitFor(() =>
+        expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('Not available offline')
+      );
+      act(() => onlineManager.setOnline(true));
+      await waitFor(() => expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item'));
+      expect(screen.queryByText(/not available offline/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('keeps cached rows visible while offline', async () => {
+      const queryClient = createTestQueryClient();
+      listForShow.mockResolvedValueOnce([supply({ id: 'a' })]);
+      render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />, { queryClient });
+      await waitFor(() => expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item'));
+
+      act(() => onlineManager.setOnline(false));
+      void queryClient.refetchQueries({ queryKey: ['show-judge-supplies', 'show-1'] });
+      await waitFor(() =>
+        expect(queryClient.getQueryState(['show-judge-supplies', 'show-1'])?.fetchStatus).toBe(
+          'paused'
+        )
+      );
+      expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item');
+      expect(screen.queryByText(/not available offline/i)).not.toBeInTheDocument();
+    });
   });
 });

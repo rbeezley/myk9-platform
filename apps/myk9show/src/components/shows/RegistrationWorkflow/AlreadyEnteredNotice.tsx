@@ -25,8 +25,10 @@ interface AlreadyEnteredNoticeProps {
 
 // INTENT: this wizard is add-only — classes a dog already entered render
 // disabled with no withdraw/move-up path. Say so plainly once (per dog, not
-// per row) and point at the show team, the existing /messages/:showId
-// surface, instead of leaving the disabled checkboxes unexplained
+// per row) and point at the surface that owns changing an entry, instead of
+// leaving the disabled checkboxes unexplained. That was the show team's message
+// thread until MYK9-1963 (owner, 2026-11-13): My Shows lets her pull or
+// withdraw an entry herself, so it is the one answer and the wizard only adds
 // (exhibitor-elderly-novice audit 2026-07-23, row 11; docs/INTENT.md
 // "I trust this with my day"). Staff never see that line — telling a
 // secretary to message the show team opens a thread with themselves; they get
@@ -57,9 +59,9 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
           </>
         ) : (
           <>
-            To change or withdraw an existing entry,{' '}
-            <Link to={`/messages/${showId}`} className="font-medium underline underline-offset-2">
-              message the show secretary
+            To change or withdraw this entry, open it in{' '}
+            <Link to="/exhibitor/entries" className="font-medium underline underline-offset-2">
+              My Shows
             </Link>
             .
           </>

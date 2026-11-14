@@ -398,6 +398,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         onOpenRegistration={openRegistration}
         saveRegistrationRef={saveRegistrationRef}
         showPhoto={showPhoto}
+        createdFromShowId={createdFromShowId}
       />
     </EditPanelWrapper>
   );

@@ -140,7 +140,7 @@ describe('DogSelectionStepEnhanced — the registration this show will use', () 
     expect(within(row()).queryByText('P987-654')).not.toBeInTheDocument();
     // The row is role="checkbox", whose children are presentational, so the
     // marker reaches a screen reader only through the row's description.
-    expect(row()).toHaveAccessibleDescription('AKC: SR12345601, Used for this show');
+    expect(row()).toHaveAccessibleDescription('AKC: SR12345601, Number this show uses');
     expect(within(row()).queryByText(MISSING)).not.toBeInTheDocument();
   });
 
@@ -149,9 +149,9 @@ describe('DogSelectionStepEnhanced — the registration this show will use', () 
 
     await user.hover(row());
 
-    const used = await screen.findByText('Used for this show');
+    const used = await screen.findByText('Number this show uses');
     expect(used.closest('[data-registration-role="used"]')!.textContent).toBe(
-      'AKC: SR12345601, Used for this show'
+      'AKC: SR12345601, Number this show uses'
     );
     const others = Array.from(document.querySelectorAll('[data-registration-role="other"]'));
     expect(others.map(node => node.textContent)).toEqual(['UKC: P987-654', 'ASCA: E123456']);

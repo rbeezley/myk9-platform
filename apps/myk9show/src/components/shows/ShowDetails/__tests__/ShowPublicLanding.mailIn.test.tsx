@@ -133,3 +133,26 @@ describe('ShowPublicLanding — online entries off (MYK9-979)', () => {
     expect(screen.queryByRole('note', { name: /how to enter/i })).not.toBeInTheDocument();
   });
 });
+
+// MYK9-1963: the service fee is said once on the public page, for a show that takes
+// online entries, before the exhibitor reaches the wizard's third step.
+describe('ShowPublicLanding — service fee line (MYK9-1963)', () => {
+  it('says the fee, linking how fees work, when online entries are on', () => {
+    mockViewport(false);
+    renderLanding(true);
+
+    const note = screen.getByRole('note', { name: /service fee/i });
+    expect(note).toHaveTextContent('Plus a 7% service fee when you pay online.');
+    expect(screen.getByRole('link', { name: 'How our fees work' })).toHaveAttribute(
+      'href',
+      '/fees'
+    );
+  });
+
+  it.each([false, undefined])('says nothing about a fee when online entries are %s', enabled => {
+    mockViewport(false);
+    renderLanding(enabled);
+
+    expect(screen.queryByRole('note', { name: /service fee/i })).not.toBeInTheDocument();
+  });
+});

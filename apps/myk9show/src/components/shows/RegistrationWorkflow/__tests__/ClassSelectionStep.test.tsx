@@ -914,12 +914,12 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     expect(selectable).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('(c) explains existing entries are changed through the show team, linking /messages/:showId', async () => {
+  it('(c) explains existing entries are changed in My Shows, linking /exhibitor/entries', async () => {
     renderAddOnlyStep();
 
     expect(await screen.findByText(/already entered in the classes marked/i)).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /message the show secretary/i });
-    expect(link).toHaveAttribute('href', `/messages/${SHOW_ID}`);
+    const link = screen.getByRole('link', { name: 'My Shows' });
+    expect(link).toHaveAttribute('href', '/exhibitor/entries');
   });
 
   it('(d) selecting a newly-available class reports the addition (enables Next upstream)', async () => {

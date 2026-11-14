@@ -4,6 +4,7 @@ import { formatFee } from '@/utils/format';
 import { toLocalDate } from '@/utils/date-format';
 import { FactCell } from '@/components/common/FactCell';
 import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
+import { ServiceFeeNote } from '@/features/payments/ServiceFeeNote';
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
@@ -48,7 +49,13 @@ export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCar
       <FactCell
         label="Entry Fee"
         value={isBlank(show.preEntryFee) ? null : formatFee(show.preEntryFee)}
-        secondary={show.dayOfShowFee ? `Day of show: ${formatFee(show.dayOfShowFee)}` : null}
+        secondary={
+          <>
+            {show.dayOfShowFee && <div>Day of show: {formatFee(show.dayOfShowFee)}</div>}
+            {/* MYK9-1963: the card service fee, said beside the fee it adds to. */}
+            {acceptsOnlineEntries(show) && <ServiceFeeNote />}
+          </>
+        }
       />
       <div className="flex-1 min-w-[120px] px-4 py-2.5">
         <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">

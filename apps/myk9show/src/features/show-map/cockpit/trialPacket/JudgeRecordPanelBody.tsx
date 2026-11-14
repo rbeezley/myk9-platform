@@ -99,8 +99,8 @@ export function JudgeRecordPanelBody({
       {!record.ready && (
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
           Not every class of {record.judgeName}&apos;s day is{' '}
-          {record.registryId === 'AKC' ? 'initialled' : 'signed'} yet. This record shows what is
-          finished so far.
+          {record.registryId.trim().toUpperCase() === 'AKC' ? 'initialled' : 'signed'} yet. This
+          record shows what is finished so far.
         </p>
       )}
       {historyUnavailable && (

@@ -4,6 +4,8 @@
 
 Linear: MYK9-1924. Agreed with the owner in a design conversation on 2026-11-13. No code has been written.
 
+> **Owner decision 2026-11-14:** the judge's record ships as **print and PDF only** (#3914). Emailing it, and everything below that describes the email (recipient resolution, the send button, the delivery function and its tests), moved to its own issue, **MYK9-1977**. Read every "email" in this plan as MYK9-1977's scope, not this one's.
+
 ## Why
 
 On Show Desk, "Print paperwork" works one class at a time. A secretary almost always prints for a whole trial at once, hands each judge a stack, and reprints a single class only when something changes. After the show the judge must check and initial every page of the results catalog, and both the judge and the club must keep records for a year. Today each of those is several trips through Reports.

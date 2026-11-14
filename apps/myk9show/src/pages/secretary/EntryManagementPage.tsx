@@ -23,6 +23,7 @@ import { useEntryManagementHeaderActions } from '@/hooks/useEntryManagementHeade
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { useEnrollmentLedgerActions } from '@/hooks/useEnrollmentLedgerActions';
 import { ArmbandDialog, CompEntryDialog } from '@/components/entries/management';
+import { EntryPullProvider } from '@/components/entries/management/entryPull';
 import { EntryManagementCockpit } from '@/components/entries/management/EntryManagementCockpit';
 import { EntryManagementViewToolbar } from '@/components/entries/management/EntryManagementViewToolbar';
 import { EntryListViewHeader } from '@/components/entries/management/EntryListViewHeader';
@@ -482,51 +483,53 @@ const EntryManagementPage: React.FC = () => {
             <div className="mt-6">
               {/* The form's "Add entry for <exhibitor>" greys with the same reason as the header. */}
               <TrialSecretaryAccessProvider reason={secretaryOnlyReason}>
-                <EntryManagementCockpit
-                  entries={entries}
-                  cockpit={cockpit}
-                  showHasNoRegistrations={registrationGroups.length === 0}
-                  trialScopePending={trialScopePending}
-                  trialClassesUnknown={trialClassesUnknown}
-                  onRetryTrialClasses={() => void refetchTrialClasses()}
-                  showId={selectedShowId}
-                  {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
-                  busy={isProcessing}
-                  lastEmailedMap={lastEmailedMap}
-                  onStatusChange={handleStatusChange}
-                  sendDecisionEmailsUnasked={showSendsDecisionEmailsUnasked(selectedShowRecord)}
-                  onCheckInStatusChange={handleCheckInStatusChange}
-                  onOpenEditEntry={openEditEntry}
-                  onOpenArmbandDialog={entry =>
-                    setArmbandDialog({
-                      open: true,
-                      entry,
-                      value: entry.armbandNumber || '',
-                    })
-                  }
-                  onOpenCompDialog={entry =>
-                    setCompDialog({
-                      open: true,
-                      entryId: entry.id,
-                      entryNumber: entry.entryNumber,
-                      dogName: entry.dogName,
-                      className: entry.classes[0]?.name ?? '',
-                    })
-                  }
-                  onUncompEntry={handleUncompEntry}
-                  onEntryRemoved={handleEntryRemoved}
-                  onBulkStatusChange={handleEnrollmentBulkStatusChange}
-                  paymentLedger={paymentLedger}
-                  onSendDecisionEmail={async (registrationId, message, amountDue) => {
-                    await handleSendDecisionEmail(registrationId, message, amountDue);
-                    const registrationIds = [
-                      ...new Set(entries.map(entry => entry.registrationId).filter(Boolean)),
-                    ];
-                    refreshEmailLog(registrationIds);
-                  }}
-                  onRefresh={() => loadEntries(selectedShowId)}
-                  onRefreshEntries={refreshAfterWrite}
-                />
+                <EntryPullProvider entries={entries} onRefreshEntries={refreshAfterWrite}>
+                  <EntryManagementCockpit
+                    entries={entries}
+                    cockpit={cockpit}
+                    showHasNoRegistrations={registrationGroups.length === 0}
+                    trialScopePending={trialScopePending}
+                    trialClassesUnknown={trialClassesUnknown}
+                    onRetryTrialClasses={() => void refetchTrialClasses()}
+                    showId={selectedShowId}
+                    {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
+                    busy={isProcessing}
+                    lastEmailedMap={lastEmailedMap}
+                    onStatusChange={handleStatusChange}
+                    sendDecisionEmailsUnasked={showSendsDecisionEmailsUnasked(selectedShowRecord)}
+                    onCheckInStatusChange={handleCheckInStatusChange}
+                    onOpenEditEntry={openEditEntry}
+                    onOpenArmbandDialog={entry =>
+                      setArmbandDialog({
+                        open: true,
+                        entry,
+                        value: entry.armbandNumber || '',
+                      })
+                    }
+                    onOpenCompDialog={entry =>
+                      setCompDialog({
+                        open: true,
+                        entryId: entry.id,
+                        entryNumber: entry.entryNumber,
+                        dogName: entry.dogName,
+                        className: entry.classes[0]?.name ?? '',
+                      })
+                    }
+                    onUncompEntry={handleUncompEntry}
+                    onEntryRemoved={handleEntryRemoved}
+                    onBulkStatusChange={handleEnrollmentBulkStatusChange}
+                    paymentLedger={paymentLedger}
+                    onSendDecisionEmail={async (registrationId, message, amountDue) => {
+                      await handleSendDecisionEmail(registrationId, message, amountDue);
+                      const registrationIds = [
+                        ...new Set(entries.map(entry => entry.registrationId).filter(Boolean)),
+                      ];
+                      refreshEmailLog(registrationIds);
+                    }}
+                    onRefresh={() => loadEntries(selectedShowId)}
+                    onRefreshEntries={refreshAfterWrite}
+                  />
+                </EntryPullProvider>
               </TrialSecretaryAccessProvider>
             </div>
           )}

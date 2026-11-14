@@ -109,7 +109,7 @@ export function buildFormChecklist(
       kind: 'missing-information',
       id: 'missing-information',
       title: `${missing.length} ${entriesWord(missing.length)} ${missing.length === 1 ? 'is' : 'are'} missing information`,
-      detail: `${dogNames(missing)}. Use Edit entry on the entry's menu below.`,
+      detail: `${dogNames(missing)}. Use Change handler on the entry's menu below.`,
     });
   }
 

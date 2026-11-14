@@ -197,7 +197,7 @@ describe('check-in on the entry form (MYK9-1691)', () => {
     expect(screen.queryByRole('button', { name: 'Check in all' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Actions for Poppy' }));
-    await screen.findByRole('menuitem', { name: /Edit entry|Remove entry/ });
+    await screen.findByRole('menuitem', { name: /Change handler|Remove entry/ });
     expect(screen.queryByRole('menuitem', { name: /Check in/ })).not.toBeInTheDocument();
   });
 

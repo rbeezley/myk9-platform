@@ -106,7 +106,7 @@ describe('EntryListCard - Assign armband (MYK9-1672)', () => {
   });
 });
 
-describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-928)', () => {
+describe('EntryListCard - Change handler… lives in an always-present row menu (MYK9-928)', () => {
   const cases: Array<[string, Partial<EntryManagementEntry>]> = [
     ['an ordinary entry', {}],
     ['a MOVED entry, which has no status popover', { entryStatus: EntryStatus.MOVED }],
@@ -118,7 +118,7 @@ describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-9
   ];
 
   it.each(cases)(
-    '%s: has no pencil, and Edit entry is the first row-menu item',
+    '%s: has no pencil, and Change handler… is the first row-menu item',
     async (_n, over) => {
       const user = userEvent.setup();
       const onOpenEditEntry = vi.fn();
@@ -133,7 +133,7 @@ describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-9
 
       await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
       const items = await screen.findAllByRole('menuitem');
-      expect(items[0]).toHaveTextContent('Edit entry');
+      expect(items[0]).toHaveTextContent('Change handler…');
 
       await user.click(items[0] as HTMLElement);
       expect(onOpenEditEntry).toHaveBeenCalledWith(entry);
@@ -143,7 +143,7 @@ describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-9
   it('renders the row menu without Edit when the viewer has no editor to open', async () => {
     const { user } = render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
     await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
-    expect(screen.queryByRole('menuitem', { name: 'Edit entry' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Change handler…' })).not.toBeInTheDocument();
     expect(await screen.findByRole('menuitem', { name: /^Remove entry/ })).toBeInTheDocument();
   });
 });
@@ -307,7 +307,7 @@ describe('EntryListCard - check-in button affordance', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('lists Remove entry last in the row menu, after Edit entry', async () => {
+  it('lists Remove entry last in the row menu, after Change handler…', async () => {
     const user = userEvent.setup();
     render(<EntryListCard {...defaultProps} onOpenEditEntry={vi.fn()} />);
 
@@ -315,7 +315,7 @@ describe('EntryListCard - check-in button affordance', () => {
     const items = (await screen.findAllByRole('menuitem')).map(
       item => item.querySelector('span > span')?.textContent ?? item.textContent
     );
-    expect(items).toEqual(['Edit entry', 'Remove entry']);
+    expect(items).toEqual(['Change handler…', 'Remove entry']);
   });
 
   it('keeps the row menu, with Remove entry alone, where no Edit is offered', async () => {

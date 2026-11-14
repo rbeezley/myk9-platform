@@ -127,7 +127,7 @@ jobs:
         # was skipped because setup failed, and not on cancel.
         if: ${{ !cancelled() && steps.phone_walk.outcome != 'skipped' }}
         working-directory: apps/myk9show
-        run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests batch3Scoring batch4Paperwork batch1Followups nationalsLeaderboardWalk
+        run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests batch3Scoring batch4Paperwork batch1Followups nationalsLeaderboardWalk showDayLiveSync
         env:
           CI: 'true'
       - name: Verify reports contain no credentials

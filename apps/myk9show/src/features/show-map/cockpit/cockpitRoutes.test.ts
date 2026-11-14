@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  getCockpitFinishListHref,
+  withReturnTo,
   getCockpitClassDetailsHref,
   getCockpitJudgeDayCatalogHref,
   getCockpitPaperScoringHref,
@@ -322,5 +324,16 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
         anchor: undefined,
       }).get('returnTo')
     ).toBeNull();
+  });
+});
+
+describe('the Finish the show list link (MYK9-1945)', () => {
+  it('lands on the list, with returnTo ahead of the fragment', () => {
+    expect(getCockpitFinishListHref({ showId: 'show-1' })).toBe(
+      '/shows/show-1/results#finish-the-show'
+    );
+    expect(withReturnTo('/shows/show-1/results#finish-the-show', '/shows/show-1')).toBe(
+      '/shows/show-1/results?returnTo=%2Fshows%2Fshow-1#finish-the-show'
+    );
   });
 });

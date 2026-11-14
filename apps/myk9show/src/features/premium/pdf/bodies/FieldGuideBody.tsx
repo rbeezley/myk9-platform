@@ -3,10 +3,9 @@
 // long sections flow vertically and react-pdf paginates.
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { formatPremiumDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import type { StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
-import { makeClassComparator } from './classOrder';
-import type { RegistryId } from '@/features/registries';
+import { buildPremiumFacts } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
@@ -14,11 +13,9 @@ interface Props {
 }
 
 export function FieldGuideBody({ data, tokens }: Props) {
-  const { show, secretary, officials, trials, supplemental, narratives } = data;
+  const f = buildPremiumFacts(data);
+  const { secretary, chair, trials } = f;
   const monoFont = tokens.monoFont ?? 'IBM Plex Mono';
-  // GeneratedPremium.org is 'AKC' | 'UKC' (premium generation isn't offered for other
-  // registries — see generate-premium's CHECK-constraint gate), both valid RegistryIds.
-  const classComparator = makeClassComparator((data.org ?? 'AKC') as RegistryId);
 
   const rowStyle = {
     flexDirection: 'row' as const,
@@ -50,20 +47,14 @@ export function FieldGuideBody({ data, tokens }: Props) {
   };
   const blockStyle = { marginBottom: 14 };
 
-  const hasOverview = Boolean(narratives?.trialInformation?.trim());
-  const hasOfficials = Boolean(officials.chairman || secretary.name);
-  const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
+  const hasOverview = Boolean(f.trialInformation.trim());
+  const hasOfficials = Boolean(chair || secretary.name);
+  const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.length > 0;
-  const hasEntry = Boolean(
-    show.entryOpenDate || show.entryCloseDate || show.preEntryFee || show.dayOfFee
-  );
-  const hasSchedule = Boolean(narratives?.showHours?.trim());
-  const hasLocation = Boolean(
-    show.venue || (supplemental.accommodations?.length ?? 0) > 0 || supplemental.vetClinic
-  );
-  const hasNotices = Boolean(
-    supplemental.additionalNotes || supplemental.hospitalityNotes || supplemental.awardsDescription
-  );
+  const hasEntry = Boolean(f.entry.opens || f.entry.closes || f.fees.preEntry || f.fees.dayOf);
+  const hasSchedule = Boolean(f.showHours.trim());
+  const hasLocation = Boolean(f.venue || f.accommodations.length > 0 || f.vetClinic);
+  const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes || f.awardsDescription);
 
   const renderHeader = (num: string, title: string) => (
     <View
@@ -116,20 +107,20 @@ export function FieldGuideBody({ data, tokens }: Props) {
       {hasOverview && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§00', 'Overview')}
-          <Text style={bodyStyle}>{narratives.trialInformation}</Text>
+          <Text style={bodyStyle}>{f.trialInformation}</Text>
         </View>
       )}
 
       {hasOfficials && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§01', 'Officials')}
-          {officials.chairman && (
+          {chair && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Chair</Text>
               <Text style={valueStyle}>
-                {officials.chairman.name}
-                {officials.chairman.email ? ` · ${officials.chairman.email}` : ''}
-                {officials.chairman.phone ? ` · ${formatPhone(officials.chairman.phone)}` : ''}
+                {chair.name}
+                {chair.email ? ` · ${chair.email}` : ''}
+                {chair.phone ? ` · ${chair.phone}` : ''}
               </Text>
             </View>
           )}
@@ -139,7 +130,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>
                 {secretary.name}
                 {secretary.email ? ` · ${secretary.email}` : ''}
-                {secretary.phone ? ` · ${formatPhone(secretary.phone)}` : ''}
+                {secretary.phone ? ` · ${secretary.phone}` : ''}
               </Text>
             </View>
           )}
@@ -150,12 +141,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
         <View style={blockStyle} wrap={false}>
           {renderHeader('§02', 'Judges')}
           {trials.flatMap((trial, ti) =>
-            (trial.judges ?? []).map((j, ji) => (
+            trial.judges.map((j, ji) => (
               <View key={`${ti}-${ji}`} style={rowStyle}>
                 <Text style={labelStyle}>{trial.name}</Text>
                 <Text style={valueStyle}>
                   {j.name}
-                  {(j.elements?.length ?? 0) > 0 ? ` · ${j.elements.join(', ')}` : ''}
+                  {j.elements.length > 0 ? ` · ${j.elements.join(', ')}` : ''}
                 </Text>
               </View>
             ))
@@ -169,15 +160,10 @@ export function FieldGuideBody({ data, tokens }: Props) {
           {trials.map((trial, i) => (
             <View key={i} style={{ marginBottom: 6 }}>
               <Text style={{ ...bodyStyle, fontWeight: 700, marginBottom: 2 }}>
-                {trial.name} — {formatPremiumDate(trial.date)}
+                {trial.name} — {trial.date}
               </Text>
-              {(trial.classes?.length ?? 0) > 0 && (
-                <Text style={bodyStyle}>
-                  {[...(trial.classes ?? [])]
-                    .sort(classComparator)
-                    .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
-                    .join(' · ')}
-                </Text>
+              {trial.classLabels.length > 0 && (
+                <Text style={bodyStyle}>{trial.classLabels.join(' · ')}</Text>
               )}
             </View>
           ))}
@@ -194,23 +180,23 @@ export function FieldGuideBody({ data, tokens }: Props) {
             <Text style={labelStyle}>Method</Text>
             <Text style={{ ...valueStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
           </View>
-          {show.entryOpenDate && (
+          {f.entry.opens && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Opens</Text>
-              <Text style={valueStyle}>{formatPremiumDate(show.entryOpenDate)}</Text>
+              <Text style={valueStyle}>{f.entry.opens}</Text>
             </View>
           )}
-          {show.entryCloseDate && (
+          {f.entry.closes && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Closes</Text>
-              <Text style={valueStyle}>{formatPremiumDate(show.entryCloseDate)}</Text>
+              <Text style={valueStyle}>{f.entry.closes}</Text>
             </View>
           )}
-          {(show.preEntryFee || show.dayOfFee) && (
+          {(f.fees.preEntry || f.fees.dayOf) && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Fees</Text>
               <Text style={valueStyle}>
-                Pre-entry ${show.preEntryFee ?? '—'} · Day-of ${show.dayOfFee ?? '—'}
+                Pre-entry ${f.fees.preEntry ?? '—'} · Day-of ${f.fees.dayOf ?? '—'}
               </Text>
             </View>
           )}
@@ -221,36 +207,34 @@ export function FieldGuideBody({ data, tokens }: Props) {
       {hasSchedule && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§05', 'Schedule')}
-          <Text style={bodyStyle}>{narratives.showHours}</Text>
+          <Text style={bodyStyle}>{f.showHours}</Text>
         </View>
       )}
 
       {hasLocation && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§06', 'Location')}
-          {show.venue && (
+          {f.venue && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Venue</Text>
-              <Text style={valueStyle}>{show.venue}</Text>
+              <Text style={valueStyle}>{f.venue}</Text>
             </View>
           )}
-          {supplemental.vetClinic && (
+          {f.vetClinic && (
             <View style={rowStyle}>
               <Text style={labelStyle}>Vet</Text>
               <Text style={valueStyle}>
-                {supplemental.vetClinic.name} · {supplemental.vetClinic.address}
-                {supplemental.vetClinic.phone
-                  ? ` · ${formatPhone(supplemental.vetClinic.phone)}`
-                  : ''}
+                {f.vetClinic.name} · {f.vetClinic.address}
+                {f.vetClinic.phone ? ` · ${f.vetClinic.phone}` : ''}
               </Text>
             </View>
           )}
-          {(supplemental.accommodations ?? []).map((a, i) => (
+          {f.accommodations.map((a, i) => (
             <View key={i} style={rowStyle}>
               <Text style={labelStyle}>Lodging</Text>
               <Text style={valueStyle}>
                 {a.name} · {a.address}
-                {a.phone ? ` · ${formatPhone(a.phone)}` : ''}
+                {a.phone ? ` · ${a.phone}` : ''}
               </Text>
             </View>
           ))}
@@ -260,15 +244,13 @@ export function FieldGuideBody({ data, tokens }: Props) {
       {hasNotices && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§07', 'Notices')}
-          {supplemental.additionalNotes && (
-            <Text style={{ ...bodyStyle, marginBottom: 4 }}>{supplemental.additionalNotes}</Text>
+          {f.additionalNotes && (
+            <Text style={{ ...bodyStyle, marginBottom: 4 }}>{f.additionalNotes}</Text>
           )}
-          {supplemental.hospitalityNotes && (
-            <Text style={{ ...bodyStyle, marginBottom: 4 }}>{supplemental.hospitalityNotes}</Text>
+          {f.hospitalityNotes && (
+            <Text style={{ ...bodyStyle, marginBottom: 4 }}>{f.hospitalityNotes}</Text>
           )}
-          {supplemental.awardsDescription && (
-            <Text style={bodyStyle}>{supplemental.awardsDescription}</Text>
-          )}
+          {f.awardsDescription && <Text style={bodyStyle}>{f.awardsDescription}</Text>}
         </View>
       )}
     </Page>

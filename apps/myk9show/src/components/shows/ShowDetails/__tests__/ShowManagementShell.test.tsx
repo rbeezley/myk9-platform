@@ -401,6 +401,62 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/results');
   });
 
+  it.each([
+    [
+      'Show Desk to Results',
+      '/shows/show-1?focus=class-t4',
+      'Results',
+      '/shows/show-1/results?classId=class-t4',
+    ],
+    [
+      'Results to Show Desk',
+      '/shows/show-1/results?classId=class-t4&status=all',
+      'Show Desk',
+      '/shows/show-1?focus=class-t4',
+    ],
+    [
+      'Show Desk to Entry Forms',
+      '/shows/show-1?focus=class-t4&day=2026-11-14',
+      'Entry Forms',
+      '/shows/show-1/entries?class=class-t4',
+    ],
+    [
+      'Entry Forms to Show Desk',
+      '/shows/show-1/entries?class=class-t4',
+      'Show Desk',
+      '/shows/show-1?focus=class-t4',
+    ],
+    [
+      'Entry Forms to Results',
+      '/shows/show-1/entries?class=class-t4',
+      'Results',
+      '/shows/show-1/results?classId=class-t4',
+    ],
+    [
+      'Results to Entry Forms',
+      '/shows/show-1/results?classId=class-t4',
+      'Entry Forms',
+      '/shows/show-1/entries?class=class-t4',
+    ],
+  ])('carries a non-first class across tabs: %s', (_name, from, tab, expected) => {
+    const section = new URL(from, 'http://x').pathname.split('/')[3];
+    renderShell({ activeManagementSection: section }, from, <LocationProbe />);
+    fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${tab}`) }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent(expected);
+  });
+
+  it('carries nothing when no single class is selected, or into a tab with no class', () => {
+    renderShell(
+      { activeManagementSection: 'entries' },
+      '/shows/show-1/entries?class=a,b',
+      <LocationProbe />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /^Results/ }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent(/^\/shows\/show-1\/results$/);
+    fireEvent.click(screen.getByRole('tab', { name: /^Reports/ }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent(/^\/shows\/show-1\/reports$/);
+  });
+
   it('replaces history on a tab change, so Back leaves the show instead of stepping through tabs', () => {
     renderShell(
       {},

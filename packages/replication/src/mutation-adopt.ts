@@ -40,11 +40,19 @@ export interface AdoptHeldMutationsOptions {
    * anonymous user can survive a code change when the sign-out never landed.
    */
   failedErrorIncludes?: string;
+  /**
+   * The live session's passcode claim (role and judge). A dead letter is adopted only
+   * when it was queued under this same claim; a pending row queued under a different
+   * claim is left for its own judge. Rows with no stamp match show-wide, as before
+   * (pending only), so one judge's refused scores are never handed to another judge
+   * on a shared device (MYK9-2009).
+   */
+  claim?: string;
 }
 
 export function isAdoptableHeldMutation(
   mutation: PendingMutation,
-  { showId, toAuthUserId, rpcNames, failedErrorIncludes }: AdoptHeldMutationsOptions
+  { showId, toAuthUserId, rpcNames, failedErrorIncludes, claim }: AdoptHeldMutationsOptions
 ): boolean {
   if (
     mutation.ownerIsAnonymous !== true ||
@@ -55,9 +63,17 @@ export function isAdoptableHeldMutation(
   ) {
     return false;
   }
-  if (mutation.status === 'pending') return mutation.authUserId !== toAuthUserId;
+  if (mutation.status === 'pending') {
+    const otherClaim =
+      mutation.ringsideClaim !== undefined &&
+      claim !== undefined &&
+      mutation.ringsideClaim !== claim;
+    return mutation.authUserId !== toAuthUserId && !otherClaim;
+  }
   return (
     mutation.status === 'failed' &&
+    claim !== undefined &&
+    mutation.ringsideClaim === claim &&
     failedErrorIncludes !== undefined &&
     typeof mutation.error === 'string' &&
     mutation.error.includes(failedErrorIncludes)

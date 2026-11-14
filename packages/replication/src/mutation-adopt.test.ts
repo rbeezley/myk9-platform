@@ -8,6 +8,7 @@ const OPTIONS: AdoptHeldMutationsOptions = {
   toAuthUserId: 'anon-2',
   rpcNames: ['ringside_update_entry'],
   failedErrorIncludes: REGENERATED,
+  claim: 'judge:pat',
 };
 
 function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
@@ -24,6 +25,7 @@ function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
     retries: 0,
     status: 'pending',
     rpc: { name: 'ringside_update_entry', fields: {} },
+    ringsideClaim: 'judge:pat',
     ...overrides,
   } as PendingMutation;
 }
@@ -66,5 +68,18 @@ describe('isAdoptableHeldMutation (MYK9-2009 dead letters)', () => {
     expect(
       isAdoptableHeldMutation(deadLetter({ rpc: { name: 'other_rpc', fields: {} } }), OPTIONS)
     ).toBe(false);
+  });
+
+  it('never adopts a dead letter from another judge claim, or with no claim stamp', () => {
+    expect(isAdoptableHeldMutation(deadLetter({ ringsideClaim: 'judge:sam' }), OPTIONS)).toBe(
+      false
+    );
+    expect(isAdoptableHeldMutation(deadLetter({ ringsideClaim: undefined }), OPTIONS)).toBe(false);
+    expect(isAdoptableHeldMutation(deadLetter(), { ...OPTIONS, claim: undefined })).toBe(false);
+  });
+
+  it('leaves a pending row queued under another judge claim for that judge, but adopts an unstamped one', () => {
+    expect(isAdoptableHeldMutation(mutation({ ringsideClaim: 'judge:sam' }), OPTIONS)).toBe(false);
+    expect(isAdoptableHeldMutation(mutation({ ringsideClaim: undefined }), OPTIONS)).toBe(true);
   });
 });

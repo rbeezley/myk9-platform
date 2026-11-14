@@ -117,7 +117,7 @@ export class MutationQueueStore {
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
     rowRevision?: number,
-    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {},
+    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId' | 'ringsideClaim'> = {},
     /** False: leave the sequence number to the transaction that commits the record. */
     allocateSequence = true
   ): Promise<PendingMutation> {
@@ -130,6 +130,7 @@ export class MutationQueueStore {
       authUserId,
       ...(adoption.ownerIsAnonymous === true && { ownerIsAnonymous: true }),
       ...(adoption.showId !== undefined && { showId: adoption.showId }),
+      ...(adoption.ringsideClaim !== undefined && { ringsideClaim: adoption.ringsideClaim }),
       tableName,
       operation,
       rowId,

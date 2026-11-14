@@ -71,7 +71,8 @@ export class MutationManager {
     this.identity = new MutationIdentity(
       options.getCurrentUserId ?? (async () => null),
       options.getCachedUserId ?? (() => null),
-      options.getOwnerIsAnonymous ?? (() => false)
+      options.getOwnerIsAnonymous ?? (() => false),
+      options.getOwnerRingsideClaim
     );
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.acquireQueueMutationLock = options.acquireQueueMutationLock;
@@ -187,10 +188,7 @@ export class MutationManager {
         serverVersion,
         rpc,
         rowRevision,
-        {
-          ownerIsAnonymous: this.identity.readOwnerIsAnonymous(authUserId),
-          ...(showId !== undefined && { showId }),
-        }
+        this.identity.readAdoptionStamp(authUserId, showId)
       );
       await this.announceQueued(rowId);
 
@@ -255,10 +253,7 @@ export class MutationManager {
       undefined,
       rpc,
       undefined,
-      {
-        ownerIsAnonymous: this.identity.readOwnerIsAnonymous(authUserId),
-        ...(showId !== undefined && { showId }),
-      },
+      this.identity.readAdoptionStamp(authUserId, showId),
       false
     );
   }

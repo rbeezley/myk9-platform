@@ -18,7 +18,12 @@ interface FakeSession {
   user: {
     id: string;
     is_anonymous: boolean;
-    app_metadata: { kind: string; show_id: string; ringside_role: string };
+    app_metadata: {
+      kind: string;
+      show_id: string;
+      ringside_role: string;
+      ringside_person_id: string;
+    };
   };
 }
 
@@ -63,6 +68,12 @@ vi.mock('@/services/database/persistedAuthUserId', () => ({
     const user = (fake.session as FakeSession | null)?.user;
     return user?.id === authUserId && user.is_anonymous === true;
   },
+  readPersistedAuthRingsideClaim: (authUserId: string) => {
+    const user = (fake.session as FakeSession | null)?.user;
+    return user?.id === authUserId
+      ? `${user.app_metadata.ringside_role}:${user.app_metadata.ringside_person_id}`
+      : undefined;
+  },
 }));
 
 import { mutationManager } from '../sharedMutationManager';
@@ -75,7 +86,7 @@ const SHOW = 'show-x';
 let tokenCounter = 0;
 
 /** A passcode session whose code the server still honours (a freshly entered code). */
-function enterCode(userId: string): string {
+function enterCode(userId: string, person = 'judge-pat'): string {
   const token = `token-${++tokenCounter}`;
   fake.liveTokens.add(token);
   fake.session = {
@@ -83,7 +94,12 @@ function enterCode(userId: string): string {
     user: {
       id: userId,
       is_anonymous: true,
-      app_metadata: { kind: 'ringside_passcode', show_id: SHOW, ringside_role: 'judge' },
+      app_metadata: {
+        kind: 'ringside_passcode',
+        show_id: SHOW,
+        ringside_role: 'judge',
+        ringside_person_id: person,
+      },
     },
   } satisfies FakeSession;
   return token;
@@ -248,5 +264,31 @@ describe('a new code for a judge with scores still queued (MYK9-2009)', () => {
 
     expect(fake.rpcCalls.filter(call => call.token === newToken)).toEqual([]);
     expect(rowIds(await failed())).toEqual(['e1', 'e2']);
+  });
+
+  it("keeps one judge's refused and queued scores from another judge on a shared device", async () => {
+    const patOld = enterCode('anon-1', 'judge-pat');
+    await queueScore('e1');
+    rotateCode(patOld);
+    await mutationManager.uploadPendingMutations();
+    await queueScore('e2');
+    signOut();
+
+    // Sam enters his own code on the same device for the same show.
+    const samToken = enterCode('anon-2', 'judge-sam');
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
+    await mutationManager.uploadPendingMutations();
+    expect(fake.rpcCalls.filter(call => call.token === samToken)).toEqual([]);
+    expect(rowIds(await failed())).toEqual(['e1']);
+    expect(rowIds(await pending())).toEqual(['e2']);
+    signOut();
+
+    // Pat returns with her new code and gets both.
+    const patNew = enterCode('anon-3', 'judge-pat');
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(2);
+    await mutationManager.uploadPendingMutations();
+    const accepted = fake.rpcCalls.filter(call => call.token === patNew && call.accepted);
+    expect(accepted.map(call => call.entryId).sort()).toEqual(['e1', 'e2']);
+    expect(await failed()).toEqual([]);
   });
 });

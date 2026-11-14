@@ -5,7 +5,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
  * and selects nothing: quietly opening a different class is how the wrong class gets changed on
  * show day (MYK9-1996).
  */
-export function CarriedClassNotice({ className, name }: { className?: string; name?: string }) {
+export function CarriedClassNotice({
+  className,
+  name,
+}: {
+  className?: string;
+  name?: string | undefined;
+}) {
   return (
     <Alert className={className} data-testid="carried-class-notice">
       <AlertDescription>

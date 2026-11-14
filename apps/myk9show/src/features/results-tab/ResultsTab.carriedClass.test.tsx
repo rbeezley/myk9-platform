@@ -1,9 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes, useLocation } from 'react-router-dom';
 
 import { replicatedClassesTable } from '@/services/replication';
-import { render, screen, waitFor, within } from '@/test/utils/testUtils';
-import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
+import { render, screen } from '@/test/utils/testUtils';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
 import { buildResultsClassRows } from './buildResultsClassRows';

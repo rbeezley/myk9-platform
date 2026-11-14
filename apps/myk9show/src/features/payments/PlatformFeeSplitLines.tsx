@@ -72,7 +72,12 @@ export function PlatformFeeSplitLines({
               receives 100% of the entry fees.
             </p>
           )}
-          <Link to="/fees" className="text-xs underline hover:text-foreground">
+          <Link
+            to="/fees"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs underline hover:text-foreground"
+          >
             How our fees work
           </Link>
         </div>

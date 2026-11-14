@@ -15,6 +15,9 @@ const ROOTS = [
   join(SRC, 'pages/RegistrationWizardPage'),
   join(SRC, 'pages/RegistrationWizardPage.tsx'),
   join(SRC, 'components/dogs/NoRegistrationNumberHelp.tsx'),
+  // Shared components the wizard renders (the cart page renders them too).
+  join(SRC, 'features/payments/PlatformFeeSplitLines.tsx'),
+  join(SRC, 'components/cart/ClosedClassRemovedNotice.tsx'),
 ];
 
 function sourceFiles(path: string): string[] {
@@ -52,11 +55,26 @@ describe('links out of the entry wizard', () => {
   );
 
   it('finds the wizard link set (guards the walker itself)', () => {
-    expect(found.length).toBeGreaterThanOrEqual(7);
+    expect(found.length).toBeGreaterThanOrEqual(9);
   });
 
   it.each(found.map(f => [f.where, f.tag] as const))('opens in a new tab: %s', (_where, tag) => {
     expect(tag).toMatch(/target(=|:\s*)["']_blank["']/);
     expect(tag).toMatch(/noopener noreferrer/);
+  });
+
+  // NoRegistrationNumberHelp only opens a new tab when told to, via a
+  // conditional spread the tag walker cannot see.
+  it('passes opensInNewTab wherever the wizard renders NoRegistrationNumberHelp', () => {
+    const wizardFiles = ROOTS.flatMap(sourceFiles).filter(file =>
+      /<NoRegistrationNumberHelp[\s>]/.test(readFileSync(file, 'utf8'))
+    );
+    expect(wizardFiles.length).toBeGreaterThan(0);
+    for (const file of wizardFiles) {
+      const source = readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/<NoRegistrationNumberHelp\b[^>]*?\/?>/gs)) {
+        expect(match[0], relative(SRC, file)).toMatch(/\bopensInNewTab\b/);
+      }
+    }
   });
 });

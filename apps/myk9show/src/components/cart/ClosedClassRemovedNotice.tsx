@@ -142,6 +142,8 @@ export function PaymentLinkNotice({
           {/* 44px touch floor (INTENT.md) without breaking the sentence. */}
           <Link
             to="/exhibitor/entries"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center font-medium underline underline-offset-2"
           >
             My Entries

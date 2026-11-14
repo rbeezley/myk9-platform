@@ -21,6 +21,7 @@ const {
   mockUseExhibitorProfile,
   mockUseExistingEntries,
   mockRefetchDogs,
+  mockRefetchProfile,
   mockFillAddress,
 } = vi.hoisted(() => ({
   mockUseClassAvailability: vi.fn(),
@@ -34,6 +35,7 @@ const {
   mockUseExhibitorProfile: vi.fn(),
   mockUseExistingEntries: vi.fn(),
   mockRefetchDogs: vi.fn(),
+  mockRefetchProfile: vi.fn(),
   mockFillAddress: vi.fn(),
 }));
 
@@ -163,7 +165,10 @@ function setupStepMocks(opts: {
       ? { scopes: [{ scopeType: 'club', scopeId: CLUB_ID, roleId: 'secretary' }] }
       : { scopes: [] },
   });
-  mockUseExhibitorProfile.mockReturnValue({ profile: { id: 'exhibitor-1' } });
+  mockUseExhibitorProfile.mockReturnValue({
+    profile: { id: 'exhibitor-1' },
+    refetch: mockRefetchProfile,
+  });
   mockUseExistingEntries.mockReturnValue({
     getExistingEntry: vi.fn().mockReturnValue(undefined),
     getEntriesForDog: vi.fn().mockReturnValue([]),
@@ -242,6 +247,32 @@ describe("ClassSelectionStep — the owner's address on AKC classes (MYK9-1010)"
       'href',
       '/account?section=profile'
     );
+  });
+
+  it('opens the profile in a new tab and re-reads the owner and dogs when the exhibitor returns', async () => {
+    mockRefetchProfile.mockResolvedValue(undefined);
+    setupStepMocks({ owner: NO_STREET_OR_ZIP });
+    renderStep({ workflowMode: 'exhibitor' });
+
+    const link = await screen.findByRole('link', { name: 'Add your address' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(mockRefetchDogs).not.toHaveBeenCalled();
+
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => expect(mockRefetchDogs).toHaveBeenCalledTimes(1));
+    expect(mockRefetchProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-read on return for staff, who fix the address in place', async () => {
+    setupStepMocks({ owner: NO_STREET_OR_ZIP, isStaff: true });
+    renderStep({ workflowMode: 'secretary_new' });
+    await screen.findByRole('button', { name: "Add the owner's address" });
+
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    expect(mockRefetchDogs).not.toHaveBeenCalled();
   });
 
   it('leaves a UKC class selectable for the same owner', async () => {

@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { buildClassDisambiguator } from '@/features/_shared/classLabel';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
@@ -82,7 +83,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const trialClasses = useTrialStore(s => s.trialClasses);
   const { classes: queryClasses = [] } = useClassStoreCompat();
   const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
-  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const { profile: exhibitorProfile, refetch: refetchExhibitorProfile } = useExhibitorProfile();
   const { status: syncStatus } = useReplicationSync();
   // 'idle' means sync hasn't started yet (status initialises to idle before
   // the first triggerSync() fires). Treat idle + syncing as loading so we
@@ -114,6 +115,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // MYK9-1010: the dog whose owner's missing address parts staff are filling.
   const [addressTarget, setAddressTarget] = useState<OwnerAddressFillTarget | null>(null);
   const isOwnAddress = (workflowMode ?? 'exhibitor') === 'exhibitor';
+  // MYK9-1973: "Add your address" opens the profile in a new tab; coming back
+  // re-reads the owner and the dogs (whose rows carry the owner) so the blocked
+  // class card clears without a reload.
+  useRefreshOnReturn(async () => {
+    refetch();
+    await refetchExhibitorProfile();
+  }, isOwnAddress);
 
   const cartItems = useCartItems();
   const cartShowId = useCartStore(state => state.cart?.show_id ?? null);

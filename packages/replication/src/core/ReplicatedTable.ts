@@ -1115,6 +1115,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       mergedData?: T;
       /** Fields to take from `remote` over the merged value (MYK9-1104). */
       adoptRemoteFields?: readonly string[];
+      /** Fields the server won (MYK9-2010): queued writes stop carrying them. */
+      dropQueuedFields?: readonly string[];
       /** The local row `version` the conflict check read. Adopting is skipped
        *  (row left dirty for the next pass) if the row has moved since. */
       detectedAtVersion?: number;
@@ -1203,6 +1205,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     if (rebaseQueue && params.remoteServerVersion !== undefined) {
       const rebuiltData = params.rebuildPayload?.(normalizedMerged);
       await this.reconcileQueuedMutations(normalizedId, params.remoteServerVersion, rebuiltData);
+    }
+
+    if (params.dropQueuedFields?.length) {
+      await this.mutationManager?.dropQueuedFieldsForRow?.(
+        this.tableName,
+        normalizedId,
+        params.dropQueuedFields
+      );
     }
 
     this.logger.log(

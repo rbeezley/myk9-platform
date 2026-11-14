@@ -19,7 +19,29 @@ import type { DirtyRowComparePolicy } from '@myk9/replication';
  */
 export const ENTRY_SERVER_OWNED_FIELDS = ['check_in_pulled_by', 'checkInPulledBy'] as const;
 
+/** The fields the check-in desk and the ring write; both spellings the local row carries. */
+const CHECK_IN_FIELDS: ReadonlySet<string> = new Set(['check_in_status', 'checkInStatus']);
+
+/**
+ * MYK9-2010 (owner decision 5): a check-in change and a score are different facts about the dog,
+ * so the app keeps both and never asks. When both sides moved the check-in status:
+ *   - the device saved a score: the dog is `completed`, unless the other side PULLED it, in which
+ *     case the pull stays (the score saves beside it, and Show Desk flags the dog as scored after
+ *     being pulled; nothing is written to say so, the pair is the flag);
+ *   - the device did not score: its in-ring start was only a marker, so the other side wins.
+ * Scores themselves are untouched: two devices scoring one dog differently still collide.
+ */
+function resolveCheckInCollision(
+  field: string,
+  { local, remote }: { local: Record<string, unknown>; remote: Record<string, unknown> }
+): 'device' | 'server' | undefined {
+  if (!CHECK_IN_FIELDS.has(field)) return undefined;
+  const scored = Boolean(local.is_scored ?? local.isScored);
+  return scored && remote[field] !== 'pulled' ? 'device' : 'server';
+}
+
 export const ENTRY_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   serverOwnedFields: ENTRY_SERVER_OWNED_FIELDS,
+  resolveCollision: resolveCheckInCollision,
   normalizeRemoteComparison: (_field, value) => (value === null ? undefined : value),
 };

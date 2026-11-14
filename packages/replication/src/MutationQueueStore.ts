@@ -3,7 +3,12 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
-import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
+import {
+  isMutationEmpty,
+  rebaseQueuedMutation,
+  rewriteQueuedMutations,
+  stripQueuedFields,
+} from './mutation-queue-rewrite';
 import { evictCleanCacheRows, withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
 
@@ -351,6 +356,39 @@ export class MutationQueueStore {
           `→ serverVersion ${newServerVersion}`
       );
     }
+    return changed;
+  }
+
+  /**
+   * MYK9-2010: the server won these fields of the row (a check-in change another device made),
+   * so this device's queued UPDATEs stop carrying them; the upload would otherwise put the
+   * device's stale value back. A mutation left with nothing to send is removed.
+   */
+  async dropQueuedFieldsForRow(
+    tableName: string,
+    rowId: string,
+    fields: readonly string[],
+    authUserId: string
+  ): Promise<number> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
+    const ids = all
+      .filter(
+        m =>
+          m.tableName === tableName &&
+          m.rowId === rowId &&
+          m.operation === 'UPDATE' &&
+          m.authUserId === authUserId
+      )
+      .map(m => m.id);
+    const emptied: string[] = [];
+    const changed = await rewriteQueuedMutations(db, ids, mutation => {
+      const stripped = stripQueuedFields(mutation, fields);
+      if (!stripped) return undefined;
+      if (isMutationEmpty(stripped)) emptied.push(stripped.id);
+      return stripped;
+    });
+    for (const id of emptied) await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, id);
     return changed;
   }
 

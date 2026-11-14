@@ -114,6 +114,21 @@ export interface DirtyRowComparePolicy {
    * List every spelling the local row carries (`snake_case` and `camelCase`).
    */
   serverOwnedFields?: readonly string[];
+  /**
+   * MYK9-2010: a field both sides changed to different values is not always a question for a
+   * person. Called only for such a collision; return `'device'` to keep the device's value
+   * (the row reconciles and the queued write goes out), `'server'` to take the server's, or
+   * `undefined` to surface it. Used where the two values are different facts about the row
+   * and one outranks the other (a check-in change never outranks a saved score).
+   */
+  resolveCollision?: (
+    field: string,
+    sides: {
+      base: Record<string, unknown>;
+      local: Record<string, unknown>;
+      remote: Record<string, unknown>;
+    }
+  ) => 'device' | 'server' | undefined;
 }
 
 export interface DirtyRowConflictInput<T extends object> {
@@ -136,6 +151,11 @@ export interface DirtyRowConflictResult {
    * waived server-wins fields. Absent when there are none.
    */
   adoptRemoteFields?: string[];
+  /**
+   * MYK9-2010: the fields `resolveCollision` gave to the server. The device's queued writes
+   * must stop carrying them, or the upload would put the device's value back over the server's.
+   */
+  serverWonFields?: string[];
 }
 
 export function detectDirtyRowConflict<T extends object>({
@@ -152,6 +172,7 @@ export function detectDirtyRowConflict<T extends object>({
   const respelled: string[] = [];
   const serverOwned = new Set(comparePolicy?.serverOwnedFields ?? []);
   const adoptServerOwned: string[] = [];
+  const adoptResolved: string[] = [];
   let agreedFields = 0;
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
   const conflicts: string[] = [];
@@ -179,6 +200,16 @@ export function detectDirtyRowConflict<T extends object>({
     const sidesDiffer = !deepEqual(localValue, remoteValue, asInstant);
 
     if (localChanged && remoteChanged && sidesDiffer) {
+      const verdict = comparePolicy?.resolveCollision?.(field, {
+        base: baseRecord,
+        local: localRecord,
+        remote: remoteRecord,
+      });
+      if (verdict === 'device') continue;
+      if (verdict === 'server') {
+        adoptResolved.push(field);
+        continue;
+      }
       conflicts.push(field);
     } else if (localChanged && remoteChanged) {
       // Both sides moved the field to the same value.
@@ -194,15 +225,19 @@ export function detectDirtyRowConflict<T extends object>({
     return {
       hasConflict: false,
       fields: [],
-      adoptRemoteFields: [...respelled, ...conflicts, ...adoptServerOwned].sort(),
+      adoptRemoteFields: [...respelled, ...conflicts, ...adoptServerOwned, ...adoptResolved].sort(),
+      ...(adoptResolved.length > 0 && { serverWonFields: [...adoptResolved].sort() }),
     };
   }
 
-  const adopt = conflicts.length > 0 ? [] : [...respelled, ...adoptServerOwned].sort();
+  const adopt =
+    conflicts.length > 0 ? [] : [...respelled, ...adoptServerOwned, ...adoptResolved].sort();
   return {
     hasConflict: conflicts.length > 0,
     fields: conflicts.sort(),
     ...(adopt.length > 0 && { adoptRemoteFields: adopt }),
+    ...(conflicts.length === 0 &&
+      adoptResolved.length > 0 && { serverWonFields: [...adoptResolved].sort() }),
   };
 }
 

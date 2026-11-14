@@ -2,7 +2,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_CLASS_NAME, fetchQueueAndClassName } from './proximityQueue.ts';
+import { DEFAULT_CLASS_NAME, fetchQueueAndClassName, isPaperClass } from './proximityQueue.ts';
 
 type Result = { data: unknown; error: { message: string } | null };
 
@@ -51,6 +51,7 @@ describe('fetchQueueAndClassName', () => {
       entryRows: [{ id: 'e1' }],
       entriesError: null,
       className: 'Novice Interior',
+      onPaper: false,
     });
   });
 
@@ -65,6 +66,21 @@ describe('fetchQueueAndClassName', () => {
       entryRows: null,
       entriesError: { message: 'down' },
       className: DEFAULT_CLASS_NAME,
+      onPaper: false,
     });
+  });
+
+  it('says a class is on paper by its own flag, else the show switch (MYK9-1970)', () => {
+    expect(isPaperClass({ scores_on_paper: true })).toBe(true);
+    expect(
+      isPaperClass({ scores_on_paper: false, trial: { show: { uses_device_scoring: false } } })
+    ).toBe(false);
+    expect(
+      isPaperClass({ scores_on_paper: null, trial: { show: { uses_device_scoring: false } } })
+    ).toBe(true);
+    expect(
+      isPaperClass({ scores_on_paper: null, trial: { show: { uses_device_scoring: true } } })
+    ).toBe(false);
+    expect(isPaperClass(null)).toBe(false);
   });
 });

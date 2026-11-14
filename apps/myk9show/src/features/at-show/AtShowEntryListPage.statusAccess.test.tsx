@@ -23,6 +23,13 @@ const viewer = vi.hoisted(() => ({
   selfCheckin: true,
   ownershipUnknown: false,
   online: true,
+  /** The server's claim for the own dog, or null when none has landed (offline, loading). */
+  claim: 'live' as 'live' | null,
+}));
+
+vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
+  useMyEntryQueuePlaces: () =>
+    new Map(viewer.claim ? [['c', { place: 3, claimState: viewer.claim }]] : []),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -165,6 +172,17 @@ describe('MYK9-1809 item 1: nothing about the line while entries are missing', (
   beforeEach(() => {
     viewer.role = 'EXHIBITOR';
     viewer.ownIds = ['c'];
+    viewer.claim = 'live';
+  });
+
+  it('counts no dogs ahead without a live claim, offline or while loading (MYK9-1970)', async () => {
+    viewer.claim = null;
+    seed(rows);
+    renderPage();
+
+    expect(await screen.findByText('Ring is clear')).toBeInTheDocument();
+    expect(screen.getByTestId('own-dog-queue-pill')).toHaveTextContent('Order may be out of date');
+    expect(screen.getByTestId('own-dog-queue-pill')).not.toHaveTextContent(/ahead|next/i);
   });
 
   it('shows the ring, up next and place in line once the show has arrived', async () => {

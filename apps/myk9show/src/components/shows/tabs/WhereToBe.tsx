@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
-import { formatRunQueueState } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { isTrialDayAhead, isTrialDayPast } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseLocalDateString } from '@/utils/dateLocal';
-import { withServerPlace } from '@/utils/showEntryRunQueue';
+import { isAwaitingServerPlace, withServerPlace } from '@/utils/showEntryRunQueue';
 import { formatFaultCount } from '@/features/_shared/faultLabel';
 import {
   getPendingResultLabel,
@@ -31,7 +31,7 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
   const scheduleEntries = entries.filter(entry => isRunnableScheduleStatus(entry.entryStatus));
   // Only dogs the row already calls waiting can take a server-counted place.
   const places = useMyEntryQueuePlaces(
-    scheduleEntries.filter(entry => entry.queue?.kind === 'waiting-unknown').map(e => e.entryId)
+    scheduleEntries.filter(entry => isAwaitingServerPlace(entry.queue)).map(e => e.entryId)
   );
   const { data: trials } = useShowTrials(showId);
   if (scheduleEntries.length === 0) return null;
@@ -100,7 +100,14 @@ function neverRan(entry: EnrichedShowEntry, trialTimezone: string | undefined): 
   if (entry.hasResult || entry.result) return false;
   if (entry.checkInStatus && entry.checkInStatus !== 'no-status') return false;
   const kind = entry.queue?.kind;
-  if (kind && kind !== 'waiting' && kind !== 'waiting-unknown') return false;
+  if (
+    kind &&
+    kind !== 'waiting' &&
+    kind !== 'waiting-unknown' &&
+    kind !== 'paper' &&
+    kind !== 'stale'
+  )
+    return false;
   // Never declare a day over before the trial's own zone is known: a guessed
   // zone would call a West Coast trial "Not run" while it is still that day.
   if (!trialTimezone) return false;
@@ -125,6 +132,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
   const didNotRun = neverRan(entry, trialTimezone);
   const futureDay = !didNotRun && isFutureDay(entry, trialTimezone);
   const queue = futureDay ? undefined : withServerPlace(entry.queue, places.get(entry.entryId));
+  const paperNote = runQueueStateNote(queue);
   const positionLabel = didNotRun
     ? 'Not run'
     : futureDay
@@ -200,6 +208,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
           {positionLabel && <span>{positionLabel}</span>}
           {checkInLabel && <span>{checkInLabel}</span>}
         </p>
+        {paperNote && <p className="text-xs text-muted-foreground">{paperNote}</p>}
       </div>
 
       <ResultChip entry={entry} didNotRun={didNotRun} />

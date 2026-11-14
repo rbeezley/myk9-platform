@@ -29,7 +29,9 @@ export function areDogsAheadEqual(a: DogsAheadResult | undefined, b: DogsAheadRe
   if (a === b) return true;
   if (!a || !b) return (a ?? null) === (b ?? null);
   if (a.kind !== b.kind) return false;
-  return a.kind === 'waiting' && b.kind === 'waiting' ? a.dogsAhead === b.dogsAhead : true;
+  if (a.kind === 'waiting' && b.kind === 'waiting') return a.dogsAhead === b.dogsAhead;
+  if (a.kind === 'paper' && b.kind === 'paper') return a.place === b.place;
+  return true;
 }
 
 export function areSortableEntryCardPropsEqual(

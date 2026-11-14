@@ -40,7 +40,7 @@ function showMyEntries(entries: MyClassEntry[]) {
   vi.mocked(useMyEntriesInClass).mockReturnValue({ myEntries: entries, isAfterClass: false });
 }
 
-function answer(rows: { entry_id: string; place: number | null }[]) {
+function answer(rows: { entry_id: string; place: number | null; claim_state?: string | null }[]) {
   rpc.mockResolvedValue({ data: rows, error: null });
 }
 
@@ -56,7 +56,7 @@ describe('ExhibitorClassCallout with a server place in line', () => {
 
   it('says "Next up" when the server counts the dog first in line', async () => {
     showMyEntries([classEntry()]);
-    answer([{ entry_id: 'e1', place: 1 }]);
+    answer([{ entry_id: 'e1', place: 1, claim_state: 'live' }]);
     render(<ExhibitorClassCallout classId="c1" />);
     expect(await screen.findByText('Next up')).toBeInTheDocument();
     expect(screen.queryByText(/ahead/)).not.toBeInTheDocument();
@@ -65,7 +65,7 @@ describe('ExhibitorClassCallout with a server place in line', () => {
 
   it('says "3rd up" and "2 dogs ahead", and no wait estimate', async () => {
     showMyEntries([classEntry()]);
-    answer([{ entry_id: 'e1', place: 3 }]);
+    answer([{ entry_id: 'e1', place: 3, claim_state: 'live' }]);
     render(<ExhibitorClassCallout classId="c1" />);
     expect(await screen.findByText('3rd up')).toBeInTheDocument();
     expect(screen.getByText('2 dogs ahead')).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('ExhibitorClassCallout with a server place in line', () => {
   it('keeps "Waiting" offline, and never asks the server', async () => {
     online = false;
     showMyEntries([classEntry()]);
-    answer([{ entry_id: 'e1', place: 1 }]);
+    answer([{ entry_id: 'e1', place: 1, claim_state: 'live' }]);
     render(<ExhibitorClassCallout classId="c1" />);
     await new Promise(r => setTimeout(r, 20));
     expect(screen.getByText('Waiting')).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('ExhibitorClassCallout with a server place in line', () => {
 
   it('drops back to "Waiting" when a refresh pauses, instead of a stale "Next up"', async () => {
     showMyEntries([classEntry()]);
-    answer([{ entry_id: 'e1', place: 1 }]);
+    answer([{ entry_id: 'e1', place: 1, claim_state: 'live' }]);
     const queryClient = createTestQueryClient();
     render(<ExhibitorClassCallout classId="c1" />, { queryClient });
     expect(await screen.findByText('Next up')).toBeInTheDocument();
@@ -112,9 +112,41 @@ describe('ExhibitorClassCallout with a server place in line', () => {
     expect(screen.queryByText('Next up')).not.toBeInTheDocument();
   });
 
+  it('shows a paper class as a position with the paper note, never a countdown (MYK9-1970)', async () => {
+    showMyEntries([classEntry()]);
+    answer([{ entry_id: 'e1', place: 7, claim_state: 'paper' }]);
+    render(<ExhibitorClassCallout classId="c1" />);
+    expect(await screen.findByText('7th in the running order')).toBeInTheDocument();
+    expect(
+      screen.getByText('This class is scored on paper. Listen for your number at the ring.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\bup$|dogs? ahead/)).not.toBeInTheDocument();
+  });
+
+  it('shows the paper line from the class this device holds when the server cannot answer', () => {
+    online = false;
+    onlineManager.setOnline(false);
+    showMyEntries([classEntry({ queue: { kind: 'paper' } })]);
+    render(<ExhibitorClassCallout classId="c1" scoresOnPaper />);
+    expect(screen.getByText('In the running order')).toBeInTheDocument();
+    expect(
+      screen.getByText('This class is scored on paper. Listen for your number at the ring.')
+    ).toBeInTheDocument();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(useMyEntriesInClass).toHaveBeenCalledWith('c1', undefined, true);
+  });
+
+  it('says the order may be out of date for a stale claim (MYK9-1970)', async () => {
+    showMyEntries([classEntry()]);
+    answer([{ entry_id: 'e1', place: 4, claim_state: 'stale' }]);
+    render(<ExhibitorClassCallout classId="c1" />);
+    expect(await screen.findByText('Order may be out of date')).toBeInTheDocument();
+    expect(screen.queryByText(/\bup$|dogs? ahead/)).not.toBeInTheDocument();
+  });
+
   it("never lets a place override the dog's own in-ring state", async () => {
     showMyEntries([classEntry({ queue: { kind: 'in-ring' } })]);
-    answer([{ entry_id: 'e1', place: 1 }]);
+    answer([{ entry_id: 'e1', place: 1, claim_state: 'live' }]);
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.getByText('In ring')).toBeInTheDocument();
     await new Promise(r => setTimeout(r, 20));
@@ -155,7 +187,7 @@ describe('WhereToBe with a server place in line', () => {
   }
 
   it('shows the counted place, and asks only about dogs that are waiting', async () => {
-    answer([{ entry_id: 'e1', place: 2 }]);
+    answer([{ entry_id: 'e1', place: 2, claim_state: 'live' }]);
     render(
       <WhereToBe
         entries={[
@@ -168,5 +200,19 @@ describe('WhereToBe with a server place in line', () => {
     expect(await screen.findByText('2nd up')).toBeInTheDocument();
     expect(screen.getByText('In ring')).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith('get_my_entry_queue_places', { p_entry_ids: ['e1'] });
+  });
+
+  it('words a paper class and a stale order the same way as the class page (MYK9-1970)', async () => {
+    answer([
+      { entry_id: 'e1', place: 7, claim_state: 'paper' },
+      { entry_id: 'e2', place: 3, claim_state: 'stale' },
+    ]);
+    render(<WhereToBe entries={[whereEntry({}), whereEntry({ entryId: 'e2' })]} showId="show-1" />);
+    expect(await screen.findByText('7th in the running order')).toBeInTheDocument();
+    expect(screen.getByText('Order may be out of date')).toBeInTheDocument();
+    expect(
+      screen.getByText('This class is scored on paper. Listen for your number at the ring.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\bup$/)).not.toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   fetchMyEntryQueuePlaces,
+  readOwnClaimStates,
   settledQueuePlaces,
   settledQueuePlacesWithFreshness,
   QUEUE_PLACES_REFETCH_MS,
@@ -32,7 +33,8 @@ vi.mock('@/services/replication', () => ({
 let online = true;
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => online }));
 
-const answered = new Map([['e1', 1]]);
+const live = (place: number) => ({ place, claimState: 'live' as const });
+const answered = new Map([['e1', live(1)]]);
 
 function state(overrides: Partial<QueuePlacesQueryState>): QueuePlacesQueryState {
   return {
@@ -46,8 +48,8 @@ function state(overrides: Partial<QueuePlacesQueryState>): QueuePlacesQueryState
 
 describe('settledQueuePlaces', () => {
   it('offers the places from a settled online answer', () => {
-    expect(settledQueuePlaces(state({}), true).get('e1')).toBe(1);
-    expect(settledQueuePlaces(state({ fetchStatus: 'fetching' }), true).get('e1')).toBe(1);
+    expect(settledQueuePlaces(state({}), true).get('e1')).toEqual(live(1));
+    expect(settledQueuePlaces(state({ fetchStatus: 'fetching' }), true).get('e1')).toEqual(live(1));
   });
 
   it.each([
@@ -64,7 +66,7 @@ describe('settledQueuePlaces', () => {
 describe('settledQueuePlacesWithFreshness', () => {
   it('stamps a settled online answer with when it landed', () => {
     const result = settledQueuePlacesWithFreshness({ ...state({}), dataUpdatedAt: 1234 }, true);
-    expect(result.places.get('e1')).toBe(1);
+    expect(result.places.get('e1')).toEqual(live(1));
     expect(result.updatedAt).toBe(1234);
   });
 
@@ -82,7 +84,27 @@ describe('settledQueuePlacesWithFreshness', () => {
 
 describe('withServerPlace', () => {
   it('turns a waiting dog with a server place into that place', () => {
-    expect(withServerPlace({ kind: 'waiting-unknown' }, 2)).toEqual({ kind: 'waiting', place: 2 });
+    expect(withServerPlace({ kind: 'waiting-unknown' }, live(2))).toEqual({
+      kind: 'waiting',
+      place: 2,
+    });
+  });
+
+  it('reads the server claim state: paper is a position, stale is out of date (MYK9-1970)', () => {
+    expect(withServerPlace({ kind: 'waiting-unknown' }, { place: 7, claimState: 'paper' })).toEqual(
+      { kind: 'paper', place: 7 }
+    );
+    expect(withServerPlace({ kind: 'waiting-unknown' }, { place: 7, claimState: 'stale' })).toEqual(
+      { kind: 'stale' }
+    );
+    // A device that holds the class as paper shows the paper line with no place, offline.
+    expect(withServerPlace({ kind: 'paper' }, undefined)).toEqual({ kind: 'paper' });
+    expect(withServerPlace({ kind: 'paper' }, { place: 7, claimState: 'paper' })).toEqual({
+      kind: 'paper',
+      place: 7,
+    });
+    // The server wins over the device's mirror when the switch has flipped since the class synced.
+    expect(withServerPlace({ kind: 'paper' }, live(3))).toEqual({ kind: 'waiting', place: 3 });
   });
 
   it("keeps the row's own state when there is no place", () => {
@@ -92,10 +114,10 @@ describe('withServerPlace', () => {
   });
 
   it('never lets a place override in ring, done, pulled, or an unset order', () => {
-    expect(withServerPlace({ kind: 'in-ring' }, 1)).toEqual({ kind: 'in-ring' });
-    expect(withServerPlace({ kind: 'done' }, 1)).toEqual({ kind: 'done' });
-    expect(withServerPlace({ kind: 'pulled' }, 1)).toEqual({ kind: 'pulled' });
-    expect(withServerPlace(null, 1)).toBeNull();
+    expect(withServerPlace({ kind: 'in-ring' }, live(1))).toEqual({ kind: 'in-ring' });
+    expect(withServerPlace({ kind: 'done' }, live(1))).toEqual({ kind: 'done' });
+    expect(withServerPlace({ kind: 'pulled' }, live(1))).toEqual({ kind: 'pulled' });
+    expect(withServerPlace(null, live(1))).toBeNull();
   });
 });
 
@@ -107,19 +129,24 @@ describe('fetchMyEntryQueuePlaces', () => {
   it('calls the RPC with the entry ids and keeps only real places', async () => {
     rpc.mockResolvedValue({
       data: [
-        { entry_id: 'e1', place: 1 },
-        { entry_id: 'e2', place: null },
-        { entry_id: 'e3', place: 3 },
+        { entry_id: 'e1', place: 1, claim_state: 'live' },
+        { entry_id: 'e2', place: null, claim_state: null },
+        { entry_id: 'e3', place: 3, claim_state: 'paper' },
+        { entry_id: 'e4', place: 4, claim_state: 'stale' },
+        { entry_id: 'e5', place: 5 },
       ],
       error: null,
     });
-    const places = await fetchMyEntryQueuePlaces(['e1', 'e2', 'e3']);
+    const places = await fetchMyEntryQueuePlaces(['e1', 'e2', 'e3', 'e4', 'e5']);
     expect(rpc).toHaveBeenCalledWith('get_my_entry_queue_places', {
-      p_entry_ids: ['e1', 'e2', 'e3'],
+      p_entry_ids: ['e1', 'e2', 'e3', 'e4', 'e5'],
     });
     expect([...places]).toEqual([
-      ['e1', 1],
-      ['e3', 3],
+      ['e1', live(1)],
+      ['e3', { place: 3, claimState: 'paper' }],
+      ['e4', { place: 4, claimState: 'stale' }],
+      // A place with no claim state is never read as a live count.
+      ['e5', { place: 5, claimState: 'stale' }],
     ]);
   });
 
@@ -141,14 +168,20 @@ describe('useMyEntryQueuePlaces', () => {
   });
 
   it('returns the server places when online', async () => {
-    rpc.mockResolvedValue({ data: [{ entry_id: 'e1', place: 2 }], error: null });
+    rpc.mockResolvedValue({
+      data: [{ entry_id: 'e1', place: 2, claim_state: 'live' }],
+      error: null,
+    });
     const { result } = renderHook(() => useMyEntryQueuePlaces(['e1']), { wrapper });
-    await waitFor(() => expect(result.current.get('e1')).toBe(2));
+    await waitFor(() => expect(result.current.get('e1')).toEqual(live(2)));
   });
 
   it('neither asks nor answers while offline', async () => {
     online = false;
-    rpc.mockResolvedValue({ data: [{ entry_id: 'e1', place: 1 }], error: null });
+    rpc.mockResolvedValue({
+      data: [{ entry_id: 'e1', place: 1, claim_state: 'live' }],
+      error: null,
+    });
     const { result } = renderHook(() => useMyEntryQueuePlaces(['e1']), { wrapper });
     await new Promise(r => setTimeout(r, 20));
     expect(rpc).not.toHaveBeenCalled();
@@ -189,7 +222,10 @@ describe('useMyEntryQueuePlaces refresh cadence', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     replica.listeners.clear();
-    rpc.mockReset().mockResolvedValue({ data: [{ entry_id: 'e1', place: 2 }], error: null });
+    rpc.mockReset().mockResolvedValue({
+      data: [{ entry_id: 'e1', place: 2, claim_state: 'live' }],
+      error: null,
+    });
     online = true;
   });
 
@@ -241,6 +277,37 @@ describe('useMyEntryQueuePlaces refresh cadence', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(QUEUE_PLACES_REPLICA_COALESCE_MS + 100);
     });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('readOwnClaimStates (MYK9-1970)', () => {
+  beforeEach(() => {
+    rpc.mockReset();
+  });
+
+  it('reads the claim state of each own entry the server answers for', async () => {
+    rpc.mockResolvedValue({
+      data: [
+        { entry_id: 'e1', place: 2, claim_state: 'paper' },
+        { entry_id: 'e2', place: 5, claim_state: 'live' },
+        { entry_id: 'e3', place: null, claim_state: null },
+      ],
+      error: null,
+    });
+    expect([...(await readOwnClaimStates(['e1', 'e2', 'e3']))]).toEqual([
+      ['e1', 'paper'],
+      ['e2', 'live'],
+    ]);
+  });
+
+  it('is empty when the read fails, so the caller falls back to the class flag', async () => {
+    rpc.mockResolvedValue({ data: null, error: new Error('offline') });
+    expect((await readOwnClaimStates(['e1'])).size).toBe(0);
+  });
+
+  it('does not ask for no entries', async () => {
+    expect((await readOwnClaimStates([])).size).toBe(0);
     expect(rpc).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { everyEntryHandledByOwner, wizardStepStride } from './ownerHandledEntries';
 import { WORKFLOW_CONFIGS } from './RegistrationWorkflow.constants';
+import type { ClassSelectionData } from '@/types/show-registration-types';
 
-const selections = [
-  { dogId: 'dog-1', selectedClasses: [{ classId: 'c1' }, { classId: 'c2' }] },
-] as Parameters<typeof everyEntryHandledByOwner>[0];
+const selections: ClassSelectionData[] = [
+  { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'c1' }, { classId: 'c2' }] },
+];
 
 const owner = { handlerId: 'p-1', handlerName: 'Pat Owner', isOwner: true };
 const other = { handlerId: 'p-2', handlerName: 'Sam Handler', isOwner: false };

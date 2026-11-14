@@ -66,6 +66,10 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   };
 });
 
+// The page is a large tree: under the CPU load of a sharded CI run, the first paint and the route
+// swap after a tap can each pass testing-library's 1 s default, so the waits say how long they allow.
+const WAIT_MS = 5000;
+
 const settledSyncStatus: ReplicationSyncContextValue['status'] = {
   isSyncing: false,
   lastSyncAt: new Date('2026-06-01T12:00:00Z'),
@@ -73,7 +77,7 @@ const settledSyncStatus: ReplicationSyncContextValue['status'] = {
   tablesStatus: { shows: 'success', trials: 'success', classes: 'success', entries: 'success' },
 };
 
-function renderPage(classStatus: string) {
+function renderPage(classStatus: string, replicaAnswers = true) {
   vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
     name: 'Spring Trial',
     organization: 'AKC Scent Work',
@@ -91,7 +95,7 @@ function renderPage(classStatus: string) {
   vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(classRow as never);
   // The guard reads the class replica live: emit the row the way the real table does.
   vi.mocked(replicatedClassesTable.subscribe).mockImplementation(listener => {
-    listener([classRow] as never);
+    if (replicaAnswers) listener([classRow] as never);
     return () => undefined;
   });
   vi.mocked(replicatedTrialsTable.getTrialById).mockResolvedValue({
@@ -139,19 +143,46 @@ describe('AtShowEntryListPage with a cancelled class (MYK9-1847)', () => {
     localStorage.clear();
   });
 
+  // A tap made before the class replica has answered is held (MYK9-1911), and the replica answers
+  // from its own read, so a tap can land first under load. The test taps again until the page has
+  // the class's status; every attempt is a real tap on the dog.
+  const tapRunner = () => fireEvent.click(screen.getByText('Runner'));
+
   it('does not open the scoresheet when a dog is tapped, and says why', async () => {
     renderPage('cancelled');
-    fireEvent.click(await screen.findByText('Runner'));
+    await screen.findByText('Runner', {}, { timeout: WAIT_MS });
 
-    await waitFor(() => expect(toastInfo).toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE));
+    await waitFor(
+      () => {
+        tapRunner();
+        expect(toastInfo).toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE);
+      },
+      { timeout: WAIT_MS }
+    );
     expect(screen.queryByTestId('scoresheet-route')).not.toBeInTheDocument();
   });
 
   it('opens the scoresheet for the same dog once the class is running', async () => {
     renderPage('in_progress');
-    fireEvent.click(await screen.findByText('Runner'));
+    await screen.findByText('Runner', {}, { timeout: WAIT_MS });
 
-    expect(await screen.findByTestId('scoresheet-route')).toBeInTheDocument();
+    await waitFor(
+      () => {
+        tapRunner();
+        expect(screen.getByTestId('scoresheet-route')).toBeInTheDocument();
+      },
+      { timeout: WAIT_MS }
+    );
     expect(toastInfo).not.toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE);
+  });
+
+  it('does not open the scoresheet while the class replica has not answered yet', async () => {
+    renderPage('cancelled', false);
+    await screen.findByText('Runner', {}, { timeout: WAIT_MS });
+
+    tapRunner();
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(screen.queryByTestId('scoresheet-route')).not.toBeInTheDocument();
   });
 });

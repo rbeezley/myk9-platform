@@ -26,7 +26,7 @@
  */
 
 import { mergeSectionCancellation } from '@myk9/ringside/run-queue';
-import { useIsClassCancelledFor } from './cancelledClassGuard';
+import { useClassCancelledStatus, useHoldTapUntilKnown } from './cancelledClassGuard';
 import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
@@ -145,7 +145,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   });
 
   // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
-  const isClassCancelled = useIsClassCancelledFor([classIdA, classIdB]);
+  const { isClassCancelled, known: cancelledKnown } = useClassCancelledStatus([classIdA, classIdB]);
   // The header carries section A's status. Cancelled reads for the pair only when every section is
   // cancelled; with just A cancelled the header drops it rather than call B's dogs cancelled too.
   const allSectionsCancelled = mergeSectionCancellation(
@@ -253,7 +253,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   });
 
   // MYK9-1099: a judge-set class with no max time asks for it before the first dog.
-  const { gateEntryClick } = useMaxTimeGate({
+  const { gateEntryClick: maxTimeGateEntryClick } = useMaxTimeGate({
     classIds: [classIdA, classIdB].filter((id): id is string => !!id),
     ready: uiState.hasCompletedInitialLoad,
     canSetMaxTime: hasPermission('canManageClasses'),
@@ -261,6 +261,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     setMaxTimeDialogOpen: uiActions.setMaxTimeDialogOpen,
     setMaxTimeRequiredWarning: uiActions.setMaxTimeRequiredWarning,
   });
+
+  const gateEntryClick = useHoldTapUntilKnown(cancelledKnown, maxTimeGateEntryClick);
 
   const replication = useMemo(() => buildRingsideReplication(), []);
   // The pair rides on the scoresheet URL so its Back (and next-dog) return to

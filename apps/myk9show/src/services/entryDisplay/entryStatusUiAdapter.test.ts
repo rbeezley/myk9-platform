@@ -46,10 +46,9 @@ describe('mapEntryStatus — raw entry_status → UI enum (single classifier)', 
     }
   });
 
-  it('resolves the underscore move_up_requested spelling like its hyphen twin', () => {
-    // Intentional change from the old switch (which let the underscore form fall
-    // through to PENDING): both constraint-permitted spellings are the same state.
-    expect(mapEntryStatus('move_up_requested')).toBe(EntryStatus.MOVE_UP_REQUESTED);
+  it('maps the hyphen move-up request and no longer knows the retired underscore spelling', () => {
+    expect(mapEntryStatus('move-up-requested')).toBe(EntryStatus.MOVE_UP_REQUESTED);
+    expect(mapEntryStatus('move_up_requested')).toBe(EntryStatus.PENDING);
   });
 
   it('maps unknown / null / undefined to PENDING (safe default)', () => {

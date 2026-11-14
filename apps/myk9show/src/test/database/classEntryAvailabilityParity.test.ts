@@ -81,7 +81,7 @@ describe('class_entry_availability parity', () => {
 
     // Positive controls: the extraction found the lists it compares.
     expect(evaluateRest).toEqual([]);
-    expect(evaluateList).toHaveLength(7);
+    expect(evaluateList).toHaveLength(8);
     expect(judgeDayLists).toHaveLength(1);
     expect(availabilityLists).toHaveLength(1);
 

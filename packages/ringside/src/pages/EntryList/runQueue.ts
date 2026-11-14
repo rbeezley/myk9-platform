@@ -83,7 +83,6 @@ const WAITING_STATUSES: ReadonlySet<string> = new Set([
   'pending-payment',
   'promotion-expired',
   'move-up-requested',
-  'move_up_requested', // both spellings are live in entries_entry_status_check
   'competing',
 ]);
 

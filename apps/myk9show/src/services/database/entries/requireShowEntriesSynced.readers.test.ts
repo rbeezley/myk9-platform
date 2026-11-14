@@ -145,7 +145,7 @@ function entry(id: string, entryStatus: string, moveUp = false) {
 
 // The one row a check-in on a fresh device leaves behind.
 const ONE_LOCAL_WRITE = [entry('checked-in-here', 'confirmed')];
-// The show as the server holds it: the class is full, one move-up is pending.
+// The show as the server holds it: the class is full, and a pending move-up still holds its seat (3 of 2).
 const WHOLE_SHOW = [
   entry('checked-in-here', 'confirmed'),
   entry('other', 'confirmed'),
@@ -220,7 +220,7 @@ describe('show-scoped local readers on a show that has not synced (MYK9-761)', (
       const result = await getClassesWithCapacity(SHOW_ID);
       expect(result.error).toBeNull();
       expect(result.data[0]).toEqual(
-        expect.objectContaining({ id: 'class-1', accepted_count: 2, available_spots: 0 })
+        expect.objectContaining({ id: 'class-1', accepted_count: 3, available_spots: 0 })
       );
     });
 
@@ -302,7 +302,7 @@ describe('show-scoped local readers on a show that has not synced (MYK9-761)', (
     state.synced = true;
     const result = await getClassesWithCapacity(SHOW_ID);
     expect(result.error).toBeNull();
-    expect(result.data[0]).toEqual(expect.objectContaining({ accepted_count: 2 }));
+    expect(result.data[0]).toEqual(expect.objectContaining({ accepted_count: 3 }));
     expect(state.sync).not.toHaveBeenCalled();
   });
 });

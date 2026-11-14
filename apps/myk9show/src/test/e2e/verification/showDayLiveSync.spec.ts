@@ -70,9 +70,9 @@ function desk(page: Page, className: string) {
     inRingTile: page.getByTestId('in-ring-tile'),
     nextUp: page.getByRole('list', { name: 'Next up' }).getByRole('listitem'),
     entryRow: (dog: string): Locator => entries.filter({ hasText: dog }),
-    // The selected class's schedule row, found from its pressed title button.
+    // The class's schedule row, found from its title button (the unique name is in its text).
     scheduleLine: page
-      .getByRole('button', { name: className, pressed: true })
+      .locator('button[data-selects-row]', { hasText: className })
       .locator('xpath=ancestor::div[.//*[@data-testid="class-status-line"]][1]')
       .getByTestId('class-status-line'),
   };

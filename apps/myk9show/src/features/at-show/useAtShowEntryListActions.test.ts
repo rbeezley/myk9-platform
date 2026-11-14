@@ -12,9 +12,9 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 const updateEntry = vi.fn<(id: string, updates: Record<string, unknown>) => Promise<string | null>>(
   () => Promise.resolve('mutation-1')
 );
-const updateSelfCheckInStatus = vi.fn<(id: string, status: string) => Promise<void>>(() =>
-  Promise.resolve()
-);
+const updateSelfCheckInStatus = vi.fn<
+  (id: string, status: string, expected?: unknown) => Promise<number | undefined>
+>(() => Promise.resolve(undefined));
 
 // The row `updateEntryWith` hands its builder (the hydrated row the real table
 // writes against); the builder's payload lands in `updateEntry`.
@@ -30,12 +30,17 @@ vi.mock('@/services/replication', () => ({
 vi.mock('@/services/show-day/checkInStatus', () => ({
   updateReplicatedCheckInStatus: (id: string, status: string) =>
     updateEntry(id, { checkInStatus: status, check_in_status: status }),
-  updateSelfCheckInStatus: (id: string, status: string) => updateSelfCheckInStatus(id, status),
+  updateSelfCheckInStatus: (id: string, status: string, expected?: unknown) =>
+    expected === undefined
+      ? updateSelfCheckInStatus(id, status)
+      : updateSelfCheckInStatus(id, status, expected),
+  isStaleCheckIn: (error: unknown) => (error as Error | undefined)?.name === 'StaleCheckInError',
 }));
 vi.mock('@/utils/logger', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn() },
 }));
 
+import { SelfCheckinRefusedError } from './entryStatusAccess';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import type { CheckInWriter } from '@/services/show-day/checkInStatus';
 
@@ -207,6 +212,51 @@ describe('useAtShowEntryListActions', () => {
       expect(updateSelfCheckInStatus).toHaveBeenCalledWith('a', 'pulled');
       expect(updateSelfCheckInStatus).toHaveBeenCalledWith('b', 'pulled');
       expect(updateEntry).not.toHaveBeenCalled();
+    });
+
+    it("remembers the version a Pull produced and sends it back with that Pull's Undo (MYK9-1911)", async () => {
+      updateSelfCheckInStatus.mockResolvedValueOnce(7);
+      const { result } = render('self-checkin-rpc');
+      await act(async () => {
+        await result.current.handleStatusChange('entry-uuid-1', 'pulled');
+      });
+      expect(result.current.lastWriteVersion('entry-uuid-1')).toBe(7);
+
+      await act(async () => {
+        await result.current.handleUndoPull('entry-uuid-1', 'checked-in', 7);
+      });
+      expect(updateSelfCheckInStatus).toHaveBeenLastCalledWith('entry-uuid-1', 'checked-in', {
+        status: 'pulled',
+        pullSource: 'exhibitor',
+        version: 7,
+      });
+    });
+
+    it('rethrows a stale Undo refusal and leaves the refresh to the handler', async () => {
+      const stale = Object.assign(new Error('stale'), { name: 'StaleCheckInError' });
+      updateSelfCheckInStatus.mockRejectedValueOnce(stale);
+      const { result } = render('self-checkin-rpc');
+      await expect(
+        act(async () => {
+          await result.current.handleUndoPull('entry-uuid-2', 'checked-in', 3);
+        })
+      ).rejects.toBe(stale);
+      expect(refresh).not.toHaveBeenCalled();
+      // The server answered: nothing is waiting to send, so no "could not be sent" signal.
+      expect(result.current.hasError).toBe(false);
+    });
+
+    it('keeps a not-allowed Undo out of the send-failure signal and words it as a refusal', async () => {
+      updateSelfCheckInStatus.mockRejectedValueOnce(
+        new Error('Not authorized: caller does not own entry')
+      );
+      const { result } = render('self-checkin-rpc');
+      await expect(
+        act(async () => {
+          await result.current.handleUndoPull('entry-uuid-2', 'checked-in', 3);
+        })
+      ).rejects.toBeInstanceOf(SelfCheckinRefusedError);
+      expect(result.current.hasError).toBe(false);
     });
 
     it('surfaces hasError when the self-check-in RPC cannot be reached', async () => {

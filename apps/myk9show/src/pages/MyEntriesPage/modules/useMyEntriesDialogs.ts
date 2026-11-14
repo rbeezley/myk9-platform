@@ -9,6 +9,7 @@
  * @module MyEntriesPage/modules/useMyEntriesDialogs
  */
 
+import { isStaleCheckIn, type ExpectedCheckIn } from '@/services/show-day/checkInStatus';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -40,8 +41,9 @@ export interface UseMyEntriesDialogsOptions {
     entryId: string,
     classId: string,
     status: CheckInStatus,
-    notes?: string
-  ) => Promise<void>;
+    notes?: string,
+    expected?: ExpectedCheckIn
+  ) => Promise<number | undefined | void>;
   refreshEntries: () => Promise<void>;
 }
 
@@ -165,7 +167,8 @@ export function useMyEntriesDialogs({
 
       // Captured before the write, so Undo can put back exactly what the dog had.
       const priorStatus: CheckInStatus = classEntry.checkInStatus || 'no-status';
-      await updateEntryCheckIn(entry.id, classEntry.id, status, notes);
+      // The version this Pull produced: its Undo is refused if anything wrote the entry since.
+      const pullVersion = await updateEntryCheckIn(entry.id, classEntry.id, status, notes);
       setCheckInDialog(CLOSED_CHECK_IN);
       // `self_checkin_entry` refuses staff-set statuses (come-to-gate, in-ring, completed),
       // so Undo is offered only when the exhibitor's write path can restore the prior one.
@@ -182,14 +185,27 @@ export function useMyEntriesDialogs({
               replicaMayLag: true,
               restore: () =>
                 updateEntryCheckInRef
-                  .current(entry.id, classEntry.id, priorStatus)
-                  .catch(() => toast.error(`We could not undo that. Please try again.`)),
+                  .current(entry.id, classEntry.id, priorStatus, undefined, {
+                    status: 'pulled',
+                    pullSource: 'exhibitor',
+                    ...(typeof pullVersion === 'number' && { version: pullVersion }),
+                  })
+                  .catch(async error => {
+                    // A superseded Undo gets the guard's own notice, not a retry prompt. The
+                    // failed write rolled the card back to Pulled; re-read so it shows the
+                    // status that actually superseded the Pull.
+                    if (isStaleCheckIn(error)) {
+                      await refreshEntries().catch(() => undefined);
+                      throw error;
+                    }
+                    toast.error(`We could not undo that. Please try again.`);
+                  }),
             });
           },
         });
       }
     },
-    [checkInDialog, updateEntryCheckIn]
+    [checkInDialog, updateEntryCheckIn, refreshEntries]
   );
 
   // INTENT: single write path. This is a LOOP over the same

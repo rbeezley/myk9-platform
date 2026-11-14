@@ -4,6 +4,7 @@
  * @module MyEntriesPage/hooks
  */
 
+import type { ExpectedCheckIn } from '@/services/show-day/checkInStatus';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CLASS_NOT_PUBLISHED_LABEL, CLASS_DETAILS_UNAVAILABLE_LABEL } from './myShowsCopy';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -83,8 +84,9 @@ interface UseMyEntriesDataReturn {
     entryId: string,
     classId: string,
     status: CheckInStatus,
-    notes?: string
-  ) => Promise<void>;
+    notes?: string,
+    expected?: ExpectedCheckIn
+  ) => Promise<number | undefined>;
 }
 
 /**
@@ -98,10 +100,13 @@ interface PersistCheckInStatusInput {
   entryId: string;
   classId: string;
   newStatus: CheckInStatus;
+  /** Set by a Pull Undo: the server refuses the write if the entry no longer matches (MYK9-1911). */
+  expected?: ExpectedCheckIn;
 }
 
 interface UseMyEntriesDataOptions {
-  persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<unknown>;
+  /** Resolves to the entry version the write produced, when the writer reports one. */
+  persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<number | undefined | void>;
 }
 
 type OwnEntryResultRow = Record<string, unknown> & {
@@ -553,7 +558,13 @@ export function useMyEntriesData({
    * Updates check-in status for a class entry
    */
   const updateEntryCheckIn = useCallback(
-    async (entryId: string, classId: string, status: CheckInStatus, notes?: string) => {
+    async (
+      entryId: string,
+      classId: string,
+      status: CheckInStatus,
+      notes?: string,
+      expected?: ExpectedCheckIn
+    ): Promise<number | undefined> => {
       // After grouping, entry.id is the first class row's id and may differ from
       // classId. Find the grouped card that contains the target class instead.
       const entry = visibleEntries.find(
@@ -561,8 +572,9 @@ export function useMyEntriesData({
       );
       const classEntry = entry?.classes.find(c => c.id === classId);
 
-      if (!entry || !classEntry) return;
+      if (!entry || !classEntry) return undefined;
 
+      let persistedVersion: number | undefined;
       const previousStatus = classEntry.checkInStatus;
       const previousTime = classEntry.checkInTime;
 
@@ -592,7 +604,13 @@ export function useMyEntriesData({
 
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
-        await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
+        const persisted = await persistCheckInStatus({
+          entryId: classId,
+          classId,
+          newStatus: status,
+          ...(expected && { expected }),
+        });
+        persistedVersion = typeof persisted === 'number' ? persisted : undefined;
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update
@@ -642,6 +660,7 @@ export function useMyEntriesData({
           notes,
         },
       });
+      return persistedVersion;
     },
     [persistCheckInStatus, user?.id, visibleEntries]
   );

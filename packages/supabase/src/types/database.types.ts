@@ -15396,8 +15396,14 @@ export type Database = {
       seed_demo_retire_stale_fixture_shows: { Args: never; Returns: number }
       seed_demo_show_day_fixture_today: { Args: never; Returns: string }
       self_checkin_entry: {
-        Args: { p_entry_id: string; p_new_status: string }
-        Returns: undefined
+        Args: {
+          p_entry_id: string
+          p_expected_pull_source?: string
+          p_expected_status?: string
+          p_expected_version?: number
+          p_new_status: string
+        }
+        Returns: number
       }
       send_waitlist_offer_message: {
         Args: { p_payment_link_url?: string; p_waitlist_entry_id: string }

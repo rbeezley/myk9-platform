@@ -175,6 +175,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1596_admin_delete_override_test.sql"
   "$TEST_DIR/myk9_1753_flagged_pull_test.sql"
   "$TEST_DIR/myk9_1757_pull_source_test.sql"
+  "$TEST_DIR/myk9_1911_self_checkin_expected_status_test.sql"
   "$TEST_DIR/myk9_980_move_up_pending_and_reentry_test.sql"
   "$TEST_DIR/myk9_1265_change_class_check_in_test.sql"
   "$TEST_DIR/myk9_964_replayable_cart_fulfillment_test.sql"

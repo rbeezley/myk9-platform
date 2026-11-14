@@ -19,13 +19,14 @@ import type {
   EntryListHandlers,
   EntryListActions,
   EntryStatusChange,
+  EntryStatusCheckIn,
   LongPressHandlers,
   RunOrderPreset,
   RingsideReplication,
   Entry,
 } from '@myk9/ringside';
 import { toast } from 'sonner';
-import type { CheckInWriter } from '@/services/show-day/checkInStatus';
+import { isStaleCheckIn, type CheckInWriter } from '@/services/show-day/checkInStatus';
 import { offerPullUndo } from './offerPullUndo';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
@@ -37,9 +38,24 @@ import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 import { useAtShowResetHandlers, type ResetConfirmState } from './useAtShowResetHandlers';
 import { SELF_CHECKIN_REFUSED_MESSAGE, isSelfCheckinRefusal } from './entryStatusAccess';
 
+/** `handleStatusChange`, plus a flag marking the write as an exhibitor's Pull Undo (MYK9-1911). */
+type StatusChangeHandler = (
+  entryId: string,
+  status: EntryStatusChange,
+  undoOfPull?: { pullVersion?: number | undefined } | undefined
+) => Promise<void>;
+
 export interface UseAtShowEntryListHandlersDeps {
   /** Mutation bag from `useAtShowEntryListActions`. */
-  actions: EntryListActions & { writer?: CheckInWriter | undefined };
+  actions: EntryListActions & {
+    writer?: CheckInWriter | undefined;
+    /** Exhibitor Pull Undo that the server refuses when a newer status superseded the Pull. */
+    handleUndoPull?:
+      | ((entryId: string, prior: EntryStatusCheckIn, pullVersion?: number) => Promise<void>)
+      | undefined;
+    /** The entry version the exhibitor's latest write produced (the Pull's identity). */
+    lastWriteVersion?: ((entryId: string) => number | undefined) | undefined;
+  };
   /** Replication capability (for the class-status dialog). */
   replication: RingsideReplication;
   /** Route param. */
@@ -243,9 +259,9 @@ export function useAtShowEntryListHandlers(
   // NOTE: this does NOT make the exhibitor's status survive a reload -- only a
   // real write into the replicated store would, and that path is blocked for
   // exhibitors by design. Tracked separately.
-  const handleStatusChangeRef = useRef<EntryListHandlers['handleStatusChange'] | null>(null);
-  const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
-    async (entryId, status: EntryStatusChange) => {
+  const handleStatusChangeRef = useRef<StatusChangeHandler | null>(null);
+  const handleStatusChange = useCallback<StatusChangeHandler>(
+    async (entryId, status: EntryStatusChange, undoOfPull) => {
       setActiveStatusPopup(null);
       if (isEntryCancelled(entryId)) {
         toast.info(CANCELLED_CLASS_MESSAGE);
@@ -285,25 +301,43 @@ export function useAtShowEntryListHandlers(
           await actions.handleMarkCompleted(entryId);
           return;
         }
+        if (undoOfPull && actions.handleUndoPull) {
+          await actions.handleUndoPull(entryId, status, undoOfPull.pullVersion);
+          return;
+        }
         await actions.handleStatusChange(entryId, status);
         if (status === 'pulled') {
-          offerPullUndo(
-            previous,
-            actions.writer,
-            prior => void handleStatusChangeRef.current?.(entryId, prior)
+          // Read now: a later write to this entry replaces it, and the Undo names THIS Pull.
+          const pullVersion = actions.lastWriteVersion?.(entryId);
+          offerPullUndo(previous, actions.writer, prior =>
+            handleStatusChangeRef.current?.(entryId, prior, { pullVersion })
           );
         }
       } catch (error) {
         // Showing a status the server rejected is worse than showing none: the
         // gate would be worked from a check-in that does not exist.
         rollback();
+        // The Pull Undo's own guard turns this refusal into the plain-words notice.
+        if (undoOfPull && isStaleCheckIn(error)) {
+          // The dog changed on another device. The rollback above shows our old local copy; a
+          // forced sync pulls the newer status and the page mirrors it over that copy. Sync
+          // AFTER the rollback so nothing stale lands on top. Offline: keep the rolled-back card.
+          try {
+            await refresh(true);
+          } catch (syncError) {
+            logger.warn('[at-show] sync after a refused Undo failed', 'at-show', {
+              error: String(syncError),
+            });
+          }
+          throw error;
+        }
         // The server turned the change away (not their dog, or check-in went off meanwhile): say
         // so in plain words. The writer already kept it off the "could not be sent" pill.
         if (isSelfCheckinRefusal(error)) toast.error(SELF_CHECKIN_REFUSED_MESSAGE);
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, isEntryCancelled, statusRefusalFor, setActiveStatusPopup, setLocalEntries]
+    [actions, isEntryCancelled, statusRefusalFor, setActiveStatusPopup, setLocalEntries, refresh]
   );
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import { replicatedEntriesTable } from '@/services/replication';
 import { logger } from '@/services/LoggingService';
+import { isStaleCheckIn } from '@/services/show-day/checkInStatus';
 
 /**
  * MYK9-1880: a Pull's Undo may only put back the status the Pull replaced while that Pull is
@@ -16,7 +17,9 @@ import { logger } from '@/services/LoggingService';
  *    Consulting it would refuse a normal Undo, so it is not read at all. Only the per-device
  *    token decides: a later Pull on this device kills the older toast's Undo.
  * Not detectable client-side: another device changing or re-pulling the dog while an exhibitor's
- * Undo is showing. That needs the server predicate on `self_checkin_entry` (MYK9-1911).
+ * Undo is showing. The server catches it (MYK9-1911): the exhibitor Undo write carries the status
+ * and Pull source it expects to replace, `self_checkin_entry` refuses it when the row moved on,
+ * and `restore` rejecting with that refusal gets the same notice as a client-side detection.
  */
 const latestPullToken = new Map<string, number>();
 let nextToken = 0;
@@ -39,6 +42,10 @@ async function currentReplicaStatus(entryId: string): Promise<string | null> {
   }
 }
 
+function notifyPullUndoSuperseded(callName: string): void {
+  toast.info(`${callName}'s status changed after the Pull, so Undo did nothing.`);
+}
+
 export interface PullUndoRequest {
   entryId: string;
   token: number;
@@ -55,9 +62,15 @@ export async function undoPullIfCurrent(request: PullUndoRequest): Promise<boole
   const status = replicaMayLag || supersededHere ? null : await currentReplicaStatus(entryId);
   const supersededElsewhere = status !== null && status !== 'pulled';
   if (supersededHere || supersededElsewhere) {
-    toast.info(`${callName}'s status changed after the Pull, so Undo did nothing.`);
+    notifyPullUndoSuperseded(callName);
     return false;
   }
-  await restore();
+  try {
+    await restore();
+  } catch (error) {
+    if (!isStaleCheckIn(error)) throw error;
+    notifyPullUndoSuperseded(callName);
+    return false;
+  }
   return true;
 }

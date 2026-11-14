@@ -33,6 +33,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: supabaseMocks,
 }));
 
+import { StaleCheckInError } from '@/services/show-day/checkInStatus';
 import {
   useAtShowEntryListHandlers,
   type UseAtShowEntryListHandlersDeps,
@@ -392,6 +393,81 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
       expect(actions.handleStatusChange).toHaveBeenLastCalledWith('e1', 'checked-in')
     );
     expect(toastSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('an exhibitor Undo names the version its own Pull produced (MYK9-1911)', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'checked-in' as EntryStatus, callName: 'Abby' })];
+    const handleUndoPull = vi.fn(() => Promise.resolve());
+    const lastWriteVersion = vi.fn(() => 12);
+    const exhibitorActions = {
+      ...actions,
+      writer: 'self-checkin-rpc' as const,
+      handleUndoPull,
+      lastWriteVersion,
+    };
+    const { result } = renderHandlers(mirror, exhibitorActions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+    const options = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+    await act(async () => {
+      options.action.onClick();
+    });
+
+    await waitFor(() => expect(handleUndoPull).toHaveBeenCalledWith('e1', 'checked-in', 12));
+  });
+
+  describe('a refused Undo of a Pull shows the server status (MYK9-1911)', () => {
+    // The page mirrors fetched entries into local state; a forced sync that brings the other
+    // device's change replaces it. `refresh(true)` stands in for that here.
+    async function pullThenRefusedUndo(refresh: (forceSync?: boolean) => Promise<void>) {
+      mirror = [makeEntry({ id: 'e1', status: 'checked-in' as EntryStatus, callName: 'Abby' })];
+      const handleUndoPull = vi.fn(() => Promise.reject(new StaleCheckInError()));
+      const exhibitorActions = {
+        ...actions,
+        writer: 'self-checkin-rpc' as const,
+        handleUndoPull,
+        lastWriteVersion: vi.fn(() => 3),
+      };
+      const { result } = renderHandlers(mirror, exhibitorActions, applyToMirror, refresh);
+      await act(async () => {
+        await result.current.handleStatusChange('e1', 'pulled');
+      });
+      const options = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+      await act(async () => {
+        options.action.onClick();
+      });
+      await waitFor(() => expect(handleUndoPull).toHaveBeenCalled());
+    }
+
+    it('ends on the status the forced sync returned, not the rolled-back Pulled', async () => {
+      const refresh = vi.fn((forceSync?: boolean) => {
+        if (forceSync) mirror = [makeEntry({ id: 'e1', status: 'at-gate' as EntryStatus })];
+        return Promise.resolve();
+      });
+      await pullThenRefusedUndo(refresh);
+
+      await waitFor(() => expect(mirror[0]?.status).toBe('at-gate'));
+      expect(refresh).toHaveBeenCalledWith(true);
+      expect(toastInfo).toHaveBeenCalledWith(
+        expect.stringContaining('status changed after the Pull')
+      );
+    });
+
+    it('keeps the rolled-back card and still shows the notice when the sync fails offline', async () => {
+      const refresh = vi.fn(() => Promise.reject(new Error('offline')));
+      await pullThenRefusedUndo(refresh);
+
+      await waitFor(() =>
+        expect(toastInfo).toHaveBeenCalledWith(
+          expect.stringContaining('status changed after the Pull')
+        )
+      );
+      // The card stays on the local copy; nothing from a failed sync replaced it.
+      expect(mirror[0]?.status).not.toBe('at-gate');
+      expect(refresh).toHaveBeenCalledWith(true);
+    });
   });
 
   it('offers no Undo to a exhibitor writer when the prior status is staff-set', async () => {

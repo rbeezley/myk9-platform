@@ -80,7 +80,7 @@ describe("judge's record panel", () => {
     onlineManager.setOnline(true);
   });
 
-  it('prints and saves a judge's record', async () => {
+  it("prints and saves a judge's record", async () => {
     renderPanel([row('a', 'Pat'), row('b', 'Sam')]);
 
     const print = await screen.findByRole('button', { name: "Print Pat's record" });

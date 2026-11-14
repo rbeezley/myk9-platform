@@ -379,7 +379,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
                 >
                   {ownerResolution.owners.length >= 2
                     ? "Entries are made for one exhibitor at a time. The selected dogs belong to multiple owners. Please remove all but one owner's dogs before continuing."
-                    : 'One or more selected dogs has no owner on file. An entry must belong to an exhibitor — please add an owner to the dog (or remove it from the cart) before continuing.'}
+                    : 'One or more selected dogs has no owner on file. An entry must belong to an exhibitor. Please add an owner to the dog (or remove it from your entry) before continuing.'}
                 </div>
               )}
 

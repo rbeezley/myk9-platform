@@ -17,14 +17,21 @@ export const RegistrationFixAction: React.FC<{
   fix: RegistrationFix | undefined;
   onAddRegistration?: (() => void) | undefined;
   ownerAddressAction?: React.ReactNode;
-}> = ({ fix, onAddRegistration, ownerAddressAction }) => {
+  /** MYK9-1963: the way on when the dog has no number yet; rides under the registration fix. */
+  registrationHelp?: React.ReactNode;
+}> = ({ fix, onAddRegistration, ownerAddressAction, registrationHelp }) => {
   if (fix === 'owner-address') return <>{ownerAddressAction ?? null}</>;
   if (!onAddRegistration) return null;
   return (
-    <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
-      <Plus className="mr-2 h-4 w-4" />
-      Add required registration
-    </Button>
+    <>
+      <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
+        <Plus className="mr-2 h-4 w-4" />
+        Add required registration
+      </Button>
+      {registrationHelp && (
+        <div className="basis-full text-sm text-foreground">{registrationHelp}</div>
+      )}
+    </>
   );
 };
 

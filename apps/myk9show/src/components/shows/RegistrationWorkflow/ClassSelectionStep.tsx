@@ -43,6 +43,7 @@ import {
   ElementCard,
 } from './ClassSelectionStep.components';
 import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
+import { NoRegistrationNumberHelp } from '@/components/dogs/NoRegistrationNumberHelp';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -674,6 +675,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }
                                 onAddRegistration={() => openRegistrationEditor(dogId)}
+                                registrationHelp={
+                                  <NoRegistrationNumberHelp showId={showId} opensInNewTab />
+                                }
                                 ownerAddressAction={
                                   <OwnerAddressAction
                                     isOwnAddress={isOwnAddress}

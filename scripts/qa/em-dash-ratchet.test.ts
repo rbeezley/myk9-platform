@@ -236,10 +236,14 @@ describe('the committed baseline format', () => {
   const text = (files: Record<string, number>) =>
     `${JSON.stringify({ version: 1, files }, null, 2)}\n`;
   const git = (cwd: string, ...args: string[]) =>
-    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
-      cwd,
-      encoding: 'utf8',
-    });
+    execFileSync(
+      'git',
+      ['-c', 'commit.gpgsign=false', '-c', 'user.name=t', '-c', 'user.email=t@t', ...args],
+      {
+        cwd,
+        encoding: 'utf8',
+      }
+    );
 
   it('holds no total or timestamp and one sorted line per file', () => {
     const root = makeRoot({});

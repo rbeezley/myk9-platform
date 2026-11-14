@@ -65,17 +65,17 @@ values
 update public.classes set allow_waitlist = false
  where id in ('00000000-0000-0000-0000-000001929020', '00000000-0000-0000-0000-000001929023');
 
--- A one-dog judge day on class 20 (person 4 judges it).
-insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, day_capacity_override)
-values ('00000000-0000-0000-0000-000001929104', '00000000-0000-0000-0000-000001929002',
-  '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929020', 'confirmed', 1);
-
 -- Persons 1 owner, 2 co-owner, 3 handler, 4 outsider, 5 club secretary (not an
 -- owner of anything), 6 owner of the dogs that fill the full and started classes.
 insert into public.people (id, first_name, last_name, auth_user_id)
 select ('00000000-0000-0000-0000-00000192910' || n)::uuid, 'MYK9-1929', 'Person ' || n,
   ('00000000-0000-0000-0000-00000192920' || n)::uuid
 from generate_series(1, 6) n;
+
+-- A one-dog judge day on class 20 (person 4 judges it).
+insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, day_capacity_override)
+values ('00000000-0000-0000-0000-000001929104', '00000000-0000-0000-0000-000001929002',
+  '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929020', 'confirmed', 1);
 
 -- Dogs: 21 main (owner 1, co-owner 2), 22 fills the full class, 23 runs in the
 -- started class, 24 / 25 / 26 sit in states that must refuse a request.

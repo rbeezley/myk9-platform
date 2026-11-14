@@ -156,4 +156,36 @@ describe('ReplicatedShowsTable overlapping switch flips (MYK9-1919)', () => {
       uses_volunteers: true,
     });
   });
+
+  it('a rebase after another device flipped a different switch sends only the queued switch', async () => {
+    await table.updateShow(ID, { usesDeviceScoring: false });
+
+    // Device B turned paper off and renamed the show on the server; the pull rebases A's write.
+    await pull(serverShow({ name: 'Renamed', uses_paper_packet: false, version: 4 }));
+
+    const uploads = (await pending()).filter(m => m.operation === 'UPDATE');
+    expect(uploads).toHaveLength(1);
+    expect(uploads[0]!.serverVersion).toBe(4);
+    expect(uploads[0]!.data).toMatchObject({ uses_device_scoring: false });
+    for (const column of ['uses_paper_packet', 'uses_volunteers', 'uses_landing_page', 'name']) {
+      expect(uploads[0]!.data).not.toHaveProperty(column);
+    }
+    expect((await row())!.data).toMatchObject({ usesPaperPacket: false, name: 'Renamed' });
+  });
+
+  it('a server echo between two local flips keeps both and sends each its own column', async () => {
+    await table.updateShow(ID, { usesDeviceScoring: false });
+    await pull(serverShow({ uses_device_scoring: false, version: 4 }));
+    await table.updateShow(ID, { usesPaperPacket: false });
+
+    expect((await row())!.data).toMatchObject({
+      usesDeviceScoring: false,
+      usesPaperPacket: false,
+    });
+    const uploads = (await pending()).filter(m => m.operation === 'UPDATE');
+    expect(uploads.flatMap(m => Object.keys(m.data).filter(k => k.startsWith('uses_')))).toEqual([
+      'uses_device_scoring',
+      'uses_paper_packet',
+    ]);
+  });
 });

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SearchBar } from '@/components/common/SearchBar';
 import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
@@ -16,6 +16,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
+import { deskOwedForms, deskOwedHref, deskOwedLines } from './deskAmountOwed';
 import { classIdsOnDay, firstClassLine } from './firstClassForExhibitor';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
@@ -72,6 +73,7 @@ export function CheckInDesk({
     () => buildCheckInDeskPeople(entries, classes, now),
     [classes, now, entries]
   );
+  const owedForms = useMemo(() => deskOwedForms(entries), [entries]);
   const dayClassIds = useMemo(() => classIdsOnDay(classes, now), [classes, now]);
   const rowsByEntryId = useMemo(
     () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),
@@ -170,6 +172,7 @@ export function CheckInDesk({
             const waitingDogs = dogs.filter(dog => dog.pendingEntryIds.length > 0);
             const anyBusy = person.classRows.some(row => busyIds.has(row.entryId));
             const firstClass = firstClassLine(person.classRows, dayClassIds);
+            const owedLines = deskOwedLines(owedForms, person.id);
             return (
               <section key={person.id} aria-label={person.name} className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-2">
@@ -180,6 +183,15 @@ export function CheckInDesk({
                         Also entered as {person.alternateNames.join(', ')}
                       </p>
                     )}
+                    {owedLines.map(line => (
+                      <Link
+                        key={line.formKey}
+                        to={deskOwedHref(showId, line.formKey)}
+                        className="flex min-h-11 w-fit items-center text-xs font-medium text-warning underline-offset-2 hover:underline"
+                      >
+                        {line.label}
+                      </Link>
+                    ))}
                   </div>
                   {waitingDogs.length > 1 && (
                     <Button

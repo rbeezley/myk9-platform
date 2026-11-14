@@ -2465,6 +2465,10 @@ export type Database = {
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
+          receipt_email_attempted_at: string | null
+          receipt_email_message_id: string | null
+          receipt_email_sent_at: string | null
+          receipt_email_status: string
           refund_amount: number | null
           refund_decided_at: string | null
           refund_decided_by: string | null
@@ -2569,6 +2573,10 @@ export type Database = {
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
+          receipt_email_attempted_at?: string | null
+          receipt_email_message_id?: string | null
+          receipt_email_sent_at?: string | null
+          receipt_email_status?: string
           refund_amount?: number | null
           refund_decided_at?: string | null
           refund_decided_by?: string | null
@@ -2673,6 +2681,10 @@ export type Database = {
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
+          receipt_email_attempted_at?: string | null
+          receipt_email_message_id?: string | null
+          receipt_email_sent_at?: string | null
+          receipt_email_status?: string
           refund_amount?: number | null
           refund_decided_at?: string | null
           refund_decided_by?: string | null

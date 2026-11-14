@@ -10,7 +10,8 @@
 --                paper  the class is scored on paper: position in the running order
 --                       only, never a countdown
 --                stale  phone class, in progress, dogs still to run, and nothing scored
---                       or put in the ring for 10 minutes ("may be out of date")
+--                       or put in the ring for 10 minutes ("may be out of date");
+--                       never during a break or briefing
 --
 -- DATA SHAPE
 --   * Show switch (MYK9-1685): shows.uses_device_scoring, default true.
@@ -141,6 +142,31 @@ CREATE TRIGGER trg_entries_record_ring_activity
              OR NEW.check_in_status IS DISTINCT FROM OLD.check_in_status))
   EXECUTE FUNCTION private.entries_record_ring_activity();
 
+-- A ring phase change (lunch ends, briefing ends) is activity, so coming back from a
+-- break does not read stale at once. Writes the private table, never a classes column.
+CREATE OR REPLACE FUNCTION private.classes_record_ring_phase_activity()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $fn$
+BEGIN
+  INSERT INTO private.class_ring_activity (class_id, last_activity_at)
+  VALUES (NEW.id, now())
+  ON CONFLICT (class_id) DO UPDATE SET last_activity_at = EXCLUDED.last_activity_at;
+  RETURN NULL;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION private.classes_record_ring_phase_activity() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_classes_record_ring_phase_activity ON public.classes;
+CREATE TRIGGER trg_classes_record_ring_phase_activity
+  AFTER UPDATE OF ring_phase ON public.classes
+  FOR EACH ROW
+  WHEN (NEW.ring_phase IS DISTINCT FROM OLD.ring_phase)
+  EXECUTE FUNCTION private.classes_record_ring_phase_activity();
+
 -- ---------------------------------------------------------------------------
 -- entry_queue_places_for_classes: + claim_state (internal; ACL unchanged)
 -- Body copied from 20261103014700; only the class join and claim_state are new.
@@ -161,7 +187,10 @@ AS $$
          w.place,
          CASE
            WHEN cs.on_paper THEN 'paper'
+           -- a break or briefing is routine: the place is not moving, the class has not gone quiet
            WHEN cs.status = 'in_progress'
+                AND cs.ring_phase IS DISTINCT FROM 'break'
+                AND cs.ring_phase IS DISTINCT FROM 'briefing'
                 AND cs.last_activity < now() - private.ring_claim_stale_after() THEN 'stale'
            ELSE 'live'
          END AS claim_state
@@ -202,14 +231,17 @@ AS $$
     ) w
     JOIN LATERAL (
       SELECT c.status,
+             c.ring_phase,
              coalesce(
                c.scores_on_paper,
                CASE WHEN c.ring_phase = 'offline_scoring' THEN true END,
                NOT s.uses_device_scoring,
                false
              ) AS on_paper,
-             -- no activity yet: the class's own last change (it went in progress)
-             coalesce(ra.last_activity_at, c.updated_at) AS last_activity
+             -- The quiet clock starts at the later of the last score / in-ring mark / phase
+             -- change and the class's actual start. Never classes.updated_at: check-in and
+             -- counter rollups bump it. NULL (neither exists) = not demonstrably quiet = live.
+             greatest(ra.last_activity_at, c.actual_start_time) AS last_activity
         FROM public.classes c
         LEFT JOIN public.trials t ON t.id = c.trial_id
         LEFT JOIN public.shows s ON s.id = t.show_id

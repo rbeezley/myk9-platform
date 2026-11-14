@@ -14,6 +14,9 @@
 --   C. the 10-minute rule: live before the limit, stale past it, upcoming class never
 --      stale, live again on the next score and on the next in-ring mark.
 --   D. show_dogs_limited_view carries the same claim_state.
+--   F. silent class still getting check-ins goes stale (classes.updated_at is not the clock);
+--      a reopened class with an old activity row is live right after its start; break and
+--      briefing never read stale; coming back from a break is not instantly stale.
 --   E. ACL unchanged: anon and PUBLIC cannot execute, authenticated can; the internal
 --      function and the activity table stay closed.
 
@@ -65,12 +68,13 @@ select entry_id, pg_temp.fx_id('d-' || cls || n), class_id,
   '00000000-0000-0000-0000-000001969002', '00000000-0000-0000-0000-000001969003',
   'confirmed', 'pending', 25, (100 + ascii(cls) + n)::text, n, 'checked-in' from fx;
 
--- Nothing has been scored or put in the ring in any class yet; age the classes' last
--- change to 30 minutes ago so "no activity" is a real 30 minutes.
-update public.classes set updated_at = now() - interval '30 minutes'
- where trial_id = '00000000-0000-0000-0000-000001969003';
+-- Nothing has been scored or put in the ring in any class yet: clear any activity rows,
+-- then seed 30 minutes ago for the classes that are meant to be silent. (classes.updated_at
+-- is forced to now() by a trigger and is not what the rule reads.)
 delete from private.class_ring_activity
  where class_id in (select class_id from fx);
+insert into private.class_ring_activity (class_id, last_activity_at)
+select distinct class_id, now() - interval '30 minutes' from fx where cls <> 'U';
 
 create function pg_temp.state_as(cls_name text, n integer)
 returns text language plpgsql as $$
@@ -205,6 +209,64 @@ begin
     raise exception 'FAIL D view claim states: %', v_states;
   end if;
   raise notice 'PASS D show_dogs_limited_view run_claim_state';
+end $$;
+
+-- F. the clock: check-ins do not count, a fresh start does, a break does not go stale
+do $$
+declare
+  v_class uuid := '00000000-0000-0000-0000-0000019690a0';
+begin
+  update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
+   where class_id = v_class;
+  update public.classes set actual_start_time = null, ring_phase = null where id = v_class;
+  update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
+   where class_id = v_class;
+  -- a check-in (bumps classes.updated_at and the counters) leaves it stale
+  update public.entries set check_in_status = 'at-gate'
+   where id = (select entry_id from fx where cls = 'P' and n = 3);
+  update public.classes set checked_in_count = coalesce(checked_in_count, 0) + 1 where id = v_class;
+  if pg_temp.state_as('P', 3) is distinct from '1/stale' then
+    raise exception 'FAIL F check-ins only must stay stale: %', pg_temp.state_as('P', 3);
+  end if;
+  -- reopened/restarted: old activity row, but the class started a minute ago
+  update public.classes set actual_start_time = now() - interval '1 minute' where id = v_class;
+  if pg_temp.state_as('P', 3) is distinct from '1/live' then
+    raise exception 'FAIL F restart with an old activity row should be live: %', pg_temp.state_as('P', 3);
+  end if;
+  -- no activity row and no start time: not demonstrably quiet, live
+  delete from private.class_ring_activity where class_id = v_class;
+  update public.classes set actual_start_time = null where id = v_class;
+  if pg_temp.state_as('P', 3) is distinct from '1/live' then
+    raise exception 'FAIL F no clock at all should be live: %', pg_temp.state_as('P', 3);
+  end if;
+  -- break and briefing past 10 minutes of silence stay live
+  insert into private.class_ring_activity (class_id, last_activity_at)
+  values (v_class, now() - interval '30 minutes');
+  update public.classes set ring_phase = 'break', ring_phase_time = '12:30' where id = v_class;
+  -- the phase change itself is activity; age it to prove break never goes stale
+  update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
+   where class_id = v_class;
+  if pg_temp.state_as('P', 3) is distinct from '1/live' then
+    raise exception 'FAIL F break should stay live: %', pg_temp.state_as('P', 3);
+  end if;
+  update public.classes set ring_phase = 'briefing', ring_phase_time = '13:00' where id = v_class;
+  update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
+   where class_id = v_class;
+  if pg_temp.state_as('P', 3) is distinct from '1/live' then
+    raise exception 'FAIL F briefing should stay live: %', pg_temp.state_as('P', 3);
+  end if;
+  -- back from the break: the phase change restarts the clock, so not instantly stale
+  update public.classes set ring_phase = null, ring_phase_time = null where id = v_class;
+  if pg_temp.state_as('P', 3) is distinct from '1/live' then
+    raise exception 'FAIL F back from break must not be instantly stale: %', pg_temp.state_as('P', 3);
+  end if;
+  -- and it goes stale again after 10 quiet minutes
+  update private.class_ring_activity set last_activity_at = now() - interval '11 minutes'
+   where class_id = v_class;
+  if pg_temp.state_as('P', 3) is distinct from '1/stale' then
+    raise exception 'FAIL F should go stale again after the break: %', pg_temp.state_as('P', 3);
+  end if;
+  raise notice 'PASS F clock: check-ins ignored, restart live, break/briefing live, back from break live';
 end $$;
 
 -- E. ACL

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { MASTER_DETAIL_QUERY, MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
+import { CarriedClassNotice } from '@/components/shows/ShowDetails/CarriedClassNotice';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { getTrialTimezone } from '@/features/registries';
@@ -429,6 +430,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
         entries={entries}
         timeZone={timeZone}
       />
+      {state.classId && !selected && <CarriedClassNotice />}
       {leftLine && (
         <p className="flex flex-wrap items-center gap-x-3 text-sm" role="status">
           <span>Showing the classes behind &ldquo;{leftLine.label}&rdquo;</span>

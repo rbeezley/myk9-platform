@@ -115,7 +115,9 @@ For every major route and requested viewport:
     with the MYK9-1771/1772 PRs: point at them, do not duplicate them.
 
 Exercise required CRUD without approval only against an isolated local Supabase fixture or through
-an established non-persisting interception. Every write to hosted/shared Supabase—including seeded
+an established non-persisting interception: `scripts/qa/readonly-walk.ts` (`installReadOnlyGuard`
+refuses every write, so a step that needs one is recorded as stopped at a write; `cutOffBackend`
+before any scoring tap; a local-answers mode is MYK9-2003). Every write to hosted/shared Supabase—including seeded
 or disposable rows—requires explicit approval. Never delete shared fixtures or mutate real
 permissions, ownership, payouts, payment accounts, production data, or other consequential state
 without explicit approval. Use read-only verification or mark the path blocked when approval is

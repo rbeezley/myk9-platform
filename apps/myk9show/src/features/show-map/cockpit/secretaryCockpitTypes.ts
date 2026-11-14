@@ -271,6 +271,8 @@ export interface SecretaryCockpitModel {
   daySchedule: readonly ScheduledClassModel[];
   trialGroups: readonly TrialScheduleGroupModel[];
   focusedClass: FocusedClassModel | null;
+  /** The URL names a class this schedule cannot show: nothing is focused, and the page says so (MYK9-1996). */
+  focusUnavailable: { id: string; name: string | null } | null;
 }
 import type { ReportScope } from '@/lib/reports/types';
 import type { RegistryId } from '@/features/registries';

@@ -4,7 +4,7 @@ import type { DbClass, DbEntry } from '@/types/database-mappings';
 
 import { buildReportPaperworkDescriptor } from '../buildReportPaperworkDescriptor';
 import { recordPaperworkPrinted } from '../paperworkPrintActions';
-import { PACKET_REPORT_IDS } from './buildJudgePacketPdf';
+import { PACKET_REPORT_IDS } from './packetReports';
 
 export interface TrialPacketPrintRecords {
   /** Print records written: one per class per sheet kind, the same ones a class print writes. */

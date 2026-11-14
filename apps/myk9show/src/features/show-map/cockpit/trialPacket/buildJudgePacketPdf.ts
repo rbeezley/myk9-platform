@@ -4,10 +4,8 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { mergeReportPdfs } from '../mergeReportPdfs';
 import type { CollatedTrialPacket, TrialPacketJudge } from './collateTrialPacket';
 import { stampPacketFooter } from './packetFooter';
+import { PACKET_REPORT_IDS } from './packetReports';
 import { buildJudgeCoverModel, renderJudgeCoverPdf } from './judgeCoverSheet';
-
-/** The reports a before-trial packet holds for each class, in print order. */
-export const PACKET_REPORT_IDS = ['check-in-sheet', 'scoresheet'] as const;
 
 /** One class's sheets: the very output the single-class print builds for that class. */
 export function buildClassSheetParts(

@@ -121,16 +121,22 @@ describe('links out of the entry wizard', () => {
 
   it('keeps every allowlisted file in the graph, each with a reason', () => {
     for (const [file, reason] of Object.entries(SAME_TAB_ALLOWLIST)) {
-      expect(GRAPH.map(f => relative(SRC, f)), file).toContain(file);
+      expect(
+        GRAPH.map(f => relative(SRC, f)),
+        file
+      ).toContain(file);
       expect(reason.length, file).toBeGreaterThan(20);
     }
   });
 
-  it.each(found.map(f => [f.where, f.tag, f.file] as const))('opens in a new tab: %s', (_where, tag, file) => {
-    if (SAME_TAB_ALLOWLIST[file]) return;
-    expect(tag).toMatch(/target(=|:\s*)["']_blank["']/);
-    expect(tag).toMatch(/noopener noreferrer/);
-  });
+  it.each(found.map(f => [f.where, f.tag, f.file] as const))(
+    'opens in a new tab: %s',
+    (_where, tag, file) => {
+      if (SAME_TAB_ALLOWLIST[file]) return;
+      expect(tag).toMatch(/target(=|:\s*)["']_blank["']/);
+      expect(tag).toMatch(/noopener noreferrer/);
+    }
+  );
 
   // NoRegistrationNumberHelp only opens a new tab when told to, via a
   // conditional spread the tag walker cannot see.

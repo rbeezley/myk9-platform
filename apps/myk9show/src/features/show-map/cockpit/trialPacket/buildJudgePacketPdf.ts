@@ -1,3 +1,4 @@
+import { getTrialTimezone } from '@/features/registries';
 import { getReportById } from '@/lib/reports/reportRegistry';
 
 import { mergeReportPdfs } from '../mergeReportPdfs';
@@ -29,5 +30,10 @@ export async function buildJudgePacketPdf(
 ): Promise<Uint8Array> {
   const cover = renderJudgeCoverPdf(buildJudgeCoverModel(packet, judge, showName));
   const merged = await mergeReportPdfs([cover, ...judge.classes.flatMap(buildClassSheetParts)]);
-  return stampPacketFooter(merged, judge.judgeName ?? 'No judge assigned', printedAt);
+  return stampPacketFooter(
+    merged,
+    judge.judgeName ?? 'No judge assigned',
+    printedAt,
+    getTrialTimezone(packet.trial)
+  );
 }

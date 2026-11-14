@@ -8,7 +8,6 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { buildClassSheetParts, buildJudgePacketPdf } from './buildJudgePacketPdf';
 import { collateTrialPacket, NO_JUDGE_KEY } from './collateTrialPacket';
 import { buildJudgeCoverModel, formatCoverDate } from './judgeCoverSheet';
-import { formatPrintedAt } from './packetFooter';
 import { pageContentStreams, shownText } from './pdfPageStreams.testHelper';
 import { CLASSES, ENTRIES, SHOW, TRIAL } from './trialPacketFixtures';
 
@@ -184,6 +183,22 @@ describe('judge packet PDF', () => {
     }
   });
 
+  it('prints the time on the trial’s own clock, not the browser’s', async () => {
+    const packet = collate();
+    const westTrial = { ...packet.trial, timezone: 'America/Los_Angeles' };
+    const printedAt = new Date('2026-12-06T18:00:00Z');
+    const bytes = await buildJudgePacketPdf(
+      { ...packet, trial: westTrial },
+      packet.judges[0]!,
+      SHOW.name,
+      printedAt
+    );
+    const pages = await pageContentStreams(bytes);
+    const footer = shownText(pages[0]!.at(-1) ?? '');
+    expect(footer).toContain('Printed Dec 6, 10:00 AM.');
+    expect(footer).not.toContain('1:00 PM');
+  });
+
   it('stamps the judge, the print time and Page n of N on every page', async () => {
     const packet = collate();
     const printedAt = new Date('2026-12-06T18:00:00Z');
@@ -194,9 +209,8 @@ describe('judge packet PDF', () => {
       const name = judge.judgeName ?? 'No judge assigned';
       pages.forEach((streams, index) => {
         const footer = shownText(streams[streams.length - 1] ?? '');
-        expect(footer).toContain(
-          `${name}. Printed ${formatPrintedAt(printedAt)}. Later changes are in the app.`
-        );
+        // The fixture trial has no time zone, so the helper's default (Eastern) applies.
+        expect(footer).toContain(`${name}. Printed Dec 6, 1:00 PM. Later changes are in the app.`);
         expect(footer).toContain(`Page ${index + 1} of ${pages.length}`);
       });
     }

@@ -51,6 +51,8 @@ export interface EntriesPanelProps {
   waitlistClassIds?: ReadonlySet<string> | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
+  /** MYK9-2020: a secretary keying in someone's entry (no service fee line). */
+  staffWorkflow?: boolean | undefined;
   /** Injectable for tests; defaults to the live platform-fee rates. */
   rates?: PlatformFeeRates | undefined;
 }
@@ -80,6 +82,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   onRemoveLine,
   removingLineKey,
   rates,
+  staffWorkflow = false,
 }) => {
   // One pair for every money read this panel makes. Two different unresolved
   // reads (class availability, the show's timezone) blank the same figures, so
@@ -156,6 +159,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       placeholder={moneyPlaceholder}
       {...(isPayment ? { discounts: feeCalculation.discounts } : {})}
       {...(adjustmentCents !== 0 ? { adjustmentCents } : {})}
+      staffWorkflow={staffWorkflow}
       {...(totals ? { payment: { totals, paymentMethod, rates: resolvedRates } } : {})}
     />
   );

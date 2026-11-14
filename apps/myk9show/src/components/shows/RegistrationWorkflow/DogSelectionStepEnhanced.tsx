@@ -434,7 +434,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                   onFiltersAppliedChange={setFiltersApplied}
                   showQuickFilters={true}
                   showAdvancedFilters={true}
-                  placeholder={`Search all dogs by name, breed, or ${registrationNumberLabel}...`}
+                  placeholder={`Search all dogs by name, owner, breed, or ${registrationNumberLabel}...`}
                 />
               </div>
             )}
@@ -445,7 +445,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                 {canBulkOperations && visibleDogs.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="touch">
                         <Users className="h-4 w-4 mr-2" />
                         Bulk Select
                         <ChevronDown className="h-4 w-4 ml-2" />
@@ -468,7 +468,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                 {canCreateNew && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="touch">
                         <Plus className="h-4 w-4 mr-2" />
                         Create New
                         <ChevronDown className="h-4 w-4 ml-2" />

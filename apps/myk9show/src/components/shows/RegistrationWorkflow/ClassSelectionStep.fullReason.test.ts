@@ -194,3 +194,48 @@ describe('buildFullChipReason — two classes sharing element and level (MYK9-48
     ).toContain('still has space');
   });
 });
+
+describe('buildFullChipReason for the show staff keying in an entry (MYK9-2020)', () => {
+  it('never tells the secretary to contact the show secretary', () => {
+    const reason = buildFullChipReason({
+      classId: 'sat-advanced',
+      availability: [SATURDAY_FULL],
+      secretaryContact: 'secretary@heartland.test',
+      forStaff: true,
+    });
+    expect(reason).toBe(
+      "The judge's Saturday is full. To add this dog, edit the class to allow a waitlist."
+    );
+    expect(reason).not.toMatch(/contact the show secretary/i);
+  });
+
+  it('offers raising the entry limit when the class limit is what ran out', () => {
+    const capped = row({
+      classId: 'sat-advanced',
+      isFull: true,
+      entryLimit: 20,
+      currentEntries: 20,
+    });
+    expect(
+      buildFullChipReason({ classId: 'sat-advanced', availability: [capped], forStaff: true })
+    ).toBe(
+      'This class is full. To add this dog, edit the class to raise its entry limit or allow a waitlist.'
+    );
+  });
+
+  it('keeps the exhibitor sentence when the reader is not staff', () => {
+    expect(buildFullChipReason({ classId: 'sat-advanced', availability: [SATURDAY_FULL] })).toBe(
+      "The judge's Saturday is full. Contact the show secretary."
+    );
+  });
+
+  it('still names an open day for staff, which is a real option for them too', () => {
+    expect(
+      buildFullChipReason({
+        classId: 'sat-advanced',
+        availability: [SATURDAY_FULL, SUNDAY_OPEN],
+        forStaff: true,
+      })
+    ).toMatch(/still has space/);
+  });
+});

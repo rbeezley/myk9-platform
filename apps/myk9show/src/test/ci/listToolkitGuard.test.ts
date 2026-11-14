@@ -92,8 +92,12 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
   'components/announcements/CreateAnnouncementDialog.tsx': { count: 1, reason: 'form toggle' },
   'components/admin/users/BulkRoleEditPanel.tsx': { count: 1, reason: 'role chip in a form' },
   'components/shows/RegistrationWorkflow/PaymentStep/PaymentMethodSelector.tsx': {
-    count: 2,
-    reason: 'payment method choice',
+    count: 1,
+    reason: 'received as cash or check, inside a payment method choice',
+  },
+  'components/shows/RegistrationWorkflow/PaymentStep/PaymentOptionCard.tsx': {
+    count: 1,
+    reason: 'payment method choice card (MYK9-2020: shared by both payment lists)',
   },
   'components/shows/RegistrationWorkflow/PaymentStep/SecretaryPaymentManagement.tsx': {
     count: 2,

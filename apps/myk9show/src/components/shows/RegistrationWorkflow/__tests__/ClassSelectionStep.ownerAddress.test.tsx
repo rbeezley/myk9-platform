@@ -424,3 +424,57 @@ describe("ClassSelectionStep — the owner's address on AKC classes (MYK9-1010)"
     await enabled();
   });
 });
+
+// Shares this file's step harness; the subject is the secretary's wording.
+describe('ClassSelectionStep — wording for a secretary keying in an entry (MYK9-2020)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const NOVICE_ADVICE = /New to this sport\? Start with Novice/;
+
+  function fillTheClass() {
+    // The availability setupStepMocks just installed, with its one class full.
+    const availability = mockUseClassAvailability();
+    const [row] = availability.classes;
+    mockUseClassAvailability.mockReturnValue({
+      ...availability,
+      classes: [{ ...row, entryLimit: 3, currentEntries: 3, spotsAvailable: 0, isFull: true }],
+    });
+  }
+
+  it('gives the exhibitor the class-choice advice, and the secretary none', async () => {
+    setupStepMocks({ owner: COMPLETE });
+    const { unmount } = renderStep({ workflowMode: 'exhibitor' });
+    expect(await screen.findByText(NOVICE_ADVICE)).toBeInTheDocument();
+    unmount();
+
+    setupStepMocks({ owner: COMPLETE, isStaff: true });
+    renderStep({ workflowMode: 'secretary_new' });
+    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(screen.queryByText(NOVICE_ADVICE)).not.toBeInTheDocument();
+  });
+
+  it('tells the secretary what she can change about a full class, not to contact herself', async () => {
+    setupStepMocks({ owner: COMPLETE, isStaff: true });
+    fillTheClass();
+    renderStep({ workflowMode: 'secretary_new' });
+
+    expect(
+      await screen.findByText(
+        'This class is full. To add this dog, edit the class to raise its entry limit or allow a waitlist.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Contact the show secretary/)).not.toBeInTheDocument();
+  });
+
+  it('still tells the exhibitor to contact the show secretary about a full class', async () => {
+    setupStepMocks({ owner: COMPLETE });
+    fillTheClass();
+    renderStep({ workflowMode: 'exhibitor' });
+
+    expect(
+      await screen.findByText('This class is full. Contact the show secretary.')
+    ).toBeInTheDocument();
+  });
+});

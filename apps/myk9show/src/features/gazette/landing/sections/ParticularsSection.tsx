@@ -64,7 +64,7 @@ export function ParticularsSection({
           sub: 'Over-entries refunded',
         }
       : null,
-    ...fees.map<Row>(f => ({ label: f.label, primary: f.amount })),
+    ...fees.map<Row>(f => ({ label: f.label, primary: f.amount, sub: f.unit ?? null })),
   ].filter((r): r is Row => r !== null);
 
   return (

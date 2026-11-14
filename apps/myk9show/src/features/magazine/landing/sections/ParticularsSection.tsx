@@ -58,7 +58,11 @@ function buildRows(props: ParticularsSectionProps): ParticularsRow[] {
     rows.push({ label: 'Entry limit', primary: String(props.entryLimit), secondary: 'runs total' });
   }
   for (const fee of props.fees) {
-    rows.push({ label: fee.label, primary: fee.amount });
+    rows.push({
+      label: fee.label,
+      primary: fee.amount,
+      ...(fee.unit ? { secondary: fee.unit } : {}),
+    });
   }
   return rows;
 }

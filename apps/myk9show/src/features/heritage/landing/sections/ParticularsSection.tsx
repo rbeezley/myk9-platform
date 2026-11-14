@@ -119,6 +119,11 @@ export function ParticularsSection({
                   >
                     {fee.label}
                   </span>
+                  {fee.unit && (
+                    <span className="text-xs italic" style={{ color: 'var(--hl-quill)' }}>
+                      {fee.unit}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

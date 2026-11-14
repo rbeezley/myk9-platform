@@ -78,7 +78,14 @@ export function ParticularsSection({
     },
     ...fees.map(fee => ({
       label: fee.label,
-      value: fee.amount,
+      value: fee.unit ? (
+        <>
+          {fee.amount}
+          <span style={ITALIC_BRONZE}> · {fee.unit}</span>
+        </>
+      ) : (
+        fee.amount
+      ),
     })),
   ].filter(r => r.value);
 

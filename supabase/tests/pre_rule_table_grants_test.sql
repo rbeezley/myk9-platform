@@ -334,7 +334,8 @@ BEGIN
       -- authenticated 57 -> 59: ring_phase / ring_phase_time (20261030174300, MYK9-1513);
       -- anon stays 51.
       -- authenticated 59 -> 60: status_before_close (20261114194300, MYK9-1945); anon stays 51.
-      ('classes','authenticated',60),
+      -- authenticated 60 -> 61: scores_on_paper (20261114205300, MYK9-1969); anon stays 51.
+      ('classes','authenticated',61),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same

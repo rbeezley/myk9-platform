@@ -1193,6 +1193,7 @@ export type Database = {
           ring_phase: string | null
           ring_phase_time: string | null
           scored_count: number | null
+          scores_on_paper: boolean | null
           section: string | null
           start_time: string | null
           status: string | null
@@ -1257,6 +1258,7 @@ export type Database = {
           ring_phase?: string | null
           ring_phase_time?: string | null
           scored_count?: number | null
+          scores_on_paper?: boolean | null
           section?: string | null
           start_time?: string | null
           status?: string | null
@@ -1321,6 +1323,7 @@ export type Database = {
           ring_phase?: string | null
           ring_phase_time?: string | null
           scored_count?: number | null
+          scores_on_paper?: boolean | null
           section?: string | null
           start_time?: string | null
           status?: string | null

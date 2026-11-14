@@ -202,6 +202,6 @@ describe('blocked scored-entry recovery', () => {
     );
     // The dog has a result, so Pull is not offered and the menu says why (MYK9-1990).
     expect(await screen.findByText(/already has a result in Container Novice/)).toBeVisible();
-    expect(screen.queryByRole('menuitem', { name: 'Pull' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /^Pull/ })).toBeNull();
   });
 });

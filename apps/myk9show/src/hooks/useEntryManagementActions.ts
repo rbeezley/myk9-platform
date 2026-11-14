@@ -19,6 +19,7 @@ import { getEligibleForBulkStatusChange } from '@/components/entries/management/
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
 import { createBulkDecisionSnapshot } from './bulkDecisionSnapshot';
+import { dayOfDogLabel, entryStatusChangedMessage } from '@/features/show-map/dayOfMessages';
 import { showUndoToast, STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
@@ -189,7 +190,11 @@ export function useEntryManagementActions({
       // to that flow; a no-op transition has nothing to undo.
       if (ok && withdrawalReason === undefined && priorStatus !== newStatus) {
         showUndoToast({
-          message: 'Status updated',
+          message: entryStatusChangedMessage(
+            dayOfDogLabel({ armband: entry.armbandNumber, dogName: entry.dogName }),
+            entry.classes[0]?.name ?? 'this class',
+            newStatus
+          ),
           onUndo: () => {
             void runSingleUndo(entryId, priorStatus, newStatus, priorCheckInStatus);
           },

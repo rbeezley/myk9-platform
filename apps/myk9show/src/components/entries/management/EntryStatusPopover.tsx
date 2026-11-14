@@ -9,6 +9,7 @@ import { resolveEntryStatusActions, type EntryStatusActionDefinition } from './e
 import { getEntryStatusStateLabel } from './reviewStateLabels';
 import { getStatusActionHelp } from './entryVerbHelp';
 import { SENT_WHEN_ONLINE } from '@/lib/offlineCopy';
+import { usePullAwareStatusChange } from './entryPull';
 import { REVERT_CANCELLED, useScoredRevertGuard } from './useScoredRevertGuard';
 
 interface EntryStatusPopoverProps {
@@ -38,7 +39,7 @@ export function EntryStatusPopover({
   const { guardedOnStatusChange, dialog: revertGuardDialog } = useScoredRevertGuard(
     entry.entryStatus,
     { isScored: entry.isScored, resultStatus: entry.resultStatus },
-    onStatusChange
+    usePullAwareStatusChange(entry, onStatusChange)
   );
   const actions = resolveEntryStatusActions(entry, { onStatusChange });
   const currentStatusLabel = getEntryStatusStateLabel(entry.entryStatus);

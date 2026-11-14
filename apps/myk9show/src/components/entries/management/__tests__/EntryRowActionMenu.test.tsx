@@ -75,17 +75,17 @@ describe('EntryRowActionMenu', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /assign armband/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /comp entry/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /edit entry/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /change handler/i })).not.toBeInTheDocument();
   });
 
-  it('renders Edit entry and wires its callback', async () => {
+  it('renders Change handler… and wires its callback', async () => {
     const onOpenEditEntry = vi.fn();
     const entry = makeEntry();
     const { user } = render(<EntryRowActionMenu entry={entry} onOpenEditEntry={onOpenEditEntry} />);
 
     await user.click(screen.getByRole('button', { name: /actions for bravo/i }));
     await screen.findByRole('menu');
-    await user.click(screen.getByRole('menuitem', { name: /edit entry/i }));
+    await user.click(screen.getByRole('menuitem', { name: /change handler/i }));
 
     expect(onOpenEditEntry).toHaveBeenCalledWith(entry);
   });

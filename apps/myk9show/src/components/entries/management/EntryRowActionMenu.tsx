@@ -1,6 +1,7 @@
 import { RowActionMenu, toRowActions } from '@/components/ui/RowActionMenu';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { entryActions, type EntryActionHandlers } from './entryActions';
+import { usePullAwareStatusChange } from './entryPull';
 import { useScoredRevertGuard } from './useScoredRevertGuard';
 
 export interface EntryRowActionMenuProps extends Omit<
@@ -14,10 +15,11 @@ export function EntryRowActionMenu({ entry, ...handlers }: EntryRowActionMenuPro
   // Same revert-confirmation guard the status popover uses (see
   // useScoredRevertGuard) — the row menu offers the same statusTarget
   // actions and must not bypass the Completed-entry confirmation.
+  const pullAwareStatusChange = usePullAwareStatusChange(entry, handlers.onStatusChange);
   const { guardedOnStatusChange, dialog } = useScoredRevertGuard(
     entry.entryStatus,
     { isScored: entry.isScored, resultStatus: entry.resultStatus },
-    handlers.onStatusChange
+    pullAwareStatusChange
   );
   const guardedHandlers: EntryActionHandlers = handlers.onStatusChange
     ? { ...handlers, onStatusChange: guardedOnStatusChange }

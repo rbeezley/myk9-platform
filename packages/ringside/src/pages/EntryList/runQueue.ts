@@ -161,6 +161,14 @@ export type RunQueueState =
    * `runQueueStateOf` never returns this; callers holding a partial queue do.
    */
   | { kind: 'waiting-unknown' }
+  /**
+   * The class is scored on paper (MYK9-1970): nobody records progress as it runs, so a countdown
+   * would be a guess. The dog's position in the running order is all there is to say; `place` is
+   * absent while only this device's own rows are known (offline).
+   */
+  | { kind: 'paper'; place?: number | undefined }
+  /** A phone-scored class gone quiet (MYK9-1969): the server will not stand behind the place. */
+  | { kind: 'stale' }
   | { kind: 'in-ring' }
   | { kind: 'done' }
   /** Pulled and withdrawn are different acts (INTENT: Withdraw vs Pull). */
@@ -209,11 +217,61 @@ export function formatPlaceInLine(place: number): string {
   return `${ordinal(place)} up`;
 }
 
+/**
+ * Whether a place in line may be shown as a live claim, from the server (MYK9-1969): `live` is a
+ * countdown, `paper` is position in the running order only, `stale` is "may be out of date".
+ */
+export type QueueClaim = 'live' | 'paper' | 'stale';
+
+/**
+ * Paper rule, mirrored from the server (`entry_queue_places_for_classes`): the class's own flag,
+ * else the show's device-scoring switch turned off. The one client copy, so an offline phone that
+ * holds the class decides exactly as the server does.
+ */
+export function classScoresOnPaper(
+  scoresOnPaper: boolean | null | undefined,
+  usesDeviceScoring: boolean | null | undefined
+): boolean {
+  return scoresOnPaper ?? usesDeviceScoring === false;
+}
+
+/** Said once beside a paper class's position, wherever that position is shown. */
+export const PAPER_CLASS_NOTE =
+  'This class is scored on paper. Listen for your number at the ring.';
+
+/** The sentence that goes with a state, or null when the label says it all. */
+export function runQueueStateNote(state: RunQueueState | null | undefined): string | null {
+  return state?.kind === 'paper' ? PAPER_CLASS_NOTE : null;
+}
+
+/**
+ * A waiting dog's state after the server has spoken. Only a dog the row already calls waiting
+ * (`waiting-unknown`, or `paper` from the class's own flag) takes a place; every other state is
+ * the row's own fact and wins. A settled server answer decides live, paper or stale; with none
+ * (offline, loading) the row keeps what it knew, so a paper class still says so offline.
+ */
+export function applyQueueClaim(
+  state: RunQueueState | null,
+  answer: { place: number; claim: QueueClaim } | undefined
+): RunQueueState | null {
+  if (state?.kind !== 'waiting-unknown' && state?.kind !== 'paper') return state;
+  if (answer === undefined || answer.place < 1) return state;
+  if (answer.claim === 'paper') return { kind: 'paper', place: answer.place };
+  if (answer.claim === 'stale') return { kind: 'stale' };
+  return { kind: 'waiting', place: answer.place };
+}
+
 /** The label for any state: a place for a waiting dog, otherwise the state itself. */
 export function formatRunQueueState(state: RunQueueState): string {
   switch (state.kind) {
     case 'waiting':
       return formatPlaceInLine(state.place);
+    case 'paper':
+      return state.place === undefined
+        ? 'In the running order'
+        : `${ordinal(state.place)} in the running order`;
+    case 'stale':
+      return 'Order may be out of date';
     case 'waiting-unknown':
       return 'Waiting';
     case 'in-ring':

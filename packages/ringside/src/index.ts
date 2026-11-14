@@ -154,7 +154,9 @@ export type { DogsAheadResult, EntryListOwnership } from './pages/EntryList';
 // favorite-dog push proximity. Typed structurally, so hosts can pass their own
 // row type (e.g. replicated entries) and get it back with display fields intact.
 export {
+  applyQueueClaim,
   armbandSortKey,
+  classScoresOnPaper,
   compareByRunOrder,
   findInRingEntry,
   formatPlaceInLine,
@@ -165,10 +167,12 @@ export {
   isInRingEntry,
   nextPendingCandidates,
   pendingByRunOrder,
+  PAPER_CLASS_NOTE,
   placeInLine,
+  runQueueStateNote,
   runQueueStateOf,
 } from './pages/EntryList';
-export type { NotRunningReason, RunQueueEntry, RunQueueState } from './pages/EntryList';
+export type { NotRunningReason, QueueClaim, RunQueueEntry, RunQueueState } from './pages/EntryList';
 
 // Quick-advance ranking (MYK9-83) — the post-save "up next" chips and the
 // pending-tab gate bubble share this one gate-aware layer over the run queue.

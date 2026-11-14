@@ -61,7 +61,9 @@ export type { DogsAheadResult, EntryListOwnership } from './dogsAheadInList';
 // quick-advance chips, and favorite-dog push proximity. Typed structurally so
 // at-show can pass replicated rows through it.
 export {
+  applyQueueClaim,
   armbandSortKey,
+  classScoresOnPaper,
   compareByRunOrder,
   findInRingEntry,
   formatPlaceInLine,
@@ -72,10 +74,12 @@ export {
   nextPendingCandidates,
   notRunningReasonOf,
   pendingByRunOrder,
+  PAPER_CLASS_NOTE,
   placeInLine,
+  runQueueStateNote,
   runQueueStateOf,
 } from './runQueue';
-export type { NotRunningReason, RunQueueEntry, RunQueueState } from './runQueue';
+export type { NotRunningReason, QueueClaim, RunQueueEntry, RunQueueState } from './runQueue';
 
 // ── Quick-advance ranking (MYK9-83) ──────────────────────────────────────
 // Gate-aware layer over the run queue: opportunistic at-gate promotion that

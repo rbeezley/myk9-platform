@@ -70,16 +70,25 @@ describe('isAdoptableHeldMutation (MYK9-2009 dead letters)', () => {
     ).toBe(false);
   });
 
-  it('never adopts a dead letter from another judge claim, or with no claim stamp', () => {
+  it('never adopts a dead letter stamped with another judge claim', () => {
     expect(isAdoptableHeldMutation(deadLetter({ ringsideClaim: 'judge:sam' }), OPTIONS)).toBe(
       false
     );
-    expect(isAdoptableHeldMutation(deadLetter({ ringsideClaim: undefined }), OPTIONS)).toBe(false);
     expect(isAdoptableHeldMutation(deadLetter(), { ...OPTIONS, claim: undefined })).toBe(false);
   });
 
   it('leaves a pending row queued under another judge claim for that judge, but adopts an unstamped one', () => {
     expect(isAdoptableHeldMutation(mutation({ ringsideClaim: 'judge:sam' }), OPTIONS)).toBe(false);
     expect(isAdoptableHeldMutation(mutation({ ringsideClaim: undefined }), OPTIONS)).toBe(true);
+  });
+
+  it('adopts an unstamped dead letter (queued before claim stamping) for any claim', () => {
+    expect(isAdoptableHeldMutation(deadLetter({ ringsideClaim: undefined }), OPTIONS)).toBe(true);
+    expect(
+      isAdoptableHeldMutation(deadLetter({ ringsideClaim: undefined }), {
+        ...OPTIONS,
+        claim: undefined,
+      })
+    ).toBe(true);
   });
 });

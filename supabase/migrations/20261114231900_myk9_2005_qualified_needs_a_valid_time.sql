@@ -24,6 +24,15 @@
 --     with no limit (null or 0), or an area whose time is blank (null or 0, its column default), is never refused for time. A
 --     one-area class that saved only search_time_seconds is checked on that. A time EQUAL to
 --     the limit is accepted.
+-- Timed disciplines only. A UKC Obedience or Rally Qualified has no timer and saves a time of 0,
+-- so only a trial whose type is a scent sport (Scent Work, Nosework, Scent Detection, and the
+-- "AKC Scent Work" style aliases) is checked: the same set as the three scoresheets that run
+-- qualifiedCheck.ts, and as isScentTrialType in apps/myk9show/src/types/template.types.ts
+-- (private.trial_type_is_timed mirrors it by the same normalised token). Any other trial type,
+-- or none, is never refused for time and its placements ignore the time condition.
+-- On a one-area class the check reads the total (search_time_seconds) when this statement
+-- changed it and left area1_time_seconds alone (a paper-scoring correction), so a stale area
+-- time never decides.
 -- Only a write that changes the result, a time, or the class is checked, so an unrelated edit to
 -- a row that was saved before this rule (a payment note, a withdrawal) is never blocked.
 --
@@ -57,6 +66,25 @@ $function$;
 
 REVOKE ALL ON FUNCTION private.qualified_time_label(numeric) FROM PUBLIC, anon, authenticated, service_role;
 
+-- The scent sports, by canonicalizeTrialType's token (lower case, letters and digits only).
+-- "scentworknationals" is the raw token deriveSportType also resolves.
+CREATE OR REPLACE FUNCTION private.trial_type_is_timed(p_trial_type text)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SET search_path TO ''
+AS $function$
+  SELECT coalesce(
+    regexp_replace(lower(p_trial_type), '[^a-z0-9]', '', 'g') IN (
+      'scentwork', 'scentworknationals', 'nosework', 'scentdetection',
+      'akcscentwork', 'ukcnosework', 'ascascentdetection'
+    ),
+    false
+  );
+$function$;
+
+REVOKE ALL ON FUNCTION private.trial_type_is_timed(text) FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION private.entries_refuse_invalid_qualified()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -70,6 +98,7 @@ DECLARE
   v_area integer;
   v_limit numeric;
   v_areas integer;
+  v_trial_type text;
 BEGIN
   IF NEW.result_status IS DISTINCT FROM 'qualified'
      OR coalesce((SELECT auth.jwt()) ->> 'role', '') NOT IN ('authenticated', 'anon') THEN
@@ -86,14 +115,20 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF coalesce(NEW.search_time_seconds, 0) <= 0 THEN
-    RAISE EXCEPTION 'A Qualified needs a time. Add the time, or change the result to NQ.'
-      USING ERRCODE = '23514', HINT = 'qualified_needs_time';
-  END IF;
-
   SELECT * INTO v_class FROM public.classes c WHERE c.id = NEW.class_id;
   IF NOT FOUND THEN
     RETURN NEW;
+  END IF;
+
+  -- Untimed disciplines (Obedience, Rally) never carry a time.
+  SELECT t.trial_type INTO v_trial_type FROM public.trials t WHERE t.id = v_class.trial_id;
+  IF NOT private.trial_type_is_timed(v_trial_type) THEN
+    RETURN NEW;
+  END IF;
+
+  IF coalesce(NEW.search_time_seconds, 0) <= 0 THEN
+    RAISE EXCEPTION 'A Qualified needs a time. Add the time, or change the result to NQ.'
+      USING ERRCODE = '23514', HINT = 'qualified_needs_time';
   END IF;
 
   v_areas := greatest(1, least(coalesce(v_class.num_areas, 1), 3));
@@ -109,8 +144,13 @@ BEGIN
   ];
 
   -- A one-area class that saved only the total (paper scoring, an older device): the total is
-  -- its area 1 time.
-  IF v_areas = 1 AND v_times[1] IS NULL THEN
+  -- its area 1 time. So is a total this statement changed while area 1 stayed as it was (a
+  -- paper correction leaves the old area time behind).
+  IF v_areas = 1
+     AND (v_times[1] IS NULL
+          OR (TG_OP = 'UPDATE'
+              AND NEW.search_time_seconds IS DISTINCT FROM OLD.search_time_seconds
+              AND NEW.area1_time_seconds IS NOT DISTINCT FROM OLD.area1_time_seconds)) THEN
     v_times[1] := NEW.search_time_seconds;
   END IF;
 
@@ -152,9 +192,16 @@ SET search_path = ''
 AS $$
 DECLARE
   v_class_id uuid;
+  v_timed boolean;
 BEGIN
   FOREACH v_class_id IN ARRAY p_class_ids
   LOOP
+    -- MYK9-2005: whether this class's discipline is timed (no time, no rank only there).
+    SELECT private.trial_type_is_timed(t.trial_type) INTO v_timed
+      FROM public.classes c JOIN public.trials t ON t.id = c.trial_id
+     WHERE c.id = v_class_id;
+    v_timed := coalesce(v_timed, false);
+
     WITH keyed AS (
       SELECT
         e2.id,
@@ -162,8 +209,9 @@ BEGIN
         coalesce(
           e2.is_scored = true
             AND e2.result_status = 'qualified'
-            -- MYK9-2005: a null or zero time is never ranked (0 sorts ahead of every real time).
-            AND e2.search_time_seconds > 0
+            -- MYK9-2005: in a timed discipline a null or zero time is never ranked (0 sorts
+            -- ahead of every real time). Obedience and Rally have no time.
+            AND (NOT v_timed OR e2.search_time_seconds > 0)
             AND e2.deleted_at IS NULL,
           false
         ) AS eligible,
@@ -237,8 +285,8 @@ REVOKE ALL ON FUNCTION public.recalculate_class_placements(uuid[], boolean) FROM
 GRANT EXECUTE ON FUNCTION public.recalculate_class_placements(uuid[], boolean) TO service_role;
 
 COMMENT ON FUNCTION public.recalculate_class_placements(uuid[], boolean) IS
-  'Recalculates final placements for scored, qualified, non-deleted entries with a '
-  'time above zero in each supplied class: the rule''s keys, then the secretary-recorded '
+  'Recalculates final placements for scored, qualified, non-deleted entries (with a '
+  'time above zero in a timed discipline) in each supplied class: the rule''s keys, then the secretary-recorded '
   'coin-flip order (placement_tiebreak), then entry id only for a stable write. A tie '
   'within 1st-4th is placed consecutively and marked unresolved until its flip '
   'is recorded; a tie below 4th shares the competition rank and is marked '

@@ -1,14 +1,14 @@
 diff --git a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-index 9e64927f2..b2a196f3f 100644
+index 95be02de2..7285523f6 100644
 --- a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
 +++ b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-@@ -163,8 +163,7 @@ BEGIN
-           e2.is_scored = true
+@@ -211,8 +211,7 @@ BEGIN
              AND e2.result_status = 'qualified'
-             -- MYK9-2005: a null or zero time is never ranked (0 sorts ahead of every real time).
--            AND e2.search_time_seconds > 0
+             -- MYK9-2005: in a timed discipline a null or zero time is never ranked (0 sorts
+             -- ahead of every real time). Obedience and Rally have no time.
+-            AND (NOT v_timed OR e2.search_time_seconds > 0)
 -            AND e2.deleted_at IS NULL,
-+            AND e2.search_time_seconds > 0,
++            AND (NOT v_timed OR e2.search_time_seconds > 0),
            false
          ) AS eligible,
          -- Nationals: most points first. Otherwise (NULL included, as the old

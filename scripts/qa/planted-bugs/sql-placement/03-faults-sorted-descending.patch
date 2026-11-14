@@ -1,8 +1,8 @@
 diff --git a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-index 9e64927f2..5c19c70c9 100644
+index 95be02de2..20cef4033 100644
 --- a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
 +++ b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-@@ -184,7 +184,7 @@ BEGIN
+@@ -232,7 +232,7 @@ BEGIN
              PARTITION BY k.eligible
              ORDER BY
                k.points_key DESC NULLS LAST,

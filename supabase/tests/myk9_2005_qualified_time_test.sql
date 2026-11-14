@@ -13,6 +13,8 @@
 --   D. placements: the cases in fixtures/qualified-ranking/cases.json, which the paper-scoring
 --      page's calculatePlacements test reads too, rank the same way here; a zero-time Qualified
 --      is left unplaced
+--   E. an untimed discipline (Obedience) saves and places a Qualified with no time, a Nosework one
+--      is refused; a one-area total-only correction is judged on the total, not a stale area time
 --
 -- Fixtures roll back.
 
@@ -292,6 +294,84 @@ begin
     end if;
   end loop;
   raise notice 'PASS D placements match the shared ranking fixture; a Qualified with no time is unplaced';
+end $$;
+
+-- E. untimed and timed disciplines, and a total-only correction (Codex review, MYK9-2005)
+reset role;
+select set_config('request.jwt.claims', '', true), set_config('request.jwt.claim.sub', '', true);
+insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
+  ('00000000-0000-0000-0000-000002005023', '00000000-0000-0000-0000-000002005021',
+   'MYK9-2005 Obedience', current_date, 'AKC', 'Obedience'),
+  ('00000000-0000-0000-0000-000002005024', '00000000-0000-0000-0000-000002005021',
+   'MYK9-2005 Nosework', current_date, 'AKC', 'Nosework');
+insert into public.classes (id, trial_id, name, status, element, level, section) values
+  ('00000000-0000-0000-0000-000002005037', '00000000-0000-0000-0000-000002005023',
+   'Novice A', 'in_progress', 'Obedience', 'Novice', 'A'),
+  ('00000000-0000-0000-0000-000002005038', '00000000-0000-0000-0000-000002005024',
+   'Container Novice', 'in_progress', 'Container', 'Novice', 'A');
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000002005047', '00000000-0000-0000-0000-000002005067', '00000000-0000-0000-0000-000002005031',
+   '00000000-0000-0000-0000-000002005021', '00000000-0000-0000-0000-000002005022', 'confirmed', '201', 3, 'checked-in'),
+  ('00000000-0000-0000-0000-000002005048', '00000000-0000-0000-0000-000002005068', '00000000-0000-0000-0000-000002005037',
+   '00000000-0000-0000-0000-000002005021', '00000000-0000-0000-0000-000002005023', 'confirmed', '202', 1, 'checked-in'),
+  ('00000000-0000-0000-0000-000002005049', '00000000-0000-0000-0000-000002005069', '00000000-0000-0000-0000-000002005038',
+   '00000000-0000-0000-0000-000002005021', '00000000-0000-0000-0000-000002005024', 'confirmed', '203', 1, 'checked-in');
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+-- Entry 47: a live-scored single-area entry whose area 1 time (200, over the 3:00 limit) is old.
+update public.entries set is_scored = true, result_status = 'qualified',
+       search_time_seconds = 200, area1_time_seconds = 200
+ where id = '00000000-0000-0000-0000-000002005047';
+
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000002005101');
+do $$
+declare
+  v_state text;
+  v_hint text;
+begin
+  -- An Obedience Qualified has no timer: a time of 0 saves.
+  update public.entries set is_scored = true, result_status = 'qualified', search_time_seconds = 0
+   where id = '00000000-0000-0000-0000-000002005048';
+  -- A Nosework Qualified with a time of 0 is refused.
+  begin
+    update public.entries set is_scored = true, result_status = 'qualified', search_time_seconds = 0
+     where id = '00000000-0000-0000-0000-000002005049';
+    raise exception 'FAIL E a Nosework Qualified with no time was accepted';
+  exception when others then
+    get stacked diagnostics v_state = returned_sqlstate, v_hint = pg_exception_hint;
+    if v_state <> '23514' or v_hint <> 'qualified_needs_time' then
+      raise exception 'FAIL E wrong refusal: % % (hint %)', v_state, sqlerrm, v_hint;
+    end if;
+  end;
+  -- A paper correction of the total only: over the limit is refused, a valid total is accepted
+  -- although area 1 still holds the old over-limit time.
+  begin
+    update public.entries set search_time_seconds = 190
+     where id = '00000000-0000-0000-0000-000002005047';
+    raise exception 'FAIL E a total over the limit was accepted';
+  exception when others then
+    get stacked diagnostics v_state = returned_sqlstate, v_hint = pg_exception_hint;
+    if v_state <> '23514' or v_hint <> 'qualified_over_time_limit' then
+      raise exception 'FAIL E wrong refusal: % % (hint %)', v_state, sqlerrm, v_hint;
+    end if;
+  end;
+  update public.entries set search_time_seconds = 170
+   where id = '00000000-0000-0000-0000-000002005047';
+  raise notice 'PASS E untimed Qualified saves with no time, Nosework is refused, total-only corrections read the total';
+end $$;
+
+reset role;
+-- Placement: the Obedience Qualified with time 0 is placed; a zero-time timed one is not.
+select public.recalculate_class_placements(
+  array['00000000-0000-0000-0000-000002005037']::uuid[], false);
+do $$
+begin
+  if (select final_placement from public.entries
+       where id = '00000000-0000-0000-0000-000002005048') is distinct from 1 then
+    raise exception 'FAIL E an Obedience Qualified with no time was not placed';
+  end if;
+  raise notice 'PASS E an Obedience Qualified with no time places';
 end $$;
 
 rollback;

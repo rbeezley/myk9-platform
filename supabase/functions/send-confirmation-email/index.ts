@@ -41,7 +41,11 @@ import {
 import { formatEntryFee } from './entryFee.ts';
 import { buildTrialLabelMap } from './trialLabel.ts';
 import { loadConfirmationNumbers } from './receiptNumbers.ts';
-import { sweepFailedReceipts, type ReceiptSweepClient } from './receiptSweep.ts';
+import {
+  sweepFailedReceipts,
+  type ReceiptResendOutcome,
+  type ReceiptSweepClient,
+} from './receiptSweep.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -337,11 +341,11 @@ async function resendReceipt(
   req: Request,
   registrationId: string,
   entryIds: string[]
-): Promise<boolean> {
+): Promise<ReceiptResendOutcome> {
   const baseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const secret = req.headers.get('x-function-secret');
-  if (!baseUrl || !serviceKey || !secret) return false;
+  if (!baseUrl || !serviceKey || !secret) return 'retry';
   const res = await fetch(`${baseUrl}/functions/v1/send-registration-email`, {
     method: 'POST',
     headers: {
@@ -350,13 +354,15 @@ async function resendReceipt(
       'x-function-secret': secret,
     },
     body: JSON.stringify({ registrationId, entryIds }),
+    // A hung call is that registration's failure (the sweep catches the throw), not the run's.
+    signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
     await res.text();
-    return false;
+    return res.status >= 400 && res.status < 500 ? 'rejected' : 'retry';
   }
   const result = (await res.json()) as { success?: boolean };
-  return result.success === true;
+  return result.success === true ? 'sent' : 'retry';
 }
 
 interface ConfirmationEmailPayload {

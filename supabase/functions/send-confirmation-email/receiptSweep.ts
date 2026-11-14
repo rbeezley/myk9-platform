@@ -26,6 +26,9 @@ export interface FailedReceiptRow {
 /** The slice of the Supabase client the sweep reads; a fake satisfies it in tests. */
 export interface ReceiptSweepClient {
   from(table: 'entries'): {
+    update(patch: { receipt_email_attempted_at: string }): {
+      in(column: 'id', ids: string[]): PromiseLike<{ error: { message: string } | null }>;
+    };
     select(columns: 'id, registration_id'): {
       eq(
         column: 'receipt_email_status',
@@ -65,9 +68,14 @@ export interface ReceiptSweepClient {
   };
 }
 
+/** What one re-send came to: sent, failed but worth another run, or refused (a 4xx: retrying cannot help). */
+export type ReceiptResendOutcome = 'sent' | 'retry' | 'rejected';
+
 export interface ReceiptSweepResult {
   retried: number;
   stillFailing: number;
+  /** Registrations the server refused with a 4xx; sent to the back of the queue, not retried again this run. */
+  rejected: number;
 }
 
 /** Groups failed entries by registration, oldest first, capped at `maxRegistrations`. */
@@ -91,7 +99,7 @@ export function groupFailedReceipts(
  */
 export async function sweepFailedReceipts(
   client: ReceiptSweepClient,
-  resend: (registrationId: string, entryIds: string[]) => Promise<boolean>,
+  resend: (registrationId: string, entryIds: string[]) => Promise<ReceiptResendOutcome>,
   nowMs: number
 ): Promise<ReceiptSweepResult> {
   const { data, error } = await client
@@ -106,20 +114,35 @@ export async function sweepFailedReceipts(
     .limit(ROW_FETCH_LIMIT);
   if (error) {
     console.error('Could not read failed receipts', { message: error.message });
-    return { retried: 0, stillFailing: 0 };
+    return { retried: 0, stillFailing: 0, rejected: 0 };
   }
 
   let retried = 0;
   let stillFailing = 0;
+  let rejected = 0;
   for (const group of groupFailedReceipts(data ?? [], RECEIPT_SWEEP_MAX_REGISTRATIONS)) {
-    let ok = false;
+    let outcome: ReceiptResendOutcome = 'retry';
     try {
-      ok = await resend(group.registrationId, group.entryIds);
+      outcome = await resend(group.registrationId, group.entryIds);
     } catch (err) {
+      // A timeout or network error: this registration failed, the others still run.
       console.error('Receipt retry threw', { message: err instanceof Error ? err.message : '' });
     }
-    if (ok) retried++;
-    else stillFailing++;
+    if (outcome === 'sent') {
+      retried++;
+    } else if (outcome === 'rejected') {
+      rejected++;
+      // The queue is oldest-attempt first, so a permanently refused registration would take a slot
+      // every run. Stamping the attempt moves it behind everything not yet tried.
+      const { error: deferError } = await client
+        .from('entries')
+        .update({ receipt_email_attempted_at: new Date(nowMs).toISOString() })
+        .in('id', group.entryIds);
+      if (deferError)
+        console.error('Could not defer a refused receipt', { message: deferError.message });
+    } else {
+      stillFailing++;
+    }
   }
-  return { retried, stillFailing };
+  return { retried, stillFailing, rejected };
 }

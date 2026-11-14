@@ -8,6 +8,7 @@ import {
   groupFailedReceipts,
   sweepFailedReceipts,
   type FailedReceiptRow,
+  type ReceiptResendOutcome,
   type ReceiptSweepClient,
 } from './receiptSweep';
 
@@ -17,6 +18,15 @@ const NOW = Date.parse('2026-11-14T12:00:00Z');
 function fakeClient(rows: FailedReceiptRow[] | null, error: { message: string } | null = null) {
   const calls: Array<[string, ...unknown[]]> = [];
   const chain: Record<string, unknown> = {};
+  chain.update = (...args: unknown[]) => {
+    calls.push(['update', ...args]);
+    return {
+      in: (...inArgs: unknown[]) => (
+        calls.push(['in', ...inArgs]),
+        Promise.resolve({ error: null })
+      ),
+    };
+  };
   for (const name of ['select', 'eq', 'is', 'lt', 'gt', 'order']) {
     chain[name] = (...args: unknown[]) => {
       calls.push([name, ...args]);
@@ -50,7 +60,7 @@ describe('sweepFailedReceipts', () => {
   it('is independent of any confirmation date: it never reads trials', async () => {
     const { client } = fakeClient([{ id: 'e1', registration_id: 'r1' }]);
     const from = vi.spyOn(client, 'from');
-    await sweepFailedReceipts(client, async () => true, NOW);
+    await sweepFailedReceipts(client, async () => 'sent', NOW);
     expect(from.mock.calls.map(c => c[0])).toEqual(['entries']);
   });
 
@@ -60,10 +70,11 @@ describe('sweepFailedReceipts', () => {
       { id: 'e2', registration_id: 'r1' },
       { id: 'e3', registration_id: 'r2' },
     ]);
-    const resend = vi.fn(async () => true);
+    const resend = vi.fn(async (): Promise<ReceiptResendOutcome> => 'sent');
     expect(await sweepFailedReceipts(client, resend, NOW)).toEqual({
       retried: 2,
       stillFailing: 0,
+      rejected: 0,
     });
     expect(resend).toHaveBeenCalledWith('r1', ['e1', 'e2']);
     expect(resend).toHaveBeenCalledWith('r2', ['e3']);
@@ -77,22 +88,48 @@ describe('sweepFailedReceipts', () => {
       { id: 'e2', registration_id: 'r2' },
       { id: 'e3', registration_id: 'r3' },
     ]);
-    const resend = vi.fn(async (registrationId: string) => {
-      if (registrationId === 'r1') throw new Error('network');
-      return registrationId === 'r3';
+    const resend = vi.fn(async (registrationId: string): Promise<ReceiptResendOutcome> => {
+      if (registrationId === 'r1') throw new Error('timeout');
+      return registrationId === 'r3' ? 'sent' : 'retry';
     });
     expect(await sweepFailedReceipts(client, resend, NOW)).toEqual({
       retried: 1,
       stillFailing: 2,
+      rejected: 0,
     });
     log.mockRestore();
+  });
+
+  it('a registration the server refuses is recorded and moved behind the queue, not retried every run', async () => {
+    const { client, calls } = fakeClient([
+      { id: 'e1', registration_id: 'r1' },
+      { id: 'e2', registration_id: 'r2' },
+    ]);
+    const resend = vi.fn(async (registrationId: string): Promise<ReceiptResendOutcome> =>
+      registrationId === 'r1' ? 'rejected' : 'sent'
+    );
+    expect(await sweepFailedReceipts(client, resend, NOW)).toEqual({
+      retried: 1,
+      stillFailing: 0,
+      rejected: 1,
+    });
+    expect(calls).toContainEqual([
+      'update',
+      { receipt_email_attempted_at: new Date(NOW).toISOString() },
+    ]);
+    expect(calls).toContainEqual(['in', 'id', ['e1']]);
+    expect(calls.filter(c => c[0] === 'update')).toHaveLength(1);
   });
 
   it('a read error retries nothing and does not throw', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { client } = fakeClient(null, { message: 'db down' });
     const resend = vi.fn();
-    expect(await sweepFailedReceipts(client, resend, NOW)).toEqual({ retried: 0, stillFailing: 0 });
+    expect(await sweepFailedReceipts(client, resend, NOW)).toEqual({
+      retried: 0,
+      stillFailing: 0,
+      rejected: 0,
+    });
     expect(resend).not.toHaveBeenCalled();
     log.mockRestore();
   });

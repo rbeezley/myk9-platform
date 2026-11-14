@@ -10,9 +10,14 @@ BEGIN;
 --   receipt_email_attempted_at  last claim or release; the retry sweep waits a few minutes past it
 --
 -- Server-only state: written by service-role edge functions (send-registration-email,
--- stripe-webhook) and read by the scheduled retry sweep. Clients never read it, so NO column
--- grant to authenticated (the base-table counts in pre_rule_table_grants_test.sql do not move);
--- anon is revoked explicitly. service_role keeps its table-level privileges.
+-- stripe-webhook) and read by the scheduled retry sweep. Clients can neither read nor write it:
+--   * READ: no column SELECT grant to authenticated (the base-table counts in
+--     pre_rule_table_grants_test.sql do not move); anon is revoked explicitly.
+--   * WRITE: authenticated holds TABLE-level INSERT/UPDATE on entries, and a column REVOKE cannot
+--     narrow a table grant (20260926024300), so the columns are client-writable by grant alone.
+--     trg_entries_receipt_email_server_only below neutralises that: for anon/authenticated it
+--     keeps OLD on UPDATE and forces the defaults on INSERT. service_role and the owner-run RPCs
+--     (current_user is neither) pass through. Same current_user test as 20261029043900.
 
 SET LOCAL lock_timeout = '5s';
 
@@ -45,5 +50,41 @@ REVOKE ALL (receipt_email_sent_at, receipt_email_status, receipt_email_message_i
 CREATE INDEX IF NOT EXISTS entries_receipt_email_failed_idx
   ON public.entries (receipt_email_attempted_at)
   WHERE receipt_email_status = 'failed' AND receipt_email_sent_at IS NULL;
+
+CREATE OR REPLACE FUNCTION private.entries_receipt_email_server_only()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF current_user NOT IN ('anon', 'authenticated') THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    NEW.receipt_email_sent_at := NULL;
+    NEW.receipt_email_status := 'pending';
+    NEW.receipt_email_message_id := NULL;
+    NEW.receipt_email_attempted_at := NULL;
+  ELSE
+    NEW.receipt_email_sent_at := OLD.receipt_email_sent_at;
+    NEW.receipt_email_status := OLD.receipt_email_status;
+    NEW.receipt_email_message_id := OLD.receipt_email_message_id;
+    NEW.receipt_email_attempted_at := OLD.receipt_email_attempted_at;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION private.entries_receipt_email_server_only() IS
+  'MYK9-1963: a client (anon/authenticated) cannot write entries.receipt_email_*; INSERT forces the defaults, UPDATE keeps OLD. service_role and owner-run code pass.';
+
+REVOKE ALL ON FUNCTION private.entries_receipt_email_server_only() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_entries_receipt_email_server_only ON public.entries;
+CREATE TRIGGER trg_entries_receipt_email_server_only
+  BEFORE INSERT OR UPDATE ON public.entries
+  FOR EACH ROW
+  EXECUTE FUNCTION private.entries_receipt_email_server_only();
 
 COMMIT;

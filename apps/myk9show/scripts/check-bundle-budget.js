@@ -80,6 +80,7 @@ export const PDF_CHUNK_POLICY = {
     /^mergeReportPdfs$/, // show desk merged-sheet preview, dynamic
     /^buildJudgePacketPdf$/, // before-trial packet (MYK9-1924), dynamic from useTrialPacketPdfs
     /^buildJudgeReviewPdf$/, // judge review packet (MYK9-1924 phase 2a), dynamic from JudgeReviewPanelBody
+    /^buildJudgeRecordPdf$/, // judge's record (MYK9-1924 phase 2b), dynamic from JudgeRecordPanelBody
     /^buildAfterShowPackets$/, // after-show packet (MYK9-1924 phase 2a), dynamic from AfterShowPanelBody
     /^packetFooter$/, // footer stamped on every packet page; shared by the three packet builders above
     /^pdfForm$/, // AcroForm filler: shared by officialPdfDownload and the Reports route

@@ -2,12 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import {
   buildSignInPathForRedirect,
+  buildSignUpPathForRedirect,
   consumePersistedSignInRedirect,
   getSignInReturnTo,
 } from './SignInPage.helpers';
+
+const EXPIRED_LINK_MESSAGE = 'This link may have expired. Please request a new one.';
 
 const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -33,6 +37,18 @@ const AuthCallbackPage = () => {
     [redirectTarget, searchParams]
   );
 
+  // Where "Send a new link" goes. Recovery has its own request page. The
+  // sign-up page owns confirmation resend (email plus captcha) and nothing
+  // reachable by URL resends from sign-in, so the rest go there rather than
+  // growing a second resend form here.
+  const newLinkPath = useMemo(() => {
+    if (params?.type === 'recovery') return '/forgot-password';
+    return searchParams.has('redirectTo') || searchParams.has('returnTo')
+      ? buildSignUpPathForRedirect(redirectTarget)
+      : '/sign-up';
+  }, [params, redirectTarget, searchParams]);
+  const expiredLink = error === EXPIRED_LINK_MESSAGE;
+
   // Handle OTP verification (email confirm, password reset)
   useEffect(() => {
     if (!params) return;
@@ -41,7 +57,7 @@ const AuthCallbackPage = () => {
       .verifyOtp({ token_hash: params.tokenHash, type: params.type })
       .then(({ error: verifyError }) => {
         if (verifyError) {
-          setError('This link may have expired. Please request a new one.');
+          setError(EXPIRED_LINK_MESSAGE);
           return;
         }
         // `invite` belongs with `recovery`, not with the general case: an
@@ -105,6 +121,18 @@ const AuthCallbackPage = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">We could not sign you in</h2>
           <p className="text-muted-foreground mb-6">{error}</p>
+          {expiredLink && (
+            <div className="mb-6 space-y-2">
+              <Button asChild className="min-h-[44px] w-full">
+                <Link to={newLinkPath}>Send a new link</Link>
+              </Button>
+              {params?.type !== 'recovery' && (
+                <p className="text-sm text-muted-foreground">
+                  Enter your email again and we&apos;ll send a new link.
+                </p>
+              )}
+            </div>
+          )}
           <Link to={signInPath} className="text-primary hover:underline font-medium">
             &larr; Back to sign in
           </Link>

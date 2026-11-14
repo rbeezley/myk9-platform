@@ -176,3 +176,60 @@ export function receivedDollars(
 ): number {
   return netReceivedDollars(group) + group.cardCoveredAmount;
 }
+
+type FormMoneyGroup = Pick<
+  EnrollmentGroup,
+  | 'totalAmount'
+  | 'totalAmountUnit'
+  | 'paidAmount'
+  | 'cardCoveredAmount'
+  | 'enrollmentId'
+  | 'entries'
+>;
+
+/** What the form owes, in dollars (the server's figure when it has an enrollment row). */
+export function formTotalDollars(group: Pick<EnrollmentGroup, 'totalAmount' | 'totalAmountUnit'>) {
+  return group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
+}
+
+/**
+ * The form's "due": what it owes less the money received, desk and card. Negative
+ * when the money received is more than the form owes; callers clamp for display.
+ * MYK9-1961: a refunded or Free entry's fee is not in what the form owes
+ * (`entryCountsTowardFormTotal`), so a refunded or comped form reads nothing due.
+ */
+export function enrollmentRemainingDollars(group: FormMoneyGroup): number {
+  return formTotalDollars(group) - receivedDollars(group);
+}
+
+/**
+ * MYK9-1961: fees a payment or "Payment Due" brings back onto the form. The form's
+ * refund turned its entries 'refunded', so they left what the form owes; a later
+ * payment reopens them (MYK9-773: an entry refunded by its enrollment follows a later
+ * payment), and the server owes them again. Mirrors `private.enrollment_reopen_cents`:
+ * an entry carrying a Stripe refund stamp, paid by card, or comped is never reopened.
+ * The server also requires the refund to have come from the form (`refund_origin`,
+ * which no client may read); every other refund path stamps the entry.
+ */
+export function reopenedByPaymentDollars(group: Pick<EnrollmentGroup, 'entries'>): number {
+  const cents = group.entries
+    .filter(
+      entry =>
+        entry.rawPaymentStatus === 'refunded' &&
+        entry.refundAmount == null &&
+        entry.refundedAt == null &&
+        entry.cardPaid !== true &&
+        entry.comped !== true
+    )
+    .reduce((sum, entry) => sum + Math.round(entry.totalFee * 100), 0);
+  return cents / 100;
+}
+
+/**
+ * What "Paid in Full" charges: the form's due once the payment has reopened the
+ * entries its refund closed, never below zero. The server's figure
+ * (`record_enrollment_payment` with no amount), so the dialog quotes what is recorded.
+ */
+export function paidInFullDollars(group: FormMoneyGroup): number {
+  return Math.max(0, enrollmentRemainingDollars(group) + reopenedByPaymentDollars(group));
+}

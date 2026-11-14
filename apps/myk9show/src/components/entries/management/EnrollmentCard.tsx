@@ -73,6 +73,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     paidDollars,
     refundableDollars,
     remainingDollars,
+    fullPaymentDollars,
     today,
     fullDialog,
     setFullDialog,
@@ -342,7 +343,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       <EnrollmentFullPaymentDialog
         state={fullDialog}
         onChange={setFullDialog}
-        balanceDollars={Math.max(0, remainingDollars)}
+        balanceDollars={fullPaymentDollars}
         todayInShowZone={today}
         onClose={() => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)}
         onConfirm={confirmFullPayment}

@@ -56,6 +56,30 @@ export interface StopwatchOptions {
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   /** Optional callback for scoring active state change */
   onScoringActiveChange?: (isActive: boolean) => void;
+  /**
+   * Keeps the run on the device so a reload mid-run does not lose it (MYK9-2007).
+   * One key per timer per dog; absent, nothing is kept.
+   */
+  persistKey?: string | undefined;
+  /** Which of several timed slots this run belongs to (Nationals area). */
+  persistSlot?: number | undefined;
+  /**
+   * Called once when a reload restored a run, before it carries on, so the sheet
+   * can put the time back where the judge reads it.
+   */
+  onRestore?: ((run: RestoredTimer) => void) | undefined;
+}
+
+/** A run found on the device after a reload. */
+export interface RestoredTimer {
+  elapsedMs: number;
+  /** The timer was running at the reload and carries on. */
+  running: boolean;
+  slot?: number;
+  /** The elapsed time as "M:SS.ss", as the sheet stores it. */
+  formatted: string;
+  outcome: 'intact' | 'estimated' | 'uncertain';
+  notice: string | null;
 }
 
 /**
@@ -100,6 +124,8 @@ export interface StopwatchReturn {
   isTimeExpired: () => boolean;
   /** Get warning message: "Time Expired" | "30 Second Warning" | null */
   getWarningMessage: () => string | null;
+  /** Plain words when a reload mid-run cost or estimated the time; null otherwise. */
+  restoreNotice: string | null;
 }
 
 /**
@@ -137,6 +163,8 @@ export interface ElementTimerReturn {
   reset: () => void;
   /** Format milliseconds as "M:SS.ss" */
   formatTime: (milliseconds: number) => string;
+  /** Plain words when a reload mid-run cost or estimated the time; null otherwise. */
+  restoreNotice: string | null;
 }
 
 // Score data types (scoresheet convergence)

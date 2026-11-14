@@ -20,6 +20,7 @@ import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
+import { savedRunSlot } from '../../../utils/savedRun';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel } from '../../../utils/maxTimeLabel';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
@@ -83,7 +84,9 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   enableVoiceAnnouncements,
 }) => {
   const areaCount = rules.areaCount ?? NATIONALS_AREA_COUNT;
-  const [currentArea, setCurrentArea] = useState(0);
+  const persistKey = entry.existingScore ? undefined : `${entry.id}:area`;
+  // A reload mid-run reopens on the area that was being timed (MYK9-2007).
+  const [currentArea, setCurrentArea] = useState(() => savedRunSlot(persistKey) ?? 0);
   // A saved score keeps only alert TOTALS, not which area each came from
   // (MYK9-2006). Reopened, they sit under Area 1 so the total, the points and a
   // save without edits all match what was saved.
@@ -107,6 +110,11 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const stopwatch = useStopwatch({
+    persistKey,
+    persistSlot: currentArea,
+    onRestore: run => {
+      if (!run.running) scoring.handleAreaUpdate(run.slot ?? 0, 'time', run.formatted);
+    },
     maxTime: areaMaxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -242,6 +250,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         </div>
 
         <ScoresheetTimerCard
+          notice={stopwatch.restoreNotice}
           clock={
             <span
               className={cn(

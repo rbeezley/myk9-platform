@@ -37,11 +37,7 @@ const rules: ResolvedClassRules = {
 // Nationals and UKC Nosework reopen filled too; correctScoreReopen.test.tsx covers them
 // (Nationals points come from alert counts, UKC's time field has its own label).
 const PREFILLED: ScoresheetSportType[] = ['AKC_SCENT_WORK', 'ASCA_SCENT_DETECTION'];
-const BLANK: ScoresheetSportType[] = [
-  'AKC_FASTCAT',
-  'UKC_OBEDIENCE',
-  'UKC_RALLY',
-];
+const BLANK: ScoresheetSportType[] = ['AKC_FASTCAT', 'UKC_OBEDIENCE', 'UKC_RALLY'];
 
 const savedQ: ReplicatedEntry = {
   id: 'entry-1',

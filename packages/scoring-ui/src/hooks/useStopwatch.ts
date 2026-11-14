@@ -20,6 +20,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { formatMsAsMSSCC } from '@myk9/core';
 import type { StopwatchOptions, StopwatchReturn } from '../types';
+import { startRunSpan, type RunSpan } from '../utils/runClock';
+import { useRunPersistence } from './useRunPersistence';
 
 /**
  * How often the running display repaints (ms). 100ms is myK9Q's battery fix
@@ -95,6 +97,9 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     onWarningChime,
     onVoiceAnnouncement,
     onScoringActiveChange,
+    persistKey,
+    persistSlot,
+    onRestore,
   } = options;
   // A zero max ("0:00" -- a class with no time set) is NO limit: no expiry, no
   // warning, no auto-stop. Every check below keys on `maxTime` being set.
@@ -103,9 +108,29 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
 
   // Timer state. `time` (state) is the value as of the last transition; the live
   // clock is `timeRef`, which the 100ms paint updates without a React render.
-  const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const timeRef = useRef(0);
+  // The running clock: `runBaseRef` is the time when this stretch started, `spanRef`
+  // measures the stretch on a clock the phone's wall clock cannot move (MYK9-2007).
+  const runningRef = useRef(false);
+  const runBaseRef = useRef(0);
+  const spanRef = useRef<RunSpan | null>(null);
+  // A reload mid-run leaves a checkpoint behind; the timer opens on it.
+  const persistence = useRunPersistence({
+    persistKey,
+    slot: persistSlot,
+    // Live while running: `timeRef` trails the real clock by up to one paint.
+    read: () => ({
+      elapsedMs: runningRef.current
+        ? runBaseRef.current + (spanRef.current?.read() ?? 0)
+        : timeRef.current,
+      running: runningRef.current,
+    }),
+    running: isRunning,
+  });
+  const restored = persistence.restored;
+  const [time, setTime] = useState(restored?.elapsedMs ?? 0);
+  const [restoreNotice, setRestoreNotice] = useState<string | null>(restored?.notice ?? null);
+  const timeRef = useRef(restored?.elapsedMs ?? 0);
   const listenersRef = useRef(new Set<() => void>());
 
   const subscribeTime = useCallback((listener: () => void) => {
@@ -129,13 +154,10 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
 
   // requestAnimationFrame id for the running tick loop. Driving the display
   // via rAF (~60fps) instead of a coarse setInterval(100) makes the hundredths
-  // place FLOW smoothly instead of jumping in uneven chunks. Time is wall-clock
-  // derived (Date.now), so it stays accurate even if the browser throttles rAF
-  // while the tab is backgrounded.
+  // place FLOW smoothly instead of jumping in uneven chunks. Time is read from
+  // the run clock, not counted per frame, so it stays accurate even if the
+  // browser throttles rAF while the tab is backgrounded.
   const rafRef = useRef<number | null>(null);
-  // Wall-clock origin of the current run, so pause can record the exact
-  // elapsed time rather than the last painted frame.
-  const startTimeRef = useRef(0);
   const has30SecondAnnouncedRef = useRef(false);
 
   // Cancel any in-flight frame on unmount.
@@ -230,8 +252,11 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     // A second start must not leave an orphaned loop that pause cannot stop.
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     setIsRunning(true);
-    const startTime = Date.now() - timeRef.current;
-    startTimeRef.current = startTime;
+    runningRef.current = true;
+    runBaseRef.current = timeRef.current;
+    const span = startRunSpan();
+    spanRef.current = span;
+    const startBase = timeRef.current;
     const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
     let lastPaint = -Infinity;
     // Which warning windows the host last rendered. The body shows the 30-second
@@ -239,14 +264,16 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     let shownWindows = warningWindows(timeRef.current, maxTimeMs, warns);
 
     const tick = () => {
-      const currentTime = Date.now() - startTime;
+      const currentTime = startBase + span.read();
 
       // Auto-stop when time expires (if maxTime is set). Snap to the exact max
       // and don't schedule another frame.
       if (maxTimeMs && currentTime >= maxTimeMs) {
         commitTime(maxTimeMs);
         setIsRunning(false);
+        runningRef.current = false;
         rafRef.current = null;
+        persistence.sync();
         if (onTimeExpired) {
           onTimeExpired(formatTime(maxTimeMs));
         }
@@ -271,6 +298,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     };
 
     rafRef.current = requestAnimationFrame(tick);
+    persistence.sync();
   };
 
   /**
@@ -284,11 +312,13 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     // tick, before the re-render that would update `time`. Capped at the max:
     // a pause between crossing it and the next frame's expiry check.
     const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
-    const elapsed = Date.now() - startTimeRef.current;
+    const elapsed = runBaseRef.current + (spanRef.current?.read() ?? 0);
     const exact = maxTimeMs ? Math.min(elapsed, maxTimeMs) : elapsed;
+    runningRef.current = false;
     commitTime(exact);
     cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
+    persistence.sync();
     return exact;
   };
 
@@ -296,17 +326,35 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    * Reset timer to zero and stop
    */
   const reset = () => {
+    runningRef.current = false;
     commitTime(0);
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
     setIsRunning(false);
+    setRestoreNotice(null);
+    persistence.clear();
     // A genuine reset clears the once-per-run announce guard so the next run
     // re-announces. Pausing does NOT clear it (see the warning effect) — a timer
     // paused past the 30s threshold and resumed must not re-fire the chime.
     has30SecondAnnouncedRef.current = false;
   };
+
+  // A reload mid-run: carry on from the checkpoint, and let the sheet put a
+  // stopped time back in its field (MYK9-2007). Held in a ref so the effect runs
+  // once, on the sheet that was reloaded, whatever the host re-renders with.
+  const restoreRef = useRef({ restored, start, onRestore });
+  useEffect(() => {
+    restoreRef.current = { restored, start, onRestore };
+  });
+  useEffect(() => {
+    const { restored: run, start: resume, onRestore: notify } = restoreRef.current;
+    if (!run) return;
+    notify?.({ ...run, formatted: formatTime(run.elapsedMs) });
+    if (run.running) resume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
 
   // Voice announcement and chime for 30-second warning
   useEffect(() => {
@@ -398,5 +446,6 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     shouldShow30SecondWarning,
     isTimeExpired,
     getWarningMessage,
+    restoreNotice,
   };
 }

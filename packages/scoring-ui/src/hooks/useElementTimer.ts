@@ -12,7 +12,9 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { formatMsAsMSSCC } from '@myk9/core';
-import type { ElementTimerReturn } from '../types';
+import type { ElementTimerReturn, RestoredTimer } from '../types';
+import { startRunSpan, type RunSpan } from '../utils/runClock';
+import { useRunPersistence } from './useRunPersistence';
 
 /**
  * Hook for continuous Element Time tracking in UKC Nosework scoresheets.
@@ -43,6 +45,10 @@ export interface ElementTimerOptions {
   maxTimeMs?: number | undefined;
   /** Called once when the element time reaches `maxTimeMs`. */
   onExpired?: (() => void) | undefined;
+  /** Keeps the run on the device across a reload mid-run (MYK9-2007). */
+  persistKey?: string | undefined;
+  /** Called once when a reload restored the run, before it carries on. */
+  onRestore?: ((run: RestoredTimer) => void) | undefined;
 }
 
 /** The last 30 seconds before the max, where the host shows the warning. */
@@ -64,9 +70,26 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
 
   // `time` (state) is the value as of the last transition; the live clock is
   // `timeRef`, which the 100ms paint moves without a React render (MYK9-1375).
-  const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const timeRef = useRef(0);
+  const runningRef = useRef(false);
+  // Track the run clock and any accumulated time from previous runs. The clock is
+  // monotonic, so a corrected phone clock cannot move the element time (MYK9-2007).
+  const spanRef = useRef<RunSpan | null>(null);
+  const accumulatedTimeRef = useRef(0);
+  const persistence = useRunPersistence({
+    persistKey: options.persistKey,
+    read: () => ({
+      elapsedMs: runningRef.current
+        ? accumulatedTimeRef.current + (spanRef.current?.read() ?? 0)
+        : accumulatedTimeRef.current,
+      running: runningRef.current,
+    }),
+    running: isRunning,
+  });
+  const { restored, sync: syncRun, clear: clearRun } = persistence;
+  const [time, setTime] = useState(restored?.elapsedMs ?? 0);
+  const [restoreNotice, setRestoreNotice] = useState<string | null>(restored?.notice ?? null);
+  const timeRef = useRef(restored?.elapsedMs ?? 0);
   const listenersRef = useRef(new Set<() => void>());
 
   const subscribeTime = useCallback((listener: () => void) => {
@@ -92,9 +115,6 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     [publishTime]
   );
 
-  // Track the start timestamp and any accumulated time from previous runs
-  const startTimestampRef = useRef<number | null>(null);
-  const accumulatedTimeRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cleanup interval on unmount
@@ -124,20 +144,23 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     // Never orphan a running interval (two starts within one render).
     if (intervalRef.current) clearInterval(intervalRef.current);
     setIsRunning(true);
-    startTimestampRef.current = Date.now();
+    runningRef.current = true;
+    spanRef.current = startRunSpan();
     // Whether the host already rendered the warning window (a resume inside it has).
     let inWarningWindow = isInWarningWindow(accumulatedTimeRef.current, maxTimeMsRef.current);
     intervalRef.current = setInterval(() => {
-      if (startTimestampRef.current === null) return;
-      const elapsed = Date.now() - startTimestampRef.current + accumulatedTimeRef.current;
+      if (spanRef.current === null) return;
+      const elapsed = accumulatedTimeRef.current + spanRef.current.read();
       const maxTimeMs = maxTimeMsRef.current;
       if (maxTimeMs && elapsed >= maxTimeMs) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         intervalRef.current = null;
-        startTimestampRef.current = null;
+        spanRef.current = null;
+        runningRef.current = false;
         accumulatedTimeRef.current = maxTimeMs;
         commitTime(maxTimeMs);
         setIsRunning(false);
+        syncRun();
         onExpiredRef.current?.();
         return;
       }
@@ -149,7 +172,8 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
         commitTime(elapsed);
       }
     }, 100);
-  }, [commitTime, publishTime]);
+    syncRun();
+  }, [commitTime, publishTime, syncRun]);
 
   /**
    * Start the timer
@@ -170,14 +194,15 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
 
     // Save accumulated time, and freeze the display on it: the interval paints
     // every 100ms, so the last painted `time` can trail the real stop instant.
-    if (startTimestampRef.current !== null) {
-      accumulatedTimeRef.current += Date.now() - startTimestampRef.current;
+    if (spanRef.current !== null) {
+      accumulatedTimeRef.current += spanRef.current.read();
     }
+    runningRef.current = false;
     // Stopped at or past the max before a tick noticed it: report it to the caller,
     // which owns the stop and records the result (onExpired is for tick expiry).
     const reachedMax = Boolean(maxTimeMs) && accumulatedTimeRef.current >= (maxTimeMs ?? 0);
     if (maxTimeMs) accumulatedTimeRef.current = Math.min(accumulatedTimeRef.current, maxTimeMs);
-    startTimestampRef.current = null;
+    spanRef.current = null;
     commitTime(accumulatedTimeRef.current);
 
     // Clear interval
@@ -185,8 +210,9 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    syncRun();
     return reachedMax;
-  }, [isRunning, maxTimeMs, commitTime]);
+  }, [isRunning, maxTimeMs, commitTime, syncRun]);
 
   /**
    * Resume the timer after stop
@@ -202,15 +228,32 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
    */
   const reset = useCallback(() => {
     setIsRunning(false);
+    runningRef.current = false;
     commitTime(0);
-    startTimestampRef.current = null;
+    spanRef.current = null;
     accumulatedTimeRef.current = 0;
+    setRestoreNotice(null);
+    clearRun();
 
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, [commitTime]);
+  }, [commitTime, clearRun]);
+
+  // A reload mid-run: carry on from the checkpoint (MYK9-2007).
+  const restoreRef = useRef({ restored, run, onRestore: options.onRestore });
+  useEffect(() => {
+    restoreRef.current = { restored, run, onRestore: options.onRestore };
+  });
+  useEffect(() => {
+    const { restored: found, run: resume, onRestore: notify } = restoreRef.current;
+    if (!found) return;
+    accumulatedTimeRef.current = found.elapsedMs;
+    notify?.({ ...found, formatted: formatTime(found.elapsedMs) });
+    if (found.running) resume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
 
   return {
     time,
@@ -223,5 +266,6 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     resume,
     reset,
     formatTime,
+    restoreNotice,
   };
 }

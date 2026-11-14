@@ -12,7 +12,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { rpc: vi.fn(), from: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getClassById: mocks.getClassById, sync: vi.fn(), subscribe: vi.fn(() => () => {}) },
+  replicatedClassesTable: {
+    getClassById: mocks.getClassById,
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { getTrialById: mocks.getTrialById, sync: vi.fn() },
@@ -55,12 +59,28 @@ describe('reopening a saved score from the device (MYK9-2006)', () => {
   beforeEach(async () => {
     await databaseManager.reset();
     spyOnWriteAndQueue(replicatedEntriesTable).queue.mockResolvedValue('mutation-1');
-    mocks.getClassById.mockResolvedValue({ id: 'class-1', trialId: 'trial-1', name: 'Container Novice A', element: 'Container', level: 'Novice' });
+    mocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      name: 'Container Novice A',
+      element: 'Container',
+      level: 'Novice',
+    });
     mocks.getTrialById.mockResolvedValue({ id: 'trial-1', date: '2026-11-14' });
     await replicatedEntriesTable.set(
       'entry-1',
-      { id: 'entry-1', classId: 'class-1', showId: 'show-1', armband: '101', status: 'registered', dog_call_name: 'Rex' },
-      false, undefined, undefined, { allowColdInsert: 'fixture' }
+      {
+        id: 'entry-1',
+        classId: 'class-1',
+        showId: 'show-1',
+        armband: '101',
+        status: 'registered',
+        dog_call_name: 'Rex',
+      },
+      false,
+      undefined,
+      undefined,
+      { allowColdInsert: 'fixture' }
     );
   });
 
@@ -79,7 +99,10 @@ describe('reopening a saved score from the device (MYK9-2006)', () => {
     act(() => result.current.reload());
     await waitFor(() => expect(result.current.entry?.existingScore).toBeDefined());
     expect(result.current.entry?.existingScore).toMatchObject({
-      resultText: 'Q', searchTime: '0:04.35', areaTimes: ['0:04.35'], faultCount: 1,
+      resultText: 'Q',
+      searchTime: '0:04.35',
+      areaTimes: ['0:04.35'],
+      faultCount: 1,
     });
   });
 });

@@ -48,6 +48,12 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const stopwatch = useStopwatch({
+    // A reload mid-run keeps the time (MYK9-2007). A saved score being corrected holds none.
+    persistKey: entry.existingScore ? undefined : `${entry.id}:search`,
+    onRestore: run => {
+      if (!run.running && scoring.areas.length > 0)
+        scoring.handleAreaUpdate(0, 'time', run.formatted);
+    },
     maxTime: '5:00',
     level: classInfo.level,
     enableVoiceAnnouncements,
@@ -147,6 +153,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         }}
       >
         <ScoresheetTimerCard
+          notice={stopwatch.restoreNotice}
           label="Course Time"
           clock={
             <span

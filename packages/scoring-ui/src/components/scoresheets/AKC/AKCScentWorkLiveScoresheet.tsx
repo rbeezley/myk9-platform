@@ -76,6 +76,13 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const maxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
   const stopwatch = useStopwatch({
+    // A reload mid-run keeps the time (MYK9-2007). A saved score being corrected holds none.
+    persistKey: entry.existingScore ? undefined : `${entry.id}:search`,
+    onRestore: run => {
+      if (!run.running && scoring.areas.length === 1) {
+        scoring.handleAreaUpdate(0, 'time', run.formatted);
+      }
+    },
     maxTime: maxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -174,6 +181,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       >
         {/* Timer: neutral surface; the Start button carries the accent. */}
         <ScoresheetTimerCard
+          notice={stopwatch.restoreNotice}
           clock={
             <span
               className={cn(

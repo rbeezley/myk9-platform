@@ -8,6 +8,7 @@ describe('useStopwatch', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -129,8 +130,9 @@ describe('useStopwatch', () => {
       const { result } = renderHook(() => useStopwatch({ maxTime: '0:01' }));
 
       act(() => result.current.start());
-      // Cross the max without a frame running the expiry check.
-      vi.setSystemTime(Date.now() + 1010);
+      // Cross the max on the run clock without a frame running the expiry check.
+      const monotonicNow = performance.now();
+      vi.spyOn(performance, 'now').mockReturnValue(monotonicNow + 1010);
       let recorded = -1;
       act(() => {
         recorded = result.current.pause();

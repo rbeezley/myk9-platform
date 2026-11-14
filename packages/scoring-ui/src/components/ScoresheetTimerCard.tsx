@@ -33,6 +33,8 @@ export interface ScoresheetTimerCardProps {
   progress?: ReactNode;
   /** Anything that belongs above the clock (the dual timer's element row). */
   above?: ReactNode;
+  /** Plain words about a run a reload cost or estimated (MYK9-2007). */
+  notice?: string | null | undefined;
   /** The controls row: buttons only. */
   children: ReactNode;
 }
@@ -44,6 +46,7 @@ export const ScoresheetTimerCard: React.FC<ScoresheetTimerCardProps> = ({
   aside,
   progress,
   above,
+  notice,
   children,
 }) => (
   <Card className="relative overflow-hidden p-3" data-testid="scoresheet-timer-card">
@@ -65,6 +68,15 @@ export const ScoresheetTimerCard: React.FC<ScoresheetTimerCardProps> = ({
       </div>
     </div>
     {progress}
+    {notice && (
+      <p
+        role="status"
+        className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-400"
+        data-testid="timer-restore-notice"
+      >
+        {notice}
+      </p>
+    )}
     <div className="mt-2 flex flex-wrap gap-2">{children}</div>
   </Card>
 );

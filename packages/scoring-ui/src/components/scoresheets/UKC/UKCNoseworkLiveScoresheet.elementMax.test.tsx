@@ -7,6 +7,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UKCNoseworkLiveScoresheet } from './UKCNoseworkLiveScoresheet';
+import { sleepPage } from '../../../test/clockTestUtils';
 import type { ScoresheetClassInfo, ScoresheetEntry, ResolvedClassRules } from '../../../types';
 
 vi.mock('lucide-react', () => ({
@@ -54,6 +55,7 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
     vi.useFakeTimers();
   });
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -117,8 +119,9 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
   it('caps the recorded search time at the max when expiry is noticed late (locked phone)', () => {
     renderSheet('dual');
     fireEvent.click(screen.getByTestId('timer-start'));
-    // The phone sleeps: wall clock moves 20s with no timer ticks, then one tick.
-    vi.setSystemTime(Date.now() + 20_000);
+    // The phone locks: the page goes hidden, the wall clock moves 20s with no
+    // timer ticks, then the page returns and one tick runs.
+    sleepPage(20_000);
     advance(100);
 
     expect(screen.getByTestId('nq-reason-select')).toHaveValue('Max Time');
@@ -129,7 +132,9 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
     renderSheet('dual');
     fireEvent.click(screen.getByTestId('timer-start'));
     advance(9_900);
-    vi.setSystemTime(Date.now() + 150); // past 0:10, no tick yet
+    // Past 0:10 on the run clock with no tick yet.
+    const monotonicNow = performance.now();
+    vi.spyOn(performance, 'now').mockReturnValue(monotonicNow + 150);
     fireEvent.click(screen.getByRole('button', { name: /^finish$/i }));
 
     expect(screen.getByTestId('nq-reason-select')).toHaveValue('Max Time');

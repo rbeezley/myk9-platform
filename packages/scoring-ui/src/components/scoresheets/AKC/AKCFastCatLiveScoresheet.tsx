@@ -84,6 +84,12 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const stopwatch = useStopwatch({
+    // A reload mid-run keeps the time (MYK9-2007). A saved score being corrected holds none.
+    persistKey: entry.existingScore ? undefined : `${entry.id}:search`,
+    onRestore: run => {
+      if (!run.running && scoring.areas.length > 0)
+        scoring.handleAreaUpdate(0, 'time', run.formatted);
+    },
     maxTime: '1:00.00',
     level: classInfo.level,
     enableVoiceAnnouncements,
@@ -179,6 +185,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         }}
       >
         <ScoresheetTimerCard
+          notice={stopwatch.restoreNotice}
           clock={
             <span className={cn('font-mono', stopwatch.isTimeExpired() && 'text-destructive')}>
               <StopwatchTime stopwatch={stopwatch} />

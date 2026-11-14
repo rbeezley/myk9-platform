@@ -32,6 +32,17 @@ const rules = (timerMode: 'single' | 'dual'): ResolvedClassRules => ({
   distractionCount: 0,
 });
 
+/**
+ * Time passes with no timer firing (a locked phone, a late frame): the run clock
+ * moves, and the wall clock with it. The wall clock alone no longer moves a run
+ * (MYK9-2007), so the monotonic one is skewed too.
+ */
+function passTimeWithoutTicks(ms: number): void {
+  const now = performance.now.bind(performance);
+  vi.spyOn(performance, 'now').mockImplementation(() => now() + ms);
+  vi.setSystemTime(Date.now() + ms);
+}
+
 function renderSheet(timerMode: 'single' | 'dual') {
   return render(
     <UKCNoseworkLiveScoresheet
@@ -54,6 +65,7 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
     vi.useFakeTimers();
   });
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -118,7 +130,7 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
     renderSheet('dual');
     fireEvent.click(screen.getByTestId('timer-start'));
     // The phone sleeps: wall clock moves 20s with no timer ticks, then one tick.
-    vi.setSystemTime(Date.now() + 20_000);
+    passTimeWithoutTicks(20_000);
     advance(100);
 
     expect(screen.getByTestId('nq-reason-select')).toHaveValue('Max Time');
@@ -129,7 +141,7 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
     renderSheet('dual');
     fireEvent.click(screen.getByTestId('timer-start'));
     advance(9_900);
-    vi.setSystemTime(Date.now() + 150); // past 0:10, no tick yet
+    passTimeWithoutTicks(150); // past 0:10, no tick yet
     fireEvent.click(screen.getByRole('button', { name: /^finish$/i }));
 
     expect(screen.getByTestId('nq-reason-select')).toHaveValue('Max Time');

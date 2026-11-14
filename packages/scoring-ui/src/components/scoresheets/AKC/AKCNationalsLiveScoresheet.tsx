@@ -25,6 +25,7 @@ import { maxTimeLabel } from '../../../utils/maxTimeLabel';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
+import { calculatePoints, seedAlerts } from './nationalsAlerts';
 
 const QUALIFYING_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
@@ -52,15 +53,6 @@ const QUALIFYING_OPTIONS: { value: ExtendedResult; label: string; activeClass: s
 
 const NATIONALS_AREA_COUNT = 5;
 
-function calculatePoints(correctAlerts: number[], incorrectAlerts: number[]): number {
-  let pts = 0;
-  for (let i = 0; i < correctAlerts.length; i++) {
-    pts += (correctAlerts[i] ?? 0) * 10;
-    pts -= (incorrectAlerts[i] ?? 0) * 5;
-  }
-  return Math.max(0, pts);
-}
-
 export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
   classInfo,
@@ -77,9 +69,18 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 }) => {
   const areaCount = rules.areaCount ?? NATIONALS_AREA_COUNT;
   const [currentArea, setCurrentArea] = useState(0);
-  const [correctAlerts, setCorrectAlerts] = useState<number[]>(() => Array(areaCount).fill(0));
-  const [incorrectAlerts, setIncorrectAlerts] = useState<number[]>(() => Array(areaCount).fill(0));
-  const [finishCallErrors, setFinishCallErrors] = useState(0);
+  // MYK9-2006: only the totals are stored, so a reopened score carries them in
+  // Area 1. Points are computed from the sums, so the saved score is unchanged
+  // until the judge edits a counter.
+  const [correctAlerts, setCorrectAlerts] = useState<number[]>(() =>
+    seedAlerts(areaCount, entry.existingScore?.correctCount)
+  );
+  const [incorrectAlerts, setIncorrectAlerts] = useState<number[]>(() =>
+    seedAlerts(areaCount, entry.existingScore?.incorrectCount)
+  );
+  const [finishCallErrors, setFinishCallErrors] = useState(
+    entry.existingScore?.finishCallErrors ?? 0
+  );
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const areaMaxSeconds =
@@ -92,6 +93,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const stopwatch = useStopwatch({
+    persistKey: entry.id,
     maxTime: areaMaxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -227,6 +229,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         </div>
 
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery}
           clock={
             <span
               className={cn(

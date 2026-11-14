@@ -137,6 +137,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const { maxTimeMs, searchMaxTime, elementMaxTimeMs } = splitMaxTime(isDual, rules, maxTimeStr);
 
   const stopwatch = useStopwatch({
+    persistKey: entry.id,
     maxTime: searchMaxTime,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -152,6 +153,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const elementTimer = useElementTimer({
+    persistKey: entry.id,
     maxTimeMs: elementMaxTimeMs,
     onExpired: () => {
       const elapsedMs = capAtElementMax(stopwatch.pause(), elementMaxTimeMs);
@@ -305,6 +307,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         }}
       >
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery ?? elementTimer.recovery}
           label={isDual ? 'Search Time' : 'Time'}
           clock={
             <span

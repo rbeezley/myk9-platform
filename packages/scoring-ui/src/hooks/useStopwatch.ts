@@ -20,6 +20,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { formatMsAsMSSCC } from '@myk9/core';
 import type { StopwatchOptions, StopwatchReturn } from '../types';
+import { runClockNow } from '../utils/runClock';
+import {
+  PERSIST_INTERVAL_MS,
+  clearTimerSnapshot,
+  restoreTimer,
+  writeTimerSnapshot,
+  type TimerRecovery,
+} from '../utils/runTimerStorage';
+
+/** Which of a scoresheet's timers this is, in the saved snapshot's key. */
+const TIMER_KIND = 'search';
 
 /**
  * How often the running display repaints (ms). 100ms is myK9Q's battery fix
@@ -95,6 +106,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     onWarningChime,
     onVoiceAnnouncement,
     onScoringActiveChange,
+    persistKey,
   } = options;
   // A zero max ("0:00" -- a class with no time set) is NO limit: no expiry, no
   // warning, no auto-stop. Every check below keys on `maxTime` being set.
@@ -103,9 +115,12 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
 
   // Timer state. `time` (state) is the value as of the last transition; the live
   // clock is `timeRef`, which the 100ms paint updates without a React render.
-  const [time, setTime] = useState(0);
+  // MYK9-2007: a reload mid-run restores the timer from what it saved on the device.
+  const [restored] = useState(() => restoreTimer(persistKey, TIMER_KIND));
+  const [recovery, setRecovery] = useState<TimerRecovery>(restored?.recovery ?? null);
+  const [time, setTime] = useState(restored?.elapsedMs ?? 0);
   const [isRunning, setIsRunning] = useState(false);
-  const timeRef = useRef(0);
+  const timeRef = useRef(restored?.elapsedMs ?? 0);
   const listenersRef = useRef(new Set<() => void>());
 
   const subscribeTime = useCallback((listener: () => void) => {
@@ -138,15 +153,23 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   const startTimeRef = useRef(0);
   const has30SecondAnnouncedRef = useRef(false);
 
-  // Cancel any in-flight frame on unmount.
+  // Cancel any in-flight frame on unmount. Leaving the sheet in the app ends the
+  // run; only a reload (which runs no cleanup) leaves the saved timer to restore.
   useEffect(() => {
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      if (persistKey) clearTimerSnapshot(persistKey, TIMER_KIND);
     };
-  }, []);
+  }, [persistKey]);
+
+  const persist = (elapsedMs: number, running: boolean) => {
+    if (persistKey) {
+      writeTimerSnapshot(persistKey, TIMER_KIND, { elapsedMs, running, wallAt: Date.now() });
+    }
+  };
 
   /**
    * Format milliseconds as "M:SS.ss"
@@ -226,11 +249,14 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   /**
    * Start or resume the timer
    */
-  const start = () => {
+  const begin = () => {
     // A second start must not leave an orphaned loop that pause cannot stop.
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     setIsRunning(true);
-    const startTime = Date.now() - timeRef.current;
+    persist(timeRef.current, true);
+    let lastPersist = runClockNow();
+    // Monotonic: a wall-clock correction mid-run must not move the time (MYK9-2007).
+    const startTime = runClockNow() - timeRef.current;
     startTimeRef.current = startTime;
     const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
     let lastPaint = -Infinity;
@@ -239,7 +265,8 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     let shownWindows = warningWindows(timeRef.current, maxTimeMs, warns);
 
     const tick = () => {
-      const currentTime = Date.now() - startTime;
+      const now = runClockNow();
+      const currentTime = now - startTime;
 
       // Auto-stop when time expires (if maxTime is set). Snap to the exact max
       // and don't schedule another frame.
@@ -247,6 +274,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
         commitTime(maxTimeMs);
         setIsRunning(false);
         rafRef.current = null;
+        persist(maxTimeMs, false);
         if (onTimeExpired) {
           onTimeExpired(formatTime(maxTimeMs));
         }
@@ -257,6 +285,10 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
       // 100ms (tenths tick smoothly) while expiry above is still checked per
       // frame. A paint moves only the live clock -- the <StopwatchTime> display
       // re-renders, the scoresheet does not -- unless a warning window opened.
+      if (now - lastPersist >= PERSIST_INTERVAL_MS) {
+        lastPersist = now;
+        persist(currentTime, true);
+      }
       if (currentTime - lastPaint >= PAINT_INTERVAL_MS) {
         lastPaint = currentTime;
         const windows = warningWindows(currentTime, maxTimeMs, warns);
@@ -273,20 +305,35 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     rafRef.current = requestAnimationFrame(tick);
   };
 
+  /** The judge starts or resumes the timer: any recovery notice has done its job. */
+  const start = () => {
+    setRecovery(null);
+    begin();
+  };
+
+  // A run that was going when the page reloaded keeps going from the restored time.
+  // (Expiry is the tick's job: a restored time past the max snaps to it.)
+  useEffect(() => {
+    if (restored?.running) begin();
+    // Once, on mount.
+  }, []);
+
   /**
    * Pause the timer (keeps current time)
    */
   const pause = (): number => {
     setIsRunning(false);
+    setRecovery(null);
     if (rafRef.current === null) return timeRef.current;
     // The display may be up to one paint (100ms) stale, so record and RETURN
     // the exact elapsed time -- a Stop handler saves this value in the same
     // tick, before the re-render that would update `time`. Capped at the max:
     // a pause between crossing it and the next frame's expiry check.
     const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
-    const elapsed = Date.now() - startTimeRef.current;
+    const elapsed = runClockNow() - startTimeRef.current;
     const exact = maxTimeMs ? Math.min(elapsed, maxTimeMs) : elapsed;
     commitTime(exact);
+    persist(exact, false);
     cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     return exact;
@@ -297,6 +344,8 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    */
   const reset = () => {
     commitTime(0);
+    setRecovery(null);
+    if (persistKey) clearTimerSnapshot(persistKey, TIMER_KIND);
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -398,5 +447,6 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     shouldShow30SecondWarning,
     isTimeExpired,
     getWarningMessage,
+    recovery,
   };
 }

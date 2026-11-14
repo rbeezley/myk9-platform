@@ -84,6 +84,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const stopwatch = useStopwatch({
+    persistKey: entry.id,
     maxTime: '1:00.00',
     level: classInfo.level,
     enableVoiceAnnouncements,
@@ -179,6 +180,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         }}
       >
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery}
           clock={
             <span className={cn('font-mono', stopwatch.isTimeExpired() && 'text-destructive')}>
               <StopwatchTime stopwatch={stopwatch} />

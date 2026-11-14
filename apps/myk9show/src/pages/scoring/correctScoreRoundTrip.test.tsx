@@ -1,0 +1,292 @@
+// MYK9-2006: "Correct this score" reopens the sheet with exactly what was saved.
+// Each test runs the real path: the live sheet submits, the real writer
+// (`useOptimisticScoring`) puts the score on the device's row, and that row goes
+// back through `toScoringEntry` -> `toScoresheetEntry` into a fresh sheet, which
+// is what the judge sees offline after tapping Correct this score.
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  getScoresheetComponent,
+  type ResolvedClassRules,
+  type ScoreData,
+  type ScoresheetSportType,
+} from '@myk9/scoring-ui';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import {
+  toOptimisticScorePayload,
+  toScoresheetEntry,
+  toScoringEntry,
+  type ClassInfo,
+} from './types';
+
+const device = vi.hoisted(() => ({ row: {} as Record<string, unknown> }));
+const savedRowOnDevice = () => device.row as unknown as ReplicatedEntry;
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    updateEntry: vi.fn(async (_id: string, updates: Record<string, unknown>) => {
+      device.row = { ...device.row, ...updates };
+      return 'mutation-1';
+    }),
+  },
+}));
+vi.mock('@/store/scoringStore', () => ({
+  useScoringStore: (selector: (state: { submitScore: () => void }) => unknown) =>
+    selector({ submitScore: () => undefined }),
+}));
+vi.mock('@/services/LoggingService', () => ({
+  logger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn(), log: vi.fn() },
+}));
+
+const classInfo: ClassInfo = {
+  id: 'class-1',
+  name: 'Container Novice A',
+  element: 'Container',
+  level: 'Novice',
+  entryCount: 10,
+};
+
+const oneArea: ResolvedClassRules = {
+  areaCount: 1,
+  timerMode: 'single',
+  maxTimeSeconds: 180,
+  hideCount: 1,
+  hidesKnown: true,
+  distractionCount: 0,
+};
+const twoAreas: ResolvedClassRules = { ...oneArea, areaCount: 2, maxTimeSeconds: 360 };
+
+const blankRow: ReplicatedEntry = {
+  id: 'entry-1',
+  classId: 'class-1',
+  dogId: 'dog-1',
+  dog_call_name: 'Rex',
+  handler: 'Jamie Handler',
+  armband: '101',
+  status: 'accepted',
+};
+
+type Fill = () => void;
+const type = (label: string, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+const pick = (result: string) => fireEvent.click(screen.getByTestId(`result-${result}`));
+const plusFault = () => fireEvent.click(screen.getByRole('button', { name: 'Add a fault' }));
+
+/** Opens `key`'s live sheet on `row`, lets `act` drive it, and returns what it submitted. */
+async function runSheet(
+  key: ScoresheetSportType,
+  rules: ResolvedClassRules,
+  row: ReplicatedEntry,
+  act_: Fill
+): Promise<ScoreData> {
+  const Sheet = getScoresheetComponent(key, 'live');
+  if (!Sheet) throw new Error(`no sheet for ${key}`);
+  const onSubmit = vi.fn<(d: ScoreData) => void>();
+  const view = render(
+    <Sheet
+      entry={toScoresheetEntry(toScoringEntry(row, null, 0), classInfo, key)}
+      classInfo={{ element: 'Container', level: 'Novice' }}
+      rules={rules}
+      onSubmit={onSubmit}
+      onBack={() => {}}
+    />
+  );
+  act_();
+  fireEvent.click(screen.getByTestId('submit-btn'));
+  fireEvent.click(await screen.findByTestId('confirm-submit-btn'));
+  await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+  view.unmount();
+  return onSubmit.mock.calls[0]![0];
+}
+
+/** The device's row after the real writer saved `data`. */
+async function save(data: ScoreData): Promise<ReplicatedEntry> {
+  const { result } = renderHook(() => useOptimisticScoring());
+  await act(async () => {
+    await result.current.submitScoreOptimistically({
+      entryId: 'entry-1',
+      classId: 'class-1',
+      armband: 101,
+      className: classInfo.name,
+      scoreData: toOptimisticScorePayload(data),
+      onSuccess: () => {},
+      onError: err => {
+        throw err;
+      },
+    });
+  });
+  return savedRowOnDevice();
+}
+
+interface SheetCase {
+  name: string;
+  key: ScoresheetSportType;
+  rules: ResolvedClassRules;
+  timeLabels: string[];
+  /** First save: Qualified, times, faults. */
+  first: Fill;
+  expected: Partial<ScoreData>;
+  /** A one-field correction: the faults on AKC and ASCA, a time on UKC and Nationals. */
+  correctFaults: Fill;
+  expectedAfterFaultFix: Partial<ScoreData>;
+}
+
+const cases: SheetCase[] = [
+  {
+    name: 'AKC',
+    key: 'AKC_SCENT_WORK',
+    rules: twoAreas,
+    timeLabels: ['Area 1 time', 'Area 2 time'],
+    first: () => {
+      type('Area 1 time', '0:04.35');
+      type('Area 2 time', '1:10.29');
+      pick('Q');
+      plusFault();
+    },
+    expected: { resultText: 'Q', areaTimes: ['0:04.35', '1:10.29'], faultCount: 1 },
+    correctFaults: plusFault,
+    expectedAfterFaultFix: { areaTimes: ['0:04.35', '1:10.29'], faultCount: 2 },
+  },
+  {
+    name: 'ASCA',
+    key: 'ASCA_SCENT_DETECTION',
+    rules: twoAreas,
+    timeLabels: ['Area 1 time', 'Area 2 time'],
+    first: () => {
+      type('Area 1 time', '0:04.35');
+      type('Area 2 time', '1:10.29');
+      pick('Q');
+      plusFault();
+    },
+    expected: { resultText: 'Q', areaTimes: ['0:04.35', '1:10.29'], faultCount: 1 },
+    correctFaults: plusFault,
+    expectedAfterFaultFix: { areaTimes: ['0:04.35', '1:10.29'], faultCount: 2 },
+  },
+  {
+    name: 'UKC Nosework',
+    key: 'UKC_NOSEWORK',
+    rules: oneArea,
+    timeLabels: ['Recorded time'],
+    first: () => {
+      type('Recorded time', '0:04.35');
+      pick('Q');
+      plusFault();
+    },
+    expected: { resultText: 'Q', areaTimes: ['0:04.35'], faultCount: 1 },
+    correctFaults: () => type('Recorded time', '0:05.00'),
+    expectedAfterFaultFix: { areaTimes: ['0:05.00'], faultCount: 1 },
+  },
+  {
+    name: 'AKC Nationals',
+    key: 'AKC_SCENT_WORK_NATIONAL',
+    rules: twoAreas,
+    timeLabels: ['Area 1 time'],
+    first: () => {
+      type('Area 1 time', '0:04.35');
+      fireEvent.click(screen.getByTestId('area-tab-2'));
+      type('Area 2 time', '1:10.29');
+      fireEvent.click(screen.getByTestId('correct-inc'));
+      fireEvent.click(screen.getByTestId('correct-inc'));
+      fireEvent.click(screen.getByTestId('incorrect-inc'));
+      fireEvent.click(screen.getByTestId('fce-inc'));
+      pick('Q');
+    },
+    expected: {
+      resultText: 'Q',
+      areaTimes: ['0:04.35', '1:10.29'],
+      correctCount: 2,
+      incorrectCount: 1,
+      finishCallErrors: 1,
+      points: 15,
+    },
+    // The only change: Area 1's time.
+    correctFaults: () => type('Area 1 time', '0:05.00'),
+    expectedAfterFaultFix: {
+      areaTimes: ['0:05.00', '1:10.29'],
+      correctCount: 2,
+      incorrectCount: 1,
+      finishCallErrors: 1,
+      points: 15,
+    },
+  },
+];
+
+describe.each(cases)('$name: Correct this score (MYK9-2006)', c => {
+  beforeEach(() => {
+    device.row = { ...blankRow };
+  });
+
+  it('reopens with the saved result, every time and the faults, from the device row', async () => {
+    const first = await runSheet(c.key, c.rules, blankRow, c.first);
+    const saved = await save(first);
+
+    const Sheet = getScoresheetComponent(c.key, 'live')!;
+    render(
+      <Sheet
+        entry={toScoresheetEntry(toScoringEntry(saved, null, 0), classInfo, c.key)}
+        classInfo={{ element: 'Container', level: 'Novice' }}
+        rules={c.rules}
+        onSubmit={() => {}}
+        onBack={() => {}}
+      />
+    );
+    expect(screen.getByLabelText(c.timeLabels[0]!)).toHaveValue(c.expected.areaTimes![0]);
+  });
+
+  it('saving without changing anything stores the same score', async () => {
+    const first = await runSheet(c.key, c.rules, blankRow, c.first);
+    const saved = await save(first);
+    const again = await runSheet(c.key, c.rules, saved, () => {});
+    expect(again).toMatchObject(c.expected);
+    const savedAgain = { ...(await save(again)) };
+    for (const col of [
+      'result_status',
+      'search_time_seconds',
+      'total_faults',
+      'area1_time_seconds',
+      'area2_time_seconds',
+      'area3_time_seconds',
+      'area4_time_seconds',
+      'total_correct_finds',
+      'total_incorrect_finds',
+      'no_finish_count',
+      'points_earned',
+      'disqualification_reason',
+    ] as const) {
+      expect(savedAgain[col], col).toEqual(saved[col]);
+    }
+  });
+
+  it('a one-field correction leaves every other field as saved', async () => {
+    const first = await runSheet(c.key, c.rules, blankRow, c.first);
+    const saved = await save(first);
+    const fixed = await runSheet(c.key, c.rules, saved, c.correctFaults);
+    expect(fixed).toMatchObject({ resultText: 'Q', ...c.expectedAfterFaultFix });
+  });
+});
+
+describe('Correct this score: NQ with its reason (MYK9-2006)', () => {
+  beforeEach(() => {
+    device.row = { ...blankRow };
+  });
+
+  it.each([
+    ['AKC_SCENT_WORK', 'Incorrect Call'],
+    ['ASCA_SCENT_DETECTION', 'Incorrect Call'],
+    ['UKC_NOSEWORK', 'Fault Limit'],
+  ] as const)('%s keeps the NQ and its reason', async (key, reason) => {
+    const label = key === 'UKC_NOSEWORK' ? 'Recorded time' : 'Area 1 time';
+    const first = await runSheet(key, oneArea, blankRow, () => {
+      type(label, '0:04.35');
+      pick('NQ');
+    });
+    const saved = await save(first);
+    const again = await runSheet(key, oneArea, saved, () => {});
+    expect(again).toMatchObject({
+      resultText: 'NQ',
+      nonQualifyingReason: reason,
+      areaTimes: ['0:04.35'],
+    });
+  });
+});

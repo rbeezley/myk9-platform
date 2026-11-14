@@ -2,12 +2,24 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useStopwatch } from './useStopwatch';
 
+/**
+ * Time passes with no timer firing (a locked phone, a late frame): the run clock
+ * moves, and the wall clock with it. The wall clock alone no longer moves a run
+ * (MYK9-2007), so the monotonic one is skewed too.
+ */
+function passTimeWithoutTicks(ms: number): void {
+  const now = performance.now.bind(performance);
+  vi.spyOn(performance, 'now').mockImplementation(() => now() + ms);
+  vi.setSystemTime(Date.now() + ms);
+}
+
 describe('useStopwatch', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -130,7 +142,7 @@ describe('useStopwatch', () => {
 
       act(() => result.current.start());
       // Cross the max without a frame running the expiry check.
-      vi.setSystemTime(Date.now() + 1010);
+      passTimeWithoutTicks(1010);
       let recorded = -1;
       act(() => {
         recorded = result.current.pause();

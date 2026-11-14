@@ -48,6 +48,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const stopwatch = useStopwatch({
+    persistKey: entry.id,
     maxTime: '5:00',
     level: classInfo.level,
     enableVoiceAnnouncements,
@@ -147,6 +148,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         }}
       >
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery}
           label="Course Time"
           clock={
             <span

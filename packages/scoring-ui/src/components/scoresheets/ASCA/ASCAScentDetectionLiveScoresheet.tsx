@@ -89,6 +89,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
   const maxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
   const stopwatch = useStopwatch({
+    persistKey: entry.id,
     maxTime: maxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -183,6 +184,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
         }}
       >
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery}
           clock={
             <span
               className={cn(

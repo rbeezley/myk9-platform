@@ -183,13 +183,11 @@ export async function sendJudgeRecord(
   if (!resendApiKey) throw new HttpError(503, 'Email service not configured.');
 
   const storagePath = judgeRecordStoragePath(show.id, payload.judgeId, payload.day, sha256);
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, bytes, {
-      contentType: 'application/pdf',
-      upsert: true,
-      cacheControl: '0',
-    });
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, bytes, {
+    contentType: 'application/pdf',
+    upsert: true,
+    cacheControl: '0',
+  });
   if (uploadError) throw new HttpError(500, "Failed to store the judge's record.");
 
   const { data: signed, error: signedError } = await supabase.storage

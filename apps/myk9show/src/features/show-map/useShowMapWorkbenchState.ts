@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { buildShowMapTree } from './showMapTree';
+import { dayOfDogLabel } from './dayOfMessages';
 import { useShowMapActionExecutor } from './useShowMapActionExecutor';
 import { useShowMapRunOrderAutoSort } from './useShowMapRunOrderAutoSort';
 import type { BuildShowMapTreeInput, ShowMapTree } from './showMapTypes';
@@ -63,7 +64,14 @@ export function useShowMapWorkbenchState({
 
   const navigateTo = useCallback((href: string) => navigate(href), [navigate]);
 
-  const executor = useShowMapActionExecutor({ showId });
+  const executor = useShowMapActionExecutor({
+    showId,
+    // The toast after a day-of change names the dog the way the tree shows it.
+    entryLabelOf: action => {
+      const display = tree.nodesById[action.nodeId]?.entryDisplay;
+      return display ? dayOfDogLabel(display) : undefined;
+    },
+  });
   const runOrderAutoSort = useShowMapRunOrderAutoSort({ showId });
 
   return {

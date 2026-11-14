@@ -169,7 +169,8 @@ export type RunQueueState =
   | { kind: 'withdrawn' }
   /** Marked absent, or moved to another class: neither is a pull (MYK9-1940). */
   | { kind: 'absent' }
-  | { kind: 'moved' };
+  /** `toClass` is the class the dog went to, where the screen knows it (MYK9-1940). */
+  | { kind: 'moved'; toClass?: string | undefined };
 
 /** The reasons a dog is not running; each reads its own word on every screen. */
 export type NotRunningReason = 'pulled' | 'withdrawn' | 'absent' | 'moved';
@@ -227,7 +228,7 @@ export function formatRunQueueState(state: RunQueueState): string {
     case 'absent':
       return 'Absent';
     case 'moved':
-      return 'Moved';
+      return state.toClass ? `Moved to ${state.toClass}` : 'Moved';
   }
 }
 
@@ -249,8 +250,8 @@ export function notRunningReasonOf(
 }
 
 /** The word for a dog that is not running; the judge's list and the exhibitor's rows share it. */
-export function notRunningLabel(reason: NotRunningReason): string {
-  return formatRunQueueState({ kind: reason });
+export function notRunningLabel(reason: NotRunningReason, toClass?: string): string {
+  return formatRunQueueState(reason === 'moved' ? { kind: reason, toClass } : { kind: reason });
 }
 
 // Dependency-free, so the app's time formatter can parse class times without

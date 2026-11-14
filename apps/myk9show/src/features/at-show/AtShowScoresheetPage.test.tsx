@@ -777,6 +777,19 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(await screen.findByText('Entry List')).toBeInTheDocument();
     });
 
+    it('does not ask after a save: a dirty sheet that saved returns to the list freely', async () => {
+      submitScoreOptimistically.mockImplementationOnce(
+        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+      );
+      renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+      fireEvent.click(screen.getByText('Submit Score'));
+
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+    });
+
     it('asks on the back gesture from a dirty sheet', async () => {
       const router = renderInDataRouter();
       await screen.findByTestId('live-scoresheet');

@@ -3,6 +3,9 @@
  * "Saved: 100 Willow · Qualified · 0:04.35 · Correct". Offline or not yet
  * uploaded it adds "on this device, not sent yet".
  *
+ * It sticks to the top of the screen: the list returns to the scroll position the dog was opened
+ * from, which can be far down a long list, and the line (and any not-sent warning) must stay seen.
+ *
  * INTENT: this says what was saved and offers Correct. It never names, ranks or
  * suggests another dog (see `savedScore.ts`). Correct is the same reopen as the
  * old "Correct this score": the scoresheet route reads the saved row from the
@@ -41,7 +44,7 @@ const SavedScoreLineBody: React.FC<{ saved: SavedScore }> = ({ saved }) => {
     <div
       role="status"
       data-testid="saved-score-line"
-      className={`mx-auto flex max-w-2xl flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-sm ${
+      className={`sticky top-0 z-40 flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-background px-4 py-2 text-sm ${
         failed ? 'text-destructive' : 'text-foreground'
       }`}
     >

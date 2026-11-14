@@ -256,13 +256,17 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           ),
         })
       );
+      // The score is saved, so the sheet is no longer unsaved work. Clear it now, in the same
+      // call: the route blocker reads the ref at navigation time and would otherwise ask
+      // "Discard this score?" about a score that is already saved.
+      setSheetDirty(false);
       // The list keeps the scroll position it had when the dog was opened.
       navigate(listRoute, {
         replace: true,
         ...(typeof returnScrollY === 'number' && { state: { scrollY: returnScrollY } }),
       });
     },
-    [setSavedScore, navigate, listRoute, showId, classId, combined, returnScrollY]
+    [setSavedScore, setSheetDirty, navigate, listRoute, showId, classId, combined, returnScrollY]
   );
   const {
     entry,

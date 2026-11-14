@@ -77,6 +77,15 @@ const EXCUSED_REASONS: Record<string, string[]> = {
   ],
 };
 
+/**
+ * ASCA's long-standing cap on the + (pinned by scoresheetPhoneLayout.test). UKC and
+ * every other registry count past the limit and show the sentence instead (MYK9-2004).
+ */
+function getMaxFaults(sportType?: ScoresheetSportType, level?: string): number {
+  const limit = faultLimitFor(sportType, level);
+  return limit?.registry === 'ASCA' ? limit.max : Infinity;
+}
+
 const chipBase =
   'min-h-12 px-1 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-all duration-200 active:scale-[0.98]';
 
@@ -121,6 +130,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
 }) => {
   const nqReasons = NQ_REASONS[sportType || ''] || NQ_REASONS.default;
   const excusedReasons = EXCUSED_REASONS[sportType || ''] || EXCUSED_REASONS.default;
+  const maxFaults = getMaxFaults(sportType, level);
   // The counter counts past the limit; the sentence says why a Qualified cannot be saved.
   const faultProblem = qualifiedFaultProblem(faultCount, faultLimitFor(sportType, level));
 
@@ -149,6 +159,8 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
         <FaultStepper
           value={faultCount}
           onChange={onFaultCountChange}
+          max={maxFaults === Infinity ? undefined : maxFaults}
+          maxNote={`At maximum faults for ${level} level`}
           limitProblem={faultProblem}
         />
       )}

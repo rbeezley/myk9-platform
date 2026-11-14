@@ -41,10 +41,11 @@ export interface AdoptHeldMutationsOptions {
    */
   failedErrorIncludes?: string;
   /**
-   * The live session's passcode claim (role and judge). A row stamped with another
-   * claim is left for its own judge, so one judge's scores are never handed to another
-   * on a shared device. A row with no stamp (queued before stamping) matches show-wide,
-   * pending or dead letter, and adoption stamps it with this claim (MYK9-2009).
+   * The live session's passcode claim (role and judge). A dead letter is adopted only
+   * when it was queued under this same claim; a pending row queued under a different
+   * claim is left for its own judge. Rows with no stamp match show-wide, as before
+   * (pending only), so one judge's refused scores are never handed to another judge
+   * on a shared device (MYK9-2009).
    */
   claim?: string;
 }
@@ -71,8 +72,8 @@ export function isAdoptableHeldMutation(
   }
   return (
     mutation.status === 'failed' &&
-    (mutation.ringsideClaim === undefined ||
-      (claim !== undefined && mutation.ringsideClaim === claim)) &&
+    claim !== undefined &&
+    mutation.ringsideClaim === claim &&
     failedErrorIncludes !== undefined &&
     typeof mutation.error === 'string' &&
     mutation.error.includes(failedErrorIncludes)
@@ -111,8 +112,6 @@ export async function adoptHeldMutationsInStore(
     ...((await pendingStore.getAll()) as PendingMutation[]),
     ...((await failedStore.getAll()) as PendingMutation[]),
   ];
-  // A row queued before claim stamping takes the adopting claim, so a later rotation follows the stamped rule.
-  const stamp = options.claim !== undefined ? { ringsideClaim: options.claim } : {};
   let adopted = 0;
   for (const row of rows) {
     if (!ids.has(row.id) || !isAdoptableHeldMutation(row, options)) continue;
@@ -120,11 +119,10 @@ export async function adoptHeldMutationsInStore(
       await pendingStore.put({
         ...requeueFailedMutation(row),
         authUserId: options.toAuthUserId,
-        ...stamp,
       });
       await failedStore.delete(row.id);
     } else {
-      await pendingStore.put({ ...row, authUserId: options.toAuthUserId, ...stamp });
+      await pendingStore.put({ ...row, authUserId: options.toAuthUserId });
     }
     adopted++;
   }

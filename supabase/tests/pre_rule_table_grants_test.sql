@@ -365,7 +365,11 @@ BEGIN
       -- authenticated (20261101213300, MYK9-1637): the money surfaces let a
       -- card-paid entry stand over a reopened form. anon stays 0 (REVOKEd), and a
       -- direct write cannot set it (trg_entries_derive_card_paid re-derives it).
-      ('entries','authenticated',57),
+      -- 57 -> 60: class_change_target_class_id, class_change_reason and
+      -- class_change_requested_at (20261114201300, MYK9-1929) are granted SELECT to
+      -- authenticated so the exhibitor and secretary see a pending class-change request.
+      -- anon stays 0: the same migration REVOKEs them from anon.
+      ('entries','authenticated',60),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

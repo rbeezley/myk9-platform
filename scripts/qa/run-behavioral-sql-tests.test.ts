@@ -202,6 +202,7 @@ const launchCriticalSqlTests = [
   'myk9_1701_claim_push_subscription_test.sql',
   'withdraw_own_entry_test.sql',
   'withdraw_or_pull_own_entry_test.sql',
+  'myk9_1929_class_change_request_test.sql',
   'myk9_778_no_owner_withdraw_after_show_completed_test.sql',
   'myk9_719_scratch_requested_retired_test.sql',
   'update_own_entry_jump_height_test.sql',

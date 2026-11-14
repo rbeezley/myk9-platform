@@ -21,7 +21,6 @@ const STILL_TO_RUN = new Set<string>([
   'pending-payment',
   'promotion-expired',
   'move-up-requested',
-  'move_up_requested',
   'competing',
 ]);
 const OUT_OF_QUEUE = new Set<string>([

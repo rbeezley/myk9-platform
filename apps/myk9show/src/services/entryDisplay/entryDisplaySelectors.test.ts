@@ -36,9 +36,8 @@ describe('getEntryStatusKind — the single classifier', () => {
     ['absent', 'absent'],
     ['moved', 'moved'],
     ['move-up-requested', 'move_up_requested'],
-    // Both spellings are valid per the entry_status CHECK constraint (it restored
-    // the hyphen forms alongside the underscore forms) — neither may render Unknown.
-    ['move_up_requested', 'move_up_requested'],
+    // The underscore spelling is retired from the CHECK constraint (MYK9-1929).
+    ['move_up_requested', 'unknown'],
   ];
 
   it.each(cases)('maps %s -> %s', (raw, kind) => {

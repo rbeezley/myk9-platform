@@ -122,14 +122,10 @@ describe('status icon grammar source ownership', () => {
     }
   });
 
-  it('keeps the grammar in shared UI and routes ringside status content through it', () => {
+  it('keeps the grammar in shared UI and the ringside API free of status config', () => {
     const sharedGrammar = resolve(
       WORKSPACE_ROOT,
       'packages/ui/src/components/StatusIcon/statusIconGrammar.ts'
-    );
-    const ringsideRenderer = resolve(
-      WORKSPACE_ROOT,
-      'packages/ringside/src/pages/EntryList/SortableEntryCardComponents.tsx'
     );
     const ringsideStatusApiSources = [
       resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/sortableEntryCardUtils.ts'),
@@ -138,10 +134,6 @@ describe('status icon grammar source ownership', () => {
     ];
 
     expect(existsSync(sharedGrammar)).toBe(true);
-    const ringsideSource = readFileSync(ringsideRenderer, 'utf8');
-    expect(ringsideSource).toContain('StatusIcon');
-    expect(ringsideSource).toContain("from '@myk9/ui'");
-    expect(ringsideSource).not.toMatch(/function getIcon|switch \(config\.iconName\)/);
     for (const sourcePath of ringsideStatusApiSources) {
       expect(readFileSync(sourcePath, 'utf8'), sourcePath).not.toMatch(
         /\bgetStatusConfig\b|\bStatusConfig\b/

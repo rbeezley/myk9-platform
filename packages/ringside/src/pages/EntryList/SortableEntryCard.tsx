@@ -17,8 +17,7 @@
  * entry object renders only the cards whose entry actually changed.
  *
  * Status badges (StatusBadge, ResetButton) live in `./SortableEntryCardBadges`;
- * helper functions in `./sortableEntryCardUtils` and
- * `./SortableEntryCardComponents`.
+ * helper functions in `./sortableEntryCardUtils`.
  */
 
 import React from 'react';

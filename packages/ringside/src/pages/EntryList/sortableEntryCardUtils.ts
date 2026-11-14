@@ -8,7 +8,7 @@
  *
  * Host app re-exports this module via
  * apps/myk9q/src/pages/EntryList/sortableEntryCardUtils.ts as a shim so
- * existing callers (SortableEntryCard.tsx, SortableEntryCardComponents.tsx)
+ * existing callers (SortableEntryCard.tsx)
  * keep working unchanged.
  */
 

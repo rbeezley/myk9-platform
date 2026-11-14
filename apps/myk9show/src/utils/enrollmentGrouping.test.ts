@@ -311,7 +311,8 @@ describe('paidAmount aggregation for groups without an enrollment', () => {
     const groups = groupEntriesByEnrollment(entries);
     expect(groups).toHaveLength(1);
     expect(groups[0].paidAmount).toBe(30);
-    expect(groups[0].totalAmount).toBe(60);
+    // MYK9-1961: the refunded entry's fee is not owed, so the form owes only e1's $30.
+    expect(groups[0].totalAmount).toBe(30);
   });
 
   it('keeps the enrollment-level paidAmount authoritative when present', () => {

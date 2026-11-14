@@ -111,6 +111,29 @@ case "$REVIEWER" in
   *) echo "post-review-gate: reviewer must be codex, claude, adversarial, none or owner" >&2; exit 2;;
 esac
 
+# MYK9-1967: the evidence line is `<reviewer> reviewed <base9>..<head9>`, and
+# review-gate.ts parses the range as 7-40 lowercase hex on both sides. A ref
+# name (`origin/main`) was truncated to `origin/ma`, posted, and silently ignored
+# by the gate, which then reported "no independent review recorded". Resolve each
+# to a commit SHA here, or refuse: a ref moves, the gate pins evidence to fixed
+# SHAs. A value that is already 7-40 hex passes through UNCHANGED, with no git
+# lookup, so fixtures and shallow clones that lack the object still post (the
+# gate re-checks the real range either way).
+resolve_commit() {  # <label> <ref>; prints the SHA, or refuses the whole post
+  case "$2" in
+    ''|*[!0-9a-f]*) ;;
+    *) if [ "${#2}" -ge 7 ] && [ "${#2}" -le 40 ]; then printf '%s\n' "$2"; return 0; fi;;
+  esac
+  local resolved
+  if ! resolved="$(git rev-parse --verify --quiet "$2^{commit}" 2>/dev/null)" || [ -z "$resolved" ]; then
+    echo "post-review-gate: $1 '$2' is not a commit sha and does not resolve to one here (git rev-parse --verify '$2^{commit}'); nothing posted" >&2
+    exit 2
+  fi
+  printf '%s\n' "$resolved"
+}
+BASE="$(resolve_commit base "$BASE")" || exit 2
+HEAD="$(resolve_commit head "$HEAD")" || exit 2
+
 # The `adversarial` tier's lens attestation. Checked here, before the dry-run
 # exit, so the poster and the gate agree about what an adversarial record must
 # carry instead of the poster publishing a body the gate will refuse.

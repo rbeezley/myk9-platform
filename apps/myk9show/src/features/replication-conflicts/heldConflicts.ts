@@ -1,4 +1,3 @@
-import { REPLICATED_TABLES } from '@/providers/ReplicationSyncProvider';
 import { logger } from '@/services/LoggingService';
 
 type ConflictSource = {
@@ -11,6 +10,9 @@ type ConflictSource = {
  * read is skipped (logged), never counted as "no conflict" for the others.
  */
 export async function listHeldConflicts(): Promise<unknown[]> {
+  // Loaded on use: the provider wires the replicated tables at import time, which hooks that only
+  // read the sync status (and their tests) must not trigger.
+  const { REPLICATED_TABLES } = await import('@/providers/ReplicationSyncProvider');
   const held: unknown[] = [];
   for (const { table } of REPLICATED_TABLES) {
     try {

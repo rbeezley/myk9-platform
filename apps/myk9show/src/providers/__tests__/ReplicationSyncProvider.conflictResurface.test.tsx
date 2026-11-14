@@ -392,7 +392,10 @@ describe('ReplicationSyncProvider: the conflict notice (MYK9-1995)', () => {
       });
       const options = vi.mocked(toast.warning).mock.calls.at(-1)?.[1];
       await act(async () => {
-        options?.cancel && 'onClick' in options.cancel && options.cancel.onClick?.({} as never);
+        const cancel = options?.cancel;
+        if (cancel && typeof cancel === 'object' && 'onClick' in cancel) {
+          cancel.onClick({} as never);
+        }
       });
       await act(async () => {
         await new Promise(resolve => setTimeout(resolve, 0));

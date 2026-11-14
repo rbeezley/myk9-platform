@@ -10,7 +10,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { configure, getConfig } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 
-import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';

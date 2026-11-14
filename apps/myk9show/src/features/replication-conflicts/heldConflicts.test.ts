@@ -25,7 +25,9 @@ describe('held conflicts', () => {
     tables.classes.getConflictedRows.mockResolvedValue([classSnapshot]);
     tables.entries.getConflictedRows.mockResolvedValue([]);
   });
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('lists the persisted snapshots of every table, skipping one that cannot be read', async () => {
     expect(await listHeldConflicts()).toEqual([classSnapshot]);

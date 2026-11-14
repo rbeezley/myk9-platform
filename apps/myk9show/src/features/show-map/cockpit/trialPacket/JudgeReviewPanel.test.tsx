@@ -125,7 +125,7 @@ describe('judge review packet panel', () => {
     renderPanel(null);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'scores changed after a judge submitted them are not marked'
+      'Scores changed after the judge submitted them are not marked'
     );
     const print = await screen.findByRole('button', { name: 'Print all 2 packets' });
     await waitFor(() => expect(print).toBeEnabled(), BUILT);
@@ -141,7 +141,7 @@ describe('judge review packet panel', () => {
       'You are offline, so the score history is not available.'
     );
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'scores changed after a judge submitted them are not marked'
+      'Scores changed after the judge submitted them are not marked'
     );
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     expect(mocks.getClassScoreAudits).not.toHaveBeenCalled();

@@ -914,7 +914,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     expect(selectable).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('(c) explains existing entries are changed in My Shows, linking /exhibitor/entries', async () => {
+  it('(c) points existing entries to My Shows and class changes to the secretary', async () => {
     renderAddOnlyStep();
 
     expect(await screen.findByText(/already entered in the classes marked/i)).toBeInTheDocument();

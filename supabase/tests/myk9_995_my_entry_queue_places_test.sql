@@ -276,11 +276,11 @@ $$;
 do $$
 begin
   if pg_get_function_result('public.get_my_entry_queue_places(uuid[])'::regprocedure)
-       <> 'TABLE(entry_id uuid, place integer)' then
+       <> 'TABLE(entry_id uuid, place integer, claim_state text)' then
     raise exception 'FAIL shape: %',
       pg_get_function_result('public.get_my_entry_queue_places(uuid[])'::regprocedure);
   end if;
-  raise notice 'PASS result carries entry_id and place only';
+  raise notice 'PASS result carries entry_id, place and claim_state only';
 end;
 $$;
 

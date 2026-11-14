@@ -168,6 +168,11 @@ describe('ShowAccessCodesCard per-judge rows (MYK9-1951)', () => {
       await user.click(screen.getByRole('button', { name: 'New code for Grace Hopper' }));
       expect(screen.getByText('New code for Grace Hopper?')).toBeInTheDocument();
       expect(screen.getByText(/Their old code stops working/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Grace Hopper will be asked for the new code\. Scores already on their phone are kept\./
+        )
+      ).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: /^generate$/i }));
 
       expect(await screen.findByText('j5555')).toBeInTheDocument();

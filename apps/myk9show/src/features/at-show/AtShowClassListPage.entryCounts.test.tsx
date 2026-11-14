@@ -12,11 +12,10 @@ import '@/test/utils/pageRenderWait';
  *     `AtShowClassRow` through a prop, and deleting that prop wiring used to
  *     compile, stay green, and quietly reinstate the bug (LESSONS
  *     last-hop-drop).
- *  3. A signed-in judge whose assignments are UNKNOWN (offline cold boot:
- *     roles are cached, identity is not) sees `—`, not a count. The picker
- *     deliberately fails open to every class there, but a non-manager judge's
- *     entry visibility is per class -- so the rows for a class that is not
- *     theirs are absent for a reason that has nothing to do with its size.
+ *  3. A signed-in judge whose assignments are UNKNOWN (no saved person pairing)
+ *     sees no classes and no counts: a non-manager judge's entry visibility is
+ *     per class, so another class's rows are absent for a reason that has
+ *     nothing to do with its size (MYK9-2014).
  */
 
 import { Routes, Route } from 'react-router-dom';

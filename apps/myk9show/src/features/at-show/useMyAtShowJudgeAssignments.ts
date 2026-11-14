@@ -17,7 +17,8 @@ export interface MyAtShowJudgeAssignmentsResult {
    * means "unknown", not "none". True when the judge's person identity has not
    * resolved (offline cold boot: roles are cached, identity is not) or when the
    * lookup never completed. Callers MUST NOT render "no classes assigned" from
-   * an empty set while this is true; fail open to the unfiltered picker instead.
+   * an empty set while this is true, and a judge-only picker must not list the
+   * whole show either: it shows a "not on this device yet" page with a retry (MYK9-2014).
    */
   isUnknown: boolean;
   error: Error | null;

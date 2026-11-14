@@ -18,6 +18,7 @@ import { cockpitDaysKey } from './cockpitDayFilter';
 import { CockpitFilterMenu } from './CockpitFilterMenu';
 import { CockpitFocusOutlet } from './CockpitSplitFocusColumn';
 import { pruneCockpitFilters, hasActiveCockpitFilters } from './cockpitClassFilters';
+import { CarriedClassNotice } from '@/components/shows/ShowDetails/CarriedClassNotice';
 import { filtersUpdate, focusedPanelShows } from './cockpitFocusRules';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
@@ -253,6 +254,10 @@ export function SecretaryCockpit({
       )}
 
       {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
+
+      {model.focusUnavailable && (
+        <CarriedClassNotice name={model.focusUnavailable.name ?? undefined} />
+      )}
 
       <div
         ref={gridRef}

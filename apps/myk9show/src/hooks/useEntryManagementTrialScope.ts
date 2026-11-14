@@ -80,6 +80,8 @@ export function useEntryManagementTrialClasses({
       classesLoaded,
       /** Class to trial for every loaded class, so a trial pick can drop its classes. */
       classTrialById: new Map(loadedClasses.map(c => [c.id, c.trialId])),
+      /** Class names by id, for every loaded class (a notice naming a class the page cannot show). */
+      classNameById: new Map(loadedClasses.map(c => [c.id, c.name])),
       /** Every class id in the show, only once every trial's classes have loaded (URL pruning). */
       knownClassIds: everyShowTrialLoaded
         ? new Set(showTrialIds.flatMap(trialId => classesOf(trialId).map(c => c.id)))

@@ -399,20 +399,34 @@ export function buildSecretaryCockpitModel(
   const explicitFocus = state.focusedClassId
     ? dayClasses.find(cls => cls.id === state.focusedClassId)
     : undefined;
+  // A class the URL names but the schedule cannot show (stale id, another day) selects nothing and
+  // is reported, never swapped for the default: the wrong running class gets changed that way
+  // (MYK9-1996). No class named at all keeps the default below.
+  const namedSource = state.focusedClassId
+    ? snapshot.classes.find(cls => cls.id === state.focusedClassId)
+    : undefined;
+  const focusUnavailable =
+    state.focusedClassId && !explicitFocus && snapshot.classes.length > 0
+      ? {
+          id: state.focusedClassId,
+          name: namedSource ? buildCockpitClassLabelResolver(snapshot.classes)(namedSource) : null,
+        }
+      : null;
   // Across several days, the default focus comes from the open day, not from a
   // stale in-progress class on another day.
-  const focused =
-    explicitFocus ??
-    (multiDayScope
-      ? focusClass(
-          classesForTrials(
-            snapshot,
-            trials.filter(trial => trial.date === selectedDay)
-          ),
-          undefined
-        )
-      : null) ??
-    focusClass(dayClasses, undefined);
+  const focused = focusUnavailable
+    ? null
+    : (explicitFocus ??
+      (multiDayScope
+        ? focusClass(
+            classesForTrials(
+              snapshot,
+              trials.filter(trial => trial.date === selectedDay)
+            ),
+            undefined
+          )
+        : null) ??
+      focusClass(dayClasses, undefined));
   const allAttention = buildAttention(snapshot, scopeTrials);
   const attentionCountByClass = buildAttentionCountByClass(allAttention);
   const labelOf = buildCockpitClassLabelResolver(snapshot.classes);
@@ -451,6 +465,7 @@ export function buildSecretaryCockpitModel(
       attentionCountByClass,
       labelOf
     ),
+    focusUnavailable,
     focusedClass: focused
       ? toFocusedClass(
           focused,

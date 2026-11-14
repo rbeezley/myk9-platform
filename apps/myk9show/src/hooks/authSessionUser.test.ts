@@ -1,7 +1,14 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import type { Session } from '@supabase/supabase-js';
 import { deriveDefaultAuthStorageKey } from '@/services/database/persistedAuthUserId';
-import { readPersistedAuthUser, resolveSessionUser } from './authSessionUser';
+import { AuthRetryableFetchError } from '@supabase/supabase-js';
+import { OFFLINE_SESSION_CACHE_TTL_MS } from '@/context/offlineSessionCacheTtl';
+import {
+  isNetworkClassAuthError,
+  readPersistedAuthUser,
+  resolveGetSessionUser,
+  resolveSessionUser,
+} from './authSessionUser';
 
 const KEY = deriveDefaultAuthStorageKey(import.meta.env.VITE_SUPABASE_URL || '');
 
@@ -12,7 +19,7 @@ function persist(value: unknown) {
 const stored = {
   access_token: 'a',
   refresh_token: 'r',
-  expires_at: 1,
+  expires_at: Math.floor(Date.now() / 1000) - 3_600,
   user: { id: 'u-1', email: 'x@example.com' },
 };
 
@@ -35,6 +42,44 @@ describe('readPersistedAuthUser', () => {
   ])('returns null for %s', (_label, value) => {
     if (value !== undefined) persist(value);
     expect(readPersistedAuthUser()).toBeNull();
+  });
+});
+
+describe('readPersistedAuthUser bound', () => {
+  const expiredAgo = (ms: number) => Math.floor((Date.now() - ms) / 1000);
+
+  it('still resolves just inside the saved-permissions window', () => {
+    persist({ ...stored, expires_at: expiredAgo(OFFLINE_SESSION_CACHE_TTL_MS - 60_000) });
+    expect(readPersistedAuthUser()?.id).toBe('u-1');
+  });
+
+  it('stops once identity would outlive the saved permissions', () => {
+    persist({ ...stored, expires_at: expiredAgo(OFFLINE_SESSION_CACHE_TTL_MS + 60_000) });
+    expect(readPersistedAuthUser()).toBeNull();
+  });
+
+  it('is null when the session has no expires_at', () => {
+    persist({ ...stored, expires_at: undefined });
+    expect(readPersistedAuthUser()).toBeNull();
+  });
+});
+
+describe('resolveGetSessionUser', () => {
+  it('keeps the persisted user for a network-class error and for a null with no error', () => {
+    persist(stored);
+    const offline = new AuthRetryableFetchError('Failed to fetch', 0);
+    expect(resolveGetSessionUser(null, offline)?.id).toBe('u-1');
+    expect(resolveGetSessionUser(null, null)?.id).toBe('u-1');
+  });
+
+  it('does not fall back for a definitive auth error', () => {
+    persist(stored);
+    expect(resolveGetSessionUser(null, new Error('invalid_grant'))).toBeNull();
+  });
+
+  it('classifies network errors', () => {
+    expect(isNetworkClassAuthError(new TypeError('Failed to fetch'))).toBe(true);
+    expect(isNetworkClassAuthError(new Error('boom'))).toBe(false);
   });
 });
 

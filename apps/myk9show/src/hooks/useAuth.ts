@@ -11,7 +11,11 @@ import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { User } from '@supabase/supabase-js';
-import { resolveSessionUser } from './authSessionUser';
+import {
+  isNetworkClassAuthError,
+  resolveGetSessionUser,
+  resolveSessionUser,
+} from './authSessionUser';
 import {
   decodeOAuthRoleIntent,
   encodeOAuthRoleIntent,
@@ -152,15 +156,15 @@ export function useAuth() {
     // Get initial session
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => {
+      .then(({ data: { session }, error }) => {
         if (disposed || authEventReceived) return;
         // A null here may only be a refresh that failed offline (MYK9-1992).
-        setUser(resolveSessionUser('GET_SESSION', session));
+        setUser(resolveGetSessionUser(session, error));
         setLoading(false);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (disposed || authEventReceived) return;
-        setUser(resolveSessionUser('GET_SESSION', null));
+        if (isNetworkClassAuthError(error)) setUser(resolveSessionUser('GET_SESSION', null));
         setLoading(false);
       });
 

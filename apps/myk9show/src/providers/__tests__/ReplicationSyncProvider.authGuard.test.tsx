@@ -4,11 +4,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
 import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import { notifications } from '@/lib/notifications';
+import { deriveDefaultAuthStorageKey } from '@/services/database/persistedAuthUserId';
 
 type AuthCallback = (event: AuthChangeEvent, session: Session | null) => void;
 
 const hoisted = vi.hoisted(() => {
-  const authState: { callback: AuthCallback | null } = { callback: null };
+  const authState: { callback: AuthCallback | null; liveSession: unknown } = {
+    callback: null,
+    liveSession: { access_token: 'tok', user: { id: 'u1' } },
+  };
   const unsubscribeSpy = vi.fn();
   const makeSyncSpy = () => vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 });
   const syncSpies = {
@@ -118,6 +122,7 @@ vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     auth: {
+      getSession: () => Promise.resolve({ data: { session: hoisted.authState.liveSession } }),
       onAuthStateChange: (cb: AuthCallback) => {
         hoisted.authState.callback = cb;
         return {
@@ -191,6 +196,7 @@ function dispatchRingsideUpload() {
 describe('ReplicationSyncProvider — auth guard', () => {
   beforeEach(() => {
     authState.callback = null;
+    authState.liveSession = fakeSession();
     unsubscribeSpy.mockClear();
     clearEntriesCache.mockClear();
     getEntryIds.mockReset();
@@ -460,5 +466,59 @@ describe('ReplicationSyncProvider — auth guard', () => {
     const { unmount } = renderProvider();
     unmount();
     expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+  });
+  describe('a refresh that failed offline is not a sign-out (MYK9-1992)', () => {
+    function persistSavedSession() {
+      window.localStorage.setItem(
+        deriveDefaultAuthStorageKey(import.meta.env.VITE_SUPABASE_URL || ''),
+        JSON.stringify({
+          access_token: 'old',
+          refresh_token: 'r',
+          expires_at: Math.floor(Date.now() / 1000) - 600,
+          user: { id: 'u1' },
+        })
+      );
+    }
+
+    it('stays authenticated on a null INITIAL_SESSION and stops on SIGNED_OUT', async () => {
+      persistSavedSession();
+      renderProvider(false);
+      await act(async () => {
+        authState.callback?.('INITIAL_SESSION', null);
+      });
+      for (const spy of Object.values(syncSpies)) spy.mockClear();
+
+      await act(async () => {
+        dispatchRingsideUpload();
+      });
+      expect(syncSpies.entries).toHaveBeenCalled();
+
+      await act(async () => {
+        authState.callback?.('SIGNED_OUT', null);
+      });
+      for (const spy of Object.values(syncSpies)) spy.mockClear();
+      await act(async () => {
+        dispatchRingsideUpload();
+      });
+      expect(syncSpies.entries).not.toHaveBeenCalled();
+    });
+
+    it('defers quietly while no session exists, then syncs when the refresh lands', async () => {
+      persistSavedSession();
+      authState.liveSession = null;
+      renderProvider(true);
+      await act(async () => {
+        authState.callback?.('INITIAL_SESSION', null);
+      });
+      expect(uploadPendingMutations).not.toHaveBeenCalled();
+      expect(notifications.error).not.toHaveBeenCalled();
+      for (const spy of Object.values(syncSpies)) expect(spy).not.toHaveBeenCalled();
+
+      authState.liveSession = fakeSession();
+      await act(async () => {
+        authState.callback?.('TOKEN_REFRESHED', fakeSession());
+      });
+      expect(syncSpies.shows).toHaveBeenCalled();
+    });
   });
 });

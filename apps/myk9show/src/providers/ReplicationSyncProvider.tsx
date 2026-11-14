@@ -245,6 +245,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const prevIsAuthenticated = useRef(false);
+  const syncDeferredForSessionRef = useRef(false);
 
   // INITIAL_SESSION fires on subscribe with the current session (null for guests),
   // so getSession() is not needed — onAuthStateChange covers both initial state and changes.
@@ -255,6 +256,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // A null session that is not SIGNED_OUT is a refresh that failed offline, not a sign-out:
       // queued changes keep their owner and send on reconnect (MYK9-1992).
       setIsAuthenticated(!!resolveSessionUser(event, session));
+      // The refresh that was failing has landed: run the sync that was deferred for want of it.
+      if (event === 'TOKEN_REFRESHED' && syncDeferredForSessionRef.current) {
+        syncDeferredForSessionRef.current = false;
+        void triggerSyncRef.current?.();
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -347,6 +353,19 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
       if (!isOnline) {
         logger.debug('Skipping sync - offline', 'replication');
+        return;
+      }
+
+      // MYK9-1992: `isAuthenticated` may rest on the saved session while a refresh has failed
+      // (a 5xx or transient error online). Nothing can upload without a bound session, so defer
+      // quietly: no attempt, no retry-budget or dead-letter hit, until a session exists.
+      const hasLiveSession = await supabase.auth
+        .getSession()
+        .then(({ data }) => !!data.session)
+        .catch(() => false);
+      if (!hasLiveSession) {
+        logger.debug('Deferring sync - session not resolved yet', 'replication');
+        syncDeferredForSessionRef.current = true;
         return;
       }
 

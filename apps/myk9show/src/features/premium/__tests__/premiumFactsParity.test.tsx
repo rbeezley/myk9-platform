@@ -187,7 +187,7 @@ describe('premium terms never bring fee placeholders with them', () => {
 
   it('gazette prints the policy and no fee placeholder when the show has no fees', () => {
     const text = pdfText('AKC', withPolicyOnly('gazette'));
-    expect(text).toContain('Withdrawals: ');
+    expect(text).toContain('General Refund Policy: ');
     expect(text).not.toContain('Pre-entry: $—');
     expect(text).not.toContain('Day-of: $—');
     expect(text).not.toContain('Payment TBD');

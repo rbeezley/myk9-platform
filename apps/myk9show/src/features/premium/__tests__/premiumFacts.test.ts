@@ -63,17 +63,6 @@ describe('premiumFacts', () => {
         value:
           'Full refund of the entry fee until May 1, 2026; after that, $5.00 is kept. Service fees are non-refundable.',
       },
-      {
-        id: 'withdrawals',
-        label: 'Withdrawals',
-        value:
-          "A withdrawal for Dog in season or Judge change follows the registry's rules rather than the general policy above. The show secretary confirms the refund.",
-      },
-      {
-        id: 'pulls',
-        label: 'Pulls',
-        value: "Refunds for a pull are at the club's discretion.",
-      },
     ]);
   });
 
@@ -84,7 +73,7 @@ describe('premiumFacts', () => {
       club: { default_withdrawal_policy_notes: 'Contact the secretary.' },
     };
     const ids = buildPremiumFacts(premium).terms.map(t => t.id);
-    expect(ids).toEqual(['refundPolicy', 'withdrawals', 'pulls']);
+    expect(ids).toEqual(['refundPolicy']);
   });
 
   it('treats a zero junior fee as unset', () => {

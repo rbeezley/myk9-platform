@@ -10,7 +10,7 @@
  * Deliberately free of `@react-pdf/renderer` and font side effects: the public landing pages
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
-import { getWithdrawalPolicy, type RegistryId } from '@/features/registries';
+import type { RegistryId } from '@/features/registries';
 import { describeWithdrawalPolicy } from '@/features/payments/formatWithdrawalPolicy';
 import { getEffectiveWithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import { formatLongDate } from '@/lib/format/dates';
@@ -190,7 +190,7 @@ const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HA
 
 /** One labelled line of the premium's entry terms: the same words in every style. */
 export interface PremiumTermRow {
-  id: 'juniorHandlerFee' | 'refundPolicy' | 'withdrawals' | 'pulls';
+  id: 'juniorHandlerFee' | 'refundPolicy';
   label: string;
   value: string;
 }
@@ -202,10 +202,9 @@ function formatAmount(n: number): string {
 /**
  * The show's own terms an exhibitor must see before entering. A row exists only when the show
  * holds a value for it, so a show that sets none prints nothing (never a placeholder).
- * Withdraw and Pull stay two acts: a withdrawal follows the show's refund policy, a pull has no
- * refund promise (the wording is `withdrawalPolicy.ts`'s).
+ * Withdrawals and Pulls rows are not printed: the club writes its own policy (MYK9-1976).
  */
-function buildTermRows(show: GeneratedPremium['show'], registry: RegistryId): PremiumTermRow[] {
+function buildTermRows(show: GeneratedPremium['show']): PremiumTermRow[] {
   const rows: PremiumTermRow[] = [];
   const junior = show.juniorHandlerFee ?? 0;
   if (junior > 0) {
@@ -220,21 +219,11 @@ function buildTermRows(show: GeneratedPremium['show'], registry: RegistryId): Pr
     : null;
   if (policy) {
     const { refundLine, notes } = describeWithdrawalPolicy(policy);
-    const registryPolicy = getWithdrawalPolicy(registry);
-    const reasons = registryPolicy.reasons.map(r => r.label).join(' or ');
     rows.push({
       id: 'refundPolicy',
       label: 'General Refund Policy',
       value: notes ? `${refundLine} ${notes}` : refundLine,
     });
-    // A withdrawal is a recognised reason with the registry's own rules, so the general terms
-    // above do not decide it (an AKC in-season withdrawal can fall after the cutoff).
-    rows.push({
-      id: 'withdrawals',
-      label: 'Withdrawals',
-      value: `A withdrawal for ${reasons} follows the registry's rules rather than the general policy above. The show secretary confirms the refund.`,
-    });
-    rows.push({ id: 'pulls', label: 'Pulls', value: registryPolicy.pullRefundNote });
   }
   return rows;
 }
@@ -330,7 +319,7 @@ export function buildPremiumFacts(
         (m): m is string => Boolean(m)
       ),
     },
-    terms: buildTermRows(show, registry),
+    terms: buildTermRows(show),
     entry: {
       opens: show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : null,
       closes: show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : null,

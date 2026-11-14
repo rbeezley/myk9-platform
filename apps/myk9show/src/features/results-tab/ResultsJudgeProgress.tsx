@@ -5,10 +5,17 @@ import {
   judgeProgress,
   type ReviewJudge,
 } from '@/features/show-map/cockpit/trialPacket/judgeReview';
+import {
+  judgeRecordReminder,
+  type JudgeRecord,
+} from '@/features/show-map/cockpit/trialPacket/judgeRecord';
 
 interface ResultsJudgeProgressProps {
   judges: readonly ReviewJudge[];
   onPrint: (judgeKey: string | null) => void;
+  /** The judge's records, one per judge per day (MYK9-1924 phase 2b); only initialled days are offered. */
+  records?: readonly JudgeRecord[];
+  onRecord?: (record: JudgeRecord) => void;
 }
 
 function statusLine(judge: ReviewJudge, doneWord: string): string {
@@ -23,7 +30,12 @@ function statusLine(judge: ReviewJudge, doneWord: string): string {
  * judge's initials" state and the sign-off section, and reads the very same rows. Nothing blocks:
  * a judge who is still judging can have what is finished so far printed.
  */
-export function ResultsJudgeProgress({ judges, onPrint }: ResultsJudgeProgressProps) {
+export function ResultsJudgeProgress({
+  judges,
+  onPrint,
+  records = [],
+  onRecord,
+}: ResultsJudgeProgressProps) {
   if (judges.length === 0) return null;
   const doneWord = judges[0]!.registryId.trim().toUpperCase() === 'AKC' ? 'initialled' : 'signed';
   const progress = judgeProgress(judges, doneWord);
@@ -42,29 +54,57 @@ export function ResultsJudgeProgress({ judges, onPrint }: ResultsJudgeProgressPr
         </Button>
       </div>
       <ul className="divide-y divide-border rounded-md border">
-        {judges.map(judge => (
-          <li
-            key={judge.key}
-            className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
-          >
-            <span className="min-w-0">
-              <span className="block font-medium">{judge.judgeName}</span>
-              <span className="block text-muted-foreground">{statusLine(judge, doneWord)}</span>
-            </span>
-            <Button
-              type="button"
-              variant={judge.done && !judge.initialled ? 'default' : 'outline'}
-              className="min-h-11"
-              onClick={() => onPrint(judge.key)}
+        {judges.map(judge => {
+          const ready = records.filter(record => record.judgeKey === judge.key && record.ready);
+          return (
+            <li
+              key={judge.key}
+              className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
             >
-              {judge.initialled
-                ? 'Print again'
-                : judge.done
-                  ? 'Print results for initials'
-                  : 'Print results so far'}
-            </Button>
-          </li>
-        ))}
+              <span className="min-w-0">
+                <span className="block font-medium">{judge.judgeName}</span>
+                <span className="block text-muted-foreground">{statusLine(judge, doneWord)}</span>
+              </span>
+              <Button
+                type="button"
+                variant={judge.done && !judge.initialled ? 'default' : 'outline'}
+                className="min-h-11"
+                onClick={() => onPrint(judge.key)}
+              >
+                {judge.initialled
+                  ? 'Print again'
+                  : judge.done
+                    ? 'Print results for initials'
+                    : 'Print results so far'}
+              </Button>
+              {onRecord &&
+                ready.map(record => (
+                  <div
+                    key={record.key}
+                    className="flex w-full flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-medium">
+                        {record.judgeName}&apos;s{' '}
+                        {doneWord === 'initialled'
+                          ? 'classes are initialled'
+                          : 'classes are signed'}{' '}
+                        for {record.dayLabel}.
+                      </span>
+                      {judgeRecordReminder(record.registryId) && (
+                        <span className="block text-muted-foreground">
+                          {judgeRecordReminder(record.registryId)}
+                        </span>
+                      )}
+                    </span>
+                    <Button type="button" className="min-h-11" onClick={() => onRecord(record)}>
+                      Judge&apos;s record, {record.dayLabel}
+                    </Button>
+                  </div>
+                ))}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

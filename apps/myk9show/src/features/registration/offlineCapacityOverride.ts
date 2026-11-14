@@ -20,6 +20,7 @@ const CAPACITY_STATUSES = new Set([
   'competing',
   'in-ring',
   'pending-payment',
+  'move-up-requested',
 ]);
 
 interface CapacityClass {

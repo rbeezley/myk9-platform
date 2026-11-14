@@ -3,6 +3,7 @@ import {
   classifyEntryRemoval,
   emptyEntryRemovalCounts,
   type EntryRemovalCounts,
+  type EntryRemovalKind,
 } from '@/features/payments/pullReconciliation';
 import {
   ledgerAmount,
@@ -166,6 +167,20 @@ function applyLedger(
   }
 }
 
+/**
+ * The one definition of a refund to decide: an entry no longer running whose fee is still marked
+ * paid. Returns the removal's category, or null when the entry is not awaiting a refund decision.
+ * The reconciliation summary, the Finish the show list and every "waiting for you" count read it.
+ */
+export function refundToDecideRemoval(entry: ShowDayReconciliationEntry): EntryRemovalKind | null {
+  if (entry.payment_status?.toLowerCase() !== 'paid') return null;
+  return classifyEntryRemoval({
+    entryStatus: entry.entry_status,
+    checkInStatus: entry.check_in_status,
+    withdrawalReasonCode: entry.withdrawal_reason_code,
+  });
+}
+
 export function summarizeShowDayReconciliation(
   entries: ShowDayReconciliationEntry[],
   deskWindow: DeskCollectionWindow | null,
@@ -208,7 +223,7 @@ export function summarizeShowDayReconciliation(
         summary.refundedRemovals[removal] += 1;
         summary.refundedCount += 1;
         summary.refundedAmount += fee;
-      } else if (paymentStatus === 'paid') {
+      } else if (refundToDecideRemoval(entry)) {
         summary.refundReviewRemovals[removal] += 1;
         summary.refundReviewCount += 1;
         summary.refundReviewAmount += fee;

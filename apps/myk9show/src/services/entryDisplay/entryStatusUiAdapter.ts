@@ -70,9 +70,8 @@ export function mapEntryStatusKindToUi(kind: EntryStatusKind): EntryStatus {
  *   - `promotion-expired`: kept in the review lane, not surfaced as a decline.
  *     (Classifier kind would be `not_accepted`.)
  * These are the ONLY raw-string special cases; everything else flows through the
- * classifier. One intentional change from the prior hand-rolled switch: the
- * underscore `move_up_requested` spelling now resolves to MOVE_UP_REQUESTED like
- * its hyphen twin (it formerly fell through to PENDING).
+ * classifier. The underscore `move_up_requested` spelling is retired from
+ * `entries_entry_status_check` (MYK9-1929) and is not recognized here.
  */
 export function mapEntryStatus(status?: string | null): EntryStatus {
   if (status === 'paid' || status === 'promotion-expired') {

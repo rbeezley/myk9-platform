@@ -169,7 +169,7 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     // Names the dog and the class, and lasts as long as every other day-of Undo.
     expect(h.showUndoToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Moss pulled from Container Novice A',
+        message: '#101 Moss pulled from Container Novice A',
         duration: STATUS_UNDO_WINDOW_MS,
       })
     );

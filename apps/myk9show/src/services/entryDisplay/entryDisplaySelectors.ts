@@ -107,7 +107,6 @@ export function getEntryStatusKind(raw: string | null | undefined): EntryStatusK
     case 'moved':
       return 'moved';
     case 'move-up-requested':
-    case 'move_up_requested': // underscore form still permitted by the CHECK constraint
       return 'move_up_requested';
     default:
       return 'unknown';

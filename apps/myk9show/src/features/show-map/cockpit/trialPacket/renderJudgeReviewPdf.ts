@@ -78,7 +78,8 @@ function drawResultsPage(
   page: ReviewPage,
   pageNumber: number,
   pageCount: number,
-  verb: 'initial' | 'sign'
+  verb: 'initial' | 'sign',
+  initialsBox: boolean
 ): void {
   let y = 24;
   doc.setFont('helvetica', 'bold');
@@ -127,6 +128,7 @@ function drawResultsPage(
     }
   }
 
+  if (!initialsBox) return;
   const base = 248;
   doc.setFontSize(10);
   doc.text('I have compared this page with my scoresheets.', MARGIN, base);
@@ -134,15 +136,22 @@ function drawResultsPage(
   doc.text(`${initials} ____________   Date ____________`, MARGIN, base + 8);
 }
 
-/** One page for each ReviewPage of each class, in judging order: the pages the judge initials. */
-export function renderReviewPages(judge: ReviewJudge, verb: 'initial' | 'sign'): Uint8Array {
+/**
+ * One page for each ReviewPage of each class, in judging order: the pages the judge initials. The
+ * judge's record (already initialled and kept) leaves the initials box off.
+ */
+export function renderReviewPages(
+  judge: ReviewJudge,
+  verb: 'initial' | 'sign',
+  initialsBox = true
+): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'letter' });
   let first = true;
   for (const item of judge.classes) {
     item.pages.forEach((page, index) => {
       if (!first) doc.addPage();
       first = false;
-      drawResultsPage(doc, judge, item, page, index + 1, item.pages.length, verb);
+      drawResultsPage(doc, judge, item, page, index + 1, item.pages.length, verb, initialsBox);
     });
   }
   return new Uint8Array(doc.output('arraybuffer'));

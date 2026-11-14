@@ -10,52 +10,39 @@ import { rowToTrial } from './ReplicatedTrialsTable';
 describe('show close record columns (MYK9-1945)', () => {
   it('writes only the fields that are defined, and null clears', () => {
     expect(showCloseRecordColumns({})).toEqual({});
-    expect(
-      showCloseRecordColumns({
-        closedOpenLines: [{ key: 'unreleased', count: 3 }],
-        closedAt: '2026-11-14T20:00:00Z',
-      })
-    ).toEqual({
-      closed_open_lines: [{ key: 'unreleased', count: 3 }],
+    expect(showCloseRecordColumns({ closedAt: '2026-11-14T20:00:00Z' })).toEqual({
       closed_at: '2026-11-14T20:00:00Z',
     });
-    expect(
-      showCloseRecordColumns({ closedOpenLines: null, closedAt: null, reopenReason: 'Missing' })
-    ).toEqual({ closed_open_lines: null, closed_at: null, reopen_reason: 'Missing' });
+    expect(showCloseRecordColumns({ closedAt: null, reopenedAt: null })).toEqual({
+      closed_at: null,
+      reopened_at: null,
+    });
   });
 
-  it('reads the four columns back, treating a missing column as null', () => {
-    expect(showCloseRecordFromRow({})).toEqual({
-      closedOpenLines: null,
+  it('never selects or writes the staff-only note columns moved to show_close_notes', () => {
+    const written = showCloseRecordColumns({
+      closedOpenLines: [{ key: 'unreleased', count: 3 }],
+      reopenReason: 'Missing',
+    } as unknown as Parameters<typeof showCloseRecordColumns>[0]);
+    expect(written).toEqual({});
+    expect(showCloseRecordFromRow({ closed_open_lines: [], reopen_reason: 'c' })).toEqual({
       closedAt: null,
       reopenedAt: null,
-      reopenReason: null,
     });
-    expect(
-      showCloseRecordFromRow({
-        closed_open_lines: [{ key: 'unreleased', count: 3 }],
-        closed_at: 'a',
-        reopened_at: 'b',
-        reopen_reason: 'c',
-      })
-    ).toEqual({
-      closedOpenLines: [{ key: 'unreleased', count: 3 }],
+  });
+
+  it('reads the two columns back, treating a missing column as null', () => {
+    expect(showCloseRecordFromRow({})).toEqual({ closedAt: null, reopenedAt: null });
+    expect(showCloseRecordFromRow({ closed_at: 'a', reopened_at: 'b' })).toEqual({
       closedAt: 'a',
       reopenedAt: 'b',
-      reopenReason: 'c',
     });
   });
 
   it('drops the columns an update did not include so a stale replica cannot clobber them', () => {
-    const payload: Record<string, unknown> = {
-      name: 'x',
-      closed_open_lines: [],
-      closed_at: 'a',
-      reopened_at: 'b',
-      reopen_reason: 'c',
-    };
-    stripUnsetCloseRecordColumns(payload, { reopenReason: 'c' });
-    expect(payload).toEqual({ name: 'x', reopen_reason: 'c' });
+    const payload: Record<string, unknown> = { name: 'x', closed_at: 'a', reopened_at: 'b' };
+    stripUnsetCloseRecordColumns(payload, { reopenedAt: 'b' });
+    expect(payload).toEqual({ name: 'x', reopened_at: 'b' });
   });
 
   it('rowToShow carries the close record into the replica', () => {

@@ -31,10 +31,8 @@ export const OWNER_WITHDRAWABLE_ENTRY_STATUSES: readonly string[] = [
   'pending-payment',
   'promotion-expired',
   // An unpaid exhibitor waiting on a secretary decision must still be able to
-  // withdraw. `entries_entry_status_check` admits BOTH spellings of the move-up
-  // request and the live column holds the hyphenated form, so both are listed.
+  // withdraw.
   'move-up-requested',
-  'move_up_requested',
 ];
 
 /**

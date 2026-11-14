@@ -24,7 +24,7 @@ import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { openClassListLine } from '@/features/show-closeout/finishList';
-import { ResultsFinishRow } from './ResultsFinishRow';
+import { ResultsPackets } from './ResultsPackets';
 import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
 import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
 import { ResultsTabToolbar } from './ResultsTabToolbar';
@@ -422,7 +422,13 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
       {showStatsLink && entries.some(entry => entry.is_scored === true) && showStatsLink}
       <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
-      <ResultsFinishRow showId={showId} trials={trials} rows={rows} />
+      <ResultsPackets
+        showId={showId}
+        trials={trials}
+        rows={rows}
+        entries={entries}
+        timeZone={timeZone}
+      />
       {leftLine && (
         <p className="flex flex-wrap items-center gap-x-3 text-sm" role="status">
           <span>Showing the classes behind &ldquo;{leftLine.label}&rdquo;</span>

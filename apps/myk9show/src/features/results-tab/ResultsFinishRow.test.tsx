@@ -1,5 +1,6 @@
 import { fromAny } from '@total-typescript/shoehorn';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
@@ -138,5 +139,46 @@ describe('ResultsFinishRow', () => {
     const list = renderList([], []);
 
     expect(list.getByRole('link', { name: 'Close the show' })).toBeInTheDocument();
+  });
+
+  it('opens the after-show packet for the trial, and names the trial when there are several', async () => {
+    const onOpen = vi.fn();
+    const user = userEvent.setup();
+    const first = {
+      ...trialFor('AKC'),
+      id: 'trial-1',
+      name: 'Trial 1',
+    } as unknown as SyncableTrial;
+    const second = {
+      ...trialFor('AKC'),
+      id: 'trial-2',
+      name: 'Trial 2',
+    } as unknown as SyncableTrial;
+    render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[first, second]}
+        rows={SHOW_ROWS}
+        onOpenAfterShow={onOpen}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'After-show packet: Trial 2' }));
+
+    expect(onOpen).toHaveBeenCalledWith('trial-2');
+    expect(screen.getByRole('button', { name: 'After-show packet: Trial 1' })).toBeInTheDocument();
+  });
+
+  it('calls the single trial\'s button plain "After-show packet"', () => {
+    render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        onOpenAfterShow={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'After-show packet' })).toBeInTheDocument();
   });
 });

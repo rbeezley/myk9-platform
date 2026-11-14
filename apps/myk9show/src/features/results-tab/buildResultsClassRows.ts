@@ -244,7 +244,7 @@ function toEntryRow(entry: SecretaryEntry): ResultsEntryRow {
   };
 }
 
-function trialLabelOf(trial: SyncableTrial): string {
+export function trialLabelOf(trial: SyncableTrial): string {
   const number = trial.trialNumber ? `Trial ${trial.trialNumber}` : '';
   return trial.name?.trim() || number || 'Trial';
 }

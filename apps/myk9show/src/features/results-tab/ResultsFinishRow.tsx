@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Printer } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { buildFinishList } from '@/features/show-closeout/finishList';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SyncableTrial } from '@/store/trial-store-types';
-import type { ResultsClassRow } from './buildResultsClassRows';
+import { trialLabelOf, type ResultsClassRow } from './buildResultsClassRows';
 
 interface ResultsFinishRowProps {
   showId: string;
   trials: readonly SyncableTrial[];
   /** Every class in the show, so the list counts what the Results tab itself counts. */
   rows: readonly ResultsClassRow[];
+  /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
+  onOpenAfterShow?: (trialId: string) => void;
 }
 
 /**
@@ -22,7 +25,7 @@ interface ResultsFinishRowProps {
  * `calculateWhatIsLeft`'s (the same function the filter counts, Show Desk and the close step
  * read); a line that opens the class list filters it to exactly the classes the line counted.
  */
-export function ResultsFinishRow({ showId, trials, rows }: ResultsFinishRowProps) {
+export function ResultsFinishRow({ showId, trials, rows, onOpenAfterShow }: ResultsFinishRowProps) {
   const items = useMemo(
     () => buildFinishList(showId, calculateResultsRowsLeft(rows, trials)),
     [rows, showId, trials]
@@ -74,6 +77,24 @@ export function ResultsFinishRow({ showId, trials, rows }: ResultsFinishRowProps
           );
         })}
       </ul>
+      {onOpenAfterShow && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {trials.map(trial => (
+            <Button
+              key={trial.id}
+              type="button"
+              variant="outline"
+              className="min-h-11 gap-2"
+              onClick={() => onOpenAfterShow(trial.id)}
+            >
+              <Printer className="h-4 w-4" aria-hidden="true" />
+              {trials.length > 1
+                ? `After-show packet: ${trialLabelOf(trial)}`
+                : 'After-show packet'}
+            </Button>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

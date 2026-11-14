@@ -131,6 +131,7 @@ function buildRows({
 const hook = vi.hoisted(() => ({
   value: {
     rows: [] as ReturnType<typeof buildRows>,
+    entries: [],
     trials: [] as SyncableTrial[],
     readState: 'ready' as ResultsTabReadState,
     isNationals: false,
@@ -244,6 +245,7 @@ beforeEach(() => {
   clearSignOff.mockReset();
   hook.value = {
     rows: buildRows(),
+    entries: [],
     trials: [trial],
     readState: 'ready',
     isNationals: false,

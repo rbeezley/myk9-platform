@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-13T19:16:42.331Z",
-  "total": 401,
+  "updatedAt": "2026-11-14T04:38:30.361Z",
+  "total": 400,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -190,7 +190,7 @@
     "apps/myk9show/src/pages/MyEntriesPage/modules/entryScopeMessage.ts": 3,
     "apps/myk9show/src/pages/MyEntriesPage/modules/myShowsCopy.ts": 1,
     "apps/myk9show/src/pages/PricingPage.tsx": 3,
-    "apps/myk9show/src/pages/RegistrationWizardPage.tsx": 2,
+    "apps/myk9show/src/pages/RegistrationWizardPage.tsx": 1,
     "apps/myk9show/src/pages/RegistrationWizardPage/wizardHandlers.ts": 1,
     "apps/myk9show/src/pages/ShowDetailsPrototype.tsx": 3,
     "apps/myk9show/src/pages/SubscriptionPage.tsx": 2,

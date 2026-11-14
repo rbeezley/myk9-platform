@@ -53,7 +53,7 @@ export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCar
           <>
             {show.dayOfShowFee && <div>Day of show: {formatFee(show.dayOfShowFee)}</div>}
             {/* MYK9-1963: the card service fee, said beside the fee it adds to. */}
-            {acceptsOnlineEntries(show) && <ServiceFeeNote />}
+            {!canManageShow && <ServiceFeeNote show={show} />}
           </>
         }
       />

@@ -1,8 +1,23 @@
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { QuickInfoCards } from '../QuickInfoCards';
 import type { Show } from '@/types/show-types';
+
+const feeQuery = vi.hoisted(() => ({ state: 'ready' as 'loading' | 'unavailable' | 'ready' }));
+
+vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
+  usePlatformFeeRatesQuery: () => ({
+    rates: feeQuery.state === 'ready' ? { percent: 7, flatCents: 0, minCents: 0 } : null,
+    state: feeQuery.state,
+  }),
+}));
+
+const isoDay = (offset: number) => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+};
 
 const baseShow: Partial<Show> = {
   startDate: '2026-05-01T08:00:00Z',
@@ -78,8 +93,14 @@ describe('QuickInfoCards — payment methods', () => {
 // MYK9-1963: the card service fee is said beside the entry fee, from the same
 // rates the Payment step prices with, and only when online entries are on.
 describe('QuickInfoCards — service fee line', () => {
+  const openShow = { ...baseShow, entryOpenDate: isoDay(-10), entryCloseDate: isoDay(20) } as Show;
+
+  beforeEach(() => {
+    feeQuery.state = 'ready';
+  });
+
   it('says the service fee, with a link to how fees work, when online entries are on', () => {
-    render(<QuickInfoCards show={baseShow as Show} />);
+    render(<QuickInfoCards show={openShow} />);
     expect(screen.getByText(/Plus a 7% service fee when you pay online\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'How our fees work' })).toHaveAttribute(
       'href',
@@ -88,7 +109,30 @@ describe('QuickInfoCards — service fee line', () => {
   });
 
   it.each([false, undefined])('says nothing about a fee when online entries are %s', enabled => {
-    render(<QuickInfoCards show={{ ...baseShow, onlineEntriesEnabled: enabled } as Show} />);
+    render(<QuickInfoCards show={{ ...openShow, onlineEntriesEnabled: enabled } as Show} />);
+    expect(screen.queryByText(/service fee/i)).not.toBeInTheDocument();
+  });
+
+  it.each(['loading', 'unavailable'] as const)(
+    'says nothing about a fee while the rates are %s',
+    state => {
+      feeQuery.state = state;
+      render(<QuickInfoCards show={openShow} />);
+      expect(screen.queryByText(/service fee/i)).not.toBeInTheDocument();
+    }
+  );
+
+  it('says nothing about a fee once the entry window has closed', () => {
+    render(
+      <QuickInfoCards
+        show={{ ...openShow, entryOpenDate: isoDay(-30), entryCloseDate: isoDay(-5) } as Show}
+      />
+    );
+    expect(screen.queryByText(/service fee/i)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about a fee in the secretary view of the show', () => {
+    render(<QuickInfoCards show={openShow} canManageShow entryCount={3} />);
     expect(screen.queryByText(/service fee/i)).not.toBeInTheDocument();
   });
 });

@@ -63,7 +63,7 @@ type GuardedStatusChangeResult = boolean | void | typeof REVERT_CANCELLED;
 type RawStatusChangeHandler = (
   entryId: string,
   status: EntryStatus
-) => void | boolean | Promise<boolean | void>;
+) => void | boolean | Promise<boolean | void> | typeof REVERT_CANCELLED;
 
 type GuardedStatusChangeHandler = (
   entryId: string,

@@ -9,6 +9,8 @@ import {
   scratchShowMapEntry,
   undoShowMapScratch,
 } from '@/features/show-map/showMapActionMutations';
+import { dayOfDogLabel, entryStatusChangedMessage } from '@/features/show-map/dayOfMessages';
+import { buildStatusUndoToastMessage } from '@/services/database/entries/statusUndo';
 import { getEntryStatusHistory } from '@/services/database/entries/statusHistory';
 import { clearFlaggedPull } from '@/services/database/entries/flaggedPull';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -71,14 +73,20 @@ export function useDeskPull(
       setPending(null);
       refresh(row.entryId);
       showUndoToast({
-        message: `${row.dogName} pulled from ${row.className}`,
+        message: entryStatusChangedMessage(
+          dayOfDogLabel({ armband: row.armband, dogName: row.dogName }),
+          row.className,
+          EntryStatus.SCRATCHED
+        ),
         duration: STATUS_UNDO_WINDOW_MS,
         onUndo: () => {
           void undoShowMapScratch(undoInput)
             .then(() => refresh(undoInput.entryId))
             .catch(error =>
               toast.error(
-                showDayErrorMessage(error, deskPullCopy.undoFailed(row.dogName, row.className))
+                (error as { code?: unknown } | null)?.code === 'pull-superseded'
+                  ? buildStatusUndoToastMessage('superseded').message
+                  : showDayErrorMessage(error, deskPullCopy.undoFailed(row.dogName, row.className))
               )
             );
         },

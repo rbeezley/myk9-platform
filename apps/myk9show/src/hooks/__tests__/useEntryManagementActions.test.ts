@@ -221,6 +221,36 @@ describe('useEntryManagementActions', () => {
     }
   });
 
+  it('says what happened: the toast names the dog and the class, with the shared Undo window (MYK9-1940)', async () => {
+    const entry: EntryManagementEntry = {
+      ...makeEntry(),
+      dogName: 'Hazel',
+      armbandNumber: '110',
+      classes: [{ id: 'class-1', name: 'Novice A', number: '101', fee: 10, status: 'entered' }],
+    };
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [entry],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleStatusChange('entry-1', EntryStatus.ACCEPTED);
+    });
+
+    expect(mocks.showUndoToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: '#110 Hazel accepted in Novice A',
+        duration: STATUS_UNDO_WINDOW_MS,
+      })
+    );
+  });
+
   describe('onStood: the decision was not undone (MYK9-1800)', () => {
     async function acceptWithOnStood() {
       const onStood = vi.fn();

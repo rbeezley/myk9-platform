@@ -46,6 +46,8 @@ import { EntryStatusPopover } from './EntryStatusPopover';
 import { ENTRY_VERB_HELP } from './entryVerbHelp';
 import { WithdrawMenuItem } from './WithdrawMenuItem';
 import { formatTrialLabel } from './entryFormTrialSummary';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
+import { CHANGE_HANDLER_OFFLINE_REASON } from '@/features/show-map/changeClassEligibility';
 import { useEntryChangeClass } from './useEntryChangeClass';
 import { EntryFormCheckedInChip, useEntryFormCheckInAction } from './useEntryFormCheckIn';
 
@@ -91,6 +93,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
     entry: EntryManagementEntry | null;
   }>({ open: false, entry: null });
 
+  const isOnline = useIsOnline();
   const changeClass = useEntryChangeClass(entries[0]?.showId ?? '', entries, onEntryRestored);
   const checkInAction = useEntryFormCheckInAction();
 
@@ -168,10 +171,12 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 actions={[
                   {
                     id: 'edit',
-                    label: 'Edit entry',
+                    label: 'Change handler…',
                     icon: <PencilLine />,
                     onSelect: () => onOpenEditEntry?.(entry),
                     hidden: !onOpenEditEntry,
+                    disabled: !isOnline,
+                    ...(!isOnline && { description: CHANGE_HANDLER_OFFLINE_REASON }),
                   },
                   checkInAction(entry),
                   changeClass.actionFor(entry),

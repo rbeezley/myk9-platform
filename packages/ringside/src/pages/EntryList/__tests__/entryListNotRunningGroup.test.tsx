@@ -163,7 +163,7 @@ describe('EntryListPage — Pending badge describes the rows beneath it (MYK9-64
     expect(ids).not.toContain('absent-1');
 
     // Not hidden -- visible under its own labelled group (INTENT).
-    expect(screen.getByText('Pulled / not running (1)')).toBeInTheDocument();
+    expect(screen.getByText('Not running (1)')).toBeInTheDocument();
     const lists = screen.getAllByTestId('entry-list-content');
     expect(
       within(lists[1] as HTMLElement)

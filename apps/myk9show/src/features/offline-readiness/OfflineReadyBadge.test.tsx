@@ -247,4 +247,87 @@ describe('OfflineReadyBadge', () => {
       expect(screen.getByRole('status')).toHaveTextContent('Offline · scores saved on this device');
     });
   });
+
+  describe('automatic save for show-day staff (MYK9-1994)', () => {
+    beforeEach(() => {
+      hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+    });
+
+    it('saves the offline copy once, without a click, when autoSave is on', () => {
+      const { rerender } = render(<OfflineReadyBadge showId="show-1" autoSave />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+      rerender(<OfflineReadyBadge showId="show-1" autoSave />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry in a loop after a failed save, and keeps the Try again button', () => {
+      hookState.primeFailed = true;
+      const { rerender } = render(<OfflineReadyBadge showId="show-1" autoSave />);
+      rerender(<OfflineReadyBadge showId="show-1" autoSave />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+
+    it('waits for a connection, then saves', () => {
+      network.isOnline = false;
+      const { rerender } = render(<OfflineReadyBadge showId="show-1" autoSave />);
+      expect(primeSpy).not.toHaveBeenCalled();
+      network.isOnline = true;
+      rerender(<OfflineReadyBadge showId="show-1" autoSave />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing when autoSave is off or the copy is already saved', () => {
+      render(<OfflineReadyBadge showId="show-1" />);
+      expect(primeSpy).not.toHaveBeenCalled();
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      render(<OfflineReadyBadge showId="show-1" autoSave />);
+      expect(primeSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows the outside-the-window save as a bordered button with an icon', () => {
+      render(<OfflineReadyBadge showId="show-1" inPromptWindow={false} />);
+      const button = screen.getByRole('button', { name: 'Save for show day' });
+      expect(button.className).toContain('border');
+      expect(button.querySelector('svg')).not.toBeNull();
+    });
+  });
+
+  describe('a change held for a choice (MYK9-1995)', () => {
+    it('renders the note as a button that raises the notice', async () => {
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      const onNoteClick = vi.fn();
+      render(
+        <OfflineReadyBadge
+          showId="show-1"
+          note="1 change needs your choice"
+          noteNeedsAttention
+          onNoteClick={onNoteClick}
+        />
+      );
+      await userEvent.click(screen.getByRole('button', { name: '1 change needs your choice' }));
+      expect(onNoteClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays a button while offline', async () => {
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      network.isOnline = false;
+      const onNoteClick = vi.fn();
+      render(
+        <OfflineReadyBadge
+          showId="show-1"
+          note="1 change needs your choice"
+          onNoteClick={onNoteClick}
+        />
+      );
+      await userEvent.click(screen.getByRole('button', { name: '1 change needs your choice' }));
+      expect(onNoteClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a plain note as text, not a button', () => {
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      render(<OfflineReadyBadge showId="show-1" note="1 change saved on this device" />);
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+  });
 });

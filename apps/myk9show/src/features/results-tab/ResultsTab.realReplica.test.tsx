@@ -443,21 +443,10 @@ describe('Results tab on the real replicated class rows', () => {
       expect(await screen.findByText(/changed somewhere else/)).toBeInTheDocument();
       expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
       expect(screen.getByText(/Keep the other change" or "Keep my change/)).toBeInTheDocument();
-      // A dismissed notice is not a dead end: the copy names a button that brings it back.
+      // A dismissed notice is not a dead end: the copy points at the header's button.
       expect(
-        screen.getByText(/If you closed the notice, choose "Show the choice again"/)
+        screen.getByText(/If you closed the notice, choose "needs your choice" at the top/)
       ).toBeInTheDocument();
-      const raised: unknown[] = [];
-      const listen = (event: Event) => raised.push((event as CustomEvent).detail);
-      window.addEventListener('replication:conflict', listen);
-      try {
-        await userEvent.click(screen.getByRole('button', { name: 'Show the choice again' }));
-        await waitFor(() => expect(raised).toHaveLength(1));
-      } finally {
-        window.removeEventListener('replication:conflict', listen);
-      }
-      // The same conflict from this device's kept copy, so the provider shows the existing notice.
-      expect(raised[0]).toMatchObject({ tableName: 'classes', rowId: 'class-open' });
 
       // Keep the other change: the server's row, check included, replaces the local one.
       await replicatedClassesTable.resolveReplicationConflict('class-open', 'take-remote');

@@ -1,6 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { CloudDownload, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useOnlineStatus } from '@/lib/networkUtils';
-import { OfflineStatusLine } from './OfflineStatusLine';
+import { NoteChoiceButton, OfflineStatusLine } from './OfflineStatusLine';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
 interface OfflineReadyBadgeProps {
@@ -10,11 +11,21 @@ interface OfflineReadyBadgeProps {
   /** Whether the note needs the secretary's attention (conflict, error) rather than reassures. */
   noteNeedsAttention?: boolean | undefined;
   /**
+   * MYK9-1995: set when a change is held for the person's choice. The note then renders as a
+   * button that brings the existing choice notice back, instead of as plain text.
+   */
+  onNoteClick?: (() => void) | undefined;
+  /**
    * MYK9-1621: false = before the show's prompt window (`isInOfflinePromptWindow`). An unsaved
    * device then shows no amber sentence, only a quiet "Save for show day" button. Defaults to
    * true so ringside surfaces keep the prompt.
    */
   inPromptWindow?: boolean | undefined;
+  /**
+   * MYK9-1994: save the offline copy without being asked (staff in the show-day window, online).
+   * Tried once per device and show; a failed save leaves the "Try again" button, never a loop.
+   */
+  autoSave?: boolean | undefined;
 }
 
 /**
@@ -42,13 +53,27 @@ export function OfflineReadyBadge({
   showId,
   note,
   noteNeedsAttention,
+  onNoteClick,
   inPromptWindow = true,
+  autoSave = false,
 }: OfflineReadyBadgeProps) {
   const { readiness, priming, primeFailed, prime } = useOfflineReadiness(showId);
   const isOnline = useOnlineStatus();
+  const autoSavedFor = useRef<string | null>(null);
+  const needsCopy = readiness !== null && !readiness.ready;
+  useEffect(() => {
+    if (!autoSave || !needsCopy || !isOnline || priming || !showId) return;
+    if (autoSavedFor.current === showId) return;
+    autoSavedFor.current = showId;
+    void prime();
+  }, [autoSave, needsCopy, isOnline, priming, showId, prime]);
 
   const noteText = note ? (
-    <span className={noteNeedsAttention ? 'text-warning' : 'text-muted-foreground'}>{note}</span>
+    onNoteClick ? (
+      <NoteChoiceButton note={note} onClick={onNoteClick} />
+    ) : (
+      <span className={noteNeedsAttention ? 'text-warning' : 'text-muted-foreground'}>{note}</span>
+    )
   ) : null;
 
   if (!readiness) {
@@ -65,6 +90,7 @@ export function OfflineReadyBadge({
     return (
       <OfflineStatusLine
         note={note ?? 'Offline · scores saved on this device'}
+        onNoteClick={onNoteClick}
         className="min-h-11 flex-wrap gap-x-2 gap-y-1 text-sm"
       />
     );
@@ -119,7 +145,7 @@ export function OfflineReadyBadge({
           disabled={priming}
           title={actionDetail}
           data-offline-missing={readiness.missing.join(',')}
-          className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground sm:px-3 hover:bg-muted hover:text-foreground disabled:opacity-70"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-70"
         >
           {priming ? (
             <>
@@ -127,7 +153,10 @@ export function OfflineReadyBadge({
               Saving to this device…
             </>
           ) : (
-            'Save for show day'
+            <>
+              <CloudDownload className="h-4 w-4" aria-hidden />
+              Save for show day
+            </>
           )}
         </button>
       </span>

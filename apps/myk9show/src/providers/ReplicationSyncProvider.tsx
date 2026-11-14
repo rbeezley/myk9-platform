@@ -34,6 +34,7 @@ import {
 } from '@myk9/replication';
 import { toast } from 'sonner';
 import { SyncFailureReason } from './SyncFailureReason';
+import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { features } from '@/config/features';
 import { supabase } from '@/services/database/supabaseClient';
@@ -111,6 +112,9 @@ interface ReplicationSyncProviderProps {
   /** Whether to sync when coming back online */
   syncOnReconnect?: boolean;
 }
+
+// The header's count of held conflicts re-reads after the saved choice, not before it lands.
+const announceConflictSettled = () => window.dispatchEvent(new CustomEvent(CONFLICT_SETTLED_EVENT));
 
 // All replicated tables with their names
 export const REPLICATED_TABLES = [
@@ -846,8 +850,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             // Replace local row with remote data (reads snapshot from IDB) AND
             // discard the pending mutation that would re-upload the old local value.
             if (anyTable) {
-              void anyTable.resolveReplicationConflict(detail.rowId, 'take-remote');
+              void anyTable
+                .resolveReplicationConflict(detail.rowId, 'take-remote')
+                .finally(announceConflictSettled);
               void mutationManager.discardPendingMutationsForRow(detail.tableName, detail.rowId);
+            } else {
+              announceConflictSettled();
             }
             toast.dismiss(conflictId);
           },
@@ -857,7 +865,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           onClick: () => {
             // Clear the conflict snapshot and let the table refresh queued
             // mutation OCC state from the resolved row.
-            void anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local');
+            void (
+              anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local') ?? Promise.resolve()
+            ).finally(announceConflictSettled);
             toast.dismiss(conflictId);
           },
         },

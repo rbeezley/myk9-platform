@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 // ── hoisted spies ────────────────────────────────────────────────────────────
@@ -55,6 +56,17 @@ const { authState, unsubscribeSpy, conflictSpies, flagEnabled } = hoisted;
 
 vi.mock('@/lib/notifications', () => ({
   notifications: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
+}));
+
+vi.mock('sonner', async importOriginal => ({
+  ...(await importOriginal<typeof import('sonner')>()),
+  toast: Object.assign(vi.fn(), {
+    warning: vi.fn(),
+    dismiss: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/useStoreSubscriptions', () => ({
@@ -348,5 +360,47 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
     }
 
     vi.restoreAllMocks();
+  });
+});
+
+describe('ReplicationSyncProvider: the conflict notice (MYK9-1995)', () => {
+  beforeEach(() => {
+    vi.mocked(toast.warning).mockClear();
+    vi.mocked(toast.dismiss).mockClear();
+  });
+
+  it('keys the notice by table and row, so a reconnect replay never shows a second one', async () => {
+    renderProvider();
+    const detail = makeConflictSnapshot('classes');
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
+      window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
+    });
+    const ids = vi.mocked(toast.warning).mock.calls.map(([, options]) => options?.id);
+    expect(ids).toEqual(['conflict:classes:row-1', 'conflict:classes:row-1']);
+  });
+
+  it('tells the header a choice was saved, after the resolve lands', async () => {
+    renderProvider();
+    const settled = vi.fn();
+    window.addEventListener('replication:conflict-settled', settled);
+    try {
+      await act(async () => {
+        window.dispatchEvent(
+          new CustomEvent('replication:conflict', { detail: makeConflictSnapshot('unknown') })
+        );
+      });
+      const options = vi.mocked(toast.warning).mock.calls.at(-1)?.[1];
+      await act(async () => {
+        options?.cancel && 'onClick' in options.cancel && options.cancel.onClick?.({} as never);
+      });
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      expect(settled).toHaveBeenCalledTimes(1);
+      expect(toast.dismiss).toHaveBeenCalledWith('conflict:unknown:row-1');
+    } finally {
+      window.removeEventListener('replication:conflict-settled', settled);
+    }
   });
 });

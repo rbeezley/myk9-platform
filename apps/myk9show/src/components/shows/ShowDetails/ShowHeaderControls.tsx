@@ -6,6 +6,7 @@ import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { getTrialTimezone } from '@/features/registries';
 import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePromptWindow';
+import { reopenHeldConflicts } from '@/features/replication-conflicts/heldConflicts';
 import type { Show } from '@/types/show-types';
 
 /**
@@ -30,7 +31,9 @@ export const ShowHeaderControls: React.FC<{ show: Show }> = ({ show }) => {
         showId={show.id}
         note={note.label}
         noteNeedsAttention={note.needsAttention}
+        onNoteClick={note.choiceNeeded ? () => void reopenHeldConflicts() : undefined}
         inPromptWindow={inPromptWindow}
+        autoSave={inPromptWindow}
       />
       <LiveUpdateIndicator />
       <ShowPresenceStack />

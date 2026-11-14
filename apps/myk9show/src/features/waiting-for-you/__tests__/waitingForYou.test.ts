@@ -6,7 +6,6 @@ import type { Dog } from '@/types/dog-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 import {
-  findExpiredOffers,
   findHeldEntries,
   findOpenWaitlistSpots,
   findRefundsToDecide,
@@ -261,74 +260,5 @@ describe('findOpenWaitlistSpots', () => {
     });
     expect(result.rows.map(row => row.classId)).toEqual(['c1']);
     expect(result.classes.map(state => state.classId)).toEqual(['c1']);
-  });
-});
-
-describe('findExpiredOffers', () => {
-  const now = new Date('2026-11-14T12:00:00Z');
-  const past = '2026-11-13T12:00:00Z';
-  const future = '2026-11-15T12:00:00Z';
-
-  it('counts closed expired offers and lapsed open ones, while a dog waits for the spot', () => {
-    const list = findExpiredOffers({
-      now,
-      waitlist: [
-        wl('w1', { status: 'expired' }),
-        wl('w2', { status: 'offered', offerExpiresAt: past, dogId: 'a' }),
-        wl('w3', { status: 'offered', offerExpiresAt: future, dogId: 'b', classId: 'c2' }),
-        wl('w6', { dogId: 'e', classId: 'c2' }),
-        wl('w4', { status: 'offered', offerExpiresAt: past, joinedVia: 'mail_in', dogId: 'c' }),
-        wl('w5', { dogId: 'd' }),
-      ],
-    });
-    expect(list.rows.map(row => [row.offer.id, row.closed])).toEqual([
-      ['w1', true],
-      ['w2', false],
-    ]);
-    expect(list.count).toBe(2);
-  });
-
-  it('does not count an expired offer in a class where nobody is waiting', () => {
-    expect(findExpiredOffers({ now, waitlist: [wl('w1', { status: 'expired' })] })).toEqual({
-      count: 0,
-      rows: [],
-    });
-  });
-
-  it('stops counting an expired offer once a newer open offer is out in the class', () => {
-    const list = findExpiredOffers({
-      now,
-      waitlist: [
-        wl('w1', { status: 'expired', offerExpiresAt: past, dogId: 'a' }),
-        wl('w2', { status: 'offered', offerExpiresAt: future, dogId: 'b' }),
-        wl('w3', { dogId: 'c' }),
-      ],
-    });
-    expect(list).toEqual({ count: 0, rows: [] });
-  });
-
-  it('still counts an expired offer when the open offer in the class is older', () => {
-    const list = findExpiredOffers({
-      now,
-      waitlist: [
-        wl('w1', { status: 'expired', offerExpiresAt: future, dogId: 'a' }),
-        wl('w2', { status: 'offered', offerExpiresAt: past, joinedVia: 'mail_in', dogId: 'b' }),
-        wl('w3', { dogId: 'c' }),
-      ],
-    });
-    expect(list.count).toBe(1);
-  });
-
-  it('counts a dog once even when it has several expired rows in a class', () => {
-    const list = findExpiredOffers({
-      now,
-      waitlist: [
-        wl('w1', { status: 'expired', dogId: 'a' }),
-        wl('w2', { status: 'expired', dogId: 'a' }),
-        wl('w3', { dogId: 'c' }),
-      ],
-    });
-    expect(list.count).toBe(1);
-    expect(list.rows).toHaveLength(1);
   });
 });

@@ -11,6 +11,7 @@ import '@/test/utils/pageRenderWait';
  * covered in @myk9/scoring-ui + the secretary ScoresheetPage).
  */
 
+import { useEffect } from 'react';
 import {
   Routes,
   Route,
@@ -27,6 +28,7 @@ import {
   render,
   screen,
   fireEvent,
+  within,
   waitFor,
   act,
   createTestQueryClient,
@@ -34,7 +36,8 @@ import {
 import { UserRole } from '@/types/auth-types';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
-import { QuickAdvancePanel } from './quickAdvancePanel';
+import { SavedScoreLine } from './SavedScoreLine';
+import { useSavedScoreStore } from './savedScore';
 
 // Effective ringside role drives the scoring gate. Default to a JUDGE (can
 // score) so the happy-path wiring tests render the scoresheet; individual tests
@@ -508,247 +511,152 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     );
   });
 
-  it('calls a queued offline score saved on this device, not server-saved', async () => {
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
+  describe('after a confirmed save (MYK9-2012)', () => {
+    const LIST = '/at-show/show-1/class/class-1';
+    const SHEET = `${LIST}/score/entry-1`;
 
-    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
-    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
-  });
-
-  it('reopens a saved score from the device without waiting on the network (MYK9-1106)', async () => {
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
-
-    await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
-
-    // Offline at the ring: every network sync hangs until the venue reconnects.
-    const offline = () => new Promise<never>(() => undefined);
-    vi.mocked(replicatedTrialsTable.sync).mockImplementation(offline);
-    vi.mocked(replicatedClassesTable.sync).mockImplementation(offline);
-    vi.mocked(replicatedEntriesTable.sync).mockImplementation(offline);
-    const localReadsBefore = vi.mocked(replicatedEntriesTable.getEntriesByClass).mock.calls.length;
-
-    fireEvent.click(screen.getByRole('button', { name: /correct this score/i }));
-
-    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
-    expect(vi.mocked(replicatedEntriesTable.getEntriesByClass).mock.calls.length).toBeGreaterThan(
-      localReadsBefore
-    );
-    expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
-  });
-
-  it('shows server-saved only after the uploaded score matches an authenticated readback', async () => {
-    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
-    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
-      id: 'entry-1',
-      resultStatus: 'qualified',
-      searchTimeSeconds: 30,
-      totalFaults: 0,
-      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
-    } as never);
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
-
-    expect(await screen.findByText('Score saved')).toBeInTheDocument();
-    expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
-  });
-
-  it('does not reuse an earlier entry’s server confirmation for the next score', async () => {
-    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockImplementation(async entryId =>
-      entryId === 'entry-1' ? 'uploaded' : 'pending'
-    );
-    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
-      id: 'entry-1',
-      resultStatus: 'qualified',
-      searchTimeSeconds: 30,
-      totalFaults: 0,
-      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
-    } as never);
-    const actions = {
-      classId: 'class-1',
-      onBackToList: vi.fn(),
-      onCorrectScore: vi.fn(),
-      onPickEntry: vi.fn(),
-    };
-    const view = render(<QuickAdvancePanel {...actions} scoredEntryId="entry-1" />);
-    expect(await screen.findByText('Score saved')).toBeInTheDocument();
-
-    view.rerender(<QuickAdvancePanel {...actions} scoredEntryId="entry-2" />);
-    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
-    expect(screen.getByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
-  });
-
-  it('changes a queued confirmation to server-saved after upload and readback', async () => {
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
-    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
-    await waitFor(() => expect(replicatedEntriesTable.getScoreUploadState).toHaveBeenCalled());
-
-    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
-    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
-      id: 'entry-1',
-      resultStatus: 'qualified',
-      searchTimeSeconds: 30,
-      totalFaults: 0,
-      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
-    } as never);
-    fireEvent(window, new Event('online'));
-
-    expect(await screen.findByText('Score saved')).toBeInTheDocument();
-  });
-
-  it('keeps local-pending wording when the server readback is a different score', async () => {
-    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
-    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
-      id: 'entry-1',
-      resultStatus: 'qualified',
-      searchTimeSeconds: 65,
-      totalFaults: 0,
-      scoringCompletedAt: '2026-06-01T11:00:00.000Z',
-    } as never);
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
-
-    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
-    await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
-    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
-  });
-
-  it('does not acknowledge a score whose server readback lost an area time', async () => {
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
-      id: 'entry-1',
-      resultStatus: 'qualified',
-      searchTimeSeconds: 30,
-      totalFaults: 0,
-      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
-      area1_time_seconds: 15,
-    } as never);
-    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
-    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
-      id: 'entry-1',
-      resultStatus: 'qualified',
-      searchTimeSeconds: 30,
-      totalFaults: 0,
-      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
-      area1_time_seconds: 17,
-    } as never);
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
-
-    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
-    await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
-    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
-  });
-
-  it('distinguishes a failed upload from a score that reached the server', async () => {
-    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('failed');
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
-
-    expect(
-      await screen.findByText(/Saved on this device, but it could not be sent/i)
-    ).toBeInTheDocument();
-    expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
-  });
-
-  it('acknowledges a matching server score despite an older failed edit on the entry', async () => {
-    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('failed');
-    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
-      id: 'entry-1',
-      resultStatus: 'qualified',
-      searchTimeSeconds: 30,
-      totalFaults: 0,
-      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
-    } as never);
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    renderPage();
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
-
-    expect(await screen.findByText('Score saved')).toBeInTheDocument();
-    expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
-  });
-
-  it('offers the other section after a combined save and opens it under its own class', async () => {
-    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) =>
-      id === 'class-2'
-        ? ([
-            {
-              id: 'entry-9',
-              classId: 'class-2',
-              armband: '209',
-              dogCallName: 'Bo',
-              runOrder: 1,
-              checkInStatus: 'no-status',
-            },
-          ] as never)
-        : ([{ id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' }] as never)
-    );
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    const Probe = () => {
+    const NavProbe = () => {
       const location = useLocation();
-      return <div>at {`${location.pathname}${location.search}`}</div>;
+      const type = useNavigationType();
+      const scrollY = (location.state as { scrollY?: number } | null)?.scrollY;
+      return (
+        <div>
+          nav {type} {location.pathname}
+          {location.search}
+          {scrollY === undefined ? '' : ` scrollY ${scrollY}`}
+        </div>
+      );
     };
-    render(
-      <ReplicationSyncTestProvider
-        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
-      >
-        <Routes>
-          <Route
-            path="/at-show/:showId/class/:classId/score/:entryId"
-            element={<AtShowScoresheetPage />}
-          />
-          <Route path="/at-show/:showId/class/:classIdA/:classIdB" element={<Probe />} />
-        </Routes>
-        <Probe />
-      </ReplicationSyncTestProvider>,
-      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
-    );
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
 
-    fireEvent.click(await screen.findByText(/#209 Bo/));
+    // The entry list opens a dog with the scroll it was at, as the real list does.
+    const Launch = ({ to, state }: { to: string; state: unknown }) => {
+      const open = useNavigate();
+      useEffect(() => {
+        void open(to, { state });
+      }, [open, to, state]);
+      return null;
+    };
 
-    expect(
-      await screen.findByText(
-        'at /at-show/show-1/class/class-2/score/entry-9?combined=class-1%2Cclass-2'
-      )
-    ).toBeInTheDocument();
+    const renderFlow = (initialRoute: string, state?: unknown) => {
+      submitScoreOptimistically.mockImplementationOnce(
+        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+      );
+      return render(
+        <ReplicationSyncTestProvider
+          value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+        >
+          <Routes>
+            <Route path="/launch" element={<Launch to={initialRoute} state={state} />} />
+            <Route
+              path="/at-show/:showId/class/:classId/score/:entryId"
+              element={<AtShowScoresheetPage />}
+            />
+            <Route
+              path="/at-show/:showId/class/:classIdA/:classIdB"
+              element={<div>Combined list</div>}
+            />
+            <Route
+              path="/at-show/:showId/class/:classId"
+              element={
+                <>
+                  <SavedScoreLine />
+                  <div>Entry List</div>
+                </>
+              }
+            />
+          </Routes>
+          <NavProbe />
+        </ReplicationSyncTestProvider>,
+        { initialRoute: state === undefined ? initialRoute : '/launch' }
+      );
+    };
+
+    const save = async () => {
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Submit Score'));
+    };
+
+    beforeEach(() => {
+      useSavedScoreStore.getState().clear();
+    });
+
+    it('returns to the entry list with no further tap, and no Saved screen or next-dog chip', async () => {
+      renderFlow(SHEET);
+      await save();
+
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to entries/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('quick-advance-entry')).not.toBeInTheDocument();
+    });
+
+    it('says whose score it was and what was saved, with a Correct button', async () => {
+      renderFlow(SHEET);
+      await save();
+
+      const line = await screen.findByTestId('saved-score-line');
+      expect(line).toHaveTextContent('Saved: 105 · Qualified · 0:30.00');
+      expect(within(line).getByRole('button', { name: 'Correct' })).toBeInTheDocument();
+    });
+
+    it('replaces the sheet in history, so back from the next dog skips every saved sheet', async () => {
+      renderFlow(SHEET);
+      await save();
+
+      expect(await screen.findByText(`nav REPLACE ${LIST}`)).toBeInTheDocument();
+    });
+
+    it('returns to the combined A/B list when the sheet was opened from it', async () => {
+      renderFlow(`${SHEET}?combined=class-1,class-2`);
+      await save();
+
+      expect(await screen.findByText('Combined list')).toBeInTheDocument();
+      expect(useSavedScoreStore.getState().saved?.listPath).toBe(`${LIST}/class-2`);
+      expect(useSavedScoreStore.getState().saved?.scoreRoute).toBe(
+        `${SHEET}?combined=class-1%2Cclass-2`
+      );
+    });
+
+    it('hands the list the scroll position the dog was opened from', async () => {
+      renderFlow(SHEET, { returnScrollY: 640 });
+      await save();
+
+      expect(await screen.findByText(`nav REPLACE ${LIST} scrollY 640`)).toBeInTheDocument();
+    });
+
+    it('Correct reopens that dog from the device without waiting on the network (MYK9-1106)', async () => {
+      renderFlow(SHEET);
+      await save();
+      const line = await screen.findByTestId('saved-score-line');
+
+      // Offline at the ring: every network sync hangs until the venue reconnects.
+      const offline = () => new Promise<never>(() => undefined);
+      vi.mocked(replicatedTrialsTable.sync).mockImplementation(offline);
+      vi.mocked(replicatedClassesTable.sync).mockImplementation(offline);
+      vi.mocked(replicatedEntriesTable.sync).mockImplementation(offline);
+      const readsBefore = vi.mocked(replicatedEntriesTable.getEntriesByClass).mock.calls.length;
+      vi.mocked(replicatedTrialsTable.sync).mockClear();
+
+      fireEvent.click(within(line).getByRole('button', { name: 'Correct' }));
+
+      expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+      expect(screen.getByText(`nav PUSH ${SHEET}`)).toBeInTheDocument();
+      expect(vi.mocked(replicatedEntriesTable.getEntriesByClass).mock.calls.length).toBeGreaterThan(
+        readsBefore
+      );
+      expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
+      // Opening the dog ends the line.
+      expect(useSavedScoreStore.getState().saved).toBeNull();
+    });
+
+    it('does not ask "Discard this score?" after a save', async () => {
+      renderFlow(SHEET);
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+      fireEvent.click(screen.getByText('Submit Score'));
+
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+    });
   });
 
   it('warns the judge when the class has no max time set (no silent 3:00)', async () => {
@@ -804,88 +712,6 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Back'));
 
     expect(await screen.findByText('Combined list')).toBeInTheDocument();
-  });
-
-  describe('moving to the next dog after a save (MYK9-1500)', () => {
-    const SHEET = '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2';
-    const NEXT = '/at-show/show-1/class/class-2/score/entry-9';
-
-    const renderPick = (initialRoute: string) => {
-      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) =>
-        id === 'class-2'
-          ? ([
-              {
-                id: 'entry-9',
-                classId: 'class-2',
-                armband: '209',
-                dogCallName: 'Bo',
-                runOrder: 1,
-                checkInStatus: 'no-status',
-              },
-            ] as never)
-          : ([{ id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' }] as never)
-      );
-      submitScoreOptimistically.mockImplementationOnce(
-        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-      );
-      const NavProbe = () => {
-        const location = useLocation();
-        const goBack = useNavigate();
-        return (
-          <div>
-            nav {useNavigationType()} {location.pathname}
-            <button onClick={() => goBack(-1)}>Browser back</button>
-          </div>
-        );
-      };
-      const OpenSheet = () => {
-        const open = useNavigate();
-        return <button onClick={() => open(SHEET)}>Open sheet</button>;
-      };
-      render(
-        <ReplicationSyncTestProvider
-          value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
-        >
-          <Routes>
-            <Route
-              path="/at-show/:showId/class/:classId/score/:entryId"
-              element={
-                <>
-                  <AtShowScoresheetPage />
-                  <NavProbe />
-                </>
-              }
-            />
-            <Route
-              path="/at-show/:showId/class/:classIdA/:classIdB"
-              element={
-                <>
-                  <div>Combined list</div>
-                  <OpenSheet />
-                </>
-              }
-            />
-          </Routes>
-        </ReplicationSyncTestProvider>,
-        { initialRoute }
-      );
-    };
-
-    const saveAndPickNext = async () => {
-      await screen.findByTestId('live-scoresheet');
-      fireEvent.click(screen.getByText('Submit Score'));
-      fireEvent.click(await screen.findByText(/#209 Bo/));
-    };
-
-    it('replaces the history entry when the sheet was opened from the entry list', async () => {
-      renderPick('/at-show/show-1/class/class-1/class-2');
-      fireEvent.click(await screen.findByText('Open sheet'));
-      await saveAndPickNext();
-
-      expect(await screen.findByText(`nav REPLACE ${NEXT}`)).toBeInTheDocument();
-      fireEvent.click(screen.getByText('Browser back'));
-      expect(await screen.findByText('Combined list')).toBeInTheDocument();
-    });
   });
 
   // One prompt, owned by the router guard: Up, Cancel (both call the sheet's
@@ -962,32 +788,6 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
       expect(await screen.findByText('Discard this score?')).toBeInTheDocument();
       expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
-    });
-
-    it('does not ask after a save: picking the next dog leaves the saved sheet freely', async () => {
-      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
-        { id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' },
-        {
-          id: 'entry-9',
-          classId: 'class-1',
-          armband: '209',
-          dogCallName: 'Bo',
-          runOrder: 1,
-          checkInStatus: 'no-status',
-        },
-      ] as never);
-      submitScoreOptimistically.mockImplementationOnce(
-        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-      );
-      renderInDataRouter();
-      await screen.findByTestId('live-scoresheet');
-      fireEvent.click(screen.getByText('Mark dirty'));
-      fireEvent.click(screen.getByText('Submit Score'));
-
-      fireEvent.click(await screen.findByText(/#209 Bo/));
-
-      await waitFor(() => expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument());
-      expect(screen.queryByText('Discard this score?')).toBeNull();
     });
   });
 

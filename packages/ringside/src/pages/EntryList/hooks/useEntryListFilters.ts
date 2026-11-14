@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Entry } from '../../../stores/entryStore';
-import { gateRank } from '../quickAdvanceCandidates';
+import { gateRank } from '../gateRank';
 import { armbandSortKey, compareByRunOrder } from '../runQueue';
 
 /**

@@ -69,7 +69,7 @@ function renderHandlers(
   hasPermission: () => boolean = () => true
 ) {
   const navigate = vi.fn();
-  return renderHook(() =>
+  const hook = renderHook(() =>
     useAtShowEntryListHandlers({
       actions,
       replication: { updateClassStatus: vi.fn(() => Promise.resolve()) } as never,
@@ -90,6 +90,7 @@ function renderHandlers(
       setLocalEntries: setLocalEntries as never,
     })
   );
+  return { ...hook, navigate };
 }
 
 describe('useAtShowEntryListHandlers — entry-card view intent', () => {
@@ -107,6 +108,35 @@ describe('useAtShowEntryListHandlers — entry-card view intent', () => {
     });
 
     expect(actions.handleMarkInRing).not.toHaveBeenCalled();
+  });
+
+  it('opens the scoresheet remembering the list scroll, so a save returns to the same spot (MYK9-2012)', () => {
+    const scrollTo = 480;
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(scrollTo);
+    const { result, navigate } = renderHandlers([makeEntry({ id: 'entry-1' })], actions);
+
+    act(() => {
+      result.current.handleEntryClick(makeEntry({ id: 'entry-1' }));
+    });
+
+    expect(navigate).toHaveBeenCalledWith(expect.any(String), {
+      state: { returnScrollY: scrollTo },
+    });
+  });
+
+  it('a check-in control tap opens the check-in popup and never the scoresheet (MYK9-1991)', () => {
+    const { result, navigate } = renderHandlers([makeEntry({ id: 'entry-1' })], actions);
+    const stopPropagation = vi.fn();
+
+    act(() => {
+      result.current.handleStatusClick(
+        { preventDefault: vi.fn(), stopPropagation } as unknown as React.MouseEvent,
+        'entry-1'
+      );
+    });
+
+    expect(stopPropagation).toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   /**
@@ -422,6 +452,8 @@ describe('useAtShowEntryListHandlers — max time gate (MYK9-1099)', () => {
   it('goes to the scoresheet once the gate is clear', () => {
     const { result, navigate } = renderGated(false);
     act(() => result.current.handleEntryClick(makeEntry({ id: 'entry-1' })));
-    expect(navigate).toHaveBeenCalledWith('/route');
+    expect(navigate).toHaveBeenCalledWith('/route', {
+      state: { returnScrollY: expect.any(Number) },
+    });
   });
 });

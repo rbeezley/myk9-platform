@@ -2,8 +2,8 @@
  * Tests for the shared run-queue primitive.
  *
  * These pin the ordering + exclusion rules that MYK9-77 (class-row next-up
- * preview), MYK9-79 (favorite-dog push proximity) and MYK9-83 (post-save
- * quick-advance chips) all depend on. The in-ring dog is excluded from the
+ * preview), MYK9-79 (favorite-dog push proximity) and MYK9-83 (gate ranking)
+ * all depend on. The in-ring dog is excluded from the
  * pending queue by user decision 2026-06-11 — do not "fix" that back.
  */
 

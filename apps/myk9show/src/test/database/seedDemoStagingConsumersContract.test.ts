@@ -137,7 +137,7 @@ describe('staging consumers of the lean demo seed (MYK9-558)', () => {
       expect(judgeBlock, `${path}: ${classId} has no judge assignment`).toContain(classId);
       const inClass = entries.filter(e => e[2] === classId);
       expect(inClass.map(e => e[0])).toContain(entryId);
-      // The quick-advance chip needs a second, unscored dog in the class.
+      // The audit replay opens a second, unscored dog from the list after the save.
       expect(inClass.length, `${path}: nothing to advance to in ${classId}`).toBeGreaterThanOrEqual(
         2
       );

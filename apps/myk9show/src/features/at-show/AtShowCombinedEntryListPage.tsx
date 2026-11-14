@@ -54,6 +54,7 @@ import { buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { EntryListNotices } from './StaleReadNotice';
+import { SavedScoreLine } from './SavedScoreLine';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -395,6 +396,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
+        <SavedScoreLine />
         <EntryListNotices partial={entriesIncomplete && entries.length > 0} own={ownershipNotice} />
         <EntryListPage
           classId={classIdA}

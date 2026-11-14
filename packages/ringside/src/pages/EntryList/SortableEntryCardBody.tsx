@@ -184,17 +184,6 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
       {awaitingRegistration ? 'Open' : 'Score'} {entry.callName}
     </button>
   );
-  const actionPill = (label: string) => (
-    <span
-      className={cn(
-        'inline-flex min-h-11 items-center rounded-xl px-4 text-[0.9375rem] font-bold',
-        // Hero pill: fixed dark text on white so it reads in both themes.
-        variant === 'hero' ? 'bg-white text-neutral-900' : 'bg-primary text-primary-foreground'
-      )}
-    >
-      {label}
-    </span>
-  );
   const registrationNotice = awaitingRegistration && (
     <span
       role="note"
@@ -230,16 +219,16 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
   const baseTrailing =
     variant === 'hero' ? (
       <>
-        {/* The ring steward can still correct an in-ring dog's status from here. */}
+        {/* The ring steward can still correct an in-ring dog's status from here. The check-in
+            control is the only control on the right: tapping the card opens or resumes the
+            scoresheet, and the hidden "Score" button below serves keyboards (MYK9-1991). */}
         {statusControlView(true)}
-        {scoringAllowed && !awaitingRegistration && actionPill('Resume')}
         {keyboardScoreButton}
       </>
     ) : variant === 'next' ? (
       <>
         {statusControlView(false)}
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
-        {scoringAllowed && !awaitingRegistration && actionPill('Time')}
         {keyboardScoreButton}
       </>
     ) : showStatus ? (

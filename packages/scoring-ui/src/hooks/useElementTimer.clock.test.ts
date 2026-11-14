@@ -61,7 +61,7 @@ describe('useElementTimer clock (MYK9-2007)', () => {
     vi.setSystemTime(Date.now() + 1500);
 
     const second = renderHook(() => useElementTimer({ persistKey: 'entry-1:element' }));
-    expect(second.result.current.restoreNotice).toMatch(/reloaded during this run/i);
+    expect(second.result.current.restoreNotice).toMatch(/restarted during this run/i);
     advance(1000);
 
     expect(second.result.current.isRunning).toBe(true);

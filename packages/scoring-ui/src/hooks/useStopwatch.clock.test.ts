@@ -169,7 +169,7 @@ describe('useStopwatch clock (MYK9-2007)', () => {
       vi.setSystemTime(Date.now() + 2000); // the reload takes two seconds
 
       const second = renderHook(() => useStopwatch({ persistKey: KEY, maxTime: '3:00' }));
-      expect(second.result.current.restoreNotice).toMatch(/reloaded during this run/i);
+      expect(second.result.current.restoreNotice).toMatch(/restarted during this run/i);
       advance(1000);
 
       expect(second.result.current.isRunning).toBe(true);

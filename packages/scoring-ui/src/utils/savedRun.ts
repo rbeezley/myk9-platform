@@ -119,7 +119,7 @@ export function restoreRun(key: string | undefined, now = Date.now()): RestoredR
       running: true,
       outcome: 'estimated',
       notice:
-        'The page reloaded during this run and the timer kept counting. Check the time against your watch.',
+        'The app restarted during this run and the timer kept counting. Check the time against your watch.',
       ...slot,
     };
   }
@@ -127,7 +127,7 @@ export function restoreRun(key: string | undefined, now = Date.now()): RestoredR
     elapsedMs: record.elapsedMs,
     running: false,
     outcome: 'uncertain',
-    notice: `The page reloaded during this run and its time was lost. The timer shows the last time saved, ${formatMsAsMSSCC(record.elapsedMs, 'floor')}, which is probably short. Type the time, tap Use max time, or Reset and run the dog again.`,
+    notice: `The app restarted during this run and its time was lost. The timer shows the last time saved, ${formatMsAsMSSCC(record.elapsedMs, 'floor')}, which is probably short. Type the time, tap Use max time, or Reset and run the dog again.`,
     ...slot,
   };
 }

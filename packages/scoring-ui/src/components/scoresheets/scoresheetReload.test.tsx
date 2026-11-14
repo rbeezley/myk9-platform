@@ -101,7 +101,7 @@ describe.each(SHEETS)(
       renderSheet();
 
       expect(screen.getByTestId('timer-restore-notice')).toHaveTextContent(
-        /reloaded during this run/i
+        /restarted during this run/i
       );
       expect(screen.getByTestId('timer-stop')).toBeInTheDocument();
       advance(1000);

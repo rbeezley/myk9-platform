@@ -129,7 +129,7 @@ describe('CreatePersonForm feedback (entry-flow Add Person)', () => {
     await waitFor(() => expect(mocks.error).toHaveBeenCalled());
     const [title, options] = mocks.error.mock.calls[0] as [string, { description: string }];
     const copy = `${title} ${options.description}`;
-    expect(copy).toMatch(/This record already exists\./);
+    expect(copy).toMatch(/one like it already exists\./);
     expect(copy).not.toMatch(/Try again/);
     expect(copy).not.toMatch(/people_email_key/);
   });

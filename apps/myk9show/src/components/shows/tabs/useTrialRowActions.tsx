@@ -18,6 +18,12 @@ import { SetupRowActionsMenu } from './SetupRowActionsMenu';
  *
  * `enabled` is the caller's manage gate: with it false, no dialog mounts.
  */
+/** Each registry's High in Trial report; UKC has none. */
+const HIGH_IN_TRIAL_REPORT_ID: Record<string, string> = {
+  AKC: 'high-in-trial',
+  ASCA: 'asca-high-in-trial',
+};
+
 /** Each registry's end-of-trial report, the paperwork filed once per trial (MYK9-1727). */
 const TRIAL_REPORT_ID: Record<string, string> = {
   AKC: 'trial-secretary-report',
@@ -106,12 +112,15 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
               onSelect: () => navigate(getAddClassesHref(showId, trialId)),
             },
             {
-              // The AKC High in Trial report, already scoped to this trial (MYK9-1727).
+              // The registry's High in Trial report, already scoped to this trial (MYK9-1727).
               id: 'trial-high-in-trial',
               label: 'High in Trial',
               icon: <Trophy />,
-              hidden: registryId !== 'AKC',
-              onSelect: () => navigate(trialReportHref(showId, trialId, 'high-in-trial')),
+              hidden: !registryId || !HIGH_IN_TRIAL_REPORT_ID[registryId],
+              onSelect: () =>
+                navigate(
+                  trialReportHref(showId, trialId, HIGH_IN_TRIAL_REPORT_ID[registryId ?? ''] ?? '')
+                ),
             },
             {
               // The registry's end-of-trial report, already set to this trial (MYK9-1727).

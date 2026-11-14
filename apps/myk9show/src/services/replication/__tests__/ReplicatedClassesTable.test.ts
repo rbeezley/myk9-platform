@@ -900,6 +900,7 @@ describe('ReplicatedClassesTable', () => {
         'ring_phase',
         'ring_phase_time',
         'status_before_close',
+        'scores_on_paper',
       ]);
     });
 

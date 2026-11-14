@@ -37,6 +37,8 @@ export interface RingConflictClass {
   classId: string;
   className: string;
   inProgress: boolean;
+  /** MYK9-1970: judged on paper, so no dog is "N away" and the class never makes a conflict. */
+  onPaper?: boolean | undefined;
 }
 
 export interface DetectMyRingConflictsInput {
@@ -121,8 +123,10 @@ export function detectMyRingConflicts(
     else entriesByClass.set(entry.classId, [entry]);
   }
 
+  const paperClassIds = new Set(classes.filter(cls => cls.onPaper).map(cls => cls.classId));
   const nearUp: NearUpItem[] = [];
   for (const [classId, classEntries] of entriesByClass) {
+    if (paperClassIds.has(classId)) continue;
     const queueEntries = classEntries.map(toQueueEntry);
     for (const entry of classEntries) {
       if (!ownEntryIds.has(entry.id)) continue;

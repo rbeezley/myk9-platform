@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
-import { formatRunQueueState } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
 import {
   deriveAtShowNextAction,
   deriveAtShowQueueLine,
   type AtShowEntryDetail,
 } from './myAtShowEntryDetails.helpers';
+import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { formatPlaceUpdatedAt, formatRingConflictNotice } from './myEntriesTodayCopy';
 
 // Plain-language override where one exists (no-status/checked-in/conflict/
@@ -37,7 +38,7 @@ export function MyEntryRow({
 }: {
   detail: AtShowEntryDetail;
   /** The server-counted place in line, when known (`useMyEntryQueuePlaces`). */
-  place: number | undefined;
+  place: QueuePlace | undefined;
   /** When that place was counted (null = unconfirmed, so no number is shown). */
   placeUpdatedAt: number | null;
   /** Ring-conflict label for this entry (`useMyRingConflicts`), when it has one. */
@@ -49,6 +50,7 @@ export function MyEntryRow({
   const action = deriveAtShowNextAction(detail);
   // A place with no confirmed timestamp is a number with no freshness: show none.
   const queueLine = deriveAtShowQueueLine(detail, placeUpdatedAt === null ? undefined : place);
+  const paperNote = queueLine?.kind === 'pending' ? null : runQueueStateNote(queueLine);
 
   return (
     <li
@@ -95,6 +97,9 @@ export function MyEntryRow({
               <span className="ml-1.5 text-xs font-normal text-muted-foreground">
                 {formatPlaceUpdatedAt(placeUpdatedAt, detail.trialTimezone)}
               </span>
+            )}
+            {paperNote && (
+              <div className="text-xs font-normal text-muted-foreground">{paperNote}</div>
             )}
           </div>
         )}

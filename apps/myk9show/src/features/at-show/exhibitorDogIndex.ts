@@ -6,6 +6,7 @@
  * @module at-show/exhibitorDogIndex
  */
 import { formatTrialDate } from '@myk9/core';
+import { parseClaimState } from '@myk9/ringside/run-queue';
 import type { StaffDog, StaffDogClassEntry } from './staffDogIndex';
 
 /** One row of the server function, exactly its approved columns. */
@@ -25,6 +26,8 @@ export interface ShowDogLimitedRow {
    * before that migration is applied.
    */
   run_position?: number | null;
+  /** live | paper | stale for `run_position` (MYK9-1969). Absent or unknown reads as stale. */
+  run_claim_state?: string | null;
 }
 
 /** Group the per-class rows into one dog per armband (armbands are unique per show). */
@@ -63,6 +66,7 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
       placement: null,
       resultsReleased: false,
       runPosition: row.run_position ?? null,
+      runClaimState: parseClaimState(row.run_claim_state),
     };
     dog.entries.push(entry);
   }

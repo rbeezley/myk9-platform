@@ -11,6 +11,8 @@ export interface ClassContext {
   className: string;
   status: string;
   entries: ShowEntry[];
+  /** MYK9-1970: judged on paper, so no dog in it is "N away" (no countdown, no conflict). */
+  onPaper?: boolean | undefined;
 }
 
 /**
@@ -34,6 +36,7 @@ export function detectConflicts(
   for (const cls of allClasses) {
     if (cls.classId === currentClassId) continue;
     if (cls.status !== 'In Progress') continue;
+    if (cls.onPaper) continue;
 
     const dogEntry = cls.entries.find(e => e.dogId === dogId && !e.competitionData);
     // No run order: the server reports no place for it and Ringside shows none.

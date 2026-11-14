@@ -13,6 +13,8 @@ import {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  parseClaimState,
+  runQueueStateNote,
   notRunningLabel,
   notRunningReasonOf,
   isInQueue,
@@ -232,6 +234,25 @@ describe('place in line (MYK9-992)', () => {
     expect(formatRunQueueState({ kind: 'in-ring' })).toBe('In ring');
     expect(formatRunQueueState({ kind: 'done' })).toBe('Done');
     expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
+  });
+
+  it('words a paper class and a stale order once (MYK9-1970)', () => {
+    expect(formatRunQueueState({ kind: 'paper', place: 7 })).toBe('7th in the running order');
+    expect(formatRunQueueState({ kind: 'paper' })).toBe('In the running order');
+    expect(formatRunQueueState({ kind: 'stale' })).toBe('Order may be out of date');
+    expect(runQueueStateNote({ kind: 'paper', place: 7 })).toBe(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
+    expect(runQueueStateNote({ kind: 'stale' })).toBeNull();
+    expect(runQueueStateNote({ kind: 'waiting', place: 2 })).toBeNull();
+  });
+
+  it('reads only the three claim states the server sends', () => {
+    expect(parseClaimState('paper')).toBe('paper');
+    expect(parseClaimState('stale')).toBe('stale');
+    expect(parseClaimState('live')).toBe('live');
+    expect(parseClaimState(null)).toBeNull();
+    expect(parseClaimState('PAPER')).toBeNull();
   });
 });
 

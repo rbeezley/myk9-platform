@@ -146,3 +146,40 @@ describe('buildEntryListOwnership while the show has not fully arrived (MYK9-180
     expect(ownership?.dogsAheadByEntryId.get('b')).toEqual({ kind: 'waiting', dogsAhead: 1 });
   });
 });
+
+describe('a paper or stale claim never becomes a countdown (MYK9-1970)', () => {
+  const entries = [
+    entry({ id: 'a', armband: 1, exhibitorOrder: 1 }),
+    entry({ id: 'b', armband: 2, exhibitorOrder: 2 }),
+    entry({ id: 'c', armband: 3, exhibitorOrder: 3 }),
+  ];
+
+  it('reports a paper class as a position in the running order', () => {
+    const result = computeDogsAheadInList(entries, 'c', 'paper');
+    expect(result).toEqual({ kind: 'paper', place: 3 });
+    expect(formatDogsAheadInList(result)).toBe('3rd in the running order');
+  });
+
+  it('reports a stale class as out of date', () => {
+    const result = computeDogsAheadInList(entries, 'c', 'stale');
+    expect(formatDogsAheadInList(result)).toBe('Order may be out of date');
+  });
+
+  it('carries the claim through the ownership bag', () => {
+    const ownership = buildEntryListOwnership(
+      entries,
+      new Set(['b']),
+      undefined,
+      true,
+      new Map([['b', 'paper' as const]])
+    );
+    expect(ownership?.dogsAheadByEntryId.get('b')).toEqual({ kind: 'paper', place: 2 });
+  });
+
+  it('counts a live claim as before', () => {
+    expect(computeDogsAheadInList(entries, 'c', 'live')).toEqual({
+      kind: 'waiting',
+      dogsAhead: 2,
+    });
+  });
+});

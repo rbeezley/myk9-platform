@@ -66,6 +66,10 @@ export {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  PAPER_CLASS_NOTE,
+  parseClaimState,
+  stateForClaim,
+  runQueueStateNote,
   notRunningLabel,
   isInQueue,
   isInRingEntry,
@@ -75,7 +79,7 @@ export {
   placeInLine,
   runQueueStateOf,
 } from './runQueue';
-export type { NotRunningReason, RunQueueEntry, RunQueueState } from './runQueue';
+export type { ClaimState, NotRunningReason, RunQueueEntry, RunQueueState } from './runQueue';
 
 // ── Quick-advance ranking (MYK9-83) ──────────────────────────────────────
 // Gate-aware layer over the run queue: opportunistic at-gate promotion that

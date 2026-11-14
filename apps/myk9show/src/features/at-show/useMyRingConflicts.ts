@@ -12,18 +12,11 @@ import { detectMyRingConflicts, type RingConflictClass } from './ringConflicts';
 const EMPTY_CONFLICTS: ReadonlyMap<string, string> = new Map();
 
 /**
- * Show-wide ring-conflict labels for the signed-in exhibitor's entries.
- * Replication-backed (offline-safe): one entries-by-show scan + the show's
- * classes, re-read when the replicated tables change. Returns entryId → label
- * for the entry-list conflict chip; empty map when nothing collides.
+ * The show's replicated entries and classes, re-read when either table changes. One query
+ * behind the ring-conflict labels and the paper/stale claims, so both read the same rows.
  */
-export function useMyRingConflicts(
-  showId: string | undefined,
-  ownEntryIds: ReadonlySet<string>
-): ReadonlyMap<string, string> {
+export function useShowRingRows(showId: string | undefined, enabled: boolean) {
   const queryClient = useQueryClient();
-  const leadDogs = useNotificationStore(s => s.preferences.leadDogs);
-  const enabled = !!showId && ownEntryIds.size > 0;
 
   const query = useQuery({
     queryKey: ['at-show', 'ring-conflict-rows', showId],
@@ -39,6 +32,8 @@ export function useMyRingConflicts(
         classId: cls.id,
         className: buildClassName(cls),
         inProgress: cls.classStatus === 'in_progress',
+        // MYK9-1970: the class row this device holds says it is judged on paper.
+        onPaper: cls.scoresOnPaper === true,
       }));
       return { entries, classes };
     },
@@ -56,6 +51,22 @@ export function useMyRingConflicts(
     ];
     return () => unsubscribes.forEach(unsubscribe => unsubscribe());
   }, [enabled, queryClient, showId]);
+
+  return query;
+}
+
+/**
+ * Show-wide ring-conflict labels for the signed-in exhibitor's entries.
+ * Replication-backed (offline-safe): one entries-by-show scan + the show's
+ * classes, re-read when the replicated tables change. Returns entryId → label
+ * for the entry-list conflict chip; empty map when nothing collides.
+ */
+export function useMyRingConflicts(
+  showId: string | undefined,
+  ownEntryIds: ReadonlySet<string>
+): ReadonlyMap<string, string> {
+  const leadDogs = useNotificationStore(s => s.preferences.leadDogs);
+  const query = useShowRingRows(showId, !!showId && ownEntryIds.size > 0);
 
   return useMemo(() => {
     // A failed read leaves no badges, not a claim of no conflicts: the entry

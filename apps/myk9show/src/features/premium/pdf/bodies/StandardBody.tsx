@@ -1,12 +1,10 @@
 // Shared body for both AKC and UKC. The 'org' prop is the seam for future org-specific divergence; today both orgs render identically.
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { buildStyles, formatPremiumDate, formatPhone, resolveTokens } from '../pdfStyles';
+import { buildStyles, resolveTokens } from '../pdfStyles';
 import { SectionDivider } from '../SectionDivider';
 import { PdfFooter } from '../PdfFooter';
-import { makeClassComparator } from './classOrder';
-
-const REQUIRED = '[REQUIRED — add before submitting]';
+import { buildPremiumFacts, REQUIRED_PLACEHOLDER as REQUIRED } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
@@ -24,8 +22,8 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
   const s = buildStyles(data.style, { inkSaver });
   const t = resolveTokens(data.style, { inkSaver });
   const divider = <SectionDivider style={data.style} tokens={t} />;
-  const classComparator = makeClassComparator(org);
-  const { show, secretary, officials, trials, supplemental, narratives } = data;
+  const f = buildPremiumFacts(data, org);
+  const { secretary, chair, trials } = f;
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -33,34 +31,26 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
       <Text style={s.sectionTitle}>Entry Information</Text>
       <View style={s.pullQuoteRow}>
         <View style={s.pullQuoteCell}>
-          <Text style={s.pullQuoteValue}>${show.preEntryFee ?? '—'}</Text>
+          <Text style={s.pullQuoteValue}>${f.fees.preEntry ?? '—'}</Text>
           <Text style={s.pullQuoteLabel}>Pre-Entry Fee</Text>
         </View>
         <View style={s.pullQuoteCell}>
-          <Text style={s.pullQuoteValue}>${show.dayOfFee ?? '—'}</Text>
+          <Text style={s.pullQuoteValue}>${f.fees.dayOf ?? '—'}</Text>
           <Text style={s.pullQuoteLabel}>Day-Of Fee</Text>
         </View>
         <View style={s.pullQuoteCell}>
-          <Text style={s.pullQuoteValue}>
-            {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash']
-              .filter(Boolean)
-              .join(' · ') || '—'}
-          </Text>
+          <Text style={s.pullQuoteValue}>{f.fees.paymentMethods.join(' · ') || '—'}</Text>
           <Text style={s.pullQuoteLabel}>Accepted Payment</Text>
         </View>
       </View>
 
       <View style={s.row}>
         <Text style={s.label}>Entry Opens</Text>
-        <Text style={s.value}>
-          {show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : REQUIRED}
-        </Text>
+        <Text style={s.value}>{f.entry.opens ?? REQUIRED}</Text>
       </View>
       <View style={s.row}>
         <Text style={s.label}>Entry Closes</Text>
-        <Text style={s.value}>
-          {show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : REQUIRED}
-        </Text>
+        <Text style={s.value}>{f.entry.closes ?? REQUIRED}</Text>
       </View>
 
       {/* INTENT: Online via myK9Show is the primary (and revenue-generating)
@@ -93,7 +83,7 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
       {secretary.phone && (
         <View style={s.row}>
           <Text style={s.label}>Phone</Text>
-          <Text style={s.value}>{formatPhone(secretary.phone)}</Text>
+          <Text style={s.value}>{secretary.phone}</Text>
         </View>
       )}
       {secretary.mailingAddress && (
@@ -103,24 +93,24 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </View>
       )}
 
-      {officials.chairman && (
+      {chair && (
         <>
           {divider}
           <Text style={s.sectionTitle}>Trial Chairman</Text>
           <View style={s.row}>
             <Text style={s.label}>Name</Text>
-            <Text style={s.value}>{officials.chairman.name}</Text>
+            <Text style={s.value}>{chair.name}</Text>
           </View>
-          {officials.chairman.email && (
+          {chair.email && (
             <View style={s.row}>
               <Text style={s.label}>Email</Text>
-              <Text style={s.value}>{officials.chairman.email}</Text>
+              <Text style={s.value}>{chair.email}</Text>
             </View>
           )}
-          {officials.chairman.phone && (
+          {chair.phone && (
             <View style={s.row}>
               <Text style={s.label}>Phone</Text>
-              <Text style={s.value}>{formatPhone(officials.chairman.phone)}</Text>
+              <Text style={s.value}>{chair.phone}</Text>
             </View>
           )}
         </>
@@ -135,7 +125,7 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <View style={s.row}>
             <Text style={s.label}>Date</Text>
             <Text style={s.value}>
-              {formatPremiumDate(trial.date)}
+              {trial.date}
               {trial.startTime ? ` at ${trial.startTime}` : ''}
             </Text>
           </View>
@@ -145,24 +135,19 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
               <Text style={s.value}>{trial.eventNumber}</Text>
             </View>
           )}
-          {(trial.judges ?? []).map((j, ji) => (
+          {trial.judges.map((j, ji) => (
             <View key={ji} style={s.row}>
               <Text style={s.label}>{ji === 0 ? 'Judge' : ''}</Text>
               <Text style={s.value}>
                 {j.name}
-                {(j.elements?.length ?? 0) > 0 ? ` (${j.elements.join(', ')})` : ''}
+                {j.elements.length > 0 ? ` (${j.elements.join(', ')})` : ''}
               </Text>
             </View>
           ))}
-          {(trial.classes?.length ?? 0) > 0 && (
+          {trial.classLabels.length > 0 && (
             <View style={s.row}>
               <Text style={s.label}>Classes</Text>
-              <Text style={s.value}>
-                {[...(trial.classes ?? [])]
-                  .sort(classComparator)
-                  .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
-                  .join(', ')}
-              </Text>
+              <Text style={s.value}>{trial.classLabels.join(', ')}</Text>
             </View>
           )}
         </View>
@@ -171,61 +156,61 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
       {divider}
 
       <Text style={s.sectionTitle}>Show Hours</Text>
-      <Text style={s.body}>{narratives.showHours}</Text>
+      <Text style={s.body}>{f.showHours}</Text>
 
       {divider}
 
       <Text style={s.sectionTitle}>Trial Information</Text>
-      <Text style={s.body}>{narratives.trialInformation}</Text>
+      <Text style={s.body}>{f.trialInformation}</Text>
 
       {divider}
 
       <Text style={s.sectionTitle}>Veterinary Services</Text>
-      {supplemental.vetClinic ? (
+      {f.vetClinic ? (
         <>
-          <Text style={s.body}>{supplemental.vetClinic.name}</Text>
-          <Text style={s.body}>{supplemental.vetClinic.address}</Text>
-          <Text style={s.body}>{formatPhone(supplemental.vetClinic.phone)}</Text>
+          <Text style={s.body}>{f.vetClinic.name}</Text>
+          <Text style={s.body}>{f.vetClinic.address}</Text>
+          <Text style={s.body}>{f.vetClinic.phone}</Text>
         </>
       ) : (
         <Text style={s.required}>{REQUIRED}</Text>
       )}
 
-      {(supplemental.accommodations?.length ?? 0) > 0 && (
+      {f.accommodations.length > 0 && (
         <>
           {divider}
           <Text style={s.sectionTitle}>Accommodations</Text>
-          {(supplemental.accommodations ?? []).map((a, i) => (
+          {f.accommodations.map((a, i) => (
             <View key={i} style={s.trialBlock}>
               <Text style={s.trialTitle}>{a.name}</Text>
               <Text style={s.body}>{a.address}</Text>
-              <Text style={s.body}>{formatPhone(a.phone)}</Text>
+              <Text style={s.body}>{a.phone}</Text>
             </View>
           ))}
         </>
       )}
 
-      {supplemental.hospitalityNotes && (
+      {f.hospitalityNotes && (
         <>
           {divider}
           <Text style={s.sectionTitle}>Hospitality</Text>
-          <Text style={s.body}>{supplemental.hospitalityNotes}</Text>
+          <Text style={s.body}>{f.hospitalityNotes}</Text>
         </>
       )}
 
-      {supplemental.awardsDescription && (
+      {f.awardsDescription && (
         <>
           {divider}
           <Text style={s.sectionTitle}>Awards</Text>
-          <Text style={s.body}>{supplemental.awardsDescription}</Text>
+          <Text style={s.body}>{f.awardsDescription}</Text>
         </>
       )}
 
-      {supplemental.additionalNotes && (
+      {f.additionalNotes && (
         <>
           {divider}
           <Text style={s.sectionTitle}>Additional Information</Text>
-          <Text style={s.body}>{supplemental.additionalNotes}</Text>
+          <Text style={s.body}>{f.additionalNotes}</Text>
         </>
       )}
     </Page>

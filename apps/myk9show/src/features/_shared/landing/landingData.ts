@@ -7,6 +7,7 @@ import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
+import { pickSupplementalFacts } from '@/features/premium/premiumFacts';
 import { hasShowHappened } from './showResults';
 
 /**
@@ -204,9 +205,9 @@ export function buildLandingData(
   secretary?: { name: string | null; email: string | null } | null
 ): LandingData {
   const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
-  const supplemental = liveExperience?.supplemental;
-  const supplementalRecord = supplemental as
-    (Record<string, unknown> & typeof supplemental) | undefined;
+  // The same normalised template facts the premium PDF prints (features/premium/premiumFacts).
+  const supplemental = pickSupplementalFacts(liveExperience?.supplemental);
+  const supplementalRecord = liveExperience?.supplemental as Record<string, unknown> | undefined;
   const registry = getTrialRegistry(currentTrial);
   const timezone = getTrialTimezone(currentTrial);
   const entryCloseDate = currentTrial?.entryCloseDate ?? show?.entryCloseDate ?? null;
@@ -333,18 +334,18 @@ export function buildLandingData(
     entryCount,
     entryLimit,
     fees,
-    accommodations: (supplemental?.accommodations ?? []).map(canonicalizeAccommodationUrl),
-    vetClinic: supplemental?.vetClinic ?? null,
-    coverImageUrl: supplemental?.coverImageUrl ?? null,
+    accommodations: supplemental.accommodations.map(canonicalizeAccommodationUrl),
+    vetClinic: supplemental.vetClinic,
+    coverImageUrl: supplemental.coverImageUrl,
     pullQuote:
       typeof supplementalRecord?.pullQuote === 'string' ? supplementalRecord.pullQuote : null,
     pullQuoteAttribution:
       typeof supplementalRecord?.pullQuoteAttribution === 'string'
         ? supplementalRecord.pullQuoteAttribution
         : null,
-    hospitalityNotes: supplemental?.hospitalityNotes ?? null,
-    awardsDescription: supplemental?.awardsDescription ?? null,
-    houseRulesNotes: supplemental?.additionalNotes ?? null,
+    hospitalityNotes: supplemental.hospitalityNotes,
+    awardsDescription: supplemental.awardsDescription,
+    houseRulesNotes: supplemental.additionalNotes,
     secretaryName: secretary?.name ?? null,
     secretaryEmail: secretary?.email ?? null,
     licenseLanguage: registry.licenseLanguage,

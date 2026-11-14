@@ -147,7 +147,7 @@ describe('AtShowEntryListPage — a missing armband is never shown as 0 (MYK9-97
 
   it.each(['Maple', 'Ranger'])('shows an em dash, not 0, for %s under Not running', async name => {
     renderPage();
-    await screen.findByText('Pulled / not running (2)');
+    await screen.findByText('Not running (2)');
 
     const card = screen.getByText(name).closest('[data-testid="dog-card"]') as HTMLElement;
     expect(within(card).getByTestId('dog-card-armband')).toHaveTextContent(/^—$/);
@@ -165,14 +165,14 @@ describe('AtShowEntryListPage — a missing armband is never shown as 0 (MYK9-97
       },
     ] as never);
     renderPage();
-    await screen.findByText('Pulled / not running (2)');
+    await screen.findByText('Not running (2)');
     const card = screen.getByText('Maple').closest('[data-testid="dog-card"]') as HTMLElement;
     expect(within(card).getByTestId('dog-card-armband')).toHaveTextContent(/^142$/);
   });
 
   it('still shows the real armband on a numbered runner', async () => {
     renderPage();
-    await screen.findByText('Pulled / not running (2)');
+    await screen.findByText('Not running (2)');
 
     const card = screen.getByText('Runner').closest('[data-testid="dog-card"]') as HTMLElement;
     expect(within(card).getByTestId('dog-card-armband')).toHaveTextContent(/^101$/);

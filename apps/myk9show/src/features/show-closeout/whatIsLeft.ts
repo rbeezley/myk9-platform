@@ -60,7 +60,9 @@ export interface WhatIsLeftInput {
   /** `null` when the incident log could not be read. */
   incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
   /** `null` when result submissions could not be read. */
-  submissions: readonly { status?: string | null | undefined }[] | null;
+  submissions:
+    | readonly { status?: string | null | undefined; organization?: string | null | undefined }[]
+    | null;
 }
 
 export type WhatIsLeftLineKey =
@@ -197,9 +199,16 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
   // Only the pull/refund figures matter to close-out, and they do not depend on when an entry
   // was taken, so no desk window is needed here.
   const reconciliation = summarizeShowDayReconciliation([...input.entries], null);
-  const hasSubmittedResults = input.submissions?.some(row =>
+  const submittedRows = input.submissions?.filter(row =>
     SUBMITTED_STATUSES.has(normalizeCloseoutStatus(row.status))
   );
+  const hasSubmittedResults = submittedRows?.some(() => true);
+  // A submission names the registry it went to; one that names none (an older row) covers every
+  // registry rather than leaving a line open that was in fact sent.
+  const registrySubmitted = (registryId: RegistryId): boolean =>
+    submittedRows?.some(
+      row => !row.organization || row.organization.toUpperCase() === registryId
+    ) ?? false;
 
   const registryByTrial = new Map<string, RegistryId>();
   const registryIds: RegistryId[] = [];
@@ -256,8 +265,11 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
   });
 
   for (const registryId of registryIds) {
-    const classesOfRegistry = needsInitials.filter(
-      cls => cls.trialId === undefined || registryByTrial.get(cls.trialId) === registryId
+    // A class that names no trial belongs to a registry only when the show has just the one.
+    const classesOfRegistry = needsInitials.filter(cls =>
+      cls.trialId === undefined
+        ? registryIds.length === 1
+        : registryByTrial.get(cls.trialId) === registryId
     );
     for (const duty of getCloseoutDuties(registryId)) {
       if (duty.kind === 'judge-sign-off') {
@@ -278,7 +290,7 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
           count: null,
           classIds: [],
           // Unread is its own state: offline, it may not claim "nothing submitted".
-          open: input.submissions === null ? null : !hasSubmittedResults,
+          open: input.submissions === null ? null : !registrySubmitted(registryId),
           registryId,
         });
       }

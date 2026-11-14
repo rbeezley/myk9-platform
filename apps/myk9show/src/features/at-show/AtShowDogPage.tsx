@@ -143,8 +143,11 @@ export const AtShowDogPage: React.FC = () => {
                 ) : (
                   <StatusBadge
                     family="entry"
-                    status={entry.checkInStatus}
-                    label={getStatusDescriptor('entry', entry.checkInStatus).label}
+                    status={entry.notRunningWord ? 'pulled' : entry.checkInStatus}
+                    label={
+                      entry.notRunningWord ??
+                      getStatusDescriptor('entry', entry.checkInStatus).label
+                    }
                   />
                 )}
               </div>

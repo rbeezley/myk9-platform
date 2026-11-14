@@ -43,7 +43,6 @@ const NOT_INSTANT_MS = 1_500;
 interface Setup {
   showId: string;
   classId: string;
-  className: string;
   willowId: string;
   cooperId: string;
 }
@@ -52,27 +51,26 @@ interface Setup {
 async function seed(client: Client): Promise<Setup> {
   const f = await disposableClass(client, 2);
   const [willowId, cooperId] = f.ids as [string, string];
-  // A unique name keeps this class's schedule row apart from every other disposable class.
-  const className = `Container LiveSync ${Date.now() % 1_000_000}`;
   const { error } = await client
     .from('classes')
-    .update({ name: className, status: 'in_progress', status_source: 'manual' })
+    .update({ status: 'in_progress', status_source: 'manual' })
     .eq('id', f.classId);
   if (error) throw error;
   await setState(client, cooperId, { check_in_status: 'no-status' });
-  return { showId: f.showId, classId: f.classId, className, willowId, cooperId };
+  return { showId: f.showId, classId: f.classId, willowId, cooperId };
 }
 
 /** Everything the secretary's page shows about the walk, scoped to one class. */
-function desk(page: Page, className: string) {
+function desk(page: Page) {
   const entries = page.getByTestId('class-entries-table').getByTestId('class-entry-row');
   return {
     inRingTile: page.getByTestId('in-ring-tile'),
     nextUp: page.getByRole('list', { name: 'Next up' }).getByRole('listitem'),
     entryRow: (dog: string): Locator => entries.filter({ hasText: dog }),
-    // The class's schedule row, found from its title button (the unique name is in its text).
+    // The focused class's schedule row: its title button is the one pressed (`?focus=`). The row
+    // label is built from element, level and section, so the class's name cannot find it.
     scheduleLine: page
-      .locator('button[data-selects-row]', { hasText: className })
+      .locator('button[data-selects-row][aria-pressed="true"]')
       .locator('xpath=ancestor::div[.//*[@data-testid="class-status-line"]][1]')
       .getByTestId('class-status-line'),
   };
@@ -109,7 +107,7 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
   const s = await seed(client);
   const secretary = await secretaryOnShowDesk(browser, s, blockRealtime);
   const judge = await rolePage(browser, 'JUDGE', `/at-show/${s.showId}/class/${s.classId}`);
-  const sec = desk(secretary.page, s.className);
+  const sec = desk(secretary.page);
   const arrivals: Record<string, number> = {};
   const deadline = blockRealtime ? FALLBACK_WITHIN_MS : LIVE_WITHIN_MS;
 

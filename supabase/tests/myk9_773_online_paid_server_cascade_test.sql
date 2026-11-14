@@ -5,12 +5,15 @@
 --
 -- "Paid in Full: Online" (public.mark_enrollment_paid_online) runs the same
 -- entries cascade as record_enrollment_payment. One $200 enrollment:
---   A  ordinary                                   -> refunded by the enrollment, follows
+--   A  ordinary                                   -> refunded by the enrollment, stays
+--                                                    refunded (MYK9-1961: a payment never
+--                                                    reopens a refunded entry)
 --   B  refunded on its own (Stripe stamp, 'entry') -> stays refunded
 --   C  refunded before the origin existed (NULL)   -> stays refunded
 --   D  waived                                     -> untouched
--- Sequence: desk Paid in Full -> B stamped -> enrollment refund -> an outsider
--- is refused -> Paid in Full: Online. Also: EXECUTE grants, that the online
+--   E  a class added after the refund (unpaid)    -> follows to paid
+-- Sequence: desk Paid in Full -> B stamped -> enrollment refund -> E added -> an
+-- outsider is refused -> Paid in Full: Online. Also: EXECUTE grants, that the online
 -- call writes no show_payments row and no money column, and that it answers
 -- every entry's resulting status. Every fixture rolls back.
 
@@ -37,7 +40,7 @@ BEGIN
   RAISE NOTICE 'PASS mark_enrollment_paid_online: authenticated only, SECURITY DEFINER';
 
   IF has_function_privilege('authenticated',
-       'private.cascade_enrollment_entry_payment_status(uuid, text)', 'EXECUTE')
+       'private.cascade_enrollment_entry_payment_status(uuid, text, boolean)', 'EXECUTE')
      OR has_function_privilege('authenticated',
        'private.enrollment_payment_answer(uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL a client role can execute a private payment helper';
@@ -164,6 +167,18 @@ SELECT public.record_enrollment_payment(
 SELECT pg_temp.myk9_773o_expect('enrollment refunded',
   'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-)');
 
+-- E: a $30 class added after the refund, unpaid (as submit_show_entries inserts it).
+RESET ROLE;
+INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
+                            payment_status, payment_method, entry_fee)
+VALUES ('00000000-0000-0000-0000-0000a773000e', '00000000-0000-0000-0000-0000a7730011',
+        '00000000-0000-0000-0000-0000a7730021', '00000000-0000-0000-0000-0000a7730061',
+        'submitted', 'pending', 'cash', 30);
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000a7730151', true);
+SELECT pg_temp.myk9_773o_expect('a class added after the refund',
+  'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-) e=pending(-)');
+
 INSERT INTO myk9_773o_steps SELECT 'money before', pg_temp.myk9_773o_money();
 
 -- --- 2. an outsider is refused, and changes nothing -------------------------
@@ -177,7 +192,7 @@ EXCEPTION WHEN insufficient_privilege THEN
 END;
 $$;
 SELECT pg_temp.myk9_773o_expect('outsider changed nothing',
-  'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-)');
+  'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-) e=pending(-)');
 
 -- --- 3. Paid in Full: Online ------------------------------------------------
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000a7730151', true);
@@ -189,8 +204,9 @@ SELECT 'answer', (
          jsonb_array_elements(q.r -> 'entries') x
    GROUP BY r->>'payment_status');
 
+-- MYK9-1961 (owner, 2026-11-13): the payment covers E only; A stays refunded.
 SELECT pg_temp.myk9_773o_expect('paid in full online after the refund',
-  'a=paid(-) b=refunded(entry) c=refunded(-) d=waived(-)');
+  'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-) e=paid(-)');
 
 INSERT INTO myk9_773o_steps SELECT 'money after', pg_temp.myk9_773o_money();
 
@@ -203,7 +219,7 @@ DECLARE
   v_after text;
 BEGIN
   SELECT got INTO v_answer FROM myk9_773o_steps WHERE step = 'answer';
-  IF v_answer IS DISTINCT FROM 'paid_online a=paid b=refunded c=refunded d=waived' THEN
+  IF v_answer IS DISTINCT FROM 'paid_online a=refunded b=refunded c=refunded d=waived e=paid' THEN
     RAISE EXCEPTION 'FAIL the online answer does not carry the enrollment and every entry: %', v_answer;
   END IF;
   RAISE NOTICE 'PASS the online answer carries every entry''s resulting status: %', v_answer;
@@ -211,7 +227,7 @@ BEGIN
   SELECT got INTO v_before FROM myk9_773o_steps WHERE step = 'money before';
   SELECT got INTO v_after FROM myk9_773o_steps WHERE step = 'money after';
   -- Only the status moves: no money column, no cash-box ledger row.
-  IF v_after IS DISTINCT FROM replace(v_before, 'refunded paid=', 'paid_online paid=') THEN
+  IF v_after IS DISTINCT FROM replace(v_before, 'pending paid=', 'paid_online paid=') THEN
     RAISE EXCEPTION 'FAIL the online mark moved money: before [%], after [%]', v_before, v_after;
   END IF;
   RAISE NOTICE 'PASS the online mark moves only the status: [%] -> [%]', v_before, v_after;

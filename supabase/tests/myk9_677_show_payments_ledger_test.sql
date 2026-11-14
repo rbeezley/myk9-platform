@@ -331,7 +331,10 @@ BEGIN
 END;
 $$;
 
--- A partial refund, then "Paid in Full", pays back the refunded shortfall.
+-- A partial refund, then "Paid in Full". MYK9-1961 (owner, 2026-11-13): the refund closed
+-- the form's entries, so they are no longer owed and a payment never reopens them; the $30
+-- still held is the form's. Paid in Full records nothing (it used to charge the $20
+-- shortfall back).
 SELECT public.record_enrollment_payment(
   '00000000-0000-0000-0000-000000677064', 'payment', NULL, 'check', NULL, '2201', NULL);
 SELECT public.record_enrollment_payment(
@@ -350,11 +353,11 @@ BEGIN
   SELECT amount INTO v_last
     FROM public.show_payments
    WHERE enrollment_id = '00000000-0000-0000-0000-000000677064' AND kind = 'payment' AND method = 'cash';
-  IF v_status <> 'paid_by_cash' OR v_net <> 50 OR v_last IS DISTINCT FROM 20 THEN
+  IF v_status <> 'paid_by_cash' OR v_net <> 30 OR v_last IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL refund then Paid in Full: status %, ledger net %, new payment %',
       v_status, v_net, v_last;
   END IF;
-  RAISE NOTICE 'PASS a partial refund then Paid in Full records the $20 shortfall; ledger net = fee';
+  RAISE NOTICE 'PASS a partial refund then Paid in Full records nothing; ledger net = $30 held';
 END;
 $$;
 

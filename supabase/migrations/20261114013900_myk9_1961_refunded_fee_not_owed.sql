@@ -19,17 +19,29 @@
 --     rest of its money; nothing due;
 --   * an entry added after a refund: owes its own fee.
 --
--- A LATER PAYMENT REOPENS. MYK9-773: an entry refunded BY ITS FORM (refund_origin
--- 'enrollment', no Stripe stamp, not paid by card) follows a later payment or "Payment Due"
--- back to paid / pending, and is owed again. record_enrollment_payment_core therefore judges a
--- payment (what "Paid in Full" charges, and the status it leaves) and "Payment Due" (the
--- status) on total_amount plus the fees it reopens (private.enrollment_reopen_cents), the
--- total the form has once its cascade has run. Without that, "Paid in Full" on a refunded
--- form would record nothing and the reopened entries would leave it owing.
+-- OWNER DECISIONS (2026-11-13, MYK9-1961). Both replace MYK9-773's "a later payment
+-- reopens the entries the form refunded" and Decision 1 of docs/plan-card-money-received.md.
+--   1. MONEY STILL HELD COVERS A LATER ADD-ON. $50 paid, $10 refunded at the desk ($40
+--      held), then a $30 class: the add-on is settled (paid) by the held money and the form
+--      is paid in full. private.refresh_enrollment_money settles it: when an add-on raises
+--      what a paid or refunded form owes and the money received still covers it, the form
+--      becomes 'paid' and its pending desk entries 'paid'. "Paid in Full" then charges $0.
+--   2. A PAYMENT COVERS ONLY WHAT IT IS FOR; IT NEVER REOPENS REFUNDED ENTRIES. $50 paid,
+--      fully refunded, then a $30 class: the form owes $30, "Paid in Full" charges $30, and
+--      the refunded entries stay refunded. The entries cascade
+--      (private.cascade_enrollment_entry_payment_status) no longer reopens a refunded entry
+--      on a payment: not on a desk payment (record_enrollment_payment_core, and so the
+--      desk payment submit_show_entries records at submission), and not on "Paid in Full:
+--      Online" (mark_enrollment_paid_online). A refunded form that gains an add-on it does
+--      not cover reads 'pending'.
+--   "Payment Due" (the reversal) still reopens the entries the form refunded (MYK9-773):
+--   it nets the ledger, the refund rows included, back to zero and clears refund_amount, so
+--   the refund is undone and those entries are owed again. It is judged on total_amount
+--   plus those fees (private.enrollment_reopen_cents).
 --
 -- THE TRIGGER. trg_entries_refresh_enrollment_total_on_update now also fires when an entry
 -- enters or leaves the refunded statuses, or its comp flag changes, so the form's total
--- follows a refund, its reopening, and a comp.
+-- follows a refund, a Payment Due, and a comp.
 --
 -- MONEY. Nothing here creates or queues a refund, calls Stripe, or writes paid_amount,
 -- refund_amount, refund_requests or a payout. The backfill recomputes total_amount only.
@@ -56,8 +68,9 @@ $$;
 COMMENT ON FUNCTION private.enrollment_owed_cents(uuid) IS
   'MYK9-1634/1637/1961: what an entry form owes (cents): entry_fee over its entries that are not deleted, not Free (waived or comped) and not refunded (refunded status or the Stripe refund stamp).';
 
--- Fees a payment or "Payment Due" brings back: the entries its cascade
--- (private.cascade_enrollment_entry_payment_status) reopens, less any comped one.
+-- Fees "Payment Due" brings back: the entries its cascade
+-- (private.cascade_enrollment_entry_payment_status with p_reopen_refunded) reopens, less any
+-- comped one. A payment reopens nothing (owner, 2026-11-13).
 CREATE OR REPLACE FUNCTION private.enrollment_reopen_cents(p_enrollment_id uuid)
 RETURNS integer
 LANGUAGE sql
@@ -78,7 +91,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION private.enrollment_reopen_cents(uuid) IS
-  'MYK9-1961: fees of the entries a later payment or Payment Due reopens (refunded by their form, MYK9-773): not in enrollment_owed_cents until the cascade reopens them.';
+  'MYK9-1961: fees of the entries Payment Due reopens (refunded by their form, MYK9-773): not in enrollment_owed_cents until the cascade reopens them. A payment never reopens them.';
 
 -- The MYK9-1637 WHEN clause, with the refunded statuses and the comp flag beside waived.
 DROP TRIGGER IF EXISTS trg_entries_refresh_enrollment_total_on_update ON public.entries;
@@ -95,8 +108,249 @@ CREATE TRIGGER trg_entries_refresh_enrollment_total_on_update
   EXECUTE FUNCTION private.entries_refresh_enrollment_total();
 
 -- ---------------------------------------------------------------------------
--- record_enrollment_payment_core (from 20261101213300): a payment and "Payment Due" are
--- judged on the total the form has once their cascade reopens its refunded entries.
+-- refresh_enrollment_money (from 20261101213300): owner decision 1, money still held
+-- covers a later add-on; a refunded form that gains an add-on it does not cover is pending.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION private.refresh_enrollment_money(p_enrollment_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_old_total integer;
+  v_old_card integer;
+  v_status text;
+  v_desk_cents numeric;
+  v_total integer;
+  v_card integer;
+  v_received numeric;
+  v_settle boolean;
+BEGIN
+  -- NO KEY UPDATE, not UPDATE: an entry INSERT already holds KEY SHARE on its form from
+  -- the foreign-key check, which FOR UPDATE would wait on, so two concurrent inserts onto
+  -- one form would deadlock; NO KEY UPDATE queues them instead (MYK9-1634).
+  SELECT en.total_amount, en.card_covered_cents, en.payment_status,
+         (COALESCE(en.paid_amount, 0) - COALESCE(en.refund_amount, 0)) * 100
+    INTO v_old_total, v_old_card, v_status, v_desk_cents
+    FROM public.enrollments en
+   WHERE en.id = p_enrollment_id
+     FOR NO KEY UPDATE;
+
+  -- A form deleted with its entries is left alone.
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_total := private.enrollment_owed_cents(p_enrollment_id);
+  v_card := private.enrollment_card_covered_cents(p_enrollment_id);
+  IF v_total IS NOT DISTINCT FROM v_old_total AND v_card = v_old_card THEN
+    RETURN;
+  END IF;
+  v_received := v_desk_cents + v_card;
+
+  -- MYK9-1961 (owner decision 1, 2026-11-13): an add-on raised what a settled or refunded
+  -- form owes, and the money it still holds covers the new total. The held money pays for
+  -- the add-on, so the form is paid and the add-on settled, below.
+  v_settle := v_status IN ('paid', 'paid_by_cash', 'paid_by_check', 'refunded', 'partial_refund')
+              AND v_total > COALESCE(v_old_total, 0)
+              AND v_received >= v_total;
+
+  UPDATE public.enrollments en
+     SET total_amount = v_total,
+         card_covered_cents = v_card,
+         payment_status = CASE
+           WHEN v_status IN ('paid', 'paid_by_cash', 'paid_by_check', 'waived')
+            AND (v_total > COALESCE(v_old_total, 0) OR v_card < v_old_card)
+            AND v_received < v_total
+           THEN 'pending'
+           -- MYK9-1961: a refunded form owes a later add-on it does not cover (owner
+           -- decision 2); its refunded entries stay refunded.
+           WHEN v_status IN ('refunded', 'partial_refund')
+            AND v_total > COALESCE(v_old_total, 0)
+            AND v_received < v_total
+           THEN 'pending'
+           WHEN v_status IN ('refunded', 'partial_refund') AND v_settle
+           THEN 'paid'
+           WHEN v_status IN ('pending', 'waived')
+            AND v_card > v_old_card
+            AND v_received >= v_total
+           THEN 'paid'
+           ELSE en.payment_status
+         END
+   WHERE en.id = p_enrollment_id;
+
+  -- The add-on the held money covers is paid. Only a pending desk entry: a refunded,
+  -- waived or comped one is closed, a card-paid one is the card's (MYK9-1637), and an
+  -- online-method entry is marked paid only by the payment service. The status moves
+  -- between two statuses the total does not read, so no trigger here fires again.
+  IF v_settle THEN
+    UPDATE public.entries e
+       SET payment_status = 'paid',
+           updated_at = now()
+     WHERE e.registration_id = p_enrollment_id
+       AND e.deleted_at IS NULL
+       AND e.payment_status = 'pending'
+       AND e.comped IS NOT TRUE
+       AND e.payment_method IS DISTINCT FROM 'online'
+       AND NOT private.entry_is_card_paid(e.id, e.refund_amount);
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.refresh_enrollment_money(uuid) FROM PUBLIC;
+
+-- ---------------------------------------------------------------------------
+-- The status guard (from 20261101213300): the two MYK9-1961 derived moves of
+-- refresh_enrollment_money are allowed inside an exhibitor's own add-on request.
+-- CREATE OR REPLACE keeps its grants.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.restrict_payment_status_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+    -- Allow service_role (edge functions, Stripe webhooks) to bypass
+    IF (SELECT current_setting('role', true)) = 'service_role' THEN
+        RETURN NEW;
+    END IF;
+
+    -- Allow platform_admin and site_admin to bypass
+    IF (SELECT is_platform_admin()) THEN
+        RETURN NEW;
+    END IF;
+
+    -- Allow secretaries to bypass
+    IF (SELECT has_role('secretary'::text)) THEN
+        RETURN NEW;
+    END IF;
+
+    IF NEW.payment_status IS DISTINCT FROM OLD.payment_status THEN
+        -- MYK9-1634/1637: an exhibitor's own add-on onto a settled form reopens it in
+        -- private.refresh_enrollment_money(), inside the exhibitor's request. That one
+        -- change is allowed: settled -> 'pending' on a form whose total (already derived by
+        -- trg_enrollments_derive_total) exceeds the money received, desk and card. It is
+        -- the state the database derives for that form, and moves no money.
+        --
+        -- MYK9-1961: the same move from a refunded form (refunded / partial_refund), whose
+        -- later add-on it no longer covers (owner decision 2, 2026-11-13).
+        IF NEW.payment_status = 'pending'
+           AND OLD.payment_status IN ('paid', 'paid_by_cash', 'paid_by_check', 'waived',
+                                      'refunded', 'partial_refund')
+           AND COALESCE(NEW.total_amount, 0)
+               > (COALESCE(NEW.paid_amount, 0) - COALESCE(NEW.refund_amount, 0)) * 100
+                 + NEW.card_covered_cents THEN
+            RETURN NEW;
+        END IF;
+
+        -- MYK9-1637: the other derived move, 'pending' -> 'paid' when the form's card money
+        -- grew and now covers it (a capture). card_covered_cents is recomputed from
+        -- succeeded orders by trg_enrollments_derive_total before this guard runs, so no
+        -- caller can make it grow by writing it.
+        IF NEW.payment_status = 'paid'
+           AND OLD.payment_status = 'pending'
+           AND NEW.card_covered_cents > OLD.card_covered_cents
+           AND (COALESCE(NEW.paid_amount, 0) - COALESCE(NEW.refund_amount, 0)) * 100
+                 + NEW.card_covered_cents >= COALESCE(NEW.total_amount, 0) THEN
+            RETURN NEW;
+        END IF;
+
+        -- MYK9-1961 (owner decision 1, 2026-11-13): an exhibitor's own add-on onto a refunded
+        -- form whose money still held covers it: refunded / partial_refund -> 'paid', when the
+        -- derived total grew and the money received, desk and card, covers it. The total is
+        -- recomputed from the entries by trg_enrollments_derive_total before this guard
+        -- runs, and the money columns have their own guard, so no caller makes this true by
+        -- writing it.
+        IF NEW.payment_status = 'paid'
+           AND OLD.payment_status IN ('refunded', 'partial_refund')
+           AND COALESCE(NEW.total_amount, 0) > COALESCE(OLD.total_amount, 0)
+           AND (COALESCE(NEW.paid_amount, 0) - COALESCE(NEW.refund_amount, 0)) * 100
+                 + NEW.card_covered_cents >= COALESCE(NEW.total_amount, 0) THEN
+            RETURN NEW;
+        END IF;
+
+        -- Block any other attempt to change payment_status by unprivileged users
+        RAISE EXCEPTION 'payment_status can only be modified by the service role, a platform admin, or a secretary';
+    END IF;
+
+    RETURN NEW;
+END;
+$function$;
+
+-- ---------------------------------------------------------------------------
+-- The entries cascade (from 20261101213300): a payment never reopens a refunded entry
+-- (owner decision 2). Only "Payment Due" (p_reopen_refunded) reopens the entries the form
+-- refunded. A new argument, so the old two-argument function is dropped; its callers
+-- (record_enrollment_payment_core below, mark_enrollment_paid_online) name the function
+-- only in their bodies, and a two-argument call takes the default: no reopening.
+-- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS private.cascade_enrollment_entry_payment_status(uuid, text);
+
+CREATE OR REPLACE FUNCTION private.cascade_enrollment_entry_payment_status(
+  p_enrollment_id uuid,
+  p_entry_status text,
+  p_reopen_refunded boolean DEFAULT false
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_entry_status IS NULL OR p_entry_status NOT IN ('paid', 'pending', 'refunded') THEN
+    RAISE EXCEPTION 'unsupported entry payment status: %', p_entry_status USING ERRCODE = '22023';
+  END IF;
+
+  -- The entries cascade: every entry of the enrollment takes the coarse status
+  -- (paid_* -> 'paid', pending -> 'pending', refunds -> 'refunded'), except
+  -- 'waived' ones and entries already 'refunded'.
+  --
+  -- MYK9-1961 (owner, 2026-11-13): a payment covers only what it is for, so it never
+  -- reopens a refunded entry. "Payment Due" (p_reopen_refunded) undoes the refund too, so
+  -- an entry the ENROLLMENT refunded (refund_origin = 'enrollment', MYK9-773) follows it.
+  -- An entry refunded on its own ('entry') or before the origin was recorded (NULL) never
+  -- does, and neither does one carrying an entry-level refund stamp, whatever its origin
+  -- says. A refund leaves every already-refunded entry, and its origin, alone.
+  --
+  -- The enrollment-refund flag is raised for THIS statement only, so the
+  -- trigger stamps 'enrollment' on exactly the entries this refund turns.
+  IF p_entry_status = 'refunded' THEN
+    PERFORM set_config('myk9.entry_refund_origin', 'enrollment', true);
+  END IF;
+
+  -- MYK9-1637: an entry a succeeded Stripe order paid for (and Stripe has not refunded)
+  -- is paid by card whatever happens to the desk money, so the desk never relabels it.
+  UPDATE public.entries
+     SET payment_status = p_entry_status,
+         updated_at = now()
+   WHERE registration_id = p_enrollment_id
+     AND NOT private.entry_is_card_paid(id, refund_amount)
+     AND (
+       payment_status NOT IN ('refunded', 'waived')
+       OR (p_reopen_refunded
+           AND p_entry_status <> 'refunded'
+           AND payment_status = 'refunded'
+           AND refund_origin = 'enrollment'
+           AND refund_amount IS NULL
+           AND refunded_at IS NULL)
+     );
+
+  PERFORM set_config('myk9.entry_refund_origin', '', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.cascade_enrollment_entry_payment_status(uuid, text, boolean) FROM PUBLIC;
+
+-- mark_enrollment_paid_online is unchanged; its description follows the cascade.
+COMMENT ON FUNCTION public.mark_enrollment_paid_online(uuid) IS
+  'MYK9-773/1961: Entry Management''s "Paid in Full: Online". Sets the enrollment''s payment_status to paid_online (no money column, no show_payments row: online money is not the cash box''s) and runs the same entries cascade as record_enrollment_payment (private.cascade_enrollment_entry_payment_status): unpaid entries follow to paid; refunded and waived entries never change (MYK9-1961: a payment never reopens a refunded entry). Returns the enrollment''s money columns plus every entry''s resulting payment_status. Restates the record predicate (site admin, or show office manager holding the secretary role).';
+
+-- ---------------------------------------------------------------------------
+-- record_enrollment_payment_core (from 20261101213300): a payment reopens nothing and is
+-- judged on what the form owes; "Payment Due" is judged on the total the form has once its
+-- cascade reopens the entries the form refunded.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION private.record_enrollment_payment_core(
   p_enrollment_id uuid,
@@ -178,9 +432,9 @@ BEGIN
   -- rows, and a Stripe/other refund is recorded on the enrollment but never in
   -- the ledger (it is not box money). The enrollment columns hold both.
   v_net := v_paid - v_refunded;
-  -- MYK9-1961: a refunded entry is not in total_amount, but a payment or "Payment Due"
-  -- reopens the ones this form's refund closed (MYK9-773), so the form owes them again.
-  -- What a payment covers and the status it leaves are judged on that total.
+  -- MYK9-1961: a refunded entry is not in total_amount. A payment never reopens it (owner,
+  -- 2026-11-13), so a payment is judged on total_amount alone. "Payment Due" reopens the
+  -- ones this form's refund closed (MYK9-773), so it is judged on total_amount plus them.
   v_reopen_cents := private.enrollment_reopen_cents(p_enrollment_id);
   -- MYK9-1637: CARD MONEY (v_card) is held too, but it is not desk money: it counts toward
   -- what is received ("Paid in Full", the status) and never toward what the desk may hand
@@ -205,7 +459,7 @@ BEGIN
       v_total_cents / 100.0,
       (SELECT sum(en.entry_fee) FROM public.entries en
         WHERE en.registration_id = p_enrollment_id AND en.deleted_at IS NULL)
-    ) + v_reopen_cents / 100.0;
+    );
     -- NULL amount = "Paid in Full": whatever is still due after refunds.
     v_amount := COALESCE(p_amount, GREATEST(COALESCE(v_total_due, 0) - v_net - v_card, 0));
     IF v_amount < 0 OR v_amount <> round(v_amount, 2) THEN
@@ -324,8 +578,9 @@ BEGIN
   END IF;
 
   -- The entries cascade (MYK9-773 rule): one place, shared with
-  -- mark_enrollment_paid_online.
-  PERFORM private.cascade_enrollment_entry_payment_status(p_enrollment_id, v_entry_status);
+  -- mark_enrollment_paid_online. Only "Payment Due" reopens the entries the form refunded.
+  PERFORM private.cascade_enrollment_entry_payment_status(
+    p_enrollment_id, v_entry_status, p_kind = 'reversal');
 
   RETURN private.enrollment_payment_answer(p_enrollment_id);
 END;

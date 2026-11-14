@@ -10,9 +10,14 @@
 --   2. a partial desk refund leaves nothing due and the rest of the money held;
 --   3. a Stripe-refunded entry is not owed; its sibling still is;
 --   4. a comped entry is not owed, and owed again when the comp is undone;
---   5. "Paid in Full" after a full refund reopens the entry and charges its fee again;
+--   5. "Paid in Full" after a full refund charges nothing and reopens nothing;
 --   6. "Payment Due" after a refund reopens the entries and owes their fees;
---   7. an entry added after a refund owes its own fee;
+--   7. OWNER CASE 1 (2026-11-13): money still held covers a later add-on. $50 paid, $10
+--      refunded, then a $30 class: the add-on is settled (paid) by the $40 held, the form
+--      is paid with nothing due, and "Paid in Full" charges $0 and reopens nothing;
+--   9. OWNER CASE 2 (2026-11-13): a payment covers only what it is for. $50 paid, fully
+--      refunded, then a $30 class: the form owes $30, and recording $30 (Paid in Full, or
+--      the custom amount) leaves the refunded entries refunded and the form paid in full;
 --   8. the helper and the changed function keep their grants (no client role executes them).
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated database; fixtures roll back.
@@ -41,7 +46,9 @@ VALUES
   ('00000000-0000-0000-0000-000001961053', 'Partial', 'Refund', NULL),
   ('00000000-0000-0000-0000-000001961054', 'Stripe', 'Refund', NULL),
   ('00000000-0000-0000-0000-000001961055', 'Comped', 'Entry', NULL),
-  ('00000000-0000-0000-0000-000001961056', 'Payment', 'Due', NULL);
+  ('00000000-0000-0000-0000-000001961056', 'Payment', 'Due', NULL),
+  ('00000000-0000-0000-0000-000001961057', 'Refunded', 'PaidInFull', NULL),
+  ('00000000-0000-0000-0000-000001961058', 'Refunded', 'Custom', NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000001961051', id, '00000000-0000-0000-0000-000001961001',
@@ -49,7 +56,7 @@ SELECT '00000000-0000-0000-0000-000001961051', id, '00000000-0000-0000-0000-0000
   FROM public.roles WHERE name = 'secretary';
 
 -- One form per exhibitor: A full refund, B partial refund, C Stripe refund, D comp,
--- E Payment Due.
+-- E Payment Due, F and G full refund then an add-on (Paid in Full, custom amount).
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method)
 VALUES
   ('00000000-0000-0000-0000-00000196100a', '00000000-0000-0000-0000-000001961011',
@@ -61,7 +68,11 @@ VALUES
   ('00000000-0000-0000-0000-00000196100d', '00000000-0000-0000-0000-000001961011',
    '00000000-0000-0000-0000-000001961055', 'pending', 'cash'),
   ('00000000-0000-0000-0000-00000196100e', '00000000-0000-0000-0000-000001961011',
-   '00000000-0000-0000-0000-000001961056', 'pending', 'cash');
+   '00000000-0000-0000-0000-000001961056', 'pending', 'cash'),
+  ('00000000-0000-0000-0000-00000196100f', '00000000-0000-0000-0000-000001961011',
+   '00000000-0000-0000-0000-000001961057', 'pending', 'cash'),
+  ('00000000-0000-0000-0000-000001961010', '00000000-0000-0000-0000-000001961011',
+   '00000000-0000-0000-0000-000001961058', 'pending', 'cash');
 
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
@@ -69,7 +80,16 @@ SELECT ('00000000-0000-0000-0000-0000019611' || x.suffix)::uuid,
        '00000000-0000-0000-0000-000001961011', '00000000-0000-0000-0000-000001961021',
        ('00000000-0000-0000-0000-00000196100' || left(x.suffix, 1))::uuid,
        'submitted', 'pending', 'cash', 25
-  FROM (VALUES ('a1'), ('b1'), ('b2'), ('c1'), ('c2'), ('d1'), ('d2'), ('e1'), ('e2')) AS x(suffix);
+  FROM (VALUES ('a1'), ('b1'), ('b2'), ('c1'), ('c2'), ('d1'), ('d2'), ('e1'), ('e2'),
+               ('f1'), ('f2')) AS x(suffix);
+
+-- Form G (id ...1961010) has its own two $25 entries.
+INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
+                            payment_status, payment_method, entry_fee)
+SELECT ('00000000-0000-0000-0000-0000019611' || x.suffix)::uuid,
+       '00000000-0000-0000-0000-000001961011', '00000000-0000-0000-0000-000001961021',
+       '00000000-0000-0000-0000-000001961010', 'submitted', 'pending', 'cash', 25
+  FROM (VALUES ('91'), ('92')) AS x(suffix);
 
 CREATE TEMP TABLE t1961_expect (label text, got text, want text) ON COMMIT DROP;
 GRANT ALL ON t1961_expect TO authenticated;
@@ -84,6 +104,22 @@ LANGUAGE sql AS $$
                  - card_covered_cents / 100.0)::numeric(10, 2))
     FROM public.enrollments WHERE id = p_id $$;
 GRANT EXECUTE ON FUNCTION pg_temp.money1961(uuid) TO authenticated;
+
+-- Each entry of one form as suffix=payment_status, and how many payments its ledger holds.
+CREATE OR REPLACE FUNCTION pg_temp.entries1961(p_id uuid) RETURNS text
+LANGUAGE sql AS $$
+  SELECT string_agg(right(e.id::text, 2) || '=' || e.payment_status, ' ' ORDER BY e.id)
+         || ' payments=' || (SELECT count(*) FROM public.show_payments sp
+                              WHERE sp.enrollment_id = p_id AND sp.kind = 'payment')
+    FROM public.entries e WHERE e.registration_id = p_id $$;
+
+-- An add-on class on a form, as submit_show_entries inserts it (pending, its own fee).
+CREATE OR REPLACE FUNCTION pg_temp.addon1961(p_id uuid, p_entry uuid) RETURNS void
+LANGUAGE sql AS $$
+  INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
+                              payment_status, payment_method, entry_fee)
+  VALUES (p_entry, '00000000-0000-0000-0000-000001961011',
+          '00000000-0000-0000-0000-000001961021', p_id, 'submitted', 'pending', 'cash', 30) $$;
 
 -- Every desk action below is the secretary's, through the public RPC.
 SET LOCAL ROLE authenticated;
@@ -139,16 +175,17 @@ SELECT '4b undoing the comp owes the fee again',
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001961151', true);
 
--- 5. "Paid in Full" on form A after its full refund: the entry follows (MYK9-773) and its
--- fee is charged again.
+-- 5. "Paid in Full" on form A after its full refund: the form owes nothing, so it charges
+-- nothing, and the refunded entry stays refunded (owner, 2026-11-13: a payment never
+-- reopens a refunded entry).
 SELECT public.record_enrollment_payment(
   '00000000-0000-0000-0000-00000196100a', 'payment', NULL, 'cash', NULL, NULL, NULL);
 INSERT INTO t1961_expect
-SELECT '5 Paid in Full after a full refund charges the reopened fee',
+SELECT '5 Paid in Full after a full refund charges nothing and reopens nothing',
        pg_temp.money1961('00000000-0000-0000-0000-00000196100a')
        || ' entry=' || (SELECT payment_status FROM public.entries
                          WHERE id = '00000000-0000-0000-0000-0000019611a1'),
-       'total=2500 paid=50.00 refund=25.00 status=paid_by_cash due=0.00 entry=paid';
+       'total=0 paid=25.00 refund=25.00 status=paid_by_cash due=0.00 entry=refunded';
 
 -- 6. "Payment Due" on a refunded form reopens its entries, which are owed again.
 SELECT public.record_enrollment_payment(
@@ -164,18 +201,77 @@ SELECT '6 Payment Due after a refund owes the reopened fees',
 
 RESET ROLE;
 
--- 7. An entry added to form B after its refund owes its own fee; the $40 the desk still
--- holds is the form's, so it covers it.
-INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
-                            payment_status, payment_method, entry_fee)
-VALUES ('00000000-0000-0000-0000-0000019611b3', '00000000-0000-0000-0000-000001961011',
-        '00000000-0000-0000-0000-000001961021', '00000000-0000-0000-0000-00000196100b',
-        'submitted', 'pending', 'cash', 30);
+-- 7. OWNER CASE 1. Form B: $50 paid by check, $10 refunded in cash (step 2), $40 held.
+-- A $30 class added: the held money settles it, so the add-on is paid, the form is paid,
+-- and nothing is due.
+SELECT pg_temp.addon1961('00000000-0000-0000-0000-00000196100b',
+                         '00000000-0000-0000-0000-0000019611b3');
 INSERT INTO t1961_expect
-SELECT '7 an entry added after a refund is owed',
-       (SELECT total_amount::text FROM public.enrollments
-         WHERE id = '00000000-0000-0000-0000-00000196100b'),
-       '3000';
+SELECT '7a money still held settles a later add-on',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196100b') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196100b'),
+       'total=3000 paid=50.00 refund=10.00 status=paid due=-10.00 '
+       || 'b1=refunded b2=refunded b3=paid payments=1';
+
+-- 9. OWNER CASE 2. Forms F and G: $50 paid, all of it refunded, then a $30 class. The form
+-- owes the add-on's $30 and nothing else.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001961151', true);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-00000196100f', 'payment', NULL, 'cash', NULL, NULL, NULL);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-00000196100f', 'refund', 50, 'cash', NULL, NULL, 'Cash Returned');
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000001961010', 'payment', NULL, 'cash', NULL, NULL, NULL);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000001961010', 'refund', 50, 'cash', NULL, NULL, 'Cash Returned');
+RESET ROLE;
+SELECT pg_temp.addon1961('00000000-0000-0000-0000-00000196100f',
+                         '00000000-0000-0000-0000-0000019611f3');
+SELECT pg_temp.addon1961('00000000-0000-0000-0000-000001961010',
+                         '00000000-0000-0000-0000-000001961193');
+INSERT INTO t1961_expect
+SELECT '9a a refunded form owes only its later add-on',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196100f') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196100f'),
+       'total=3000 paid=50.00 refund=50.00 status=pending due=30.00 '
+       || 'f1=refunded f2=refunded f3=pending payments=1';
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001961151', true);
+
+-- 7b. "Paid in Full" on form B charges $0 and reopens nothing.
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-00000196100b', 'payment', NULL, 'cash', NULL, NULL, NULL);
+-- 9b. "Paid in Full" on form F charges the add-on's $30; 9c. G records $30 by amount.
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-00000196100f', 'payment', NULL, 'cash', NULL, NULL, NULL);
+SELECT public.record_enrollment_payment(
+  '00000000-0000-0000-0000-000001961010', 'payment', 30, 'cash', NULL, NULL, NULL);
+RESET ROLE;
+
+INSERT INTO t1961_expect
+SELECT '7b Paid in Full on a form its held money covers charges $0 and reopens nothing',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196100b') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196100b'),
+       'total=3000 paid=50.00 refund=10.00 status=paid_by_cash due=-10.00 '
+       || 'b1=refunded b2=refunded b3=paid payments=1';
+INSERT INTO t1961_expect
+SELECT '9b Paid in Full charges the add-on only and leaves the refunded entries refunded',
+       pg_temp.money1961('00000000-0000-0000-0000-00000196100f') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-00000196100f')
+       || ' amounts=' || (SELECT string_agg(amount::numeric(10, 2)::text, ',' ORDER BY amount)
+                            FROM public.show_payments
+                           WHERE enrollment_id = '00000000-0000-0000-0000-00000196100f'
+                             AND kind = 'payment'),
+       'total=3000 paid=80.00 refund=50.00 status=paid_by_cash due=0.00 '
+       || 'f1=refunded f2=refunded f3=paid payments=2 amounts=30.00,50.00';
+INSERT INTO t1961_expect
+SELECT '9c a $30 payment by amount pays the form in full and reopens nothing',
+       pg_temp.money1961('00000000-0000-0000-0000-000001961010') || ' '
+       || pg_temp.entries1961('00000000-0000-0000-0000-000001961010'),
+       'total=3000 paid=80.00 refund=50.00 status=paid_by_cash due=0.00 '
+       || '91=refunded 92=refunded 93=paid payments=2';
 
 -- 8. Grants: no client role may execute the owed rule or the reopen helper.
 INSERT INTO t1961_expect

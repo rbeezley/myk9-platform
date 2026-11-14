@@ -25,7 +25,7 @@ export interface EmailAttempt {
 }
 
 export interface EmailLogContext {
-  emailType: 'trial_packet' | 'trial_packet_print_reminder';
+  emailType: 'trial_packet' | 'trial_packet_print_reminder' | 'judge_record';
   showId: string;
   /** The snapshot the mail refers to, so a row can be traced to its PDF. */
   relatedId: string;

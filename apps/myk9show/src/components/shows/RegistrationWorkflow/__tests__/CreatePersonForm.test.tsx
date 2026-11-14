@@ -289,4 +289,11 @@ describe('CreatePersonForm wording', () => {
     const copy = screen.getByRole('dialog').textContent ?? '';
     expect(copy).not.toMatch(/exhibitor|\bcreat(e|ing)\b/i);
   });
+
+  it('does not point the secretary at User Management for roles (MYK9-2020)', () => {
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    expect(screen.getByLabelText(/First Name/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Role assignments are managed/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'User Management' })).not.toBeInTheDocument();
+  });
 });

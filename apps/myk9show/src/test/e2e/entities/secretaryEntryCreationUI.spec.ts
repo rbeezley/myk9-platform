@@ -118,12 +118,7 @@ test.describe('Secretary Entry Creation', () => {
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForLoadState('networkidle');
 
-    // ── Step 3: Handlers (auto-assigned) ─────────────────────────────────
-    await page.waitForSelector('text=Handlers', { timeout: 8000 });
-    await expect(page.getByText(/all entries have handlers assigned/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /next/i })).toBeEnabled();
-    await page.getByRole('button', { name: /next/i }).click();
-    await page.waitForLoadState('networkidle');
+    // ── Step 3: Handlers (auto-assigned to the owner, so skipped: MYK9-2020) ──
 
     // ── Step 4: Payment + AKC agreement ──────────────────────────────────
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });

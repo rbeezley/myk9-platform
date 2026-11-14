@@ -208,15 +208,14 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
   await page.getByRole('button', { name: /^Next/ }).click();
 
   await selectFirstContainerClass(page);
-  await page.getByRole('button', { name: /^Next/ }).click();
-
-  await expect(page.getByText(/All entries have handlers assigned/i)).toBeVisible({
+  // MYK9-2020: the dog's owner handles it, so Next skips Handlers, and says so first.
+  await expect(page.getByText(/Each dog is handled by its owner/i)).toBeVisible({
     timeout: 5000,
   });
   await page.getByRole('button', { name: /^Next/ }).click();
 
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
-  await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
+  await page.getByRole('button', { name: /Check received/i }).click();
   // MYK9-483 (#2210) folded the payment step's fee summary into the one running
   // entries panel and renamed the label; 'Entry fee total' has not existed in
   // the app since. The desktop aside is the one that renders at this spec's

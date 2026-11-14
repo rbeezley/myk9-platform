@@ -91,13 +91,9 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
   },
   'components/announcements/CreateAnnouncementDialog.tsx': { count: 1, reason: 'form toggle' },
   'components/admin/users/BulkRoleEditPanel.tsx': { count: 1, reason: 'role chip in a form' },
-  'components/shows/RegistrationWorkflow/PaymentStep/PaymentMethodSelector.tsx': {
-    count: 2,
-    reason: 'payment method choice',
-  },
-  'components/shows/RegistrationWorkflow/PaymentStep/SecretaryPaymentManagement.tsx': {
-    count: 2,
-    reason: 'paid and free shortcuts to the payment method choice',
+  'components/shows/RegistrationWorkflow/PaymentStep/PaymentOptionCard.tsx': {
+    count: 1,
+    reason: 'payment method choice (one card per method)',
   },
   'pages/PricingPage.tsx': { count: 2, reason: 'billing period toggle' },
   'pages/secretary/ReportsPage/ReportPhaseSections.tsx': {

@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
-import { CreditCard, DollarSign, FileText, Tag, Receipt, Users, AlertTriangle } from 'lucide-react';
+import { CreditCard, DollarSign, FileText, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
-import { UserRole } from '@/types/auth-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PaymentOptionCard } from './PaymentOptionCard';
@@ -145,6 +140,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
     );
   }
 
+  // The exhibitor's own list: card, or check or cash at the show. Staff-only
+  // methods live in the desk list above (MYK9-2020).
   return (
     <Card>
       <CardHeader>
@@ -235,160 +232,6 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     Please bring exact cash amount on the day of the show.
                   </AlertDescription>
                 </Alert>
-              </div>
-            )}
-
-            <PermissionGuard
-              permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
-              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
-            >
-              <PaymentOptionCard
-                value="secretary_paid"
-                selected={paymentMethod === 'secretary_paid'}
-                icon={Receipt}
-                title="Secretary Payment (Already Received)"
-                description="Payment received outside of online system"
-                onSelect={handleSelect}
-              />
-            </PermissionGuard>
-
-            {paymentMethod === 'secretary_paid' && (
-              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
-                <Alert>
-                  <AlertDescription>
-                    Mark this registration as paid when payment has been received outside the online
-                    system.
-                  </AlertDescription>
-                </Alert>
-                {/* MYK9-677: the payments ledger and the closeout card count cash
-                    and check separately, so money received names its method. */}
-                <div role="group" aria-labelledby="received-method-label" className="space-y-1">
-                  <Label id="received-method-label">Received as</Label>
-                  <div className="flex gap-2">
-                    {(['cash', 'check'] as const).map(method => (
-                      <Button
-                        key={method}
-                        type="button"
-                        size="sm"
-                        className="flex-1"
-                        variant={receivedMethod === method ? 'default' : 'outline'}
-                        aria-pressed={receivedMethod === method}
-                        onClick={() => handleReceivedMethodChange(method)}
-                      >
-                        {method === 'cash' ? 'Cash' : 'Check'}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Required when money was received. Not needed for a $0 entry.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="payment-date">Payment Date (received on)</Label>
-                    <Input
-                      id="payment-date"
-                      type="date"
-                      value={paymentDate}
-                      onChange={e => handlePaymentDateChange(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    {/* MYK9-1742: a check that came in the envelope is recorded by
-                        its number. Same stored field (the payment reference), named
-                        for what the secretary is holding. */}
-                    <Label htmlFor="payment-reference">
-                      {receivedMethod === 'check'
-                        ? 'Check number'
-                        : receivedMethod === 'cash'
-                          ? 'Receipt #'
-                          : 'Reference/Receipt #'}
-                    </Label>
-                    <Input
-                      id="payment-reference"
-                      value={paymentReference}
-                      onChange={e => handlePaymentReferenceChange(e.target.value)}
-                      placeholder={receivedMethod === 'check' ? '1234' : 'Receipt #123'}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="payment-notes">Payment Notes</Label>
-                  <Textarea
-                    id="payment-notes"
-                    value={paymentNotes}
-                    onChange={e => handlePaymentNotesChange(e.target.value)}
-                    placeholder="Additional details about payment..."
-                    rows={2}
-                  />
-                </div>
-              </div>
-            )}
-
-            <PermissionGuard
-              permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
-              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
-            >
-              <PaymentOptionCard
-                value="group_payment"
-                selected={paymentMethod === 'group_payment'}
-                icon={Users}
-                title="Group/Club Payment"
-                description="Payment handled by club or group organizer"
-                onSelect={handleSelect}
-              />
-            </PermissionGuard>
-
-            {paymentMethod === 'group_payment' && (
-              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
-                <Alert>
-                  <AlertDescription>
-                    This registration is part of a group payment arrangement.
-                  </AlertDescription>
-                </Alert>
-                <div>
-                  <Label htmlFor="group-reference">Group/Organization Reference</Label>
-                  <Input
-                    id="group-reference"
-                    value={groupReference}
-                    onChange={e => handleGroupReferenceChange(e.target.value)}
-                    placeholder="Club payment batch #123"
-                  />
-                </div>
-              </div>
-            )}
-
-            {allowFreeEntry && (
-              <PermissionGuard permission="registration:override_fees">
-                <PaymentOptionCard
-                  value="waived"
-                  selected={paymentMethod === 'waived'}
-                  icon={Tag}
-                  title="Free entry"
-                  description="No entry fees are charged"
-                  onSelect={handleSelect}
-                />
-              </PermissionGuard>
-            )}
-
-            {paymentMethod === 'waived' && (
-              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    This entry will be free. No entry fees are charged.
-                  </AlertDescription>
-                </Alert>
-                <div>
-                  <Label htmlFor="waiver-reason">Why is this entry free?</Label>
-                  <Textarea
-                    id="waiver-reason"
-                    value={paymentNotes}
-                    onChange={e => handlePaymentNotesChange(e.target.value)}
-                    placeholder="For example, a judge or worker entry"
-                    required
-                  />
-                </div>
               </div>
             )}
 

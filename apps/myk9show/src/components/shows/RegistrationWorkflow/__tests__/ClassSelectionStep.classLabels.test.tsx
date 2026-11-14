@@ -398,3 +398,43 @@ describe('ClassSelectionStep — checkbox names carry element, level and dog (MY
     expect(CLASS_CHIP_NAME.test('Rex is already entered in Container')).toBe(false);
   });
 });
+
+describe('ClassSelectionStep — staff wording (MYK9-2020)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function markEveryClassFull() {
+    const base = mockUseClassAvailability();
+    mockUseClassAvailability.mockReturnValue({
+      ...base,
+      classes: base.classes.map((cls: Record<string, unknown>) => ({
+        ...cls,
+        isFull: true,
+        entryLimit: 3,
+        currentEntries: 3,
+      })),
+    });
+  }
+
+  it('gives the exhibitor the new-to-the-sport advice and the contact line', async () => {
+    setupMocks(HEARTLAND_SATURDAY);
+    markEveryClassFull();
+    renderStep();
+
+    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(screen.getByText(/New to this sport\?/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Contact the show secretary/).length).toBeGreaterThan(0);
+  });
+
+  it('shows the secretary neither, and says what she can do about a full class', async () => {
+    setupMocks(HEARTLAND_SATURDAY, { isStaff: true });
+    markEveryClassFull();
+    renderStep({ workflowMode: 'secretary_new' });
+
+    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(screen.queryByText(/New to this sport\?/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Contact the show secretary/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/raise the entry limit or turn on the waitlist/).length).toBe(2);
+  });
+});

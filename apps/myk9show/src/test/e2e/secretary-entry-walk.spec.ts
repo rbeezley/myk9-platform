@@ -221,21 +221,17 @@ test.describe('Secretary Entry Walk', () => {
       .click();
     await expect(page.getByText(/1 selected/).first()).toBeVisible();
 
-    // Click Next to step 3 (Handlers)
+    // MYK9-2020: the owner handles the dog, so Next skips Handlers to Payment.
+    await expect(page.getByText(/Each dog is handled by its owner/i)).toBeVisible();
     const nextBtn2 = page.getByRole('button', { name: /next/i });
     await expect(nextBtn2).toBeEnabled();
     await nextBtn2.click();
-    await page.waitForSelector('text=Handlers', { timeout: 8000 });
 
     // ── Step 4: Payment ────────────────────────────────────────────────────
-    const nextBtn3 = page.getByRole('button', { name: /next/i });
-    await expect(nextBtn3).toBeEnabled();
-    await nextBtn3.click();
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
-    await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
-    // MYK9-1742: a check from the envelope is recorded by its number.
-    await page.getByRole('button', { name: 'Check', exact: true }).click();
+    // MYK9-1742 / MYK9-2020: a check from the envelope, recorded by its number.
+    await page.getByRole('button', { name: /Check received/i }).click();
     await page.getByLabel('Check number').fill('4417');
 
     // MYK9-1742: the exhibitor signed the paper form, so the agreement arrives

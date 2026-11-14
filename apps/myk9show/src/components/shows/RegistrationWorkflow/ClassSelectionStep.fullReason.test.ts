@@ -194,3 +194,45 @@ describe('buildFullChipReason — two classes sharing element and level (MYK9-48
     ).toContain('still has space');
   });
 });
+
+describe('buildFullChipReason for staff keying an entry (MYK9-2020)', () => {
+  it('never tells the secretary to contact the show secretary', () => {
+    const reason = buildFullChipReason({
+      classId: 'sat-advanced',
+      availability: [SATURDAY_FULL],
+      secretaryContact: 'secretary@heartland.test',
+      audience: 'staff',
+    });
+    expect(reason).not.toMatch(/Contact the show secretary/);
+    expect(reason).toBe(
+      "The judge's Saturday is full, and this class has no waitlist. To take this entry, raise the entry limit or turn on the waitlist first."
+    );
+  });
+
+  it('says the entry goes on the waitlist when the class takes one, in plain words', () => {
+    const waitlisted = { ...SATURDAY_FULL, allowsWaitlist: true };
+    expect(
+      buildFullChipReason({
+        classId: 'sat-advanced',
+        availability: [waitlisted],
+        audience: 'staff',
+      })
+    ).toBe("The judge's Saturday is full. This entry will go on the waitlist.");
+  });
+
+  it("still names another day's class with space", () => {
+    expect(
+      buildFullChipReason({
+        classId: 'sat-advanced',
+        availability: [SATURDAY_FULL, SUNDAY_OPEN],
+        audience: 'staff',
+      })
+    ).toContain("Sunday's Interior Advanced still has space.");
+  });
+
+  it('leaves the exhibitor wording as it was when no audience is given', () => {
+    expect(buildFullChipReason({ classId: 'sat-advanced', availability: [SATURDAY_FULL] })).toBe(
+      "The judge's Saturday is full. Contact the show secretary."
+    );
+  });
+});

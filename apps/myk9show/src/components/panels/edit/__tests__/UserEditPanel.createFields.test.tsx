@@ -77,4 +77,22 @@ describe('UserEditPanel create mode shows only persisted fields', () => {
     expect(screen.getByLabelText('Bio')).toBeInTheDocument();
     expect(screen.getByLabelText(/Date of birth/i)).toBeInTheDocument();
   });
+
+  it('points at User Management for roles, except when opened from an entry (MYK9-2020)', async () => {
+    const props = {
+      open: true,
+      onClose: () => {},
+      userId: '',
+      userName: 'New',
+      initialUserData: {},
+      onSave: vi.fn(),
+    };
+    const { unmount } = render(<UserEditPanel {...props} />);
+    expect(await screen.findByText(/Role assignments are managed/)).toBeInTheDocument();
+    unmount();
+
+    render(<UserEditPanel {...props} fromEntry />);
+    await screen.findByLabelText(/First Name/);
+    expect(screen.queryByText(/Role assignments are managed/)).not.toBeInTheDocument();
+  });
 });

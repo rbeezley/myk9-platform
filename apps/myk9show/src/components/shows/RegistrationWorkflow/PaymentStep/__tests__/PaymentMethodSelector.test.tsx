@@ -1,5 +1,4 @@
 import { render, screen } from '@/test/utils/testUtils';
-import { fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { PaymentMethodSelector } from '../PaymentMethodSelector';
 
@@ -123,51 +122,5 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
   });
 });
 
-describe('PaymentMethodSelector — secretary payment received as (MYK9-677)', () => {
-  it('asks Cash or Check and carries the choice with the typed received date', () => {
-    const onPaymentDetailsChange = vi.fn();
-    render(
-      <PaymentMethodSelector
-        paymentMethod="secretary_paid"
-        onPaymentMethodChange={vi.fn()}
-        onPaymentDetailsChange={onPaymentDetailsChange}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
-    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ receivedMethod: 'check' })
-    );
-    expect(screen.getByRole('button', { name: 'Check' })).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.change(screen.getByLabelText('Payment Date (received on)'), {
-      target: { value: '2026-08-27' },
-    });
-    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ receivedMethod: 'check', paymentDate: '2026-08-27' })
-    );
-  });
-
-  // MYK9-1742: a check from the envelope is recorded by its number.
-  it('asks for the check number when the payment was received as a check', () => {
-    const onPaymentDetailsChange = vi.fn();
-    render(
-      <PaymentMethodSelector
-        paymentMethod="secretary_paid"
-        onPaymentMethodChange={vi.fn()}
-        onPaymentDetailsChange={onPaymentDetailsChange}
-      />
-    );
-    expect(screen.queryByLabelText('Check number')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
-    fireEvent.change(screen.getByLabelText('Check number'), { target: { value: '4417' } });
-    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ receivedMethod: 'check', paymentReference: '4417' })
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cash' }));
-    expect(screen.queryByLabelText('Check number')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Receipt #')).toHaveValue('4417');
-  });
-});
+// MYK9-677 (cash or check named for money received) and MYK9-1742 (the check
+// number) are pinned on the staff desk list: PaymentMethodSelector.deskMode.test.tsx.

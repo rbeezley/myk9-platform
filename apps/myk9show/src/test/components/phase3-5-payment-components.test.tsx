@@ -233,23 +233,29 @@ describe('Phase 3.5: Payment Component Tests', () => {
       ).toBeInTheDocument();
     });
 
-    it('should show the secretary desk card without tabs (MYK9-1822)', () => {
+    it('shows staff one list of payment choices, with no second desk card (MYK9-2020)', () => {
       render(
         <PaymentStep
           paymentResolution={makePaymentResolution({
-            paymentMethod: 'credit_card',
+            paymentMethod: 'secretary_paid',
+            cardCheckoutAvailable: false,
+            isOnBehalf: true,
             canUseDeskPaymentActions: true,
           })}
           {...defaultProps}
+          paymentMethod="secretary_paid"
         />
       );
 
-      // One card, two plain actions and no total; SecretaryPaymentManagement.test.tsx
-      // pins each one's handler.
-      expect(screen.getByText('Payment at the desk')).toBeInTheDocument();
+      // The old "Payment at the desk" card offered "Paid by cash or check" and
+      // "Make free" a second time, below the list that already had them.
+      expect(screen.queryByText('Payment at the desk')).toBeNull();
+      expect(screen.queryByRole('button', { name: /Paid by cash or check/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Make free/ })).toBeNull();
+      expect(screen.queryByText(/Now choose cash or check/)).toBeNull();
+      expect(screen.getAllByRole('button', { name: /Free entry/ })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: /Check received/ })).toHaveLength(1);
       expect(screen.queryByLabelText('Change the total')).toBeNull();
-      expect(screen.getByRole('button', { name: 'Paid by cash or check' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Make free' })).toBeInTheDocument();
       expect(screen.queryAllByRole('tab')).toHaveLength(0);
     });
 

@@ -15,6 +15,8 @@ const baseProps = {
   paymentMethod: '' as const,
   onPaymentMethodChange: vi.fn(),
   acceptedMethods: { check: true, cash: true },
+  // Staff only: the exhibitor's list never had it (MYK9-2020 moved it to the desk list).
+  deskMode: true,
 };
 
 describe('PaymentMethodSelector Free entry (MYK9-1875)', () => {
@@ -26,5 +28,10 @@ describe('PaymentMethodSelector Free entry (MYK9-1875)', () => {
   it('is offered when the caller allows it', () => {
     render(<PaymentMethodSelector {...baseProps} allowFreeEntry />);
     expect(screen.getByText('Free entry')).toBeInTheDocument();
+  });
+
+  it('is never in the exhibitor list, even when allowed', () => {
+    render(<PaymentMethodSelector {...baseProps} deskMode={false} allowFreeEntry />);
+    expect(screen.queryByText('Free entry')).not.toBeInTheDocument();
   });
 });

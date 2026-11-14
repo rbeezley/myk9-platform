@@ -192,12 +192,10 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     // The trial section header shows "2 selected" once both are chosen.
     await expect(page.getByText(/2 selected/).first()).toBeVisible();
 
-    await page.getByRole('button', { name: /^Next/ }).click();
-
     // ─── Step 3: Handler assignment (auto-assigned to dog owner) ───────────
-    // smartDefaults.autoAssignHandler = true for secretary roles, so the
-    // alert reads "All entries have handlers assigned."
-    await expect(page.getByText(/All entries have handlers assigned/i)).toBeVisible({
+    // smartDefaults.autoAssignHandler = true for secretary roles, so every
+    // entry is the owner's and Next skips the step, saying so first (MYK9-2020).
+    await expect(page.getByText(/Each dog is handled by its owner/i)).toBeVisible({
       timeout: 5000,
     });
 
@@ -216,10 +214,9 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     await expect(totalDueRow).not.toContainText('$0.00');
     await expect(totalDueRow).toContainText(/\$\d+\.\d{2}/);
 
-    // Pick Secretary Payment (Already Received) — only visible to roles with
-    // REGISTRATION_PERMISSIONS.MARK_PAYMENT (regression guard for the secretary
-    // role default fix in this PR).
-    await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
+    // Pick Check received (MYK9-2020's name for money received by check) — only
+    // visible to roles with REGISTRATION_PERMISSIONS.MARK_PAYMENT.
+    await page.getByRole('button', { name: /Check received/i }).click();
 
     // The show is AKC-organized → entry agreement is required. The label is
     // associated with the checkbox via htmlFor="entry-agreement"; clicking the

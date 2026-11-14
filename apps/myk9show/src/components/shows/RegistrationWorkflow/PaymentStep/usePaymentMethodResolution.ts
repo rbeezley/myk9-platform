@@ -40,10 +40,10 @@ export interface PaymentMethodResolution {
    */
   canChargeJuniorFee: boolean;
   /**
-   * MYK9-1875: may use the desk payment actions ("Paid by cash or check", "Make free",
-   * "Free entry"). Scoped like the server's `v_is_official` in `submit_show_entries`: a
-   * secretary appointed at the show's club, a club admin of the show's club (or this show),
-   * or a site admin. A global role alone says nothing about THIS show.
+   * MYK9-1875: may use the desk payment action "Free entry" (MYK9-2020 folded the old
+   * "Make free" shortcut into it). Scoped like the server's `v_is_official` in
+   * `submit_show_entries`: a secretary appointed at the show's club, a club admin of the
+   * show's club (or this show), or a site admin. A global role alone says nothing about THIS show.
    * A secretary appointed to one show only (user_roles.show_id set) is deliberately NOT
    * included: the server refuses `waived` / desk payments from them on both paths
    * (`is_show_secretary` and `is_trial_secretary` require show_id IS NULL).

@@ -72,6 +72,7 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       'Edit Trial',
       'Add classes',
+      'Print before-trial packet',
       'High in Trial',
       'Trial report',
     ]);

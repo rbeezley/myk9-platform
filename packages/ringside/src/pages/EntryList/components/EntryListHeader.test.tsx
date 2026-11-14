@@ -77,7 +77,6 @@ const defaultProps: EntryListHeaderProps = {
     onRunOrderClick: vi.fn(),
     onRecalculatePlacements: vi.fn() as () => Promise<void>,
     onClassSettingsClick: vi.fn(),
-    printOptions: [],
   },
   CompactOfflineIndicator: StubOffline,
   SyncIndicator: StubSync,
@@ -208,24 +207,6 @@ describe('EntryListHeader', () => {
   it('still renders a plain menu node as given', () => {
     renderHeader({ menu: <button type="button">Ringside menu</button> });
     expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
-  });
-
-  it('withholds print actions from the host menu when print options are disabled', () => {
-    const menu = vi.fn((_actions: readonly { label: string }[]) => null);
-    renderHeader({
-      actionsMenu: {
-        ...defaultProps.actionsMenu,
-        showPrintOptions: false,
-        printOptions: [
-          { label: 'Check-In Sheet', onClick: vi.fn(), icon: 'checkin' },
-          { label: 'Results Sheet', onClick: vi.fn(), icon: 'results' },
-          { label: 'Scoresheet', onClick: vi.fn(), icon: 'scoresheet' },
-        ],
-      },
-      menu,
-    });
-
-    expect(menu.mock.calls[0]?.[0]).toEqual([]);
   });
 
   // MYK9-1697 (D3): refresh sits in the bar, as on the class list, at 48px.

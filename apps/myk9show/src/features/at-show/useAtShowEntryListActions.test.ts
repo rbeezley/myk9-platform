@@ -94,32 +94,6 @@ describe('useAtShowEntryListActions', () => {
     });
   });
 
-  it('handleToggleInRing flips current in-ring → no-status', async () => {
-    const { result } = render();
-    await act(async () => {
-      await result.current.handleToggleInRing('entry-uuid-4', true);
-    });
-    expect(updateEntry).toHaveBeenCalledWith('entry-uuid-4', {
-      checkInStatus: 'no-status',
-      check_in_status: 'no-status',
-    });
-  });
-
-  it('handleBatchStatusUpdate writes every entry id', async () => {
-    const { result } = render();
-    await act(async () => {
-      await result.current.handleBatchStatusUpdate(['a', 'b'], 'pulled');
-    });
-    expect(updateEntry).toHaveBeenCalledWith('a', {
-      checkInStatus: 'pulled',
-      check_in_status: 'pulled',
-    });
-    expect(updateEntry).toHaveBeenCalledWith('b', {
-      checkInStatus: 'pulled',
-      check_in_status: 'pulled',
-    });
-  });
-
   it('handleResetScore clears the scored fields back to pending, then refreshes', async () => {
     const { result } = render();
     await act(async () => {
@@ -193,25 +167,6 @@ describe('useAtShowEntryListActions', () => {
       expect(updateSelfCheckInStatus).toHaveBeenCalledWith('entry-uuid-7', 'checked-in');
       expect(updateEntry).not.toHaveBeenCalled();
       expect(refresh).toHaveBeenCalledTimes(1);
-    });
-
-    it('handleToggleInRing self-checks through the RPC', async () => {
-      const { result } = render('self-checkin-rpc');
-      await act(async () => {
-        await result.current.handleToggleInRing('entry-uuid-8', true);
-      });
-      expect(updateSelfCheckInStatus).toHaveBeenCalledWith('entry-uuid-8', 'no-status');
-      expect(updateEntry).not.toHaveBeenCalled();
-    });
-
-    it('handleBatchStatusUpdate self-checks every entry through the RPC', async () => {
-      const { result } = render('self-checkin-rpc');
-      await act(async () => {
-        await result.current.handleBatchStatusUpdate(['a', 'b'], 'pulled');
-      });
-      expect(updateSelfCheckInStatus).toHaveBeenCalledWith('a', 'pulled');
-      expect(updateSelfCheckInStatus).toHaveBeenCalledWith('b', 'pulled');
-      expect(updateEntry).not.toHaveBeenCalled();
     });
 
     it("remembers the version a Pull produced and sends it back with that Pull's Undo (MYK9-1911)", async () => {

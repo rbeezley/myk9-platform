@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-14T04:53:11.394Z",
-  "total": 399,
+  "updatedAt": "2026-11-14T06:12:25.537Z",
+  "total": 398,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -107,7 +107,7 @@
     "apps/myk9show/src/features/at-show/quickAdvanceReplicated.ts": 1,
     "apps/myk9show/src/features/at-show/ringsidePasscodeRevocation.ts": 2,
     "apps/myk9show/src/features/at-show/slots/ClassStatisticsDialog.tsx": 3,
-    "apps/myk9show/src/features/at-show/useAtShowEntryListHandlers.ts": 2,
+    "apps/myk9show/src/features/at-show/useAtShowEntryListHandlers.ts": 1,
     "apps/myk9show/src/features/at-show/useAtShowScoresheet.ts": 1,
     "apps/myk9show/src/features/banner/entry-blank/BannerEntryBlankDocument.tsx": 1,
     "apps/myk9show/src/features/banner/landing/BannerLandingPage.tsx": 1,

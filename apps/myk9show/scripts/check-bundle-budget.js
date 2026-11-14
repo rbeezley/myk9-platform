@@ -78,6 +78,7 @@ export const PDF_CHUNK_POLICY = {
     /^PremiumPdfDownloadLink$/, // premium editor PDF buttons, React.lazy
     /^(AKC|UKC)PremiumTemplate$/, // templates shared by the two premium chunks above
     /^mergeReportPdfs$/, // show desk merged-sheet preview, dynamic
+    /^buildJudgePacketPdf$/, // before-trial packet (MYK9-1924), dynamic from useTrialPacketPdfs
     /^officialPdfDownload$/, // Reports page official PDFs, dynamic
   ],
   // Known route-level static imports that are still open. RATCHET DOWN ONLY.

@@ -17,8 +17,7 @@
  * entry object renders only the cards whose entry actually changed.
  *
  * Status badges (StatusBadge, ResetButton) live in `./SortableEntryCardBadges`;
- * helper functions in `./sortableEntryCardUtils` and
- * `./SortableEntryCardComponents`.
+ * helper functions in `./sortableEntryCardUtils`.
  */
 
 import React from 'react';
@@ -39,9 +38,6 @@ import { areSortableEntryCardPropsEqual } from './sortableEntryCardMemo';
 export interface SortableEntryCardProps {
   entry: Entry;
   isDragMode: boolean;
-  showContext?: {
-    competition_type?: string;
-  } | null;
   classInfo?: {
     selfCheckin?: boolean;
     /** Registry id for ribbon colours (MYK9-1086). */
@@ -104,7 +100,6 @@ const SortableEntryCardImpl: React.FC<SortableEntryCardProps> = ({
   entry,
   scoringDisabled = false,
   isDragMode,
-  showContext,
   classInfo,
   hasPermission,
   handleEntryClick,
@@ -180,7 +175,6 @@ const SortableEntryCardImpl: React.FC<SortableEntryCardProps> = ({
         entry={entry}
         isDragMode={isDragMode}
         scoringDisabled={scoringDisabled}
-        showContext={showContext}
         classInfo={classInfo}
         hasPermission={hasPermission}
         handleEntryClick={handleEntryClick}

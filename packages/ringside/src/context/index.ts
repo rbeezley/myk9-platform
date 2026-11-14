@@ -6,19 +6,4 @@
  * file layout stays free to evolve.
  */
 
-export type {
-  RingsideAuth,
-  RingsideShowContext,
-  RingsideReplication,
-  RingsidePrefetch,
-  RingsideContextValue,
-  ClassStatusUpdateFields,
-  ClassStatusValue,
-} from './types';
-
-export {
-  RingsideProvider,
-  useRingside,
-  useRingsideAuth,
-  type RingsideProviderProps,
-} from './RingsideContext';
+export type { RingsideReplication, ClassStatusUpdateFields, ClassStatusValue } from './types';

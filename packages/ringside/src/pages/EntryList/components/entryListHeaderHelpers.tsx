@@ -2,12 +2,10 @@
  * EntryListHeader Helper Components
  *
  * Extracted from EntryListHeader.tsx to reduce complexity.
- * Contains the class-action list, trial info, and status badge components.
+ * Contains the class-action list and status badge helpers.
  *
  * PR E2d-2a — moved from apps/myk9q to @myk9/ringside. The host's
- * dateUtils re-export was a pass-through to @myk9/core, so this file
- * imports `formatTrialDate` from `@myk9/core` directly. No host
- * coupling remains.
+ * No host coupling remains.
  *
  * `EntryListHeader.tsx` itself arrives in E2d-2b — it consumes these
  * helpers along with the layout slots defined in
@@ -16,43 +14,22 @@
 
 /* eslint-disable react-refresh/only-export-components */
 
-import React from 'react';
-import {
-  Printer,
-  ClipboardCheck,
-  ClipboardList,
-  ListOrdered,
-  Trophy,
-  Settings,
-  Timer,
-  type LucideIcon,
-} from 'lucide-react';
-import { formatTrialDate, formatTrialLabel } from '@myk9/core';
+import { ListOrdered, Trophy, Settings, Timer, type LucideIcon } from 'lucide-react';
 import { getStatusDescriptor } from '@myk9/ui';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export interface PrintOption {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  icon: 'checkin' | 'results' | 'scoresheet';
-}
-
 export interface ActionsMenuConfig {
   showRunOrder?: boolean;
   showRecalculatePlacements?: boolean;
   showClassSettings?: boolean;
-  showPrintOptions?: boolean;
-  isRecalculatingPlacements?: boolean;
   onRunOrderClick?: () => void;
   onRecalculatePlacements?: () => void;
   onClassSettingsClick?: () => void;
   /** Combined A/B only: set the shared max time for both sections (MYK9-1086). */
   onSetMaxTimeClick?: (() => void) | undefined;
-  printOptions: PrintOption[];
 }
 
 /**
@@ -78,18 +55,12 @@ export function pairMaxTimeAction(
  * the entry list has one menu, not two side by side (owner decision D6).
  */
 export interface ClassMenuAction {
-  id: 'run-order' | 'max-time' | 'class-options' | 'recalculate' | `print-${PrintOption['icon']}`;
+  id: 'run-order' | 'max-time' | 'class-options' | 'recalculate';
   label: string;
   icon: LucideIcon;
   onSelect: () => void;
   disabled?: boolean;
 }
-
-const PRINT_ICONS: Record<PrintOption['icon'], LucideIcon> = {
-  checkin: Printer,
-  scoresheet: ClipboardList,
-  results: ClipboardCheck,
-};
 
 /** The class actions this viewer may take, in the order the old ⋮ menu listed them. */
 export function buildClassMenuActions(config: ActionsMenuConfig): ClassMenuAction[] {
@@ -108,7 +79,6 @@ export function buildClassMenuActions(config: ActionsMenuConfig): ClassMenuActio
       label: 'Recalculate Placements',
       icon: Trophy,
       onSelect: config.onRecalculatePlacements,
-      disabled: Boolean(config.isRecalculatingPlacements),
     });
   }
   if (config.showClassSettings && config.onClassSettingsClick) {
@@ -127,78 +97,8 @@ export function buildClassMenuActions(config: ActionsMenuConfig): ClassMenuActio
       onSelect: config.onSetMaxTimeClick,
     });
   }
-  if (config.showPrintOptions !== false) {
-    for (const option of config.printOptions) {
-      actions.push({
-        id: `print-${option.icon}`,
-        label: option.label,
-        icon: PRINT_ICONS[option.icon],
-        onSelect: option.onClick,
-        ...(option.disabled !== undefined && { disabled: option.disabled }),
-      });
-    }
-  }
   return actions;
 }
-
-// ============================================================================
-// Trial Info Display
-// ============================================================================
-
-interface TrialInfoProps {
-  trialDate?: string | null;
-  trialName?: string | null;
-  trialNumber?: string | null;
-  judgeName?: string | null;
-}
-
-export const TrialInfo: React.FC<TrialInfoProps> = ({
-  trialDate,
-  trialName,
-  trialNumber,
-  judgeName,
-}) => {
-  const showDate = trialDate && trialDate !== '';
-  const labelNumber = trialNumber !== '0' ? trialNumber : undefined;
-  const showNumber = Boolean(trialName || labelNumber);
-  const showJudge = judgeName && judgeName !== '' && judgeName !== 'TBD';
-
-  // Build items array for clean separator handling
-  const items: React.ReactNode[] = [];
-
-  if (showDate) {
-    items.push(
-      <span key="date" className="trial-date-text">
-        {formatTrialDate(trialDate)}
-      </span>
-    );
-  }
-  if (showNumber) {
-    items.push(
-      <span key="number" className="trial-number-text">
-        {formatTrialLabel({ name: trialName, trialNumber: labelNumber })}
-      </span>
-    );
-  }
-  if (showJudge) {
-    items.push(
-      <span key="judge" className="trial-judge-text">
-        Judge: {judgeName}
-      </span>
-    );
-  }
-
-  return (
-    <div className="trial-info-simple">
-      {items.map((item, index) => (
-        <React.Fragment key={index}>
-          {index > 0 && <span className="trial-separator">•</span>}
-          {item}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-};
 
 // ============================================================================
 // Status Badge

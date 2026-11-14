@@ -38,7 +38,7 @@ export interface BuildSecretaryCockpitSnapshotInput {
   hasPrintRecords?: boolean;
 }
 
-function lifecycleFor(status: string | undefined): CockpitLifecycle | null {
+export function lifecycleFor(status: string | undefined): CockpitLifecycle | null {
   switch ((status ?? '').trim().toLowerCase().replace(/\s+/g, '_')) {
     case 'setup':
     case 'scheduled':

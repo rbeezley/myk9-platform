@@ -16,23 +16,18 @@
  *   - layout     → `atShowLayoutSlots`
  *   - context    → role + permission helpers from the auth adapter
  *
- * It renders the page inside `<RingsideProvider>` so any ringside descendant
- * that reads `useRingside()` resolves against myK9Show's capability bag.
- *
  * Wrapped by `RingsideShowBoundary` (loading / retry / missing-show notice —
  * never a 404) and the `AtShowAccessGate` access check. The per-show
  * `unified_ringside_enabled` feature flag was removed pre-launch; the surface is
  * available for every show. Several handlers are spike stubs (run-order persist,
- * placement recalc, prints, statistics nav) — all INTENT-noted in their hooks.
+ * placement recalc, statistics nav) — all INTENT-noted in their hooks.
  */
 
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import {
-  RingsideProvider,
   EntryListPage,
   useEntryListData,
   useEntryListFilters,
@@ -40,12 +35,10 @@ import {
   buildEntryListOwnership,
   type Entry,
   type EntryListDataDependencies,
-  type RingsideShowContext,
 } from '@myk9/ringside';
-import { replicatedShowsTable } from '@/services/replication';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
-import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
+import { buildRingsideReplication } from './ringsideCapabilities';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { createRunOrderUpdater } from './runOrderUpdater';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
@@ -80,44 +73,15 @@ export const AtShowEntryListPage: React.FC = () => {
   // ── Role + permissions ────────────────────────────────────────────────
   // Account RBAC → primary ShowRole → ringside's 4-role enum, with a Phase 1c
   // show-scoped passcode grant overriding the mapping. The resolved role feeds
-  // the data hook, the permission bag, AND the provider auth (via `showRole` +
-  // `grantRole` below) so all three agree. Shared with the combined-list and
+  // the data hook and the permission bag so both agree. Shared with the combined-list and
   // scoresheet shims via `useRingsideEffectiveRole`.
-  const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
+  const { showRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
   // Device-local favorites, mirrored to `dog_favorites` when signed in so the
   // notification monitor can watch them for "your turn" push (MYK9-79).
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(showId);
   const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =
     useAtShowFavoriteAlertNudge(favoriteArmbands);
 
-  // ── Show metadata (org/name/date) for the ringside show context ────────
-  const { data: show } = useQuery({
-    queryKey: ['at-show', 'show', showId],
-    queryFn: () => replicatedShowsTable.getShowById(showId as string),
-    enabled: !!showId,
-  });
-
-  // Full RingsideShowContext for the provider value. licenseKey === showId in
-  // myK9Show (replication sync filters on show_id). clubName not sourced yet.
-  // competition_type drives ringside Nationals detection (isNationalsCompetition
-  // matches the substring 'national'), so map it from the show's is_nationals.
-  const ringsideShowContext = useMemo<RingsideShowContext | null>(() => {
-    if (!showId) return null;
-    return {
-      showId,
-      showName: show?.name ?? '',
-      clubName: '',
-      showDate: show?.startDate ?? '',
-      licenseKey: showId,
-      org: show?.organization ?? '',
-      competition_type: show?.isNationals ? 'Nationals' : 'Regular',
-    };
-  }, [showId, show]);
-
-  const contextValue = useMemo(
-    () => buildRingsideContextValue({ showRole, showContext: ringsideShowContext, grantRole }),
-    [showRole, ringsideShowContext, grantRole]
-  );
   const replication = useMemo(() => buildRingsideReplication(), []);
 
   // ── Data ──────────────────────────────────────────────────────────────
@@ -175,7 +139,6 @@ export const AtShowEntryListPage: React.FC = () => {
 
   // ── Shim-owned entry mirror state (see uiState hook ownership note) ────
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
-  const [manualOrder, setManualOrder] = useState<Entry[]>([]);
 
   // ── Filters (pure ringside hook, called shim-side — Path A) ────────────
   const savedFilters = useRingsideListSnapshot('entries')?.filters;
@@ -200,7 +163,6 @@ export const AtShowEntryListPage: React.FC = () => {
     entryClassification: classInfo?.entryClassification,
     prioritizeInRing: true,
     deprioritizePulled: true,
-    manualOrder,
     defaultSort: 'run',
   });
 
@@ -237,7 +199,6 @@ export const AtShowEntryListPage: React.FC = () => {
     currentEntries: dragEntries,
     updateExhibitorOrder,
     isDraggingRef,
-    setManualOrder,
     onPersistError: handleRunOrderPersistError,
   });
 
@@ -245,8 +206,6 @@ export const AtShowEntryListPage: React.FC = () => {
   const { uiState, uiActions } = useAtShowEntryListUiState({
     localEntries,
     setLocalEntries,
-    manualOrder,
-    setManualOrder,
     setActiveTab,
     setSortOrder,
     setSearchTerm,
@@ -373,13 +332,8 @@ export const AtShowEntryListPage: React.FC = () => {
   // ── Context bag ──────────────────────────────────────────────────────────
   const canManageClasses = hasPermission('canManageClasses');
   const hasSettingsLinks = useHasClassSettingsLinks(showId);
-  const pageShowContext = useMemo(
-    () => (showId ? { ...(show?.organization ? { org: show.organization } : {}) } : null),
-    [showId, show]
-  );
-
   return (
-    <RingsideProvider value={contextValue}>
+    <>
       {/* `.ringside-root` scopes the ported myK9Q visual layer (@myk9/ringside
           styles) to this subtree only — no bleed into the rest of myK9Show. */}
       <main className="ringside-root">
@@ -418,7 +372,6 @@ export const AtShowEntryListPage: React.FC = () => {
           layout={atShowLayoutSlots}
           context={{
             role: ringsideRole,
-            showContext: pageShowContext,
             hasPermission,
             statusAccess,
             entriesIncomplete,
@@ -427,10 +380,6 @@ export const AtShowEntryListPage: React.FC = () => {
             // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.
             hideMaxTimeOption: !canManageClasses,
             hideSettingsOption: !canManageClasses || !hasSettingsLinks,
-            // Reports live on the secretary Reports page, not at ringside — the
-            // at-show surface offers no printing (a myK9Q-era affordance from
-            // the Access-upload workflow that doesn't belong here).
-            hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
             // One menu (MYK9-1697): the class actions list inside it.
             menu: classActions => (
@@ -446,7 +395,7 @@ export const AtShowEntryListPage: React.FC = () => {
           }}
         />
       </main>
-    </RingsideProvider>
+    </>
   );
 };
 

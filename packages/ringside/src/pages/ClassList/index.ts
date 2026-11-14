@@ -17,7 +17,6 @@ export type {
   PrintDialogState,
   SortOption,
 } from './types';
-export { SORT_OPTIONS } from './types';
 
 export {
   shouldCombineAllSections,

@@ -57,8 +57,8 @@ export type { EntryListDialogsProps } from './EntryListDialogs';
 
 // Header helpers (class actions for the host menu, trial info, status
 // badges). Used by EntryListHeader.tsx.
-export { buildClassMenuActions, TrialInfo, getStatusBadge } from './entryListHeaderHelpers';
-export type { PrintOption, ActionsMenuConfig, ClassMenuAction } from './entryListHeaderHelpers';
+export { buildClassMenuActions, getStatusBadge } from './entryListHeaderHelpers';
+export type { ActionsMenuConfig, ClassMenuAction } from './entryListHeaderHelpers';
 
 export {
   EntryListSkeleton,

@@ -7,14 +7,15 @@
  * literals, template literal parts and JSX text. Comments are never counted
  * (they are not string nodes), and test files are excluded.
  *
- * The rule is on the TOTAL, not per file: CI fails when the total is above the
- * recorded baseline total (a regression) and also when it is below it (slack: the
- * baseline must be lowered in the same PR as each cleanup, per MYK9-1820). Equal
- * totals pass even if per-file counts moved. Per-file counts are recorded only to
- * NAME the files that rose or fell in the message. Gating on the total is what
- * lets a rename or a split of a file that carries em dashes go through: the old
- * path drops and the new path rises by the same amount. `--update-baseline`
- * refuses only when the total would rise.
+ * The rule is per file: CI fails when any file's count is above its recorded
+ * baseline (a regression); a file absent from the baseline counts as zero, so a
+ * new file with em dashes fails too. A file BELOW its baseline passes without the
+ * baseline being rewritten; lowering it with `pnpm qa:em-dash-ratchet:update` is
+ * optional. The committed baseline holds no total and no timestamp (the total is
+ * computed at check time), only one sorted `"path": count` line per file, so two
+ * PRs that touch different files never edit the same lines (MYK9-1972). A rename
+ * or split of a file that carries em dashes needs `:update`, since the new path
+ * rises. `--update-baseline` refuses when any file would rise.
  *
  * Decision: the bare "—" empty-cell placeholder and the public landing templates
  * ARE counted. Placeholders become "None" / "Not set" and templates are cleaned
@@ -31,8 +32,6 @@ export type EmDashCounts = Record<string, number>;
 
 export type EmDashBaseline = {
   version: 1;
-  updatedAt: string;
-  total: number;
   files: EmDashCounts;
 };
 
@@ -41,9 +40,9 @@ type FileDelta = { file: string; actual: number; baseline: number };
 export type EmDashComparison = {
   actualTotal: number;
   baselineTotal: number;
-  /** Files whose own count rose (named for information; the gate is the total). */
+  /** Files whose own count rose: the gate. */
   risen: FileDelta[];
-  /** Files whose own count fell. */
+  /** Files whose own count fell: never a failure. */
   fallen: FileDelta[];
 };
 
@@ -140,25 +139,20 @@ export function renderComparison(comparison: EmDashComparison): string {
     '',
   ];
 
-  if (actualTotal > baselineTotal) {
+  if (risen.length > 0) {
     lines.push(
-      'Regression: em dashes in screen text may only fall.',
+      'Regression: em dashes in screen text may only fall, in every file.',
       ...listFiles('Files that rose:', risen, 'above'),
       '',
-      'Use a comma, colon, period or "None" / "Not set" instead of an em dash.'
+      'Use a comma, colon, period or "None" / "Not set" instead of an em dash.',
+      'A renamed or split file needs pnpm qa:em-dash-ratchet:update.'
     );
-  } else if (actualTotal < baselineTotal) {
+  } else if (fallen.length > 0) {
     lines.push(
-      'The total is below the recorded baseline. Lower the baseline in the same PR as the cleanup:',
+      'Pass. Counts fell; lowering the baseline is optional:',
       ...listFiles('Files that fell:', fallen, 'below'),
       '',
-      'Run pnpm qa:em-dash-ratchet:update and commit the new baseline.'
-    );
-  } else if (risen.length > 0 || fallen.length > 0) {
-    lines.push(
-      'Total unchanged; counts moved between files (rename or split):',
-      ...listFiles('Rose:', risen, 'above'),
-      ...listFiles('Fell:', fallen, 'below')
+      'Optional: pnpm qa:em-dash-ratchet:update. Skip it while other PRs are in flight, so the baseline never conflicts.'
     );
   }
 
@@ -170,12 +164,9 @@ export function readBaseline(path: string): EmDashBaseline {
 }
 
 export function writeBaseline(path: string, counts: EmDashCounts) {
-  const baseline: EmDashBaseline = {
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    total: sumCounts(counts),
-    files: counts,
-  };
+  const files: EmDashCounts = {};
+  for (const file of Object.keys(counts).sort()) files[file] = counts[file] as number;
+  const baseline: EmDashBaseline = { version: 1, files };
   writeFileSync(path, `${JSON.stringify(baseline, null, 2)}\n`);
 }
 
@@ -191,7 +182,7 @@ export function runCli(args: string[] = process.argv.slice(2), cwd = process.cwd
   if (args.includes('--update-baseline')) {
     if (existsSync(baselinePath)) {
       const comparison = compareToBaseline(counts, readBaseline(baselinePath).files);
-      if (comparison.actualTotal > comparison.baselineTotal) {
+      if (comparison.risen.length > 0) {
         console.log(renderComparison(comparison));
         console.log('Refusing to raise the baseline. Remove the new em dashes instead.');
         return 1;
@@ -204,7 +195,7 @@ export function runCli(args: string[] = process.argv.slice(2), cwd = process.cwd
 
   const comparison = compareToBaseline(counts, readBaseline(baselinePath).files);
   console.log(renderComparison(comparison));
-  return comparison.actualTotal === comparison.baselineTotal ? 0 : 1;
+  return comparison.risen.length === 0 ? 0 : 1;
 }
 
 function walk(path: string): string[] {

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 import {
   collectEmDashCounts,
@@ -9,6 +10,7 @@ import {
   countEmDashesInSource,
   renderComparison,
   runCli,
+  writeBaseline,
 } from './em-dash-ratchet';
 
 const DASH = '—';
@@ -123,68 +125,130 @@ describe('renderComparison', () => {
   it('names the file that rose on a regression', () => {
     const output = renderComparison(compareToBaseline({ a: 3 }, { a: 2 }));
     expect(output).toContain('- a: 3 above 2');
+    expect(output).toContain('Regression');
   });
 
-  it('prompts with the command that lowers the baseline when the total fell', () => {
+  it('calls a fall a pass and makes the update optional', () => {
     const output = renderComparison(compareToBaseline({ a: 1 }, { a: 2 }));
-    expect(output).toContain('pnpm qa:em-dash-ratchet:update');
-    expect(output).toContain('commit the new baseline');
+    expect(output).toContain('Pass.');
+    expect(output).toContain('Optional: pnpm qa:em-dash-ratchet:update');
+    expect(output).not.toContain('Regression');
   });
 
-  it('prints moved files as information when the total is unchanged', () => {
+  it('is a regression when one file rises even if another fell by as much', () => {
     const output = renderComparison(compareToBaseline({ b: 2 }, { a: 2 }));
+    expect(output).toContain('Regression');
     expect(output).toContain('- b: 2 above 0');
-    expect(output).toContain('- a: 0 below 2');
-    expect(output).not.toContain('Regression');
   });
 });
 
 describe('runCli', () => {
   const read = (root: string) => JSON.parse(readFileSync(join(root, BASELINE), 'utf8'));
+  const A = `${APP}/a.ts`;
+  const B = `${APP}/b.ts`;
+  const src = (n: number) => `export const a = '${Array(n).fill(DASH).join(' ')}';`;
 
   it('passes at the baseline', () => {
-    const root = makeRoot({ [`${APP}/a.ts`]: `export const a = '${DASH}';` });
-    writeBaselineFile(root, { [`${APP}/a.ts`]: 1 });
+    const root = makeRoot({ [A]: src(1) });
+    writeBaselineFile(root, { [A]: 1 });
     expect(runCli([], root)).toBe(0);
   });
 
-  it('fails when the total rises', () => {
-    const root = makeRoot({ [`${APP}/a.ts`]: `export const a = '${DASH} ${DASH}';` });
-    writeBaselineFile(root, { [`${APP}/a.ts`]: 1 });
+  it('fails when a file rises', () => {
+    const root = makeRoot({ [A]: src(2) });
+    writeBaselineFile(root, { [A]: 1 });
+    expect(runCli([], root)).toBe(1);
+  });
+
+  it('fails when one file rises even though another fell by the same amount', () => {
+    const root = makeRoot({ [A]: src(2), [B]: src(0) });
+    writeBaselineFile(root, { [A]: 1, [B]: 1 });
     expect(runCli([], root)).toBe(1);
   });
 
   it('fails when a new file carries an em dash', () => {
-    const root = makeRoot({ [`${APP}/new.ts`]: `export const a = '${DASH}';` });
+    const root = makeRoot({ [`${APP}/new.ts`]: src(1) });
     writeBaselineFile(root, {});
     expect(runCli([], root)).toBe(1);
   });
 
-  it('passes a rename and updates cleanly', () => {
-    const root = makeRoot({ [`${APP}/renamed.ts`]: `export const a = '${DASH}';` });
-    writeBaselineFile(root, { [`${APP}/old.ts`]: 1 });
+  it('passes a lowered file without rewriting the baseline', () => {
+    const root = makeRoot({ [A]: src(1), [B]: src(0) });
+    writeBaselineFile(root, { [A]: 2, [B]: 1 });
+    const before = readFileSync(join(root, BASELINE), 'utf8');
     expect(runCli([], root)).toBe(0);
-    expect(runCli(['--update-baseline'], root)).toBe(0);
-    expect(read(root).files).toEqual({ [`${APP}/renamed.ts`]: 1 });
-    expect(runCli([], root)).toBe(0);
+    expect(readFileSync(join(root, BASELINE), 'utf8')).toBe(before);
   });
 
-  it('fails when the total fell until the baseline is updated, then passes', () => {
-    const root = makeRoot({ [`${APP}/a.ts`]: `export const a = 'none';` });
-    writeBaselineFile(root, { [`${APP}/a.ts`]: 1 });
+  it('a rename fails, and --update-baseline refuses because the new path rises', () => {
+    const root = makeRoot({ [`${APP}/renamed.ts`]: src(1) });
+    writeBaselineFile(root, { [`${APP}/old.ts`]: 1 });
     expect(runCli([], root)).toBe(1);
-    expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
-      'pnpm qa:em-dash-ratchet:update'
-    );
+    expect(runCli(['--update-baseline'], root)).toBe(1);
+  });
+
+  it('--update-baseline lowers the baseline and drops a file that reached zero', () => {
+    const root = makeRoot({ [A]: src(1), [B]: src(0) });
+    writeBaselineFile(root, { [A]: 2, [B]: 1 });
     expect(runCli(['--update-baseline'], root)).toBe(0);
-    expect(read(root).total).toBe(0);
+    expect(read(root)).toEqual({ version: 1, files: { [A]: 1 } });
     expect(runCli([], root)).toBe(0);
   });
 
   it('--update-baseline refuses to raise the baseline', () => {
-    const root = makeRoot({ [`${APP}/a.ts`]: `export const a = '${DASH}';` });
+    const root = makeRoot({ [A]: src(1) });
     writeBaselineFile(root, {});
     expect(runCli(['--update-baseline'], root)).toBe(1);
     expect(read(root).files).toEqual({});
+  });
+});
+
+describe('the committed baseline format', () => {
+  const text = (files: Record<string, number>) =>
+    `${JSON.stringify({ version: 1, files }, null, 2)}\n`;
+  const git = (cwd: string, ...args: string[]) =>
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      cwd,
+      encoding: 'utf8',
+    });
+
+  it('holds no total or timestamp and one sorted line per file', () => {
+    const root = makeRoot({});
+    const path = join(root, 'b.json');
+    writeBaseline(path, { 'z.ts': 1, 'a.ts': 2 });
+    const written = readFileSync(path, 'utf8');
+    expect(written).not.toMatch(/total|updatedAt/);
+    expect(written.split('\n').filter(line => line.includes('.ts'))).toEqual([
+      '    "a.ts": 2,',
+      '    "z.ts": 1',
+    ]);
+  });
+
+  it.each([
+    ['one then two', ['one', 'two']],
+    ['two then one', ['two', 'one']],
+  ])('two PRs lowering different files merge with no conflict (%s)', (_label, order) => {
+    const files = { 'a.ts': 3, 'b.ts': 2, 'c.ts': 4, 'd.ts': 1, 'e.ts': 5 };
+    const lowered: Record<string, Record<string, number>> = {
+      one: { ...files, 'a.ts': 2 },
+      two: { 'a.ts': 3, 'b.ts': 2, 'c.ts': 4, 'e.ts': 5 },
+    };
+    const root = makeRoot({ 'baseline.json': text(files) });
+    git(root, 'init', '-q', '-b', 'main');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'base');
+    for (const name of ['one', 'two']) {
+      git(root, 'checkout', '-q', '-b', name, 'main');
+      writeFileSync(join(root, 'baseline.json'), text(lowered[name] ?? files));
+      git(root, 'commit', '-qam', name);
+    }
+    git(root, 'checkout', '-q', '-b', 'target', 'main');
+    for (const name of order) git(root, 'merge', '-q', '--no-edit', name);
+    expect(JSON.parse(readFileSync(join(root, 'baseline.json'), 'utf8')).files).toEqual({
+      'a.ts': 2,
+      'b.ts': 2,
+      'c.ts': 4,
+      'e.ts': 5,
+    });
   });
 });

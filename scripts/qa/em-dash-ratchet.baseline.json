@@ -1,7 +1,5 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-14T04:43:47.547Z",
-  "total": 399,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,

@@ -386,6 +386,32 @@ describe('ResultsTab list', () => {
     expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
   });
 
+  it('words the banner from the finish line label, the words the list shows', () => {
+    hook.value = { ...hook.value, rows: buildRows({ dayOver: true, doneSigned: false }) };
+    renderAt('?left=akc-judge-initials');
+
+    expect(screen.getByText(/Showing the classes behind/)).toHaveTextContent(
+      "Showing the classes behind \u201C1 class needs judge's initials\u201D"
+    );
+  });
+
+  it('a stale Finish the show link to a line that is now done shows the unfiltered list', () => {
+    const allDone = buildRows({ dayOver: true }).map(row => ({
+      ...row,
+      judgeSignedOffAt: '2026-10-10T21:00:00Z',
+      releasedAt: row.releasedAt ?? '2026-10-10T16:00:00Z',
+      phase: 'done' as const,
+    }));
+    hook.value = { ...hook.value, rows: allDone };
+    renderAt('?left=unreleased&status=all');
+
+    expect(screen.queryByText(/Showing the classes behind/)).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'Classes' })).getAllByRole('listitem')
+    ).toHaveLength(4);
+    expect(screen.getByRole('region', { name: 'Finish the show' })).toBeInTheDocument();
+  });
+
   it('points at Submit and Close once every class is released and initialed', () => {
     const initialed = buildRows({ dayOver: true }).map(row => ({
       ...row,

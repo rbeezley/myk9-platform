@@ -41,27 +41,38 @@ export function ResultsFinishRow({ showId, trials, rows }: ResultsFinishRowProps
     >
       <h2 className="text-sm font-semibold">Finish the show</h2>
       <ul className="divide-y">
-        {items.map(item => (
-          <li key={item.key}>
-            <Link
-              to={item.href}
-              className="flex min-h-11 items-center justify-between gap-3 rounded-md py-1 text-sm hover:bg-muted/50"
+        {items.map(item => {
+          const text = (
+            <span
+              className={cn(
+                'flex items-center gap-2',
+                item.state === 'done' && 'text-muted-foreground'
+              )}
             >
-              <span
-                className={cn(
-                  'flex items-center gap-2',
-                  item.state === 'done' && 'text-muted-foreground'
-                )}
-              >
-                {item.state === 'done' && (
-                  <CheckCircle2 className="h-4 w-4 text-primary" aria-label="Done" />
-                )}
-                {item.label}
-              </span>
-              <ArrowRight className="h-4 w-4 flex-none" aria-hidden="true" />
-            </Link>
-          </li>
-        ))}
+              {item.state === 'done' && (
+                <CheckCircle2 className="h-4 w-4 text-primary" aria-label="Done" />
+              )}
+              {item.label}
+            </span>
+          );
+          return (
+            <li key={item.key}>
+              {item.href === null ? (
+                <div className="flex min-h-11 items-center justify-between gap-3 rounded-md py-1 text-sm">
+                  {text}
+                </div>
+              ) : (
+                <Link
+                  to={item.href}
+                  className="flex min-h-11 items-center justify-between gap-3 rounded-md py-1 text-sm hover:bg-muted/50"
+                >
+                  {text}
+                  <ArrowRight className="h-4 w-4 flex-none" aria-hidden="true" />
+                </Link>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

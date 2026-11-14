@@ -100,6 +100,20 @@ describe('ResultsFinishRow', () => {
     expect(list.queryByRole('link', { name: /to release/ })).not.toBeInTheDocument();
   });
 
+  it('a ticked line is plain text, not a link; an open line keeps its link', () => {
+    const list = renderList(
+      [row('a', 'done'), row('b', 'cancelled'), row('c', 'released')],
+      [trialFor('AKC')]
+    );
+
+    expect(list.queryByRole('link', { name: /Every class is released/ })).not.toBeInTheDocument();
+    expect(list.getByText('Every class is released').closest('a')).toBeNull();
+    expect(list.getByRole('link', { name: '1 class with results to print' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/results?left=to-print'
+    );
+  });
+
   it.each([
     ['AKC', 'Submit to AKC', ['Submit to UKC', 'Submit to ASCA']],
     ['UKC', 'Submit to UKC', ['Submit to AKC', 'Submit to ASCA']],

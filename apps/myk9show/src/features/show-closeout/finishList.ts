@@ -14,7 +14,10 @@ export interface FinishListItem {
   /** `open` = something left, `done` = a tick, `unknown` = this screen cannot say. */
   state: 'open' | 'done' | 'unknown';
   label: string;
-  href: string;
+  /** `null` for a done line: a tick is plain text, not a link to a place with nothing left to do. */
+  href: string | null;
+  /** The line opens the Results class list filtered to the classes it counted (`?left=<key>`). */
+  opensClassList: boolean;
 }
 
 function itemFor(
@@ -23,21 +26,22 @@ function itemFor(
   releasedAndInitialed: boolean
 ): FinishListItem | null {
   const count = line.count ?? 0;
-  const base = { key: line.key, href: getFinishLineHref(showId, line.key) };
   const state = line.open === null ? 'unknown' : line.open ? 'open' : 'done';
+  const classListHref = getFinishLineHref(showId, line.key);
+  const base = { key: line.key, state, opensClassList: true as const };
   switch (line.kind) {
     case 'unreleased':
       if (line.open === null) return null;
       return {
         ...base,
-        state,
+        href: line.open ? classListHref : null,
         label: line.open ? line.label : 'Every class is released',
       };
     case 'to-print':
       if (line.open === null) return null;
       return {
         ...base,
-        state,
+        href: line.open ? classListHref : null,
         label: line.open ? line.label : 'Results printed for every released class',
       };
     case 'judge-sign-off': {
@@ -46,7 +50,7 @@ function itemFor(
       const wording = judgeSignOffWording(line.registryId);
       return {
         ...base,
-        state,
+        href: line.open ? classListHref : null,
         label: line.open ? wording.pendingSignalLabel(count) : line.label,
       };
     }
@@ -54,7 +58,8 @@ function itemFor(
       return {
         key: line.key,
         state,
-        href: getResultsStepHref(showId, 'submit'),
+        opensClassList: false,
+        href: line.open === false ? null : getResultsStepHref(showId, 'submit'),
         label: line.open === false ? line.label : `Submit to ${line.registryId ?? 'the registry'}`,
       };
     default:
@@ -76,6 +81,23 @@ export function buildFinishList(showId: string, left: WhatIsLeft): FinishListIte
     state: 'open',
     label: 'Close the show',
     href: getResultsStepHref(showId, 'close'),
+    opensClassList: false,
   });
   return items;
+}
+
+/**
+ * The class list a `?left=<key>` link filters to: the line's label (the words the list shows) and
+ * the classes it counted. Only an open line filters; a done or unknown line, or a key that names
+ * no line, returns `null`, so a stale link shows the unfiltered list.
+ */
+export function openClassListLine(
+  showId: string,
+  left: WhatIsLeft,
+  key: string
+): { label: string; classIds: readonly string[] } | null {
+  const item = buildFinishList(showId, left).find(candidate => candidate.key === key);
+  if (!item?.opensClassList || item.state !== 'open') return null;
+  const line = left.lines.find(candidate => candidate.key === key);
+  return line ? { label: item.label, classIds: line.classIds } : null;
 }

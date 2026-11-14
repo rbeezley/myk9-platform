@@ -23,6 +23,7 @@ import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import { openClassListLine } from '@/features/show-closeout/finishList';
 import { ResultsFinishRow } from './ResultsFinishRow';
 import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
 import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
@@ -147,13 +148,11 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
 
   // A "Finish the show" line's link (`?left=<key>`) lists exactly the classes that line counted,
   // from the same calculation, whatever their phase (MYK9-1945).
+  // Only an open line filters: a stale link to a line that is now done shows the unfiltered list.
+  const leftCalc = useMemo(() => calculateResultsRowsLeft(rows, trials), [rows, trials]);
   const leftLine = useMemo(
-    () =>
-      state.left === null
-        ? null
-        : (calculateResultsRowsLeft(rows, trials).lines.find(line => line.key === state.left) ??
-          null),
-    [rows, state.left, trials]
+    () => (state.left === null ? null : openClassListLine(showId, leftCalc, state.left)),
+    [leftCalc, showId, state.left]
   );
   const visibleRows = useMemo(() => {
     const leftIds = leftLine ? new Set(leftLine.classIds) : null;

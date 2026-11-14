@@ -13,23 +13,6 @@
  * how both modes now reach it.
  */
 
-import type { OrgData } from './types';
-
-/**
- * Parse organization data from org string.
- *
- * Two-token shape: `"AKC Scent Work"` → `{ organization: 'AKC',
- * activity_type: 'Scent Work' }`. Empty input defaults to AKC Scent
- * Work, which matches the host's behaviour pre-move.
- */
-export function parseOrganizationData(orgString: string): OrgData {
-  if (!orgString || orgString.trim() === '') {
-    return { organization: 'AKC', activity_type: 'Scent Work' };
-  }
-  const parts = orgString.split(' ');
-  return { organization: parts[0], activity_type: parts.slice(1).join(' ') };
-}
-
 /**
  * Parse time limits from string format. Returns the parsed integer,
  * or `undefined` for empty / non-numeric input.

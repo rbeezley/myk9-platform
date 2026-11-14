@@ -114,10 +114,3 @@ export interface SortOption {
   value: SortOrder;
   label: string;
 }
-
-/** Predefined sort options for the FilterPanel */
-export const SORT_OPTIONS: SortOption[] = [
-  { value: 'class_order', label: 'Run Order' },
-  { value: 'element_level', label: 'Element → Level' },
-  { value: 'level_element', label: 'Level → Element' },
-];

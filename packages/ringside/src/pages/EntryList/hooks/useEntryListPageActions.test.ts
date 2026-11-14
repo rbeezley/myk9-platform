@@ -6,18 +6,14 @@ import type { EntryListUiActions } from '../pageProps';
 
 function setup(persisted: boolean) {
   const uiActions = {
-    setPrintDialogType: vi.fn(),
     setRunOrderDialogOpen: vi.fn(),
-    setManualOrder: vi.fn(),
     setSortOrder: vi.fn(),
     setShowSuccessMessage: vi.fn(),
   } as unknown as EntryListUiActions;
   const handlers = {
     handleApplyRunOrder: vi.fn().mockResolvedValue(persisted),
   } as unknown as EntryListHandlers;
-  const { result } = renderHook(() =>
-    useEntryListPageActions({ handlers, uiActions, printDialogType: null, currentEntries: [] })
-  );
+  const { result } = renderHook(() => useEntryListPageActions({ handlers, uiActions }));
   return { result, uiActions };
 }
 

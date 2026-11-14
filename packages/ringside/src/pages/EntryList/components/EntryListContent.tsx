@@ -46,10 +46,6 @@ export interface EntryListContentProps {
   activeTab: 'pending' | 'completed';
   /** Whether drag mode is active */
   isDragMode: boolean;
-  /** Show context for competition type */
-  showContext?: {
-    competition_type?: string;
-  } | null;
   /** Class info for self-checkin setting */
   classInfo?: ClassInfo | null;
   /** Permission checker over the narrow EntryList-only union */
@@ -102,7 +98,6 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
   entries,
   activeTab,
   isDragMode,
-  showContext,
   classInfo,
   hasPermission,
   onEntryClick,
@@ -177,12 +172,6 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
     () => (hasClassInfo ? { selfCheckin, registry } : null),
     [hasClassInfo, selfCheckin, registry]
   );
-  const hasShowContext = showContext != null;
-  const competitionType = showContext?.competition_type;
-  const cardShowContext = React.useMemo(
-    () => (hasShowContext ? { competition_type: competitionType } : null),
-    [hasShowContext, competitionType]
-  );
 
   const renderCard = (entry: Entry, variant?: 'hero' | 'next') => (
     <SortableEntryCard
@@ -190,7 +179,6 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
       entry={entry}
       scoringDisabled={scoringDisabled}
       isDragMode={isDragMode}
-      showContext={cardShowContext}
       classInfo={cardClassInfo}
       hasPermission={hasPermission}
       handleEntryClick={stableEntryClick}

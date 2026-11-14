@@ -54,28 +54,13 @@
  * we want.
  */
 
-import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import type { Entry } from '../../stores/entryStore';
 import type { RunOrderPreset, RunOrderScope, RenumberMode } from './dialogSlots';
 
 // =============================================================================
 // Supporting types — co-located so the contract file is self-contained.
 // =============================================================================
-
-/**
- * Sort orders the report/print pipeline accepts. Mirrors the
- * apps/myk9q `ReportSortOrder` union (defined in
- * `apps/myk9q/src/services/reportService.ts`). Inlined here because
- * ringside doesn't depend on the host's services and shouldn't import
- * them.
- *
- * Distinct from the dialog-side `PrintSortOrder` in `./dialogSlots`:
- * `ReportSortOrder` is what the print *handler* accepts; `PrintSortOrder`
- * is what the print *dialog* surfaces to the user. The two unions
- * happen to overlap today but should not be unified — they describe
- * different layers.
- */
-export type ReportSortOrder = 'run-order' | 'armband' | 'placement';
 
 /**
  * Status value `handleStatusChange` accepts. The first six values
@@ -107,21 +92,6 @@ export type EntryStatusChange =
 export type EntryStatusCheckIn =
   'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate';
 
-/**
- * Long-press gesture handler bag. Mirrors `LongPressHandlers` from
- * `@myk9/scoring-ui` — inlined here because scoring-ui is not a
- * ringside dep and one structural interface doesn't warrant a new
- * package coupling. If a future PR makes ringside depend on
- * scoring-ui for other reasons, this can re-export from there.
- */
-export interface LongPressHandlers {
-  onMouseDown: (e: ReactMouseEvent) => void;
-  onMouseUp: (e: ReactMouseEvent) => void;
-  onMouseLeave: (e: ReactMouseEvent) => void;
-  onTouchStart: (e: ReactTouchEvent) => void;
-  onTouchEnd: (e: ReactTouchEvent) => void;
-}
-
 // =============================================================================
 // EntryListHandlers — return shape of the host's useEntryListHandlers
 // =============================================================================
@@ -136,8 +106,7 @@ export interface LongPressHandlers {
  * return into ringside through this interface.
  *
  * Field-by-field:
- *  - 6 service-coupled handlers (setDogInRingStatus, handlePrintScoresheet
- *    which queries class_requirements directly, handleApplyRunOrder,
+ *  - service-coupled handlers (handleApplyRunOrder,
  *    handleRecalculatePlacements, handleStatusDialogChange, handleEntryClick
  *    via tryApplyFixedMaxTime) — implementation lives host-side
  *  - 16 pure-ish callbacks (navigation, UI state setters, route building,
@@ -147,19 +116,6 @@ export interface LongPressHandlers {
  * See the audit notes in the handoff doc for the full classification.
  */
 export interface EntryListHandlers {
-  // ── Routing helpers ────────────────────────────────────────────────
-  /** Build the scoresheet URL for an entry. Pure routing — no side effects. */
-  getScoreSheetRoute: (entry: Entry) => string;
-
-  // ── Per-entry mutations (service-coupled) ─────────────────────────
-  /**
-   * Toggle an entry's in-ring status. Handles "other entry must leave
-   * the ring first" — calls `markInRing(otherEntry.id, false)` for
-   * every currently-in-ring entry that isn't this one, then sets the
-   * target. Returns `true` on success, `false` on error.
-   */
-  setDogInRingStatus: (dogId: string, inRing: boolean) => Promise<boolean>;
-
   // ── Entry tap handlers (mixed) ────────────────────────────────────
   /**
    * Tap-to-score handler: permission check, max-time gate, optimistic
@@ -238,10 +194,6 @@ export interface EntryListHandlers {
    * spinner duration so the user sees feedback even on a fast network.
    */
   handleManualRefresh: () => Promise<void>;
-  /** Hard refresh = `window.location.reload()`. Triggered by long-press. */
-  handleHardRefresh: () => void;
-  /** Long-press gesture handlers bound to the refresh button. */
-  refreshLongPressHandlers: LongPressHandlers;
 
   // ── Placement recalc (service-coupled) ────────────────────────────
   /**
@@ -250,23 +202,6 @@ export interface EntryListHandlers {
    * refreshes. Surfaces an alert on failure.
    */
   handleRecalculatePlacements: () => Promise<void>;
-
-  // ── Print (service-coupled) ───────────────────────────────────────
-  /** Generate the check-in PDF report. */
-  handlePrintCheckIn: (options?: { sortOrder?: ReportSortOrder }) => void;
-  /** Generate the results PDF report. */
-  handlePrintResults: (options?: { sortOrder?: 'placement' | 'armband' }) => void;
-  /**
-   * Generate the scoresheet PDF report. ASYNC because this handler
-   * directly queries Supabase's `class_requirements` table for
-   * hides/distractions text before generating — that one Supabase
-   * call is what makes this hook host-coupled rather than purely
-   * routable through reportService.
-   */
-  handlePrintScoresheet: (options?: {
-    sortOrder?: ReportSortOrder;
-    showSectionBadge?: boolean;
-  }) => Promise<void>;
 
   // ── Class-status dialog (service-coupled) ─────────────────────────
   /**
@@ -281,7 +216,7 @@ export interface EntryListHandlers {
   /**
    * Navigate to the stats page for the current trial+class. Returns
    * `false` when there are no completed entries — the page uses that
-   * signal to open NoStatsDialog instead of navigating.
+   * signal to open the dialog instead of navigating.
    */
   handleStatisticsClick: () => void | boolean;
 }
@@ -327,13 +262,6 @@ export interface EntryListActions {
   handleResetScore: (entryId: string) => Promise<void>;
 
   /**
-   * Toggle in-ring (flip current → !current). Background, silently
-   * fails offline. The unified handler in `useEntryListHandlers`
-   * generally prefers `handleMarkInRing` for explicit set semantics.
-   */
-  handleToggleInRing: (entryId: string, currentInRing: boolean) => Promise<void>;
-
-  /**
    * Explicit "mark this entry as in-ring" — used for ring management.
    * `currentStatus` is captured so it can be restored if the user
    * cancels out of the scoresheet without scoring.
@@ -345,12 +273,6 @@ export interface EntryListActions {
    * For manual ring management when scoring happens off-platform.
    */
   handleMarkCompleted: (entryId: string) => Promise<void>;
-
-  /**
-   * Batch status update for future bulk-action flows. Not currently
-   * surfaced in the page UI but the host exports it.
-   */
-  handleBatchStatusUpdate: (entryIds: string[], newStatus: EntryStatusCheckIn) => Promise<void>;
 
   // ── Sync state flags (derived from useOptimisticUpdate internals) ─
   /** True while at least one optimistic mutation is in flight. */

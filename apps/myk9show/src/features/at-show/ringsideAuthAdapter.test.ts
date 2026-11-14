@@ -1,17 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { toRingsideRole, buildRingsideAuth } from './ringsideAuthAdapter';
+import { toRingsideRole, resolveRingsideAccess } from './ringsideAuthAdapter';
 import { UserRole as ShowRole } from '@/types/auth-types';
-import type { RingsideShowContext } from '@myk9/ringside';
-
-const showContext: RingsideShowContext = {
-  showId: 'show-1',
-  showName: 'Test Show',
-  clubName: 'Test Club',
-  showDate: '2026-06-01',
-  licenseKey: 'abc',
-  org: 'AKC Scent Work',
-  competition_type: 'Regular',
-};
 
 describe('toRingsideRole', () => {
   it('maps show-running officials to admin', () => {
@@ -33,70 +22,66 @@ describe('toRingsideRole', () => {
   });
 });
 
-describe('buildRingsideAuth', () => {
-  it('exposes the mapped role and show context', () => {
-    const auth = buildRingsideAuth({ showRole: ShowRole.JUDGE, showContext });
+describe('resolveRingsideAccess', () => {
+  it('exposes the mapped role', () => {
+    const auth = resolveRingsideAccess({ showRole: ShowRole.JUDGE });
     expect(auth.role).toBe('judge');
-    expect(auth.showContext).toBe(showContext);
   });
 
-  it('derives canAccess from the mapped role (judge can score, cannot view passcodes)', () => {
-    const auth = buildRingsideAuth({ showRole: ShowRole.JUDGE, showContext });
-    expect(auth.canAccess('canScore')).toBe(true);
-    expect(auth.canAccess('canViewPasscodes')).toBe(false);
+  it('derives permissions from the mapped role (judge can score, cannot view passcodes)', () => {
+    const auth = resolveRingsideAccess({ showRole: ShowRole.JUDGE });
+    expect(auth.permissions?.canScore).toBe(true);
+    expect(auth.permissions?.canViewPasscodes).toBe(false);
   });
 
   it('admin (mapped from secretary) can manage classes and view passcodes', () => {
-    const auth = buildRingsideAuth({ showRole: ShowRole.SECRETARY, showContext });
-    expect(auth.canAccess('canManageClasses')).toBe(true);
-    expect(auth.canAccess('canViewPasscodes')).toBe(true);
+    const auth = resolveRingsideAccess({ showRole: ShowRole.SECRETARY });
+    expect(auth.permissions?.canManageClasses).toBe(true);
+    expect(auth.permissions?.canViewPasscodes).toBe(true);
   });
 
   it('exhibitor can check in dogs but cannot score or change run order', () => {
-    const auth = buildRingsideAuth({ showRole: ShowRole.EXHIBITOR, showContext });
-    expect(auth.canAccess('canCheckInDogs')).toBe(true);
-    expect(auth.canAccess('canScore')).toBe(false);
-    expect(auth.canAccess('canChangeRunOrder')).toBe(false);
+    const auth = resolveRingsideAccess({ showRole: ShowRole.EXHIBITOR });
+    expect(auth.permissions?.canCheckInDogs).toBe(true);
+    expect(auth.permissions?.canScore).toBe(false);
+    expect(auth.permissions?.canChangeRunOrder).toBe(false);
   });
 
   it('denies every permission when the role is unmapped/absent', () => {
-    const auth = buildRingsideAuth({ showRole: null, showContext });
+    const auth = resolveRingsideAccess({ showRole: null });
     expect(auth.role).toBeNull();
-    expect(auth.canAccess('canCheckInDogs')).toBe(false);
-    expect(auth.canAccess('canScore')).toBe(false);
+    expect(auth.permissions).toBeNull();
   });
 
   // Phase 1c — passcode grant precedence over the account RBAC mapping.
   it('grantRole overrides the account RBAC role (exhibitor account + judge passcode → judge)', () => {
-    const auth = buildRingsideAuth({
+    const auth = resolveRingsideAccess({
       showRole: ShowRole.EXHIBITOR,
-      showContext,
       grantRole: 'judge',
     });
     expect(auth.role).toBe('judge');
-    expect(auth.canAccess('canScore')).toBe(true);
+    expect(auth.permissions?.canScore).toBe(true);
   });
 
   it('falls back to the RBAC mapping when grantRole is null (passcode-less account)', () => {
-    const auth = buildRingsideAuth({ showRole: ShowRole.JUDGE, showContext, grantRole: null });
+    const auth = resolveRingsideAccess({ showRole: ShowRole.JUDGE, grantRole: null });
     expect(auth.role).toBe('judge');
   });
 
   it('a grant can grant access even when the account has no mapped role', () => {
-    const auth = buildRingsideAuth({ showRole: null, showContext, grantRole: 'admin' });
+    const auth = resolveRingsideAccess({ showRole: null, grantRole: 'admin' });
     expect(auth.role).toBe('admin');
-    expect(auth.canAccess('canViewPasscodes')).toBe(true);
+    expect(auth.permissions?.canViewPasscodes).toBe(true);
   });
 
   it('grant override is unconditional — an exhibitor passcode on an admin account resolves to exhibitor for that show', () => {
     // The passcode is authoritative for its show, even when "lower" than the
-    // account RBAC role (see buildRingsideAuth doc). Pins the intended semantic.
-    const auth = buildRingsideAuth({
+    // account RBAC role (see resolveRingsideAccess doc). Pins the intended semantic.
+    const auth = resolveRingsideAccess({
       showRole: ShowRole.SECRETARY,
-      showContext,
       grantRole: 'exhibitor',
     });
     expect(auth.role).toBe('exhibitor');
-    expect(auth.canAccess('canManageClasses')).toBe(false);
+    expect(auth.permissions?.canManageClasses).toBe(false);
   });
 });

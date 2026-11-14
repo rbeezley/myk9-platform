@@ -40,10 +40,8 @@ function setup(classCancelled: boolean, cancelledIds?: string[]) {
   const actions: EntryListActions = {
     handleStatusChange: vi.fn(() => Promise.resolve()),
     handleResetScore: vi.fn(() => Promise.resolve()),
-    handleToggleInRing: vi.fn(() => Promise.resolve()),
     handleMarkInRing: vi.fn(() => Promise.resolve()),
     handleMarkCompleted: vi.fn(() => Promise.resolve()),
-    handleBatchStatusUpdate: vi.fn(() => Promise.resolve()),
     isSyncing: false,
     hasError: false,
   };
@@ -98,16 +96,11 @@ describe('useAtShowEntryListHandlers while the class is cancelled', () => {
     expect(toastInfo).toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE);
   });
 
-  it('writes no check-in or in-ring status', async () => {
+  it('writes no check-in status', async () => {
     const { result, actions } = setup(true);
     await act(async () => {
       await result.current.handleStatusChange('entry-1', 'checked-in' as never);
     });
-    let ok: boolean | undefined;
-    await act(async () => {
-      ok = await result.current.setDogInRingStatus('entry-1', true);
-    });
-    expect(ok).toBe(false);
     expect(actions.handleStatusChange).not.toHaveBeenCalled();
     expect(actions.handleMarkInRing).not.toHaveBeenCalled();
   });

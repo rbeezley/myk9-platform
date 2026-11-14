@@ -56,7 +56,7 @@ export interface UseAtShowEntryListActionsDeps {
  * Coupling note: the `'self-checkin-rpc'` path only accepts the ownership-
  * allowed statuses (`checked-in | conflict | pulled | at-gate | no-status`).
  * The `in-ring` / `completed` statuses emitted by handleMark{InRing,Completed}
- * / handleToggleInRing are staff-only — `self_checkin_entry` RAISEs on them.
+ * are staff-only — `self_checkin_entry` RAISEs on them.
  * That's unreachable for exhibitors today (`canScore=false` hides those
  * affordances), and if it ever leaks the RPC fails loud → `hasError`, never a
  * silent stuck optimistic update (the exact regression this writer-branch fixed).
@@ -160,16 +160,6 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     [writer, handleStatusChange, runMutation, refresh]
   );
 
-  const handleToggleInRing = useCallback<EntryListActions['handleToggleInRing']>(
-    async (entryId, currentInRing) => {
-      await runMutation(async () => {
-        await writeCheckInStatus(entryId, currentInRing ? 'no-status' : 'in-ring', writer);
-        await refresh();
-      });
-    },
-    [runMutation, refresh, writer]
-  );
-
   const handleMarkInRing = useCallback<EntryListActions['handleMarkInRing']>(
     async entryId => {
       await runMutation(async () => {
@@ -184,16 +174,6 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     async entryId => {
       await runMutation(async () => {
         await writeCheckInStatus(entryId, 'completed', writer);
-        await refresh();
-      });
-    },
-    [runMutation, refresh, writer]
-  );
-
-  const handleBatchStatusUpdate = useCallback<EntryListActions['handleBatchStatusUpdate']>(
-    async (entryIds, newStatus) => {
-      await runMutation(async () => {
-        await Promise.all(entryIds.map(id => writeCheckInStatus(id, newStatus, writer)));
         await refresh();
       });
     },
@@ -239,10 +219,8 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     handleUndoPull,
     lastWriteVersion,
     handleResetScore,
-    handleToggleInRing,
     handleMarkInRing,
     handleMarkCompleted,
-    handleBatchStatusUpdate,
     isSyncing,
     hasError,
     pendingCount,

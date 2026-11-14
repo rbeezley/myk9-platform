@@ -24,7 +24,6 @@ import {
   ClassStatusDialog,
   MaxTimeDialog,
 } from './classDialogs';
-import { NoStatsDialog, ScoresheetPrintDialog } from './actionDialogs';
 import { RunOrderDialogSlot } from './RunOrderDialogSlot';
 
 export const atShowDialogSlots: EntryListDialogSlots = {
@@ -35,7 +34,5 @@ export const atShowDialogSlots: EntryListDialogSlots = {
   ClassSettingsDialog,
   MaxTimeDialog,
   RunOrderDialog: RunOrderDialogSlot,
-  ScoresheetPrintDialog,
-  NoStatsDialog,
   AreaCountSelectionDialog,
 };

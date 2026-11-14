@@ -15,13 +15,14 @@
 --
 -- DATA SHAPE
 --   * Show switch (MYK9-1685): shows.uses_device_scoring, default true.
---   * New classes.scores_on_paper boolean, NULL = follow the default. A per-class flag,
---     not a judge column: judge_assignments is a column-granted table and a class can be
---     switched on the day. Whoever assigns a judge writes the judge's choice here.
---   * Paper for a class = scores_on_paper, else ring_phase = 'offline_scoring'
---     (MYK9-1513: the ringside already says "on paper"; no third way), else NOT
---     uses_device_scoring. ring_phase alone is not enough: it is one of three phases
---     (a Break would replace it) and the paper decision is needed before the class starts.
+--   * New classes.scores_on_paper boolean, NULL = follow the show default. The ONE source
+--     of "this class scores on paper" (owner decision 2026-11-14). Choosing the Offline
+--     Scoring ring phase sets it (BEFORE trigger); later phase changes (break, briefing)
+--     leave it alone; this migration never clears it. Only an explicit write to the column
+--     (part 3's one-tap switch back to live scoring) clears it.
+--   * Paper for a class = scores_on_paper, else NOT uses_device_scoring. The claim state
+--     never reads ring_phase = 'offline_scoring' directly: ring_phase holds one value, so
+--     it cannot say "paper" and "on break" at once.
 --   * private.class_ring_activity: when a score or in-ring mark last landed in a class,
 --     kept by a trigger on entries. Not a classes column, so a mark never bumps
 --     classes.version / updated_at or re-syncs every class.
@@ -36,10 +37,10 @@ BEGIN;
 ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS scores_on_paper boolean;
 
 COMMENT ON COLUMN public.classes.scores_on_paper IS
-  'MYK9-1969: true = judged on paper, false = scored on devices, NULL = follow ring_phase offline_scoring, then NOT shows.uses_device_scoring.';
+  'MYK9-1969: the one source of "this class scores on paper". true = judged on paper, false = scored on devices, NULL = follow NOT shows.uses_device_scoring. Set to true by trigger when ring_phase becomes offline_scoring; later phase changes leave it alone; cleared only by an explicit write.';
 
 -- classes is read through a column allowlist: the latest authenticated list
--- (20261030174300) with scores_on_paper added. anon is unchanged (staff-facing).
+-- (20261114194300, with status_before_close) with scores_on_paper added. anon is unchanged (staff-facing).
 GRANT SELECT (
   id, trial_id, name, description, level, element, section, competition_type,
   entry_fee, max_entries, allow_waitlist, max_dogs_per_handler,
@@ -54,10 +55,11 @@ GRANT SELECT (
   time_limit_area3_seconds, display_order, results_released_by, version,
   status_source, reopened_after_closeout_at, revised_expected_start,
   judge_signed_off_at, judge_signed_off_by, results_verified_at,
-  results_verified_by, ring_phase, ring_phase_time, scores_on_paper
+  results_verified_by, ring_phase, ring_phase_time, status_before_close,
+  scores_on_paper
 ) ON public.classes TO authenticated;
 
--- anon's decision, stated: the 20261030174300 anon allowlist restated unchanged and
+-- anon's decision, stated: the 20261114194300 anon allowlist restated unchanged and
 -- WITHOUT scores_on_paper (staff-facing; anon holds no table-level privilege).
 GRANT SELECT (
   id, trial_id, name, description, level, element, section, competition_type,
@@ -142,8 +144,9 @@ CREATE TRIGGER trg_entries_record_ring_activity
              OR NEW.check_in_status IS DISTINCT FROM OLD.check_in_status))
   EXECUTE FUNCTION private.entries_record_ring_activity();
 
--- A ring phase change (lunch ends, briefing ends) is activity, so coming back from a
--- break does not read stale at once. Writes the private table, never a classes column.
+-- A ring phase change (lunch ends, briefing ends) and a move back to in_progress (a
+-- reopened class) are activity, so neither reads stale at once from an old
+-- actual_start_time. Writes the private table, never a classes column.
 CREATE OR REPLACE FUNCTION private.classes_record_ring_phase_activity()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -166,6 +169,54 @@ CREATE TRIGGER trg_classes_record_ring_phase_activity
   FOR EACH ROW
   WHEN (NEW.ring_phase IS DISTINCT FROM OLD.ring_phase)
   EXECUTE FUNCTION private.classes_record_ring_phase_activity();
+
+-- Reopen fix: the status mutation deliberately keeps the original actual_start_time, so
+-- record activity on the move back to in_progress.
+DROP TRIGGER IF EXISTS trg_classes_record_reopen_activity ON public.classes;
+CREATE TRIGGER trg_classes_record_reopen_activity
+  AFTER UPDATE OF status ON public.classes
+  FOR EACH ROW
+  WHEN (NEW.status = 'in_progress' AND OLD.status IS DISTINCT FROM 'in_progress')
+  EXECUTE FUNCTION private.classes_record_ring_phase_activity();
+
+-- ---------------------------------------------------------------------------
+-- Offline Scoring phase => scores_on_paper = true (sticky)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION private.classes_offline_phase_sets_paper()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $fn$
+BEGIN
+  IF NEW.ring_phase = 'offline_scoring' THEN
+    NEW.scores_on_paper := true;
+  END IF;
+  RETURN NEW;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION private.classes_offline_phase_sets_paper() FROM PUBLIC, anon, authenticated;
+
+-- Two triggers: WHEN cannot read TG_OP. Only the move INTO offline_scoring sets the
+-- column, so an explicit scores_on_paper = false written later is never overridden by an
+-- unrelated update, and break/briefing never touch it.
+DROP TRIGGER IF EXISTS trg_classes_offline_phase_sets_paper_ins ON public.classes;
+CREATE TRIGGER trg_classes_offline_phase_sets_paper_ins
+  BEFORE INSERT ON public.classes
+  FOR EACH ROW
+  WHEN (NEW.ring_phase = 'offline_scoring')
+  EXECUTE FUNCTION private.classes_offline_phase_sets_paper();
+
+DROP TRIGGER IF EXISTS trg_classes_offline_phase_sets_paper ON public.classes;
+CREATE TRIGGER trg_classes_offline_phase_sets_paper
+  BEFORE UPDATE OF ring_phase ON public.classes
+  FOR EACH ROW
+  WHEN (NEW.ring_phase = 'offline_scoring' AND OLD.ring_phase IS DISTINCT FROM NEW.ring_phase)
+  EXECUTE FUNCTION private.classes_offline_phase_sets_paper();
+
+-- Classes already on the Offline Scoring phase are on paper.
+UPDATE public.classes SET scores_on_paper = true
+ WHERE ring_phase = 'offline_scoring' AND scores_on_paper IS DISTINCT FROM true;
 
 -- ---------------------------------------------------------------------------
 -- entry_queue_places_for_classes: + claim_state (internal; ACL unchanged)
@@ -232,12 +283,7 @@ AS $$
     JOIN LATERAL (
       SELECT c.status,
              c.ring_phase,
-             coalesce(
-               c.scores_on_paper,
-               CASE WHEN c.ring_phase = 'offline_scoring' THEN true END,
-               NOT s.uses_device_scoring,
-               false
-             ) AS on_paper,
+             coalesce(c.scores_on_paper, NOT s.uses_device_scoring, false) AS on_paper,
              -- The quiet clock starts at the later of the last score / in-ring mark / phase
              -- change and the class's actual start. Never classes.updated_at: check-in and
              -- counter rollups bump it. NULL (neither exists) = not demonstrably quiet = live.

@@ -17,6 +17,8 @@
 --   F. silent class still getting check-ins goes stale (classes.updated_at is not the clock);
 --      a reopened class with an old activity row is live right after its start; break and
 --      briefing never read stale; coming back from a break is not instantly stale.
+--   G. scores_on_paper is the one source: offline_scoring sets it, break/briefing keep it,
+--      only an explicit write clears it; a reopen records activity (fresh, not stale).
 --   E. ACL unchanged: anon and PUBLIC cannot execute, authenticated can; the internal
 --      function and the activity table stay closed.
 
@@ -267,6 +269,76 @@ begin
     raise exception 'FAIL F should go stale again after the break: %', pg_temp.state_as('P', 3);
   end if;
   raise notice 'PASS F clock: check-ins ignored, restart live, break/briefing live, back from break live';
+end $$;
+
+-- G. owner design 2026-11-14: scores_on_paper is the one source of "paper". Offline
+-- Scoring sets it (trigger), break/briefing leave it alone, only an explicit write
+-- clears it, and a reopen records activity.
+do $$
+declare
+  v_class uuid := '00000000-0000-0000-0000-0000019690d0';
+  v_paper boolean;
+begin
+  update public.classes set status = 'in_progress' where id = v_class;
+  if pg_temp.state_as('U', 1) is distinct from '1/live' then
+    raise exception 'FAIL G fresh in-progress phone class: %', pg_temp.state_as('U', 1);
+  end if;
+  -- offline_scoring phase sets paper
+  update public.classes set ring_phase = 'offline_scoring' where id = v_class;
+  select scores_on_paper into v_paper from public.classes where id = v_class;
+  if v_paper is distinct from true then
+    raise exception 'FAIL G offline_scoring phase must set scores_on_paper, got %', v_paper;
+  end if;
+  if pg_temp.state_as('U', 1) is distinct from '1/paper' then
+    raise exception 'FAIL G offline_scoring: %', pg_temp.state_as('U', 1);
+  end if;
+  -- break and briefing after paper keep paper: never live with a countdown
+  update public.classes set ring_phase = 'break', ring_phase_time = '12:30' where id = v_class;
+  update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
+   where class_id = v_class;
+  select scores_on_paper into v_paper from public.classes where id = v_class;
+  if v_paper is distinct from true or pg_temp.state_as('U', 1) is distinct from '1/paper' then
+    raise exception 'FAIL G break after paper must stay paper: % %', v_paper, pg_temp.state_as('U', 1);
+  end if;
+  update public.classes set ring_phase = 'briefing', ring_phase_time = '13:00' where id = v_class;
+  if pg_temp.state_as('U', 1) is distinct from '1/paper' then
+    raise exception 'FAIL G briefing after paper must stay paper: %', pg_temp.state_as('U', 1);
+  end if;
+  update public.classes set ring_phase = null, ring_phase_time = null where id = v_class;
+  if pg_temp.state_as('U', 1) is distinct from '1/paper' then
+    raise exception 'FAIL G clearing the phase must not clear paper: %', pg_temp.state_as('U', 1);
+  end if;
+  -- an explicit write clears it (part 3's switch back to live scoring)
+  update public.classes set scores_on_paper = false where id = v_class;
+  update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
+   where class_id = v_class;
+  if pg_temp.state_as('U', 1) is distinct from '1/stale' then
+    raise exception 'FAIL G explicit switch back to live scoring: %', pg_temp.state_as('U', 1);
+  end if;
+  -- an unrelated update while on the offline phase does not re-set it
+  update public.classes set ring_phase = 'offline_scoring' where id = v_class;
+  update public.classes set scores_on_paper = false where id = v_class;
+  update public.classes set name = 'Upcoming renamed' where id = v_class;
+  select scores_on_paper into v_paper from public.classes where id = v_class;
+  if v_paper is distinct from false then
+    raise exception 'FAIL G unrelated update must not re-set paper, got %', v_paper;
+  end if;
+  update public.classes set ring_phase = null where id = v_class;
+  -- reopen: old start and old activity, then back to in_progress reads fresh, not stale
+  update public.classes set status = 'completed',
+         actual_start_time = now() - interval '2 hours' where id = v_class;
+  update private.class_ring_activity set last_activity_at = now() - interval '90 minutes'
+   where class_id = v_class;
+  update public.classes set status = 'in_progress' where id = v_class;
+  if pg_temp.state_as('U', 1) is distinct from '1/live' then
+    raise exception 'FAIL G reopened class must read live, not stale: %', pg_temp.state_as('U', 1);
+  end if;
+  update private.class_ring_activity set last_activity_at = now() - interval '11 minutes'
+   where class_id = v_class;
+  if pg_temp.state_as('U', 1) is distinct from '1/stale' then
+    raise exception 'FAIL G reopened class goes stale after 10 quiet minutes: %', pg_temp.state_as('U', 1);
+  end if;
+  raise notice 'PASS G scores_on_paper sticky across phases, explicit clear, reopen fresh';
 end $$;
 
 -- E. ACL

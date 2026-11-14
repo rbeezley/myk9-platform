@@ -23,7 +23,7 @@ import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
-import { ResultsFinishRow } from './ResultsFinishRow';
+import { ResultsPackets } from './ResultsPackets';
 import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
 import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
 import { ResultsTabToolbar } from './ResultsTabToolbar';
@@ -418,7 +418,14 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
       {showStatsLink && entries.some(entry => entry.is_scored === true) && showStatsLink}
       <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
-      <ResultsFinishRow showId={showId} trials={trials} allDone={releasedAndInitialed} />
+      <ResultsPackets
+        showId={showId}
+        trials={trials}
+        rows={rows}
+        entries={entries}
+        timeZone={timeZone}
+        allDone={releasedAndInitialed}
+      />
       <MasterDetailLayout
         id="results-classes"
         listLabel="Classes"

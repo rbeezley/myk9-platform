@@ -1,10 +1,11 @@
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Printer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { getTrialRegistry } from '@/features/registries';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { getResultsStepHref } from './resultsTabRoutes';
+import { trialLabelOf } from './buildResultsClassRows';
 
 interface ResultsFinishRowProps {
   showId: string;
@@ -12,6 +13,8 @@ interface ResultsFinishRowProps {
   trials: readonly SyncableTrial[];
   /** Every class that ran is released and signed off by the judge. */
   allDone: boolean;
+  /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
+  onOpenAfterShow?: (trialId: string) => void;
 }
 
 /**
@@ -20,7 +23,12 @@ interface ResultsFinishRowProps {
  * are due. The buttons are links to the same pages the tab has always had (`?step=submit` and
  * `?step=close`).
  */
-export function ResultsFinishRow({ showId, trials, allDone }: ResultsFinishRowProps) {
+export function ResultsFinishRow({
+  showId,
+  trials,
+  allDone,
+  onOpenAfterShow,
+}: ResultsFinishRowProps) {
   const firstTrial = trials[0];
   const submitLabel = firstTrial
     ? `Submit to ${getTrialRegistry(firstTrial).id}`
@@ -37,6 +45,21 @@ export function ResultsFinishRow({ showId, trials, allDone }: ResultsFinishRowPr
           : 'After every class is released'}
       </p>
       <div className="flex flex-wrap gap-2">
+        {onOpenAfterShow &&
+          trials.map(trial => (
+            <Button
+              key={trial.id}
+              type="button"
+              variant="outline"
+              className="min-h-11 gap-2"
+              onClick={() => onOpenAfterShow(trial.id)}
+            >
+              <Printer className="h-4 w-4" aria-hidden="true" />
+              {trials.length > 1
+                ? `After-show packet: ${trialLabelOf(trial)}`
+                : 'After-show packet'}
+            </Button>
+          ))}
         <Button asChild variant={allDone ? 'default' : 'outline'} className="min-h-11 gap-2">
           <Link to={getResultsStepHref(showId, 'submit')}>
             {submitLabel}

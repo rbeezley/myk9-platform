@@ -3,6 +3,7 @@ import {
   applyDelete,
   applyInsert,
   applyPatch,
+  conflictQuery,
   contentRange,
   emptyTable,
   isTouched,
@@ -37,6 +38,11 @@ describe('parseFilters', () => {
     ['fee=gte.10', { fee: 10 }, true],
     ['fee=lt.10', { fee: 10 }, false],
     ['cart_id=eq.c1&id=eq.a', { cart_id: 'c1', id: 'b' }, false],
+    // loadCart's expiry filter: an ISO timestamp, in either offset spelling
+    ['expires_at=gt.2026-11-14T12:00:00.000Z', { expires_at: '2026-11-15T00:00:00.000Z' }, true],
+    ['expires_at=gt.2026-11-14T12:00:00+00:00', { expires_at: '2026-11-14T11:00:00.000Z' }, false],
+    ['expires_at=gte.2026-11-14T12:00:00Z', { expires_at: null }, false],
+    ['name=lt.m', { name: 'abby' }, true],
   ])('%s against %j is %s', (query, row, expected) => {
     const filters = filtersOf(`select=*&order=id.asc&limit=5&${query}`);
     expect(filters).not.toBeNull();
@@ -125,6 +131,33 @@ describe('applyInsert as upsert', () => {
     ]);
   });
 
+  it('ignores a duplicate of a database row, as cart recovery relies on', () => {
+    const state = emptyTable();
+    const real: Row[] = [{ id: 'r1', cart_id: 'c', dog_id: 'd', class_id: 'k' }];
+    const created = applyInsert(state, [{ cart_id: 'c', dog_id: 'd', class_id: 'k' }], {
+      resolution: 'ignore-duplicates',
+      onConflict: ['cart_id', 'dog_id', 'class_id'],
+      real,
+      makeId: counter(),
+      now: NOW,
+    });
+    expect(created).toEqual([]);
+    expect(overlay(real, state, all)).toEqual(real);
+  });
+
+  it('merges into a database row, and later reads see the merge', () => {
+    const state = emptyTable();
+    const real: Row[] = [{ id: 'r1', cart_id: 'c', dog_id: 'd', class: 'A' }];
+    applyInsert(state, [{ cart_id: 'c', dog_id: 'd', class: 'B' }], {
+      resolution: 'merge-duplicates',
+      onConflict: ['cart_id', 'dog_id'],
+      real,
+      makeId: counter(),
+      now: NOW,
+    });
+    expect(overlay(real, state, all)).toEqual([expect.objectContaining({ id: 'r1', class: 'B' })]);
+  });
+
   it('keeps the first row on ignore-duplicates', () => {
     const state = emptyTable();
     const options = { resolution: 'ignore-duplicates' as const, makeId: counter(), now: NOW };
@@ -180,5 +213,18 @@ describe('singleRowError', () => {
       code: 'PGRST116',
       details: `The result contains ${count} rows`,
     });
+  });
+});
+
+describe('conflictQuery', () => {
+  it('asks for the row on every conflict column', () => {
+    expect(conflictQuery({ cart_id: 'c', dog_id: 'd' }, ['cart_id', 'dog_id'])?.toString()).toBe(
+      'select=*&cart_id=eq.c&dog_id=eq.d'
+    );
+  });
+
+  it('defaults to the primary key, and gives up when a column is missing', () => {
+    expect(conflictQuery({ id: 'x' }, [])?.toString()).toBe('select=*&id=eq.x');
+    expect(conflictQuery({ cart_id: 'c' }, ['cart_id', 'dog_id'])).toBeNull();
   });
 });

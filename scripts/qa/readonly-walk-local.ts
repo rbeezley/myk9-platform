@@ -15,12 +15,23 @@ export type Filter = { column: string; test: (value: unknown) => boolean };
 /** Query keys PostgREST reads as options, not as column filters. */
 const OPTION_KEYS = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns']);
 
-const COMPARE: Record<string, (a: number, b: number) => boolean> = {
-  gt: (a, b) => a > b,
-  gte: (a, b) => a >= b,
-  lt: (a, b) => a < b,
-  lte: (a, b) => a <= b,
+const COMPARE: Record<string, (order: number) => boolean> = {
+  gt: order => order > 0,
+  gte: order => order >= 0,
+  lt: order => order < 0,
+  lte: order => order <= 0,
 };
+
+const numeric = (value: string): boolean => value.trim() !== '' && Number.isFinite(Number(value));
+
+/** Order a stored value against a filter operand: as numbers, then as timestamps, then as text. */
+function order(value: unknown, operand: string): number {
+  const stored = String(value);
+  if (numeric(stored) && numeric(operand)) return Number(stored) - Number(operand);
+  const [a, b] = [Date.parse(stored), Date.parse(operand)];
+  if (!Number.isNaN(a) && !Number.isNaN(b)) return a - b;
+  return stored < operand ? -1 : stored > operand ? 1 : 0;
+}
 
 const unquote = (value: string): string =>
   value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
@@ -61,9 +72,10 @@ function parseFilter(column: string, raw: string): Filter | null {
   }
   const compare = COMPARE[op];
   if (compare) {
-    const bound = Number(operand);
-    if (Number.isNaN(bound)) return null;
-    return { column, test: v => v !== null && compare(Number(v), bound) };
+    return {
+      column,
+      test: v => v !== null && v !== undefined && compare(order(v, operand)),
+    };
   }
   return null;
 }
@@ -126,6 +138,8 @@ export type InsertOptions = {
   onConflict?: readonly string[];
   makeId: () => string;
   now: string;
+  /** Database rows that may conflict, so an upsert merges into them and does not copy them. */
+  real?: readonly Row[];
 };
 
 /** Insert or upsert. Returns the rows PostgREST would return. */
@@ -138,9 +152,9 @@ export function applyInsert(
   const out: Row[] = [];
   for (const row of incoming) {
     const existing = options.resolution
-      ? [...state.rows.values()].find(local =>
+      ? overlay(options.real ?? [], state, []).find(candidate =>
           conflict.every(
-            column => row[column] !== undefined && text(local[column]) === text(row[column])
+            column => row[column] !== undefined && text(candidate[column]) === text(row[column])
           )
         )
       : undefined;
@@ -154,6 +168,17 @@ export function applyInsert(
     out.push(next);
   }
   return out;
+}
+
+/** The query that finds a database row an upsert of `row` would conflict with, or `null` if none can. */
+export function conflictQuery(row: Row, columns: readonly string[]): URLSearchParams | null {
+  const query = new URLSearchParams({ select: '*' });
+  for (const column of columns.length ? columns : ['id']) {
+    const value = text(row[column]);
+    if (value === null) return null;
+    query.set(column, `eq.${value}`);
+  }
+  return query;
 }
 
 export function applyPatch(

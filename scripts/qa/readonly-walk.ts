@@ -43,6 +43,7 @@ import {
   applyDelete,
   applyInsert,
   applyPatch,
+  conflictQuery,
   contentRange,
   emptyTable,
   isTouched,
@@ -246,8 +247,11 @@ const asRows = (value: unknown): Row[] => (Array.isArray(value) ? value : [value
  * the target rows of an update or delete, come from the real backend as a
  * GET, overlaid with what the walk wrote: created and edited rows replace or
  * join the real ones, deleted ones drop out. Filters (`eq`, `neq`, `in`, `is`,
- * `gt`/`gte`/`lt`/`lte`), upsert and the row count follow PostgREST. A write
- * whose filter cannot be evaluated here is refused, not guessed.
+ * `gt`/`gte`/`lt`/`lte` on numbers, timestamps or text), upsert (against the
+ * database's rows as well as the walk's) and the row count follow PostgREST.
+ * Once the walk has written to a table, a request whose filter cannot be
+ * evaluated here is refused, not guessed: answered by the database alone it
+ * would hide the walk's rows.
  *
  * Call AFTER `installReadOnlyGuard`: the route registered last is asked first.
  * Embedded resources in a `select` are not reproduced on rows the walk wrote,
@@ -284,12 +288,9 @@ export async function answerLocally(
       return;
     }
     if (!filters) {
-      if (isRead) {
-        await route.fallback();
-      } else {
-        log.refused.push(`${method} ${url.pathname} (answerLocally cannot read this filter)`);
-        await route.abort();
-      }
+      // Never answered from the database alone: the walk's own rows would vanish.
+      log.refused.push(`${method} ${url.pathname} (answerLocally cannot read this filter)`);
+      await route.abort();
       return;
     }
 
@@ -314,15 +315,19 @@ export async function answerLocally(
 
     // The rows this request addresses as the walk sees them. A plain GET, so it
     // reads with the caller's own rights and changes nothing.
-    const current = async (): Promise<Row[] | null> => {
-      const real = await context.request.get(url.toString(), {
+    const fetchReal = async (target: URL): Promise<Row[] | null> => {
+      const real = await context.request.get(target.toString(), {
         headers: readHeaders(headers),
       });
       if (!real.ok()) {
         await route.fulfill({ response: real });
         return null;
       }
-      return overlay(asRows(await real.json()), state, filters);
+      return asRows(await real.json());
+    };
+    const current = async (): Promise<Row[] | null> => {
+      const real = await fetchReal(url);
+      return real && overlay(real, state, filters);
     };
 
     if (isRead) {
@@ -343,12 +348,17 @@ export async function answerLocally(
     const minimal = !prefer.includes('return=representation');
 
     if (method === 'POST') {
-      const created = applyInsert(state, incoming, {
-        resolution: resolutionOf(prefer),
-        onConflict: url.searchParams.get('on_conflict')?.split(','),
-        makeId,
-        now,
-      });
+      const resolution = resolutionOf(prefer);
+      const onConflict = url.searchParams.get('on_conflict')?.split(',') ?? [];
+      const real: Row[] = [];
+      for (const row of resolution ? incoming : []) {
+        const query = conflictQuery(row, onConflict);
+        if (!query) continue;
+        const found = await fetchReal(new URL(`${url.origin}${url.pathname}?${query}`));
+        if (!found) return;
+        real.push(...found);
+      }
+      const created = applyInsert(state, incoming, { resolution, onConflict, real, makeId, now });
       if (minimal) await route.fulfill({ status: 201, body: '' });
       else await send(201, created);
       return;

@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { expectMenuBeforeUp } from '@/test/utils/ringsideHeaderAssertions';
 import { screen, fireEvent, waitFor } from '@testing-library/react';

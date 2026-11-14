@@ -25,7 +25,8 @@ import { maxTimeLabel } from '../../../utils/maxTimeLabel';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
-import { calculatePoints, seedAlerts } from './nationalsAlerts';
+import { calculatePoints, seedAlerts, sum } from './nationalsAlerts';
+import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
 const QUALIFYING_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
@@ -69,9 +70,8 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 }) => {
   const areaCount = rules.areaCount ?? NATIONALS_AREA_COUNT;
   const [currentArea, setCurrentArea] = useState(0);
-  // MYK9-2006: only the totals are stored, so a reopened score carries them in
-  // Area 1. Points are computed from the sums, so the saved score is unchanged
-  // until the judge edits a counter.
+  // MYK9-2006: only totals are stored; a reopened score carries them in Area 1.
+  const [saved] = useState(() => entry.existingScore);
   const [correctAlerts, setCorrectAlerts] = useState<number[]>(() =>
     seedAlerts(areaCount, entry.existingScore?.correctCount)
   );
@@ -89,11 +89,11 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const scoring = useScoresheetScoring({
     rules: { ...rules, areaCount },
-    existingScore: entry.existingScore,
+    ...scoringSource(entry),
   });
 
   const stopwatch = useStopwatch({
-    persistKey: entry.id,
+    ...timerPersist(entry),
     maxTime: areaMaxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -160,8 +160,8 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     await scoring.handleSubmit(onSubmit, {
       points: totalPoints,
       finishCallErrors,
-      correctCount: correctAlerts.reduce((s, v) => s + v, 0),
-      incorrectCount: incorrectAlerts.reduce((s, v) => s + v, 0),
+      correctCount: sum(correctAlerts),
+      incorrectCount: sum(incorrectAlerts),
       // The result is the qualification. A placement is not a result status and
       // the save path refuses one (MYK9-1806).
       resultText: scoring.qualifying || 'NQ',
@@ -175,8 +175,11 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const { upButton } = useScoresheetLeave({
     scoring,
     stopwatch,
+    // Compared with what the sheet opened with: a reopened score is not dirty until edited.
     extraDirty: () =>
-      correctAlerts.some(n => n > 0) || incorrectAlerts.some(n => n > 0) || finishCallErrors > 0,
+      sum(correctAlerts) !== (saved?.correctCount ?? 0) ||
+      sum(incorrectAlerts) !== (saved?.incorrectCount ?? 0) ||
+      finishCallErrors !== (saved?.finishCallErrors ?? 0),
     onBack,
     backLabel,
     onDirtyChange,

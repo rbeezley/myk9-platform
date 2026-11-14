@@ -27,7 +27,8 @@ function mono(): number {
 
 function onVisibilityChange(): void {
   if (document.visibilityState === 'hidden') {
-    hiddenAt = { mono: mono(), wall: Date.now() };
+    // A second hidden event without a visible one keeps the first span.
+    hiddenAt ??= { mono: mono(), wall: Date.now() };
     return;
   }
   if (!hiddenAt) return;

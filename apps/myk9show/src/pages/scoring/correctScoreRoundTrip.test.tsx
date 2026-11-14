@@ -290,3 +290,38 @@ describe('Correct this score: NQ with its reason (MYK9-2006)', () => {
     });
   });
 });
+
+describe('AKC Nationals with five areas (MYK9-2006)', () => {
+  const fiveAreas: ResolvedClassRules = { ...oneArea, areaCount: 5, maxTimeSeconds: 900 };
+  const times = ['0:04.35', '0:10.00', '0:20.00', '0:30.00', '0:40.00'];
+
+  beforeEach(() => {
+    device.row = { ...blankRow };
+  });
+
+  it('an unchanged save keeps the total that includes the fifth area', async () => {
+    const first = await runSheet('AKC_SCENT_WORK_NATIONAL', fiveAreas, blankRow, () => {
+      times.forEach((time, i) => {
+        fireEvent.click(screen.getByTestId(`area-tab-${i + 1}`));
+        type(`Area ${i + 1} time`, time);
+      });
+      pick('Q');
+    });
+    const saved = { ...(await save(first)) };
+    // 4:04.35 minus nothing: all five times are in the stored total.
+    expect(saved.search_time_seconds).toBeCloseTo(104.35, 2);
+
+    const again = await runSheet('AKC_SCENT_WORK_NATIONAL', fiveAreas, saved, () => {});
+    const savedAgain = await save(again);
+    expect(savedAgain.search_time_seconds).toBeCloseTo(104.35, 2);
+    for (const col of [
+      'area1_time_seconds',
+      'area2_time_seconds',
+      'area3_time_seconds',
+      'area4_time_seconds',
+      'result_status',
+    ] as const) {
+      expect(savedAgain[col], col).toEqual(saved[col]);
+    }
+  });
+});

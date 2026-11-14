@@ -107,6 +107,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     onVoiceAnnouncement,
     onScoringActiveChange,
     persistKey,
+    hasSavedScore,
   } = options;
   // A zero max ("0:00" -- a class with no time set) is NO limit: no expiry, no
   // warning, no auto-stop. Every check below keys on `maxTime` being set.
@@ -116,7 +117,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   // Timer state. `time` (state) is the value as of the last transition; the live
   // clock is `timeRef`, which the 100ms paint updates without a React render.
   // MYK9-2007: a reload mid-run restores the timer from what it saved on the device.
-  const [restored] = useState(() => restoreTimer(persistKey, TIMER_KIND));
+  const [restored] = useState(() => restoreTimer(persistKey, TIMER_KIND, hasSavedScore));
   const [recovery, setRecovery] = useState<TimerRecovery>(restored?.recovery ?? null);
   const [time, setTime] = useState(restored?.elapsedMs ?? 0);
   const [isRunning, setIsRunning] = useState(false);
@@ -151,7 +152,10 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   // Wall-clock origin of the current run, so pause can record the exact
   // elapsed time rather than the last painted frame.
   const startTimeRef = useRef(0);
-  const has30SecondAnnouncedRef = useRef(false);
+  // A run restored inside the last 30 seconds already gave its warning (MYK9-2007).
+  const has30SecondAnnouncedRef = useRef(
+    Boolean(restored && maxTime && parseMaxTimeToMs(maxTime) - restored.elapsedMs <= 30_000)
+  );
 
   // Cancel any in-flight frame on unmount. Leaving the sheet in the app ends the
   // run; only a reload (which runs no cleanup) leaves the saved timer to restore.

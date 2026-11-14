@@ -11,3 +11,5 @@ export function calculatePoints(correctAlerts: number[], incorrectAlerts: number
 export function seedAlerts(areaCount: number, total = 0): number[] {
   return Array.from({ length: areaCount }, (_, i) => (i === 0 ? total : 0));
 }
+
+export const sum = (counts: number[]): number => counts.reduce((total, n) => total + n, 0);

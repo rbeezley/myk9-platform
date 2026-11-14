@@ -51,6 +51,12 @@ export function clearTimerSnapshot(persistKey: string, kind: string): void {
   }
 }
 
+/** Every timer kept for this entry: its score is saved, so no run is left to restore. */
+export function clearRunTimers(persistKey: string): void {
+  clearTimerSnapshot(persistKey, 'search');
+  clearTimerSnapshot(persistKey, 'element');
+}
+
 function readSnapshot(persistKey: string, kind: string): TimerSnapshot | null {
   try {
     const raw = localStorage.getItem(keyFor(persistKey, kind));
@@ -75,9 +81,16 @@ function readSnapshot(persistKey: string, kind: string): TimerSnapshot | null {
 export function restoreTimer(
   persistKey: string | undefined,
   kind: string,
+  hasSavedScore = false,
   wallNow: number = Date.now()
 ): RestoredTimer | null {
   if (!persistKey) return null;
+  // An entry that already has a saved score owns a finished run: whatever timer is
+  // left on the device is from before that save (an app killed right after Save).
+  if (hasSavedScore) {
+    clearTimerSnapshot(persistKey, kind);
+    return null;
+  }
   const snap = readSnapshot(persistKey, kind);
   if (!snap) return null;
   const gap = wallNow - snap.wallAt;

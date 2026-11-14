@@ -56,6 +56,8 @@ export interface ElementTimerOptions {
   onExpired?: (() => void) | undefined;
   /** Keep the run on the device under this key so a reload mid-run restores it (MYK9-2007). */
   persistKey?: string | undefined;
+  /** The entry already has a saved score, so a timer left on the device is stale. */
+  hasSavedScore?: boolean | undefined;
 }
 
 /** The last 30 seconds before the max, where the host shows the warning. */
@@ -64,7 +66,7 @@ function isInWarningWindow(elapsedMs: number, maxTimeMs: number | undefined): bo
 }
 
 export function useElementTimer(options: ElementTimerOptions = {}): ElementTimerReturn {
-  const { maxTimeMs, persistKey } = options;
+  const { maxTimeMs, persistKey, hasSavedScore } = options;
   // Latest callback without restarting the interval on every render.
   // Latest max and callback, read by the running interval: a class limit
   // corrected mid-run applies on the next tick.
@@ -77,7 +79,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
 
   // `time` (state) is the value as of the last transition; the live clock is
   // `timeRef`, which the 100ms paint moves without a React render (MYK9-1375).
-  const [restored] = useState(() => restoreTimer(persistKey, TIMER_KIND));
+  const [restored] = useState(() => restoreTimer(persistKey, TIMER_KIND, hasSavedScore));
   const [recovery, setRecovery] = useState<TimerRecovery>(restored?.recovery ?? null);
   const [time, setTime] = useState(restored?.elapsedMs ?? 0);
   const [isRunning, setIsRunning] = useState(false);

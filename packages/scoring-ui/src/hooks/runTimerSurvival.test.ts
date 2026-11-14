@@ -320,3 +320,79 @@ describe('reload mid-run (MYK9-2007)', () => {
     expect(second.result.current.time).toBeGreaterThanOrEqual(3000);
   });
 });
+
+describe('a restored run and its warning, stale snapshots, double hidden (MYK9-2007)', () => {
+  const key = 'entry-2';
+  const snapshotKey = `myk9:run-timer:${key}:search`;
+
+  it('does not give the 30-second warning again when restored inside the window', () => {
+    const onWarningChime = vi.fn();
+    localStorage.setItem(
+      snapshotKey,
+      JSON.stringify({ elapsedMs: 160_000, running: true, wallAt: Date.now() - 500 })
+    );
+    const { result } = renderHook(() =>
+      useStopwatch({ maxTime: '3:00', persistKey: key, onWarningChime })
+    );
+    expect(result.current.isRunning).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(onWarningChime).not.toHaveBeenCalled();
+  });
+
+  it('still gives the warning when a restored run is outside the window and crosses it', () => {
+    const onWarningChime = vi.fn();
+    localStorage.setItem(
+      snapshotKey,
+      JSON.stringify({ elapsedMs: 100_000, running: true, wallAt: Date.now() - 500 })
+    );
+    renderHook(() => useStopwatch({ maxTime: '3:00', persistKey: key, onWarningChime }));
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(onWarningChime).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [
+      'stopwatch',
+      'search',
+      () => renderHook(() => useStopwatch({ persistKey: key, hasSavedScore: true })),
+    ],
+    [
+      'element timer',
+      'element',
+      () => renderHook(() => useElementTimer({ persistKey: key, hasSavedScore: true })),
+    ],
+  ])('an entry with a saved score ignores and clears a stale %s snapshot', (_n, kind, mount) => {
+    {
+      localStorage.setItem(
+        `myk9:run-timer:${key}:${kind}`,
+        JSON.stringify({ elapsedMs: 42_000, running: false, wallAt: Date.now() - 1000 })
+      );
+    }
+    const { result } = mount();
+    expect(result.current.time).toBe(0);
+    expect(result.current.recovery).toBeNull();
+    expect(localStorage.getItem(`myk9:run-timer:${key}:${kind}`)).toBeNull();
+  });
+
+  it('a second hidden event without a visible one keeps the first span', () => {
+    const { result } = renderHook(() => useStopwatch({ maxTime: '3:00' }));
+    act(() => result.current.start());
+    act(() => {
+      setVisibility('hidden');
+      vi.setSystemTime(Date.now() + 10_000);
+      setVisibility('hidden');
+      vi.setSystemTime(Date.now() + 10_000);
+      setVisibility('visible');
+      vi.advanceTimersByTime(100);
+    });
+    let recorded = -1;
+    act(() => {
+      recorded = result.current.pause();
+    });
+    expect(recorded).toBeGreaterThanOrEqual(20_000);
+  });
+});

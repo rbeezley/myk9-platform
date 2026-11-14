@@ -28,6 +28,7 @@ import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
 import { ResultChoiceChips } from '../../ResultChoiceChips';
 import type { LiveScoresheetProps, QualifyingResult } from '../../../types/scoreData';
+import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
 /**
  * Header title lines: trial date, then the trial's label on its own line (MYK9-704;
@@ -64,7 +65,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const scoring = useScoresheetScoring({
     rules,
-    existingScore: entry.existingScore,
+    ...scoringSource(entry),
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
     qualifiedRules: {},
@@ -76,7 +77,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const maxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
   const stopwatch = useStopwatch({
-    persistKey: entry.id,
+    ...timerPersist(entry),
     maxTime: maxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,

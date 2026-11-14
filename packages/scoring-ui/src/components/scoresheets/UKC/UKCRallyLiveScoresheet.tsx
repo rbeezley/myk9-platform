@@ -22,6 +22,7 @@ import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import type { LiveScoresheetProps } from '../../../types';
+import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
 export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
@@ -42,13 +43,13 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const scoring = useScoresheetScoring({
     rules,
-    existingScore: entry.existingScore,
+    ...scoringSource(entry),
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
   });
 
   const stopwatch = useStopwatch({
-    persistKey: entry.id,
+    ...timerPersist(entry),
     maxTime: '5:00',
     level: classInfo.level,
     enableVoiceAnnouncements,

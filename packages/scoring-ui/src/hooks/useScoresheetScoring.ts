@@ -22,11 +22,14 @@ import {
 } from '../utils/qualifiedCheck';
 import { maxTimeForArea } from '../utils/buildResolvedClassRules';
 import type { AreaScore, ScoreData, ExtendedResult, ResolvedClassRules } from '../types';
+import { clearRunTimers } from '../utils/runTimerStorage';
 
 export interface ScoresheetScoringConfig {
   rules: ResolvedClassRules;
   areaNames?: string[];
   existingScore?: ScoreData;
+  /** The entry id: a successful save retires the timers kept for it (MYK9-2007). */
+  timerKey?: string;
   /**
    * False for sports that never score found / correct per area (UKC Nosework,
    * MYK9-1086): the save then carries no find counts and no FOUND/CORRECT
@@ -93,6 +96,9 @@ export interface ScoresheetScoringReturn {
   reset: () => void;
 }
 
+/** The entries table stores area1..area4 times only. */
+const STORED_AREA_COLUMNS = 4;
+
 function initializeAreas(
   rules: ResolvedClassRules,
   areaNames?: string[],
@@ -118,7 +124,7 @@ function initializeAreas(
 }
 
 export function useScoresheetScoring(config: ScoresheetScoringConfig): ScoresheetScoringReturn {
-  const { rules, areaNames, existingScore, recordFinds = true, qualifiedRules } = config;
+  const { rules, areaNames, existingScore, recordFinds = true, qualifiedRules, timerKey } = config;
 
   const [areas, setAreas] = useState<AreaScore[]>(() =>
     initializeAreas(rules, areaNames, existingScore)
@@ -140,6 +146,9 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   // stored), so while the judge has not touched a found/correct flag a
   // correction keeps the saved totals instead of recomputing them from defaults.
   const findFlagsEditedRef = useRef(false);
+  // Only four per-area time columns are stored (MYK9-2006), so a fifth area's time
+  // cannot be rebuilt on reopen. Until a time is edited the saved total stands.
+  const timesEditedRef = useRef(false);
 
   // The current result, kept in step with every write so a timer callback that
   // captured an older render still sees what the judge chose.
@@ -165,6 +174,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   const handleAreaUpdate = useCallback(
     (index: number, field: keyof AreaScore, value: AreaScore[keyof AreaScore]) => {
       if (field === 'found' || field === 'correct') findFlagsEditedRef.current = true;
+      if (field === 'time') timesEditedRef.current = true;
       setAreas(prev => prev.map((area, i) => (i === index ? { ...area, [field]: value } : area)));
     },
     []
@@ -222,7 +232,10 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
       return {
         resultText: qualifying || 'NQ',
-        searchTime: calculateTotalTime() || '0.00',
+        searchTime:
+          existingScore && areas.length > STORED_AREA_COLUMNS && !timesEditedRef.current
+            ? existingScore.searchTime
+            : calculateTotalTime() || '0.00',
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
         areaTimes: areas.map(a => a.time),
@@ -316,6 +329,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       let submissionAccepted = true;
       try {
         await onSubmit(buildScoreData(extra));
+        if (timerKey) clearRunTimers(timerKey);
       } catch (err) {
         submissionAccepted = false;
         setSubmitError(err instanceof Error ? err.message : 'Score submission failed');
@@ -329,7 +343,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         setIsSubmitting(false);
       }
     },
-    [validate, buildScoreData]
+    [validate, buildScoreData, timerKey]
   );
 
   const reset = useCallback(() => {

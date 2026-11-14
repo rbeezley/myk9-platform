@@ -64,6 +64,8 @@ export interface StopwatchOptions {
    * restores it (MYK9-2007). Omit for a timer that need not survive a reload.
    */
   persistKey?: string;
+  /** The entry already has a saved score, so a timer left on the device is stale. */
+  hasSavedScore?: boolean;
 }
 
 /**

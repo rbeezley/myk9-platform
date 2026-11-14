@@ -2408,9 +2408,9 @@ export type Database = {
           bonus_points: number | null
           capacity_override: boolean
           card_paid: boolean
+          check_in_pulled_by: string | null
           check_in_status: string | null
           check_in_status_before_pull: string | null
-          check_in_pulled_by: string | null
           class_id: string | null
           comped: boolean | null
           comped_reason: string | null
@@ -2512,9 +2512,9 @@ export type Database = {
           bonus_points?: number | null
           capacity_override?: boolean
           card_paid?: boolean
+          check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
-          check_in_pulled_by?: string | null
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
@@ -2616,9 +2616,9 @@ export type Database = {
           bonus_points?: number | null
           capacity_override?: boolean
           card_paid?: boolean
+          check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
-          check_in_pulled_by?: string | null
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
@@ -11691,8 +11691,8 @@ export type Database = {
           awaiting_registration_number: boolean | null
           bonus_points: number | null
           card_paid: boolean | null
-          check_in_status: string | null
           check_in_pulled_by: string | null
+          check_in_status: string | null
           class_element: string | null
           class_id: string | null
           class_level: string | null
@@ -12013,8 +12013,8 @@ export type Database = {
           awaiting_registration_number: boolean | null
           bonus_points: number | null
           card_paid: boolean | null
-          check_in_status: string | null
           check_in_pulled_by: string | null
+          check_in_status: string | null
           class_element: string | null
           class_id: string | null
           class_level: string | null
@@ -13092,7 +13092,27 @@ export type Database = {
         Args: { p_field: string; p_preset: string }
         Returns: string
       }
+      _ringside_judge_in_scope: {
+        Args: { p_class_id: string; p_person_id: string }
+        Returns: boolean
+      }
+      _ringside_raise_class_out_of_scope: {
+        Args: { p_class_id: string }
+        Returns: undefined
+      }
       _show_passcode_encryption_key: { Args: never; Returns: string }
+      _sync_judge_passcode: {
+        Args: { p_person_id: string; p_show_id: string }
+        Returns: undefined
+      }
+      _sync_show_judge_passcodes: {
+        Args: { p_show_id: string }
+        Returns: undefined
+      }
+      _try_sync_judge_passcode: {
+        Args: { p_person_id: string; p_show_id: string }
+        Returns: undefined
+      }
       add_to_waitlist: {
         Args: {
           p_class_id: string
@@ -14614,6 +14634,7 @@ export type Database = {
       is_club_member: { Args: { check_club_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_real_account: { Args: never; Returns: boolean }
+      is_show_club_admin: { Args: { check_show_id: string }; Returns: boolean }
       is_show_manager: { Args: never; Returns: boolean }
       is_show_office_manager: {
         Args: { check_show_id: string }

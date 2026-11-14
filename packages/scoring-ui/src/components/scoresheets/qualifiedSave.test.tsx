@@ -44,7 +44,9 @@ const pickQ = () => fireEvent.click(screen.getByTestId('result-Q'));
 const type = (label: RegExp | string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('AKC single area', () => {
   const mount = (over: Partial<ResolvedClassRules> = {}) =>

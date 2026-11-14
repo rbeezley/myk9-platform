@@ -266,7 +266,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             ariaLabel={`${searchArea.areaName} time`}
             maxLabel={maxTimeLabel(maxTimeForArea(rules, index))}
             problem={scoring.qualifiedTimeProblems[index]}
-            onUseMax={scoring.useMaxTime(index)}
+            onUseMax={scoring.setToMaxTime(index)}
           />
         ))}
 

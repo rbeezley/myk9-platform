@@ -401,7 +401,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             value={scoring.areas[0].time}
             onChange={value => scoring.handleAreaUpdate(0, 'time', value)}
             problem={scoring.qualifiedTimeProblems[0]}
-            onUseMax={scoring.useMaxTime(0)}
+            onUseMax={scoring.setToMaxTime(0)}
           />
         )}
 

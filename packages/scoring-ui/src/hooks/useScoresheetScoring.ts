@@ -85,7 +85,7 @@ export interface ScoresheetScoringReturn {
    * The "Use max time" action for an area: sets its time to the class limit in one
    * tap. Undefined when the class has no limit.
    */
-  useMaxTime: (index: number) => (() => void) | undefined;
+  setToMaxTime: (index: number) => (() => void) | undefined;
   /** True while a Qualified has a time or fault problem; Save stays off. */
   qualifiedBlocked: boolean;
   /** A typed time that is not a valid time yet; the sheet cannot be saved (MYK9-1503). */
@@ -170,7 +170,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     []
   );
 
-  const useMaxTime = useCallback(
+  const setToMaxTime = useCallback(
     (index: number) => {
       const limit = maxTimeForArea(rules, index);
       return limit > 0
@@ -362,7 +362,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     qualifiedTimeProblems: qualifiedTimeProblemList,
     qualifiedFaultProblem: qualifiedFaultProblemText,
     qualifiedBlocked,
-    useMaxTime,
+    setToMaxTime,
     hasUnresolvedTime,
     reset,
   };

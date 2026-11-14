@@ -136,8 +136,9 @@ values
    'confirmed', 'pending', 25, 'no-status', false),
   -- 44 keeps class 14 at 1 of 2 scored: with 33 as its only entry the scoring
   -- trigger completes the class (derived status), and the fixture would read as
-  -- finished, not started.
-  ('00000000-0000-0000-0000-000001929044', '00000000-0000-0000-0000-000001929321', '00000000-0000-0000-0000-000001929014',
+  -- finished, not started. It is dog 25, not dog 21: dog 21 (entry 31) is the one
+  -- asking, and its own entry in class 14 would read "already entered".
+  ('00000000-0000-0000-0000-000001929044', '00000000-0000-0000-0000-000001929325', '00000000-0000-0000-0000-000001929014',
    '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
    'confirmed', 'pending', 25, 'no-status', false);
 

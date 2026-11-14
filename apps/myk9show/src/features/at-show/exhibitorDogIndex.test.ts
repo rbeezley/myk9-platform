@@ -72,6 +72,16 @@ describe('buildExhibitorDogs', () => {
     expect(dog!.entries.map(e => e.runPosition)).toEqual([3, null, null]);
   });
 
+  it('carries the server claim state with the run position (MYK9-1970)', () => {
+    const [dog] = buildExhibitorDogs([
+      row({ run_position: 3, run_claim_state: 'paper' }),
+      row({ class_id: 'c2', run_position: 4, run_claim_state: 'stale' }),
+      row({ class_id: 'c3', run_position: 5, run_claim_state: 'live' }),
+      row({ class_id: 'c4', run_position: 6, run_claim_state: 'nonsense' }),
+    ]);
+    expect(dog!.entries.map(e => e.runClaimState)).toEqual(['paper', 'stale', 'live', null]);
+  });
+
   it('marks a pulled dog pulled', () => {
     const entry = buildExhibitorDogs([row({ check_in_status: 'pulled' })])[0]!.entries[0]!;
     expect(entry.isPulled).toBe(true);

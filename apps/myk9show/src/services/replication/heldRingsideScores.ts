@@ -13,7 +13,9 @@
  */
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/services/database/supabaseClient';
+import { ringsideClaimKey } from '@/services/database/ringsideClaimKey';
 import { logger } from '@/utils/logger';
+import { PASSCODE_REGENERATED_DB_MESSAGE } from '@/features/at-show/ringsidePasscodeRevocation';
 import { mutationManager } from './sharedMutationManager';
 import { RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import { RINGSIDE_CLASS_RPC_FUNCTION } from './ringsideClassRpc';
@@ -21,12 +23,16 @@ import { RINGSIDE_CLASS_RPC_FUNCTION } from './ringsideClassRpc';
 const ADOPTABLE_RPCS = [RINGSIDE_RPC_FUNCTION, RINGSIDE_CLASS_RPC_FUNCTION] as const;
 
 /** The anonymous session's id and the show its passcode claim covers, or null. */
-function readPasscodeClaim(session: Session | null): { userId: string; showId: string } | null {
+function readPasscodeClaim(
+  session: Session | null
+): { userId: string; showId: string; claim: string | undefined } | null {
   const user = session?.user;
   if (!user || user.is_anonymous !== true) return null;
   const claim = user.app_metadata as { kind?: unknown; show_id?: unknown } | undefined;
   if (claim?.kind !== 'ringside_passcode' || typeof claim.show_id !== 'string') return null;
-  return claim.show_id ? { userId: user.id, showId: claim.show_id } : null;
+  return claim.show_id
+    ? { userId: user.id, showId: claim.show_id, claim: ringsideClaimKey(user.app_metadata) }
+    : null;
 }
 
 /** One adoption per claim at a time: overlapping triggers (sign-in, auth init, reconnect) share it. */
@@ -55,6 +61,8 @@ export async function adoptHeldRingsideScoresForLiveClaim(): Promise<number> {
         showId: claim.showId,
         toAuthUserId: claim.userId,
         rpcNames: ADOPTABLE_RPCS,
+        failedErrorIncludes: PASSCODE_REGENERATED_DB_MESSAGE,
+        ...(claim.claim !== undefined ? { claim: claim.claim } : {}),
       })
       .finally(() => inFlight.delete(key));
     inFlight.set(key, work);

@@ -8,6 +8,18 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 export const DEFAULT_CLASS_NAME = 'your class';
 
+interface ClassPaperRow {
+  scores_on_paper?: boolean | null;
+  trial?: { show?: { uses_device_scoring?: boolean | null } | null } | null;
+}
+
+/** True when the class is judged on paper: its own flag, else the show's device-scoring switch. */
+export function isPaperClass(row: ClassPaperRow | null | undefined): boolean {
+  if (!row) return false;
+  if (row.scores_on_paper != null) return row.scores_on_paper;
+  return row.trial?.show?.uses_device_scoring === false;
+}
+
 export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: string) {
   const [{ data: entryRows, error: entriesError }, { data: classRow }] = await Promise.all([
     // Whole class queue: the dogs-ahead index is only meaningful against every
@@ -20,7 +32,13 @@ export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: 
       .eq('class_id', classId)
       .is('deleted_at', null)
       .not('entry_status', 'in', '("withdrawn","scratched","absent")'),
-    supabase.from('classes').select('name').eq('id', classId).single(),
+    // MYK9-1970: paper = classes.scores_on_paper, else NOT shows.uses_device_scoring (the rule
+    // entry_queue_places_for_classes applies, MYK9-1969). The trial and show ride along.
+    supabase
+      .from('classes')
+      .select('name, scores_on_paper, trial:trials(show:shows(uses_device_scoring))')
+      .eq('id', classId)
+      .single(),
   ]);
 
   return {
@@ -28,5 +46,6 @@ export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: 
     entriesError,
     // A failed name read only degrades the alert copy; it never blocks the send.
     className: (classRow as { name?: string } | null)?.name ?? DEFAULT_CLASS_NAME,
+    onPaper: isPaperClass(classRow as ClassPaperRow | null),
   };
 }

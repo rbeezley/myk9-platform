@@ -41,7 +41,9 @@ export function useMyEntriesInClass(
    * or stale for a post-show exhibitor/guest. Run-order/position (pre-class
    * info) still come from the replication store.
    */
-  releasedRows?: RawEntryRow[]
+  releasedRows?: RawEntryRow[],
+  /** The class row this device holds says it is judged on paper (MYK9-1970). */
+  scoresOnPaper = false
 ): UseMyEntriesInClassResult {
   const { userWithRoles } = useAuthContext();
   const allEntries = useEntryStore(s => s.entries);
@@ -82,7 +84,7 @@ export function useMyEntriesInClass(
       seenEntryIds.add(entry.id);
 
       const runOrder = entry.registrationData.runOrder ?? 0;
-      const queue = ownEntryQueueState(entry);
+      const queue = ownEntryQueueState(entry, scoresOnPaper);
       // Shared run queue (see utils/showEntryRunQueue): the in-ring dog is
       // excluded from the waiting queue, so the place matches the entry-list
       // pill and the push notification.
@@ -162,5 +164,5 @@ export function useMyEntriesInClass(
     const isAfterClass = myEntries.some(e => e.hasResult);
 
     return { myEntries, isAfterClass };
-  }, [classId, databaseUserId, allEntries, dogs, releasedRows]);
+  }, [classId, databaseUserId, allEntries, dogs, releasedRows, scoresOnPaper]);
 }

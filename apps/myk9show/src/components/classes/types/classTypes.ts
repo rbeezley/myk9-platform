@@ -7,6 +7,8 @@ export interface ClassData {
   classOrder: string;
   /** `classes.revised_expected_start` (timestamptz) when the class was re-timed. */
   revisedExpectedStart?: string | null | undefined;
+  /** `classes.scores_on_paper` (MYK9-1969): true = judged on paper, null = follows the show. */
+  scoresOnPaper?: boolean | null | undefined;
   /** `classes.time_limit_seconds` and the area 2/3 limits; unset until the judge sets them. */
   timeLimitSeconds?: number | null | undefined;
   timeLimitArea2Seconds?: number | null | undefined;

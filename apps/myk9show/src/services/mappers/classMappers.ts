@@ -253,6 +253,7 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     classOrder: '',
     startTime: formatClassStartTime(dbClass.start_time),
     revisedExpectedStart: dbClass.revised_expected_start ?? null,
+    scoresOnPaper: dbClass.scores_on_paper ?? null,
     timeLimitSeconds: dbClass.time_limit_seconds ?? null,
     timeLimitArea2Seconds: dbClass.time_limit_area2_seconds ?? null,
     timeLimitArea3Seconds: dbClass.time_limit_area3_seconds ?? null,
@@ -523,6 +524,7 @@ export const mapReplicatedClassToDbRow = (
     results_verified_fingerprint: null,
     ring_phase: cls.ringPhase ?? null,
     ring_phase_time: cls.ringPhaseTime ?? null,
+    scores_on_paper: cls.scoresOnPaper ?? null,
     deleted_at: null,
   };
 

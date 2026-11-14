@@ -22,12 +22,16 @@ export async function sendRegistrationConfirmationEmail(
   /** The submission the email confirms. Omit for a resend of the registration as it stands. */
   submissionId?: string
 ): Promise<SendRegistrationConfirmationResult> {
-  const { error } = await supabase.functions.invoke('send-registration-email', {
+  const { data, error } = await supabase.functions.invoke('send-registration-email', {
     body: submissionId ? { registrationId, submissionId } : { registrationId },
   });
 
   if (error) {
     return { ok: false, error: error.message ?? 'Failed to send confirmation email' };
+  }
+  // The function answers HTTP 200 with { success: false } when the mail provider fails.
+  if ((data as { success?: boolean } | null)?.success === false) {
+    return { ok: false, error: 'Failed to send confirmation email' };
   }
   return { ok: true };
 }

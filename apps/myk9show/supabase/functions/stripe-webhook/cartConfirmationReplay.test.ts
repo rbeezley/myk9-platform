@@ -17,6 +17,7 @@ import {
   type SessionRefundRequest,
 } from '../_shared/refundRequests';
 import {
+  cartReceiptAmounts,
   closeCartThenSendReceipt,
   sendCartReceiptOnce,
   type CartReceiptDeps,
@@ -318,5 +319,19 @@ describe('sendCartReceiptOnce', () => {
   ] as const)('%s', async (_n, state, o, accepted, expected, sends, marks) => {
     const r = await run(state, o as ReplayedCartOrder | null, accepted);
     expect(r).toEqual({ result: expected, sent: sends, marked: marks });
+  });
+});
+
+describe('cartReceiptAmounts', () => {
+  it('derives the service fee and a refund-pending figure from the recorded paid total', () => {
+    expect(
+      cartReceiptAmounts({ subtotalCents: 3000, totalCents: 3300, chargedCents: 4000 })
+    ).toEqual({ serviceFeeCents: 300, refundPendingCents: 700 });
+  });
+
+  it('shows no refund-pending line when the paid total is not recorded', () => {
+    expect(
+      cartReceiptAmounts({ subtotalCents: 3000, totalCents: null, chargedCents: 3300 })
+    ).toEqual({ serviceFeeCents: 0, refundPendingCents: 0 });
   });
 });

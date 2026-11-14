@@ -93,6 +93,7 @@ import {
   closeCartThenSendReceipt,
   sendCartReceiptOnce,
   type CartReceiptDeps,
+  cartReceiptAmounts,
 } from './cartConfirmationReplay.ts';
 import {
   routeRefundByCurrentState,
@@ -1410,7 +1411,8 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
       if (!order?.show_id) return null;
       const metadata = (order.metadata ?? {}) as Record<string, unknown>;
       const subtotalCents = Number(metadata.paid_entry_subtotal_cents ?? 0);
-      const totalCents = Number(metadata.paid_amount_cents ?? subtotalCents);
+      const totalCents =
+        metadata.paid_amount_cents == null ? null : Number(metadata.paid_amount_cents);
       return {
         entryIds: (order.entry_ids as string[] | null) ?? [],
         showId: order.show_id as string,
@@ -1420,7 +1422,8 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
         ),
         subtotalCents,
         totalCents,
-        chargedCents: order.amount_cents != null ? Number(order.amount_cents) : totalCents,
+        chargedCents:
+          order.amount_cents != null ? Number(order.amount_cents) : (totalCents ?? subtotalCents),
         confirmationNumber: await readOrderConfirmationNumber(
           (order.enrollment_id as string | null) ?? null
         ),
@@ -1433,9 +1436,8 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
         session,
         {
           subtotalCents: order.subtotalCents,
-          serviceFeeCents: Math.max(0, order.totalCents - order.subtotalCents),
+          ...cartReceiptAmounts(order),
           totalCents: order.chargedCents,
-          refundPendingCents: Math.max(0, order.chargedCents - order.totalCents),
           confirmationNumber: order.confirmationNumber,
         }
       ),

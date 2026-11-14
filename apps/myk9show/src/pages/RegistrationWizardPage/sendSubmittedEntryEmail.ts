@@ -14,7 +14,7 @@ import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/Regis
 import type { ShowRegistrationSubmissionResult } from '@/features/registration/submitShowRegistration';
 
 export const CONFIRMATION_EMAIL_FAILED_MESSAGE =
-  'Your entry is in, but we could not send the confirmation email. You can see it any time in My Shows.';
+  'Your entry is in, but we could not send the confirmation email. You can see it any time in My Shows, and the show secretary can resend it.';
 
 /** True only for an exhibitor's own submission that created at least one entry. */
 export function shouldSendSubmittedEntryEmail(

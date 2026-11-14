@@ -79,3 +79,14 @@ describe('buildRegistrationEmailHtml', () => {
     expect(buildRegistrationEmailHtml({ ...base, payAtShow: 'check' })).not.toContain('—');
   });
 });
+
+describe('buildRegistrationEmailHtml confirmation number', () => {
+  it('shows the recorded confirmation number', () => {
+    expect(buildRegistrationEmailHtml(base)).toContain('CONF-1234');
+  });
+
+  it('omits the confirmation number block when there is none', () => {
+    const html = buildRegistrationEmailHtml({ ...base, confirmationNumber: null });
+    expect(html).not.toContain('Confirmation Number');
+  });
+});

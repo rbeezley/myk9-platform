@@ -39,7 +39,8 @@ function escapeHtml(str: string): string {
 
 export function buildRegistrationEmailHtml(data: {
   firstName: string;
-  confirmationNumber: string;
+  /** Omitted from the email when null; never a stand-in. */
+  confirmationNumber: string | null;
   showName: string;
   showDates: string;
   showLocation: string;
@@ -72,6 +73,15 @@ export function buildRegistrationEmailHtml(data: {
     )
     .join('');
 
+  const confirmationSection = data.confirmationNumber
+    ? `
+      <div style="background-color: #ecfdf5; border-radius: 6px; padding: 16px; text-align: center; margin-bottom: 24px;">
+        <p style="margin: 0; color: #6b7280; font-size: 14px;">Confirmation Number</p>
+        <p style="margin: 4px 0 0; font-size: 20px; font-weight: 600; color: #059669; font-family: monospace;">${escapeHtml(data.confirmationNumber)}</p>
+      </div>
+`
+    : '';
+
   const messageSection = data.confirmationMessage
     ? `
     <div style="background-color: #eff6ff; border-radius: 6px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #3b82f6;">
@@ -103,11 +113,7 @@ export function buildRegistrationEmailHtml(data: {
     <div style="padding: 32px 24px;">
       <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1e;">Registration Confirmed</h1>
 
-      <div style="background-color: #ecfdf5; border-radius: 6px; padding: 16px; text-align: center; margin-bottom: 24px;">
-        <p style="margin: 0; color: #6b7280; font-size: 14px;">Confirmation Number</p>
-        <p style="margin: 4px 0 0; font-size: 20px; font-weight: 600; color: #059669; font-family: monospace;">${escapeHtml(data.confirmationNumber)}</p>
-      </div>
-
+${confirmationSection}
       <p style="color: #1a1a1e; font-size: 16px;">Hi ${escapeHtml(data.firstName)}, your registration has been confirmed.</p>
 
       <div style="background-color: #f9fafb; border-radius: 6px; padding: 16px; margin-bottom: 16px;">

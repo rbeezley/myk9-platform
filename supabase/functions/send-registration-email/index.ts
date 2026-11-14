@@ -151,8 +151,7 @@ handle<SendRegistrationEmailPayload>(
     const siteUrl = (Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '');
     const html = buildRegistrationEmailHtml({
       firstName: registration.person?.first_name || 'there',
-      confirmationNumber:
-        registration.confirmation_number || registrationId.slice(0, 8).toUpperCase(),
+      confirmationNumber: registration.confirmation_number || null,
       showName: show?.name || 'Dog Show',
       showDates: formatUsShowDateRange(show?.start_date, show?.end_date),
       showLocation: show?.location || '',

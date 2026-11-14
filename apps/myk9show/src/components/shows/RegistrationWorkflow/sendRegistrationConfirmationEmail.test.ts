@@ -1,0 +1,28 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const invokeMock = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/supabase', () => ({ supabase: { functions: { invoke: invokeMock } } }));
+
+import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmationEmail';
+
+describe('sendRegistrationConfirmationEmail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('is ok when the function reports success', async () => {
+    invokeMock.mockResolvedValue({ data: { success: true }, error: null });
+    expect(await sendRegistrationConfirmationEmail('reg-1')).toEqual({ ok: true });
+  });
+
+  it('fails when the function answers 200 with success false (mail provider failed)', async () => {
+    invokeMock.mockResolvedValue({ data: { success: false, error: 'resend 422' }, error: null });
+    const result = await sendRegistrationConfirmationEmail('reg-1', 'sub-1');
+    expect(result.ok).toBe(false);
+  });
+
+  it('fails when the invoke itself errors', async () => {
+    invokeMock.mockResolvedValue({ data: null, error: new Error('network') });
+    expect((await sendRegistrationConfirmationEmail('reg-1')).ok).toBe(false);
+  });
+});

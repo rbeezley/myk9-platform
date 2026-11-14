@@ -77,6 +77,10 @@ delete from private.class_ring_activity
  where class_id in (select class_id from fx);
 insert into private.class_ring_activity (class_id, last_activity_at)
 select distinct class_id, now() - interval '30 minutes' from fx where cls <> 'U';
+-- Something may stamp actual_start_time when a class is created in progress; the quiet
+-- clock starts at the later of activity and start, so push the start back too.
+update public.classes set actual_start_time = now() - interval '2 hours'
+ where id in (select class_id from fx) and status = 'in_progress';
 
 create function pg_temp.state_as(cls_name text, n integer)
 returns text language plpgsql as $$
@@ -296,6 +300,7 @@ begin
   update public.classes set ring_phase = 'break', ring_phase_time = '12:30' where id = v_class;
   update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
    where class_id = v_class;
+  update public.classes set actual_start_time = now() - interval '2 hours' where id = v_class;
   select scores_on_paper into v_paper from public.classes where id = v_class;
   if v_paper is distinct from true or pg_temp.state_as('U', 1) is distinct from '1/paper' then
     raise exception 'FAIL G break after paper must stay paper: % %', v_paper, pg_temp.state_as('U', 1);
@@ -312,6 +317,7 @@ begin
   update public.classes set scores_on_paper = false where id = v_class;
   update private.class_ring_activity set last_activity_at = now() - interval '30 minutes'
    where class_id = v_class;
+  update public.classes set actual_start_time = now() - interval '2 hours' where id = v_class;
   if pg_temp.state_as('U', 1) is distinct from '1/stale' then
     raise exception 'FAIL G explicit switch back to live scoring: %', pg_temp.state_as('U', 1);
   end if;
@@ -335,6 +341,7 @@ begin
   end if;
   update private.class_ring_activity set last_activity_at = now() - interval '11 minutes'
    where class_id = v_class;
+  update public.classes set actual_start_time = now() - interval '2 hours' where id = v_class;
   if pg_temp.state_as('U', 1) is distinct from '1/stale' then
     raise exception 'FAIL G reopened class goes stale after 10 quiet minutes: %', pg_temp.state_as('U', 1);
   end if;

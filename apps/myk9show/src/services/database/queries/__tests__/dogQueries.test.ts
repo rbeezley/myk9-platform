@@ -476,6 +476,66 @@ describe('Dog Queries', () => {
       expect(dogsChain.or).toHaveBeenCalledWith(expect.stringContaining('owner_id.in.(p1)'));
     });
 
+    it('tries every first/last split of a full name, so a two-word first name is found', async () => {
+      const dogsChain = createChainableQuery({ data: [], error: null });
+      const regChain = createChainableQuery({ data: [], error: null });
+      const peopleChain = createChainableQuery({ data: [{ id: 'p1' }], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
+      );
+
+      await searchAllDogs('Mary Jane Smith');
+
+      const filter = vi.mocked(peopleChain.or).mock.calls[0]?.[0] as string;
+      expect(filter).toContain('and(first_name.ilike.%Mary Jane%,last_name.ilike.%Smith%)');
+      expect(filter).toContain('and(first_name.ilike.%Mary%,last_name.ilike.%Jane Smith%)');
+    });
+
+    it('tries at most three splits, keeping later words in the last name', async () => {
+      const peopleChain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'people' ? peopleChain : createChainableQuery({ data: [], error: null })
+      );
+
+      await searchAllDogs('a b c d e');
+
+      const filter = vi.mocked(peopleChain.or).mock.calls[0]?.[0] as string;
+      expect(filter.match(/and\(/g)).toHaveLength(3);
+      expect(filter).toContain('and(first_name.ilike.%a b c%,last_name.ilike.%d e%)');
+    });
+
+    it('keeps commas and parentheses in the term literal, so the filter stays well formed', async () => {
+      const peopleChain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'people' ? peopleChain : createChainableQuery({ data: [], error: null })
+      );
+
+      const result = await searchAllDogs('Smith, Jo (Jr)');
+
+      const filter = vi.mocked(peopleChain.or).mock.calls[0]?.[0] as string;
+      // Strip the escaped characters: what is left has only the filter's own syntax.
+      const structural = filter.replace(/\\[,().*%\\]/g, '');
+      expect(structural).not.toMatch(/Smith,|\(Jr|Jr\)/);
+      expect(filter).toContain('Smith\\, Jo \\(Jr\\)');
+      expect(result.error).toBeNull();
+    });
+
+    it('reports the result as truncated when the owner lookup fills its page', async () => {
+      const owners = Array.from({ length: 50 }, (_, i) => ({ id: `p${i}` }));
+      const dogsChain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
+      const regChain = createChainableQuery({ data: [], error: null });
+      const peopleChain = createChainableQuery({ data: owners, error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
+      );
+
+      const result = await searchAllDogs('an');
+
+      expect(peopleChain.limit).toHaveBeenCalledWith(50);
+      expect(result.data).toHaveLength(1);
+      expect(result.hitLimit).toBe(true);
+    });
+
     it('propagates an error from the owner pre-query instead of returning empty', async () => {
       const dogsChain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
       const regChain = createChainableQuery({ data: [], error: null });

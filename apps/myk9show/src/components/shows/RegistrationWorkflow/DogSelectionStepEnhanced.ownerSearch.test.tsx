@@ -112,4 +112,29 @@ describe('DogSelectionStepEnhanced search by owner name (MYK9-2020)', () => {
     expect(searchAllDogs).toHaveBeenLastCalledWith('pat mailer', 25, expect.anything());
     expect(screen.queryByRole('checkbox', { name: 'Select Local' })).not.toBeInTheDocument();
   });
+
+  it('says the list is cut short when the search reports truncation, even with few dogs', async () => {
+    vi.mocked(searchAllDogs).mockResolvedValue({
+      data: [
+        {
+          id: 'dog-far',
+          name: 'Biscuit',
+          call_name: 'Biscuit',
+          owner_id: 'person-pat',
+          status: 'active',
+          owner: { id: 'person-pat', first_name: 'Pat', last_name: 'Mailer' },
+          registrations: [],
+        },
+      ],
+      error: null,
+      hitLimit: true,
+    });
+    const { user } = render(
+      <DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={vi.fn()} />
+    );
+
+    await user.type(screen.getByPlaceholderText(/by name, owner, breed/), 'pat');
+
+    expect(await screen.findByText(/refine your search for more/)).toBeInTheDocument();
+  });
 });

@@ -777,16 +777,25 @@ export const forceDeleteDog = async (
 // search" hint when the returned row count hits this limit.
 export const SEARCH_ALL_DOGS_LIMIT = 50;
 
+/** Most first-name / last-name splits tried for a typed full name. */
+const OWNER_NAME_MAX_SPLITS = 3;
+
 /**
  * PostgREST `.or(...)` body matching a person by first or last name, and a
- * typed full name ("Pat Owner") as first name plus the rest as last name.
- * `term` is already sanitized for a PostgREST filter.
+ * typed full name by every split of it into a first name (the first k words)
+ * and a last name (the rest), so "Mary Jane Smith" finds first name "Mary
+ * Jane". At most three splits (four words); later words stay in the last name.
+ * `term` is already escaped by `sanitizePostgRESTFilter`, so commas,
+ * parentheses, dots and asterisks in it are literal text.
  */
 function ownerNameFilter(term: string): string {
   const filters = [`first_name.ilike.%${term}%`, `last_name.ilike.%${term}%`];
-  const [first, ...rest] = term.split(/\s+/).filter(Boolean);
-  if (first && rest.length > 0) {
-    filters.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${rest.join(' ')}%)`);
+  const words = term.split(/\s+/).filter(Boolean);
+  const splits = Math.min(words.length - 1, OWNER_NAME_MAX_SPLITS);
+  for (let k = 1; k <= splits; k += 1) {
+    const first = words.slice(0, k).join(' ');
+    const last = words.slice(k).join(' ');
+    filters.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
   }
   return filters.join(',');
 }
@@ -861,6 +870,9 @@ export const searchAllDogs = async (
       ? await ownerQuery.abortSignal(signal)
       : await ownerQuery;
     if (ownerError) throw createDatabaseError(ownerError, 'dog', 'search_all');
+    // A full page of owners means more may exist that were never folded in, so
+    // the result is reported truncated ("type more") whatever the dog count.
+    const ownersTruncated = (ownerMatches ?? []).length >= limit;
     const ownerIds = [
       ...new Set(
         ((ownerMatches ?? []) as Array<{ id?: string | null }>)
@@ -903,7 +915,7 @@ export const searchAllDogs = async (
 
     if (error) throw createDatabaseError(error, 'dog', 'search_all');
     const rows = (data as Record<string, unknown>[] | null) ?? [];
-    return { data: rows, error: null, hitLimit: rows.length >= limit };
+    return { data: rows, error: null, hitLimit: rows.length >= limit || ownersTruncated };
   } catch (error) {
     // React Query treats an aborted query as a superseded request. Preserve
     // that cancellation signal instead of converting it into a search error

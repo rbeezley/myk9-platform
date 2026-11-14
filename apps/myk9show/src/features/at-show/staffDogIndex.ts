@@ -30,7 +30,7 @@ export interface StaffDogClassEntry {
   trialLabel: string | null;
   checkInStatus: string;
   /** Pulled, Withdrawn, Absent or Moved when the dog is not running; null when it is running. */
-  notRunningWord: string | null;
+  notRunningWord?: string | null | undefined;
   isPulled: boolean;
   /** The source row of a move-up: shown as Moved, never offered a check-in. */
   isMoved: boolean;

@@ -155,6 +155,34 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     );
   });
 
+  it('an Undo of a Pull the entry has moved on from says so instead of failing', async () => {
+    const toastError = vi.spyOn(toast, 'error');
+    h.undoShowMapScratch.mockRejectedValue(
+      Object.assign(new Error('superseded'), { code: 'pull-superseded' })
+    );
+    const { user } = render(
+      <CheckInDesk
+        showId="show-1"
+        entries={[poppy]}
+        loading={false}
+        unknown={false}
+        onRetry={vi.fn()}
+        onRefreshEntries={vi.fn().mockResolvedValue(undefined)}
+        currentDate={NOW}
+      />
+    );
+    await choosePulled(user);
+    const confirm = await screen.findByRole('dialog', { name: 'Pull Poppy?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Pull' }));
+    await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+
+    h.showUndoToast.mock.calls[0]![0].onUndo();
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Changed by someone else — not undone')
+    );
+  });
+
   describe('a Pull never waits for the entries re-read (MYK9-1812)', () => {
     const toastInfo = vi.spyOn(toast, 'info');
     const toastError = vi.spyOn(toast, 'error');

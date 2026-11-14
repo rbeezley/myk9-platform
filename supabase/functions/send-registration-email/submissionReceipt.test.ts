@@ -7,7 +7,6 @@ import {
   parseEntryIds,
   releaseClaimOnThrow,
   releaseSubmissionClaim,
-  sendReceiptWithRetry,
   submissionIdempotencyKey,
   summarizeSubmission,
   type EntryClaimClient,
@@ -142,55 +141,6 @@ describe('releaseClaimOnThrow', () => {
     const release = vi.fn().mockResolvedValue(true);
     expect(await releaseClaimOnThrow(release, async () => 'ok')).toBe('ok');
     expect(release).not.toHaveBeenCalled();
-  });
-});
-
-describe('sendReceiptWithRetry', () => {
-  const res = (status: number) => new Response('{}', { status });
-  const run = (responses: Array<Response | Error>) => {
-    const queue = [...responses];
-    const send = vi.fn(async () => {
-      const next = queue.shift();
-      if (next instanceof Error) throw next;
-      return next as Response;
-    });
-    const sleep = vi.fn(async () => undefined);
-    return { send, sleep };
-  };
-
-  it('a 5xx then success sends once more after a short wait and returns the success', async () => {
-    const { send, sleep } = run([res(503), res(200)]);
-    const response = await sendReceiptWithRetry(send, sleep);
-    expect(response.ok).toBe(true);
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenCalledWith(500);
-  });
-
-  it('a network error is retried the same way', async () => {
-    const { send, sleep } = run([new Error('network'), res(200)]);
-    expect((await sendReceiptWithRetry(send, sleep)).ok).toBe(true);
-    expect(send).toHaveBeenCalledTimes(2);
-  });
-
-  it('three 5xx in a row give up after two more attempts and return the failure', async () => {
-    const { send, sleep } = run([res(500), res(502), res(503)]);
-    const response = await sendReceiptWithRetry(send, sleep);
-    expect(response.status).toBe(503);
-    expect(send).toHaveBeenCalledTimes(3);
-    expect(sleep.mock.calls).toEqual([[500], [1500]]);
-  });
-
-  it('three network errors rethrow the last one so the caller releases the claim', async () => {
-    const { send, sleep } = run([new Error('a'), new Error('b'), new Error('c')]);
-    await expect(sendReceiptWithRetry(send, sleep)).rejects.toThrow('c');
-    expect(send).toHaveBeenCalledTimes(3);
-  });
-
-  it('a 4xx is not retried', async () => {
-    const { send, sleep } = run([res(422), res(200)]);
-    expect((await sendReceiptWithRetry(send, sleep)).status).toBe(422);
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(sleep).not.toHaveBeenCalled();
   });
 });
 

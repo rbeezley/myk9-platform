@@ -1,6 +1,7 @@
 // supabase/functions/send-registration-email/index.ts
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 import { handle } from '../_shared/http/handler.ts';
@@ -15,7 +16,6 @@ import {
   parseEntryIds,
   releaseClaimOnThrow,
   releaseSubmissionClaim,
-  sendReceiptWithRetry,
   submissionIdempotencyKey,
   summarizeSubmission,
   type EntryClaimClient,
@@ -236,18 +236,15 @@ handle<SendRegistrationEmailPayload>(
 
     let response: Response;
     try {
-      // Same idempotency key on every attempt, so a retry can never double-send.
-      response = await sendReceiptWithRetry(() =>
-        fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${resendApiKey}`,
-            'Idempotency-Key': idempotencyKey,
-          },
-          body: JSON.stringify(emailPayload),
-        })
-      );
+      response = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(emailPayload),
+      });
     } catch {
       const claimReleased = await releaseClaim();
       const { error: logError } = await supabase.from('email_log').insert({

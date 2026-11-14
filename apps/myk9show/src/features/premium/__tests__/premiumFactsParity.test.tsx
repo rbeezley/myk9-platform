@@ -39,8 +39,6 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
       acceptChecks: true,
       acceptCash: true,
       juniorHandlerFee: 15,
-      maxEntriesPerDog: 4,
-      maxTotalEntries: 120,
       withdrawal: {
         show: {
           withdrawal_cutoff_date: '2026-05-15',
@@ -169,6 +167,30 @@ describe('premium PDF facts parity (8 styles)', () => {
   });
   it.each(ALL_STYLES)('%s prints the same facts with ink saver on', style => {
     expect(pdfText('AKC', fullPremium('AKC', style), true)).toMatchSnapshot();
+  });
+});
+
+describe('premium terms never bring fee placeholders with them', () => {
+  const withPolicyOnly = (style: PremiumStyle): GeneratedPremium => {
+    const premium = sparsePremium('AKC', style);
+    premium.show.withdrawal = {
+      show: {
+        withdrawal_cutoff_date: '2026-05-15',
+        withdrawal_retention_type: 'percent',
+        withdrawal_retention_value: 10,
+        withdrawal_policy_notes: null,
+      },
+      club: null,
+    };
+    return premium;
+  };
+
+  it('gazette prints the policy and no fee placeholder when the show has no fees', () => {
+    const text = pdfText('AKC', withPolicyOnly('gazette'));
+    expect(text).toContain('Withdrawals: ');
+    expect(text).not.toContain('Pre-entry: $—');
+    expect(text).not.toContain('Day-of: $—');
+    expect(text).not.toContain('Payment TBD');
   });
 });
 

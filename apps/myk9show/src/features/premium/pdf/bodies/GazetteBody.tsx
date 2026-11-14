@@ -49,7 +49,8 @@ export function GazetteBody({ data, tokens }: Props) {
   const hasOfficials = Boolean(chair);
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.some(t => t.classLabels.length > 0);
-  const hasFees = f.fees.hasAny || f.terms.length > 0;
+  const hasFees = f.fees.hasAny;
+  const hasTerms = f.terms.length > 0;
   const hasEntry = Boolean(
     f.entry.opens || f.entry.closes || secretary.email || secretary.mailingAddress
   );
@@ -130,6 +131,14 @@ export function GazetteBody({ data, tokens }: Props) {
             <Text style={bodyTextStyle}>Pre-entry: ${f.fees.preEntry ?? '—'}</Text>
             <Text style={bodyTextStyle}>Day-of: ${f.fees.dayOf ?? '—'}</Text>
             <Text style={bodyTextStyle}>{f.fees.paymentMethods.join(' · ') || 'Payment TBD'}</Text>
+          </View>
+        )}
+
+        {hasTerms && (
+          <View style={sectionStyle} wrap={false}>
+            <View style={headerWrapStyle}>
+              <Text style={headerTextStyle}>Entry Terms</Text>
+            </View>
             {f.terms.map(term => (
               <Text key={term.id} style={bodyTextStyle}>
                 {term.label}: {term.value}

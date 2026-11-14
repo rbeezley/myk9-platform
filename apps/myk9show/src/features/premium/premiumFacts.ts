@@ -31,7 +31,6 @@ export type PremiumFactId =
   | 'trialInformation'
   | 'fees'
   | 'juniorHandlerFee'
-  | 'entryLimits'
   | 'refundPolicy'
   | 'classes'
   | 'judges'
@@ -64,7 +63,6 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'trialInformation', label: 'Trial information', source: 'show', requiredBy: [] },
   { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
   { id: 'juniorHandlerFee', label: 'Junior handler fee', source: 'show', requiredBy: [] },
-  { id: 'entryLimits', label: 'Entry limits', source: 'show', requiredBy: ['AKC', 'UKC'] },
   {
     id: 'refundPolicy',
     label: 'Refund and withdrawal policy',
@@ -177,9 +175,12 @@ export interface PremiumContact {
   phone: string;
 }
 
+/** The junior fee applies only when the handler is under 18; every surface says so. */
+export const JUNIOR_HANDLER_FEE_LABEL = 'Junior handler fee (handler under 18)';
+
 /** One labelled line of the premium's entry terms: the same words in every style. */
 export interface PremiumTermRow {
-  id: 'juniorHandlerFee' | 'entriesPerDog' | 'totalEntries' | 'withdrawals' | 'pulls';
+  id: 'juniorHandlerFee' | 'withdrawals' | 'pulls';
   label: string;
   value: string;
 }
@@ -198,15 +199,11 @@ function buildTermRows(show: GeneratedPremium['show'], registry: RegistryId): Pr
   const rows: PremiumTermRow[] = [];
   const junior = show.juniorHandlerFee ?? 0;
   if (junior > 0) {
-    rows.push({ id: 'juniorHandlerFee', label: 'Junior Handler Fee', value: formatAmount(junior) });
-  }
-  const perDog = show.maxEntriesPerDog ?? 0;
-  if (perDog > 0) {
-    rows.push({ id: 'entriesPerDog', label: 'Entry Limit Per Dog', value: String(perDog) });
-  }
-  const total = show.maxTotalEntries ?? 0;
-  if (total > 0) {
-    rows.push({ id: 'totalEntries', label: 'Entry Limit Total', value: String(total) });
+    rows.push({
+      id: 'juniorHandlerFee',
+      label: JUNIOR_HANDLER_FEE_LABEL,
+      value: formatAmount(junior),
+    });
   }
   const policy = show.withdrawal
     ? getEffectiveWithdrawalPolicy(show.withdrawal.show, show.withdrawal.club)
@@ -255,7 +252,7 @@ export interface PremiumFacts {
     /** "Checks", "Cash" in that order, only those the show accepts. */
     paymentMethods: string[];
   };
-  /** Junior fee, entry limits and refund wording; empty when the show sets none. */
+  /** Junior fee and refund wording; empty when the show sets none. */
   terms: PremiumTermRow[];
   entry: {
     /** Long display dates, null when unset. */

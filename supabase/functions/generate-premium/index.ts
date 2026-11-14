@@ -78,7 +78,7 @@ handle<GeneratePremiumPayload>(
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, club_id,
-        junior_handler_fee, max_entries_per_dog, max_total_entries,
+        junior_handler_fee,
         withdrawal_cutoff_date, withdrawal_retention_type,
         withdrawal_retention_value, withdrawal_policy_notes,
         clubs(
@@ -325,8 +325,6 @@ handle<GeneratePremiumPayload>(
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
         juniorHandlerFee: show.junior_handler_fee ?? null,
-        maxEntriesPerDog: show.max_entries_per_dog ?? null,
-        maxTotalEntries: show.max_total_entries ?? null,
         // Raw columns; the client resolves show-over-club with getEffectiveWithdrawalPolicy.
         withdrawal: {
           show: {

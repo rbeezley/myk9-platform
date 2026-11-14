@@ -39,8 +39,6 @@ const generatedPremiumSchema = z.object({
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
     juniorHandlerFee: nullableAmount.optional(),
-    maxEntriesPerDog: nullableAmount.optional(),
-    maxTotalEntries: nullableAmount.optional(),
     withdrawal: z
       .object({
         show: z.object({

@@ -39,11 +39,9 @@ describe('premiumFacts', () => {
     expect(facts.terms).toEqual([]);
   });
 
-  it('builds the junior fee, entry limits and refund wording once', () => {
+  it('builds the junior fee and refund wording once', () => {
     const premium = generatedPremium();
     premium.show.juniorHandlerFee = 12.5;
-    premium.show.maxEntriesPerDog = 4;
-    premium.show.maxTotalEntries = 120;
     premium.show.withdrawal = {
       show: {
         withdrawal_cutoff_date: '2026-05-01',
@@ -54,9 +52,7 @@ describe('premiumFacts', () => {
       club: null,
     };
     expect(buildPremiumFacts(premium, 'AKC').terms).toEqual([
-      { id: 'juniorHandlerFee', label: 'Junior Handler Fee', value: '$12.50' },
-      { id: 'entriesPerDog', label: 'Entry Limit Per Dog', value: '4' },
-      { id: 'totalEntries', label: 'Entry Limit Total', value: '120' },
+      { id: 'juniorHandlerFee', label: 'Junior handler fee (handler under 18)', value: '$12.50' },
       {
         id: 'withdrawals',
         label: 'Withdrawals',
@@ -81,11 +77,9 @@ describe('premiumFacts', () => {
     expect(ids).toEqual(['withdrawals', 'pulls']);
   });
 
-  it('treats zero limits and a zero junior fee as unset', () => {
+  it('treats a zero junior fee as unset', () => {
     const premium = generatedPremium();
     premium.show.juniorHandlerFee = 0;
-    premium.show.maxEntriesPerDog = 0;
-    premium.show.maxTotalEntries = null;
     premium.show.withdrawal = { show: {}, club: null };
     expect(buildPremiumFacts(premium).terms).toEqual([]);
   });

@@ -7,7 +7,7 @@ import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
-import { pickSupplementalFacts } from '@/features/premium/premiumFacts';
+import { JUNIOR_HANDLER_FEE_LABEL, pickSupplementalFacts } from '@/features/premium/premiumFacts';
 import { hasShowHappened } from './showResults';
 
 /**
@@ -313,7 +313,7 @@ export function buildLandingData(
     fees.push({ label: 'Day-of entry', amount: formatFee(show.dayOfShowFee) });
   }
   if (Number(show?.juniorHandlerFee) > 0) {
-    fees.push({ label: 'Junior handler', amount: formatFee(show?.juniorHandlerFee) });
+    fees.push({ label: JUNIOR_HANDLER_FEE_LABEL, amount: formatFee(show?.juniorHandlerFee) });
   }
 
   return {

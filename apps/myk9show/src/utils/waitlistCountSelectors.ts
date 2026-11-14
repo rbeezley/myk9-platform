@@ -46,6 +46,8 @@ export const SEAT_HOLDING_ENTRY_STATUSES: ReadonlySet<string> = new Set([
   'competing',
   'in-ring',
   'pending-payment',
+  // A waiting class change request has not left its class (MYK9-1929).
+  'move-up-requested',
 ]);
 
 export function countSeatHoldingEntries(

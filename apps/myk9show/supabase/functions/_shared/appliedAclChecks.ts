@@ -114,6 +114,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   secretary_tasks: 'SELECT,INSERT,UPDATE,DELETE',
   show_announcement_reads: 'SELECT,INSERT,UPDATE,DELETE',
   show_announcements: 'SELECT,INSERT,UPDATE,DELETE',
+  // MYK9-1945: staff-only close notes; RLS limits rows to the show's staff, no DELETE.
+  show_close_notes: 'SELECT,INSERT,UPDATE',
   // MYK9-203: service_role only; the ledger is never touched by a client role.
   show_eve_nudge_log: '',
   show_incidents: 'SELECT,INSERT',

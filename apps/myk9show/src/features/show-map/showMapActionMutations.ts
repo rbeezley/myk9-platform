@@ -95,6 +95,15 @@ export class AlreadyPulledError extends Error {
   }
 }
 
+/** Undo of a Pull, but the entry is no longer in the state the Pull left it (changed since). */
+export class PullSupersededError extends Error {
+  readonly code = 'pull-superseded';
+  constructor(readonly entryId: string) {
+    super(`Entry ${entryId} changed after the pull`);
+    this.name = 'PullSupersededError';
+  }
+}
+
 /**
  * The day-of Pull (scratched, the same write as Entries' Pull, MYK9-918) with everything Undo
  * needs to put the entry back. Show Map and the Check-in desk (MYK9-1749) share it.
@@ -143,6 +152,12 @@ export async function undoShowMapScratch(input: ShowMapScratchUndoInput): Promis
       'show_map_undo_scratch_restore'
     );
   }
+
+  // Supersession (as the Entries Undo always had): only undo while the entry still holds the
+  // status the Pull produced; otherwise this would stomp whoever changed it since.
+  const current = await replicatedEntriesTable.getEntryById(input.entryId);
+  const currentStatus = current?.entryStatus ?? current?.entry_status ?? current?.status ?? null;
+  if (currentStatus !== 'scratched') throw new PullSupersededError(input.entryId);
 
   const restoredCheckInStatus = (input.previousCheckInStatus ?? 'no-status') as CheckInStatus;
   await replicatedEntriesTable.updateEntry(input.entryId, {

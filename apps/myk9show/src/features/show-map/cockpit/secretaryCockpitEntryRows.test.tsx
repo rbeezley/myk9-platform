@@ -207,9 +207,9 @@ describe('cockpit entry rows carry the stranded actions', () => {
       />
     );
     expect(screen.getAllByTestId('class-entry-row')).toHaveLength(ENTRY_COUNT);
-    // The engine offers no move-up now, but the menu still carries Edit entry.
+    // The engine offers no move-up now, but the menu still carries Change handler.
     await userEvent.click(screen.getAllByRole('button', { name: /^Actions for #\d+ Dog/ })[0]!);
-    expect(await screen.findByRole('menuitem', { name: 'Edit entry' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Change handler' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /^Change class/i })).toBeNull();
   });
 

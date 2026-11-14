@@ -25,6 +25,7 @@ import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { useTimedArea } from '../../../hooks/useTimedArea';
 import { maxTimeForArea } from '../../../utils/buildResolvedClassRules';
+import { faultLimitFor } from '../../../utils/qualifiedCheck';
 import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
@@ -79,6 +80,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
     existingScore: entry.existingScore,
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
+    qualifiedRules: { faultLimit: faultLimitFor('ASCA_SCENT_DETECTION', classInfo.level) },
   });
 
   // Each area runs against its own max time, as on the AKC sheet (MYK9-1103).
@@ -175,7 +177,8 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
-            scoring.hasUnresolvedTime,
+            scoring.hasUnresolvedTime ||
+            scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,
         }}
       >
@@ -274,6 +277,8 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             onChange={value => scoring.handleAreaUpdate(index, 'time', value)}
             ariaLabel={`${searchArea.areaName} time`}
             maxLabel={maxTimeLabel(maxTimeForArea(rules, index))}
+            problem={scoring.qualifiedTimeProblems[index]}
+            onUseMax={scoring.setToMaxTime(index)}
           />
         ))}
 
@@ -296,6 +301,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             <FaultStepper
               value={scoring.faultCount}
               onChange={scoring.setFaultCount}
+              limitProblem={scoring.qualifiedFaultProblem}
               testIds={{ decrement: 'fault-decrement', increment: 'fault-increment' }}
             />
           )}

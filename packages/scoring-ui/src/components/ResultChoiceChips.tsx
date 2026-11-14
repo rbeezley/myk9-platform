@@ -5,6 +5,7 @@ import type { QualifyingResult, ScoresheetSportType } from '../types/scoreData';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from './DisqualifyReason';
 import { FaultStepper } from './FaultStepper';
 import { resultLabel } from '../utils/resultLabel';
+import { faultLimitFor, qualifiedFaultProblem } from '../utils/qualifiedCheck';
 
 // Each option carries its own label colour beside its own fill. A blanket
 // `text-white` on the active branch would work only by twMerge ordering — the
@@ -77,16 +78,12 @@ const EXCUSED_REASONS: Record<string, string[]> = {
 };
 
 /**
- * ASCA: Novice/Open = 2 faults, Advanced/Excellent = 1 fault.
- * Others: No limit.
+ * ASCA's long-standing cap on the + (pinned by scoresheetPhoneLayout.test). UKC and
+ * every other registry count past the limit and show the sentence instead (MYK9-2004).
  */
 function getMaxFaults(sportType?: ScoresheetSportType, level?: string): number {
-  if (sportType === 'ASCA_SCENT_DETECTION' && level) {
-    const lvl = level.toLowerCase();
-    if (lvl.includes('novice') || lvl.includes('open')) return 2;
-    if (lvl.includes('advanced') || lvl.includes('excellent')) return 1;
-  }
-  return Infinity;
+  const limit = faultLimitFor(sportType, level);
+  return limit?.registry === 'ASCA' ? limit.max : Infinity;
 }
 
 const chipBase =
@@ -134,6 +131,8 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
   const nqReasons = NQ_REASONS[sportType || ''] || NQ_REASONS.default;
   const excusedReasons = EXCUSED_REASONS[sportType || ''] || EXCUSED_REASONS.default;
   const maxFaults = getMaxFaults(sportType, level);
+  // The counter counts past the limit; the sentence says why a Qualified cannot be saved.
+  const faultProblem = qualifiedFaultProblem(faultCount, faultLimitFor(sportType, level));
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -162,6 +161,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
           onChange={onFaultCountChange}
           max={maxFaults === Infinity ? undefined : maxFaults}
           maxNote={`At maximum faults for ${level} level`}
+          limitProblem={faultProblem}
         />
       )}
 

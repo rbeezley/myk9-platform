@@ -40,7 +40,7 @@ function showMyEntries(entries: MyClassEntry[]) {
   vi.mocked(useMyEntriesInClass).mockReturnValue({ myEntries: entries, isAfterClass: false });
 }
 
-function answer(rows: { entry_id: string; place: number | null }[]) {
+function answer(rows: { entry_id: string; place: number | null; claim_state?: string }[]) {
   rpc.mockResolvedValue({ data: rows, error: null });
 }
 
@@ -168,5 +168,50 @@ describe('WhereToBe with a server place in line', () => {
     expect(await screen.findByText('2nd up')).toBeInTheDocument();
     expect(screen.getByText('In ring')).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith('get_my_entry_queue_places', { p_entry_ids: ['e1'] });
+  });
+});
+
+// MYK9-1970: the server's claim state decides how a place in line reads on the class page.
+describe('ExhibitorClassCallout on a paper or stale class', () => {
+  const PAPER_NOTE = 'This class is scored on paper. Listen for your number at the ring.';
+
+  beforeEach(() => {
+    rpc.mockReset();
+    online = true;
+    onlineManager.setOnline(true);
+  });
+
+  it('says the place in the running order and the paper line, no "up" and no "dogs ahead"', async () => {
+    showMyEntries([classEntry()]);
+    answer([{ entry_id: 'e1', place: 7, claim_state: 'paper' }]);
+    render(<ExhibitorClassCallout classId="c1" />);
+
+    expect(await screen.findByText('7th in the running order')).toBeInTheDocument();
+    expect(screen.getByText(PAPER_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText(/\bup\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/ahead/)).not.toBeInTheDocument();
+  });
+
+  it('says the paper line offline for a class the phone already holds, and never asks the server', async () => {
+    online = false;
+    showMyEntries([classEntry({ queue: { kind: 'paper' } })]);
+    answer([{ entry_id: 'e1', place: 1, claim_state: 'live' }]);
+    render(<ExhibitorClassCallout classId="c1" onPaper />);
+    await new Promise(r => setTimeout(r, 20));
+
+    expect(screen.getByText(PAPER_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText('Waiting')).not.toBeInTheDocument();
+    expect(screen.queryByText('Next up')).not.toBeInTheDocument();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('says the order may be out of date for a stale claim, with no count', async () => {
+    showMyEntries([classEntry()]);
+    answer([{ entry_id: 'e1', place: 5, claim_state: 'stale' }]);
+    render(<ExhibitorClassCallout classId="c1" />);
+
+    expect(await screen.findByText('Order may be out of date')).toBeInTheDocument();
+    expect(screen.queryByText('5th up')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ahead/)).not.toBeInTheDocument();
   });
 });

@@ -39,7 +39,9 @@ vi.mock('@/hooks/queries/useShowTrials', () => ({
   useShowTrials: () => ({ data: mockTrials.data }),
 }));
 
-const mockPlaces = vi.hoisted(() => ({ map: new Map<string, number>() }));
+const mockPlaces = vi.hoisted(() => ({
+  map: new Map<string, { place: number; claim: 'live' | 'paper' | 'stale' }>(),
+}));
 vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
   useMyEntryQueuePlaces: () => mockPlaces.map,
 }));
@@ -465,7 +467,7 @@ describe('WhereToBe', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
       mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
-      mockPlaces.map = new Map(days.map(d => [d.id, 1]));
+      mockPlaces.map = new Map(days.map(d => [d.id, { place: 1, claim: 'live' as const }]));
       render(
         <WhereToBe
           entries={days.map(d =>
@@ -520,7 +522,7 @@ describe('WhereToBe', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
       mockTrials.data = [];
-      mockPlaces.map = new Map([['e-unresolved', 1]]);
+      mockPlaces.map = new Map([['e-unresolved', { place: 1, claim: 'live' as const }]]);
       render(
         <WhereToBe
           entries={[
@@ -568,5 +570,66 @@ describe('WhereToBe unset judge (MYK9-1846)', () => {
     render(<WhereToBe entries={[makeEntry({ judgeName: 'TBD' })]} showId={SHOW_ID} />);
     expect(screen.getByText(/Judge to be announced/)).toBeInTheDocument();
     expect(screen.queryByText(/Judge TBD|Judge Judge|Judge:/)).not.toBeInTheDocument();
+  });
+});
+
+// MYK9-1970: the server's claim state decides the wording of a place in line.
+describe('WhereToBe on a paper or stale class', () => {
+  const TODAY = { trialDate: '2026-10-14', dayLabel: 'Wednesday, Oct 14' };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    mockTrials.data = [];
+    mockPlaces.map = new Map();
+  });
+
+  function renderToday(entry: Partial<EnrichedShowEntry>) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
+    mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
+    render(
+      <WhereToBe
+        entries={[makeEntry({ checkInStatus: 'checked-in', ...TODAY, ...entry })]}
+        showId={SHOW_ID}
+      />
+    );
+  }
+
+  it('says the place in the running order and the paper line, never "Nth up"', () => {
+    mockPlaces.map = new Map([['e1', { place: 7, claim: 'paper' }]]);
+    renderToday({ queue: { kind: 'waiting-unknown' } });
+
+    expect(screen.getByText('7th in the running order')).toBeInTheDocument();
+    expect(
+      screen.getByText('This class is scored on paper. Listen for your number at the ring.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\bup\b|ahead/i)).not.toBeInTheDocument();
+  });
+
+  it('holds the paper line offline, from the class the phone already has', () => {
+    mockPlaces.map = new Map();
+    renderToday({ queue: { kind: 'paper' } });
+
+    expect(
+      screen.getByText('This class is scored on paper. Listen for your number at the ring.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Waiting')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bup\b|ahead/i)).not.toBeInTheDocument();
+  });
+
+  it('says the order may be out of date for a stale claim', () => {
+    mockPlaces.map = new Map([['e1', { place: 2, claim: 'stale' }]]);
+    renderToday({ queue: { kind: 'waiting-unknown' } });
+
+    expect(screen.getByText('Order may be out of date')).toBeInTheDocument();
+    expect(screen.queryByText('2nd up')).not.toBeInTheDocument();
+  });
+
+  it('still counts a live place as before', () => {
+    mockPlaces.map = new Map([['e1', { place: 2, claim: 'live' }]]);
+    renderToday({ queue: { kind: 'waiting-unknown' } });
+
+    expect(screen.getByText('2nd up')).toBeInTheDocument();
+    expect(screen.queryByText(/scored on paper/i)).not.toBeInTheDocument();
   });
 });

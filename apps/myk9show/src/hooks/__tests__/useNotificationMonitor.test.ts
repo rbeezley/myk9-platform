@@ -202,6 +202,55 @@ describe('useNotificationMonitor', () => {
     expect(mockDeliver).toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
   });
 
+  // MYK9-1970: nobody records progress on a paper class, so "N dogs away" would be a guess.
+  describe('a class scored on paper', () => {
+    const inRingThenDitto = [
+      entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+      entry(),
+    ];
+
+    it.each([
+      ['its own flag', { scores_on_paper: true }],
+      [
+        "the show's device-scoring switch turned off",
+        { scores_on_paper: null, trial: { show: { uses_device_scoring: false } } },
+      ],
+    ])('sends no dogs-away alert when paper comes from %s', async (_label, paper) => {
+      mockRefetch.mockResolvedValue({
+        data: {
+          classes: [classRow({ status: 'In Progress', ...paper })],
+          entries: inRingThenDitto,
+        },
+      });
+      mountWithBaseline({
+        classes: [classRow({ status: 'In Progress', ...paper })],
+        entries: [entry()],
+      });
+
+      await emitShowChange();
+
+      expect(buildYourTurnPayload).not.toHaveBeenCalled();
+      expect(mockDeliver).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
+    });
+
+    it('still alerts on a live class, and a class flag of false beats the show switch', async () => {
+      const live = { scores_on_paper: false, trial: { show: { uses_device_scoring: false } } };
+      mockRefetch.mockResolvedValue({
+        data: { classes: [classRow({ status: 'In Progress', ...live })], entries: inRingThenDitto },
+      });
+      mountWithBaseline({
+        classes: [classRow({ status: 'In Progress', ...live })],
+        entries: [entry()],
+      });
+
+      await emitShowChange();
+
+      expect(buildYourTurnPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ dogName: 'Ditto', dogsAhead: 0 })
+      );
+    });
+  });
+
   it('counts dogs ahead by run order, skipping a withdrawn dog (MYK9-1941)', async () => {
     // Armband order would put the withdrawn dog (2) and the owned dog (10) first.
     // The hand-set run order is 50, 40, then the owned dog, so two dogs run ahead.

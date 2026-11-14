@@ -185,4 +185,15 @@ describe('detectMyRingConflicts', () => {
     });
     expect(conflicts.size).toBe(0);
   });
+
+  // MYK9-1970: "N away" is a countdown nobody keeps on a paper class.
+  it('never makes a conflict out of a class scored on paper', () => {
+    const conflicts = detectMyRingConflicts({
+      entries: conflictingEntries,
+      classes: classes.map(cls => (cls.classId === 'class-b' ? { ...cls, onPaper: true } : cls)),
+      ownEntryIds: new Set(['a2', 'b1']),
+      leadDogs: 3,
+    });
+    expect(conflicts.size).toBe(0);
+  });
 });

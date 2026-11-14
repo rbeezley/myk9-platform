@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildExhibitorDogs, type ShowDogLimitedRow } from './exhibitorDogIndex';
+import { buildExhibitorDogs, runPositionState, type ShowDogLimitedRow } from './exhibitorDogIndex';
 
 const row = (over: Partial<ShowDogLimitedRow> = {}): ShowDogLimitedRow => ({
   armband: 101,
@@ -75,5 +75,25 @@ describe('buildExhibitorDogs', () => {
   it('marks a pulled dog pulled', () => {
     const entry = buildExhibitorDogs([row({ check_in_status: 'pulled' })])[0]!.entries[0]!;
     expect(entry.isPulled).toBe(true);
+  });
+});
+
+// MYK9-1970: the dogs list reads the server's run_claim_state; it never decides for itself.
+describe('runPositionState', () => {
+  const entryOf = (over: Partial<ShowDogLimitedRow>) =>
+    buildExhibitorDogs([row({ run_position: 7, ...over })])[0]!.entries[0]!;
+
+  it.each([
+    ['live', { kind: 'waiting', place: 7 }],
+    [null, { kind: 'waiting', place: 7 }],
+    [undefined, { kind: 'waiting', place: 7 }],
+    ['paper', { kind: 'paper', place: 7 }],
+    ['stale', { kind: 'stale' }],
+  ] as const)('turns a %s claim into %j', (claim, expected) => {
+    expect(runPositionState(entryOf({ run_claim_state: claim }))).toEqual(expected);
+  });
+
+  it('has nothing to say for a dog that is not waiting', () => {
+    expect(runPositionState(entryOf({ run_position: null, run_claim_state: 'paper' }))).toBeNull();
   });
 });

@@ -115,7 +115,12 @@ interface SetMocksOptions {
   entries?: Array<ReturnType<typeof makeEntry>>;
   classes?: Array<ReturnType<typeof makeClass>>;
   dogs?: Array<ReturnType<typeof makeDog>>;
-  shows?: Array<{ id: string; clubId: string; assignedJudges?: Show['assignedJudges'] }>;
+  shows?: Array<{
+    id: string;
+    clubId: string;
+    assignedJudges?: Show['assignedJudges'];
+    usesDeviceScoring?: boolean;
+  }>;
   userId?: string;
   isAdmin?: boolean;
   isSecretary?: boolean;
@@ -494,6 +499,44 @@ describe('useShowEntriesForUser', () => {
       const mine = mineOf();
       expect(mine?.queue).toEqual({ kind: 'waiting-unknown' });
       expect(mine).not.toHaveProperty('runOrder');
+    });
+
+    // MYK9-1970: the replica's paper facts reach the row, so the paper line holds offline.
+    it.each([
+      ['the class flag', { classes: [makeClass({ scoresOnPaper: true })] }],
+      [
+        "the show's device-scoring switch turned off",
+        {
+          classes: [makeClass({ scoresOnPaper: null })],
+          shows: [{ id: SHOW_ID, clubId: 'club-1', usesDeviceScoring: false }],
+        },
+      ],
+    ])('reads a waiting dog as paper from %s', (_label, mocks) => {
+      setMocks({ ...mocks, entries: [makeEntry({ registrationData: reg('101', 31) })] });
+      expect(mineOf()?.queue).toEqual({ kind: 'paper' });
+    });
+
+    it('keeps an explicit live class waiting on a paper show, and an unset order null', () => {
+      setMocks({
+        classes: [makeClass({ scoresOnPaper: false })],
+        shows: [{ id: SHOW_ID, clubId: 'club-1', usesDeviceScoring: false }],
+        entries: [makeEntry({ registrationData: reg('101', 31) })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'waiting-unknown' });
+
+      setMocks({
+        classes: [makeClass({ scoresOnPaper: true })],
+        entries: [makeEntry({ registrationData: reg('101', 0) })],
+      });
+      expect(mineOf()?.queue).toBeNull();
+    });
+
+    it('lets in ring, done and pulled win over paper', () => {
+      setMocks({
+        classes: [makeClass({ scoresOnPaper: true })],
+        entries: [makeEntry({ registrationData: reg('101', 31), checkInStatus: 'in-ring' })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'in-ring' });
     });
 
     it('does not call a lone owned dog next when its order is unset', () => {

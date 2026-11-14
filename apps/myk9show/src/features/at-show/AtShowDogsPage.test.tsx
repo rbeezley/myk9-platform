@@ -210,6 +210,30 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     expect(screen.getByTestId('at-show-dog-armband:8')).not.toHaveTextContent(/ up/);
   });
 
+  it('reads the claim state: paper says the running order and its line, stale says out of date (MYK9-1970)', () => {
+    const base = exhibitorDog().entries[0]!;
+    mocks.exhibitorDogs = [
+      exhibitorDog({ entries: [{ ...base, runPosition: 7, runClaim: 'paper' }] }),
+      exhibitorDog({
+        key: 'armband:8',
+        armband: 8,
+        entries: [{ ...base, entryId: '8:c1', runPosition: 4, runClaim: 'stale' }],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs');
+
+    const paper = screen.getByTestId('at-show-dog-armband:7');
+    expect(paper).toHaveTextContent('7th in the running order');
+    expect(paper).toHaveTextContent(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
+    expect(paper).not.toHaveTextContent(/\bup\b|ahead/);
+
+    const stale = screen.getByTestId('at-show-dog-armband:8');
+    expect(stale).toHaveTextContent('Order may be out of date');
+    expect(stale).not.toHaveTextContent(/4th|\bup\b/);
+  });
+
   it("searches, and favorites a friend's dog through the synced favorites", () => {
     mocks.exhibitorDogs = [
       exhibitorDog(),

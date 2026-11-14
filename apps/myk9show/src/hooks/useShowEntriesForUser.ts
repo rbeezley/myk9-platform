@@ -264,6 +264,7 @@ export function useShowEntriesForUser(
   const databaseUserId = userWithRoles?.databaseUserId;
   const currentShow = shows.find(show => show.id === showId);
   const showClubId = currentShow?.clubId;
+  const usesDeviceScoring = currentShow?.usesDeviceScoring;
   const clubAdminCanSeeShow =
     hasRole(UserRole.CLUB_ADMIN) &&
     hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, showClubId);
@@ -395,12 +396,8 @@ export function useShowEntriesForUser(
       // excluded, so this is the same number the entry-list pill, the ring
       // conflict label and the "your turn" push all report.
       const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
-      // Own rows only (see ownEntryQueueState): state, never a counted place. A paper class
-      // reads as paper from the replica, so it says so offline too (MYK9-1970).
-      const queue = ownEntryQueueState(
-        entry,
-        classScoresOnPaper(cls?.scoresOnPaper, currentShow?.usesDeviceScoring)
-      );
+      const onPaper = classScoresOnPaper(cls?.scoresOnPaper, usesDeviceScoring);
+      const queue = ownEntryQueueState(entry, onPaper);
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
@@ -494,7 +491,7 @@ export function useShowEntriesForUser(
     classes,
     dogs,
     currentShow?.assignedJudges,
-    currentShow?.usesDeviceScoring,
+    usesDeviceScoring,
     isLoading,
     error,
     canonicalSource,

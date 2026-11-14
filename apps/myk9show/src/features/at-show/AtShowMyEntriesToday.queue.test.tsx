@@ -5,7 +5,9 @@ import { render } from '@/test/utils/testUtils';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
-const mockPlaces = vi.hoisted(() => ({ current: new Map<string, number>() }));
+const mockPlaces = vi.hoisted(() => ({
+  current: new Map<string, { place: number; claim: 'live' | 'paper' | 'stale' }>(),
+}));
 const mockUpdatedAt = vi.hoisted(() => ({ current: 1_761_325_500_000 as number | null }));
 const mockPlaceRequests = vi.hoisted(() => vi.fn());
 
@@ -79,7 +81,7 @@ describe('AtShowMyEntriesToday — place in line (MYK9-992)', () => {
   });
 
   it('shows the server place for a checked-in, unscored dog in a gapped queue', () => {
-    mockPlaces.current = new Map([['entry-1', 3]]);
+    mockPlaces.current = new Map([['entry-1', { place: 3, claim: 'live' as const }]]);
     renderRow(entry({}));
 
     expect(screen.getByText('3rd up')).toBeInTheDocument();
@@ -101,7 +103,7 @@ describe('AtShowMyEntriesToday — place in line (MYK9-992)', () => {
     ['in-ring', { checkInStatus: 'in-ring' as const }],
     ['pulled', { checkInStatus: 'pulled' as const }],
   ])('keeps a %s dog state-only, with no place and no pending line', (_label, overrides) => {
-    mockPlaces.current = new Map([['entry-1', 2]]);
+    mockPlaces.current = new Map([['entry-1', { place: 2, claim: 'live' as const }]]);
     mockPlaceRequests.mockClear();
     renderRow(entry(overrides));
 
@@ -114,7 +116,7 @@ describe('AtShowMyEntriesToday — place in line (MYK9-992)', () => {
     [1, 'Next up'],
     [12, '12th up'],
   ])('labels place %i with when it was counted, on the trial clock', (place, text) => {
-    mockPlaces.current = new Map([['entry-1', place]]);
+    mockPlaces.current = new Map([['entry-1', { place: place, claim: 'live' as const }]]);
     renderRow(entry({}));
 
     expect(screen.getByText(text)).toBeInTheDocument();
@@ -122,7 +124,7 @@ describe('AtShowMyEntriesToday — place in line (MYK9-992)', () => {
   });
 
   it('shows no number at all when the place has no timestamp', () => {
-    mockPlaces.current = new Map([['entry-1', 3]]);
+    mockPlaces.current = new Map([['entry-1', { place: 3, claim: 'live' as const }]]);
     mockUpdatedAt.current = null;
     try {
       renderRow(entry({}));
@@ -133,5 +135,37 @@ describe('AtShowMyEntriesToday — place in line (MYK9-992)', () => {
     } finally {
       mockUpdatedAt.current = 1_761_325_500_000;
     }
+  });
+});
+
+// MYK9-1970: the claim state decides how a place in line reads, and a paper class holds offline.
+describe('AtShowMyEntriesToday: paper and stale classes (MYK9-1970)', () => {
+  const PAPER_NOTE = 'This class is scored on paper. Listen for your number at the ring.';
+
+  it('says the place in the running order with the paper line, never "Nth up"', () => {
+    mockPlaces.current = new Map([['entry-1', { place: 7, claim: 'paper' as const }]]);
+    renderRow(entry({ onPaper: true }));
+
+    expect(screen.getByText('7th in the running order')).toBeInTheDocument();
+    expect(screen.getByText(PAPER_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText(/\bup\b|ahead/)).not.toBeInTheDocument();
+  });
+
+  it('holds the paper line with no server answer (offline), not "Waiting"', () => {
+    mockPlaces.current = new Map();
+    renderRow(entry({ onPaper: true }));
+
+    expect(screen.getByText('In the running order')).toBeInTheDocument();
+    expect(screen.getByText(PAPER_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText('Waiting')).not.toBeInTheDocument();
+  });
+
+  it('says the order may be out of date for a stale claim, with no number', () => {
+    mockPlaces.current = new Map([['entry-1', { place: 3, claim: 'stale' as const }]]);
+    renderRow(entry({}));
+
+    expect(screen.getByText('Order may be out of date')).toBeInTheDocument();
+    expect(screen.queryByText('3rd up')).not.toBeInTheDocument();
+    expect(screen.queryByText(PAPER_NOTE)).not.toBeInTheDocument();
   });
 });

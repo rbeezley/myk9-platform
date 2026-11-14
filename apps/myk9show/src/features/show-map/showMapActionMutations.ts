@@ -20,7 +20,7 @@ import { reverseShowMapMoveUp } from './moveUpSupersession';
 import { destinationEntryStatusFor } from './moveUpRequestStatuses';
 import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
 import { EntryStatus } from '@/types/show-registration-types';
-import { canPullEntry } from '@/components/entries/management/checkInDesk/deskEditable';
+import { entryPullMode } from '@/components/entries/management/checkInDesk/deskEditable';
 import { ShowDayRefusal } from './showDayErrorCopy';
 import { getTrialRegistry } from '@/features/registries';
 
@@ -114,7 +114,9 @@ export class PullSupersededError extends Error {
 export async function scratchShowMapEntry(
   entryId: string,
   reason: string | undefined,
-  fallbackReason = 'Pulled from Show Map'
+  fallbackReason = 'Pulled from Show Map',
+  /** Only after the secretary confirmed that the dog's result leaves the class (MYK9-1990). */
+  options: { allowScored?: boolean } = {}
 ): Promise<ShowMapScratchUndoInput> {
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
   const previousEntryStatus =
@@ -133,14 +135,14 @@ export async function scratchShowMapEntry(
   // dog already pulled would write over its reason and hand back an Undo that "restores" the
   // pulled state. Stop before writing.
   if (previousEntryStatus === 'scratched') throw new AlreadyPulledError(entryId);
-  // A dog that has run keeps its result in the class (MYK9-1990): refuse, whoever the caller is.
-  // A status this code does not know is not refused on its own; the UI rule hides Pull for it.
+  // A dog that has run keeps its result in the class (MYK9-1990) unless the caller confirmed
+  // removing it. A status this code does not know is not refused on its own; the UI hides Pull.
   const isScored = Boolean(currentEntry?.isScored ?? currentEntry?.is_scored);
   const knownStatus = Object.values(EntryStatus).includes(previousEntryStatus as EntryStatus);
-  if (
-    currentEntry &&
-    (isScored || (knownStatus && !canPullEntry({ entryStatus: previousEntryStatus, isScored })))
-  ) {
+  const mode = entryPullMode({ entryStatus: previousEntryStatus, isScored });
+  const refused =
+    mode === 'not-pullable' ? knownStatus || isScored : mode === 'pull-scored-confirm' && !options.allowScored;
+  if (currentEntry && refused) {
     throw new ShowDayRefusal(
       'This entry has already run or is finished, so it cannot be pulled. Its result stays in the class.'
     );

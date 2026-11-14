@@ -199,6 +199,7 @@ describe('showMapActionMutations', () => {
 
   it.each([
     ['a scored entry', { entryStatus: 'accepted', isScored: true }],
+    ['a scored entry no longer accepted', { entryStatus: 'pending', isScored: true }],
     ['a scored entry stored with is_scored', { entryStatus: 'accepted', is_scored: true }],
     ['a completed entry', { entryStatus: 'completed' }],
     ['a rejected entry', { entryStatus: 'not_accepted' }],
@@ -210,6 +211,17 @@ describe('showMapActionMutations', () => {
       /already run or is finished/
     );
     expect(mockUpdateReplicatedDayOfScratch).not.toHaveBeenCalled();
+  });
+
+  it('pulls a scored accepted entry only when allowScored is passed', async () => {
+    mockGetReplicatedEntryById.mockResolvedValue({
+      id: 'entry-1',
+      entryStatus: 'accepted',
+      isScored: true,
+    });
+
+    await scratchShowMapEntry('entry-1', 'Dog absent', undefined, { allowScored: true });
+    expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith('entry-1', 'Dog absent');
   });
 
   it.each(['pending', 'missing_info', 'accepted'])(

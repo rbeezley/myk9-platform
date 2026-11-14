@@ -162,7 +162,6 @@ describe('Pull is offered only where it works (MYK9-1990)', () => {
     ['accepted', { entryStatus: EntryStatus.ACCEPTED }, true],
     ['pending', { entryStatus: EntryStatus.PENDING }, true],
     ['missing info', { entryStatus: EntryStatus.MISSING_INFO }, true],
-    ['accepted but scored', { isScored: true }, false],
     ['completed', { entryStatus: EntryStatus.COMPLETED }, false],
     ['rejected', { entryStatus: EntryStatus.REJECTED }, false],
     ['cancelled', { entryStatus: EntryStatus.CANCELLED }, false],
@@ -195,17 +194,66 @@ describe('Pull is offered only where it works (MYK9-1990)', () => {
     }
   );
 
-  it('a scored entry is not offered Pull on the status chip either', async () => {
+  it('a scored entry that is no longer accepted is not offered Pull', async () => {
     const user = userEvent.setup();
-    const scored = { ...entry, isScored: true };
+    const target = { ...entry, isScored: true, entryStatus: EntryStatus.COMPLETED };
     render(
-      <EntryPullProvider entries={[scored]}>
-        <EntryStatusPopover entry={scored} entryClassName="Novice A" onStatusChange={vi.fn()} />
+      <EntryPullProvider entries={[target]}>
+        <EntryStatusPopover entry={target} entryClassName="Novice A" onStatusChange={vi.fn()} />
       </EntryPullProvider>
     );
 
     await user.click(screen.getByRole('button', { name: /change entry status for Hazel/i }));
     await screen.findAllByRole('menuitem');
     expect(screen.queryByRole('menuitem', { name: /^Pull/ })).toBeNull();
+  });
+});
+
+describe('Pull on a scored entry asks first (MYK9-1990)', () => {
+  const scored = { ...entry, isScored: true };
+
+  async function choosePull() {
+    const user = userEvent.setup();
+    render(
+      <EntryPullProvider entries={[scored]}>
+        <EntryStatusPopover entry={scored} entryClassName="Novice A" onStatusChange={vi.fn()} />
+      </EntryPullProvider>
+    );
+    await user.click(screen.getByRole('button', { name: /change entry status for Hazel/i }));
+    await user.click(screen.getByRole('menuitem', { name: /^Pull/ }));
+    return user;
+  }
+
+  it('shows the result warning, and Cancel writes nothing and opens no Pull dialog', async () => {
+    const user = await choosePull();
+
+    expect(
+      await screen.findByText(
+        'Hazel has a result in Novice A. Pulling removes the result from the class.'
+      )
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.queryByText('Pull Hazel?')).toBeNull();
+    expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+  });
+
+  it('confirming opens the Pull dialog, and its write carries allowScored', async () => {
+    const user = await choosePull();
+
+    await user.click(await screen.findByRole('button', { name: 'Pull and remove the result' }));
+    expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+    expect(await screen.findByText('Pull Hazel?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Pull$/ }));
+
+    await waitFor(() =>
+      expect(h.scratchShowMapEntry).toHaveBeenCalledWith(
+        'entry-1',
+        undefined,
+        ENTRIES_PULL_STARTED_AT,
+        { allowScored: true }
+      )
+    );
   });
 });

@@ -20,7 +20,7 @@ export const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>([
 
 /**
  * The one rule for where Pull is allowed (MYK9-1990), shared by the desks and the Entries page:
- * the entry has not run (no score) and is still going in the ring, or is waiting to. Pending and
+ * the entry is still going in the ring, or is waiting to (the desks also need it unscored). Pending and
  * missing-info entries are pulled before the show, so they count; rejected, waitlisted, cancelled,
  * completed, already-pulled and moved entries do not. The desk adds its own conditions on top.
  */
@@ -30,11 +30,28 @@ export const PULLABLE_ENTRY_STATUSES = new Set<EntryStatus>([
   EntryStatus.MISSING_INFO,
 ]);
 
+/**
+ * What Pull does for an entry (MYK9-1990, owner decision): an unscored pullable entry opens the
+ * Pull dialog; a scored one that is still accepted asks first, because pulling removes its result
+ * from the class; anything else is not offered Pull.
+ */
+export type EntryPullMode = 'pull' | 'pull-scored-confirm' | 'not-pullable';
+
+export function entryPullMode(entry: {
+  entryStatus: EntryStatus | string | null | undefined;
+  isScored?: boolean | null | undefined;
+}): EntryPullMode {
+  if (!PULLABLE_ENTRY_STATUSES.has(entry.entryStatus as EntryStatus)) return 'not-pullable';
+  if (!entry.isScored) return 'pull';
+  return entry.entryStatus === EntryStatus.ACCEPTED ? 'pull-scored-confirm' : 'not-pullable';
+}
+
+/** Pull with no confirmation about a result: the desks' rule, where a scored run stays put. */
 export function canPullEntry(entry: {
   entryStatus: EntryStatus | string | null | undefined;
   isScored?: boolean | null | undefined;
 }): boolean {
-  return !entry.isScored && PULLABLE_ENTRY_STATUSES.has(entry.entryStatus as EntryStatus);
+  return entryPullMode(entry) === 'pull';
 }
 
 /**

@@ -89,9 +89,7 @@ export const HIT_PARTICIPATING_STATUSES: ReadonlySet<string> = new Set([
   'in-ring',
   'competing',
   'completed',
-  // The DB constraint carries hyphen AND underscore spellings of the move-up request.
   'move-up-requested',
-  'move_up_requested',
 ]);
 
 export interface HighInTrialElementScore<E extends string = HitElement> {

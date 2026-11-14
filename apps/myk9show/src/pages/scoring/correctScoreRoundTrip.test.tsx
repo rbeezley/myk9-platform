@@ -324,4 +324,23 @@ describe('AKC Nationals with five areas (MYK9-2006)', () => {
       expect(savedAgain[col], col).toEqual(saved[col]);
     }
   });
+
+  it('changing one area by 3 seconds moves the total by exactly 3 seconds and keeps the fifth', async () => {
+    const first = await runSheet('AKC_SCENT_WORK_NATIONAL', fiveAreas, blankRow, () => {
+      times.forEach((time, i) => {
+        fireEvent.click(screen.getByTestId(`area-tab-${i + 1}`));
+        type(`Area ${i + 1} time`, time);
+      });
+      pick('Q');
+    });
+    const saved = { ...(await save(first)) };
+
+    const fixed = await runSheet('AKC_SCENT_WORK_NATIONAL', fiveAreas, saved, () => {
+      fireEvent.click(screen.getByTestId('area-tab-2'));
+      type('Area 2 time', '0:13.00');
+    });
+    const savedFixed = await save(fixed);
+    expect(savedFixed.search_time_seconds).toBeCloseTo(107.35, 2);
+    expect(savedFixed.area2_time_seconds).toBeCloseTo(13, 2);
+  });
 });

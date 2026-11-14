@@ -16,6 +16,7 @@ import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRo
 
 import { voidPaperworkPrint } from '../paperworkPrintActions';
 import { AfterShowPanelBody } from './AfterShowPanelBody';
+import { JudgeRecordPanelBody } from './JudgeRecordPanelBody';
 import { JudgeReviewPanelBody } from './JudgeReviewPanelBody';
 import type { ReviewEntryInfo } from './judgeReview';
 import { collateTrialPacket } from './collateTrialPacket';
@@ -36,16 +37,25 @@ export interface JudgeReviewSource {
   judgeKey: string | null;
 }
 
+/** The judge's record: one judge on one day, from the same Results rows. */
+export interface JudgeRecordSource extends Omit<JudgeReviewSource, 'judgeKey'> {
+  judgeKey: string;
+  /** The trial day, `YYYY-MM-DD`. */
+  day: string;
+}
+
 export type TrialPacketPanelProps = { open: boolean; showId: string; onClose: () => void } & (
   | { mode?: 'before-trial'; trialId: string }
   | { mode: 'after-show'; trialId: string }
   | { mode: 'judge-review'; review: JudgeReviewSource }
+  | { mode: 'judge-record'; record: JudgeRecordSource }
 );
 
 const PANEL_TITLES = {
   'before-trial': 'Print before-trial packet',
   'after-show': 'Print after-show packet',
   'judge-review': 'Print results for initials',
+  'judge-record': "Judge's record",
 } as const;
 
 /**
@@ -68,12 +78,14 @@ export function TrialPacketPanel(props: TrialPacketPanelProps) {
       className="md:max-w-4xl"
     >
       {open && props.mode === 'judge-review' && <JudgeReviewPanelBody {...props.review} />}
+      {open && props.mode === 'judge-record' && <JudgeRecordPanelBody {...props.record} />}
       {open && props.mode === 'after-show' && (
         <AfterShowPanelBody showId={showId} trialId={props.trialId} />
       )}
-      {open && props.mode !== 'judge-review' && props.mode !== 'after-show' && (
-        <TrialPacketBody showId={showId} trialId={props.trialId} />
-      )}
+      {open &&
+        props.mode !== 'judge-review' &&
+        props.mode !== 'judge-record' &&
+        props.mode !== 'after-show' && <TrialPacketBody showId={showId} trialId={props.trialId} />}
     </SlideOverPanel>,
     document.getElementById('root') ?? document.body
   );

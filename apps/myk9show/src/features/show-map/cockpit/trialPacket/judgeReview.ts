@@ -88,7 +88,7 @@ export function paginateReviewLines(lines: readonly ReviewLine[]): ReviewPage[] 
   return pages;
 }
 
-function judgeKeyOf(row: ResultsClassRow): string {
+export function judgeKeyOf(row: ResultsClassRow): string {
   return row.judgeId.trim()
     ? `judge:${row.judgeId.trim()}`
     : `name:${row.judgeName.trim().toLowerCase()}`;

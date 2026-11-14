@@ -28,6 +28,7 @@ export type PremiumFactId =
   | 'showHours'
   | 'trialInformation'
   | 'fees'
+  | 'juniorHandlerFee'
   | 'classes'
   | 'judges'
   | 'secretary'
@@ -58,6 +59,7 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'showHours', label: 'Trial hours', source: 'show', requiredBy: ['AKC'] },
   { id: 'trialInformation', label: 'Trial information', source: 'show', requiredBy: [] },
   { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
+  { id: 'juniorHandlerFee', label: 'Junior handler fee', source: 'show', requiredBy: [] },
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
@@ -164,6 +166,45 @@ export interface PremiumContact {
   phone: string;
 }
 
+/** The junior fee is charged per class entry; the landing prints it as the sub-line, the premium in the label. */
+const JUNIOR_HANDLER_FEE_PER_ENTRY = 'per class entry';
+export const JUNIOR_HANDLER_FEE_UNIT = JUNIOR_HANDLER_FEE_PER_ENTRY;
+/** The junior fee applies only when the handler is under 18; every surface says so. */
+const JUNIOR_HANDLER_FEE_BASE = 'Junior handler fee';
+const JUNIOR_HANDLER_FEE_QUALIFIER = '(handler under 18)';
+/** The landing's label; its unit (`JUNIOR_HANDLER_FEE_UNIT`) goes in the sub-line. */
+export const JUNIOR_HANDLER_FEE_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
+/** The premium's row: the unit sits in the label, because the PDF prints only label and value. */
+const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_PER_ENTRY} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
+
+/** One labelled line of the premium's entry terms: the same words in every style. */
+export interface PremiumTermRow {
+  id: 'juniorHandlerFee';
+  label: string;
+  value: string;
+}
+
+function formatAmount(n: number): string {
+  return Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`;
+}
+
+/**
+ * The show's own terms an exhibitor must see before entering. A row exists only when the show
+ * holds a value for it, so a show that sets none prints nothing (never a placeholder).
+ */
+function buildTermRows(show: GeneratedPremium['show']): PremiumTermRow[] {
+  const rows: PremiumTermRow[] = [];
+  const junior = show.juniorHandlerFee ?? 0;
+  if (junior > 0) {
+    rows.push({
+      id: 'juniorHandlerFee',
+      label: JUNIOR_HANDLER_FEE_PREMIUM_LABEL,
+      value: formatAmount(junior),
+    });
+  }
+  return rows;
+}
+
 export interface PremiumTrialFacts {
   name: string;
   /** Long display date. */
@@ -196,6 +237,8 @@ export interface PremiumFacts {
     /** "Checks", "Cash" in that order, only those the show accepts. */
     paymentMethods: string[];
   };
+  /** Junior fee row; empty when the show sets none. */
+  terms: PremiumTermRow[];
   entry: {
     /** Long display dates, null when unset. */
     opens: string | null;
@@ -253,6 +296,7 @@ export function buildPremiumFacts(
         (m): m is string => Boolean(m)
       ),
     },
+    terms: buildTermRows(show),
     entry: {
       opens: show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : null,
       closes: show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : null,

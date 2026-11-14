@@ -34,6 +34,29 @@ describe('premiumFacts', () => {
     expect(facts.venue).toBe('');
   });
 
+  it('prints no terms for a show that sets none', () => {
+    const facts = buildPremiumFacts(generatedPremium());
+    expect(facts.terms).toEqual([]);
+  });
+
+  it('builds the junior fee row once, with just the amount', () => {
+    const premium = generatedPremium();
+    premium.show.juniorHandlerFee = 12.5;
+    expect(buildPremiumFacts(premium, 'AKC').terms).toEqual([
+      {
+        id: 'juniorHandlerFee',
+        label: 'Junior handler fee per class entry (handler under 18)',
+        value: '$12.50',
+      },
+    ]);
+  });
+
+  it('treats a zero junior fee as unset', () => {
+    const premium = generatedPremium();
+    premium.show.juniorHandlerFee = 0;
+    expect(buildPremiumFacts(premium).terms).toEqual([]);
+  });
+
   it('normalises a missing supplemental slice to empty facts', () => {
     expect(pickSupplementalFacts(undefined)).toEqual({
       vetClinic: null,

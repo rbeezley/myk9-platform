@@ -38,6 +38,7 @@ const generatedPremiumSchema = z.object({
     dayOfFee: nullableAmount,
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
+    juniorHandlerFee: nullableAmount.optional(),
   }),
   club: z.object({ name: nullableText, logoUrl: nullableText }),
   secretary: z.object({

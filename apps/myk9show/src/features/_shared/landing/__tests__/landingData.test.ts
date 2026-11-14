@@ -70,6 +70,12 @@ describe('buildLandingData', () => {
       hospitalityNotes: 'Coffee opens at seven.',
       entryWizardUrl: '/shows/show-259/register',
     });
+    expect(data.fees.map(fee => fee.unit)).toEqual([undefined, undefined]);
+    const withJunior = buildLandingData({ ...show, juniorHandlerFee: '15' }, trials[1], trials, 12);
+    expect(withJunior.fees.at(-1)).toMatchObject({
+      amount: '$15.00',
+      unit: 'per class entry',
+    });
     expect(data.trials.map(trial => trial.id)).toEqual(['trial-1', 'trial-2']);
     expect(data.judges).toEqual([
       expect.objectContaining({ name: 'Alex Judge', trials: ['Trial 1', 'Trial 2'] }),

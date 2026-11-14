@@ -38,6 +38,7 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
       dayOfFee: 25,
       acceptChecks: true,
       acceptCash: true,
+      juniorHandlerFee: 15,
     },
     club: { name: 'Test Club', logoUrl: null },
     secretary: {
@@ -157,6 +158,22 @@ describe('premium PDF facts parity (8 styles)', () => {
   });
   it.each(ALL_STYLES)('%s prints the same facts with ink saver on', style => {
     expect(pdfText('AKC', fullPremium('AKC', style), true)).toMatchSnapshot();
+  });
+});
+
+describe('premium terms never bring fee placeholders with them', () => {
+  const withJuniorOnly = (style: PremiumStyle): GeneratedPremium => {
+    const premium = sparsePremium('AKC', style);
+    premium.show.juniorHandlerFee = 15;
+    return premium;
+  };
+
+  it('gazette prints the junior fee and no fee placeholder when the show has no other fees', () => {
+    const text = pdfText('AKC', withJuniorOnly('gazette'));
+    expect(text).toContain('Junior handler fee per class entry (handler under 18): $15');
+    expect(text).not.toContain('Pre-entry: $—');
+    expect(text).not.toContain('Day-of: $—');
+    expect(text).not.toContain('Payment TBD');
   });
 });
 

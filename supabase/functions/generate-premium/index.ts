@@ -78,6 +78,7 @@ handle<GeneratePremiumPayload>(
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, club_id,
+        junior_handler_fee,
         clubs(name, logo_url),
         trials(
           id, name, date, planned_start_time, event_number, trial_type,
@@ -311,6 +312,7 @@ handle<GeneratePremiumPayload>(
         dayOfFee: show.day_of_show_fee,
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
+        juniorHandlerFee: show.junior_handler_fee ?? null,
       },
       club: {
         name: clubData?.name ?? null,

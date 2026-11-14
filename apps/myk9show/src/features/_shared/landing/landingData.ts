@@ -7,7 +7,11 @@ import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
-import { pickSupplementalFacts } from '@/features/premium/premiumFacts';
+import {
+  JUNIOR_HANDLER_FEE_LABEL,
+  JUNIOR_HANDLER_FEE_UNIT,
+  pickSupplementalFacts,
+} from '@/features/premium/premiumFacts';
 import { hasShowHappened } from './showResults';
 
 /**
@@ -57,6 +61,8 @@ export interface LandingJourneyStep {
 export interface LandingFee {
   label: string;
   amount: string;
+  /** Billing unit when it is not the entry-fee default ('per dog, per trial'). */
+  unit?: string;
 }
 
 export interface LandingAccommodation {
@@ -311,6 +317,13 @@ export function buildLandingData(
   if (show?.preEntryFee) fees.push({ label: 'First entry', amount: formatFee(show.preEntryFee) });
   if (show?.dayOfShowFee) {
     fees.push({ label: 'Day-of entry', amount: formatFee(show.dayOfShowFee) });
+  }
+  if (Number(show?.juniorHandlerFee) > 0) {
+    fees.push({
+      label: JUNIOR_HANDLER_FEE_LABEL,
+      amount: formatFee(show?.juniorHandlerFee),
+      unit: JUNIOR_HANDLER_FEE_UNIT,
+    });
   }
 
   return {

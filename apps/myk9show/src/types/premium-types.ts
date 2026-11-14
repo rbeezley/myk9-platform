@@ -80,6 +80,8 @@ export interface GeneratedPremium {
     dayOfFee: number | null;
     acceptChecks: boolean;
     acceptCash: boolean;
+    /** `shows.junior_handler_fee`; null or 0 = no junior tier. Absent on premiums generated before MYK9-1952 phase 2. */
+    juniorHandlerFee?: number | null;
   };
   club: { name: string | null; logoUrl: string | null };
   secretary: {

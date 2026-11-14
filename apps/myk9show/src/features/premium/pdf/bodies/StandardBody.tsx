@@ -60,6 +60,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         <Text style={s.label}>Entry Method</Text>
         <Text style={{ ...s.value, fontWeight: 700 }}>Online entries via myK9Show</Text>
       </View>
+      {f.terms.map(term => (
+        <View key={term.id} style={s.row}>
+          <Text style={s.label}>{term.label}</Text>
+          <Text style={s.value}>{term.value}</Text>
+        </View>
+      ))}
       {secretary.mailingAddress && (
         <View style={s.row}>
           <Text style={s.label}> </Text>

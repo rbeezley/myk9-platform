@@ -258,7 +258,8 @@ begin
   raise notice 'PASS R an in-ring dog (either indicator) refuses the whole call and changes nothing';
   -- the dog finishes: scored, out of the ring
   perform pg_temp.q($q$update public.entries set check_in_status = 'checked-in', is_scored = true,
-    result_status = 'qualified' where id = '00000000-0000-0000-0000-000001514135' returning 1$q$);
+    result_status = 'qualified', search_time_seconds = 30
+    where id = '00000000-0000-0000-0000-000001514135' returning 1$q$);
 end $$;
 
 -- G. grown, shrunk and empty sets refuse and change nothing (assigned judge)

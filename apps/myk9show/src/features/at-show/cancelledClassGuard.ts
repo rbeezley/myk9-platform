@@ -18,6 +18,11 @@ export const CANCELLED_CLASS_MESSAGE =
  * `known` is false until the replica has answered for these ids: an empty set before that means
  * "not heard yet", not "not cancelled", so a tap must not act on it (see `useClassCancelledStatus`).
  */
+const EMPTY_IDS: ReadonlySet<string> = new Set();
+
+/** How long a dog tap may wait for the class replica before it is treated as not cancelled. */
+export const CLASS_STATUS_WAIT_MS = 1500;
+
 function useCancelledIds(classIds: Array<string | undefined>): {
   cancelled: ReadonlySet<string>;
   known: boolean;
@@ -29,28 +34,39 @@ function useCancelledIds(classIds: Array<string | undefined>): {
   useEffect(() => {
     if (!idsKey) return;
     const wanted = new Set(idsKey.split(','));
-    return replicatedClassesTable.subscribe(rows => {
-      const next = new Set(
-        rows
-          .filter(row => wanted.has(row.id) && isCancelledClassStatus(row.classStatus))
-          .map(r => r.id)
-      );
-      setAnswer(prev =>
-        prev?.key === idsKey &&
-        prev.ids.size === next.size &&
-        [...next].every(id => prev.ids.has(id))
-          ? prev
-          : { key: idsKey, ids: next }
-      );
-    });
+    // A failed or hung class read must never leave a tap dead on show day: answer "not known to
+    // be cancelled" (the behaviour before the hold) so scoring works; the server still refuses
+    // writes to a cancelled class (MYK9-1863).
+    const answerNotCancelled = () =>
+      setAnswer(prev => (prev?.key === idsKey ? prev : { key: idsKey, ids: EMPTY_IDS }));
+    const fallback = setTimeout(answerNotCancelled, CLASS_STATUS_WAIT_MS);
+    const unsubscribe = replicatedClassesTable.subscribe(
+      rows => {
+        const next = new Set(
+          rows
+            .filter(row => wanted.has(row.id) && isCancelledClassStatus(row.classStatus))
+            .map(r => r.id)
+        );
+        setAnswer(prev =>
+          prev?.key === idsKey &&
+          prev.ids.size === next.size &&
+          [...next].every(id => prev.ids.has(id))
+            ? prev
+            : { key: idsKey, ids: next }
+        );
+      },
+      { onError: answerNotCancelled }
+    );
+    return () => {
+      clearTimeout(fallback);
+      unsubscribe();
+    };
   }, [idsKey]);
 
   // No class to ask about is a complete answer.
   const known = !idsKey || answer?.key === idsKey;
   return { cancelled: answer?.key === idsKey ? answer.ids : EMPTY_IDS, known };
 }
-
-const EMPTY_IDS: ReadonlySet<string> = new Set();
 
 /** True when this one class is cancelled. */
 export function useIsClassCancelled(classId: string | undefined): boolean {

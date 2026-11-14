@@ -8,7 +8,7 @@ import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
-import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
+import { CANCELLED_CLASS_MESSAGE, CLASS_STATUS_WAIT_MS } from './cancelledClassGuard';
 import {
   replicatedShowsTable,
   replicatedClassesTable,
@@ -77,7 +77,7 @@ const settledSyncStatus: ReplicationSyncContextValue['status'] = {
   tablesStatus: { shows: 'success', trials: 'success', classes: 'success', entries: 'success' },
 };
 
-function renderPage(classStatus: string, replicaAnswers = true) {
+function renderPage(classStatus: string, replica: 'answers' | 'silent' | 'fails' = 'answers') {
   vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
     name: 'Spring Trial',
     organization: 'AKC Scent Work',
@@ -94,8 +94,9 @@ function renderPage(classStatus: string, replicaAnswers = true) {
   };
   vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(classRow as never);
   // The guard reads the class replica live: emit the row the way the real table does.
-  vi.mocked(replicatedClassesTable.subscribe).mockImplementation(listener => {
-    if (replicaAnswers) listener([classRow] as never);
+  vi.mocked(replicatedClassesTable.subscribe).mockImplementation((listener, options) => {
+    if (replica === 'answers') listener([classRow] as never);
+    if (replica === 'fails') options?.onError?.(new Error('IndexedDB read failed'));
     return () => undefined;
   });
   vi.mocked(replicatedTrialsTable.getTrialById).mockResolvedValue({
@@ -177,12 +178,38 @@ describe('AtShowEntryListPage with a cancelled class (MYK9-1847)', () => {
   });
 
   it('does not open the scoresheet while the class replica has not answered yet', async () => {
-    renderPage('cancelled', false);
+    renderPage('cancelled', 'silent');
     await screen.findByText('Runner', {}, { timeout: WAIT_MS });
 
     tapRunner();
     await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(screen.queryByTestId('scoresheet-route')).not.toBeInTheDocument();
+  });
+
+  // Show day: a class read that never answers or fails must not leave a dog tap dead. The tap
+  // proceeds as "not known to be cancelled" (the server still refuses writes to a cancelled class).
+  it('opens the scoresheet once the hold times out when the class replica never answers', async () => {
+    renderPage('in_progress', 'silent');
+    await screen.findByText('Runner', {}, { timeout: WAIT_MS });
+
+    await waitFor(
+      () => {
+        tapRunner();
+        expect(screen.getByTestId('scoresheet-route')).toBeInTheDocument();
+      },
+      { timeout: CLASS_STATUS_WAIT_MS + WAIT_MS }
+    );
+  });
+
+  it('opens the scoresheet at once when the class replica read fails', async () => {
+    renderPage('in_progress', 'fails');
+    await screen.findByText('Runner', {}, { timeout: WAIT_MS });
+
+    tapRunner();
+
+    expect(
+      await screen.findByTestId('scoresheet-route', {}, { timeout: WAIT_MS })
+    ).toBeInTheDocument();
   });
 });

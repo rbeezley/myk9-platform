@@ -1,8 +1,8 @@
 diff --git a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-index 95be02de2..7285523f6 100644
+index ee8ffbd1f..ad8f6b96d 100644
 --- a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
 +++ b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-@@ -211,8 +211,7 @@ BEGIN
+@@ -212,8 +212,7 @@ BEGIN
              AND e2.result_status = 'qualified'
              -- MYK9-2005: in a timed discipline a null or zero time is never ranked (0 sorts
              -- ahead of every real time). Obedience and Rally have no time.

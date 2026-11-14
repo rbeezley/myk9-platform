@@ -367,6 +367,11 @@ select public.recalculate_class_placements(
   array['00000000-0000-0000-0000-000002005037']::uuid[], false);
 do $$
 begin
+  -- The corrected total also moved area 1 (one value on a one-area class); no stale time stays.
+  if (select area1_time_seconds from public.entries
+       where id = '00000000-0000-0000-0000-000002005047') is distinct from 170 then
+    raise exception 'FAIL E area 1 did not follow the corrected total';
+  end if;
   if (select final_placement from public.entries
        where id = '00000000-0000-0000-0000-000002005048') is distinct from 1 then
     raise exception 'FAIL E an Obedience Qualified with no time was not placed';

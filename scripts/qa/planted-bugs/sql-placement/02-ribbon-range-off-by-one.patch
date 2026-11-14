@@ -1,8 +1,8 @@
 diff --git a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-index 95be02de2..e2566198d 100644
+index ee8ffbd1f..1f812b084 100644
 --- a/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
 +++ b/supabase/migrations/20261114231900_myk9_2005_qualified_needs_a_valid_time.sql
-@@ -262,7 +262,7 @@ BEGIN
+@@ -263,7 +263,7 @@ BEGIN
          CASE WHEN r.competition_rank <= 4 THEN r.row_place ELSE r.competition_rank END AS placement,
          CASE
            WHEN NOT r.eligible OR r.tie_size < 2 THEN NULL

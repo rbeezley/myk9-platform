@@ -30,9 +30,9 @@
 -- qualifiedCheck.ts, and as isScentTrialType in apps/myk9show/src/types/template.types.ts
 -- (private.trial_type_is_timed mirrors it by the same normalised token). Any other trial type,
 -- or none, is never refused for time and its placements ignore the time condition.
--- On a one-area class the check reads the total (search_time_seconds) when this statement
--- changed it and left area1_time_seconds alone (a paper-scoring correction), so a stale area
--- time never decides.
+-- On a one-area class the total and area 1 are one value: when a write changes the total and
+-- leaves area1_time_seconds alone (a paper-scoring correction), the trigger sets area 1 to the
+-- total, so no stale area time is stored or checked.
 -- Only a write that changes the result, a time, or the class is checked, so an unrelated edit to
 -- a row that was saved before this rule (a payment note, a withdrawal) is never blocked.
 --
@@ -133,9 +133,6 @@ BEGIN
 
   v_areas := greatest(1, least(coalesce(v_class.num_areas, 1), 3));
   -- The area columns default to 0, so 0 reads as blank, like null.
-  v_times := ARRAY[
-    nullif(NEW.area1_time_seconds, 0), nullif(NEW.area2_time_seconds, 0), nullif(NEW.area3_time_seconds, 0)
-  ];
   -- An area with no limit of its own uses area 1's; 0 means no limit.
   v_limits := ARRAY[
     nullif(v_class.time_limit_seconds, 0),
@@ -143,16 +140,20 @@ BEGIN
     coalesce(nullif(v_class.time_limit_area3_seconds, 0), nullif(v_class.time_limit_seconds, 0))
   ];
 
-  -- A one-area class that saved only the total (paper scoring, an older device): the total is
-  -- its area 1 time. So is a total this statement changed while area 1 stayed as it was (a
-  -- paper correction leaves the old area time behind).
+  -- A one-area class has one time: the total and area 1 are the same value. When the total is
+  -- written and area 1 is blank or was left as it was (a paper correction, an older device),
+  -- area 1 follows it, so a stale area time is never stored or checked. The check below then
+  -- reads that one value. A multi-area class is left alone.
   IF v_areas = 1
-     AND (v_times[1] IS NULL
+     AND (nullif(NEW.area1_time_seconds, 0) IS NULL
           OR (TG_OP = 'UPDATE'
               AND NEW.search_time_seconds IS DISTINCT FROM OLD.search_time_seconds
               AND NEW.area1_time_seconds IS NOT DISTINCT FROM OLD.area1_time_seconds)) THEN
-    v_times[1] := NEW.search_time_seconds;
+    NEW.area1_time_seconds := NEW.search_time_seconds;
   END IF;
+  v_times := ARRAY[
+    nullif(NEW.area1_time_seconds, 0), nullif(NEW.area2_time_seconds, 0), nullif(NEW.area3_time_seconds, 0)
+  ];
 
   FOR v_area IN 1 .. 3 LOOP
     v_limit := v_limits[v_area];

@@ -155,10 +155,24 @@ describe('ShowEditBasicInfoTab status dropdown — public statuses (MYK9-979)', 
     await user.click(statusCombobox());
 
     expect(await screen.findByRole('option', { name: /^in progress/i })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /^completed/i })).toBeInTheDocument();
     expect(
       screen.queryByText(/publish from the status badge on the show page/i)
     ).not.toBeInTheDocument();
+  });
+
+  it('never offers Completed on a show that is not closed: the Close step is the only door (MYK9-1945)', async () => {
+    const { user } = renderTab('upcoming');
+    await user.click(statusCombobox());
+
+    await screen.findByRole('option', { name: /^in progress/i });
+    expect(screen.queryByRole('option', { name: /^completed/i })).toBeNull();
+  });
+
+  it('still reads Completed on a show that is already closed', async () => {
+    const { user } = renderTab('completed');
+    await user.click(statusCombobox());
+
+    expect(await screen.findByRole('option', { name: /^completed/i })).toBeInTheDocument();
   });
 });
 

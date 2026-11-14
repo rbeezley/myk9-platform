@@ -1,7 +1,8 @@
 import type { EntryStatus } from '@myk9/core';
+import type { NotRunningReason } from '@myk9/ringside/run-queue';
 // The run-queue subpath, not replicatedRunQueue, which would pull the ringside UI barrel into
 // the entry chunk (entryChunkSplit.test.ts).
-import { isInRingEntry } from '@myk9/ringside/run-queue';
+import { isInRingEntry, notRunningReasonOf } from '@myk9/ringside/run-queue';
 import { isNonRunningEntry, isRunnableEntry } from '@/features/_shared/entryAccounting';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
@@ -23,6 +24,8 @@ export function ringsideEntryRingState(re: ReplicatedEntry): {
    * only the secretary reinstating the entry can (MYK9-1809).
    */
   notRunning: boolean;
+  /** Pulled, withdrawn, absent or moved, so the row reads its own word (MYK9-1940). */
+  notRunningReason: NotRunningReason | undefined;
 } {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
   const lifecycleStatus = re.entryStatus ?? re.entry_status ?? re.status;
@@ -38,5 +41,6 @@ export function ringsideEntryRingState(re: ReplicatedEntry): {
       status,
       inRing: (re.isInRing ?? re.is_in_ring ?? false) === true,
     });
-  return { status, inRing, notRunning };
+  const notRunningReason = notRunningReasonOf(lifecycleStatus, checkinStatus);
+  return { status, inRing, notRunning, notRunningReason };
 }

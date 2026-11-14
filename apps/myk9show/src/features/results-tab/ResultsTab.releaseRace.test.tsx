@@ -37,6 +37,7 @@ const row = vi.hoisted(
 vi.mock('./useResultsTabData', () => ({
   useResultsTabData: () => ({
     rows: [row],
+    entries: [],
     trials: [],
     readState: 'ready',
     isNationals: false,

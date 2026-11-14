@@ -81,6 +81,7 @@ const hook = vi.hoisted(() => ({ rows: [] as ReturnType<typeof buildRow>[] }));
 vi.mock('./useResultsTabData', () => ({
   useResultsTabData: () => ({
     rows: hook.rows,
+    entries: [],
     trials: [trial],
     readState: 'ready',
     isNationals: false,

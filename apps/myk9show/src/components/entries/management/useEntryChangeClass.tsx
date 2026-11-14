@@ -8,7 +8,11 @@ import {
   buildMoveUpClassLabeler,
   classIdsEnteredByDog,
 } from '@/features/show-map/buildMoveUpTargets';
-import { getChangeClassBlock } from '@/features/show-map/changeClassEligibility';
+import { dayOfDogLabel } from '@/features/show-map/dayOfMessages';
+import {
+  CHANGE_CLASS_OFFLINE_REASON,
+  getChangeClassBlock,
+} from '@/features/show-map/changeClassEligibility';
 import { ShowMapMoveUpDialog } from '@/features/show-map/ShowMapMoveUpDialog';
 import type { ShowMapAction } from '@/features/show-map/showMapActions';
 import { classifyClassStatus, classifyEntryRunStatus } from '@/features/show-map/showMapStatus';
@@ -17,8 +21,6 @@ import { useChangeClassClasses } from '@/features/show-map/useChangeClassClasses
 import { useMoveUpTargets } from '@/features/show-map/useMoveUpTargets';
 import { useShowMapActionExecutor } from '@/features/show-map/useShowMapActionExecutor';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-
-const OFFLINE_REASON = 'Changing a class needs a connection.';
 
 /** The entry as the Show Map status helpers read it, so both doors classify "has it run?" alike. */
 function toRunStatusInput(entry: EntryManagementEntry): ShowMapEntryInput {
@@ -71,7 +73,16 @@ export function useEntryChangeClass(
 ) {
   const isOnline = useIsOnline();
   const classes = useChangeClassClasses(showId);
-  const executor = useShowMapActionExecutor({ showId, onEntriesChanged });
+  const executor = useShowMapActionExecutor({
+    showId,
+    onEntriesChanged,
+    entryLabelOf: action => {
+      const entry = entries.find(candidate => `entry:${candidate.id}` === action.nodeId);
+      return entry
+        ? dayOfDogLabel({ armband: entry.armbandNumber, dogName: entry.dogName })
+        : undefined;
+    },
+  });
   const { moveUpAction } = executor;
 
   const openEntry = moveUpAction
@@ -114,7 +125,7 @@ export function useEntryChangeClass(
           runStatusKind: classifyEntryRunStatus(toRunStatusInput(entry))?.kind,
           classStatusKind: classifyClassStatus(cls.status)?.kind,
         });
-    const reason = block ?? (isOnline ? null : OFFLINE_REASON);
+    const reason = block ?? (isOnline ? null : CHANGE_CLASS_OFFLINE_REASON);
     return {
       id: 'change-class',
       label: 'Change class…',

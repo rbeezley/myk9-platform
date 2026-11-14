@@ -16,6 +16,11 @@ export interface ResultsTabUrlState {
   search: string;
   /** What the URL names; `null` when it names none, so the page derives the default (MYK9-1276). */
   status: ResultsStatusFilterId | null;
+  /**
+   * A "Finish the show" line's key (MYK9-1945): lists exactly the classes that line counted, whatever
+   * their phase. A status picked in the toolbar replaces it.
+   */
+  left: string | null;
 }
 
 /** The URL state with the status resolved: the URL's own, else the page's derived default. */
@@ -30,6 +35,7 @@ export function readResultsTabUrlState(params: URLSearchParams): ResultsTabUrlSt
     trialId: params.get('trialId')?.trim() || null,
     search: params.get('q') ?? '',
     status: isResultsStatusFilterId(status) ? status : null,
+    left: params.get('left')?.trim() || null,
   };
 }
 
@@ -48,7 +54,9 @@ export function writeResultsTabUrlState(
   if ('search' in next) set('q', next.search?.trim() ? next.search : null);
   if ('status' in next) {
     set('status', next.status ?? null);
+    if (!('left' in next)) params.delete('left');
   }
+  if ('left' in next) set('left', next.left ?? null);
   return params;
 }
 
@@ -122,6 +130,11 @@ export function effectiveReadState(
 /** Easy to link from elsewhere (the ringside menu, MYK9-1508): it is just the Results tab URL. */
 export function getNationalsLeaderboardHref(showId: string): string {
   return `/shows/${encodeURIComponent(showId)}/results?view=leaderboard`;
+}
+
+/** The Results tab filtered to exactly the classes one "Finish the show" line counted. */
+export function getFinishLineHref(showId: string, lineKey: string): string {
+  return `/shows/${encodeURIComponent(showId)}/results?left=${encodeURIComponent(lineKey)}`;
 }
 
 export function getResultsListHref(showId: string): string {

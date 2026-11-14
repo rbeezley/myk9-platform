@@ -137,6 +137,7 @@ function setHook(
 ) {
   hook.value = {
     rows: rowsFor(entries, { released: opts.released ?? false, checked: opts.checked ?? true }),
+    entries,
     trials: [trial],
     readState: 'ready',
     isNationals: opts.rankingKeyState && opts.rankingKeyState !== 'ready' ? null : false,

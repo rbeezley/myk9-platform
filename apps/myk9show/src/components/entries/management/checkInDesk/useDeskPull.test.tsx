@@ -37,7 +37,10 @@ vi.mock('@/features/show-map/showMapActionMutations', () => ({
   scratchShowMapEntry: h.scratchShowMapEntry,
   undoShowMapScratch: h.undoShowMapScratch,
 }));
-vi.mock('@/lib/undoToast', () => ({ showUndoToast: h.showUndoToast }));
+vi.mock('@/lib/undoToast', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/undoToast')>()),
+  showUndoToast: h.showUndoToast,
+}));
 vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
   useShowDeskScheduleRead: () => ({
     readPending: false,

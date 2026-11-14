@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
+import { CloseTheShowLink } from './CloseTheShowLink';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { supabase } from '@/services/database/supabaseClient';
 import {
@@ -586,6 +587,11 @@ export default function ResultsSubmissionPage() {
           Recorded as submitted. It appears in your submission history below.
         </p>
       )}
+      {showId &&
+        (sendSuccess ||
+          markSuccess ||
+          priorSubmission?.status === 'sent' ||
+          priorSubmission?.status === 'submitted') && <CloseTheShowLink showId={showId} />}
       {sendError && (
         <p className="text-sm text-destructive" role="alert" data-testid="send-error">
           {sendError}

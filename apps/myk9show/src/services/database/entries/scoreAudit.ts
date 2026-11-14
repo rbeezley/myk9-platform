@@ -99,3 +99,53 @@ export async function getEntryScoreAudit(entryId: string): Promise<EntryScoreAud
     throw dbError;
   }
 }
+
+const AUDIT_COLUMNS =
+  'id, entry_id, class_id, show_id, changed_at, changes, actor_user_id, actor_person_id, actor_display_name, actor_tier, passcode_role, passcode_generation, entry_version, client_saved_at';
+const AUDIT_PAGE = 1000;
+
+/**
+ * The score history of every entry in some classes, oldest first, grouped by entry id. The judge
+ * review packet reads it to mark scores a secretary changed after the judge submitted them. Same
+ * online-only admin read as `getEntryScoreAudit`; pages through PostgREST's row cap.
+ */
+export async function getClassScoreAudits(
+  classIds: readonly string[]
+): Promise<Map<string, EntryScoreAuditItem[]>> {
+  const byEntry = new Map<string, EntryScoreAuditItem[]>();
+  if (classIds.length === 0) return byEntry;
+  const startTime = Date.now();
+  try {
+    const rows: AuditRow[] = [];
+    for (let from = 0; ; from += AUDIT_PAGE) {
+      const { data, error } = await supabase
+        .from('entry_score_audit')
+        .select(AUDIT_COLUMNS)
+        .in('class_id', [...classIds])
+        .order('changed_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + AUDIT_PAGE - 1);
+      if (error) throw createDatabaseError(error, 'entry_score_audit', 'get_class_score_audits');
+      const page = (data ?? []) as AuditRow[];
+      rows.push(...page);
+      if (page.length < AUDIT_PAGE) break;
+    }
+    logQuery('entry_score_audit', 'get_class_score_audits', Date.now() - startTime);
+    const zones = await loadTimeZones([...new Set(rows.map(row => row.class_id))]);
+    for (const row of rows) {
+      const list = byEntry.get(row.entry_id) ?? [];
+      list.push(mapEntryScoreAuditRow(row, zones));
+      byEntry.set(row.entry_id, list);
+    }
+    return byEntry;
+  } catch (error) {
+    const dbError = createDatabaseError(error, 'entry_score_audit', 'get_class_score_audits');
+    logQuery(
+      'entry_score_audit',
+      'get_class_score_audits',
+      Date.now() - startTime,
+      dbError.message
+    );
+    throw dbError;
+  }
+}

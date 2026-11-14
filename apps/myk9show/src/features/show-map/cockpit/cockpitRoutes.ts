@@ -84,10 +84,14 @@ export function writeCockpitUrlState(
   return params;
 }
 
-function withReturnTo(href: string, returnTo?: string): string {
+/** Adds `returnTo` to the query, ahead of any `#fragment` the link lands on. */
+export function withReturnTo(href: string, returnTo?: string): string {
   if (!returnTo) return href;
-  const separator = href.includes('?') ? '&' : '?';
-  return `${href}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+  const hashAt = href.indexOf('#');
+  const path = hashAt === -1 ? href : href.slice(0, hashAt);
+  const fragment = hashAt === -1 ? '' : href.slice(hashAt);
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}returnTo=${encodeURIComponent(returnTo)}${fragment}`;
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {
@@ -141,6 +145,17 @@ export function getCockpitResultsControlHref(input: {
   const query = params.toString();
   return withReturnTo(
     `/shows/${encodeURIComponent(input.showId)}/results${query ? `?${query}` : ''}`,
+    input.returnTo
+  );
+}
+
+/** The id of the Results tab's "Finish the show" list, so a link can land on it. */
+export const FINISH_LIST_ANCHOR = 'finish-the-show';
+
+/** The "Finish the show" list at the top of the Results tab (MYK9-1945). */
+export function getCockpitFinishListHref(input: { showId: string; returnTo?: string }): string {
+  return withReturnTo(
+    `/shows/${encodeURIComponent(input.showId)}/results#${FINISH_LIST_ANCHOR}`,
     input.returnTo
   );
 }

@@ -88,6 +88,18 @@ describe('buildStaffDogs eligibility and armbands', () => {
     expect(built[0]?.entries[0]?.isMoved).toBe(true);
   });
 
+  it('gives a pulled-then-moved dog the word Moved, and a running dog none', () => {
+    const built = buildStaffDogs(
+      [
+        entry({ id: 'p1', dogId: 'dw', checkInStatus: 'pulled', entryStatus: 'moved' }),
+        entry({ id: 'p3', dogId: 'dw', checkInStatus: 'checked-in', entryStatus: 'confirmed' }),
+      ] as (Partial<ReplicatedEntry> & { id: string })[],
+      classes,
+      EMPTY_MAPS
+    );
+    expect(built[0]?.entries.map(e => e.notRunningWord)).toEqual(['Moved', null]);
+  });
+
   it('fills the dog armband from a later entry when the first has none', () => {
     const built = buildStaffDogs(
       [

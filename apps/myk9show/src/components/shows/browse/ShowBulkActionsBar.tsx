@@ -1,7 +1,7 @@
 /**
  * ShowBulkActionsBar — the Managing tab's floating bulk-action bar
- * (list-toolkit rollout, MYK9-798): Mark completed, Mark cancelled, Export,
- * Delete. Composes the shared `FloatingBulkBar`/`BulkBarButton` for the
+ * (list-toolkit rollout, MYK9-798): Mark cancelled, Export, Delete. There is no
+ * "Mark completed": the show's Close step is the only door to completed (MYK9-1945). Composes the shared `FloatingBulkBar`/`BulkBarButton` for the
  * floating shell. Delete goes through the shared `DeleteObjectDialog`, the
  * one delete path for every core object (CRUD standard Phase 2).
  */
@@ -12,7 +12,7 @@ import { notifications } from '@/lib/notifications';
 import { exportRowsCsv } from '@/utils/downloadCsv';
 import { updateShow } from '@/services/database/shows';
 import { DeleteObjectDialog, showDeleteDetail } from '@/features/delete';
-import { Trash2, AlertCircle, Download, XCircle, CalendarCheck } from 'lucide-react';
+import { Trash2, AlertCircle, Download, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -30,10 +30,12 @@ import { SHOW_ADMIN_COPY, bulkStatusPartialFailed } from '@/components/shows/sho
 
 // Must stay in sync with the shows_status_check CHECK constraint
 // (migration 072): draft | published | upcoming | in_progress | completed | cancelled.
+// 'completed' is deliberately absent: only the Close step on the Results tab sets it, because it
+// also completes the trials and classes and reads what is left (MYK9-1945).
 // 'published' is deliberately absent: publishing opens online entries and must
 // go through the Stripe-payouts gate (onlineEntryGate), which is per-club —
 // a bulk write can't evaluate it. Publish from the show's own status pill.
-type ShowStatus = 'completed' | 'cancelled';
+type ShowStatus = 'cancelled';
 type DialogType = 'status' | 'delete' | null;
 
 interface ShowBulkActionsBarProps {
@@ -50,7 +52,6 @@ function showStatusLabel(status: string): string {
 }
 
 const STATUS_OPTIONS: { value: ShowStatus; label: string; icon: React.ElementType }[] = [
-  { value: 'completed', label: 'Mark Completed', icon: CalendarCheck },
   { value: 'cancelled', label: 'Mark Cancelled', icon: XCircle },
 ];
 
@@ -62,7 +63,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
   const [currentDialog, setCurrentDialog] = useState<DialogType>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<ShowStatus>('completed');
+  const [pendingStatus, setPendingStatus] = useState<ShowStatus>('cancelled');
 
   const closeDialog = () => {
     setCurrentDialog(null);
@@ -155,15 +156,6 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
         onClear={onClearSelection}
         busy={isProcessing}
       >
-        <BulkBarButton
-          onClick={() => {
-            setPendingStatus('completed');
-            setCurrentDialog('status');
-          }}
-          icon={<CalendarCheck className="h-4 w-4" aria-hidden="true" />}
-        >
-          Mark completed
-        </BulkBarButton>
         <BulkBarButton
           onClick={() => {
             setPendingStatus('cancelled');

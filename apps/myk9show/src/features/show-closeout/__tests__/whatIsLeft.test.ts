@@ -254,3 +254,51 @@ describe('the old counts read the one calculation', () => {
     ).toEqual(left.concerns);
   });
 });
+
+describe('calculateWhatIsLeft: a show with more than one registry', () => {
+  const trials = [
+    { id: 't-akc', registryId: 'AKC' },
+    { id: 't-ukc', registryId: 'UKC' },
+  ];
+  const line = (left: ReturnType<typeof calculateWhatIsLeft>, key: string) =>
+    left.lines.find(candidate => candidate.key === key);
+
+  it('opens a registry line only when no submission went to that registry', () => {
+    const left = calc([leftClass({ id: 'a', trialId: 't-akc', releasedAt: RELEASED })], {
+      trials,
+      submissions: [{ status: 'sent', organization: 'AKC' }],
+    });
+
+    expect(line(left, 'akc-results-file')?.open).toBe(false);
+    expect(line(left, 'ukc-paperwork-packet')?.open).toBe(true);
+  });
+
+  it('lets a submission that names no registry cover them all', () => {
+    const left = calc([], { trials, submissions: [{ status: 'submitted' }] });
+
+    expect(line(left, 'akc-results-file')?.open).toBe(false);
+    expect(line(left, 'ukc-paperwork-packet')?.open).toBe(false);
+  });
+
+  it('counts a class with no trial under no registry, since it cannot be told which', () => {
+    const phased = (id: string, trialId?: string) =>
+      leftClass({ id, trialId, phase: 'needs-initials', releasedAt: RELEASED });
+    const left = calc([phased('no-trial'), phased('akc-class', 't-akc')], { trials });
+
+    expect(line(left, 'akc-judge-initials')?.classIds).toEqual(['akc-class']);
+    expect(line(left, 'ukc-judge-signature')?.classIds).toEqual([]);
+  });
+
+  it('counts a class with no trial for a show of one registry', () => {
+    const left = calc([
+      leftClass({
+        id: 'no-trial',
+        trialId: undefined,
+        phase: 'needs-initials',
+        releasedAt: RELEASED,
+      }),
+    ]);
+
+    expect(line(left, 'akc-judge-initials')?.classIds).toEqual(['no-trial']);
+  });
+});

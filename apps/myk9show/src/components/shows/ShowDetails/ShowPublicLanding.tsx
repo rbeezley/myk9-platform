@@ -13,6 +13,7 @@ import {
 } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
 import { MailInEntryNotice } from './MailInEntryNotice';
+import { ServiceFeeNote, useServiceFeeLabel } from '@/features/payments/ServiceFeeNote';
 import { acceptsOnlineEntries, isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
 import { LandingMailInContext } from '@/features/_shared/landing/landingMailIn';
 import { ShowResultsSection } from '@/features/_shared/landing/ShowResultsSection';
@@ -101,6 +102,7 @@ export function ShowPublicLanding({
   const showResults = buildShowResults(show, resultClasses ?? offeredClasses);
   // Unknown (a stale cached row) is never online-capable: no Enter CTA until known.
   const onlineEntriesOpen = acceptsOnlineEntries(show);
+  const showServiceFee = useServiceFeeLabel(show) !== null;
 
   // Public visitors render the last published experience. Managers in Preview
   // intentionally render the current draft instead; changing the draft must
@@ -239,6 +241,19 @@ export function ShowPublicLanding({
       {showResults && <ShowResultsSection released={showResults.released} />}
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
       {mailInOnly && <MailInEntryNotice />}
+      {/* MYK9-1963: the card service fee is said before the wizard, not first
+          met on its third step. Every landing style prints its own fee rows,
+          so the one line lives here, above all of them, and only where an
+          exhibitor could still enter online and the live rate is read. */}
+      {showServiceFee && (
+        <div
+          className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
+          role="note"
+          aria-label="Service fee"
+        >
+          <ServiceFeeNote show={show} />
+        </div>
+      )}
       <LateEntryContactContext.Provider value={lateEntryContact}>
         <ShowHasHappenedContext.Provider value={hasShowHappened(previewShow)}>
           <LandingMailInContext.Provider value={mailInOnly}>

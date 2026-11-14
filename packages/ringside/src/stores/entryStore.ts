@@ -1,4 +1,5 @@
 import type { EntryStatus } from '@myk9/core';
+import type { NotRunningReason } from '../pages/EntryList/runQueue';
 
 // Entry status type — canonical definition in @myk9/core
 export type { EntryStatus } from '@myk9/core';
@@ -68,6 +69,11 @@ export interface Entry {
    * check-in status change helps. Absent means the host did not say, which reads as running.
    */
   notRunningByEntryStatus?: boolean;
+  /**
+   * Why the dog is not running, so its row reads its own word: Pulled, Withdrawn, Absent or
+   * Moved (MYK9-1940). Absent means the dog is running.
+   */
+  notRunningReason?: NotRunningReason;
   /** Scoring/ring timestamps used by the class-completion elapsed-time summary. */
   scoredAt?: string;
   ringEntryTime?: string;

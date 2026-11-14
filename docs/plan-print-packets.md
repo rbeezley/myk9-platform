@@ -236,6 +236,7 @@ One pull request per phase. A phase is not done until its tests pass.
 - After-show packet opened from Results close-out, with registry forms chosen by `registryId`.
 - The judge's record, one per judge per day, offered when that judge's last class of the day is initialled: print, PDF and email, with the download path for a judge with no email. The UKC reminder at the same moment.
 - The secretary's show record as a PDF.
+- **Phase 2a (built, MYK9-1924):** the judge review packet, the after-show packet and the show record's PDF half. Left for the next PR because it adds an edge function and email: the judge's record (print, PDF, email, the UKC reminder) and its recipient-resolution tests.
 - **Tests:** recipient resolution (only the assigned judge; a caller-supplied recipient is still refused; a judge with no email yields a download and no send). The corrected-score mark against a known score history. A packet for one judge contains no other judge's classes. Edge function tests run under the node environment.
 
 ### Phase 3: staying correct after changes, and labels by day

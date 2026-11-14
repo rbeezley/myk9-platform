@@ -1196,6 +1196,7 @@ export type Database = {
           section: string | null
           start_time: string | null
           status: string | null
+          status_before_close: string | null
           status_source: string
           time_limit_area2_seconds: number | null
           time_limit_area3_seconds: number | null
@@ -1259,6 +1260,7 @@ export type Database = {
           section?: string | null
           start_time?: string | null
           status?: string | null
+          status_before_close?: string | null
           status_source?: string
           time_limit_area2_seconds?: number | null
           time_limit_area3_seconds?: number | null
@@ -1322,6 +1324,7 @@ export type Database = {
           section?: string | null
           start_time?: string | null
           status?: string | null
+          status_before_close?: string | null
           status_source?: string
           time_limit_area2_seconds?: number | null
           time_limit_area3_seconds?: number | null
@@ -8742,6 +8745,8 @@ export type Database = {
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
+          closed_at: string | null
+          closed_open_lines: Json | null
           club_id: string
           confirmation_message: string | null
           cover_image_url: string | null
@@ -8783,6 +8788,8 @@ export type Database = {
           published_premium_url: string | null
           published_premium_version: number | null
           publishes_own_premium: boolean
+          reopen_reason: string | null
+          reopened_at: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -8818,6 +8825,8 @@ export type Database = {
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
+          closed_at?: string | null
+          closed_open_lines?: Json | null
           club_id: string
           confirmation_message?: string | null
           cover_image_url?: string | null
@@ -8859,6 +8868,8 @@ export type Database = {
           published_premium_url?: string | null
           published_premium_version?: number | null
           publishes_own_premium?: boolean
+          reopen_reason?: string | null
+          reopened_at?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -8894,6 +8905,8 @@ export type Database = {
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
+          closed_at?: string | null
+          closed_open_lines?: Json | null
           club_id?: string
           confirmation_message?: string | null
           cover_image_url?: string | null
@@ -8935,6 +8948,8 @@ export type Database = {
           published_premium_url?: string | null
           published_premium_version?: number | null
           publishes_own_premium?: boolean
+          reopen_reason?: string | null
+          reopened_at?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -10576,6 +10591,7 @@ export type Database = {
           registry_id: string
           show_id: string
           status: string | null
+          status_before_close: string | null
           timezone: string
           trial_number: string | null
           trial_type: string | null
@@ -10606,6 +10622,7 @@ export type Database = {
           registry_id?: string
           show_id: string
           status?: string | null
+          status_before_close?: string | null
           timezone?: string
           trial_number?: string | null
           trial_type?: string | null
@@ -10636,6 +10653,7 @@ export type Database = {
           registry_id?: string
           show_id?: string
           status?: string | null
+          status_before_close?: string | null
           timezone?: string
           trial_number?: string | null
           trial_type?: string | null

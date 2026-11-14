@@ -133,4 +133,4 @@ export function registrationLabel(registration: Registration): string {
 }
 
 /** The marker's words, shared with the staff row's accessible description. */
-export const USED_FOR_THIS_SHOW = 'Used for this show';
+export const USED_FOR_THIS_SHOW = 'Number this show uses';

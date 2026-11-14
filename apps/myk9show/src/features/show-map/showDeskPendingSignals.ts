@@ -3,7 +3,7 @@ import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapTree } from './showMapTypes';
 import type { EntryLike } from './attention';
 import { getShowMapNodeId } from './showMapTree';
-import { getCockpitResultsControlHref } from './cockpit/cockpitRoutes';
+import { getCockpitFinishListHref } from './cockpit/cockpitRoutes';
 import { countRawEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 import {
   classifyRawEntryAttention,
@@ -206,10 +206,10 @@ export function computeShowDeskPendingSignals({
       priority: 'high',
       label: judgeSignOffWording(showRegistryId(tree)).pendingSignalLabel(needingSignature),
       // The count is classes, and the Results tab lists classes with the judge sign-off on each
-      // (MYK9-1031), so it opens on the same unit (MYK9-1727). It is the show-wide list, not a
-      // per-class link: the cockpit shows the per-class links beside this and drops this chip
-      // when they cover every counted class.
-      href: getCockpitResultsControlHref({ showId }),
+      // (MYK9-1031), so it opens on the same unit (MYK9-1727). It points at the "Finish the show"
+      // list (MYK9-1945), whose judge line links on to those classes; the cockpit shows the
+      // per-class links beside this and drops this chip when they cover every counted class.
+      href: getCockpitFinishListHref({ showId }),
       destinationName: 'Results',
       scope,
     });
@@ -225,8 +225,8 @@ export function computeShowDeskPendingSignals({
       count: pendingCloseout,
       priority: 'medium',
       label: `Close out ${pendingCloseout} ${pendingCloseout === 1 ? 'result' : 'results'}`,
-      // Classes again, so the same class list on Results, not the show-level close step.
-      href: getCockpitResultsControlHref({ showId }),
+      // Classes again, so the Finish the show list on Results, not the show-level close step.
+      href: getCockpitFinishListHref({ showId }),
       destinationName: 'Results',
       scope,
     });

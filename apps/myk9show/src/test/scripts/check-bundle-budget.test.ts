@@ -235,7 +235,7 @@ describe('check-bundle-budget — PDF renderer chunks stay off the static path',
 
   it('tolerates exactly the known Reports route import of pdf-lib, and no more', () => {
     const edge = (hash: string, kind = 'pdf-lib') => ({
-      importer: `assets/scripts/index-${hash}.js`,
+      importer: `assets/scripts/ReportsPage-${hash}.js`,
       imported: pdfLib.file,
       kind,
     });
@@ -244,7 +244,7 @@ describe('check-bundle-budget — PDF renderer chunks stay off the static path',
     expect(
       evaluatePdfChunkImports([edge('G_PEI8ZQ'), edge('Xr9fGu1Z')], PDF_CHUNK_POLICY)
     ).toHaveLength(2);
-    // The tolerance is for pdf-lib only: an index chunk importing react-pdf is a violation.
+    // The tolerance is for pdf-lib only: the Reports chunk importing react-pdf is a violation.
     expect(evaluatePdfChunkImports([edge('G_PEI8ZQ', 'react-pdf')], PDF_CHUNK_POLICY)).toHaveLength(
       1
     );

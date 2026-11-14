@@ -170,15 +170,20 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="completed">
-                        <div>
-                          <div className="font-medium">Completed</div>
-                          <div className="text-xs text-muted-foreground">
-                            Show is finished, results finalized
-                          </div>
-                        </div>
-                      </SelectItem>
                     </>
+                  )}
+                  {/* MYK9-1945: a show reaches Completed only through the Close step on the
+                      Results tab. Listed here only so a show that is already closed still reads
+                      as Completed in the field; it cannot be picked on any other show. */}
+                  {initialStatus === 'completed' && (
+                    <SelectItem value="completed">
+                      <div>
+                        <div className="font-medium">Completed</div>
+                        <div className="text-xs text-muted-foreground">
+                          Closed from the Results tab
+                        </div>
+                      </div>
+                    </SelectItem>
                   )}
                   <SelectItem value="cancelled">
                     <div>

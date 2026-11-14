@@ -581,13 +581,13 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     );
   }
 
-  it('shows the engine items first, then Edit entry and Mark absent, for an eligible row', async () => {
+  it('shows the engine items first, then Change handler and Mark absent, for an eligible row', async () => {
     const { user } = renderMenu(true);
     await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change class',
       'Move up a level',
-      'Edit entry',
+      'Change handler',
       'Mark absent',
     ]);
     await user.keyboard('{Escape}');
@@ -595,7 +595,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for #101 Scout' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change class',
-      'Edit entry',
+      'Change handler',
       'Mark absent',
     ]);
   });
@@ -604,7 +604,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     const { user } = renderMenu(true);
     await user.click(screen.getByRole('button', { name: 'Actions for #101 Juno' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
-      'Edit entry',
+      'Change handler',
       'Mark absent',
     ]);
   });

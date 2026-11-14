@@ -25,8 +25,14 @@ interface AlreadyEnteredNoticeProps {
 
 // INTENT: this wizard is add-only — classes a dog already entered render
 // disabled with no withdraw/move-up path. Say so plainly once (per dog, not
-// per row) and point at the show team, the existing /messages/:showId
-// surface, instead of leaving the disabled checkboxes unexplained
+// per row) and point at the surface that owns changing an entry, instead of
+// leaving the disabled checkboxes unexplained. That was the show team's message
+// thread until MYK9-1963 (owner, 2026-11-13): My Shows lets her pull or
+// withdraw an entry herself, but it has no class-change or move-up action, and
+// withdrawing blocks online re-entry into the same class. So My Shows is the
+// answer for seeing/pulling, and a class change still goes to the secretary at
+// /messages/:showId, in a new tab so the wizard keeps its selections and step
+// (Codex P2 on PR #3891); the wizard only adds
 // (exhibitor-elderly-novice audit 2026-07-23, row 11; docs/INTENT.md
 // "I trust this with my day"). Staff never see that line — telling a
 // secretary to message the show team opens a thread with themselves; they get
@@ -50,6 +56,8 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
             <Link
               to={`/shows/${showId}/entries`}
               className="font-medium underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               Entry Forms
             </Link>
@@ -57,9 +65,23 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
           </>
         ) : (
           <>
-            To change or withdraw an existing entry,{' '}
-            <Link to={`/messages/${showId}`} className="font-medium underline underline-offset-2">
-              message the show secretary
+            To see or pull this entry, open it in{' '}
+            <Link
+              to="/exhibitor/entries"
+              className="font-medium underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              My Shows
+            </Link>
+            . To change a class,{' '}
+            <Link
+              to={`/messages/${showId}`}
+              className="font-medium underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              message the secretary
             </Link>
             .
           </>

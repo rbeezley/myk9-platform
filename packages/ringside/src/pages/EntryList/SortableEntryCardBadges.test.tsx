@@ -71,3 +71,25 @@ describe('StatusBadge as a button', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('StatusBadge for a dog that is not running (MYK9-1940)', () => {
+  it.each([
+    ['moved', 'Moved'],
+    ['absent', 'Absent'],
+    ['pulled', 'Pulled'],
+    ['withdrawn', 'Withdrawn'],
+  ] as const)('a %s dog reads %s', (reason, word) => {
+    const e = { ...entry('pulled'), notRunningReason: reason } as Entry;
+    render(<StatusBadge entry={e} readOnly />);
+    expect(screen.getByTestId('check-in-indicator')).toHaveTextContent(word);
+  });
+
+  it('a moved dog that was checked in loses the check-in icon and colour', () => {
+    const e = { ...entry('checked-in'), notRunningReason: 'moved' } as Entry;
+    render(<StatusBadge entry={e} readOnly />);
+    const indicator = screen.getByTestId('check-in-indicator');
+    expect(indicator).toHaveTextContent('Moved');
+    expect(indicator.className).toContain('text-muted-foreground');
+    expect(indicator.className).not.toContain('text-success');
+  });
+});

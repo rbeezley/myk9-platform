@@ -42,6 +42,33 @@ describe('baselineChangeIsLoweringOnly', () => {
     expect(baselineChangeIsLoweringOnly(BASE_TEXT, noTotal, new Set(['files']))).toBe(false);
   });
 
+  it('exempts the em-dash baseline moving from the old shape to the new one', () => {
+    const newShape = (files: Record<string, number>) =>
+      JSON.stringify({ version: 1, files }, null, 2) + '\n';
+    const run = (head: string) =>
+      exemptBaselineFiles([BASELINE], () => ({ base: BASE_TEXT, head })).size;
+    // total and updatedAt gone, counts equal or lower, entries dropped: lowering only.
+    expect(run(newShape({ 'a.ts': 3, 'b.ts': 2 }))).toBe(1);
+    expect(run(newShape({ 'a.ts': 2 }))).toBe(1);
+    // New shape against new shape.
+    expect(
+      exemptBaselineFiles([BASELINE], () => ({
+        base: newShape({ 'a.ts': 3 }),
+        head: newShape({ 'a.ts': 2 }),
+      })).size
+    ).toBe(1);
+    // A raised count or an added file is never exempt.
+    expect(run(newShape({ 'a.ts': 4, 'b.ts': 2 }))).toBe(0);
+    expect(run(newShape({ 'a.ts': 3, 'b.ts': 2, 'c.ts': 1 }))).toBe(0);
+    // Dropping `total` is not allowed for a baseline that does not list it.
+    expect(
+      exemptBaselineFiles([OTHER_BASELINE], () => ({
+        base: JSON.stringify({ version: 1, total: 5, metrics: { a: 1 } }),
+        head: JSON.stringify({ version: 1, metrics: { a: 1 } }),
+      })).size
+    ).toBe(0);
+  });
+
   it('does not exempt deleting a code-quality metric, which switches its check off', () => {
     const metrics = (m: Record<string, number>) =>
       JSON.stringify({ version: 1, updatedAt: 'x', metrics: m });

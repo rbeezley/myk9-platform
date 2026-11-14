@@ -39,7 +39,7 @@ export const RegistrationChipsForShow: React.FC<RegistrationChipsForShowProps> =
         >
           {registrationLabel(forShow.used)}
           {/* Without a separator the accessible name runs the number into the
-            marker: "SR12345601Used for this show". */}
+            marker: "SR12345601Number this show uses". */}
           <span className="sr-only">, </span>
           {/* Weight, not colour, sets the marker below the number. This chip
             is a primary tint, and muted-foreground on it in dark mode sits at

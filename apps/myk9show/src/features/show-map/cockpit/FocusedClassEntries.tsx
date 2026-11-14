@@ -33,6 +33,7 @@ import { useClassCheckIn } from './useClassCheckIn';
 import { ClassEntryRowMenu } from './ClassEntryRowMenu';
 import { entryEditHref } from './entryRowLinks';
 import { useMarkEntryAbsent } from './useMarkEntryAbsent';
+import { dayOfDogLabel } from '../dayOfMessages';
 import type {
   CockpitLifecycle,
   SecretaryCockpitEntryAction,
@@ -58,8 +59,7 @@ import type { EntriesRefresh } from '@/components/entries/management/checkInDesk
 // scroll wrapper stays as the fallback for narrower ones.
 const CELL = 'px-2 py-2';
 /** "#110 Hazel": how a dog is named in the grip, the announcements and the Undo summary. */
-const dogLabel = (entry: SecretaryCockpitClassEntry) =>
-  entry.armband ? `#${entry.armband} ${entry.dogName}` : entry.dogName;
+const dogLabel = dayOfDogLabel;
 const NO_ACTIONS: readonly SecretaryCockpitEntryAction[] = [];
 
 const TILE = 'rounded-lg border bg-muted/30 px-4 py-3';
@@ -202,8 +202,6 @@ export function ClassEntriesTable({
   const markAbsent = useMarkEntryAbsent({
     classId: rowMenu?.classId ?? '',
     className,
-    entries,
-    classLifecycle: rowMenu?.classLifecycle ?? null,
     onRefreshEntries,
   });
   // Who can move comes from the placement model the write uses, never from this table's states.
@@ -374,7 +372,6 @@ export function ClassEntriesTable({
       )}
       {hiddenNote}
       {checkIn.dialogs}
-      {rowMenu && markAbsent.dialog}
     </>
   );
 }

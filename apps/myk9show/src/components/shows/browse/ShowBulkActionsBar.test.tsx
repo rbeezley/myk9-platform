@@ -156,20 +156,27 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    // The bar's own "Mark completed" button and the dialog's confirm button
+    // The bar's own "Mark cancelled" button and the dialog's confirm button
     // share the same accessible name, so each click is scoped to its own
     // container rather than the destructive-click-picks-another-row trap
     // (docs/lessons/README.md#confirm-click-destructive).
-    await user.click(within(bulkBar()).getByRole('button', { name: /mark completed/i }));
+    await user.click(within(bulkBar()).getByRole('button', { name: /mark cancelled/i }));
     await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: /mark completed/i })
+      within(await screen.findByRole('dialog')).getByRole('button', { name: /mark cancelled/i })
     );
 
     await waitFor(() => {
-      expect(updateShow).toHaveBeenCalledWith('show-1', { status: 'completed' });
-      expect(updateShow).toHaveBeenCalledWith('show-2', { status: 'completed' });
+      expect(updateShow).toHaveBeenCalledWith('show-1', { status: 'cancelled' });
+      expect(updateShow).toHaveBeenCalledWith('show-2', { status: 'cancelled' });
     });
     expect(onBulkComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no way to mark shows completed: only the Close step does (MYK9-1945)', () => {
+    renderBar();
+
+    expect(within(bulkBar()).queryByRole('button', { name: /complete/i })).not.toBeInTheDocument();
+    expect(updateShow).not.toHaveBeenCalled();
   });
 
   it('bulk delete soft-deletes every selected show', async () => {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ABSENT_SCORE } from '@/features/at-show/absentScore';
+import { STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { toOptimisticScorePayload } from '@/pages/scoring/types';
 import { UserRole } from '@/types/auth-types';
 import { render } from '@/test/utils/testUtils';
@@ -14,12 +15,22 @@ import { queueFor } from './queueFixture';
 
 const hasRole = vi.fn<(role: string) => boolean>();
 const submitScoreOptimistically = vi.fn();
-const { toastSuccess, toastError, getStored, transitionToCompleted } = vi.hoisted(() => ({
+const {
+  toastSuccess,
+  toastError,
+  getStored,
+  transitionToCompleted,
+  showUndoToast,
+  clearEntryScore,
+} = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   getStored: vi.fn(),
   transitionToCompleted: vi.fn(),
+  showUndoToast: vi.fn(),
+  clearEntryScore: vi.fn(),
 }));
+const isOnline = vi.hoisted(() => ({ value: true }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' }, hasRole }),
@@ -31,6 +42,12 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: { get: getStored },
 }));
 vi.mock('@/utils/checkInTransitions', () => ({ transitionToCompleted }));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => isOnline.value }));
+vi.mock('@/features/at-show/clearEntryScore', () => ({ clearEntryScore }));
+vi.mock('@/lib/undoToast', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/undoToast')>()),
+  showUndoToast,
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 function row(state: ClassEntryState, overrides: Partial<SecretaryCockpitClassEntry> = {}) {
@@ -101,6 +118,9 @@ beforeEach(() => {
   toastError.mockReset();
   getStored.mockReset().mockResolvedValue({ entry_status: 'accepted', is_scored: false });
   transitionToCompleted.mockReset();
+  showUndoToast.mockReset();
+  clearEntryScore.mockReset().mockResolvedValue(undefined);
+  isOnline.value = true;
 });
 
 describe('the per-dog menu (MYK9-1873)', () => {
@@ -108,16 +128,16 @@ describe('the per-dog menu (MYK9-1873)', () => {
     await openMenu(table(row('waiting')));
     expect(await names()).toEqual([
       'Change class',
-      'Edit entry',
+      'Change handler',
       'Mark absent',
       'Open dog details',
       'Open person details',
     ]);
   });
 
-  it('links Edit entry, the dog and the person to their existing surfaces', async () => {
+  it('links Change handler, the dog and the person to their existing surfaces', async () => {
     await openMenu(table(row('waiting')));
-    expect(screen.getByRole('menuitem', { name: 'Edit entry' })).toHaveAttribute(
+    expect(screen.getByRole('menuitem', { name: 'Change handler' })).toHaveAttribute(
       'href',
       '/shows/show-1/entries?queue=all&entry=e-110'
     );
@@ -141,7 +161,7 @@ describe('the per-dog menu (MYK9-1873)', () => {
     async state => {
       await openMenu(table(row(state)));
       expect(await names()).not.toContain('Mark absent');
-      expect(await names()).toContain('Edit entry');
+      expect(await names()).toContain('Change handler');
     }
   );
 
@@ -166,7 +186,7 @@ describe('the per-dog menu (MYK9-1873)', () => {
     );
     expect(await names()).toEqual([
       'Change class',
-      'Edit entry',
+      'Change handler',
       'Open dog details',
       'Open person details',
     ]);
@@ -181,7 +201,7 @@ describe('the per-dog menu (MYK9-1873)', () => {
 
   it('omits the open links when the entry carries no dog or person id', async () => {
     await openMenu(table(row('waiting', { dogHref: undefined, handlerHref: undefined })));
-    expect(await names()).toEqual(['Change class', 'Edit entry', 'Mark absent']);
+    expect(await names()).toEqual(['Change class', 'Change handler', 'Mark absent']);
   });
 
   it('shows no menu without rowMenu (a viewer who cannot manage the show)', () => {
@@ -190,21 +210,14 @@ describe('the per-dog menu (MYK9-1873)', () => {
   });
 });
 
-describe('Mark absent (MYK9-1873)', () => {
-  it('confirms first, then submits ABSENT_SCORE for that entry and refreshes', async () => {
+describe('Mark absent: one tap, says what happened, Undo (MYK9-1940)', () => {
+  it('submits ABSENT_SCORE at once with no confirmation, and refreshes', async () => {
     const onRefreshEntries = vi.fn();
     const { user } = await openMenu(table(row('waiting'), { onRefreshEntries }));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
 
-    expect(await screen.findByText('Mark #110 Hazel absent?')).toBeInTheDocument();
-    expect(
-      screen.getByText("This records Absent as the dog's result for this class.")
-    ).toBeInTheDocument();
-    expect(submitScoreOptimistically).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole('button', { name: 'Mark absent' }));
-
     await waitFor(() => expect(onRefreshEntries).toHaveBeenCalled());
+    expect(screen.queryByText('Mark #110 Hazel absent?')).toBeNull();
     expect(submitScoreOptimistically).toHaveBeenCalledWith(
       expect.objectContaining({
         entryId: 'e-110',
@@ -214,31 +227,63 @@ describe('Mark absent (MYK9-1873)', () => {
         scoreData: toOptimisticScorePayload(ABSENT_SCORE),
       })
     );
-    expect(toastSuccess).toHaveBeenCalledWith('#110 Hazel marked absent.');
   });
 
-  it('writes nothing when the confirm is cancelled', async () => {
+  it('names the dog and the class, with the shared Undo and duration', async () => {
     const { user } = await openMenu(table(row('waiting')));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
-    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
-    expect(submitScoreOptimistically).not.toHaveBeenCalled();
+    await waitFor(() => expect(showUndoToast).toHaveBeenCalledTimes(1));
+    expect(showUndoToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: '#110 Hazel marked absent in Novice Interior',
+        duration: STATUS_UNDO_WINDOW_MS,
+      })
+    );
   });
 
-  it('says so, and does not refresh, when the score is not saved', async () => {
+  it('Undo clears the result with the same write as Reset score, then refreshes', async () => {
+    const onRefreshEntries = vi.fn();
+    const { user } = await openMenu(table(row('waiting'), { onRefreshEntries }));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
+    await waitFor(() => expect(showUndoToast).toHaveBeenCalled());
+    onRefreshEntries.mockClear();
+
+    showUndoToast.mock.calls[0]?.[0].onUndo();
+
+    await waitFor(() => expect(clearEntryScore).toHaveBeenCalledWith('e-110'));
+    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalled());
+  });
+
+  it('says so when Undo cannot clear the result', async () => {
+    clearEntryScore.mockRejectedValue(new Error('offline'));
+    const { user } = await openMenu(table(row('waiting')));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
+    await waitFor(() => expect(showUndoToast).toHaveBeenCalled());
+
+    showUndoToast.mock.calls[0]?.[0].onUndo();
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Could not undo #110 Hazel marked absent in Novice Interior. Try again.'
+      )
+    );
+  });
+
+  it('says so, offers no Undo and does not refresh when the score is not saved', async () => {
     submitScoreOptimistically.mockImplementation(async options =>
       options.onError(new Error('queue full'))
     );
     const onRefreshEntries = vi.fn();
     const { user } = await openMenu(table(row('waiting'), { onRefreshEntries }));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
-    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Not saved: queue full'));
+    expect(showUndoToast).not.toHaveBeenCalled();
     expect(onRefreshEntries).not.toHaveBeenCalled();
   });
 });
 
 describe('Mark absent re-checks the entry (MYK9-1873)', () => {
-  it('refuses, writes nothing and says so when the entry was scored while the dialog was open', async () => {
+  it('refuses, writes nothing and says so when the entry was scored since the table read it', async () => {
     getStored.mockResolvedValue({
       entry_status: 'accepted',
       is_scored: true,
@@ -247,7 +292,6 @@ describe('Mark absent re-checks the entry (MYK9-1873)', () => {
     const onRefreshEntries = vi.fn();
     const { user } = await openMenu(table(row('waiting'), { onRefreshEntries }));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
-    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(
         '#110 Hazel was scored while this was open; nothing was changed.'
@@ -258,37 +302,68 @@ describe('Mark absent re-checks the entry (MYK9-1873)', () => {
     expect(onRefreshEntries).not.toHaveBeenCalled();
   });
 
-  it('refuses when the entry was pulled while the dialog was open', async () => {
+  it('refuses when the entry was pulled since the table read it', async () => {
     getStored.mockResolvedValue({ entry_status: 'accepted', check_in_status: 'pulled' });
     const { user } = await openMenu(table(row('waiting')));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
-    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
     expect(submitScoreOptimistically).not.toHaveBeenCalled();
-  });
-
-  it('closes the dialog when the row stops being one that can be marked absent', async () => {
-    const waiting = row('waiting');
-    const view = await openMenu(table(waiting));
-    await view.user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
-    expect(await screen.findByText('Mark #110 Hazel absent?')).toBeInTheDocument();
-    view.rerender(table(row('scored')));
-    await waitFor(() => expect(screen.queryByText('Mark #110 Hazel absent?')).toBeNull());
   });
 
   it('takes a dog that was in the ring out of it once the absent is saved', async () => {
     getStored.mockResolvedValue({ entry_status: 'accepted', check_in_status: 'in-ring' });
     const { user } = await openMenu(table(row('in-ring')));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
-    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
     await waitFor(() => expect(transitionToCompleted).toHaveBeenCalledWith('e-110'));
   });
 
   it('leaves the check-in of a dog that was only waiting alone', async () => {
     const { user } = await openMenu(table(row('waiting')));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
-    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    await waitFor(() => expect(showUndoToast).toHaveBeenCalled());
     expect(transitionToCompleted).not.toHaveBeenCalled();
+  });
+});
+
+describe('offline: Change class and Change handler say why before she taps (MYK9-1940)', () => {
+  it('disables both with their reasons', async () => {
+    isOnline.value = false;
+    await openMenu(table(row('waiting')));
+    const changeClass = screen.getByRole('menuitem', { name: /^Change class/ });
+    const changeHandler = screen.getByRole('menuitem', { name: /^Change handler/ });
+    expect(changeClass).toHaveAttribute('aria-disabled', 'true');
+    expect(changeHandler).toHaveAttribute('aria-disabled', 'true');
+    expect(changeClass).toHaveTextContent('Changing a class needs a connection.');
+    expect(changeHandler).toHaveTextContent('Changing a handler needs a connection.');
+    expect(changeHandler).not.toHaveAttribute('href');
+  });
+
+  it('leaves Mark absent, which is stored on the device, enabled', async () => {
+    isOnline.value = false;
+    await openMenu(table(row('waiting')));
+    expect(screen.getByRole('menuitem', { name: 'Mark absent' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+  });
+
+  it('runs Change class when online', async () => {
+    const onCommand = vi.fn();
+    const entry = row('waiting');
+    const { user } = await openMenu(
+      <ClassEntriesTable
+        entries={[entry]}
+        className="Novice Interior"
+        rowMenu={{
+          actions: new Map([[entry.nodeId, [changeClass]]]),
+          showId: 'show-1',
+          classId: 'class-1',
+          classLifecycle: 'in-progress',
+          onCommand,
+        }}
+      />
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Change class' }));
+    expect(onCommand).toHaveBeenCalledWith('move-up-entry:entry:e-110');
   });
 });

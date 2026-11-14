@@ -28,14 +28,14 @@ const LETTER_SPACE_WIDE = 2;
  * underlying premium carries an event number on the first trial; UKC omits it.
  */
 export function renderGazetteCover(ctx: CoverContext) {
-  const { t, data, dateRange, club, venue, org } = ctx;
+  const { t, data, facts, dateRange, club, venue, org } = ctx;
   const coverImageUrl = data.supplemental.coverImageUrl?.trim() || null;
 
   // The data shape doesn't carry a dedicated AKC license field. The first
   // trial's eventNumber is the closest analogue (e.g., "AKC-2026-001"); show
   // it on AKC mastheads only so the gazette label has parity with sanction
   // expectations without inventing a new field.
-  const akcLicenseNumber = org === 'AKC' ? (data.trials[0]?.eventNumber ?? null) : null;
+  const akcLicenseNumber = org === 'AKC' ? (facts.trials[0]?.eventNumber ?? null) : null;
   // CoverContext.org is a loose `string` (not the narrower GeneratedPremium.org union), and
   // premium generation isn't offered for non-AKC/UKC shows (generate-premium's CHECK-constraint
   // gate) — fall back to AKC rather than let an unrecognized id throw mid-render.
@@ -47,7 +47,7 @@ export function renderGazetteCover(ctx: CoverContext) {
   const cityState = extractCityState(venue);
 
   const headline =
-    club && data.show.name ? `${club} to Hold ${data.show.name}` : 'Premium Information';
+    club && facts.showName ? `${club} to Hold ${facts.showName}` : 'Premium Information';
 
   const welcome =
     data.narratives &&
@@ -57,7 +57,7 @@ export function renderGazetteCover(ctx: CoverContext) {
   const article =
     welcome && welcome.trim().length >= 20
       ? welcome
-      : composeFallbackArticle(club, data.show.name, venue, dateRange);
+      : composeFallbackArticle(club, facts.showName, venue, dateRange);
 
   // Flatten judges across all trials, dedup by name, take up to JUDGES_STRIP_MAX.
   const judgeStrip = buildJudgeStrip(data.trials);
@@ -76,7 +76,7 @@ export function renderGazetteCover(ctx: CoverContext) {
   if (trials.length > 0) {
     atAGlanceLines.push({
       label: 'Trials',
-      value: `${trials.length} ${MIDDOT} ${formatPremiumDate(data.show.startDate)}`,
+      value: `${trials.length} ${MIDDOT} ${formatPremiumDate(facts.startDate)}`,
     });
   }
   if (elements.length > 0) {
@@ -86,11 +86,8 @@ export function renderGazetteCover(ctx: CoverContext) {
     atAGlanceLines.push({ label: 'Levels', value: levels.join(` ${MIDDOT} `) });
   }
   atAGlanceLines.push({ label: 'Sanctioning', value: org });
-  if (data.show.entryCloseDate) {
-    atAGlanceLines.push({
-      label: 'Entries Close',
-      value: formatPremiumDate(data.show.entryCloseDate),
-    });
+  if (facts.entry.closes) {
+    atAGlanceLines.push({ label: 'Entries Close', value: facts.entry.closes });
   }
 
   return (
@@ -137,7 +134,7 @@ export function renderGazetteCover(ctx: CoverContext) {
           marginBottom: 4,
         }}
       >
-        VOL. I {MIDDOT} {formatPremiumDate(data.show.startDate)}
+        VOL. I {MIDDOT} {formatPremiumDate(facts.startDate)}
         {cityState ? ` ${MIDDOT} ${cityState}` : ''}
         {akcLicenseNumber ? ` ${MIDDOT} LICENSE NO. ${akcLicenseNumber}` : ''}
       </Text>

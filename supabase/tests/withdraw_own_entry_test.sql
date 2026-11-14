@@ -40,13 +40,11 @@ select ('00000000-0000-0000-0000-00000053504' || n)::uuid,
   '00000000-0000-0000-0000-000000535003', 'Container Novice ' || n, 'upcoming'
 from generate_series(1, 9) n;
 
--- Two more class/entry pairs, one per spelling of the move-up request status
--- (the secretary-decision request that remains after MYK9-719), so each keeps
--- its own row like every other guard here.
+-- One more class/entry pair for the move-up request status (the
+-- secretary-decision request that remains after MYK9-719).
 insert into public.classes (id, trial_id, name, status)
-select ('00000000-0000-0000-0000-00000053505' || n)::uuid,
-  '00000000-0000-0000-0000-000000535003', 'Interior Novice ' || n, 'upcoming'
-from generate_series(1, 2) n;
+values ('00000000-0000-0000-0000-000000535051',
+  '00000000-0000-0000-0000-000000535003', 'Interior Novice 1', 'upcoming');
 
 -- 1 owner, 2 co-owner, 3 handler, 4 outsider, 5 unlinked (no auth identity),
 -- 6 club secretary.
@@ -77,15 +75,12 @@ from generate_series(1, 9) n;
 
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
   entry_status, payment_status, entry_fee, check_in_status)
-select ('00000000-0000-0000-0000-00000053506' || n)::uuid,
+values ('00000000-0000-0000-0000-000000535061',
   '00000000-0000-0000-0000-000000535021',
-  ('00000000-0000-0000-0000-00000053505' || n)::uuid,
+  '00000000-0000-0000-0000-000000535051',
   '00000000-0000-0000-0000-000000535002',
   '00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-000000535013',
-  status, 'pending', 25, 'no-status'
-from unnest(array[
-  'move-up-requested', 'move_up_requested'
-]) with ordinality as t(status, n);
+  'move-up-requested', 'pending', 25, 'no-status');
 
 update public.entries set payment_status = 'paid'
  where id = '00000000-0000-0000-0000-000000535032';
@@ -218,16 +213,12 @@ select pg_temp.assert_withdraw('co-owner', '00000000-0000-0000-0000-000000535102
   '00000000-0000-0000-0000-000000535037');
 
 -- An unpaid exhibitor awaiting a secretary decision must still be able to
--- withdraw. `entries_entry_status_check` admits BOTH spellings of the move-up
--- request status and the live column holds the hyphenated one, so both run —
--- each on its own row, with the EXACT strings. ('scratch-requested' is no
--- longer a legal value: MYK9-719.)
-select pg_temp.assert_withdraw('owner withdraws a ' || t.status || ' entry',
+-- withdraw. The move-up request status is the hyphenated string (the underscore
+-- twin is retired from `entries_entry_status_check`, MYK9-1929), with the EXACT
+-- string. ('scratch-requested' is no longer a legal value: MYK9-719.)
+select pg_temp.assert_withdraw('owner withdraws a move-up-requested entry',
   '00000000-0000-0000-0000-000000535101',
-  ('00000000-0000-0000-0000-00000053506' || t.n)::uuid)
-from unnest(array[
-  'move-up-requested', 'move_up_requested'
-]) with ordinality as t(status, n);
+  '00000000-0000-0000-0000-000000535061');
 
 -- Denied: an unrelated authenticated caller, an authenticated caller with no
 -- person row, and anon (which has no EXECUTE grant at all).

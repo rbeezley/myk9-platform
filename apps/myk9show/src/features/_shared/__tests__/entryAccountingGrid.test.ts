@@ -46,11 +46,12 @@ import {
  *
  * Handwritten arrays had already drifted from these by four values --
  * `scratch_requested` / `move_up_requested` (the underscore twins of the hyphen
- * forms; MYK9-719 later retired both scratch-request spellings), `check_in_status: 'completed'` and `result_status: 'withdrawn'` --
+ * forms; MYK9-719 later retired both scratch-request spellings and MYK9-1929 the
+ * move-up one; the pasted text below is the 2026-09-17 capture minus that value), `check_in_status: 'completed'` and `result_status: 'withdrawn'` --
  * which is exactly the drift this grid exists to catch, so they are parsed out
  * of the constraint text instead of retyped.
  */
-const ENTRY_STATUS_CHECK = `CHECK ((entry_status = ANY (ARRAY['no-status'::text, 'draft'::text, 'submitted'::text, 'paid'::text, 'confirmed'::text, 'checked-in'::text, 'at-gate'::text, 'in-ring'::text, 'competing'::text, 'completed'::text, 'withdrawn'::text, 'scratched'::text, 'absent'::text, 'moved'::text, 'not_accepted'::text, 'pending-payment'::text, 'promotion-expired'::text, 'move-up-requested'::text, 'move_up_requested'::text])))`;
+const ENTRY_STATUS_CHECK = `CHECK ((entry_status = ANY (ARRAY['no-status'::text, 'draft'::text, 'submitted'::text, 'paid'::text, 'confirmed'::text, 'checked-in'::text, 'at-gate'::text, 'in-ring'::text, 'competing'::text, 'completed'::text, 'withdrawn'::text, 'scratched'::text, 'absent'::text, 'moved'::text, 'not_accepted'::text, 'pending-payment'::text, 'promotion-expired'::text, 'move-up-requested'::text])))`;
 
 const CHECK_IN_STATUS_CHECK = `CHECK ((check_in_status = ANY (ARRAY['no-status'::text, 'checked-in'::text, 'conflict'::text, 'pulled'::text, 'at-gate'::text, 'come-to-gate'::text, 'in-ring'::text, 'completed'::text])))`;
 
@@ -114,8 +115,9 @@ describe('entry accounting — one rule across the whole status grid (MYK9-645)'
   it('parses the live constraint text rather than a handwritten list', () => {
     // Known-answer check on the parser itself: an unparsed constraint would
     // silently shrink the grid to nothing and every invariant below would pass.
-    expect(ENTRY_STATUSES).toHaveLength(19);
-    expect(ENTRY_STATUSES).toEqual(expect.arrayContaining(['move_up_requested']));
+    expect(ENTRY_STATUSES).toHaveLength(18);
+    expect(ENTRY_STATUSES).toEqual(expect.arrayContaining(['move-up-requested']));
+    expect(ENTRY_STATUSES).not.toContain('move_up_requested');
     // MYK9-719: the scratch-request spellings are retired from the CHECK.
     expect(ENTRY_STATUSES).not.toContain('scratch-requested');
     expect(ENTRY_STATUSES).not.toContain('scratch_requested');
@@ -132,7 +134,7 @@ describe('entry accounting — one rule across the whole status grid (MYK9-645)'
     expect(GRID).toHaveLength(
       ENTRY_STATUSES.length * CHECK_IN_STATUSES.length * RESULT_STATUSES.length * 2
     );
-    expect(GRID).toHaveLength(2736);
+    expect(GRID).toHaveLength(2592);
   });
 
   it('classifies pending exactly where the row is runnable', () => {

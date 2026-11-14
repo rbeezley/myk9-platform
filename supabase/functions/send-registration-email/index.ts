@@ -14,6 +14,7 @@ import { REGISTRATION_ENTRIES_SELECT, mapRegistrationEntries } from './registrat
 import {
   claimSubmissionEntries,
   parseEntryIds,
+  releaseClaimOnThrow,
   releaseSubmissionClaim,
   submissionIdempotencyKey,
   summarizeSubmission,
@@ -164,67 +165,74 @@ handle<SendRegistrationEmailPayload>(
       if (claimedIds.length === 0) return { success: true, alreadySent: true };
       entries = entries.filter((entry: { id: string }) => claimedIds?.includes(entry.id));
     }
-    const releaseClaim = async () => {
-      if (claimedIds) {
-        await releaseSubmissionClaim(supabase as unknown as EntryClaimClient, claimedIds);
+    // False when the release itself failed (already logged): the failure response says so.
+    const releaseClaim = async (): Promise<boolean> => {
+      if (!claimedIds) return true;
+      return releaseSubmissionClaim(supabase as unknown as EntryClaimClient, claimedIds);
+    };
+
+    // Everything from the claim to the send releases the claim on any throw.
+    const { emailPayload, idempotencyKey } = await releaseClaimOnThrow(releaseClaim, async () => {
+      const secretaryCc = resolveSecretaryCc(
+        registration.show?.cc_secretary_on_exhibitor_emails,
+        registration.show?.secretary_email
+      );
+
+      const show = registration.show;
+      const submission = claimedIds ? summarizeSubmission(entries) : null;
+      const payAtShow = submission
+        ? submission.payAtShow
+        : payAtShowMethod(registration.payment_method, registration.payment_status);
+      let clubName: string | undefined;
+      if (payAtShow === 'check' && show?.club_id) {
+        const { data: club } = await supabase
+          .from('clubs')
+          .select('name')
+          .eq('id', show.club_id)
+          .maybeSingle();
+        clubName = club?.name ?? undefined;
       }
-    };
+      const siteUrl = (Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '');
+      const html = buildRegistrationEmailHtml({
+        firstName: registration.person?.first_name || 'there',
+        confirmationNumber: registration.confirmation_number || null,
+        showName: show?.name || 'Dog Show',
+        showDates: formatUsShowDateRange(show?.start_date, show?.end_date),
+        showLocation: show?.location || '',
+        showVenue: show?.venue_name,
+        confirmationMessage: show?.confirmation_message,
+        entries: mapRegistrationEntries(entries),
+        subtotal: submission ? submission.totalCents : registration.total_amount || 0,
+        discount: submission ? 0 : registration.discount_amount,
+        total: submission ? submission.totalCents : registration.total_amount || 0,
+        paymentMethod: registration.payment_method || 'Payment on file',
+        entriesUrl: `${siteUrl}/exhibitor/entries`,
+        clubName,
+        payAtShow,
+      });
 
-    const secretaryCc = resolveSecretaryCc(
-      registration.show?.cc_secretary_on_exhibitor_emails,
-      registration.show?.secretary_email
-    );
+      // Send via Resend with idempotency key
+      const emailPayload: {
+        from: string;
+        to: string;
+        subject: string;
+        html: string;
+        cc?: string[];
+      } = {
+        from: FROM_EMAIL,
+        to: recipientEmail,
+        subject: `Registration Confirmed - ${registration.confirmation_number || 'myK9Show'}`,
+        html,
+      };
 
-    const show = registration.show;
-    const submission = claimedIds ? summarizeSubmission(entries) : null;
-    const payAtShow = submission
-      ? submission.payAtShow
-      : payAtShowMethod(registration.payment_method, registration.payment_status);
-    let clubName: string | undefined;
-    if (payAtShow === 'check' && show?.club_id) {
-      const { data: club } = await supabase
-        .from('clubs')
-        .select('name')
-        .eq('id', show.club_id)
-        .maybeSingle();
-      clubName = club?.name ?? undefined;
-    }
-    const siteUrl = (Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '');
-    const html = buildRegistrationEmailHtml({
-      firstName: registration.person?.first_name || 'there',
-      confirmationNumber: registration.confirmation_number || null,
-      showName: show?.name || 'Dog Show',
-      showDates: formatUsShowDateRange(show?.start_date, show?.end_date),
-      showLocation: show?.location || '',
-      showVenue: show?.venue_name,
-      confirmationMessage: show?.confirmation_message,
-      entries: mapRegistrationEntries(entries),
-      subtotal: submission ? submission.totalCents : registration.total_amount || 0,
-      discount: submission ? 0 : registration.discount_amount,
-      total: submission ? submission.totalCents : registration.total_amount || 0,
-      paymentMethod: registration.payment_method || 'Payment on file',
-      entriesUrl: `${siteUrl}/exhibitor/entries`,
-      clubName,
-      payAtShow,
+      if (secretaryCc.length > 0) {
+        emailPayload.cc = secretaryCc;
+      }
+      const idempotencyKey = claimedIds
+        ? await submissionIdempotencyKey(registrationId, claimedIds)
+        : registrationId;
+      return { emailPayload, idempotencyKey };
     });
-
-    // Send via Resend with idempotency key
-    const emailPayload: {
-      from: string;
-      to: string;
-      subject: string;
-      html: string;
-      cc?: string[];
-    } = {
-      from: FROM_EMAIL,
-      to: recipientEmail,
-      subject: `Registration Confirmed - ${registration.confirmation_number || 'myK9Show'}`,
-      html,
-    };
-
-    if (secretaryCc.length > 0) {
-      emailPayload.cc = secretaryCc;
-    }
 
     let response: Response;
     try {
@@ -233,14 +241,12 @@ handle<SendRegistrationEmailPayload>(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${resendApiKey}`,
-          'Idempotency-Key': claimedIds
-            ? await submissionIdempotencyKey(registrationId, claimedIds)
-            : registrationId,
+          'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify(emailPayload),
       });
     } catch {
-      await releaseClaim();
+      const claimReleased = await releaseClaim();
       const { error: logError } = await supabase.from('email_log').insert({
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
@@ -251,12 +257,13 @@ handle<SendRegistrationEmailPayload>(
         status_updated_at: new Date().toISOString(),
       });
       requireEmailLogWrite(logError, 'send-registration-email');
-      return { success: false };
+      return claimReleased ? { success: false } : { success: false, claimReleased };
     }
 
     let resendMessageId: string | undefined;
     let sendStatus = 'sent';
     let errorMessage: string | undefined;
+    let claimReleased = true;
 
     if (response.ok) {
       const result = await response.json();
@@ -264,7 +271,7 @@ handle<SendRegistrationEmailPayload>(
       console.log(`Registration email sent: ${result.id}`);
     } else {
       await response.text();
-      await releaseClaim();
+      claimReleased = await releaseClaim();
       sendStatus = 'failed';
       errorMessage = `provider_http_${response.status}`;
       console.error('Resend API error', { status: response.status });
@@ -297,6 +304,7 @@ handle<SendRegistrationEmailPayload>(
     return {
       success: sendStatus === 'sent',
       emailLogId: logRow?.id,
+      ...(claimReleased ? {} : { claimReleased }),
     };
   }
 );

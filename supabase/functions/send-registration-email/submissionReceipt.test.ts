@@ -1,10 +1,11 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   claimSubmissionEntries,
   parseEntryIds,
+  releaseClaimOnThrow,
   releaseSubmissionClaim,
   submissionIdempotencyKey,
   summarizeSubmission,
@@ -99,6 +100,47 @@ describe('claimSubmissionEntries (once per submission)', () => {
       confirmation_email_sent_at: null,
       confirmation_email_status: 'failed',
     });
+  });
+});
+
+describe('releaseSubmissionClaim failure', () => {
+  const failingClient = (message: string) =>
+    ({
+      from: () => ({
+        update: () => ({ in: () => Promise.resolve({ error: { message } }) }),
+      }),
+    }) as unknown as EntryClaimClient;
+
+  it('reports false and logs when the release itself fails, never swallowing it', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(await releaseSubmissionClaim(failingClient('db down'), ['e1'])).toBe(false);
+    expect(log).toHaveBeenCalledWith(
+      'Could not release the submission claim',
+      expect.objectContaining({ message: 'db down' })
+    );
+    log.mockRestore();
+  });
+
+  it('reports true when the claim was handed back', async () => {
+    expect(await releaseSubmissionClaim(fakeEntries([unsent('e1')]), ['e1'])).toBe(true);
+  });
+});
+
+describe('releaseClaimOnThrow', () => {
+  it('releases the claim and rethrows when the work throws before the send', async () => {
+    const release = vi.fn().mockResolvedValue(true);
+    await expect(
+      releaseClaimOnThrow(release, async () => {
+        throw new Error('club lookup timed out');
+      })
+    ).rejects.toThrow('club lookup timed out');
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the claim alone when the work succeeds', async () => {
+    const release = vi.fn().mockResolvedValue(true);
+    expect(await releaseClaimOnThrow(release, async () => 'ok')).toBe('ok');
+    expect(release).not.toHaveBeenCalled();
   });
 });
 

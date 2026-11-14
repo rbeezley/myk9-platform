@@ -57,15 +57,43 @@ export async function claimSubmissionEntries(
   return (data ?? []).map(row => row.id);
 }
 
-/** Hands a claim back after a failed send so the scheduled sender stays the retry path. */
+/**
+ * Hands a claim back after a failed send so the scheduled sender stays the retry path.
+ * Returns false (and logs) when the release itself failed, so the caller can report it.
+ */
 export async function releaseSubmissionClaim(
   client: EntryClaimClient,
   entryIds: string[]
-): Promise<void> {
-  await client
-    .from('entries')
-    .update({ confirmation_email_sent_at: null, confirmation_email_status: 'failed' })
-    .in('id', entryIds);
+): Promise<boolean> {
+  try {
+    const { error } = await client
+      .from('entries')
+      .update({ confirmation_email_sent_at: null, confirmation_email_status: 'failed' })
+      .in('id', entryIds);
+    if (error) {
+      console.error('Could not release the submission claim', { message: error.message });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Could not release the submission claim', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/** Runs the work between the claim and the send; any throw hands the claim back, then rethrows. */
+export async function releaseClaimOnThrow<T>(
+  release: () => Promise<unknown>,
+  work: () => Promise<T>
+): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    await release();
+    throw error;
+  }
 }
 
 /** Server-derived Resend key: the claimed entries, never anything the caller names. */

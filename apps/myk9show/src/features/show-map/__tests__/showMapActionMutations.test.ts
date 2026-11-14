@@ -201,27 +201,30 @@ describe('showMapActionMutations', () => {
     ['a scored entry', { entryStatus: 'accepted', isScored: true }],
     ['a scored entry no longer accepted', { entryStatus: 'pending', isScored: true }],
     ['a scored entry stored with is_scored', { entryStatus: 'accepted', is_scored: true }],
-    ['a completed entry', { entryStatus: 'completed' }],
-    ['a rejected entry', { entryStatus: 'not_accepted' }],
-    ['a cancelled entry', { entryStatus: 'withdrawn' }],
-  ])('refuses %s with a plain reason and writes nothing (MYK9-1990)', async (_name, stored) => {
-    mockGetReplicatedEntryById.mockResolvedValueOnce({ id: 'entry-1', ...stored });
+  ])(
+    'refuses %s because it already has a result, and writes nothing (MYK9-1990)',
+    async (_name, stored) => {
+      mockGetReplicatedEntryById.mockResolvedValueOnce({ id: 'entry-1', ...stored });
 
-    await expect(scratchShowMapEntry('entry-1', 'Dog absent')).rejects.toThrow(
-      /already run or is finished/
-    );
+      await expect(scratchShowMapEntry('entry-1', 'Dog absent')).rejects.toThrow(
+        /already has a result, so it can't be pulled/
+      );
+      expect(mockUpdateReplicatedDayOfScratch).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['complete', 'completed'],
+    ['not accepted', 'not_accepted'],
+    ['withdrawn', 'withdrawn'],
+    ['waitlisted', 'waitlist'],
+  ])('refuses a %s entry by naming its status (MYK9-1990)', async (label, status) => {
+    mockGetReplicatedEntryById.mockResolvedValueOnce({ id: 'entry-1', entryStatus: status });
+
+    const error = await scratchShowMapEntry('entry-1', 'Dog absent').catch(e => e as Error);
+    expect((error as Error).message).toMatch(/can't be pulled while it is /);
+    expect((error as Error).message.toLowerCase()).toContain(label);
     expect(mockUpdateReplicatedDayOfScratch).not.toHaveBeenCalled();
-  });
-
-  it('pulls a scored accepted entry only when allowScored is passed', async () => {
-    mockGetReplicatedEntryById.mockResolvedValue({
-      id: 'entry-1',
-      entryStatus: 'accepted',
-      isScored: true,
-    });
-
-    await scratchShowMapEntry('entry-1', 'Dog absent', undefined, { allowScored: true });
-    expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith('entry-1', 'Dog absent');
   });
 
   it.each(['pending', 'missing_info', 'accepted'])(

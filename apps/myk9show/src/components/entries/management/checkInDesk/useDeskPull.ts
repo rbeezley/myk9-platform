@@ -30,8 +30,6 @@ export interface DeskPullRow {
   armband: string | null;
   deskStatusEditable: boolean;
   deskCanUnpull: boolean;
-  /** Set only once the secretary confirmed that a scored dog's result leaves the class. */
-  allowScored?: boolean;
   sourceEntry?: EntryManagementEntry | undefined;
 }
 
@@ -71,9 +69,7 @@ export function useDeskPull(
     const row = pullRow;
     setIsWorking(true);
     try {
-      const undoInput = row.allowScored
-        ? await scratchShowMapEntry(row.entryId, reason, startedAt, { allowScored: true })
-        : await scratchShowMapEntry(row.entryId, reason, startedAt);
+      const undoInput = await scratchShowMapEntry(row.entryId, reason, startedAt);
       setPending(null);
       refresh(row.entryId);
       showUndoToast({

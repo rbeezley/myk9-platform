@@ -20,7 +20,7 @@ export const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>([
 
 /**
  * The one rule for where Pull is allowed (MYK9-1990), shared by the desks and the Entries page:
- * the entry is still going in the ring, or is waiting to (the desks also need it unscored). Pending and
+ * the entry is still going in the ring, or is waiting to. Pending and
  * missing-info entries are pulled before the show, so they count; rejected, waitlisted, cancelled,
  * completed, already-pulled and moved entries do not. The desk adds its own conditions on top.
  */
@@ -31,27 +31,27 @@ export const PULLABLE_ENTRY_STATUSES = new Set<EntryStatus>([
 ]);
 
 /**
- * What Pull does for an entry (MYK9-1990, owner decision): an unscored pullable entry opens the
- * Pull dialog; a scored one that is still accepted asks first, because pulling removes its result
- * from the class; anything else is not offered Pull.
+ * The one rule for Pull, for the desks, the Entries page and the write: a dog that already has a
+ * result is never pulled (owner, 2026-11-14), whatever its status.
  */
-export type EntryPullMode = 'pull' | 'pull-scored-confirm' | 'not-pullable';
-
-export function entryPullMode(entry: {
-  entryStatus: EntryStatus | string | null | undefined;
-  isScored?: boolean | null | undefined;
-}): EntryPullMode {
-  if (!PULLABLE_ENTRY_STATUSES.has(entry.entryStatus as EntryStatus)) return 'not-pullable';
-  if (!entry.isScored) return 'pull';
-  return entry.entryStatus === EntryStatus.ACCEPTED ? 'pull-scored-confirm' : 'not-pullable';
-}
-
-/** Pull with no confirmation about a result: the desks' rule, where a scored run stays put. */
 export function canPullEntry(entry: {
   entryStatus: EntryStatus | string | null | undefined;
   isScored?: boolean | null | undefined;
 }): boolean {
-  return entryPullMode(entry) === 'pull';
+  return !entry.isScored && PULLABLE_ENTRY_STATUSES.has(entry.entryStatus as EntryStatus);
+}
+
+/** Where Pull would be offered if the dog had no result: the Entries page explains instead. */
+export function isPullBlockedByResult(entry: {
+  entryStatus: EntryStatus | string | null | undefined;
+  isScored?: boolean | null | undefined;
+}): boolean {
+  return Boolean(entry.isScored) && PULLABLE_ENTRY_STATUSES.has(entry.entryStatus as EntryStatus);
+}
+
+/** The plain note shown in place of Pull for a dog that already has a result. */
+export function pullBlockedByResultNote(dogName: string, className: string): string {
+  return `${dogName} already has a result in ${className}, so it can't be pulled. To change what happened, edit the result on Results.`;
 }
 
 /**

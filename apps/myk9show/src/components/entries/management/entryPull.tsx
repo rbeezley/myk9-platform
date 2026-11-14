@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { ConfirmDialog } from '@/components/ui/alert-dialog';
-import { entryPullMode } from './checkInDesk/deskEditable';
+import { canPullEntry } from './checkInDesk/deskEditable';
 import { DeskPullDialogs } from './checkInDesk/DeskPullDialogs';
 import type { EntriesRefresh } from './checkInDesk/entriesRefresh';
 import { useDeskPull, type DeskPullRow } from './checkInDesk/useDeskPull';
@@ -12,15 +11,14 @@ import { REVERT_CANCELLED } from './useScoredRevertGuard';
 export const ENTRIES_PULL_STARTED_AT = 'Pulled on the Entries page';
 
 /** The class a Pull names: the entry's own class, as the desks name theirs. */
-function toPullRow(entry: EntryManagementEntry, allowScored = false): DeskPullRow {
+function toPullRow(entry: EntryManagementEntry): DeskPullRow {
   return {
     entryId: entry.id,
     dogName: entry.dogName,
     className: entry.classes[0]?.name ?? 'this class',
     armband: entry.armbandNumber ?? null,
-    deskStatusEditable: entryPullMode(entry) !== 'not-pullable',
+    deskStatusEditable: canPullEntry(entry),
     deskCanUnpull: false,
-    ...(allowScored ? { allowScored: true } : {}),
   };
 }
 
@@ -40,53 +38,23 @@ export function EntryPullProvider({
   onRefreshEntries?: EntriesRefresh | undefined;
   children: ReactNode;
 }) {
-  // A scored dog's Pull asks first (MYK9-1990); `confirmedScoredId` is set only after that yes.
-  const [askingEntry, setAskingEntry] = useState<EntryManagementEntry | null>(null);
-  const [confirmedScoredId, setConfirmedScoredId] = useState<string | null>(null);
   const pull = useDeskPull(
     entryId => {
       const entry = entries.find(candidate => candidate.id === entryId);
-      return entry ? toPullRow(entry, confirmedScoredId === entryId) : undefined;
+      return entry ? toPullRow(entry) : undefined;
     },
     onRefreshEntries,
     ENTRIES_PULL_STARTED_AT
   );
   const { requestPull } = pull;
   const request = useCallback(
-    (entry: EntryManagementEntry) => {
-      const mode = entryPullMode(entry);
-      if (mode === 'not-pullable') return;
-      if (mode === 'pull-scored-confirm') {
-        setAskingEntry(entry);
-        return;
-      }
-      setConfirmedScoredId(null);
-      requestPull(toPullRow(entry));
-    },
+    (entry: EntryManagementEntry) => requestPull(toPullRow(entry)),
     [requestPull]
   );
   return (
     <EntryPullContext.Provider value={request}>
       {children}
       <DeskPullDialogs pull={pull} />
-      {askingEntry && (
-        <ConfirmDialog
-          open
-          onOpenChange={open => {
-            if (!open) setAskingEntry(null);
-          }}
-          title={`Pull ${askingEntry.dogName} and remove the result?`}
-          description={`${askingEntry.dogName} has a result in ${askingEntry.classes[0]?.name ?? 'this class'}. Pulling removes the result from the class.`}
-          confirmLabel="Pull and remove the result"
-          destructive
-          onConfirm={() => {
-            const entry = askingEntry;
-            setAskingEntry(null);
-            setConfirmedScoredId(entry.id);
-            requestPull(toPullRow(entry, true));
-          }}
-        />
-      )}
     </EntryPullContext.Provider>
   );
 }

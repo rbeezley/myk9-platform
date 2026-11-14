@@ -12,7 +12,7 @@ import {
 import type { EntityAction } from '@/components/ui/RowActionMenu';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
-import { entryPullMode } from './checkInDesk/deskEditable';
+import { canPullEntry } from './checkInDesk/deskEditable';
 import { isPaymentRequestable } from './paymentRequestEligibility';
 import { isStripeRefundable } from './refundEligibility';
 import { isCompable } from './compEligibility';
@@ -146,8 +146,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
     sectionLabel: 'Entry',
     icon: <XCircle className="h-4 w-4" />,
     statusTarget: EntryStatus.SCRATCHED,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onStatusChange) && entryPullMode(entry) !== 'not-pullable',
+    applicableWhen: (entry, handlers) => Boolean(handlers.onStatusChange) && canPullEntry(entry),
     run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.SCRATCHED),
   },
   {

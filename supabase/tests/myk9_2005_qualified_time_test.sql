@@ -64,6 +64,11 @@ select ('00000000-0000-0000-0000-0000020050' || lpad(n::text, 2, '0'))::uuid,
        'MYK9-2005 Dog ' || n, 'Dog ' || n, 'Beagle'
   from generate_series(51, 70) as n;
 
+insert into public.dog_registrations (id, dog_id, organization, registration_number, is_primary)
+select ('00000000-0000-0000-0000-0000020051' || lpad(n::text, 2, '0'))::uuid,
+       ('00000000-0000-0000-0000-0000020050' || lpad(n::text, 2, '0'))::uuid, 'AKC', 'SR2005' || n, true
+  from generate_series(51, 70) as n;
+
 alter table public.entries disable trigger trg_entries_require_dog_registration;
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
   ('00000000-0000-0000-0000-000002005041', '00000000-0000-0000-0000-000002005051', '00000000-0000-0000-0000-000002005031',

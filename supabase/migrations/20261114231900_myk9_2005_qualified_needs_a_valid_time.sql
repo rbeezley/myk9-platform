@@ -21,7 +21,7 @@
 --     qualified_over_time_limit). The limits are classes.time_limit_seconds (area 1),
 --     time_limit_area2_seconds and time_limit_area3_seconds, against entries.area1/2/3_time_seconds;
 --     an area with no limit of its own uses area 1's, as buildResolvedClassRules does. A class
---     with no limit (null or 0), or an area whose time is blank, is never refused for time. A
+--     with no limit (null or 0), or an area whose time is blank (null or 0, its column default), is never refused for time. A
 --     one-area class that saved only search_time_seconds is checked on that. A time EQUAL to
 --     the limit is accepted.
 -- Only a write that changes the result, a time, or the class is checked, so an unrelated edit to
@@ -97,7 +97,10 @@ BEGIN
   END IF;
 
   v_areas := greatest(1, least(coalesce(v_class.num_areas, 1), 3));
-  v_times := ARRAY[NEW.area1_time_seconds, NEW.area2_time_seconds, NEW.area3_time_seconds];
+  -- The area columns default to 0, so 0 reads as blank, like null.
+  v_times := ARRAY[
+    nullif(NEW.area1_time_seconds, 0), nullif(NEW.area2_time_seconds, 0), nullif(NEW.area3_time_seconds, 0)
+  ];
   -- An area with no limit of its own uses area 1's; 0 means no limit.
   v_limits := ARRAY[
     nullif(v_class.time_limit_seconds, 0),

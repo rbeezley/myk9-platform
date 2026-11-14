@@ -2,6 +2,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 
 import { mergeReportPdfs } from '../mergeReportPdfs';
 import type { CollatedTrialPacket, TrialPacketJudge } from './collateTrialPacket';
+import { stampPacketFooter } from './packetFooter';
 import { buildJudgeCoverModel, renderJudgeCoverPdf } from './judgeCoverSheet';
 
 /** The reports a before-trial packet holds for each class, in print order. */
@@ -19,12 +20,14 @@ export function buildClassSheetParts(
   });
 }
 
-/** The cover sheet, then each class's check-in sheet and scoresheets, as one PDF. */
+/** The cover sheet, then each class's sheets, as one PDF with the packet footer on every page. */
 export async function buildJudgePacketPdf(
   packet: CollatedTrialPacket,
   judge: TrialPacketJudge,
-  showName: string
+  showName: string,
+  printedAt: Date = new Date()
 ): Promise<Uint8Array> {
   const cover = renderJudgeCoverPdf(buildJudgeCoverModel(packet, judge, showName));
-  return mergeReportPdfs([cover, ...judge.classes.flatMap(buildClassSheetParts)]);
+  const merged = await mergeReportPdfs([cover, ...judge.classes.flatMap(buildClassSheetParts)]);
+  return stampPacketFooter(merged, judge.judgeName ?? 'No judge assigned', printedAt);
 }

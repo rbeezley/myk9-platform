@@ -229,6 +229,12 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           {packet.emptyClassCount === 1 ? 'is' : 'are'} left out.
         </p>
       )}
+      {packet.cancelledClassCount > 0 && (
+        <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          {plural(packet.cancelledClassCount, 'class is', 'classes are')} cancelled and{' '}
+          {packet.cancelledClassCount === 1 ? 'is' : 'are'} left out.
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
         Each packet holds a cover sheet, then for each class the check-in sheet and the scoresheets.
       </p>

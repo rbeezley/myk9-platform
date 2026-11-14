@@ -8,6 +8,8 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { buildClassSheetParts, buildJudgePacketPdf } from './buildJudgePacketPdf';
 import { collateTrialPacket, NO_JUDGE_KEY } from './collateTrialPacket';
 import { buildJudgeCoverModel, formatCoverDate } from './judgeCoverSheet';
+import { formatPrintedAt } from './packetFooter';
+import { pageContentStreams, shownText } from './pdfPageStreams.testHelper';
 import { CLASSES, ENTRIES, SHOW, TRIAL } from './trialPacketFixtures';
 
 function collate(classes = CLASSES, entries = ENTRIES) {
@@ -96,16 +98,45 @@ describe('collateTrialPacket', () => {
         const packetParts = buildClassSheetParts(item);
         expect(packetParts).toHaveLength(2);
         for (const [index, part] of packetParts.entries()) {
-          // The same renderer on the same rows, built at the same moment. jsPDF stamps a random
-          // file id, so the bytes are compared by size and by page count, not byte for byte.
-          const single = expected[index] as Uint8Array;
-          expect(part.byteLength).toBe(single.byteLength);
-          expect((await PDFDocument.load(part)).getPageCount()).toBe(
-            (await PDFDocument.load(single)).getPageCount()
-          );
+          // The same renderer on the same rows. jsPDF stamps a random file id in the trailer, so
+          // the bytes differ; every page's drawn content is compared instead.
+          const singlePages = await pageContentStreams(expected[index] as Uint8Array);
+          const partPages = await pageContentStreams(part);
+          expect(partPages.length).toBeGreaterThan(0);
+          expect(partPages).toEqual(singlePages);
         }
       }
     }
+  });
+
+  it('carries each class’s pages in the judge’s packet unchanged, apart from the footer', async () => {
+    const packet = collate();
+    const judge = packet.judges[0]!;
+    const packetPages = await pageContentStreams(
+      await buildJudgePacketPdf(packet, judge, SHOW.name)
+    );
+    const expectedPages = (
+      await Promise.all(judge.classes.flatMap(buildClassSheetParts).map(pageContentStreams))
+    ).flat();
+    // Page 1 is the cover. Stamping wraps a page's own streams in a save/restore pair (`q` first,
+    // `Q` last) and adds the footer after them, so the class's content is what lies between.
+    const classPages = packetPages.slice(1).map(streams => streams.slice(1, -2));
+    expect(classPages).toEqual(expectedPages);
+    // And they are the class's own sheets: its first armband is drawn on them.
+    const drawn = classPages.flat().map(shownText).join(' ');
+    expect(drawn).toContain(judge.classes[0]?.runOrder[0] ?? 'missing');
+  });
+
+  it('leaves a cancelled class out of the packet, and counts it', () => {
+    const cancelled = CLASSES.map(item =>
+      item.id === 'c-container' ? ({ ...item, status: 'cancelled' } as typeof item) : item
+    );
+    const packet = collate(cancelled);
+    const everyClass = packet.judges.flatMap(judge => judge.classes.map(item => item.classId));
+    expect(everyClass).not.toContain('c-container');
+    expect(packet.cancelledClassCount).toBe(1);
+    expect(packet.judges[0]?.dogTotal).toBe(2);
+    expect(collate().cancelledClassCount).toBe(0);
   });
 });
 
@@ -150,6 +181,24 @@ describe('judge packet PDF', () => {
     for (const judge of packet.judges) {
       const bytes = await buildJudgePacketPdf(packet, judge, SHOW.name);
       expect((await PDFDocument.load(bytes)).getPageCount()).toBe(judge.sheetTotal);
+    }
+  });
+
+  it('stamps the judge, the print time and Page n of N on every page', async () => {
+    const packet = collate();
+    const printedAt = new Date('2026-12-06T18:00:00Z');
+    for (const judge of packet.judges) {
+      const bytes = await buildJudgePacketPdf(packet, judge, SHOW.name, printedAt);
+      const pages = await pageContentStreams(bytes);
+      expect(pages).toHaveLength(judge.sheetTotal);
+      const name = judge.judgeName ?? 'No judge assigned';
+      pages.forEach((streams, index) => {
+        const footer = shownText(streams[streams.length - 1] ?? '');
+        expect(footer).toContain(
+          `${name}. Printed ${formatPrintedAt(printedAt)}. Later changes are in the app.`
+        );
+        expect(footer).toContain(`Page ${index + 1} of ${pages.length}`);
+      });
     }
   });
 });

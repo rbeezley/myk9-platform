@@ -3,6 +3,7 @@ import { formatTimeLimitSeconds, formatTrialLabel, parseStoredClockTime } from '
 import { compareClassesByProgression } from '@/features/premium/pdf/bodies/classOrder';
 import { getTrialRegistry } from '@/features/registries';
 import { buildPages, type PageData } from '@/pages/secretary/ReportsPage/reportPreviewPages';
+import { lifecycleFor } from '../buildSecretaryCockpitSnapshot';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 import { selectPacketPages, toScoresheetModel } from '@/lib/reports/toScoresheetModel';
 import type { ReportDataSet } from '@/lib/reports/types';
@@ -45,6 +46,8 @@ export interface CollatedTrialPacket {
   judges: TrialPacketJudge[];
   /** Classes with no dogs entered: nothing to judge, so no sheets are printed for them. */
   emptyClassCount: number;
+  /** Cancelled classes: the cockpit lists no paperwork for them, so none is printed or marked. */
+  cancelledClassCount: number;
 }
 
 export const NO_JUDGE_KEY = 'no-judge';
@@ -103,7 +106,13 @@ export function collateTrialPacket(input: {
 
   const judges = new Map<string, TrialPacketJudge>();
   let emptyClassCount = 0;
+  let cancelledClassCount = 0;
   for (const classItem of trialClasses) {
+    // The cockpit's own predicate (classChecklist.ts: a cancelled class has no checklist items).
+    if (lifecycleFor(classItem.status ?? undefined) === 'cancelled') {
+      cancelledClassCount += 1;
+      continue;
+    }
     const pages: PageData[] = buildPages(
       input.trialId,
       classItem.id,
@@ -163,5 +172,6 @@ export function collateTrialPacket(input: {
     registryName: registry.name,
     judges: ordered,
     emptyClassCount,
+    cancelledClassCount,
   };
 }

@@ -34,12 +34,13 @@ insert into public.trials (id, show_id, name, date, registry_id) values
 
 -- Classes: P phone in progress, N paper-flagged in progress, O offline_scoring phase,
 -- U phone upcoming, X explicit false (used after the show switch is turned off).
-insert into public.classes (id, trial_id, name, status, ring_phase, scores_on_paper) values
-  ('00000000-0000-0000-0000-0000019690a0', '00000000-0000-0000-0000-000001969003', 'Phone', 'in_progress', null, null),
-  ('00000000-0000-0000-0000-0000019690b0', '00000000-0000-0000-0000-000001969003', 'Paper flag', 'in_progress', null, true),
-  ('00000000-0000-0000-0000-0000019690c0', '00000000-0000-0000-0000-000001969003', 'Offline phase', 'in_progress', 'offline_scoring', null),
-  ('00000000-0000-0000-0000-0000019690d0', '00000000-0000-0000-0000-000001969003', 'Upcoming', 'upcoming', null, null),
-  ('00000000-0000-0000-0000-0000019690e0', '00000000-0000-0000-0000-000001969003', 'Explicit phone', 'in_progress', null, false);
+-- status_source 'manual': otherwise inserting entries re-derives each class back to 'upcoming'.
+insert into public.classes (id, trial_id, name, status, ring_phase, scores_on_paper, status_source) values
+  ('00000000-0000-0000-0000-0000019690a0', '00000000-0000-0000-0000-000001969003', 'Phone', 'in_progress', null, null, 'manual'),
+  ('00000000-0000-0000-0000-0000019690b0', '00000000-0000-0000-0000-000001969003', 'Paper flag', 'in_progress', null, true, 'manual'),
+  ('00000000-0000-0000-0000-0000019690c0', '00000000-0000-0000-0000-000001969003', 'Offline phase', 'in_progress', 'offline_scoring', null, 'manual'),
+  ('00000000-0000-0000-0000-0000019690d0', '00000000-0000-0000-0000-000001969003', 'Upcoming', 'upcoming', null, null, 'manual'),
+  ('00000000-0000-0000-0000-0000019690e0', '00000000-0000-0000-0000-000001969003', 'Explicit phone', 'in_progress', null, false, 'manual');
 
 insert into public.people (id, first_name, last_name, auth_user_id) values
   ('00000000-0000-0000-0000-000001969011', 'MYK9-1969', 'Owner', '00000000-0000-0000-0000-000001969101');

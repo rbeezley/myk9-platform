@@ -38,7 +38,10 @@ const openShow = {
 
 describe('ServiceFeeNote', () => {
   beforeEach(() => {
+    // Reset both: a test that leaves a 0% rate behind hides the note for the
+    // next test, and CI runs these in shuffled order.
     rates.state = 'ready';
+    rates.current = { percent: 9, flatCents: 0, minCents: 0 };
   });
 
   it("names the show page's rate, never a typed one, and matches the Payment step's rate", () => {

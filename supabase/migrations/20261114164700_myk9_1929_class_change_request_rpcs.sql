@@ -25,7 +25,8 @@
 --   request_own_entry_class_change(entry, target class, reason, expected version)
 --   cancel_own_entry_class_change(entry, expected version)
 --
--- The entry stays in its class. Nothing moves and no money moves: accepting is
+-- The entry stays in its class and keeps its seat there (the capacity readers count
+-- 'move-up-requested', see 20261114171500). Nothing moves and no money moves: accepting is
 -- the secretary's act, through the unchanged move_up_entry.
 --
 -- THE SWITCH. The plan's Phase 4 adds two per-show switches. Phase 1 needs the
@@ -208,7 +209,8 @@ BEGIN
       USING errcode = '22023', hint = 'class_changes_not_allowed';
   END IF;
 
-  IF coalesce(v_entry_status, '') = 'move-up-requested' THEN
+  -- Both spellings are requests (MOVE_UP_REQUEST_STATUSES in the app).
+  IF coalesce(v_entry_status, '') IN ('move-up-requested', 'move_up_requested') THEN
     RAISE EXCEPTION 'This entry already has a class change request. Take it back before asking again.'
       USING errcode = '22023', hint = 'request_already_open';
   END IF;
@@ -387,7 +389,8 @@ BEGIN
 
   -- Only while it is still waiting. An accepted request has already moved the
   -- entry ('moved'); a declined one is back to 'confirmed'. Neither is waiting.
-  IF coalesce(v_entry_status, '') <> 'move-up-requested' THEN
+  -- Both spellings are requests (MOVE_UP_REQUEST_STATUSES in the app).
+  IF coalesce(v_entry_status, '') NOT IN ('move-up-requested', 'move_up_requested') THEN
     RAISE EXCEPTION 'Entry % has no waiting class change request', p_entry_id
       USING errcode = '22023', hint = 'no_open_request';
   END IF;

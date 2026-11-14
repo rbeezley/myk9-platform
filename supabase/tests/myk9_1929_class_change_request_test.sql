@@ -8,8 +8,13 @@
 --
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/myk9_1929_class_change_request_test.sql
 --
--- Covers: own entry only, a full class, a started class, the show's switch
--- (off after entries close, irrelevant before), and taking the request back.
+-- Covers: own entry only, a full class, a full judge day, a started class, a dog
+-- already in the target class, a finished show, a pulled or in-ring source entry,
+-- a stale version on the request and on the take-back, the show's switch (off
+-- after entries close, irrelevant before), taking the request back (either spelling
+-- of the status), and that a waiting request keeps holding its seat in its class and
+-- judge day (20261114171500): nobody else can take it, and the take-back never
+-- leaves the class or the day over its limit.
 
 begin;
 
@@ -47,7 +52,23 @@ values
   ('00000000-0000-0000-0000-000001929016', '00000000-0000-0000-0000-000001929005', 'Container Advanced A', 'upcoming', 5),
   ('00000000-0000-0000-0000-000001929017', '00000000-0000-0000-0000-000001929004', 'Interior Advanced A', 'upcoming', 5),
   ('00000000-0000-0000-0000-000001929018', '00000000-0000-0000-0000-000001929004', 'Interior Excellent A', 'upcoming', 5),
-  ('00000000-0000-0000-0000-000001929019', '00000000-0000-0000-0000-000001929004', 'Interior Master A', 'upcoming', 5);
+  ('00000000-0000-0000-0000-000001929019', '00000000-0000-0000-0000-000001929004', 'Interior Master A', 'upcoming', 5),
+  -- 20 target whose judge's day is full, 21 / 22 homes of the pulled and in-ring
+  -- entries, 23 a class at its limit (2 of 2) that its own entry asks to leave.
+  ('00000000-0000-0000-0000-000001929020', '00000000-0000-0000-0000-000001929004', 'Exterior Novice A', 'upcoming', 5),
+  ('00000000-0000-0000-0000-000001929021', '00000000-0000-0000-0000-000001929004', 'Buried Novice A', 'upcoming', 5),
+  ('00000000-0000-0000-0000-000001929022', '00000000-0000-0000-0000-000001929004', 'Buried Advanced A', 'upcoming', 5),
+  ('00000000-0000-0000-0000-000001929023', '00000000-0000-0000-0000-000001929004', 'Exterior Advanced A', 'upcoming', 2);
+
+-- Classes 20 and 23 take no wait list, so a refused entry there is 'denied' and
+-- writes nothing.
+update public.classes set allow_waitlist = false
+ where id in ('00000000-0000-0000-0000-000001929020', '00000000-0000-0000-0000-000001929023');
+
+-- A one-dog judge day on class 20 (person 4 judges it).
+insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, day_capacity_override)
+values ('00000000-0000-0000-0000-000001929104', '00000000-0000-0000-0000-000001929002',
+  '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929020', 'confirmed', 1);
 
 -- Persons 1 owner, 2 co-owner, 3 handler, 4 outsider, 5 club secretary (not an
 -- owner of anything), 6 owner of the dogs that fill the full and started classes.
@@ -70,7 +91,9 @@ select ('00000000-0000-0000-0000-0000019293' || n)::uuid, 'AKC (American Kennel 
 from generate_series(21, 26) n;
 
 -- 31 the entry that asks; 32 fills the full class; 33 is scored in the started
--- class; 34 not yet accepted; 35 checked in; 36 already scored itself.
+-- class; 34 not yet accepted; 35 checked in; 36 already scored itself; 37 pulled;
+-- 38 in the ring; 39 fills class 20's judge day; 40 and 41 fill class 23 (2 of 2);
+-- 42 is dog 21 already entered in class 17.
 -- Handler of 31 is person 3.
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
   entry_status, payment_status, entry_fee, check_in_status, is_scored)
@@ -92,7 +115,29 @@ values
    'confirmed', 'pending', 25, 'checked-in', false),
   ('00000000-0000-0000-0000-000001929036', '00000000-0000-0000-0000-000001929326', '00000000-0000-0000-0000-000001929019',
    '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
-   'confirmed', 'pending', 25, 'no-status', true);
+   'confirmed', 'pending', 25, 'no-status', true),
+  ('00000000-0000-0000-0000-000001929037', '00000000-0000-0000-0000-000001929324', '00000000-0000-0000-0000-000001929021',
+   '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
+   'confirmed', 'pending', 25, 'pulled', false),
+  ('00000000-0000-0000-0000-000001929038', '00000000-0000-0000-0000-000001929325', '00000000-0000-0000-0000-000001929022',
+   '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
+   'confirmed', 'pending', 25, 'no-status', false),
+  ('00000000-0000-0000-0000-000001929039', '00000000-0000-0000-0000-000001929322', '00000000-0000-0000-0000-000001929020',
+   '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929106',
+   'confirmed', 'pending', 25, 'no-status', false),
+  ('00000000-0000-0000-0000-000001929040', '00000000-0000-0000-0000-000001929323', '00000000-0000-0000-0000-000001929023',
+   '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929106',
+   'confirmed', 'pending', 25, 'no-status', false),
+  ('00000000-0000-0000-0000-000001929041', '00000000-0000-0000-0000-000001929322', '00000000-0000-0000-0000-000001929023',
+   '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929106',
+   'confirmed', 'pending', 25, 'no-status', false),
+  ('00000000-0000-0000-0000-000001929042', '00000000-0000-0000-0000-000001929321', '00000000-0000-0000-0000-000001929017',
+   '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
+   'confirmed', 'pending', 25, 'no-status', false);
+
+-- The in-ring flag is set apart from the insert so the row is otherwise ordinary.
+update public.entries set is_in_ring = true
+ where id = '00000000-0000-0000-0000-000001929038';
 
 -- Club-scoped secretary appointment (a show-scoped row grants nothing).
 insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
@@ -240,17 +285,49 @@ select pg_temp.call_as('cannot ask into a cancelled class',
   pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929015', 'finished_level'),
   'That class is finished or cancelled %');
 select pg_temp.call_as('an entry not yet accepted cannot ask',
-  '00000000-0000-0000-0000-000001929101',
+  '00000000-0000-0000-0000-000001929201',
   pg_temp.ask_sql('00000000-0000-0000-0000-000001929034', '00000000-0000-0000-0000-000001929012', 'finished_level'),
   'Entry % cannot ask for a class change from status %');
 select pg_temp.call_as('a checked-in entry cannot ask',
-  '00000000-0000-0000-0000-000001929101',
+  '00000000-0000-0000-0000-000001929201',
   pg_temp.ask_sql('00000000-0000-0000-0000-000001929035', '00000000-0000-0000-0000-000001929012', 'finished_level'),
   'Entry % has already started at the show %');
 select pg_temp.call_as('a scored entry cannot ask',
-  '00000000-0000-0000-0000-000001929101',
+  '00000000-0000-0000-0000-000001929201',
   pg_temp.ask_sql('00000000-0000-0000-0000-000001929036', '00000000-0000-0000-0000-000001929012', 'finished_level'),
   'Entry % has already started at the show %');
+
+select pg_temp.call_as('a pulled entry cannot ask',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929037', '00000000-0000-0000-0000-000001929012', 'finished_level'),
+  'Entry % has already started at the show %');
+select pg_temp.call_as('an entry in the ring cannot ask',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929038', '00000000-0000-0000-0000-000001929012', 'finished_level'),
+  'Entry % has already started at the show %');
+select pg_temp.call_as('a dog already in the target class cannot ask for it',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929017', 'wrong_level'),
+  'This dog is already entered in that class.');
+select pg_temp.call_as('cannot ask into a class whose judge day is full',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929020', 'wrong_level'),
+  'That class is full.');
+select pg_temp.call_as('a stale version on the request is a conflict',
+  '00000000-0000-0000-0000-000001929201',
+  format('select public.request_own_entry_class_change(%L, %L, %L, %s)',
+    '00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929012', 'wrong_level', -1),
+  'Version conflict requesting a class change for entry %');
+
+-- A finished show takes no more requests (MK006, same as withdraw_own_entry).
+update public.shows set status = 'completed'
+ where id = '00000000-0000-0000-0000-000001929002';
+select pg_temp.call_as('a finished show refuses the request',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929012', 'finished_level'),
+  'Entry % cannot change class: the show has finished');
+update public.shows set status = 'published'
+ where id = '00000000-0000-0000-0000-000001929002';
 
 -- ---- The show's switch ----------------------------------------------------
 -- Switch off but entries still open: the switch does not apply yet.
@@ -320,6 +397,94 @@ select pg_temp.call_as('stale version on take-back is a conflict',
 select pg_temp.call_as('handler takes it back',
   '00000000-0000-0000-0000-000001929203',
   pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
+
+-- ---- Either spelling of the status is a request ----------------------------
+-- A legacy move_up_requested row (entries_entry_status_check admits both, and
+-- MOVE_UP_REQUEST_STATUSES treats both as requests) blocks a second ask and can
+-- be taken back.
+update public.entries
+   set entry_status = 'move_up_requested', move_up_requested = true,
+       class_change_target_class_id = '00000000-0000-0000-0000-000001929012',
+       class_change_reason = 'wrong_level', class_change_requested_at = now()
+ where id = '00000000-0000-0000-0000-000001929031';
+select pg_temp.call_as('a legacy-spelled request blocks a second ask',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929012', 'wrong_level'),
+  'This entry already has a class change request. %');
+select pg_temp.call_as('a legacy-spelled request can be taken back',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
+select pg_temp.assert_request_state('legacy-spelled take-back restores confirmed',
+  '00000000-0000-0000-0000-000001929031', 'confirmed', null, null);
+
+-- ---- A waiting request keeps its seat (20261114171500) ---------------------
+-- Class 23 is at its limit (2 of 2) and class 20's judge day is at its limit
+-- (1 of 1). Their entries ask to leave; nothing has moved, so both must still
+-- be full, nobody else can take the seat, and the take-back leaves them at the
+-- limit, never over.
+create function pg_temp.assert_full(label text, class_ids uuid[], want_count integer,
+  want_judge_day_full boolean) returns void language plpgsql as $$
+declare
+  r record;
+begin
+  for r in select * from public.class_entry_availability(class_ids, null, false) loop
+    if r.entry_count is distinct from want_count then
+      raise exception 'FAIL %: class % counts %, wanted %', label, r.class_id, r.entry_count, want_count;
+    end if;
+    if want_judge_day_full then
+      if r.judge_day_full is not true then
+        raise exception 'FAIL %: class % judge day is not full', label, r.class_id;
+      end if;
+    elsif r.class_full is not true then
+      raise exception 'FAIL %: class % is not full', label, r.class_id;
+    end if;
+  end loop;
+  raise notice 'PASS %', label;
+end;
+$$;
+
+create function pg_temp.assert_seat_not_available(label text, class_id uuid) returns void
+language plpgsql as $$
+declare
+  v_outcome text;
+begin
+  select outcome into v_outcome from public.evaluate_entry_capacity(
+    class_id, '00000000-0000-0000-0000-000001929324', null,
+    '00000000-0000-0000-0000-000001929101', 'show_desk', false);
+  if v_outcome = 'available' then
+    raise exception 'FAIL %: another entry was offered the seat the request still holds', label;
+  end if;
+  raise notice 'PASS % (%)', label, v_outcome;
+end;
+$$;
+
+select pg_temp.assert_full('class 23 is full before the request',
+  array['00000000-0000-0000-0000-000001929023']::uuid[], 2, false);
+select pg_temp.call_as('an entry in a full class asks to leave it',
+  '00000000-0000-0000-0000-000001929206',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929040', '00000000-0000-0000-0000-000001929012', 'wrong_level'));
+select pg_temp.assert_full('class 23 is still full while the request waits',
+  array['00000000-0000-0000-0000-000001929023']::uuid[], 2, false);
+select pg_temp.assert_seat_not_available('another entry cannot take the requested seat',
+  '00000000-0000-0000-0000-000001929023');
+select pg_temp.call_as('the exhibitor takes the request back',
+  '00000000-0000-0000-0000-000001929206',
+  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929040'));
+select pg_temp.assert_full('class 23 is at its limit after the take-back, never over',
+  array['00000000-0000-0000-0000-000001929023']::uuid[], 2, false);
+
+select pg_temp.call_as('an entry on a full judge day asks to leave its class',
+  '00000000-0000-0000-0000-000001929206',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929039', '00000000-0000-0000-0000-000001929012', 'wrong_section'));
+select pg_temp.assert_full('the judge day is still full while the request waits',
+  array['00000000-0000-0000-0000-000001929020']::uuid[], 1, true);
+select pg_temp.assert_seat_not_available('another entry cannot take the judge day seat',
+  '00000000-0000-0000-0000-000001929020');
+select pg_temp.call_as('the exhibitor takes the judge day request back',
+  '00000000-0000-0000-0000-000001929206',
+  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929039'));
+select pg_temp.assert_full('the judge day is at its limit after the take-back, never over',
+  array['00000000-0000-0000-0000-000001929020']::uuid[], 1, true);
 
 -- Installed ACL: authenticated only, never anon or PUBLIC.
 do $$

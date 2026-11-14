@@ -24,11 +24,8 @@ import {
 import { queueCheckInStatus, type NotificationEntryRow } from '@/hooks/queueCheckInStatus';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
+import { hasRunOrder } from '@/utils/showEntryRunQueue';
 import type { ShowEntry } from '@/store/entry-store-types';
-
-function hasRunOrder(entry: ShowEntry): boolean {
-  return (entry.registrationData?.runOrder ?? 0) > 0;
-}
 
 const DEDUP_WINDOW_MS = 60_000;
 const REFRESH_DEBOUNCE_MS = 400;

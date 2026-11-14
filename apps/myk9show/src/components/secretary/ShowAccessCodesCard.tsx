@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { notifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { friendlyDbError, isPermissionDbError } from '@/utils/friendlyDbError';
+import { JudgeNewCodeButton } from './JudgeNewCodeButton';
 import { printShowAccessSlip } from './printShowAccessSlip';
 import { rowsFromProvidedPasscodes, rowsFromRetrievedCodes } from './accessCodeRows';
 import { useShowAccessCodes } from './useShowAccessCodes';
@@ -136,6 +137,7 @@ function ShowAccessCodesCardForShow({
   // (initialError) is transient and keeps the retry advice; a refusal is not.
   const [regenerationErrorRetryable, setRegenerationErrorRetryable] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [judgeCodeError, setJudgeCodeError] = useState<string | null>(null);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
   // The wizard's plaintexts are the interim set. Once the server list is read it replaces them
@@ -364,6 +366,13 @@ function ShowAccessCodesCardForShow({
       </CardHeader>
       <CardContent className="space-y-3">
         {regenerationErrorAlert}
+        {judgeCodeError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>New code was not generated</AlertTitle>
+            <AlertDescription>{judgeCodeError}</AlertDescription>
+          </Alert>
+        )}
         {regenerationState === 'success' && (
           <p className="text-sm text-success" role="status" aria-live="polite">
             Access codes are ready to share.
@@ -397,7 +406,7 @@ function ShowAccessCodesCardForShow({
           </div>
         )}
 
-        {rows.map(({ key, role, label, code }) => (
+        {rows.map(({ key, role, label, code, personId }) => (
           <div key={key} className="rounded-lg border p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
@@ -418,6 +427,20 @@ function ShowAccessCodesCardForShow({
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
+            {canRegenerate && role === 'Judge' && personId && (
+              <div className="flex gap-2">
+                <JudgeNewCodeButton
+                  showId={showId}
+                  personId={personId}
+                  judgeName={label}
+                  onError={setJudgeCodeError}
+                  onReplaced={() => {
+                    setJudgeCodeError(null);
+                    access.reload();
+                  }}
+                />
+              </div>
+            )}
             {role === 'Exhibitor' && exhibitorUrl && (
               <div className="flex gap-2">
                 <Button

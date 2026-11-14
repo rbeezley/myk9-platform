@@ -139,4 +139,98 @@ describe('ShowAccessCodesCard per-judge rows (MYK9-1951)', () => {
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('j2222')).toBeInTheDocument());
   });
+
+  describe('New code for one judge', () => {
+    it('calls regenerate_judge_passcode for that judge only and re-reads the rows', async () => {
+      let replaced = false;
+      mockRpc({
+        get_show_access_codes: () => ({
+          data: replaced
+            ? [
+                row('admin', 'a1111'),
+                row('judge', 'j1111', 'p-ada', 'Ada Lovelace'),
+                row('judge', 'j5555', 'p-grace', 'Grace Hopper'),
+                row('steward', 's3333'),
+                row('exhibitor', 'e4444'),
+              ]
+            : FIRST_READ,
+          error: null,
+        }),
+        regenerate_judge_passcode: () => {
+          replaced = true;
+          return { data: 'j5555', error: null };
+        },
+      });
+
+      const { user } = render(<ShowAccessCodesCard showId={SHOW_ID} canLoadCodes canRegenerate />);
+
+      await screen.findByText('j2222');
+      await user.click(screen.getByRole('button', { name: 'New code for Grace Hopper' }));
+      expect(screen.getByText('New code for Grace Hopper?')).toBeInTheDocument();
+      expect(screen.getByText(/Their old code stops working/)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /^generate$/i }));
+
+      expect(await screen.findByText('j5555')).toBeInTheDocument();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('regenerate_judge_passcode', {
+        p_show_id: SHOW_ID,
+        p_person_id: 'p-grace',
+      });
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith('regenerate_show_passcodes', {
+        p_show_id: SHOW_ID,
+      });
+      expect(screen.getByText('j1111')).toBeInTheDocument();
+      expect(screen.getByText('a1111')).toBeInTheDocument();
+      expect(screen.getByText('s3333')).toBeInTheDocument();
+      expect(screen.getByText('e4444')).toBeInTheDocument();
+      expect(screen.queryByText('j2222')).not.toBeInTheDocument();
+    });
+
+    it('calls nothing when the confirmation is cancelled', async () => {
+      mockRpc({ get_show_access_codes: () => ({ data: FIRST_READ, error: null }) });
+
+      const { user } = render(<ShowAccessCodesCard showId={SHOW_ID} canLoadCodes canRegenerate />);
+
+      await screen.findByText('j1111');
+      await user.click(screen.getByRole('button', { name: 'New code for Ada Lovelace' }));
+      await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith(
+        'regenerate_judge_passcode',
+        expect.anything()
+      );
+      expect(screen.getByText('j1111')).toBeInTheDocument();
+    });
+
+    it('offers New code on judge rows only, and not without regenerate permission', async () => {
+      mockRpc({ get_show_access_codes: () => ({ data: FIRST_READ, error: null }) });
+
+      const { unmount } = render(
+        <ShowAccessCodesCard showId={SHOW_ID} canLoadCodes canRegenerate />
+      );
+      await screen.findByText('j1111');
+      expect(screen.getAllByRole('button', { name: /^New code for / })).toHaveLength(2);
+      unmount();
+
+      render(<ShowAccessCodesCard showId={SHOW_ID} canLoadCodes />);
+      await screen.findByText('j1111');
+      expect(screen.queryByRole('button', { name: /^New code for / })).not.toBeInTheDocument();
+    });
+
+    it('shows the failure on the card and keeps every code', async () => {
+      mockRpc({
+        get_show_access_codes: () => ({ data: FIRST_READ, error: null }),
+        regenerate_judge_passcode: () => ({ data: null, error: { message: 'boom' } }),
+      });
+
+      const { user } = render(<ShowAccessCodesCard showId={SHOW_ID} canLoadCodes canRegenerate />);
+
+      await screen.findByText('j1111');
+      await user.click(screen.getByRole('button', { name: 'New code for Ada Lovelace' }));
+      await user.click(screen.getByRole('button', { name: /^generate$/i }));
+
+      expect(await screen.findByText('New code was not generated')).toBeInTheDocument();
+      expect(screen.getByText('j1111')).toBeInTheDocument();
+      expect(screen.getByText('j2222')).toBeInTheDocument();
+    });
+  });
 });

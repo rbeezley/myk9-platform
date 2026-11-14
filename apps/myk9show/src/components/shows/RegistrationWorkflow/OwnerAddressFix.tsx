@@ -36,8 +36,8 @@ export const RegistrationFixAction: React.FC<{
 };
 
 /**
- * Exhibitor: a link to their own profile (the dog list refreshes after the
- * profile saves). Staff: opens `OwnerAddressFillDialog`, which fills only the
+ * Exhibitor: a link to their own profile in a new tab (the step re-reads the owner
+ * and dog reads when the exhibitor returns to this tab, `useRefreshOnReturn`). Staff: opens `OwnerAddressFillDialog`, which fills only the
  * missing parts through the show-scoped RPC.
  */
 export const OwnerAddressAction: React.FC<{
@@ -47,6 +47,8 @@ export const OwnerAddressAction: React.FC<{
   isOwnAddress ? (
     <Link
       to={OWN_ADDRESS_HREF}
+      target="_blank"
+      rel="noopener noreferrer"
       className={cn(buttonVariants({ variant: 'outline', size: 'touch' }), 'gap-2')}
     >
       <MapPin className="h-4 w-4" aria-hidden="true" />

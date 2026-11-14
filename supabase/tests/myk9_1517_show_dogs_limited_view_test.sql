@@ -305,7 +305,7 @@ BEGIN
   WHERE p.oid = 'public.show_dogs_limited_view(uuid, integer, integer)'::regprocedure
     AND u.m = 't';
   IF v_cols IS DISTINCT FROM ARRAY['armband', 'breed', 'call_name', 'check_in_status', 'class_id',
-       'class_name', 'handler_name', 'run_position', 'trial_date', 'trial_name'] THEN
+       'class_name', 'handler_name', 'run_claim_state', 'run_position', 'trial_date', 'trial_name'] THEN
     RAISE EXCEPTION 'FAIL 7 return columns are not exactly the approved set: %', v_cols;
   END IF;
   RAISE NOTICE 'PASS 7/8 approved columns only; anon and PUBLIC closed';

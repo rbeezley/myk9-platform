@@ -88,7 +88,7 @@ async function runBulkAndClear(
 export const entryActions: ReadonlyArray<EntryActionDefinition> = [
   {
     id: 'edit',
-    label: 'Edit entry',
+    label: 'Change handler…',
     sectionLabel: 'Entry',
     icon: <PencilLine className="h-4 w-4" />,
     applicableWhen: (_entry, handlers) => Boolean(handlers.onOpenEditEntry),

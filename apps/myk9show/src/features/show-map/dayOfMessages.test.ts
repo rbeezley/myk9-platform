@@ -4,7 +4,13 @@ import { resolve } from 'node:path';
 import { notRunningLabel } from '@myk9/ringside/run-queue';
 import { describe, expect, it } from 'vitest';
 
-import { classChangedMessage, dayOfDogLabel, markedAbsentMessage } from './dayOfMessages';
+import { EntryStatus } from '@/types/show-registration-types';
+import {
+  classChangedMessage,
+  dayOfDogLabel,
+  entryStatusChangedMessage,
+  markedAbsentMessage,
+} from './dayOfMessages';
 
 describe('Show Desk day-of messages (MYK9-1940)', () => {
   it('names the dog by armband and call name, or by call name alone', () => {
@@ -49,5 +55,19 @@ describe('every day-of Undo on Show Desk uses the shared helper and duration', (
     expect(source).toContain('STATUS_UNDO_WINDOW_MS');
     expect(source).not.toMatch(/\baction:\s*\{/);
     expect(source).not.toMatch(/duration:\s*\d/);
+  });
+});
+
+describe('Entries page status messages (MYK9-1940 phase 3)', () => {
+  it.each([
+    [EntryStatus.SCRATCHED, '#110 Hazel pulled from Novice A'],
+    [EntryStatus.ACCEPTED, '#110 Hazel accepted in Novice A'],
+    [EntryStatus.PENDING, '#110 Hazel marked pending in Novice A'],
+    [EntryStatus.WAITLIST, '#110 Hazel moved to the waitlist in Novice A'],
+    [EntryStatus.REJECTED, '#110 Hazel rejected in Novice A'],
+  ])('%s names the dog and the class, and never says "Status updated"', (status, expected) => {
+    const message = entryStatusChangedMessage('#110 Hazel', 'Novice A', status);
+    expect(message).toBe(expected);
+    expect(message).not.toMatch(/status updated/i);
   });
 });

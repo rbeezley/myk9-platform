@@ -78,25 +78,6 @@ GRANT SELECT (
   status_before_close
 ) ON public.classes TO authenticated;
 
--- anon's decision, stated: the 20261030174300 anon allowlist restated unchanged and
--- WITHOUT status_before_close (staff-facing).
-GRANT SELECT (
-  id, trial_id, name, description, level, element, section, competition_type,
-  entry_fee, max_entries, allow_waitlist, max_dogs_per_handler,
-  breed_restrictions, jump_heights, age_min, age_max, height_min, height_max,
-  handler_age_min, handler_age_max, start_time, estimated_duration,
-  actual_start_time, actual_end_time, status, time_limit_seconds, num_areas,
-  has_blank, max_faults, qualifying_threshold, is_scoring_finalized,
-  results_released_at, dogs_ahead_notification_count, total_entries_count,
-  checked_in_count, scored_count, created_at, updated_at, deleted_at,
-  deleted_by, class_number, timer_mode, hides_known, distraction_count,
-  is_results_reviewed, time_limit_area2_seconds,
-  time_limit_area3_seconds, display_order, results_released_by, version,
-  status_source, reopened_after_closeout_at, revised_expected_start,
-  judge_signed_off_at, judge_signed_off_by, results_verified_at,
-  results_verified_by, ring_phase, ring_phase_time
-) ON public.classes TO authenticated;
-
 -- anon's decision, stated: the 20261008014300 allowlist, restated unchanged and WITHOUT
 -- ring_phase / ring_phase_time. anon holds no table-level privilege on classes, so the
 -- new columns stay unreadable to it (the phase is staff-facing).

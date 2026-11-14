@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { relativePosix } from '@/test/utils/posixPath';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -139,7 +140,7 @@ function importedModules(file: string, source: string): string[] {
     const spec = match[1];
     let target: string | null = null;
     if (spec.startsWith('@/')) target = spec.slice(2);
-    else if (spec.startsWith('.')) target = relative(SRC, resolve(dirname(file), spec));
+    else if (spec.startsWith('.')) target = relativePosix(SRC, resolve(dirname(file), spec));
     if (target) out.push(target.replace(/\.(tsx?|jsx?)$/, ''));
   }
   return out;
@@ -164,7 +165,7 @@ const ARIA_PRESSED = /\baria-pressed\b/g;
 const TAB_COUNT = /<TabsTrigger\b[^>]*>[^<]*\(\s*(?:\{|\$\{)/g;
 
 const files: Record<string, string> = Object.fromEntries(
-  allSourceFiles(SRC).map(path => [relative(SRC, path), readFileSync(path, 'utf8')])
+  allSourceFiles(SRC).map(path => [relativePosix(SRC, path), readFileSync(path, 'utf8')])
 );
 // This file names every banned module in its own lists.
 delete files['test/ci/listToolkitGuard.test.ts'];

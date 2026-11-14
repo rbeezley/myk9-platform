@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -108,6 +108,22 @@ function describeFailure(
   );
 }
 
+/**
+ * Where the fixture's `PATH` finds bash and the coreutils. POSIX keeps the fixed system dirs. On
+ * Windows (Git Bash) the real bash.exe directory is looked up on the host PATH instead, because
+ * `/usr/bin:/bin` means nothing to the Windows loader that starts bash.
+ */
+function systemToolDirs(): { bash: string; dirs: string[] } {
+  if (process.platform !== 'win32') return { bash: 'bash', dirs: ['/usr/bin', '/bin'] };
+  const bash = execFileSync('where', ['bash'], { encoding: 'utf8' })
+    .split(/\r?\n/)
+    .find(line => /[\\/]Git[\\/].*bash\.exe$/i.test(line));
+  if (!bash) throw new Error('Git Bash is required to run this test on Windows');
+  return { bash, dirs: [dirname(bash)] };
+}
+
+let cachedTools: ReturnType<typeof systemToolDirs> | undefined;
+
 function run(outcome: string, openIssues: string[], fail = false, silent = false): RunResult {
   const dir = mkdtempSync(join(tmpdir(), 'notifier-'));
   const scriptPath = join(dir, 'notify.sh');
@@ -175,10 +191,12 @@ function run(outcome: string, openIssues: string[], fail = false, silent = false
   };
 
   try {
-    execFileSync('bash', [scriptPath], {
+    const tools = (cachedTools ??= systemToolDirs());
+    execFileSync(tools.bash, [scriptPath], {
       stdio: ['ignore', outFd, errFd],
       env: {
-        PATH: `${binDir}:/usr/bin:/bin`,
+        PATH: [binDir, ...tools.dirs].join(delimiter),
+        ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot ?? '' } : {}),
         STUB_LOG: logPath,
         STUB_FAIL: fail ? 'yes' : 'no',
         STUB_SILENT: silent ? 'yes' : 'no',
@@ -296,7 +314,11 @@ describe('scheduled-failure notifier', () => {
     expect(closed).toEqual(['42', '77']);
   });
 
-  it('survives a MATCHES list larger than a pipe buffer (latent bug, not the incident)', () => {
+  it('survives a MATCHES list larger than a pipe buffer (latent bug, not the incident)', ({
+    skip,
+  }) => {
+    // Windows caps one environment string at 32 KiB, below the 96 KiB payload this guard needs.
+    if (process.platform === 'win32') skip('one env string is capped at 32 KiB on Windows');
     // A LATENT bug, deliberately labelled as one. Round 1 diagnosed this
     // pipeline as the cause of the MYK9-578 incident; it was not. A
     // shell-semantics review ran the pre-fix block against the failing test's

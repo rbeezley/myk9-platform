@@ -63,9 +63,9 @@ describe('step-up gated callers', () => {
 
   it('no other edge function calls stepUpRefusal without being listed here', () => {
     const callers = TREES.flatMap(tree => sourceFiles(join(REPO_ROOT, tree)))
-      .filter(path => !/\/_shared\/stepUpReauth\.ts$/.test(path))
+      .filter(path => !/[\\/]_shared[\\/]stepUpReauth\.ts$/.test(path))
       .filter(path => readFileSync(path, 'utf8').includes('stepUpRefusal('))
-      .map(path => relative(REPO_ROOT, path))
+      .map(path => relative(REPO_ROOT, path).replaceAll('\\', '/'))
       .sort();
     expect(callers).toEqual([...GATED_CALLERS].sort());
   });

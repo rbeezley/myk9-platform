@@ -94,6 +94,7 @@ export function runCli(args: string[] = process.argv.slice(2), rootDir = process
   const result = spawnSync('tsc', ['--noEmit', '--project', configPath], {
     cwd: rootDir,
     encoding: 'utf8',
+    shell: process.platform === 'win32',
   });
   if (result.error) throw result.error;
 

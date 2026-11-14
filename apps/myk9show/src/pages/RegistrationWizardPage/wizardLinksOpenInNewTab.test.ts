@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join } from 'node:path';
+import { relativePosix } from '@/test/utils/posixPath';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -49,7 +50,9 @@ function resolveImport(from: string, spec: string): string | null {
 }
 
 function isTestFile(file: string): boolean {
-  return /\.(test|spec)\.tsx?$/.test(file) || /(^|\/)(__tests__|test)\//.test(relative(SRC, file));
+  return (
+    /\.(test|spec)\.tsx?$/.test(file) || /(^|\/)(__tests__|test)\//.test(relativePosix(SRC, file))
+  );
 }
 
 /** Every source file statically reachable from `entry` through relative and `@/` imports. */
@@ -100,14 +103,14 @@ const GRAPH = wizardImportGraph(ENTRY);
 describe('links out of the entry wizard', () => {
   const found = GRAPH.flatMap(file =>
     linkOpeningTags(readFileSync(file, 'utf8')).map(tag => ({
-      file: relative(SRC, file),
-      where: `${relative(SRC, file)}: ${tag.replace(/\s+/g, ' ').slice(0, 80)}`,
+      file: relativePosix(SRC, file),
+      where: `${relativePosix(SRC, file)}: ${tag.replace(/\s+/g, ' ').slice(0, 80)}`,
       tag,
     }))
   );
 
   it('finds the wizard link set (guards the walker itself)', () => {
-    const files = GRAPH.map(f => relative(SRC, f));
+    const files = GRAPH.map(f => relativePosix(SRC, f));
     expect(files).toContain('components/shows/RegistrationWorkflow/OwnerAddressFix.tsx');
     expect(files).toContain('components/panels/edit/BasicInfoTab.tsx');
     expect(files).toContain('features/payments/PlatformFeeSplitLines.tsx');
@@ -122,7 +125,7 @@ describe('links out of the entry wizard', () => {
   it('keeps every allowlisted file in the graph, each with a reason', () => {
     for (const [file, reason] of Object.entries(SAME_TAB_ALLOWLIST)) {
       expect(
-        GRAPH.map(f => relative(SRC, f)),
+        GRAPH.map(f => relativePosix(SRC, f)),
         file
       ).toContain(file);
       expect(reason.length, file).toBeGreaterThan(20);
@@ -148,7 +151,7 @@ describe('links out of the entry wizard', () => {
     for (const file of wizardFiles) {
       const source = readFileSync(file, 'utf8');
       for (const match of source.matchAll(/<NoRegistrationNumberHelp\b[^>]*?\/?>/gs)) {
-        expect(match[0], relative(SRC, file)).toMatch(/\bopensInNewTab\b/);
+        expect(match[0], relativePosix(SRC, file)).toMatch(/\bopensInNewTab\b/);
       }
     }
   });

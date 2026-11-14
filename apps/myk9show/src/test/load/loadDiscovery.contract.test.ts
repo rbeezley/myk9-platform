@@ -68,6 +68,7 @@ describe('load Playwright discovery', () => {
       ],
       {
         cwd: process.cwd(),
+        shell: process.platform === 'win32',
         encoding: 'utf8',
         env: {
           ...process.env,

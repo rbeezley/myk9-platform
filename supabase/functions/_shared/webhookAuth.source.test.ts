@@ -27,14 +27,17 @@ const EDGE_FUNCTION_ROOTS: readonly string[] = [
 function edgeFunctionSources(): [string, string][] {
   const out: [string, string][] = [];
   for (const root of EDGE_FUNCTION_ROOTS) {
-    const label = root.includes('apps/myk9show') ? 'apps/myk9show' : 'root';
+    const label = root.replaceAll('\\', '/').includes('apps/myk9show') ? 'apps/myk9show' : 'root';
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir)) {
         const full = resolve(dir, entry);
         if (statSync(full).isDirectory()) {
           walk(full);
         } else if (entry.endsWith('.ts') && !/\.(test|source\.test)\.ts$/.test(entry)) {
-          out.push([`${label}:${full.slice(root.length + 1)}`, readFileSync(full, 'utf8')]);
+          out.push([
+            `${label}:${full.slice(root.length + 1).replaceAll('\\', '/')}`,
+            readFileSync(full, 'utf8'),
+          ]);
         }
       }
     };

@@ -384,7 +384,12 @@ export function WorkflowStepContent({
               <Info className="h-4 w-4" />
               <AlertDescription>
                 No dogs registered yet. Please{' '}
-                <Link to="/dogs" className="underline font-medium text-primary">
+                <Link
+                  to="/dogs"
+                  className="underline font-medium text-primary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   register a dog
                 </Link>{' '}
                 before entering a show.

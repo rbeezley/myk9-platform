@@ -32,7 +32,9 @@ export function EntriesClosedNotice({
       </p>
       <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
         <Button asChild className="min-h-[44px]">
-          <Link to={recoveryHref}>Message the show secretary</Link>
+          <Link to={recoveryHref} target="_blank" rel="noopener noreferrer">
+            Message the show secretary
+          </Link>
         </Button>
         <Button variant="outline" className="min-h-[44px]" onClick={onExit}>
           {exitLabel}

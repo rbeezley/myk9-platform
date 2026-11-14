@@ -14,6 +14,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
+import { PASSCODE_REGENERATED_DB_MESSAGE } from '@/features/at-show/ringsidePasscodeRevocation';
 import { mutationManager } from './sharedMutationManager';
 import { RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import { RINGSIDE_CLASS_RPC_FUNCTION } from './ringsideClassRpc';
@@ -55,6 +56,7 @@ export async function adoptHeldRingsideScoresForLiveClaim(): Promise<number> {
         showId: claim.showId,
         toAuthUserId: claim.userId,
         rpcNames: ADOPTABLE_RPCS,
+        failedErrorIncludes: PASSCODE_REGENERATED_DB_MESSAGE,
       })
       .finally(() => inFlight.delete(key));
     inFlight.set(key, work);

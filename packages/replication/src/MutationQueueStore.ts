@@ -3,6 +3,7 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
+import { requeueFailedMutation } from './mutation-requeue';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { evictCleanCacheRows, withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
@@ -217,20 +218,7 @@ export class MutationQueueStore {
       PendingMutation | undefined;
     if (!failed || failed.authUserId !== authUserId) return undefined;
 
-    const requeued: PendingMutation = {
-      ...failed,
-      status: 'pending',
-      retries: 0,
-      // A user-driven retry grants a fresh set of OCC attempts too — without
-      // this, a mutation parked at the occ lifetime cap would re-park on its
-      // very next conflict.
-      occRetries: 0,
-    };
-    delete requeued.transportRetries;
-    delete requeued.error;
-    delete requeued.failureKind;
-    delete requeued.nextRetryAt;
-    delete requeued.failedAt;
+    const requeued = requeueFailedMutation(failed);
 
     await confirmOwner();
     const tx = db.transaction(

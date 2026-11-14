@@ -16,7 +16,7 @@
  */
 
 import { computeDogsAheadInList, type Entry, type DogsAheadResult } from '@myk9/ringside';
-import type { ClaimState } from '@myk9/ringside/run-queue';
+import { resolveClaim, type ClaimState } from '@myk9/ringside/run-queue';
 import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 
 /** Minimal structural slice of a ReplicatedEntry the detector reads. */
@@ -51,6 +51,8 @@ export interface DetectMyRingConflictsInput {
    * a paper, stale or missing claim makes no "N away" (MYK9-1970).
    */
   claims: ReadonlyMap<string, ClaimState>;
+  /** The show's device-scoring switch: a class that follows the show is paper when it is off. */
+  showUsesDeviceScoring?: boolean | null | undefined;
   /** Near-up threshold, from `notificationStore.preferences.leadDogs` (1–5). */
   leadDogs: number;
 }
@@ -103,7 +105,7 @@ export function describeNearUp(item: NearUpItem): string {
 export function detectMyRingConflicts(
   input: DetectMyRingConflictsInput
 ): ReadonlyMap<string, string> {
-  const { entries, classes, ownEntryIds, leadDogs, claims } = input;
+  const { entries, classes, ownEntryIds, leadDogs, claims, showUsesDeviceScoring } = input;
   const result = new Map<string, string>();
   if (ownEntryIds.size === 0) return result;
 
@@ -129,8 +131,17 @@ export function detectMyRingConflicts(
     else entriesByClass.set(entry.classId, [entry]);
   }
 
+  // A paper class makes no conflict, even for a dog in the ring (MYK9-1970).
+  const paperClassIds = new Set(
+    classes
+      .filter(
+        cls => resolveClaim({ classOnPaper: cls.scoresOnPaper, showUsesDeviceScoring }) === 'paper'
+      )
+      .map(cls => cls.classId)
+  );
   const nearUp: NearUpItem[] = [];
   for (const [classId, classEntries] of entriesByClass) {
+    if (paperClassIds.has(classId)) continue;
     const queueEntries = classEntries.map(toQueueEntry);
     for (const entry of classEntries) {
       if (!ownEntryIds.has(entry.id)) continue;

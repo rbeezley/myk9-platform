@@ -214,6 +214,26 @@ describe('detectMyRingConflicts', () => {
     }
   );
 
+  it.each([
+    ['the class flag', { scoresOnPaper: true }, undefined],
+    ['show-level paper', { scoresOnPaper: null }, false],
+  ])(
+    'an in-ring own dog in a paper class makes no conflict, by %s (MYK9-1970)',
+    (_label, classFlags, showUsesDeviceScoring) => {
+      const conflicts = detectMyRingConflicts({
+        entries: [
+          entry({ id: 'a1', classId: 'class-a', runOrder: 1, checkInStatus: 'in-ring' }),
+          entry({ id: 'b1', classId: 'class-b', runOrder: 1, dogCallName: 'Sparky' }),
+        ],
+        classes: classes.map(cls => (cls.classId === 'class-a' ? { ...cls, ...classFlags } : cls)),
+        ownEntryIds: new Set(['a1', 'b1']),
+        leadDogs: 3,
+        showUsesDeviceScoring,
+      });
+      expect(conflicts.size).toBe(0);
+    }
+  );
+
   it('counts nothing for an entry with no claim at all', () => {
     const conflicts = detectMyRingConflicts({
       entries: conflictingEntries,

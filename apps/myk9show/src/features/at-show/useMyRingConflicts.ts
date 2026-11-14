@@ -31,6 +31,7 @@ export function useMyRingConflicts(
       ownEntryIds,
       leadDogs,
       claims,
+      showUsesDeviceScoring: query.data.usesDeviceScoring,
     });
   }, [query.data, ownEntryIds, leadDogs, claims]);
 }

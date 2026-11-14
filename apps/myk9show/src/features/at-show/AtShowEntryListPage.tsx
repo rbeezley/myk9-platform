@@ -69,7 +69,7 @@ import { useEntryStatusAccess } from './useEntryStatusAccess';
 import { writerForRole } from './entryStatusAccess';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
-import { useIsClassCancelledFor } from './cancelledClassGuard';
+import { useClassCancelledStatus, useHoldTapUntilKnown } from './cancelledClassGuard';
 import { resolveClassListRoute } from './atShowScoresheetRoutes';
 
 export const AtShowEntryListPage: React.FC = () => {
@@ -274,9 +274,16 @@ export const AtShowEntryListPage: React.FC = () => {
     setMaxTimeRequiredWarning: uiActions.setMaxTimeRequiredWarning,
   });
 
-  const gateEntryClick = useCallback(
-    () => areaCountGateEntryClick() || maxTimeGateEntryClick(),
-    [areaCountGateEntryClick, maxTimeGateEntryClick]
+  // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
+  // MYK9-1911: until the class replica has answered, a tap waits (as the gates above do) rather
+  // than open the scoresheet of a class that may be cancelled.
+  const { isClassCancelled, known: cancelledKnown } = useClassCancelledStatus([classId]);
+  const gateEntryClick = useHoldTapUntilKnown(
+    cancelledKnown,
+    useCallback(
+      () => areaCountGateEntryClick() || maxTimeGateEntryClick(),
+      [areaCountGateEntryClick, maxTimeGateEntryClick]
+    )
   );
 
   // ── Scoresheet route (wired fully in Phase 1h — may 404 until then) ────
@@ -296,8 +303,6 @@ export const AtShowEntryListPage: React.FC = () => {
   const entriesIncomplete = showHydration === 'not-arrived';
 
   // ── Handlers ────────────────────────────────────────────────────────────
-  // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
-  const isClassCancelled = useIsClassCancelledFor([classId]);
   const handlers = useAtShowEntryListHandlers({
     actions,
     replication,

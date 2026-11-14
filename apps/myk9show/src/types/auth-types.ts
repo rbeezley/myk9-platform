@@ -123,6 +123,8 @@ export interface RoleScope {
   roleId: string;
   scopeType: ScopeType;
   scopeId: string;
+  /** Club the grant belongs to (`user_roles.club_id`); the scope id of a show-pinned grant is its show. */
+  clubId?: string;
   createdAt: Date;
   assignedAt?: Date;
   assignedBy?: string;

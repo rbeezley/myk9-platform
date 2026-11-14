@@ -48,13 +48,14 @@ VALUES
   ('00000000-0000-0000-0000-0000000f0003','00000000-0000-0000-0000-000000000000','authenticated',
    'authenticated', NULL,'', now(), now(), now(), '{}','{}', false, false, true);
 
-INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
+-- MYK9-1950: a judge code belongs to a judge (show_passcodes_judge_person_check).
+INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at, person_id)
 VALUES ('00000000-0000-0000-0000-0000000f0510', 'judge', 'anon-scope-test-hash',
-        '2026-01-01T00:00:00Z'),
+        '2026-01-01T00:00:00Z', '00000000-0000-0000-0000-0000000f0111'),
        ('00000000-0000-0000-0000-0000000f0510', 'exhibitor', 'anon-scope-exhibitor-hash',
-        '2026-01-01T00:00:00Z'),
+        '2026-01-01T00:00:00Z', NULL),
        ('00000000-0000-0000-0000-0000000f0511', 'judge', 'anon-scope-other-hash',
-        '2026-01-01T00:00:00Z');
+        '2026-01-01T00:00:00Z', '00000000-0000-0000-0000-0000000f0111');
 
 INSERT INTO public.show_announcements (
   id, show_id, author_id, author_role, author_name, title, content
@@ -127,6 +128,7 @@ BEGIN
         'kind', 'ringside_passcode',
         'show_id', v_show_id,
         'ringside_role', 'judge',
+        'ringside_person_id', '00000000-0000-0000-0000-0000000f0111',
         'passcode_generation', '2026-01-01T00:00:00Z'
       )
     )::text,
@@ -162,6 +164,7 @@ BEGIN
         'kind', 'ringside_passcode',
         'show_id', '00000000-0000-0000-0000-0000000f0511',
         'ringside_role', 'judge',
+        'ringside_person_id', '00000000-0000-0000-0000-0000000f0111',
         'passcode_generation', '2026-01-01T00:00:00Z'
       )
     )::text,

@@ -19,6 +19,11 @@ export interface ShowJudgeSupplyRow {
   updated_at: string;
 }
 
+/** A supply row as the checklist report prints it: with that judge's ringside code, when readable (MYK9-1951). */
+export interface ReportJudgeSupplyRow extends ShowJudgeSupplyRow {
+  judge_passcode?: string | null;
+}
+
 export interface JudgeKey {
   person_id: string | null;
   judge_name: string;

@@ -17,8 +17,9 @@
 --   5. A show-scoped steward on Club B's show still reads that show's
 --      enrollments via is_show_official(show_id).
 --   6. A site admin reads every club's enrollments.
---   8. A show-pinned club_admin reads that show but not another show of the
---      same club. This catches widening through manageable_show_ids().
+--   8. MYK9-1886: a show-pinned club_admin reads EVERY show of its club (the
+--      one club-admin rule, is_show_club_admin) and none of another club's,
+--      so reads match what the same person can write.
 --   7. A secretary row that ALSO pins ur.show_id grants nothing THROUGH THE
 --      ROLE ARM, even on its own club's show -- while that same persona still
 --      reads the one enrollment they handle themselves. The handler row is the
@@ -182,7 +183,7 @@ values
   -- personally, on the club they have NO staff role in.
   ('00000000-0000-0000-0000-000000663065', '00000000-0000-0000-0000-000000663012',
    '00000000-0000-0000-0000-000000663057'),
-  -- Same club, different show: the show-pinned club_admin must not see this.
+  -- Same club, different show: the show-pinned club_admin sees this too (MYK9-1886).
   ('00000000-0000-0000-0000-000000663066', '00000000-0000-0000-0000-000000663013',
    '00000000-0000-0000-0000-000000663056');
 
@@ -354,8 +355,8 @@ $$;
 
 RESET ROLE;
 
--- 8. A show-pinned club_admin keeps exact-show scope, including against
--- another show of the same club.
+-- 8. MYK9-1886: a show-pinned club_admin reads the whole club (its pinned show
+-- and the club's other show) but never another club's show.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000663158', true);
 SELECT set_config(
@@ -376,12 +377,12 @@ BEGIN
    WHERE show_id = '00000000-0000-0000-0000-000000663013';
   SELECT count(*) INTO foreign_club FROM public.enrollments
    WHERE show_id = '00000000-0000-0000-0000-000000663012';
-  IF pinned_show <> 2 OR other_show_same_club <> 0 OR foreign_club <> 0 THEN
+  IF pinned_show <> 2 OR other_show_same_club <> 1 OR foreign_club <> 0 THEN
     RAISE EXCEPTION
       'FAIL show-pinned club_admin visibility: pinned %, same-club other %, foreign-club %',
       pinned_show, other_show_same_club, foreign_club;
   END IF;
-  RAISE NOTICE 'PASS show-pinned club_admin remains scoped to its assigned show';
+  RAISE NOTICE 'PASS show-pinned club_admin reads its whole club and no other club';
 END;
 $$;
 

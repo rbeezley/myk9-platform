@@ -186,9 +186,13 @@ VALUES ('00000000-0000-0000-0000-000001540052', '00000000-0000-0000-0000-0000015
         '00000000-0000-0000-0000-000001540002', '00000000-0000-0000-0000-000001540003',
         '00000000-0000-0000-0000-00000154000d', 'confirmed');
 
-INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash, passcode_ciphertext, created_at)
+-- MYK9-1950: a judge code belongs to a judge; the assignment trigger may already have minted it.
+INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash, passcode_ciphertext, created_at, person_id)
 VALUES ('00000000-0000-0000-0000-000001540061', '00000000-0000-0000-0000-000001540002',
-        'judge', 'myk9-1540-fixture-hash', NULL, '2026-10-30 15:00:00+00'::timestamptz);
+        'judge', 'myk9-1540-fixture-hash', NULL, '2026-10-30 15:00:00+00'::timestamptz,
+        '00000000-0000-0000-0000-000001540011')
+ON CONFLICT (show_id, person_id) WHERE person_id IS NOT NULL
+DO UPDATE SET passcode_hash = excluded.passcode_hash, created_at = excluded.created_at;
 
 -- Show-scoped steward rows are the ring-assignment grant; the S3 steward row
 -- proves a nationals-only filter beats staff status.
@@ -300,6 +304,7 @@ BEGIN
   -- 4a. Ringside judge claim for THIS show is admitted.
   PERFORM public.myk9_1540_act_as(nobody, jsonb_build_object('kind', 'ringside_passcode',
     'show_id', s1, 'ringside_role', 'judge',
+    'ringside_person_id', '00000000-0000-0000-0000-000001540011',
     'passcode_generation', '2026-10-30T15:00:00+00:00'));
   SELECT count(*) INTO n FROM public.get_nationals_leaderboard_inputs(s1);
   IF n <> 2 THEN
@@ -309,6 +314,7 @@ BEGIN
   -- 4b. A claim stamped for another show gets nothing here.
   PERFORM public.myk9_1540_act_as(nobody, jsonb_build_object('kind', 'ringside_passcode',
     'show_id', s2, 'ringside_role', 'judge',
+    'ringside_person_id', '00000000-0000-0000-0000-000001540011',
     'passcode_generation', '2026-10-30T15:00:00+00:00'));
   SELECT count(*) INTO n FROM public.get_nationals_leaderboard_inputs(s1);
   IF n <> 0 THEN

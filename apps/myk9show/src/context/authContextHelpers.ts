@@ -24,6 +24,7 @@ export function buildActiveRoleScopes(roles: UserRoleWithDetails[], userId: stri
       roleId: ur.role?.name || ur.role_id,
       scopeType: ur.scope_type as ScopeType,
       scopeId: ur.scope_id as string,
+      ...(ur.club_id ? { clubId: ur.club_id } : {}),
       createdAt: new Date(ur.assigned_at || Date.now()),
     }));
 }

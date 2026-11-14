@@ -35,6 +35,30 @@ function isPermanentScoreAuthorizationMutation(
   );
 }
 
+const CLASS_JUDGE_REFUSAL_PATTERN = /This class is judged by (.+?)\s*$/i;
+const CLASS_NO_JUDGE_REFUSAL = /This class has no judge assigned/i;
+
+/**
+ * MYK9-1950: a per-judge passcode wrote to a class another judge holds (SQLSTATE RS403).
+ * The stored error is the server's own sentence, which already names the judge; say whose
+ * class it is instead of a generic "not authorized" or "sync failed".
+ */
+export function formatClassJudgeRefusal(
+  mutations: SyncFailedEventDetail['mutations']
+): string | undefined {
+  for (const mutation of mutations) {
+    if (mutation.failureKind !== 'authorization' || !mutation.error) continue;
+    const named = CLASS_JUDGE_REFUSAL_PATTERN.exec(mutation.error);
+    if (named?.[1]) {
+      return `Score not saved. This class is judged by ${named[1]}. Ask them to score it, or ask the secretary.`;
+    }
+    if (CLASS_NO_JUDGE_REFUSAL.test(mutation.error)) {
+      return 'Score not saved. This class has no judge assigned. Ask the secretary to assign one.';
+    }
+  }
+  return undefined;
+}
+
 export function hasPermanentScoreAuthorizationFailure(detail: SyncFailedEventDetail): boolean {
   return detail.mutations.some(isPermanentScoreAuthorizationMutation);
 }
@@ -98,6 +122,8 @@ function actionLabel(operation: string | undefined): string {
 }
 
 export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
+  const classJudgeRefusal = formatClassJudgeRefusal(detail.mutations);
+  if (classJudgeRefusal) return classJudgeRefusal;
   if (hasPermanentScoreAuthorizationFailure(detail)) {
     return "Score not saved. You're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.";
   }
@@ -137,6 +163,8 @@ const QUEUE_PREFIX_PATTERN = /^(?:non-retryable error|max retries exceeded):\s*/
  * from exhibitor-only accounts (MYK9-1849).
  */
 export function formatSyncFailureReason(detail: SyncFailedEventDetail): string | undefined {
+  // The headline already says it all; a "Reason:" line would repeat the server's sentence.
+  if (formatClassJudgeRefusal(detail.mutations)) return undefined;
   const first = detail.mutations.find(mutation => mutation.error?.trim());
   const error = first?.error?.trim().replace(QUEUE_PREFIX_PATTERN, '');
   if (!first || !error) return undefined;

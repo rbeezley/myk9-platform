@@ -51,7 +51,7 @@ The finish row on the Results tab becomes the "Finish the show" list: everything
 > - Paperwork to print for 2 trials
 > - Initials from 1 judge: Pat Donovan, Monday
 > - 2 entries unpaid
-> - 1 refund to decide before Thursday's payout. After that the club refunds directly.
+> - 1 refund to decide before Thursday's payout. After that the club pays the exhibitor directly.
 > - Results file sent to AKC · Mon 7:40 PM ✓
 > - Paperwork to mail by Dec 15: signed catalog, three forms, fee about $216 (48 runs at $4.50) · Mark as mailed
 > - Close the show
@@ -103,7 +103,9 @@ One email per exhibitor when the last class of the show is released: "Results fr
 
 The club's payout goes out three days after the show's last day, whether or not the show is closed, and does not wait for refunds that are undecided (`cron-process-payouts`, re-read 2026-11-13). Once it has been sent, the app refuses any further refund for that show (`_shared/refundValidation.ts`: `payout_already_sent`). So the secretary has three days to decide refunds in the app.
 
-The payout is left alone. The list shows the date on the refund line. When a refund is refused because the payout has gone, the message says so plainly and tells her the club now pays the exhibitor directly.
+The payout is left alone. The list shows the date on the refund line.
+
+**After the payout, the club settles a refund with the exhibitor directly** (owner decision, 2026-11-13, MYK9-1953). The club has the money, so the club pays, and the secretary records it. Today the app says something else: since August its refusal message sends the secretary to myK9Show support, who refunds by hand and recovers the club's share (`docs/operations/post-payout-clawback.md`). MYK9-1953 changes that message back and keeps the operator's clawback as an exception. This plan does not change the message itself; it adds the payout date to the list so fewer refunds are left that late, and its refund line should match whatever MYK9-1953 ships.
 
 ## Decisions (owner, 2026-11-13)
 

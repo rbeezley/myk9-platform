@@ -317,7 +317,7 @@ To put one dog in a specific spot, drag it. In the class's entries list, each do
 
 ## 15 · Ringside access codes
 
-**Show Desk → Actions → Access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or generate new codes if one gets out.
+**Show Desk → Actions → Access codes.** Separate codes for Admin, Steward, and Exhibitor, and one code for each judge, listed under the judge's name. A judge's code opens only that judge's classes at ringside; the Admin and Steward codes open every class. A judge's code is also printed on their page of **Reports → Judge Supply Checklists**. Copy a code, copy a share link, print a slip, or generate new codes if one gets out. Generating new codes replaces every code, the judges' too.
 
 ## 16 · Volunteers, lunch orders, and the paper fallback
 

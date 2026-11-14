@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   canManageShowSurface,
   filterManagedShows,
+  hasClubAdminGrant,
   hasScopedClubRole,
   hasScopedShowRole,
   managedClubIds,
@@ -288,6 +289,49 @@ describe('canManageShowSurface', () => {
         clubId: 'club-1',
       })
     ).toBe(false);
+  });
+});
+
+describe('show-pinned club_admin grant (MYK9-1886)', () => {
+  const pinned = (clubId?: string) =>
+    buildUser([
+      {
+        userId: 'user-1',
+        roleId: UserRole.CLUB_ADMIN,
+        scopeType: ScopeType.SHOW,
+        scopeId: 'show-gone',
+        createdAt: new Date(),
+        ...(clubId ? { clubId } : {}),
+      },
+    ]);
+  const holdsClubAdmin = (role: UserRole) => role === UserRole.CLUB_ADMIN;
+  const manage = (user: UserWithRoles, clubId: string) =>
+    canManageShowSurface({
+      isSecretary: false,
+      isAdmin: false,
+      hasRole: holdsClubAdmin,
+      userWithRoles: user,
+      clubId,
+    });
+
+  it('manages every show of its club without a live anchoring show', () => {
+    expect(manage(pinned('club-1'), 'club-1')).toBe(true);
+  });
+
+  it('does not manage another club', () => {
+    expect(manage(pinned('club-1'), 'club-2')).toBe(false);
+  });
+
+  it('falls back to the shows list only when the grant carries no club', () => {
+    const shows = [{ id: 'show-gone', clubId: 'club-1' }];
+    expect(hasClubAdminGrant(pinned(), { clubId: 'club-1', shows })).toBe(true);
+    expect(hasClubAdminGrant(pinned(), { clubId: 'club-1' })).toBe(false);
+  });
+
+  it('lists its club among the managed clubs', () => {
+    expect(managedClubIds({ isAdmin: false, userWithRoles: pinned('club-1') })).toEqual(
+      new Set(['club-1'])
+    );
   });
 });
 

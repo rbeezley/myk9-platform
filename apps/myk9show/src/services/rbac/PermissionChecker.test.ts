@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockRpc } = vi.hoisted(() => ({
+const { mockRpc, mockFrom } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
+  mockFrom: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     rpc: mockRpc,
+    from: mockFrom,
   },
 }));
 
@@ -63,6 +65,37 @@ describe('isTransientBrowserFetchError', () => {
     ['unrelated error', new Error('permission denied')],
   ])('returns false for %s', (_name, error) => {
     expect(isTransientBrowserFetchError(error)).toBe(false);
+  });
+});
+
+describe('PermissionChecker show-pinned grant club (MYK9-1886)', () => {
+  it('carries user_roles.club_id on a show-pinned grant', async () => {
+    const mockIn = vi.fn().mockResolvedValue({
+      data: [{ id: 'ur-1', club_id: 'club-1' }],
+      error: null,
+    });
+    mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ in: mockIn }) });
+    mockSuccessfulAccessLoad({
+      get_user_roles: [
+        {
+          user_role_id: 'ur-1',
+          role_id: 'r1',
+          role_name: 'club_admin',
+          role_description: '',
+          scope_type: 'show',
+          scope_id: 'show-1',
+          granted_at: '2026-01-01',
+          expires_at: null,
+          is_active: true,
+        },
+      ],
+    });
+
+    const result = await new PermissionChecker().getUserPermissions('user-1');
+
+    expect(mockFrom).toHaveBeenCalledWith('user_roles');
+    expect(mockIn).toHaveBeenCalledWith('id', ['ur-1']);
+    expect(result.roles[0]).toMatchObject({ show_id: 'show-1', club_id: 'club-1' });
   });
 });
 

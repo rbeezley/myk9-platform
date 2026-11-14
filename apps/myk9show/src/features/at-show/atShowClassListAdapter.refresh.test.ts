@@ -76,6 +76,27 @@ describe('refreshAtShowClassListEntries', () => {
     });
   });
 
+  it("exposes every section's rows by class so a combined card can merge them", () => {
+    const groups = makeGroups();
+    groups[0]!.classes.push(
+      toClassEntry(
+        { id: 'class-2', name: 'Novice Container B', element: 'Container', level: 'Novice' },
+        [],
+        new Set()
+      )
+    );
+    const entries: ReplicatedEntry[] = [
+      { id: 'a1', showId: 'show-1', classId: 'class-1', armband: '101', runOrder: 1 },
+      { id: 'b1', showId: 'show-1', classId: 'class-2', armband: '201', runOrder: 1 },
+      { id: 'other', showId: 'show-2', classId: 'class-2', armband: '999', runOrder: 2 },
+    ];
+
+    const rows = refreshAtShowClassListEntries(groups, entries, 'show-1')[0]?.entriesByClassId;
+
+    expect(rows?.get('class-1')?.map(row => row.id)).toEqual(['a1']);
+    expect(rows?.get('class-2')?.map(row => row.id)).toEqual(['b1']);
+  });
+
   it('does not mutate the existing query data', () => {
     const groups = makeGroups();
 

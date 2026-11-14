@@ -1,6 +1,7 @@
 export interface ShowPasscodes {
   admin: string;
-  judge: string;
+  /** Null/absent since per-judge passcodes (MYK9-1950): judge codes are one per judge. */
+  judge?: string | null;
   steward: string;
   exhibitor: string;
 }

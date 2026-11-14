@@ -31,7 +31,7 @@ There are three ways in. Use whichever fits you.
 
 ![Two access paths into ringside: account holders tap Ringside in the sidebar; guests enter a passcode or scan a QR code](../diagrams/at-show-access-paths.svg)
 
-**Don't have a passcode?** Ask the trial secretary before the show starts. They find it under **Show Access Codes** on the show's **Overview**.
+**Don't have a passcode?** Ask the trial secretary before the show starts. Each judge has their own code, listed under their name in **Show Access Codes** on the show's **Overview** and printed on their Judge Supply Checklist. A judge's code opens only the classes assigned to that judge. If you try to score another judge's class, myK9Show tells you whose class it is.
 
 ---
 

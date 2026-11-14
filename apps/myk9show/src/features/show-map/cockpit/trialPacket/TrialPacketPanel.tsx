@@ -78,9 +78,7 @@ export function TrialPacketPanel(props: TrialPacketPanelProps) {
       className="md:max-w-4xl"
     >
       {open && props.mode === 'judge-review' && <JudgeReviewPanelBody {...props.review} />}
-      {open && props.mode === 'judge-record' && (
-        <JudgeRecordPanelBody showId={showId} {...props.record} />
-      )}
+      {open && props.mode === 'judge-record' && <JudgeRecordPanelBody {...props.record} />}
       {open && props.mode === 'after-show' && (
         <AfterShowPanelBody showId={showId} trialId={props.trialId} />
       )}

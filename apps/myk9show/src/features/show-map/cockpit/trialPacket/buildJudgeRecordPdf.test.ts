@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 
-import { buildJudgeRecordPdf } from './buildJudgeRecordPdf';
+import { buildJudgeRecordPdf, COVER_BOTTOM, renderJudgeRecordCover } from './buildJudgeRecordPdf';
 import { buildJudgeRecords } from './judgeRecord';
 import { pageContentStreams, shownText } from './pdfPageStreams.testHelper';
 
@@ -86,5 +86,53 @@ describe('buildJudgeRecordPdf', () => {
     expect(text).toContain('Dog of b');
     expect(text).not.toContain('I have compared this page');
     expect(text).not.toContain('Initials');
+  });
+});
+
+describe('judge record cover with a long day', () => {
+  const longDay = () =>
+    buildJudgeRecords({
+      rows: Array.from({ length: 60 }, (_, index) =>
+        row(`c${index}`, 'Pat', {
+          name: `Class ${index} ${'with a very long descriptive class name '.repeat(index % 4)}`.trim(),
+          trialId: index < 30 ? 't1' : 't2',
+          trialLabel: index < 30 ? 'Trial 1' : 'Trial 2',
+        })
+      ),
+      entryInfo: [],
+      correctionsByEntryId: new Map(),
+    })[0]!;
+
+  it('flows onto more cover pages and keeps every line above the bottom margin', async () => {
+    const cover = renderJudgeRecordCover(longDay(), 'Winter Trial');
+    const pages = await pageContentStreams(cover);
+
+    expect(pages.length).toBeGreaterThan(1);
+    const lowest = 792 - COVER_BOTTOM * (72 / 25.4);
+    for (const streams of pages) {
+      const ys = streams
+        .join('\n')
+        .split('\n')
+        .map(line => /^[\d.-]+ ([\d.-]+) Td$/.exec(line)?.[1])
+        .filter((value): value is string => value !== undefined)
+        .map(Number);
+      expect(ys.length).toBeGreaterThan(0);
+      expect(Math.min(...ys)).toBeGreaterThanOrEqual(lowest - 1);
+    }
+    const text = pages.map(streams => streams.map(shownText).join(' ')).join(' ');
+    for (let index = 0; index < 60; index += 1) expect(text).toContain(`Class ${index}`);
+    expect(text).toContain('Trial 1 (continued)');
+  });
+
+  it('builds the whole record with a footer on every page, cover pages included', async () => {
+    const bytes = await buildJudgeRecordPdf(longDay(), 'Winter Trial', 'America/Los_Angeles');
+    const pages = (await pageContentStreams(bytes)).map(streams =>
+      streams.map(shownText).join(' ')
+    );
+
+    expect(pages.length).toBeGreaterThan(61);
+    pages.forEach((page, index) =>
+      expect(page).toContain(`Packet page ${index + 1} of ${pages.length}`)
+    );
   });
 });

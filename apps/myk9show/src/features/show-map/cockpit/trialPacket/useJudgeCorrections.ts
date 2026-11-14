@@ -11,8 +11,10 @@ const NO_CORRECTIONS: ReadonlyMap<string, readonly ScoreCorrection[]> = new Map(
 /**
  * The scores a secretary changed after the judge submitted them, from the score history of the
  * classes that take a judge's sign-off. Shared by the judge review packet and the judge's record,
- * so both mark the same lines. `historySettled` is true once the history is read or has failed
- * (the packet still prints, without marks), and an empty set of classes has nothing to read.
+ * so both mark the same lines. `historySettled` is true once the history is read, has failed, or is
+ * paused offline (the packet still prints, without marks: the history is an online-only audit read
+ * and the app's query client pauses it with no network), and an empty set of classes has nothing
+ * to read. `historyUnavailable` says the marks are missing, so the panel can warn.
  */
 export function useJudgeCorrections(rows: readonly ResultsClassRow[]) {
   const classIds = useMemo(
@@ -35,6 +37,9 @@ export function useJudgeCorrections(rows: readonly ResultsClassRow[]) {
     }
     return found;
   }, [audits.data]);
-  const historySettled = audits.isSuccess || audits.isError || classIds.length === 0;
-  return { audits, correctionsByEntryId, historySettled };
+  const historyPaused = audits.fetchStatus === 'paused' && !audits.data;
+  const historySettled =
+    audits.isSuccess || audits.isError || historyPaused || classIds.length === 0;
+  const historyUnavailable = audits.isError || historyPaused;
+  return { audits, correctionsByEntryId, historySettled, historyUnavailable, historyPaused };
 }

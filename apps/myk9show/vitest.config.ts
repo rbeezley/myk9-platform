@@ -98,7 +98,6 @@ export default defineConfig({
       '../../supabase/functions/send-targeted-message/person-target.test.ts',
       '../../supabase/functions/send-targeted-message/audience-pagination.test.ts',
       '../../supabase/functions/deliver-trial-packet/*.test.ts',
-      '../../supabase/functions/send-judge-record/*.test.ts',
       // Trial-packet delivery moved out of the function directory so the
       // automated generator shares it; the glob above no longer reaches it.
       '../../supabase/functions/_shared/trialPacket/*.test.ts',

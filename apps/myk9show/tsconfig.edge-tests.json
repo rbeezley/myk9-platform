@@ -49,7 +49,6 @@
     "../../supabase/functions/remind-print-trial-packet/*.test.ts",
     "../../supabase/functions/send-access-request-emails/*.test.ts",
     "../../supabase/functions/send-auth-email/delivery.test.ts",
-    "../../supabase/functions/send-judge-record/*.test.ts",
     "../../supabase/functions/resend-webhook/handler.test.ts",
     "../../supabase/functions/send-confirmation-email/*.test.ts",
     "../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts",

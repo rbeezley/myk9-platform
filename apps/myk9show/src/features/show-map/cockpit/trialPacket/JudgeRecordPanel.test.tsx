@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import userEvent from '@testing-library/user-event';
+import { onlineManager } from '@tanstack/react-query';
 
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
@@ -7,8 +7,6 @@ import { render, screen, waitFor } from '@/test/utils/testUtils';
 const mocks = vi.hoisted(() => ({
   printIframeAndWait: vi.fn(),
   getClassScoreAudits: vi.fn(),
-  previewJudgeRecipient: vi.fn(),
-  emailJudgeRecord: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
@@ -17,11 +15,6 @@ vi.mock('@/pages/secretary/ReportsPage/reportPreviewUtils', () => ({
 }));
 vi.mock('@/services/database/entries/scoreAudit', () => ({
   getClassScoreAudits: mocks.getClassScoreAudits,
-}));
-vi.mock('./emailJudgeRecord', async importOriginal => ({
-  ...(await importOriginal<typeof import('./emailJudgeRecord')>()),
-  previewJudgeRecipient: mocks.previewJudgeRecipient,
-  emailJudgeRecord: mocks.emailJudgeRecord,
 }));
 
 import { TrialPacketPanel } from './TrialPacketPanel';
@@ -84,87 +77,37 @@ describe("judge's record panel", () => {
     vi.clearAllMocks();
     mocks.printIframeAndWait.mockResolvedValue(true);
     mocks.getClassScoreAudits.mockResolvedValue(new Map());
-    mocks.previewJudgeRecipient.mockResolvedValue({
-      judgeName: 'Pat',
-      email: 'pat@example.com',
-      reason: null,
-    });
+    onlineManager.setOnline(true);
   });
 
-  it('shows who receives it before anything is sent, then sends only after the press', async () => {
-    const user = userEvent.setup();
-    mocks.emailJudgeRecord.mockResolvedValue({
-      judgeName: 'Pat',
-      email: 'pat@example.com',
-      alreadySent: false,
-      sentAt: null,
-      linkExpiresAt: '2027-01-06T00:00:00.000Z',
-    });
+  it('prints and saves a judge's record', async () => {
     renderPanel([row('a', 'Pat'), row('b', 'Sam')]);
 
-    expect(await screen.findByText('pat@example.com')).toBeInTheDocument();
-    expect(mocks.emailJudgeRecord).not.toHaveBeenCalled();
-    expect(mocks.previewJudgeRecipient).toHaveBeenCalledWith({
-      showId: 'show-1',
-      judgeId: 'id-Pat',
-      day: '2026-12-07',
-    });
-
-    const send = await screen.findByRole('button', { name: 'Email the judge their record' });
-    await waitFor(() => expect(send).toBeEnabled(), BUILT);
-    await user.click(send);
-
-    expect(mocks.emailJudgeRecord).toHaveBeenCalledTimes(1);
-    expect(mocks.emailJudgeRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ showId: 'show-1', judgeId: 'id-Pat', day: '2026-12-07' })
-    );
-    expect(await screen.findByText(/Sent to pat@example.com/)).toBeInTheDocument();
+    const print = await screen.findByRole('button', { name: "Print Pat's record" });
+    await waitFor(() => expect(print).toBeEnabled(), BUILT);
+    expect(screen.getByRole('button', { name: 'Save as PDF' })).toBeEnabled();
   });
 
-  it('says when the record already went and offers a deliberate send again', async () => {
-    const user = userEvent.setup();
-    mocks.emailJudgeRecord.mockResolvedValue({
-      judgeName: 'Pat',
-      email: 'pat@example.com',
-      alreadySent: true,
-      sentAt: '2026-12-07T19:05:00.000Z',
-      linkExpiresAt: '2027-01-06T00:00:00.000Z',
-    });
+  it('builds the record with the network offline, saying the score history is not available', async () => {
+    onlineManager.setOnline(false);
+    mocks.getClassScoreAudits.mockImplementation(() => new Promise(() => {}));
     renderPanel([row('a', 'Pat')]);
 
-    const send = await screen.findByRole('button', { name: 'Email the judge their record' });
-    await waitFor(() => expect(send).toBeEnabled(), BUILT);
-    await user.click(send);
-
-    expect(await screen.findByText(/Already emailed on December 7 at /)).toBeInTheDocument();
-    expect(mocks.emailJudgeRecord).toHaveBeenLastCalledWith(
-      expect.not.objectContaining({ sendAgain: true })
-    );
-    await user.click(screen.getByRole('button', { name: 'Send again' }));
-    expect(mocks.emailJudgeRecord).toHaveBeenLastCalledWith(
-      expect.objectContaining({ sendAgain: true })
-    );
+    expect(
+      await screen.findByText(/You are offline, so the score history is not available/)
+    ).toBeInTheDocument();
+    expect(mocks.getClassScoreAudits).not.toHaveBeenCalled();
+    const print = await screen.findByRole('button', { name: "Print Pat's record" });
+    await waitFor(() => expect(print).toBeEnabled(), BUILT);
+    expect(screen.getByRole('button', { name: 'Save as PDF' })).toBeEnabled();
   });
 
-  it('offers a download and no email for a judge with no email on file', async () => {
-    mocks.previewJudgeRecipient.mockResolvedValue({
-      judgeName: 'Pat',
-      email: null,
-      reason: 'no_email',
-    });
+  it('still builds when the score history fails, and offers to try again', async () => {
+    mocks.getClassScoreAudits.mockRejectedValue(new Error('boom'));
     renderPanel([row('a', 'Pat')]);
 
-    expect(await screen.findByText(/Pat has no email on file/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Email the judge their record' })).toBeNull();
-    const save = screen.getByRole('button', { name: 'Save as PDF' });
-    await waitFor(() => expect(save).toBeEnabled(), BUILT);
-  });
-
-  it('still prints when the recipient cannot be checked', async () => {
-    mocks.previewJudgeRecipient.mockRejectedValue(new Error('offline'));
-    renderPanel([row('a', 'Pat')]);
-
-    expect(await screen.findByText(/email could not be checked/)).toBeInTheDocument();
+    expect(await screen.findByText(/The score history could not be read/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     const print = await screen.findByRole('button', { name: "Print Pat's record" });
     await waitFor(() => expect(print).toBeEnabled(), BUILT);
   });

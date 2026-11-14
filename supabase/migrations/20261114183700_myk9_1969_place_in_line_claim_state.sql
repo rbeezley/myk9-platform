@@ -89,7 +89,9 @@ REVOKE ALL ON FUNCTION private.ring_claim_stale_after() FROM PUBLIC, anon, authe
 -- Last score / in-ring activity per class
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS private.class_ring_activity (
-  class_id uuid PRIMARY KEY REFERENCES public.classes (id) ON DELETE CASCADE,
+  -- No FK on purpose: hard_delete_show pins every foreign key into classes, and a row
+  -- for a deleted class is inert (nothing reads it).
+  class_id uuid PRIMARY KEY,
   last_activity_at timestamptz NOT NULL
 );
 

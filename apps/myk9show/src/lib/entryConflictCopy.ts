@@ -71,7 +71,7 @@ export function entryConflictCopy(
   }
   return {
     title: `${subject} was scored two ways`,
-    description: `This device: ${describeConflictScore(local)}. Other device: ${describeConflictScore(remote)}. Choose the score to keep.`,
+    description: `This device: ${describeConflictScore(local)}. Other device: ${describeConflictScore(remote)}. Choose the score to keep. Keeping the other score also drops anything else this device changed on this dog and had not sent yet.`,
     takeRemoteLabel: `Keep the other score: ${describeConflictScore(remote)}`,
     keepLocalLabel: `Keep my score: ${describeConflictScore(local)}`,
   };

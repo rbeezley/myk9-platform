@@ -119,7 +119,8 @@ function scoredAfterRemovalOf(state: ClassEntryState, display: ShowMapEntryDispl
   if (!display.isScored || (state !== 'pulled' && state !== 'withdrawn')) return null;
   const status = display.resultStatus?.trim().toLowerCase();
   const score = status && status !== 'pending' ? resultStatusLabel(status) : null;
-  const what = state === 'pulled' ? 'Scored after being pulled' : 'Scored after being withdrawn';
+  // Pulled: the plan's wording. Withdrawn: the fields do not say which came first.
+  const what = state === 'pulled' ? 'Scored after being pulled' : 'Withdrawn, and holds a score';
   return score ? `${what}: ${score}` : what;
 }
 

@@ -66,4 +66,15 @@ describe('entries compare policy: a check-in change and a score are different fa
     expect(result.hasConflict).toBe(true);
     expect(result.fields).toEqual(expect.arrayContaining(['result_status']));
   });
+
+  it('two staff devices changing an unscored dog status still ask', () => {
+    const checkedIn = { ...base, ...status('checked-in') };
+    const result = detect(
+      { ...checkedIn, ...status('at-gate') },
+      { ...checkedIn, ...status('pulled') },
+      checkedIn
+    );
+    expect(result.hasConflict).toBe(true);
+    expect(result.fields).toEqual(expect.arrayContaining(['check_in_status']));
+  });
 });

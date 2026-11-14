@@ -275,7 +275,7 @@ describe('a score on a dog pulled or withdrawn while the judge scored it (MYK9-2
 
   it('flags a withdrawn dog that holds a score', () => {
     expect(flag({ entry_status: 'withdrawn', is_scored: true, result_status: 'qualified' })).toBe(
-      'Scored after being withdrawn: Q'
+      'Withdrawn, and holds a score: Q'
     );
   });
 

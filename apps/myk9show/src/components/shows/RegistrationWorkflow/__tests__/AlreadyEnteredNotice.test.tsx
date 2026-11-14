@@ -19,10 +19,10 @@ describe('AlreadyEnteredNotice', () => {
     expect(screen.getByText(/To change a class,/)).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'My Shows' });
     expect(link).toHaveAttribute('href', '/exhibitor/entries');
-    expect(screen.getByRole('link', { name: 'message the secretary' })).toHaveAttribute(
-      'href',
-      '/messages/show-1'
-    );
+    const messageLink = screen.getByRole('link', { name: 'message the secretary' });
+    expect(messageLink).toHaveAttribute('href', '/messages/show-1');
+    expect(messageLink).toHaveAttribute('target', '_blank');
+    expect(messageLink).toHaveAttribute('rel', 'noopener noreferrer');
     expect(screen.queryByText(/withdraw/i)).toBeNull();
   });
 

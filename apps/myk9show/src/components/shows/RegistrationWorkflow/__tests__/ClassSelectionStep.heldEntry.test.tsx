@@ -257,6 +257,8 @@ describe('ClassSelectionStep — a dog with no registration number yet (MYK9-116
     await screen.findByText(BLOCKED);
     const link = screen.getByRole('link', { name: 'Message the show secretary' });
     expect(link).toHaveAttribute('href', `/messages/${SHOW_ID}`);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(
       screen.getByText(/who can enter your dog and hold its place until the number arrives/)
     ).toBeInTheDocument();

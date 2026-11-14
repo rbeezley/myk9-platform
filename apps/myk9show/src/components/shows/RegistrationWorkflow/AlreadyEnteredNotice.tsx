@@ -31,7 +31,8 @@ interface AlreadyEnteredNoticeProps {
 // withdraw an entry herself, but it has no class-change or move-up action, and
 // withdrawing blocks online re-entry into the same class. So My Shows is the
 // answer for seeing/pulling, and a class change still goes to the secretary at
-// /messages/:showId (Codex P2 on PR #3891); the wizard only adds
+// /messages/:showId, in a new tab so the wizard keeps its selections and step
+// (Codex P2 on PR #3891); the wizard only adds
 // (exhibitor-elderly-novice audit 2026-07-23, row 11; docs/INTENT.md
 // "I trust this with my day"). Staff never see that line — telling a
 // secretary to message the show team opens a thread with themselves; they get
@@ -67,7 +68,12 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
               My Shows
             </Link>
             . To change a class,{' '}
-            <Link to={`/messages/${showId}`} className="font-medium underline underline-offset-2">
+            <Link
+              to={`/messages/${showId}`}
+              className="font-medium underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               message the secretary
             </Link>
             .

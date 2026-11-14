@@ -675,7 +675,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }
                                 onAddRegistration={() => openRegistrationEditor(dogId)}
-                                registrationHelp={<NoRegistrationNumberHelp showId={showId} />}
+                                registrationHelp={
+                                  <NoRegistrationNumberHelp showId={showId} opensInNewTab />
+                                }
                                 ownerAddressAction={
                                   <OwnerAddressAction
                                     isOwnAddress={isOwnAddress}

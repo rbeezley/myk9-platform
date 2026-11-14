@@ -206,6 +206,7 @@ const launchCriticalSqlTests = [
   'myk9_719_scratch_requested_retired_test.sql',
   'update_own_entry_jump_height_test.sql',
   'myk9_995_my_entry_queue_places_test.sql',
+  'myk9_1969_place_in_line_claim_state_test.sql',
   'myk9_1048_submit_entries_next_run_order_test.sql',
   'myk9_1010_owner_address_required_test.sql',
   'myk9_1010_fill_entry_owner_address_test.sql',

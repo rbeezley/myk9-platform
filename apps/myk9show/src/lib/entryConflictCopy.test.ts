@@ -26,4 +26,15 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     const copy = entryConflictCopy({ ...dog }, { ...dog });
     expect(copy.title).toBe('#12 Rex was changed somewhere else at the same time');
   });
+
+  it('shows both statuses when two staff changed an unscored dog', () => {
+    const copy = entryConflictCopy(
+      { ...dog, check_in_status: 'at-gate' },
+      { ...dog, check_in_status: 'pulled' }
+    );
+    expect(copy.title).toBe('#12 Rex was checked in two ways');
+    expect(copy.takeRemoteLabel).toMatch(/^Keep the other status: .*[Pp]ulled/);
+    expect(copy.keepLocalLabel).toMatch(/^Keep my status: /);
+    expect(copy.description).toContain('drops anything else');
+  });
 });

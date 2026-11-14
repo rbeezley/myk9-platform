@@ -29,6 +29,7 @@ const CHECK_IN_FIELDS: ReadonlySet<string> = new Set(['check_in_status', 'checkI
  *     case the pull stays (the score saves beside it, and Show Desk flags the dog as scored after
  *     being pulled; nothing is written to say so, the pair is the flag);
  *   - the device did not score and its change is only the in-ring marker: the other side wins.
+ *   - the other device saved the score: its status comes with that score, so it wins.
  *   - anything else (two staff devices moved an unscored dog's status) is a real collision and
  *     still asks, so no staff member's check-in or pull is dropped silently.
  * Scores themselves are untouched: two devices scoring one dog differently still collide.
@@ -39,6 +40,8 @@ function resolveCheckInCollision(
 ): 'device' | 'server' | undefined {
   if (!CHECK_IN_FIELDS.has(field)) return undefined;
   if (local.is_scored ?? local.isScored) return remote[field] !== 'pulled' ? 'device' : 'server';
+  // Another device saved the score: its status is the outcome of that score, so take it.
+  if (remote.is_scored ?? remote.isScored) return 'server';
   return local[field] === 'in-ring' ? 'server' : undefined;
 }
 

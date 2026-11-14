@@ -77,4 +77,15 @@ describe('entries compare policy: a check-in change and a score are different fa
     expect(result.hasConflict).toBe(true);
     expect(result.fields).toEqual(expect.arrayContaining(['check_in_status']));
   });
+
+  it('a score saved on the other device brings its status; no question about the score', () => {
+    const checkedIn = { ...base, ...status('checked-in') };
+    const result = detect(
+      { ...checkedIn, ...status('at-gate') },
+      { ...checkedIn, ...status('completed'), is_scored: true, isScored: true },
+      checkedIn
+    );
+    expect(result.hasConflict).toBe(false);
+    expect(result.adoptRemoteFields).toEqual(expect.arrayContaining(['check_in_status']));
+  });
 });

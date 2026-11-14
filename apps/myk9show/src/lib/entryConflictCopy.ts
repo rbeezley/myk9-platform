@@ -1,4 +1,5 @@
 import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
+import { classifyEntryCheckInStatus } from '@/features/show-map/showMapStatus';
 import {
   CONFLICT_KEEP_LOCAL_LABEL,
   CONFLICT_TAKE_REMOTE_LABEL,
@@ -50,6 +51,11 @@ export function describeConflictScore(row: EntryConflictRow): string {
   return parts.filter(Boolean).join(', ') || 'scored';
 }
 
+function checkInWords(status: unknown): string {
+  if (typeof status !== 'string' || !status) return 'no status';
+  return classifyEntryCheckInStatus({ check_in_status: status })?.label ?? status;
+}
+
 export function entryConflictCopy(
   local: EntryConflictRow,
   remote: EntryConflictRow
@@ -60,6 +66,19 @@ export function entryConflictCopy(
   const scored = Boolean(
     read(local, 'is_scored', 'isScored') || read(remote, 'is_scored', 'isScored')
   );
+  const localStatus = read(local, 'check_in_status', 'checkInStatus');
+  const remoteStatus = read(remote, 'check_in_status', 'checkInStatus');
+  // Two staff changed the status: say what each chose, so the pull is never dropped by guesswork.
+  if (!scored && localStatus !== remoteStatus && (localStatus || remoteStatus)) {
+    const mine = checkInWords(localStatus);
+    const theirs = checkInWords(remoteStatus);
+    return {
+      title: `${subject} was checked in two ways`,
+      description: `This device: ${mine}. Other device: ${theirs}. Choose the status to keep. Keeping the other one also drops anything else this device changed on this dog and had not sent yet.`,
+      takeRemoteLabel: `Keep the other status: ${theirs}`,
+      keepLocalLabel: `Keep my status: ${mine}`,
+    };
+  }
   // Never a button that could throw a score away without saying whose and which.
   if (!scored) {
     return {

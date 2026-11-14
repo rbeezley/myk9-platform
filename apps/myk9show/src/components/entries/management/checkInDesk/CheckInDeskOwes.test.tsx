@@ -58,6 +58,8 @@ function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEn
     ],
     totalFee: 25,
     paidAmount: 0,
+    enrollmentTotalAmount: 2500,
+    enrollmentPaidAmount: 0,
     entryStatus: EntryStatus.ACCEPTED,
     paymentStatus: PaymentStatus.PENDING,
     submittedAt: new Date('2026-07-08T09:00:00.000Z'),
@@ -90,7 +92,9 @@ describe('CheckInDesk money (MYK9-1937)', () => {
   });
 
   it('shows no money text for someone paid in full', () => {
-    renderDesk([entry({ paymentStatus: PaymentStatus.PAID_ONLINE, paidAmount: 25 })]);
+    renderDesk([
+      entry({ paymentStatus: PaymentStatus.PAID_ONLINE, paidAmount: 25, enrollmentPaidAmount: 25 }),
+    ]);
     const card = screen.getByRole('region', { name: 'Alice Martin' });
     expect(card).not.toHaveTextContent(/owes|\$/i);
   });
@@ -130,6 +134,16 @@ describe('CheckInDesk money (MYK9-1937)', () => {
         name: /Owes/,
       })
     ).toBeInTheDocument();
+  });
+
+  it('says the amount is not available when the entry form did not load', () => {
+    renderDesk([entry({ enrollmentTotalAmount: null, enrollmentPaidAmount: null })]);
+    const card = screen.getByRole('region', { name: 'Alice Martin' });
+    expect(within(card).getByRole('link', { name: 'Amount not available' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/entries?registration=reg-1'
+    );
+    expect(card).not.toHaveTextContent(/\$/);
   });
 
   it('says the amount is not available when the money could not be traced', () => {

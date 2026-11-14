@@ -223,8 +223,10 @@ END;
 $$;
 
 -- --- 6. refunded again, then "Payment Due" ----------------------------------
+-- MYK9-1961: step 5 charged $50, A's fee alone. C stays refunded, so its fee is no longer
+-- owed (it used to be charged too, making $100), and the refund returns what is held.
 SELECT public.record_enrollment_payment(
-  '00000000-0000-0000-0000-000000773061', 'refund', 100, NULL, NULL, NULL, 'Stripe (manual)');
+  '00000000-0000-0000-0000-000000773061', 'refund', 50, NULL, NULL, NULL, 'Stripe (manual)');
 SELECT pg_temp.myk9_773_expect('enrollment refunded again',
   'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-) e=refunded(enrollment) f=refunded(entry)');
 

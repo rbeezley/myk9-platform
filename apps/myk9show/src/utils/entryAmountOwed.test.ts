@@ -101,16 +101,14 @@ describe('entryCountsTowardFormTotal (MYK9-1961)', () => {
 
   it('leaves out a Free entry: waived, or comped before its status reads waived', () => {
     expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.WAIVED })).toBe(false);
-    expect(
-      entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PENDING, comped: true })
-    ).toBe(false);
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PENDING, comped: true })).toBe(
+      false
+    );
   });
 
   it('leaves out an entry refunded at the desk or by Stripe', () => {
     expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.REFUNDED })).toBe(false);
-    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PARTIAL_REFUND })).toBe(
-      false
-    );
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PARTIAL_REFUND })).toBe(false);
     // The Stripe refund stamp alone, as the server reads it.
     expect(
       entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PAID_ONLINE, refundAmount: 10 })

@@ -157,8 +157,10 @@ UPDATE public.entries
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000a7730151', true);
+-- MYK9-1961: Paid in Full charged $150 (A and B). C is refunded, so its fee is not owed (it
+-- used to be charged too, making $200); the refund returns everything held.
 SELECT public.record_enrollment_payment(
-  '00000000-0000-0000-0000-0000a7730061', 'refund', 200, 'check', NULL, NULL, 'Returned');
+  '00000000-0000-0000-0000-0000a7730061', 'refund', 150, 'check', NULL, NULL, 'Returned');
 SELECT pg_temp.myk9_773o_expect('enrollment refunded',
   'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-)');
 

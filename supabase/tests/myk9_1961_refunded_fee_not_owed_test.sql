@@ -185,7 +185,7 @@ SELECT '8 neither function is executable by a client role',
          has_function_privilege('authenticated', 'private.enrollment_owed_cents(uuid)', 'EXECUTE'),
          has_function_privilege('anon', 'private.enrollment_reopen_cents(uuid)', 'EXECUTE'),
          has_function_privilege('authenticated', 'private.enrollment_reopen_cents(uuid)', 'EXECUTE')),
-       'false,false,false,false';
+       'f,f,f,f';
 
 DO $$
 DECLARE r record; v_fail int := 0;

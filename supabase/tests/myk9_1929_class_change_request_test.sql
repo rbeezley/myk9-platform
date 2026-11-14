@@ -93,7 +93,7 @@ from generate_series(21, 26) n;
 -- 31 the entry that asks; 32 fills the full class; 33 is scored in the started
 -- class; 34 not yet accepted; 35 checked in; 36 already scored itself; 37 pulled;
 -- 38 in the ring; 39 fills class 20's judge day; 40 and 41 fill class 23 (2 of 2);
--- 42 is dog 21 already entered in class 17.
+-- 42 is dog 21 already entered in class 17; 44 is the unscored second entry in class 14.
 -- Handler of 31 is person 3.
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
   entry_status, payment_status, entry_fee, check_in_status, is_scored)
@@ -132,6 +132,12 @@ values
    '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929106',
    'confirmed', 'pending', 25, 'no-status', false),
   ('00000000-0000-0000-0000-000001929042', '00000000-0000-0000-0000-000001929321', '00000000-0000-0000-0000-000001929017',
+   '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
+   'confirmed', 'pending', 25, 'no-status', false),
+  -- 44 keeps class 14 at 1 of 2 scored: with 33 as its only entry the scoring
+  -- trigger completes the class (derived status), and the fixture would read as
+  -- finished, not started.
+  ('00000000-0000-0000-0000-000001929044', '00000000-0000-0000-0000-000001929321', '00000000-0000-0000-0000-000001929014',
    '00000000-0000-0000-0000-000001929002', '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
    'confirmed', 'pending', 25, 'no-status', false);
 

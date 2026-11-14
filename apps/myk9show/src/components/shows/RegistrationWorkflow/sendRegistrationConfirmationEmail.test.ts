@@ -17,7 +17,7 @@ describe('sendRegistrationConfirmationEmail', () => {
 
   it('fails when the function answers 200 with success false (mail provider failed)', async () => {
     invokeMock.mockResolvedValue({ data: { success: false, error: 'resend 422' }, error: null });
-    const result = await sendRegistrationConfirmationEmail('reg-1', 'sub-1');
+    const result = await sendRegistrationConfirmationEmail('reg-1');
     expect(result.ok).toBe(false);
   });
 

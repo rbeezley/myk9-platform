@@ -27,8 +27,6 @@ function resolveSecretaryCc(
 
 interface SendRegistrationEmailPayload {
   registrationId?: string;
-  /** The submission this email confirms; makes a retry of the same submission the same message. */
-  submissionId?: string;
 }
 
 handle<SendRegistrationEmailPayload>(
@@ -38,7 +36,7 @@ handle<SendRegistrationEmailPayload>(
       throw new HttpError(401, 'Invalid authorization');
     }
 
-    const { registrationId, submissionId } = body;
+    const { registrationId } = body;
     if (!registrationId) {
       throw new HttpError(400, 'registrationId is required');
     }
@@ -192,7 +190,7 @@ handle<SendRegistrationEmailPayload>(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${resendApiKey}`,
-          'Idempotency-Key': submissionId ? `${registrationId}:${submissionId}` : registrationId,
+          'Idempotency-Key': registrationId,
         },
         body: JSON.stringify(emailPayload),
       });

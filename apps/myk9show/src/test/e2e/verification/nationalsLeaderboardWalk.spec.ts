@@ -54,6 +54,8 @@ test('Nationals judge walk: no placement chips, a saved Q persists, and the lead
     points_earned: 25,
     search_time_seconds: 20,
     final_placement: 1,
+    total_correct_finds: 3,
+    total_incorrect_finds: 1,
   });
   await expect.poll(async () => (await replica(page, f.entryId)).pending.length).toBe(0);
 
@@ -72,7 +74,7 @@ test('Nationals judge walk: no placement chips, a saved Q persists, and the lead
   await screenshot(page, info, 'nationals-completed-after-reload');
   await judge.context.close();
 
-  // The leaderboard ranks released classes only, so release this one as the secretary would.
+  // The leaderboard ranks released classes only, so set the release column the leaderboard reads directly (the release control itself is not under test).
   const { error: releaseError } = await client
     .from('classes')
     .update({ results_released_at: new Date().toISOString() })

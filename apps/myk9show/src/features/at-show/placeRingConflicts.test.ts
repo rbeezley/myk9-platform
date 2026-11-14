@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 import { detectPlaceRingConflicts } from './placeRingConflicts';
 
@@ -24,7 +25,7 @@ function row(overrides: Partial<AtShowEntryDetail> & { entryId: string }): AtSho
   };
 }
 
-const live = (place: number) => ({ place, claimState: 'live' as const });
+const live = (place: number): QueuePlace => ({ place, claimState: 'live' });
 const juni = row({ entryId: 'juni' });
 const rex = row({ entryId: 'rex', dogName: 'Rex', classId: 'c2', className: 'Interior Excellent' });
 

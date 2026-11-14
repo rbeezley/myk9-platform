@@ -222,12 +222,10 @@ describe('useMyEntryQueuePlaces refresh cadence', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     replica.listeners.clear();
-    rpc
-      .mockReset()
-      .mockResolvedValue({
-        data: [{ entry_id: 'e1', place: 2, claim_state: 'live' }],
-        error: null,
-      });
+    rpc.mockReset().mockResolvedValue({
+      data: [{ entry_id: 'e1', place: 2, claim_state: 'live' }],
+      error: null,
+    });
     online = true;
   });
 

@@ -137,6 +137,8 @@ BEGIN
     ('secretary_tasks','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_announcement_reads','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_announcements','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    -- MYK9-1945: staff-only close notes; no DELETE (rows go via the shows cascade), anon revoked.
+    ('show_close_notes','SELECT,INSERT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_eve_nudge_log','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_incidents','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_judge_supplies','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -260,7 +262,7 @@ BEGIN
       'ringside_containment','ringside_containment_audit','ringside_sessions',
       'role_permissions','role_requests','roles','rule_organizations','rule_sports','rulebooks',
       'rules','rules_feedback','rules_query_log','secretary_tasks','show_announcement_reads',
-      'show_announcements','show_eve_nudge_log','show_incidents','show_judge_supplies','show_lifecycle_email_attempts',
+      'show_announcements','show_close_notes','show_eve_nudge_log','show_incidents','show_judge_supplies','show_lifecycle_email_attempts',
       'show_lifecycle_email_job_requests','show_lifecycle_email_jobs','show_lifecycle_email_steps','show_message_threads',
       'show_messages','show_money_locks','show_officials','show_passcodes','show_payments','show_payouts',
       'show_templates',
@@ -334,7 +336,8 @@ BEGIN
       -- authenticated 57 -> 59: ring_phase / ring_phase_time (20261030174300, MYK9-1513);
       -- anon stays 51.
       -- authenticated 59 -> 60: status_before_close (20261114194300, MYK9-1945); anon stays 51.
-      ('classes','authenticated',60),
+      -- authenticated 60 -> 61: scores_on_paper (20261114205300, MYK9-1969); anon stays 51.
+      ('classes','authenticated',61),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same
@@ -365,7 +368,11 @@ BEGIN
       -- authenticated (20261101213300, MYK9-1637): the money surfaces let a
       -- card-paid entry stand over a reopened form. anon stays 0 (REVOKEd), and a
       -- direct write cannot set it (trg_entries_derive_card_paid re-derives it).
-      ('entries','authenticated',57),
+      -- 57 -> 60: class_change_target_class_id, class_change_reason and
+      -- class_change_requested_at (20261114201300, MYK9-1929) are granted SELECT to
+      -- authenticated so the exhibitor and secretary see a pending class-change request.
+      -- anon stays 0: the same migration REVOKEs them from anon.
+      ('entries','authenticated',60),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

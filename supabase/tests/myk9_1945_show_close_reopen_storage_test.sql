@@ -1,12 +1,13 @@
 -- MYK9-1945 behavioral contract: the storage for closing and reopening a show.
 --
---   shows.closed_open_lines / closed_at / reopened_at / reopen_reason
+--   shows.closed_at / reopened_at (closed_open_lines and reopen_reason moved to the
+--   staff-only show_close_notes by 20261114211900; see myk9_1945_show_close_notes_test.sql)
 --   trials.status_before_close, classes.status_before_close
 --
 -- Sections:
 --   A. a show manager (secretary of the club) can set the columns on the show, a trial
 --      and a class, read them back, and clear them again
---   B. closed_open_lines must be a jsonb array
+--   B. (retired: closed_open_lines left shows)
 --   C. a signed-in user who manages nothing writes none of them (RLS: 0 rows touched)
 --   D. anon holds no privilege on classes.status_before_close (read or write), and
 --      no write privilege on any of the new columns
@@ -75,14 +76,13 @@ BEGIN
   IF n <> 1 THEN RAISE EXCEPTION 'FAIL A manager set trials.status_before_close touched % rows', n; END IF;
 
   UPDATE public.shows
-     SET closed_open_lines = '[{"key":"unreleased","count":3}]'::jsonb,
-         closed_at = now()
+     SET closed_at = now()
    WHERE id = v_show;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 1 THEN RAISE EXCEPTION 'FAIL A manager set the close record touched % rows', n; END IF;
 
-  SELECT closed_open_lines, closed_at INTO r FROM public.shows WHERE id = v_show;
-  IF r.closed_open_lines IS DISTINCT FROM '[{"key":"unreleased","count":3}]'::jsonb OR r.closed_at IS NULL THEN
+  SELECT closed_at INTO r FROM public.shows WHERE id = v_show;
+  IF r.closed_at IS NULL THEN
     RAISE EXCEPTION 'FAIL A manager could not read the close record back: %', r;
   END IF;
   IF (SELECT status_before_close FROM public.classes WHERE id = v_class) IS DISTINCT FROM 'in_progress'
@@ -90,25 +90,17 @@ BEGIN
     RAISE EXCEPTION 'FAIL A manager could not read status_before_close back';
   END IF;
 
-  -- B. closed_open_lines is an array.
-  BEGIN
-    UPDATE public.shows SET closed_open_lines = '{"key":"unreleased"}'::jsonb WHERE id = v_show;
-    RAISE EXCEPTION 'FAIL B a non-array closed_open_lines was accepted';
-  EXCEPTION WHEN check_violation THEN NULL;
-  END;
-
   -- A. Reopen: the record is stamped and every prior-status column clears.
   UPDATE public.classes SET status_before_close = NULL WHERE id = v_class;
   UPDATE public.trials SET status_before_close = NULL WHERE id = v_trial;
   UPDATE public.shows
-     SET reopened_at = now(), reopen_reason = 'Scores were missing', closed_open_lines = NULL, closed_at = NULL
+     SET reopened_at = now(), closed_at = NULL
    WHERE id = v_show;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 1 THEN RAISE EXCEPTION 'FAIL A manager reopen touched % rows', n; END IF;
 
-  SELECT closed_open_lines, closed_at, reopened_at, reopen_reason INTO r FROM public.shows WHERE id = v_show;
-  IF r.closed_open_lines IS NOT NULL OR r.closed_at IS NOT NULL OR r.reopened_at IS NULL
-     OR r.reopen_reason <> 'Scores were missing' THEN
+  SELECT closed_at, reopened_at INTO r FROM public.shows WHERE id = v_show;
+  IF r.closed_at IS NOT NULL OR r.reopened_at IS NULL THEN
     RAISE EXCEPTION 'FAIL A reopen left the show record wrong: %', r;
   END IF;
   IF (SELECT status_before_close FROM public.classes WHERE id = v_class) IS NOT NULL
@@ -117,7 +109,7 @@ BEGIN
   END IF;
 
   RESET ROLE;
-  RAISE NOTICE 'PASS A/B a show manager sets, reads and clears with the new columns';
+  RAISE NOTICE 'PASS A a show manager sets, reads and clears with the new columns';
 END;
 $$;
 
@@ -134,7 +126,7 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', exhibitor::text, true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', exhibitor, 'role', 'authenticated')::text, true);
 
-  UPDATE public.shows SET reopen_reason = 'forged', closed_at = now() WHERE id = v_show;
+  UPDATE public.shows SET closed_at = now() WHERE id = v_show;
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'FAIL C a non-manager wrote the show close record (% rows)', n; END IF;
 
@@ -163,7 +155,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL D authenticated cannot SELECT classes.status_before_close';
   END IF;
 
-  FOREACH col IN ARRAY ARRAY['closed_open_lines', 'closed_at', 'reopened_at', 'reopen_reason'] LOOP
+  FOREACH col IN ARRAY ARRAY['closed_at', 'reopened_at'] LOOP
     IF has_column_privilege('anon', 'public.shows', col, 'INSERT')
        OR has_column_privilege('anon', 'public.shows', col, 'UPDATE') THEN
       RAISE EXCEPTION 'FAIL D anon can write shows.%', col;
@@ -188,8 +180,8 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
   BEGIN
-    UPDATE public.shows SET reopen_reason = 'forged';
-    RAISE EXCEPTION 'FAIL D anon wrote shows.reopen_reason';
+    UPDATE public.shows SET reopened_at = now();
+    RAISE EXCEPTION 'FAIL D anon wrote shows.reopened_at';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
   RESET ROLE;

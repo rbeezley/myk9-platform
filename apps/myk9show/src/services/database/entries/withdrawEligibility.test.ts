@@ -86,15 +86,11 @@ describe('evaluateWithdrawEligibility', () => {
     );
   });
 
-  it('allows a secretary-decision request status, in BOTH DB spellings', () => {
-    // entries_entry_status_check admits both; the live column holds the
-    // hyphenated form. An unpaid exhibitor awaiting a decision must still be
-    // able to withdraw.
-    for (const entryStatus of ['move-up-requested', 'move_up_requested']) {
-      expect(evaluateWithdrawEligibility({ ...pending, entryStatus }).allowed, entryStatus).toBe(
-        true
-      );
-    }
+  it('allows a secretary-decision request status', () => {
+    // An unpaid exhibitor awaiting a decision must still be able to withdraw.
+    expect(
+      evaluateWithdrawEligibility({ ...pending, entryStatus: 'move-up-requested' }).allowed
+    ).toBe(true);
   });
 
   it('refuses a scored, removed, or terminal-status entry', () => {

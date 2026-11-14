@@ -175,8 +175,8 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
       'in-ring',
       () =>
         expect
-          .poll(async () => (await row(client, s.willowId)).is_in_ring, { timeout: 30_000 })
-          .toBe(true),
+          .poll(async () => (await row(client, s.willowId)).check_in_status, { timeout: 30_000 })
+          .toBe('in-ring'),
       async () => {
         await expect(sec.inRingTile).toContainText('Willow', { timeout: 1_000 });
         await expect(sec.nextUp).toHaveCount(1, { timeout: 1_000 });

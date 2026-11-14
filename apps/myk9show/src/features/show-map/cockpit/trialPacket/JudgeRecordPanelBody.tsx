@@ -13,6 +13,7 @@ import {
   type JudgeRecord,
 } from './judgeRecord';
 import type { ReviewEntryInfo } from './judgeReview';
+import { ScoreHistoryNotice } from './ScoreHistoryNotice';
 import { useJudgeCorrections } from './useJudgeCorrections';
 import { useKeyedPdfs } from './useKeyedPdfs';
 import { packetFileName, plural, savePacketPdf, usePacketFrame } from './usePacketFrame';
@@ -103,27 +104,7 @@ export function JudgeRecordPanelBody({
         </p>
       )}
       {historyUnavailable && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm"
-        >
-          <span>
-            {historyPaused
-              ? 'You are offline, so the score history is not available.'
-              : 'The score history could not be read.'}{' '}
-            Scores changed after the judge submitted them are not marked. You can still print.
-          </span>
-          {!historyPaused && (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              onClick={() => void audits.refetch()}
-            >
-              Try again
-            </Button>
-          )}
-        </div>
+        <ScoreHistoryNotice paused={historyPaused} onRetry={() => void audits.refetch()} />
       )}
       {pdfs.status === 'error' && (
         <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">

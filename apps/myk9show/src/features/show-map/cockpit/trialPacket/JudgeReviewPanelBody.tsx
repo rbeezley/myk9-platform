@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
 
 import { buildJudgeReviews, reviewSummary, type ReviewEntryInfo } from './judgeReview';
+import { ScoreHistoryNotice } from './ScoreHistoryNotice';
 import { useJudgeCorrections } from './useJudgeCorrections';
 import { useKeyedPdfs } from './useKeyedPdfs';
 import { packetFileName, plural, savePacketPdf, usePacketFrame } from './usePacketFrame';
@@ -34,7 +35,8 @@ export function JudgeReviewPanelBody({
   /** The judge the panel opened for, or null for every judge. */
   judgeKey: string | null;
 }) {
-  const { audits, correctionsByEntryId, historySettled } = useJudgeCorrections(rows);
+  const { audits, correctionsByEntryId, historySettled, historyUnavailable, historyPaused } =
+    useJudgeCorrections(rows);
   const judges = useMemo(
     () =>
       historySettled ? buildJudgeReviews({ rows, entryInfo: entries, correctionsByEntryId }) : null,
@@ -82,24 +84,8 @@ export function JudgeReviewPanelBody({
         For <strong>{judge ? judge.judgeName : 'every judge'}</strong>, one results page per class,
         in the order they judged.
       </p>
-      {audits.isError && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm"
-        >
-          <span>
-            The score history could not be read, so scores changed after a judge submitted them are
-            not marked. You can still print.
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void audits.refetch()}
-          >
-            Try again
-          </Button>
-        </div>
+      {historyUnavailable && (
+        <ScoreHistoryNotice paused={historyPaused} onRetry={() => void audits.refetch()} />
       )}
       {notDone.length > 0 && (
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">

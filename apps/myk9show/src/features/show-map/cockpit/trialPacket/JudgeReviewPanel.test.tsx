@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
+import { onlineManager } from '@tanstack/react-query';
 
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
@@ -83,6 +84,7 @@ describe('judge review packet panel', () => {
     vi.clearAllMocks();
     mocks.printIframeAndWait.mockResolvedValue(true);
     mocks.getClassScoreAudits.mockResolvedValue(new Map());
+    onlineManager.setOnline(true);
   });
 
   it("opens on the judge it was opened for and reads the history of only the judges' classes", async () => {
@@ -125,6 +127,24 @@ describe('judge review packet panel', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'scores changed after a judge submitted them are not marked'
     );
+    const print = await screen.findByRole('button', { name: 'Print all 2 packets' });
+    await waitFor(() => expect(print).toBeEnabled(), BUILT);
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('builds the packet with the network offline, saying the score history is not available', async () => {
+    onlineManager.setOnline(false);
+    mocks.getClassScoreAudits.mockImplementation(() => new Promise(() => {}));
+    renderPanel(null);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'You are offline, so the score history is not available.'
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'scores changed after a judge submitted them are not marked'
+    );
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(mocks.getClassScoreAudits).not.toHaveBeenCalled();
     const print = await screen.findByRole('button', { name: 'Print all 2 packets' });
     await waitFor(() => expect(print).toBeEnabled(), BUILT);
   });

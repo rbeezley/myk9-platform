@@ -110,6 +110,8 @@ describe('AKCScentWorkLiveScoresheet', () => {
     render(<AKCScentWorkLiveScoresheet {...defaultProps} />);
 
     // Select a result first
+    // A Qualified needs a time (MYK9-2004): one tap on Use max time gives it one.
+    fireEvent.click(screen.getByRole('button', { name: /use max time/i }));
     fireEvent.click(screen.getByTestId('result-Q'));
     // Click submit
     fireEvent.click(screen.getByTestId('submit-btn'));
@@ -124,6 +126,8 @@ describe('AKCScentWorkLiveScoresheet', () => {
     const onSubmit = vi.fn();
     render(<AKCScentWorkLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
 
+    // A Qualified needs a time (MYK9-2004): one tap on Use max time gives it one.
+    fireEvent.click(screen.getByRole('button', { name: /use max time/i }));
     fireEvent.click(screen.getByTestId('result-Q'));
     fireEvent.click(screen.getByTestId('submit-btn'));
 

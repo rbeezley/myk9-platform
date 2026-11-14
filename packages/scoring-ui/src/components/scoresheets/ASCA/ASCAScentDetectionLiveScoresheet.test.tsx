@@ -107,6 +107,8 @@ describe('ASCAScentDetectionLiveScoresheet', () => {
     const onSubmit = vi.fn();
     render(<ASCAScentDetectionLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
 
+    // A Qualified needs a time (MYK9-2004): one tap on Use max time gives it one.
+    fireEvent.click(screen.getByRole('button', { name: /use max time/i }));
     fireEvent.click(screen.getByTestId('result-Q'));
     fireEvent.click(screen.getByTestId('submit-btn'));
 

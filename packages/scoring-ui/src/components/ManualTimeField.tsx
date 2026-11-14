@@ -73,7 +73,6 @@ export const ManualTimeField: React.FC<ManualTimeFieldProps> = ({
         <button
           type="button"
           onClick={onUseMax}
-          aria-label={`Use max time for ${ariaLabel}`}
           className="flex h-11 flex-shrink-0 cursor-pointer items-center rounded-lg border-2 border-border px-2 text-xs font-semibold hover:bg-accent"
         >
           Use max time

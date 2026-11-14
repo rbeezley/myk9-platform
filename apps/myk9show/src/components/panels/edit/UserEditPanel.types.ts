@@ -25,6 +25,11 @@ export interface UserEditPanelProps {
   onBeforeNext?: ((data: Partial<UserType>) => boolean) | undefined;
   /** Create mode: called with the form's current values as they change. */
   onDataChange?: ((data: Partial<UserType>) => void) | undefined;
+  /**
+   * MYK9-2020: hide the "Role assignments are managed from User Management"
+   * note. The entry flow adds an exhibitor or handler; roles are not its business.
+   */
+  hideRoleAssignmentNote?: boolean | undefined;
 }
 
 // Form data interface matching PersonEditDialog expectations

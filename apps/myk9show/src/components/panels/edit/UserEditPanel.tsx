@@ -49,7 +49,8 @@ const UserEditForm: React.FC<{
   activeTab: UserTabValue;
   onTabChange: (tab: UserTabValue) => void;
   notice?: React.ReactNode;
-}> = ({ userId, activeTab, onTabChange, notice }) => {
+  hideRoleAssignmentNote?: boolean | undefined;
+}> = ({ userId, activeTab, onTabChange, notice, hideRoleAssignmentNote }) => {
   const queryClient = useQueryClient();
   const { data, form, requestTab } = useEditPanel<UserFormData>();
   const { user: currentUser } = useAuthContext();
@@ -234,6 +235,7 @@ const UserEditForm: React.FC<{
             canEditAdvancedFields={canEditAdvancedFields}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
             isCreate={!userId}
+            hideRoleAssignmentNote={hideRoleAssignmentNote}
           />
 
           {hasPermission('admin:manage') && userId && (
@@ -350,6 +352,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   notice,
   onBeforeNext,
   onDataChange,
+  hideRoleAssignmentNote,
   // showAdvancedFields = false,
 }) => {
   const isCreateMode = !userId;
@@ -429,6 +432,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         notice={notice}
+        hideRoleAssignmentNote={hideRoleAssignmentNote}
       />
     </EditPanelWrapper>
   );

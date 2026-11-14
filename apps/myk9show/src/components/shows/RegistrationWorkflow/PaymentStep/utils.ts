@@ -260,7 +260,7 @@ export function getPaymentMethodLabel(method: string): string {
     case 'cash':
       return 'Cash (pay at show)';
     case 'secretary_paid':
-      return 'Secretary Payment';
+      return 'Payment received';
     case 'group_payment':
       return 'Group Payment';
     case 'waived':

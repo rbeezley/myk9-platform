@@ -96,7 +96,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
       timeout: 15000,
     });
     await expect(
-      page.getByText('Enter a dog for any exhibitor, including yourself.')
+      page.getByText('Find the dog or its owner, or add them, then choose classes and payment.')
     ).toBeVisible();
     await expect(page.getByText(/Step 1 of 5/).first()).toBeVisible();
 

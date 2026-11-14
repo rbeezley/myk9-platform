@@ -22,6 +22,12 @@ export interface PaymentStepProps {
   /** Staff workflow: the agreement arrives ticked (see EntryAgreementSectionProps.preTick). */
   preTickAgreement?: boolean | undefined;
   /**
+   * MYK9-2020: a secretary or club staff member keying in someone else's entry
+   * (workflow mode is not `exhibitor`). Shows `StaffPaymentChoices` in place of
+   * the exhibitor's Payment Method list and the desk shortcuts card.
+   */
+  staffWorkflow?: boolean | undefined;
+  /**
    * Payment-method resolution, owned by the PAGE so the entries panel and these
    * controls read the same effective method in the same render
    * (`usePaymentMethodResolution`). PaymentStep must not re-derive it.

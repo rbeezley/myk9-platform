@@ -47,6 +47,12 @@ export interface FullReasonInput {
   availability: readonly FullReasonClass[];
   /** Secretary/club contact from the show record, when the show carries one. */
   secretaryContact?: string | null | undefined;
+  /**
+   * MYK9-2020: the reader IS the show's staff, keying in someone's entry.
+   * "Contact the show secretary" tells her to contact herself, so a full class
+   * with no waitlist says what she can change instead.
+   */
+  forStaff?: boolean | undefined;
 }
 
 /**
@@ -67,6 +73,11 @@ function sameLabel(a: string | null | undefined, b: string | null | undefined): 
   return (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
 }
 
+/** The class's own entry limit (`max_entries`) is what ran out. */
+function isPerClassFull(target: FullReasonClass): boolean {
+  return target.entryLimit > 0 && target.currentEntries >= target.entryLimit;
+}
+
 /**
  * What ran out. Class limit first: when a class has its own `max_entries` and
  * has reached it, that is the specific, actionable fact, and reporting the
@@ -74,8 +85,7 @@ function sameLabel(a: string | null | undefined, b: string | null | undefined): 
  * actually the constraint.
  */
 function whatIsFull(target: FullReasonClass, availability: readonly FullReasonClass[]): string {
-  const perClassFull = target.entryLimit > 0 && target.currentEntries >= target.entryLimit;
-  if (perClassFull) return 'This class is full';
+  if (isPerClassFull(target)) return 'This class is full';
 
   const trialClasses = availability.filter(cls => cls.trialId === target.trialId);
   if (trialClasses.length > 1 && trialClasses.every(cls => cls.isFull)) {
@@ -147,7 +157,7 @@ function describeAlternative(alternative: FullReasonClass): string {
  * sentence about capacity).
  */
 export function buildFullChipReason(input: FullReasonInput): string | null {
-  const { classId, availability, secretaryContact } = input;
+  const { classId, availability, secretaryContact, forStaff = false } = input;
   const target = availability.find(cls => cls.classId === classId);
   if (!target || !target.isFull) return null;
 
@@ -158,6 +168,14 @@ export function buildFullChipReason(input: FullReasonInput): string | null {
   if (alternative) return `${opening}${waitlist} ${describeAlternative(alternative)}`;
 
   if (target.allowsWaitlist) return `${opening}${waitlist}`;
+
+  // The class editor holds both settings (Entry limit, Allow waitlist). Raising
+  // the limit only helps when the class's own limit is what ran out.
+  if (forStaff) {
+    return isPerClassFull(target)
+      ? `${opening}. To add this dog, edit the class to raise its entry limit or allow a waitlist.`
+      : `${opening}. To add this dog, edit the class to allow a waitlist.`;
+  }
 
   const contact = secretaryContact?.trim();
   return contact

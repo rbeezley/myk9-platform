@@ -66,6 +66,10 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   };
 });
 
+// The page is a large tree: under the CPU load of a sharded CI run, the first paint and the route
+// swap after a tap can each pass testing-library's 1 s default, so the waits say how long they allow.
+const WAIT_MS = 5000;
+
 const settledSyncStatus: ReplicationSyncContextValue['status'] = {
   isSyncing: false,
   lastSyncAt: new Date('2026-06-01T12:00:00Z'),
@@ -141,17 +145,21 @@ describe('AtShowEntryListPage with a cancelled class (MYK9-1847)', () => {
 
   it('does not open the scoresheet when a dog is tapped, and says why', async () => {
     renderPage('cancelled');
-    fireEvent.click(await screen.findByText('Runner'));
+    fireEvent.click(await screen.findByText('Runner', {}, { timeout: WAIT_MS }));
 
-    await waitFor(() => expect(toastInfo).toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE));
+    await waitFor(() => expect(toastInfo).toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE), {
+      timeout: WAIT_MS,
+    });
     expect(screen.queryByTestId('scoresheet-route')).not.toBeInTheDocument();
   });
 
   it('opens the scoresheet for the same dog once the class is running', async () => {
     renderPage('in_progress');
-    fireEvent.click(await screen.findByText('Runner'));
+    fireEvent.click(await screen.findByText('Runner', {}, { timeout: WAIT_MS }));
 
-    expect(await screen.findByTestId('scoresheet-route')).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('scoresheet-route', {}, { timeout: WAIT_MS })
+    ).toBeInTheDocument();
     expect(toastInfo).not.toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE);
   });
 });

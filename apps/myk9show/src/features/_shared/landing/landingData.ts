@@ -57,6 +57,8 @@ export interface LandingJourneyStep {
 export interface LandingFee {
   label: string;
   amount: string;
+  /** Billing unit when it is not the entry-fee default ('per dog, per trial'). */
+  unit?: string;
 }
 
 export interface LandingAccommodation {
@@ -313,7 +315,11 @@ export function buildLandingData(
     fees.push({ label: 'Day-of entry', amount: formatFee(show.dayOfShowFee) });
   }
   if (Number(show?.juniorHandlerFee) > 0) {
-    fees.push({ label: JUNIOR_HANDLER_FEE_LABEL, amount: formatFee(show?.juniorHandlerFee) });
+    fees.push({
+      label: JUNIOR_HANDLER_FEE_LABEL,
+      amount: formatFee(show?.juniorHandlerFee),
+      unit: 'per class entry',
+    });
   }
 
   return {

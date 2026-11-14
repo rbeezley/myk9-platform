@@ -36,7 +36,8 @@ export function useBannerLandingData(
     });
     const fees = shared.fees.map(fee => ({
       ...fee,
-      sub: fee.label === 'Day-of entry' ? 'per dog, day of show' : 'per dog, per trial',
+      sub:
+        fee.unit ?? (fee.label === 'Day-of entry' ? 'per dog, day of show' : 'per dog, per trial'),
     }));
 
     return {

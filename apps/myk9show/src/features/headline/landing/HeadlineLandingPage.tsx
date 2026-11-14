@@ -308,7 +308,7 @@ function Particulars({ data }: { data: HeritageLandingData }) {
                     {parts.dollars}
                     {parts.cents && <span className="cents">{parts.cents}</span>}
                   </div>
-                  <div className="sub">per dog, per trial where applicable</div>
+                  <div className="sub">{fee.unit ?? 'per dog, per trial where applicable'}</div>
                 </div>
               );
             })}

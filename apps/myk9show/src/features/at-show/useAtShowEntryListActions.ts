@@ -21,6 +21,7 @@ import { logger } from '@/utils/logger';
 import { SelfCheckinRefusedError, isSelfCheckinRefusal } from './entryStatusAccess';
 import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
 import {
+  isStaleCheckIn,
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
   type CheckInWriter,
@@ -110,7 +111,8 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
       // A refusal by `self_checkin_entry` is an answer, not a failure to send: the change is not
       // queued and nothing is waiting to sync, so it must not light the "could not be sent" pill.
       // The caller words the refusal for the exhibitor (MYK9-1807).
-      if (!(error instanceof SelfCheckinRefusedError)) setHasError(true);
+      // A stale Undo refused by its own version (MYK9-1911) is the same kind of answer.
+      if (!(error instanceof SelfCheckinRefusedError) && !isStaleCheckIn(error)) setHasError(true);
       logger.error('[at-show] entry mutation failed', 'at-show', { error: String(error) });
       throw error;
     } finally {
@@ -140,11 +142,18 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     async (entryId: string, prior: EntryStatusCheckIn, pullVersion?: number): Promise<void> => {
       if (writer !== 'self-checkin-rpc') return handleStatusChange(entryId, prior);
       await runMutation(async () => {
-        await updateSelfCheckInStatus(entryId, prior, {
-          status: 'pulled',
-          pullSource: 'exhibitor',
-          ...(pullVersion !== undefined && { version: pullVersion }),
-        });
+        try {
+          await updateSelfCheckInStatus(entryId, prior, {
+            status: 'pulled',
+            pullSource: 'exhibitor',
+            ...(pullVersion !== undefined && { version: pullVersion }),
+          });
+        } catch (error) {
+          // The write's own answers (stale, or not allowed) are not send failures; keep the stale
+          // error itself so the handler's Undo notice still recognises it.
+          if (isStaleCheckIn(error)) throw error;
+          throw isSelfCheckinRefusal(error) ? new SelfCheckinRefusedError(error) : error;
+        }
         await refresh();
       });
     },

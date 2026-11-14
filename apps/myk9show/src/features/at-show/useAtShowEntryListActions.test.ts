@@ -40,6 +40,7 @@ vi.mock('@/utils/logger', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn() },
 }));
 
+import { SelfCheckinRefusedError } from './entryStatusAccess';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import type { CheckInWriter } from '@/services/show-day/checkInStatus';
 
@@ -241,6 +242,21 @@ describe('useAtShowEntryListActions', () => {
         })
       ).rejects.toBe(stale);
       expect(refresh).not.toHaveBeenCalled();
+      // The server answered: nothing is waiting to send, so no "could not be sent" signal.
+      expect(result.current.hasError).toBe(false);
+    });
+
+    it('keeps a not-allowed Undo out of the send-failure signal and words it as a refusal', async () => {
+      updateSelfCheckInStatus.mockRejectedValueOnce(
+        new Error('Not authorized: caller does not own entry')
+      );
+      const { result } = render('self-checkin-rpc');
+      await expect(
+        act(async () => {
+          await result.current.handleUndoPull('entry-uuid-2', 'checked-in', 3);
+        })
+      ).rejects.toBeInstanceOf(SelfCheckinRefusedError);
+      expect(result.current.hasError).toBe(false);
     });
 
     it('surfaces hasError when the self-check-in RPC cannot be reached', async () => {

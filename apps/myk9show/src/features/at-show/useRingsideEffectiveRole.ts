@@ -46,7 +46,7 @@ export function useRingsideEffectiveRole(showId: string | undefined): RingsideEf
   const grantRole = useRingsideGrantRole(showId);
 
   // Precedence + permission derivation lives in `resolveRingsideAccess` (shared
-  // with `buildRingsideAuth`); the hook only adds React memoization + the
+  // with `resolveRingsideAccess`); the hook only adds React memoization + the
   // `hasPermission` checker.
   const { role: ringsideRole, permissions } = useMemo(
     () => resolveRingsideAccess({ showRole, grantRole }),

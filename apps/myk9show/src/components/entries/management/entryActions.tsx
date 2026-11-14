@@ -146,8 +146,8 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
     sectionLabel: 'Entry',
     icon: <XCircle className="h-4 w-4" />,
     statusTarget: EntryStatus.SCRATCHED,
-    applicableWhen: (entry, handlers) => Boolean(handlers.onStatusChange) &&
-      entryPullMode(entry) !== 'not-pullable',
+    applicableWhen: (entry, handlers) =>
+      Boolean(handlers.onStatusChange) && entryPullMode(entry) !== 'not-pullable',
     run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.SCRATCHED),
   },
   {

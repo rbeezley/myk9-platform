@@ -71,12 +71,9 @@ export function useDeskPull(
     const row = pullRow;
     setIsWorking(true);
     try {
-      const undoInput = await scratchShowMapEntry(
-        row.entryId,
-        reason,
-        startedAt,
-        row.allowScored ? { allowScored: true } : {}
-      );
+      const undoInput = row.allowScored
+        ? await scratchShowMapEntry(row.entryId, reason, startedAt, { allowScored: true })
+        : await scratchShowMapEntry(row.entryId, reason, startedAt);
       setPending(null);
       refresh(row.entryId);
       showUndoToast({

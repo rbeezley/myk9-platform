@@ -141,7 +141,9 @@ export async function scratchShowMapEntry(
   const knownStatus = Object.values(EntryStatus).includes(previousEntryStatus as EntryStatus);
   const mode = entryPullMode({ entryStatus: previousEntryStatus, isScored });
   const refused =
-    mode === 'not-pullable' ? knownStatus || isScored : mode === 'pull-scored-confirm' && !options.allowScored;
+    mode === 'not-pullable'
+      ? knownStatus || isScored
+      : mode === 'pull-scored-confirm' && !options.allowScored;
   if (currentEntry && refused) {
     throw new ShowDayRefusal(
       'This entry has already run or is finished, so it cannot be pulled. Its result stays in the class.'

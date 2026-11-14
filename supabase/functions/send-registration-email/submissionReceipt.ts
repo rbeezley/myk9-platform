@@ -96,6 +96,30 @@ export async function releaseClaimOnThrow<T>(
   }
 }
 
+const RETRY_BACKOFF_MS = [500, 1500];
+
+/**
+ * Sends the receipt, retrying a transient failure (network error or HTTP 5xx) at most twice
+ * more. The caller's `send` reuses the same idempotency key, so Resend cannot double-send.
+ * Returns the last response, or rethrows the last network error; a 4xx is returned at once.
+ */
+export async function sendReceiptWithRetry(
+  send: () => Promise<Response>,
+  sleep: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms))
+): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const delay = RETRY_BACKOFF_MS[attempt];
+    try {
+      const response = await send();
+      if (response.status < 500 || delay === undefined) return response;
+      await response.body?.cancel();
+    } catch (error) {
+      if (delay === undefined) throw error;
+    }
+    await sleep(delay);
+  }
+}
+
 /** Server-derived Resend key: the claimed entries, never anything the caller names. */
 export async function submissionIdempotencyKey(
   registrationId: string,

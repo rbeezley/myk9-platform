@@ -145,23 +145,28 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
     });
   };
 
-  const visibleRows = useMemo(
+  // A "Finish the show" line's link (`?left=<key>`) lists exactly the classes that line counted,
+  // from the same calculation, whatever their phase (MYK9-1945).
+  const leftLine = useMemo(
     () =>
-      rows.filter(
-        row =>
-          // The class a link points at stays listed whatever the filters say: Overview deep-links
-          // with classId/trialId only, and the default "Needs me" filter would otherwise hide it.
-          row.id === state.classId ||
-          ((state.trialId === null || row.trialId === state.trialId) &&
-            matchesResultsStatusFilter(row.phase, state.status) &&
-            rowMatchesSearch(row, state.search))
-      ),
-    [rows, state.classId, state.search, state.status, state.trialId]
+      state.left === null
+        ? null
+        : (calculateResultsRowsLeft(rows, trials).lines.find(line => line.key === state.left) ??
+          null),
+    [rows, state.left, trials]
   );
-  const releasedAndInitialed = useMemo(
-    () => calculateResultsRowsLeft(rows).releasedAndInitialed,
-    [rows]
-  );
+  const visibleRows = useMemo(() => {
+    const leftIds = leftLine ? new Set(leftLine.classIds) : null;
+    return rows.filter(
+      row =>
+        // The class a link points at stays listed whatever the filters say: Overview deep-links
+        // with classId/trialId only, and the default "Needs me" filter would otherwise hide it.
+        row.id === state.classId ||
+        ((state.trialId === null || row.trialId === state.trialId) &&
+          (leftIds ? leftIds.has(row.id) : matchesResultsStatusFilter(row.phase, state.status)) &&
+          rowMatchesSearch(row, state.search))
+    );
+  }, [leftLine, rows, state.classId, state.search, state.status, state.trialId]);
   const selected = rows.find(row => row.id === state.classId) ?? null;
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
   // The saved check reaches this device through a class sync, which a dirty or conflicted class row
@@ -418,7 +423,20 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
       {showStatsLink && entries.some(entry => entry.is_scored === true) && showStatsLink}
       <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
-      <ResultsFinishRow showId={showId} trials={trials} allDone={releasedAndInitialed} />
+      <ResultsFinishRow showId={showId} trials={trials} rows={rows} />
+      {leftLine && (
+        <p className="flex flex-wrap items-center gap-x-3 text-sm" role="status">
+          <span>Showing the classes behind &ldquo;{leftLine.label}&rdquo;</span>
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto min-h-11 p-0"
+            onClick={() => update({ left: null })}
+          >
+            Show all classes
+          </Button>
+        </p>
+      )}
       <MasterDetailLayout
         id="results-classes"
         listLabel="Classes"

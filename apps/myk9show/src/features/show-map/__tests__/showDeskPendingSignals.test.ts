@@ -495,7 +495,7 @@ describe('computeShowDeskPendingSignals', () => {
       expect(signals.find(s => s.id === 'entries-payment-due')).toBeUndefined();
     });
 
-    it('classes-needing-signature and results-pending-closeout open the Results class list (MYK9-1727)', () => {
+    it('classes-needing-signature and results-pending-closeout open the Finish the show list (MYK9-1727, MYK9-1945)', () => {
       const entries = [
         {
           id: 'e1',
@@ -511,7 +511,7 @@ describe('computeShowDeskPendingSignals', () => {
         entries: [],
       });
       expect(needing.find(s => s.id === 'classes-needing-signature')).toMatchObject({
-        href: '/shows/show-1/results',
+        href: '/shows/show-1/results#finish-the-show',
         destinationName: 'Results',
       });
       const closeout = computeShowDeskPendingSignals({
@@ -520,7 +520,7 @@ describe('computeShowDeskPendingSignals', () => {
         entries: [],
       });
       expect(closeout.find(s => s.id === 'results-pending-closeout')).toMatchObject({
-        href: '/shows/show-1/results',
+        href: '/shows/show-1/results#finish-the-show',
         destinationName: 'Results',
       });
     });

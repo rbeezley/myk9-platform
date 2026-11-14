@@ -27,7 +27,9 @@ describe('collateTrialPacket', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-12-06T18:00:00Z'));
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('groups classes by judge, with the class nobody judges in its own packet last', () => {
     const packet = collate();

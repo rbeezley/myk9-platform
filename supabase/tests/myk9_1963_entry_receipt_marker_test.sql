@@ -23,7 +23,9 @@ insert into public.trials (id, show_id, name, date, registry_id) values
   ('00000000-0000-0000-0000-000001963003', '00000000-0000-0000-0000-000001963002',
    'MYK9-1963 Trial', current_date, 'AKC');
 insert into public.classes (id, trial_id, name, status, status_source) values
-  ('00000000-0000-0000-0000-000001963004', '00000000-0000-0000-0000-000001963003', 'Class', 'upcoming', 'manual');
+  ('00000000-0000-0000-0000-000001963004', '00000000-0000-0000-0000-000001963003', 'Class', 'upcoming', 'manual'),
+  -- B's INSERT needs its own class: one dog may hold only one entry per class.
+  ('00000000-0000-0000-0000-000001963005', '00000000-0000-0000-0000-000001963003', 'Class B', 'upcoming', 'manual');
 insert into public.people (id, first_name, last_name, auth_user_id) values
   ('00000000-0000-0000-0000-000001963011', 'MYK9-1963', 'Owner', '00000000-0000-0000-0000-000001963101');
 
@@ -89,7 +91,7 @@ begin
   insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
     receipt_email_status, receipt_email_sent_at, receipt_email_message_id) values
     ('00000000-0000-0000-0000-000001963022', '00000000-0000-0000-0000-000001963012',
-     '00000000-0000-0000-0000-000001963004', '00000000-0000-0000-0000-000001963002',
+     '00000000-0000-0000-0000-000001963005', '00000000-0000-0000-0000-000001963002',
      '00000000-0000-0000-0000-000001963003', 'confirmed', 'pending', 25, 'sent', now(), 'forged');
   reset role;
   select * into r from public.entries where id = '00000000-0000-0000-0000-000001963022';

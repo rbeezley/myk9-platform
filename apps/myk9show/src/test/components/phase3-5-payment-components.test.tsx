@@ -342,21 +342,27 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'secretary_paid' })}
+          paymentResolution={makePaymentResolution({
+            paymentMethod: 'secretary_paid',
+            cardCheckoutAvailable: false,
+            isOnBehalf: true,
+          })}
           selectedDogs={['1']}
           paymentMethod="secretary_paid"
           onPaymentMethodChange={vi.fn()}
           onPaymentDetailsChange={onPaymentDetailsChange}
+          getPaymentDetails={() => ({ receivedMethod: 'cash' })}
         />
       );
 
-      const referenceInput = screen.getByLabelText('Reference/Receipt #');
+      // Staff-only method, so the staff desk list (MYK9-2020): "Cash received".
+      const referenceInput = screen.getByLabelText('Receipt #');
       await user.type(referenceInput, 'REC-99');
 
       const calls = onPaymentDetailsChange.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
       const lastCall = calls[calls.length - 1][0];
-      expect(lastCall).toMatchObject({ paymentReference: 'REC-99' });
+      expect(lastCall).toMatchObject({ paymentReference: 'REC-99', receivedMethod: 'cash' });
     });
 
     it('should fire onPaymentDetailsChange with reference for group_payment', async () => {
@@ -365,7 +371,11 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'group_payment' })}
+          paymentResolution={makePaymentResolution({
+            paymentMethod: 'group_payment',
+            cardCheckoutAvailable: false,
+            isOnBehalf: true,
+          })}
           selectedDogs={['1']}
           paymentMethod="group_payment"
           onPaymentMethodChange={vi.fn()}
@@ -373,7 +383,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
         />
       );
 
-      const groupRefInput = screen.getByLabelText('Group/Organization Reference');
+      const groupRefInput = screen.getByLabelText('Club or group reference');
       await user.type(groupRefInput, 'CLUB-42');
 
       const calls = onPaymentDetailsChange.mock.calls;

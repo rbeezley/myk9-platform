@@ -105,7 +105,11 @@ $$;
 do $$
 begin
   if pg_temp.state_as('P', 1) is distinct from '1/stale' then
-    raise exception 'FAIL A expected the place to survive with claim stale, got %', pg_temp.state_as('P', 1);
+    raise exception 'FAIL A expected the place to survive with claim stale, got % (class: %; activity: %; now: %)',
+      pg_temp.state_as('P', 1),
+      (select to_jsonb(c) - 'description' from public.classes c where c.id = '00000000-0000-0000-0000-0000019690a0'),
+      (select last_activity_at from private.class_ring_activity where class_id = '00000000-0000-0000-0000-0000019690a0'),
+      now();
   end if;
   if pg_temp.state_as('P', 2) is distinct from '2/stale' then
     raise exception 'FAIL A second dog: %', pg_temp.state_as('P', 2);

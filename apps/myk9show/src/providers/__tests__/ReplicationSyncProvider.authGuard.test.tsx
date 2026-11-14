@@ -9,8 +9,13 @@ import { deriveDefaultAuthStorageKey } from '@/services/database/persistedAuthUs
 type AuthCallback = (event: AuthChangeEvent, session: Session | null) => void;
 
 const hoisted = vi.hoisted(() => {
-  const authState: { callback: AuthCallback | null; liveSession: unknown } = {
+  const authState: {
+    callback: AuthCallback | null;
+    liveSession: unknown;
+    getSessionThrows: boolean;
+  } = {
     callback: null,
+    getSessionThrows: false,
     liveSession: { access_token: 'tok', user: { id: 'u1' } },
   };
   const unsubscribeSpy = vi.fn();
@@ -122,7 +127,11 @@ vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     auth: {
-      getSession: () => Promise.resolve({ data: { session: hoisted.authState.liveSession } }),
+      getSession: () => {
+        if (hoisted.authState.getSessionThrows)
+          return Promise.reject(new Error('storage read failed'));
+        return Promise.resolve({ data: { session: hoisted.authState.liveSession } });
+      },
       onAuthStateChange: (cb: AuthCallback) => {
         hoisted.authState.callback = cb;
         return {
@@ -170,6 +179,21 @@ function renderProvider(autoSync = true) {
   );
 }
 
+function renderReconnectProvider() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const tree = (isOnline: boolean) => (
+    <QueryClientProvider client={queryClient}>
+      <NetworkStatusTestProvider value={{ isOnline, quality: null }}>
+        <ReplicationSyncProvider autoSync syncOnReconnect>
+          <div />
+        </ReplicationSyncProvider>
+      </NetworkStatusTestProvider>
+    </QueryClientProvider>
+  );
+  const view = render(tree(true));
+  return { setOnline: (isOnline: boolean) => view.rerender(tree(isOnline)) };
+}
+
 function fakeSession(): Session {
   return { access_token: 'tok', user: { id: 'u1' } } as unknown as Session;
 }
@@ -197,6 +221,7 @@ describe('ReplicationSyncProvider — auth guard', () => {
   beforeEach(() => {
     authState.callback = null;
     authState.liveSession = fakeSession();
+    authState.getSessionThrows = false;
     unsubscribeSpy.mockClear();
     clearEntriesCache.mockClear();
     getEntryIds.mockReset();
@@ -519,6 +544,52 @@ describe('ReplicationSyncProvider — auth guard', () => {
         authState.callback?.('TOKEN_REFRESHED', fakeSession());
       });
       expect(syncSpies.shows).toHaveBeenCalled();
+    });
+
+    it('also resumes a deferred sync on SIGNED_IN', async () => {
+      persistSavedSession();
+      authState.liveSession = null;
+      renderProvider(true);
+      await act(async () => {
+        authState.callback?.('INITIAL_SESSION', null);
+      });
+      for (const spy of Object.values(syncSpies)) expect(spy).not.toHaveBeenCalled();
+
+      authState.liveSession = fakeSession();
+      await act(async () => {
+        authState.callback?.('SIGNED_IN', fakeSession());
+      });
+      expect(syncSpies.shows).toHaveBeenCalled();
+    });
+
+    it('a throwing session read defers instead of rejecting the sync', async () => {
+      persistSavedSession();
+      authState.getSessionThrows = true;
+      renderProvider(true);
+      await act(async () => {
+        authState.callback?.('INITIAL_SESSION', null);
+      });
+      expect(uploadPendingMutations).not.toHaveBeenCalled();
+      for (const spy of Object.values(syncSpies)) expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('a reconnect re-reads the session and syncs once one exists', async () => {
+      persistSavedSession();
+      authState.liveSession = null;
+      const view = renderReconnectProvider();
+      await act(async () => {
+        authState.callback?.('INITIAL_SESSION', null);
+      });
+      for (const spy of Object.values(syncSpies)) expect(spy).not.toHaveBeenCalled();
+
+      await act(async () => {
+        view.setOnline(false);
+      });
+      authState.liveSession = fakeSession();
+      await act(async () => {
+        view.setOnline(true);
+      });
+      await vi.waitFor(() => expect(syncSpies.shows).toHaveBeenCalled());
     });
   });
 });

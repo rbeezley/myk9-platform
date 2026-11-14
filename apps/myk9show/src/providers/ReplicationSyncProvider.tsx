@@ -256,8 +256,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // A null session that is not SIGNED_OUT is a refresh that failed offline, not a sign-out:
       // queued changes keep their owner and send on reconnect (MYK9-1992).
       setIsAuthenticated(!!resolveSessionUser(event, session));
-      // The refresh that was failing has landed: run the sync that was deferred for want of it.
-      if (event === 'TOKEN_REFRESHED' && syncDeferredForSessionRef.current) {
+      // The refresh that was failing has landed (or a sign-in did): run the sync deferred for want of
+      // a session. A reconnect needs no case here: its own trigger re-reads the session.
+      if (
+        (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') &&
+        syncDeferredForSessionRef.current
+      ) {
         syncDeferredForSessionRef.current = false;
         void triggerSyncRef.current?.();
       }
@@ -359,10 +363,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // MYK9-1992: `isAuthenticated` may rest on the saved session while a refresh has failed
       // (a 5xx or transient error online). Nothing can upload without a bound session, so defer
       // quietly: no attempt, no retry-budget or dead-letter hit, until a session exists.
-      const hasLiveSession = await supabase.auth
-        .getSession()
-        .then(({ data }) => !!data.session)
-        .catch(() => false);
+      let hasLiveSession = false;
+      try {
+        hasLiveSession = !!(await supabase.auth.getSession()).data.session;
+      } catch {
+        // A throwing read is a deferral too, never a rejected sync.
+      }
       if (!hasLiveSession) {
         logger.debug('Deferring sync - session not resolved yet', 'replication');
         syncDeferredForSessionRef.current = true;

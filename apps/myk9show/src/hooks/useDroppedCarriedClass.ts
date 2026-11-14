@@ -12,8 +12,12 @@ export function useDroppedCarriedClass(
   const [missed, setMissed] = useState<string | null>(null);
   const dropped = droppedClassIds[0] ?? null;
   // Adjusted during render, not in an effect, so the notice appears in the same commit that
-  // drops the id.
-  if (dropped !== null && dropped !== missed) setMissed(dropped);
-  else if (pickedClassCount > 0 && missed !== null) setMissed(null);
+  // drops the id. A picked class always wins, and each branch settles after one update, so a
+  // link with one stale and one valid class cannot loop.
+  if (pickedClassCount > 0) {
+    if (missed !== null) setMissed(null);
+  } else if (dropped !== null && dropped !== missed) {
+    setMissed(dropped);
+  }
   return pickedClassCount > 0 ? null : missed;
 }

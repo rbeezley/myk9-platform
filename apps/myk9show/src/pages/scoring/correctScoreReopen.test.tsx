@@ -78,6 +78,13 @@ const CASES: SheetCase[] = [
     chooseQualified: chooseQualifiedWithOneFault,
   },
   {
+    key: 'AKC_SCENT_WORK',
+    rules: { ...singleAreaRules, areaCount: 2, maxTimeSeconds: 180 },
+    timeLabels: ['Area 1 time', 'Area 2 time'],
+    hasFaults: true,
+    chooseQualified: chooseQualifiedWithOneFault,
+  },
+  {
     key: 'ASCA_SCENT_DETECTION',
     rules: singleAreaRules,
     timeLabels: ['Area 1 time'],
@@ -125,6 +132,7 @@ function renderSheet(c: SheetCase, entry: ReturnType<typeof toScoresheetEntry>) 
   const Sheet = getScoresheetComponent(c.key, 'live');
   if (!Sheet) throw new Error(`no sheet for ${c.key}`);
   const onSubmit = vi.fn();
+  const onDirtyChange = vi.fn();
   const page = render(
     <Sheet
       entry={entry}
@@ -132,9 +140,10 @@ function renderSheet(c: SheetCase, entry: ReturnType<typeof toScoresheetEntry>) 
       rules={c.rules}
       onSubmit={onSubmit}
       onBack={() => {}}
+      onDirtyChange={onDirtyChange}
     />
   );
-  return { onSubmit, page };
+  return { onSubmit, page, onDirtyChange };
 }
 
 /** The device write the at-show sheet makes, with no network. */
@@ -205,13 +214,16 @@ describe('Correct this score reopens what was saved (MYK9-2006)', () => {
     );
   });
 
-  describe.each(CASES)('$key', c => {
+  describe.each(CASES)('$key ($timeLabels.length areas)', c => {
     it('shows the saved result, every area time and the faults, offline', async () => {
       const first = await saveFreshQualified(c);
 
       const reopened = await readSheetEntry(c.key);
       expect(reopened.existingScore).toBeDefined();
-      const { onSubmit } = renderSheet(c, reopened);
+      const { onSubmit, onDirtyChange } = renderSheet(c, reopened);
+
+      // Looking at a saved score is not an edit: leaving it asks nothing.
+      expect(onDirtyChange).not.toHaveBeenLastCalledWith(true);
 
       timesFor(c).forEach((time, i) => {
         if (c.tabTestIds) fireEvent.click(screen.getByTestId(c.tabTestIds[i]!));

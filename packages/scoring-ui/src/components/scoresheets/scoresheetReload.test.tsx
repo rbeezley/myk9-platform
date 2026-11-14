@@ -123,6 +123,8 @@ describe.each(SHEETS)(
       expect(notice).toHaveTextContent(/Type the time/);
       expect(notice).toHaveTextContent(/Use max time/);
       expect(notice).toHaveTextContent(/Reset/);
+      // A time that is probably short is never filled in for the judge to save by accident.
+      expect(screen.getByLabelText(timeField)).toHaveValue('');
     });
   }
 );

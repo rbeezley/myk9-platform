@@ -92,7 +92,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
     // A reload mid-run keeps the time (MYK9-2007). A saved score being corrected holds none.
     persistKey: entry.existingScore ? undefined : `${entry.id}:search`,
     onRestore: run => {
-      if (!run.running && scoring.areas.length === 1) {
+      if (run.outcome === 'intact' && scoring.areas.length === 1) {
         scoring.handleAreaUpdate(0, 'time', run.formatted);
       }
     },

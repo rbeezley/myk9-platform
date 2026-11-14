@@ -54,13 +54,14 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   // (MYK9-2006). Reopened, they sit under Area 1 so the total, the points and a
   // save without edits all match what was saved.
   const saved = entry.existingScore;
-  const [correctAlerts, setCorrectAlerts] = useState<number[]>(() =>
-    seedAlerts(areaCount, saved?.correctCount)
-  );
-  const [incorrectAlerts, setIncorrectAlerts] = useState<number[]>(() =>
-    seedAlerts(areaCount, saved?.incorrectCount)
-  );
-  const [finishCallErrors, setFinishCallErrors] = useState(saved?.finishCallErrors ?? 0);
+  const [seed] = useState(() => ({
+    correct: seedAlerts(areaCount, saved?.correctCount),
+    incorrect: seedAlerts(areaCount, saved?.incorrectCount),
+    finishCallErrors: saved?.finishCallErrors ?? 0,
+  }));
+  const [correctAlerts, setCorrectAlerts] = useState<number[]>(seed.correct);
+  const [incorrectAlerts, setIncorrectAlerts] = useState<number[]>(seed.incorrect);
+  const [finishCallErrors, setFinishCallErrors] = useState(seed.finishCallErrors);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const areaMaxSeconds =
@@ -76,7 +77,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     persistKey,
     persistSlot: currentArea,
     onRestore: run => {
-      if (!run.running) scoring.handleAreaUpdate(run.slot ?? 0, 'time', run.formatted);
+      if (run.outcome === 'intact') scoring.handleAreaUpdate(run.slot ?? 0, 'time', run.formatted);
     },
     maxTime: areaMaxTimeStr,
     level: classInfo.level,
@@ -159,8 +160,11 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const { upButton } = useScoresheetLeave({
     scoring,
     stopwatch,
+    // Changed from what the sheet opened with, so reopening a saved score is not dirty.
     extraDirty: () =>
-      correctAlerts.some(n => n > 0) || incorrectAlerts.some(n => n > 0) || finishCallErrors > 0,
+      correctAlerts.some((n, i) => n !== seed.correct[i]) ||
+      incorrectAlerts.some((n, i) => n !== seed.incorrect[i]) ||
+      finishCallErrors !== seed.finishCallErrors,
     onBack,
     backLabel,
     onDirtyChange,

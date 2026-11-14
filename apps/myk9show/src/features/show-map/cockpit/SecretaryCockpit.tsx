@@ -27,6 +27,7 @@ import { FocusedClassJudge } from './FocusedClassJudge';
 import { judgeLockReason } from './focusedClassJudgeModel';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
+import { TrialPacketPanel } from './trialPacket/TrialPacketPanel';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
 import { getCockpitAnchorElementId, selectClassesAnchor } from './cockpitRoutes';
 import { useScheduleClassSelection } from './useScheduleClassSelection';
@@ -61,7 +62,18 @@ export function SecretaryCockpit({
 }) {
   const { state: urlState, updateState } = useSecretaryCockpitUrlState();
   // A Select classes link's trial or class (MYK9-1324) opens and scrolls like the cockpit's own.
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The before-trial packet (MYK9-1924): opened from a trial's menu, or by the "Ready for show
+  // day" line's `?packet=<trialId>` link, which is spent as soon as it has opened the panel.
+  const [packetTrialId, setPacketTrialId] = useState<string | null>(() =>
+    canManageShow ? searchParams.get('packet') : null
+  );
+  useEffect(() => {
+    if (!searchParams.has('packet')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('packet');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const legacyAnchor = urlState.anchor ? undefined : selectClassesAnchor(searchParams);
   // Ticks the show does not offer (a stale link, a hidden group) are dropped before they filter.
   const state = pruneCockpitFilters(
@@ -79,7 +91,7 @@ export function SecretaryCockpit({
   // Add classes and High in Trial live in the trial's menu (MYK9-1727), so the heading holds
   // only the menu and it stays in the card's top-right corner on a phone.
   const renderTrialActions = (trialId: string, label: string) =>
-    trialRowMenu(trialId, label, true, snapshot.registryId);
+    trialRowMenu(trialId, label, true, snapshot.registryId, setPacketTrialId);
   const location = useLocation();
   const navigationType = useNavigationType();
   // A remount on a history entry that already scrolled to this anchor starts spent (MYK9-1218).
@@ -323,6 +335,14 @@ export function SecretaryCockpit({
       )}
       {trialDialogs}
       {canManageShow && classDialogs}
+      {canManageShow && packetTrialId && (
+        <TrialPacketPanel
+          open
+          showId={snapshot.showId}
+          trialId={packetTrialId}
+          onClose={() => setPacketTrialId(null)}
+        />
+      )}
     </div>
   );
 }

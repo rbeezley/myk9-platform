@@ -81,6 +81,14 @@ function earliestTrialDate(trials: readonly { trialDate: string }[]): string | u
     : dates.reduce((earliest, date) => (date < earliest ? date : earliest));
 }
 
+/** The first trial of the show's first day: the one whose packet the checklist line opens. */
+function firstTrialOfFirstDay(
+  trials: readonly { id: string; trialDate: string }[]
+): string | undefined {
+  const firstDate = earliestTrialDate(trials);
+  return trials.find(trial => trial.trialDate === firstDate)?.id;
+}
+
 type PaperworkRows = ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
 
 /** The before-class print items of the per-class checklist (classChecklist.ts). */
@@ -146,6 +154,11 @@ export interface ReadyForShowDayInput {
    * an unsaved device is not a failure. Defaults to true.
    */
   offlinePromptOpen?: boolean;
+}
+
+function withPacket(href: string, trialId: string | undefined): string {
+  if (!trialId) return href;
+  return `${href}${href.includes('?') ? '&' : '?'}packet=${encodeURIComponent(trialId)}`;
 }
 
 const CANT_CHECK = "Can't check right now";
@@ -216,13 +229,18 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
             ...paperworkBase,
             status: 'fail',
             detail: `${input.paperwork.outstanding} sheet${input.paperwork.outstanding === 1 ? '' : 's'} for the first day ${input.paperwork.outstanding === 1 ? 'needs' : 'need'} printing`,
-            href: getShowHomeHref({
-              showId,
-              state: {
-                statuses: [],
-                selectedDays: parseCockpitDays(earliestTrialDate(input.setup.trials)),
-              },
-            }),
+            // Opens the before-trial packet for the first trial (MYK9-1924); the show home keeps
+            // the first day's schedule behind it, where a class reprints on its own.
+            href: withPacket(
+              getShowHomeHref({
+                showId,
+                state: {
+                  statuses: [],
+                  selectedDays: parseCockpitDays(earliestTrialDate(input.setup.trials)),
+                },
+              }),
+              firstTrialOfFirstDay(input.setup.trials)
+            ),
           };
 
   const offlineBase = { id: 'offline', label: 'This device is ready to work offline' };

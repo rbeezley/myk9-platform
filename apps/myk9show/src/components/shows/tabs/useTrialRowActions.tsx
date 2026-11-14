@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { FileText, Plus, Trophy } from 'lucide-react';
+import { FileText, Plus, Printer, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -93,7 +93,13 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
   // (Codex review of #2691).
   const actionLocked = hydratingTrialId !== null || pendingTrialAction !== null;
   const trialRowMenu = useCallback(
-    (trialId: string, label: string, withDetails = false, registryId?: string) => (
+    (
+      trialId: string,
+      label: string,
+      withDetails = false,
+      registryId?: string,
+      onPrintPacket?: (trialId: string) => void
+    ) => (
       <SetupRowActionsMenu
         subject="Trial"
         rowLabel={label}
@@ -104,6 +110,14 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
               label: 'Add classes',
               icon: <Plus />,
               onSelect: () => navigate(getAddClassesHref(showId, trialId)),
+            },
+            {
+              // The before-trial packet: a cover sheet, then each class's sheets, per judge (MYK9-1924).
+              id: 'trial-print-packet',
+              label: 'Print before-trial packet',
+              icon: <Printer />,
+              hidden: !onPrintPacket,
+              onSelect: () => onPrintPacket?.(trialId),
             },
             {
               // The AKC High in Trial report, already scoped to this trial (MYK9-1727).

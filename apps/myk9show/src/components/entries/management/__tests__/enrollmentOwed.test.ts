@@ -119,8 +119,9 @@ describe('a form with an enrollment row (MYK9-1961)', () => {
 
     expect(enrollmentRemainingDollars(group)).toBe(0);
     expect(netReceivedDollars(group)).toBe(0);
-    // A later "Paid in Full" reopens the refunded entry (MYK9-773) and charges its fee.
-    expect(paidInFullDollars(group)).toBe(25);
+    // A later "Paid in Full" charges nothing: a payment never reopens a refunded entry
+    // (owner, 2026-11-13).
+    expect(paidInFullDollars(group)).toBe(0);
   });
 
   it('reads nothing due after a partial desk refund of a paid form', () => {
@@ -137,8 +138,8 @@ describe('a form with an enrollment row (MYK9-1961)', () => {
     expect(enrollmentRemainingDollars(group)).toBeLessThanOrEqual(0);
     // The desk still holds $40 of it.
     expect(netReceivedDollars(group)).toBe(40);
-    // Paid in Full reopens both entries ($50); the $40 held leaves $10.
-    expect(paidInFullDollars(group)).toBe(10);
+    // Paid in Full charges nothing: the refunded entries stay refunded (owner, 2026-11-13).
+    expect(paidInFullDollars(group)).toBe(0);
   });
 
   it('still owes the fee of an entry added after a refund', () => {
@@ -163,6 +164,8 @@ describe('a form with an enrollment row (MYK9-1961)', () => {
     ]);
 
     expect(enrollmentRemainingDollars(group)).toBe(30);
+    // Paid in Full charges the add-on alone, never the refunded entry's fee again.
+    expect(paidInFullDollars(group)).toBe(30);
   });
 
   it('never reopens a Stripe-refunded, card-paid or comped entry on Paid in Full', () => {

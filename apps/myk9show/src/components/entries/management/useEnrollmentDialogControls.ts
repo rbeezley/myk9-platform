@@ -42,7 +42,7 @@ export function useEnrollmentDialogControls(
   // What the desk may hand back: desk money only (card money is refunded through Stripe).
   const refundableDollars = netReceivedDollars(group);
   const remainingDollars = enrollmentRemainingDollars(group);
-  // What "Paid in Full" records: the due once it reopens the entries a refund closed.
+  // What "Paid in Full" records: the due, never below zero (a payment reopens nothing).
   const fullPaymentDollars = paidInFullDollars(group);
   const today = paymentLedger.todayInShowZone;
 

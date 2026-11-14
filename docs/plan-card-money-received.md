@@ -61,6 +61,24 @@ the ledger core for desk money, the MYK9-1634 trigger for the total.
    `refunded` too (with no stamp), which would zero a mail-in form's total. Only the
    service role can write `entries.refund_amount` (`trg_restrict_entry_refund_columns`),
    and only the Stripe refund flows do, so the stamp means "Stripe refunded this entry".
+
+   **Superseded (owner, 2026-11-13, MYK9-1961).** Owed now also leaves out an entry whose
+   `payment_status` is `refunded` or `partial_refund` (a desk refund), and a comped one:
+   a refunded or Free fee is never owed by its form. Two owner decisions came with it
+   (migration `20261114013900_myk9_1961_refunded_fee_not_owed.sql`):
+
+   - **Money still held covers a later add-on.** $50 paid, $10 refunded at the desk ($40
+     held), then a $30 class: the add-on is settled (paid) by the held money, and every
+     screen reads "Paid in full" (footer, checklist, the add-on's row). "Paid in Full"
+     charges $0 and reopens nothing. `private.refresh_enrollment_money` settles it.
+   - **A payment covers only what it is for; it never reopens refunded entries.** $50
+     paid, fully refunded, then a $30 class: the form reads "$30 due", "Paid in Full"
+     quotes and charges $30, and recording $30 (Paid in Full or a custom amount) leaves the
+     refunded entries refunded and the form paid in full. The entries cascade no longer
+     reopens a refunded entry on a payment (desk, at submission, or Paid in Full: Online).
+     "Payment Due" (the reversal) still reopens the entries the form refunded (MYK9-773),
+     because it undoes the refund itself.
+
 2. **Card-paid entry** = one a `succeeded` order lists in `entry_ids`, with no Stripe
    refund stamp. **Card-covered** (cents) = Σ `entry_fee` over the form's card-paid
    entries, deleted or not (money the club still holds, as `paid_amount` keeps a deleted

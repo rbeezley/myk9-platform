@@ -58,6 +58,8 @@ export function ShowJudgeSuppliesTool({
   const rows = suppliesQuery.data;
   // Only a failure with nothing cached is shown: a failed background refresh keeps the last rows.
   const suppliesFailed = suppliesQuery.isError && !rows;
+  // Offline with nothing cached: the read is paused (no request runs), not loading.
+  const suppliesPaused = !rows && !suppliesFailed && suppliesQuery.fetchStatus === 'paused';
 
   return (
     <section className="space-y-4" aria-labelledby="judge-supplies-title">
@@ -108,7 +110,9 @@ export function ShowJudgeSuppliesTool({
                       ? summarize(judgeRows)
                       : suppliesFailed
                         ? 'Supplies not loaded'
-                        : 'Loading…'}
+                        : suppliesPaused
+                          ? 'Not available offline. Connect to load supplies.'
+                          : 'Loading…'}
                   </p>
                 </div>
                 <Button

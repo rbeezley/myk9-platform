@@ -161,4 +161,35 @@ begin
   raise notice 'PASS E: backfill moves future-date stamps, copies past/unset ones, and is idempotent';
 end $$;
 
+-- E4. A stamped entry whose trial confirms TODAY (UTC) is ambiguous, so the backfill refuses.
+insert into public.trials (id, show_id, name, date, registry_id, confirmation_date) values
+  ('00000000-0000-0000-0000-000001963034', '00000000-0000-0000-0000-000001963002', 'Today', current_date, 'AKC',
+   (date_trunc('day', now() at time zone 'UTC') + interval '12 hours') at time zone 'UTC');
+insert into public.classes (id, trial_id, name, status, status_source) values
+  ('00000000-0000-0000-0000-000001963054', '00000000-0000-0000-0000-000001963034', 'Today class', 'upcoming', 'manual');
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
+  confirmation_email_sent_at, confirmation_email_message_id, confirmation_email_status) values
+  ('00000000-0000-0000-0000-000001963044', '00000000-0000-0000-0000-000001963012', '00000000-0000-0000-0000-000001963054',
+   '00000000-0000-0000-0000-000001963002', '00000000-0000-0000-0000-000001963034', 'confirmed', 'paid', 25,
+   '2026-11-01T00:00:00Z', 'msg_today', 'sent');
+
+do $$
+declare
+  t record;
+begin
+  begin
+    perform private.backfill_entry_receipt_markers();
+    raise exception 'FAIL E4: the backfill ran although a stamped entry confirms today';
+  exception when sqlstate 'P0001' then
+    if sqlerrm not like 'MYK9-1963 backfill:%' then
+      raise;
+    end if;
+  end;
+  select * into t from public.entries where id = '00000000-0000-0000-0000-000001963044';
+  if t.receipt_email_sent_at is not null or t.confirmation_email_sent_at is null then
+    raise exception 'FAIL E4: the refused backfill changed the today entry (%)', to_jsonb(t);
+  end if;
+  raise notice 'PASS E4: the backfill refuses while a stamped entry confirms today';
+end $$;
+
 rollback;

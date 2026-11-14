@@ -97,9 +97,10 @@ CREATE TRIGGER trg_entries_receipt_email_server_only
 --   1. Trial's confirmation_date is AFTER today (UTC; the scheduled sender matches the UTC date,
 --      so it cannot have sent yet): any confirmation stamp can only be the receipt. Move it to
 --      the receipt columns and give the pre-show email back (pending, unstamped).
---   2. Trial's confirmation_date is null, today or past (the pre-show send may already have
---      happened, so the stamp is ambiguous): copy the stamp into the receipt columns only, never
---      clear it, so the sweep cannot resend a receipt that probably went out.
+--   2. Trial's confirmation_date is null or past (the pre-show send has already happened or
+--      never will, so the stamp is ambiguous): copy the stamp into the receipt columns only,
+--      never clear it, so the sweep cannot resend a receipt that probably went out.
+--   A trial confirming TODAY is refused outright (see the guard in the function).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION private.backfill_entry_receipt_markers()
 RETURNS void
@@ -107,6 +108,21 @@ LANGUAGE plpgsql
 SET search_path = ''
 AS $$
 BEGIN
+  -- A trial confirming TODAY is the one case the two branches cannot tell apart: before the
+  -- 09:00 UTC run its stamp is the receipt, after it the stamp may be the pre-show email. Rather
+  -- than guess, refuse; the migration is then pushed on another day (none matched on 2026-11-14).
+  IF EXISTS (
+    SELECT 1
+      FROM public.entries e
+      JOIN public.trials t ON t.id = e.trial_id
+     WHERE e.confirmation_email_sent_at IS NOT NULL
+       AND e.receipt_email_sent_at IS NULL
+       AND (t.confirmation_date AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date
+  ) THEN
+    RAISE EXCEPTION 'MYK9-1963 backfill: a stamped entry belongs to a trial whose confirmation date is today (UTC); push this migration on another day'
+      USING errcode = 'P0001';
+  END IF;
+
   UPDATE public.entries e
      SET receipt_email_sent_at = e.confirmation_email_sent_at,
          receipt_email_message_id = e.confirmation_email_message_id,

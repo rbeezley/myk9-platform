@@ -156,6 +156,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:readonly-walk:test',
+    command: 'vitest run scripts/qa/readonly-walk.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:edge-function-drift:test',
     command:
       'vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts',

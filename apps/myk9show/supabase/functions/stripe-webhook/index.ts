@@ -45,7 +45,7 @@ import {
   findShowRefundId,
 } from '../_shared/chargeRefundedDecision.ts';
 import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
-import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
+import { buildReceiptStampPayload } from '../_shared/entryReceiptStamp.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
@@ -93,6 +93,7 @@ import {
   closeCartThenSendReceipt,
   sendCartReceiptOnce,
   type CartReceiptDeps,
+  cartReceiptAmounts,
 } from './cartConfirmationReplay.ts';
 import {
   routeRefundByCurrentState,
@@ -1402,7 +1403,7 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
     readOrder: async sessionId => {
       const { data: order, error } = await supabase
         .from('stripe_orders')
-        .select('entry_ids, show_id, metadata')
+        .select('entry_ids, show_id, metadata, amount_cents, enrollment_id')
         .eq('stripe_checkout_session_id', sessionId)
         .eq('order_type', 'entry')
         .maybeSingle();
@@ -1410,6 +1411,8 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
       if (!order?.show_id) return null;
       const metadata = (order.metadata ?? {}) as Record<string, unknown>;
       const subtotalCents = Number(metadata.paid_entry_subtotal_cents ?? 0);
+      const totalCents =
+        metadata.paid_amount_cents == null ? null : Number(metadata.paid_amount_cents);
       return {
         entryIds: (order.entry_ids as string[] | null) ?? [],
         showId: order.show_id as string,
@@ -1418,7 +1421,12 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
           typeof metadata.cart_id === 'string' ? metadata.cart_id : null
         ),
         subtotalCents,
-        totalCents: Number(metadata.paid_amount_cents ?? subtotalCents),
+        totalCents,
+        chargedCents:
+          order.amount_cents != null ? Number(order.amount_cents) : (totalCents ?? subtotalCents),
+        confirmationNumber: await readOrderConfirmationNumber(
+          (order.enrollment_id as string | null) ?? null
+        ),
       };
     },
     send: order =>
@@ -1428,11 +1436,30 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
         session,
         {
           subtotalCents: order.subtotalCents,
-          platformFeeCents: Math.max(0, order.totalCents - order.subtotalCents),
-          totalCents: order.totalCents,
+          ...cartReceiptAmounts(order),
+          totalCents: order.chargedCents,
+          confirmationNumber: order.confirmationNumber,
         }
       ),
   };
+}
+
+/**
+ * The order's confirmation number: enrollments.confirmation_number through the
+ * order's enrollment, the same value get_my_checkout_order hands the success
+ * page. null when the order has no enrollment; never a stand-in (MYK9-631).
+ */
+async function readOrderConfirmationNumber(enrollmentId: string | null): Promise<string | null> {
+  if (!enrollmentId) return null;
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('confirmation_number')
+    .eq('id', enrollmentId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Could not read the confirmation number of ${enrollmentId}: ${error.message}`);
+  }
+  return (data?.confirmation_number as string | null) || null;
 }
 
 /** The paying exhibitor's person id: from the run, else the order's cart. Throws when unreadable. */
@@ -2639,7 +2666,13 @@ async function sendEntryConfirmationEmail(
   cart: { show_id: string; exhibitor: { person_id: string } },
   entryIds: string[],
   session: Stripe.Checkout.Session,
-  authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
+  authoritative: {
+    subtotalCents: number;
+    serviceFeeCents: number;
+    totalCents: number;
+    refundPendingCents: number;
+    confirmationNumber: string | null;
+  }
 ): Promise<boolean> {
   let deliveryAttemptRecorded = false;
   // True once the provider accepted the message (MYK9-964 receipt marker).
@@ -2760,9 +2793,11 @@ async function sendEntryConfirmationEmail(
         entryFee: Math.round(Number(e.entry_fee ?? 0) * 100),
       })),
       subtotal: authoritative.subtotalCents,
-      platformFee: authoritative.platformFeeCents,
+      serviceFee: authoritative.serviceFeeCents,
       total: authoritative.totalCents,
-      orderId: session.id,
+      refundPendingCents: authoritative.refundPendingCents,
+      confirmationNumber: authoritative.confirmationNumber,
+      entriesUrl: `${(Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '')}/exhibitor/entries`,
     };
 
     if (!resendApiKey) {
@@ -2795,18 +2830,17 @@ async function sendEntryConfirmationEmail(
         status: 'failed',
         errorMessage: `provider_http_${response.status}`,
       });
-      // MP-13: no stamp on a failed send — the entry stays eligible for the
-      // scheduled send-confirmation-email sender's audience query
-      // (confirmation_email_sent_at IS NULL / status IN pending,failed).
+      // No stamp on a failed send; the card receipt retries through the cart replay
+      // (cart_fulfillments.receipt_sent_at), and the entry's pre-show confirmation is untouched.
       return false;
     }
 
     console.log('Confirmation email sent');
     providerAccepted = true;
 
-    // MP-13: stamp every entry this email covered with the SAME send-state
-    // semantics the scheduled sender uses, so its audience query excludes
-    // this entry and no second confirmation email is sent. Resend returns an
+    // MYK9-1963: stamp every entry this receipt covered on the receipt's own marker
+    // (entries.receipt_email_*), never confirmation_email_*: the pre-show confirmation
+    // is a separate email and still goes to card payers on the confirmation date. Resend returns an
     // `id` for the accepted message;
     // fall back to null if the body is missing/unparseable rather than
     // failing the whole webhook over a non-critical read.
@@ -2820,7 +2854,7 @@ async function sendEntryConfirmationEmail(
 
     await recordDeliveryAttempt({ status: 'sent', messageId });
 
-    const stampPayload = buildConfirmationStampPayload({
+    const stampPayload = buildReceiptStampPayload({
       sendSucceeded: true,
       messageId,
       nowIso: new Date().toISOString(),
@@ -2831,12 +2865,11 @@ async function sendEntryConfirmationEmail(
         .update(stampPayload)
         .in('id', entryIds);
       if (stampError) {
-        // Logged, not thrown: worst case is the pre-existing duplicate send
-        // via the scheduled sender's retry, not a lost payment. Per task
+        // Logged, not thrown: the worst case is a missing marker, not a lost payment. Per task
         // 3.2's explicit expansion, a stamp write failure must not fail the
         // webhook.
         console.error(
-          `Failed to stamp confirmation_email_* for entries [${entryIds.join(', ')}]:`,
+          `Failed to stamp receipt_email_* for entries [${entryIds.join(', ')}]:`,
           stampError
         );
       }

@@ -21,7 +21,7 @@ interface Row {
 function fakeEntries(rows: Row[]): EntryClaimClient {
   return {
     from: () => ({
-      update: patch => {
+      update: (patch: Record<string, unknown>) => {
         const apply = (ids: string[], onlyUnsent: boolean) =>
           rows
             .filter(
@@ -29,7 +29,7 @@ function fakeEntries(rows: Row[]): EntryClaimClient {
             )
             .map(r => Object.assign(r, patch) && { id: r.id });
         return {
-          in: (_column, ids) =>
+          in: (_column: string, ids: string[]) =>
             Object.assign(
               Promise.resolve({ error: null }).then(() => (apply(ids, false), { error: null })),
               {

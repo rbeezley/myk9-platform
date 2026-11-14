@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
+import { submitPaymentStep } from './submitPaymentStep';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { ENTRY_SUBMIT_FAILED, PlainEntryError } from '@/features/registration/entrySubmitErrorCopy';
 import {
@@ -13,7 +13,6 @@ const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
 const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn());
 const submitOfflineLateEntryMock = vi.hoisted(() => vi.fn());
 const notificationErrorMock = vi.hoisted(() => vi.fn());
-const sendSubmittedEntryEmailMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/features/registration/submitShowRegistration', () => ({
   submitShowRegistration: submitShowRegistrationMock,
@@ -27,84 +26,13 @@ vi.mock('@/features/registration/submitOfflineLateEntry', () => ({
   submitOfflineLateEntry: submitOfflineLateEntryMock,
 }));
 
-vi.mock('./sendSubmittedEntryEmail', async importOriginal => ({
-  ...(await importOriginal<typeof import('./sendSubmittedEntryEmail')>()),
-  sendSubmittedEntryEmail: sendSubmittedEntryEmailMock,
-}));
-
 vi.mock('@/lib/notifications', () => ({
   notifications: {
     error: notificationErrorMock,
   },
 }));
 
-function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}): {
-  ctx: SubmitPaymentStepContext;
-  order: string[];
-} {
-  const order: string[] = [];
-
-  const base: SubmitPaymentStepContext = {
-    showId: 'show-1',
-    userId: 'user-1',
-    registrationId: 'registration-1',
-    previousStatus: 'draft',
-    isLateEntryMode: false,
-    currentWorkflowMode: 'exhibitor',
-    paymentMethod: 'check',
-    paymentStatus: PaymentStatus.PENDING,
-    paymentDetails: {},
-    ownerResolution: { ok: true, ownerId: 'owner-1' },
-    exhibitorProfileId: 'profile-1',
-    classSelections: [],
-    handlerAssignments: {},
-    classes: [],
-    canAssignArmbands: false,
-    showFeeInfo: {
-      preEntryFee: '25',
-      startDate: '2026-08-01',
-    },
-    juniorHandlerDogIds: new Set<string>(),
-    currentStep: 2,
-    cart: {
-      clearCart: vi.fn(async () => {
-        order.push('clearCart');
-        return true;
-      }),
-      ensureCart: vi.fn(),
-      addItem: vi.fn(),
-      abandonCart: vi.fn(),
-    },
-    submitRegistration: vi.fn(),
-    isMounted: () => true,
-    setIsSubmitting: vi.fn(),
-    setRegistrationNumber: vi.fn(),
-    setArmbandAssignments: vi.fn(),
-    setEntryOutcomes: vi.fn(),
-    setCreatedEntryOutcomes: vi.fn(),
-    markStepComplete: vi.fn(),
-    setCurrentStep: vi.fn(),
-    updateShowRegistration: vi.fn(),
-    invalidateOwnTodayEntries: vi.fn(),
-    triggerSync: vi.fn(() => {
-      order.push('triggerSync');
-    }),
-    navigate: vi.fn(),
-    discardDraftsWithoutFinalSave: vi.fn(),
-  };
-
-  return {
-    ctx: {
-      ...base,
-      ...overrides,
-      cart: {
-        ...base.cart,
-        ...overrides.cart,
-      },
-    },
-    order,
-  };
-}
+import { makeContextAndOrder } from './submitPaymentStep.testHelpers';
 
 describe('submitPaymentStep', () => {
   beforeEach(() => {
@@ -130,80 +58,6 @@ describe('submitPaymentStep', () => {
           capacityOverride: true,
         },
       ],
-    });
-  });
-
-  describe('the one confirmation email for a check or cash entry (MYK9-1963)', () => {
-    const createdOutcome = {
-      dogId: 'dog-1',
-      classId: 'class-1',
-      outcome: 'created' as const,
-      entryId: 'entry-1',
-      waitlistEntryId: null,
-      feeCents: 2500,
-      capacityOverride: false,
-    };
-
-    it('sends one email, for the submitted entries, when an exhibitor submits a check entry', async () => {
-      submitShowRegistrationMock.mockResolvedValue({
-        aborted: false,
-        registrationNumber: 'REG-1',
-        dbRegistrationId: 'enrollment-1',
-        armbandAssignments: [],
-        armbandFailures: [],
-        createdEntryOutcomes: [createdOutcome],
-      });
-      const { ctx } = makeContextAndOrder({ paymentMethod: 'check' });
-
-      await submitPaymentStep(ctx);
-
-      expect(sendSubmittedEntryEmailMock).toHaveBeenCalledTimes(1);
-      expect(sendSubmittedEntryEmailMock).toHaveBeenCalledWith('enrollment-1', ['entry-1']);
-    });
-
-    it('sends one email for a cash entry too', async () => {
-      submitShowRegistrationMock.mockResolvedValue({
-        aborted: false,
-        dbRegistrationId: 'enrollment-1',
-        armbandAssignments: [],
-        armbandFailures: [],
-        createdEntryOutcomes: [createdOutcome],
-      });
-      const { ctx } = makeContextAndOrder({ paymentMethod: 'cash' });
-
-      await submitPaymentStep(ctx);
-
-      expect(sendSubmittedEntryEmailMock).toHaveBeenCalledTimes(1);
-      expect(sendSubmittedEntryEmailMock).toHaveBeenCalledWith('enrollment-1', ['entry-1']);
-    });
-
-    it('sends nothing when a secretary enters the dog, or when no entry was created', async () => {
-      submitShowRegistrationMock.mockResolvedValue({
-        aborted: false,
-        dbRegistrationId: 'enrollment-1',
-        armbandAssignments: [],
-        armbandFailures: [],
-        createdEntryOutcomes: [createdOutcome],
-      });
-      await submitPaymentStep(makeContextAndOrder({ currentWorkflowMode: 'secretary_new' }).ctx);
-
-      submitShowRegistrationMock.mockResolvedValue({
-        aborted: false,
-        dbRegistrationId: 'enrollment-1',
-        armbandAssignments: [],
-        armbandFailures: [],
-      });
-      await submitPaymentStep(makeContextAndOrder().ctx);
-
-      expect(sendSubmittedEntryEmailMock).not.toHaveBeenCalled();
-    });
-
-    it('sends nothing on the card path: the Stripe receipt is its one email', async () => {
-      const { ctx } = makeContextAndOrder({ paymentMethod: 'credit_card' });
-
-      await submitPaymentStep(ctx);
-
-      expect(sendSubmittedEntryEmailMock).not.toHaveBeenCalled();
     });
   });
 

@@ -5,7 +5,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { productVersion, buildReference } from '@/config/appVersion';
 import { UserRole } from '@/types/auth-types';
 import { buildDiagnosticBundle } from '../support/supportDiagnostics';
-import { listSupportTickets } from '../support/supportTickets';
 import { supportTicketKeys } from '../support/useSupportTickets';
 import {
   EMPTY_TASK_PROGRESS,
@@ -14,7 +13,12 @@ import {
   type MockShowProgress,
   type MockTaskProgress,
 } from './mockShowProgress';
-import { mockMarkFor, saveMockNote, type MockNoteTarget } from './mockShowTickets';
+import {
+  listMyMockTestTickets,
+  mockMarkFor,
+  saveMockNote,
+  type MockNoteTarget,
+} from './mockShowTickets';
 
 const progressKey = (userId: string | undefined) => ['mock-show-progress', userId ?? null] as const;
 
@@ -58,9 +62,9 @@ export function useMockShowProgress() {
 export function useMyMockTestTickets() {
   const { user } = useAuthContext();
   return useQuery({
-    queryKey: supportTicketKeys.list(undefined, undefined),
+    queryKey: [...supportTicketKeys.all, 'mock-test', user?.id ?? null] as const,
     enabled: !!user,
-    queryFn: () => listSupportTickets(),
+    queryFn: () => listMyMockTestTickets(user!.id),
   });
 }
 

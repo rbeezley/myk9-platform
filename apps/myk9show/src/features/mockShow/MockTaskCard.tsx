@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { MockNoteBox } from './MockNoteBox';
@@ -12,21 +11,33 @@ interface MockTaskCardProps {
   progress: MockTaskProgress;
   ticket: SupportTicket | null;
   onProgress: (progress: MockTaskProgress) => void;
+  /** True until the saved ticks and minutes have loaded, so nothing can overwrite them. */
+  disabled?: boolean;
 }
 
-export function MockTaskCard({ task, progress, ticket, onProgress }: MockTaskCardProps) {
+export function MockTaskCard({
+  task,
+  progress,
+  ticket,
+  onProgress,
+  disabled = false,
+}: MockTaskCardProps) {
   const [minutesDraft, setMinutesDraft] = useState<string | null>(null);
+  const [minutesError, setMinutesError] = useState(false);
   const minutesText = minutesDraft ?? (progress.minutes === null ? '' : String(progress.minutes));
 
-  const commitMinutes = () => {
+  const commitMinutes = (input: HTMLInputElement) => {
     if (minutesDraft === null) return;
     const trimmed = minutesDraft.trim();
     const parsed = trimmed === '' ? null : Number(trimmed);
-    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
-      toast.error('Type the minutes as a number, like 20.');
-      setMinutesDraft(null);
+    // A number field holding junk reports an empty value, so read its validity too.
+    const invalid =
+      input.validity.badInput || (parsed !== null && (!Number.isFinite(parsed) || parsed < 0));
+    if (invalid) {
+      setMinutesError(true);
       return;
     }
+    setMinutesError(false);
     setMinutesDraft(null);
     if (parsed !== progress.minutes) onProgress({ ...progress, minutes: parsed });
   };
@@ -38,6 +49,7 @@ export function MockTaskCard({ task, progress, ticket, onProgress }: MockTaskCar
           <Checkbox
             checked={progress.done}
             onCheckedChange={done => onProgress({ ...progress, done })}
+            disabled={disabled}
             aria-label={`Task ${task.number} done`}
           />
         </label>
@@ -64,11 +76,21 @@ export function MockTaskCard({ task, progress, ticket, onProgress }: MockTaskCar
             inputMode="numeric"
             min={0}
             value={minutesText}
-            onChange={event => setMinutesDraft(event.target.value)}
-            onBlur={commitMinutes}
+            onChange={event => {
+              setMinutesDraft(event.target.value);
+              setMinutesError(false);
+            }}
+            onBlur={event => commitMinutes(event.currentTarget)}
+            disabled={disabled}
+            aria-invalid={minutesError}
             className="min-h-11 w-24 text-base"
           />
         </div>
+        {minutesError && (
+          <p role="alert" className="text-sm text-destructive">
+            Type the minutes as a number, like 20.
+          </p>
+        )}
         <MockNoteBox
           id={`mock-note-${task.number}`}
           target={{ part: 'task', number: task.number }}

@@ -33,7 +33,7 @@ export const MOCK_SHOW_TASKS: readonly MockShowTask[] = [
     number: 3,
     name: 'Key in 10 mail-in entries',
     detail:
-      'with Add entry. Include one exhibitor and dog who are new, and one cheque that came in the post.',
+      'with Add entry. Include one exhibitor and dog who are new, and one check that came in the post.',
   },
   {
     number: 4,

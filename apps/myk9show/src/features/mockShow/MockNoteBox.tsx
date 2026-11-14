@@ -20,6 +20,8 @@ interface MockNoteBoxProps {
 /** A notes box that saves to the Support Inbox, with the notes already sent under it. */
 export function MockNoteBox({ target, ticket, label, placeholder, id }: MockNoteBoxProps) {
   const [draft, setDraft] = useState('');
+  const [justSent, setJustSent] = useState(false);
+  const isFree = target.part === 'free';
   const save = useSaveMockNote();
   const messages = useSupportTicketMessages(ticket?.id ?? null);
   const sent = messages.data ?? [];
@@ -32,6 +34,7 @@ export function MockNoteBox({ target, ticket, label, placeholder, id }: MockNote
       {
         onSuccess: () => {
           setDraft('');
+          setJustSent(true);
           toast.success('Note saved. Thank you.');
         },
         onError: () =>
@@ -48,7 +51,10 @@ export function MockNoteBox({ target, ticket, label, placeholder, id }: MockNote
       <Textarea
         id={id}
         value={draft}
-        onChange={event => setDraft(event.target.value)}
+        onChange={event => {
+          setDraft(event.target.value);
+          setJustSent(false);
+        }}
         placeholder={placeholder}
         rows={4}
         maxLength={5000}
@@ -61,8 +67,21 @@ export function MockNoteBox({ target, ticket, label, placeholder, id }: MockNote
           disabled={!draft.trim() || save.isPending}
           className="min-h-11"
         >
-          {save.isPending ? 'Saving...' : sent.length > 0 ? 'Save another note' : 'Save note'}
+          {save.isPending
+            ? isFree
+              ? 'Sending...'
+              : 'Saving...'
+            : isFree
+              ? 'Send note'
+              : sent.length > 0
+                ? 'Save another note'
+                : 'Save note'}
         </Button>
+        {justSent && !save.isError && (
+          <p role="status" className="text-sm font-medium text-success">
+            {isFree ? 'Sent. Thank you.' : 'Saved. Thank you.'}
+          </p>
+        )}
         {save.isError && (
           <p role="alert" className="text-sm text-destructive">
             Could not save. Check your connection and try again.

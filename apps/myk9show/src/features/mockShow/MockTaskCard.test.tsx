@@ -45,4 +45,39 @@ describe('MockTaskCard', () => {
     expect(onProgress).toHaveBeenCalledTimes(1);
     expect(onProgress).toHaveBeenCalledWith({ done: true, minutes: 35 });
   });
+
+  it('refuses junk minutes with a message and saves nothing', async () => {
+    const onProgress = vi.fn();
+    const { user } = render(
+      <MockTaskCard
+        task={task}
+        progress={{ done: false, minutes: null }}
+        ticket={null}
+        onProgress={onProgress}
+      />
+    );
+
+    await user.type(screen.getByLabelText('Minutes it took'), '-5');
+    await user.tab();
+
+    expect(await screen.findByText('Type the minutes as a number, like 20.')).toBeInTheDocument();
+    expect(onProgress).not.toHaveBeenCalled();
+  });
+
+  it('locks the tick and minutes until the saved progress has loaded', async () => {
+    const onProgress = vi.fn();
+    const { user } = render(
+      <MockTaskCard
+        task={task}
+        progress={{ done: false, minutes: null }}
+        ticket={null}
+        onProgress={onProgress}
+        disabled
+      />
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: 'Task 3 done' }));
+    expect(screen.getByLabelText('Minutes it took')).toBeDisabled();
+    expect(onProgress).not.toHaveBeenCalled();
+  });
 });

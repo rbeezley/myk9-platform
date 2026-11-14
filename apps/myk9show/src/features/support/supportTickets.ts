@@ -43,6 +43,10 @@ export interface SupportTicketMessage {
 
 export interface ListSupportTicketsOptions {
   resolveOwners?: boolean;
+  /** Server-side filter: only this owner's tickets. */
+  ownerId?: string;
+  /** Server-side filter on `diagnostics.kind`. */
+  kind?: 'mock-test';
 }
 
 type SupportTableClient = {
@@ -112,6 +116,8 @@ export async function listSupportTickets(
   if (status) {
     query = query.eq('status', status);
   }
+  if (options?.ownerId) query = query.eq('owner_id', options.ownerId);
+  if (options?.kind) query = query.eq('diagnostics->>kind', options.kind);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

@@ -11,7 +11,7 @@ const TEST_CLUB = 'club-test';
 const ORDINARY_CLUB = 'club-ordinary';
 
 const { authState, mockFrom, mockRpc } = vi.hoisted(() => ({
-  authState: { clubId: 'club-test', role: 'secretary' },
+  authState: { clubId: 'club-test', role: 'secretary', clubsFail: false },
   mockFrom: vi.fn(),
   mockRpc: vi.fn(),
 }));
@@ -66,10 +66,11 @@ function stubDatabase() {
         select: () => ({
           in: (_column: string, ids: string[]) => ({
             eq: () =>
-              Promise.resolve({
-                data: ids.includes(TEST_CLUB) ? [{ id: TEST_CLUB }] : [],
-                error: null,
-              }),
+              Promise.resolve(
+                authState.clubsFail
+                  ? { data: null, error: { message: 'offline' } }
+                  : { data: ids.includes(TEST_CLUB) ? [{ id: TEST_CLUB }] : [], error: null }
+              ),
           }),
         }),
       };
@@ -116,6 +117,7 @@ describe('mock show test access (MYK9-2022)', () => {
     stubDatabase();
     authState.clubId = TEST_CLUB;
     authState.role = UserRole.SECRETARY;
+    authState.clubsFail = false;
   });
 
   it('shows the tasks, both rules and the closing questions to a test club secretary', async () => {
@@ -153,5 +155,16 @@ describe('mock show test access (MYK9-2022)', () => {
     await screen.findByRole('menuitem', { name: 'Sign out' });
     await waitFor(() => expect(mockFrom).toHaveBeenCalledWith('clubs'));
     expect(screen.queryByRole('menuitem', { name: 'Mock show test' })).not.toBeInTheDocument();
+  });
+
+  it('says so, and offers Try again, when the access check fails, instead of redirecting', async () => {
+    authState.clubsFail = true;
+    renderPage();
+
+    expect(
+      await screen.findByText('Could not check your access. Check your connection and try again.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.queryByText('Account page')).not.toBeInTheDocument();
   });
 });

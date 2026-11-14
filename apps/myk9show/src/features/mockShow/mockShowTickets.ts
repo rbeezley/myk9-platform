@@ -59,6 +59,11 @@ export function findMockTestTicket(
   );
 }
 
+/** The tester's mock-test tickets, filtered on the server so a long inbox cannot hide one. */
+export function listMyMockTestTickets(ownerId: string): Promise<SupportTicket[]> {
+  return listSupportTickets(undefined, { ownerId, kind: 'mock-test' });
+}
+
 export interface SaveMockNoteInput {
   ownerId: string;
   target: MockNoteTarget;
@@ -81,7 +86,7 @@ export async function saveMockNote(input: SaveMockNoteInput): Promise<{ ticketId
   if (!body) throw new Error('Write a note before saving.');
 
   if (input.target.part !== 'free') {
-    const tickets = await listSupportTickets();
+    const tickets = await listMyMockTestTickets(input.ownerId);
     const existing = findMockTestTicket(tickets, input.ownerId, input.target);
     if (existing) {
       await postSupportTicketMessage({

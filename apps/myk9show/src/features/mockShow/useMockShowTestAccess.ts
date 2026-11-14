@@ -11,7 +11,13 @@ import { managedClubIds } from '@/utils/roleScopes';
  *
  * Online-only on purpose: the notes become support tickets, which need a connection.
  */
-export function useMockShowTestAccess(): { isLoading: boolean; hasAccess: boolean } {
+export function useMockShowTestAccess(): {
+  isLoading: boolean;
+  /** The club lookup failed and there is no earlier answer to fall back on. */
+  isError: boolean;
+  hasAccess: boolean;
+  retry: () => void;
+} {
   const { user, userWithRoles } = useAuthContext();
   const clubIds = useMemo(
     () => [...(managedClubIds({ isAdmin: false, userWithRoles }) ?? [])].sort(),
@@ -33,6 +39,16 @@ export function useMockShowTestAccess(): { isLoading: boolean; hasAccess: boolea
     },
   });
 
-  if (!user || clubIds.length === 0) return { isLoading: false, hasAccess: false };
-  return { isLoading: query.isLoading, hasAccess: query.data === true };
+  const retry = () => void query.refetch();
+  if (!user || clubIds.length === 0) {
+    return { isLoading: false, isError: false, hasAccess: false, retry };
+  }
+  // A failed refresh keeps the last good answer (query.data), so a weak
+  // connection never takes the page away from someone who already has it.
+  return {
+    isLoading: query.isLoading,
+    isError: query.isError && query.data === undefined,
+    hasAccess: query.data === true,
+    retry,
+  };
 }

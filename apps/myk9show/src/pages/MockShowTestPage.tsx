@@ -39,6 +39,20 @@ export default function MockShowTestPage() {
       </PageShell>
     );
   }
+  if (access.isError) {
+    return (
+      <PageShell maxWidth="max-w-4xl">
+        <Alert variant="destructive" role="alert">
+          <AlertDescription className="space-y-3">
+            <p>Could not check your access. Check your connection and try again.</p>
+            <Button type="button" variant="outline" onClick={access.retry} className="min-h-11">
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </PageShell>
+    );
+  }
   if (!access.hasAccess || !user) return <Navigate to="/account" replace />;
 
   const myTickets = tickets.data ?? [];
@@ -117,8 +131,19 @@ export default function MockShowTestPage() {
       </p>
       {progressQuery.isError && (
         <Alert variant="destructive" className="mt-3">
-          <AlertDescription>
-            Could not load your ticks and minutes. Check your connection, then restart the app.
+          <AlertDescription className="space-y-3">
+            <p>
+              Could not load your ticks and minutes, so they are locked for now. Check your
+              connection and try again.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void progressQuery.refetch()}
+              className="min-h-11"
+            >
+              Try again
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -136,6 +161,7 @@ export default function MockShowTestPage() {
             task={task}
             progress={progressFor(task.number)}
             ticket={ticketFor({ part: 'task', number: task.number })}
+            disabled={!progressQuery.isSuccess}
             onProgress={progress => mutation.mutate({ number: task.number, progress })}
           />
         ))}

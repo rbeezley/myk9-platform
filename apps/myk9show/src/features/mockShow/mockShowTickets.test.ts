@@ -105,7 +105,7 @@ describe('mock show notes', () => {
     const result = await saveMockNote({
       ownerId: 'tester-1',
       target: { part: 'task', number: 3 },
-      body: 'Also, the cheque field lost my typing.',
+      body: 'Also, the check field lost my typing.',
       diagnostics: diagnosticsFor({ part: 'task', number: 3 }),
     });
 
@@ -114,7 +114,7 @@ describe('mock show notes', () => {
     expect(messageInsert).toHaveBeenCalledWith({
       ticket_id: 'ticket-1',
       sender_id: 'tester-1',
-      body: 'Also, the cheque field lost my typing.',
+      body: 'Also, the check field lost my typing.',
       is_from_operator: false,
     });
   });
@@ -165,9 +165,11 @@ describe('mock show notes', () => {
     mockFrom.mockImplementation(() => {
       const failed = { data: null, error: { message: 'offline' } };
       const read = {
+        eq: vi.fn(),
         order: vi.fn(),
         then: (resolve: (value: typeof failed) => unknown) => Promise.resolve(failed).then(resolve),
       };
+      read.eq.mockReturnValue(read);
       read.order.mockReturnValue(read);
       return { select: () => read };
     });

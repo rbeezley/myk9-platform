@@ -38,6 +38,18 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
       dayOfFee: 25,
       acceptChecks: true,
       acceptCash: true,
+      juniorHandlerFee: 15,
+      maxEntriesPerDog: 4,
+      maxTotalEntries: 120,
+      withdrawal: {
+        show: {
+          withdrawal_cutoff_date: '2026-05-15',
+          withdrawal_retention_type: 'percent',
+          withdrawal_retention_value: 10,
+          withdrawal_policy_notes: null,
+        },
+        club: null,
+      },
     },
     club: { name: 'Test Club', logoUrl: null },
     secretary: {

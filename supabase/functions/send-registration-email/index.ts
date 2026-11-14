@@ -8,6 +8,7 @@ import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
+import { isReceiptSweepCaller } from './systemCaller.ts';
 import { formatUsShowDateRange } from './dateFormat.ts';
 import { buildRegistrationEmailHtml, payAtShowMethod } from './registrationEmailHtml.ts';
 import { REGISTRATION_ENTRIES_SELECT, mapRegistrationEntries } from './registrationEntries.ts';
@@ -43,11 +44,20 @@ interface SendRegistrationEmailPayload {
   entryIds?: unknown;
 }
 
+// auth: 'none' because two kinds of caller reach this function: a signed-in person (validated
+// below, exactly as the envelope's 'jwt' mode did) and the scheduled receipt sweep, which has
+// no user and proves itself with the HERITAGE_CONFIRMATION_SECRET header (MYK9-1963).
 handle<SendRegistrationEmailPayload>(
-  { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
-  async ({ body, user, supabase }) => {
-    if (!user) {
-      throw new HttpError(401, 'Invalid authorization');
+  { auth: 'none', origins: MYK9SHOW_ORIGINS },
+  async ({ req, body, supabase }) => {
+    const isSweep = isReceiptSweepCaller(req, name => Deno.env.get(name));
+    let user: { id: string } | undefined;
+    if (!isSweep) {
+      const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim();
+      if (!token) throw new HttpError(401, 'Unauthorized');
+      const { data, error } = await supabase.auth.getUser(token);
+      if (error || !data?.user) throw new HttpError(401, 'Unauthorized');
+      user = data.user;
     }
 
     const { registrationId } = body;
@@ -57,6 +67,9 @@ handle<SendRegistrationEmailPayload>(
     const submittedIds = body.entryIds === undefined ? null : parseEntryIds(body.entryIds);
     if (body.entryIds !== undefined && !submittedIds) {
       throw new HttpError(400, 'entryIds must be a short list of entry ids');
+    }
+    if (isSweep && !submittedIds) {
+      throw new HttpError(400, 'The receipt sweep names the entries it retries');
     }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -78,11 +91,11 @@ handle<SendRegistrationEmailPayload>(
     }
 
     // Verify the caller owns this registration or is a secretary/admin for the show
-    const isOwner = registration.person?.auth_user_id === user.id;
+    const isOwner = !!user && registration.person?.auth_user_id === user.id;
     let isSecretary = false;
     let isAdmin = false;
 
-    if (!isOwner) {
+    if (!isOwner && user) {
       // Look up caller's person record (needed for both secretary and admin checks)
       const { data: callerPerson } = await supabase
         .from('people')
@@ -123,7 +136,7 @@ handle<SendRegistrationEmailPayload>(
         }
       }
     }
-    if (!isOwner && !isSecretary && !isAdmin) {
+    if (!isSweep && !isOwner && !isSecretary && !isAdmin) {
       throw new HttpError(403, 'Not authorized');
     }
 
@@ -297,7 +310,7 @@ handle<SendRegistrationEmailPayload>(
     if (claimedIds && resendMessageId) {
       await supabase
         .from('entries')
-        .update({ confirmation_email_message_id: resendMessageId })
+        .update({ receipt_email_message_id: resendMessageId })
         .in('id', claimedIds);
     }
 

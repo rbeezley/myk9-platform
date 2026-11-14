@@ -45,7 +45,7 @@ import {
   findShowRefundId,
 } from '../_shared/chargeRefundedDecision.ts';
 import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
-import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
+import { buildReceiptStampPayload } from '../_shared/entryReceiptStamp.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
@@ -2830,18 +2830,17 @@ async function sendEntryConfirmationEmail(
         status: 'failed',
         errorMessage: `provider_http_${response.status}`,
       });
-      // MP-13: no stamp on a failed send — the entry stays eligible for the
-      // scheduled send-confirmation-email sender's audience query
-      // (confirmation_email_sent_at IS NULL / status IN pending,failed).
+      // No stamp on a failed send; the card receipt retries through the cart replay
+      // (cart_fulfillments.receipt_sent_at), and the entry's pre-show confirmation is untouched.
       return false;
     }
 
     console.log('Confirmation email sent');
     providerAccepted = true;
 
-    // MP-13: stamp every entry this email covered with the SAME send-state
-    // semantics the scheduled sender uses, so its audience query excludes
-    // this entry and no second confirmation email is sent. Resend returns an
+    // MYK9-1963: stamp every entry this receipt covered on the receipt's own marker
+    // (entries.receipt_email_*), never confirmation_email_*: the pre-show confirmation
+    // is a separate email and still goes to card payers on the confirmation date. Resend returns an
     // `id` for the accepted message;
     // fall back to null if the body is missing/unparseable rather than
     // failing the whole webhook over a non-critical read.
@@ -2855,7 +2854,7 @@ async function sendEntryConfirmationEmail(
 
     await recordDeliveryAttempt({ status: 'sent', messageId });
 
-    const stampPayload = buildConfirmationStampPayload({
+    const stampPayload = buildReceiptStampPayload({
       sendSucceeded: true,
       messageId,
       nowIso: new Date().toISOString(),
@@ -2866,12 +2865,11 @@ async function sendEntryConfirmationEmail(
         .update(stampPayload)
         .in('id', entryIds);
       if (stampError) {
-        // Logged, not thrown: worst case is the pre-existing duplicate send
-        // via the scheduled sender's retry, not a lost payment. Per task
+        // Logged, not thrown: the worst case is a missing marker, not a lost payment. Per task
         // 3.2's explicit expansion, a stamp write failure must not fail the
         // webhook.
         console.error(
-          `Failed to stamp confirmation_email_* for entries [${entryIds.join(', ')}]:`,
+          `Failed to stamp receipt_email_* for entries [${entryIds.join(', ')}]:`,
           stampError
         );
       }

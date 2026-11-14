@@ -14,6 +14,9 @@ import {
 
 interface Row {
   id: string;
+  receipt_email_sent_at: string | null;
+  receipt_email_status: string;
+  receipt_email_attempted_at?: string | null;
   confirmation_email_sent_at: string | null;
   confirmation_email_status: string;
 }
@@ -25,9 +28,7 @@ function fakeEntries(rows: Row[]): EntryClaimClient {
       update: (patch: Record<string, unknown>) => {
         const apply = (ids: string[], onlyUnsent: boolean) =>
           rows
-            .filter(
-              r => ids.includes(r.id) && (!onlyUnsent || r.confirmation_email_sent_at === null)
-            )
+            .filter(r => ids.includes(r.id) && (!onlyUnsent || r.receipt_email_sent_at === null))
             .map(r => Object.assign(r, patch) && { id: r.id });
         return {
           in: (_column: string, ids: string[]) =>
@@ -47,6 +48,8 @@ function fakeEntries(rows: Row[]): EntryClaimClient {
 
 const unsent = (id: string): Row => ({
   id,
+  receipt_email_sent_at: null,
+  receipt_email_status: 'pending',
   confirmation_email_sent_at: null,
   confirmation_email_status: 'pending',
 });
@@ -71,35 +74,36 @@ describe('claimSubmissionEntries (once per submission)', () => {
     ]);
   });
 
-  it('stamps the markers the scheduled sender filters on, so it skips a claimed entry', async () => {
+  it('stamps the receipt marker and leaves the pre-show confirmation marker untouched', async () => {
     const rows = [unsent('e1')];
     await claimSubmissionEntries(fakeEntries(rows), ['e1'], '2026-11-14T10:00:00Z');
-    const [claimed] = rows;
-    expect(claimed?.confirmation_email_sent_at).toBe('2026-11-14T10:00:00Z');
-    expect(claimed?.confirmation_email_status).toBe('sent');
-
-    // The scheduled sender's audience: sent_at IS NULL and status in (pending, failed).
+    expect(rows[0]).toMatchObject({
+      receipt_email_sent_at: '2026-11-14T10:00:00Z',
+      receipt_email_status: 'sent',
+      receipt_email_attempted_at: '2026-11-14T10:00:00Z',
+      confirmation_email_sent_at: null,
+      confirmation_email_status: 'pending',
+    });
+    // The scheduled pre-show sender still selects the entry: a receipt never suppresses it.
     const scheduled = readFileSync(
       new URL('../send-confirmation-email/index.ts', import.meta.url),
       'utf8'
     );
     expect(scheduled).toContain(".is('confirmation_email_sent_at', null)");
     expect(scheduled).toContain(".in('confirmation_email_status', ['pending', 'failed'])");
-    const inAudience =
-      claimed?.confirmation_email_sent_at === null &&
-      ['pending', 'failed'].includes(claimed?.confirmation_email_status ?? '');
-    expect(inAudience).toBe(false);
   });
 
-  it('a released claim returns the entries to the scheduled sender as the retry path', async () => {
+  it('a released claim is marked failed for the retry sweep, receipt marker only', async () => {
     const rows = [unsent('e1')];
     const client = fakeEntries(rows);
     await claimSubmissionEntries(client, ['e1'], '2026-11-14T10:00:00Z');
     await releaseSubmissionClaim(client, ['e1']);
     expect(rows[0]).toMatchObject({
-      confirmation_email_sent_at: null,
-      confirmation_email_status: 'failed',
+      receipt_email_sent_at: null,
+      receipt_email_status: 'failed',
+      confirmation_email_status: 'pending',
     });
+    expect(rows[0]?.receipt_email_attempted_at).toEqual(expect.any(String));
   });
 });
 

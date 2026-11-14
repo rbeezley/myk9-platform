@@ -1,9 +1,9 @@
 // The one receipt for a check or cash submission (MYK9-1963). Deno-free so vitest can import it.
 //
 // Once per submission is enforced by claiming the submission's entries: the claim stamps
-// entries.confirmation_email_sent_at, the same marker the scheduled send-confirmation-email
-// sender filters on (`confirmation_email_sent_at IS NULL`), so a claimed entry never gets a
-// second receipt from either sender, and a retry claims nothing and sends nothing.
+// entries.receipt_email_sent_at, the receipt's OWN marker. The pre-show confirmation keeps
+// entries.confirmation_email_* and is never suppressed by a receipt (owner, 2026-11-14), so a
+// claimed entry never gets a second receipt and a retry claims nothing and sends nothing.
 
 export const MAX_SUBMISSION_ENTRIES = 100;
 
@@ -16,7 +16,7 @@ export interface EntryClaimClient {
         ids: string[]
       ): {
         is(
-          column: 'confirmation_email_sent_at',
+          column: 'receipt_email_sent_at',
           value: null
         ): {
           select(columns: 'id'): PromiseLike<{
@@ -49,16 +49,20 @@ export async function claimSubmissionEntries(
 ): Promise<string[]> {
   const { data, error } = await client
     .from('entries')
-    .update({ confirmation_email_sent_at: nowIso, confirmation_email_status: 'sent' })
+    .update({
+      receipt_email_sent_at: nowIso,
+      receipt_email_status: 'sent',
+      receipt_email_attempted_at: nowIso,
+    })
     .in('id', entryIds)
-    .is('confirmation_email_sent_at', null)
+    .is('receipt_email_sent_at', null)
     .select('id');
   if (error) throw new Error(`Could not claim the submission's entries: ${error.message}`);
   return (data ?? []).map(row => row.id);
 }
 
 /**
- * Hands a claim back after a failed send so the scheduled sender stays the retry path.
+ * Hands a claim back after a failed send; the scheduled retry sweep picks it up from here.
  * Returns false (and logs) when the release itself failed, so the caller can report it.
  */
 export async function releaseSubmissionClaim(
@@ -68,7 +72,11 @@ export async function releaseSubmissionClaim(
   try {
     const { error } = await client
       .from('entries')
-      .update({ confirmation_email_sent_at: null, confirmation_email_status: 'failed' })
+      .update({
+        receipt_email_sent_at: null,
+        receipt_email_status: 'failed',
+        receipt_email_attempted_at: new Date().toISOString(),
+      })
       .in('id', entryIds);
     if (error) {
       console.error('Could not release the submission claim', { message: error.message });

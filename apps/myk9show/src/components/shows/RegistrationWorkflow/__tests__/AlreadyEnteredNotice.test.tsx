@@ -37,6 +37,26 @@ describe('AlreadyEnteredNotice', () => {
     }
   );
 
+  it.each([undefined, 'secretary_new', 'club_admin', 'site_admin'] as const)(
+    'opens every link that leaves the wizard in a new tab (mode: %s)',
+    mode => {
+      render(
+        <AlreadyEnteredNotice
+          showId="show-1"
+          dogName="Willow"
+          {...(mode !== undefined && { workflowMode: mode })}
+        />
+      );
+
+      const links = screen.getAllByRole('link');
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link, link.textContent ?? '').toHaveAttribute('target', '_blank');
+        expect(link, link.textContent ?? '').toHaveAttribute('rel', 'noopener noreferrer');
+      }
+    }
+  );
+
   it('defaults to the exhibitor path when no mode is supplied', () => {
     render(<AlreadyEnteredNotice showId="show-9" dogName="Rex" />);
 

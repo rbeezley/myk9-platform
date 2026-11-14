@@ -56,6 +56,8 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
             <Link
               to={`/shows/${showId}/entries`}
               className="font-medium underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               Entry Forms
             </Link>
@@ -64,7 +66,12 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
         ) : (
           <>
             To see or pull this entry, open it in{' '}
-            <Link to="/exhibitor/entries" className="font-medium underline underline-offset-2">
+            <Link
+              to="/exhibitor/entries"
+              className="font-medium underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               My Shows
             </Link>
             . To change a class,{' '}

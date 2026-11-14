@@ -135,6 +135,25 @@ describe('renderComparison', () => {
     expect(output).not.toContain('Regression');
   });
 
+  it('prints the total slack on every run', () => {
+    expect(renderComparison(compareToBaseline({ a: 1 }, { a: 2 }))).toContain('Slack: 1 ');
+    expect(renderComparison(compareToBaseline({ a: 2 }, { a: 2 }))).toContain('Slack: 0 ');
+    expect(renderComparison(compareToBaseline({ a: 1 }, { a: 2 }))).not.toContain('quiet main');
+  });
+
+  it('nudges to run the update once slack reaches 10', () => {
+    const output = renderComparison(compareToBaseline({ a: 1, b: 0 }, { a: 6, b: 5 }));
+    expect(output).toContain('Slack: 10 ');
+    expect(output).toContain('run pnpm qa:em-dash-ratchet:update on a quiet main');
+    expect(output).not.toContain('Regression');
+  });
+
+  it('tells a regression about the rename and split path', () => {
+    expect(renderComparison(compareToBaseline({ a: 3 }, { a: 2 }))).toContain(
+      'For a rename or split, run pnpm qa:em-dash-ratchet:update'
+    );
+  });
+
   it('is a regression when one file rises even if another fell by as much', () => {
     const output = renderComparison(compareToBaseline({ b: 2 }, { a: 2 }));
     expect(output).toContain('Regression');
@@ -180,11 +199,21 @@ describe('runCli', () => {
     expect(readFileSync(join(root, BASELINE), 'utf8')).toBe(before);
   });
 
-  it('a rename fails, and --update-baseline refuses because the new path rises', () => {
-    const root = makeRoot({ [`${APP}/renamed.ts`]: src(1) });
-    writeBaselineFile(root, { [`${APP}/old.ts`]: 1 });
+  it('a rename fails the check, --update-baseline allows it, and the check then passes', () => {
+    const renamed = `${APP}/renamed.ts`;
+    const root = makeRoot({ [renamed]: src(2) });
+    writeBaselineFile(root, { [`${APP}/old.ts`]: 2 });
     expect(runCli([], root)).toBe(1);
+    expect(runCli(['--update-baseline'], root)).toBe(0);
+    expect(read(root)).toEqual({ version: 1, files: { [renamed]: 2 } });
+    expect(runCli([], root)).toBe(0);
+  });
+
+  it('--update-baseline refuses a rename that also adds an em dash', () => {
+    const root = makeRoot({ [`${APP}/renamed.ts`]: src(3) });
+    writeBaselineFile(root, { [`${APP}/old.ts`]: 2 });
     expect(runCli(['--update-baseline'], root)).toBe(1);
+    expect(read(root).files).toEqual({ [`${APP}/old.ts`]: 2 });
   });
 
   it('--update-baseline lowers the baseline and drops a file that reached zero', () => {

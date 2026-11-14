@@ -15,7 +15,8 @@
  * computed at check time), only one sorted `"path": count` line per file, so two
  * PRs that touch different files never edit the same lines (MYK9-1972). A rename
  * or split of a file that carries em dashes needs `:update`, since the new path
- * rises. `--update-baseline` refuses when any file would rise.
+ * rises. `--update-baseline` refuses only when the TOTAL would rise, so a rename
+ * or split (counts move between files, the total holds) is allowed.
  *
  * Decision: the bare "—" empty-cell placeholder and the public landing templates
  * ARE counted. Placeholders become "None" / "Not set" and templates are cleaned
@@ -47,6 +48,8 @@ export type EmDashComparison = {
 };
 
 export const SOURCE_ROOT = 'apps/myk9show/src';
+/** Slack (baseline minus actual over files that fell) at which a nudge prints. */
+export const SLACK_NUDGE_THRESHOLD = 10;
 export const DEFAULT_BASELINE_PATH = 'scripts/qa/em-dash-ratchet.baseline.json';
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx'];
@@ -132,10 +135,16 @@ function listFiles(heading: string, deltas: FileDelta[], verb: string) {
   return [heading, ...deltas.map(d => `- ${d.file}: ${d.actual} ${verb} ${d.baseline}`)];
 }
 
+export function totalSlack(comparison: EmDashComparison): number {
+  return comparison.fallen.reduce((sum, d) => sum + (d.baseline - d.actual), 0);
+}
+
 export function renderComparison(comparison: EmDashComparison): string {
   const { actualTotal, baselineTotal, risen, fallen } = comparison;
+  const slack = totalSlack(comparison);
   const lines = [
     `Em-dash ratchet: ${actualTotal} em dashes in screen text (baseline ${baselineTotal})`,
+    `Slack: ${slack} (baseline minus actual, in files that fell)`,
     '',
   ];
 
@@ -145,7 +154,7 @@ export function renderComparison(comparison: EmDashComparison): string {
       ...listFiles('Files that rose:', risen, 'above'),
       '',
       'Use a comma, colon, period or "None" / "Not set" instead of an em dash.',
-      'A renamed or split file needs pnpm qa:em-dash-ratchet:update.'
+      'For a rename or split, run pnpm qa:em-dash-ratchet:update (it allows moves that do not raise the total).'
     );
   } else if (fallen.length > 0) {
     lines.push(
@@ -153,6 +162,13 @@ export function renderComparison(comparison: EmDashComparison): string {
       ...listFiles('Files that fell:', fallen, 'below'),
       '',
       'Optional: pnpm qa:em-dash-ratchet:update. Skip it while other PRs are in flight, so the baseline never conflicts.'
+    );
+  }
+
+  if (slack >= SLACK_NUDGE_THRESHOLD) {
+    lines.push(
+      '',
+      `Slack is ${slack}: run pnpm qa:em-dash-ratchet:update on a quiet main to take it back.`
     );
   }
 
@@ -182,7 +198,7 @@ export function runCli(args: string[] = process.argv.slice(2), cwd = process.cwd
   if (args.includes('--update-baseline')) {
     if (existsSync(baselinePath)) {
       const comparison = compareToBaseline(counts, readBaseline(baselinePath).files);
-      if (comparison.risen.length > 0) {
+      if (comparison.actualTotal > comparison.baselineTotal) {
         console.log(renderComparison(comparison));
         console.log('Refusing to raise the baseline. Remove the new em dashes instead.');
         return 1;

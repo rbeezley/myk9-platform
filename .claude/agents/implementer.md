@@ -99,8 +99,9 @@ CONCERNS.
    - added or renamed an e2e spec: `pnpm qa:e2e-map:check` (every spec needs a row in
      `docs/qa/e2e-suite-map.md`);
    - changed visible text: `pnpm qa:em-dash-ratchet` (a fall passes on its own; do not run
-     `:update` just to lower the baseline, it conflicts between parallel PRs; a rise or a
-     renamed file with em dashes fails and needs `pnpm qa:em-dash-ratchet:update`);
+     `:update` just to lower the baseline, it conflicts between parallel PRs; a rise fails;
+     for a rename or split of a file with em dashes, run `pnpm qa:em-dash-ratchet:update`, which
+     allows moves that do not raise the total);
    - a spec that needs a state (an entry awaiting review, a scored dog, a trial today): check the
      seed has it (`supabase/seed-demo.sql`) before relying on it; otherwise stage it in the
      browser or a fixture, never by writing to the shared database;

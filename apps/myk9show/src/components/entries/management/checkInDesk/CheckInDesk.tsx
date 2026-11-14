@@ -16,7 +16,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
-import { AMOUNT_NOT_AVAILABLE, deskOwedByPayer, deskOwedHref, owesLabel } from './deskAmountOwed';
+import { deskOwedForms, deskOwedHref, deskOwedLines } from './deskAmountOwed';
 import { classIdsOnDay, firstClassLine } from './firstClassForExhibitor';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
@@ -73,7 +73,7 @@ export function CheckInDesk({
     () => buildCheckInDeskPeople(entries, classes, now),
     [classes, now, entries]
   );
-  const owedByPayer = useMemo(() => deskOwedByPayer(entries), [entries]);
+  const owedForms = useMemo(() => deskOwedForms(entries), [entries]);
   const dayClassIds = useMemo(() => classIdsOnDay(classes, now), [classes, now]);
   const rowsByEntryId = useMemo(
     () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),
@@ -172,7 +172,7 @@ export function CheckInDesk({
             const waitingDogs = dogs.filter(dog => dog.pendingEntryIds.length > 0);
             const anyBusy = person.classRows.some(row => busyIds.has(row.entryId));
             const firstClass = firstClassLine(person.classRows, dayClassIds);
-            const owed = owedByPayer.get(person.id);
+            const owedLines = deskOwedLines(owedForms, person.id);
             return (
               <section key={person.id} aria-label={person.name} className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-2">
@@ -183,14 +183,15 @@ export function CheckInDesk({
                         Also entered as {person.alternateNames.join(', ')}
                       </p>
                     )}
-                    {owed && (
+                    {owedLines.map(line => (
                       <Link
-                        to={deskOwedHref(showId, person.name, owed.formKeys)}
-                        className="inline-flex min-h-11 items-center text-xs font-medium text-warning underline-offset-2 hover:underline"
+                        key={line.formKey}
+                        to={deskOwedHref(showId, line.formKey)}
+                        className="flex min-h-11 w-fit items-center text-xs font-medium text-warning underline-offset-2 hover:underline"
                       >
-                        {owed.unknown ? AMOUNT_NOT_AVAILABLE : owesLabel(owed.amount)}
+                        {line.label}
                       </Link>
-                    )}
+                    ))}
                   </div>
                   {waitingDogs.length > 1 && (
                     <Button

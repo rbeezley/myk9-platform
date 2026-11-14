@@ -104,18 +104,25 @@ describe('CheckInDesk money (MYK9-1937)', () => {
     expect(screen.getByRole('button', { name: 'Check in Poppy' })).toBeEnabled();
   });
 
-  it('links to Entries filtered to the person when several forms owe', () => {
+  it('shows each owing form on its own line, each linking to that form by key', () => {
     renderDesk([entry(), entry({ id: 'entry-2', dogId: 'dog-2', registrationId: 'reg-2' })]);
-    const link = screen.getByRole('link', { name: 'Owes $50.00' });
-    expect(link).toHaveAttribute('href', '/shows/show-1/entries?search=Alice+Martin');
+    const links = within(screen.getByRole('region', { name: 'Alice Martin' })).getAllByRole(
+      'link',
+      { name: 'Owes $25.00' }
+    );
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/shows/show-1/entries?registration=reg-1',
+      '/shows/show-1/entries?registration=reg-2',
+    ]);
   });
 
-  it("shows a client's form on the client's card, not the pro handler's", () => {
-    const forPro = (id: string, reg: string, payer: string, name: string) =>
+  it("names each client payer on the pro handler's card", () => {
+    const forPro = (id: string, payer: string, name: string) =>
       entry({
         id,
         dogId: id,
-        registrationId: reg,
+        dogName: `Dog ${id}`,
+        registrationId: `reg-${id}`,
         enrollmentPayerId: payer,
         ownerName: name,
         handlerName: 'Pat Pro',
@@ -123,17 +130,17 @@ describe('CheckInDesk money (MYK9-1937)', () => {
         handlerId: 'pro',
         ownerId: payer,
       });
-    renderDesk([
-      forPro('a', 'reg-a', 'client-a', 'Ann'),
-      forPro('b', 'reg-b', 'client-b', 'Bo'),
-      entry({ id: 'c', dogId: 'c', registrationId: 'reg-c', handlerId: 'client-a' }),
-    ]);
-    expect(screen.getByRole('region', { name: 'Pat Pro' })).not.toHaveTextContent(/owes/i);
-    expect(
-      within(screen.getByRole('region', { name: 'Alice Martin' })).getByRole('link', {
-        name: /Owes/,
-      })
-    ).toBeInTheDocument();
+    renderDesk([forPro('a', 'client-a', 'Pat Smith'), forPro('b', 'client-b', 'Bo Lee')]);
+    const card = within(screen.getByRole('region', { name: 'Pat Pro' }));
+    expect(card.getByRole('link', { name: 'Pat Smith owes $25.00' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/entries?registration=reg-a'
+    );
+    expect(card.getByRole('link', { name: 'Bo Lee owes $25.00' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/entries?registration=reg-b'
+    );
+    expect(card.queryByRole('link', { name: /^Owes/ })).not.toBeInTheDocument();
   });
 
   it('says the amount is not available when the entry form did not load', () => {

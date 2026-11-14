@@ -3,7 +3,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { groupEntriesByEnrollment } from '@/utils/enrollmentGrouping';
 import { enrollmentRemainingDollars } from '../enrollmentPayment';
-import { deskOwedByPayer, deskOwedHref, owesLabel } from './deskAmountOwed';
+import { AMOUNT_NOT_AVAILABLE, deskOwedForms, deskOwedHref, deskOwedLines } from './deskAmountOwed';
 
 function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -32,35 +32,45 @@ function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEn
 const online = (overrides: Partial<EntryManagementEntry> = {}) =>
   entry({ registrationId: '', stripePaymentIntentId: 'pi_1', ...overrides });
 
-const owedFor = (entries: EntryManagementEntry[], payerId: string) =>
-  deskOwedByPayer(entries).get(payerId);
+/** Dollars every owing form on the desk shows as due, each form once. */
+const totalOwed = (entries: EntryManagementEntry[]) =>
+  deskOwedForms(entries).reduce((sum, form) => sum + form.amount, 0);
 
-describe('deskOwedByPayer', () => {
-  it('owes nothing when the form is paid', () => {
+const labelsOn = (entries: EntryManagementEntry[], cardId: string) =>
+  deskOwedLines(deskOwedForms(entries), cardId).map(line => line.label);
+
+const loaded = { enrollmentTotalAmount: 2500, enrollmentPaidAmount: 0 };
+
+describe('deskOwedForms', () => {
+  it('lists nothing for a paid form', () => {
     const paid = entry({
       paymentStatus: PaymentStatus.PAID_BY_CASH,
       paidAmount: 25,
       enrollmentTotalAmount: 2500,
       enrollmentPaidAmount: 25,
     });
-    expect(owedFor([paid], 'owner-1')).toBeUndefined();
+    expect(deskOwedForms([paid])).toEqual([]);
   });
 
-  it('puts a form on its payer, not on the handler running the dog', () => {
-    const form = (id: string, payer: string) =>
-      entry({
-        id,
-        registrationId: `reg-${id}`,
-        enrollmentPayerId: payer,
-        handlerId: 'pro',
-        enrollmentTotalAmount: 2500,
-        enrollmentPaidAmount: 0,
-      });
-    const forms = [form('a', 'client-a'), form('b', 'client-b')];
-    const owed = deskOwedByPayer(forms);
-    expect(owed.get('pro')).toBeUndefined();
-    expect(owed.get('client-a')).toEqual({ amount: 25, unknown: false, formKeys: ['reg-a'] });
-    expect(owed.get('client-b')).toEqual({ amount: 25, unknown: false, formKeys: ['reg-b'] });
+  it("names the form's payer and the cards that hold its dogs", () => {
+    const client = entry({
+      ...loaded,
+      registrationId: 'reg-a',
+      enrollmentPayerId: 'client-a',
+      ownerId: 'client-a',
+      ownerName: 'Pat Smith',
+      handlerId: 'pro',
+    });
+    expect(deskOwedForms([client])).toEqual([
+      {
+        formKey: 'reg-a',
+        payerId: 'client-a',
+        payerName: 'Pat Smith',
+        amount: 25,
+        unknown: false,
+        cardIds: ['pro'],
+      },
+    ]);
   });
 
   it('counts a form split across two handlers once, at the form due', () => {
@@ -72,42 +82,30 @@ describe('deskOwedByPayer', () => {
         enrollmentTotalAmount: 5000,
         enrollmentPaidAmount: 0,
       });
-    const owed = deskOwedByPayer([slice('a', 'h1'), slice('b', 'h2')]);
-    expect(owed.get('payer')).toEqual({ amount: 50, unknown: false, formKeys: ['reg-1'] });
-    expect(owed.size).toBe(1);
+    const forms = deskOwedForms([slice('a', 'h1'), slice('b', 'h2')]);
+    expect(forms).toHaveLength(1);
+    expect(forms[0]).toMatchObject({ amount: 50, cardIds: ['h1', 'h2'] });
   });
 
   it('quotes the form balance when part has been received', () => {
     const partPaid = (id: string) =>
       entry({ id, dogId: id, enrollmentTotalAmount: 5000, enrollmentPaidAmount: 30 });
-    expect(owedFor([partPaid('a'), partPaid('b')], 'owner-1')?.amount).toBe(20);
+    expect(totalOwed([partPaid('a'), partPaid('b')])).toBe(20);
   });
 
   it('counts a waitlisted entry with an accepted one, as the form does', () => {
-    const owed = owedFor(
-      [online(), online({ id: 'w', dogId: 'dog-2', entryStatus: EntryStatus.WAITLIST })],
-      'owner-1'
-    );
-    expect(owed?.amount).toBe(50);
+    const waitlisted = online({ id: 'w', dogId: 'dog-2', entryStatus: EntryStatus.WAITLIST });
+    expect(totalOwed([online(), waitlisted])).toBe(50);
   });
 
   it('shows the waitlisted fee when the accepted entry is paid', () => {
     const paid = online({ paymentStatus: PaymentStatus.PAID_BY_CASH, paidAmount: 25 });
     const waitlisted = online({ id: 'w', dogId: 'dog-2', entryStatus: EntryStatus.WAITLIST });
-    expect(owedFor([paid, waitlisted], 'owner-1')?.amount).toBe(25);
-  });
-
-  it('sums across several forms and lists each', () => {
-    const loaded = { enrollmentTotalAmount: 2500, enrollmentPaidAmount: 0 };
-    const owed = owedFor(
-      [entry(loaded), entry({ ...loaded, id: 'entry-2', registrationId: 'reg-2' })],
-      'owner-1'
-    );
-    expect(owed).toEqual({ amount: 50, unknown: false, formKeys: ['reg-1', 'reg-2'] });
+    expect(totalOwed([paid, waitlisted])).toBe(25);
   });
 
   it('says the amount is unknown when the money root could not be reached', () => {
-    expect(owedFor([entry({ moneyRootUnresolved: true })], 'owner-1')?.unknown).toBe(true);
+    expect(deskOwedForms([entry({ moneyRootUnresolved: true })])[0]?.unknown).toBe(true);
   });
 
   describe('when the enrollment row was expected but did not load (offline)', () => {
@@ -121,63 +119,115 @@ describe('deskOwedByPayer', () => {
         ...overrides,
       });
 
-    it('never quotes a figure for a part-paid form', () => {
-      const owed = deskOwedByPayer([
+    it('never quotes a figure for a part-paid form, and names no payer', () => {
+      const forms = deskOwedForms([
         notLoaded({ id: 'a', dogId: 'a', paidAmount: 0 }),
         notLoaded({ id: 'b', dogId: 'b', paidAmount: 0 }),
       ]);
-      expect(owed.get('owner-1')).toEqual({ amount: 0, unknown: true, formKeys: ['reg-1'] });
+      expect(forms).toEqual([
+        {
+          formKey: 'reg-1',
+          payerId: null,
+          payerName: null,
+          amount: 0,
+          unknown: true,
+          cardIds: ['pro'],
+        },
+      ]);
+      expect(labelsOn([notLoaded()], 'pro')).toEqual([AMOUNT_NOT_AVAILABLE]);
     });
 
     it('says so on a form whose entries look paid, since held money cannot be traced', () => {
       const paid = notLoaded({ paymentStatus: PaymentStatus.PAID_BY_CASH, paidAmount: 25 });
-      expect(owedFor([paid], 'owner-1')?.unknown).toBe(true);
+      expect(deskOwedForms([paid])[0]?.unknown).toBe(true);
     });
 
-    it('does not move the form off a pro handler who may have placed it', () => {
-      const owed = deskOwedByPayer([notLoaded()]);
-      expect(owed.get('pro')).toEqual({ amount: 0, unknown: true, formKeys: ['reg-1'] });
-      expect(owed.get('owner-1')).toEqual({ amount: 0, unknown: true, formKeys: ['reg-1'] });
-    });
-
-    it('marks only the payer when the payer is known but the totals are not', () => {
-      const owed = deskOwedByPayer([notLoaded({ enrollmentPayerId: 'payer' })]);
-      expect(owed.get('payer')?.unknown).toBe(true);
-      expect(owed.has('pro')).toBe(false);
-      expect(owed.has('owner-1')).toBe(false);
+    it('names a known payer whose totals did not load', () => {
+      const known = notLoaded({ enrollmentPayerId: 'owner-1' });
+      expect(labelsOn([known], 'pro')).toEqual(['Alice Martin: amount not available']);
     });
   });
 
   describe('when a move-up root is not in the read', () => {
-    const loaded = {
-      enrollmentPayerId: 'payer',
-      enrollmentTotalAmount: 2500,
-      enrollmentPaidAmount: 25,
-    };
+    const traced = { enrollmentPayerId: 'owner-1', enrollmentTotalAmount: 2500 };
 
     it('says unknown for a destination whose root is missing', () => {
-      const destination = entry({ ...loaded, id: 'dest', movedFromEntryId: 'gone' });
-      expect(owedFor([destination], 'payer')).toEqual({
-        amount: 0,
-        unknown: true,
-        formKeys: ['reg-1'],
-      });
+      const destination = entry({ ...traced, id: 'dest', movedFromEntryId: 'gone' });
+      expect(deskOwedForms([destination])).toEqual([
+        expect.objectContaining({ formKey: 'reg-1', amount: 0, unknown: true }),
+      ]);
     });
 
     it('says unknown for a moved row nobody claims', () => {
       const orphan = entry({
-        ...loaded,
+        ...traced,
+        enrollmentPaidAmount: 25,
         id: 'moved',
         registrationId: 'reg-2',
         entryStatus: EntryStatus.MOVED,
       });
-      const paidForm = entry({ ...loaded, id: 'paid', dogId: 'dog-2' });
-      expect(owedFor([paidForm, orphan], 'payer')).toEqual({
-        amount: 0,
-        unknown: true,
-        formKeys: ['reg-2'],
-      });
+      const paidForm = entry({ ...traced, enrollmentPaidAmount: 25, id: 'paid', dogId: 'dog-2' });
+      expect(deskOwedForms([paidForm, orphan])).toEqual([
+        expect.objectContaining({ formKey: 'reg-2', amount: 0, unknown: true }),
+      ]);
     });
+  });
+});
+
+describe('deskOwedLines (owner decision 2026-11-14)', () => {
+  const forPro = (id: string, payer: string, name: string) =>
+    entry({
+      ...loaded,
+      id,
+      dogId: id,
+      registrationId: `reg-${id}`,
+      enrollmentPayerId: payer,
+      ownerId: payer,
+      ownerName: name,
+      handlerId: 'pro',
+      handlerName: 'Pat Pro',
+    });
+
+  it('reads "Owes" when the payer is the handler', () => {
+    const own = entry({ ...loaded, ownerId: 'alice', handlerId: 'alice' });
+    expect(labelsOn([own], 'alice')).toEqual(['Owes $25.00']);
+  });
+
+  it("names the payer on a pro handler's card", () => {
+    expect(labelsOn([forPro('a', 'client-a', 'Pat Smith')], 'pro')).toEqual([
+      'Pat Smith owes $25.00',
+    ]);
+  });
+
+  it('shows each payer of two forms on one card, never one merged figure', () => {
+    const forms = [forPro('a', 'client-a', 'Pat Smith'), forPro('b', 'client-b', 'Bo Lee')];
+    expect(deskOwedLines(deskOwedForms(forms), 'pro')).toEqual([
+      { formKey: 'reg-a', label: 'Pat Smith owes $25.00' },
+      { formKey: 'reg-b', label: 'Bo Lee owes $25.00' },
+    ]);
+  });
+
+  it('counts one form once on a card holding two of its dogs', () => {
+    const dog = (id: string) => ({
+      ...forPro(id, 'client-a', 'Pat Smith'),
+      registrationId: 'reg',
+      enrollmentTotalAmount: 5000,
+    });
+    expect(labelsOn([dog('a'), dog('b')], 'pro')).toEqual(['Pat Smith owes $50.00']);
+  });
+
+  it('shows nothing for a paid form', () => {
+    const paid = { ...forPro('a', 'client-a', 'Pat Smith'), enrollmentPaidAmount: 25 };
+    expect(labelsOn([paid], 'pro')).toEqual([]);
+  });
+
+  it('shows nothing on a card holding none of the form', () => {
+    expect(labelsOn([forPro('a', 'client-a', 'Pat Smith')], 'client-a')).toEqual([]);
+  });
+
+  it('says "Entry form owes" when no entry names the payer', () => {
+    const unnamed = { ...forPro('a', 'stranger', 'Pat Smith'), ownerId: 'client-a' };
+    expect(labelsOn([unnamed], 'pro')).toEqual(['Entry form owes $25.00']);
   });
 });
 
@@ -186,7 +236,7 @@ describe('deskOwedByPayer', () => {
  * above zero, else "Paid in full") in every case MYK9-1961 covers (MYK9-1937 owner decision,
  * 2026-11-13).
  */
-describe('deskOwedByPayer matches the entry form footer (MYK9-1961 cases)', () => {
+describe('deskOwedForms matches the entry form footer (MYK9-1961 cases)', () => {
   const enrolled = (overrides: Partial<EntryManagementEntry>) =>
     entry({
       registrationId: 'enr-1',
@@ -292,25 +342,13 @@ describe('deskOwedByPayer matches the entry form footer (MYK9-1961 cases)', () =
     const [group] = groupEntriesByEnrollment(entries);
     const footerDue = Math.max(0, enrollmentRemainingDollars(group!));
     expect(footerDue).toBe(expected);
-    expect(owedFor(entries, 'owner-1')?.amount ?? 0).toBe(footerDue);
+    expect(totalOwed(entries)).toBe(footerDue);
   });
 });
 
-describe('owesLabel and deskOwedHref', () => {
-  it('always shows two decimals', () => {
-    expect(owesLabel(25)).toBe('Owes $25.00');
-    expect(owesLabel(25.5)).toBe('Owes $25.50');
-  });
-
-  it('opens the one form that owes', () => {
-    expect(deskOwedHref('show-1', 'Alice Martin', ['reg-1'])).toBe(
-      '/shows/show-1/entries?registration=reg-1'
-    );
-  });
-
-  it('opens Entries filtered to the person when several forms owe', () => {
-    expect(deskOwedHref('show-1', 'Alice Martin', ['reg-1', 'reg-2'])).toBe(
-      '/shows/show-1/entries?search=Alice+Martin'
-    );
+describe('deskOwedHref', () => {
+  it('opens the entry form by its key, never a search by name', () => {
+    expect(deskOwedHref('show-1', 'reg-1')).toBe('/shows/show-1/entries?registration=reg-1');
+    expect(deskOwedHref('show-1', 'pi:pi_1')).toBe('/shows/show-1/entries?registration=pi%3Api_1');
   });
 });

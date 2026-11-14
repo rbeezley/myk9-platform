@@ -182,7 +182,8 @@ function displayName(entry: EntryManagementEntry): string {
   return personName(entry.ownerName) || personName(entry.handlerName) || 'Unknown exhibitor';
 }
 
-function groupKey(entry: EntryManagementEntry): string {
+/** The person a card is keyed by (`PeopleRosterPerson.id`): whose card holds this entry. */
+export function rosterPersonKey(entry: EntryManagementEntry): string {
   if (hasHandlerIdentity(entry)) {
     return (
       entry.handlerId ||
@@ -413,7 +414,7 @@ export function buildPeopleRoster({
   const grouped = new Map<string, EntryManagementEntry[]>();
 
   for (const entry of entries) {
-    const key = groupKey(entry);
+    const key = rosterPersonKey(entry);
     grouped.set(key, [...(grouped.get(key) ?? []), entry]);
   }
 

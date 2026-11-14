@@ -19,6 +19,7 @@ export default defineConfig({
     '**/batch1Followups.spec.ts',
     '**/ringsidePhoneWalk.spec.ts',
     '**/nationalsLeaderboardWalk.spec.ts',
+    '**/showDayLiveSync.spec.ts',
   ],
   projects: [{ name: 'isolated-batch3-proof' }],
   timeout: 6 * 60_000,

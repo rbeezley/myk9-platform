@@ -5,6 +5,7 @@ import { PdfFooter } from '../PdfFooter';
 export function renderCenteredCover({
   t,
   data,
+  facts,
   dateRange,
   club,
   venue,
@@ -79,7 +80,7 @@ export function renderCenteredCover({
             lineHeight: 1.1,
           }}
         >
-          {data.show.name}
+          {facts.showName}
         </Text>
         <Text
           style={{

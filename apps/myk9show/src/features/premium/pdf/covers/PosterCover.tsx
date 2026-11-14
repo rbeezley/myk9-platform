@@ -19,8 +19,8 @@ const CALL_OUT_HEIGHT = 96;
 // call-out card. The cover never wraps across pages — `wrap={false}` keeps
 // the hero composition intact even when @react-pdf would otherwise split it.
 export function renderPosterCover(ctx: CoverContext) {
-  const { t, data, dateRange, club, venue, org } = ctx;
-  const headlineLines = composeHeadlineLines(data.show.name, data.show.startDate);
+  const { t, data, facts, dateRange, club, venue, org } = ctx;
+  const headlineLines = composeHeadlineLines(facts.showName, facts.startDate);
   const meta = composeMetaStrip(ctx);
   const closing = composeClosing(data.show.entryCloseDate);
 
@@ -251,11 +251,11 @@ export function composeMetaStrip(ctx: CoverContext): string {
   const parts: string[] = [];
   const license = readLicense(ctx);
   if (license) parts.push(`LICENSE ${license}`);
-  if (ctx.data.secretary?.name) {
-    parts.push(`SECRETARY: ${ctx.data.secretary.name.toUpperCase()}`);
+  if (ctx.facts.secretary.name) {
+    parts.push(`SECRETARY: ${ctx.facts.secretary.name.toUpperCase()}`);
   }
-  if (ctx.data.show.entryCloseDate) {
-    parts.push(`CLOSING: ${formatPremiumDate(ctx.data.show.entryCloseDate).toUpperCase()}`);
+  if (ctx.facts.entry.closes) {
+    parts.push(`CLOSING: ${ctx.facts.entry.closes.toUpperCase()}`);
   }
   // Always emit something — a bare org+year keeps the strip from looking empty
   // for sparse fixtures.
@@ -271,7 +271,7 @@ function readLicense(ctx: CoverContext): string | null {
   const candidate = (ctx.data as { licenseNumber?: unknown }).licenseNumber;
   if (typeof candidate === 'string' && candidate.trim().length > 0) return candidate.trim();
   // Fall back to the first trial's eventNumber when no explicit license exists.
-  const ev = ctx.data.trials?.[0]?.eventNumber;
+  const ev = ctx.facts.trials[0]?.eventNumber;
   return ev ? ev : null;
 }
 

@@ -18,8 +18,8 @@ const SECTIONS: Array<readonly [string, string]> = [
 ];
 
 export function renderFieldGuideCover(ctx: CoverContext) {
-  const { t, data, dateRange } = ctx;
-  const showName = data.show.name || 'Premium Information';
+  const { t, data, facts, dateRange } = ctx;
+  const showName = facts.showName || 'Premium Information';
   const monoFont = t.monoFont ?? 'IBM Plex Mono';
 
   const trialsCount = data.trials?.length ?? 0;

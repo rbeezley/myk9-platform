@@ -40,6 +40,12 @@ import {
 } from './venue-directions.ts';
 import { formatEntryFee } from './entryFee.ts';
 import { buildTrialLabelMap } from './trialLabel.ts';
+import { loadConfirmationNumbers } from './receiptNumbers.ts';
+import {
+  sweepFailedReceipts,
+  type ReceiptResendOutcome,
+  type ReceiptSweepClient,
+} from './receiptSweep.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -330,6 +336,35 @@ function formatDateRange(start: string, end: string): string {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
+/** Asks send-registration-email to re-send a failed receipt, as the sweep caller (same secret). */
+async function resendReceipt(
+  req: Request,
+  registrationId: string,
+  entryIds: string[]
+): Promise<ReceiptResendOutcome> {
+  const baseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const secret = req.headers.get('x-function-secret');
+  if (!baseUrl || !serviceKey || !secret) return 'retry';
+  const res = await fetch(`${baseUrl}/functions/v1/send-registration-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceKey}`,
+      'x-function-secret': secret,
+    },
+    body: JSON.stringify({ registrationId, entryIds }),
+    // A hung call is that registration's failure (the sweep catches the throw), not the run's.
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    await res.text();
+    return res.status >= 400 && res.status < 500 ? 'rejected' : 'retry';
+  }
+  const result = (await res.json()) as { success?: boolean };
+  return result.success === true ? 'sent' : 'retry';
+}
+
 interface ConfirmationEmailPayload {
   trial_id?: string;
 }
@@ -357,6 +392,16 @@ handle<ConfirmationEmailPayload>(
     // confirmation_date = today.
     let trialIds: string[] = [];
 
+    // MYK9-1963: the scheduled (batch) run first retries failed submit receipts, whatever any
+    // trial's confirmation_date. A call for one trial does not sweep.
+    const receiptRetry = body?.trial_id
+      ? undefined
+      : await sweepFailedReceipts(
+          supabase as unknown as ReceiptSweepClient,
+          (registrationId, entryIds) => resendReceipt(req, registrationId, entryIds),
+          Date.now()
+        );
+
     if (body?.trial_id) {
       trialIds = [body.trial_id];
     }
@@ -373,7 +418,7 @@ handle<ConfirmationEmailPayload>(
     }
 
     if (trialIds.length === 0) {
-      return { sent: 0, skipped: 0, failed: 0, message: 'No trials due today' };
+      return { sent: 0, skipped: 0, failed: 0, receiptRetry, message: 'No trials due today' };
     }
 
     let sent = 0,
@@ -431,7 +476,7 @@ handle<ConfirmationEmailPayload>(
         .from('entries')
         .select(
           `
-          id, armband, entry_fee, trial_id, class_id,
+          id, armband, entry_fee, trial_id, class_id, registration_id,
           dog:dogs(name, call_name, breed, sex),
           handler:people(first_name, last_name, email),
           class:classes(name, level, element)
@@ -440,6 +485,11 @@ handle<ConfirmationEmailPayload>(
         .eq('trial_id', trialId)
         .is('confirmation_email_sent_at', null)
         .in('confirmation_email_status', ['pending', 'failed']);
+
+      const confirmationNumbers = await loadConfirmationNumbers(
+        supabase,
+        (entries ?? []).map((e: { registration_id: string | null }) => e.registration_id)
+      );
 
       for (const entry of entries ?? []) {
         const recipientEmail = entry.handler?.email;
@@ -510,7 +560,7 @@ handle<ConfirmationEmailPayload>(
           runs: [runRow],
           runCount: 1,
           totalFeesFormatted: formatEntryFee(entry.entry_fee),
-          receiptNumber: null,
+          receiptNumber: confirmationNumbers.get(entry.registration_id) ?? null,
           venue: venueStr,
           doorsTime: null,
           firstClassTime: null,
@@ -681,6 +731,6 @@ handle<ConfirmationEmailPayload>(
       }
     }
 
-    return { sent, skipped, failed };
+    return { sent, skipped, failed, receiptRetry };
   }
 );

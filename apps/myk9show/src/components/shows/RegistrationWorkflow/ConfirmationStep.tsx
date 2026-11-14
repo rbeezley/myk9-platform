@@ -1,18 +1,16 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { getDogBreedLabel } from '@/types/dog-types';
 import {
   CheckCircle,
   Download,
-  Mail,
   CreditCard,
   FileText,
   Clock,
   AlertCircle,
   Clock4,
   Info,
-  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,9 +92,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   // of truth.
   const sendInFlightRef = useRef(false);
   const emailSentRef = useRef(false);
-  // Display-only mirror of `sendInFlightRef` so the button can show a disabled
-  // spinner — a ref alone can't trigger the re-render the disabled state needs.
-  const [isSending, setIsSending] = useState(false);
 
   const buildReceiptData = useCallback((): ReceiptData => {
     const showDate =
@@ -227,7 +222,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       return;
     }
     sendInFlightRef.current = true;
-    setIsSending(true);
     try {
       const result = await sendRegistrationConfirmationEmail(registrationId);
       if (result.ok) {
@@ -253,7 +247,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       });
     } finally {
       sendInFlightRef.current = false;
-      setIsSending(false);
     }
   }, [onSendEmail, registrationId, copyReceiptToClipboard]);
 
@@ -472,14 +465,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         <Button variant="default" className="flex-1" onClick={handleDownloadReceipt}>
           <Download className="h-4 w-4 mr-2" />
           Download Receipt
-        </Button>
-        <Button variant="outline" className="flex-1" onClick={handleSendEmail} disabled={isSending}>
-          {isSending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
-          ) : (
-            <Mail className="h-4 w-4 mr-2" />
-          )}
-          {isSending ? 'Sending…' : 'Email Confirmation'}
         </Button>
       </div>
     </div>

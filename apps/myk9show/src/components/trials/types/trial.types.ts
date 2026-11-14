@@ -63,6 +63,8 @@ export interface TrialClass {
   /** MYK9-1030: `classes.judge_signed_off_at` / `_by` — the judge's end-of-day sign-off. */
   judgeSignedOffAt?: string | null | undefined;
   judgeSignedOffBy?: string | null | undefined;
+  /** `classes.scores_on_paper` (MYK9-1969): true = paper, false = phone, null/absent = follows the show. */
+  scoresOnPaper?: boolean | null | undefined;
   // Pipeline workflow flags (secretary review/publish flow)
   isScoringFinalized?: boolean | undefined;
   isResultsReviewed?: boolean | undefined;

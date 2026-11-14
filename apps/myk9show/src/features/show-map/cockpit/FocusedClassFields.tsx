@@ -15,6 +15,7 @@ import {
   STATUS_LABEL,
   useClassStatusChange,
 } from './ClassOperationalControls';
+import { SCORING_COPY } from './classScoringModel';
 import { instantToClockTime, scheduledClockValue } from './cockpitTime';
 import type {
   FocusedClassModel,
@@ -147,6 +148,7 @@ export function FocusedClassFields({
   timeZone,
   canManageShow,
   judgeControl,
+  scoringControl,
   onEditActualStart,
 }: {
   focused: FocusedClassModel;
@@ -155,6 +157,7 @@ export function FocusedClassFields({
   timeZone: string;
   canManageShow: boolean;
   judgeControl?: ReactNode;
+  scoringControl?: ReactNode;
   onEditActualStart: () => void;
 }) {
   const timing = `${
@@ -174,6 +177,7 @@ export function FocusedClassFields({
         <StatusField focused={focused} canManageShow={canManageShow} />
       </Field>
       {judgeControl && <Field label="Judge">{judgeControl}</Field>}
+      {scoringControl && <Field label={SCORING_COPY.fieldLabel}>{scoringControl}</Field>}
       <Field label="Expected start">
         <ExpectedStartField
           focused={focused}

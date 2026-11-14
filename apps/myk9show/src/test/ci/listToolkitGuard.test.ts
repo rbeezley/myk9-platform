@@ -56,6 +56,10 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     reason: 'focus toggle on a schedule row, not a filter',
   },
   'features/at-show/AtShowScoresheetPage.tsx': { count: 1, reason: 'ringside scoring toggle' },
+  'features/show-map/cockpit/FocusedClassScoring.tsx': {
+    count: 2,
+    reason: 'paper / phone choice on a class and a judge (MYK9-1971), a setting, not a filter',
+  },
   'features/at-show/AtShowClassCardFooter.tsx': {
     count: 1,
     reason: 'favorite heart on a class card (MYK9-1506), a per-class toggle, not a filter',

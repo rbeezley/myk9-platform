@@ -2,7 +2,15 @@ import { Page, Text, View } from '@react-pdf/renderer';
 import type { CoverContext } from './coverContext';
 import { PdfFooter } from '../PdfFooter';
 
-export function renderLowerthirdCover({ t, data, dateRange, club, venue, org }: CoverContext) {
+export function renderLowerthirdCover({
+  t,
+  data,
+  facts,
+  dateRange,
+  club,
+  venue,
+  org,
+}: CoverContext) {
   // Lower-third editorial layout, type-only — small uppercase masthead at the
   // top, oversized show name anchored to the bottom-left.
   return (
@@ -55,7 +63,7 @@ export function renderLowerthirdCover({ t, data, dateRange, club, venue, org }: 
               marginBottom: 24,
             }}
           >
-            {data.show.name}
+            {facts.showName}
           </Text>
           <View style={{ flexDirection: 'row', gap: 48 }}>
             <View>

@@ -222,7 +222,7 @@ describe('useEntryManagementActions', () => {
   });
 
   it('says what happened: the toast names the dog and the class, with the shared Undo window (MYK9-1940)', async () => {
-    const entry = {
+    const entry: EntryManagementEntry = {
       ...makeEntry(),
       dogName: 'Hazel',
       armbandNumber: '110',

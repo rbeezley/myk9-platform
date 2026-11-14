@@ -11,6 +11,7 @@ import { cn } from '@myk9/ui';
 import type { Entry } from '../../stores/entryStore';
 import { formatDogsAheadInList, type DogsAheadResult } from './dogsAheadInList';
 import { CheckInIndicator, getCheckInPresentation } from './CheckInIndicator';
+import { notRunningLabel } from './runQueue';
 
 /**
  * Status badge for unscored entries
@@ -33,6 +34,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   inverse,
 }) => {
   const displayStatus = entry.inRing ? 'in-ring' : entry.status;
+  const reasonLabel =
+    !entry.inRing && entry.notRunningReason ? notRunningLabel(entry.notRunningReason) : undefined;
 
   // Pulse when the dog's status (or a realtime timestamp, when the host sets
   // one) changes while the badge stays mounted. The list used to key each card
@@ -58,11 +61,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     return (
       <span
         role="img"
-        aria-label={`Check-in: ${getCheckInPresentation(displayStatus).label}`}
+        aria-label={`Check-in: ${reasonLabel ?? getCheckInPresentation(displayStatus).label}`}
         className={cn('inline-flex min-h-11 min-w-11 items-center justify-center', pulseClass)}
         data-testid="check-in-status"
       >
-        <CheckInIndicator status={displayStatus} inverse={inverse} />
+        <CheckInIndicator status={displayStatus} label={reasonLabel} inverse={inverse} />
       </span>
     );
   }
@@ -80,7 +83,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     <button
       type="button"
       aria-disabled={isDisabled}
-      aria-label={`Check-in: ${getCheckInPresentation(displayStatus).label}. ${isDisabled ? 'Self check-in disabled' : 'Change check-in'} for ${entry.callName}`}
+      aria-label={`Check-in: ${reasonLabel ?? getCheckInPresentation(displayStatus).label}. ${isDisabled ? 'Self check-in disabled' : 'Change check-in'} for ${entry.callName}`}
       className={cn(
         // min-h-11 = 44px INTENT touch-target floor — stewards tap this
         // outdoors, often gloved; do not shrink it back for visual density.
@@ -101,7 +104,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       onTouchStart={e => e.stopPropagation()}
       title={isDisabled ? 'Self check-in disabled' : 'Change check-in'}
     >
-      <CheckInIndicator status={displayStatus} inverse={inverse} />
+      <CheckInIndicator status={displayStatus} label={reasonLabel} inverse={inverse} />
       <ChevronDown
         size={14}
         aria-hidden="true"

@@ -1,5 +1,4 @@
 import { StyleSheet } from '@react-pdf/renderer';
-import { formatLongDate } from '@/lib/format/dates';
 import type { PremiumStyle } from '../../../types/premium-types';
 
 // Side-effect import: registers all custom font families with @react-pdf.
@@ -129,62 +128,5 @@ export function buildStyles(style: PremiumStyle, opts?: BuildStylesOptions) {
   });
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-export function formatPremiumDate(d: string) {
-  return formatLongDate(d) || d;
-}
-
-// Build a typographic monogram from a club name. Strips honorifics + trailing
-// numerals + corporate suffixes, then takes the first letter of each remaining
-// word. Capped at 3 letters because anything longer reads as an acronym, not a
-// monogram. Falls back to the first non-empty character if no clean letters
-// can be extracted.
-// Keep brand-defining words like "Club", "Kennel", "Association" — for dog
-// clubs they're part of the identity, not filler. Only strip articles + legal
-// suffixes that almost never belong in a monogram.
-const STOPWORDS = new Set([
-  'the',
-  'a',
-  'an',
-  'of',
-  'and',
-  '&',
-  'inc',
-  'inc.',
-  'llc',
-  'llc.',
-  'company',
-  'co',
-  'co.',
-]);
-
-export function buildMonogram(name: string | null | undefined): string {
-  if (!name) return '';
-  const words = name
-    .replace(/[^A-Za-z &]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 0 && !STOPWORDS.has(w.toLowerCase()));
-  if (words.length === 0) {
-    const fallback = (name.match(/[A-Za-z]/) ?? [''])[0];
-    return fallback.toUpperCase();
-  }
-  return words
-    .slice(0, 3)
-    .map(w => w[0]!.toUpperCase())
-    .join('');
-}
-
-// Format common US phone shapes; pass through anything else unchanged so we
-// don't mangle international numbers or pre-formatted input.
-export function formatPhone(raw: string | null | undefined): string {
-  if (!raw) return '';
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  }
-  return raw;
-}
+// Shared formatting lives with the list of facts; re-exported so style files keep one import.
+export { formatPremiumDate, formatPhone, buildMonogram } from '../premiumFacts';

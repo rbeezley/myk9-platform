@@ -17,9 +17,6 @@ const SYNC = {
   _syncStatus: 'synced',
 } as const;
 
-const FINISH_DONE_TEXT =
-  'Every class is released and signed off. Submit the results, then close the show.';
-
 const trial = {
   id: 'trial-1',
   showId: 'show-1',
@@ -282,6 +279,23 @@ describe('ResultsTab list', () => {
     expect(within(list).getByText('Done')).toBeInTheDocument();
   });
 
+  it('a Finish the show link lists exactly the classes its line counted, whatever their phase', async () => {
+    const { user } = renderAt('?left=unreleased');
+
+    // Ready to release AND still in the ring: both are unreleased, and neither filter chip alone
+    // lists both.
+    const list = screen.getByRole('list', { name: 'Classes' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(list).getByText('Containers Novice')).toBeInTheDocument();
+    expect(within(list).getByText('Containers Excellent')).toBeInTheDocument();
+    expect(screen.getByText(/Showing the classes behind/)).toHaveTextContent(
+      '2 classes to release'
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show all classes' }));
+    expect(screen.queryByRole('button', { name: 'Show all classes' })).not.toBeInTheDocument();
+  });
+
   it('opens a class from its name and sends an unfinished class to Overview', () => {
     renderAt('?status=all');
 
@@ -374,6 +388,32 @@ describe('ResultsTab list', () => {
     expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
   });
 
+  it('words the banner from the finish line label, the words the list shows', () => {
+    hook.value = { ...hook.value, rows: buildRows({ dayOver: true, doneSigned: false }) };
+    renderAt('?left=akc-judge-initials');
+
+    expect(screen.getByText(/Showing the classes behind/)).toHaveTextContent(
+      "Showing the classes behind \u201C1 class needs judge's initials\u201D"
+    );
+  });
+
+  it('a stale Finish the show link to a line that is now done shows the unfiltered list', () => {
+    const allDone = buildRows({ dayOver: true }).map(row => ({
+      ...row,
+      judgeSignedOffAt: '2026-10-10T21:00:00Z',
+      releasedAt: row.releasedAt ?? '2026-10-10T16:00:00Z',
+      phase: 'done' as const,
+    }));
+    hook.value = { ...hook.value, rows: allDone };
+    renderAt('?left=unreleased&status=all');
+
+    expect(screen.queryByText(/Showing the classes behind/)).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'Classes' })).getAllByRole('listitem')
+    ).toHaveLength(4);
+    expect(screen.getByRole('region', { name: 'Finish the show' })).toBeInTheDocument();
+  });
+
   it('points at Submit and Close once every class is released and initialed', () => {
     const initialed = buildRows({ dayOver: true }).map(row => ({
       ...row,
@@ -385,7 +425,9 @@ describe('ResultsTab list', () => {
     hook.value = { ...hook.value, rows: initialed };
     renderAt();
 
-    expect(screen.getByText(FINISH_DONE_TEXT)).toBeInTheDocument();
+    const finish = within(screen.getByRole('region', { name: 'Finish the show' }));
+    expect(finish.getByText("Judge's initials collected")).toBeInTheDocument();
+    expect(finish.getByText('Every class is released')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Submit to AKC/ })).toHaveAttribute(
       'href',
       '/shows/show-1/results?step=submit'
@@ -411,12 +453,18 @@ describe('ResultsTab list', () => {
     hook.value = { ...hook.value, rows: build(null) };
     const first = renderAt();
     expect(screen.getByRole('link', { name: 'Initials: Containers Novice' })).toBeInTheDocument();
-    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: "1 class needs judge's initials" })).toHaveAttribute(
+      'href',
+      '/shows/show-1/results?left=akc-judge-initials'
+    );
     first.unmount();
 
     hook.value = { ...hook.value, rows: build('2026-10-10T21:00:00Z') };
     renderAt('?status=all');
-    expect(screen.getByText(FINISH_DONE_TEXT)).toBeInTheDocument();
+    expect(screen.getByText("Judge's initials collected")).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: "1 class needs judge's initials" })
+    ).not.toBeInTheDocument();
   });
 
   it('holds the banner back while a class holding only unaccepted entries is still to run', () => {
@@ -447,7 +495,7 @@ describe('ResultsTab list', () => {
     };
     renderAt();
 
-    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
+    expect(screen.queryByText("Judge's initials collected")).not.toBeInTheDocument();
   });
 
   it('holds the banner back when a released, signed class has been reopened by a late entry', () => {
@@ -470,7 +518,7 @@ describe('ResultsTab list', () => {
     hook.value = { ...hook.value, rows };
     renderAt();
 
-    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
+    expect(screen.queryByText("Judge's initials collected")).not.toBeInTheDocument();
   });
 
   it('holds the banner back while a released class still waits for the judge', () => {
@@ -480,7 +528,7 @@ describe('ResultsTab list', () => {
     };
     renderAt();
 
-    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
+    expect(screen.queryByText("Judge's initials collected")).not.toBeInTheDocument();
   });
 });
 
@@ -1046,7 +1094,7 @@ describe('ResultsTab toolbar', () => {
       'href',
       '/shows/show-1/results?step=close'
     );
-    expect(screen.getByText('After every class is released')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Finish the show' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'More' }));
     // More holds Visibility settings only: Submit and Close are not offered a second time.

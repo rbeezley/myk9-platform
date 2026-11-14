@@ -1,16 +1,13 @@
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { formatPremiumDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import type { StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
-import { makeClassComparator } from './classOrder';
-import type { RegistryId } from '@/features/registries';
+import { buildPremiumFacts, REQUIRED_PLACEHOLDER as REQUIRED } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
   tokens: StyleTokens;
 }
-
-const REQUIRED = '[REQUIRED — add before submitting]';
 
 /**
  * Poster body — inner pages that follow the single-page hero cover. Keeps the
@@ -20,10 +17,8 @@ const REQUIRED = '[REQUIRED — add before submitting]';
  * @react-pdf doesn't try to interleave the hero with body sections.
  */
 export function PosterBody({ data, tokens }: Props) {
-  const { show, secretary, officials, trials, supplemental, narratives } = data;
-  // GeneratedPremium.org is 'AKC' | 'UKC' (premium generation isn't offered for other
-  // registries — see generate-premium's CHECK-constraint gate), both valid RegistryIds.
-  const classComparator = makeClassComparator((data.org ?? 'AKC') as RegistryId);
+  const f = buildPremiumFacts(data);
+  const { secretary, chair, trials } = f;
   const labelStyle = {
     fontFamily: tokens.displayFont,
     fontSize: 11,
@@ -48,8 +43,8 @@ export function PosterBody({ data, tokens }: Props) {
   };
   const sectionGap = { marginBottom: 22 };
 
-  const hasOfficials = Boolean(officials.chairman);
-  const hasAccommodations = (supplemental.accommodations?.length ?? 0) > 0;
+  const hasOfficials = Boolean(chair);
+  const hasAccommodations = f.accommodations.length > 0;
 
   return (
     <Page
@@ -73,7 +68,7 @@ export function PosterBody({ data, tokens }: Props) {
           marginBottom: 28,
         }}
       >
-        <Text style={eyebrowStyle}>{data.club.name}</Text>
+        <Text style={eyebrowStyle}>{f.clubName}</Text>
         <Text style={eyebrowStyle}>The Trial</Text>
       </View>
 
@@ -86,12 +81,9 @@ export function PosterBody({ data, tokens }: Props) {
           Online entries via myK9Show
         </Text>
         <Text style={bodyStyle}>
-          Pre-entry ${show.preEntryFee ?? '—'} · Day-of ${show.dayOfFee ?? '—'} ·{' '}
-          {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash'].filter(Boolean).join(', ') ||
-            'Payment methods TBD'}
-          .{'\n'}
-          Opens {show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : REQUIRED} · Closes{' '}
-          {show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : REQUIRED}.
+          Pre-entry ${f.fees.preEntry ?? '—'} · Day-of ${f.fees.dayOf ?? '—'} ·{' '}
+          {f.fees.paymentMethods.join(', ') || 'Payment methods TBD'}.{'\n'}
+          Opens {f.entry.opens ?? REQUIRED} · Closes {f.entry.closes ?? REQUIRED}.
         </Text>
       </View>
 
@@ -100,7 +92,7 @@ export function PosterBody({ data, tokens }: Props) {
         <Text style={bodyStyle}>
           {secretary.name ?? REQUIRED}
           {secretary.email ? `\n${secretary.email}` : ''}
-          {secretary.phone ? ` · ${formatPhone(secretary.phone)}` : ''}
+          {secretary.phone ? ` · ${secretary.phone}` : ''}
           {secretary.mailingAddress ? `\n${secretary.mailingAddress}` : ''}
         </Text>
       </View>
@@ -109,9 +101,9 @@ export function PosterBody({ data, tokens }: Props) {
         <View style={sectionGap}>
           <Text style={labelStyle}>Officials</Text>
           <Text style={bodyStyle}>
-            {officials.chairman ? `Chair: ${officials.chairman.name}` : ''}
-            {officials.chairman?.email ? ` · ${officials.chairman.email}` : ''}
-            {officials.chairman?.phone ? ` · ${formatPhone(officials.chairman.phone)}` : ''}
+            {chair ? `Chair: ${chair.name}` : ''}
+            {chair?.email ? ` · ${chair.email}` : ''}
+            {chair?.phone ? ` · ${chair.phone}` : ''}
           </Text>
         </View>
       )}
@@ -131,28 +123,20 @@ export function PosterBody({ data, tokens }: Props) {
               {trial.name}
             </Text>
             <Text style={{ ...bodyStyle, marginBottom: 4 }}>
-              {formatPremiumDate(trial.date)}
+              {trial.date}
               {trial.startTime ? ` at ${trial.startTime}` : ''}
               {trial.eventNumber ? ` · Event ${trial.eventNumber}` : ''}
             </Text>
-            {(trial.judges?.length ?? 0) > 0 && (
+            {trial.judges.length > 0 && (
               <Text style={{ ...bodyStyle, marginBottom: 4 }}>
                 Judged by{' '}
-                {(trial.judges ?? [])
-                  .map(
-                    j =>
-                      `${j.name}${(j.elements?.length ?? 0) ? ` (${j.elements.join(', ')})` : ''}`
-                  )
+                {trial.judges
+                  .map(j => `${j.name}${j.elements.length ? ` (${j.elements.join(', ')})` : ''}`)
                   .join(' & ')}
               </Text>
             )}
-            {(trial.classes?.length ?? 0) > 0 && (
-              <Text style={bodyStyle}>
-                {[...(trial.classes ?? [])]
-                  .sort(classComparator)
-                  .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
-                  .join(' · ')}
-              </Text>
+            {trial.classLabels.length > 0 && (
+              <Text style={bodyStyle}>{trial.classLabels.join(' · ')}</Text>
             )}
           </View>
         ))}
@@ -160,23 +144,23 @@ export function PosterBody({ data, tokens }: Props) {
 
       <View style={sectionGap}>
         <Text style={labelStyle}>Show Hours</Text>
-        <Text style={bodyStyle}>{narratives.showHours}</Text>
+        <Text style={bodyStyle}>{f.showHours}</Text>
       </View>
 
       <View style={sectionGap}>
         <Text style={labelStyle}>About the Trial</Text>
-        <Text style={bodyStyle}>{narratives.trialInformation}</Text>
+        <Text style={bodyStyle}>{f.trialInformation}</Text>
       </View>
 
       <View style={sectionGap}>
         <Text style={labelStyle}>On-Call Vet</Text>
-        {supplemental.vetClinic ? (
+        {f.vetClinic ? (
           <Text style={bodyStyle}>
-            {supplemental.vetClinic.name}
+            {f.vetClinic.name}
             {'\n'}
-            {supplemental.vetClinic.address}
+            {f.vetClinic.address}
             {'\n'}
-            {formatPhone(supplemental.vetClinic.phone)}
+            {f.vetClinic.phone}
           </Text>
         ) : (
           <Text style={{ ...bodyStyle, color: '#cc0000' }}>{REQUIRED}</Text>
@@ -186,32 +170,32 @@ export function PosterBody({ data, tokens }: Props) {
       {hasAccommodations && (
         <View style={sectionGap}>
           <Text style={labelStyle}>Accommodations</Text>
-          {(supplemental.accommodations ?? []).map((a, i) => (
+          {f.accommodations.map((a, i) => (
             <Text key={i} style={bodyStyle}>
-              {a.name} — {a.address} · {formatPhone(a.phone)}
+              {a.name} — {a.address} · {a.phone}
             </Text>
           ))}
         </View>
       )}
 
-      {supplemental.hospitalityNotes && (
+      {f.hospitalityNotes && (
         <View style={sectionGap}>
           <Text style={labelStyle}>Hospitality</Text>
-          <Text style={bodyStyle}>{supplemental.hospitalityNotes}</Text>
+          <Text style={bodyStyle}>{f.hospitalityNotes}</Text>
         </View>
       )}
 
-      {supplemental.awardsDescription && (
+      {f.awardsDescription && (
         <View style={sectionGap}>
           <Text style={labelStyle}>Awards</Text>
-          <Text style={bodyStyle}>{supplemental.awardsDescription}</Text>
+          <Text style={bodyStyle}>{f.awardsDescription}</Text>
         </View>
       )}
 
-      {supplemental.additionalNotes && (
+      {f.additionalNotes && (
         <View style={sectionGap}>
           <Text style={labelStyle}>Notes</Text>
-          <Text style={bodyStyle}>{supplemental.additionalNotes}</Text>
+          <Text style={bodyStyle}>{f.additionalNotes}</Text>
         </View>
       )}
 
@@ -244,7 +228,7 @@ export function PosterBody({ data, tokens }: Props) {
             lineHeight: 1.05,
           }}
         >
-          {show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : 'TBD'}
+          {f.entry.closes ?? 'TBD'}
         </Text>
       </View>
     </Page>

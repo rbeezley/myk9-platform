@@ -30,14 +30,12 @@ export function ResultsPackets({
   rows,
   entries,
   timeZone,
-  allDone,
 }: {
   showId: string;
   trials: readonly SyncableTrial[];
   rows: readonly ResultsClassRow[];
   entries: readonly SecretaryEntry[];
   timeZone: string;
-  allDone: boolean;
 }) {
   const { show } = useFastShowDetails(showId);
   const [packet, setPacket] = useState<OpenPacket | null>(null);
@@ -63,7 +61,7 @@ export function ResultsPackets({
       <ResultsFinishRow
         showId={showId}
         trials={trials}
-        allDone={allDone}
+        rows={rows}
         onOpenAfterShow={trialId => setPacket({ kind: 'after-show', trialId })}
       />
       {packet?.kind === 'judge-review' && (

@@ -36,7 +36,9 @@ export const RATCHET_BASELINE_ALLOWLIST: ReadonlySet<string> = new Set([
  * metric keys, so deleting a metric switches its check off: never removable.
  */
 const REMOVABLE_ENTRY_MAPS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
-  ['scripts/qa/em-dash-ratchet.baseline.json', new Set(['files'])],
+  // `total` is a retired key (MYK9-1972): the ratchet computes the total at
+  // check time and reads nothing else from the baseline, so dropping it is safe.
+  ['scripts/qa/em-dash-ratchet.baseline.json', new Set(['files', 'total'])],
 ]);
 
 /** Keys whose value is never a ratchet count: pure bookkeeping or schema. */
@@ -58,7 +60,10 @@ function isLoweringOnly(
   if (isRecord(base) && isRecord(head)) {
     // A removed entry is lowering only inside a map the ratchet reads as zero
     // when missing; anywhere else it can switch a check off.
-    if (!removableMaps.has(path) && Object.keys(base).some(key => !(key in head))) return false;
+    const childOf = (key: string) => (topLevel ? key : `${path}.${key}`);
+    const removable = (key: string) =>
+      removableMaps.has(path) || IGNORED_KEYS.has(key) || removableMaps.has(childOf(key));
+    if (Object.keys(base).some(key => !(key in head) && !removable(key))) return false;
     for (const [key, headValue] of Object.entries(head)) {
       if (IGNORED_KEYS.has(key)) continue;
       // A key base lacks is an added entry: never an exemption.
@@ -67,8 +72,7 @@ function isLoweringOnly(
         if (JSON.stringify(base[key]) !== JSON.stringify(headValue)) return false;
         continue;
       }
-      const childPath = topLevel ? key : `${path}.${key}`;
-      if (!isLoweringOnly(base[key], headValue, childPath, removableMaps)) return false;
+      if (!isLoweringOnly(base[key], headValue, childOf(key), removableMaps)) return false;
     }
     return true;
   }

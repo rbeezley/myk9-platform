@@ -5,6 +5,7 @@ import { PdfFooter } from '../PdfFooter';
 export function renderTopblockCover({
   t,
   data,
+  facts,
   dateRange,
   club,
   venue,
@@ -42,7 +43,7 @@ export function renderTopblockCover({
             marginBottom: 24,
           }}
         >
-          {data.show.name}
+          {facts.showName}
         </Text>
         <Text
           style={{

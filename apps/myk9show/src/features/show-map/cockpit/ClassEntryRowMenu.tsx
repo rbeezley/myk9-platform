@@ -11,19 +11,40 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
+import {
+  CHANGE_CLASS_OFFLINE_REASON,
+  CHANGE_HANDLER_OFFLINE_REASON,
+} from '../changeClassEligibility';
 import { PEOPLE_ROUTE_ROLES } from '@/routes/peopleRouteRoles';
 import { canMarkAbsent } from './entryRowLinks';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
 import type { CockpitLifecycle, SecretaryCockpitEntryAction } from './secretaryCockpitTypes';
+
+/** The engine's Change class command (`<action id>:<node id>`). */
+const isChangeClassCommand = (commandId: string) => commandId.startsWith('move-up-entry:');
+
+/** A menu label with, when the item is disabled, the reason under it. */
+function ItemLabel({ label, reason }: { label: string; reason: string | undefined }) {
+  if (!reason) return <>{label}</>;
+  return (
+    <span className="flex flex-col">
+      {label}
+      <span className="text-xs text-muted-foreground">{reason}</span>
+    </span>
+  );
+}
 
 /**
  * The per-dog menu in the class entries table's last column (MYK9-1798, MYK9-1873). Items, in
  * order, each only when it applies and this viewer may do it:
  * - Change class: the engine's answer for "allowed today for this entry" (the snapshot's
  *   entryRows, resolved by `ShowDeskPanel.runCommand`), never re-derived here.
- * - Edit entry: a link to the entry's form on Entry Management, where the edit sheet lives.
+ * - Change handler: a link to the entry's sheet on Entry Management (the sheet's one field for a
+ *   scent work entry is the handler). Change class and Change handler need a connection, so
+ *   offline they are disabled with the reason beside them, before she taps (MYK9-1940).
  * - Mark absent: a dog that can still run, and only for someone who may operate the show (the
- *   trial secretary gate Score this class uses). `onMarkAbsent` confirms, then writes the result.
+ *   trial secretary gate Score this class uses). `onMarkAbsent` writes the result at once and offers Undo.
  * - Open dog details / Open person details (the entry's handler): links to the existing records;
  *   the person link only for the roles `/people/:id` admits.
  * Pull is not here: it lives in the Check-in cell's picker.
@@ -45,6 +66,7 @@ export function ClassEntryRowMenu({
   classLifecycle: CockpitLifecycle | null;
 }) {
   const secretaryOnlyReason = useTrialSecretaryOnlyReason();
+  const isOnline = useIsOnline();
   const { hasRole } = useAuthContext();
   const { dogName, armband } = entry;
   const showMarkAbsent = canMarkAbsent(entry, classLifecycle) && secretaryOnlyReason === undefined;
@@ -65,19 +87,32 @@ export function ClassEntryRowMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {actions.map(action => (
-          <DropdownMenuItem
-            key={action.commandId}
-            className="min-h-11"
-            title={action.why || undefined}
-            onClick={() => onCommand(action.commandId)}
-          >
-            {action.label}
+        {actions.map(action => {
+          const offlineReason =
+            !isOnline && isChangeClassCommand(action.commandId)
+              ? CHANGE_CLASS_OFFLINE_REASON
+              : undefined;
+          return (
+            <DropdownMenuItem
+              key={action.commandId}
+              className="min-h-11"
+              title={offlineReason ?? (action.why || undefined)}
+              disabled={offlineReason !== undefined}
+              onClick={() => onCommand(action.commandId)}
+            >
+              <ItemLabel label={action.label} reason={offlineReason} />
+            </DropdownMenuItem>
+          );
+        })}
+        {isOnline ? (
+          <DropdownMenuItem asChild className="min-h-11">
+            <Link to={editEntryHref}>Change handler</Link>
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuItem asChild className="min-h-11">
-          <Link to={editEntryHref}>Edit entry</Link>
-        </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem className="min-h-11" disabled title={CHANGE_HANDLER_OFFLINE_REASON}>
+            <ItemLabel label="Change handler" reason={CHANGE_HANDLER_OFFLINE_REASON} />
+          </DropdownMenuItem>
+        )}
         {showMarkAbsent && (
           <DropdownMenuItem className="min-h-11" onClick={() => onMarkAbsent(entry)}>
             Mark absent

@@ -337,7 +337,7 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
   expect(muted!.unsettledAnimations, 'animations still running at measurement').toBe(0);
   expect(muted!.worst, 'worst muted caption: ' + muted!.worstText).toBeGreaterThanOrEqual(4.5);
 
-  // The "Used for this show" marker is measured by its place in the chip, not
+  // The "Number this show uses" marker is measured by its place in the chip, not
   // by its colour class: once it stopped being muted-foreground (MYK9-782) the
   // muted sweep above no longer sees it, and would pass whatever it became.
   const unselected = await measureCaptions(page, 'unselected', '');

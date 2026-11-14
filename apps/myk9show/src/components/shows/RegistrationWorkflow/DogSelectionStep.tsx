@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { CheckCircle2, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { MIN_ENTRY_AGE_MONTHS, getAgeInMonths } from '@/hooks/useEntryEligibility';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useExistingEntries } from '@/hooks/useExistingEntries';
 import {
   getDogDisplayName,
   getDogBreedLabel,
@@ -40,6 +41,8 @@ interface DogSelectionStepProps {
   showStartDate?: string | undefined;
   /** The show being entered; recorded on dogs created here (MYK9-1059). */
   createdFromShowId?: string | undefined;
+  /** Marks a dog already entered in this show (MYK9-1963). */
+  showId?: string | undefined;
 }
 
 export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
@@ -48,7 +51,9 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   showRegistryId,
   showStartDate,
   createdFromShowId,
+  showId,
 }) => {
+  const { getEntriesForDog } = useExistingEntries(showId ?? '');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isAddDogPanelOpen, setIsAddDogPanelOpen] = React.useState(false);
   const { dogs, isLoading, error, refetch } = useDogStoreCompat();
@@ -271,6 +276,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
               const forShow = resolveRegistrationForShow(dog, showRegistryId);
               const { eligible, issues, warnings } = getDogEligibilityStatus(dog, forShow);
               const isSelected = selectedDogs.includes(dog.id);
+              const enteredCount = showId ? getEntriesForDog(dog.id).length : 0;
               // Same visibility rule as before this change: the fix affordance rides with
               // the warning, and an already-ineligible dog does not get one.
               const showAddRegistration =
@@ -327,6 +333,17 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </div>
 
                         <RegistrationChipsForShow forShow={forShow} className="mt-2" />
+
+                        {/* MYK9-1963: the marker above is about her NUMBER, not an
+                        entry, so a dog already in this show said nothing of it
+                        here. She can still select it to add more classes. */}
+                        {enteredCount > 0 && (
+                          <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                            Already entered in {enteredCount}{' '}
+                            {enteredCount === 1 ? 'class' : 'classes'}
+                          </p>
+                        )}
 
                         {forShow.missingRegistrationMessage && (
                           // role="status": the registry resolves after the first

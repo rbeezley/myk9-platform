@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { render } from '@/test/utils/testUtils';
 import { ClassEntriesTable } from '../FocusedClassEntries';
 import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
@@ -20,7 +21,10 @@ vi.mock('@/features/show-map/showMapActionMutations', () => ({
   scratchShowMapEntry: h.scratchShowMapEntry,
   undoShowMapScratch: h.undoShowMapScratch,
 }));
-vi.mock('@/lib/undoToast', () => ({ showUndoToast: h.showUndoToast }));
+vi.mock('@/lib/undoToast', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/undoToast')>()),
+  showUndoToast: h.showUndoToast,
+}));
 
 function entry(
   id: string,
@@ -159,13 +163,16 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
     await user.click(within(confirm).getByRole('button', { name: 'Pull' }));
     await waitFor(() =>
-      expect(h.scratchShowMapEntry).toHaveBeenCalledWith(
-        'e-1',
-        undefined,
-        'Pulled at the check-in desk'
-      )
+      expect(h.scratchShowMapEntry).toHaveBeenCalledWith('e-1', undefined, 'Pulled at Show Desk')
     );
     await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+    // Names the dog and the class, and lasts as long as every other day-of Undo.
+    expect(h.showUndoToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Moss pulled from Container Novice A',
+        duration: STATUS_UNDO_WINDOW_MS,
+      })
+    );
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
   });
 

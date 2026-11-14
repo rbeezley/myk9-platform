@@ -359,6 +359,7 @@ export function WorkflowStepContent({
               showRegistryId={showRegistryId}
               showStartDate={currentShow?.startDate}
               createdFromShowId={showId}
+              showId={showId}
             />
           )}
         </SearchErrorBoundary>

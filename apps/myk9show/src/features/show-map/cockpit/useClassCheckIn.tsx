@@ -44,7 +44,7 @@ export function useClassCheckIn(
       deskCanUnpull: false,
     };
   };
-  const pull = useDeskPull(rowOf, onRefreshEntries);
+  const pull = useDeskPull(rowOf, onRefreshEntries, 'Pulled at Show Desk');
   const [pickerId, setPickerId] = useState<string | null>(null);
   // The row as it is now: if ringside moves it on, the picker closes rather than write over it.
   const pickerEntry = entries.find(

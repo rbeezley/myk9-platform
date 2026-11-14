@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
@@ -6,7 +6,8 @@ import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { SHOW_MAP_COPY, SHOW_MAP_MUTATION_FAILED, showDayErrorMessage } from './showDayErrorCopy';
 import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
-import { showUndoToast } from '@/lib/undoToast';
+import { STATUS_UNDO_WINDOW_MS, showUndoToast } from '@/lib/undoToast';
+import { classChangedMessage } from './dayOfMessages';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
@@ -37,6 +38,8 @@ interface UseShowMapActionExecutorInput {
   showId: string;
   /** A change or reversal landed; a surface holding its own copy of the entries re-reads. */
   onEntriesChanged?: (() => void) | undefined;
+  /** "#110 Hazel" for the entry an action is on, so a toast can name the dog. */
+  entryLabelOf?: ((action: ShowMapAction) => string | undefined) | undefined;
 }
 
 interface MutationInput {
@@ -64,36 +67,17 @@ export interface ShowMapScratchUndoMutationInput extends ShowMapScratchUndoInput
   classId?: string | undefined;
 }
 
-export const MOVE_UP_UNDO_BANNER_TIMEOUT_MS = 8000;
-
 export function useShowMapActionExecutor({
   showId,
   onEntriesChanged,
+  entryLabelOf,
 }: UseShowMapActionExecutorInput) {
   const queryClient = useQueryClient();
   const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
   const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
   const [messageAction, setMessageAction] = useState<ShowMapAction | null>(null);
-  const [lastMoveUp, setLastMoveUp] = useState<LastShowMapMoveUp | null>(null);
-  const moveUpClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
   const sendMessage = useMessageStore(s => s.sendMessage);
-
-  const clearPendingMoveUpTimeout = useCallback(() => {
-    if (moveUpClearTimeoutRef.current !== null) {
-      clearTimeout(moveUpClearTimeoutRef.current);
-      moveUpClearTimeoutRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (moveUpClearTimeoutRef.current !== null) {
-        clearTimeout(moveUpClearTimeoutRef.current);
-        moveUpClearTimeoutRef.current = null;
-      }
-    };
-  }, []);
 
   const invalidateShowMapActionQueries = useCallback(
     (classId?: string | undefined, trialId?: string | undefined) => {
@@ -308,15 +292,8 @@ export function useShowMapActionExecutor({
 
   const undoMoveUpMutation = useMutation({
     mutationFn: async (input: LastShowMapMoveUp) => undoShowMapMoveUp(input),
-    onMutate: () => {
-      // Cancel the auto-dismiss the moment the user engages with Undo. If the
-      // network call later fails, the banner stays visible (user can retry)
-      // instead of vanishing under them when the original timer fires.
-      clearPendingMoveUpTimeout();
-    },
     onSuccess: () => {
       toast.success('Class change undone');
-      setLastMoveUp(null);
       onEntriesChanged?.();
     },
     onError: error => {
@@ -344,22 +321,20 @@ export function useShowMapActionExecutor({
       return moveUpShowMapEntry({ entryId, targetClassId, reason, anyOpenClass: true });
     },
     onSuccess: (result, { action, targetClassId }) => {
-      const nextLastMoveUp = {
+      const lastMoveUp: LastShowMapMoveUp = {
         originalEntryId: result.originalEntryId,
         newEntryId: result.newEntryId,
-        entryLabel: action.label,
+        entryLabel: entryLabelOf?.(action) ?? action.label,
         targetClassName: result.targetClassName,
         targetClassId,
         classId: action.classId,
       };
-      clearPendingMoveUpTimeout();
-      setLastMoveUp(nextLastMoveUp);
-      moveUpClearTimeoutRef.current = setTimeout(() => {
-        moveUpClearTimeoutRef.current = null;
-        setLastMoveUp(null);
-      }, MOVE_UP_UNDO_BANNER_TIMEOUT_MS);
       setMoveUpAction(null);
-      toast.success('Class changed');
+      showUndoToast({
+        message: classChangedMessage(lastMoveUp.entryLabel, result.targetClassName),
+        onUndo: () => undoMoveUpMutation.mutate(lastMoveUp),
+        duration: STATUS_UNDO_WINDOW_MS,
+      });
       onEntriesChanged?.();
     },
     onError: error => {
@@ -439,11 +414,6 @@ export function useShowMapActionExecutor({
       if (moveUpAction) moveUpMutation.mutate({ action: moveUpAction, targetClassId, reason });
     },
     ...moveUpReversal,
-    lastMoveUp,
-    undoLastMoveUp: () => {
-      if (lastMoveUp) undoMoveUpMutation.mutate(lastMoveUp);
-    },
-    isUndoingMoveUp: undoMoveUpMutation.isPending,
     scratchAction,
     closeScratchDialog: () => setScratchAction(null),
     confirmScratchNoShow: (reason: string | undefined) => {

@@ -173,6 +173,8 @@ interface ElementCardProps {
   onAddRegistration?: (() => void) | undefined;
   /** MYK9-1010: the fix for a class blocked on the owner's address. */
   ownerAddressAction?: React.ReactNode;
+  /** MYK9-1963: the way on for a dog with no number, beside a registration block. */
+  registrationHelp?: React.ReactNode;
 }
 
 export const ElementCard: React.FC<ElementCardProps> = ({
@@ -185,6 +187,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   onToggle,
   onAddRegistration,
   ownerAddressAction,
+  registrationHelp,
 }) => {
   const isCartPending = Boolean(cartBlockedReason);
   if (isSingleClass) {
@@ -279,6 +282,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               fix={cls.registrationFix}
               onAddRegistration={onAddRegistration}
               ownerAddressAction={ownerAddressAction}
+              registrationHelp={registrationHelp}
             />
           </div>
         )}
@@ -332,6 +336,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             fix={blockedRegistration.registrationFix}
             onAddRegistration={onAddRegistration}
             ownerAddressAction={ownerAddressAction}
+            registrationHelp={registrationHelp}
           />
         </div>
       )}

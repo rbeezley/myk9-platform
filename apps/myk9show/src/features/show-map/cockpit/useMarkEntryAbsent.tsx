@@ -1,55 +1,45 @@
-import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
-import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 import { ABSENT_SCORE } from '@/features/at-show/absentScore';
+import { clearEntryScore } from '@/features/at-show/clearEntryScore';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import { STATUS_UNDO_WINDOW_MS, showUndoToast } from '@/lib/undoToast';
 import { toOptimisticScorePayload } from '@/pages/scoring/types';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { transitionToCompleted } from '@/utils/checkInTransitions';
 
+import { dayOfDogLabel, markedAbsentMessage } from '../dayOfMessages';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
-import { canMarkAbsent } from './entryRowLinks';
-import type { CockpitLifecycle } from './secretaryCockpitTypes';
-
-/** The dog's label in the confirm and the toast: `#110 Hazel`, or the call name alone. */
-export function absentDogLabel(entry: Pick<SecretaryCockpitClassEntry, 'armband' | 'dogName'>) {
-  return entry.armband ? `#${entry.armband} ${entry.dogName}` : entry.dogName;
-}
 
 /**
- * Mark absent from the entries table (MYK9-1873). Absent is a RESULT, not a check-in status: this
- * submits the same `ABSENT_SCORE` Ringside's held-entry notice does, through the scoresheet's
- * offline-first score write, after a confirm because it settles the dog's run.
+ * Mark absent from the entries table (MYK9-1873, MYK9-1940). Absent is a RESULT, not a check-in
+ * status: this submits the same `ABSENT_SCORE` Ringside's held-entry notice does, through the
+ * scoresheet's offline-first score write. One tap, no confirmation: the toast says what happened
+ * and its Undo clears the result with the same write the judge's Reset score uses.
  */
 export function useMarkEntryAbsent({
   classId,
   className,
-  entries,
-  classLifecycle,
   onRefreshEntries,
 }: {
   classId: string;
   className: string;
-  /** The table's rows now: the dialog closes when its dog stops being one that can be marked absent. */
-  entries: readonly SecretaryCockpitClassEntry[];
-  classLifecycle: CockpitLifecycle | null;
   onRefreshEntries?: (() => void | Promise<void>) | undefined;
-}): { request: (entry: SecretaryCockpitClassEntry) => void; dialog: ReactNode } {
+}): { request: (entry: SecretaryCockpitClassEntry) => void } {
   const { submitScoreOptimistically } = useOptimisticScoring();
-  const [pending, setPending] = useState<SecretaryCockpitClassEntry | null>(null);
 
-  // The row as the table reads it now: a dog scored, pulled or moved on while the dialog was open
-  // no longer offers Mark absent, so the dialog goes with it.
-  const live = pending ? entries.find(row => row.nodeId === pending.nodeId) : undefined;
-  const open = live !== undefined && canMarkAbsent(live, classLifecycle);
+  const undo = async (entry: SecretaryCockpitClassEntry, label: string) => {
+    try {
+      await clearEntryScore(entry.entryId);
+      await onRefreshEntries?.();
+    } catch {
+      toast.error(`Could not undo ${label} marked absent in ${className}. Try again.`);
+    }
+  };
 
-  const confirm = async () => {
-    const entry = live;
-    setPending(null);
-    if (!entry) return;
-    const label = absentDogLabel(entry);
+  const request = async (entry: SecretaryCockpitClassEntry) => {
+    const label = dayOfDogLabel(entry);
     // The table's row can trail a score saved on another device. Re-read the replica (the store
     // the score write goes to) so an absent never overwrites a real result.
     let stillRunnable = false;
@@ -81,25 +71,16 @@ export function useMarkEntryAbsent({
     if (outcome.saved) {
       // As the scoresheet does after a score: a dog that was in the ring leaves it.
       if (entry.state === 'in-ring') transitionToCompleted(entry.entryId);
-      toast.success(`${label} marked absent.`);
+      showUndoToast({
+        message: markedAbsentMessage(label, className),
+        onUndo: () => void undo(entry, label),
+        duration: STATUS_UNDO_WINDOW_MS,
+      });
       await onRefreshEntries?.();
     } else {
       toast.error(outcome.failure ? `Not saved: ${outcome.failure}` : 'Not saved. Try again.');
     }
   };
 
-  const dialog = (
-    <ConfirmDialog
-      open={open}
-      onOpenChange={open => {
-        if (!open) setPending(null);
-      }}
-      title={pending ? `Mark ${absentDogLabel(pending)} absent?` : 'Mark absent?'}
-      description="This records Absent as the dog's result for this class."
-      confirmLabel="Mark absent"
-      onConfirm={() => void confirm()}
-    />
-  );
-
-  return { request: setPending, dialog };
+  return { request: entry => void request(entry) };
 }

@@ -358,6 +358,13 @@ describe('a dog that is not running reads its own word (MYK9-1940)', () => {
       ['moved', 'absent', 'pulled', 'withdrawn'].map(r => notRunningLabel(r as never))
     ).toEqual(['Moved', 'Absent', 'Pulled', 'Withdrawn']);
   });
+
+  it('a moved dog names the class it went to when the screen knows it', () => {
+    expect(formatRunQueueState({ kind: 'moved', toClass: 'Novice A' })).toBe('Moved to Novice A');
+    expect(notRunningLabel('moved', 'Novice A')).toBe('Moved to Novice A');
+    expect(notRunningLabel('moved', undefined)).toBe('Moved');
+    expect(notRunningLabel('absent', 'Novice A')).toBe('Absent');
+  });
 });
 
 describe('notRunningReasonOf precedence (MYK9-1940)', () => {

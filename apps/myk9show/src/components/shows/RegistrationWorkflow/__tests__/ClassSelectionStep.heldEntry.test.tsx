@@ -238,6 +238,7 @@ describe('ClassSelectionStep — a dog with no registration number yet (MYK9-116
     expect(await screen.findByText(HELD)).toBeInTheDocument();
     expect(screen.queryByText(BLOCKED)).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText(/Number not issued yet/)).not.toBeInTheDocument();
   });
 
   it('still refuses an exhibitor the class', async () => {
@@ -246,6 +247,21 @@ describe('ClassSelectionStep — a dog with no registration number yet (MYK9-116
 
     expect(await screen.findByText(BLOCKED)).toBeInTheDocument();
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  // MYK9-1963: the rule stays, the dead end goes. One tap reaches the secretary.
+  it('gives an exhibitor one tap to the show secretary, who can hold the dog its place', async () => {
+    setupStepMocks({});
+    renderStep();
+
+    await screen.findByText(BLOCKED);
+    const link = screen.getByRole('link', { name: 'Message the show secretary' });
+    expect(link).toHaveAttribute('href', `/messages/${SHOW_ID}`);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(
+      screen.getByText(/who can enter your dog and hold its place until the number arrives/)
+    ).toBeInTheDocument();
   });
 
   it('still refuses a secretary of ANOTHER club', async () => {

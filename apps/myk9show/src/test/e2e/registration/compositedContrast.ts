@@ -2,7 +2,7 @@
  * WCAG contrast of rendered text against the surface it is actually read on,
  * composited through every ancestor layer (MYK9-784).
  *
- * The harness this replaces reported impossible readings ("Used for this show"
+ * The harness this replaces reported impossible readings ("Number this show uses"
  * at 1.52, 1.90 and 3.325 across runs where the hand value is 4.78 / 4.45):
  *  - its `over()` always returned alpha 1, so a translucent layer composited
  *    over ANOTHER translucent layer was treated as opaque. The caption's badge

@@ -12,7 +12,9 @@ function httpError(code: string) {
 }
 
 describe('emailJudgeRecord', () => {
-  beforeEach(() => invoke.mockReset());
+  beforeEach(() => {
+    invoke.mockReset();
+  });
 
   it('asks the server who would receive it, naming the judge and the day and no address', async () => {
     invoke.mockResolvedValue({

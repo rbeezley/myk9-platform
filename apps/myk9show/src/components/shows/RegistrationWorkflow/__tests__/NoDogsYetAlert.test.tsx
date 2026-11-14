@@ -41,7 +41,13 @@ import { NoDogsYetAlert } from '../NoDogsYetAlert';
 
 describe('NoDogsYetAlert', () => {
   it('opens the Add-dog panel instead of a link to /dogs, and re-reads the roster after a save', async () => {
-    render(<NoDogsYetAlert showStartDate="2026-12-01" createdFromShowId="show-1" />);
+    render(
+      <NoDogsYetAlert
+        showStartDate="2026-12-01"
+        createdFromShowId="show-1"
+        defaultRegistryId="UKC"
+      />
+    );
 
     expect(screen.queryByRole('link', { name: 'register a dog' })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -49,7 +55,13 @@ describe('NoDogsYetAlert', () => {
     await userEvent.click(screen.getByRole('button', { name: 'register a dog' }));
     expect(screen.getByRole('dialog', { name: 'Add dog' })).toBeInTheDocument();
     expect(addDogPanelProps).toHaveBeenLastCalledWith(
-      expect.objectContaining({ createdFromShowId: 'show-1', userRole: 'exhibitor', open: true })
+      expect.objectContaining({
+        createdFromShowId: 'show-1',
+        defaultRegistryId: 'UKC',
+        offlineFirst: false,
+        userRole: 'exhibitor',
+        open: true,
+      })
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Save dog' }));

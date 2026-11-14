@@ -378,7 +378,12 @@ export function WorkflowStepContent({
             </div>
           ) : (
             // Exhibitor has 0 registered dogs
-            <NoDogsYetAlert showStartDate={currentShow?.startDate} createdFromShowId={showId} />
+            <NoDogsYetAlert
+              showStartDate={currentShow?.startDate}
+              createdFromShowId={showId}
+              defaultRegistryId={showRegistryId}
+              offlineFirst={offlineFirstCreate}
+            />
           )
         ) : (
           <ClassSelectionStep

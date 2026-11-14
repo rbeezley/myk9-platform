@@ -15,9 +15,15 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 export function NoDogsYetAlert({
   showStartDate,
   createdFromShowId,
+  defaultRegistryId,
+  offlineFirst = false,
 }: {
   showStartDate: string | undefined;
   createdFromShowId: string;
+  /** The show's registry, so the first dog is registered there (as the dog step does). */
+  defaultRegistryId: string | null;
+  /** Staff walk-in entry creates the dog on the device first, as the dog step does. */
+  offlineFirst?: boolean;
 }) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { refetch } = useDogStoreCompat();
@@ -43,6 +49,8 @@ export function NoDogsYetAlert({
       <AddDogPanel
         showStartDate={showStartDate}
         createdFromShowId={createdFromShowId}
+        defaultRegistryId={defaultRegistryId}
+        offlineFirst={offlineFirst}
         open={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
         onDogCreated={() => refetch()}

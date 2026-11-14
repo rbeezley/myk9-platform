@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,53 +12,71 @@ import { resolvePrintReadiness } from '@/pages/secretary/ReportsPage/reportReadi
 import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 
+import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
+
 import { voidPaperworkPrint } from '../paperworkPrintActions';
+import { AfterShowPanelBody } from './AfterShowPanelBody';
+import { JudgeReviewPanelBody } from './JudgeReviewPanelBody';
+import type { ReviewEntryInfo } from './judgeReview';
 import { collateTrialPacket } from './collateTrialPacket';
 import { formatCoverDate } from './judgeCoverSheet';
 import { recordTrialPacketPrint, type TrialPacketPrintRecords } from './recordTrialPacketPrint';
+import { packetFileName, plural, savePacketPdf, usePacketFrame } from './usePacketFrame';
 import { useTrialPacketPdfs } from './useTrialPacketPdfs';
 
 const ALL = 'all';
+
+/** What the judge review packet needs from Results: its rows, the entries behind them, the clock. */
+export interface JudgeReviewSource {
+  rows: readonly ResultsClassRow[];
+  entries: readonly ReviewEntryInfo[];
+  showName: string;
+  timeZone: string;
+  /** The judge the panel opened for, or null for every judge. */
+  judgeKey: string | null;
+}
+
+export type TrialPacketPanelProps = { open: boolean; showId: string; onClose: () => void } & (
+  | { mode?: 'before-trial'; trialId: string }
+  | { mode: 'after-show'; trialId: string }
+  | { mode: 'judge-review'; review: JudgeReviewSource }
+);
+
+const PANEL_TITLES = {
+  'before-trial': 'Print before-trial packet',
+  'after-show': 'Print after-show packet',
+  'judge-review': 'Print results for initials',
+} as const;
 
 /**
  * The Show Desk "Print paperwork" panel at trial scope (MYK9-1924 phase 1): one packet per judge,
  * each a cover sheet and then, class by class, the check-in sheet and the scoresheets. The same
  * check-in and score sheet renderers, and the same per-class print records, as printing one class.
+ * Phase 2a opens the same panel from Results for the judge review packet and the after-show packet.
  * Nothing here blocks: a note sits beside a working Print button.
  */
-export function TrialPacketPanel({
-  open,
-  showId,
-  trialId,
-  onClose,
-}: {
-  open: boolean;
-  showId: string;
-  trialId: string;
-  onClose: () => void;
-}) {
+export function TrialPacketPanel(props: TrialPacketPanelProps) {
+  const { open, showId, onClose } = props;
+  const mode = props.mode ?? 'before-trial';
   // At the app root for the same reason ClassPrintPanel is: a sticky ancestor is its own stacking context.
   return createPortal(
     <SlideOverPanel
       open={open}
       onClose={onClose}
-      title="Print before-trial packet"
+      title={PANEL_TITLES[mode]}
       size="xl"
       className="md:max-w-4xl"
     >
-      {open && <TrialPacketBody showId={showId} trialId={trialId} />}
+      {open && props.mode === 'judge-review' && <JudgeReviewPanelBody {...props.review} />}
+      {open && props.mode === 'after-show' && (
+        <AfterShowPanelBody showId={showId} trialId={props.trialId} />
+      )}
+      {open && props.mode !== 'judge-review' && props.mode !== 'after-show' && (
+        <TrialPacketBody showId={showId} trialId={props.trialId} />
+      )}
     </SlideOverPanel>,
     document.getElementById('root') ?? document.body
   );
-}
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
-function fileName(parts: Array<string | null>): string {
-  const base = parts.filter(Boolean).join(' ');
-  return `${base.replace(/[^\w\s.-]+/g, '').replace(/\s+/g, '-')}.pdf`;
 }
 
 function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string }) {
@@ -97,31 +115,13 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
   const [printed, setPrinted] = useState<(TrialPacketPrintRecords & { label: string }) | null>(
     null
   );
-  const frameRef = useRef<HTMLIFrameElement>(null);
-  const [frameFor, setFrameFor] = useState<Uint8Array | null>(null);
 
   const judge = packet?.judges.find(item => item.key === selected) ?? null;
   const bytes =
     pdfs.status === 'ready' ? (judge ? (pdfs.byJudgeKey.get(judge.key) ?? null) : pdfs.all) : null;
   const printedJudges = judge ? [judge] : (packet?.judges ?? []);
 
-  // Layout effect: Print goes disabled in the commit that empties the frame (MYK9-1904).
-  useLayoutEffect(() => {
-    const frame = frameRef.current;
-    if (!frame) return;
-    if (frame.getAttribute('src')?.startsWith('blob:')) frame.src = 'about:blank';
-    if (!bytes) return;
-    const copy = new Uint8Array(bytes.byteLength);
-    copy.set(bytes);
-    const url = URL.createObjectURL(new Blob([copy.buffer], { type: 'application/pdf' }));
-    frame.src = url;
-    setFrameFor(bytes);
-    return () => {
-      URL.revokeObjectURL(url);
-      setFrameFor(null);
-    };
-  }, [bytes]);
-  const frameReady = bytes !== null && frameFor === bytes;
+  const { frameRef, frameReady } = usePacketFrame(bytes);
 
   const sheetTotal = printedJudges.reduce((sum, item) => sum + item.sheetTotal, 0);
   const subject = judge ? `${judge.judgeName ?? 'No judge assigned'}'s packet` : null;
@@ -179,20 +179,14 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
   // Saving a PDF marks nothing as printed.
   const save = () => {
     if (!bytes || !packet) return;
-    const copy = new Uint8Array(bytes.byteLength);
-    copy.set(bytes);
-    const url = URL.createObjectURL(new Blob([copy.buffer], { type: 'application/pdf' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName([
-      show?.name ?? null,
-      packet.trialLabel,
-      judge ? (judge.judgeName ?? 'No judge assigned') : null,
-    ]);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    savePacketPdf(
+      bytes,
+      packetFileName([
+        show?.name ?? null,
+        packet.trialLabel,
+        judge ? (judge.judgeName ?? 'No judge assigned') : null,
+      ])
+    );
   };
 
   if (readiness.blockedMessage) {

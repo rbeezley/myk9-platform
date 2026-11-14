@@ -11,6 +11,14 @@ import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { formatUsShowDateRange } from './dateFormat.ts';
 import { buildRegistrationEmailHtml, payAtShowMethod } from './registrationEmailHtml.ts';
 import { REGISTRATION_ENTRIES_SELECT, mapRegistrationEntries } from './registrationEntries.ts';
+import {
+  claimSubmissionEntries,
+  parseEntryIds,
+  releaseSubmissionClaim,
+  submissionIdempotencyKey,
+  summarizeSubmission,
+  type EntryClaimClient,
+} from './submissionReceipt.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -27,6 +35,11 @@ function resolveSecretaryCc(
 
 interface SendRegistrationEmailPayload {
   registrationId?: string;
+  /**
+   * The entries a check or cash submission just created. Present: send the ONE receipt for
+   * exactly those entries, once. Absent: a resend of the registration as it stands.
+   */
+  entryIds?: unknown;
 }
 
 handle<SendRegistrationEmailPayload>(
@@ -39,6 +52,10 @@ handle<SendRegistrationEmailPayload>(
     const { registrationId } = body;
     if (!registrationId) {
       throw new HttpError(400, 'registrationId is required');
+    }
+    const submittedIds = body.entryIds === undefined ? null : parseEntryIds(body.entryIds);
+    if (body.entryIds !== undefined && !submittedIds) {
+      throw new HttpError(400, 'entryIds must be a short list of entry ids');
     }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -109,11 +126,17 @@ handle<SendRegistrationEmailPayload>(
       throw new HttpError(403, 'Not authorized');
     }
 
-    // Fetch entries for this registration
-    const { data: entries } = await supabase
+    // Fetch entries: the submission's own entries, or the whole registration for a resend
+    let entriesQuery = supabase
       .from('entries')
-      .select(REGISTRATION_ENTRIES_SELECT)
+      .select(`id, entry_fee, payment_method, payment_status, ${REGISTRATION_ENTRIES_SELECT}`)
       .eq('registration_id', registrationId);
+    if (submittedIds) entriesQuery = entriesQuery.in('id', submittedIds);
+    const { data: fetchedEntries } = await entriesQuery;
+    let entries = fetchedEntries ?? [];
+    if (submittedIds && entries.length !== submittedIds.length) {
+      throw new HttpError(400, 'Entries do not belong to this registration');
+    }
 
     const recipientEmail = registration.person?.email;
     if (!recipientEmail) {
@@ -130,13 +153,33 @@ handle<SendRegistrationEmailPayload>(
       throw new HttpError(400, 'No email address for registrant');
     }
 
+    // Once per submission: claim the entries first. A retry or a second call claims nothing.
+    let claimedIds: string[] | null = null;
+    if (submittedIds) {
+      claimedIds = await claimSubmissionEntries(
+        supabase as unknown as EntryClaimClient,
+        submittedIds,
+        new Date().toISOString()
+      );
+      if (claimedIds.length === 0) return { success: true, alreadySent: true };
+      entries = entries.filter((entry: { id: string }) => claimedIds?.includes(entry.id));
+    }
+    const releaseClaim = async () => {
+      if (claimedIds) {
+        await releaseSubmissionClaim(supabase as unknown as EntryClaimClient, claimedIds);
+      }
+    };
+
     const secretaryCc = resolveSecretaryCc(
       registration.show?.cc_secretary_on_exhibitor_emails,
       registration.show?.secretary_email
     );
 
     const show = registration.show;
-    const payAtShow = payAtShowMethod(registration.payment_method, registration.payment_status);
+    const submission = claimedIds ? summarizeSubmission(entries) : null;
+    const payAtShow = submission
+      ? submission.payAtShow
+      : payAtShowMethod(registration.payment_method, registration.payment_status);
     let clubName: string | undefined;
     if (payAtShow === 'check' && show?.club_id) {
       const { data: club } = await supabase
@@ -155,10 +198,10 @@ handle<SendRegistrationEmailPayload>(
       showLocation: show?.location || '',
       showVenue: show?.venue_name,
       confirmationMessage: show?.confirmation_message,
-      entries: mapRegistrationEntries(entries || []),
-      subtotal: registration.total_amount || 0,
-      discount: registration.discount_amount,
-      total: registration.total_amount || 0,
+      entries: mapRegistrationEntries(entries),
+      subtotal: submission ? submission.totalCents : registration.total_amount || 0,
+      discount: submission ? 0 : registration.discount_amount,
+      total: submission ? submission.totalCents : registration.total_amount || 0,
       paymentMethod: registration.payment_method || 'Payment on file',
       entriesUrl: `${siteUrl}/exhibitor/entries`,
       clubName,
@@ -190,11 +233,14 @@ handle<SendRegistrationEmailPayload>(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${resendApiKey}`,
-          'Idempotency-Key': registrationId,
+          'Idempotency-Key': claimedIds
+            ? await submissionIdempotencyKey(registrationId, claimedIds)
+            : registrationId,
         },
         body: JSON.stringify(emailPayload),
       });
     } catch {
+      await releaseClaim();
       const { error: logError } = await supabase.from('email_log').insert({
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
@@ -218,6 +264,7 @@ handle<SendRegistrationEmailPayload>(
       console.log(`Registration email sent: ${result.id}`);
     } else {
       await response.text();
+      await releaseClaim();
       sendStatus = 'failed';
       errorMessage = `provider_http_${response.status}`;
       console.error('Resend API error', { status: response.status });
@@ -239,6 +286,13 @@ handle<SendRegistrationEmailPayload>(
       .single();
 
     requireEmailLogWrite(logError, 'send-registration-email');
+
+    if (claimedIds && resendMessageId) {
+      await supabase
+        .from('entries')
+        .update({ confirmation_email_message_id: resendMessageId })
+        .in('id', claimedIds);
+    }
 
     return {
       success: sendStatus === 'sent',

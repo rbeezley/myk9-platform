@@ -39,6 +39,7 @@ import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { HandledDraftClass } from '@/hooks/pruneFiledDogsFromDraft';
 import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
+import { sendSubmittedEntryEmail, submittedEntryIdsToEmail } from './sendSubmittedEntryEmail';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
@@ -238,6 +239,10 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       },
     });
     if (submissionResult.aborted) return;
+    const emailEntryIds = submittedEntryIdsToEmail(ctx.currentWorkflowMode, submissionResult);
+    if (emailEntryIds.length > 0) {
+      void sendSubmittedEntryEmail(submissionResult.dbRegistrationId, emailEntryIds);
+    }
     if (ctx.currentWorkflowMode === 'exhibitor') ctx.invalidateOwnTodayEntries();
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);

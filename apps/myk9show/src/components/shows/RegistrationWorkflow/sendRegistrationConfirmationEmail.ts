@@ -18,14 +18,20 @@ export interface SendRegistrationConfirmationResult {
 }
 
 export async function sendRegistrationConfirmationEmail(
-  registrationId: string
+  registrationId: string,
+  /** The entries a submission just created. Omit for a resend of the registration as it stands. */
+  entryIds?: string[]
 ): Promise<SendRegistrationConfirmationResult> {
-  const { error } = await supabase.functions.invoke('send-registration-email', {
-    body: { registrationId },
+  const { data, error } = await supabase.functions.invoke('send-registration-email', {
+    body: entryIds?.length ? { registrationId, entryIds } : { registrationId },
   });
 
   if (error) {
     return { ok: false, error: error.message ?? 'Failed to send confirmation email' };
+  }
+  // The function answers HTTP 200 with { success: false } when the mail provider fails.
+  if ((data as { success?: boolean } | null)?.success === false) {
+    return { ok: false, error: 'Failed to send confirmation email' };
   }
   return { ok: true };
 }

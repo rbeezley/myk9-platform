@@ -93,6 +93,7 @@ import {
   closeCartThenSendReceipt,
   sendCartReceiptOnce,
   type CartReceiptDeps,
+  cartReceiptAmounts,
 } from './cartConfirmationReplay.ts';
 import {
   routeRefundByCurrentState,
@@ -1402,7 +1403,7 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
     readOrder: async sessionId => {
       const { data: order, error } = await supabase
         .from('stripe_orders')
-        .select('entry_ids, show_id, metadata')
+        .select('entry_ids, show_id, metadata, amount_cents, enrollment_id')
         .eq('stripe_checkout_session_id', sessionId)
         .eq('order_type', 'entry')
         .maybeSingle();
@@ -1410,6 +1411,8 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
       if (!order?.show_id) return null;
       const metadata = (order.metadata ?? {}) as Record<string, unknown>;
       const subtotalCents = Number(metadata.paid_entry_subtotal_cents ?? 0);
+      const totalCents =
+        metadata.paid_amount_cents == null ? null : Number(metadata.paid_amount_cents);
       return {
         entryIds: (order.entry_ids as string[] | null) ?? [],
         showId: order.show_id as string,
@@ -1418,7 +1421,12 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
           typeof metadata.cart_id === 'string' ? metadata.cart_id : null
         ),
         subtotalCents,
-        totalCents: Number(metadata.paid_amount_cents ?? subtotalCents),
+        totalCents,
+        chargedCents:
+          order.amount_cents != null ? Number(order.amount_cents) : (totalCents ?? subtotalCents),
+        confirmationNumber: await readOrderConfirmationNumber(
+          (order.enrollment_id as string | null) ?? null
+        ),
       };
     },
     send: order =>
@@ -1428,11 +1436,30 @@ function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
         session,
         {
           subtotalCents: order.subtotalCents,
-          platformFeeCents: Math.max(0, order.totalCents - order.subtotalCents),
-          totalCents: order.totalCents,
+          ...cartReceiptAmounts(order),
+          totalCents: order.chargedCents,
+          confirmationNumber: order.confirmationNumber,
         }
       ),
   };
+}
+
+/**
+ * The order's confirmation number: enrollments.confirmation_number through the
+ * order's enrollment, the same value get_my_checkout_order hands the success
+ * page. null when the order has no enrollment; never a stand-in (MYK9-631).
+ */
+async function readOrderConfirmationNumber(enrollmentId: string | null): Promise<string | null> {
+  if (!enrollmentId) return null;
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('confirmation_number')
+    .eq('id', enrollmentId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Could not read the confirmation number of ${enrollmentId}: ${error.message}`);
+  }
+  return (data?.confirmation_number as string | null) || null;
 }
 
 /** The paying exhibitor's person id: from the run, else the order's cart. Throws when unreadable. */
@@ -2639,7 +2666,13 @@ async function sendEntryConfirmationEmail(
   cart: { show_id: string; exhibitor: { person_id: string } },
   entryIds: string[],
   session: Stripe.Checkout.Session,
-  authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
+  authoritative: {
+    subtotalCents: number;
+    serviceFeeCents: number;
+    totalCents: number;
+    refundPendingCents: number;
+    confirmationNumber: string | null;
+  }
 ): Promise<boolean> {
   let deliveryAttemptRecorded = false;
   // True once the provider accepted the message (MYK9-964 receipt marker).
@@ -2760,9 +2793,11 @@ async function sendEntryConfirmationEmail(
         entryFee: Math.round(Number(e.entry_fee ?? 0) * 100),
       })),
       subtotal: authoritative.subtotalCents,
-      platformFee: authoritative.platformFeeCents,
+      serviceFee: authoritative.serviceFeeCents,
       total: authoritative.totalCents,
-      orderId: session.id,
+      refundPendingCents: authoritative.refundPendingCents,
+      confirmationNumber: authoritative.confirmationNumber,
+      entriesUrl: `${(Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '')}/exhibitor/entries`,
     };
 
     if (!resendApiKey) {

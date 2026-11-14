@@ -40,6 +40,7 @@ import {
 } from './venue-directions.ts';
 import { formatEntryFee } from './entryFee.ts';
 import { buildTrialLabelMap } from './trialLabel.ts';
+import { loadConfirmationNumbers } from './receiptNumbers.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -431,7 +432,7 @@ handle<ConfirmationEmailPayload>(
         .from('entries')
         .select(
           `
-          id, armband, entry_fee, trial_id, class_id,
+          id, armband, entry_fee, trial_id, class_id, registration_id,
           dog:dogs(name, call_name, breed, sex),
           handler:people(first_name, last_name, email),
           class:classes(name, level, element)
@@ -440,6 +441,11 @@ handle<ConfirmationEmailPayload>(
         .eq('trial_id', trialId)
         .is('confirmation_email_sent_at', null)
         .in('confirmation_email_status', ['pending', 'failed']);
+
+      const confirmationNumbers = await loadConfirmationNumbers(
+        supabase,
+        (entries ?? []).map((e: { registration_id: string | null }) => e.registration_id)
+      );
 
       for (const entry of entries ?? []) {
         const recipientEmail = entry.handler?.email;
@@ -510,7 +516,7 @@ handle<ConfirmationEmailPayload>(
           runs: [runRow],
           runCount: 1,
           totalFeesFormatted: formatEntryFee(entry.entry_fee),
-          receiptNumber: null,
+          receiptNumber: confirmationNumbers.get(entry.registration_id) ?? null,
           venue: venueStr,
           doorsTime: null,
           firstClassTime: null,

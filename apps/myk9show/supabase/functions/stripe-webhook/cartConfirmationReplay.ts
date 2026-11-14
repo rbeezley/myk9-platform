@@ -28,7 +28,29 @@ export interface ReplayedCartOrder {
   /** Who paid: the person the receipt goes to, or null when unresolvable. */
   exhibitorPersonId: string | null;
   subtotalCents: number;
-  totalCents: number;
+  /**
+   * Cents of the paid entries and their service fee (metadata.paid_amount_cents);
+   * null when the order does not record it, so nothing is derived from a guess.
+   */
+  totalCents: number | null;
+  /** Cents charged to the card (stripe_orders.amount_cents): what the success page shows. */
+  chargedCents: number;
+  /** enrollments.confirmation_number of the order, as the success page shows it; null when none. */
+  confirmationNumber: string | null;
+}
+
+/**
+ * The money lines of the receipt. Without a recorded paid total there is no
+ * honest service fee or refund figure, so both are zero and the email omits them.
+ */
+export function cartReceiptAmounts(
+  order: Pick<ReplayedCartOrder, 'subtotalCents' | 'totalCents' | 'chargedCents'>
+): { serviceFeeCents: number; refundPendingCents: number } {
+  if (order.totalCents == null) return { serviceFeeCents: 0, refundPendingCents: 0 };
+  return {
+    serviceFeeCents: Math.max(0, order.totalCents - order.subtotalCents),
+    refundPendingCents: Math.max(0, order.chargedCents - order.totalCents),
+  };
 }
 
 /** The session's run, as the receipt gate reads it. */

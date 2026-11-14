@@ -1,6 +1,6 @@
 /**
  * Covers the registration confirmation email wiring:
- * the "Email Confirmation" action must invoke the real
+ * the secretary panel's resend action must invoke the real
  * `send-registration-email` sender with the registration id, must be
  * idempotent across repeated clicks, and must fall back to clipboard on
  * failure.
@@ -71,8 +71,14 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
 }));
 
 // Stub the heavy child panel — it isn't under test here.
+// The panel is the secretary's own resend control; it hands `onSendEmail` the
+// step's sender, so a stand-in button exercises the same handler.
 vi.mock('../RegistrationManagementPanel', () => ({
-  RegistrationManagementPanel: () => null,
+  RegistrationManagementPanel: ({ onSendEmail }: { onSendEmail?: () => void }) => (
+    <button type="button" onClick={onSendEmail}>
+      Resend confirmation (secretary panel)
+    </button>
+  ),
 }));
 
 const baseProps = {
@@ -89,7 +95,7 @@ const baseProps = {
 };
 
 function clickEmailButton() {
-  return userEvent.setup().click(screen.getByRole('button', { name: /email confirmation/i }));
+  return userEvent.setup().click(screen.getByRole('button', { name: /resend confirmation/i }));
 }
 
 describe('ConfirmationStep — email confirmation', () => {
@@ -99,6 +105,13 @@ describe('ConfirmationStep — email confirmation', () => {
     notificationsMock.error.mockReset();
     notificationsMock.info.mockReset();
     loggerMock.error.mockReset();
+  });
+
+  it('offers the exhibitor no Email Confirmation button: the email is sent when the entry is submitted', () => {
+    render(<ConfirmationStep {...baseProps} />);
+
+    expect(screen.queryByRole('button', { name: /^email confirmation$/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /download receipt/i })).toBeInTheDocument();
   });
 
   it('sends the registration confirmation email with the registration id', async () => {
@@ -121,7 +134,7 @@ describe('ConfirmationStep — email confirmation', () => {
     const user = userEvent.setup();
 
     render(<ConfirmationStep {...baseProps} />);
-    const button = screen.getByRole('button', { name: /email confirmation/i });
+    const button = screen.getByRole('button', { name: /resend confirmation/i });
 
     await user.click(button);
     await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
@@ -145,7 +158,7 @@ describe('ConfirmationStep — email confirmation', () => {
     // object and the spy is lost under --sequence.shuffle (writeText never fires).
     // fireEvent (not userEvent) so userEvent's clipboard stub doesn't shadow it.
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
-    fireEvent.click(screen.getByRole('button', { name: /email confirmation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /resend confirmation/i }));
 
     await waitFor(() => expect(sendMock).toHaveBeenCalledWith('enrollment-123'));
     await waitFor(() => expect(writeText).toHaveBeenCalled());
@@ -162,7 +175,7 @@ describe('ConfirmationStep — email confirmation', () => {
     );
   });
 
-  it('disables the button and shows a sending state while the send is in flight', async () => {
+  it('sends only once while a send is still in flight', async () => {
     // Hold the send pending so the in-flight UI is observable.
     let resolveSend: (value: { ok: boolean }) => void = () => {};
     sendMock.mockReturnValue(
@@ -174,10 +187,8 @@ describe('ConfirmationStep — email confirmation', () => {
     render(<ConfirmationStep {...baseProps} />);
     await clickEmailButton();
 
-    // While pending, the button is disabled and labelled "Sending…" — refs alone
-    // can't drive this, so it proves the display state is wired.
-    const sendingButton = await screen.findByRole('button', { name: /sending/i });
-    expect(sendingButton).toBeDisabled();
+    await clickEmailButton();
+    expect(sendMock).toHaveBeenCalledTimes(1);
 
     // Settle so no work is left pending past the test.
     resolveSend({ ok: true });
@@ -194,7 +205,7 @@ describe('ConfirmationStep — email confirmation', () => {
     // Spy AFTER render so we wrap the live clipboard userEvent.setup() installed
     // during render (see the send-failure test above for the full rationale).
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
-    fireEvent.click(screen.getByRole('button', { name: /email confirmation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /resend confirmation/i }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalled());
     expect(sendMock).not.toHaveBeenCalled();

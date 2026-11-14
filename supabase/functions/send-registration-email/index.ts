@@ -9,7 +9,16 @@ import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { formatUsShowDateRange } from './dateFormat.ts';
+import { buildRegistrationEmailHtml, payAtShowMethod } from './registrationEmailHtml.ts';
 import { REGISTRATION_ENTRIES_SELECT, mapRegistrationEntries } from './registrationEntries.ts';
+import {
+  claimSubmissionEntries,
+  parseEntryIds,
+  releaseSubmissionClaim,
+  submissionIdempotencyKey,
+  summarizeSubmission,
+  type EntryClaimClient,
+} from './submissionReceipt.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -24,120 +33,13 @@ function resolveSecretaryCc(
   return [secretaryEmail];
 }
 
-function formatCurrency(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function buildRegistrationEmailHtml(data: {
-  firstName: string;
-  confirmationNumber: string;
-  showName: string;
-  showDates: string;
-  showLocation: string;
-  showVenue?: string;
-  confirmationMessage?: string;
-  entries: Array<{ dogName: string; className: string; armband?: string }>;
-  subtotal: number;
-  discount?: number;
-  total: number;
-  paymentMethod: string;
-}): string {
-  const brandColor = '#2563eb';
-
-  const entriesHtml = data.entries
-    .map(
-      e =>
-        `<tr>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
-        <strong>${escapeHtml(e.dogName)}</strong><br>
-        <span style="color: #6b7280; font-size: 14px;">${escapeHtml(e.className)}</span>
-      </td>
-      ${e.armband ? `<td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right; color: #6b7280; font-size: 14px;">#${escapeHtml(e.armband)}</td>` : '<td></td>'}
-    </tr>`
-    )
-    .join('');
-
-  const messageSection = data.confirmationMessage
-    ? `
-    <div style="background-color: #eff6ff; border-radius: 6px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #3b82f6;">
-      <p style="margin: 0 0 4px; font-weight: 600; font-size: 14px; color: #1e40af;">From the show secretary</p>
-      <p style="margin: 0; color: #1e3a5f; font-size: 14px; line-height: 22px;">${escapeHtml(data.confirmationMessage)}</p>
-    </div>`
-    : '';
-
-  const discountRow =
-    data.discount && data.discount > 0
-      ? `
-    <table style="width: 100%; margin-bottom: 4px;"><tr>
-      <td style="color: #6b7280; font-size: 14px;">Discount</td>
-      <td style="color: #059669; font-size: 14px; text-align: right;">-${formatCurrency(data.discount)}</td>
-    </tr></table>`
-      : '';
-
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f3f4f6;">
-  <div style="max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden;">
-    <div style="background-color: ${brandColor}; padding: 16px 24px;">
-      <p style="color: #fff; font-size: 20px; font-weight: 600; margin: 0;">myK9Show</p>
-    </div>
-    <div style="padding: 32px 24px;">
-      <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1e;">Registration Confirmed</h1>
-
-      <div style="background-color: #ecfdf5; border-radius: 6px; padding: 16px; text-align: center; margin-bottom: 24px;">
-        <p style="margin: 0; color: #6b7280; font-size: 14px;">Confirmation Number</p>
-        <p style="margin: 4px 0 0; font-size: 20px; font-weight: 600; color: #059669; font-family: monospace;">${escapeHtml(data.confirmationNumber)}</p>
-      </div>
-
-      <p style="color: #1a1a1e; font-size: 16px;">Hi ${escapeHtml(data.firstName)}, your registration has been confirmed.</p>
-
-      <div style="background-color: #f9fafb; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
-        <p style="margin: 0; font-weight: 600; font-size: 18px; color: #1a1a1e;">${escapeHtml(data.showName)}</p>
-        <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">${escapeHtml(data.showDates)}</p>
-        <p style="margin: 2px 0 0; color: #6b7280; font-size: 14px;">${escapeHtml(data.showLocation)}${data.showVenue ? ` · ${escapeHtml(data.showVenue)}` : ''}</p>
-      </div>
-
-      ${messageSection}
-
-      <h2 style="font-size: 16px; margin: 24px 0 12px; color: #1a1a1e;">Your Entries</h2>
-      <table style="width: 100%; border-collapse: collapse;">${entriesHtml}</table>
-
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px;">
-
-      <table style="width: 100%; margin-bottom: 4px;"><tr>
-        <td style="color: #6b7280; font-size: 14px;">Subtotal</td>
-        <td style="font-size: 14px; text-align: right;">${formatCurrency(data.subtotal)}</td>
-      </tr></table>
-      ${discountRow}
-      <table style="width: 100%; padding-top: 8px; border-top: 1px solid #e5e7eb;"><tr>
-        <td style="font-weight: 600; font-size: 18px;">Total</td>
-        <td style="font-weight: 600; font-size: 18px; text-align: right;">${formatCurrency(data.total)}</td>
-      </tr></table>
-      <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">${escapeHtml(data.paymentMethod)}</p>
-
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px;">
-      <p style="color: #6b7280; font-size: 14px;">Questions? Contact the show secretary.</p>
-    </div>
-    <div style="background-color: #f9fafb; padding: 16px 24px; border-top: 1px solid #e5e7eb; text-align: center;">
-      <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} myK9Show. All rights reserved.</p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
 interface SendRegistrationEmailPayload {
   registrationId?: string;
+  /**
+   * The entries a check or cash submission just created. Present: send the ONE receipt for
+   * exactly those entries, once. Absent: a resend of the registration as it stands.
+   */
+  entryIds?: unknown;
 }
 
 handle<SendRegistrationEmailPayload>(
@@ -150,6 +52,10 @@ handle<SendRegistrationEmailPayload>(
     const { registrationId } = body;
     if (!registrationId) {
       throw new HttpError(400, 'registrationId is required');
+    }
+    const submittedIds = body.entryIds === undefined ? null : parseEntryIds(body.entryIds);
+    if (body.entryIds !== undefined && !submittedIds) {
+      throw new HttpError(400, 'entryIds must be a short list of entry ids');
     }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -220,11 +126,17 @@ handle<SendRegistrationEmailPayload>(
       throw new HttpError(403, 'Not authorized');
     }
 
-    // Fetch entries for this registration
-    const { data: entries } = await supabase
+    // Fetch entries: the submission's own entries, or the whole registration for a resend
+    let entriesQuery = supabase
       .from('entries')
-      .select(REGISTRATION_ENTRIES_SELECT)
+      .select(`id, entry_fee, payment_method, payment_status, ${REGISTRATION_ENTRIES_SELECT}`)
       .eq('registration_id', registrationId);
+    if (submittedIds) entriesQuery = entriesQuery.in('id', submittedIds);
+    const { data: fetchedEntries } = await entriesQuery;
+    let entries = fetchedEntries ?? [];
+    if (submittedIds && entries.length !== submittedIds.length) {
+      throw new HttpError(400, 'Entries do not belong to this registration');
+    }
 
     const recipientEmail = registration.person?.email;
     if (!recipientEmail) {
@@ -241,26 +153,59 @@ handle<SendRegistrationEmailPayload>(
       throw new HttpError(400, 'No email address for registrant');
     }
 
+    // Once per submission: claim the entries first. A retry or a second call claims nothing.
+    let claimedIds: string[] | null = null;
+    if (submittedIds) {
+      claimedIds = await claimSubmissionEntries(
+        supabase as unknown as EntryClaimClient,
+        submittedIds,
+        new Date().toISOString()
+      );
+      if (claimedIds.length === 0) return { success: true, alreadySent: true };
+      entries = entries.filter((entry: { id: string }) => claimedIds?.includes(entry.id));
+    }
+    const releaseClaim = async () => {
+      if (claimedIds) {
+        await releaseSubmissionClaim(supabase as unknown as EntryClaimClient, claimedIds);
+      }
+    };
+
     const secretaryCc = resolveSecretaryCc(
       registration.show?.cc_secretary_on_exhibitor_emails,
       registration.show?.secretary_email
     );
 
     const show = registration.show;
+    const submission = claimedIds ? summarizeSubmission(entries) : null;
+    const payAtShow = submission
+      ? submission.payAtShow
+      : payAtShowMethod(registration.payment_method, registration.payment_status);
+    let clubName: string | undefined;
+    if (payAtShow === 'check' && show?.club_id) {
+      const { data: club } = await supabase
+        .from('clubs')
+        .select('name')
+        .eq('id', show.club_id)
+        .maybeSingle();
+      clubName = club?.name ?? undefined;
+    }
+    const siteUrl = (Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '');
     const html = buildRegistrationEmailHtml({
       firstName: registration.person?.first_name || 'there',
-      confirmationNumber:
-        registration.confirmation_number || registrationId.slice(0, 8).toUpperCase(),
+      confirmationNumber: registration.confirmation_number || null,
       showName: show?.name || 'Dog Show',
       showDates: formatUsShowDateRange(show?.start_date, show?.end_date),
       showLocation: show?.location || '',
       showVenue: show?.venue_name,
       confirmationMessage: show?.confirmation_message,
-      entries: mapRegistrationEntries(entries || []),
-      subtotal: registration.total_amount || 0,
-      discount: registration.discount_amount,
-      total: registration.total_amount || 0,
+      entries: mapRegistrationEntries(entries),
+      subtotal: submission ? submission.totalCents : registration.total_amount || 0,
+      discount: submission ? 0 : registration.discount_amount,
+      total: submission ? submission.totalCents : registration.total_amount || 0,
       paymentMethod: registration.payment_method || 'Payment on file',
+      entriesUrl: `${siteUrl}/exhibitor/entries`,
+      clubName,
+      payAtShow,
     });
 
     // Send via Resend with idempotency key
@@ -273,7 +218,7 @@ handle<SendRegistrationEmailPayload>(
     } = {
       from: FROM_EMAIL,
       to: recipientEmail,
-      subject: `Registration Confirmed — ${registration.confirmation_number || 'myK9Show'}`,
+      subject: `Registration Confirmed - ${registration.confirmation_number || 'myK9Show'}`,
       html,
     };
 
@@ -288,11 +233,14 @@ handle<SendRegistrationEmailPayload>(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${resendApiKey}`,
-          'Idempotency-Key': registrationId,
+          'Idempotency-Key': claimedIds
+            ? await submissionIdempotencyKey(registrationId, claimedIds)
+            : registrationId,
         },
         body: JSON.stringify(emailPayload),
       });
     } catch {
+      await releaseClaim();
       const { error: logError } = await supabase.from('email_log').insert({
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
@@ -316,6 +264,7 @@ handle<SendRegistrationEmailPayload>(
       console.log(`Registration email sent: ${result.id}`);
     } else {
       await response.text();
+      await releaseClaim();
       sendStatus = 'failed';
       errorMessage = `provider_http_${response.status}`;
       console.error('Resend API error', { status: response.status });
@@ -337,6 +286,13 @@ handle<SendRegistrationEmailPayload>(
       .single();
 
     requireEmailLogWrite(logError, 'send-registration-email');
+
+    if (claimedIds && resendMessageId) {
+      await supabase
+        .from('entries')
+        .update({ confirmation_email_message_id: resendMessageId })
+        .in('id', claimedIds);
+    }
 
     return {
       success: sendStatus === 'sent',

@@ -15,42 +15,90 @@ export const CANCELLED_CLASS_MESSAGE =
 /**
  * The ids among `classIds` whose stored status is cancelled, live. Subscribes to the class
  * replica rather than re-reading by id, so it never competes with a screen's own class load.
- * Empty until the first emission, which reads as "not cancelled".
+ * `known` is false until the replica has answered for these ids: an empty set before that means
+ * "not heard yet", not "not cancelled", so a tap must not act on it (see `useClassCancelledStatus`).
  */
-function useCancelledIds(classIds: Array<string | undefined>): ReadonlySet<string> {
+const EMPTY_IDS: ReadonlySet<string> = new Set();
+
+/** How long a dog tap may wait for the class replica before it is treated as not cancelled. */
+export const CLASS_STATUS_WAIT_MS = 1500;
+
+function useCancelledIds(classIds: Array<string | undefined>): {
+  cancelled: ReadonlySet<string>;
+  known: boolean;
+} {
   const idsKey = classIds.filter(Boolean).join(',');
-  const [cancelled, setCancelled] = useState<ReadonlySet<string>>(new Set());
+  // Keyed by the ids read, so a list reused for another class does not answer with the old one.
+  const [answer, setAnswer] = useState<{ key: string; ids: ReadonlySet<string> } | null>(null);
 
   useEffect(() => {
     if (!idsKey) return;
     const wanted = new Set(idsKey.split(','));
-    return replicatedClassesTable.subscribe(rows => {
-      const next = new Set(
-        rows
-          .filter(row => wanted.has(row.id) && isCancelledClassStatus(row.classStatus))
-          .map(r => r.id)
-      );
-      setCancelled(prev =>
-        prev.size === next.size && [...next].every(id => prev.has(id)) ? prev : next
-      );
-    });
+    // A failed or hung class read must never leave a tap dead on show day: answer "not known to
+    // be cancelled" (the behaviour before the hold) so scoring works; the server still refuses
+    // writes to a cancelled class (MYK9-1863).
+    const answerNotCancelled = () =>
+      setAnswer(prev => (prev?.key === idsKey ? prev : { key: idsKey, ids: EMPTY_IDS }));
+    const fallback = setTimeout(answerNotCancelled, CLASS_STATUS_WAIT_MS);
+    const unsubscribe = replicatedClassesTable.subscribe(
+      rows => {
+        const next = new Set(
+          rows
+            .filter(row => wanted.has(row.id) && isCancelledClassStatus(row.classStatus))
+            .map(r => r.id)
+        );
+        setAnswer(prev =>
+          prev?.key === idsKey &&
+          prev.ids.size === next.size &&
+          [...next].every(id => prev.ids.has(id))
+            ? prev
+            : { key: idsKey, ids: next }
+        );
+      },
+      { onError: answerNotCancelled }
+    );
+    return () => {
+      clearTimeout(fallback);
+      unsubscribe();
+    };
   }, [idsKey]);
 
-  return cancelled;
+  // No class to ask about is a complete answer.
+  const known = !idsKey || answer?.key === idsKey;
+  return { cancelled: answer?.key === idsKey ? answer.ids : EMPTY_IDS, known };
 }
 
 /** True when this one class is cancelled. */
 export function useIsClassCancelled(classId: string | undefined): boolean {
-  return useCancelledIds([classId]).has(classId ?? '');
+  return useCancelledIds([classId]).cancelled.has(classId ?? '');
 }
 
 /**
  * Per-class decision for a list that can span two sections (combined A/B): each entry is
- * judged by its own class, never by section A's status.
+ * judged by its own class, never by section A's status. `known` is false until the class replica
+ * has answered; a dog tap waits for it rather than open the scoresheet of a class that may be
+ * cancelled (MYK9-1911).
  */
+export function useClassCancelledStatus(classIds: Array<string | undefined>): {
+  isClassCancelled: (classId: string) => boolean;
+  known: boolean;
+} {
+  const { cancelled, known } = useCancelledIds(classIds);
+  const isClassCancelled = useCallback((classId: string) => cancelled.has(classId), [cancelled]);
+  return { isClassCancelled, known };
+}
+
 export function useIsClassCancelledFor(
   classIds: Array<string | undefined>
 ): (classId: string) => boolean {
-  const cancelled = useCancelledIds(classIds);
-  return useCallback((classId: string) => cancelled.has(classId), [cancelled]);
+  return useClassCancelledStatus(classIds).isClassCancelled;
+}
+
+/**
+ * Holds a dog tap (returns true, "do not open the scoresheet") until the class replica has
+ * answered, then defers to `gate`. A tap that lands first would otherwise open the scoresheet
+ * of a class that turns out to be cancelled (MYK9-1911). Same shape as the other tap gates.
+ */
+export function useHoldTapUntilKnown(known: boolean, gate: () => boolean): () => boolean {
+  return useCallback(() => !known || gate(), [known, gate]);
 }

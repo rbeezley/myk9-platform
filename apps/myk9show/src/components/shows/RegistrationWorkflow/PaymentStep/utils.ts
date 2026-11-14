@@ -259,10 +259,11 @@ export function getPaymentMethodLabel(method: string): string {
       return 'Check (pay at show)';
     case 'cash':
       return 'Cash (pay at show)';
+    // MYK9-2020: staff-only methods, named as the desk list names them.
     case 'secretary_paid':
-      return 'Secretary Payment';
+      return 'Paid, received';
     case 'group_payment':
-      return 'Group Payment';
+      return 'Paid by a club or group';
     case 'waived':
       return 'Free entry';
     default:

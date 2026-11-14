@@ -26,6 +26,7 @@ import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.rou
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { submitPaymentStep } from './submitPaymentStep';
 import { defaultPaymentForMode, type RegistrationWizardState } from './useRegistrationWizardState';
+import { canSkipHandlerStep } from '@/components/shows/RegistrationWorkflow/handlerStepSkip';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
 export function createWizardHandlers(state: RegistrationWizardState) {
@@ -220,7 +221,15 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
 
     markStepComplete(currentStep);
-    setCurrentStep(prev => prev + 1);
+    // MYK9-2020: every dog handled by its owner leaves nothing to do on Handlers.
+    const skip = canSkipHandlerStep({
+      steps: currentWorkflowConfig.steps,
+      currentStepId,
+      classSelections: state.classSelections,
+      handlerAssignments: state.handlerAssignments,
+    });
+    if (skip) markStepComplete(currentStep + 1);
+    setCurrentStep(prev => prev + (skip ? 2 : 1));
   };
 
   // Stepping back from Payment keeps the entry agreement tick (owner decision, MYK9-1799):

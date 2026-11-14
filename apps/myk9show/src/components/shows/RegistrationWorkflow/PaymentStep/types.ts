@@ -114,14 +114,12 @@ export interface PaymentMethodSelectorProps {
    * only from them). Defaults to false, so a caller that forgets it hides the option.
    */
   allowFreeEntry?: boolean | undefined;
-}
-
-/** Props for the SecretaryPaymentManagement sub-component. */
-export interface SecretaryPaymentManagementProps {
-  /** The effective payment method, so the card can show which shortcut is on. */
-  paymentMethod: PaymentMethod | '';
-  /** The Payment Method list's own handler: one way to record a payment. */
-  onPaymentMethodChange: (method: PaymentMethod) => void;
+  /**
+   * MYK9-2020: staff keying an entry (mail-in or desk) see one list in their own
+   * words, grouped Paid / Not paid yet. False (the default) renders the
+   * exhibitor's list exactly as before.
+   */
+  deskMode?: boolean | undefined;
 }
 
 /** Shared payment messaging for the wizard's Stripe handoff. */

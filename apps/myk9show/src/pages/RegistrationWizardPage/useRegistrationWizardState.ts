@@ -125,7 +125,7 @@ export function useRegistrationWizardState() {
   // Pure + pinned by wizardTitles.test.ts; the vocabulary standard
   // (docs/reference/ui-vocabulary.md) rests on these strings and the e2e
   // assertions that also cover them only run against staging.
-  const { workflowLabel, sidebarTitle, workflowSubtitle } = resolveWizardTitles({
+  const { workflowLabel, sidebarTitle } = resolveWizardTitles({
     isLateEntryMode,
     isInsideSidebar,
   });
@@ -612,7 +612,6 @@ export function useRegistrationWizardState() {
     exitTarget,
     workflowLabel,
     sidebarTitle,
-    workflowSubtitle,
     scrollTopRef,
 
     // Identity / permissions

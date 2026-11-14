@@ -8,13 +8,13 @@ import { parseJuniorHandlerFee } from './utils';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { JuniorHandlerDeclarationControl } from './JuniorHandlerDeclaration';
-import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
 
 /**
  * Top-level PaymentStep component that composes the sub-components for
- * registration fee summary, payment method selection, secretary management, and payment summary.
+ * registration fee summary, payment method selection and the entry agreement. Staff see
+ * one desk list (MYK9-2020), not the exhibitor's list plus a second desk card.
  */
 export const PaymentStep: React.FC<PaymentStepProps> = ({
   selectedDogs,
@@ -190,6 +190,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
         juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
         allowFreeEntry={canUseDeskPaymentActions}
+        deskMode={isOnBehalf}
       />
 
       {/* MYK9-879: card checkout only. Fee-bearing, so it waits for the resolved
@@ -200,15 +201,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           dogs={selectedDogs.flatMap(dogId => dogs.filter(dog => dog.id === dogId))}
           declaration={juniorDeclaration}
           organization={show?.organization}
-        />
-      )}
-
-      {/* Secretary desk actions. No money on it, so it needs no resolved zone;
-          its paid and free shortcuts call the list's own handler (MYK9-1822). */}
-      {canUseDeskPaymentActions && (
-        <SecretaryPaymentManagement
-          paymentMethod={effectivePaymentMethod}
-          onPaymentMethodChange={handlePaymentMethodSelect}
         />
       )}
 

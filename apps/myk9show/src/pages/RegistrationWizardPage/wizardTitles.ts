@@ -28,10 +28,8 @@ export interface WizardTitleModes {
 export interface WizardTitles {
   /** Breadcrumb tail. */
   workflowLabel: string;
-  /** Sidebar `<h1>`. */
+  /** Sidebar `<h1>`. MYK9-2020: no sub-line; "including yourself" spoke to an exhibitor. */
   sidebarTitle: string;
-  /** Sub-line under the `<h1>`; absent for an exhibitor entering their own dogs. */
-  workflowSubtitle: string | undefined;
 }
 
 export function resolveWizardTitles({
@@ -45,8 +43,5 @@ export function resolveWizardTitles({
       : isInsideSidebar
         ? 'Add entry'
         : 'Enter This Show',
-    workflowSubtitle: isInsideSidebar
-      ? 'Enter a dog for any exhibitor, including yourself.'
-      : undefined,
   };
 }

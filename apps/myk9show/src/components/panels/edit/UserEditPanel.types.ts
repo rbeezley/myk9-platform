@@ -25,6 +25,11 @@ export interface UserEditPanelProps {
   onBeforeNext?: ((data: Partial<UserType>) => boolean) | undefined;
   /** Create mode: called with the form's current values as they change. */
   onDataChange?: ((data: Partial<UserType>) => void) | undefined;
+  /**
+   * Opened from the entry wizard (MYK9-2020): the person is an exhibitor being
+   * keyed in, so the note pointing at User Management for roles is noise there.
+   */
+  fromEntry?: boolean | undefined;
 }
 
 // Form data interface matching PersonEditDialog expectations

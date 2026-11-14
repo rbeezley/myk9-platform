@@ -56,7 +56,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     exitTarget,
     workflowLabel,
     sidebarTitle,
-    workflowSubtitle,
     currentShow,
     steps,
     currentStep,
@@ -198,6 +197,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
         waitlistClassIds={waitlistClassIds}
+        serviceFeeMayApply={!paymentResolution.isOnBehalf}
         {...(isPaymentStep
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,
@@ -279,9 +279,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
             {/* Title + horizontal step indicator */}
             <div className="mt-3">
               <h1 className="text-base font-semibold text-foreground">{sidebarTitle}</h1>
-              {workflowSubtitle && (
-                <p className="text-sm text-muted-foreground">{workflowSubtitle}</p>
-              )}
               {currentShow && (
                 <p className="text-xs text-muted-foreground truncate">{currentShow.name}</p>
               )}

@@ -25,6 +25,8 @@ export interface EntriesPanelTotalsProps {
    * (omitted) when they match.
    */
   adjustmentCents?: number | undefined;
+  /** False for staff keying an entry: no card checkout, so no service fee (MYK9-2020). */
+  serviceFeeMayApply?: boolean | undefined;
   /** Payment step only — when present the money block is the payable one. */
   payment?:
     | {
@@ -62,6 +64,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
   discounts,
   adjustmentCents,
   payment,
+  serviceFeeMayApply = true,
 }) => {
   const totals = payment?.totals;
   // Shared with the phone bar's headline so the two can never disagree.
@@ -92,7 +95,9 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
       </div>
 
       {!payment ? (
-        <p className="text-xs text-muted-foreground">Plus a service fee, shown at payment.</p>
+        serviceFeeMayApply && (
+          <p className="text-xs text-muted-foreground">Plus a service fee, shown at payment.</p>
+        )
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">

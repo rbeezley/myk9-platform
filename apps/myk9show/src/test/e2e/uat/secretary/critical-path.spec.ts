@@ -95,9 +95,10 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     ).toBeVisible({
       timeout: 15000,
     });
-    await expect(
-      page.getByText('Enter a dog for any exhibitor, including yourself.')
-    ).toBeVisible();
+    // MYK9-2020: the exhibitor-worded sub-line is gone from the secretary's wizard.
+    await expect(page.getByText('Enter a dog for any exhibitor, including yourself.')).toHaveCount(
+      0
+    );
     await expect(page.getByText(/Step 1 of 5/).first()).toBeVisible();
 
     const search = page.getByPlaceholder(/Search all dogs/i);

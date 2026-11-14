@@ -53,6 +53,12 @@ export interface EntriesPanelProps {
   removingLineKey?: string | null | undefined;
   /** Injectable for tests; defaults to the live platform-fee rates. */
   rates?: PlatformFeeRates | undefined;
+  /**
+   * MYK9-2020: false for staff keying an entry. A service fee is charged only on
+   * an exhibitor's own card checkout, so the "plus a service fee" line is wrong
+   * for a mail-in. Defaults to true.
+   */
+  serviceFeeMayApply?: boolean | undefined;
 }
 
 /**
@@ -80,6 +86,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   onRemoveLine,
   removingLineKey,
   rates,
+  serviceFeeMayApply = true,
 }) => {
   // One pair for every money read this panel makes. Two different unresolved
   // reads (class availability, the show's timezone) blank the same figures, so
@@ -154,6 +161,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       capacityReady={capacityReady}
       capacityUnavailable={capacityUnavailable}
       placeholder={moneyPlaceholder}
+      serviceFeeMayApply={serviceFeeMayApply}
       {...(isPayment ? { discounts: feeCalculation.discounts } : {})}
       {...(adjustmentCents !== 0 ? { adjustmentCents } : {})}
       {...(totals ? { payment: { totals, paymentMethod, rates: resolvedRates } } : {})}

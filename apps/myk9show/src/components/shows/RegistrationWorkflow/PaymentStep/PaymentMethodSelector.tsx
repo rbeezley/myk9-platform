@@ -1,15 +1,5 @@
 import React, { useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import {
-  CreditCard,
-  DollarSign,
-  FileText,
-  Tag,
-  Receipt,
-  Users,
-  AlertTriangle,
-  CircleCheck,
-} from 'lucide-react';
+import { CreditCard, DollarSign, FileText, Tag, Receipt, Users, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -19,75 +9,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
-import { cn } from '@/lib/utils';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { JuniorFeeChoice } from './JuniorFeeChoice';
+import { PaymentOptionCard } from './PaymentOptionCard';
+import { DeskPaymentOptions, type DeskChoice } from './DeskPaymentOptions';
 import { PAYMENT_MESSAGES } from './types';
 import type { PaymentMethodSelectorProps } from './types';
 import type { PaymentDetails } from '@/types/show-registration-types';
-
-interface PaymentOptionCardProps {
-  value: PaymentMethod;
-  selected: boolean;
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  onSelect: (value: PaymentMethod) => void;
-}
-
-const PaymentOptionCard: React.FC<PaymentOptionCardProps> = ({
-  value,
-  selected,
-  icon: Icon,
-  title,
-  description,
-  onSelect,
-}) => (
-  // aria-pressed, not role="radio": the selected state was invisible to a
-  // screen reader (plain buttons, and the RadioGroup wrapper had no radio
-  // children). A radio role would promise roving tabindex and arrow-key
-  // navigation these cards do not implement, and a radiogroup may not contain
-  // the input/textarea detail panels interleaved between these options.
-  <button
-    type="button"
-    aria-pressed={selected}
-    onClick={() => onSelect(value)}
-    className={cn(
-      'relative w-full rounded-lg border-2 p-4 text-left transition-all duration-150',
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-      selected
-        ? 'border-primary bg-primary/5 shadow-sm'
-        : 'border-border bg-card hover:border-muted-foreground/40 hover:bg-accent/50'
-    )}
-  >
-    <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
-          selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-        )}
-      >
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="font-medium text-foreground">{title}</div>
-        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-      </div>
-      <div
-        className={cn(
-          'flex h-5 w-5 shrink-0 items-center justify-center transition-colors',
-          selected ? 'text-primary' : 'text-muted-foreground'
-        )}
-      >
-        {selected ? (
-          <CircleCheck className="h-5 w-5" />
-        ) : (
-          <div className="h-4 w-4 rounded-full border-2 border-current" />
-        )}
-      </div>
-    </div>
-  </button>
-);
 
 export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   paymentMethod,
@@ -98,6 +26,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   cardCheckoutUnavailableReason,
   juniorFee = null,
   allowFreeEntry = false,
+  deskMode = false,
   getInitialDetails,
 }) => {
   const [initialDetails] = useState(() => getInitialDetails?.());
@@ -167,6 +96,54 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const handleSelect = (value: PaymentMethod) => {
     onPaymentMethodChange(value);
   };
+
+  // MYK9-2020: "Check received" / "Cash received" are the one stored
+  // `secretary_paid` method plus the cash-or-check the ledger needs (MYK9-677).
+  const handleDeskChoice = (choice: DeskChoice) => {
+    if (choice === 'check_received' || choice === 'cash_received') {
+      handleReceivedMethodChange(choice === 'check_received' ? 'check' : 'cash');
+      onPaymentMethodChange('secretary_paid');
+      return;
+    }
+    onPaymentMethodChange(choice);
+  };
+
+  const juniorFeeChoice =
+    juniorFee !== null ? (
+      <JuniorFeeChoice
+        fee={juniorFee}
+        checked={chargeJuniorFee}
+        onCheckedChange={handleJuniorFeeChange}
+      />
+    ) : null;
+
+  if (deskMode) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Payment Method</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div role="group" aria-label="Payment method">
+            <DeskPaymentOptions
+              paymentMethod={paymentMethod}
+              receivedMethod={receivedMethod}
+              showCheck={showCheck}
+              showCash={showCash}
+              allowFreeEntry={allowFreeEntry}
+              values={{ paymentDate, paymentReference, paymentNotes, groupReference }}
+              onChoose={handleDeskChoice}
+              onPaymentDateChange={handlePaymentDateChange}
+              onPaymentReferenceChange={handlePaymentReferenceChange}
+              onPaymentNotesChange={handlePaymentNotesChange}
+              onGroupReferenceChange={handleGroupReferenceChange}
+            />
+          </div>
+          {juniorFeeChoice}
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -415,13 +392,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            {juniorFee !== null && (
-              <JuniorFeeChoice
-                fee={juniorFee}
-                checked={chargeJuniorFee}
-                onCheckedChange={handleJuniorFeeChange}
-              />
-            )}
+            {juniorFeeChoice}
           </div>
         </div>
       </CardContent>

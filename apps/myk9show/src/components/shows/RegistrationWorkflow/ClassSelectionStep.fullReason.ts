@@ -47,6 +47,12 @@ export interface FullReasonInput {
   availability: readonly FullReasonClass[];
   /** Secretary/club contact from the show record, when the show carries one. */
   secretaryContact?: string | null | undefined;
+  /**
+   * Who is reading (MYK9-2020). Staff keying an entry ARE the show secretary, so
+   * "Contact the show secretary" sends her to herself; she is told what she can
+   * change instead. Defaults to the exhibitor wording.
+   */
+  audience?: 'exhibitor' | 'staff' | undefined;
 }
 
 /**
@@ -142,16 +148,34 @@ function describeAlternative(alternative: FullReasonClass): string {
 }
 
 /**
+ * The staff sentence: what is full, what happens to this entry, and, when the
+ * class takes no waitlist, what she can change. A mail-in entry into a
+ * full class goes on its waitlist or is refused (`evaluate_entry_capacity`);
+ * only a late entry at the show desk may go past the limit.
+ */
+function staffFullReason(
+  opening: string,
+  target: FullReasonClass,
+  availability: readonly FullReasonClass[]
+): string {
+  const alternative = openAlternative(target, availability);
+  const elsewhere = alternative ? ` ${describeAlternative(alternative)}` : '';
+  if (target.allowsWaitlist) return `${opening}. This entry will go on the waitlist.${elsewhere}`;
+  return `${opening}, and this class has no waitlist. To take this entry, raise the entry limit or turn on the waitlist first.${elsewhere}`;
+}
+
+/**
  * The one-line reason, or null when the class is not full (or has no server row
  * to reason from — an unreadable availability read must not produce a confident
  * sentence about capacity).
  */
 export function buildFullChipReason(input: FullReasonInput): string | null {
-  const { classId, availability, secretaryContact } = input;
+  const { classId, availability, secretaryContact, audience = 'exhibitor' } = input;
   const target = availability.find(cls => cls.classId === classId);
   if (!target || !target.isFull) return null;
 
   const opening = whatIsFull(target, availability);
+  if (audience === 'staff') return staffFullReason(opening, target, availability);
   const waitlist = target.allowsWaitlist ? ' — you can join the waitlist.' : '.';
 
   const alternative = openAlternative(target, availability);

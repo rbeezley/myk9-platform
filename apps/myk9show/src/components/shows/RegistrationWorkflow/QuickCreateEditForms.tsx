@@ -138,6 +138,7 @@ export const QuickCreatePersonEdit: React.FC<EditFormProps<User>> = ({
       onSave={handleSave}
       variant="inline"
       closeRequestRef={closeRequestRef}
+      fromEntry
     />
   );
 };

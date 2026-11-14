@@ -12,7 +12,6 @@ describe('resolveWizardTitles', () => {
     expect(resolveWizardTitles({ isLateEntryMode: false, isInsideSidebar: false })).toEqual({
       workflowLabel: 'Enter',
       sidebarTitle: 'Enter This Show',
-      workflowSubtitle: undefined,
     });
   });
 
@@ -22,8 +21,10 @@ describe('resolveWizardTitles', () => {
     expect(titles).toEqual({
       workflowLabel: 'Add entry',
       sidebarTitle: 'Add entry',
-      workflowSubtitle: 'Enter a dog for any exhibitor, including yourself.',
     });
+    // MYK9-2020: no sub-line. "Including yourself" spoke to an exhibitor, and the
+    // secretary keying forty paper entries does not need it read to her each time.
+    expect(titles).not.toHaveProperty('workflowSubtitle');
     // "Mail-in" was one reason among several (a phone call, a walk-up, fixing
     // an exhibitor's mistake) for the identical action. Naming it made the
     // rest look unsupported.
@@ -39,7 +40,6 @@ describe('resolveWizardTitles', () => {
     expect(resolveWizardTitles({ isLateEntryMode: true, isInsideSidebar: true })).toEqual({
       workflowLabel: 'Late entry',
       sidebarTitle: 'Add late entry',
-      workflowSubtitle: 'Enter a dog for any exhibitor, including yourself.',
     });
   });
 

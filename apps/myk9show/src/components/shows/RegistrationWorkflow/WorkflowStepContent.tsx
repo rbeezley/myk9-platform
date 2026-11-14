@@ -7,6 +7,8 @@ import { PaymentStep } from './PaymentStep';
 import type { JuniorHandlerDeclaration } from './PaymentStep/JuniorHandlerDeclaration';
 import { ConfirmationStep } from './ConfirmationStep';
 import { HandlerAssignmentStep } from './HandlerAssignmentStep';
+import { HandlersSkippedNote } from './HandlersSkippedNote';
+import { everyEntryHandledByOwner } from './handlerStepSkip';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
@@ -399,6 +401,13 @@ export function WorkflowStepContent({
             })}
           />
         ))}
+
+      {currentStepId === 'class-selection' &&
+        hasHandlerStep &&
+        everyEntryHandledByOwner(
+          optimisticState.classSelections,
+          optimisticState.handlerAssignments
+        ) && <HandlersSkippedNote />}
 
       {currentStepId === 'handler-assignment' && (
         <HandlerAssignmentStep

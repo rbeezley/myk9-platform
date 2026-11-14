@@ -268,6 +268,7 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
       notice={notice}
       onDataChange={handleDataChange}
       onBeforeNext={data => !holdForDuplicate(data)}
+      fromEntry
     />
   );
 };

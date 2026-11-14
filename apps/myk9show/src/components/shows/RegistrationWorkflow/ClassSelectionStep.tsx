@@ -114,7 +114,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   } = useInlineDogRegistration(refetch);
   // MYK9-1010: the dog whose owner's missing address parts staff are filling.
   const [addressTarget, setAddressTarget] = useState<OwnerAddressFillTarget | null>(null);
-  const isOwnAddress = (workflowMode ?? 'exhibitor') === 'exhibitor';
+  const isStaffWorkflow = (workflowMode ?? 'exhibitor') !== 'exhibitor';
+  const isOwnAddress = !isStaffWorkflow;
   // MYK9-1973: "Add your address" opens the profile in a new tab; coming back
   // re-reads the owner and the dogs (whose rows carry the owner) so the blocked
   // class card clears without a reload.
@@ -531,13 +532,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         </Alert>
       )}
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          New to this sport? Start with Novice or the entry-level class named by the show. Move to
-          higher levels only after earning the required qualifications.
-        </AlertDescription>
-      </Alert>
+      {/* Exhibitor advice; a secretary copies the classes off the form (MYK9-2020). */}
+      {!isStaffWorkflow && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            New to this sport? Start with Novice or the entry-level class named by the show. Move to
+            higher levels only after earning the required qualifications.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {availabilityClasses.some(cls => cls.isFull && cls.allowsWaitlist !== false) && (
         <WaitlistFreeNote />
@@ -674,6 +678,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                         classId: l.classId,
                                         availability: availabilityClasses,
                                         secretaryContact: show?.clubEmail,
+                                        audience: isStaffWorkflow ? 'staff' : 'exhibitor',
                                       }),
                                     }),
                                   };

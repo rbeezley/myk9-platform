@@ -170,7 +170,7 @@ describe('premium terms never bring fee placeholders with them', () => {
 
   it('gazette prints the junior fee and no fee placeholder when the show has no other fees', () => {
     const text = pdfText('AKC', withJuniorOnly('gazette'));
-    expect(text).toContain('Junior handler fee per class entry (handler under 18): $15');
+    expect(text).toContain('Junior handler fee per class entry: $15');
     expect(text).not.toContain('Pre-entry: $—');
     expect(text).not.toContain('Day-of: $—');
     expect(text).not.toContain('Payment TBD');

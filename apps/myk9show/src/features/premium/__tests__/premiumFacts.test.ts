@@ -45,7 +45,7 @@ describe('premiumFacts', () => {
     expect(buildPremiumFacts(premium, 'AKC').terms).toEqual([
       {
         id: 'juniorHandlerFee',
-        label: 'Junior handler fee per class entry (handler under 18)',
+        label: 'Junior handler fee per class entry',
         value: '$12.50',
       },
     ]);

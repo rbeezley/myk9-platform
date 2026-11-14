@@ -169,13 +169,11 @@ export interface PremiumContact {
 /** The junior fee is charged per class entry; the landing prints it as the sub-line, the premium in the label. */
 const JUNIOR_HANDLER_FEE_PER_ENTRY = 'per class entry';
 export const JUNIOR_HANDLER_FEE_UNIT = JUNIOR_HANDLER_FEE_PER_ENTRY;
-/** The junior fee applies only when the handler is under 18; every surface says so. */
 const JUNIOR_HANDLER_FEE_BASE = 'Junior handler fee';
-const JUNIOR_HANDLER_FEE_QUALIFIER = '(handler under 18)';
 /** The landing's label; its unit (`JUNIOR_HANDLER_FEE_UNIT`) goes in the sub-line. */
-export const JUNIOR_HANDLER_FEE_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
+export const JUNIOR_HANDLER_FEE_LABEL = JUNIOR_HANDLER_FEE_BASE;
 /** The premium's row: the unit sits in the label, because the PDF prints only label and value. */
-const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_PER_ENTRY} ${JUNIOR_HANDLER_FEE_QUALIFIER}`;
+const JUNIOR_HANDLER_FEE_PREMIUM_LABEL = `${JUNIOR_HANDLER_FEE_BASE} ${JUNIOR_HANDLER_FEE_PER_ENTRY}`;
 
 /** One labelled line of the premium's entry terms: the same words in every style. */
 export interface PremiumTermRow {

@@ -198,6 +198,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
 
   // A run that was going when the page reloaded keeps going from the restored time.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resuming an external timer run
     if (restored?.running) run();
     // Once, on mount.
   }, []);

@@ -19,8 +19,9 @@
  * specs), and `benchmarkRequestDisposition` in
  * `apps/myk9show/src/test/performance/benchmarkNetworkPolicy.ts`.
  *
- * What it cannot see: websocket traffic (realtime presence and broadcast) is
- * not routed. That traffic writes no table.
+ * Websocket traffic (realtime presence and broadcast) passes through
+ * unchanged: it writes no table, and is routed only so `cutOffBackend` can
+ * close it.
  *
  * Use from a short `.mts` script under `.logs/walks/`, run with
  * `pnpm exec tsx .logs/walks/<name>.mts`. The extension matters: a `.ts` file
@@ -28,6 +29,7 @@
  *
  *   const context = await browser.newContext();
  *   const log = await installReadOnlyGuard(context, { appOrigin });
+ *   // optional: await answerLocally(context, ['entry_carts'], log);
  *   ... walk ...
  *   console.log(formatWalkLog(log));
  *
@@ -35,8 +37,23 @@
  * replayed against known answers in `readonly-walk.test.ts`. Change a rule
  * there first.
  */
-import type { BrowserContext, Page, Route } from '@playwright/test';
+import type { BrowserContext, Route, WebSocketRoute } from '@playwright/test';
 import { AUDIT_READ_ONLY_RPCS } from '../../apps/myk9show/src/test/e2e/helpers/sharedStagingWriteGuard';
+import {
+  applyDelete,
+  applyInsert,
+  applyPatch,
+  contentRange,
+  emptyTable,
+  isTouched,
+  overlay,
+  parseFilters,
+  singleRowError,
+  readHeaders,
+  resolutionOf,
+  type Row,
+  type TableState,
+} from './readonly-walk-local';
 
 export type Verdict = {
   allow: boolean;
@@ -128,7 +145,12 @@ export function decideRequest(method: string, url: string, options: GuardOptions
 
   if (!isBackendPath(pathname)) {
     if (SAFE_METHODS.has(verb)) return allow('not a backend request');
-    if (parsed.origin === options.appOrigin) return allow('the app itself');
+    if (parsed.origin === options.appOrigin) {
+      // `/api` is a server: a Vercel function in a deploy, a proxy or a file-writing plugin in dev.
+      return pathname === '/api' || pathname.startsWith('/api/')
+        ? refuse('app server api')
+        : allow('the app itself');
+    }
     return refuse('write to a third party');
   }
 
@@ -171,12 +193,21 @@ export function decideRequest(method: string, url: string, options: GuardOptions
 
 const pathOf = (url: string): string => new URL(url).pathname;
 
+const REALTIME = /\/realtime\/v1\//;
+
+/** Open realtime sockets per guarded context, so `cutOffBackend` can close them. */
+const socketsOf = new WeakMap<BrowserContext, Set<() => Promise<void>>>();
+
 /** Refuse every write from this context. Call before the first page is opened. */
 export async function installReadOnlyGuard(
   context: BrowserContext,
   options: GuardOptions
 ): Promise<WalkLog> {
-  const log: WalkLog = { refused: [], readRpcs: new Set(), answeredLocally: [] };
+  const log: WalkLog = {
+    refused: [],
+    readRpcs: new Set(),
+    answeredLocally: [],
+  };
   await context.route('**/*', async (route: Route) => {
     const request = route.request();
     const verdict = decideRequest(request.method(), request.url(), options);
@@ -188,86 +219,149 @@ export async function installReadOnlyGuard(
     if (verdict.rpc) log.readRpcs.add(verdict.rpc);
     await route.fallback();
   });
+  // Realtime passes through unchanged; it is routed only so it can be closed later.
+  const sockets = new Set<() => Promise<void>>();
+  socketsOf.set(context, sockets);
+  await context.routeWebSocket(REALTIME, (socket: WebSocketRoute) => {
+    const server = socket.connectToServer();
+    const close = async () => {
+      sockets.delete(close);
+      await server.close();
+      await socket.close();
+    };
+    sockets.add(close);
+    socket.onClose(() => sockets.delete(close));
+  });
   return log;
 }
-
-type Row = Record<string, unknown>;
 
 const isRow = (value: unknown): value is Row =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const asRows = (value: unknown): Row[] => (Array.isArray(value) ? value : [value]).filter(isRow);
+
 /**
  * Answer writes to the named tables inside the browser, so a walk can pass a
- * step that saves a draft. Nothing is sent. Reads of those tables are answered
- * from the same local rows once one exists, and fall through to the real
- * backend until then.
+ * step that saves a draft. No write is sent. Every read of those tables, and
+ * the target rows of an update or delete, come from the real backend as a
+ * GET, overlaid with what the walk wrote: created and edited rows replace or
+ * join the real ones, deleted ones drop out. Filters (`eq`, `neq`, `in`, `is`,
+ * `gt`/`gte`/`lt`/`lte`), upsert and the row count follow PostgREST. A write
+ * whose filter cannot be evaluated here is refused, not guessed.
  *
  * Call AFTER `installReadOnlyGuard`: the route registered last is asked first.
- * Embedded resources in a `select` are not reproduced, so a screen that needs
- * joined rows from a local row will look empty. That is a limit of the walk,
- * not a finding.
+ * Embedded resources in a `select` are not reproduced on rows the walk wrote,
+ * so a screen that needs joined rows from one will look partial. That is a
+ * limit of the walk, not a finding.
  */
 export async function answerLocally(
   context: BrowserContext,
   tables: readonly string[],
   log: WalkLog
 ): Promise<void> {
-  const store = new Map<string, Row[]>(tables.map(table => [table, []]));
+  const store = new Map<string, TableState>(tables.map(table => [table, emptyTable()]));
   let made = 0;
+  const makeId = () => `00000000-0000-4000-8000-${String(++made).padStart(12, '0')}`;
+
   await context.route(/\/rest\/v1\/[A-Za-z0-9_]+(\?|$)/, async (route: Route) => {
     const request = route.request();
-    const table = pathOf(request.url()).split('/').pop() ?? '';
-    const rows = store.get(table);
-    if (!rows) {
+    const url = new URL(request.url());
+    const table = url.pathname.split('/').pop() ?? '';
+    const state = store.get(table);
+    const method = request.method();
+    if (!state || method === 'OPTIONS') {
       await route.fallback();
       return;
     }
-    const method = request.method();
-    const wantsObject = (request.headers()['accept'] ?? '').includes('vnd.pgrst.object');
-    const send = (status: number, body: Row[]) =>
-      route.fulfill({
-        status,
-        contentType: 'application/json',
-        body: JSON.stringify(wantsObject ? (body[0] ?? null) : body),
-      });
-    if (SAFE_METHODS.has(method)) {
-      if (rows.length === 0) {
-        await route.fallback();
-        return;
-      }
-      await send(200, rows);
+    const headers = request.headers();
+    const prefer = headers['prefer'] ?? '';
+    const wantsObject = (headers['accept'] ?? '').includes('vnd.pgrst.object');
+    const filters = parseFilters(url.searchParams);
+    const isRead = method === 'GET' || method === 'HEAD';
+
+    if (isRead && !isTouched(state)) {
+      await route.fallback();
       return;
     }
+    if (!filters) {
+      if (isRead) {
+        await route.fallback();
+      } else {
+        log.refused.push(`${method} ${url.pathname} (answerLocally cannot read this filter)`);
+        await route.abort();
+      }
+      return;
+    }
+
+    const send = async (status: number, rows: Row[]) => {
+      const counted = /count=(exact|planned|estimated)/.test(prefer);
+      const range = { 'content-range': contentRange(rows.length, counted) };
+      if (wantsObject && rows.length !== 1) {
+        await route.fulfill({
+          status: 406,
+          contentType: 'application/json',
+          body: JSON.stringify(singleRowError(rows.length)),
+        });
+        return;
+      }
+      await route.fulfill({
+        status,
+        headers: range,
+        contentType: 'application/json',
+        body: method === 'HEAD' ? '' : JSON.stringify(wantsObject ? rows[0] : rows),
+      });
+    };
+
+    // The rows this request addresses as the walk sees them. A plain GET, so it
+    // reads with the caller's own rights and changes nothing.
+    const current = async (): Promise<Row[] | null> => {
+      const real = await context.request.get(url.toString(), {
+        headers: readHeaders(headers),
+      });
+      if (!real.ok()) {
+        await route.fulfill({ response: real });
+        return null;
+      }
+      return overlay(asRows(await real.json()), state, filters);
+    };
+
+    if (isRead) {
+      const rows = await current();
+      if (rows) await send(200, rows);
+      return;
+    }
+
     let parsed: unknown = {};
     try {
       parsed = JSON.parse(request.postData() ?? '{}');
     } catch {
       // a body that is not JSON is answered as an empty row
     }
-    const incoming = (Array.isArray(parsed) ? parsed : [parsed]).filter(isRow);
+    const incoming = asRows(parsed);
     log.answeredLocally.push(`${method} ${table} (${Object.keys(incoming[0] ?? {}).join(', ')})`);
-    if (method === 'DELETE') {
-      rows.length = 0;
-      await route.fulfill({ status: 204, body: '' });
-      return;
-    }
     const now = new Date().toISOString();
+    const minimal = !prefer.includes('return=representation');
+
     if (method === 'POST') {
-      const created = incoming.map(row => ({
-        id: `00000000-0000-4000-8000-${String(++made).padStart(12, '0')}`,
-        created_at: now,
-        updated_at: now,
-        ...row,
-      }));
-      rows.push(...created);
-      await send(201, created);
+      const created = applyInsert(state, incoming, {
+        resolution: resolutionOf(prefer),
+        onConflict: url.searchParams.get('on_conflict')?.split(','),
+        makeId,
+        now,
+      });
+      if (minimal) await route.fulfill({ status: 201, body: '' });
+      else await send(201, created);
       return;
     }
-    const patch = incoming[0] ?? {};
-    rows.forEach((row, index) => {
-      rows[index] = { ...row, ...patch, updated_at: now };
-    });
-    await send(200, rows);
+
+    const targets = await current();
+    if (!targets) return;
+    const result =
+      method === 'DELETE'
+        ? applyDelete(state, targets)
+        : applyPatch(state, targets, incoming[0] ?? {}, now);
+    if (minimal) await route.fulfill({ status: 204, body: '' });
+    else await send(200, result);
   });
 }
 
@@ -276,12 +370,12 @@ export async function answerLocally(
  * scoresheet or taps a score. Call before the first such tap and close the
  * context without reconnecting: an offline-first screen queues what it could
  * not send and would send it on reconnect.
+ *
+ * Every backend request is aborted, open realtime sockets are closed and new
+ * ones refused, and every page (now and later) reads `navigator.onLine` as
+ * false and hears an `offline` event, as a phone that lost signal would.
  */
-export async function cutOffBackend(
-  context: BrowserContext,
-  page: Page,
-  log: WalkLog
-): Promise<void> {
+export async function cutOffBackend(context: BrowserContext, log: WalkLog): Promise<void> {
   await context.route('**/*', async (route: Route) => {
     const request = route.request();
     const pathname = pathOf(request.url());
@@ -292,7 +386,19 @@ export async function cutOffBackend(
     }
     await route.fallback();
   });
-  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await context.routeWebSocket(REALTIME, async (socket: WebSocketRoute) => {
+    log.refused.push(`WS ${pathOf(socket.url())} (cut off)`);
+    await socket.close({ code: 1006, reason: 'cut off' });
+  });
+  await Promise.all([...(socketsOf.get(context) ?? [])].map(close => close()));
+
+  // A string, not a function: tsx wraps named functions in `__name(...)`, which
+  // does not exist in the page.
+  const goOffline =
+    "Object.defineProperty(Navigator.prototype, 'onLine', { configurable: true, get: () => false });" +
+    "window.dispatchEvent(new Event('offline'));";
+  await context.addInitScript({ content: goOffline });
+  await Promise.all(context.pages().map(page => page.evaluate(goOffline)));
 }
 
 export function formatWalkLog(log: WalkLog): string {

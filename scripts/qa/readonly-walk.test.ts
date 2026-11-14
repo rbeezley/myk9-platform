@@ -36,6 +36,7 @@ describe('decideRequest: what a read-only walk may send', () => {
     ['OPTIONS', '/functions/v1/stripe-checkout'],
     ['GET', 'https://fonts.gstatic.com/s/inter.woff2'],
     ['POST', `${APP}/__vite_ping`],
+    ['GET', `${APP}/api/geo`],
   ])('allows %s %s', (method, path) => {
     expect(verdict(method, path)).toBe(true);
   });
@@ -81,6 +82,9 @@ describe('decideRequest: what it must refuse', () => {
     // writes to anyone else
     ['POST', 'https://o123.ingest.sentry.io/api/1/envelope/'],
     ['POST', 'https://api.stripe.com/v1/payment_methods'],
+    // the app's own server: a Vercel function, the dev proxy, the dev template writer
+    ['POST', `${APP}/api/save-templates`],
+    ['PUT', `${APP}/api`],
   ])('refuses %s %s', (method, path) => {
     expect(verdict(method, path)).toBe(false);
   });

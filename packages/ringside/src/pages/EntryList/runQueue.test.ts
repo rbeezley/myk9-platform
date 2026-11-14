@@ -282,7 +282,6 @@ describe('queue membership is an allowlist (MYK9-992 / MYK9-996)', () => {
     ['pending-payment', true],
     ['promotion-expired', true],
     ['move-up-requested', true],
-    ['move_up_requested', true],
     ['pulled', false],
     ['completed', false],
     ['withdrawn', false],

@@ -123,6 +123,7 @@ DECLARE
   v_target_show_id uuid;
   v_target_class_status text;
   v_avail record;
+  v_judge_day_full boolean;
   v_updated_id uuid;
   v_new_version integer;
   -- A request is made by an ACCEPTED entry that has not been to the ring.
@@ -209,8 +210,7 @@ BEGIN
       USING errcode = '22023', hint = 'class_changes_not_allowed';
   END IF;
 
-  -- Both spellings are requests (MOVE_UP_REQUEST_STATUSES in the app).
-  IF coalesce(v_entry_status, '') IN ('move-up-requested', 'move_up_requested') THEN
+  IF coalesce(v_entry_status, '') = 'move-up-requested' THEN
     RAISE EXCEPTION 'This entry already has a class change request. Take it back before asking again.'
       USING errcode = '22023', hint = 'request_already_open';
   END IF;
@@ -280,7 +280,25 @@ BEGIN
       USING errcode = '22023', hint = 'class_started';
   END IF;
 
-  IF coalesce(v_avail.class_full, false) OR coalesce(v_avail.judge_day_full, false) THEN
+  -- The judge day is judged NET of the entry being moved: when the source class
+  -- is on the same judge day (same judge, same date), this entry already holds one
+  -- of that day's seats, so the change adds nobody to it and is not refused for a
+  -- day that is exactly full. Raw figures, not the clamped day_remaining, so a day
+  -- already over its limit still reads as full. A missing figure is full.
+  SELECT coalesce(bool_or(
+           coalesce(t.day_capacity - t.day_taken - t.day_mail_in_reserved, 0)
+           + CASE WHEN EXISTS (
+                    SELECT 1
+                      FROM public.class_judge_day_capacity(
+                             ARRAY[v_class_id], (SELECT auth.uid()), true) s
+                     WHERE s.judge_id = t.judge_id
+                       AND s.show_date = t.show_date
+                  ) THEN 1 ELSE 0 END <= 0), false)
+    INTO v_judge_day_full
+    FROM public.class_judge_day_capacity(
+           ARRAY[p_target_class_id], (SELECT auth.uid()), true) t;
+
+  IF coalesce(v_avail.class_full, false) OR v_judge_day_full THEN
     RAISE EXCEPTION 'That class is full.' USING errcode = '22023', hint = 'class_full';
   END IF;
 
@@ -389,8 +407,7 @@ BEGIN
 
   -- Only while it is still waiting. An accepted request has already moved the
   -- entry ('moved'); a declined one is back to 'confirmed'. Neither is waiting.
-  -- Both spellings are requests (MOVE_UP_REQUEST_STATUSES in the app).
-  IF coalesce(v_entry_status, '') NOT IN ('move-up-requested', 'move_up_requested') THEN
+  IF coalesce(v_entry_status, '') <> 'move-up-requested' THEN
     RAISE EXCEPTION 'Entry % has no waiting class change request', p_entry_id
       USING errcode = '22023', hint = 'no_open_request';
   END IF;

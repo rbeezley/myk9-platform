@@ -29,6 +29,30 @@
 
 BEGIN;
 
+-- The underscore spelling 'move_up_requested' of entry_status is retired: migration 142
+-- normalized the app to the hyphen form, the live database holds no row with the
+-- underscore one, and nothing writes it. Fold any stray row to the hyphen form, then
+-- redefine the constraint (copied from 20260924094300, MYK9-719, the latest to define
+-- it) without the underscore value, so every reader names ONE spelling.
+UPDATE public.entries
+   SET entry_status = 'move-up-requested'
+ WHERE entry_status = 'move_up_requested';
+
+ALTER TABLE public.entries DROP CONSTRAINT IF EXISTS entries_entry_status_check;
+
+ALTER TABLE public.entries ADD CONSTRAINT entries_entry_status_check CHECK (entry_status IN (
+  -- Core lifecycle
+  'no-status', 'draft', 'submitted', 'paid', 'confirmed',
+  -- Day-of / ring states
+  'checked-in', 'at-gate', 'in-ring', 'competing', 'completed',
+  -- Terminal / removal states
+  'withdrawn', 'scratched', 'absent', 'moved', 'not_accepted',
+  -- Waitlist promotion flow
+  'pending-payment', 'promotion-expired',
+  -- Secretary-approval workflow state (hyphen only)
+  'move-up-requested'
+));
+
 CREATE OR REPLACE FUNCTION public.class_entry_availability(
   p_class_ids uuid[],
   p_exclude_auth_user_id uuid DEFAULT NULL,

@@ -2,7 +2,7 @@
 --
 -- Exercises the INSTALLED `entries_entry_status_check` on a real row: both
 -- scratch-request spellings are refused with SQLSTATE 23514 on INSERT and on
--- UPDATE, while the move-up request (both spellings) and 'scratched' still pass
+-- UPDATE, while the move-up request (hyphen only since MYK9-1929 retired the underscore twin) and 'scratched' still pass
 -- on the same row — so a refusal can never be the fixture failing for some other
 -- reason. Run with psql -X -v ON_ERROR_STOP=1 after migrations; every fixture
 -- rolls back.
@@ -71,10 +71,10 @@ begin
   if v_def ilike '%scratch-requested%' or v_def ilike '%scratch_requested%' then
     raise exception 'FAIL: entries_entry_status_check still admits a scratch request: %', v_def;
   end if;
-  if v_def not ilike '%''move-up-requested''%' or v_def not ilike '%''move_up_requested''%' then
-    raise exception 'FAIL: entries_entry_status_check lost a move-up spelling: %', v_def;
+  if v_def not ilike '%''move-up-requested''%' or v_def ilike '%''move_up_requested''%' then
+    raise exception 'FAIL: entries_entry_status_check must name only the hyphen move-up spelling: %', v_def;
   end if;
-  raise notice 'PASS wiring: entries_entry_status_check names no scratch request, keeps both move-up spellings';
+  raise notice 'PASS wiring: entries_entry_status_check names no scratch request, keeps only the hyphen move-up spelling';
 end;
 $$;
 
@@ -86,7 +86,7 @@ declare
   v_status text;
   v_state text;
 begin
-  foreach v_status in array array['scratch-requested', 'scratch_requested'] loop
+  foreach v_status in array array['scratch-requested', 'scratch_requested', 'move_up_requested'] loop
     v_state := null;
     begin
       perform pg_temp.insert_entry(1, v_status);
@@ -105,16 +105,15 @@ $$;
 -- Positive controls on the same fixture: without these, a refusal above could be
 -- a broken fixture (FK, trigger) rather than the CHECK.
 select pg_temp.insert_entry(2, 'move-up-requested');
-select pg_temp.insert_entry(3, 'move_up_requested');
 select pg_temp.insert_entry(4, 'confirmed');
 
 do $$
 begin
   if (select count(*) from public.entries
-       where dog_id = '00000000-0000-0000-0000-000000719021') <> 3 then
-    raise exception 'FAIL positive control: expected exactly the three accepted rows';
+       where dog_id = '00000000-0000-0000-0000-000000719021') <> 2 then
+    raise exception 'FAIL positive control: expected exactly the two accepted rows';
   end if;
-  raise notice 'PASS positive control: move-up (both spellings) and confirmed are accepted';
+  raise notice 'PASS positive control: move-up and confirmed are accepted';
 end;
 $$;
 

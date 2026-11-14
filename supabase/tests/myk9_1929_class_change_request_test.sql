@@ -11,8 +11,8 @@
 -- Covers: own entry only, a full class, a full judge day, a started class, a dog
 -- already in the target class, a finished show, a pulled or in-ring source entry,
 -- a stale version on the request and on the take-back, the show's switch (off
--- after entries close, irrelevant before), taking the request back (either spelling
--- of the status), and that a waiting request keeps holding its seat in its class and
+-- after entries close, irrelevant before), taking the request back, the retired
+-- underscore spelling of the status, and that a waiting request keeps holding its seat in its class and
 -- judge day (20261114171500): nobody else can take it, and the take-back never
 -- leaves the class or the day over its limit.
 
@@ -398,24 +398,24 @@ select pg_temp.call_as('handler takes it back',
   '00000000-0000-0000-0000-000001929203',
   pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
 
--- ---- Either spelling of the status is a request ----------------------------
--- A legacy move_up_requested row (entries_entry_status_check admits both, and
--- MOVE_UP_REQUEST_STATUSES treats both as requests) blocks a second ask and can
--- be taken back.
-update public.entries
-   set entry_status = 'move_up_requested', move_up_requested = true,
-       class_change_target_class_id = '00000000-0000-0000-0000-000001929012',
-       class_change_reason = 'wrong_level', class_change_requested_at = now()
- where id = '00000000-0000-0000-0000-000001929031';
-select pg_temp.call_as('a legacy-spelled request blocks a second ask',
-  '00000000-0000-0000-0000-000001929201',
-  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929012', 'wrong_level'),
-  'This entry already has a class change request. %');
-select pg_temp.call_as('a legacy-spelled request can be taken back',
-  '00000000-0000-0000-0000-000001929201',
-  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
-select pg_temp.assert_request_state('legacy-spelled take-back restores confirmed',
-  '00000000-0000-0000-0000-000001929031', 'confirmed', null, null);
+-- ---- Only the hyphen spelling exists ---------------------------------------
+-- The underscore twin was retired in 20261114171500: the constraint refuses it,
+-- on an insert-shaped update as well as any other write.
+do $$
+declare
+  v_state text;
+begin
+  begin
+    update public.entries
+       set entry_status = 'move_up_requested'
+     where id = '00000000-0000-0000-0000-000001929031';
+    raise exception 'FAIL: the underscore spelling was accepted';
+  exception when check_violation then
+    v_state := sqlstate;
+  end;
+  raise notice 'PASS the underscore spelling of the request status is refused (%)', v_state;
+end;
+$$;
 
 -- ---- A waiting request keeps its seat (20261114171500) ---------------------
 -- Class 23 is at its limit (2 of 2) and class 20's judge day is at its limit
@@ -485,6 +485,42 @@ select pg_temp.call_as('the exhibitor takes the judge day request back',
   pg_temp.take_back_sql('00000000-0000-0000-0000-000001929039'));
 select pg_temp.assert_full('the judge day is at its limit after the take-back, never over',
   array['00000000-0000-0000-0000-000001929020']::uuid[], 1, true);
+
+-- ---- A change within one judge day is judged net of the entry -------------
+-- Class 20's judge day (judge 4) is full at 1 of 1 and entry 39 is that seat. Class 24
+-- is the same judge, same date: moving there adds nobody to the day, so it is
+-- accepted. Entry 43 sits under a different judge (class 25); asking for class 20
+-- would add a second dog to a full day, so it is still refused.
+insert into public.classes (id, trial_id, name, status, max_entries)
+values
+  ('00000000-0000-0000-0000-000001929024', '00000000-0000-0000-0000-000001929004', 'Exterior Excellent A', 'upcoming', 5),
+  ('00000000-0000-0000-0000-000001929025', '00000000-0000-0000-0000-000001929004', 'Exterior Master A', 'upcoming', 5);
+insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status)
+values
+  ('00000000-0000-0000-0000-000001929104', '00000000-0000-0000-0000-000001929002',
+   '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929024', 'confirmed'),
+  ('00000000-0000-0000-0000-000001929102', '00000000-0000-0000-0000-000001929002',
+   '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929025', 'confirmed');
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
+  entry_status, payment_status, entry_fee, check_in_status)
+values ('00000000-0000-0000-0000-000001929043', '00000000-0000-0000-0000-000001929325',
+  '00000000-0000-0000-0000-000001929025', '00000000-0000-0000-0000-000001929002',
+  '00000000-0000-0000-0000-000001929004', '00000000-0000-0000-0000-000001929101',
+  'confirmed', 'pending', 25, 'no-status');
+
+select pg_temp.call_as('a different judge day that is full still refuses the request',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929043', '00000000-0000-0000-0000-000001929020', 'wrong_level'),
+  'That class is full.');
+select pg_temp.call_as('the same judge day, exactly full, accepts a change inside it',
+  '00000000-0000-0000-0000-000001929206',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929039', '00000000-0000-0000-0000-000001929024', 'wrong_section'));
+select pg_temp.assert_request_state('the same-judge-day request is recorded',
+  '00000000-0000-0000-0000-000001929039', 'move-up-requested',
+  '00000000-0000-0000-0000-000001929024', 'wrong_section');
+select pg_temp.call_as('the exhibitor takes the same-judge-day request back',
+  '00000000-0000-0000-0000-000001929206',
+  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929039'));
 
 -- Installed ACL: authenticated only, never anon or PUBLIC.
 do $$

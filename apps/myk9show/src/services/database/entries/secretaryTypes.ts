@@ -93,6 +93,8 @@ export interface SecretaryEntry {
     total_amount: number | null;
     paid_amount: number | null;
     card_covered_cents: number | null;
+    /** `enrollments.handler_id`: the person who placed the order, the one the form's money belongs to. */
+    handler_id?: string | null;
     refund_amount: number | null;
     refund_notes: string | null;
     refunded_at: string | null;

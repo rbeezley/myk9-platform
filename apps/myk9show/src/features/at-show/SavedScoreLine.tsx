@@ -3,7 +3,7 @@
  * "Saved: 100 Willow · Qualified · 0:04.35 · Correct". Offline or not yet
  * uploaded it adds "on this device, not sent yet".
  *
- * It sticks to the top of the screen: the list returns to the scroll position the dog was opened
+ * It sticks to the top of the screen, directly under the list's own sticky header: the list returns to the scroll position the dog was opened
  * from, which can be far down a long list, and the line (and any not-sent warning) must stay seen.
  *
  * INTENT: this says what was saved and offers Correct. It never names, ranks or
@@ -13,11 +13,47 @@
  * network.
  */
 
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSavedScoreStore, type SavedScore } from './savedScore';
 import { useScoreSaveState, useScoresSentToast } from './useScoreSaveState';
+
+/**
+ * The list's own header sticks at the top and wraps to a different height on a phone. This line
+ * sticks directly under it, so neither covers the other's controls.
+ */
+function useStickyHeaderHeight(lineRef: React.RefObject<HTMLElement | null>): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const main = lineRef.current?.closest('main');
+    if (!main) return;
+    let header: Element | null = null;
+    let resize: ResizeObserver | undefined;
+    const measure = () => setHeight(header?.getBoundingClientRect().height ?? 0);
+    // The list renders its header after this line mounts, so look again as the page fills in.
+    const find = () => {
+      const next = main.querySelector('header');
+      if (next === header) return;
+      resize?.disconnect();
+      header = next;
+      measure();
+      if (header && typeof ResizeObserver !== 'undefined') {
+        resize = new ResizeObserver(measure);
+        resize.observe(header);
+      }
+    };
+    find();
+    const mutations = new MutationObserver(find);
+    mutations.observe(main, { childList: true, subtree: true });
+    return () => {
+      mutations.disconnect();
+      resize?.disconnect();
+    };
+  }, [lineRef]);
+  return height;
+}
 
 export const SavedScoreLine: React.FC = () => {
   const saved = useSavedScoreStore(state => state.saved);
@@ -28,6 +64,8 @@ export const SavedScoreLine: React.FC = () => {
 
 const SavedScoreLineBody: React.FC<{ saved: SavedScore }> = ({ saved }) => {
   const navigate = useNavigate();
+  const lineRef = useRef<HTMLDivElement>(null);
+  const headerHeight = useStickyHeaderHeight(lineRef);
   const { state, sawQueued } = useScoreSaveState(saved.entryId);
   useScoresSentToast(state, sawQueued);
 
@@ -42,9 +80,11 @@ const SavedScoreLineBody: React.FC<{ saved: SavedScore }> = ({ saved }) => {
 
   return (
     <div
+      ref={lineRef}
+      style={{ top: headerHeight }}
       role="status"
       data-testid="saved-score-line"
-      className={`sticky top-0 z-40 flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-background px-4 py-2 text-sm ${
+      className={`sticky z-[9] flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-background px-4 py-2 text-sm ${
         failed ? 'text-destructive' : 'text-foreground'
       }`}
     >

@@ -5,6 +5,8 @@ import { AddDogPanel } from '@/components/panels/edit';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import type { Dog } from '@/types/dog-types';
+import { useCreatedInSession } from './CreatedInSessionContext';
 
 /**
  * MYK9-1973: the exhibitor has no dogs yet. "register a dog" opens the wizard's
@@ -29,6 +31,12 @@ export function NoDogsYetAlert({
   const { refetch } = useDogStoreCompat();
   const { getUserRoles } = useAuthContext();
   const currentUserPersonId = useCurrentUserPersonId();
+  const createdInSession = useCreatedInSession();
+  // As the dog step does: a new dog is remembered so the leave prompt can list it.
+  const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
+    if (!options?.existing) createdInSession?.recordDogCreated(dog);
+    refetch();
+  };
 
   return (
     <>
@@ -53,7 +61,7 @@ export function NoDogsYetAlert({
         offlineFirst={offlineFirst}
         open={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
-        onDogCreated={() => refetch()}
+        onDogCreated={handleDogCreated}
         userRole={getPrimaryRole(getUserRoles())}
         currentUserPersonId={currentUserPersonId || undefined}
       />

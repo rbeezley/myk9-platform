@@ -441,6 +441,58 @@ describe('Dog Queries', () => {
       expect(result.hitLimit).toBe(false);
     });
 
+    // MYK9-2020: the secretary's search box says it finds a dog by its owner's
+    // name. Her local roster is capped, so the system-wide search has to match
+    // owners too, through the people rows she can already read.
+    it("finds a dog by its owner's first or last name", async () => {
+      const dogsChain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
+      const regChain = createChainableQuery({ data: [], error: null });
+      const peopleChain = createChainableQuery({ data: [{ id: 'p1' }], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
+      );
+
+      await searchAllDogs('alice');
+
+      expect(peopleChain.or).toHaveBeenCalledWith(
+        'first_name.ilike.%alice%,last_name.ilike.%alice%'
+      );
+      expect(dogsChain.or).toHaveBeenCalledWith(expect.stringContaining('owner_id.in.(p1)'));
+    });
+
+    it("finds a dog by its owner's full name", async () => {
+      const dogsChain = createChainableQuery({ data: [], error: null });
+      const regChain = createChainableQuery({ data: [], error: null });
+      const peopleChain = createChainableQuery({ data: [{ id: 'p1' }], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
+      );
+
+      await searchAllDogs('Alice Smith');
+
+      expect(peopleChain.or).toHaveBeenCalledWith(
+        'first_name.ilike.%Alice Smith%,last_name.ilike.%Alice Smith%,and(first_name.ilike.%Alice%,last_name.ilike.%Smith%)'
+      );
+      expect(dogsChain.or).toHaveBeenCalledWith(expect.stringContaining('owner_id.in.(p1)'));
+    });
+
+    it('propagates an error from the owner pre-query instead of returning empty', async () => {
+      const dogsChain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
+      const regChain = createChainableQuery({ data: [], error: null });
+      const peopleChain = createChainableQuery({
+        data: null,
+        error: { message: 'PostgREST unavailable', code: '503' },
+      });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
+      );
+
+      const result = await searchAllDogs('alice');
+
+      expect(result.error).not.toBeNull();
+      expect(result.data).toEqual([]);
+    });
+
     // MYK9-90 review finding: a failed registration pre-query must not be
     // silently downgraded to "no registration matches". Otherwise a broken
     // backend is indistinguishable from "no such dog" — the caller sees an

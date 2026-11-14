@@ -22,11 +22,14 @@ import {
 } from '../utils/qualifiedCheck';
 import { maxTimeForArea } from '../utils/buildResolvedClassRules';
 import type { AreaScore, ScoreData, ExtendedResult, ResolvedClassRules } from '../types';
+import { clearRunTimers } from '../utils/runTimerStorage';
 
 export interface ScoresheetScoringConfig {
   rules: ResolvedClassRules;
   areaNames?: string[];
   existingScore?: ScoreData;
+  /** The entry id: a successful save retires the timers kept for it (MYK9-2007). */
+  timerKey?: string;
   /**
    * False for sports that never score found / correct per area (UKC Nosework,
    * MYK9-1086): the save then carries no find counts and no FOUND/CORRECT
@@ -93,6 +96,27 @@ export interface ScoresheetScoringReturn {
   reset: () => void;
 }
 
+/** The entries table stores area1..area4 times only. */
+const STORED_AREA_COLUMNS = 4;
+
+function secondsOf(time: string | undefined): number {
+  const parsed = time ? parseDuration(time, 'search') : null;
+  return parsed?.ok ? parsed.seconds : 0;
+}
+
+/**
+ * Only four area times are stored (MYK9-2006), so a reopened sheet cannot rebuild
+ * a fifth area's time. Its total is the saved total moved by what the judge changed.
+ */
+function savedTotalPlusChanges(existingScore: ScoreData, areas: AreaScore[]): string {
+  const change = areas.reduce(
+    (sum, area, i) => sum + secondsOf(area.time) - secondsOf(existingScore.areaTimes[i]),
+    0
+  );
+  const total = secondsOf(existingScore.searchTime) + change;
+  return formatSecondsAsMSSCC(Math.max(0, Math.round(total * 100) / 100));
+}
+
 function initializeAreas(
   rules: ResolvedClassRules,
   areaNames?: string[],
@@ -118,7 +142,7 @@ function initializeAreas(
 }
 
 export function useScoresheetScoring(config: ScoresheetScoringConfig): ScoresheetScoringReturn {
-  const { rules, areaNames, existingScore, recordFinds = true, qualifiedRules } = config;
+  const { rules, areaNames, existingScore, recordFinds = true, qualifiedRules, timerKey } = config;
 
   const [areas, setAreas] = useState<AreaScore[]>(() =>
     initializeAreas(rules, areaNames, existingScore)
@@ -222,7 +246,10 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
       return {
         resultText: qualifying || 'NQ',
-        searchTime: calculateTotalTime() || '0.00',
+        searchTime:
+          existingScore && areas.length > STORED_AREA_COLUMNS
+            ? savedTotalPlusChanges(existingScore, areas)
+            : calculateTotalTime() || '0.00',
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
         areaTimes: areas.map(a => a.time),
@@ -316,6 +343,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       let submissionAccepted = true;
       try {
         await onSubmit(buildScoreData(extra));
+        if (timerKey) clearRunTimers(timerKey);
       } catch (err) {
         submissionAccepted = false;
         setSubmitError(err instanceof Error ? err.message : 'Score submission failed');
@@ -329,7 +357,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         setIsSubmitting(false);
       }
     },
-    [validate, buildScoreData]
+    [validate, buildScoreData, timerKey]
   );
 
   const reset = useCallback(() => {

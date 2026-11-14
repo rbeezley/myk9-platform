@@ -16,6 +16,7 @@ const page = ['ClubMembersManager.tsx', 'useClubMembersManager.ts', 'ClubRemoval
   .map(file => readFileSync(resolve(__dirname, file), 'utf8'))
   .join('\n');
 const dialogs = readFileSync(resolve(__dirname, 'ClubMemberDialogs.tsx'), 'utf8');
+const showAccess = readFileSync(resolve(__dirname, 'ClubShowAccessTab.tsx'), 'utf8');
 
 describe('roster query gating', () => {
   it('gates the page on all three queries, not just members', () => {
@@ -138,7 +139,13 @@ describe('dialog semantics', () => {
     expect(dialogs).toContain('overflow-y-auto');
   });
 
-  it('admits when the person list is truncated', () => {
-    expect(dialogs.match(/Showing the first 20 of/g)?.length).toBe(2);
+  it('routes every person picker through the shared search helper', () => {
+    // The truncation line ("Showing the first 20 of N", #1708) and the type-to-search
+    // prompt (MYK9-1983) both live in peoplePickerFilter.ts, so a picker that slices its
+    // own list loses both. Behaviour is covered by peoplePickerFilter.test.ts and the
+    // dialogs' render tests.
+    expect(dialogs.match(/filterPeoplePicker\(/g)?.length).toBe(2);
+    expect(showAccess.match(/filterPeoplePicker\(/g)?.length).toBe(1);
+    expect(dialogs + showAccess).not.toMatch(/\.slice\(0, 20\)/);
   });
 });

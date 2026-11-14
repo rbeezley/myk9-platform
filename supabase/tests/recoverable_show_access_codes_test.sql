@@ -171,6 +171,8 @@ from (
 ) as grants(person_id, auth_id, role_name, club_id, show_id)
 join public.roles on roles.name = grants.role_name;
 
+-- MYK9-1950: judge codes are per judge and come from the judge_assignments trigger (one each for
+-- the two assigned judges above), so only the shared role codes are inserted here.
 insert into public.show_passcodes (
   id, show_id, role, passcode_hash, passcode_ciphertext, created_at
 ) values
@@ -180,14 +182,6 @@ insert into public.show_passcodes (
     'admin',
     public._hash_passcode('a1b2c'),
     public._encrypt_show_passcode('a1b2c'),
-    clock_timestamp() - interval '1 minute'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000962',
-    '00000000-0000-0000-0000-000000000902',
-    'judge',
-    public._hash_passcode('j2c3d'),
-    public._encrypt_show_passcode('j2c3d'),
     clock_timestamp() - interval '1 minute'
   ),
   (
@@ -234,13 +228,17 @@ do $$
 declare
   visible_roles text[];
 begin
-  select array_agg(role order by role)
+  select array_agg(distinct role order by role)
     into visible_roles
     from public.get_show_access_codes('00000000-0000-0000-0000-000000000902');
   if visible_roles is distinct from array['admin', 'exhibitor', 'judge', 'steward'] then
     raise exception 'FAIL manager roles: %', visible_roles;
   end if;
-  raise notice 'PASS manager receives all four roles';
+  if (select count(*) from public.get_show_access_codes('00000000-0000-0000-0000-000000000902')
+       where role = 'judge') <> 2 then
+    raise exception 'FAIL manager must read both judges'' codes';
+  end if;
+  raise notice 'PASS manager receives all four roles, one judge code per judge';
 end
 $$;
 
@@ -255,6 +253,10 @@ begin
     from public.get_show_access_codes('00000000-0000-0000-0000-000000000902');
   if visible_roles is distinct from array['exhibitor', 'judge'] then
     raise exception 'FAIL judge roles: %', visible_roles;
+  end if;
+  if (select person_id from public.get_show_access_codes('00000000-0000-0000-0000-000000000902')
+       where role = 'judge') is distinct from '00000000-0000-0000-0000-000000000912'::uuid then
+    raise exception 'FAIL an assigned judge must read only their own judge code';
   end if;
   raise notice 'PASS judge receives judge and exhibitor roles';
 end
@@ -453,13 +455,21 @@ begin
   from public.show_passcodes sp
   join public.get_show_access_codes('00000000-0000-0000-0000-000000000902') codes
     using (role)
-  where sp.show_id = '00000000-0000-0000-0000-000000000902';
+  where sp.show_id = '00000000-0000-0000-0000-000000000902'
+    and sp.role <> 'judge';
 
-  if generation_count <> 1 or recoverable_count <> 4 then
+  if generation_count <> 1 or recoverable_count <> 3 then
     raise exception 'FAIL regeneration was not one complete recoverable generation';
   end if;
+  -- MYK9-1950: judge codes are per judge, so the result's judge column is NULL; every judge's
+  -- code is replaced and stays recoverable (read through get_show_access_codes).
+  if regenerated.judge is not null
+     or (select count(*) from public.show_passcodes
+          where show_id = '00000000-0000-0000-0000-000000000902'
+            and role = 'judge' and passcode_ciphertext is not null) <> 2 then
+    raise exception 'FAIL regeneration did not keep both judge codes recoverable';
+  end if;
   if visible->>'admin' is distinct from regenerated.admin
-     or visible->>'judge' is distinct from regenerated.judge
      or visible->>'steward' is distinct from regenerated.steward
      or visible->>'exhibitor' is distinct from regenerated.exhibitor then
     raise exception 'FAIL getter values did not match regenerated values';

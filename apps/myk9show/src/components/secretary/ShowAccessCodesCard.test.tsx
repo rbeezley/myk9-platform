@@ -48,12 +48,26 @@ function spyClipboard() {
 // reconfigure rpc per test instead of installing a competing mock that
 // would break unrelated parts of the app (useAuth.getSession, etc.).
 function mockRegenerateRpc(response: {
-  data: Array<{ admin: string; judge: string; steward: string; exhibitor: string }> | null;
+  data: Array<{ admin: string; judge: string | null; steward: string; exhibitor: string }> | null;
   error: { message: string } | null;
 }) {
   mockSupabase.rpc.mockImplementation((fn: string) => {
     if (fn === 'regenerate_show_passcodes') {
       return Promise.resolve(response) as unknown as ReturnType<typeof mockSupabase.rpc>;
+    }
+    if (fn === 'get_show_access_codes') {
+      // The card re-reads the saved codes after regenerating (judge codes come only from here).
+      const saved = response.data?.[0];
+      const rows = saved
+        ? (['admin', 'steward', 'exhibitor'] as const).map(role => ({
+            role,
+            passcode: saved[role],
+            recoverable: true,
+          }))
+        : [];
+      return Promise.resolve({ data: rows, error: null }) as unknown as ReturnType<
+        typeof mockSupabase.rpc
+      >;
     }
     return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
       typeof mockSupabase.rpc
@@ -237,7 +251,7 @@ describe('ShowAccessCodesCard', () => {
 
   it('regenerates and displays fresh codes when the user confirms', async () => {
     mockRegenerateRpc({
-      data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+      data: [{ admin: 'a1111', judge: null, steward: 's3333', exhibitor: 'e4444' }],
       error: null,
     });
 
@@ -256,16 +270,30 @@ describe('ShowAccessCodesCard', () => {
       });
     });
     expect(await screen.findByText('a1111')).toBeInTheDocument();
-    expect(screen.getByText('j2222')).toBeInTheDocument();
+    expect(screen.queryByText('Judge')).not.toBeInTheDocument();
+    expect(screen.queryByText('j2222')).not.toBeInTheDocument();
     expect(screen.getByText('s3333')).toBeInTheDocument();
     expect(screen.getByText('e4444')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Access codes are ready to share.');
     expect(screen.getByRole('button', { name: /regenerate codes/i })).toBeInTheDocument();
   });
 
+  it('renders no Judge row when the passcode set has a null judge', () => {
+    renderWithProviders(
+      <ShowAccessCodesCard
+        showId={TEST_SHOW_ID}
+        passcodes={{ admin: 'a1111', judge: null, steward: 's3333', exhibitor: 'e4444' }}
+      />
+    );
+
+    expect(screen.getByText('a1111')).toBeInTheDocument();
+    expect(screen.getByText('s3333')).toBeInTheDocument();
+    expect(screen.queryByText('Judge')).not.toBeInTheDocument();
+  });
+
   it('replaces wizard-provided codes after regeneration', async () => {
     mockRegenerateRpc({
-      data: [{ admin: 'a9999', judge: 'j8888', steward: 's7777', exhibitor: 'e6666' }],
+      data: [{ admin: 'a9999', judge: null, steward: 's7777', exhibitor: 'e6666' }],
       error: null,
     });
 
@@ -275,7 +303,7 @@ describe('ShowAccessCodesCard', () => {
         canRegenerate
         passcodes={{
           admin: 'a1111',
-          judge: 'j2222',
+          judge: null,
           steward: 's3333',
           exhibitor: 'e4444',
         }}
@@ -291,12 +319,19 @@ describe('ShowAccessCodesCard', () => {
 
   it('shows an in-progress state and prevents a second generation request', async () => {
     let resolveRpc: ((value: unknown) => void) | undefined;
-    mockSupabase.rpc.mockImplementation(
-      () =>
-        new Promise(resolve => {
-          resolveRpc = resolve;
-        }) as unknown as ReturnType<typeof mockSupabase.rpc>
-    );
+    mockSupabase.rpc.mockImplementation(((fn: string) =>
+      fn === 'regenerate_show_passcodes'
+        ? new Promise(resolve => {
+            resolveRpc = resolve;
+          })
+        : Promise.resolve({
+            data: [
+              { role: 'admin', passcode: 'a1111', recoverable: true },
+              { role: 'steward', passcode: 's3333', recoverable: true },
+              { role: 'exhibitor', passcode: 'e4444', recoverable: true },
+            ],
+            error: null,
+          })) as unknown as typeof mockSupabase.rpc);
 
     const { user } = renderWithProviders(
       <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
@@ -309,7 +344,7 @@ describe('ShowAccessCodesCard', () => {
     expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
 
     resolveRpc?.({
-      data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+      data: [{ admin: 'a1111', judge: null, steward: 's3333', exhibitor: 'e4444' }],
       error: null,
     });
     expect(await screen.findByText('a1111')).toBeInTheDocument();
@@ -422,10 +457,12 @@ describe('ShowAccessCodesCard', () => {
   });
 
   it('clears regenerated codes when the card changes to another show', async () => {
+    let regenerated = false;
     mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
       if (fn === 'regenerate_show_passcodes') {
+        regenerated = true;
         return Promise.resolve({
-          data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+          data: [{ admin: 'a1111', judge: null, steward: 's3333', exhibitor: 'e4444' }],
           error: null,
         }) as unknown as ReturnType<typeof mockSupabase.rpc>;
       }
@@ -434,7 +471,9 @@ describe('ShowAccessCodesCard', () => {
           data:
             args?.p_show_id === SECOND_TEST_SHOW_ID
               ? [{ role: 'admin', passcode: 'b2222', recoverable: true }]
-              : [],
+              : regenerated
+                ? [{ role: 'admin', passcode: 'a1111', recoverable: true }]
+                : [],
           error: null,
         }) as unknown as ReturnType<typeof mockSupabase.rpc>;
       }

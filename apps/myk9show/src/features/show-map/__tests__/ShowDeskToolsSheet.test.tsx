@@ -24,7 +24,18 @@ function mockRegenerateRpc() {
   mockSupabase.rpc.mockImplementation((fn: string) => {
     if (fn === 'regenerate_show_passcodes') {
       return Promise.resolve({
-        data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+        data: [{ admin: 'a1111', judge: null, steward: 's3333', exhibitor: 'e4444' }],
+        error: null,
+      }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+    }
+    if (fn === 'get_show_access_codes') {
+      // The card re-reads the saved codes after regenerating.
+      return Promise.resolve({
+        data: [
+          { role: 'admin', passcode: 'a1111', recoverable: true },
+          { role: 'steward', passcode: 's3333', recoverable: true },
+          { role: 'exhibitor', passcode: 'e4444', recoverable: true },
+        ],
         error: null,
       }) as unknown as ReturnType<typeof mockSupabase.rpc>;
     }

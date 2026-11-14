@@ -168,3 +168,18 @@ export function deriveRingsideRoleFromClaim(
   if (claim.show_id !== showId) return null;
   return isRingsideRole(claim.ringside_role) ? claim.ringside_role : null;
 }
+
+/**
+ * MYK9-1951: the judge a per-judge passcode belongs to. `validate-passcode` stamps
+ * `ringside_person_id` into the anonymous session's claim only for a judge code; admin and
+ * steward codes carry none (an empty value counts as none). Pure derivation, like the role.
+ */
+export function deriveRingsideJudgePersonIdFromClaim(
+  user: Pick<User, 'is_anonymous' | 'app_metadata'> | null | undefined,
+  showId: string | undefined
+): string | null {
+  if (deriveRingsideRoleFromClaim(user, showId) !== 'judge') return null;
+  const personId = (user?.app_metadata as { ringside_person_id?: unknown } | undefined)
+    ?.ringside_person_id;
+  return typeof personId === 'string' && personId.length > 0 ? personId : null;
+}

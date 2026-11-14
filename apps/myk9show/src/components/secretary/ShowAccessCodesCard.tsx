@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { AlertCircle, Copy, KeyRound, Link, Loader2, Printer } from 'lucide-react';
 import type { ShowPasscodes } from '@myk9/core';
@@ -19,6 +19,8 @@ import { notifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { friendlyDbError, isPermissionDbError } from '@/utils/friendlyDbError';
 import { printShowAccessSlip } from './printShowAccessSlip';
+import { rowsFromProvidedPasscodes, rowsFromRetrievedCodes } from './accessCodeRows';
+import { useShowAccessCodes } from './useShowAccessCodes';
 
 interface ShowAccessCodesCardProps {
   showId: string;
@@ -71,24 +73,9 @@ interface ShowAccessCodesCardProps {
 
 type RegenerateRpcRow = {
   admin: string;
-  judge: string;
+  judge: string | null;
   steward: string;
   exhibitor: string;
-};
-
-type AccessCodeRole = 'admin' | 'judge' | 'steward' | 'exhibitor';
-
-type AccessCodeRpcRow = {
-  role: AccessCodeRole;
-  passcode: string | null;
-  recoverable: boolean;
-};
-
-type AccessCodeLoadState = 'idle' | 'loading' | 'loaded' | 'error';
-
-type DisplayCodeRow = {
-  role: 'Admin' | 'Judge' | 'Steward' | 'Exhibitor';
-  code: string;
 };
 
 type RegenerationState = 'idle' | 'generating' | 'success';
@@ -134,11 +121,15 @@ function ShowAccessCodesCardForShow({
   canLoadCodes = false,
   canRegenerate = false,
 }: ShowAccessCodesCardProps) {
+  // The non-judge codes a regeneration returned. They are only the fallback if the re-read
+  // below fails: neither RPC returns a judge code, so the re-read is what lists the judges.
   const [generatedPasscodes, setGeneratedPasscodes] = useState<ShowPasscodes | null>(null);
-  const [retrievedCodes, setRetrievedCodes] = useState<AccessCodeRpcRow[]>([]);
-  const [loadState, setLoadState] = useState<AccessCodeLoadState>('idle');
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [regenerated, setRegenerated] = useState(false);
+  const fetchEnabled = canLoadCodes || regenerated;
+  const access = useShowAccessCodes(showId, fetchEnabled);
+  const loadState = access.state;
+  const loadError = access.error;
+  const retrievedCodes = access.codes;
   const [regenerationState, setRegenerationState] = useState<RegenerationState>('idle');
   const [regenerationError, setRegenerationError] = useState<string | null>(initialError);
   // Could pressing the button again plausibly work? A show-creation failure
@@ -147,50 +138,19 @@ function ShowAccessCodesCardForShow({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
-  // Wizard-provided plaintexts are the initial set. Once regeneration runs,
-  // the fresh set must replace them so revoked codes cannot be redistributed.
-  const passcodes = generatedPasscodes ?? providedPasscodes;
+  // The wizard's plaintexts are the interim set. Once the server list is read it replaces them
+  // (that read has the judge rows), and after a regeneration the old set is never shown again,
+  // so revoked codes cannot be redistributed.
+  const readFromServer = fetchEnabled && loadState === 'loaded';
+  const passcodes = readFromServer
+    ? null
+    : regenerated
+      ? loadState === 'error'
+        ? generatedPasscodes
+        : null
+      : (providedPasscodes ?? null);
+  const awaitingCodes = !passcodes && fetchEnabled && !readFromServer;
   const isRegenerating = regenerationState === 'generating';
-
-  useEffect(() => {
-    if (!canLoadCodes || passcodes) return;
-
-    let active = true;
-    setLoadState('loading');
-    setLoadError(null);
-
-    void (async () => {
-      try {
-        const { data, error } = await (
-          supabase.rpc as unknown as (
-            fn: string,
-            args: Record<string, unknown>
-          ) => Promise<{
-            data: AccessCodeRpcRow[] | null;
-            error: { message: string } | null;
-          }>
-        )('get_show_access_codes', { p_show_id: showId });
-
-        if (!active) return;
-        if (error) {
-          setLoadError(friendlyDbError(error, "Couldn't load show access codes. Try again."));
-          setLoadState('error');
-          return;
-        }
-
-        setRetrievedCodes(data ?? []);
-        setLoadState('loaded');
-      } catch (error) {
-        if (!active) return;
-        setLoadError(friendlyDbError(error, "Couldn't load show access codes. Try again."));
-        setLoadState('error');
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [canLoadCodes, loadAttempt, passcodes, showId]);
 
   async function copyToClipboard(text: string) {
     await navigator.clipboard.writeText(text);
@@ -222,10 +182,12 @@ function ShowAccessCodesCardForShow({
       const row = data[0]!;
       setGeneratedPasscodes({
         admin: row.admin,
-        judge: row.judge,
+        judge: null,
         steward: row.steward,
         exhibitor: row.exhibitor,
       });
+      setRegenerated(true);
+      access.reload();
       setRegenerationState('success');
       notifications.success('New codes generated and saved.');
     } catch (error) {
@@ -288,7 +250,7 @@ function ShowAccessCodesCardForShow({
     </Alert>
   ) : null;
 
-  if (!passcodes && canLoadCodes && (loadState === 'idle' || loadState === 'loading')) {
+  if (awaitingCodes && (loadState === 'idle' || loadState === 'loading')) {
     return (
       <Card>
         <CardHeader>
@@ -305,7 +267,7 @@ function ShowAccessCodesCardForShow({
     );
   }
 
-  if (!passcodes && canLoadCodes && loadState === 'error') {
+  if (awaitingCodes && loadState === 'error') {
     return (
       <Card>
         <CardHeader>
@@ -318,7 +280,7 @@ function ShowAccessCodesCardForShow({
             <AlertTitle>Couldn't load show access codes</AlertTitle>
             <AlertDescription>{loadError ?? 'Try again when you are connected.'}</AlertDescription>
           </Alert>
-          <Button variant="outline" onClick={() => setLoadAttempt(current => current + 1)}>
+          <Button variant="outline" onClick={access.reload}>
             Try again
           </Button>
         </CardContent>
@@ -326,29 +288,14 @@ function ShowAccessCodesCardForShow({
     );
   }
 
-  const providedRows: DisplayCodeRow[] = passcodes
-    ? [
-        { role: 'Admin', code: passcodes.admin },
-        { role: 'Judge', code: passcodes.judge },
-        { role: 'Steward', code: passcodes.steward },
-        { role: 'Exhibitor', code: passcodes.exhibitor },
-      ]
-    : [];
-  const retrievedRows: DisplayCodeRow[] = retrievedCodes.flatMap(row =>
-    row.passcode
-      ? [
-          {
-            role: `${row.role.charAt(0).toUpperCase()}${row.role.slice(1)}` as DisplayCodeRow['role'],
-            code: row.passcode,
-          },
-        ]
-      : []
-  );
-  const unfilteredRows = passcodes ? providedRows : retrievedRows;
+  const unfilteredRows = passcodes
+    ? rowsFromProvidedPasscodes(passcodes)
+    : rowsFromRetrievedCodes(retrievedCodes);
   const rows = visibleRoles
     ? unfilteredRows.filter(row => visibleRoles.includes(row.role))
     : unfilteredRows;
-  const hasLegacyRows = !passcodes && retrievedCodes.some(row => !row.recoverable || !row.passcode);
+  const hasLegacyRows =
+    !passcodes && readFromServer && retrievedCodes.some(row => !row.recoverable || !row.passcode);
 
   if (rows.length === 0 && hasLegacyRows) {
     return (
@@ -422,6 +369,16 @@ function ShowAccessCodesCardForShow({
             Access codes are ready to share.
           </p>
         )}
+        {regenerated && loadState === 'error' && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Judge codes could not be loaded</AlertTitle>
+            <AlertDescription>
+              The new codes were saved. Close this card and open it again to see each judge&apos;s
+              code.
+            </AlertDescription>
+          </Alert>
+        )}
         {hasLegacyRows && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -440,11 +397,11 @@ function ShowAccessCodesCardForShow({
           </div>
         )}
 
-        {rows.map(({ role, code }) => (
-          <div key={role} className="rounded-lg border p-3 space-y-2">
+        {rows.map(({ key, role, label, code }) => (
+          <div key={key} className="rounded-lg border p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
-                <span className="w-16 text-sm font-medium">{role}</span>
+                <span className="min-w-16 text-sm font-medium">{label}</span>
                 <code className="rounded bg-muted px-2 py-1 font-mono text-sm tracking-wider">
                   {code}
                 </code>
@@ -455,7 +412,7 @@ function ShowAccessCodesCardForShow({
               <Button
                 variant="ghost"
                 size="icon-lg"
-                aria-label={`Copy ${role} code`}
+                aria-label={`Copy ${label} code`}
                 onClick={() => copyToClipboard(code)}
               >
                 <Copy className="h-4 w-4" />

@@ -14,6 +14,7 @@ import { JudgeSupplyChecklistReport } from '../JudgeSupplyChecklistReport';
 import { useHostedReportData } from '@/pages/secretary/ReportsPage/useHostedReportData';
 import { showJudgeSuppliesService } from '@/features/judge-supplies/showJudgeSuppliesService';
 import type { ShowJudgeSupplyRow } from '@/features/judge-supplies/types';
+import { mockSupabase } from '@/test/mocks/supabase';
 import type { ReportProps } from '@/lib/reports/types';
 
 const mockListForShow = vi.mocked(showJudgeSuppliesService.listForShow);
@@ -189,5 +190,63 @@ describe('useHostedReportData — judge supplies', () => {
       wrapper: wrapper(client),
     });
     expect(mockListForShow).not.toHaveBeenCalled();
+  });
+
+  it("prints each judge's own ringside code on that judge's page (MYK9-1951)", () => {
+    render(
+      <JudgeSupplyChecklistReport
+        {...baseProps({
+          judgeSupplies: {
+            data: [
+              {
+                ...row({ id: 'a', person_id: 'p1', judge_name: 'Alice' }),
+                judge_passcode: 'j1111',
+              },
+              { ...row({ id: 'b', person_id: 'p2', judge_name: 'Bob' }), judge_passcode: 'j2222' },
+              row({ id: 'c', person_id: 'p3', judge_name: 'Cy' }),
+            ],
+            isLoading: false,
+            isError: false,
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByTestId('supply-passcode-p1')).toHaveTextContent('j1111');
+    expect(screen.getByTestId('supply-passcode-p2')).toHaveTextContent('j2222');
+    expect(screen.queryByTestId('supply-passcode-p3')).not.toBeInTheDocument();
+  });
+
+  it('hands the host report each judge code, read from get_show_access_codes', async () => {
+    mockListForShow.mockResolvedValue([
+      row({ id: 'a', person_id: 'p1', judge_name: 'Alice' }),
+      row({ id: 'b', person_id: 'p2', judge_name: 'Bob' }),
+    ]);
+    mockSupabase.rpc.mockImplementation(((fn: string) =>
+      Promise.resolve({
+        data:
+          fn === 'get_show_access_codes'
+            ? [
+                { role: 'admin', passcode: 'a1111', recoverable: true, person_id: null },
+                { role: 'judge', passcode: 'j1111', recoverable: true, person_id: 'p1' },
+              ]
+            : null,
+        error: null,
+      })) as unknown as typeof mockSupabase.rpc);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const { result } = renderHook(
+      () => useHostedReportData({ reportType: 'judge-supply-checklist', showId: 'show-1' }),
+      { wrapper: wrapper(client) }
+    );
+
+    await waitFor(() => expect(result.current.hostedState).toBe('ready'));
+    const rows = result.current.judgeSupplies?.data as Array<{
+      person_id: string;
+      judge_passcode: string | null;
+    }>;
+    expect(rows.find(r => r.person_id === 'p1')?.judge_passcode).toBe('j1111');
+    expect(rows.find(r => r.person_id === 'p2')?.judge_passcode).toBeNull();
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('get_show_access_codes', { p_show_id: 'show-1' });
   });
 });

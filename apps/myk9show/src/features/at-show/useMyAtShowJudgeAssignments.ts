@@ -8,6 +8,7 @@ import {
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { UserRole } from '@/types/auth-types';
+import { deriveRingsideJudgePersonIdFromClaim } from '@/store/ringsideGrantStore';
 
 export interface MyAtShowJudgeAssignmentsResult {
   assignedClassIds: Set<string>;
@@ -25,10 +26,10 @@ export interface MyAtShowJudgeAssignmentsResult {
 }
 
 /**
- * Offline-only class assignments for the identifiable signed-in judge.
- *
- * Anonymous passcode sessions carry a show-wide role claim but no canonical
- * person identity, so they intentionally resolve to an empty set.
+ * Offline-only class assignments for the identifiable signed-in judge, or for
+ * the judge a per-judge passcode session belongs to (MYK9-1951: the claim's
+ * `ringside_person_id`). Admin and steward passcode sessions carry no person
+ * identity, so they intentionally resolve to an empty set and stay unfiltered.
  */
 export function useMyAtShowJudgeAssignments(
   showId: string | undefined
@@ -37,7 +38,8 @@ export function useMyAtShowJudgeAssignments(
   const { hasRole, user, userWithRoles } = useAuthContext();
   const { status: syncStatus, syncTable } = useReplicationSync();
   const isJudgeAccount = !user?.is_anonymous && hasRole(UserRole.JUDGE);
-  const personId = isJudgeAccount ? userWithRoles?.databaseUserId : undefined;
+  const passcodePersonId = deriveRingsideJudgePersonIdFromClaim(user, showId);
+  const personId = isJudgeAccount ? userWithRoles?.databaseUserId : (passcodePersonId ?? undefined);
   // Roles survive a cold offline boot via the MYK9-200 permissions cache, but
   // `databaseUserId` still comes from the `people` lookup in AuthContext, which
   // is a plain network query. So offline a judge holds hasRole(JUDGE) === true

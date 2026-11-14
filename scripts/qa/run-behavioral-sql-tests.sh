@@ -236,6 +236,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1473_coin_flip_tie_order_test.sql"
   "$TEST_DIR/myk9_1563_merge_user_preferences_test.sql"
   "$TEST_DIR/myk9_1863_cancelled_class_writes_test.sql"
+  "$TEST_DIR/myk9_1950_per_judge_passcodes_test.sql"
   "$TEST_DIR/golden_replay_trial_27835_test.sql"
 )
 

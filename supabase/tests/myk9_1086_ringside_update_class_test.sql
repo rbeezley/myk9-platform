@@ -55,10 +55,15 @@ insert into public.judge_assignments (person_id, show_id, trial_id, class_id, st
 values ('00000000-0000-0000-0000-000001086012', '00000000-0000-0000-0000-000001086021',
         '00000000-0000-0000-0000-000001086022', '00000000-0000-0000-0000-000001086023',
         'confirmed', now());
-insert into public.show_passcodes (show_id, role, passcode_hash, created_at) values
-  ('00000000-0000-0000-0000-000001086021', 'judge', 'myk9-1086-judge', '2026-10-10T00:00:00Z'),
-  ('00000000-0000-0000-0000-000001086021', 'steward', 'myk9-1086-steward', '2026-10-10T00:00:00Z'),
-  ('00000000-0000-0000-0000-000001086031', 'judge', 'myk9-1086-other-judge', '2026-10-10T00:00:00Z');
+-- MYK9-1950: Jay's judge code comes from the assignment above (a judge code belongs to a judge);
+-- pin its generation so the claims can name it.
+update public.show_passcodes set created_at = '2026-10-10T00:00:00Z'
+ where show_id = '00000000-0000-0000-0000-000001086021'
+   and person_id = '00000000-0000-0000-0000-000001086012';
+insert into public.show_passcodes (show_id, role, passcode_hash, created_at, person_id) values
+  ('00000000-0000-0000-0000-000001086021', 'steward', 'myk9-1086-steward', '2026-10-10T00:00:00Z', NULL),
+  ('00000000-0000-0000-0000-000001086031', 'judge', 'myk9-1086-other-judge', '2026-10-10T00:00:00Z',
+   '00000000-0000-0000-0000-000001086012');
 
 -- authenticated cannot read classes rows it does not manage; versions cross the
 -- role boundary through this temp table.
@@ -78,6 +83,8 @@ create or replace function pg_temp.as_passcode(p_show uuid, p_role text) returns
            'is_anonymous', true,
            'app_metadata', jsonb_build_object(
              'kind', 'ringside_passcode', 'show_id', p_show, 'ringside_role', p_role,
+             'ringside_person_id', CASE WHEN p_role = 'judge'
+                                        THEN '00000000-0000-0000-0000-000001086012' END,
              'passcode_generation', '2026-10-10T00:00:00Z'))::text, true);
 $$;
 grant execute on function pg_temp.as_account(uuid) to authenticated;

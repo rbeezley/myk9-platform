@@ -10,7 +10,20 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isRetryableError, TimeoutError } from './mutation-utils';
+import { isAuthorizationError, isRetryableError, TimeoutError } from './mutation-utils';
+
+describe('RS403 (a per-judge passcode on another judge class, MYK9-1950)', () => {
+  const refusal = { message: 'This class is judged by Ada Lovelace', code: 'RS403' };
+
+  it('is a permanent authorization refusal, never retried', () => {
+    expect(isAuthorizationError(refusal)).toBe(true);
+    expect(isRetryableError(refusal, { rpc: { name: 'ringside_update_entry' } })).toBe(false);
+  });
+
+  it('is classified by its code, so the wording can change', () => {
+    expect(isRetryableError({ message: 'something else', code: 'RS403' })).toBe(false);
+  });
+});
 
 describe('isRetryableError', () => {
   describe('Supabase-shaped errors', () => {

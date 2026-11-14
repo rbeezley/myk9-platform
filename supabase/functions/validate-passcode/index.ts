@@ -135,6 +135,9 @@ serve(async req => {
     // regeneration lands after validation, we stamp the OLD generation → the DB
     // tier revokes the claim (fail closed), never the reverse.
     let matchedGeneration: string | null = null;
+    // MYK9-1950 — the judge a per-judge code belongs to (NULL for every other role). Stamped into
+    // the claim as ringside_person_id so the DB scopes the judge's writes to their own classes.
+    let matchedPersonId: string | null = null;
 
     const { data: rpcRows, error: rpcError } = await supabaseClient.rpc('validate_passcode', {
       p_code: passcode.toLowerCase(),
@@ -149,7 +152,12 @@ serve(async req => {
     }
 
     if (Array.isArray(rpcRows) && rpcRows.length > 0) {
-      const row = rpcRows[0] as { show_id: string; role: Role; passcode_generation: string };
+      const row = rpcRows[0] as {
+        show_id: string;
+        role: Role;
+        passcode_generation: string;
+        person_id: string | null;
+      };
       // Look up the show's display fields for the success response. The
       // `deleted_at` filter is defense-in-depth — validate_passcode already
       // joins through shows and excludes soft-deletes, so this filter only
@@ -182,6 +190,7 @@ serve(async req => {
         matchedShow = showRow as ShowRow;
         matchedRole = row.role;
         matchedGeneration = row.passcode_generation ?? null;
+        matchedPersonId = row.person_id ?? null;
       }
     }
 
@@ -273,6 +282,9 @@ serve(async req => {
             show_id: matchedShow.id,
             ringside_role: matchedRole,
             passcode_generation: matchedGeneration,
+            // Explicit null clears a stale judge id when the same session later enters a
+            // non-judge code; the DB tier reads an empty value as "no judge".
+            ringside_person_id: matchedPersonId,
           },
         });
         if (stampErr) {

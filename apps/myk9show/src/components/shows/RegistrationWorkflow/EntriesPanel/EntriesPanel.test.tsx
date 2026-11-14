@@ -206,9 +206,9 @@ describe('EntriesPanel before payment', () => {
 
   it('says where the service fee appears and never totals one before payment', () => {
     renderPanel();
-    expect(
-      aside().getByText('Service fee shown at payment, only when paying by card.')
-    ).toBeInTheDocument();
+    expect(aside().getByText('Plus a service fee, shown at payment.')).toBeInTheDocument();
+    // MYK9-1963: nothing before the Payment step explains how to avoid the fee.
+    expect(aside().queryByText(/only when paying by card/i)).not.toBeInTheDocument();
     expect(aside().queryByText('Total due')).not.toBeInTheDocument();
   });
 

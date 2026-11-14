@@ -1,0 +1,2922 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`premium PDF facts parity (8 styles) > banner prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Banner
+AKC Premium · June 1, 2026 – June 2, 2026
+Spring Scent Trial
+Hosted by Test Club
+Venue
+123 Main St, Tulsa, OK 74101
+Dates
+June 1, 2026 – June 2, 2026
+TC
+--- page 2 ---
+Style: Banner
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > banner prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Banner
+UKC Premium · June 1, 2026 – June 2, 2026
+Spring Scent Trial
+Hosted by Test Club
+Venue
+123 Main St, Tulsa, OK 74101
+Dates
+June 1, 2026 – June 2, 2026
+TC
+--- page 2 ---
+Style: Banner
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+UKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > banner prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Banner
+AKC Premium · June 1, 2026
+Bare Show
+Hosted by Host Club
+Venue
+TBD
+Dates
+June 1, 2026
+HC
+--- page 2 ---
+Style: Banner
+Entry Information
+$—
+Pre-Entry Fee
+$—
+Day-Of Fee
+—
+Accepted Payment
+Entry Opens
+[REQUIRED — add before submitting]
+Entry Closes
+[REQUIRED — add before submitting]
+Entry Method
+Online entries via myK9Show
+Trial Secretary
+Name
+[REQUIRED — add before submitting]
+Trials & Judges
+Show Hours
+
+Trial Information
+
+Veterinary Services
+[REQUIRED — add before submitting]"
+`;
+
+exports[`premium PDF facts parity (8 styles) > banner prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Banner
+AKC Premium · June 1, 2026 – June 2, 2026
+Spring Scent Trial
+Hosted by Test Club
+Venue
+123 Main St, Tulsa, OK 74101
+Dates
+June 1, 2026 – June 2, 2026
+TC
+--- page 2 ---
+Style: Banner
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > fieldGuide prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Field Guide
+AT-A-TRIAL REFERENCE
+Spring Scent Trial
+June 1, 2026 – June 2, 2026
+CONTENTS
+§00
+OVERVIEW
+§01
+OFFICIALS
+§02
+JUDGES
+§03
+CLASSES
+§04
+ENTRY
+§05
+SCHEDULE
+§06
+LOCATION
+§07
+NOTICES
+TRIALS
+2
+ELEMENTS
+3
+LEVELS
+4
+JUDGES
+2
+--- page 2 ---
+Style: Field Guide
+§00
+Overview
+Novice title required for Advanced.
+§01
+Officials
+Chair
+Bob Jones · bob@test.com · (918) 555-0001
+Secretary
+Jane Smith · jane@test.com · (918) 555-0000
+§02
+Judges
+Saturday Trial 1
+Alice Judge · Container, Interior
+Saturday Trial 1
+Carl Judge
+Sunday Trial 2
+Alice Judge · Vehicle
+§03
+Classes
+Saturday Trial 1 — June 1, 2026
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2 — June 2, 2026
+Vehicle Master
+§04
+Entry
+Method
+Online entries via myK9Show
+Opens
+April 1, 2026
+Closes
+May 15, 2026
+Fees
+Pre-entry $20 · Day-of $25
+§05
+Schedule
+Building opens at 8:00 AM.
+§06
+Location
+Venue
+123 Main St, Tulsa, OK 74101
+Vet
+Animal ER · 789 Vet Blvd · (918) 999-0000
+Lodging
+La Quinta · 100 Hotel Rd · (918) 111-2222
+Lodging
+Motel 6 · 200 Inn Rd
+§07
+Notices
+Parking is free.
+Lunch on Saturday.
+Ribbons 1st through 4th."
+`;
+
+exports[`premium PDF facts parity (8 styles) > fieldGuide prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Field Guide
+AT-A-TRIAL REFERENCE
+Spring Scent Trial
+June 1, 2026 – June 2, 2026
+CONTENTS
+§00
+OVERVIEW
+§01
+OFFICIALS
+§02
+JUDGES
+§03
+CLASSES
+§04
+ENTRY
+§05
+SCHEDULE
+§06
+LOCATION
+§07
+NOTICES
+TRIALS
+2
+ELEMENTS
+3
+LEVELS
+4
+JUDGES
+2
+--- page 2 ---
+Style: Field Guide
+§00
+Overview
+Novice title required for Advanced.
+§01
+Officials
+Chair
+Bob Jones · bob@test.com · (918) 555-0001
+Secretary
+Jane Smith · jane@test.com · (918) 555-0000
+§02
+Judges
+Saturday Trial 1
+Alice Judge · Container, Interior
+Saturday Trial 1
+Carl Judge
+Sunday Trial 2
+Alice Judge · Vehicle
+§03
+Classes
+Saturday Trial 1 — June 1, 2026
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2 — June 2, 2026
+Vehicle Master
+§04
+Entry
+Method
+Online entries via myK9Show
+Opens
+April 1, 2026
+Closes
+May 15, 2026
+Fees
+Pre-entry $20 · Day-of $25
+§05
+Schedule
+Building opens at 8:00 AM.
+§06
+Location
+Venue
+123 Main St, Tulsa, OK 74101
+Vet
+Animal ER · 789 Vet Blvd · (918) 999-0000
+Lodging
+La Quinta · 100 Hotel Rd · (918) 111-2222
+Lodging
+Motel 6 · 200 Inn Rd
+§07
+Notices
+Parking is free.
+Lunch on Saturday.
+Ribbons 1st through 4th."
+`;
+
+exports[`premium PDF facts parity (8 styles) > fieldGuide prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Field Guide
+AT-A-TRIAL REFERENCE
+Bare Show
+June 1, 2026
+CONTENTS
+§00
+OVERVIEW
+§01
+OFFICIALS
+§02
+JUDGES
+§03
+CLASSES
+§04
+ENTRY
+§05
+SCHEDULE
+§06
+LOCATION
+§07
+NOTICES
+TRIALS
+0
+ELEMENTS
+0
+LEVELS
+0
+JUDGES
+0
+--- page 2 ---
+Style: Field Guide"
+`;
+
+exports[`premium PDF facts parity (8 styles) > fieldGuide prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Field Guide
+AT-A-TRIAL REFERENCE
+Spring Scent Trial
+June 1, 2026 – June 2, 2026
+CONTENTS
+§00
+OVERVIEW
+§01
+OFFICIALS
+§02
+JUDGES
+§03
+CLASSES
+§04
+ENTRY
+§05
+SCHEDULE
+§06
+LOCATION
+§07
+NOTICES
+TRIALS
+2
+ELEMENTS
+3
+LEVELS
+4
+JUDGES
+2
+--- page 2 ---
+Style: Field Guide
+§00
+Overview
+Novice title required for Advanced.
+§01
+Officials
+Chair
+Bob Jones · bob@test.com · (918) 555-0001
+Secretary
+Jane Smith · jane@test.com · (918) 555-0000
+§02
+Judges
+Saturday Trial 1
+Alice Judge · Container, Interior
+Saturday Trial 1
+Carl Judge
+Sunday Trial 2
+Alice Judge · Vehicle
+§03
+Classes
+Saturday Trial 1 — June 1, 2026
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2 — June 2, 2026
+Vehicle Master
+§04
+Entry
+Method
+Online entries via myK9Show
+Opens
+April 1, 2026
+Closes
+May 15, 2026
+Fees
+Pre-entry $20 · Day-of $25
+§05
+Schedule
+Building opens at 8:00 AM.
+§06
+Location
+Venue
+123 Main St, Tulsa, OK 74101
+Vet
+Animal ER · 789 Vet Blvd · (918) 999-0000
+Lodging
+La Quinta · 100 Hotel Rd · (918) 111-2222
+Lodging
+Motel 6 · 200 Inn Rd
+§07
+Notices
+Parking is free.
+Lunch on Saturday.
+Ribbons 1st through 4th."
+`;
+
+exports[`premium PDF facts parity (8 styles) > gazette prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Gazette
+Test Club
+VOL. I · June 1, 2026 · Tulsa, OK · LICENSE NO. AKC-2026-001
+Test Club to Hold Spring Scent Trial
+June 1, 2026 – June 2, 2026
+Test Club is pleased to announce the Spring Scent Trial at 123 Main St, Tulsa, OK 74101, running June 1, 2026 – June 2, 2026. Exhibitors will find the schedule, judges, and entry details on the inside pages.
+At a Glance
+Trials
+2 · June 1, 2026
+Elements
+Container · Interior · Vehicle
+Levels
+Novice · Advanced · Excellent · Master
+Sanctioning
+AKC
+Entries Close
+May 15, 2026
+Judging Panel
+Alice Judge · Container
+Carl Judge
+--- page 2 ---
+Style: Gazette
+Officials
+Chair: Bob Jones
+Chair Email: bob@test.com
+Chair Phone: (918) 555-0001
+Secretary: Jane Smith
+Judges
+Alice Judge — Container, Interior
+Carl Judge
+Alice Judge — Vehicle
+Classes
+Saturday Trial 1
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2
+Vehicle Master
+Fees
+Pre-entry: $20
+Day-of: $25
+Checks · Cash
+Entry Methods
+Online entries via myK9Show
+myk9show.com
+Opens: April 1, 2026
+Closes: May 15, 2026
+Alternate methods:
+Email: jane@test.com
+Mail: 456 Oak Ave
+Phone: (918) 555-0000
+Lodging
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+Awards
+Ribbons 1st through 4th.
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Notices
+Parking is free.
+Lunch on Saturday."
+`;
+
+exports[`premium PDF facts parity (8 styles) > gazette prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Gazette
+Test Club
+VOL. I · June 1, 2026 · Tulsa, OK
+Test Club to Hold Spring Scent Trial
+June 1, 2026 – June 2, 2026
+Test Club is pleased to announce the Spring Scent Trial at 123 Main St, Tulsa, OK 74101, running June 1, 2026 – June 2, 2026. Exhibitors will find the schedule, judges, and entry details on the inside pages.
+At a Glance
+Trials
+2 · June 1, 2026
+Elements
+Container · Interior · Vehicle
+Levels
+Novice · Advanced · Excellent · Master
+Sanctioning
+UKC
+Entries Close
+May 15, 2026
+Judging Panel
+Alice Judge · Container
+Carl Judge
+--- page 2 ---
+Style: Gazette
+Officials
+Chair: Bob Jones
+Chair Email: bob@test.com
+Chair Phone: (918) 555-0001
+Secretary: Jane Smith
+Judges
+Alice Judge — Container, Interior
+Carl Judge
+Alice Judge — Vehicle
+Classes
+Saturday Trial 1
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2
+Vehicle Master
+Fees
+Pre-entry: $20
+Day-of: $25
+Checks · Cash
+Entry Methods
+Online entries via myK9Show
+myk9show.com
+Opens: April 1, 2026
+Closes: May 15, 2026
+Alternate methods:
+Email: jane@test.com
+Mail: 456 Oak Ave
+Phone: (918) 555-0000
+Lodging
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+Awards
+Ribbons 1st through 4th.
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Notices
+Parking is free.
+Lunch on Saturday."
+`;
+
+exports[`premium PDF facts parity (8 styles) > gazette prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Gazette
+Host Club
+VOL. I · June 1, 2026
+Host Club to Hold Bare Show
+June 1, 2026
+Host Club is pleased to announce the Bare Show, running June 1, 2026. Exhibitors will find the schedule, judges, and entry details on the inside pages.
+At a Glance
+Sanctioning
+AKC
+--- page 2 ---
+Style: Gazette"
+`;
+
+exports[`premium PDF facts parity (8 styles) > gazette prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Gazette
+Test Club
+VOL. I · June 1, 2026 · Tulsa, OK · LICENSE NO. AKC-2026-001
+Test Club to Hold Spring Scent Trial
+June 1, 2026 – June 2, 2026
+Test Club is pleased to announce the Spring Scent Trial at 123 Main St, Tulsa, OK 74101, running June 1, 2026 – June 2, 2026. Exhibitors will find the schedule, judges, and entry details on the inside pages.
+At a Glance
+Trials
+2 · June 1, 2026
+Elements
+Container · Interior · Vehicle
+Levels
+Novice · Advanced · Excellent · Master
+Sanctioning
+AKC
+Entries Close
+May 15, 2026
+Judging Panel
+Alice Judge · Container
+Carl Judge
+--- page 2 ---
+Style: Gazette
+Officials
+Chair: Bob Jones
+Chair Email: bob@test.com
+Chair Phone: (918) 555-0001
+Secretary: Jane Smith
+Judges
+Alice Judge — Container, Interior
+Carl Judge
+Alice Judge — Vehicle
+Classes
+Saturday Trial 1
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2
+Vehicle Master
+Fees
+Pre-entry: $20
+Day-of: $25
+Checks · Cash
+Entry Methods
+Online entries via myK9Show
+myk9show.com
+Opens: April 1, 2026
+Closes: May 15, 2026
+Alternate methods:
+Email: jane@test.com
+Mail: 456 Oak Ave
+Phone: (918) 555-0000
+Lodging
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+Awards
+Ribbons 1st through 4th.
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Notices
+Parking is free.
+Lunch on Saturday."
+`;
+
+exports[`premium PDF facts parity (8 styles) > headline prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Headline
+Test Club
+AKC Premium List
+Spring Scent Trial
+Dates
+June 1, 2026 – June 2, 2026
+Venue
+123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Headline
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > headline prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Headline
+Test Club
+UKC Premium List
+Spring Scent Trial
+Dates
+June 1, 2026 – June 2, 2026
+Venue
+123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Headline
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+UKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > headline prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Headline
+Host Club
+AKC Premium List
+Bare Show
+Dates
+June 1, 2026
+--- page 2 ---
+Style: Headline
+Entry Information
+$—
+Pre-Entry Fee
+$—
+Day-Of Fee
+—
+Accepted Payment
+Entry Opens
+[REQUIRED — add before submitting]
+Entry Closes
+[REQUIRED — add before submitting]
+Entry Method
+Online entries via myK9Show
+Trial Secretary
+Name
+[REQUIRED — add before submitting]
+Trials & Judges
+Show Hours
+
+Trial Information
+
+Veterinary Services
+[REQUIRED — add before submitting]"
+`;
+
+exports[`premium PDF facts parity (8 styles) > headline prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Headline
+Test Club
+AKC Premium List
+Spring Scent Trial
+Dates
+June 1, 2026 – June 2, 2026
+Venue
+123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Headline
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > heritage prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Heritage
+Premium List
+§
+Spring Scent Trial
+§
+By way of Welcome to Test Club
+June 1, 2026 – June 2, 2026
+123 Main St, Tulsa, OK 74101
+I
+--- page 2 ---
+Style: Heritage
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+§
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+§
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+§
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+§
+Show Hours
+Building opens at 8:00 AM.
+§
+Trial Information
+Novice title required for Advanced.
+§
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+§
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+§
+Hospitality
+Lunch on Saturday.
+§
+Awards
+Ribbons 1st through 4th.
+§
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > heritage prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Heritage
+Premium List
+§
+Spring Scent Trial
+§
+By way of Welcome to Test Club
+June 1, 2026 – June 2, 2026
+123 Main St, Tulsa, OK 74101
+I
+--- page 2 ---
+Style: Heritage
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+§
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+§
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+§
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+UKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+§
+Show Hours
+Building opens at 8:00 AM.
+§
+Trial Information
+Novice title required for Advanced.
+§
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+§
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+§
+Hospitality
+Lunch on Saturday.
+§
+Awards
+Ribbons 1st through 4th.
+§
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > heritage prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Heritage
+Premium List
+§
+Bare Show
+§
+By way of Welcome to Host Club
+June 1, 2026
+I
+--- page 2 ---
+Style: Heritage
+Entry Information
+$—
+Pre-Entry Fee
+$—
+Day-Of Fee
+—
+Accepted Payment
+Entry Opens
+[REQUIRED — add before submitting]
+Entry Closes
+[REQUIRED — add before submitting]
+Entry Method
+Online entries via myK9Show
+§
+Trial Secretary
+Name
+[REQUIRED — add before submitting]
+§
+Trials & Judges
+§
+Show Hours
+
+§
+Trial Information
+
+§
+Veterinary Services
+[REQUIRED — add before submitting]"
+`;
+
+exports[`premium PDF facts parity (8 styles) > heritage prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Heritage
+Premium List
+§
+Spring Scent Trial
+§
+By way of Welcome to Test Club
+June 1, 2026 – June 2, 2026
+123 Main St, Tulsa, OK 74101
+I
+--- page 2 ---
+Style: Heritage
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+§
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+§
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+§
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+§
+Show Hours
+Building opens at 8:00 AM.
+§
+Trial Information
+Novice title required for Advanced.
+§
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+§
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+§
+Hospitality
+Lunch on Saturday.
+§
+Awards
+Ribbons 1st through 4th.
+§
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > magazine prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Magazine
+AKC · Premium List
+Test Club
+Spring Scent Trial
+June 1, 2026 – June 2, 2026 · 123 Main St, Tulsa, OK 74101
+At a Glance
+Trials
+2 · June 1, 2026, June 2, 2026
+Elements
+Interior · Container · Vehicle
+Levels
+Novice · Advanced · Excellent · Master
+Sanctioning
+AKC
+Entries Close
+May 15, 2026
+--- page 2 ---
+Style: Magazine
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > magazine prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Magazine
+UKC · Premium List
+Test Club
+Spring Scent Trial
+June 1, 2026 – June 2, 2026 · 123 Main St, Tulsa, OK 74101
+At a Glance
+Trials
+2 · June 1, 2026, June 2, 2026
+Elements
+Interior · Container · Vehicle
+Levels
+Novice · Advanced · Excellent · Master
+Sanctioning
+UKC
+Entries Close
+May 15, 2026
+--- page 2 ---
+Style: Magazine
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+UKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > magazine prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Magazine
+AKC · Premium List
+Host Club
+Bare Show
+June 1, 2026
+At a Glance
+Details coming soon
+--- page 2 ---
+Style: Magazine
+Entry Information
+$—
+Pre-Entry Fee
+$—
+Day-Of Fee
+—
+Accepted Payment
+Entry Opens
+[REQUIRED — add before submitting]
+Entry Closes
+[REQUIRED — add before submitting]
+Entry Method
+Online entries via myK9Show
+Trial Secretary
+Name
+[REQUIRED — add before submitting]
+Trials & Judges
+Show Hours
+
+Trial Information
+
+Veterinary Services
+[REQUIRED — add before submitting]"
+`;
+
+exports[`premium PDF facts parity (8 styles) > magazine prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Magazine
+AKC · Premium List
+Test Club
+Spring Scent Trial
+June 1, 2026 – June 2, 2026 · 123 Main St, Tulsa, OK 74101
+At a Glance
+Trials
+2 · June 1, 2026, June 2, 2026
+Elements
+Interior · Container · Vehicle
+Levels
+Novice · Advanced · Excellent · Master
+Sanctioning
+AKC
+Entries Close
+May 15, 2026
+--- page 2 ---
+Style: Magazine
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > monogram prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Monogram
+TC
+AKC · Premium List
+Test Club
+Spring Scent Trial
+June 1, 2026 – June 2, 2026
+123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Monogram
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > monogram prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Monogram
+TC
+UKC · Premium List
+Test Club
+Spring Scent Trial
+June 1, 2026 – June 2, 2026
+123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Monogram
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+UKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > monogram prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Monogram
+HC
+AKC · Premium List
+Host Club
+Bare Show
+June 1, 2026
+--- page 2 ---
+Style: Monogram
+Entry Information
+$—
+Pre-Entry Fee
+$—
+Day-Of Fee
+—
+Accepted Payment
+Entry Opens
+[REQUIRED — add before submitting]
+Entry Closes
+[REQUIRED — add before submitting]
+Entry Method
+Online entries via myK9Show
+Trial Secretary
+Name
+[REQUIRED — add before submitting]
+Trials & Judges
+Show Hours
+
+Trial Information
+
+Veterinary Services
+[REQUIRED — add before submitting]"
+`;
+
+exports[`premium PDF facts parity (8 styles) > monogram prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Monogram
+TC
+AKC · Premium List
+Test Club
+Spring Scent Trial
+June 1, 2026 – June 2, 2026
+123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Monogram
+Entry Information
+$20
+Pre-Entry Fee
+$25
+Day-Of Fee
+Checks · Cash
+Accepted Payment
+Entry Opens
+April 1, 2026
+Entry Closes
+May 15, 2026
+Entry Method
+Online entries via myK9Show
+ 
+Mail-in entries also accepted (see Trial Secretary).
+Trial Secretary
+Name
+Jane Smith
+Email
+jane@test.com
+Phone
+(918) 555-0000
+Address
+456 Oak Ave
+Trial Chairman
+Name
+Bob Jones
+Email
+bob@test.com
+Phone
+(918) 555-0001
+Trials & Judges
+Saturday Trial 1
+Date
+June 1, 2026 at 9:00 AM
+Event #
+AKC-2026-001
+Judge
+Alice Judge (Container, Interior)
+
+Carl Judge
+Classes
+Container Novice A, Container Excellent, Interior Advanced
+Sunday Trial 2
+Date
+June 2, 2026
+Judge
+Alice Judge (Vehicle)
+Classes
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+Trial Information
+Novice title required for Advanced.
+Veterinary Services
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta
+100 Hotel Rd
+(918) 111-2222
+Motel 6
+200 Inn Rd
+
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Additional Information
+Parking is free."
+`;
+
+exports[`premium PDF facts parity (8 styles) > poster prints the same facts for a full AKC show 1`] = `
+"--- page 1 ---
+Style: Poster
+Test Club
+AKC · Premium List
+Spring
+Scent
+Trial
+'26
+LICENSE AKC-2026-001 · SECRETARY: JANE SMITH · CLOSING: MAY 15, 2026
+Entries Close
+May 15, 2026
+June 1, 2026 – June 2, 2026 · 123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Poster
+Test Club
+The Trial
+Entry
+Online entries via myK9Show
+Pre-entry $20 · Day-of $25 · Checks, Cash.
+Opens April 1, 2026 · Closes May 15, 2026.
+Trial Secretary
+Jane Smith
+jane@test.com · (918) 555-0000
+456 Oak Ave
+Officials
+Chair: Bob Jones · bob@test.com · (918) 555-0001
+Trials & Judges
+Saturday Trial 1
+June 1, 2026 at 9:00 AM · Event AKC-2026-001
+Judged by Alice Judge (Container, Interior) & Carl Judge
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2
+June 2, 2026
+Judged by Alice Judge (Vehicle)
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+About the Trial
+Novice title required for Advanced.
+On-Call Vet
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta — 100 Hotel Rd · (918) 111-2222
+Motel 6 — 200 Inn Rd · 
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Notes
+Parking is free.
+Entries Close
+May 15, 2026"
+`;
+
+exports[`premium PDF facts parity (8 styles) > poster prints the same facts for a full UKC show 1`] = `
+"--- page 1 ---
+Style: Poster
+Test Club
+UKC · Premium List
+Spring
+Scent
+Trial
+'26
+LICENSE UKC-2026-001 · SECRETARY: JANE SMITH · CLOSING: MAY 15, 2026
+Entries Close
+May 15, 2026
+June 1, 2026 – June 2, 2026 · 123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Poster
+Test Club
+The Trial
+Entry
+Online entries via myK9Show
+Pre-entry $20 · Day-of $25 · Checks, Cash.
+Opens April 1, 2026 · Closes May 15, 2026.
+Trial Secretary
+Jane Smith
+jane@test.com · (918) 555-0000
+456 Oak Ave
+Officials
+Chair: Bob Jones · bob@test.com · (918) 555-0001
+Trials & Judges
+Saturday Trial 1
+June 1, 2026 at 9:00 AM · Event UKC-2026-001
+Judged by Alice Judge (Container, Interior) & Carl Judge
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2
+June 2, 2026
+Judged by Alice Judge (Vehicle)
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+About the Trial
+Novice title required for Advanced.
+On-Call Vet
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta — 100 Hotel Rd · (918) 111-2222
+Motel 6 — 200 Inn Rd · 
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Notes
+Parking is free.
+Entries Close
+May 15, 2026"
+`;
+
+exports[`premium PDF facts parity (8 styles) > poster prints the same facts for a show with everything empty 1`] = `
+"--- page 1 ---
+Style: Poster
+Host Club
+AKC · Premium List
+Bare
+Show
+'26
+AKC PREMIUM LIST
+June 1, 2026
+--- page 2 ---
+Style: Poster
+Entry Information
+$—
+Pre-Entry Fee
+$—
+Day-Of Fee
+—
+Accepted Payment
+Entry Opens
+[REQUIRED — add before submitting]
+Entry Closes
+[REQUIRED — add before submitting]
+Entry Method
+Online entries via myK9Show
+Trial Secretary
+Name
+[REQUIRED — add before submitting]
+Trials & Judges
+Show Hours
+
+Trial Information
+
+Veterinary Services
+[REQUIRED — add before submitting]"
+`;
+
+exports[`premium PDF facts parity (8 styles) > poster prints the same facts with ink saver on 1`] = `
+"--- page 1 ---
+Style: Poster
+Test Club
+AKC · Premium List
+Spring
+Scent
+Trial
+'26
+LICENSE AKC-2026-001 · SECRETARY: JANE SMITH · CLOSING: MAY 15, 2026
+Entries Close
+May 15, 2026
+June 1, 2026 – June 2, 2026 · 123 Main St, Tulsa, OK 74101
+--- page 2 ---
+Style: Poster
+Test Club
+The Trial
+Entry
+Online entries via myK9Show
+Pre-entry $20 · Day-of $25 · Checks, Cash.
+Opens April 1, 2026 · Closes May 15, 2026.
+Trial Secretary
+Jane Smith
+jane@test.com · (918) 555-0000
+456 Oak Ave
+Officials
+Chair: Bob Jones · bob@test.com · (918) 555-0001
+Trials & Judges
+Saturday Trial 1
+June 1, 2026 at 9:00 AM · Event AKC-2026-001
+Judged by Alice Judge (Container, Interior) & Carl Judge
+Container Novice A · Container Excellent · Interior Advanced
+Sunday Trial 2
+June 2, 2026
+Judged by Alice Judge (Vehicle)
+Vehicle Master
+Show Hours
+Building opens at 8:00 AM.
+About the Trial
+Novice title required for Advanced.
+On-Call Vet
+Animal ER
+789 Vet Blvd
+(918) 999-0000
+Accommodations
+La Quinta — 100 Hotel Rd · (918) 111-2222
+Motel 6 — 200 Inn Rd · 
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+Notes
+Parking is free.
+Entries Close
+May 15, 2026"
+`;
+
+exports[`premium public page facts parity (8 styles) > banner prints the same facts for a published show 1`] = `
+"Test Club
+See classes first
+An A.K.C. Licensed Trial · 1 Trial
+Spring Scent Trial
+Dates
+Jun 1–2
+Closes
+May 15
+Capacity
+No entry limit
+Venue
+To be announced
+Welcome
+Details
+Judges
+Plan
+On the day
+Entries open · count unavailable
+Enter this show
+02 / PARTICULARS
+facts.
+License
+An A.K.C. Licensed Trial
+Trials
+1
+Entries open
+Apr 1, 2026
+Entries close
+May 15, 2030
+First entry
+$20.00
+per dog, per trial
+Day-of entry
+$25.00
+per dog, day of show
+04 / ROSTER
+slowly.
+—
+Entries received
+05 / PLAN
+to stay.
+La Quinta
+100 Hotel Rd · 9181112222
+Motel 6
+200 Inn Rd
+06 / ON THE DAY
+open.
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+House rules
+Parking is free.
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+Closes Wednesday, May 15, 2030
+ringside.
+Test Club"
+`;
+
+exports[`premium public page facts parity (8 styles) > fieldGuide prints the same facts for a published show 1`] = `
+"TC.2026.SS
+An A.K.C. Licensed Trial
+§01
+§02
+§03
+§04
+§05
+§06
+§07
+→
+OPEN
+AN A.K.C. LICENSED TRIAL
+1 TRIAL
+FIELD GUIDE · TC.2026.SS · REV 01
+DATES
+JUN 1–2
+OPENS
+APR 1
+CLOSES
+MAY 15
+CONFIRM
+To be announced
+CAP
+NO ENTRY LIMIT
+§02
+Trial particulars
+REFERENCE DATA
+SANCTIONING
+An A.K.C. Licensed Trial
+FORMAT
+1 trial
+OPEN — CLOSE
+2026-04-01 → 2030-05-15
+§06
+Show hours
+EACH DAY
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+House rules
+Parking is free.
+§07
+Site reference · lodging
+REFERENCE CARDS
+LDG.01
+La Quinta
+100 HOTEL RD
+9181112222
+LDG.02
+Motel 6
+200 INN RD
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+§09 · ENTRY · CLOSES WEDNESDAY, MAY 15, 2030
+entry
+First-received basis. Refunds (less processing fees) for written withdrawals received before close.
+ONLINE ENTRY URL
+localhost:3000/shows/show-1/register
+See classes first
+~3 MIN · SAVES & RESUMES
+Test Club
+A member club of the American Kennel Club
+123 Main St, Tulsa, OK 74101
+DOCUMENT
+© 2026 Test Club
+TC.2026.SS · An A.K.C. Licensed Trial
+PAGE FIELD-GUIDE.1"
+`;
+
+exports[`premium public page facts parity (8 styles) > gazette prints the same facts for a published show 1`] = `
+"VOL. LXXIX · NO 47
+Welcome
+Particulars
+Judges
+Plan
+Share
+Enter
+VOL. LXXIX · NO 47
+MONDAY, JUNE 1, 2026
+Test Club
+“All the news fit to point at a hide.”
+Front Page · Trial Edition · Jun 1, 2026 – Jun 2, 2026
+Spring Scent Trial
+An A.K.C. Licensed Trial · 1 Trial
+S
+Continued on §02 — Particulars
+SECTION B · PARTICULARS
+PAGE 02
+VOL. LXXIX
+Notice to Exhibitors
+in particular
+All the facts an entrant requires, set out in the customary manner.
+Sanctioning
+An A.K.C. Licensed Trial
+Opens
+Wednesday, April 1, 2026
+Closes
+Wednesday, May 15, 2030
+First entry
+$20.00
+Day-of entry
+$25.00
+SECTION D · ROSTER
+PAGE 04
+VOL. LXXIX
+As reported
+Roster open
+—
+runs received
+Apr 1
+Entries open
+May 15
+Entries close
+Jun 1
+Trial begins
+Jun 2
+Trial concludes
+SECTION F · CLASSIFIEDS
+PAGE 06
+VOL. LXXIX
+Classified advertisements
+victuals & vet
+LODGING · I
+La Quinta
+100 Hotel Rd
+9181112222
+LODGING · II
+Motel 6
+200 Inn Rd
+VET · EMERGENCY
+Animal ER
+789 Vet Blvd
+9189990000
+VICTUALS · ON SITE
+Hospitality
+Lunch on Saturday.
+COMPLIMENTARY
+AWARDS
+& trophies
+Ribbons 1st through 4th.
+PRESENTED END OF DAY
+HOUSE RULES
+Know before you go
+Parking is free.
+SITE GUIDANCE
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+Notice · Entries close Wednesday, May 15, 2030
+cordially invited
+First-received basis until the limit is hit.
+See classes first
+Test Club
+The Gazette
+Published via
+myK9Show
+© 2026 Test Club
+Published via myK9Show"
+`;
+
+exports[`premium public page facts parity (8 styles) > headline prints the same facts for a published show 1`] = `
+"Spring Scent Trial
+Judges
+Details
+Entry status
+Schedule
+Enter this show
+An A.K.C. Licensed Trial
+Test Club
+.
+An A.K.C. Licensed Trial · 1 Trial. Dates, judges, fees, schedule, venue notes, and entry details in one place.
+When
+Jun 1, 2026 – Jun 2, 2026
+Where
+123 Main St, Tulsa, OK 74101
+Trials
+1
+Capacity
+No entry limit
+Review details
+See classes first
+Closes May 15, 2030
+Closing in
+1475
+d
+15
+h
+59
+m
+59
+s
+§ 02
+Before you enter
+Entry details.
+An A.K.C. Licensed Trial · 1 Trial
+Sanctioning
+An A.K.C. Licensed Trial
+Format
+1 trial
+Entry limit
+No entry limit
+Opens
+Apr 1, 2026
+Closes
+May 15, 2030
+Confirmation
+TBD
+Entry fees
+First entry
+.00
+per dog, per trial where applicable
+Day-of entry
+.00
+per dog, per trial where applicable
+§ 03
+Live status
+Entry status at a glance.
+—
+Count unavailable
+Apr 1, 2026
+May 15, 2030
+Limits at a glance
+Total
+No entry limit
+Status
+Open
+Times shown in
+Eastern Daylight Time
+The journey from here
+01
+Apr 1
+Online entry portal opens
+done
+02
+May 15
+Final deadline for all entries
+Upcoming
+03
+Jun 1
+First runs of the event
+Upcoming
+04
+Jun 2
+Final runs, awards ceremony
+Upcoming
+§ 04
+Schedule · Lodging · Venue
+Plan the trip.
+Parking is free.
+Hotel · 01
+La Quinta
+100 Hotel Rd · 9181112222
+More details will be posted by the club.
+Hotel · 02
+Motel 6
+200 Inn Rd
+More details will be posted by the club.
+Hospitality
+On-site hospitality
+Trial weekend
+Lunch on Saturday.
+Awards
+Awards offered
+Presented at the trial
+Ribbons 1st through 4th.
+Venue
+Trial venue
+123 Main St, Tulsa, OK 74101
+Check-in and crating details will be posted by the club.
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+Closing May 15, 2030
+on the entry list.
+Entries are accepted through myK9Show until the closing date or the published limit is reached.
+Online entry
+Spring Scent Trial
+Test Club
+A member club of the American Kennel Club
+Trial Secretary
+Published via myK9Show
+Spring Scent Trial
+Test Club
+Jun 1, 2026 – Jun 2, 2026
+An A.K.C. Licensed Trial"
+`;
+
+exports[`premium public page facts parity (8 styles) > heritage prints the same facts for a published show 1`] = `
+"Test Club
+Overview
+Judges
+Plan
+On the Day
+share ✦
+Enter this show
+The Officers & Members do present
+Test Club
+✦
+the
+Spring Scent Trial
+An A.K.C. Licensed Trial · 1 Trial
+✦
+Held on
+Jun 1, 2026 – Jun 2, 2026
+1475
+Days
+15
+Hours
+59
+Min
+until close
+Entries close Wednesday, May 15, 2030
+See classes first
+§ III
+Trial Particulars
+✦
+Sanctioning
+An A.K.C. Licensed Trial
+Opens
+Wednesday, April 1, 2026
+Closes
+Wednesday, May 15, 2030
+Of the Fees
+$20.00
+First entry
+$25.00
+Day-of entry
+§ IV
+The Roster
+—
+entry count unavailable
+✦
+Apr 1
+Entries open
+Online entry portal opens
+May 15
+Entries close
+Final deadline for all entries
+Jun 1
+Trial begins
+First runs of the event
+Jun 2
+Trial concludes
+Final runs, awards ceremony
+§ V
+Plan Your Sojourn
+✦
+Lunch on Saturday.
+I
+La Quinta
+100 Hotel Rd
+9181112222
+II
+Motel 6
+200 Inn Rd
+§ VI
+On the Day
+✦
+The Venue
+123 Main St, Tulsa, OK 74101
+Awards & Honours
+Ribbons 1st through 4th.
+Hospitality
+Lunch on Saturday.
+House Rules
+Parking is free.
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+✦
+cordially
+Join us for this licensed trial and test your partnership against the finest scent work standards.
+✦
+Online
+Via the entry portal above
+By Post
+Mail completed entry blank to the secretary
+By Email
+Scan and email your entry blank
+Test Club
+A member club of the American Kennel Club
+© 2026 Test Club. Powered by myK9Show."
+`;
+
+exports[`premium public page facts parity (8 styles) > magazine prints the same facts for a published show 1`] = `
+"Edition · 2026
+Test Club
+Welcome
+Judges
+Particulars
+Plan
+Enter the trial
+Feature · Test Club
+Trial
+An A.K.C. Licensed Trial · 1 Trial
+Jun 1 – Jun 2
+TC
+Cover photograph · Club to supply
+Dates
+Jun 1 – 2
+Closes
+May 15
+Capacity
+No entry limit
+License
+An A.K.C. Licensed Trial
+The particulars
+facts & figures
+Sanctioning
+An A.K.C. Licensed Trial
+Opens
+Wednesday, April 1, 2026
+Closes
+Wednesday, May 15, 2030
+First entry
+$20.00
+Day-of entry
+$25.00
+The roster
+quickly
+—
+entry count unavailable
+Apr 1
+Entries open
+Online entry portal opens
+May 15
+Entries close
+Final deadline for all entries
+Jun 1
+Trial begins
+First runs of the event
+Jun 2
+Trial concludes
+Final runs, awards ceremony
+Plan your weekend
+stay
+eat
+Lunch on Saturday.
+Lodging · i
+La Quinta
+100 Hotel Rd · 9181112222
+Lodging · ii
+Motel 6
+200 Inn Rd
+On the day
+expect
+★
+The venue
+123 Main St, Tulsa, OK 74101
+★
+Awards & honours
+Ribbons 1st through 4th.
+★
+Hospitality
+Lunch on Saturday.
+★
+House rules
+Parking is free.
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+Closing Wednesday, May 15, 2030
+cordially invited
+First-received basis until the limit is hit. Refunds (less processing) issued for written withdrawals received before closing.
+See classes first
+Test Club
+A member club of the American Kennel Club
+© 2026 Test Club
+Premium published via myK9Show
+Edition · 2026"
+`;
+
+exports[`premium public page facts parity (8 styles) > monogram prints the same facts for a published show 1`] = `
+"TC
+Test Club
+Enter this show
+TC
+An A.K.C. Licensed Trial · 1 Trial · Jun 1–2
+Spring Scent Trial
+An A.K.C. Licensed Trial · 1 Trial
+Dates
+Jun 1–2
+Closes
+May 15
+Limit
+No entry limit
+Venue
+123 Main St, Tulsa, OK 74101
+1475
+See classes first
+ii
+Trial particulars
+facts & figures
+License
+An A.K.C. Licensed Trial
+Trials
+trial
+Entries open
+Apr 1, 2026
+Entries close
+May 15, 2030
+First entry
+$20.00
+Day-of entry
+$25.00
+iv
+The roster
+slowly
+—
+Entry count unavailable
+v
+Plan your weekend
+&
+day
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+House rules
+Parking is free.
+to stay
+La Quinta
+100 Hotel Rd · 9181112222
+Motel 6
+200 Inn Rd
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+TC
+Test Club"
+`;
+
+exports[`premium public page facts parity (8 styles) > poster prints the same facts for a published show 1`] = `
+"SST
+●
+●
+→
+.
+SPRING
+SCENT
+TRIAL.
+'26
+An A.K.C. Licensed Trial · 1 Trial
+Closing
+MAY 15
+Spring Scent Trial
+№ 02 / PARTICULARS
+facts.
+SANCTIONING
+An A.K.C. Licensed Trial
+FORMAT
+1 trials
+ENTRIES OPEN
+Apr 1, 2026
+ENTRIES CLOSE
+MAY 15
+№ 05 / ROSTER
+slowly.
+—
+ENTRY COUNT UNAVAILABLE
+First-received basis. Limit is firm; over-entries refunded.
+№ 06 / ON THE DAY
+trial day.
+Hospitality
+Lunch on Saturday.
+Awards
+Ribbons 1st through 4th.
+House rules
+Parking is free.
+№ 07 / PLAN
+Where to eat.
+HOTEL · 01
+LA QUINTA
+100 HOTEL RD · 9181112222
+HOTEL · 02
+MOTEL 6
+200 INN RD
+Classes offered
+· Mon, Jun 1
+Interior
+Advanced
+Container
+Novice A
+№ 09 / ENTER · CLOSES MAY 15
+dog.
+Today.
+First-received until the limit is hit. Refunds for written withdrawals before close.
+See classes first
+.
+A MEMBER CLUB OF THE AMERICAN KENNEL CLUB · 123 MAIN ST, TULSA, OK 74101
+TRIAL SECRETARY
+REGISTRY
+An A.K.C. Licensed Trial
+© 2026 TEST CLUB
+PUBLISHED VIA myK9Show"
+`;

@@ -35,7 +35,6 @@ import type {
   RunOrderPreset,
   RunOrderScope,
   RenumberMode,
-  PrintSortOrder,
   CheckInStatus,
 } from './dialogSlots';
 import type { Entry } from '../../stores/entryStore';
@@ -122,27 +121,12 @@ const StubRunOrderDialog: EntryListDialogSlots['RunOrderDialog'] = ({
     </div>
   ) : null;
 
-const StubScoresheetPrintDialog: EntryListDialogSlots['ScoresheetPrintDialog'] = ({
-  isOpen,
-  onPrint,
-  options,
-}) =>
-  isOpen ? (
-    <div data-testid="print-stub">
-      <span>{options?.primary.label ?? 'Run Order'}</span>
-      <button onClick={() => onPrint('placement')}>print</button>
-    </div>
-  ) : null;
-
-const StubNoStatsDialog: EntryListDialogSlots['NoStatsDialog'] = ({ isOpen, className }) =>
-  isOpen ? <div data-testid="nostats-stub">{className ?? '(no class)'}</div> : null;
-
 const StubAreaCountSelectionDialog: NonNullable<
   EntryListDialogSlots['AreaCountSelectionDialog']
 > = ({ isOpen, areaCountRequirements }) =>
   isOpen ? <div data-testid="area-stub">{areaCountRequirements.max}</div> : null;
 
-/** Build a complete bag (all 10 slots filled). */
+/** Build a complete bag (all 8 slots filled). */
 function makeFullSlots(): Required<EntryListDialogSlots> {
   return {
     CheckinStatusDialog: StubCheckinStatusDialog,
@@ -152,8 +136,6 @@ function makeFullSlots(): Required<EntryListDialogSlots> {
     ClassSettingsDialog: StubClassSettingsDialog,
     MaxTimeDialog: StubMaxTimeDialog,
     RunOrderDialog: StubRunOrderDialog,
-    ScoresheetPrintDialog: StubScoresheetPrintDialog,
-    NoStatsDialog: StubNoStatsDialog,
     AreaCountSelectionDialog: StubAreaCountSelectionDialog,
   };
 }
@@ -168,8 +150,6 @@ function makeMinimalSlots(): EntryListDialogSlots {
     ClassSettingsDialog: StubClassSettingsDialog,
     MaxTimeDialog: StubMaxTimeDialog,
     RunOrderDialog: StubRunOrderDialog,
-    ScoresheetPrintDialog: StubScoresheetPrintDialog,
-    NoStatsDialog: StubNoStatsDialog,
     // AreaCountSelectionDialog intentionally omitted — this MUST typecheck.
   };
 }
@@ -177,7 +157,7 @@ function makeMinimalSlots(): EntryListDialogSlots {
 // ----- Tests -----------------------------------------------------------------
 
 describe('EntryListDialogSlots — slot bag construction', () => {
-  it('accepts a complete bag (all 10 slots filled)', () => {
+  it('accepts a complete bag (all 8 slots filled)', () => {
     const slots = makeFullSlots();
     // Smoke-check that every slot is a component (function).
     Object.values(slots).forEach(Slot => expect(typeof Slot).toBe('function'));
@@ -273,24 +253,6 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
     await expect(onApplyOrder.mock.results[0].value).resolves.toBeUndefined();
   });
 
-  it('ScoresheetPrintDialog passes PrintSortOrder back through onPrint', () => {
-    const onPrint = vi.fn<(sortOrder: PrintSortOrder) => void>();
-    const { ScoresheetPrintDialog } = slots;
-    render(
-      <ScoresheetPrintDialog
-        isOpen
-        onClose={() => undefined}
-        onPrint={onPrint}
-        options={{
-          primary: { label: 'Placement', sortOrder: 'placement' },
-          secondary: { label: 'Armband', sortOrder: 'armband' },
-        }}
-      />
-    );
-    fireEvent.click(screen.getByText('print'));
-    expect(onPrint).toHaveBeenCalledWith('placement');
-  });
-
   it('MaxTimeDialog renders with optional onTimeUpdate and fires it when present', () => {
     const onTimeUpdate = vi.fn();
     const { MaxTimeDialog } = slots;
@@ -311,12 +273,6 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
     screen.getByText('180');
     fireEvent.click(screen.getByText('save'));
     expect(onTimeUpdate).toHaveBeenCalled();
-  });
-
-  it('NoStatsDialog renders just the className with no other props required', () => {
-    const { NoStatsDialog } = slots;
-    render(<NoStatsDialog isOpen onClose={() => undefined} className="Novice A" />);
-    screen.getByText('Novice A');
   });
 });
 

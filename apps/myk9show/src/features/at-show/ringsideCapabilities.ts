@@ -1,28 +1,13 @@
 /**
- * Ringside capability adapters (Phase 1a) — the `RingsideContextValue`
- * bag myK9Show passes to `<RingsideProvider>`.
- *
- * Binds ringside's three capability slices to myK9Show's own systems:
- *  - auth → `buildRingsideAuth` (RBAC → ringside role; see ringsideAuthAdapter)
- *  - replication → myK9Show's `replicatedClassesTable.updateClass`
- *  - prefetch → null stub (myK9Show has no prefetch cache yet)
- *
- * Builders are pure factories; the host shim memoizes the assembled value
- * so the context reference stays stable across renders.
+ * Ringside capability adapter: binds ringside's `updateClassStatus` to
+ * myK9Show's own `replicatedClassesTable.updateClass`. The builder is a pure
+ * factory; hosts memoize the result.
  */
 
-import {
-  type RingsideReplication,
-  type RingsidePrefetch,
-  type RingsideContextValue,
-  type RingsideShowContext,
-  type UserRole as RingsideRole,
-} from '@myk9/ringside';
+import { type RingsideReplication } from '@myk9/ringside';
 import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
 import { getTrialTimezone } from '@/features/registries';
 import { clockTimeToInstant } from '@/features/show-map/cockpit/cockpitTime';
-import { UserRole as ShowRole } from '@/types/auth-types';
-import { buildRingsideAuth } from './ringsideAuthAdapter';
 import { toShowClassStatusWrite } from './ringsideClassStatusMap';
 
 /**
@@ -83,30 +68,4 @@ async function expectedStartInstant(
   const trialDate = trial?.date ?? trial?.trial_date;
   if (!trialDate) throw new Error('Cannot set a start time: the class has no trial date');
   return clockTimeToInstant(trialDate, clockTime.slice(0, 5), getTrialTimezone(trial));
-}
-
-/**
- * Prefetch capability — myK9Show has no prefetch cache manager yet, so
- * every key misses. ringside tolerates `null` (its callers fall back to
- * the data hooks). Replace with a real adapter if/when myK9Show grows a
- * prefetch cache.
- */
-export function buildRingsidePrefetch(): RingsidePrefetch {
-  return {
-    get: async () => null,
-  };
-}
-
-/** Assemble the full `RingsideContextValue` for `<RingsideProvider value={...}>`. */
-export function buildRingsideContextValue(args: {
-  showRole: ShowRole | null | undefined;
-  showContext: RingsideShowContext | null;
-  /** Show-scoped passcode grant role (Phase 1c); overrides the RBAC mapping. */
-  grantRole?: RingsideRole | null;
-}): RingsideContextValue {
-  return {
-    auth: buildRingsideAuth(args),
-    replication: buildRingsideReplication(),
-    prefetch: buildRingsidePrefetch(),
-  };
 }

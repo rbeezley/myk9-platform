@@ -54,4 +54,38 @@ describe('AddDogPanel validation failure (MYK9-885)', () => {
       expect(document.activeElement).toBe(document.getElementById('registration-tab-heading'))
     );
   });
+  // MYK9-1963: the rule stays, the dead end goes. From the wizard the secretary is one tap away.
+  it('gives an exhibitor one tap to the show secretary from Add Dog, in a new tab so the form survives', () => {
+    render(
+      <AddDogPanel open onClose={vi.fn()} onDogCreated={vi.fn()} createdFromShowId="show-7" />
+    );
+
+    const link = screen.getByRole('link', { name: 'Message the show secretary' });
+    expect(link).toHaveAttribute('href', '/messages/show-7');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(
+      screen.getByText(/who can enter your dog and hold its place until the number arrives/)
+    ).toBeInTheDocument();
+  });
+
+  it('from My Dogs, where no show is known, says whom to ask instead of linking a thread', () => {
+    render(<AddDogPanel open onClose={vi.fn()} onDogCreated={vi.fn()} />);
+
+    expect(screen.getByText(/Ask the secretary of the show you want to enter/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Message the show secretary' })).toBeNull();
+  });
+
+  it('does not offer a secretary to staff, who may add a dog with no number', () => {
+    render(
+      <AddDogPanel
+        open
+        onClose={vi.fn()}
+        onDogCreated={vi.fn()}
+        userRole={UserRole.SECRETARY}
+        createdFromShowId="show-7"
+      />
+    );
+
+    expect(screen.queryByText(/Number not issued yet/)).toBeNull();
+  });
 });

@@ -26,11 +26,7 @@ import {
   updateSelfCheckInStatus,
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
-import { replicatedEntriesTable } from '@/services/replication';
-import {
-  SCORE_DETAIL_CLEAR_FIELDS,
-  scoreResetCheckInFields,
-} from '@/services/replication/scoreResetFields';
+import { clearEntryScore } from './clearEntryScore';
 
 export interface UseAtShowEntryListActionsDeps {
   /** Refresh callback from the data hook; awaited after a successful mutation. */
@@ -56,7 +52,7 @@ export interface UseAtShowEntryListActionsDeps {
  * Coupling note: the `'self-checkin-rpc'` path only accepts the ownership-
  * allowed statuses (`checked-in | conflict | pulled | at-gate | no-status`).
  * The `in-ring` / `completed` statuses emitted by handleMark{InRing,Completed}
- * / handleToggleInRing are staff-only — `self_checkin_entry` RAISEs on them.
+ * are staff-only — `self_checkin_entry` RAISEs on them.
  * That's unreachable for exhibitors today (`canScore=false` hides those
  * affordances), and if it ever leaks the RPC fails loud → `hasError`, never a
  * silent stuck optimistic update (the exact regression this writer-branch fixed).
@@ -160,16 +156,6 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     [writer, handleStatusChange, runMutation, refresh]
   );
 
-  const handleToggleInRing = useCallback<EntryListActions['handleToggleInRing']>(
-    async (entryId, currentInRing) => {
-      await runMutation(async () => {
-        await writeCheckInStatus(entryId, currentInRing ? 'no-status' : 'in-ring', writer);
-        await refresh();
-      });
-    },
-    [runMutation, refresh, writer]
-  );
-
   const handleMarkInRing = useCallback<EntryListActions['handleMarkInRing']>(
     async entryId => {
       await runMutation(async () => {
@@ -190,44 +176,11 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     [runMutation, refresh, writer]
   );
 
-  const handleBatchStatusUpdate = useCallback<EntryListActions['handleBatchStatusUpdate']>(
-    async (entryIds, newStatus) => {
-      await runMutation(async () => {
-        await Promise.all(entryIds.map(id => writeCheckInStatus(id, newStatus, writer)));
-        await refresh();
-      });
-    },
-    [runMutation, refresh, writer]
-  );
-
   const handleResetScore = useCallback<EntryListActions['handleResetScore']>(
     async entryId => {
-      // Clear the scored fields back to an unscored/pending state. There is no
-      // `protect_scored_entries` trigger (verified absent), so no unlock step is
-      // needed — the same pattern the secretary paper scoresheet uses
-      // (usePaperScoring.clearEntry). All cleared columns are ringside-
-      // whitelisted, so updateEntry auto-routes through ringside_update_entry,
-      // letting an assigned judge reset as well as a manager. The scoring-state
-      // trigger clears any stale placement automatically.
+      // The same clear Show Desk's Undo of Mark absent uses (clearEntryScore).
       await runMutation(async () => {
-        await replicatedEntriesTable.updateEntryWith(entryId, current => ({
-          // Use the nullable (camel finalPlacement / snake scoring_completed_at /
-          // disqualification_reason) field variants so clears persist as NULL.
-          isScored: false,
-          is_scored: false,
-          resultStatus: 'pending',
-          result_status: 'pending',
-          searchTimeSeconds: 0,
-          search_time_seconds: 0,
-          totalFaults: 0,
-          total_faults: 0,
-          finalPlacement: null,
-          scoringCompletedAt: null,
-          scoring_completed_at: null,
-          disqualification_reason: null,
-          ...SCORE_DETAIL_CLEAR_FIELDS,
-          ...scoreResetCheckInFields(current),
-        }));
+        await clearEntryScore(entryId);
         await refresh();
       });
     },
@@ -239,10 +192,8 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     handleUndoPull,
     lastWriteVersion,
     handleResetScore,
-    handleToggleInRing,
     handleMarkInRing,
     handleMarkCompleted,
-    handleBatchStatusUpdate,
     isSyncing,
     hasError,
     pendingCount,

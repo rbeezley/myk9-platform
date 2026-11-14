@@ -28,3 +28,27 @@ describe('transformEntry notRunningByEntryStatus', () => {
     ).toBe(undefined);
   });
 });
+
+describe('transformEntry notRunningReason (MYK9-1940)', () => {
+  it.each([
+    ['moved', 'confirmed', 'moved'],
+    ['absent', 'confirmed', 'absent'],
+    ['withdrawn', 'confirmed', 'withdrawn'],
+    ['scratched', 'confirmed', 'pulled'],
+    ['confirmed', 'pulled', 'pulled'],
+    ['moved', 'pulled', 'moved'],
+    ['absent', 'pulled', 'absent'],
+  ])('%s entry with check-in %s reads %s', (entryStatus, checkIn, reason) => {
+    const entry = row({
+      entry_status: entryStatus,
+      check_in_status: checkIn as ReplicatedEntry['check_in_status'],
+    });
+    expect(entry.notRunningReason).toBe(reason);
+  });
+
+  it('gives a running dog no reason', () => {
+    expect(row({ entry_status: 'confirmed', check_in_status: 'at-gate' }).notRunningReason).toBe(
+      undefined
+    );
+  });
+});

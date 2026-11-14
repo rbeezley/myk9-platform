@@ -191,14 +191,6 @@ export interface EntryListHeaderProps {
   actionsMenu: ActionsMenuConfig;
   /** For combined view - show section badge */
   showSectionsBadge?: boolean;
-  /** Long press handlers for hard refresh */
-  refreshLongPressHandlers?: {
-    onMouseDown: (e: React.MouseEvent) => void;
-    onMouseUp: (e: React.MouseEvent) => void;
-    onMouseLeave: (e: React.MouseEvent) => void;
-    onTouchStart: (e: React.TouchEvent) => void;
-    onTouchEnd: (e: React.TouchEvent) => void;
-  };
 
   // ── Host-injected primitives ──────────────────────────────────────
   CompactOfflineIndicator: ComponentType<CompactOfflineIndicatorProps>;
@@ -226,7 +218,6 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   up,
   menu,
   showSectionsBadge = false,
-  refreshLongPressHandlers,
   CompactOfflineIndicator,
   SyncIndicator,
   RefreshIndicator,
@@ -342,16 +333,14 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
             disabled={filterDisabled}
           />
 
-          {/* Refresh, in the same place as on the class list (D3). Long press
-              reloads the whole page. */}
+          {/* Refresh, in the same place as on the class list (D3). */}
           <button
             type="button"
             onClick={onRefresh}
             disabled={isRefreshing}
             aria-label="Refresh entries"
-            title="Refresh (long press to restart the app)"
+            title="Refresh"
             className={REFRESH_BUTTON_CLASS}
-            {...refreshLongPressHandlers}
           >
             <RefreshCw
               size={20}

@@ -56,7 +56,7 @@ const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
         {[
           entry.trialLabel,
           entry.className,
-          getStatusDescriptor('entry', entry.checkInStatus).label,
+          entry.notRunningWord ?? getStatusDescriptor('entry', entry.checkInStatus).label,
           entry.runPosition ? formatPlaceInLine(entry.runPosition) : null,
         ]
           .filter(Boolean)

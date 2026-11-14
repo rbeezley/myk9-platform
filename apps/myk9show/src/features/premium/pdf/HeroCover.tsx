@@ -1,4 +1,5 @@
-import { resolveTokens, buildMonogram, formatPremiumDate } from './pdfStyles';
+import { resolveTokens } from './pdfStyles';
+import { buildPremiumFacts } from '../premiumFacts';
 import type { GeneratedPremium } from '../../../types/premium-types';
 import type { CoverContext } from './covers/coverContext';
 import { renderCenteredCover } from './covers/CenteredCover';
@@ -25,16 +26,10 @@ function assertNever(x: never): never {
  */
 export function HeroCover({ data, inkSaver = false }: HeroCoverProps) {
   const t = resolveTokens(data.style, { inkSaver });
-  const dateRange =
-    data.show.endDate && data.show.endDate !== data.show.startDate
-      ? `${formatPremiumDate(data.show.startDate)} – ${formatPremiumDate(data.show.endDate)}`
-      : formatPremiumDate(data.show.startDate);
-  const club = data.club.name ?? 'Host Club';
-  const venue = data.show.venue ?? '';
-  const org = data.org;
-  const monogram = buildMonogram(club);
+  const facts = buildPremiumFacts(data);
+  const { dateRange, club, venue, org, monogram } = facts;
 
-  const ctx: CoverContext = { t, data, dateRange, club, venue, org, monogram };
+  const ctx: CoverContext = { t, data, facts, dateRange, club, venue, org, monogram };
 
   switch (t.coverStyle) {
     case 'centered':

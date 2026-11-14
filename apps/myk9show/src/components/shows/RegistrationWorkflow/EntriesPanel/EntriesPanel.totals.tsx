@@ -92,9 +92,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
       </div>
 
       {!payment ? (
-        <p className="text-xs text-muted-foreground">
-          Service fee shown at payment, only when paying by card.
-        </p>
+        <p className="text-xs text-muted-foreground">Plus a service fee, shown at payment.</p>
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -145,9 +143,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
           {totals?.requiresPaymentMethod && (
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertDescription>
-                Choose a payment method to continue to the final review.
-              </AlertDescription>
+              <AlertDescription>Choose a payment method to continue.</AlertDescription>
             </Alert>
           )}
           {['check', 'cash'].includes(payment.paymentMethod) && (

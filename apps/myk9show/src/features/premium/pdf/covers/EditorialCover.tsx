@@ -9,7 +9,15 @@ import type { CoverContext } from './coverContext';
 // Cormorant Garamond display title above a tagline (date · venue) and an
 // At-a-Glance panel filling the lower portion of the page in lieu of a hero
 // image (image upload deferred — panel always renders).
-export function renderEditorialCover({ t, data, dateRange, club, venue, org }: CoverContext) {
+export function renderEditorialCover({
+  t,
+  data,
+  facts,
+  dateRange,
+  club,
+  venue,
+  org,
+}: CoverContext) {
   const fallback = composeTagline(dateRange, venue);
   const tagline = pickWelcome(readWelcome(data), fallback);
   const coverImageUrl = data.supplemental.coverImageUrl?.trim() || null;
@@ -54,7 +62,7 @@ export function renderEditorialCover({ t, data, dateRange, club, venue, org }: C
             marginBottom: 18,
           }}
         >
-          {data.show.name}
+          {facts.showName}
         </Text>
         <Text
           style={{

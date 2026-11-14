@@ -78,12 +78,20 @@ export const PDF_CHUNK_POLICY = {
     /^PremiumPdfDownloadLink$/, // premium editor PDF buttons, React.lazy
     /^(AKC|UKC)PremiumTemplate$/, // templates shared by the two premium chunks above
     /^mergeReportPdfs$/, // show desk merged-sheet preview, dynamic
+    /^buildJudgePacketPdf$/, // before-trial packet (MYK9-1924), dynamic from useTrialPacketPdfs
+    /^buildJudgeReviewPdf$/, // judge review packet (MYK9-1924 phase 2a), dynamic from JudgeReviewPanelBody
+    /^buildAfterShowPackets$/, // after-show packet (MYK9-1924 phase 2a), dynamic from AfterShowPanelBody
+    /^packetFooter$/, // footer stamped on every packet page; shared by the three packet builders above
+    /^pdfForm$/, // AcroForm filler: shared by officialPdfDownload and the Reports route
+    /^akcScentWorkCertificationPage$/, // certification page builder, shared by Reports and the after-show packet
     /^officialPdfDownload$/, // Reports page official PDFs, dynamic
   ],
   // Known route-level static imports that are still open. RATCHET DOWN ONLY.
-  // The Reports route (its chunk is emitted as `index`) imports the pdf-lib
-  // form builders directly in useAKCOfficialPdfAction.
-  tolerated: [{ chunkName: 'index', kind: 'pdf-lib', max: 1 }],
+  // The Reports route imports the pdf-lib form builders directly in
+  // useAKCOfficialPdfAction. Its chunk is emitted as `ReportsPage` (it was `index` before the
+  // after-show packet, MYK9-1924 phase 2a, moved shared form code into its own chunks); still
+  // the one edge, not a new one.
+  tolerated: [{ chunkName: 'ReportsPage', kind: 'pdf-lib', max: 1 }],
 };
 
 const CODE_EXTENSIONS = new Set(['.js', '.css']);

@@ -6,10 +6,9 @@
 // classifieds don't split mid-row.
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
-import { formatPremiumDate, formatPhone, type StyleTokens } from '../pdfStyles';
+import type { StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
-import { makeClassComparator } from './classOrder';
-import type { RegistryId } from '@/features/registries';
+import { buildPremiumFacts } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
@@ -17,10 +16,8 @@ interface Props {
 }
 
 export function GazetteBody({ data, tokens }: Props) {
-  const { show, secretary, officials, trials, supplemental, narratives } = data;
-  // GeneratedPremium.org is 'AKC' | 'UKC' (premium generation isn't offered for other
-  // registries — see generate-premium's CHECK-constraint gate), both valid RegistryIds.
-  const classComparator = makeClassComparator((data.org ?? 'AKC') as RegistryId);
+  const f = buildPremiumFacts(data);
+  const { secretary, chair, trials } = f;
 
   const sectionStyle = {
     flexBasis: '32%' as const,
@@ -49,16 +46,16 @@ export function GazetteBody({ data, tokens }: Props) {
   };
   const denseStyle = { ...bodyTextStyle, fontSize: tokens.bodyFontSize - 1 };
 
-  const hasOfficials = Boolean(officials.chairman);
-  const hasJudges = trials.some(t => (t.judges?.length ?? 0) > 0);
-  const hasClasses = trials.some(t => (t.classes?.length ?? 0) > 0);
-  const hasFees = (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0;
+  const hasOfficials = Boolean(chair);
+  const hasJudges = trials.some(t => t.judges.length > 0);
+  const hasClasses = trials.some(t => t.classLabels.length > 0);
+  const hasFees = f.fees.hasAny;
   const hasEntry = Boolean(
-    show.entryOpenDate || show.entryCloseDate || secretary.email || secretary.mailingAddress
+    f.entry.opens || f.entry.closes || secretary.email || secretary.mailingAddress
   );
-  const hasLodging = (supplemental.accommodations?.length ?? 0) > 0;
-  const hasAwards = Boolean(supplemental.awardsDescription);
-  const hasNotices = Boolean(supplemental.additionalNotes || supplemental.hospitalityNotes);
+  const hasLodging = f.accommodations.length > 0;
+  const hasAwards = Boolean(f.awardsDescription);
+  const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes);
 
   return (
     <Page
@@ -78,17 +75,9 @@ export function GazetteBody({ data, tokens }: Props) {
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Officials</Text>
             </View>
-            {officials.chairman && (
-              <Text style={bodyTextStyle}>Chair: {officials.chairman.name}</Text>
-            )}
-            {officials.chairman?.email && (
-              <Text style={bodyTextStyle}>Chair Email: {officials.chairman.email}</Text>
-            )}
-            {officials.chairman?.phone && (
-              <Text style={bodyTextStyle}>
-                Chair Phone: {formatPhone(officials.chairman.phone)}
-              </Text>
-            )}
+            {chair && <Text style={bodyTextStyle}>Chair: {chair.name}</Text>}
+            {chair?.email && <Text style={bodyTextStyle}>Chair Email: {chair.email}</Text>}
+            {chair?.phone && <Text style={bodyTextStyle}>Chair Phone: {chair.phone}</Text>}
             {secretary.name && <Text style={bodyTextStyle}>Secretary: {secretary.name}</Text>}
           </View>
         )}
@@ -99,10 +88,10 @@ export function GazetteBody({ data, tokens }: Props) {
               <Text style={headerTextStyle}>Judges</Text>
             </View>
             {trials.flatMap((trial, ti) =>
-              (trial.judges ?? []).map((j, ji) => (
+              trial.judges.map((j, ji) => (
                 <Text key={`${ti}-${ji}`} style={denseStyle}>
                   {j.name}
-                  {(j.elements?.length ?? 0) > 0 ? ` — ${j.elements.join(', ')}` : ''}
+                  {j.elements.length > 0 ? ` — ${j.elements.join(', ')}` : ''}
                 </Text>
               ))
             )}
@@ -125,14 +114,8 @@ export function GazetteBody({ data, tokens }: Props) {
                 >
                   {trial.name}
                 </Text>
-                {(trial.classes?.length ?? 0) > 0 && (
-                  <Text style={denseStyle}>
-                    {(trial.classes ?? [])
-                      .slice()
-                      .sort(classComparator)
-                      .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`)
-                      .join(' · ')}
-                  </Text>
+                {trial.classLabels.length > 0 && (
+                  <Text style={denseStyle}>{trial.classLabels.join(' · ')}</Text>
                 )}
               </View>
             ))}
@@ -144,13 +127,9 @@ export function GazetteBody({ data, tokens }: Props) {
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Fees</Text>
             </View>
-            <Text style={bodyTextStyle}>Pre-entry: ${show.preEntryFee ?? '—'}</Text>
-            <Text style={bodyTextStyle}>Day-of: ${show.dayOfFee ?? '—'}</Text>
-            <Text style={bodyTextStyle}>
-              {[show.acceptChecks && 'Checks', show.acceptCash && 'Cash']
-                .filter(Boolean)
-                .join(' · ') || 'Payment TBD'}
-            </Text>
+            <Text style={bodyTextStyle}>Pre-entry: ${f.fees.preEntry ?? '—'}</Text>
+            <Text style={bodyTextStyle}>Day-of: ${f.fees.dayOf ?? '—'}</Text>
+            <Text style={bodyTextStyle}>{f.fees.paymentMethods.join(' · ') || 'Payment TBD'}</Text>
           </View>
         )}
 
@@ -161,12 +140,8 @@ export function GazetteBody({ data, tokens }: Props) {
             </View>
             <Text style={{ ...bodyTextStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
             <Text style={bodyTextStyle}>myk9show.com</Text>
-            {show.entryOpenDate && (
-              <Text style={bodyTextStyle}>Opens: {formatPremiumDate(show.entryOpenDate)}</Text>
-            )}
-            {show.entryCloseDate && (
-              <Text style={bodyTextStyle}>Closes: {formatPremiumDate(show.entryCloseDate)}</Text>
-            )}
+            {f.entry.opens && <Text style={bodyTextStyle}>Opens: {f.entry.opens}</Text>}
+            {f.entry.closes && <Text style={bodyTextStyle}>Closes: {f.entry.closes}</Text>}
             {(secretary.email || secretary.mailingAddress || secretary.phone) && (
               <Text style={{ ...bodyTextStyle, marginTop: 6, color: tokens.secondaryColor }}>
                 Alternate methods:
@@ -176,9 +151,7 @@ export function GazetteBody({ data, tokens }: Props) {
             {secretary.mailingAddress && (
               <Text style={bodyTextStyle}>Mail: {secretary.mailingAddress}</Text>
             )}
-            {secretary.phone && (
-              <Text style={bodyTextStyle}>Phone: {formatPhone(secretary.phone)}</Text>
-            )}
+            {secretary.phone && <Text style={bodyTextStyle}>Phone: {secretary.phone}</Text>}
           </View>
         )}
 
@@ -187,11 +160,11 @@ export function GazetteBody({ data, tokens }: Props) {
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Lodging</Text>
             </View>
-            {(supplemental.accommodations ?? []).map((a, i) => (
+            {f.accommodations.map((a, i) => (
               <View key={i} style={{ marginBottom: 4 }}>
                 <Text style={{ ...denseStyle, fontWeight: 700 }}>{a.name}</Text>
                 <Text style={denseStyle}>{a.address}</Text>
-                {a.phone && <Text style={denseStyle}>{formatPhone(a.phone)}</Text>}
+                {a.phone && <Text style={denseStyle}>{a.phone}</Text>}
               </View>
             ))}
           </View>
@@ -202,7 +175,7 @@ export function GazetteBody({ data, tokens }: Props) {
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Awards</Text>
             </View>
-            <Text style={bodyTextStyle}>{supplemental.awardsDescription}</Text>
+            <Text style={bodyTextStyle}>{f.awardsDescription}</Text>
           </View>
         )}
       </View>
@@ -210,21 +183,21 @@ export function GazetteBody({ data, tokens }: Props) {
       {/* Show Hours, Trial Information, and Notices run full-width below the
           3-col grid — these are paragraph-length narratives that don't read
           well in a 32% column. */}
-      {narratives?.showHours?.trim() && (
+      {f.showHours.trim() && (
         <View style={{ marginTop: 16 }}>
           <View style={headerWrapStyle}>
             <Text style={headerTextStyle}>Show Hours</Text>
           </View>
-          <Text style={bodyTextStyle}>{narratives.showHours}</Text>
+          <Text style={bodyTextStyle}>{f.showHours}</Text>
         </View>
       )}
 
-      {narratives?.trialInformation?.trim() && (
+      {f.trialInformation.trim() && (
         <View style={{ marginTop: 16 }}>
           <View style={headerWrapStyle}>
             <Text style={headerTextStyle}>Trial Information</Text>
           </View>
-          <Text style={bodyTextStyle}>{narratives.trialInformation}</Text>
+          <Text style={bodyTextStyle}>{f.trialInformation}</Text>
         </View>
       )}
 
@@ -233,12 +206,8 @@ export function GazetteBody({ data, tokens }: Props) {
           <View style={headerWrapStyle}>
             <Text style={headerTextStyle}>Notices</Text>
           </View>
-          {supplemental.additionalNotes && (
-            <Text style={bodyTextStyle}>{supplemental.additionalNotes}</Text>
-          )}
-          {supplemental.hospitalityNotes && (
-            <Text style={bodyTextStyle}>{supplemental.hospitalityNotes}</Text>
-          )}
+          {f.additionalNotes && <Text style={bodyTextStyle}>{f.additionalNotes}</Text>}
+          {f.hospitalityNotes && <Text style={bodyTextStyle}>{f.hospitalityNotes}</Text>}
         </View>
       )}
     </Page>

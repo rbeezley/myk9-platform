@@ -9,7 +9,7 @@ import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
 import { classEntriesForClass, hiddenEntryCount } from './cockpitClassEntries';
 import { isChecklistInUse, isPrintTrackingInUse } from './checklistUsage';
-import { getCockpitClassDetailsHref } from './cockpitRoutes';
+import { getCockpitClassDetailsHref, withReturnTo } from './cockpitRoutes';
 import type {
   CockpitAttentionKind,
   CockpitCloseoutState,
@@ -38,7 +38,7 @@ export interface BuildSecretaryCockpitSnapshotInput {
   hasPrintRecords?: boolean;
 }
 
-function lifecycleFor(status: string | undefined): CockpitLifecycle | null {
+export function lifecycleFor(status: string | undefined): CockpitLifecycle | null {
   switch ((status ?? '').trim().toLowerCase().replace(/\s+/g, '_')) {
     case 'setup':
     case 'scheduled':
@@ -160,9 +160,7 @@ function administrativeAttention(
     destination: signal.href
       ? {
           kind: 'href',
-          href: `${signal.href}${signal.href.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(
-            returnTo
-          )}`,
+          href: withReturnTo(signal.href, returnTo),
         }
       : null,
   }));

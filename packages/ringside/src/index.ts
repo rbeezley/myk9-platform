@@ -16,17 +16,7 @@ export type { UserRole, UserPermissions, PasscodeResult } from './auth/passcodes
 export { parsePasscode, getPermissionsForRole } from './auth/passcodes';
 
 // ── Context (Q5 DI surface) ──────────────────────────────────────────────
-export type {
-  RingsideAuth,
-  RingsideShowContext,
-  RingsideReplication,
-  RingsidePrefetch,
-  RingsideContextValue,
-  RingsideProviderProps,
-  ClassStatusUpdateFields,
-  ClassStatusValue,
-} from './context';
-export { RingsideProvider, useRingside, useRingsideAuth } from './context';
+export type { RingsideReplication, ClassStatusUpdateFields, ClassStatusValue } from './context';
 
 // ── Utils ────────────────────────────────────────────────────────────────
 // Class-status detection + display (moved from apps/myk9q statusUtils in PR E1a)
@@ -36,16 +26,12 @@ export type {
   ClassStatusInput,
   EffectiveClassStatus,
 } from './utils/classStatus';
-export { getClassDisplayStatus, getEffectiveClassStatus } from './utils/classStatus';
+export { getEffectiveClassStatus } from './utils/classStatus';
 
-// Level sort + stale-data helpers (moved from apps/myk9q in PR E1a)
-export { getLevelSortOrder } from './utils/levelSort';
+// Armband formatting (moved from apps/myk9q in PR E1a)
 export { formatArmband, NO_ARMBAND_LABEL } from './utils/armband';
-export type { StaleDataStatus } from './utils/staleDataUtils';
-export { getStaleDataStatus, formatStaleTime } from './utils/staleDataUtils';
 
 // ── Stores ───────────────────────────────────────────────────────────────
-export { useEntryStore, createEntryStore } from './stores/entryStore';
 export type { Entry, EntryStatus } from './stores/entryStore';
 
 // ── Pages: ClassList ─────────────────────────────────────────────────────
@@ -58,7 +44,6 @@ export type {
   PrintDialogState,
   SortOption,
 } from './pages/ClassList';
-export { SORT_OPTIONS } from './pages/ClassList';
 
 // Section grouping (PR E0)
 export {
@@ -83,7 +68,6 @@ export type {
   PrintDialogType as EntryListPrintDialogType,
   PrintDialogState as EntryListPrintDialogState,
   ResetConfirmState,
-  OrgData,
   // PR E2b
   ClassInfo,
   EntryListData,
@@ -91,15 +75,7 @@ export type {
 } from './pages/EntryList';
 
 export type { StatusBorderClass } from './pages/EntryList';
-export {
-  normalizeResultText,
-  isNonQualifyingResult,
-  getStatusBorderClass,
-  getPlacementEmoji,
-  getPlacementText,
-  isNationalsCompetition,
-  getDisplayTime,
-} from './pages/EntryList';
+export { normalizeResultText, getStatusBorderClass, getPlacementText } from './pages/EntryList';
 
 // PR E2d-2b — SortableEntryCard + narrow permission union +
 // EntryListContent drag-and-drop grid wrapper.
@@ -140,15 +116,8 @@ export {
   ResetMenuPopup,
   SelfCheckinDisabledDialog,
   SuccessToast,
-  PlacementBadge,
-  NationalsResultBadges,
-  RegularResultBadges,
-  ResultBadges,
-  StatusBadgeContent,
   buildClassMenuActions,
-  TrialInfo as EntryListTrialInfo,
   getStatusBadge,
-  parseOrganizationData,
   parseTimeLimit,
 } from './pages/EntryList';
 export type {
@@ -157,7 +126,6 @@ export type {
   ResetMenuPopupProps,
   SelfCheckinDisabledDialogProps,
   SuccessToastProps,
-  PrintOption,
   ActionsMenuConfig,
   ClassMenuAction,
 } from './pages/EntryList';
@@ -191,6 +159,8 @@ export {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  notRunningLabel,
+  notRunningReasonOf,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
@@ -198,7 +168,7 @@ export {
   placeInLine,
   runQueueStateOf,
 } from './pages/EntryList';
-export type { RunQueueEntry, RunQueueState } from './pages/EntryList';
+export type { NotRunningReason, RunQueueEntry, RunQueueState } from './pages/EntryList';
 
 // Quick-advance ranking (MYK9-83) — the post-save "up next" chips and the
 // pending-tab gate bubble share this one gate-aware layer over the run queue.
@@ -231,13 +201,10 @@ export type {
   ClassSettingsDialogProps,
   MaxTimeDialogProps,
   RunOrderDialogProps,
-  ScoresheetPrintDialogProps,
-  NoStatsDialogProps,
   AreaCountSelectionDialogProps,
   RunOrderPreset,
   RunOrderScope,
   RenumberMode,
-  PrintSortOrder,
   // CheckInStatus is intentionally NOT re-exported here — it's just an
   // alias for `EntryStatus` which is already exported above. Consumers
   // should use `EntryStatus`. The page-level barrel keeps the alias
@@ -266,10 +233,8 @@ export type {
 export type {
   EntryListHandlers,
   EntryListActions,
-  ReportSortOrder,
   EntryStatusChange,
   EntryStatusCheckIn,
-  LongPressHandlers,
   EntryListPageProps,
   EntryListUiState,
   EntryListUiActions,

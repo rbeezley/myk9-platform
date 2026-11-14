@@ -188,7 +188,7 @@ describe('AtShowEntryListPage — tab badges follow the canonical rule (MYK9-645
   it('keeps the withdrawn dog visible under its own labelled group', async () => {
     renderPage();
 
-    expect(await screen.findByText('Pulled / not running (1)')).toBeInTheDocument();
+    expect(await screen.findByText('Not running (1)')).toBeInTheDocument();
     expect(screen.getByText('Withdrawn Dog')).toBeInTheDocument();
   });
 
@@ -212,7 +212,7 @@ describe('AtShowEntryListPage — tab badges follow the canonical rule (MYK9-645
 
   it('offers no Score control inside the Not running group', async () => {
     renderPage();
-    await screen.findByText('Pulled / not running (1)');
+    await screen.findByText('Not running (1)');
 
     const withdrawnCard = screen.getByText('Withdrawn Dog').closest('div.grid') as HTMLElement;
     expect(

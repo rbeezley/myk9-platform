@@ -26,38 +26,20 @@ export type EntryGroup = TabType | 'not_running';
  * it is in the union because both modes share one page (MYK9-260), and it
  * degrades to plain armband order when no entry carries a section.
  */
-export type SortType =
-  'armband' | 'name' | 'handler' | 'breed' | 'manual' | 'run' | 'placement' | 'section-armband';
+export type SortType = 'armband' | 'run' | 'placement' | 'section-armband';
 export type SectionFilter = 'all' | 'A' | 'B';
 
 // =============================================================================
 // SORT COMPARATORS
 // =============================================================================
 
-type SortComparator = (a: Entry, b: Entry, context?: SortContext) => number;
-
-interface SortContext {
-  manualOrderMap: Map<string, number>;
-}
+type SortComparator = (a: Entry, b: Entry) => number;
 
 /**
  * Sort comparators for each sort type.
  * Extracted for cleaner code and easier testing.
  */
 const sortComparators: Record<SortType, SortComparator> = {
-  manual: (a, b, context) => {
-    // Manual sort uses pre-computed index map for O(1) lookups
-    if (context?.manualOrderMap && context.manualOrderMap.size > 0) {
-      const aIndex = context.manualOrderMap.get(a.id) ?? -1;
-      const bIndex = context.manualOrderMap.get(b.id) ?? -1;
-      if (aIndex !== -1 && bIndex !== -1) {
-        return aIndex - bIndex;
-      }
-    }
-    // Fallback to exhibitorOrder from database
-    return (a.exhibitorOrder || 0) - (b.exhibitorOrder || 0);
-  },
-
   'section-armband': (a, b) => {
     if (a.section && b.section && a.section !== b.section) {
       return a.section.localeCompare(b.section);
@@ -90,12 +72,6 @@ const sortComparators: Record<SortType, SortComparator> = {
   },
 
   armband: (a, b) => armbandSortKey(a.armband) - armbandSortKey(b.armband),
-
-  name: (a, b) => (a.callName || '').localeCompare(b.callName || ''),
-
-  handler: (a, b) => (a.handler || '').localeCompare(b.handler || ''),
-
-  breed: (a, b) => (a.breed || '').localeCompare(b.breed || ''),
 };
 
 /**
@@ -149,8 +125,6 @@ export interface EntryListFiltersSnapshot {
 interface UseEntryListFiltersOptions {
   initialFilters?: EntryListFiltersSnapshot | undefined;
   entries: Entry[];
-  /** Enable manual sort option (default: false) */
-  supportManualSort?: boolean;
   /** Enable section filter for combined views (default: false) */
   supportSectionFilter?: boolean;
   /** Sort in-ring dogs first (default: false) */
@@ -170,8 +144,6 @@ interface UseEntryListFiltersOptions {
    * falls back to the `isScored` split and no entry is `not_running`.
    */
   entryClassification?: Record<string, EntryGroup> | undefined;
-  /** External manual order array (for drag-and-drop state) */
-  manualOrder?: Entry[];
   /** Default sort type (default: 'armband') */
   defaultSort?: SortType;
 }
@@ -187,7 +159,6 @@ interface UseEntryListFiltersOptions {
  * - **breed**: Sort by breed alphabetically
  * - **run**: Sort by exhibitor order (run order)
  * - **placement**: Sort by placement (scored entries only)
- * - **manual**: Sort by external manualOrder array (for drag-and-drop)
  *
  * **Priority Sorting:**
  * - **prioritizeInRing**: In-ring dogs always appear first
@@ -206,20 +177,17 @@ interface UseEntryListFiltersOptions {
  *   entries: localEntries,
  *   prioritizeInRing: true,
  *   deprioritizePulled: true,
- *   manualOrder: manualOrder,
  *   defaultSort: 'run'
  * });
  * ```
  */
 export const useEntryListFilters = ({
   entries,
-  supportManualSort = false,
   supportSectionFilter = false,
   prioritizeInRing = false,
   deprioritizePulled = false,
   prioritizeAtGate = prioritizeInRing,
   entryClassification,
-  manualOrder,
   defaultSort = 'armband',
   initialFilters,
 }: UseEntryListFiltersOptions) => {
@@ -234,21 +202,6 @@ export const useEntryListFilters = ({
   // ==========================================================================
   // PRE-COMPUTED VALUES
   // ==========================================================================
-
-  /**
-   * Pre-compute manualOrder indices for O(1) lookups during sorting.
-   * Previously: O(n) findIndex per comparison = O(n²) total
-   * Now: O(n) map creation + O(1) per lookup = O(n log n) total
-   */
-  const manualOrderMap = useMemo(() => {
-    const map = new Map<string, number>();
-    if (manualOrder && manualOrder.length > 0) {
-      manualOrder.forEach((entry, index) => {
-        map.set(entry.id, index);
-      });
-    }
-    return map;
-  }, [manualOrder]);
 
   // ==========================================================================
   // FILTER FUNCTIONS
@@ -307,7 +260,6 @@ export const useEntryListFilters = ({
 
   /**
    * Sort entries with priority handling and type-specific comparators.
-   * Uses pre-computed manualOrderMap for O(1) lookups.
    */
   const sortEntries = useCallback(
     (a: Entry, b: Entry, sortType: SortType): number => {
@@ -323,9 +275,9 @@ export const useEntryListFilters = ({
 
       // Apply sort-type specific comparator
       const comparator = sortComparators[sortType];
-      return comparator(a, b, { manualOrderMap });
+      return comparator(a, b);
     },
-    [prioritizeInRing, deprioritizePulled, prioritizeAtGate, manualOrderMap]
+    [prioritizeInRing, deprioritizePulled, prioritizeAtGate]
   );
 
   // ==========================================================================
@@ -451,7 +403,6 @@ export const useEntryListFilters = ({
     resetFilters,
 
     // Helpers
-    supportManualSort,
     supportSectionFilter,
   };
 };

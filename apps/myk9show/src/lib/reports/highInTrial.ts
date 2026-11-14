@@ -187,7 +187,7 @@ function levelOrder(level: string): number {
  * within a show and present on every entry that reached a class, so it is the fallback
  * rather than dropping the team.
  */
-function teamKey(entry: ReportEntry): string | null {
+export function teamKey(entry: ReportEntry): string | null {
   if (entry.dogId) return `dog:${entry.dogId}`;
   if (entry.armband != null && String(entry.armband).trim() !== '') {
     return `armband:${String(entry.armband)}`;
@@ -195,7 +195,7 @@ function teamKey(entry: ReportEntry): string | null {
   return null;
 }
 
-function isEntered(entry: ReportEntry): boolean {
+export function isEntered(entry: ReportEntry): boolean {
   // Unknown or missing status defaults to participating -- see the note above.
   return !HIT_NON_PARTICIPATING_STATUSES.has((entry.entryStatus ?? '').toLowerCase());
 }

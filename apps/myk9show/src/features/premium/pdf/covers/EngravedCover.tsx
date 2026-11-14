@@ -10,7 +10,7 @@ import { PdfFooter } from '../PdfFooter';
 // Ivory page with a double-line border frame inset from each edge, ornamental
 // rules above and below the show name, an EB Garamond display title, and a
 // Roman-numeral folio centered at the foot.
-export function renderEngravedCover({ t, data, dateRange, club, venue }: CoverContext) {
+export function renderEngravedCover({ t, data, facts, dateRange, club, venue }: CoverContext) {
   const welcome = readWelcome(data);
   const inset = 36;
   const innerInset = 8;
@@ -75,7 +75,7 @@ export function renderEngravedCover({ t, data, dateRange, club, venue }: CoverCo
             marginVertical: 18,
           }}
         >
-          {data.show.name}
+          {facts.showName}
         </Text>
         {renderOrnamentalRule(t)}
         <Text

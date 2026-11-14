@@ -90,3 +90,35 @@ describe('generic failure sentences in production builds', () => {
     expect(getUserFriendlyError({ code: '42P01' })).toBe(GENERIC_FAILURE_MESSAGE);
   });
 });
+
+// MYK9-1817: a constraint failure names what failed and what to do next, in
+// plain words, so nobody is left at a dead end ("This record already exists.").
+describe('integrity-constraint messages in production builds', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    [
+      '23505',
+      "We couldn't save this because one like it already exists. Check the list, then try again.",
+    ],
+    [
+      '23503',
+      "We couldn't do that because other records still use it. Remove or reassign them, then try again.",
+    ],
+    [
+      '23502',
+      "We couldn't save this because a required field is empty. Fill it in, then try again.",
+    ],
+    [
+      '23514',
+      "We couldn't save this because a value is out of range. Check your entries, then try again.",
+    ],
+  ])('maps SQLSTATE %s to a message with a next step', (code, message) => {
+    vi.stubEnv('DEV', false);
+
+    expect(getUserFriendlyError({ code })).toBe(message);
+    expect(message).not.toContain('—');
+  });
+});

@@ -2,7 +2,7 @@
  * useRingsideGrantRole — reads the active ringside grant (Phase 1c) and returns
  * the grant's role IFF it is scoped to the given show, else null.
  *
- * The `/at-show` shims feed the result to `buildRingsideContextValue` as
+ * The `/at-show` shims feed the result to `resolveRingsideAccess` as
  * `grantRole`, where it takes precedence over the account RBAC mapping. Null
  * (no grant, or a grant for a different show) means "fall back to RBAC".
  *

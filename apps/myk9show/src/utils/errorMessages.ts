@@ -26,10 +26,13 @@ export const GENERIC_FAILURE_MESSAGE = "We couldn't do that. Try again.";
 /** Known PostgreSQL / PostgREST error code prefixes and their user-facing messages. */
 export const ERROR_CODE_MESSAGES: Record<string, string> = {
   // PostgreSQL class 23 — integrity constraint violations
-  '23505': 'This record already exists.',
-  '23503': 'Cannot complete this action — it is referenced by other records.',
-  '23502': 'A required field is missing.',
-  '23514': 'The value provided is out of the allowed range.',
+  '23505':
+    "We couldn't save this because one like it already exists. Check the list, then try again.",
+  '23503':
+    "We couldn't do that because other records still use it. Remove or reassign them, then try again.",
+  '23502': "We couldn't save this because a required field is empty. Fill it in, then try again.",
+  '23514':
+    "We couldn't save this because a value is out of range. Check your entries, then try again.",
 
   // PostgreSQL class 42 — access / syntax
   '42501': "You don't have permission to perform this action.",

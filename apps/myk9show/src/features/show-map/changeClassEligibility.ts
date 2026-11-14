@@ -25,6 +25,11 @@ const NOT_STARTED_OR_ATTENTION: ReadonlySet<ShowMapStatusKind | undefined> = new
   'attention',
 ]);
 
+/** Shown beside Change class when there is no connection; both desks say it in these words. */
+export const CHANGE_CLASS_OFFLINE_REASON = 'Changing a class needs a connection.';
+/** Shown beside Change handler when there is no connection (the handler save is online-only). */
+export const CHANGE_HANDLER_OFFLINE_REASON = 'Changing a handler needs a connection.';
+
 /** Why this entry cannot change class, in words for the secretary; null when it can. */
 export function getChangeClassBlock(facts: ChangeClassFacts): string | null {
   const { entryStatus, runStatusKind, classStatusKind } = facts;

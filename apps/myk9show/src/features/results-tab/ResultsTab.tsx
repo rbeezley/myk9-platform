@@ -22,7 +22,9 @@ import { NationalsLeaderboardLink, NationalsLeaderboardView } from './NationalsL
 import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
-import { ResultsFinishRow } from './ResultsFinishRow';
+import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import { openClassListLine } from '@/features/show-closeout/finishList';
+import { ResultsPackets } from './ResultsPackets';
 import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
 import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
 import { ResultsTabToolbar } from './ResultsTabToolbar';
@@ -51,30 +53,6 @@ function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
         entry.dogName.toLowerCase().includes(query) ||
         entry.handlerName.toLowerCase().includes(query) ||
         entry.armband === query
-    )
-  );
-}
-
-/**
- * Every class that ran has been released and the judge has signed off on it: time for the finish row to
- * call for Submit and Close.
- */
-function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boolean {
-  // Every class that ran, plus any class that owes the judge's sign-off without having a dog to
-  // release (all entries absent).
-  const ran = rows.filter(
-    row => (row.phase !== 'cancelled' && row.phase !== 'no-dogs') || row.takesJudgeSignOff
-  );
-  return (
-    ran.length > 0 &&
-    // Currently complete (a late entry reopens a released, signed class: it is in the ring again)
-    // AND released AND signed off.
-    ran.every(
-      row =>
-        (row.phase === 'released' || row.phase === 'done') &&
-        // Nothing to release when no dog was expected.
-        (Boolean(row.releasedAt) || row.expectedCount === 0) &&
-        row.judgeSignedOffAt !== null
     )
   );
 }
@@ -168,19 +146,26 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
     });
   };
 
-  const visibleRows = useMemo(
-    () =>
-      rows.filter(
-        row =>
-          // The class a link points at stays listed whatever the filters say: Overview deep-links
-          // with classId/trialId only, and the default "Needs me" filter would otherwise hide it.
-          row.id === state.classId ||
-          ((state.trialId === null || row.trialId === state.trialId) &&
-            matchesResultsStatusFilter(row.phase, state.status) &&
-            rowMatchesSearch(row, state.search))
-      ),
-    [rows, state.classId, state.search, state.status, state.trialId]
+  // A "Finish the show" line's link (`?left=<key>`) lists exactly the classes that line counted,
+  // from the same calculation, whatever their phase (MYK9-1945).
+  // Only an open line filters: a stale link to a line that is now done shows the unfiltered list.
+  const leftCalc = useMemo(() => calculateResultsRowsLeft(rows, trials), [rows, trials]);
+  const leftLine = useMemo(
+    () => (state.left === null ? null : openClassListLine(showId, leftCalc, state.left)),
+    [leftCalc, showId, state.left]
   );
+  const visibleRows = useMemo(() => {
+    const leftIds = leftLine ? new Set(leftLine.classIds) : null;
+    return rows.filter(
+      row =>
+        // The class a link points at stays listed whatever the filters say: Overview deep-links
+        // with classId/trialId only, and the default "Needs me" filter would otherwise hide it.
+        row.id === state.classId ||
+        ((state.trialId === null || row.trialId === state.trialId) &&
+          (leftIds ? leftIds.has(row.id) : matchesResultsStatusFilter(row.phase, state.status)) &&
+          rowMatchesSearch(row, state.search))
+    );
+  }, [leftLine, rows, state.classId, state.search, state.status, state.trialId]);
   const selected = rows.find(row => row.id === state.classId) ?? null;
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
   // The saved check reaches this device through a class sync, which a dirty or conflicted class row
@@ -437,11 +422,26 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
       {showStatsLink && entries.some(entry => entry.is_scored === true) && showStatsLink}
       <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
-      <ResultsFinishRow
+      <ResultsPackets
         showId={showId}
         trials={trials}
-        allDone={everyClassReleasedAndInitialed(rows)}
+        rows={rows}
+        entries={entries}
+        timeZone={timeZone}
       />
+      {leftLine && (
+        <p className="flex flex-wrap items-center gap-x-3 text-sm" role="status">
+          <span>Showing the classes behind &ldquo;{leftLine.label}&rdquo;</span>
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto min-h-11 p-0"
+            onClick={() => update({ left: null })}
+          >
+            Show all classes
+          </Button>
+        </p>
+      )}
       <MasterDetailLayout
         id="results-classes"
         listLabel="Classes"

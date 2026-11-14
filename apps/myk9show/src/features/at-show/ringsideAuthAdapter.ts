@@ -22,8 +22,6 @@ import {
   getPermissionsForRole,
   type UserRole as RingsideRole,
   type UserPermissions as RingsidePermissions,
-  type RingsideAuth,
-  type RingsideShowContext,
 } from '@myk9/ringside';
 import { UserRole as ShowRole } from '@/types/auth-types';
 
@@ -71,9 +69,8 @@ export function toRingsideRole(showRole: ShowRole | null | undefined): RingsideR
  *
  * Permissions derive from the resolved role via `getPermissionsForRole` — the
  * same role→permission contract ringside uses internally — so an unmapped role
- * (null) denies every permission. Both `buildRingsideAuth` (the provider auth
- * bag) and `useRingsideEffectiveRole` (the React hook every `/at-show` surface
- * shares) call this, so the precedence rule can never drift between them.
+ * (null) denies every permission. `useRingsideEffectiveRole` (the React hook every `/at-show` surface
+ * shares) calls this, so the precedence rule has one home.
  */
 export function resolveRingsideAccess(args: {
   showRole: ShowRole | null | undefined;
@@ -83,28 +80,4 @@ export function resolveRingsideAccess(args: {
   const role = args.grantRole ?? toRingsideRole(args.showRole);
   const permissions: RingsidePermissions | null = role ? getPermissionsForRole(role) : null;
   return { role, permissions };
-}
-
-/**
- * Build the `RingsideAuth` value-snapshot bag for `<RingsideProvider>`.
- *
- * Role + permission resolution (precedence, INTENT) lives in
- * `resolveRingsideAccess`; this wraps it into the provider's `canAccess` shape.
- */
-export function buildRingsideAuth(args: {
-  showRole: ShowRole | null | undefined;
-  showContext: RingsideShowContext | null;
-  /** Show-scoped passcode grant role (Phase 1c). Takes precedence when present. */
-  grantRole?: RingsideRole | null;
-}): RingsideAuth {
-  const { role, permissions } = resolveRingsideAccess({
-    showRole: args.showRole,
-    grantRole: args.grantRole,
-  });
-
-  return {
-    role,
-    showContext: args.showContext,
-    canAccess: (permission: keyof RingsidePermissions) => permissions?.[permission] ?? false,
-  };
 }

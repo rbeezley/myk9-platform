@@ -1,7 +1,5 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-13T19:16:42.331Z",
-  "total": 401,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -107,7 +105,7 @@
     "apps/myk9show/src/features/at-show/quickAdvanceReplicated.ts": 1,
     "apps/myk9show/src/features/at-show/ringsidePasscodeRevocation.ts": 2,
     "apps/myk9show/src/features/at-show/slots/ClassStatisticsDialog.tsx": 3,
-    "apps/myk9show/src/features/at-show/useAtShowEntryListHandlers.ts": 2,
+    "apps/myk9show/src/features/at-show/useAtShowEntryListHandlers.ts": 1,
     "apps/myk9show/src/features/at-show/useAtShowScoresheet.ts": 1,
     "apps/myk9show/src/features/banner/entry-blank/BannerEntryBlankDocument.tsx": 1,
     "apps/myk9show/src/features/banner/landing/BannerLandingPage.tsx": 1,
@@ -163,8 +161,9 @@
     "apps/myk9show/src/features/premium/LandingPageCard.tsx": 1,
     "apps/myk9show/src/features/premium/pdf/bodies/FieldGuideBody.tsx": 3,
     "apps/myk9show/src/features/premium/pdf/bodies/GazetteBody.tsx": 3,
-    "apps/myk9show/src/features/premium/pdf/bodies/PosterBody.tsx": 4,
-    "apps/myk9show/src/features/premium/pdf/bodies/StandardBody.tsx": 4,
+    "apps/myk9show/src/features/premium/pdf/bodies/PosterBody.tsx": 3,
+    "apps/myk9show/src/features/premium/pdf/bodies/StandardBody.tsx": 3,
+    "apps/myk9show/src/features/premium/premiumFacts.ts": 1,
     "apps/myk9show/src/features/premium/premiumPublishAction.ts": 1,
     "apps/myk9show/src/features/registries/asca.ts": 6,
     "apps/myk9show/src/features/registries/helpers.ts": 2,
@@ -227,7 +226,6 @@
     "apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts": 1,
     "apps/myk9show/src/stripe-config.ts": 1,
     "apps/myk9show/src/types/check-in-types.ts": 1,
-    "apps/myk9show/src/utils/armbandUtils.ts": 1,
-    "apps/myk9show/src/utils/errorMessages.ts": 1
+    "apps/myk9show/src/utils/armbandUtils.ts": 1
   }
 }

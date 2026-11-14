@@ -73,9 +73,14 @@ export const CheckInIndicator: React.FC<{
   status: string | null | undefined;
   /** On a solid primary surface (the in-ring hero): draw in the foreground-on-primary colour. */
   inverse?: boolean | undefined;
-}> = ({ status, inverse = false }) => {
-  const presentation = getCheckInPresentation(status);
-  const { Icon, label } = presentation;
+  /** Replaces the status word, e.g. Absent or Moved for a dog that is not running (MYK9-1940). */
+  label?: string | undefined;
+}> = ({ status, inverse = false, label: labelOverride }) => {
+  // A label override means the dog is not running (Absent, Moved, Withdrawn): it takes the pulled
+  // icon and colour, not the stale check-in's (MYK9-1940).
+  const presentation = getCheckInPresentation(labelOverride ? 'pulled' : status);
+  const { Icon } = presentation;
+  const label = labelOverride ?? presentation.label;
   const colorClass = inverse ? 'text-primary-foreground' : presentation.colorClass;
   return (
     <span

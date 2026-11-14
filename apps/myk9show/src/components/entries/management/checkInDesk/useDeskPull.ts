@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { showUndoToast } from '@/lib/undoToast';
+import { STATUS_UNDO_WINDOW_MS, showUndoToast } from '@/lib/undoToast';
 import { deskPullCopy, showDayErrorMessage } from '@/features/show-map/showDayErrorCopy';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EntryStatus } from '@/types/show-registration-types';
@@ -43,7 +43,9 @@ export interface DeskPullRow {
  */
 export function useDeskPull(
   findRow: (entryId: string) => DeskPullRow | undefined,
-  onRefreshEntries?: EntriesRefresh
+  onRefreshEntries?: EntriesRefresh,
+  /** Where the Pull was started, recorded as its reason when none is given (MYK9-1940). */
+  startedAt = 'Pulled at the check-in desk'
 ) {
   const { user } = useAuthContext();
   const [pending, setPending] = useState<{ id: string; act: 'pull' | 'unpull' } | null>(null);
@@ -65,15 +67,12 @@ export function useDeskPull(
     const row = pullRow;
     setIsWorking(true);
     try {
-      const undoInput = await scratchShowMapEntry(
-        row.entryId,
-        reason,
-        'Pulled at the check-in desk'
-      );
+      const undoInput = await scratchShowMapEntry(row.entryId, reason, startedAt);
       setPending(null);
       refresh(row.entryId);
       showUndoToast({
         message: `${row.dogName} pulled from ${row.className}`,
+        duration: STATUS_UNDO_WINDOW_MS,
         onUndo: () => {
           void undoShowMapScratch(undoInput)
             .then(() => refresh(undoInput.entryId))

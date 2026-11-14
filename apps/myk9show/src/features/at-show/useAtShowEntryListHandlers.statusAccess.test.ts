@@ -41,10 +41,8 @@ function setup(
   const actions: EntryListActions = {
     handleStatusChange: options.handleStatusChange ?? vi.fn(() => Promise.resolve()),
     handleResetScore: vi.fn(() => Promise.resolve()),
-    handleToggleInRing: vi.fn(() => Promise.resolve()),
     handleMarkInRing: vi.fn(() => Promise.resolve()),
     handleMarkCompleted: vi.fn(() => Promise.resolve()),
-    handleBatchStatusUpdate: vi.fn(() => Promise.resolve()),
     isSyncing: false,
     hasError: false,
   };

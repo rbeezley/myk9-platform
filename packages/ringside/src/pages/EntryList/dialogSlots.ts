@@ -92,12 +92,6 @@ export type RunOrderScope = 'all' | 'A' | 'B';
 export type RenumberMode = 'preserve' | 'renumber';
 
 /**
- * Sort orders the print dialog can request. The host's print pipeline
- * (PDF generation) decides what each means.
- */
-export type PrintSortOrder = 'run-order' | 'armband' | 'placement';
-
-/**
  * Re-export of the canonical check-in status from `@myk9/core`. The
  * apps/myk9q dialog used a locally-defined `CheckinStatus` with the
  * same eight values — this collapses to the single source of truth.
@@ -216,8 +210,7 @@ export interface ClassStatusDialogProps {
  * host doesn't want them rendered.
  *
  * `onStatistics` can return `false` to indicate "don't close the
- * dialog yet" (used for the "no scores → show NoStatsDialog instead"
- * branch).
+ * dialog yet" (the no-scores branch).
  */
 export interface ClassOptionsDialogProps {
   isOpen: boolean;
@@ -239,24 +232,6 @@ export interface ClassOptionsDialogProps {
   hideStatistics?: boolean;
   hideStatus?: boolean;
   hidePrintOptions?: boolean;
-}
-
-/**
- * Minimal two-option dialog: pick a sort order, fire `onPrint`. The
- * `options` prop lets callers override the default button labels
- * ("Run Order" / "Armband Number") for contexts like results sheets
- * where the choices are different.
- */
-export interface ScoresheetPrintDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onPrint: (sortOrder: PrintSortOrder) => void;
-  title?: string;
-  /** Override the two button labels and sort values. */
-  options?: {
-    primary: { label: string; sortOrder: PrintSortOrder };
-    secondary: { label: string; sortOrder: PrintSortOrder };
-  };
 }
 
 /**
@@ -373,18 +348,6 @@ export interface MaxTimeDialogProps {
   onTimeUpdate?: () => void;
 }
 
-/**
- * Tiny info dialog shown when the user requests statistics for a
- * class that has no scored entries yet. Pure presentational — no
- * callbacks beyond close.
- */
-export interface NoStatsDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  /** Name of the class displayed in the dialog body. */
-  className?: string;
-}
-
 // =============================================================================
 // The slot interface
 // =============================================================================
@@ -421,12 +384,8 @@ export interface EntryListDialogSlots {
   ClassSettingsDialog: ComponentType<ClassSettingsDialogProps>;
   MaxTimeDialog: ComponentType<MaxTimeDialogProps>;
 
-  // Run order + print
+  // Run order
   RunOrderDialog: ComponentType<RunOrderDialogProps>;
-  ScoresheetPrintDialog: ComponentType<ScoresheetPrintDialogProps>;
-
-  // Tiny info
-  NoStatsDialog: ComponentType<NoStatsDialogProps>;
 
   // Optional — only renders when class has flexible area count.
   AreaCountSelectionDialog?: ComponentType<AreaCountSelectionDialogProps>;

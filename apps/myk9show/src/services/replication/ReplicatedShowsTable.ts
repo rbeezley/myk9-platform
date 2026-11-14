@@ -35,6 +35,11 @@ import { withStoredDays, withTypedDays } from './showCalendarDays';
 import { rowToShow } from './showRowMapping';
 import { SHOW_USES_FIELD_COLUMNS, showUsesColumns, withShowUsesDefaults } from './showUsesColumns';
 import { holdOwnedSwitches } from './showUsesOwnership';
+import {
+  showCloseRecordColumns,
+  stripUnsetCloseRecordColumns,
+  type ShowCloseRecord,
+} from './showCloseRecordColumns';
 import { mapShowStatusToDb } from './showStatusMapping';
 import { formatDateLocal } from '@/utils/dateLocal';
 
@@ -46,7 +51,7 @@ type ShowRow = Database['public']['Tables']['shows']['Row'];
 /**
  * App-level Show type with camelCase fields and sync metadata
  */
-export interface ReplicatedShow {
+export interface ReplicatedShow extends ShowCloseRecord {
   id: string;
   name: string;
   organization: string;
@@ -174,6 +179,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
         ? { online_entries_enabled: show.onlineEntriesEnabled }
         : {}),
       ...showUsesColumns(show),
+      ...showCloseRecordColumns(show),
       logo_url: show.logoUrl ?? null,
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,
@@ -438,6 +444,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     for (const [field, column] of SHOW_USES_FIELD_COLUMNS) {
       if (!(field in resolvedUpdates)) delete updatePayload[column];
     }
+
+    stripUnsetCloseRecordColumns(updatePayload, resolvedUpdates); // MYK9-1945
 
     const { mutationId } = await this.writeAndQueue(showId, updatedShow, {
       operation: 'UPDATE',

@@ -127,10 +127,11 @@ describe('status icon grammar source ownership', () => {
       WORKSPACE_ROOT,
       'packages/ui/src/components/StatusIcon/statusIconGrammar.ts'
     );
-    const ringsideRenderer = resolve(
-      WORKSPACE_ROOT,
-      'packages/ringside/src/pages/EntryList/SortableEntryCardComponents.tsx'
-    );
+    // The ringside files that still draw a status icon (the card renderer went in MYK9-1810).
+    const ringsideRenderers = [
+      resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/CheckInIndicator.tsx'),
+      resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/entryListTabs.tsx'),
+    ];
     const ringsideStatusApiSources = [
       resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/sortableEntryCardUtils.ts'),
       resolve(WORKSPACE_ROOT, 'packages/ringside/src/pages/EntryList/index.ts'),
@@ -138,10 +139,12 @@ describe('status icon grammar source ownership', () => {
     ];
 
     expect(existsSync(sharedGrammar)).toBe(true);
-    const ringsideSource = readFileSync(ringsideRenderer, 'utf8');
-    expect(ringsideSource).toContain('StatusIcon');
-    expect(ringsideSource).toContain("from '@myk9/ui'");
-    expect(ringsideSource).not.toMatch(/function getIcon|switch \(config\.iconName\)/);
+    for (const rendererPath of ringsideRenderers) {
+      const source = readFileSync(rendererPath, 'utf8');
+      expect(source, rendererPath).toContain('StatusIcon');
+      expect(source, rendererPath).toContain("from '@myk9/ui'");
+      expect(source, rendererPath).not.toMatch(/function getIcon|switch \(config\.iconName\)/);
+    }
     for (const sourcePath of ringsideStatusApiSources) {
       expect(readFileSync(sourcePath, 'utf8'), sourcePath).not.toMatch(
         /\bgetStatusConfig\b|\bStatusConfig\b/

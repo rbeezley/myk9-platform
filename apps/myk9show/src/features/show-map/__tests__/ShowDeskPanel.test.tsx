@@ -524,7 +524,9 @@ describe('ShowDeskPanel cockpit', () => {
 
     const link = screen.getAllByRole('link', { name: /close out 1 result/i })[0];
     expect(link).toHaveAccessibleName('Close out 1 result, opens Results');
-    expect(link?.getAttribute('href')).toMatch(/^\/shows\/show-1\/results\?returnTo=/);
+    expect(link?.getAttribute('href')).toMatch(
+      /^\/shows\/show-1\/results\?returnTo=[^#]+#finish-the-show$/
+    );
   });
 
   it('hides staff entry attention when the viewer cannot manage the Show', () => {

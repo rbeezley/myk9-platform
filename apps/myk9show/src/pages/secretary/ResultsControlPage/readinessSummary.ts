@@ -1,5 +1,6 @@
 import type { SyncableClassData, SyncableEntryData } from '@/store/classStore';
 import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { calculateWhatIsLeft } from '@/features/show-closeout/whatIsLeft';
 
 export interface ResultsReadinessSummary {
   totalClasses: number;
@@ -51,7 +52,30 @@ export function buildResultsReadinessSummary(
   const classIds = new Set(classes.map(cls => cls.id));
   const relevantEntries = entries.filter(entry => classIds.has(entry.classId));
   const unscoredEntries = relevantEntries.filter(isOutstanding).length;
-  const unreleasedClasses = classes.filter(cls => !cls.results_released_at).length;
+  // The classes the show still has to release: the one calculation's rule, which leaves out a
+  // cancelled class and a class with no dog to release (it used to count every class without a
+  // release stamp, so a cancelled class kept the show from ever reading as ready).
+  // With no entries read at all, no class can be called empty: the count stays unproven.
+  const entriesRead = relevantEntries.length > 0;
+  const expectedByClass = new Map<string, number>();
+  for (const entry of relevantEntries) {
+    if (isExpectedEntry(entry)) {
+      expectedByClass.set(entry.classId, (expectedByClass.get(entry.classId) ?? 0) + 1);
+    }
+  }
+  const unreleasedClasses = calculateWhatIsLeft({
+    classes: classes.map(cls => ({
+      id: cls.id,
+      status: cls.status,
+      expectedCount: entriesRead ? (expectedByClass.get(cls.id) ?? 0) : null,
+      scoredCount: null,
+      releasedAt: cls.results_released_at ?? null,
+    })),
+    trials: [],
+    entries: [],
+    incidents: null,
+    submissions: null,
+  }).unreleasedClassIds.length;
 
   /**
    * Classes are present but not one entry belongs to them.

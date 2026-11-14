@@ -32,7 +32,6 @@ export type {
   PrintDialogType,
   PrintDialogState,
   ResetConfirmState,
-  OrgData,
   // PR E2b — data shape + DI surface for useEntryListData
   ClassInfo,
   EntryListData,
@@ -43,27 +42,9 @@ export type {
 export type { StatusBorderClass } from './sortableEntryCardUtils';
 export {
   normalizeResultText,
-  isNonQualifyingResult,
   getStatusBorderClass,
-  getPlacementEmoji,
   getPlacementText,
-  isNationalsCompetition,
-  getDisplayTime,
 } from './sortableEntryCardUtils';
-
-// ── Sortable card sub-components (PR E2d-2a) ────────────────────────────
-// React components for result badges (placement, qualification, time,
-// faults, nationals stats grid) and the status-icon-plus-text content
-// renderer. SortableEntryCard itself arrives in E2d-2b — these are
-// already movable because they only depend on the ringside-local
-// sortableEntryCardUtils + @myk9/core's `formatTimeForDisplay`.
-export {
-  PlacementBadge,
-  NationalsResultBadges,
-  RegularResultBadges,
-  ResultBadges,
-  StatusBadgeContent,
-} from './SortableEntryCardComponents';
 
 // ── Exhibitor ownership annotations (own-dog highlight + dogs-ahead) ────
 // Pure utils + the `ownership` bag builder the host shim calls with its
@@ -85,14 +66,16 @@ export {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  notRunningLabel,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
+  notRunningReasonOf,
   pendingByRunOrder,
   placeInLine,
   runQueueStateOf,
 } from './runQueue';
-export type { RunQueueEntry, RunQueueState } from './runQueue';
+export type { NotRunningReason, RunQueueEntry, RunQueueState } from './runQueue';
 
 // ── Quick-advance ranking (MYK9-83) ──────────────────────────────────────
 // Gate-aware layer over the run queue: opportunistic at-gate promotion that
@@ -138,10 +121,8 @@ export type { ClassCompletionPresentationProps, ClassPodiumProps } from './compo
 export type {
   EntryListHandlers,
   EntryListActions,
-  ReportSortOrder,
   EntryStatusChange,
   EntryStatusCheckIn,
-  LongPressHandlers,
 } from './hookContracts';
 
 // ── Page-level controlled-render props (PR E2d-1 / E2d-2a) ──────────────
@@ -188,7 +169,7 @@ export type {
 // What survived the MYK9-260 collapse: org parsing and time-limit parsing,
 // both shared by the single-class and combined A/B modes. The sort comparator
 // moved into `useEntryListFilters`; the rest went with the page it served.
-export { parseOrganizationData, parseTimeLimit } from './entryListHelpers';
+export { parseTimeLimit } from './entryListHelpers';
 
 // ── Permissions (PR E2d-2b) ─────────────────────────────────────────────
 // Narrow permission union the EntryList page tree consumes. The host's
@@ -220,7 +201,6 @@ export {
   SelfCheckinDisabledDialog,
   SuccessToast,
   buildClassMenuActions,
-  TrialInfo,
   getStatusBadge,
   EntryListContent,
   EntryListHeader,
@@ -232,7 +212,6 @@ export type {
   ResetMenuPopupProps,
   SelfCheckinDisabledDialogProps,
   SuccessToastProps,
-  PrintOption,
   ActionsMenuConfig,
   ClassMenuAction,
   // PR E2d-2b
@@ -256,14 +235,11 @@ export type {
   ClassSettingsDialogProps,
   MaxTimeDialogProps,
   RunOrderDialogProps,
-  ScoresheetPrintDialogProps,
-  NoStatsDialogProps,
   AreaCountSelectionDialogProps,
   // Supporting types
   RunOrderPreset,
   RunOrderScope,
   RenumberMode,
-  PrintSortOrder,
   CheckInStatus,
   AreaCountRequirements,
   ClassOptionsData,

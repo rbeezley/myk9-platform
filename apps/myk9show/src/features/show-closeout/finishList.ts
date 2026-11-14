@@ -26,7 +26,8 @@ function itemFor(
   releasedAndInitialed: boolean
 ): FinishListItem | null {
   const count = line.count ?? 0;
-  const state = line.open === null ? 'unknown' : line.open ? 'open' : 'done';
+  const state: FinishListItem['state'] =
+    line.open === null ? 'unknown' : line.open ? 'open' : 'done';
   const classListHref = getFinishLineHref(showId, line.key);
   const base = { key: line.key, state, opensClassList: true as const };
   switch (line.kind) {

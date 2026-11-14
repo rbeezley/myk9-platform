@@ -97,7 +97,12 @@ export function buildEntryListOwnership(
     dogsAheadByEntryId.set(
       entry.id,
       entriesComplete
-        ? computeDogsAheadInList(entries, entry.id, claimByEntryId?.get(entry.id))
+        ? computeDogsAheadInList(
+            entries,
+            entry.id,
+            // A supplied map decides every own entry: no claim in it is never a live count.
+            claimByEntryId ? (claimByEntryId.get(entry.id) ?? 'stale') : undefined
+          )
         : null
     );
   }

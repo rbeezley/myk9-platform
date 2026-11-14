@@ -8,10 +8,21 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  detectMyRingConflicts,
+  detectMyRingConflicts as detectWithClaims,
+  type DetectMyRingConflictsInput,
   type RingConflictClass,
   type RingConflictEntry,
 } from './ringConflicts';
+
+/** Every entry reads live unless the test says otherwise. */
+function detectMyRingConflicts(
+  input: Omit<DetectMyRingConflictsInput, 'claims'> & Partial<DetectMyRingConflictsInput>
+) {
+  return detectWithClaims({
+    claims: new Map(input.entries.map(row => [row.id, 'live' as const])),
+    ...input,
+  });
+}
 
 function entry(overrides: Partial<RingConflictEntry> & { id: string }): RingConflictEntry {
   return {
@@ -186,12 +197,30 @@ describe('detectMyRingConflicts', () => {
     expect(conflicts.size).toBe(0);
   });
 
-  it('makes no "N away" claim for a class judged on paper (MYK9-1970)', () => {
+  it.each(['paper', 'stale'] as const)(
+    'makes no "N away" claim for an entry whose claim is %s (MYK9-1970)',
+    claim => {
+      const conflicts = detectMyRingConflicts({
+        entries: conflictingEntries,
+        classes,
+        ownEntryIds: new Set(['a2', 'b1']),
+        leadDogs: 3,
+        claims: new Map([
+          ['a2', claim],
+          ['b1', 'live'],
+        ]),
+      });
+      expect(conflicts.size).toBe(0);
+    }
+  );
+
+  it('counts nothing for an entry with no claim at all', () => {
     const conflicts = detectMyRingConflicts({
       entries: conflictingEntries,
-      classes: classes.map(cls => (cls.classId === 'class-a' ? { ...cls, onPaper: true } : cls)),
+      classes,
       ownEntryIds: new Set(['a2', 'b1']),
       leadDogs: 3,
+      claims: new Map(),
     });
     expect(conflicts.size).toBe(0);
   });

@@ -238,6 +238,25 @@ export function stateForClaim(place: number, claim: ClaimState | null | undefine
   return { kind: 'stale' };
 }
 
+/**
+ * The one rule for a claim state when it is not certain (MYK9-1970). The server's answer wins.
+ * With none (offline, loading, a failed read, a dog the account does not own): paper when the
+ * class is flagged paper, or follows the show (`classOnPaper` null) and the show's device-scoring
+ * switch is off, which is the server's own rule. Otherwise `unknown`, which is stale unless the
+ * caller says what unknown means: nothing is a live count without an explicit `live`.
+ */
+export function resolveClaim(input: {
+  server?: ClaimState | null | undefined;
+  classOnPaper?: boolean | null | undefined;
+  showUsesDeviceScoring?: boolean | null | undefined;
+  unknown?: ClaimState | undefined;
+}): ClaimState {
+  if (input.server) return input.server;
+  if (input.classOnPaper === true) return 'paper';
+  if (input.classOnPaper == null && input.showUsesDeviceScoring === false) return 'paper';
+  return input.unknown ?? 'stale';
+}
+
 /** The second line a paper class shows beside its position (MYK9-1970). */
 export const PAPER_CLASS_NOTE =
   'This class is scored on paper. Listen for your number at the ring.';

@@ -1,3 +1,4 @@
+import { resolveClaim } from '@myk9/ringside/run-queue';
 import type { ShowEntry } from '@/store/entry-store-types';
 import { dogsAheadInClass, hasRunOrder } from './showEntryRunQueue';
 
@@ -11,8 +12,9 @@ export interface ClassContext {
   className: string;
   status: string;
   entries: ShowEntry[];
-  /** MYK9-1970: judged on paper, so no dog in it is "N away" (no countdown, no conflict). */
-  onPaper?: boolean | undefined;
+  /** MYK9-1970: `classes.scores_on_paper` (null = follows the show) and the show's switch. */
+  scoresOnPaper?: boolean | null | undefined;
+  showUsesDeviceScoring?: boolean | null | undefined;
 }
 
 /**
@@ -36,7 +38,16 @@ export function detectConflicts(
   for (const cls of allClasses) {
     if (cls.classId === currentClassId) continue;
     if (cls.status !== 'In Progress') continue;
-    if (cls.onPaper) continue;
+    // A paper class has no countdown, so it makes no conflict (MYK9-1970).
+    if (
+      resolveClaim({
+        classOnPaper: cls.scoresOnPaper,
+        showUsesDeviceScoring: cls.showUsesDeviceScoring,
+        unknown: 'live',
+      }) === 'paper'
+    ) {
+      continue;
+    }
 
     const dogEntry = cls.entries.find(e => e.dogId === dogId && !e.competitionData);
     // No run order: the server reports no place for it and Ringside shows none.

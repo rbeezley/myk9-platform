@@ -14,6 +14,7 @@ import {
   formatPlaceInLine,
   formatRunQueueState,
   parseClaimState,
+  resolveClaim,
   runQueueStateNote,
   notRunningLabel,
   notRunningReasonOf,
@@ -245,6 +246,23 @@ describe('place in line (MYK9-992)', () => {
     );
     expect(runQueueStateNote({ kind: 'stale' })).toBeNull();
     expect(runQueueStateNote({ kind: 'waiting', place: 2 })).toBeNull();
+  });
+
+  it('resolves a claim: the server answer, else paper from the class or the show, else unknown (MYK9-1970)', () => {
+    // An explicit server claim always wins.
+    expect(resolveClaim({ server: 'live', classOnPaper: true })).toBe('live');
+    expect(resolveClaim({ server: 'stale' })).toBe('stale');
+    // No claim: the class flag, else the show switch when the class follows the show.
+    expect(resolveClaim({ classOnPaper: true })).toBe('paper');
+    expect(resolveClaim({ classOnPaper: null, showUsesDeviceScoring: false })).toBe('paper');
+    expect(resolveClaim({ showUsesDeviceScoring: false })).toBe('paper');
+    // A class explicitly on devices is not paper whatever the show says.
+    expect(resolveClaim({ classOnPaper: false, showUsesDeviceScoring: false })).toBe('stale');
+    // Nothing known: never live, unless the caller says what an unknown means.
+    expect(resolveClaim({})).toBe('stale');
+    expect(resolveClaim({ classOnPaper: null, showUsesDeviceScoring: true })).toBe('stale');
+    expect(resolveClaim({ unknown: 'live' })).toBe('live');
+    expect(resolveClaim({ showUsesDeviceScoring: false, unknown: 'live' })).toBe('paper');
   });
 
   it('reads only the three claim states the server sends', () => {

@@ -25,6 +25,7 @@ import { queueCheckInStatus, type NotificationEntryRow } from '@/hooks/queueChec
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
 import { hasRunOrder } from '@/utils/showEntryRunQueue';
+import { resolveClaim } from '@myk9/ringside/run-queue';
 import { readOwnClaimStates } from '@/hooks/queries/useMyEntryQueuePlaces';
 import type { ShowEntry } from '@/store/entry-store-types';
 
@@ -41,6 +42,8 @@ interface ClassRow {
   results_released_at: string | null;
   /** MYK9-1969: true = judged on paper, null = follows the show (the server answers that). */
   scores_on_paper?: boolean | null;
+  /** The class's trial and its show's device-scoring switch (the claim fallback, MYK9-1970). */
+  trial?: { show?: { uses_device_scoring?: boolean | null } | null } | null;
 }
 
 interface NotificationSnapshot {
@@ -208,8 +211,6 @@ export function useNotificationMonitor(): void {
   const notifyUpcomingDogs = useCallback(async (classId: string, inRingEntryId: string) => {
     const context = classContextRef.current.get(classId);
     if (!context) return;
-    // MYK9-1970: a paper class has no countdown to announce. No "You're up!" and no "N dogs away".
-    if (context.onPaper) return;
 
     if (!context.entries.some(entry => entry.id === inRingEntryId)) return;
 
@@ -226,8 +227,16 @@ export function useNotificationMonitor(): void {
     const claims = await readOwnClaimStates(upcoming.map(({ entry }) => entry.id));
 
     for (const { entry, dogsAhead } of upcoming) {
-      const claim = claims.get(entry.id);
-      if (claim !== undefined && claim !== 'live') continue;
+      // MYK9-1970: only a live place is announced. The server's answer when there is one; for a
+      // dog it cannot answer for (a favorite), paper from the class or the show, and otherwise
+      // live: the dog just went in the ring, so the phone-scored class cannot be quiet.
+      const claim = resolveClaim({
+        server: claims.get(entry.id),
+        classOnPaper: context.scoresOnPaper,
+        showUsesDeviceScoring: context.showUsesDeviceScoring,
+        unknown: 'live',
+      });
+      if (claim !== 'live') continue;
       // The server (`get_my_entry_queue_places`) returns no place for an entry
       // whose run_order is 0 or null, so Ringside shows none. Match it: no
       // place-based alert for an entry that has no run order yet (MYK9-1941).
@@ -299,7 +308,8 @@ export function useNotificationMonitor(): void {
           classId,
           className: classRow?.name ?? classId,
           status: classRow?.status ?? '',
-          onPaper: classRow?.scores_on_paper === true,
+          scoresOnPaper: classRow?.scores_on_paper ?? null,
+          showUsesDeviceScoring: classRow?.trial?.show?.uses_device_scoring ?? undefined,
           entries,
         });
       }

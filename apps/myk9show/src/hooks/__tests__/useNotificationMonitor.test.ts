@@ -279,6 +279,54 @@ describe('useNotificationMonitor', () => {
     }
   );
 
+  it('sends no alert for a class that follows a show set to paper, when no claim can be read (MYK9-1970)', async () => {
+    mockReadClaims.mockResolvedValue(new Map());
+    mockRefetch.mockResolvedValue({
+      data: {
+        classes: [
+          classRow({
+            status: 'In Progress',
+            scores_on_paper: null,
+            trial: { show_id: 'show-1', show: { uses_device_scoring: false } },
+          }),
+        ],
+        entries: [
+          entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+          entry(),
+        ],
+      },
+    });
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
+
+    await emitShowChange();
+
+    expect(buildYourTurnPayload).not.toHaveBeenCalled();
+  });
+
+  it('still alerts for a phone-scored show when the claim cannot be read (a favorite dog)', async () => {
+    mockReadClaims.mockResolvedValue(new Map());
+    mockRefetch.mockResolvedValue({
+      data: {
+        classes: [
+          classRow({
+            status: 'In Progress',
+            scores_on_paper: null,
+            trial: { show_id: 'show-1', show: { uses_device_scoring: true } },
+          }),
+        ],
+        entries: [
+          entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+          entry(),
+        ],
+      },
+    });
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
+
+    await emitShowChange();
+
+    expect(mockDeliver).toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
+  });
+
   it('still alerts when the server says the place is live (MYK9-1970)', async () => {
     mockReadClaims.mockResolvedValue(new Map([['owned-entry', 'live']]));
     mockRefetch.mockResolvedValue({

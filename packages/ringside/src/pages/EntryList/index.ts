@@ -68,6 +68,7 @@ export {
   formatRunQueueState,
   PAPER_CLASS_NOTE,
   parseClaimState,
+  resolveClaim,
   stateForClaim,
   runQueueStateNote,
   notRunningLabel,

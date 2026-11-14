@@ -21,7 +21,7 @@ Use the entries from a show you have already run. Tick each task and write down 
 | --- | ----------------------------------------------------------------------------------------------------------------------------------- | ------- |
 |     | **1. Set up the show.** Two trials, with the classes and judges from your past show.                                                |         |
 |     | **2. Publish it** and open entries.                                                                                                 |         |
-|     | **3. Key in 10 mail-in entries** with Add entry. Include one exhibitor and dog who are new, and one check that came in the post.   |         |
+|     | **3. Key in 10 mail-in entries** with Add entry. Include one exhibitor and dog who are new, and one check that came in the post.    |         |
 |     | **4. Enter online as an exhibitor.** Sign up with a second email address of your own, add a dog, enter two classes, pay by card.    |         |
 |     | **5. Enter two dogs for one owner in the same class**, online.                                                                      |         |
 |     | **6. Change something.** Move one dog to another class. Withdraw one dog and decide its refund.                                     |         |

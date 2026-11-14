@@ -87,8 +87,16 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const areaMaxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
   const scoring = useScoresheetScoring({
-    rules: { ...rules, areaCount },
+    // Each area runs against its share of the class limit, so the Q check and
+    // "Use max time" read the same limit the timer does.
+    rules: {
+      ...rules,
+      areaCount,
+      areaMaxTimeSeconds: rules.areaMaxTimeSeconds ?? Array(areaCount).fill(areaMaxSeconds),
+    },
     existingScore: entry.existingScore,
+    // AKC has no fault limit; only the time rules apply to a Qualified (MYK9-2004).
+    qualifiedRules: {},
   });
 
   const stopwatch = useStopwatch({
@@ -167,6 +175,16 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     setShowConfirmation(false);
   };
 
+  // Every area needs a time on a Qualified, but only one area shows at a time:
+  // name the first other area that is holding Save off.
+  const otherIndex = scoring.qualifiedTimeProblems.findIndex(
+    (text, i) => text !== null && i !== currentArea
+  );
+  const otherAreaProblem =
+    otherIndex >= 0 && scoring.qualifiedTimeProblems[otherIndex]
+      ? { index: otherIndex, text: scoring.qualifiedTimeProblems[otherIndex] }
+      : null;
+
   const warningMessage = stopwatch.getWarningMessage();
   const maxTimeMs = stopwatch.getMaxTimeMs();
 
@@ -200,7 +218,8 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
-            scoring.hasUnresolvedTime,
+            scoring.hasUnresolvedTime ||
+            scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,
         }}
       >
@@ -303,7 +322,14 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           value={scoring.areas[currentArea]?.time ?? ''}
           onChange={value => scoring.handleAreaUpdate(currentArea, 'time', value)}
           ariaLabel={`Area ${currentArea + 1} time`}
+          problem={scoring.qualifiedTimeProblems[currentArea]}
+          onUseMax={scoring.setToMaxTime(currentArea)}
         />
+        {otherAreaProblem && (
+          <p role="alert" className="px-3 text-sm font-medium text-red-500">
+            {`Area ${otherAreaProblem.index + 1}: ${otherAreaProblem.text}`}
+          </p>
+        )}
 
         {/* Alert Counters */}
         <div className="grid grid-cols-2 gap-2">

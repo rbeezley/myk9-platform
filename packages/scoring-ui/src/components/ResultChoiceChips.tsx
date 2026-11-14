@@ -5,7 +5,7 @@ import type { QualifyingResult, ScoresheetSportType } from '../types/scoreData';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from './DisqualifyReason';
 import { FaultStepper } from './FaultStepper';
 import { resultLabel } from '../utils/resultLabel';
-import { faultLimitFor } from '../utils/qualifiedCheck';
+import { faultLimitFor, qualifiedFaultProblem } from '../utils/qualifiedCheck';
 
 // Each option carries its own label colour beside its own fill. A blanket
 // `text-white` on the active branch would work only by twMerge ordering — the
@@ -77,11 +77,6 @@ const EXCUSED_REASONS: Record<string, string[]> = {
   ],
 };
 
-/** The registry's fault limit (one source: utils/qualifiedCheck); no limit is Infinity. */
-function getMaxFaults(sportType?: ScoresheetSportType, level?: string): number {
-  return faultLimitFor(sportType, level)?.max ?? Infinity;
-}
-
 const chipBase =
   'min-h-12 px-1 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-all duration-200 active:scale-[0.98]';
 
@@ -126,7 +121,8 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
 }) => {
   const nqReasons = NQ_REASONS[sportType || ''] || NQ_REASONS.default;
   const excusedReasons = EXCUSED_REASONS[sportType || ''] || EXCUSED_REASONS.default;
-  const maxFaults = getMaxFaults(sportType, level);
+  // The counter counts past the limit; the sentence says why a Qualified cannot be saved.
+  const faultProblem = qualifiedFaultProblem(faultCount, faultLimitFor(sportType, level));
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -153,8 +149,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
         <FaultStepper
           value={faultCount}
           onChange={onFaultCountChange}
-          max={maxFaults === Infinity ? undefined : maxFaults}
-          maxNote={`At maximum faults for ${level} level`}
+          limitProblem={faultProblem}
         />
       )}
 

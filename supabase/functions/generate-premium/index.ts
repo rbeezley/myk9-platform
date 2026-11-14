@@ -7,6 +7,7 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
+import { buildWithdrawalPayload, type ClubWithdrawalRow } from './withdrawalPayload.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -269,13 +270,12 @@ handle<GeneratePremiumPayload>(
       })),
     }));
 
-    const clubData = show.clubs as {
-      name: string;
-      logo_url: string | null;
-      default_withdrawal_retention_type: string | null;
-      default_withdrawal_retention_value: number | null;
-      default_withdrawal_policy_notes: string | null;
-    } | null;
+    const clubData = show.clubs as
+      | (ClubWithdrawalRow & {
+          name: string;
+          logo_url: string | null;
+        })
+      | null;
 
     // Build vetClinic as nested object matching PremiumSupplemental.vetClinic
     const vetClinicName =
@@ -325,24 +325,7 @@ handle<GeneratePremiumPayload>(
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
         juniorHandlerFee: show.junior_handler_fee ?? null,
-        // Raw columns; the client resolves show-over-club with getEffectiveWithdrawalPolicy.
-        withdrawal: {
-          show: {
-            withdrawal_cutoff_date: show.withdrawal_cutoff_date ?? null,
-            withdrawal_retention_type: show.withdrawal_retention_type ?? null,
-            withdrawal_retention_value: show.withdrawal_retention_value ?? null,
-            withdrawal_policy_notes: show.withdrawal_policy_notes ?? null,
-          },
-          club: clubData
-            ? {
-                default_withdrawal_retention_type:
-                  clubData.default_withdrawal_retention_type ?? null,
-                default_withdrawal_retention_value:
-                  clubData.default_withdrawal_retention_value ?? null,
-                default_withdrawal_policy_notes: clubData.default_withdrawal_policy_notes ?? null,
-              }
-            : null,
-        },
+        withdrawal: buildWithdrawalPayload(show, clubData),
       },
       club: {
         name: clubData?.name ?? null,

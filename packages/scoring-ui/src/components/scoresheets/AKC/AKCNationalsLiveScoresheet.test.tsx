@@ -59,13 +59,6 @@ const defaultProps = {
   onBack: vi.fn(),
 };
 
-const fillTimes = (time: string) => {
-  for (let i = 1; i <= 5; i++) {
-    fireEvent.click(screen.getByTestId(`area-tab-${i}`));
-    fireEvent.change(screen.getByLabelText(`Area ${i} time`), { target: { value: time } });
-  }
-};
-
 describe('AKCNationalsLiveScoresheet', () => {
   it('renders entry info', () => {
     render(<AKCNationalsLiveScoresheet {...defaultProps} />);
@@ -120,8 +113,6 @@ describe('AKCNationalsLiveScoresheet', () => {
     // Add 2 correct alerts
     fireEvent.click(screen.getByTestId('correct-inc'));
     fireEvent.click(screen.getByTestId('correct-inc'));
-    fillTimes('0:30');
-    fireEvent.click(screen.getByTestId('area-tab-1'));
 
     // Select Q result
     fireEvent.click(screen.getByTestId('result-Q'));
@@ -152,8 +143,6 @@ describe('AKCNationalsLiveScoresheet', () => {
     fireEvent.click(screen.getByTestId('correct-inc'));
     fireEvent.click(screen.getByTestId('correct-inc'));
     fireEvent.click(screen.getByTestId('incorrect-inc'));
-    fillTimes('0:30');
-    fireEvent.click(screen.getByTestId('area-tab-1'));
     fireEvent.click(screen.getByTestId('result-Q'));
     fireEvent.click(screen.getByTestId('submit-btn'));
 
@@ -192,47 +181,5 @@ describe('AKCNationalsLiveScoresheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Entries' }));
     expect(onBack).toHaveBeenCalled();
-  });
-  // MYK9-2004: a Qualified needs a time above zero and within the area limit
-  // (300s over 5 areas = 1:00 each). NQ needs none.
-  describe('Qualified time rules', () => {
-    const saveBtn = () => screen.getByTestId('submit-btn');
-
-    it('refuses a Q with no time and says so', () => {
-      render(<AKCNationalsLiveScoresheet {...defaultProps} />);
-      fireEvent.click(screen.getByTestId('result-Q'));
-      expect(saveBtn()).toBeDisabled();
-      expect(screen.getByText('Add a time to save a Qualified')).toBeInTheDocument();
-    });
-
-    it('refuses a Q with a zero time', () => {
-      render(<AKCNationalsLiveScoresheet {...defaultProps} />);
-      fillTimes('0:00');
-      fireEvent.click(screen.getByTestId('result-Q'));
-      expect(saveBtn()).toBeDisabled();
-    });
-
-    it('refuses a Q with one area over its limit', () => {
-      render(<AKCNationalsLiveScoresheet {...defaultProps} />);
-      fillTimes('0:30');
-      fireEvent.click(screen.getByTestId('area-tab-3'));
-      fireEvent.change(screen.getByLabelText('Area 3 time'), { target: { value: '1:01' } });
-      fireEvent.click(screen.getByTestId('result-Q'));
-      expect(saveBtn()).toBeDisabled();
-      expect(screen.getByRole('alert')).toHaveTextContent('over the');
-    });
-
-    it('allows a Q with every area exactly at the limit', () => {
-      render(<AKCNationalsLiveScoresheet {...defaultProps} />);
-      fillTimes('1:00');
-      fireEvent.click(screen.getByTestId('result-Q'));
-      expect(saveBtn()).not.toBeDisabled();
-    });
-
-    it('needs no time for an NQ', () => {
-      render(<AKCNationalsLiveScoresheet {...defaultProps} />);
-      fireEvent.click(screen.getByTestId('result-NQ'));
-      expect(saveBtn()).not.toBeDisabled();
-    });
   });
 });

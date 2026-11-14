@@ -41,10 +41,9 @@ describe('FocusedClassScoringControls (MYK9-1971)', () => {
   it('reads the show switch from the live replica, so a paper show shows paper', () => {
     setShow(false);
     render(<FocusedClassScoringField showId="show-1" sourceClass={cls({})} className="Novice" />);
-    expect(screen.getByRole('button', { name: 'Scores on paper' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    expect(
+      screen.getByRole('button', { name: "Scores on paper (the show's usual way)" })
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('shows plain words, no buttons, once the class is complete', () => {

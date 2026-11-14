@@ -28,11 +28,10 @@ export function FocusedClassScoringField({
 }) {
   const usesDeviceScoring = useShowUsesDeviceScoring(showId);
   if (!canSwitchScoring(sourceClass.lifecycle)) {
+    const onPaper = isClassOnPaper(sourceClass.scoresOnPaper, usesDeviceScoring);
     return (
       <span className="font-medium">
-        {isClassOnPaper(sourceClass.scoresOnPaper, usesDeviceScoring)
-          ? SCORING_COPY.paper
-          : SCORING_COPY.phone}
+        {onPaper === null ? '' : onPaper ? SCORING_COPY.paper : SCORING_COPY.phone}
       </span>
     );
   }
@@ -59,13 +58,13 @@ export function FocusedClassJudgeScoring({
   const usesDeviceScoring = useShowUsesDeviceScoring(showId);
   const judgeId = sourceClass.judgeId;
   if (!judgeId) return null;
-  const { targets, state } = judgeScoringModel(classes, judgeId, usesDeviceScoring);
-  if (!state) return null;
+  const model = judgeScoringModel(classes, judgeId, usesDeviceScoring);
+  if (!model.state) return null;
   return (
     <JudgeScoringChoice
       judgeName={sourceClass.judgeName || 'this judge'}
-      state={state}
-      classIds={targets.map(cls => cls.id)}
+      model={model}
+      showUsesDeviceScoring={usesDeviceScoring}
     />
   );
 }

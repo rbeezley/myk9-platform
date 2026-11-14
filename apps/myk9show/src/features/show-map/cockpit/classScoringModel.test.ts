@@ -20,8 +20,9 @@ describe('isClassOnPaper', () => {
     expect(isClassOnPaper(null, true)).toBe(false);
   });
 
-  it('does not read an unknown show switch as paper', () => {
-    expect(isClassOnPaper(null, undefined)).toBe(false);
+  it('is unknown, not a phone, while the show switch is unknown', () => {
+    expect(isClassOnPaper(null, undefined)).toBeNull();
+    expect(isClassOnPaper(true, undefined)).toBe(true);
   });
 });
 
@@ -56,6 +57,23 @@ describe('judgeScoringModel', () => {
     expect(judgeScoringModel(classes, 'j1', true).state).toBe('mixed');
     expect(judgeScoringModel(classes, 'j1', false).state).toBe('paper');
     expect(judgeScoringModel([cls({ id: 'b' })], 'j1', true).state).toBe('phone');
+  });
+
+  it('counts paper and phone classes and the classes left alone', () => {
+    const model = judgeScoringModel(
+      [
+        cls({ id: 'a', scoresOnPaper: true }),
+        cls({ id: 'b' }),
+        cls({ id: 'c', lifecycle: 'complete' }),
+      ],
+      'j1',
+      true
+    );
+    expect([model.paperCount, model.phoneCount, model.skipped]).toEqual([1, 1, 1]);
+  });
+
+  it('is unknown while the show switch is unknown and a class follows it', () => {
+    expect(judgeScoringModel([cls({ id: 'a' })], 'j1', undefined).state).toBe('unknown');
   });
 
   it('has no state when the judge has nothing to switch', () => {

@@ -1,6 +1,5 @@
 import type { PaymentMethodResolution } from './PaymentStep/usePaymentMethodResolution';
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 import { ClassSelectionStep } from './ClassSelectionStep';
@@ -27,8 +26,7 @@ import {
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import { notifyStatusSaveFailed } from './statusSaveError';
 import { notifications } from '@/lib/notifications';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { NoDogsYetAlert } from './NoDogsYetAlert';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
 import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
@@ -380,21 +378,7 @@ export function WorkflowStepContent({
             </div>
           ) : (
             // Exhibitor has 0 registered dogs
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                No dogs registered yet. Please{' '}
-                <Link
-                  to="/dogs"
-                  className="underline font-medium text-primary"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  register a dog
-                </Link>{' '}
-                before entering a show.
-              </AlertDescription>
-            </Alert>
+            <NoDogsYetAlert showStartDate={currentShow?.startDate} createdFromShowId={showId} />
           )
         ) : (
           <ClassSelectionStep

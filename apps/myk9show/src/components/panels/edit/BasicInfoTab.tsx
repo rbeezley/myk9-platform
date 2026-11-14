@@ -212,7 +212,12 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
       <p className="text-sm text-muted-foreground">
         Role assignments are managed from the{' '}
-        <Link className="text-primary underline underline-offset-2" to="/admin/users">
+        <Link
+          className="text-primary underline underline-offset-2"
+          to="/admin/users"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           User Management
         </Link>{' '}
         page so club and show scopes remain visible.

@@ -96,12 +96,36 @@ describe("Pull on the Entries page is the desks' Pull (MYK9-1940 phase 3)", () =
     );
     expect(h.showUndoToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Hazel pulled from Novice A',
+        message: '#110 Hazel pulled from Novice A',
         duration: STATUS_UNDO_WINDOW_MS,
       })
     );
     h.showUndoToast.mock.calls[0]?.[0].onUndo();
     expect(h.undoShowMapScratch).toHaveBeenCalledWith(undoInput);
+  });
+
+  it.each([
+    { name: 'scored', patch: { isScored: true } },
+    { name: 'completed', patch: { entryStatus: EntryStatus.COMPLETED } },
+    { name: 'rejected', patch: { entryStatus: EntryStatus.REJECTED } },
+    { name: 'waitlisted', patch: { entryStatus: EntryStatus.WAITLIST } },
+    { name: 'cancelled', patch: { entryStatus: EntryStatus.CANCELLED } },
+  ])('a $name entry is not pullable from the Entries page', async ({ patch }) => {
+    const user = userEvent.setup();
+    const blocked = { ...entry, ...patch };
+    const onStatusChange = vi.fn();
+    render(
+      <EntryPullProvider entries={[blocked]}>
+        <EntryRowActionMenu entry={blocked} onStatusChange={onStatusChange} />
+      </EntryPullProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for hazel/i }));
+    const pull = screen.queryByRole('menuitem', { name: /^Pull/ });
+    if (pull) await user.click(pull);
+
+    expect(screen.queryByText('Pull Hazel?')).not.toBeInTheDocument();
+    expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
   });
 
   it('the row menu hands Pull to the same dialog', async () => {

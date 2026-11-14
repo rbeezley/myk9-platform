@@ -3,6 +3,7 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { DeskPullDialogs } from './checkInDesk/DeskPullDialogs';
 import type { EntriesRefresh } from './checkInDesk/entriesRefresh';
+import { deskStatusEditableFor } from './checkInDesk/deskEditable';
 import { useDeskPull, type DeskPullRow } from './checkInDesk/useDeskPull';
 import { REVERT_CANCELLED } from './useScoredRevertGuard';
 
@@ -11,14 +12,18 @@ export const ENTRIES_PULL_STARTED_AT = 'Pulled on the Entries page';
 
 /** The class a Pull names: the entry's own class, as the desks name theirs. */
 function toPullRow(entry: EntryManagementEntry): DeskPullRow {
-  const pullable =
-    entry.entryStatus !== EntryStatus.SCRATCHED && entry.entryStatus !== EntryStatus.MOVED;
   return {
     entryId: entry.id,
     dogName: entry.dogName,
     className: entry.classes[0]?.name ?? 'this class',
     armband: entry.armbandNumber ?? null,
-    deskStatusEditable: pullable,
+    // The desks' own rule: Entries offers Pull exactly when they do.
+    deskStatusEditable: deskStatusEditableFor({
+      entryStatus: entry.entryStatus,
+      classStatus: entry.classes[0]?.status ?? 'entered',
+      checkInStatus: entry.classes[0]?.checkInStatus ?? 'no-status',
+      isScored: entry.isScored,
+    }),
     deskCanUnpull: false,
   };
 }

@@ -8,6 +8,7 @@ import { SHOW_MAP_COPY, SHOW_MAP_MUTATION_FAILED, showDayErrorMessage } from './
 import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
 import { STATUS_UNDO_WINDOW_MS, showUndoToast } from '@/lib/undoToast';
 import { classChangedMessage } from './dayOfMessages';
+import { buildStatusUndoToastMessage } from '@/services/database/entries/statusUndo';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
@@ -251,6 +252,10 @@ export function useShowMapActionExecutor({
       toast.success('Pull undone');
     },
     onError: error => {
+      if ((error as { code?: unknown } | null)?.code === 'pull-superseded') {
+        toast.error(buildStatusUndoToastMessage('superseded').message);
+        return;
+      }
       toast.error(showDayErrorMessage(error, SHOW_MAP_COPY.pullUndoFailed));
     },
     onSettled: (_data, _error, variables) => {

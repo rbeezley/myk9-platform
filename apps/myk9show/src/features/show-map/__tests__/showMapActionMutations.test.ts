@@ -211,6 +211,27 @@ describe('showMapActionMutations', () => {
   });
 
   describe('undoShowMapScratch', () => {
+    beforeEach(() => {
+      mockGetReplicatedEntryById.mockResolvedValue({ entryStatus: 'scratched' });
+    });
+
+    it('writes nothing when the entry is no longer the pulled one', async () => {
+      mockGetReplicatedEntryById.mockResolvedValue({ entryStatus: 'accepted' });
+
+      await expect(
+        undoShowMapScratch({
+          entryId: 'entry-1',
+          previousEntryStatus: 'checked-in',
+          previousCheckInStatus: 'checked-in',
+          previousSpecialRequests: null,
+          previousWithdrawalReason: null,
+          previousWithdrawalReasonCode: null,
+        })
+      ).rejects.toMatchObject({ code: 'pull-superseded' });
+      expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+      expect(mockAuditLog).not.toHaveBeenCalled();
+    });
+
     it('restores the entry to its previous status, check-in state, and notes', async () => {
       await undoShowMapScratch({
         entryId: 'entry-1',

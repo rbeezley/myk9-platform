@@ -26,6 +26,19 @@ insert into public.classes (id, trial_id, name, status, status_source) values
   ('00000000-0000-0000-0000-000001963004', '00000000-0000-0000-0000-000001963003', 'Class', 'upcoming', 'manual');
 insert into public.people (id, first_name, last_name, auth_user_id) values
   ('00000000-0000-0000-0000-000001963011', 'MYK9-1963', 'Owner', '00000000-0000-0000-0000-000001963101');
+
+-- entries_update and entries_insert admit a show manager, not an exhibitor, so the client that
+-- tries to forge receipt state in this test is the club's secretary: a caller RLS lets write the
+-- row, which is exactly the caller the trigger has to stop.
+insert into public.roles (id, name, description, is_system)
+values ('00000000-0000-0000-0000-000001963801', 'secretary', 'MYK9-1963 fixture', true)
+on conflict (name) do nothing;
+insert into public.people (id, first_name, last_name, auth_user_id) values
+  ('00000000-0000-0000-0000-000001963013', 'MYK9-1963', 'Secretary', '00000000-0000-0000-0000-000001963102');
+insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000001963013', id, '00000000-0000-0000-0000-000001963001', true,
+  '00000000-0000-0000-0000-000001963102'
+from public.roles where name = 'secretary';
 insert into public.dogs (id, name, call_name, breed, owner_id) values
   ('00000000-0000-0000-0000-000001963012', 'MYK9-1963 Dog', 'Dog', 'Beagle', '00000000-0000-0000-0000-000001963011');
 insert into public.dog_registrations (dog_id, organization, registration_number, is_primary) values
@@ -41,18 +54,23 @@ insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_statu
 do $$
 declare
   r record;
+  n bigint;
 begin
   -- A. authenticated owner tries to forge the receipt state.
-  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001963101', true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001963102', true);
   perform set_config('request.jwt.claims',
-    jsonb_build_object('sub', '00000000-0000-0000-0000-000001963101', 'role', 'authenticated')::text, true);
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000001963102', 'role', 'authenticated')::text, true);
   set local role authenticated;
   update public.entries
      set receipt_email_status = 'sent', receipt_email_sent_at = now(),
          receipt_email_message_id = 'forged', receipt_email_attempted_at = now(),
-         entry_fee = 26
+         armband = '777'
    where id = '00000000-0000-0000-0000-000001963021';
+  get diagnostics n = row_count;
   reset role;
+  if n <> 1 then
+    raise exception 'FAIL A: the secretary UPDATE matched % rows; RLS did not admit the caller', n;
+  end if;
 
   select * into r from public.entries where id = '00000000-0000-0000-0000-000001963021';
   if r.receipt_email_status <> 'failed' or r.receipt_email_sent_at is not null
@@ -61,27 +79,25 @@ begin
     raise exception 'FAIL A: client changed receipt_email_* (status %, sent_at %, message %)',
       r.receipt_email_status, r.receipt_email_sent_at, r.receipt_email_message_id;
   end if;
-  if r.entry_fee <> 26 then
-    raise exception 'FAIL A: the guard swallowed the ordinary column in the same UPDATE';
+  if r.armband is distinct from '777' then
+    raise exception 'FAIL A: the guard swallowed the ordinary column in the same UPDATE (armband %)', r.armband;
   end if;
   raise notice 'PASS A: authenticated UPDATE keeps OLD receipt_email_*';
 
   -- B. authenticated INSERT naming the columns gets the defaults.
-  begin
-    set local role authenticated;
-    insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
-      receipt_email_status, receipt_email_sent_at, receipt_email_message_id) values
-      ('00000000-0000-0000-0000-000001963022', '00000000-0000-0000-0000-000001963012',
-       '00000000-0000-0000-0000-000001963004', '00000000-0000-0000-0000-000001963002',
-       '00000000-0000-0000-0000-000001963003', 'confirmed', 'pending', 25, 'sent', now(), 'forged');
-    reset role;
-  exception when insufficient_privilege or others then
-    reset role;
-    raise notice 'NOTE B: client INSERT refused by other policy (%); trigger path checked on UPDATE', sqlerrm;
-  end;
+  set local role authenticated;
+  insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
+    receipt_email_status, receipt_email_sent_at, receipt_email_message_id) values
+    ('00000000-0000-0000-0000-000001963022', '00000000-0000-0000-0000-000001963012',
+     '00000000-0000-0000-0000-000001963004', '00000000-0000-0000-0000-000001963002',
+     '00000000-0000-0000-0000-000001963003', 'confirmed', 'pending', 25, 'sent', now(), 'forged');
+  reset role;
   select * into r from public.entries where id = '00000000-0000-0000-0000-000001963022';
-  if found and (r.receipt_email_status <> 'pending' or r.receipt_email_sent_at is not null
-                or r.receipt_email_message_id is not null) then
+  if not found then
+    raise exception 'FAIL B: the secretary INSERT did not create the row';
+  end if;
+  if r.receipt_email_status <> 'pending' or r.receipt_email_sent_at is not null
+     or r.receipt_email_message_id is not null then
     raise exception 'FAIL B: client INSERT planted receipt_email_* (%)', r.receipt_email_status;
   end if;
   raise notice 'PASS B: authenticated INSERT cannot plant receipt_email_*';

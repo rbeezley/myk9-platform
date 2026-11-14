@@ -51,7 +51,7 @@ describe('DB migration sanity contracts', () => {
     const sendLoop = sliceBetween(
       source,
       'for (const entry of entries ?? [])',
-      'return { sent, skipped, failed };'
+      'return { sent, skipped, failed, receiptRetry };'
     );
     expect(sendLoop).not.toContain(".update({ confirmation_email_status: 'pending' })");
     expect(sendLoop).toContain("'Idempotency-Key': `confirmation-email-${entry.id}`");

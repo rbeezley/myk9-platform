@@ -333,6 +333,28 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * @returns mutation ID if queued, null if no MutationManager
    */
   async updateShow(showId: string, updates: Partial<ReplicatedShow>): Promise<string | null> {
+    return this.serializeShowUpdate(() => this.applyShowUpdate(showId, updates));
+  }
+
+  /**
+   * MYK9-1919: `applyShowUpdate` reads the row, builds the next row from that read, then writes it.
+   * Two flips that overlap (a secretary tapping several "This show uses…" switches) would both read
+   * the same row, and the later write would put back the earlier flip's old value in the replica,
+   * which a rebase then rebuilds the queued write from. One update at a time keeps each read after
+   * the previous write.
+   */
+  private showUpdateTail: Promise<unknown> = Promise.resolve();
+
+  private serializeShowUpdate<R>(run: () => Promise<R>): Promise<R> {
+    const result = this.showUpdateTail.then(run, run);
+    this.showUpdateTail = result.catch(() => undefined);
+    return result;
+  }
+
+  private async applyShowUpdate(
+    showId: string,
+    updates: Partial<ReplicatedShow>
+  ): Promise<string | null> {
     const currentShow = await this.get(showId);
     if (!currentShow) {
       throw new Error(`Show ${showId} not found`);

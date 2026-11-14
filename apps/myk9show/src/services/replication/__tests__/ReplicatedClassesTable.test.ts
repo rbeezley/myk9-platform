@@ -899,6 +899,7 @@ describe('ReplicatedClassesTable', () => {
         'num_hides',
         'ring_phase',
         'ring_phase_time',
+        'status_before_close',
       ]);
     });
 

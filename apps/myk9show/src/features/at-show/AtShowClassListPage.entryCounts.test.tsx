@@ -72,7 +72,11 @@ const mockAuthState = vi.hoisted(() => ({
 // The picker resolves the ringside role (for Class Options gating) the way the
 // entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ ...mockAuthState, getUserRoles: () => [] }),
+  useAuthContext: () => ({
+    ...mockAuthState,
+    personId: mockAuthState.userWithRoles?.databaseUserId ?? null,
+    getUserRoles: () => [],
+  }),
   getPrimaryRole: () => null,
 }));
 
@@ -194,19 +198,19 @@ describe('AtShowClassListPage entry counters (MYK9-637)', () => {
     expect(screen.queryByText('Entry count not loaded yet')).not.toBeInTheDocument();
   });
 
-  it('withholds counts from a judge whose assignments are unknown', async () => {
+  it('lists no classes and no counts for a judge whose assignments are unknown', async () => {
     seed({ synced: true });
     mockAuthState.hasRole = role => role === UserRole.JUDGE;
     mockAuthState.user = { is_anonymous: false };
-    // No `databaseUserId`: the offline cold boot where roles are cached but
-    // identity is not. The picker fails open to every class; the counts must
-    // not follow it, because this judge's replica holds only assigned rows.
+    // No person id: roles are cached but the pairing never reached this device.
+    // The picker lists nothing and shows no counts, because this judge's replica
+    // holds only assigned rows (MYK9-2014).
     mockAuthState.userWithRoles = {} as UserWithRoles;
 
     renderPage();
 
-    expect(await screen.findByText(/Interior Advanced/)).toBeInTheDocument();
-    expect(screen.getAllByText('Entry count not loaded yet')).toHaveLength(2);
+    expect(await screen.findByText('Your classes are not on this device yet')).toBeInTheDocument();
+    expect(screen.queryByText(/Interior Advanced/)).not.toBeInTheDocument();
     expect(screen.queryByText('1 / 3')).not.toBeInTheDocument();
   });
 });

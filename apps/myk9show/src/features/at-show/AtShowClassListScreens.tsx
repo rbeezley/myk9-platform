@@ -78,6 +78,43 @@ export function AtShowClassListNoAssignmentsScreen({
   );
 }
 
+/**
+ * A judge-only account whose assigned classes cannot be read yet (the person pairing or the
+ * assignments are not on this device). Listing the whole show would put other judges' classes
+ * in front of them, so say what is missing and how to get it (MYK9-2014).
+ */
+export function AtShowClassListScopeUnknownScreen({
+  readySlot,
+  isOnline,
+  onRetry,
+  onBack,
+}: Pick<ScreenProps, 'readySlot'> & {
+  isOnline: boolean;
+  onRetry: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
+      <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
+      <h1 className="text-lg font-medium">Your classes are not on this device yet</h1>
+      <p className="max-w-md text-sm text-muted-foreground">
+        {isOnline
+          ? 'We could not tell which classes are yours. Try again.'
+          : 'We cannot tell which classes are yours without a signal. Reconnect once and they will be saved on this device.'}
+      </p>
+      {readySlot}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button variant="outline" className="min-h-11" onClick={onRetry}>
+          Try again
+        </Button>
+        <Button className="min-h-11" onClick={onBack}>
+          Back to Judge Dashboard
+        </Button>
+      </div>
+    </main>
+  );
+}
+
 export function AtShowClassListEmptyScreen({
   showId,
   clubId,

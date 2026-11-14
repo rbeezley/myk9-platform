@@ -44,6 +44,7 @@ import {
   AtShowClassListEmptyScreen,
   AtShowClassListErrorScreen,
   AtShowClassListNoAssignmentsScreen,
+  AtShowClassListScopeUnknownScreen,
 } from './AtShowClassListScreens';
 import {
   DEFAULT_CLASS_LIST_SORT,
@@ -131,13 +132,9 @@ export const AtShowClassListPage: React.FC = () => {
     (Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole })) ||
     deriveRingsideJudgePersonIdFromClaim(user, showId) !== null;
 
-  // Narrowing the picker to "my classes" is only safe when we actually know
-  // which classes are mine. When the assignment set is unknown (offline cold
-  // boot, where roles are cached but identity is not), filtering by an empty
-  // set would hide every class and then report the show as unassigned. Fail
-  // OPEN to the full picker: showing a judge more than their ring is a mild
-  // inconvenience; showing them nothing is a dead end at ringside.
-  const scopeToAssignedClasses = isJudgeOnly && !assignmentsUnknown;
+  // A judge-only account never sees a class that is not theirs. While which classes are
+  // theirs is unknown, the page says so instead of listing the whole show (MYK9-2014).
+  const scopeToAssignedClasses = isJudgeOnly;
 
   // Minute clock so the Today/past split follows a midnight rollover (MYK9-1224).
   const nowMs = useNow(60_000);
@@ -205,15 +202,9 @@ export const AtShowClassListPage: React.FC = () => {
   // class-first default.
   const isExhibitorOnly = isExhibitorOnlyForAtShow(hasRole);
 
-  // MYK9-637 (round 2): a synced show scope proves the entries READ happened,
-  // not that it returned every class's rows. `view_authenticated_entry_results`
-  // admits a non-manager judge per class (`is_assigned_judge`), and an
-  // exhibitor only to their own entries -- so for those viewers a class outside
-  // the set they can see holds no local rows for a reason that has nothing to
-  // do with how many entries it has. Rendering that as `0 / 0` is the original
-  // bug wearing a different hat, and it lands hardest on exactly the fail-open
-  // path (assignments unknown on an offline cold boot) where the picker
-  // deliberately widens to every class.
+  // MYK9-637 (round 2): a synced show scope proves the entries READ happened, not that it
+  // returned every class's rows. A judge's replica holds only their assigned classes and an
+  // exhibitor's only their own entries, so a class outside that set would read `0 / 0`.
   const seesEveryEntryInShow = !isJudgeOnly && !isExhibitorOnly;
   const hasTrustedEntryCount = useCallback(
     (entry: ClassEntry) =>
@@ -366,7 +357,18 @@ export const AtShowClassListPage: React.FC = () => {
     );
   }
 
-  if (isJudgeOnly && !assignmentsLoading && !assignmentsUnknown && assignedClassIds.size === 0) {
+  if (isJudgeOnly && assignmentsUnknown) {
+    return (
+      <AtShowClassListScopeUnknownScreen
+        readySlot={readySlot}
+        isOnline={isOnline}
+        onRetry={retryAssignments}
+        onBack={() => navigate('/judge/dashboard')}
+      />
+    );
+  }
+
+  if (isJudgeOnly && assignedClassIds.size === 0) {
     return (
       <AtShowClassListNoAssignmentsScreen
         readySlot={readySlot}

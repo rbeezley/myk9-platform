@@ -35,15 +35,18 @@ export function useMyAtShowJudgeAssignments(
   showId: string | undefined
 ): MyAtShowJudgeAssignmentsResult {
   const queryClient = useQueryClient();
-  const { hasRole, user, userWithRoles } = useAuthContext();
+  const { hasRole, user, personId: accountPersonId } = useAuthContext();
   const { status: syncStatus, syncTable } = useReplicationSync();
   const isJudgeAccount = !user?.is_anonymous && hasRole(UserRole.JUDGE);
   const passcodePersonId = deriveRingsideJudgePersonIdFromClaim(user, showId);
-  const personId = isJudgeAccount ? userWithRoles?.databaseUserId : (passcodePersonId ?? undefined);
-  // Roles survive a cold offline boot via the MYK9-200 permissions cache, but
-  // `databaseUserId` still comes from the `people` lookup in AuthContext, which
-  // is a plain network query. So offline a judge holds hasRole(JUDGE) === true
-  // and databaseUserId === undefined at the same time. Assignments are then
+  const personId = isJudgeAccount
+    ? (accountPersonId ?? undefined)
+    : (passcodePersonId ?? undefined);
+  // Roles survive a cold offline boot via the MYK9-200 permissions cache. The
+  // person id comes from AuthContext's `personId`, which falls back to the
+  // device-saved pairing (MYK9-2014) -- `databaseUserId` is the network-only
+  // lookup and is undefined offline. Only a device that never confirmed the
+  // pairing still holds hasRole(JUDGE) with no person id. Assignments are then
   // UNKNOWABLE, not empty -- rendering them as empty tells a judge standing at
   // their ring that their secretary never assigned them.
   const identityUnresolved = isJudgeAccount && !personId;

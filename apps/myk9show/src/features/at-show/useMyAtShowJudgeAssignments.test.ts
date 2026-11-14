@@ -26,6 +26,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
     hasRole: (role: UserRole) => role === UserRole.JUDGE,
     user: { is_anonymous: false },
     userWithRoles: { databaseUserId: 'judge-1' },
+    personId: 'judge-1',
   }),
 }));
 

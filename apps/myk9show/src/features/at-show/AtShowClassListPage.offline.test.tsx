@@ -57,7 +57,11 @@ const authState = vi.hoisted(() => ({
 // The picker resolves the ringside role (for Class Options gating) the way the
 // entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ ...authState, getUserRoles: () => [] }),
+  useAuthContext: () => ({
+    ...authState,
+    personId: authState.userWithRoles?.databaseUserId ?? null,
+    getUserRoles: () => [],
+  }),
   getPrimaryRole: () => null,
 }));
 
@@ -212,7 +216,10 @@ describe('AtShowClassListPage offline truthfulness', () => {
 
     renderPage(neverSyncedStatus);
 
-    await waitFor(() => expect(screen.getByText(/Container Novice/)).toBeInTheDocument());
+    // Never "no classes assigned", and never the whole show either: another
+    // judge's classes are not this judge's to see (MYK9-2014).
+    expect(await screen.findByText('Your classes are not on this device yet')).toBeInTheDocument();
+    expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No classes assigned yet/)).not.toBeInTheDocument();
     expect(screen.queryByText(/has not assigned you to a class/)).not.toBeInTheDocument();
   });
@@ -229,7 +236,7 @@ describe('AtShowClassListPage offline truthfulness', () => {
       authState.user = { is_anonymous: false };
     }
 
-    it('falls open to the full class list with a load warning, never "No classes assigned yet"', async () => {
+    it('lists no classes and offers a retry when the read fails, never "No classes assigned yet"', async () => {
       signInAsIdentifiedJudge();
       seedPrimedDevice();
       judgeAssignmentData.getActive.mockRejectedValue(
@@ -238,15 +245,10 @@ describe('AtShowClassListPage offline truthfulness', () => {
 
       renderPage(judgeSyncedStatus);
 
-      // Not a dead end at the ring: the classes are there, with the warning.
       expect(
-        await screen.findByText(/Container Novice/, {}, { timeout: 5000 })
+        await screen.findByText('Your classes are not on this device yet', {}, { timeout: 5000 })
       ).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          /We couldn.t load your assigned classes\. The full class list is still available\./
-        )
-      ).toBeInTheDocument();
+      expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
       expect(screen.queryByText(/No classes assigned yet/)).not.toBeInTheDocument();
       expect(screen.queryByText("We couldn't load your judge assignments")).not.toBeInTheDocument();

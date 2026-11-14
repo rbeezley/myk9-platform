@@ -253,6 +253,8 @@ describe('waitlistQueries (replication)', () => {
         'competing',
         'in-ring',
         'pending-payment',
+        // A waiting move-up or class change request has not left its class.
+        'move-up-requested',
       ];
       const notHolding = [
         'draft',
@@ -263,7 +265,6 @@ describe('waitlistQueries (replication)', () => {
         'moved',
         'not_accepted',
         'promotion-expired',
-        'move-up-requested',
       ];
       mockEntriesTable.getAll.mockResolvedValue([
         ...[...seatHolding, ...notHolding].map(entryStatus =>

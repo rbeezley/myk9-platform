@@ -17,6 +17,8 @@
 --   F. silent class still getting check-ins goes stale (classes.updated_at is not the clock);
 --      a reopened class with an old activity row is live right after its start; break and
 --      briefing never read stale; coming back from a break is not instantly stale.
+--   H. a check-in-only change on an already-scored dog does not refresh activity; a new
+--      score does.
 --   G. scores_on_paper is the one source: offline_scoring sets it, break/briefing keep it,
 --      only an explicit write clears it; a reopen records activity (fresh, not stale).
 --   E. ACL unchanged: anon and PUBLIC cannot execute, authenticated can; the internal
@@ -278,6 +280,31 @@ begin
     raise exception 'FAIL F should go stale again after the break: %', pg_temp.state_as('P', 3);
   end if;
   raise notice 'PASS F clock: check-ins ignored, restart live, break/briefing live, back from break live';
+end $$;
+
+-- H. Codex P2: a check-in change on an already-scored dog is not activity. Each transition
+-- is tested on its own: only a new score, a new in-ring mark or a new move to in-ring counts.
+do $$
+declare
+  v_class uuid := '00000000-0000-0000-0000-0000019690a0';
+begin
+  insert into private.class_ring_activity (class_id, last_activity_at)
+  values (v_class, now() - interval '30 minutes')
+  on conflict (class_id) do update set last_activity_at = excluded.last_activity_at;
+  update public.classes set actual_start_time = now() - interval '2 hours' where id = v_class;
+  -- P1 is already scored; change only its check-in status
+  update public.entries set check_in_status = 'at-gate'
+   where id = (select entry_id from fx where cls = 'P' and n = 1) and is_scored;
+  if pg_temp.state_as('P', 3) is distinct from '1/stale' then
+    raise exception 'FAIL H check-in change on a scored dog must stay stale: %', pg_temp.state_as('P', 3);
+  end if;
+  -- a new score does refresh it (P2 was in the ring, now scored)
+  update public.entries set is_scored = true, result_status = 'qualified'
+   where id = (select entry_id from fx where cls = 'P' and n = 2);
+  if pg_temp.state_as('P', 3) is distinct from '1/live' then
+    raise exception 'FAIL H a new score must make it live: %', pg_temp.state_as('P', 3);
+  end if;
+  raise notice 'PASS H check-in change on a scored dog is not activity; a new score is';
 end $$;
 
 -- G. owner design 2026-11-14: scores_on_paper is the one source of "paper". Offline

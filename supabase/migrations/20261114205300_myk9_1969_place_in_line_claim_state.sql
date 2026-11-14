@@ -135,13 +135,13 @@ CREATE TRIGGER trg_entries_record_ring_activity_ins
 CREATE TRIGGER trg_entries_record_ring_activity
   AFTER UPDATE OF is_scored, is_in_ring, check_in_status ON public.entries
   FOR EACH ROW
+  -- Each transition is tested on its own: only a NEW score, a NEW in-ring mark or a NEW
+  -- move to in-ring counts. A check-in change on an already-scored dog is not activity.
   WHEN (NEW.class_id IS NOT NULL
-        AND (COALESCE(NEW.is_scored, false)
-             OR COALESCE(NEW.is_in_ring, false)
-             OR NEW.check_in_status = 'in-ring')
-        AND (COALESCE(NEW.is_scored, false) IS DISTINCT FROM COALESCE(OLD.is_scored, false)
-             OR COALESCE(NEW.is_in_ring, false) IS DISTINCT FROM COALESCE(OLD.is_in_ring, false)
-             OR NEW.check_in_status IS DISTINCT FROM OLD.check_in_status))
+        AND ((COALESCE(NEW.is_scored, false) AND NOT COALESCE(OLD.is_scored, false))
+             OR (COALESCE(NEW.is_in_ring, false) AND NOT COALESCE(OLD.is_in_ring, false))
+             OR (NEW.check_in_status = 'in-ring'
+                 AND OLD.check_in_status IS DISTINCT FROM 'in-ring')))
   EXECUTE FUNCTION private.entries_record_ring_activity();
 
 -- A ring phase change (lunch ends, briefing ends) and a move back to in_progress (a

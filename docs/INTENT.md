@@ -58,12 +58,12 @@ Source: `docs/ia-review-secretary-show-workbench.md` § Mental Model Check, and 
 
 The judge's eyes should be on the dog, not the screen. Every interaction should be muscle-memory fast.
 
-| Moment               | Target Feeling | What This Means in Practice                                         |
-| -------------------- | -------------- | ------------------------------------------------------------------- |
-| Starting a class     | "I'm ready"    | One tap to begin, entry list already loaded, timer ready            |
-| Scoring a dog        | "Tap and done" | Largest possible touch targets, minimal scrolling, instant feedback |
-| Between dogs         | "What's next?" | Auto-advance to next entry, no hunting for buttons                  |
-| Correcting a mistake | "Easy fix"     | Undo is obvious and immediate, not buried in a menu                 |
+| Moment               | Target Feeling | What This Means in Practice                                                                                                  |
+| -------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Starting a class     | "I'm ready"    | One tap to begin, entry list already loaded, timer ready                                                                     |
+| Scoring a dog        | "Tap and done" | Largest possible touch targets, minimal scrolling, instant feedback                                                          |
+| Between dogs         | "What's next?" | The dogs at the gate are one tap away; the app never guesses who is next (run order holds only about half the time, MYK9-83) |
+| Correcting a mistake | "Easy fix"     | Undo is obvious and immediate, not buried in a menu                                                                          |
 
 **Anti-patterns to avoid:** Small buttons on tablet. Loading spinners between entries. "Are you sure?" popups. Anything that breaks the rhythm of the ring.
 

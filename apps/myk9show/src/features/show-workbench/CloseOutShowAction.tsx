@@ -52,8 +52,8 @@ export function CloseOutShowAction({
   const [error, setError] = useState<string | null>(null);
 
   const readiness = useMemo(
-    () => buildCloseoutReadiness({ classes, entries, incidents, submissions }),
-    [classes, entries, incidents, submissions]
+    () => buildCloseoutReadiness({ classes, trials, entries, incidents, submissions }),
+    [classes, entries, incidents, submissions, trials]
   );
   const targets = useMemo(
     () => selectCloseoutCascadeTargets({ show, trials, classes }),

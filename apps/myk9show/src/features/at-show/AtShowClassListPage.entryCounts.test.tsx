@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-637: the per-class entry counter on the judge's landing screen.
  *

@@ -126,6 +126,8 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         .toBeGreaterThan(NOT_INSTANT_MS);
       await notYet();
     }
+    // Blocked variant: a realtime leak on any step would make the arrival look like the poll's.
+    if (blockRealtime) expect(secretary.realtimeFrames()).toBe(0);
     await expect(shown).toPass({ timeout: deadline, intervals: [250, 500, 1_000] });
     arrivals[name] = Math.round(performance.now() - start);
     // No navigation: the secretary is still on the Show Desk URL for this class.
@@ -182,7 +184,10 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         await expect(sec.nextUp).toHaveCount(1, { timeout: 1_000 });
         await expect(sec.nextUp.first()).toContainText('Cooper', { timeout: 1_000 });
         await expect(sec.scheduleLine).toContainText('Willow in ring', { timeout: 1_000 });
-      }
+      },
+      blockRealtime
+        ? async () => expect(sec.inRingTile).toContainText('Nobody in the ring')
+        : undefined
     );
 
     // 3. The judge saves Willow's score.
@@ -201,8 +206,12 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         await expect(sec.entryRow('Willow')).toContainText('Q', { timeout: 1_000 });
         await expect(sec.scheduleLine).toContainText('1 of 2 scored', { timeout: 1_000 });
         await expect(sec.scheduleLine).not.toContainText('Willow in ring', { timeout: 1_000 });
-      }
+      },
+      blockRealtime
+        ? async () => expect(sec.scheduleLine).toContainText('Willow in ring')
+        : undefined
     );
+    if (blockRealtime) expect(secretary.realtimeFrames()).toBe(0);
 
     await evidence(info, blockRealtime ? 'fallback-poll' : 'realtime', {
       withinMs: deadline,

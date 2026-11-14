@@ -4,7 +4,8 @@
 --   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/myk9_773_inherited_refund_follows_payment_test.sql
 --
 -- One $200 enrollment with six entries:
---   A  ordinary                        -> refunded BY THE ENROLLMENT, must follow
+--   A  ordinary                        -> refunded BY THE ENROLLMENT, follows a later
+--                                         Payment Due (never a payment: MYK9-1961)
 --   B  refunded on its own (Stripe stamp, origin 'entry')    -> stays refunded
 --   C  refunded before the origin existed (NULL)             -> stays refunded
 --   D  waived                                                -> untouched
@@ -14,7 +15,7 @@
 --      only a trigger-off write can produce  -> stays refunded (the cascade's
 --      own refund_amount / refunded_at guard, independent of the trigger)
 -- Sequence: Paid in Full -> B stamped -> enrollment refund -> F stamped ->
--- Paid in Full -> enrollment refund -> Payment Due. Also: the column's grants,
+-- Paid in Full (reopens nothing) -> Payment Due. Also: the column's grants,
 -- that a caller cannot write the origin, and that the RPC answers every entry's
 -- resulting status. Every fixture rolls back.
 
@@ -194,7 +195,9 @@ UPDATE public.entries SET refund_origin = 'entry'
 SELECT pg_temp.myk9_773_expect('F stamped, origins not writable',
   'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-) e=refunded(enrollment) f=refunded(entry)');
 
--- --- 5. Paid in Full again: only the inherited refund follows ---------------
+-- --- 5. Paid in Full again: a payment reopens nothing ------------------------
+-- MYK9-1961 (owner, 2026-11-13): a payment covers only what it is for and never reopens a
+-- refunded entry. The form owes nothing, so nothing is charged and A stays refunded.
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000773151', true);
@@ -208,25 +211,23 @@ SELECT 'answer', (
          ) -> 'entries') x);
 
 SELECT pg_temp.myk9_773_expect('paid in full after the refund',
-  'a=paid(-) b=refunded(entry) c=refunded(-) d=waived(-) e=refunded(enrollment) f=refunded(entry)');
+  'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-) e=refunded(enrollment) f=refunded(entry)');
 
 DO $$
 DECLARE
   v_answer text;
 BEGIN
   SELECT got INTO v_answer FROM myk9_773_steps WHERE step = 'answer';
-  IF v_answer IS DISTINCT FROM 'a=paid b=refunded c=refunded d=waived e=refunded f=refunded' THEN
+  IF v_answer IS DISTINCT FROM 'a=refunded b=refunded c=refunded d=waived e=refunded f=refunded' THEN
     RAISE EXCEPTION 'FAIL the RPC answer does not carry every entry''s status: %', v_answer;
   END IF;
   RAISE NOTICE 'PASS the RPC answers every entry''s resulting status: %', v_answer;
 END;
 $$;
 
--- --- 6. refunded again, then "Payment Due" ----------------------------------
-SELECT public.record_enrollment_payment(
-  '00000000-0000-0000-0000-000000773061', 'refund', 100, NULL, NULL, NULL, 'Stripe (manual)');
-SELECT pg_temp.myk9_773_expect('enrollment refunded again',
-  'a=refunded(enrollment) b=refunded(entry) c=refunded(-) d=waived(-) e=refunded(enrollment) f=refunded(entry)');
+-- --- 6. "Payment Due" ------------------------------------------------------
+-- It undoes the refund (the ledger nets to zero, refund_amount clears), so the entry the
+-- enrollment refunded follows back to pending (MYK9-773); entry-level refunds stay.
 
 SELECT public.record_enrollment_payment(
   '00000000-0000-0000-0000-000000773061', 'reversal', NULL, NULL, NULL, NULL, NULL);

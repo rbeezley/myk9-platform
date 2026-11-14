@@ -307,8 +307,10 @@ BEGIN
   INSERT INTO t1637_expect SELECT '5a a desk refund larger than desk money is refused',
     v_refused::text, 'true';
   PERFORM public.record_enrollment_payment(v_card, 'refund', 25, 'cash', NULL, NULL, NULL);
+  -- MYK9-1961: the refund turns the desk add-on 'refunded', so its $25 is no longer owed
+  -- (it read $25 due with nothing held for it); the card money still covers the rest.
   INSERT INTO t1637_expect SELECT '5b refunding all desk money leaves card money: partial_refund',
-    pg_temp.money1637(v_card), 'total=7500 card=5000 paid=25.00 refund=25.00 status=partial_refund';
+    pg_temp.money1637(v_card), 'total=5000 card=5000 paid=25.00 refund=25.00 status=partial_refund';
 
   -- 11. A card-covered form that also held desk money stays paid after "Payment Due".
   PERFORM public.record_enrollment_payment(v_covered, 'payment', 10, 'cash', NULL, NULL, NULL);
@@ -348,7 +350,9 @@ RESET ROLE;
 INSERT INTO t1637_expect
 SELECT '6 a Stripe refund leaves both owed and held: balance and status unchanged',
        pg_temp.money1637(pg_temp.form1637('00000000-0000-0000-0000-000001637052')),
-       'total=4500 card=2000 paid=25.00 refund=25.00 status=partial_refund';
+       -- MYK9-1961: the desk add-on refunded in 5 is not owed, so the form owes only the
+       -- $20 card entry, which its card money covers (nothing due before or after).
+       'total=2000 card=2000 paid=25.00 refund=25.00 status=partial_refund';
 
 -- 15b. Which entries read card-paid at the end: the capture set them (1, 7b, 8, 12, 14), the
 -- Stripe refund stamp cleared 101 (6), the whole-order refund cleared 111 (13), and the

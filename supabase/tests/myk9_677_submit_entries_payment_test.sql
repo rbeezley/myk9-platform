@@ -8,7 +8,9 @@
 --   3. a ledger failure after the entries are written rolls the entries back;
 --   4. with no p_payment the function behaves as before (no ledger row, the
 --      entry stays pending; MYK9-1634: the total is the form's live, non-waived fees);
---   5. an exhibitor cannot pass a payment.
+--   5. an exhibitor cannot pass a payment;
+--   7. MYK9-1961: money still held settles a later add-on, and a payment taken at
+--      submission never reopens a refunded entry.
 --
 --   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/myk9_677_submit_entries_payment_test.sql
 -- All fixtures roll back.
@@ -328,6 +330,98 @@ BEGIN
     END IF;
     RAISE NOTICE 'PASS an exhibitor cannot pass a payment';
   END;
+END;
+$$;
+
+-- 7. MYK9-1961 owner decisions (2026-11-13) through submit_show_entries. The form holds
+-- A31 (paid at submission, case 1) and A33 (pending, case 4).
+--   7a. money still held covers a later add-on: $60 paid, $10 refunded ($50 held), then the
+--       exhibitor adds a $30 class with no payment. The held money settles it: the add-on
+--       is paid and the form is paid.
+--   7b. a payment covers only what it is for: the rest refunded ($0 held), then the
+--       secretary adds a $30 class and takes $30 at submission. The add-on is paid and the
+--       refunded entries stay refunded.
+RESET ROLE;
+INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
+VALUES ('00000000-0000-0000-0000-000000677a34', '00000000-0000-0000-0000-000000677a21',
+        'Buried Novice A', 'Buried', 'Novice', 'upcoming', 'manual', 30);
+SET LOCAL ROLE authenticated;
+
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000677b02', true);
+  PERFORM public.record_enrollment_payment(
+    '00000000-0000-0000-0000-000000677a51', 'payment', NULL, 'check', NULL, '1043', NULL);
+  PERFORM public.record_enrollment_payment(
+    '00000000-0000-0000-0000-000000677a51', 'refund', 10, 'cash', NULL, NULL, 'Cash Returned');
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000677b01', true);
+  PERFORM public.submit_show_entries(
+    '00000000-0000-0000-0000-000000677a11', '00000000-0000-0000-0000-000000677a51',
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000677a41',
+      'class_id', '00000000-0000-0000-0000-000000677a32',
+      'handler_name', 'MYK9-677 Exhibitor', 'client_fee_cents', 3000)),
+    '00000000-0000-0000-0000-000000677a67', 'check');
+END;
+$$;
+
+RESET ROLE;
+CREATE FUNCTION pg_temp.form1961() RETURNS text
+LANGUAGE sql AS $$
+  SELECT format('total=%s paid=%s refund=%s status=%s ', en.total_amount,
+                en.paid_amount::numeric(10, 2), COALESCE(en.refund_amount, 0)::numeric(10, 2),
+                en.payment_status)
+         || (SELECT string_agg(right(c.id::text, 2) || '=' || e.payment_status, ' ' ORDER BY c.id)
+               FROM public.entries e JOIN public.classes c ON c.id = e.class_id
+              WHERE e.registration_id = en.id)
+         || ' payments=' || (SELECT string_agg(sp.amount::numeric(10, 2)::text, ',' ORDER BY sp.amount)
+                               FROM public.show_payments sp
+                              WHERE sp.enrollment_id = en.id AND sp.kind = 'payment')
+    FROM public.enrollments en WHERE en.id = '00000000-0000-0000-0000-000000677a51' $$;
+
+DO $$
+DECLARE
+  v_got text := pg_temp.form1961();
+  v_want text := 'total=3000 paid=60.00 refund=10.00 status=paid '
+                 || '31=refunded 32=paid 33=refunded payments=30.00,30.00';
+BEGIN
+  IF v_got IS DISTINCT FROM v_want THEN
+    RAISE EXCEPTION 'FAIL 7a held money settles a later add-on: got [%], want [%]', v_got, v_want;
+  END IF;
+  RAISE NOTICE 'PASS 7a the $50 still held settles a $30 add-on: %', v_got;
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000677b02', true);
+  PERFORM public.record_enrollment_payment(
+    '00000000-0000-0000-0000-000000677a51', 'refund', 50, 'cash', NULL, NULL, 'Cash Returned');
+  PERFORM public.submit_show_entries(
+    '00000000-0000-0000-0000-000000677a11', '00000000-0000-0000-0000-000000677a51',
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000677a41',
+      'class_id', '00000000-0000-0000-0000-000000677a34',
+      'handler_name', 'MYK9-677 Exhibitor', 'client_fee_cents', 3000)),
+    '00000000-0000-0000-0000-000000677a68', 'check',
+    jsonb_build_object('method', 'check', 'reference', '1044'));
+END;
+$$;
+
+RESET ROLE;
+DO $$
+DECLARE
+  v_got text := pg_temp.form1961();
+  v_want text := 'total=3000 paid=90.00 refund=60.00 status=paid_by_check '
+                 || '31=refunded 32=refunded 33=refunded 34=paid payments=30.00,30.00,30.00';
+BEGIN
+  IF v_got IS DISTINCT FROM v_want THEN
+    RAISE EXCEPTION 'FAIL 7b a payment at submission reopened a refunded entry: got [%], want [%]',
+      v_got, v_want;
+  END IF;
+  RAISE NOTICE 'PASS 7b a $30 payment at submission pays the add-on only: %', v_got;
 END;
 $$;
 

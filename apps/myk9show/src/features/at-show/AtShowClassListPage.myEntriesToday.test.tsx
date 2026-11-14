@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * Integration test for the exhibitor-first "Your dogs today" show-day view
  * (openspec/changes/exhibitor-elderly-ux-remediation, section 3).

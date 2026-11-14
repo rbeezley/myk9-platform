@@ -13,6 +13,7 @@ export const REPORT_WHY: Record<string, string> = {
   'akc-scent-work-entry-form': 'AKC entry forms filled in from each entry.',
   'akc-scent-work-transfer-form': 'AKC transfer forms for dogs moving between classes.',
   'high-in-trial': 'Which dogs earn High in Trial per level, under AKC rules.',
+  'asca-high-in-trial': 'Which dogs earn High in Trial per level, under ASCA rules.',
   'ukc-nosework-entry-form': 'UKC Nosework entry forms filled in from each entry.',
   'ukc-nosework-change-entry-form': 'UKC form for a change to an entry at the trial.',
   'ukc-nosework-judges-book-element': 'UKC judge’s book for an element trial.',

@@ -84,6 +84,11 @@ export function toShowEntryQueueRow(entry: ShowEntry): ShowEntryQueueRow {
   };
 }
 
+/** True once the secretary has numbered this entry; the server gives no place before that. */
+export function hasRunOrder(entry: ShowEntry): boolean {
+  return (entry.registrationData?.runOrder ?? 0) > 0;
+}
+
 /** Every entry still waiting to run in this class, in run order. */
 export function pendingShowEntriesByRunOrder(entries: readonly ShowEntry[]): ShowEntry[] {
   return pendingByRunOrder(entries.map(toShowEntryQueueRow)).map(row => row.entry);

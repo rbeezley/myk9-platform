@@ -21,26 +21,16 @@ import {
   watchedUpcomingEntries,
   type NotificationWatchSet,
 } from '@/hooks/notificationWatchSet';
+import { queueCheckInStatus, type NotificationEntryRow } from '@/hooks/queueCheckInStatus';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
+import { hasRunOrder } from '@/utils/showEntryRunQueue';
 import type { ShowEntry } from '@/store/entry-store-types';
 
 const DEDUP_WINDOW_MS = 60_000;
 const REFRESH_DEBOUNCE_MS = 400;
 // Stable identity for "no shows", so the channel hook does not resubscribe each render.
 const EMPTY_SHOW_IDS: readonly string[] = [];
-
-interface EntryRow {
-  id: string;
-  dog_id: string;
-  class_id: string;
-  show_id: string;
-  check_in_status: string | null;
-  armband: string | null;
-  is_scored: boolean | null;
-  result_status: string | null;
-  dog_call_name: string | null;
-}
 
 interface ClassRow {
   id: string;
@@ -227,6 +217,10 @@ export function useNotificationMonitor(): void {
     const upcoming = watchedUpcomingEntries(context.entries, leadDogs, watchSetRef.current);
 
     for (const { entry, dogsAhead } of upcoming) {
+      // The server (`get_my_entry_queue_places`) returns no place for an entry
+      // whose run_order is 0 or null, so Ringside shows none. Match it: no
+      // place-based alert for an entry that has no run order yet (MYK9-1941).
+      if (!hasRunOrder(entry)) continue;
       const now = Date.now();
       const lastAlerted = lastYourTurnAlert.current.get(entry.id);
       if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
@@ -258,7 +252,7 @@ export function useNotificationMonitor(): void {
       }
 
       for (const rawEntry of snapshot.entries) {
-        const row = rawEntry as EntryRow;
+        const row = rawEntry as NotificationEntryRow;
         if (row.dog_id && row.dog_call_name) nextDogNames.set(row.dog_id, row.dog_call_name);
         nextResultStatuses.set(row.id, row.result_status);
 
@@ -267,7 +261,7 @@ export function useNotificationMonitor(): void {
           dogId: row.dog_id,
           classId: row.class_id,
           showId: row.show_id,
-          checkInStatus: (row.check_in_status as ShowEntry['checkInStatus']) ?? undefined,
+          checkInStatus: queueCheckInStatus(row),
           status: 'confirmed',
           registrationData: {
             submittedAt: '',
@@ -275,6 +269,7 @@ export function useNotificationMonitor(): void {
             entryFee: 0,
             paymentStatus: 'pending',
             armband: row.armband ?? undefined,
+            runOrder: row.run_order ?? undefined,
           },
           competitionData: row.is_scored ? { recordedBy: '', recordedAt: '' } : undefined,
           statusHistory: [],

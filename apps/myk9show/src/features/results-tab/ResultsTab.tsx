@@ -22,6 +22,7 @@ import { NationalsLeaderboardLink, NationalsLeaderboardView } from './NationalsL
 import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
+import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { ResultsFinishRow } from './ResultsFinishRow';
 import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
 import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
@@ -51,30 +52,6 @@ function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
         entry.dogName.toLowerCase().includes(query) ||
         entry.handlerName.toLowerCase().includes(query) ||
         entry.armband === query
-    )
-  );
-}
-
-/**
- * Every class that ran has been released and the judge has signed off on it: time for the finish row to
- * call for Submit and Close.
- */
-function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boolean {
-  // Every class that ran, plus any class that owes the judge's sign-off without having a dog to
-  // release (all entries absent).
-  const ran = rows.filter(
-    row => (row.phase !== 'cancelled' && row.phase !== 'no-dogs') || row.takesJudgeSignOff
-  );
-  return (
-    ran.length > 0 &&
-    // Currently complete (a late entry reopens a released, signed class: it is in the ring again)
-    // AND released AND signed off.
-    ran.every(
-      row =>
-        (row.phase === 'released' || row.phase === 'done') &&
-        // Nothing to release when no dog was expected.
-        (Boolean(row.releasedAt) || row.expectedCount === 0) &&
-        row.judgeSignedOffAt !== null
     )
   );
 }
@@ -180,6 +157,10 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
             rowMatchesSearch(row, state.search))
       ),
     [rows, state.classId, state.search, state.status, state.trialId]
+  );
+  const releasedAndInitialed = useMemo(
+    () => calculateResultsRowsLeft(rows).releasedAndInitialed,
+    [rows]
   );
   const selected = rows.find(row => row.id === state.classId) ?? null;
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
@@ -437,11 +418,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
       {showStatsLink && entries.some(entry => entry.is_scored === true) && showStatsLink}
       <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
-      <ResultsFinishRow
-        showId={showId}
-        trials={trials}
-        allDone={everyClassReleasedAndInitialed(rows)}
-      />
+      <ResultsFinishRow showId={showId} trials={trials} allDone={releasedAndInitialed} />
       <MasterDetailLayout
         id="results-classes"
         listLabel="Classes"

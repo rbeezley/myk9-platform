@@ -5,7 +5,10 @@ import {
   EMPTY_FULL_PAYMENT_DIALOG,
   EMPTY_LEDGER_CONFIRM,
   EMPTY_PARTIAL_DIALOG,
+  enrollmentRemainingDollars,
+  formTotalDollars,
   netReceivedDollars,
+  paidInFullDollars,
   receivedDollars,
   resolvePartialPayment,
   type FullPaymentDialog,
@@ -33,13 +36,14 @@ export function useEnrollmentDialogControls(
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const enrollmentId = group.enrollmentId ?? '';
-  const totalDollars =
-    group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
+  const totalDollars = formTotalDollars(group);
   // Money received, desk and card (MYK9-1637): what "Paid in Full" charges the rest of.
   const paidDollars = receivedDollars(group);
   // What the desk may hand back: desk money only (card money is refunded through Stripe).
   const refundableDollars = netReceivedDollars(group);
-  const remainingDollars = totalDollars - paidDollars;
+  const remainingDollars = enrollmentRemainingDollars(group);
+  // What "Paid in Full" records: the due, never below zero (a payment reopens nothing).
+  const fullPaymentDollars = paidInFullDollars(group);
   const today = paymentLedger.todayInShowZone;
 
   // MYK9-1841: "Paid in Full: Online" and "Payment Due" change what the whole
@@ -106,6 +110,7 @@ export function useEnrollmentDialogControls(
     paidDollars,
     refundableDollars,
     remainingDollars,
+    fullPaymentDollars,
     today,
     fullDialog,
     setFullDialog,

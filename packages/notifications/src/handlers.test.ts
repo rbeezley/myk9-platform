@@ -31,6 +31,18 @@ describe('buildYourTurnPayload', () => {
     expect(payload.data).toEqual(expect.objectContaining({ dogName: 'Bella', armband: '42' }));
   });
 
+  it('says "1 dog", not "1 dogs", when one dog is ahead (MYK9-1941)', () => {
+    const payload = buildYourTurnPayload({
+      dogName: 'Max',
+      className: 'Novice Standard',
+      dogsAhead: 1,
+      armband: '7',
+    });
+
+    expect(payload.title).toBe('Max — 1 dog away');
+    expect(payload.body).toBe('1 dog ahead in Novice Standard');
+  });
+
   it('says "you\'re up next" when 0 dogs ahead', () => {
     const payload = buildYourTurnPayload({
       dogName: 'Max',

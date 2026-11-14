@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@/test/utils/testUtils';

@@ -2,6 +2,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { getEffectivePaymentStatus } from './entryManagementUtils';
 import { buildMoneyAttribution } from '@/features/financial/moneyRoot';
+import { entryCountsTowardFormTotal } from './entryAmountOwed';
 
 export interface EnrollmentGroup {
   /** Unique per group (registrationId | pi:<intent> | entry:<id>) — the React
@@ -99,8 +100,14 @@ export function groupEntriesByEnrollment(allEntries: EntryManagementEntry[]): En
       // MYK9-639: from the ROOT, once per run. Reading the destination's own
       // figures would show the exhibitor $0; reading both halves would show
       // them double.
-      group.totalAmount += moneyRoot.totalFee;
-      group.paidAmount += moneyRoot.paidAmount;
+      //
+      // MYK9-1961: a Free or refunded entry's money question is closed, so neither
+      // its fee nor what it still shows as paid is in the form's figures: the rule
+      // the server's form total applies (`entryCountsTowardFormTotal`).
+      if (entryCountsTowardFormTotal(moneyRoot)) {
+        group.totalAmount += moneyRoot.totalFee;
+        group.paidAmount += moneyRoot.paidAmount;
+      }
     }
   }
 
@@ -142,9 +149,16 @@ export function groupEntriesByEnrollment(allEntries: EntryManagementEntry[]): En
       // is dollars — a cents-unit group here (enrollment total without an
       // enrollment status) is improbable, but comparing dollars to cents
       // would mislabel it (round-13 review).
+      //
+      // MYK9-1961: against the refunded entries' fees, not `totalAmount`, which no
+      // longer counts a refunded entry (so it is 0 here and every refund read full).
       const refundDollars = group.entries.reduce((sum, e) => sum + (e.refundAmount ?? 0), 0);
+      const refundedFeeDollars = refunded.reduce(
+        (sum, e) => sum + (attribution.rootById.get(e.id) ?? e).totalFee,
+        0
+      );
       const moneyFullyBack =
-        group.totalAmountUnit !== 'dollars' || refundDollars >= group.totalAmount;
+        group.totalAmountUnit !== 'dollars' || refundDollars >= refundedFeeDollars;
       group.paymentStatus =
         refunded.length === group.entries.length && moneyFullyBack
           ? PaymentStatus.REFUNDED

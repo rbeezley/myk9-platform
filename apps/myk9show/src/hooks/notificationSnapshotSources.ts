@@ -26,7 +26,7 @@ export async function fetchEntryRowsByClass(classIds: string[]): Promise<unknown
     .from('view_authenticated_entry_results')
     .select(
       `id, dog_id, class_id, show_id, check_in_status, armband, is_scored, result_status,
-         dog_call_name`
+         dog_call_name, run_order, entry_status, is_in_ring, deleted_at`
     )
     .in('class_id', classIds);
   if (error) throw error;

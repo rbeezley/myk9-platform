@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1847: the at-show scoresheet reads the class's stored status live. A cancelled class
  * shows the plain cancelled message instead of a sheet (deep link, back/forward, or cancelled

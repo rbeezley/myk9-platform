@@ -29,6 +29,59 @@ export interface EntryClaimClient {
   };
 }
 
+/** The slice of the Supabase client the pre-claim failure mark needs. */
+export interface EntryFailMarkClient {
+  from(table: 'entries'): {
+    update(patch: Record<string, unknown>): {
+      eq(
+        column: 'registration_id',
+        value: string
+      ): {
+        in(
+          column: 'id',
+          ids: string[]
+        ): {
+          is(
+            column: 'receipt_email_sent_at',
+            value: null
+          ): PromiseLike<{ error: { message: string } | null }>;
+        };
+      };
+    };
+  };
+}
+
+/**
+ * A request that exits BEFORE the claim (email service unconfigured, registrant with no email,
+ * a transient registration read failure) leaves its entries 'pending', which the retry sweep
+ * never selects. Marking the named, still-unsent entries 'failed' hands them to the sweep once
+ * the cause is fixed. Scoped to the request's own registration, so another registration's entries
+ * are never touched; never throws (the caller is already on a failure path).
+ */
+export async function markReceiptsFailedBeforeClaim(
+  client: EntryFailMarkClient,
+  registrationId: string,
+  entryIds: string[] | null
+): Promise<void> {
+  if (!entryIds || entryIds.length === 0) return;
+  try {
+    const { error } = await client
+      .from('entries')
+      .update({
+        receipt_email_status: 'failed',
+        receipt_email_attempted_at: new Date().toISOString(),
+      })
+      .eq('registration_id', registrationId)
+      .in('id', entryIds)
+      .is('receipt_email_sent_at', null);
+    if (error) console.error('Could not mark the receipt failed', { message: error.message });
+  } catch (error) {
+    console.error('Could not mark the receipt failed', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 /** Returns the clean id list, or null when the payload is not a usable list of entry ids. */
 export function parseEntryIds(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_SUBMISSION_ENTRIES) {

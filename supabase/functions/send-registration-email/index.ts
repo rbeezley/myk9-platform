@@ -14,12 +14,14 @@ import { buildRegistrationEmailHtml, payAtShowMethod } from './registrationEmail
 import { REGISTRATION_ENTRIES_SELECT, mapRegistrationEntries } from './registrationEntries.ts';
 import {
   claimSubmissionEntries,
+  markReceiptsFailedBeforeClaim,
   parseEntryIds,
   releaseClaimOnThrow,
   releaseSubmissionClaim,
   submissionIdempotencyKey,
   summarizeSubmission,
   type EntryClaimClient,
+  type EntryFailMarkClient,
 } from './submissionReceipt.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -72,10 +74,12 @@ handle<SendRegistrationEmailPayload>(
       throw new HttpError(400, 'The receipt sweep names the entries it retries');
     }
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (!resendApiKey) {
-      throw new HttpError(503, 'Email service not configured');
-    }
+    const markFailed = () =>
+      markReceiptsFailedBeforeClaim(
+        supabase as unknown as EntryFailMarkClient,
+        registrationId,
+        submittedIds
+      );
 
     // Fetch registration with related data (include auth_user_id for ownership check)
     const { data: registration, error: regError } = await supabase
@@ -86,6 +90,10 @@ handle<SendRegistrationEmailPayload>(
       .eq('id', registrationId)
       .single();
 
+    if (regError) {
+      // A read failure, not a missing registration: the entries are retried by the sweep.
+      await markFailed();
+    }
     if (regError || !registration) {
       throw new HttpError(404, 'Registration not found');
     }
@@ -164,7 +172,16 @@ handle<SendRegistrationEmailPayload>(
         status_updated_at: new Date().toISOString(),
       });
       requireEmailLogWrite(logError, 'send-registration-email');
+      await markFailed();
       throw new HttpError(400, 'No email address for registrant');
+    }
+
+    // Checked after the caller is authorised and the entries are known to belong to this
+    // registration, so the sweep can retry them once the key is configured.
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      await markFailed();
+      throw new HttpError(503, 'Email service not configured');
     }
 
     // Once per submission: claim the entries first. A retry or a second call claims nothing.

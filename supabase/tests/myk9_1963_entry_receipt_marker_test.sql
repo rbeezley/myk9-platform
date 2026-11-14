@@ -7,7 +7,11 @@
 --      while an ordinary column in the same UPDATE still changes;
 --   B. an authenticated INSERT that names receipt_email_* gets the defaults instead;
 --   C. service_role can write them, and the sweep's failed -> sent transition sticks;
---   D. the pre-show confirmation_email_* columns are untouched by the guard.
+--   D. the pre-show confirmation_email_* columns are untouched by the guard;
+--   E. the backfill: a stamp on an entry whose trial confirms AFTER today is the old receipt and
+--      moves to receipt_email_* (confirmation_email_* reset to pending); a stamp on a trial with a
+--      null or past confirmation_date is only copied (confirmation_email_* kept); running it again
+--      changes nothing.
 
 begin;
 
@@ -101,6 +105,60 @@ begin
     raise exception 'FAIL D: receipt write touched confirmation_email_sent_at';
   end if;
   raise notice 'PASS D: confirmation_email_* untouched';
+end $$;
+
+-- E. backfill fixtures, seeded as the migration owner: old-code stamps, no receipt stamp.
+insert into public.trials (id, show_id, name, date, registry_id, confirmation_date) values
+  ('00000000-0000-0000-0000-000001963031', '00000000-0000-0000-0000-000001963002', 'Future', current_date, 'AKC',
+   (date_trunc('day', now() at time zone 'UTC') + interval '3 days') at time zone 'UTC'),
+  ('00000000-0000-0000-0000-000001963032', '00000000-0000-0000-0000-000001963002', 'Past', current_date, 'AKC',
+   (date_trunc('day', now() at time zone 'UTC') - interval '3 days') at time zone 'UTC'),
+  ('00000000-0000-0000-0000-000001963033', '00000000-0000-0000-0000-000001963002', 'Unset', current_date, 'AKC', null);
+insert into public.classes (id, trial_id, name, status, status_source) values
+  ('00000000-0000-0000-0000-000001963051', '00000000-0000-0000-0000-000001963031', 'Future class', 'upcoming', 'manual'),
+  ('00000000-0000-0000-0000-000001963052', '00000000-0000-0000-0000-000001963032', 'Past class', 'upcoming', 'manual'),
+  ('00000000-0000-0000-0000-000001963053', '00000000-0000-0000-0000-000001963033', 'Unset class', 'upcoming', 'manual');
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
+  confirmation_email_sent_at, confirmation_email_message_id, confirmation_email_status) values
+  ('00000000-0000-0000-0000-000001963041', '00000000-0000-0000-0000-000001963012', '00000000-0000-0000-0000-000001963051',
+   '00000000-0000-0000-0000-000001963002', '00000000-0000-0000-0000-000001963031', 'confirmed', 'paid', 25,
+   '2026-11-01T00:00:00Z', 'msg_future', 'sent'),
+  ('00000000-0000-0000-0000-000001963042', '00000000-0000-0000-0000-000001963012', '00000000-0000-0000-0000-000001963052',
+   '00000000-0000-0000-0000-000001963002', '00000000-0000-0000-0000-000001963032', 'confirmed', 'paid', 25,
+   '2026-11-01T00:00:00Z', 'msg_past', 'sent'),
+  ('00000000-0000-0000-0000-000001963043', '00000000-0000-0000-0000-000001963012', '00000000-0000-0000-0000-000001963053',
+   '00000000-0000-0000-0000-000001963002', '00000000-0000-0000-0000-000001963033', 'confirmed', 'paid', 25,
+   '2026-11-01T00:00:00Z', 'msg_unset', 'sent');
+
+do $$
+declare
+  f record; p record; u record; f2 record;
+begin
+  perform private.backfill_entry_receipt_markers();
+
+  select * into f from public.entries where id = '00000000-0000-0000-0000-000001963041';
+  if f.receipt_email_sent_at is distinct from '2026-11-01T00:00:00Z'::timestamptz
+     or f.receipt_email_message_id <> 'msg_future' or f.receipt_email_status <> 'sent'
+     or f.confirmation_email_sent_at is not null or f.confirmation_email_message_id is not null
+     or f.confirmation_email_status <> 'pending' then
+    raise exception 'FAIL E1: future-confirmation stamp not moved to the receipt (%)', to_jsonb(f);
+  end if;
+
+  select * into p from public.entries where id = '00000000-0000-0000-0000-000001963042';
+  select * into u from public.entries where id = '00000000-0000-0000-0000-000001963043';
+  if p.receipt_email_sent_at is null or p.receipt_email_message_id <> 'msg_past' or p.receipt_email_status <> 'sent'
+     or p.confirmation_email_sent_at is null or p.confirmation_email_status <> 'sent'
+     or u.receipt_email_sent_at is null or u.receipt_email_message_id <> 'msg_unset'
+     or u.confirmation_email_sent_at is null or u.confirmation_email_status <> 'sent' then
+    raise exception 'FAIL E2: past/unset stamp must be copied and kept (% / %)', to_jsonb(p), to_jsonb(u);
+  end if;
+
+  perform private.backfill_entry_receipt_markers();
+  select * into f2 from public.entries where id = '00000000-0000-0000-0000-000001963041';
+  if to_jsonb(f2) is distinct from to_jsonb(f) then
+    raise exception 'FAIL E3: backfill is not idempotent';
+  end if;
+  raise notice 'PASS E: backfill moves future-date stamps, copies past/unset ones, and is idempotent';
 end $$;
 
 rollback;

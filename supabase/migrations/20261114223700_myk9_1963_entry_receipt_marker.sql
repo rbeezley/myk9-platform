@@ -87,4 +87,53 @@ CREATE TRIGGER trg_entries_receipt_email_server_only
   FOR EACH ROW
   EXECUTE FUNCTION private.entries_receipt_email_server_only();
 
+-- ---------------------------------------------------------------------------
+-- Backfill: entries stamped by the OLD code. Until now the stripe-webhook stamped
+-- confirmation_email_* when it sent the card receipt, so the scheduled pre-show sender skips
+-- those entries forever. Runs as the migration owner (current_user is not anon/authenticated),
+-- so trg_entries_receipt_email_server_only passes it through. Idempotent: each branch selects
+-- only rows it has not yet moved.
+--
+--   1. Trial's confirmation_date is AFTER today (UTC; the scheduled sender matches the UTC date,
+--      so it cannot have sent yet): any confirmation stamp can only be the receipt. Move it to
+--      the receipt columns and give the pre-show email back (pending, unstamped).
+--   2. Trial's confirmation_date is null, today or past (the pre-show send may already have
+--      happened, so the stamp is ambiguous): copy the stamp into the receipt columns only, never
+--      clear it, so the sweep cannot resend a receipt that probably went out.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION private.backfill_entry_receipt_markers()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.entries e
+     SET receipt_email_sent_at = e.confirmation_email_sent_at,
+         receipt_email_message_id = e.confirmation_email_message_id,
+         receipt_email_status = 'sent',
+         confirmation_email_sent_at = NULL,
+         confirmation_email_message_id = NULL,
+         confirmation_email_status = 'pending'
+    FROM public.trials t
+   WHERE t.id = e.trial_id
+     AND e.confirmation_email_sent_at IS NOT NULL
+     AND e.receipt_email_sent_at IS NULL
+     AND t.confirmation_date >= (date_trunc('day', now() AT TIME ZONE 'UTC') + interval '1 day') AT TIME ZONE 'UTC';
+
+  UPDATE public.entries e
+     SET receipt_email_sent_at = e.confirmation_email_sent_at,
+         receipt_email_message_id = e.confirmation_email_message_id,
+         receipt_email_status = 'sent'
+   WHERE e.confirmation_email_sent_at IS NOT NULL
+     AND e.receipt_email_sent_at IS NULL;
+END;
+$$;
+
+COMMENT ON FUNCTION private.backfill_entry_receipt_markers() IS
+  'MYK9-1963: one-time, idempotent move of receipt stamps off confirmation_email_*; a function only so the behavioral SQL test can run the same statements.';
+
+REVOKE ALL ON FUNCTION private.backfill_entry_receipt_markers() FROM PUBLIC, anon, authenticated, service_role;
+
+SELECT private.backfill_entry_receipt_markers();
+
 COMMIT;

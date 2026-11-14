@@ -4,12 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   claimSubmissionEntries,
+  markReceiptsFailedBeforeClaim,
   parseEntryIds,
   releaseClaimOnThrow,
   releaseSubmissionClaim,
   submissionIdempotencyKey,
   summarizeSubmission,
   type EntryClaimClient,
+  type EntryFailMarkClient,
 } from './submissionReceipt';
 
 interface Row {
@@ -185,5 +187,49 @@ describe('summarizeSubmission', () => {
       summarizeSubmission([{ entry_fee: 25, payment_method: 'check', payment_status: 'paid' }])
         .payAtShow
     ).toBeUndefined();
+  });
+});
+
+describe('markReceiptsFailedBeforeClaim', () => {
+  function recordingClient(error: { message: string } | null = null) {
+    const calls: Array<[string, ...unknown[]]> = [];
+    const chain = {
+      update: (patch: Record<string, unknown>) => (calls.push(['update', patch]), chain),
+      eq: (...a: unknown[]) => (calls.push(['eq', ...a]), chain),
+      in: (...a: unknown[]) => (calls.push(['in', ...a]), chain),
+      is: (...a: unknown[]) => (calls.push(['is', ...a]), Promise.resolve({ error })),
+    };
+    return { client: { from: () => chain } as unknown as EntryFailMarkClient, calls };
+  }
+
+  it('marks only the named, unsent entries of the request registration as failed', async () => {
+    const { client, calls } = recordingClient();
+    await markReceiptsFailedBeforeClaim(client, 'reg-1', ['e1', 'e2']);
+    expect(calls).toEqual([
+      [
+        'update',
+        {
+          receipt_email_status: 'failed',
+          receipt_email_attempted_at: expect.any(String),
+        },
+      ],
+      ['eq', 'registration_id', 'reg-1'],
+      ['in', 'id', ['e1', 'e2']],
+      ['is', 'receipt_email_sent_at', null],
+    ]);
+  });
+
+  it('does nothing for a resend with no named entries', async () => {
+    const { client, calls } = recordingClient();
+    await markReceiptsFailedBeforeClaim(client, 'reg-1', null);
+    expect(calls).toEqual([]);
+  });
+
+  it('logs a failed write and never throws', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { client } = recordingClient({ message: 'db down' });
+    await expect(markReceiptsFailedBeforeClaim(client, 'reg-1', ['e1'])).resolves.toBeUndefined();
+    expect(log).toHaveBeenCalledWith('Could not mark the receipt failed', { message: 'db down' });
+    log.mockRestore();
   });
 });

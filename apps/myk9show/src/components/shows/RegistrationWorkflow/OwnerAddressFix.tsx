@@ -47,6 +47,8 @@ export const OwnerAddressAction: React.FC<{
   isOwnAddress ? (
     <Link
       to={OWN_ADDRESS_HREF}
+      target="_blank"
+      rel="noopener noreferrer"
       className={cn(buttonVariants({ variant: 'outline', size: 'touch' }), 'gap-2')}
     >
       <MapPin className="h-4 w-4" aria-hidden="true" />

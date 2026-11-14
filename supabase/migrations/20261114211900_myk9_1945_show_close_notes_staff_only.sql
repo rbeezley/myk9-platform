@@ -14,7 +14,7 @@
 --
 -- ACCESS: select / insert / update for the show's staff, using the same predicate as the
 -- shows_update policy (club admin, trial secretary of the show's club, site admin,
--- platform admin; a club-less show reaches only the two admins). No delete policy and no
+-- platform admin). No delete policy and no
 -- DELETE grant: the row goes only through the shows(id) ON DELETE CASCADE.
 --
 -- GRANTS: default privileges here give anon full CRUD on every new table, so anon (and
@@ -46,8 +46,10 @@ GRANT SELECT, INSERT, UPDATE ON public.show_close_notes TO authenticated;
 GRANT ALL ON public.show_close_notes TO service_role;
 
 ALTER TABLE public.show_close_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.show_close_notes FORCE ROW LEVEL SECURITY;
 
 -- Staff predicate = shows_update (20260916015300), evaluated against the note's show.
+-- shows.club_id is NOT NULL (20261004181900), so the club helpers never see a NULL.
 CREATE POLICY show_close_notes_select ON public.show_close_notes
   FOR SELECT TO authenticated
   USING (
@@ -55,8 +57,8 @@ CREATE POLICY show_close_notes_select ON public.show_close_notes
       SELECT 1 FROM public.shows s
       WHERE s.id = show_close_notes.show_id
         AND (
-          (s.club_id IS NOT NULL AND (SELECT public.is_club_admin(s.club_id)))
-          OR (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
+          (SELECT public.is_club_admin(s.club_id))
+          OR (SELECT public.is_trial_secretary(s.club_id))
           OR (SELECT public.is_site_admin())
           OR (SELECT public.is_platform_admin())
         )
@@ -70,8 +72,8 @@ CREATE POLICY show_close_notes_insert ON public.show_close_notes
       SELECT 1 FROM public.shows s
       WHERE s.id = show_close_notes.show_id
         AND (
-          (s.club_id IS NOT NULL AND (SELECT public.is_club_admin(s.club_id)))
-          OR (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
+          (SELECT public.is_club_admin(s.club_id))
+          OR (SELECT public.is_trial_secretary(s.club_id))
           OR (SELECT public.is_site_admin())
           OR (SELECT public.is_platform_admin())
         )
@@ -85,8 +87,8 @@ CREATE POLICY show_close_notes_update ON public.show_close_notes
       SELECT 1 FROM public.shows s
       WHERE s.id = show_close_notes.show_id
         AND (
-          (s.club_id IS NOT NULL AND (SELECT public.is_club_admin(s.club_id)))
-          OR (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
+          (SELECT public.is_club_admin(s.club_id))
+          OR (SELECT public.is_trial_secretary(s.club_id))
           OR (SELECT public.is_site_admin())
           OR (SELECT public.is_platform_admin())
         )
@@ -97,8 +99,8 @@ CREATE POLICY show_close_notes_update ON public.show_close_notes
       SELECT 1 FROM public.shows s
       WHERE s.id = show_close_notes.show_id
         AND (
-          (s.club_id IS NOT NULL AND (SELECT public.is_club_admin(s.club_id)))
-          OR (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
+          (SELECT public.is_club_admin(s.club_id))
+          OR (SELECT public.is_trial_secretary(s.club_id))
           OR (SELECT public.is_site_admin())
           OR (SELECT public.is_platform_admin())
         )

@@ -249,6 +249,13 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'messages_select -> is_trial_secretary',
   'messages_update_read -> is_club_admin',
   'messages_update_read -> is_trial_secretary',
+  // SAFE: s is shows, and shows.club_id is NOT NULL (MYK9-1008); MYK9-1945 show_close_notes.
+  'show_close_notes_insert -> is_club_admin',
+  'show_close_notes_insert -> is_trial_secretary',
+  'show_close_notes_select -> is_club_admin',
+  'show_close_notes_select -> is_trial_secretary',
+  'show_close_notes_update -> is_club_admin',
+  'show_close_notes_update -> is_trial_secretary',
   'show_visibility_insert -> is_club_admin',
   'show_visibility_insert -> is_trial_secretary',
   'show_visibility_update -> is_club_admin',

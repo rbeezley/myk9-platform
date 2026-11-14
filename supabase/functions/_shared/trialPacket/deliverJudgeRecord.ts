@@ -24,6 +24,8 @@ import {
 const BUCKET = 'trial-packets';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 const EMAIL_TYPE = 'judge_record';
+/** Sends of one judge's record for one day, the first included, before "send again" stops. */
+const MAX_SENDS_PER_DAY = 3;
 
 export interface JudgeRecordPreview {
   action: 'preview';
@@ -144,39 +146,53 @@ export async function sendJudgeRecord(
   const bytes = decodeJudgeRecordPdf(payload.pdfBase64 ?? '');
   if (!bytes) throw new HttpError(413, "The judge's record is not a PDF or is too large to send.");
   const sha256 = await sha256Hex(bytes);
+  // The send-once key is show + judge + day, never the PDF's bytes: they change on every build, so
+  // a rebuilt PDF would otherwise look like a new record and email the judge again. The content
+  // hash only names the stored file.
   const baseKey = judgeRecordIdempotencyKey({
     showId: show.id,
     judgeId: payload.judgeId,
     day: payload.day,
-    sha256,
   });
   const relatedId = await uuidFromKey(baseKey);
 
   const lifetimeSeconds = resolveSignedLinkLifetimeSeconds(show.end_date, now());
   const expiresAt = new Date(now().getTime() + lifetimeSeconds * 1000).toISOString();
 
-  // Send-once for this exact record. A deliberate "send again" skips the check and takes a key of
-  // its own, so it reaches the judge with a fresh link rather than replaying the first send.
-  if (!payload.sendAgain) {
-    const { data: earlier } = await supabase
-      .from('email_log')
-      .select('created_at')
-      .eq('related_id', relatedId)
-      .eq('email_type', EMAIL_TYPE)
-      .eq('status', 'sent')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (earlier) {
-      return {
-        action: 'send',
-        judgeName: recipient.judgeName,
-        email: recipient.email,
-        linkExpiresAt: expiresAt,
-        alreadySent: true,
-        sentAt: earlier.created_at ?? null,
-      };
-    }
+  const { data: earlierRows } = await supabase
+    .from('email_log')
+    .select('created_at')
+    .eq('related_id', relatedId)
+    .eq('email_type', EMAIL_TYPE)
+    .eq('status', 'sent')
+    .order('created_at', { ascending: true });
+  const earlier = (earlierRows ?? []) as { created_at: string | null }[];
+
+  if (earlier.length > 0 && !payload.sendAgain) {
+    const sentAt = earlier[0]!.created_at ?? null;
+    return {
+      action: 'send',
+      judgeName: recipient.judgeName,
+      email: recipient.email,
+      // The link the judge already has: the lifetime the first send computed, from when it left.
+      linkExpiresAt: sentAt
+        ? new Date(
+            new Date(sentAt).getTime() +
+              resolveSignedLinkLifetimeSeconds(show.end_date, new Date(sentAt)) * 1000
+          ).toISOString()
+        : expiresAt,
+      alreadySent: true,
+      sentAt,
+    };
+  }
+  // A deliberate "send again" takes a key of its own, so it reaches the judge with a fresh link,
+  // but only so many times: each call would otherwise be one more email.
+  if (payload.sendAgain && earlier.length >= MAX_SENDS_PER_DAY) {
+    throw new HttpError(
+      429,
+      `This judge has already been emailed ${MAX_SENDS_PER_DAY} times today. Save the PDF instead.`,
+      'judge_record_send_limit'
+    );
   }
 
   const resendApiKey = getEnv('RESEND_API_KEY');

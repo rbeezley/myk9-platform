@@ -121,6 +121,31 @@ describe("judge's record panel", () => {
     expect(await screen.findByText(/Sent to pat@example.com/)).toBeInTheDocument();
   });
 
+  it('says when the record already went and offers a deliberate send again', async () => {
+    const user = userEvent.setup();
+    mocks.emailJudgeRecord.mockResolvedValue({
+      judgeName: 'Pat',
+      email: 'pat@example.com',
+      alreadySent: true,
+      sentAt: '2026-12-07T19:05:00.000Z',
+      linkExpiresAt: '2027-01-06T00:00:00.000Z',
+    });
+    renderPanel([row('a', 'Pat')]);
+
+    const send = await screen.findByRole('button', { name: 'Email the judge their record' });
+    await waitFor(() => expect(send).toBeEnabled(), BUILT);
+    await user.click(send);
+
+    expect(await screen.findByText(/Already emailed on December 7 at /)).toBeInTheDocument();
+    expect(mocks.emailJudgeRecord).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ sendAgain: true })
+    );
+    await user.click(screen.getByRole('button', { name: 'Send again' }));
+    expect(mocks.emailJudgeRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sendAgain: true })
+    );
+  });
+
   it('offers a download and no email for a judge with no email on file', async () => {
     mocks.previewJudgeRecipient.mockResolvedValue({
       judgeName: 'Pat',

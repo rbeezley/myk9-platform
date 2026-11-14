@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../http/responses.ts';
+import { resolveSignedLinkLifetimeSeconds } from './delivery.ts';
 import { previewJudgeRecord, sendJudgeRecord } from './deliverJudgeRecord.ts';
 import type { PacketShow } from './deliverStoredPacket.ts';
 import type { JudgeRecordPayload } from './judgeRecord.ts';
@@ -20,7 +21,8 @@ interface Options {
   /** Assignment rows by person id. */
   assignments?: Record<string, unknown[]>;
   people?: Record<string, unknown>;
-  earlierSend?: { created_at: string } | null;
+  /** Earlier successful sends of this record, oldest first. */
+  earlierSends?: { created_at: string }[];
 }
 
 const assignedRow = (date = DAY) => ({
@@ -40,7 +42,7 @@ function makeStub(options: Options = {}) {
         deleted_at: null,
       },
     },
-    earlierSend = null,
+    earlierSends = [],
   } = options;
   const events: string[] = [];
   const uploads: { path: string; options: unknown }[] = [];
@@ -60,7 +62,7 @@ function makeStub(options: Options = {}) {
       if (table === 'judge_assignments')
         return { data: assignments[eq.person_id as string] ?? [], error: null };
       if (table === 'people') return { data: people[eq.id as string] ?? null, error: null };
-      if (table === 'email_log') return { data: earlierSend, error: null };
+      if (table === 'email_log') return { data: earlierSends, error: null };
       throw new Error(`unexpected table ${table}`);
     };
     q.maybeSingle = () => Promise.resolve(result());
@@ -154,9 +156,7 @@ describe('sendJudgeRecord', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const call = sendEmail.mock.calls[0]![0] as Record<string, string>;
     expect(call.recipient).toBe('pat@example.com');
-    expect(call.idempotencyKey).toMatch(
-      new RegExp(`^judge-record-${SHOW.id}-${JUDGE}-${DAY}-[0-9a-f]{16}$`)
-    );
+    expect(call.idempotencyKey).toBe(`judge-record-${SHOW.id}-${JUDGE}-${DAY}`);
     expect(call.html).toContain('https://storage.example/signed?t=x');
     expect(call).not.toHaveProperty('attachments');
     expect(uploads[0]!.path).toMatch(new RegExp(`^${SHOW.id}/judge-records/${JUDGE}-${DAY}-`));
@@ -233,21 +233,51 @@ describe('sendJudgeRecord', () => {
     expect(uploads).toHaveLength(0);
   });
 
-  it('does not send the same record twice, and says when it went', async () => {
+  it('does not send the same record twice, and says when it went and when the link ends', async () => {
     const sendEmail = vi.fn();
-    const { supabase, uploads } = makeStub({ earlierSend: { created_at: '2026-12-07T19:00:00Z' } });
-    expect(await sendJudgeRecord(supabase, SHOW, sendPayload(), deps(sendEmail))).toMatchObject({
-      alreadySent: true,
-      sentAt: '2026-12-07T19:00:00Z',
+    const { supabase, uploads } = makeStub({
+      earlierSends: [{ created_at: '2026-12-07T19:00:00Z' }],
     });
+    const result = await sendJudgeRecord(supabase, SHOW, sendPayload(), deps(sendEmail));
+    expect(result).toMatchObject({ alreadySent: true, sentAt: '2026-12-07T19:00:00Z' });
+    // The earlier link's expiry, counted from the earlier send (an hour before "now"), not a new one.
+    expect(Date.parse(result.linkExpiresAt)).toBe(
+      Date.parse('2026-12-07T19:00:00Z') +
+        resolveSignedLinkLifetimeSeconds(SHOW.end_date, new Date('2026-12-07T19:00:00Z')) * 1000
+    );
     expect(sendEmail).not.toHaveBeenCalled();
     expect(uploads).toHaveLength(0);
+  });
+
+  it('sends once for two builds of the same record with different bytes', async () => {
+    const sendEmail = vi.fn().mockResolvedValue('msg-1');
+    const sends: { created_at: string }[] = [];
+    const { supabase, logRows, uploads } = makeStub({ earlierSends: sends });
+    const first = await sendJudgeRecord(
+      supabase,
+      SHOW,
+      sendPayload({ pdfBase64: btoa('%PDF-1.4 build one') }),
+      deps(sendEmail)
+    );
+    // The log row the first send wrote is what the second build finds.
+    sends.push({ created_at: '2026-12-07T20:00:00Z' });
+    const second = await sendJudgeRecord(
+      supabase,
+      SHOW,
+      sendPayload({ pdfBase64: btoa('%PDF-1.4 build two, other dates') }),
+      deps(sendEmail)
+    );
+    expect(first.alreadySent).toBe(false);
+    expect(second.alreadySent).toBe(true);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(uploads).toHaveLength(1);
+    expect(logRows).toHaveLength(1);
   });
 
   it('sends again on purpose, under a key of its own', async () => {
     const sendEmail = vi.fn().mockResolvedValue('msg-2');
     const attemptId = 'd0000000-0000-4000-8000-000000000004';
-    const { supabase } = makeStub({ earlierSend: { created_at: '2026-12-07T19:00:00Z' } });
+    const { supabase } = makeStub({ earlierSends: [{ created_at: '2026-12-07T19:00:00Z' }] });
     const result = await sendJudgeRecord(
       supabase,
       SHOW,
@@ -258,6 +288,36 @@ describe('sendJudgeRecord', () => {
     expect(
       (sendEmail.mock.calls[0]![0] as { idempotencyKey: string }).idempotencyKey.endsWith(attemptId)
     ).toBe(true);
+  });
+
+  it('allows send again until three sends, then answers 429 in plain words', async () => {
+    const attemptId = 'd0000000-0000-4000-8000-000000000004';
+    const sent = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({ created_at: `2026-12-07T1${i}:00:00Z` }));
+
+    const allowed = vi.fn().mockResolvedValue('msg-3');
+    await sendJudgeRecord(
+      makeStub({ earlierSends: sent(2) }).supabase,
+      SHOW,
+      sendPayload({ sendAgain: true, attemptId }),
+      deps(allowed)
+    );
+    expect(allowed).toHaveBeenCalledTimes(1);
+
+    const refused = vi.fn();
+    const stub = makeStub({ earlierSends: sent(3) });
+    const error = await sendJudgeRecord(
+      stub.supabase,
+      SHOW,
+      sendPayload({ sendAgain: true, attemptId }),
+      deps(refused)
+    ).catch(e => e);
+    expect(error).toMatchObject({
+      status: 429,
+      message: 'This judge has already been emailed 3 times today. Save the PDF instead.',
+    });
+    expect(refused).not.toHaveBeenCalled();
+    expect(stub.uploads).toHaveLength(0);
   });
 
   it('refuses a file that is not a PDF before storing or sending', async () => {

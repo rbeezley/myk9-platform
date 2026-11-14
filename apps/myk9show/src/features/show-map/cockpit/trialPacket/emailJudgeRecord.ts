@@ -21,7 +21,7 @@ export interface JudgeRecordSent {
 /** A failure that can be worded for the secretary; `code` is the function's own. */
 export class JudgeRecordEmailError extends Error {
   constructor(
-    readonly code: 'judge_has_no_email' | 'judge_not_assigned' | 'failed',
+    readonly code: 'judge_has_no_email' | 'judge_not_assigned' | 'send_limit' | 'failed',
     message: string
   ) {
     super(message);
@@ -44,6 +44,12 @@ async function errorFrom(error: unknown): Promise<JudgeRecordEmailError> {
         return new JudgeRecordEmailError(
           'judge_not_assigned',
           'This judge is not assigned to classes on that day.'
+        );
+      }
+      if (body.code === 'judge_record_send_limit') {
+        return new JudgeRecordEmailError(
+          'send_limit',
+          'This judge has already been emailed 3 times today. Save the PDF instead.'
         );
       }
     } catch {

@@ -28,7 +28,11 @@ function whenSent(iso: string | null, timeZone: string): string {
   if (!iso) return '';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  return ` at ${date.toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).replace(/\s/g, ' ')}`;
+  const day = date.toLocaleDateString('en-US', { timeZone, month: 'long', day: 'numeric' });
+  const time = date
+    .toLocaleTimeString('en-US', { timeZone, hour: 'numeric', minute: '2-digit' })
+    .replace(/\s/g, ' ');
+  return ` on ${day} at ${time}`;
 }
 
 /**
@@ -188,8 +192,8 @@ export function JudgeRecordPanelBody({
         {sent ? (
           sent.alreadySent ? (
             <span>
-              This record already went to {sent.email}
-              {whenSent(sent.sentAt, timeZone)}.{' '}
+              Already emailed{whenSent(sent.sentAt, timeZone)} to {sent.email}. Send it again only
+              if the judge lost it.{' '}
               <Button
                 type="button"
                 variant="outline"

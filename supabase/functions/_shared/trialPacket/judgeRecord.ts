@@ -75,14 +75,16 @@ export function judgeRecordStoragePath(
   return `${showId}/judge-records/${judgeId}-${day}-${sha256.slice(0, 16)}.pdf`;
 }
 
-/** One key per judge per day per content. A repeat press of the same record is the same key. */
+/**
+ * One key per show, judge and day, never per content: the PDF's bytes change on every build
+ * (print time, creation dates), so a content key would let a rebuilt PDF email the judge again.
+ */
 export function judgeRecordIdempotencyKey(input: {
   showId: string;
   judgeId: string;
   day: string;
-  sha256: string;
 }): string {
-  return `judge-record-${input.showId}-${input.judgeId}-${input.day}-${input.sha256.slice(0, 16)}`;
+  return `judge-record-${input.showId}-${input.judgeId}-${input.day}`;
 }
 
 /** `email_log.related_id` is a uuid: a stable one from the key, so the send-once check can find it. */

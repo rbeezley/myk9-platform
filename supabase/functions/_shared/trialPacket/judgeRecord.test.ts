@@ -137,16 +137,16 @@ describe('judge record file', () => {
     expect(decodeJudgeRecordPdf('A'.repeat(12 * 1024 * 1024))).toBeNull();
   });
 
-  it('keys storage and the idempotency key on judge, day and content', () => {
+  it('keys storage on judge, day and content, and the idempotency key on judge and day only', () => {
     const sha = 'f'.repeat(64);
     expect(judgeRecordStoragePath(SHOW, JUDGE, DAY, sha)).toBe(
       `${SHOW}/judge-records/${JUDGE}-${DAY}-ffffffffffffffff.pdf`
     );
-    const key = judgeRecordIdempotencyKey({ showId: SHOW, judgeId: JUDGE, day: DAY, sha256: sha });
-    expect(key).toBe(`judge-record-${SHOW}-${JUDGE}-${DAY}-ffffffffffffffff`);
-    expect(
-      judgeRecordIdempotencyKey({ showId: SHOW, judgeId: JUDGE, day: '2026-12-08', sha256: sha })
-    ).not.toBe(key);
+    const key = judgeRecordIdempotencyKey({ showId: SHOW, judgeId: JUDGE, day: DAY });
+    expect(key).toBe(`judge-record-${SHOW}-${JUDGE}-${DAY}`);
+    expect(judgeRecordIdempotencyKey({ showId: SHOW, judgeId: JUDGE, day: '2026-12-08' })).not.toBe(
+      key
+    );
   });
 
   it('makes a stable uuid from a key', async () => {

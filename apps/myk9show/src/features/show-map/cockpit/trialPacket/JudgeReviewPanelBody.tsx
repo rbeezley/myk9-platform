@@ -1,20 +1,18 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 import { Button } from '@/components/ui/button';
 import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
-import { getClassScoreAudits } from '@/services/database/entries/scoreAudit';
 
 import { buildJudgeReviews, reviewSummary, type ReviewEntryInfo } from './judgeReview';
-import { findScoreCorrections, type ScoreCorrection } from './judgeReviewCorrections';
+import { ScoreHistoryNotice } from './ScoreHistoryNotice';
+import { useJudgeCorrections } from './useJudgeCorrections';
 import { useKeyedPdfs } from './useKeyedPdfs';
 import { packetFileName, plural, savePacketPdf, usePacketFrame } from './usePacketFrame';
 
 const ALL = 'all';
-const NO_CORRECTIONS: ReadonlyMap<string, readonly ScoreCorrection[]> = new Map();
 
 /**
  * The judge review packet (MYK9-1924 phase 2a): one results page per class for the judge to compare
@@ -37,28 +35,8 @@ export function JudgeReviewPanelBody({
   /** The judge the panel opened for, or null for every judge. */
   judgeKey: string | null;
 }) {
-  const classIds = useMemo(
-    () => rows.filter(row => row.takesJudgeSignOff).map(row => row.id),
-    [rows]
-  );
-  const audits = useQuery({
-    queryKey: ['judge-review-audits', classIds],
-    queryFn: () => getClassScoreAudits(classIds),
-    enabled: classIds.length > 0,
-    staleTime: 0,
-    retry: false,
-  });
-  const correctionsByEntryId = useMemo(() => {
-    if (!audits.data) return NO_CORRECTIONS;
-    const found = new Map<string, readonly ScoreCorrection[]>();
-    for (const [entryId, history] of audits.data) {
-      const corrections = findScoreCorrections(history);
-      if (corrections.length > 0) found.set(entryId, corrections);
-    }
-    return found;
-  }, [audits.data]);
-  // Wait for the history before building, so a printed packet never silently lacks its marks.
-  const historySettled = audits.isSuccess || audits.isError || classIds.length === 0;
+  const { audits, correctionsByEntryId, historySettled, historyUnavailable, historyPaused } =
+    useJudgeCorrections(rows);
   const judges = useMemo(
     () =>
       historySettled ? buildJudgeReviews({ rows, entryInfo: entries, correctionsByEntryId }) : null,
@@ -106,24 +84,8 @@ export function JudgeReviewPanelBody({
         For <strong>{judge ? judge.judgeName : 'every judge'}</strong>, one results page per class,
         in the order they judged.
       </p>
-      {audits.isError && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm"
-        >
-          <span>
-            The score history could not be read, so scores changed after a judge submitted them are
-            not marked. You can still print.
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void audits.refetch()}
-          >
-            Try again
-          </Button>
-        </div>
+      {historyUnavailable && (
+        <ScoreHistoryNotice paused={historyPaused} onRetry={() => void audits.refetch()} />
       )}
       {notDone.length > 0 && (
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">

@@ -153,6 +153,11 @@ export default function SupportInboxPage() {
                           Show day
                         </span>
                       )}
+                      {ticket.diagnostics?.kind === 'mock-test' && (
+                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                          Mock test
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <span>{formatShortDate(ticket.createdAt)}</span>
@@ -187,6 +192,11 @@ export default function SupportInboxPage() {
                       {selectedTicket.isShowDayPriority && (
                         <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
                           Show-day priority
+                        </span>
+                      )}
+                      {selectedTicket.diagnostics?.kind === 'mock-test' && (
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                          Mock test
                         </span>
                       )}
                     </div>

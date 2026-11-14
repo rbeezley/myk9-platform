@@ -132,6 +132,8 @@ export interface EntryManagementEntry {
   /** MYK9-1637: server-derived `entries.card_paid`; see `resolveEffectivePaymentStatus`. */
   cardPaid?: boolean;
   enrollmentPaymentReference?: string | null;
+  /** The person who placed the entry form (`enrollments.handler_id`), whose money the form is (MYK9-1937). */
+  enrollmentPayerId?: string | null;
   enrollmentTotalAmount?: number | null;
   enrollmentPaidAmount?: number | null;
   /** MYK9-1637: card money the form holds (cents), from succeeded Stripe orders. */

@@ -1,16 +1,15 @@
+import { useMemo } from 'react';
 import { MoreHorizontal, Printer } from 'lucide-react';
 
 import { ListFilterBar, type ListFilterField } from '@/components/list-toolkit';
 import { Button } from '@/components/ui/button';
+import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import { countClassesForFilter } from '@/features/show-closeout/whatIsLeft';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ResultsClassRow } from './buildResultsClassRows';
-import {
-  matchesResultsStatusFilter,
-  RESULTS_STATUS_FILTER_OPTIONS,
-  type ResultsStatusFilterId,
-} from './resultsNextAction';
+import { RESULTS_STATUS_FILTER_OPTIONS, type ResultsStatusFilterId } from './resultsNextAction';
 import type { ResultsTabUrlState, ResultsTabViewState } from './resultsTabRoutes';
 
 interface ResultsTabToolbarProps {
@@ -43,8 +42,8 @@ export function ResultsTabToolbar({
   onPrintAllReady,
   onOpenVisibility,
 }: ResultsTabToolbarProps) {
-  const countFor = (filter: ResultsStatusFilterId) =>
-    rows.filter(row => matchesResultsStatusFilter(row.phase, filter)).length;
+  const left = useMemo(() => calculateResultsRowsLeft(rows), [rows]);
+  const countFor = (filter: ResultsStatusFilterId) => countClassesForFilter(left, filter);
   const printCount = countFor('needs-printing');
   const fields: ListFilterField[] = [
     {

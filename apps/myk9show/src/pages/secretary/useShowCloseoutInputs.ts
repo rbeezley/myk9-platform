@@ -59,7 +59,12 @@ export function useShowCloseoutInputs(showId: string | undefined) {
     [schedule.trials, showId]
   );
   const trials = useMemo<CloseoutTrialSummary[]>(
-    () => showTrials.map(trial => ({ id: trial.id, status: trial.status })),
+    () =>
+      showTrials.map(trial => ({
+        id: trial.id,
+        status: trial.status,
+        registryId: trial.registryId,
+      })),
     [showTrials]
   );
   const entryTallies = useMemo(() => tallyEntriesByClass(showEntries), [showEntries]);

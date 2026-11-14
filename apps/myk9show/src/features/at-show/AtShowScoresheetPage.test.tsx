@@ -586,7 +586,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
       expect(await screen.findByText('Entry List')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /back to entries/i })).not.toBeInTheDocument();
-      expect(screen.queryByTestId('quick-advance-entry')).not.toBeInTheDocument();
+      expect(screen.queryByText(/jump straight to whoever/i)).not.toBeInTheDocument();
     });
 
     it('says whose score it was and what was saved, with a Correct button', async () => {

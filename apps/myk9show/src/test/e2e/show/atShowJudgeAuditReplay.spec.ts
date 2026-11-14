@@ -116,7 +116,7 @@ test.describe('At-show judge scheduled audit replay', () => {
     await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
 
     await expect(page.getByTestId('saved-score-line')).toContainText('Saved:');
-    await expect(page.getByTestId('quick-advance-entry')).toHaveCount(0);
+    await expect(page.getByText('Or jump straight to whoever is at the gate:')).toHaveCount(0);
 
     // Whoever walked in (here Ranger): open that dog's card straight from the list.
     await page.getByRole('button', { name: /Score Ranger/i }).click();

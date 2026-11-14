@@ -248,7 +248,7 @@ test.describe('At-show judge scoring authorization', () => {
     const savedLine = page.getByTestId('saved-score-line');
     await expect(savedLine).toContainText('Saved:');
     await expect(savedLine).toContainText('Qualified');
-    await expect(page.getByTestId('quick-advance-entry')).toHaveCount(0);
+    await expect(page.getByText('Or jump straight to whoever is at the gate:')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Back to Entries' })).toHaveCount(0);
 
     await savedLine.getByRole('button', { name: 'Correct' }).click();

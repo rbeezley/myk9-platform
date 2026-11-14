@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PaymentStatus } from '@/types/show-registration-types';
-import { entryAmountOwed, isFreeEntry } from './entryAmountOwed';
+import { entryAmountOwed, entryCountsTowardFormTotal, isFreeEntry } from './entryAmountOwed';
 
 describe('entryAmountOwed (MYK9-1908)', () => {
   it('owes nothing on a Free entry, whatever the class fee is', () => {
@@ -90,5 +90,28 @@ describe('isFreeEntry', () => {
     expect(isFreeEntry({ paymentStatus: PaymentStatus.PENDING })).toBe(false);
     expect(isFreeEntry({ paymentStatus: PaymentStatus.PAID_ONLINE })).toBe(false);
     expect(isFreeEntry({ paymentStatus: undefined })).toBe(false);
+  });
+});
+
+describe('entryCountsTowardFormTotal (MYK9-1961)', () => {
+  it('counts an unpaid or paid entry', () => {
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PENDING })).toBe(true);
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PAID_BY_CASH })).toBe(true);
+  });
+
+  it('leaves out a Free entry: waived, or comped before its status reads waived', () => {
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.WAIVED })).toBe(false);
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PENDING, comped: true })).toBe(
+      false
+    );
+  });
+
+  it('leaves out an entry refunded at the desk or by Stripe', () => {
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.REFUNDED })).toBe(false);
+    expect(entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PARTIAL_REFUND })).toBe(false);
+    // The Stripe refund stamp alone, as the server reads it.
+    expect(
+      entryCountsTowardFormTotal({ paymentStatus: PaymentStatus.PAID_ONLINE, refundAmount: 10 })
+    ).toBe(false);
   });
 });

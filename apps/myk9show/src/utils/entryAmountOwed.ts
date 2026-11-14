@@ -13,8 +13,8 @@ import { dispositionOf, resolveEffectivePaymentStatus } from './effectivePayment
  *  - a `refunded` disposition: nothing is owed, the money question is closed;
  *  - otherwise: the fee less what was paid and any discount, never below zero.
  *
- * It matches the server's form total (`private.enrollment_owed_cents`,
- * MYK9-1634), which never counts a waived entry.
+ * A FORM's total is built on the same two rules (`entryCountsTowardFormTotal`,
+ * MYK9-1961), as is the server's (`private.enrollment_owed_cents`).
  */
 export interface EntryMoneyFacts {
   paymentStatus: PaymentStatus | null | undefined;
@@ -57,4 +57,31 @@ export function entryAmountOwed(entry: EntryAmountOwedInput): number {
   const cents = (dollars: number | null | undefined) => Math.round((dollars ?? 0) * 100);
   const owedCents = cents(entry.totalFee) - cents(entry.paidAmount) - cents(entry.discountAmount);
   return Math.max(0, owedCents) / 100;
+}
+
+/**
+ * The facts the form-total rule reads, all from the entry's OWN row: the
+ * server's `private.enrollment_owed_cents` reads `entries.payment_status`, never
+ * the form's.
+ */
+export interface FormTotalEntryFacts {
+  /** `entries.payment_status`, mapped. */
+  paymentStatus: PaymentStatus | null | undefined;
+  comped?: boolean | null | undefined;
+  /** `entries.refund_amount`: the Stripe refund stamp. */
+  refundAmount?: number | null | undefined;
+}
+
+/**
+ * MYK9-1961: whether an entry's fee counts toward what its FORM owes. The two
+ * per-entry rules above, applied to the entry's own row: a Free entry (comped
+ * or waived) and a refunded one (desk or Stripe) owe nothing, so their fees
+ * are not owed by the form either. The server's form total
+ * (`private.enrollment_owed_cents`, migration 20261114013900) is this rule,
+ * so the form's "due" is the same figure on both sides.
+ */
+export function entryCountsTowardFormTotal(entry: FormTotalEntryFacts): boolean {
+  if (isFreeEntry({ paymentStatus: entry.paymentStatus, comped: entry.comped })) return false;
+  if (effectiveDisposition({ paymentStatus: entry.paymentStatus }) === 'refunded') return false;
+  return entry.refundAmount == null;
 }

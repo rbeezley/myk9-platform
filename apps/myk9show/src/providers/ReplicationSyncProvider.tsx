@@ -16,6 +16,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useStoreSubscriptions } from '@/hooks/useStoreSubscriptions';
+import { resolveSessionUser } from '@/hooks/authSessionUser';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import {
@@ -250,8 +251,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
-      setIsAuthenticated(!!session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // A null session that is not SIGNED_OUT is a refresh that failed offline, not a sign-out:
+      // queued changes keep their owner and send on reconnect (MYK9-1992).
+      setIsAuthenticated(!!resolveSessionUser(event, session));
     });
     return () => subscription.unsubscribe();
   }, []);

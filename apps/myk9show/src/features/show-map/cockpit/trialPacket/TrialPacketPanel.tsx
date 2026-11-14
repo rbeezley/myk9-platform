@@ -254,7 +254,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
               <li key={key}>
                 <button
                   type="button"
-                  aria-pressed={active}
+                  aria-current={active ? 'true' : undefined}
                   onClick={() => setSelected(key)}
                   className={`min-h-11 w-full rounded-md border px-3 py-2 text-left text-sm ${active ? 'border-primary bg-primary/5' : ''}`}
                 >

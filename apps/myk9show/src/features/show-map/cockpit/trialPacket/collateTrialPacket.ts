@@ -156,7 +156,10 @@ export function collateTrialPacket(input: {
     .sort((a, b) => Number(a.key === NO_JUDGE_KEY) - Number(b.key === NO_JUDGE_KEY));
   return {
     trial,
-    trialLabel: formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
+    // Named as the sheets' own footers name it: "Trial 1" when it has a number.
+    trialLabel: trial.trial_number
+      ? `Trial ${trial.trial_number}`
+      : formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
     registryName: registry.name,
     judges: ordered,
     emptyClassCount,

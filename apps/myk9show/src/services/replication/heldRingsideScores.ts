@@ -62,7 +62,7 @@ export async function adoptHeldRingsideScoresForLiveClaim(): Promise<number> {
         toAuthUserId: claim.userId,
         rpcNames: ADOPTABLE_RPCS,
         failedErrorIncludes: PASSCODE_REGENERATED_DB_MESSAGE,
-        claim: claim.claim,
+        ...(claim.claim !== undefined ? { claim: claim.claim } : {}),
       })
       .finally(() => inFlight.delete(key));
     inFlight.set(key, work);

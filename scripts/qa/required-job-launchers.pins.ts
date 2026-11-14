@@ -157,7 +157,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:readonly-walk:test',
-    command: 'vitest run scripts/qa/readonly-walk.test.ts scripts/qa/readonly-walk-local.test.ts',
+    command: 'vitest run scripts/qa/readonly-walk.test.ts',
   },
   {
     pkgDir: '.',

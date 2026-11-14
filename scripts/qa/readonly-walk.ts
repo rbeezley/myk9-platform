@@ -29,8 +29,7 @@
  *
  *   const context = await browser.newContext();
  *   const log = await installReadOnlyGuard(context, { appOrigin });
- *   // optional: await answerLocally(context, ['entry_carts'], log);
- *   ... walk ...
+ * *   ... walk ...
  *   console.log(formatWalkLog(log));
  *
  * The decision is `decideRequest`, a pure function, so its verdicts are
@@ -39,22 +38,6 @@
  */
 import type { BrowserContext, Route, WebSocketRoute } from '@playwright/test';
 import { AUDIT_READ_ONLY_RPCS } from '../../apps/myk9show/src/test/e2e/helpers/sharedStagingWriteGuard';
-import {
-  applyDelete,
-  applyInsert,
-  applyPatch,
-  conflictQuery,
-  contentRange,
-  emptyTable,
-  isTouched,
-  overlay,
-  parseFilters,
-  singleRowError,
-  readHeaders,
-  resolutionOf,
-  type Row,
-  type TableState,
-} from './readonly-walk-local';
 
 export type Verdict = {
   allow: boolean;
@@ -79,7 +62,6 @@ export type GuardOptions = {
 export type WalkLog = {
   refused: string[];
   readRpcs: Set<string>;
-  answeredLocally: string[];
 };
 
 /**
@@ -207,7 +189,6 @@ export async function installReadOnlyGuard(
   const log: WalkLog = {
     refused: [],
     readRpcs: new Set(),
-    answeredLocally: [],
   };
   await context.route('**/*', async (route: Route) => {
     const request = route.request();
@@ -234,145 +215,6 @@ export async function installReadOnlyGuard(
     socket.onClose(() => sockets.delete(close));
   });
   return log;
-}
-
-const isRow = (value: unknown): value is Row =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const asRows = (value: unknown): Row[] => (Array.isArray(value) ? value : [value]).filter(isRow);
-
-/**
- * Answer writes to the named tables inside the browser, so a walk can pass a
- * step that saves a draft. No write is sent. Every read of those tables, and
- * the target rows of an update or delete, come from the real backend as a
- * GET, overlaid with what the walk wrote: created and edited rows replace or
- * join the real ones, deleted ones drop out. Filters (`eq`, `neq`, `in`, `is`,
- * `gt`/`gte`/`lt`/`lte` on numbers, timestamps or text), upsert (against the
- * database's rows as well as the walk's) and the row count follow PostgREST.
- * Once the walk has written to a table, a request whose filter cannot be
- * evaluated here is refused, not guessed: answered by the database alone it
- * would hide the walk's rows.
- *
- * Call AFTER `installReadOnlyGuard`: the route registered last is asked first.
- * Embedded resources in a `select` are not reproduced on rows the walk wrote,
- * so a screen that needs joined rows from one will look partial. That is a
- * limit of the walk, not a finding.
- */
-export async function answerLocally(
-  context: BrowserContext,
-  tables: readonly string[],
-  log: WalkLog
-): Promise<void> {
-  const store = new Map<string, TableState>(tables.map(table => [table, emptyTable()]));
-  let made = 0;
-  const makeId = () => `00000000-0000-4000-8000-${String(++made).padStart(12, '0')}`;
-
-  await context.route(/\/rest\/v1\/[A-Za-z0-9_]+(\?|$)/, async (route: Route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const table = url.pathname.split('/').pop() ?? '';
-    const state = store.get(table);
-    const method = request.method();
-    if (!state || method === 'OPTIONS') {
-      await route.fallback();
-      return;
-    }
-    const headers = request.headers();
-    const prefer = headers['prefer'] ?? '';
-    const wantsObject = (headers['accept'] ?? '').includes('vnd.pgrst.object');
-    const filters = parseFilters(url.searchParams);
-    const isRead = method === 'GET' || method === 'HEAD';
-
-    if (isRead && !isTouched(state)) {
-      await route.fallback();
-      return;
-    }
-    if (!filters) {
-      // Never answered from the database alone: the walk's own rows would vanish.
-      log.refused.push(`${method} ${url.pathname} (answerLocally cannot read this filter)`);
-      await route.abort();
-      return;
-    }
-
-    const send = async (status: number, rows: Row[]) => {
-      const counted = /count=(exact|planned|estimated)/.test(prefer);
-      const range = { 'content-range': contentRange(rows.length, counted) };
-      if (wantsObject && rows.length !== 1) {
-        await route.fulfill({
-          status: 406,
-          contentType: 'application/json',
-          body: JSON.stringify(singleRowError(rows.length)),
-        });
-        return;
-      }
-      await route.fulfill({
-        status,
-        headers: range,
-        contentType: 'application/json',
-        body: method === 'HEAD' ? '' : JSON.stringify(wantsObject ? rows[0] : rows),
-      });
-    };
-
-    // The rows this request addresses as the walk sees them. A plain GET, so it
-    // reads with the caller's own rights and changes nothing.
-    const fetchReal = async (target: URL): Promise<Row[] | null> => {
-      const real = await context.request.get(target.toString(), {
-        headers: readHeaders(headers),
-      });
-      if (!real.ok()) {
-        await route.fulfill({ response: real });
-        return null;
-      }
-      return asRows(await real.json());
-    };
-    const current = async (): Promise<Row[] | null> => {
-      const real = await fetchReal(url);
-      return real && overlay(real, state, filters);
-    };
-
-    if (isRead) {
-      const rows = await current();
-      if (rows) await send(200, rows);
-      return;
-    }
-
-    let parsed: unknown = {};
-    try {
-      parsed = JSON.parse(request.postData() ?? '{}');
-    } catch {
-      // a body that is not JSON is answered as an empty row
-    }
-    const incoming = asRows(parsed);
-    log.answeredLocally.push(`${method} ${table} (${Object.keys(incoming[0] ?? {}).join(', ')})`);
-    const now = new Date().toISOString();
-    const minimal = !prefer.includes('return=representation');
-
-    if (method === 'POST') {
-      const resolution = resolutionOf(prefer);
-      const onConflict = url.searchParams.get('on_conflict')?.split(',') ?? [];
-      const real: Row[] = [];
-      for (const row of resolution ? incoming : []) {
-        const query = conflictQuery(row, onConflict);
-        if (!query) continue;
-        const found = await fetchReal(new URL(`${url.origin}${url.pathname}?${query}`));
-        if (!found) return;
-        real.push(...found);
-      }
-      const created = applyInsert(state, incoming, { resolution, onConflict, real, makeId, now });
-      if (minimal) await route.fulfill({ status: 201, body: '' });
-      else await send(201, created);
-      return;
-    }
-
-    const targets = await current();
-    if (!targets) return;
-    const result =
-      method === 'DELETE'
-        ? applyDelete(state, targets)
-        : applyPatch(state, targets, incoming[0] ?? {}, now);
-    if (minimal) await route.fulfill({ status: 204, body: '' });
-    else await send(200, result);
-  });
 }
 
 /**
@@ -417,7 +259,5 @@ export function formatWalkLog(log: WalkLog): string {
     `refused ${log.refused.length} request(s), ${refused.length} distinct:`,
     ...refused.map(line => `  ${line}`),
     `read RPCs allowed: ${[...log.readRpcs].sort().join(', ') || 'none'}`,
-    `answered locally, never sent: ${log.answeredLocally.length}`,
-    ...[...new Set(log.answeredLocally)].map(line => `  ${line}`),
   ].join('\n');
 }

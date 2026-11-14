@@ -18,6 +18,7 @@ export function entry(overrides: Record<string, unknown> = {}) {
     is_scored: false,
     result_status: null,
     dog_call_name: 'Ditto',
+    run_order: 1,
     ...overrides,
   };
 }

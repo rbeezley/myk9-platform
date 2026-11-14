@@ -8,6 +8,7 @@ function makeEntry(overrides: {
   armband?: string;
   scored?: boolean;
   checkInStatus?: string;
+  runOrder?: number;
 }): ShowEntry {
   return {
     id: overrides.id ?? crypto.randomUUID(),
@@ -22,6 +23,7 @@ function makeEntry(overrides: {
       entryFee: 30,
       paymentStatus: 'paid',
       armband: overrides.armband ?? '100',
+      runOrder: overrides.runOrder ?? Number(overrides.armband ?? '100'),
     },
     competitionData: overrides.scored
       ? { recordedBy: 'judge', recordedAt: new Date().toISOString() }
@@ -204,5 +206,30 @@ describe('detectConflicts', () => {
       },
     ];
     expect(detectConflicts('dog-1', 'class-A', classes, 2)).toEqual([]);
+  });
+
+  it('skips an entry the secretary has not given a run order', () => {
+    const classes: ClassContext[] = [
+      {
+        classId: 'class-A',
+        className: 'Novice A',
+        status: 'In Progress',
+        entries: [makeEntry({ classId: 'class-A', dogId: 'dog-1', armband: '100' })],
+      },
+      {
+        classId: 'class-B',
+        className: 'Excellent B',
+        status: 'In Progress',
+        entries: [makeEntry({ classId: 'class-B', dogId: 'dog-1', armband: '200', runOrder: 0 })],
+      },
+    ];
+    expect(detectConflicts('dog-1', 'class-A', classes, 3)).toEqual([]);
+
+    classes[1].entries = [
+      makeEntry({ classId: 'class-B', dogId: 'dog-1', armband: '200', runOrder: 1 }),
+    ];
+    expect(detectConflicts('dog-1', 'class-A', classes, 3)).toEqual([
+      { className: 'Excellent B', dogsAhead: 0 },
+    ]);
   });
 });

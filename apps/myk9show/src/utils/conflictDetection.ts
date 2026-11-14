@@ -1,5 +1,5 @@
 import type { ShowEntry } from '@/store/entry-store-types';
-import { dogsAheadInClass } from './showEntryRunQueue';
+import { dogsAheadInClass, hasRunOrder } from './showEntryRunQueue';
 
 export interface ConflictInfo {
   className: string;
@@ -36,7 +36,8 @@ export function detectConflicts(
     if (cls.status !== 'In Progress') continue;
 
     const dogEntry = cls.entries.find(e => e.dogId === dogId && !e.competitionData);
-    if (!dogEntry) continue;
+    // No run order: the server reports no place for it and Ringside shows none.
+    if (!dogEntry || !hasRunOrder(dogEntry)) continue;
 
     const dogsAhead = dogsAheadInClass(cls.entries, dogEntry.id);
     if (dogsAhead === null) continue;

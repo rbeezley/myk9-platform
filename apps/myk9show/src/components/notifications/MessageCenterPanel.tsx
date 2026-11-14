@@ -59,7 +59,8 @@ function NotificationItem({
               {(payload.data.conflicts as Array<{ className: string; dogsAhead: number }>).map(
                 (conflict, i) => (
                   <p key={i} className="text-[11px] font-medium text-amber-500">
-                    Also {conflict.dogsAhead} dogs away in {conflict.className}
+                    Also {conflict.dogsAhead} {conflict.dogsAhead === 1 ? 'dog' : 'dogs'} away in{' '}
+                    {conflict.className}
                   </p>
                 )
               )}

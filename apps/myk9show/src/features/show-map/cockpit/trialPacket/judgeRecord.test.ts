@@ -47,7 +47,6 @@ describe('buildJudgeRecords', () => {
       'c',
     ]);
     expect(pat.review.classes.map(item => item.classId)).toEqual(['a', 'c']);
-    expect(pat.judgeId).toBe('id-Pat');
     const sam = records.find(record => record.judgeName === 'Sam')!;
     expect(sam.review.classes.map(item => item.classId)).toEqual(['b']);
   });

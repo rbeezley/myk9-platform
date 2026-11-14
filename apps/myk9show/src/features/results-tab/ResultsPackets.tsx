@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { buildJudgeRecords } from '@/features/show-map/cockpit/trialPacket/judgeRecord';
 import { buildJudgeReviews } from '@/features/show-map/cockpit/trialPacket/judgeReview';
 import { TrialPacketPanel } from '@/features/show-map/cockpit/trialPacket/TrialPacketPanel';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
@@ -11,13 +12,16 @@ import { ResultsFinishRow } from './ResultsFinishRow';
 import { ResultsJudgeProgress } from './ResultsJudgeProgress';
 
 type OpenPacket =
-  { kind: 'judge-review'; judgeKey: string | null } | { kind: 'after-show'; trialId: string };
+  | { kind: 'judge-review'; judgeKey: string | null }
+  | { kind: 'judge-record'; judgeKey: string; day: string }
+  | { kind: 'after-show'; trialId: string };
 
 const NO_CORRECTIONS = new Map<string, never[]>();
 
 /**
- * The end-of-show paperwork on Results (MYK9-1924 phase 2a): per-judge progress with the judge
- * review packet, and the finish row with the after-show packet. Both open the Show Desk's one
+ * The end-of-show paperwork on Results (MYK9-1924 phases 2a and 2b): per-judge progress with the
+ * judge review packet and, once a judge's day is initialled, the judge's record, and the finish row
+ * with the after-show packet. Both open the Show Desk's one
  * packet panel; nothing here builds a second print surface.
  */
 export function ResultsPackets({
@@ -42,11 +46,19 @@ export function ResultsPackets({
     () => buildJudgeReviews({ rows, entryInfo: entries, correctionsByEntryId: NO_CORRECTIONS }),
     [rows, entries]
   );
+  const records = useMemo(
+    () => buildJudgeRecords({ rows, entryInfo: entries, correctionsByEntryId: NO_CORRECTIONS }),
+    [rows, entries]
+  );
   return (
     <>
       <ResultsJudgeProgress
         judges={judges}
         onPrint={judgeKey => setPacket({ kind: 'judge-review', judgeKey })}
+        records={records}
+        onRecord={record =>
+          setPacket({ kind: 'judge-record', judgeKey: record.judgeKey, day: record.day })
+        }
       />
       <ResultsFinishRow
         showId={showId}
@@ -66,6 +78,22 @@ export function ResultsPackets({
             showName: show?.name ?? '',
             timeZone,
             judgeKey: packet.judgeKey,
+          }}
+        />
+      )}
+      {packet?.kind === 'judge-record' && (
+        <TrialPacketPanel
+          open
+          mode="judge-record"
+          showId={showId}
+          onClose={() => setPacket(null)}
+          record={{
+            rows,
+            entries,
+            showName: show?.name ?? '',
+            timeZone,
+            judgeKey: packet.judgeKey,
+            day: packet.day,
           }}
         />
       )}

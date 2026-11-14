@@ -51,22 +51,4 @@ describe('SavedScoreLine (MYK9-2012)', () => {
     expect(line).toHaveTextContent(/^Saved: 100 Willow · Qualified · 0:04\.35/);
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
-
-  it('sticks directly under the list header so neither covers the other', () => {
-    const rect = vi
-      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-      .mockReturnValue({ height: 72 } as DOMRect);
-    render(
-      <main>
-        <header>List header</header>
-        <SavedScoreLine />
-      </main>,
-      { initialRoute: LIST }
-    );
-
-    const line = screen.getByTestId('saved-score-line');
-    expect(line.style.top).toBe('72px');
-    expect(line.className).toContain('sticky');
-    rect.mockRestore();
-  });
 });

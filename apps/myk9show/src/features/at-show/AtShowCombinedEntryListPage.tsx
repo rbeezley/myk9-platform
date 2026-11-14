@@ -396,7 +396,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
-        <SavedScoreLine />
         <EntryListNotices partial={entriesIncomplete && entries.length > 0} own={ownershipNotice} />
         <EntryListPage
           classId={classIdA}
@@ -438,6 +437,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // A combined A/B view has no single class to carry to the Settings links (the page's
             // dialog gets an empty class id), so it never offers Settings (MYK9-1627).
             hideSettingsOption: true,
+            // MYK9-2012: pinned inside the header's sticky block.
+            banner: <SavedScoreLine />,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
             // One menu (MYK9-1697): the class actions list inside it.
             menu: classActions => (

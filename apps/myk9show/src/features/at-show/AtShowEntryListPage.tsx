@@ -345,7 +345,6 @@ export const AtShowEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
-        <SavedScoreLine />
         <EntryListNotices partial={entriesIncomplete && entries.length > 0} own={ownershipNotice} />
         <EntryListPage
           classId={classId}
@@ -382,6 +381,8 @@ export const AtShowEntryListPage: React.FC = () => {
             // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.
             hideMaxTimeOption: !canManageClasses,
             hideSettingsOption: !canManageClasses || !hasSettingsLinks,
+            // MYK9-2012: pinned inside the header's sticky block.
+            banner: <SavedScoreLine />,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
             // One menu (MYK9-1697): the class actions list inside it.
             menu: classActions => (

@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1551 (finding of MYK9-1508): coming back from the Ringside menu must
  * restore the combined Section A/B entry list's tab, sort and search. The menu stashes

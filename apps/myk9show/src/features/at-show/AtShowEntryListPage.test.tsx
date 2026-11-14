@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * Integration test for the Phase 1a `/at-show` ringside mount.
  *

@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1743: the class card's entry count follows entries added elsewhere,
  * after the refresh tap and, with no tap at all, on a show-change signal.

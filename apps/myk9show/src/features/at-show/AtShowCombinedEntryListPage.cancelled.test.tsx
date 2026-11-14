@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * MYK9-1847 — page wiring on the combined A/B list: each dog is judged by its OWN section's
  * status. Cancelling only B blocks B's dogs and leaves A's scoreable; cancelling only A does

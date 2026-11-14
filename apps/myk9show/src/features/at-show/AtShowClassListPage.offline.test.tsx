@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * Offline truthfulness for the at-show class picker.
  *

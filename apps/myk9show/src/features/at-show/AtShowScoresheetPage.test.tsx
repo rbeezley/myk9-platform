@@ -1,3 +1,4 @@
+import '@/test/utils/pageRenderWait';
 /**
  * Integration test for the at-show live scoresheet page.
  *

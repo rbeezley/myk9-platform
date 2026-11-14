@@ -71,7 +71,9 @@ begin
   if v_def ilike '%scratch-requested%' or v_def ilike '%scratch_requested%' then
     raise exception 'FAIL: entries_entry_status_check still admits a scratch request: %', v_def;
   end if;
-  if v_def not ilike '%''move-up-requested''%' or v_def ilike '%''move_up_requested''%' then
+  -- strpos, not ilike: in a LIKE pattern `_` matches any character, so
+  -- '%move_up_requested%' would also match the hyphen spelling.
+  if strpos(v_def, '''move-up-requested''') = 0 or strpos(v_def, '''move_up_requested''') > 0 then
     raise exception 'FAIL: entries_entry_status_check must name only the hyphen move-up spelling: %', v_def;
   end if;
   raise notice 'PASS wiring: entries_entry_status_check names no scratch request, keeps only the hyphen move-up spelling';

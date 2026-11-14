@@ -5,6 +5,7 @@ import type { QualifyingResult, ScoresheetSportType } from '../types/scoreData';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from './DisqualifyReason';
 import { FaultStepper } from './FaultStepper';
 import { resultLabel } from '../utils/resultLabel';
+import { faultLimitFor } from '../utils/qualifiedCheck';
 
 // Each option carries its own label colour beside its own fill. A blanket
 // `text-white` on the active branch would work only by twMerge ordering — the
@@ -76,17 +77,9 @@ const EXCUSED_REASONS: Record<string, string[]> = {
   ],
 };
 
-/**
- * ASCA: Novice/Open = 2 faults, Advanced/Excellent = 1 fault.
- * Others: No limit.
- */
+/** The registry's fault limit (one source: utils/qualifiedCheck); no limit is Infinity. */
 function getMaxFaults(sportType?: ScoresheetSportType, level?: string): number {
-  if (sportType === 'ASCA_SCENT_DETECTION' && level) {
-    const lvl = level.toLowerCase();
-    if (lvl.includes('novice') || lvl.includes('open')) return 2;
-    if (lvl.includes('advanced') || lvl.includes('excellent')) return 1;
-  }
-  return Infinity;
+  return faultLimitFor(sportType, level)?.max ?? Infinity;
 }
 
 const chipBase =

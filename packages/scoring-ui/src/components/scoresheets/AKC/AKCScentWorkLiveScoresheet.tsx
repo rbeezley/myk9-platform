@@ -67,6 +67,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     existingScore: entry.existingScore,
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
+    qualifiedRules: {},
   });
 
   // Each area runs against its own max time (MYK9-1098).
@@ -166,7 +167,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
-            scoring.hasUnresolvedTime,
+            scoring.hasUnresolvedTime ||
+            scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,
         }}
       >
@@ -263,6 +265,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             onChange={value => scoring.handleAreaUpdate(index, 'time', value)}
             ariaLabel={`${searchArea.areaName} time`}
             maxLabel={maxTimeLabel(maxTimeForArea(rules, index))}
+            problem={scoring.qualifiedTimeProblems[index]}
+            onUseMax={scoring.useMaxTime(index)}
           />
         ))}
 

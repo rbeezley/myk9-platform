@@ -34,6 +34,7 @@ import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { timerLimitLine } from '../../../utils/maxTimeLabel';
+import { faultLimitFor } from '../../../utils/qualifiedCheck';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps, ResolvedClassRules, StopwatchReturn } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
@@ -130,6 +131,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     rules: { ...rules, areaCount: 1 },
     existingScore: entry.existingScore,
     recordFinds: false,
+    qualifiedRules: { faultLimit: faultLimitFor('UKC_NOSEWORK', classInfo.level) },
   });
 
   const { maxTimeMs, searchMaxTime, elementMaxTimeMs } = splitMaxTime(isDual, rules, maxTimeStr);
@@ -297,7 +299,8 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
-            scoring.hasUnresolvedTime,
+            scoring.hasUnresolvedTime ||
+            scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,
         }}
       >
@@ -397,6 +400,8 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             ariaLabel="Recorded time"
             value={scoring.areas[0].time}
             onChange={value => scoring.handleAreaUpdate(0, 'time', value)}
+            problem={scoring.qualifiedTimeProblems[0]}
+            onUseMax={scoring.useMaxTime(0)}
           />
         )}
 
@@ -418,6 +423,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           <FaultStepper
             value={scoring.faultCount}
             onChange={scoring.setFaultCount}
+            limitProblem={scoring.qualifiedFaultProblem}
             testIds={{
               decrement: 'fault-decrease',
               increment: 'fault-increase',

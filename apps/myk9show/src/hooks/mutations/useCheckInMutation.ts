@@ -13,6 +13,7 @@ import {
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
   type CheckInWriter,
+  type ExpectedCheckIn,
 } from '@/services/show-day/checkInStatus';
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -22,6 +23,8 @@ interface CheckInMutationInput {
   entryId: string;
   newStatus: CheckInStatus;
   classId?: string | undefined;
+  /** A Pull Undo's expectation (status, source, the Pull's version); the RPC refuses a stale one. */
+  expected?: ExpectedCheckIn | undefined;
 }
 
 interface CheckInMutationContext {
@@ -37,16 +40,17 @@ interface UseCheckInMutationOptions {
 }
 
 async function updateCheckInStatus(
-  { entryId, newStatus }: CheckInMutationInput,
+  { entryId, newStatus, expected }: CheckInMutationInput,
   writer: CheckInWriter
-): Promise<void> {
+): Promise<number | undefined> {
   try {
     if (writer === 'self-checkin-rpc') {
-      await updateSelfCheckInStatus(entryId, newStatus);
-      return;
+      // The version this write produced: a Pull's Undo must carry it (MYK9-1911).
+      return await updateSelfCheckInStatus(entryId, newStatus, expected);
     }
 
     await updateReplicatedCheckInStatus(entryId, newStatus);
+    return undefined;
   } catch (error) {
     // This message is rendered verbatim to the exhibitor by CheckInStatusDialog,
     // so it stays plain English and non-blaming (PRODUCT.md: no technical error
@@ -65,7 +69,7 @@ export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
   const { user } = useAuthContext();
   const writer = options.writer ?? 'replicated';
 
-  return useMutation<void, Error, CheckInMutationInput, CheckInMutationContext>({
+  return useMutation<number | undefined, Error, CheckInMutationInput, CheckInMutationContext>({
     mutationFn: input => updateCheckInStatus(input, writer),
     // The staff writer is replicated (IndexedDB + queue): 'online' would pause it before the
     // write while offline and a reload would lose it. Self check-in is an RPC and must stay online.

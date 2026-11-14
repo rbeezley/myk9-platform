@@ -15,12 +15,13 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import type { EntryListActions } from '@myk9/ringside';
+import type { EntryListActions, EntryStatusCheckIn } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
 import { SelfCheckinRefusedError, isSelfCheckinRefusal } from './entryStatusAccess';
 import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
 import {
+  isStaleCheckIn,
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
   type CheckInWriter,
@@ -64,22 +65,29 @@ async function writeCheckInStatus(
   entryId: string,
   status: EntryStatus,
   writer: CheckInWriter
-): Promise<void> {
+): Promise<number | undefined> {
   if (writer === 'self-checkin-rpc') {
     try {
-      await updateSelfCheckInStatus(entryId, status);
+      return await updateSelfCheckInStatus(entryId, status);
     } catch (error) {
       // Only the write's own refusal is an answer; a refresh failure after it stays a failure.
       throw isSelfCheckinRefusal(error) ? new SelfCheckinRefusedError(error) : error;
     }
-    return;
   }
   await updateReplicatedCheckInStatus(entryId, status);
+  return undefined;
 }
 
-export function useAtShowEntryListActions(
-  deps: UseAtShowEntryListActionsDeps
-): EntryListActions & { writer: CheckInWriter } {
+export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): EntryListActions & {
+  writer: CheckInWriter;
+  handleUndoPull: (
+    entryId: string,
+    prior: EntryStatusCheckIn,
+    pullVersion?: number
+  ) => Promise<void>;
+  /** The `entries.version` the exhibitor's latest write to this entry produced, if any. */
+  lastWriteVersion: (entryId: string) => number | undefined;
+} {
   const { refresh } = deps;
   const writer: CheckInWriter = deps.writer ?? 'replicated';
   const [isSyncing, setIsSyncing] = useState(false);
@@ -90,6 +98,8 @@ export function useAtShowEntryListActions(
   // Tracks concurrent in-flight mutations so `isSyncing` only clears when the
   // last one settles (useState lags within a sync burst).
   const inFlight = useRef(0);
+  // The version each exhibitor write produced, so a Pull's Undo can name the Pull it undoes.
+  const writeVersions = useRef(new Map<string, number>());
 
   const runMutation = useCallback(async (fn: () => Promise<void>): Promise<void> => {
     inFlight.current += 1;
@@ -101,7 +111,8 @@ export function useAtShowEntryListActions(
       // A refusal by `self_checkin_entry` is an answer, not a failure to send: the change is not
       // queued and nothing is waiting to sync, so it must not light the "could not be sent" pill.
       // The caller words the refusal for the exhibitor (MYK9-1807).
-      if (!(error instanceof SelfCheckinRefusedError)) setHasError(true);
+      // A stale Undo refused by its own version (MYK9-1911) is the same kind of answer.
+      if (!(error instanceof SelfCheckinRefusedError) && !isStaleCheckIn(error)) setHasError(true);
       logger.error('[at-show] entry mutation failed', 'at-show', { error: String(error) });
       throw error;
     } finally {
@@ -113,11 +124,40 @@ export function useAtShowEntryListActions(
   const handleStatusChange = useCallback<EntryListActions['handleStatusChange']>(
     async (entryId, newStatus) => {
       await runMutation(async () => {
-        await writeCheckInStatus(entryId, newStatus, writer);
+        const version = await writeCheckInStatus(entryId, newStatus, writer);
+        if (version === undefined) writeVersions.current.delete(entryId);
+        else writeVersions.current.set(entryId, version);
         await refresh();
       });
     },
     [runMutation, refresh, writer]
+  );
+  const lastWriteVersion = useCallback((entryId: string) => writeVersions.current.get(entryId), []);
+
+  // MYK9-1911: an exhibitor's Pull Undo expects the dog to still be pulled by the exhibitor, so a
+  // replay after a newer status refuses instead of overwriting it. Staff Undo (replicated writer)
+  // is guarded client-side and goes through the ordinary path. A refusal rethrows; the status-change
+  // handler owns showing the server's newer status (rollback, then a forced sync).
+  const handleUndoPull = useCallback(
+    async (entryId: string, prior: EntryStatusCheckIn, pullVersion?: number): Promise<void> => {
+      if (writer !== 'self-checkin-rpc') return handleStatusChange(entryId, prior);
+      await runMutation(async () => {
+        try {
+          await updateSelfCheckInStatus(entryId, prior, {
+            status: 'pulled',
+            pullSource: 'exhibitor',
+            ...(pullVersion !== undefined && { version: pullVersion }),
+          });
+        } catch (error) {
+          // The write's own answers (stale, or not allowed) are not send failures; keep the stale
+          // error itself so the handler's Undo notice still recognises it.
+          if (isStaleCheckIn(error)) throw error;
+          throw isSelfCheckinRefusal(error) ? new SelfCheckinRefusedError(error) : error;
+        }
+        await refresh();
+      });
+    },
+    [writer, handleStatusChange, runMutation, refresh]
   );
 
   const handleToggleInRing = useCallback<EntryListActions['handleToggleInRing']>(
@@ -196,6 +236,8 @@ export function useAtShowEntryListActions(
 
   return {
     handleStatusChange,
+    handleUndoPull,
+    lastWriteVersion,
     handleResetScore,
     handleToggleInRing,
     handleMarkInRing,

@@ -33,7 +33,7 @@ export function pulledFromLabel(entry: Entry): string {
 export function offerPullUndo(
   previous: Entry | undefined,
   writer: CheckInWriter | undefined,
-  restore: (status: EntryStatusChange) => void
+  restore: (status: EntryStatusChange) => unknown
 ): void {
   if (!previous || previous.status === 'pulled') return;
   if (!canUndoPull(writer, previous.status as string)) return;

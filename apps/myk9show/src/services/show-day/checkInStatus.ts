@@ -29,18 +29,61 @@ export async function updateReplicatedCheckInStatus(
   });
 }
 
+/** What a write expects to replace; the RPC refuses it when the row has moved on (MYK9-1911). */
+export interface ExpectedCheckIn {
+  status: CheckInStatus;
+  /** Who made the Pull being undone, when the expectation is a Pull. */
+  pullSource?: 'exhibitor' | 'staff';
+  /**
+   * The `entries.version` the original Pull produced (what `updateSelfCheckInStatus` returned).
+   * Bumped on every write, so it tells that Pull apart from a later identical-looking one.
+   */
+  version?: number;
+}
+
+/** SQLSTATE `self_checkin_entry` raises when the row no longer matches the expectation. */
+export const STALE_CHECKIN_SQLSTATE = 'MK911';
+
+/** The server refused a write because a newer status superseded the one it expected. */
+export class StaleCheckInError extends Error {
+  constructor() {
+    super('The entry status changed after this write was prepared.');
+    this.name = 'StaleCheckInError';
+  }
+}
+
+/** True for the refusal itself, or a wrapper carrying it as `cause`. */
+export function isStaleCheckIn(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 3 && current; depth += 1) {
+    if (current instanceof StaleCheckInError) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
 export async function updateSelfCheckInStatus(
   entryId: string,
-  status: CheckInStatus
-): Promise<void> {
-  const { error } = await supabase.rpc('self_checkin_entry', {
+  status: CheckInStatus,
+  expected?: ExpectedCheckIn
+): Promise<number | undefined> {
+  const { data, error } = await supabase.rpc('self_checkin_entry', {
     p_entry_id: entryId,
     p_new_status: status,
+    ...(expected && {
+      p_expected_status: expected.status,
+      ...(expected.pullSource && { p_expected_pull_source: expected.pullSource }),
+      ...(expected.version !== undefined && { p_expected_version: expected.version }),
+    }),
   });
 
   if (error) {
+    // Permanent, never retried: replaying a superseded write only fails the same way.
+    if (error.code === STALE_CHECKIN_SQLSTATE) throw new StaleCheckInError();
     throw createDatabaseError(error, 'entries', 'self_checkin_entry');
   }
+  // The version this write produced; an Undo of a Pull carries it back as its expectation.
+  return typeof data === 'number' ? data : undefined;
 }
 
 /**

@@ -200,6 +200,8 @@ describe('blocked scored-entry recovery', () => {
         name: /Accepted, change entry status for Scout in Container Novice/i,
       })
     );
-    expect(await screen.findByRole('menuitem', { name: 'Pull' })).toBeVisible();
+    // The entry is scored, so the same menu no longer offers Pull (MYK9-1990).
+    expect((await screen.findAllByRole('menuitem')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('menuitem', { name: 'Pull' })).toBeNull();
   });
 });

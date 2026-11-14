@@ -19,6 +19,9 @@ import { isClassClosedToChange } from '@/utils/changeClassTargets';
 import { reverseShowMapMoveUp } from './moveUpSupersession';
 import { destinationEntryStatusFor } from './moveUpRequestStatuses';
 import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
+import { EntryStatus } from '@/types/show-registration-types';
+import { canPullEntry } from '@/components/entries/management/checkInDesk/deskEditable';
+import { ShowDayRefusal } from './showDayErrorCopy';
 import { getTrialRegistry } from '@/features/registries';
 
 export interface ShowMapMoveUpInput {
@@ -130,6 +133,18 @@ export async function scratchShowMapEntry(
   // dog already pulled would write over its reason and hand back an Undo that "restores" the
   // pulled state. Stop before writing.
   if (previousEntryStatus === 'scratched') throw new AlreadyPulledError(entryId);
+  // A dog that has run keeps its result in the class (MYK9-1990): refuse, whoever the caller is.
+  // A status this code does not know is not refused on its own; the UI rule hides Pull for it.
+  const isScored = Boolean(currentEntry?.isScored ?? currentEntry?.is_scored);
+  const knownStatus = Object.values(EntryStatus).includes(previousEntryStatus as EntryStatus);
+  if (
+    currentEntry &&
+    (isScored || (knownStatus && !canPullEntry({ entryStatus: previousEntryStatus, isScored })))
+  ) {
+    throw new ShowDayRefusal(
+      'This entry has already run or is finished, so it cannot be pulled. Its result stays in the class.'
+    );
+  }
 
   const trimmed = reason?.trim();
   await updateReplicatedDayOfScratch(entryId, trimmed || fallbackReason);

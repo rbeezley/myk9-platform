@@ -197,6 +197,35 @@ describe('showMapActionMutations', () => {
     });
   });
 
+  it.each([
+    ['a scored entry', { entryStatus: 'accepted', isScored: true }],
+    ['a scored entry stored with is_scored', { entryStatus: 'accepted', is_scored: true }],
+    ['a completed entry', { entryStatus: 'completed' }],
+    ['a rejected entry', { entryStatus: 'not_accepted' }],
+    ['a cancelled entry', { entryStatus: 'withdrawn' }],
+  ])('refuses %s with a plain reason and writes nothing (MYK9-1990)', async (_name, stored) => {
+    mockGetReplicatedEntryById.mockResolvedValueOnce({ id: 'entry-1', ...stored });
+
+    await expect(scratchShowMapEntry('entry-1', 'Dog absent')).rejects.toThrow(
+      /already run or is finished/
+    );
+    expect(mockUpdateReplicatedDayOfScratch).not.toHaveBeenCalled();
+  });
+
+  it.each(['pending', 'missing_info', 'accepted'])(
+    'still pulls a %s entry that has not run (MYK9-1990)',
+    async status => {
+      mockGetReplicatedEntryById.mockResolvedValueOnce({
+        id: 'entry-1',
+        entryStatus: status,
+        isScored: false,
+      });
+
+      await scratchShowMapEntry('entry-1', 'Dog absent');
+      expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith('entry-1', 'Dog absent');
+    }
+  );
+
   it('does not write a second Pull over an entry the stored row already shows as pulled (MYK9-1812)', async () => {
     mockGetReplicatedEntryById.mockResolvedValueOnce({
       id: 'entry-1',

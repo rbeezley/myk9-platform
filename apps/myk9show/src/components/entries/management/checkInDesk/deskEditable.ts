@@ -19,6 +19,25 @@ export const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>([
 ]);
 
 /**
+ * The one rule for where Pull is allowed (MYK9-1990), shared by the desks and the Entries page:
+ * the entry has not run (no score) and is still going in the ring, or is waiting to. Pending and
+ * missing-info entries are pulled before the show, so they count; rejected, waitlisted, cancelled,
+ * completed, already-pulled and moved entries do not. The desk adds its own conditions on top.
+ */
+export const PULLABLE_ENTRY_STATUSES = new Set<EntryStatus>([
+  EntryStatus.ACCEPTED,
+  EntryStatus.PENDING,
+  EntryStatus.MISSING_INFO,
+]);
+
+export function canPullEntry(entry: {
+  entryStatus: EntryStatus | string | null | undefined;
+  isScored?: boolean | null | undefined;
+}): boolean {
+  return !entry.isScored && PULLABLE_ENTRY_STATUSES.has(entry.entryStatus as EntryStatus);
+}
+
+/**
  * Whether the Check-in desk may set this class to one of `DESK_CHECK_IN_STATUSES` (MYK9-1736), on
  * any show day: accepted and active, not underway or closed, not scored. A scored run keeps its
  * check-in status (ringside scoring never writes it), so the score is what says it is finished.
@@ -33,7 +52,7 @@ export function deskStatusEditableFor(row: {
 }): boolean {
   return (
     DESK_STATUS_SET.has(row.checkInStatus) &&
-    !row.isScored &&
+    canPullEntry(row) &&
     row.entryStatus === EntryStatus.ACCEPTED &&
     !TERMINAL_ENTRY_STATUSES.has(row.entryStatus) &&
     !TERMINAL_CLASS_STATUSES.has(row.classStatus)

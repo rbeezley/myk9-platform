@@ -868,6 +868,7 @@ describe('ReplicatedClassesTable', () => {
         }
       ).rebuildUpdatePayload(
         createMockClass({
+          scoresOnPaper: true,
           classStatus: 'completed',
           statusSource: 'manual',
           isScoringFinalized: true,
@@ -880,6 +881,8 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).not.toHaveProperty('status_source');
       expect(payload).not.toHaveProperty('is_scoring_finalized');
       expect(payload).not.toHaveProperty('reopened_after_closeout_at');
+      // MYK9-1970: a full-row rebuild never re-emits a stale paper flag.
+      expect(payload).not.toHaveProperty('scores_on_paper');
       // Non-server-owned fields still rebuild so the resend preserves them.
       expect(payload).toHaveProperty('display_order', 4);
     });
@@ -933,6 +936,18 @@ describe('ReplicatedClassesTable', () => {
       } as unknown as Database['public']['Tables']['classes']['Row']);
 
       expect(domain.statusSource).toBe('manual');
+    });
+
+    it('reads scores_on_paper from the DB row, null when the server leaves it unset (MYK9-1970)', () => {
+      const read = (value: boolean | null | undefined) =>
+        rowToClass({
+          ...createDbRow({ id: '1' }),
+          ...(value === undefined ? {} : { scores_on_paper: value }),
+        } as unknown as Database['public']['Tables']['classes']['Row']).scoresOnPaper;
+      expect(read(true)).toBe(true);
+      expect(read(false)).toBe(false);
+      expect(read(null)).toBeNull();
+      expect(read(undefined)).toBeNull();
     });
 
     it('round-trips the scent-work hide count num_hides↔hideCount', () => {

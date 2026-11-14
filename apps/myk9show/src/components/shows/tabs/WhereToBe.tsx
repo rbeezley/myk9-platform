@@ -100,7 +100,14 @@ function neverRan(entry: EnrichedShowEntry, trialTimezone: string | undefined): 
   if (entry.hasResult || entry.result) return false;
   if (entry.checkInStatus && entry.checkInStatus !== 'no-status') return false;
   const kind = entry.queue?.kind;
-  if (kind && kind !== 'waiting' && kind !== 'waiting-unknown' && kind !== 'paper') return false;
+  if (
+    kind &&
+    kind !== 'waiting' &&
+    kind !== 'waiting-unknown' &&
+    kind !== 'paper' &&
+    kind !== 'stale'
+  )
+    return false;
   // Never declare a day over before the trial's own zone is known: a guessed
   // zone would call a West Coast trial "Not run" while it is still that day.
   if (!trialTimezone) return false;

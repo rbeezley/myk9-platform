@@ -7,7 +7,7 @@ import {
   summarizeDogs,
 } from './orderMyEntriesToday';
 
-const NO_PLACES: ReadonlyMap<string, number> = new Map();
+const NO_PLACES: ReadonlyMap<string, { place: number }> = new Map();
 
 function row(overrides: Partial<AtShowEntryDetail> & { entryId: string }): AtShowEntryDetail {
   return {
@@ -105,8 +105,8 @@ describe('orderMyEntriesToday', () => {
     ];
     // Server count disagrees with the stored order (a run-order gap or re-place).
     const places = new Map([
-      ['a', 3],
-      ['b', 1],
+      ['a', { place: 3 }],
+      ['b', { place: 1 }],
     ]);
     expect(ids(orderMyEntriesToday(entries, places))).toEqual(['b', 'a']);
   });
@@ -119,7 +119,7 @@ describe('orderMyEntriesToday', () => {
       row({ entryId: 'first', runOrder: 2, armband: '300' }),
     ];
     // One row has a place, the rest do not: the class falls back to run order.
-    const places = new Map([['z', 1]]);
+    const places = new Map([['z', { place: 1 }]]);
     expect(ids(orderMyEntriesToday(entries, places))).toEqual(['first', 'b', 'y', 'z']);
   });
 

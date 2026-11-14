@@ -91,13 +91,15 @@ vi.mock('@/features/at-show/dogFavoritesSync', () => ({
 // The channel-status hook has its own tests; here it would add a second subscriber.
 vi.mock('@/hooks/useShowChannelsLive', () => ({ useShowChannelsLive: () => false }));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
+const { mockReadClaims } = vi.hoisted(() => ({ mockReadClaims: vi.fn() }));
+// The server's claim state per own entry (MYK9-1969); empty = no answer, the class flag decides.
+vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({ readOwnClaimStates: mockReadClaims }));
 
 async function emitShowChange() {
   await act(async () => {
     showChangeHandler?.({ table: 'entries' });
     vi.advanceTimersByTime(400);
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let tick = 0; tick < 6; tick += 1) await Promise.resolve();
   });
 }
 
@@ -108,6 +110,7 @@ async function emitShowChange() {
 describe('useNotificationMonitor alerts only on changes seen while open', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    mockReadClaims.mockResolvedValue(new Map());
     vi.clearAllMocks();
     mockPreferences.enabled = true;
     mockAuth.userId = 'auth-user-1';
@@ -239,13 +242,16 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
     expect(countOf('check_in_reminder')).toBe(1);
   });
 
-  it('announces dogs ahead when the in-ring entry changes, not for the one in the ring at mount', () => {
+  it('announces dogs ahead when the in-ring entry changes, not for the one in the ring at mount', async () => {
     loadSnapshot(withInRing('in-ring-a'));
     const { rerender } = renderHook(() => useNotificationMonitor());
     expect(countOf('your_turn')).toBe(0);
 
     loadSnapshot(withInRing('in-ring-b'));
-    rerender();
+    await act(async () => {
+      rerender();
+      for (let tick = 0; tick < 6; tick += 1) await Promise.resolve();
+    });
 
     expect(countOf('your_turn')).toBe(1);
   });
@@ -473,7 +479,10 @@ describe('useNotificationMonitor alerts only on changes seen while open', () => 
         ],
         startedAt: Date.now(),
       });
-      rerender();
+      await act(async () => {
+        rerender();
+        for (let tick = 0; tick < 6; tick += 1) await Promise.resolve();
+      });
       expect(countOf('your_turn')).toBe(1);
     });
   });

@@ -97,6 +97,9 @@ vi.mock('@/features/at-show/dogFavoritesSync', () => ({
 // The channel-status hook has its own tests; here it would add a second subscriber.
 vi.mock('@/hooks/useShowChannelsLive', () => ({ useShowChannelsLive: () => false }));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
+const { mockReadClaims } = vi.hoisted(() => ({ mockReadClaims: vi.fn() }));
+// The server's claim state per own entry (MYK9-1969); empty = no answer, the class flag decides.
+vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({ readOwnClaimStates: mockReadClaims }));
 
 /** The first snapshot after mount is a silent baseline (MYK9-735); alerts need a change after it. */
 function mountWithBaseline(snapshot: NotificationSnapshot) {
@@ -108,8 +111,7 @@ async function emitShowChange() {
   await act(async () => {
     showChangeHandler?.({ table: 'entries' });
     vi.advanceTimersByTime(400);
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let tick = 0; tick < 6; tick += 1) await Promise.resolve();
   });
 }
 
@@ -117,6 +119,7 @@ describe('useNotificationMonitor', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    mockReadClaims.mockResolvedValue(new Map());
     mockPreferences.enabled = true;
     mockAuth.userId = 'auth-user-1';
     mockUseShowDayData.mockReturnValue({ activeShows: [{ showId: 'show-1' }] });
@@ -248,6 +251,51 @@ describe('useNotificationMonitor', () => {
 
     expect(buildYourTurnPayload).not.toHaveBeenCalled();
     expect(mockDeliver).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a paper class flag', { scores_on_paper: true }, new Map()],
+    ['a server paper claim', {}, new Map([['owned-entry', 'paper']])],
+    ['a server stale claim', {}, new Map([['owned-entry', 'stale']])],
+  ])(
+    'sends no "You\'re up!" or "N dogs away" for %s (MYK9-1970)',
+    async (_label, classFlags, claims) => {
+      mockReadClaims.mockResolvedValue(claims);
+      mockRefetch.mockResolvedValue({
+        data: {
+          classes: [classRow({ status: 'In Progress', ...classFlags })],
+          entries: [
+            entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+            entry(),
+          ],
+        },
+      });
+      mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
+
+      await emitShowChange();
+
+      expect(buildYourTurnPayload).not.toHaveBeenCalled();
+      expect(mockDeliver).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
+    }
+  );
+
+  it('still alerts when the server says the place is live (MYK9-1970)', async () => {
+    mockReadClaims.mockResolvedValue(new Map([['owned-entry', 'live']]));
+    mockRefetch.mockResolvedValue({
+      data: {
+        classes: [classRow({ status: 'In Progress' })],
+        entries: [
+          entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+          entry(),
+        ],
+      },
+    });
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
+
+    await emitShowChange();
+
+    expect(mockReadClaims).toHaveBeenCalledWith(['owned-entry']);
+    expect(mockDeliver).toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
   });
 
   it('does not repeat dogs-ahead alerts while the same entry remains in-ring', async () => {

@@ -496,6 +496,14 @@ describe('useShowEntriesForUser', () => {
       expect(mine).not.toHaveProperty('runOrder');
     });
 
+    it('reads a dog in a class this device holds as paper as the paper line (MYK9-1970)', () => {
+      setMocks({
+        classes: [makeClass({ scoresOnPaper: true })],
+        entries: [makeEntry({ registrationData: reg('101', 31) })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'paper' });
+    });
+
     it('does not call a lone owned dog next when its order is unset', () => {
       setMocks({ entries: [makeEntry({ registrationData: reg('101', 0) })] });
       expect(mineOf()?.queue).toBeNull();

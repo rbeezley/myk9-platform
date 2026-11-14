@@ -72,9 +72,15 @@ describe('fetchQueueAndClassName', () => {
 
   it('says a class is on paper by its own flag, else the show switch (MYK9-1970)', () => {
     expect(isPaperClass({ scores_on_paper: true })).toBe(true);
-    expect(isPaperClass({ scores_on_paper: false, trial: { show: { uses_device_scoring: false } } })).toBe(false);
-    expect(isPaperClass({ scores_on_paper: null, trial: { show: { uses_device_scoring: false } } })).toBe(true);
-    expect(isPaperClass({ scores_on_paper: null, trial: { show: { uses_device_scoring: true } } })).toBe(false);
+    expect(
+      isPaperClass({ scores_on_paper: false, trial: { show: { uses_device_scoring: false } } })
+    ).toBe(false);
+    expect(
+      isPaperClass({ scores_on_paper: null, trial: { show: { uses_device_scoring: false } } })
+    ).toBe(true);
+    expect(
+      isPaperClass({ scores_on_paper: null, trial: { show: { uses_device_scoring: true } } })
+    ).toBe(false);
     expect(isPaperClass(null)).toBe(false);
   });
 });

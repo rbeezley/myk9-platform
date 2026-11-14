@@ -3,6 +3,7 @@ import {
   type OwnShowResult,
   buildMyAtShowEntryDetails,
   deriveAtShowNextAction,
+  deriveAtShowQueueLine,
   isExhibitorOnlyForAtShow,
   type AtShowClassSummary,
   type AtShowEntryDetail,
@@ -534,5 +535,46 @@ describe('isExhibitorOnlyForAtShow', () => {
 
   it('is false for an account without the exhibitor role at all', () => {
     expect(isExhibitorOnlyForAtShow(hasRoleFrom([]))).toBe(false);
+  });
+});
+
+describe('place in line on a paper class (MYK9-1970)', () => {
+  const detail = {
+    entryId: 'e1',
+    classId: 'c1',
+    dogName: 'Juni',
+    armband: '1',
+    checkInStatus: 'checked-in',
+    className: 'Container Novice',
+    expectedStartLabel: null,
+    isRevisedStart: false,
+    hasRunOrder: true,
+    isScored: false,
+    resultStatus: null,
+    resultTimeSeconds: null,
+    resultFaults: null,
+    isPreliminary: false,
+    selfCheckinState: 'allowed',
+    trialLabel: null,
+  } satisfies AtShowEntryDetail;
+
+  it('reads a paper class as a position, never a countdown, when the server answers', () => {
+    expect(deriveAtShowQueueLine(detail, { place: 7, claimState: 'paper' })).toEqual({
+      kind: 'paper',
+      place: 7,
+    });
+    expect(deriveAtShowQueueLine(detail, { place: 7, claimState: 'stale' })).toEqual({
+      kind: 'stale',
+    });
+    expect(deriveAtShowQueueLine(detail, { place: 7, claimState: 'live' })).toEqual({
+      kind: 'waiting',
+      place: 7,
+    });
+  });
+
+  it('shows the paper line with no place for a class this device holds as paper', () => {
+    expect(deriveAtShowQueueLine({ ...detail, scoresOnPaper: true }, undefined)).toEqual({
+      kind: 'paper',
+    });
   });
 });

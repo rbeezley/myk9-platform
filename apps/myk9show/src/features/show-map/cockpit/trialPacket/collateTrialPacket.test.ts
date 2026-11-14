@@ -199,7 +199,7 @@ describe('judge packet PDF', () => {
     expect(footer).not.toContain('1:00 PM');
   });
 
-  it('stamps the judge, the print time and Page n of N on every page', async () => {
+  it('stamps the judge, the print time and Packet page n of N on every page', async () => {
     const packet = collate();
     const printedAt = new Date('2026-12-06T18:00:00Z');
     for (const judge of packet.judges) {
@@ -211,7 +211,7 @@ describe('judge packet PDF', () => {
         const footer = shownText(streams[streams.length - 1] ?? '');
         // The fixture trial has no time zone, so the helper's default (Eastern) applies.
         expect(footer).toContain(`${name}. Printed Dec 6, 1:00 PM. Later changes are in the app.`);
-        expect(footer).toContain(`Page ${index + 1} of ${pages.length}`);
+        expect(footer).toContain(`Packet page ${index + 1} of ${pages.length}`);
       });
     }
   });

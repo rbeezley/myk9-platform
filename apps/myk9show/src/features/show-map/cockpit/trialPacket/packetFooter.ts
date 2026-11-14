@@ -30,7 +30,7 @@ export function packetFooterText(
 ): { left: string; right: string } {
   return {
     left: `${judgeName}. Printed ${formatPrintedAt(printedAt, timeZone)}. Later changes are in the app.`,
-    right: `Page ${page} of ${pageCount}`,
+    right: `Packet page ${page} of ${pageCount}`,
   };
 }
 

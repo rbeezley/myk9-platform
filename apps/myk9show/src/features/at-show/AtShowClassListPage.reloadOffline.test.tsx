@@ -249,4 +249,20 @@ describe('AtShowClassListPage after a reload with no signal (MYK9-2014)', () => 
     expect(screen.queryByText(/Buried Master/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Exterior Excellent/)).not.toBeInTheDocument();
   });
+
+  it('offers a way on to every class when scope is unknown, so the judge is never stuck', async () => {
+    seedPrimedDevice();
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.user = { is_anonymous: false };
+    authState.userWithRoles = {} as UserWithRoles;
+    authState.personId = null;
+    goOffline();
+
+    const { user } = renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Show every class in this show' }));
+
+    expect(await screen.findByText(/Interior Advanced/)).toBeInTheDocument();
+    expect(screen.getByText(/Buried Master/)).toBeInTheDocument();
+  });
 });

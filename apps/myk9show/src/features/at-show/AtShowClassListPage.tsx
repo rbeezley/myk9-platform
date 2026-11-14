@@ -132,9 +132,10 @@ export const AtShowClassListPage: React.FC = () => {
     (Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole })) ||
     deriveRingsideJudgePersonIdFromClaim(user, showId) !== null;
 
-  // A judge-only account never sees a class that is not theirs. While which classes are
-  // theirs is unknown, the page says so instead of listing the whole show (MYK9-2014).
-  const scopeToAssignedClasses = isJudgeOnly;
+  // While which classes are theirs is unknown, the page says so and the judge may choose to
+  // see the whole show (MYK9-2014); otherwise a judge-only account sees only their own.
+  const [seeEveryClass, setSeeEveryClass] = useState(false);
+  const scopeToAssignedClasses = isJudgeOnly && !(assignmentsUnknown && seeEveryClass);
 
   // Minute clock so the Today/past split follows a midnight rollover (MYK9-1224).
   const nowMs = useNow(60_000);
@@ -357,23 +358,22 @@ export const AtShowClassListPage: React.FC = () => {
     );
   }
 
-  if (isJudgeOnly && assignmentsUnknown) {
+  if (isJudgeOnly && assignmentsUnknown && !seeEveryClass) {
     return (
       <AtShowClassListScopeUnknownScreen
         readySlot={readySlot}
         isOnline={isOnline}
         onRetry={retryAssignments}
+        onSeeEveryClass={() => setSeeEveryClass(true)}
         onBack={() => navigate('/judge/dashboard')}
       />
     );
   }
 
-  if (isJudgeOnly && assignedClassIds.size === 0) {
+  if (isJudgeOnly && !assignmentsUnknown && assignedClassIds.size === 0) {
     return (
       <AtShowClassListNoAssignmentsScreen
         readySlot={readySlot}
-        assignmentError={Boolean(assignmentError)}
-        onRetry={retryAssignments}
         onBack={() => navigate('/judge/dashboard')}
       />
     );

@@ -36,7 +36,13 @@ export function useMyAtShowJudgeAssignments(
   showId: string | undefined
 ): MyAtShowJudgeAssignmentsResult {
   const queryClient = useQueryClient();
-  const { hasRole, user, personId: accountPersonId } = useAuthContext();
+  const {
+    hasRole,
+    user,
+    personId: accountPersonId,
+    personIdentityState,
+    personIdentityLookup,
+  } = useAuthContext();
   const { status: syncStatus, syncTable } = useReplicationSync();
   const isJudgeAccount = !user?.is_anonymous && hasRole(UserRole.JUDGE);
   const passcodePersonId = deriveRingsideJudgePersonIdFromClaim(user, showId);
@@ -50,7 +56,14 @@ export function useMyAtShowJudgeAssignments(
   // pairing still holds hasRole(JUDGE) with no person id. Assignments are then
   // UNKNOWABLE, not empty -- rendering them as empty tells a judge standing at
   // their ring that their secretary never assigned them.
-  const identityUnresolved = isJudgeAccount && !personId;
+  // A first online sign-in has no saved pairing while the `people` lookup is in flight:
+  // that is loading (the skeleton), not unknown.
+  const identityLoading =
+    isJudgeAccount &&
+    !personId &&
+    personIdentityState === 'unresolved' &&
+    Boolean(personIdentityLookup?.fetching);
+  const identityUnresolved = isJudgeAccount && !personId && !identityLoading;
   const isApplicable = Boolean(showId && personId);
   const lookupKey = isApplicable ? `${showId}:${personId}` : null;
   const refreshedEmptyCacheKey = useRef<string | null>(null);
@@ -169,8 +182,10 @@ export function useMyAtShowJudgeAssignments(
     assignedClassIds,
     isUnknown: identityUnresolved || assignmentsUnresolved,
     error: query.error instanceof Error ? query.error : replicationError,
-    isLoading: isApplicable && (query.isLoading || isWaitingForFirstSync),
+    isLoading: identityLoading || (isApplicable && (query.isLoading || isWaitingForFirstSync)),
     retry: () => {
+      // Without a person id the assignments query is disabled; ask for the missing piece.
+      if (isJudgeAccount && !personId) personIdentityLookup?.retry();
       void syncTable('judge_assignments').then(() => query.refetch());
     },
   };

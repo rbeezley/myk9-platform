@@ -44,32 +44,18 @@ export function AtShowClassListErrorScreen({
 
 export function AtShowClassListNoAssignmentsScreen({
   readySlot,
-  assignmentError,
-  onRetry,
   onBack,
-}: Pick<ScreenProps, 'readySlot'> & {
-  assignmentError: boolean;
-  onRetry: () => void;
-  onBack: () => void;
-}) {
+}: Pick<ScreenProps, 'readySlot'> & { onBack: () => void }) {
   return (
     <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
       <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
-      <h1 className="text-lg font-medium">
-        {assignmentError ? "We couldn't load your judge assignments" : 'No classes assigned yet'}
-      </h1>
+      <h1 className="text-lg font-medium">No classes assigned yet</h1>
       <p className="max-w-md text-sm text-muted-foreground">
-        {assignmentError
-          ? 'Check your connection and try again. Your classes will appear here once assignments are available.'
-          : 'Your secretary has not assigned you to a class for this show yet. Ask them to add your judge assignment.'}
+        Your secretary has not assigned you to a class for this show yet. Ask them to add your judge
+        assignment.
       </p>
       {readySlot}
       <div className="flex flex-col gap-2 sm:flex-row">
-        {assignmentError && (
-          <Button variant="outline" className="min-h-11" onClick={onRetry}>
-            Try again
-          </Button>
-        )}
         <Button className="min-h-11" onClick={onBack}>
           Back to Judge Dashboard
         </Button>
@@ -87,10 +73,12 @@ export function AtShowClassListScopeUnknownScreen({
   readySlot,
   isOnline,
   onRetry,
+  onSeeEveryClass,
   onBack,
 }: Pick<ScreenProps, 'readySlot'> & {
   isOnline: boolean;
   onRetry: () => void;
+  onSeeEveryClass: () => void;
   onBack: () => void;
 }) {
   return (
@@ -111,6 +99,9 @@ export function AtShowClassListScopeUnknownScreen({
           Back to Judge Dashboard
         </Button>
       </div>
+      <Button variant="link" className="min-h-11" onClick={onSeeEveryClass}>
+        Show every class in this show
+      </Button>
     </main>
   );
 }

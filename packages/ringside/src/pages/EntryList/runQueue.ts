@@ -137,8 +137,11 @@ export function nextPendingCandidates<T extends RunQueueEntry>(
   return pendingByRunOrder(entries).slice(0, limit);
 }
 
-/** Statuses that read "Pulled": not running, and not a withdrawal. */
-const PULLED_STATUSES: ReadonlySet<string> = new Set(['pulled', 'scratched', 'absent', 'moved']);
+/**
+ * Statuses that read "Pulled": the secretary or exhibitor took the dog out. A dog that moved
+ * class or was marked absent is a different act and reads its own word (MYK9-1940).
+ */
+const PULLED_STATUSES: ReadonlySet<string> = new Set(['pulled', 'scratched']);
 
 /**
  * Where one entry stands in its class, for display (MYK9-992).
@@ -163,7 +166,13 @@ export type RunQueueState =
   | { kind: 'done' }
   /** Pulled and withdrawn are different acts (INTENT: Withdraw vs Pull). */
   | { kind: 'pulled' }
-  | { kind: 'withdrawn' };
+  | { kind: 'withdrawn' }
+  /** Marked absent, or moved to another class: neither is a pull (MYK9-1940). */
+  | { kind: 'absent' }
+  | { kind: 'moved' };
+
+/** The reasons a dog is not running; each reads its own word on every screen. */
+export type NotRunningReason = 'pulled' | 'withdrawn' | 'absent' | 'moved';
 
 /**
  * The entry's state in `entries` (one class's rows), or null when the entry is
@@ -178,6 +187,8 @@ export function runQueueStateOf(
   // Terminal states first, by the status the dog is actually in; whatever is
   // left over and still `isInQueue` is a dog that is waiting or in the ring.
   if (target.status === 'withdrawn') return { kind: 'withdrawn' };
+  if (target.status === 'absent') return { kind: 'absent' };
+  if (target.status === 'moved') return { kind: 'moved' };
   if (target.status != null && PULLED_STATUSES.has(target.status)) return { kind: 'pulled' };
   if (target.isScored || target.status === 'completed') return { kind: 'done' };
   if (!isInQueue(target)) return null; // declined, or a status nobody has decided on
@@ -213,7 +224,16 @@ export function formatRunQueueState(state: RunQueueState): string {
       return 'Pulled';
     case 'withdrawn':
       return 'Withdrawn';
+    case 'absent':
+      return 'Absent';
+    case 'moved':
+      return 'Moved';
   }
+}
+
+/** The word for a dog that is not running; the judge's list and the exhibitor's rows share it. */
+export function notRunningLabel(reason: NotRunningReason): string {
+  return formatRunQueueState({ kind: reason });
 }
 
 // Dependency-free, so the app's time formatter can parse class times without

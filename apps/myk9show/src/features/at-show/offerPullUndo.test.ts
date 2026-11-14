@@ -28,12 +28,12 @@ describe('offerPullUndo toast text', () => {
       ...over,
     }) as never;
 
-  it('names the class and says it moved to Pulled / not running', () => {
+  it('names the class and says it moved to Not running', () => {
     offerPullUndo(entry({}), 'replicated', () => undefined);
     expect(showUndoToast).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'Hazel pulled from Container Novice A',
-        description: expect.stringContaining('Pulled / not running'),
+        description: expect.stringContaining('Not running'),
       })
     );
   });

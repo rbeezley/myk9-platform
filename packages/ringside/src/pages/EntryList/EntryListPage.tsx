@@ -361,7 +361,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
                       aria-hidden="true"
                       className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90"
                     />
-                    Pulled / not running ({notRunningEntries.length})
+                    Not running ({notRunningEntries.length})
                   </summary>
                   <div className="pt-3">
                     <EntryListContent

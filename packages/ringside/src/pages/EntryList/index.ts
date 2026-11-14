@@ -66,6 +66,7 @@ export {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  notRunningLabel,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
@@ -73,7 +74,7 @@ export {
   placeInLine,
   runQueueStateOf,
 } from './runQueue';
-export type { RunQueueEntry, RunQueueState } from './runQueue';
+export type { NotRunningReason, RunQueueEntry, RunQueueState } from './runQueue';
 
 // ── Quick-advance ranking (MYK9-83) ──────────────────────────────────────
 // Gate-aware layer over the run queue: opportunistic at-gate promotion that

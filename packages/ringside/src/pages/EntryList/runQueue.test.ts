@@ -13,6 +13,7 @@ import {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  notRunningLabel,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
@@ -324,5 +325,36 @@ describe('queue membership is an allowlist (MYK9-992 / MYK9-996)', () => {
       entry({ id: 'w', armband: 2, exhibitorOrder: 3 }),
     ];
     expect(placeInLine(rows, 'w')).toBe(1);
+  });
+});
+
+describe('a dog that is not running reads its own word (MYK9-1940)', () => {
+  const rows = [
+    entry({ id: 'm', armband: 1, status: 'moved' }),
+    entry({ id: 'a', armband: 2, status: 'absent' }),
+    entry({ id: 'p', armband: 3, status: 'pulled' }),
+    entry({ id: 's', armband: 4, status: 'scratched' }),
+    entry({ id: 'w', armband: 5, status: 'withdrawn' }),
+  ];
+  const word = (id: string) => {
+    const state = runQueueStateOf(rows, id);
+    return state ? formatRunQueueState(state) : null;
+  };
+
+  it('moved, absent and pulled each read their own word', () => {
+    expect(word('m')).toBe('Moved');
+    expect(word('a')).toBe('Absent');
+    expect(word('p')).toBe('Pulled');
+  });
+
+  it('keeps scratched as Pulled and withdrawn as Withdrawn', () => {
+    expect(word('s')).toBe('Pulled');
+    expect(word('w')).toBe('Withdrawn');
+  });
+
+  it('notRunningLabel gives the same words for the judge list', () => {
+    expect(
+      ['moved', 'absent', 'pulled', 'withdrawn'].map(r => notRunningLabel(r as never))
+    ).toEqual(['Moved', 'Absent', 'Pulled', 'Withdrawn']);
   });
 });

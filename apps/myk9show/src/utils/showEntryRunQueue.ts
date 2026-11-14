@@ -64,6 +64,8 @@ const NOT_RUNNING_LIFECYCLE = new Set(['withdrawn', 'scratched', 'absent', 'move
 function queueStatus(entry: ShowEntry): string | undefined {
   const checkIn = entry.checkInStatus;
   if (checkIn === 'pulled' || checkIn === 'in-ring') return checkIn;
+  // absent and moved keep their own word (MYK9-1940); withdrawn is handled by ownEntryQueueState.
+  if (entry.status === 'absent' || entry.status === 'moved') return entry.status;
   if (NOT_RUNNING_LIFECYCLE.has(entry.status)) return 'pulled';
   return checkIn ?? entry.status;
 }

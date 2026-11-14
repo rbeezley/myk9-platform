@@ -43,7 +43,7 @@ export function offerPullUndo(
   const token = registerPull(entryId);
   showUndoToast({
     message: from ? `${previous.callName} pulled from ${from}` : `${previous.callName} pulled`,
-    description: 'Moved to Pulled / not running, at the bottom of the list.',
+    description: 'Moved to Not running, at the bottom of the list.',
     onUndo: () => {
       void undoPullIfCurrent({
         entryId,

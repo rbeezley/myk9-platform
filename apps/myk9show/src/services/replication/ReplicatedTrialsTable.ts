@@ -54,6 +54,8 @@ export interface ReplicatedTrial {
    * column is NULL, or not pushed yet) means enabled.
    */
   autoCompleteStaleClasses?: boolean | undefined;
+  /** MYK9-1945: the status the close step overwrote with completed; set by close, cleared by reopen. */
+  statusBeforeClose?: string | null | undefined;
   /** IANA timezone (migration 192 default 'America/New_York'); drives show-local date logic. */
   timezone?: string | undefined;
   /** Sanctioning body (migration 192 default 'AKC'); drives registry-aware copy + class structure. */
@@ -71,6 +73,12 @@ export interface ReplicatedTrial {
   _lastModifiedBy?: string | undefined;
   _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
   _localOnly?: boolean | undefined;
+}
+
+/** MYK9-1945: absent until the migration is applied, so an older row reads as unset, not null. */
+function statusBeforeCloseFromRow(row: object): Pick<ReplicatedTrial, 'statusBeforeClose'> {
+  if (!('status_before_close' in row)) return {};
+  return { statusBeforeClose: (row.status_before_close as string | null | undefined) ?? null };
 }
 
 /**
@@ -98,6 +106,7 @@ export function rowToTrial(row: TrialRow): ReplicatedTrial {
     autoCompleteStaleClasses: row.auto_complete_stale_classes ?? undefined,
     timezone: row.timezone ?? undefined,
     registryId: row.registry_id ?? undefined,
+    ...statusBeforeCloseFromRow(row),
     deletedAt: row.deleted_at ?? undefined,
 
     // Map additional fields (from any as they might be missing in older types)
@@ -175,6 +184,10 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       // older database may not have yet.
       ...(trial.autoCompleteStaleClasses !== undefined && {
         auto_complete_stale_classes: trial.autoCompleteStaleClasses,
+      }),
+      // MYK9-1945: only sent once set (null clears it on reopen), like the column above.
+      ...(trial.statusBeforeClose !== undefined && {
+        status_before_close: trial.statusBeforeClose,
       }),
       // Registry (migration 192) — the write side of the registry column. Default to 'AKC'
       // (the DB default) when unset so this never writes NULL into the NOT-NULL column.

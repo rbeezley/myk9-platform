@@ -21,31 +21,19 @@ import {
   watchedUpcomingEntries,
   type NotificationWatchSet,
 } from '@/hooks/notificationWatchSet';
-import { isRunnableEntry } from '@/features/_shared/entryAccounting';
+import { queueCheckInStatus, type NotificationEntryRow } from '@/hooks/queueCheckInStatus';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
 import type { ShowEntry } from '@/store/entry-store-types';
+
+function hasRunOrder(entry: ShowEntry): boolean {
+  return (entry.registrationData?.runOrder ?? 0) > 0;
+}
 
 const DEDUP_WINDOW_MS = 60_000;
 const REFRESH_DEBOUNCE_MS = 400;
 // Stable identity for "no shows", so the channel hook does not resubscribe each render.
 const EMPTY_SHOW_IDS: readonly string[] = [];
-
-interface EntryRow {
-  id: string;
-  dog_id: string;
-  class_id: string;
-  show_id: string;
-  check_in_status: string | null;
-  armband: string | null;
-  is_scored: boolean | null;
-  result_status: string | null;
-  dog_call_name: string | null;
-  run_order?: number | null;
-  entry_status?: string | null;
-  is_in_ring?: boolean | null;
-  deleted_at?: string | null;
-}
 
 interface ClassRow {
   id: string;
@@ -74,25 +62,6 @@ interface ObservedClass {
 interface Observed {
   userId: string | null;
   classes: ReadonlyMap<string, ObservedClass>;
-}
-
-/**
- * The check-in status the shared run queue reads (MYK9-1941). Whether the dog
- * still runs is `isRunnableEntry`'s call, the same predicate behind the
- * ringside run list, so a withdrawn, moved, pulled, scored or deleted row is
- * `pulled` here and never counted ahead. Only a runnable row can be in the ring.
- */
-function queueCheckInStatus(row: EntryRow): ShowEntry['checkInStatus'] | undefined {
-  const runnable = isRunnableEntry({
-    deleted_at: row.deleted_at,
-    entry_status: row.entry_status ?? undefined,
-    check_in_status: row.check_in_status ?? undefined,
-    is_scored: row.is_scored ?? undefined,
-    result_status: row.result_status ?? undefined,
-  });
-  if (!runnable) return 'pulled';
-  if (row.is_in_ring) return 'in-ring';
-  return (row.check_in_status as ShowEntry['checkInStatus']) ?? undefined;
 }
 
 function isUnchecked(entry: ShowEntry): boolean {
@@ -251,6 +220,10 @@ export function useNotificationMonitor(): void {
     const upcoming = watchedUpcomingEntries(context.entries, leadDogs, watchSetRef.current);
 
     for (const { entry, dogsAhead } of upcoming) {
+      // The server (`get_my_entry_queue_places`) returns no place for an entry
+      // whose run_order is 0 or null, so Ringside shows none. Match it: no
+      // place-based alert for an entry that has no run order yet (MYK9-1941).
+      if (!hasRunOrder(entry)) continue;
       const now = Date.now();
       const lastAlerted = lastYourTurnAlert.current.get(entry.id);
       if (lastAlerted && now - lastAlerted < DEDUP_WINDOW_MS) continue;
@@ -282,7 +255,7 @@ export function useNotificationMonitor(): void {
       }
 
       for (const rawEntry of snapshot.entries) {
-        const row = rawEntry as EntryRow;
+        const row = rawEntry as NotificationEntryRow;
         if (row.dog_id && row.dog_call_name) nextDogNames.set(row.dog_id, row.dog_call_name);
         nextResultStatuses.set(row.id, row.result_status);
 

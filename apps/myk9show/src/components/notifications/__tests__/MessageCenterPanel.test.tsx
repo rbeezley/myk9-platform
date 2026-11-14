@@ -216,6 +216,22 @@ describe('MessageCenterPanel', () => {
     expect(screen.getByText('Alert 1')).toBeInTheDocument();
   });
 
+  it('words a conflict one dog away in the singular and more in the plural (MYK9-1941)', () => {
+    useNotificationStore.getState().addAlert({
+      ...makePayload('conflicts'),
+      data: {
+        conflicts: [
+          { className: 'Buried Novice B', dogsAhead: 1 },
+          { className: 'Exterior Open A', dogsAhead: 3 },
+        ],
+      },
+    });
+    renderPanel();
+
+    expect(screen.getByText('Also 1 dog away in Buried Novice B')).toBeInTheDocument();
+    expect(screen.getByText('Also 3 dogs away in Exterior Open A')).toBeInTheDocument();
+  });
+
   it('acknowledges an account notice only when View is clicked', () => {
     useNotificationStore.getState().addAlert({
       ...makePayload('account-1'),

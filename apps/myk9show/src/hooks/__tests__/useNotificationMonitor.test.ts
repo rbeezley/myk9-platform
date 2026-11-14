@@ -232,6 +232,24 @@ describe('useNotificationMonitor', () => {
     );
   });
 
+  it('sends no place-based alert for an entry with no run order, as Ringside shows none (MYK9-1941)', async () => {
+    mockRefetch.mockResolvedValue({
+      data: {
+        classes: [classRow({ status: 'In Progress' })],
+        entries: [
+          entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+          entry({ run_order: null }),
+        ],
+      },
+    });
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
+
+    await emitShowChange();
+
+    expect(buildYourTurnPayload).not.toHaveBeenCalled();
+    expect(mockDeliver).not.toHaveBeenCalled();
+  });
+
   it('does not repeat dogs-ahead alerts while the same entry remains in-ring', async () => {
     mockRefetch.mockResolvedValue({
       data: {

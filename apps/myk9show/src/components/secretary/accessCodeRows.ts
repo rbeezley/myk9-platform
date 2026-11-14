@@ -20,6 +20,8 @@ export type DisplayCodeRow = {
   /** What the row is called on screen: the judge's name for a judge row, else the role. */
   label: string;
   code: string;
+  /** A judge row only: the judge's person id, which the per-judge "New code" action needs. */
+  personId?: string;
 };
 
 /** The set the wizard or a regeneration returned. Its judge is always null: judge codes are per judge. */
@@ -49,6 +51,7 @@ export function rowsFromRetrievedCodes(codes: AccessCodeRpcRow[]): DisplayCodeRo
           role,
           label: row.judge_display_name?.trim() || 'Judge',
           code: row.passcode,
+          ...(row.person_id ? { personId: row.person_id } : {}),
         },
       ];
     }

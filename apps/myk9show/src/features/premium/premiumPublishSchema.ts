@@ -38,6 +38,27 @@ const generatedPremiumSchema = z.object({
     dayOfFee: nullableAmount,
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
+    juniorHandlerFee: nullableAmount.optional(),
+    maxEntriesPerDog: nullableAmount.optional(),
+    maxTotalEntries: nullableAmount.optional(),
+    withdrawal: z
+      .object({
+        show: z.object({
+          withdrawal_cutoff_date: nullableText.optional(),
+          withdrawal_retention_type: nullableText.optional(),
+          withdrawal_retention_value: nullableAmount.optional(),
+          withdrawal_policy_notes: nullableText.optional(),
+        }),
+        club: z
+          .object({
+            default_withdrawal_retention_type: nullableText.optional(),
+            default_withdrawal_retention_value: nullableAmount.optional(),
+            default_withdrawal_policy_notes: nullableText.optional(),
+          })
+          .nullable(),
+      })
+      .nullable()
+      .optional(),
   }),
   club: z.object({ name: nullableText, logoUrl: nullableText }),
   secretary: z.object({

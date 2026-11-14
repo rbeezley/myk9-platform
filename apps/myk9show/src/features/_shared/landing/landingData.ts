@@ -312,6 +312,9 @@ export function buildLandingData(
   if (show?.dayOfShowFee) {
     fees.push({ label: 'Day-of entry', amount: formatFee(show.dayOfShowFee) });
   }
+  if (Number(show?.juniorHandlerFee) > 0) {
+    fees.push({ label: 'Junior handler', amount: formatFee(show?.juniorHandlerFee) });
+  }
 
   return {
     clubName: show?.organization ?? '',

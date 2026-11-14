@@ -85,6 +85,11 @@ export function PosterBody({ data, tokens }: Props) {
           {f.fees.paymentMethods.join(', ') || 'Payment methods TBD'}.{'\n'}
           Opens {f.entry.opens ?? REQUIRED} · Closes {f.entry.closes ?? REQUIRED}.
         </Text>
+        {f.terms.map(term => (
+          <Text key={term.id} style={{ ...bodyStyle, marginBottom: 4 }}>
+            {term.label}: {term.value}
+          </Text>
+        ))}
       </View>
 
       <View style={sectionGap}>

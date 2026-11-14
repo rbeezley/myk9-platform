@@ -10,7 +10,9 @@
  * Deliberately free of `@react-pdf/renderer` and font side effects: the public landing pages
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
-import type { RegistryId } from '@/features/registries';
+import { getWithdrawalPolicy, type RegistryId } from '@/features/registries';
+import { describeWithdrawalPolicy } from '@/features/payments/formatWithdrawalPolicy';
+import { getEffectiveWithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
@@ -28,6 +30,9 @@ export type PremiumFactId =
   | 'showHours'
   | 'trialInformation'
   | 'fees'
+  | 'juniorHandlerFee'
+  | 'entryLimits'
+  | 'refundPolicy'
   | 'classes'
   | 'judges'
   | 'secretary'
@@ -58,6 +63,14 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'showHours', label: 'Trial hours', source: 'show', requiredBy: ['AKC'] },
   { id: 'trialInformation', label: 'Trial information', source: 'show', requiredBy: [] },
   { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
+  { id: 'juniorHandlerFee', label: 'Junior handler fee', source: 'show', requiredBy: [] },
+  { id: 'entryLimits', label: 'Entry limits', source: 'show', requiredBy: ['AKC', 'UKC'] },
+  {
+    id: 'refundPolicy',
+    label: 'Refund and withdrawal policy',
+    source: 'show',
+    requiredBy: ['AKC'],
+  },
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
@@ -164,6 +177,52 @@ export interface PremiumContact {
   phone: string;
 }
 
+/** One labelled line of the premium's entry terms: the same words in every style. */
+export interface PremiumTermRow {
+  id: 'juniorHandlerFee' | 'entriesPerDog' | 'totalEntries' | 'withdrawals' | 'pulls';
+  label: string;
+  value: string;
+}
+
+function formatAmount(n: number): string {
+  return Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`;
+}
+
+/**
+ * The show's own terms an exhibitor must see before entering. A row exists only when the show
+ * holds a value for it, so a show that sets none prints nothing (never a placeholder).
+ * Withdraw and Pull stay two acts: a withdrawal follows the show's refund policy, a pull has no
+ * refund promise (the wording is `withdrawalPolicy.ts`'s).
+ */
+function buildTermRows(show: GeneratedPremium['show'], registry: RegistryId): PremiumTermRow[] {
+  const rows: PremiumTermRow[] = [];
+  const junior = show.juniorHandlerFee ?? 0;
+  if (junior > 0) {
+    rows.push({ id: 'juniorHandlerFee', label: 'Junior Handler Fee', value: formatAmount(junior) });
+  }
+  const perDog = show.maxEntriesPerDog ?? 0;
+  if (perDog > 0) {
+    rows.push({ id: 'entriesPerDog', label: 'Entry Limit Per Dog', value: String(perDog) });
+  }
+  const total = show.maxTotalEntries ?? 0;
+  if (total > 0) {
+    rows.push({ id: 'totalEntries', label: 'Entry Limit Total', value: String(total) });
+  }
+  const policy = show.withdrawal
+    ? getEffectiveWithdrawalPolicy(show.withdrawal.show, show.withdrawal.club)
+    : null;
+  if (policy) {
+    const { refundLine, notes } = describeWithdrawalPolicy(policy);
+    rows.push({
+      id: 'withdrawals',
+      label: 'Withdrawals',
+      value: notes ? `${refundLine} ${notes}` : refundLine,
+    });
+    rows.push({ id: 'pulls', label: 'Pulls', value: getWithdrawalPolicy(registry).pullRefundNote });
+  }
+  return rows;
+}
+
 export interface PremiumTrialFacts {
   name: string;
   /** Long display date. */
@@ -196,6 +255,8 @@ export interface PremiumFacts {
     /** "Checks", "Cash" in that order, only those the show accepts. */
     paymentMethods: string[];
   };
+  /** Junior fee, entry limits and refund wording; empty when the show sets none. */
+  terms: PremiumTermRow[];
   entry: {
     /** Long display dates, null when unset. */
     opens: string | null;
@@ -253,6 +314,7 @@ export function buildPremiumFacts(
         (m): m is string => Boolean(m)
       ),
     },
+    terms: buildTermRows(show, registry),
     entry: {
       opens: show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : null,
       closes: show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : null,

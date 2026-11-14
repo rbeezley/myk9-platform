@@ -51,7 +51,9 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const hasOfficials = Boolean(chair || secretary.name);
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.length > 0;
-  const hasEntry = Boolean(f.entry.opens || f.entry.closes || f.fees.preEntry || f.fees.dayOf);
+  const hasEntry = Boolean(
+    f.entry.opens || f.entry.closes || f.fees.preEntry || f.fees.dayOf || f.terms.length > 0
+  );
   const hasSchedule = Boolean(f.showHours.trim());
   const hasLocation = Boolean(f.venue || f.accommodations.length > 0 || f.vetClinic);
   const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes || f.awardsDescription);
@@ -200,6 +202,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               </Text>
             </View>
           )}
+          {f.terms.map(term => (
+            <View key={term.id} style={rowStyle}>
+              <Text style={labelStyle}>{term.label}</Text>
+              <Text style={valueStyle}>{term.value}</Text>
+            </View>
+          ))}
         </View>
       )}
 

@@ -78,7 +78,14 @@ handle<GeneratePremiumPayload>(
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, club_id,
-        clubs(name, logo_url),
+        junior_handler_fee, max_entries_per_dog, max_total_entries,
+        withdrawal_cutoff_date, withdrawal_retention_type,
+        withdrawal_retention_value, withdrawal_policy_notes,
+        clubs(
+          name, logo_url,
+          default_withdrawal_retention_type, default_withdrawal_retention_value,
+          default_withdrawal_policy_notes
+        ),
         trials(
           id, name, date, planned_start_time, event_number, trial_type,
           judge_assignments(
@@ -262,7 +269,13 @@ handle<GeneratePremiumPayload>(
       })),
     }));
 
-    const clubData = show.clubs as { name: string; logo_url: string | null } | null;
+    const clubData = show.clubs as {
+      name: string;
+      logo_url: string | null;
+      default_withdrawal_retention_type: string | null;
+      default_withdrawal_retention_value: number | null;
+      default_withdrawal_policy_notes: string | null;
+    } | null;
 
     // Build vetClinic as nested object matching PremiumSupplemental.vetClinic
     const vetClinicName =
@@ -311,6 +324,27 @@ handle<GeneratePremiumPayload>(
         dayOfFee: show.day_of_show_fee,
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
+        juniorHandlerFee: show.junior_handler_fee ?? null,
+        maxEntriesPerDog: show.max_entries_per_dog ?? null,
+        maxTotalEntries: show.max_total_entries ?? null,
+        // Raw columns; the client resolves show-over-club with getEffectiveWithdrawalPolicy.
+        withdrawal: {
+          show: {
+            withdrawal_cutoff_date: show.withdrawal_cutoff_date ?? null,
+            withdrawal_retention_type: show.withdrawal_retention_type ?? null,
+            withdrawal_retention_value: show.withdrawal_retention_value ?? null,
+            withdrawal_policy_notes: show.withdrawal_policy_notes ?? null,
+          },
+          club: clubData
+            ? {
+                default_withdrawal_retention_type:
+                  clubData.default_withdrawal_retention_type ?? null,
+                default_withdrawal_retention_value:
+                  clubData.default_withdrawal_retention_value ?? null,
+                default_withdrawal_policy_notes: clubData.default_withdrawal_policy_notes ?? null,
+              }
+            : null,
+        },
       },
       club: {
         name: clubData?.name ?? null,

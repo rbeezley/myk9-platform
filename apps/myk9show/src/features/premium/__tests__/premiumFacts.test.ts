@@ -34,6 +34,62 @@ describe('premiumFacts', () => {
     expect(facts.venue).toBe('');
   });
 
+  it('prints no terms for a show that sets none', () => {
+    const facts = buildPremiumFacts(generatedPremium());
+    expect(facts.terms).toEqual([]);
+  });
+
+  it('builds the junior fee, entry limits and refund wording once', () => {
+    const premium = generatedPremium();
+    premium.show.juniorHandlerFee = 12.5;
+    premium.show.maxEntriesPerDog = 4;
+    premium.show.maxTotalEntries = 120;
+    premium.show.withdrawal = {
+      show: {
+        withdrawal_cutoff_date: '2026-05-01',
+        withdrawal_retention_type: 'flat',
+        withdrawal_retention_value: 500,
+        withdrawal_policy_notes: null,
+      },
+      club: null,
+    };
+    expect(buildPremiumFacts(premium, 'AKC').terms).toEqual([
+      { id: 'juniorHandlerFee', label: 'Junior Handler Fee', value: '$12.50' },
+      { id: 'entriesPerDog', label: 'Entry Limit Per Dog', value: '4' },
+      { id: 'totalEntries', label: 'Entry Limit Total', value: '120' },
+      {
+        id: 'withdrawals',
+        label: 'Withdrawals',
+        value:
+          'Full refund of the entry fee until May 1, 2026; after that, $5.00 is kept. Service fees are non-refundable.',
+      },
+      {
+        id: 'pulls',
+        label: 'Pulls',
+        value: "Refunds for a pull are at the club's discretion.",
+      },
+    ]);
+  });
+
+  it('falls back to the club default when the show declares no policy', () => {
+    const premium = generatedPremium();
+    premium.show.withdrawal = {
+      show: {},
+      club: { default_withdrawal_policy_notes: 'Contact the secretary.' },
+    };
+    const ids = buildPremiumFacts(premium).terms.map(t => t.id);
+    expect(ids).toEqual(['withdrawals', 'pulls']);
+  });
+
+  it('treats zero limits and a zero junior fee as unset', () => {
+    const premium = generatedPremium();
+    premium.show.juniorHandlerFee = 0;
+    premium.show.maxEntriesPerDog = 0;
+    premium.show.maxTotalEntries = null;
+    premium.show.withdrawal = { show: {}, club: null };
+    expect(buildPremiumFacts(premium).terms).toEqual([]);
+  });
+
   it('normalises a missing supplemental slice to empty facts', () => {
     expect(pickSupplementalFacts(undefined)).toEqual({
       vetClinic: null,

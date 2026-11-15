@@ -6,13 +6,12 @@ backups and from the item 1 recovery rehearsal. The activation checklist below i
 how the export was brought live; the recovery drills still owed are in
 [independent-database-drills.md](independent-database-drills.md).
 
-> **Status (corrected 2026-11-15).** Evidence indicates the workflow is active and the schedule is
-> America/Chicago based; the text that called it disabled, UTC-based and activation pending was written
-> before activation. [nightly-backup-recovery.md](nightly-backup-recovery.md) records scheduled runs
-> firing 4 to 6 times a day between Oct 29 and Nov 2, which a disabled workflow cannot do
-> (MYK9-1642), and the owner selected America/Chicago and 30-day retention on 2026-09-08 (below).
-> The repository variables themselves (`MYK9_EXPORTS_ENABLED`, `MYK9_EXPORT_TIME_ZONE`) cannot be read
-> from the repo; confirm with `gh variable list | grep MYK9_EXPORT` before relying on them.
+> **Status (corrected 2026-11-15).** The text that called the workflow disabled, UTC-based and
+> activation pending was written before activation and is superseded. Evidence: successful export jobs
+> and manifests (see [nightly-backup-recovery.md](nightly-backup-recovery.md)); the owner selected
+> America/Chicago and 30-day retention on 2026-09-08 (below). The repository variables
+> (`MYK9_EXPORTS_ENABLED`, `MYK9_EXPORT_TIME_ZONE`) cannot be read from the repo; confirm with
+> `gh variable list | grep MYK9_EXPORT` before relying on them.
 
 ## Scope and boundary
 
@@ -36,7 +35,7 @@ The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
 (default `3`) to export hourly during the daytime on selected show weekends and once
 overnight otherwise. Weekend daytime is **06:00–22:00 America/Chicago**, and the preflight
 checks `public.shows` for a show overlapping that Friday–Sunday window. Overnight weekend
-runs and weekends with no show are clean skips. Manual dispatch forces an export regardless
+runs and weekends with no show are clean skips. A manual dispatch with `force` (its default) exports regardless
 of the time or show calendar. America/Chicago and 30-day R2 retention were selected by the
 owner on 2026-09-08. The nightly slot is 03:00 local time. Each scheduled wake-up compares
 the latest successful manifest against the latest due slot and catches up if that slot was
@@ -51,7 +50,7 @@ The separate health workflow wakes hourly at minute 22 and validates the newest 
 against the latest due slot whose 30-minute grace has elapsed. Thus detection can take until
 the next health run after grace, plus scheduler delays. A GitHub outage can hide both jobs;
 operator checks remain necessary. Both scheduled jobs run only while
-`MYK9_EXPORTS_ENABLED=true`; explicit manual dispatch always works.
+`MYK9_EXPORTS_ENABLED=true`; a manual dispatch runs only with `force` set (with `force=false` while disabled, the job is skipped).
 The 30-minute grace is intentional: a delayed job beyond the monitored slot is a backup gap
 that should alert, even when caused by GitHub scheduling. It is not a guarantee of hourly recovery.
 The workflow installs PostgreSQL client 18 and defaults `MYK9_EXPORT_PG_CLIENT_MAJOR` to `18`;

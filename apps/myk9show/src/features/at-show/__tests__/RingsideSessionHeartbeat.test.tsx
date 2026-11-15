@@ -190,7 +190,7 @@ describe('RingsideSessionHeartbeat', () => {
     expect(presenceCalls).toHaveLength(0);
   });
 
-  it('reports a refusal that persists across beats to Sentry once, never as a toast (MYK9-2033)', async () => {
+  it('reports a refusal that persists across beats to Sentry once (MYK9-2033)', async () => {
     const refusal = {
       code: '42501',
       message: 'account is not entered in exactly one active ringside show',

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner';
+import { showUndoToast } from '@/lib/undoToast';
 import {
   dispatchBulk,
   errorReason,
@@ -143,36 +144,13 @@ export function useBulkDispatch<T>({
       if (summary.fullSuccess) {
         onFullSuccess?.();
         const onUndo = buildUndo?.(outcome);
-        if (!onStood || outcome.succeeded.length === 0) {
-          toast.success(
-            summary.title,
-            onUndo ? { action: { label: 'Undo', onClick: onUndo } } : undefined
-          );
-          return;
-        }
+        const stood = onStood && outcome.succeeded.length > 0 ? () => onStood(outcome) : undefined;
         if (!onUndo) {
-          toast.success(summary.title);
-          onStood(outcome);
+          toast.success(summary.title, undefined);
+          stood?.();
           return;
         }
-        // Sonner calls neither close callback for an action click; the flag says it outright.
-        let settled = false;
-        const stood = () => {
-          if (settled) return;
-          settled = true;
-          onStood(outcome);
-        };
-        toast.success(summary.title, {
-          action: {
-            label: 'Undo',
-            onClick: () => {
-              settled = true;
-              onUndo();
-            },
-          },
-          onAutoClose: stood,
-          onDismiss: stood,
-        });
+        showUndoToast({ message: summary.title, onUndo, onStood: stood });
         return;
       }
       // Partial failure: the toast offers "Try failed again", not Undo, so what succeeded stands.

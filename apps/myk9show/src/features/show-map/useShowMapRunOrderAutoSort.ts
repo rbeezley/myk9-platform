@@ -14,8 +14,7 @@ import {
 import { movePlacement, type PlacementMove } from './runOrderPlacementModel';
 import { classPlacementKey, loadClassPlacement } from './classPlacementSource';
 import { toPriorSnapshot } from './showMapHandPlacement';
-
-export const AUTO_SORT_UNDO_BANNER_TIMEOUT_MS = 8000;
+import { STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 
 const SUCCESS_LABELS: Record<ShowMapAutoSortKind, string> = {
   'armband-asc': 'Sorted by armband (ascending)',
@@ -123,7 +122,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     clearTimerRef.current = setTimeout(() => {
       clearTimerRef.current = null;
       setLastAutoSort(null);
-    }, AUTO_SORT_UNDO_BANNER_TIMEOUT_MS);
+    }, STATUS_UNDO_WINDOW_MS);
   };
 
   const autoSortMutation = useMutation({

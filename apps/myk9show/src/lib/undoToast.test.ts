@@ -5,7 +5,7 @@ vi.mock('sonner', () => ({
 }));
 
 import { toast } from 'sonner';
-import { showUndoToast } from './undoToast';
+import { STATUS_UNDO_WINDOW_MS, showUndoToast } from './undoToast';
 
 describe('showUndoToast', () => {
   beforeEach(() => {
@@ -26,16 +26,20 @@ describe('showUndoToast', () => {
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
-  it('omits duration by default so sonner keeps its default window', () => {
+  it('is 8 seconds, the one window every day-of Undo shares', () => {
+    expect(STATUS_UNDO_WINDOW_MS).toBe(8000);
+  });
+
+  it('uses the shared window by default, never sonner default', () => {
     showUndoToast({ message: 'x', onUndo: vi.fn() });
-    const options = vi.mocked(toast.success).mock.calls[0]?.[1] as Record<string, unknown>;
-    expect('duration' in options).toBe(false);
+    const options = vi.mocked(toast.success).mock.calls[0]?.[1] as { duration?: number };
+    expect(options.duration).toBe(STATUS_UNDO_WINDOW_MS);
   });
 
   it('forwards an explicit duration (time-boxed window) when provided', () => {
-    showUndoToast({ message: 'x', onUndo: vi.fn(), duration: 8000 });
+    showUndoToast({ message: 'x', onUndo: vi.fn(), duration: 15_000 });
     const options = vi.mocked(toast.success).mock.calls[0]?.[1] as { duration?: number };
-    expect(options.duration).toBe(8000);
+    expect(options.duration).toBe(15_000);
   });
 
   it('supports a custom undo label', () => {

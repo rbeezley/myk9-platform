@@ -23,6 +23,14 @@ export const EXAMPLE_QUERIES: ExampleQuery[] = [
   { text: 'I need help with a payment or refund', category: 'app-help' },
 ];
 
+/** Secretary, club admin and judge suggestions: how-to questions the secretary guide answers. */
+export const STAFF_EXAMPLE_QUERIES: ExampleQuery[] = [
+  { text: 'How do I add a late entry?', category: 'app-help' },
+  { text: 'How do I add a mail-in entry?', category: 'app-help' },
+  { text: 'How do I check dogs in?', category: 'app-help' },
+  { text: 'How do I refund an entry?', category: 'app-help' },
+];
+
 export const CATEGORY_LABELS: Record<ExampleQuery['category'], string> = {
   rules: 'Rules',
   'show-data': 'Show Data',

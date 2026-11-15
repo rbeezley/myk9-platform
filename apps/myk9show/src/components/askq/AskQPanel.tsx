@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Send } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useAskQ } from '@/hooks/useAskQ';
@@ -26,6 +25,9 @@ import { useSupportHelp } from '@/features/support/useSupportHelp';
 import { UserRole } from '@/types/auth-types';
 import { AskQAppHelpContent } from './AskQAppHelpContent';
 import { AskQModeSelector } from './AskQModeSelector';
+import { AskQTicketForm } from './AskQTicketForm';
+import { AskQSendToPerson } from './AskQSendToPerson';
+import { holdsStaffRole } from '@/pages/onboarding/onboardingSteps';
 
 export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
   const { isOpen, close, suggestedPrompt, promptRequestId, clearSuggestedPrompt } =
@@ -36,6 +38,7 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
   const operator = useAskQ(sendOperatorSupportQuery);
   const support = useSupportHelp(user, userWithRoles);
   const isSiteAdmin = userWithRoles?.roles.includes(UserRole.SITE_ADMIN) ?? false;
+  const isStaff = holdsStaffRole(userWithRoles?.roles ?? []);
 
   const showId = useMemo(
     () =>
@@ -184,6 +187,15 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
     support.startEscalation();
   }, [support]);
 
+  // AskQ could not answer (error or daily limit): move the typed question into the ticket step.
+  // Ticket creation is a separate write, so this works with no AskQ questions left.
+  const sendToPerson = useCallback(() => {
+    const question = askq.query;
+    askq.newQuestion(); // keeps the usage counters and a still-active daily limit
+    setMode('app-help');
+    support.startEscalation(question);
+  }, [askq, support]);
+
   const escalationQuestion =
     support.state.route?.kind === 'escalate'
       ? support.state.route.question
@@ -201,24 +213,11 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
         }
 
         return (
-          <form onSubmit={handleTicketSubmit} className="space-y-3">
-            <textarea
-              key={escalationQuestion}
-              name="supportRequest"
-              defaultValue={escalationQuestion}
-              rows={3}
-              className="w-full resize-none rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Support request"
-            />
-            <Button
-              type="submit"
-              className="w-full gap-2"
-              disabled={support.state.status === 'submitting'}
-            >
-              <Send className="h-4 w-4" />
-              {support.state.status === 'submitting' ? 'Creating ticket...' : 'Create ticket'}
-            </Button>
-          </form>
+          <AskQTicketForm
+            question={escalationQuestion}
+            submitting={support.state.status === 'submitting'}
+            onSubmit={handleTicketSubmit}
+          />
         );
       }
 
@@ -362,7 +361,11 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
         activeAskQ.status === 'idle' &&
         askq.thread.length === 0 && (
           <TeraDock>
-            <AskQExampleQueries onSelectQuery={handleExampleQuery} category={activeMode} />
+            <AskQExampleQueries
+              onSelectQuery={handleExampleQuery}
+              category={activeMode}
+              isStaff={isStaff}
+            />
           </TeraDock>
         )}
 
@@ -387,7 +390,7 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
 
       {activeAskQ.status === 'error' && (
         <Alert variant="destructive">
-          <AlertDescription className="flex items-center justify-between">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             <span>{activeAskQ.error}</span>
             <button
               onClick={() =>
@@ -404,6 +407,7 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
             >
               Try again
             </button>
+            {activeMode !== 'operator-support' && <AskQSendToPerson onSend={sendToPerson} />}
           </AlertDescription>
         </Alert>
       )}
@@ -418,6 +422,11 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
             <a href="/subscription" className="mt-1 text-xs underline block">
               Upgrade for more queries
             </a>
+          )}
+          {activeMode !== 'operator-support' && (
+            <div className="mt-2">
+              <AskQSendToPerson onSend={sendToPerson} />
+            </div>
           )}
         </div>
       )}
@@ -439,7 +448,11 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
     <>
       {support.state.status === 'idle' && (
         <TeraDock>
-          <AskQExampleQueries onSelectQuery={handleExampleQuery} category="app-help" />
+          <AskQExampleQueries
+            onSelectQuery={handleExampleQuery}
+            category="app-help"
+            isStaff={isStaff}
+          />
         </TeraDock>
       )}
       <AskQAppHelpContent

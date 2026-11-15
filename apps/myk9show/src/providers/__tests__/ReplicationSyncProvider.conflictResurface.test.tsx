@@ -368,9 +368,17 @@ describe('ReplicationSyncProvider — mount-time conflict re-surface', () => {
 });
 
 describe('ReplicationSyncProvider: the conflict notice (MYK9-1995)', () => {
-  beforeEach(() => {
-    vi.mocked(toast.warning).mockClear();
-    vi.mocked(toast.dismiss).mockClear();
+  beforeEach(async () => {
+    // Own setup: the order of tests is shuffled in CI, so nothing may lean on another test's reset.
+    const { toast: actualToast } = await vi.importActual<typeof import('sonner')>('sonner');
+    vi.mocked(toast.warning).mockReset().mockImplementation(actualToast.warning);
+    vi.mocked(toast.dismiss).mockReset().mockImplementation(actualToast.dismiss);
+    authState.callback = null;
+    flagEnabled.mockReturnValue(true);
+    for (const [tableName, spy] of Object.entries(conflictSpies)) {
+      spy.mockReset();
+      spy.mockResolvedValue([makeConflictSnapshot(tableName)]);
+    }
   });
 
   it('shows one notice per conflict when the live conflict and the sign-in replay both fire', async () => {

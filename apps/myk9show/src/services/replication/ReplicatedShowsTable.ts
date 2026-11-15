@@ -34,6 +34,7 @@ import { withStoredDays, withTypedDays } from './showCalendarDays';
 import { rowToShow } from './showRowMapping';
 import { SHOW_USES_FIELD_COLUMNS, showUsesColumns, withShowUsesDefaults } from './showUsesColumns';
 import { holdOwnedSwitches } from './showUsesOwnership';
+import { narrowShowUpdatePayload } from './showUpdatePayload';
 import { showCloseRecordColumns, stripUnsetCloseRecordColumns } from './showCloseRecordColumns';
 import { mapShowStatusToDb } from './showStatusMapping';
 import { formatDateLocal } from '@/utils/dateLocal';
@@ -53,6 +54,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   private _lastMutationId: string | null = null;
 
   private showMutationManager: MutationManager | null = null;
+
+  /** MYK9-1919: the last queued `updateShow`; the next one starts after it settles. */
+  private showUpdateTail: Promise<unknown> = Promise.resolve();
 
   constructor() {
     super('shows', { logger });
@@ -333,6 +337,26 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * @returns mutation ID if queued, null if no MutationManager
    */
   async updateShow(showId: string, updates: Partial<ReplicatedShow>): Promise<string | null> {
+    return this.serializeShowUpdate(() => this.applyShowUpdate(showId, updates));
+  }
+
+  /**
+   * MYK9-1919: `applyShowUpdate` reads the row, builds the next row from that read, then writes it.
+   * Two flips that overlap (a secretary tapping several "This show uses…" switches) would both read
+   * the same row, and the later write would put back the earlier flip's old value in the replica,
+   * which a rebase then rebuilds the queued write from. One update at a time keeps each read after
+   * the previous write.
+   */
+  private serializeShowUpdate<R>(run: () => Promise<R>): Promise<R> {
+    const result = this.showUpdateTail.then(run, run);
+    this.showUpdateTail = result.catch(() => undefined);
+    return result;
+  }
+
+  private async applyShowUpdate(
+    showId: string,
+    updates: Partial<ReplicatedShow>
+  ): Promise<string | null> {
     const currentShow = await this.get(showId);
     if (!currentShow) {
       throw new Error(`Show ${showId} not found`);
@@ -381,9 +405,24 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     stripUnsetCloseRecordColumns(updatePayload, resolvedUpdates); // MYK9-1945
 
+    // MYK9-1919: a switch-only update sends only its own columns (see showUpdatePayload), so a
+    // rebase can never carry this device's copy of anything else over another device's change.
+    // Edit-form saves stay full-row writes, as their date and status contracts require.
+    const switchFields: ReadonlySet<string> = new Set(SHOW_USES_FIELD_COLUMNS.map(([f]) => f));
+    const switchOnly =
+      Object.keys(resolvedUpdates).length > 0 &&
+      Object.keys(resolvedUpdates).every(key => switchFields.has(key));
+    const queuedPayload = switchOnly
+      ? narrowShowUpdatePayload(
+          updatePayload,
+          this.toSupabaseRow(currentShow),
+          new Set(SHOW_USES_FIELD_COLUMNS.map(([, column]) => column))
+        )
+      : updatePayload;
+
     const { mutationId } = await this.writeAndQueue(showId, updatedShow, {
       operation: 'UPDATE',
-      payload: updatePayload,
+      payload: queuedPayload,
     });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);

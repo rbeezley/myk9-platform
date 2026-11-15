@@ -145,7 +145,15 @@ export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): C
   // A class whose trial has not replicated has no day to compare: it is neither
   // "opens on the day" nor "not run", and no check-in is offered (MYK9-1557).
   const dayState = trialDayState(cls.trialDate, cls.trialTimezone, ctx.now);
-  if (!ctx.isPastShow && dayState === 'unknown') return { kind: 'day-unknown' };
+  if (!ctx.isPastShow && dayState === 'unknown') {
+    // A show the exhibitor cannot read has no dates to wait for, and the row
+    // already says "Class not published yet"; "check-in unavailable" there
+    // reads as a fault. A readable show whose trial has not replicated keeps
+    // the MYK9-1557 wording.
+    return ctx.ordersById[cls.orderId]?.isShowUnreadable
+      ? { kind: 'not-yet-eligible' }
+      : { kind: 'day-unknown' };
+  }
   const dayToday = dayState === 'today';
   const dayPast = isTrialDayPast(cls.trialDate, cls.trialTimezone, ctx.now);
   if (!ctx.isPastShow && dayToday) return { kind: 'closed-today' };

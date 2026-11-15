@@ -242,6 +242,7 @@ export function useMyEntriesData({
       status?: string | null;
       entry_close_date?: string | null;
       venue_name?: string;
+      location?: string | null;
       city?: string;
       state?: string;
     } | null;
@@ -377,6 +378,7 @@ export function useMyEntriesData({
       showEndDate: parseShowDate(show?.end_date),
       location: {
         venue: show?.venue_name || '',
+        street: show?.location?.trim() || '',
         city: show?.city || '',
         state: show?.state || '',
       },

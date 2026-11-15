@@ -20,6 +20,7 @@ const classes: Record<string, ClashClassInfo> = {
   iNovA: { trialId: 't1', element: 'Interior', level: 'Novice', section: 'A' },
   cNovAt2: { trialId: 't2', element: 'Container', level: 'Novice', section: 'A' },
   cNovA2: { trialId: 't1', element: 'Container', level: 'Novice', section: 'A' },
+  iNovB: { trialId: 't1', element: 'Interior', level: 'Novice', section: 'B' },
 };
 const getClass = (id: string) => classes[id];
 
@@ -96,6 +97,23 @@ describe('findHandlerClashes (MYK9-2021)', () => {
     expect(
       find(['willow'], [pick('willow', 'cNovA')], [{ dogId: 'willow', classId: 'cNovA' }])
     ).toEqual([]);
+  });
+
+  it('asks about each dog when each is the newly entered one in a different class', () => {
+    // Willow already has Container, Scout already has Interior; this entry adds the
+    // opposite classes, so Scout needs a handler in Container and Willow in Interior.
+    const clashes = find(
+      ['willow', 'scout'],
+      [pick('scout', 'cNovA2'), pick('willow', 'iNovB')],
+      [
+        { dogId: 'willow', classId: 'cNovA' },
+        { dogId: 'scout', classId: 'iNovA' },
+      ]
+    );
+    expect(clashes).toHaveLength(2);
+    const bySubject = Object.fromEntries(clashes.map(c => [c.subjectDogId, c.subjectClassIds]));
+    expect(bySubject).toEqual({ scout: ['cNovA2'], willow: ['iNovB'] });
+    expect(new Set(clashes.map(c => c.pairKey)).size).toBe(2);
   });
 });
 

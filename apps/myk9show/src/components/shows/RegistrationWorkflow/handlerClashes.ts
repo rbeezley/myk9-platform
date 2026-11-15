@@ -31,7 +31,7 @@ export interface ClashExistingEntry {
 }
 
 export interface HandlerClash {
-  /** Stable id of the dog pair, order independent. */
+  /** Stable id of the dog pair (order independent) and the dog asked about. */
   pairKey: string;
   /** The dog who needs a handler other than the owner. */
   subjectDogId: string;
@@ -135,7 +135,9 @@ export function findHandlerClashes(input: {
         const other = subjectIsA ? b : a;
         const subjectNew = subjectIsA ? newA : newB;
         const label = labelFor(keyed.filter(item => item.dogId === a.id || item.dogId === b.id));
-        const pairKey = handlerPairKey(a.id, b.id);
+        // Keyed on the pair AND the dog asked about: when each dog is the newly
+        // entered one in a different class, both need asking (Codex, #3949).
+        const pairKey = `${handlerPairKey(a.id, b.id)}>${subject.id}`;
         const existing = pairs.get(pairKey);
         if (!existing) {
           pairs.set(pairKey, {
@@ -147,7 +149,7 @@ export function findHandlerClashes(input: {
             classLabels: [label],
             subjectClassIds: subjectNew.map(item => item.classId),
           });
-        } else if (existing.subjectDogId === subject.id) {
+        } else {
           existing.classLabels.push(label);
           existing.subjectClassIds.push(...subjectNew.map(item => item.classId));
         }

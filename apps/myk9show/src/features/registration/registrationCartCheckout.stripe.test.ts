@@ -347,6 +347,28 @@ describe('a mixed entry whose payment does not start after a wait list is saved'
     expect(entry.getItems().map(item => item.class_id)).toEqual(['class-open']);
   });
 
+  it('a 409 after the wait list is saved opens /cart and says the request is saved', async () => {
+    const review =
+      'Entry fees were updated to current show pricing. Review your entry and try again.';
+    createEntryCheckoutSessionMock.mockRejectedValueOnce(
+      new CheckoutSessionError(review, 409, null, true)
+    );
+    const entry = makeMixedEntry();
+
+    await expect(entry.submitMixed()).resolves.toEqual({
+      kind: 'reviewOnCart',
+      message: `Your waitlist request for Novice Container is saved. Payment for the other classes did not start. ${review}`,
+    });
+    expect(entry.deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
+    // Only the cart id and show travel; the server prices the cart row.
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', {
+      showId: 'show-1',
+      splitCheckoutId: expect.any(String),
+    });
+    // The healed cart is left for /cart: only the open class, not cleared.
+    expect(entry.getItems().map(item => item.class_id)).toEqual(['class-open']);
+  });
+
   it('a payment failure with nothing waitlisted shows only the payment copy', async () => {
     fetchCartCapacityMock.mockResolvedValue({
       judgeDays: [],

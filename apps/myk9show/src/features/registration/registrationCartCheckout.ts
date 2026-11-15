@@ -148,6 +148,15 @@ export async function submitRegistrationCartCheckout({
     return { kind: 'navigated' };
   }
 
+  // A full class may already be on its wait list (saved before Stripe was
+  // asked). Say so on every failure below, or she cannot tell from the kept
+  // selections. A retry re-sends that line, and `add_to_waitlist` answers with
+  // the request it already holds for that dog and class rather than adding a
+  // second one.
+  const saved = outcome.savedWaitlist ?? [];
+  const withSaved = (message: string) =>
+    saved.length > 0 ? `${describeSavedWaitlist(saved)} ${message}` : message;
+
   // A 409 means the server's cart row is now what must be reviewed: on a fee
   // drift stripe-checkout heals the stored line fees and totals before
   // answering, and on a closed class the /cart load reconciles the lines and
@@ -157,7 +166,8 @@ export async function submitRegistrationCartCheckout({
   // loads it fresh (the recovery /cart's own Pay runs on a 409).
   if (outcome.status === 409) {
     deps.navigate(buildScopedCartHref(showId));
-    return { kind: 'reviewOnCart', message: outcome.message };
+    // The caller shows this over /cart, where the cart now is.
+    return { kind: 'reviewOnCart', message: withSaved(outcome.message) };
   }
 
   // Checkout did not start. Empty the cart this call just filled, so nothing
@@ -167,14 +177,7 @@ export async function submitRegistrationCartCheckout({
   if (!(await deps.clearCart())) {
     await deps.abandonCart();
   }
-  // A full class may already be on its wait list (saved before Stripe was
-  // asked). Say so, or she cannot tell from the kept selections. A retry
-  // re-sends that line, and `add_to_waitlist` answers with the request it
-  // already holds for that dog and class rather than adding a second one.
-  const saved = outcome.savedWaitlist ?? [];
-  throw new PlainEntryError(
-    saved.length > 0 ? `${describeSavedWaitlist(saved)} ${outcome.message}` : outcome.message
-  );
+  throw new PlainEntryError(withSaved(outcome.message));
 }
 
 /** "Your waitlist request for Novice Container is saved. Payment for ..." */

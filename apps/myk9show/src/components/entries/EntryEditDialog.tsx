@@ -445,6 +445,7 @@ export function EntryEditDialog({
         classId={pullDialog.classId}
         className={pullDialog.className}
         registry={registry}
+        showId={entry.showId}
         isSaving={isSaving}
         withdrawDisabledReason={
           pullDialog.classId

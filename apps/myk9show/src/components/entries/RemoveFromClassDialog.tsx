@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { getWithdrawalPolicy } from '@/features/registries';
+import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import { registryResolutionKey, type ShowRegistryResolution } from './useShowRegistryId';
 
@@ -70,6 +71,12 @@ export interface RemoveFromClassDialogProps {
    * value (MYK9-632 round 4).
    */
   registry: ShowRegistryResolution;
+  /**
+   * MYK9-1976: the show, so the chooser can print the club's own refund and withdrawal
+   * policy text under the two choices. Optional: without it (or offline, before the text
+   * has loaded) the chooser shows its own two sentences only.
+   */
+  showId?: string | null;
   isSaving: boolean;
   /**
    * Why Withdraw cannot be offered for this row right now (a paid entry, a
@@ -125,6 +132,7 @@ function RemoveFromClassBody({
   className,
   classWhen = null,
   registry,
+  showId = null,
   isSaving,
   withdrawDisabledReason = null,
   pullDisabledReason = null,
@@ -264,6 +272,12 @@ function RemoveFromClassBody({
               <p className="mt-2 text-sm text-muted-foreground">{pullDisabledReason}</p>
             )}
           </div>
+
+          <WithdrawalPolicyDisclosure
+            showId={showId}
+            heading="The club’s refund and withdrawal policy"
+            className="max-h-48 overflow-y-auto rounded-lg border p-3"
+          />
         </div>
       )}
 

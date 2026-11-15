@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { useShowVenueWifi } from '@/hooks/queries/useShowVenueWifi';
-import { useShowWithdrawalPolicySummary } from '@/hooks/queries/useShowWithdrawalPolicySummary';
+import { useEffectiveWithdrawalPolicy } from '@/features/payments/useEffectiveWithdrawalPolicy';
+import type { WithdrawalPolicyTextSource } from '@/features/payments/withdrawalPolicyText';
 import { buildVenueMapsUrls } from '@/utils/venueMaps';
-import { summarizeWithdrawalPolicy } from './withdrawalPolicySummary';
 import type { Show } from '@/types/show-types';
 
 const SECTION_CLASS = 'rounded-xl border bg-card text-card-foreground shadow-sm';
@@ -78,9 +78,18 @@ export function ShowAboutEntries({
   );
 }
 
+const POLICY_SOURCE_NOTE: Record<WithdrawalPolicyTextSource, string> = {
+  show: 'This show’s own text.',
+  club: 'The club’s text, used by every show that sets none of its own.',
+  default: 'The default text, built from the policy fields and the show’s registry.',
+};
+
+/**
+ * MYK9-1976: the policy text exhibitors read, exactly as they read it (the show's text, else
+ * the club's, else the default), and which of the three it is.
+ */
 export function ShowAboutWithdrawal({ showId }: { showId: string }) {
-  const policy = useShowWithdrawalPolicySummary(showId);
-  const lines = policy.data ? summarizeWithdrawalPolicy(policy.data) : [];
+  const policy = useEffectiveWithdrawalPolicy(showId);
   return (
     <section aria-label="Withdrawal policy" className={`${SECTION_CLASS} space-y-1 p-4`}>
       <h2 className="font-semibold">Withdrawal policy</h2>
@@ -88,16 +97,15 @@ export function ShowAboutWithdrawal({ showId }: { showId: string }) {
         <Skeleton className="h-5 w-56" aria-label="Loading withdrawal policy" />
       ) : !policy.data ? (
         <p className="text-sm">The withdrawal policy is unavailable right now.</p>
-      ) : lines.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          This show uses the club default withdrawal policy.
-        </p>
       ) : (
-        lines.map(line => (
-          <p key={line} className="text-sm">
-            {line}
+        <>
+          <p className="whitespace-pre-line text-sm" data-testid="withdrawal-policy-text">
+            {policy.data.text}
           </p>
-        ))
+          <p className="text-xs text-muted-foreground">
+            {POLICY_SOURCE_NOTE[policy.data.textSource]}
+          </p>
+        </>
       )}
       <Link to="?edit=true&editTab=venue" className={LINK_CLASS}>
         Change in Venue &amp; policies

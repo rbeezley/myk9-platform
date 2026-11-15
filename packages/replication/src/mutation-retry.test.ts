@@ -538,16 +538,16 @@ describe('classifyMutationFailure', () => {
 
   describe('a temporary server answer keeps retrying and never parks (MYK9-2011)', () => {
     it.each([
-      ['a statement timeout (57014)', { message: 'statement timeout', code: '57014' }, undefined],
-      ['a deadlock (40P01)', { message: 'deadlock detected', code: '40P01' }, undefined],
-      ['a plain 500', { message: 'internal', code: '', httpStatus: 500 }, undefined],
-    ])('%s at the last retry stays pending and spends no budget', (_n, error, rpcName) => {
+      ['a statement timeout (57014)', { message: 'statement timeout', code: '57014' }],
+      ['a deadlock (40P01)', { message: 'deadlock detected', code: '40P01' }],
+      ['a plain 500', { message: 'internal', code: '', httpStatus: 500 }],
+    ])('%s at the last retry stays pending and spends no budget', (_n, error) => {
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
       const result = classifyMutationFailure({
         mutation: {
           ...mutation({
             retries: 2,
-            ...(rpcName && { rpc: { name: rpcName, fields: { is_scored: true } } }),
+            rpc: { name: 'ringside_update_entry', fields: { is_scored: true } },
           }),
           transportRetries: 1,
         },

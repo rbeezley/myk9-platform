@@ -6,6 +6,7 @@
 import { formatTimeLimitSeconds } from '@myk9/core';
 import { formatIntRange, type ClassRequirements } from '@/hooks/queries/useClassRequirements';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import { classTimerMode } from '@/pages/scoring/classScoringRules';
 import { isRuleCurrent } from '@/services/replication/resolveClassTimeLimitRules';
 
 function ruleTime(cls: ReplicatedClass): Pick<ClassRequirements, 'time_limit_text' | 'time_type'> {
@@ -43,7 +44,7 @@ export function classRequirementsFromClass(
     area_count: rule?.areaCount ?? cls.areaCount ?? 1,
     hides_known: rule?.hidesKnown ?? cls.hidesKnown ?? true,
     has_blank: rule?.hasBlank ?? false,
-    timer_mode: rule?.timerMode ?? cls.timerMode ?? 'single',
+    timer_mode: classTimerMode(cls) ?? 'single',
     odors: rule?.odors ?? [],
     // Only what the cached rule says: an older cache shows no note until the next
     // sync refreshes it, rather than guessing a timer's fallback.

@@ -2,18 +2,19 @@
  * AKC Nationals Live Scoresheet (Judge View)
  *
  * Nationals scoring uses 5 search areas with points-based scoring.
- * +10 points per correct alert, -5 points per incorrect alert.
+ * +10 points per correct alert, -5 per incorrect alert and -5 per finish call error
+ * (NATIONALS_SCORING, MYK9-1835).
  * Results: Q/NQ/ABS/EX/DQ. Placement is the server's ranking, never set here.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Check } from 'lucide-react';
+import { NATIONALS_SCORING } from '@myk9/core';
 import { Button, Card, cn } from '@myk9/ui';
 import { ScoresheetShell } from '../../ScoresheetShell';
 import { ScoresheetTimerCard, timerPrimaryButtonClass } from '../../ScoresheetTimerCard';
 import { ManualTimeField } from '../../ManualTimeField';
 import { ScoreConfirmationDialog } from '../../ScoreConfirmationDialog';
-import { resultLabel } from '../../../utils/resultLabel';
 import { StopwatchTime } from '../../StopwatchTime';
 import { MaxTimeRing } from '../../MaxTimeRing';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
@@ -22,37 +23,19 @@ import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel } from '../../../utils/maxTimeLabel';
-import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
+import { DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
-import { calculatePoints, seedAlerts, sum } from './nationalsAlerts';
+import { QUALIFYING_OPTIONS } from './nationalsResultOptions';
+import { NationalsAreaBreakdown } from './NationalsAreaBreakdown';
+import {
+  calculatePoints,
+  NATIONALS_AREA_COUNT,
+  nationalsAreaLimitSeconds,
+  seedAlerts,
+  sum,
+} from './nationalsAlerts';
 import { scoringSource, timerPersist } from '../../../utils/timerPersist';
-
-const QUALIFYING_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
-  {
-    value: 'Q',
-    label: resultLabel('Q'),
-    activeClass: 'bg-green-600 hover:bg-green-700 border-green-600',
-  },
-  {
-    value: 'NQ',
-    label: resultLabel('NQ'),
-    activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500',
-  },
-  {
-    value: 'ABS',
-    label: resultLabel('ABS'),
-    activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500',
-  },
-  {
-    value: 'EX',
-    label: resultLabel('EX'),
-    activeClass: 'bg-red-600 hover:bg-red-700 border-red-600',
-  },
-  { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
-];
-
-const NATIONALS_AREA_COUNT = 5;
 
 export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
@@ -68,7 +51,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
 }) => {
-  const areaCount = rules.areaCount ?? NATIONALS_AREA_COUNT;
+  const areaCount = NATIONALS_AREA_COUNT;
   const [currentArea, setCurrentArea] = useState(0);
   // MYK9-2006: only totals are stored; a reopened score carries them in Area 1.
   const [saved] = useState(() => entry.existingScore);
@@ -83,12 +66,23 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   );
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const areaMaxSeconds =
-    rules.maxTimeSeconds > 0 ? Math.floor(rules.maxTimeSeconds / areaCount) : 0; // no limit
+  // MYK9-2019: the one limit the timer stops at, "Use max time" fills and a Qualified
+  // is checked against. 0 = no limit.
+  const areaMaxSeconds = nationalsAreaLimitSeconds(rules.maxTimeSeconds, areaCount);
   const areaMaxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
+  const scoringRules = useMemo(
+    () => ({
+      ...rules,
+      areaCount,
+      areaMaxTimeSeconds: Array.from({ length: areaCount }, () => areaMaxSeconds),
+    }),
+    [rules, areaCount, areaMaxSeconds]
+  );
+
   const scoring = useScoresheetScoring({
-    rules: { ...rules, areaCount },
+    rules: scoringRules,
+    qualifiedRules: {},
     ...scoringSource(entry),
   });
 
@@ -149,7 +143,15 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     if (value === 'DQ') scoring.setNonQualifyingReason('');
   };
 
-  const totalPoints = calculatePoints(correctAlerts, incorrectAlerts);
+  const totalPoints = calculatePoints(correctAlerts, incorrectAlerts, finishCallErrors);
+
+  // The sentence for a Qualified that cannot be saved: this area's, else the first other area's.
+  const otherAreaProblem = scoring.qualifiedTimeProblems.findIndex(p => p !== null);
+  const timeProblem =
+    scoring.qualifiedTimeProblems[currentArea] ??
+    (otherAreaProblem >= 0
+      ? `Area ${otherAreaProblem + 1}: ${scoring.qualifiedTimeProblems[otherAreaProblem]}`
+      : null);
 
   const handleSubmitClick = () => {
     if (!scoring.qualifying) return;
@@ -205,7 +207,8 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
-            scoring.hasUnresolvedTime,
+            scoring.hasUnresolvedTime ||
+            scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,
         }}
       >
@@ -309,6 +312,9 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           value={scoring.areas[currentArea]?.time ?? ''}
           onChange={value => scoring.handleAreaUpdate(currentArea, 'time', value)}
           ariaLabel={`Area ${currentArea + 1} time`}
+          maxLabel={maxTimeLabel(areaMaxSeconds)}
+          problem={timeProblem}
+          onUseMax={scoring.setToMaxTime(currentArea)}
         />
 
         {/* Alert Counters */}
@@ -340,7 +346,9 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   +
                 </Button>
               </div>
-              <div className="text-xs text-green-600">+10 pts each</div>
+              <div className="text-xs text-green-600">
+                +{NATIONALS_SCORING.CORRECT_ALERT_POINTS} pts each
+              </div>
             </div>
           </Card>
           <Card className="p-2">
@@ -370,7 +378,9 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   +
                 </Button>
               </div>
-              <div className="text-xs text-red-600">-5 pts each</div>
+              <div className="text-xs text-red-600">
+                -{NATIONALS_SCORING.INCORRECT_ALERT_PENALTY} pts each
+              </div>
             </div>
           </Card>
         </div>
@@ -378,7 +388,12 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         {/* Finish Call Errors */}
         <Card className="p-2">
           <div className="flex items-center justify-between">
-            <span className="font-medium">Finish Call Errors:</span>
+            <span className="font-medium">
+              Finish Call Errors:{' '}
+              <span className="text-xs font-normal text-red-600">
+                -{NATIONALS_SCORING.FINISH_CALL_ERROR_PENALTY} pts each
+              </span>
+            </span>
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
@@ -468,27 +483,11 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           onCancel={() => setShowConfirmation(false)}
           onConfirm={handleConfirmSubmit}
         >
-          {/* Area breakdown */}
-          <div className="space-y-1">
-            <div className="text-sm font-medium text-muted-foreground">Area Breakdown</div>
-            <div className="grid gap-1">
-              {scoring.areas.map((area, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-1.5 text-sm"
-                >
-                  <span className="font-medium">{area.areaName}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono">{area.time || '--:--'}</span>
-                    <span className="text-green-600">+{(correctAlerts[i] ?? 0) * 10}</span>
-                    {(incorrectAlerts[i] ?? 0) > 0 && (
-                      <span className="text-red-600">-{(incorrectAlerts[i] ?? 0) * 5}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <NationalsAreaBreakdown
+            areas={scoring.areas}
+            correctAlerts={correctAlerts}
+            incorrectAlerts={incorrectAlerts}
+          />
         </ScoreConfirmationDialog>
       )}
     </>

@@ -1788,6 +1788,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           default_withdrawal_policy_notes: string | null
+          default_withdrawal_policy_text: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null
           deleted_at: string | null
@@ -1817,6 +1818,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           default_withdrawal_policy_notes?: string | null
+          default_withdrawal_policy_text?: string | null
           default_withdrawal_retention_type?: string | null
           default_withdrawal_retention_value?: number | null
           deleted_at?: string | null
@@ -1846,6 +1848,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           default_withdrawal_policy_notes?: string | null
+          default_withdrawal_policy_text?: string | null
           default_withdrawal_retention_type?: string | null
           default_withdrawal_retention_value?: number | null
           deleted_at?: string | null
@@ -8853,6 +8856,7 @@ export type Database = {
           waitlist_payment_deadline_hours: number
           withdrawal_cutoff_date: string | null
           withdrawal_policy_notes: string | null
+          withdrawal_policy_text: string | null
           withdrawal_retention_type: string | null
           withdrawal_retention_value: number | null
           zip_code: string | null
@@ -8931,6 +8935,7 @@ export type Database = {
           waitlist_payment_deadline_hours?: number
           withdrawal_cutoff_date?: string | null
           withdrawal_policy_notes?: string | null
+          withdrawal_policy_text?: string | null
           withdrawal_retention_type?: string | null
           withdrawal_retention_value?: number | null
           zip_code?: string | null
@@ -9009,6 +9014,7 @@ export type Database = {
           waitlist_payment_deadline_hours?: number
           withdrawal_cutoff_date?: string | null
           withdrawal_policy_notes?: string | null
+          withdrawal_policy_text?: string | null
           withdrawal_retention_type?: string | null
           withdrawal_retention_value?: number | null
           zip_code?: string | null
@@ -11440,6 +11446,7 @@ export type Database = {
           offered_at: string | null
           position: number
           promoted_entry_id: string | null
+          refilled_by_offer_id: string | null
           status: string | null
           updated_at: string | null
           version: number
@@ -11456,6 +11463,7 @@ export type Database = {
           offered_at?: string | null
           position: number
           promoted_entry_id?: string | null
+          refilled_by_offer_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number
@@ -11472,6 +11480,7 @@ export type Database = {
           offered_at?: string | null
           position?: number
           promoted_entry_id?: string | null
+          refilled_by_offer_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number
@@ -13572,6 +13581,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           default_withdrawal_policy_notes: string | null
+          default_withdrawal_policy_text: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null
           deleted_at: string | null
@@ -13898,6 +13908,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           default_withdrawal_policy_notes: string | null
+          default_withdrawal_policy_text: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null
           deleted_at: string | null
@@ -14236,6 +14247,7 @@ export type Database = {
           waitlist_payment_deadline_hours: number
           withdrawal_cutoff_date: string | null
           withdrawal_policy_notes: string | null
+          withdrawal_policy_text: string | null
           withdrawal_retention_type: string | null
           withdrawal_retention_value: number | null
           zip_code: string | null
@@ -15381,6 +15393,7 @@ export type Database = {
           waitlist_payment_deadline_hours: number
           withdrawal_cutoff_date: string | null
           withdrawal_policy_notes: string | null
+          withdrawal_policy_text: string | null
           withdrawal_retention_type: string | null
           withdrawal_retention_value: number | null
           zip_code: string | null
@@ -15806,6 +15819,10 @@ export type Database = {
       waitlist_class_trial_has_passed: {
         Args: { p_class_id: string }
         Returns: boolean
+      }
+      waitlist_offer_to_refill: {
+        Args: { p_class_id: string; p_offered_at: string }
+        Returns: string
       }
       withdraw_own_entry: {
         Args: {

@@ -15,8 +15,8 @@ vi.mock('@/components/shows/ShowDetails/showManagementOutlet', () => ({
   useShowManagementOutlet: () => harness.outlet,
 }));
 vi.mock('@/hooks/queries/useShowVenueWifi', () => ({ useShowVenueWifi: () => harness.wifi }));
-vi.mock('@/hooks/queries/useShowWithdrawalPolicySummary', () => ({
-  useShowWithdrawalPolicySummary: () => harness.policy,
+vi.mock('@/features/payments/useEffectiveWithdrawalPolicy', () => ({
+  useEffectiveWithdrawalPolicy: () => harness.policy,
 }));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
   PremiumDownloadCard: () => <div id="setup-publish-premium" data-testid="premium-card" />,
@@ -52,7 +52,12 @@ beforeEach(() => {
     isError: false,
   };
   harness.policy = {
-    data: { cutoffDate: '2026-12-01', retentionType: 'flat', retentionValue: 500, notes: null },
+    data: {
+      policy: null,
+      text: 'Heartland refunds: full until December 1.\nAfter that, $5.00 is kept.',
+      textSource: 'club',
+      registryId: 'AKC',
+    },
     isLoading: false,
     isError: false,
   };
@@ -70,14 +75,43 @@ describe('ShowAboutPage (MYK9-1683)', () => {
       expect.stringContaining('google.com/maps')
     );
     expect(screen.getByText(/ExpoGuest/)).toBeInTheDocument();
-    expect(screen.getByText(/Full refund of the entry fee until/)).toBeInTheDocument();
-    expect(screen.getByText(/after that, \$5\.00 is kept/)).toBeInTheDocument();
+    // MYK9-1976: About prints the text exhibitors read, here the club's, line breaks kept.
+    expect(screen.getByTestId('withdrawal-policy-text').textContent).toBe(
+      'Heartland refunds: full until December 1.\nAfter that, $5.00 is kept.'
+    );
+    expect(screen.getByText(/The club’s text/)).toBeInTheDocument();
+    expect(screen.getByText('Service fees are non-refundable.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Entries and fees' })).toBeInTheDocument();
     expect(screen.getByTestId('officials')).toBeInTheDocument();
     expect(screen.getByTestId('judges')).toBeInTheDocument();
     expect(screen.getByTestId('share')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^edit show$/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /view as exhibitor/i })).toBeInTheDocument();
+  });
+
+  it('links managers to the Access codes panel on Show Desk, the Actions menu href', () => {
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    const link = screen.getByRole('link', { name: /access codes/i });
+    expect(link).toHaveAttribute('href', '/shows/show-1?tool=access-codes');
+    expect(link).toHaveTextContent('Codes for judges and ringside phones');
+    expect(screen.queryByRole('button', { name: /regenerate/i })).toBeNull();
+  });
+
+  it('hides the Access codes row when Judges score on devices is off', () => {
+    harness.outlet = {
+      show: { ...show, usesDeviceScoring: false },
+      canManageShow: true,
+      judges: [],
+      managerEntryCount: 12,
+    };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.queryByRole('link', { name: /access codes/i })).toBeNull();
+  });
+
+  it('shows no Access codes row to a non-manager', () => {
+    harness.outlet = { show, canManageShow: false, judges: [], managerEntryCount: 12 };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.queryByRole('link', { name: /access codes/i })).toBeNull();
   });
 
   it('has nothing editable in place', () => {
@@ -95,20 +129,26 @@ describe('ShowAboutPage (MYK9-1683)', () => {
     );
   });
 
-  it('says so when no Wi-Fi or withdrawal policy is set', () => {
+  it('says so when no Wi-Fi is set, and prints the default policy text when none is written', () => {
     harness.wifi = {
       data: { venueWifiNetwork: null, venueWifiPassword: null },
       isLoading: false,
       isError: false,
     };
     harness.policy = {
-      data: { cutoffDate: null, retentionType: null, retentionValue: null, notes: null },
+      data: {
+        policy: null,
+        text: 'Refund policy: contact the club.',
+        textSource: 'default',
+        registryId: 'AKC',
+      },
       isLoading: false,
       isError: false,
     };
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
     expect(screen.getByText('No Wi-Fi set.')).toBeInTheDocument();
-    expect(screen.getByText(/club default withdrawal policy/)).toBeInTheDocument();
+    expect(screen.getByText('Refund policy: contact the club.')).toBeInTheDocument();
+    expect(screen.getByText(/The default text/)).toBeInTheDocument();
   });
 
   it('does not invent empty facts when the reads are paused with nothing cached', () => {
@@ -116,7 +156,7 @@ describe('ShowAboutPage (MYK9-1683)', () => {
     harness.policy = { data: undefined, isLoading: false, isError: false };
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
     expect(screen.queryByText('No Wi-Fi set.')).toBeNull();
-    expect(screen.queryByText(/club default withdrawal policy/)).toBeNull();
+    expect(screen.queryByTestId('withdrawal-policy-text')).toBeNull();
     expect(screen.getByText(/Wi-Fi is unavailable/)).toBeInTheDocument();
     expect(screen.getByText(/withdrawal policy is unavailable/)).toBeInTheDocument();
   });

@@ -151,6 +151,11 @@ function mergeShowFacts(accum: ShowAccum, order: MyEntry): void {
   group.showDate = group.showDate ?? order.showDate;
   group.showEndDate = group.showEndDate ?? order.showEndDate;
   if (!group.location.venue && order.location.venue) group.location = order.location;
+  // The street address is read independently: a degraded row can carry a venue
+  // name but no street, and the first order must not hide a later one's.
+  if (!group.location.street && order.location.street) {
+    group.location = { ...group.location, street: order.location.street };
+  }
   // The editing window is the show's, so take the EARLIEST close date any order
   // carries — the header must never advertise a window that has already shut.
   if (order.entryCloseDate) {

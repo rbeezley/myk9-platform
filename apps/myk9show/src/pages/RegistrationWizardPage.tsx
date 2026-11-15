@@ -39,6 +39,7 @@ import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationW
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { useOnlyDogPreselect } from './RegistrationWizardPage/useOnlyDogPreselect';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+import { usePaymentAmountDueCents } from './RegistrationWizardPage/usePaymentAmountDue';
 import { EMPTY_ENTRY_NOTICE } from './RegistrationWizardPage/proceedGating';
 import {
   buildAddAnotherEntrySearch,
@@ -109,6 +110,9 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     handleDogSelectionChange,
     handleClassSelectionChange,
     handleHandlerAssignmentChange,
+    handlerClashDeferred,
+    setHandlerClashDeferred,
+    setHandlerClashPending,
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,
@@ -152,6 +156,13 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
   // copies would double the tab stops and the blocked-reason `aria-describedby`
   // target.
   const isDesktopLayout = useMediaQuery('(min-width: 1024px)', true);
+  // MYK9-1964: card Pay names the total the panel shows (same derivation).
+  const payAmountDueCents = usePaymentAmountDueCents({
+    paymentMethod: paymentResolution.effectivePaymentMethod,
+    feeCalculation: liveFeeCalculation,
+    capacityReady,
+    feeTier: entryWindowTimezoneState,
+  });
   const isStaff = currentWorkflowMode !== 'exhibitor';
 
   // The reason travels WITH the navigation, rendered once wherever the buttons
@@ -174,7 +185,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
         onNext={handleNext}
         nextLabel={
           currentStepId === 'payment'
-            ? getPaymentSubmitLabel(registrationData.paymentMethod)
+            ? getPaymentSubmitLabel(registrationData.paymentMethod, payAmountDueCents)
             : 'Next'
         }
         backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
@@ -415,6 +426,11 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               }}
               onClassSelectionChange={handleClassSelectionChange}
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
+              handlerClash={{
+                deferredPairKeys: handlerClashDeferred,
+                onDeferredChange: setHandlerClashDeferred,
+                onPendingChange: setHandlerClashPending,
+              }}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
               onPaymentMethodClear={handlePaymentMethodClear}
               getPaymentDetails={() => paymentDetailsRef.current}

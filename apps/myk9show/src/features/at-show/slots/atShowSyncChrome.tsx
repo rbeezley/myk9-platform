@@ -21,16 +21,19 @@ import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
  */
 
 /** The offline note: icon-only popover button on phones, the amber wrapping line from `sm`. */
-export const OfflineSyncNoteView: React.FC<{ label: string; className?: string | undefined }> = ({
-  label,
-  className,
-}) => (
+export const OfflineSyncNoteView: React.FC<{
+  label: string;
+  className?: string | undefined;
+  /** MYK9-2011: the count opens the Scores not sent list (from `sm`; phones keep the popover). */
+  href?: string | undefined;
+}> = ({ label, className, href }) => (
   <>
     <span className="inline-flex sm:hidden">
       <OfflineScoresIndicator isOnline={false} message={label} />
     </span>
     <OfflineStatusLine
       note={label}
+      href={href}
       className={cn(
         'at-show-offline-indicator min-w-0 gap-1.5 text-xs font-medium max-sm:hidden',
         className

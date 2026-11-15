@@ -79,10 +79,9 @@ export async function joinFullClassAsWillow(exhibitor: Page, admin: SupabaseClie
   });
   await cardPayment.evaluate((button: HTMLElement) => button.click());
   await exhibitor.getByText(/I have read and agree to the .* entry agreement/i).click();
+  // MYK9-1964: no /cart stop. With nothing to pay, the same checkout /cart runs
+  // files the waitlist request and goes straight to the success page.
   await exhibitor.getByRole('button', { name: /^Submit & pay$/ }).click();
-
-  await expect(exhibitor).toHaveURL(`/cart?showId=${SHOW_ID}`, { timeout: 15_000 });
-  await exhibitor.getByRole('button', { name: /^Join the waitlist \(1 request\)$/ }).click();
   await expect(exhibitor).toHaveURL(/\/checkout\/success\?waitlist=1/, { timeout: 20_000 });
 
   const willow = await rowFor(admin, DOGS.willow);

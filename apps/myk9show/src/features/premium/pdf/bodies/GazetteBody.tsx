@@ -180,6 +180,16 @@ export function GazetteBody({ data, tokens }: Props) {
         )}
       </View>
 
+      {/* MYK9-1976: full-width and free to break across pages, so the policy is never cut. */}
+      {f.withdrawalPolicy && (
+        <View style={{ marginTop: 16 }}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>{f.withdrawalPolicy.label}</Text>
+          </View>
+          <Text style={bodyTextStyle}>{f.withdrawalPolicy.text}</Text>
+        </View>
+      )}
+
       {/* Show Hours, Trial Information, and Notices run full-width below the
           3-col grid — these are paragraph-length narratives that don't read
           well in a 32% column. */}

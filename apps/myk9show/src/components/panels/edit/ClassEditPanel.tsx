@@ -38,6 +38,8 @@ import { locateClassField, type ClassTabValue } from './ClassEditPanel.validatio
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { formatJudgeAvailabilityWindow } from '@/utils/classJudgeDisplay';
+import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
+import type { OutgoingJudge } from './ClassEditPanel.types';
 
 // Cast schemas to match the pre-existing form data interfaces.
 // Needed because exactOptionalPropertyTypes causes structural mismatch
@@ -60,10 +62,11 @@ export function resolveJudgeDisplay(
 type CapacitySourceLike = Parameters<typeof hasLoadedCapacity>[0];
 
 // Simple mode form for TrialClass
-const TrialClassEditForm: React.FC<{ showId?: string; capacityLoaded: boolean }> = ({
-  showId,
-  capacityLoaded,
-}) => {
+const TrialClassEditForm: React.FC<{
+  showId?: string;
+  capacityLoaded: boolean;
+  outgoingJudge: OutgoingJudge;
+}> = ({ showId, capacityLoaded, outgoingJudge }) => {
   const { data, form } = useEditPanel<TrialClassEditFormData>();
   const { shows } = useShowStore();
 
@@ -176,6 +179,7 @@ const TrialClassEditForm: React.FC<{ showId?: string; capacityLoaded: boolean }>
                   </SelectContent>
                 </Select>
               )}
+              <JudgeChangeWarning {...outgoingJudge} selectedJudgeId={data.judgeId} />
             </FormField>
             <FormField label="Status" fieldId="trialStatus" required error={statusError}>
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
@@ -225,6 +229,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   initialClassData,
   onSave,
   enableAutoSave = false,
+  classId,
   showId,
   mode = 'full',
   onDelete,
@@ -252,6 +257,14 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   };
 
   const capacityLoaded = hasLoadedCapacity(initialClassData as CapacitySourceLike);
+  const initialRecord = (initialClassData ?? {}) as Partial<ClassData> & Partial<TrialClass>;
+  // The judge this panel opened with: the one a change replaces (MYK9-2015).
+  const outgoingJudge: OutgoingJudge = {
+    classId,
+    classStatus: initialRecord.status,
+    outgoingJudgeId: initialRecord.judgeId,
+    outgoingJudgeName: initialRecord.judgeName || initialRecord.judge,
+  };
 
   if (isSimpleMode) {
     const initialFormData = trialClassToFormData(initialClassData as Partial<TrialClass>);
@@ -270,6 +283,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
       >
         <TrialClassEditForm
           capacityLoaded={capacityLoaded}
+          outgoingJudge={outgoingJudge}
           {...(showId !== undefined && { showId })}
         />
       </EditPanelWrapper>
@@ -293,6 +307,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
     >
       <ClassEditForm
         activeTab={activeTab}
+        outgoingJudge={outgoingJudge}
         onTabChange={setActiveTab}
         capacityLoaded={capacityLoaded}
         {...(showId !== undefined && { showId })}

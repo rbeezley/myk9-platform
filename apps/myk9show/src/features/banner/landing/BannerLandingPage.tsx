@@ -3,6 +3,7 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
+import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureBannerFontsLoaded, BANNER_DISPLAY_FAMILY } from '../fonts';
 import { useBannerLandingData } from './useBannerLandingData';
@@ -132,6 +133,7 @@ export function BannerLandingPage({
           flag={brandColors.flag}
           flagText={brandColors.flagText}
         />
+        <WithdrawalPolicySection showId={show?.id} className="bn-section" />
         <JudgesSection
           judges={data.judges}
           trialsCount={data.trials.length}

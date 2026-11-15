@@ -58,7 +58,10 @@ test.describe('exhibitor fixture', () => {
     // broken: once reseeded, the demo exhibitor has a real profile row and the
     // control would fail on a correct fixture (Codex review, #2392).
     await page.route('**/rest/v1/exhibitor_profiles*', route => fulfillRows(route, []));
-    await signInAsExhibitor(page, '/exhibitor/entries');
+    // Find Shows, not My Shows: My Shows, the cart and messages are an
+    // exhibitor's own pages and never redirect (MYK9-2028), so the control
+    // proves the gate on a page that still does.
+    await signInAsExhibitor(page, '/shows');
 
     // `networkidle` is NOT a synchronisation point for this redirect: it fires
     // when requests go quiet, while the redirect happens in an effect after
@@ -68,7 +71,7 @@ test.describe('exhibitor fixture', () => {
       .poll(() => new URL(page.url()).pathname, {
         timeout: 15000,
         message:
-          'the exhibitor reached /exhibitor/entries with an EMPTY profile read, so ' +
+          'the exhibitor stayed on /shows with an EMPTY profile read, so ' +
           'the onboarding gate no longer keys on exhibitor_profiles and the fixture ' +
           'row is no longer what makes the converted specs pass. Re-check the control.',
       })

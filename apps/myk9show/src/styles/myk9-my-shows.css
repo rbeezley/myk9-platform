@@ -146,10 +146,12 @@
   gap: 16px;
 }
 
+/* Name, then the labelled armband beneath it. */
 .myk9-entries-dog-card-identity {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -188,6 +190,14 @@
   min-width: 0;
   min-height: 44px;
   padding: 6px 0;
+}
+
+/* Judge and time: their own line, free to wrap, so a long name never pushes the
+   check-in control off a phone. */
+.myk9-entries-class-when-detail {
+  display: block;
+  white-space: normal;
+  max-width: 16rem;
 }
 
 .myk9-entries-class-when {

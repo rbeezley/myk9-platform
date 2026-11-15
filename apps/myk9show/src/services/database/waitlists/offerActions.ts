@@ -28,7 +28,9 @@ export class WaitlistOfferNotWithdrawnError extends Error {
  * (MYK9-1001): the waitlist row (offered / withdrawn / expired) and the entry
  * the offer created (pending-payment on an offer, promotion-expired after a
  * withdrawal or expiry). The tab's class counts read that entry, so "Offer
- * Spot" appears for a freed seat and never for a seat an offer just took.
+ * Spot" appears for a freed seat and never for a seat an offer just took. After
+ * an offer, also the expired offer it refilled (MYK9-1988: the server marks that
+ * row, not the new one), so the run-out list drops it at once.
  *
  * Both go through the replication tables. The waitlist table is not on the
  * realtime publication, and the tab reads the replica only. The entry uses the
@@ -37,18 +39,29 @@ export class WaitlistOfferNotWithdrawnError extends Error {
  *
  * Best effort: a failure is logged and the next sync settles the rows.
  */
+const OFFER_ROW_COLUMNS =
+  'id, class_id, dog_id, exhibitor_id, handler_id, position, status, joined_via, offered_at, offer_expires_at, promoted_entry_id, refilled_by_offer_id, created_at, updated_at';
+
 export async function refreshOfferRowsInReplica(waitlistEntryId: string): Promise<void> {
   try {
     const { data, error } = await supabase
       .from('waitlist_entries')
-      .select(
-        'id, class_id, dog_id, exhibitor_id, handler_id, position, status, joined_via, offered_at, offer_expires_at, promoted_entry_id, created_at, updated_at'
-      )
+      .select(OFFER_ROW_COLUMNS)
       .eq('id', waitlistEntryId)
       .maybeSingle();
     if (error) throw error;
     if (!data) return;
     await replicatedWaitlistEntriesTable.set(waitlistEntryId, rowToWaitlistEntry(data));
+    if (data.status === 'offered') {
+      const refilled = await supabase
+        .from('waitlist_entries')
+        .select(OFFER_ROW_COLUMNS)
+        .eq('refilled_by_offer_id', waitlistEntryId);
+      if (refilled.error) throw refilled.error;
+      for (const row of refilled.data ?? []) {
+        await replicatedWaitlistEntriesTable.set(row.id, rowToWaitlistEntry(row));
+      }
+    }
     if (data.promoted_entry_id) {
       await replicatedEntriesTable.refreshServerChangedEntries([data.promoted_entry_id], {
         insert: 'if-show-loaded',

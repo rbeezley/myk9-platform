@@ -86,8 +86,10 @@ export function makeServer(row: ServerRow, options: { offline?: boolean } = {}) 
             call.applied = false;
             return { data: [], error: null };
           }
-          row.status = data.status as string;
-          row.final_placement = data.final_placement as number | null;
+          // Like PostgREST: only the columns the write names change (MYK9-2010).
+          if ('status' in data) row.status = data.status as string;
+          if ('final_placement' in data)
+            row.final_placement = data.final_placement as number | null;
           row.version += 1;
           call.applied = true;
           return { data: [{ id: data.id, version: row.version }], error: null };

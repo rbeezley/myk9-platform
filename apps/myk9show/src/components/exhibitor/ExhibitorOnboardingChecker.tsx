@@ -22,7 +22,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { holdsStaffRole } from '@/pages/onboarding/onboardingSteps';
-import { isOnboardingExemptPath } from './onboardingExemptPaths';
+import { isExhibitorOwnPagePath, isOnboardingExemptPath } from './onboardingExemptPaths';
 
 interface ExhibitorOnboardingCheckerProps {
   children: React.ReactNode;
@@ -46,6 +46,8 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // Staff are offered onboarding by a banner, never redirected (MYK9-970).
     if (holdsStaffRole(userWithRoles?.roles ?? [])) return;
     if (isOnboardingExemptPath(location.pathname)) return;
+    // Her own pages are never blocked (MYK9-2028); My Shows offers set-up instead.
+    if (isExhibitorOwnPagePath(location.pathname)) return;
     if (profileError) return;
 
     // Anonymous (passcode ringside) sessions are NOT accounts. As of migration

@@ -1,7 +1,8 @@
 /**
  * The Waitlist tab's Offered group (MYK9-1001): every open offer in the tab's
  * scope, read from the same replica rows as the queue and keyed by the same
- * class set, so it refreshes on the tab's one `reload` path.
+ * class set, so it refreshes on the tab's one `reload` path. The same read carries the offers that
+ * ran out and whose spot nobody has been offered since (MYK9-1988).
  */
 
 import { useMemo } from 'react';
@@ -19,32 +20,38 @@ export function useWaitlistOffers(
 ) {
   const offersQuery = useQuery({
     queryKey: [...queryKeyPrefix, 'offers', classIds],
-    queryFn: async (): Promise<WaitlistOffer[]> => {
+    queryFn: async (): Promise<{ open: WaitlistOffer[]; runOut: WaitlistOffer[] }> => {
       const results = await Promise.all(classIds.map(id => getWaitlistOffersByClass(id)));
       const failed = results.find(r => r.error);
       if (failed) {
         logger.error('Error loading waitlist offers:', 'secretary', {}, failed.error as Error);
         throw failed.error;
       }
-      return results
-        .flatMap(r => r.data ?? [])
-        .sort((a, b) => (a.offered_at ?? '').localeCompare(b.offered_at ?? ''));
+      const byOfferMade = (a: WaitlistOffer, b: WaitlistOffer) =>
+        (a.offered_at ?? '').localeCompare(b.offered_at ?? '');
+      return {
+        open: results.flatMap(r => r.data ?? []).sort(byOfferMade),
+        runOut: results.flatMap(r => r.runOut ?? []).sort(byOfferMade),
+      };
     },
     enabled: enabled && classIds.length > 0,
     ...readOptions,
   });
 
-  const offers = useMemo(() => {
-    const all = offersQuery.data ?? [];
+  const { offers, runOutOffers } = useMemo(() => {
     const search = searchTerm.toLowerCase();
-    if (!search) return all;
-    return all.filter(offer =>
-      [offer.dog?.call_name, offer.dog?.name].some(name => name?.toLowerCase().includes(search))
-    );
+    const matches = (offer: WaitlistOffer) =>
+      !search ||
+      [offer.dog?.call_name, offer.dog?.name].some(name => name?.toLowerCase().includes(search));
+    return {
+      offers: (offersQuery.data?.open ?? []).filter(matches),
+      runOutOffers: (offersQuery.data?.runOut ?? []).filter(matches),
+    };
   }, [offersQuery.data, searchTerm]);
 
   return {
     offers,
+    runOutOffers,
     isPending: enabled && classIds.length > 0 && offersQuery.isPending,
     error: offersQuery.error,
   };

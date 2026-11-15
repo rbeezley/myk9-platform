@@ -42,6 +42,8 @@ export interface ScoresheetScoringConfig {
    * a Qualified saves as before (Obedience, Rally, Fast CAT).
    */
   qualifiedRules?: { faultLimit?: FaultLimit | undefined } | undefined;
+  /** UKC and ASCA (MYK9-2008): an Excused saves only with a reason the judge chose. */
+  excusedReasonRequired?: boolean;
 }
 
 export interface ValidationResult {
@@ -57,12 +59,14 @@ export interface ScoresheetScoringReturn {
   nonQualifyingReason: string;
   /**
    * Max-time expiry: auto-sets NQ "Max Time" unless the judge already chose a
-   * DQ, EX or ABS, which an expiry must never overwrite. Safe to call from a
+   * DQ, EX or ABS, or an NQ with a reason, which an expiry must never overwrite. Safe to call from a
    * timer callback that captured an older `scoring` (it reads a ref).
    */
   applyMaxTimeNQ: () => void;
   /** A DQ with no reason: the result cannot be saved until the judge states one. */
   disqualifyReasonMissing: boolean;
+  /** An Excused with no reason where the sheet requires one (UKC, ASCA). */
+  excusedReasonMissing: boolean;
   setNonQualifyingReason: (value: string) => void;
   faultCount: number;
   setFaultCount: (value: number) => void;
@@ -142,7 +146,15 @@ function initializeAreas(
 }
 
 export function useScoresheetScoring(config: ScoresheetScoringConfig): ScoresheetScoringReturn {
-  const { rules, areaNames, existingScore, recordFinds = true, qualifiedRules, timerKey } = config;
+  const {
+    rules,
+    areaNames,
+    existingScore,
+    recordFinds = true,
+    qualifiedRules,
+    timerKey,
+    excusedReasonRequired = false,
+  } = config;
 
   const [areas, setAreas] = useState<AreaScore[]>(() =>
     initializeAreas(rules, areaNames, existingScore)
@@ -150,11 +162,19 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   const [qualifying, setQualifyingRaw] = useState<ExtendedResult | ''>(
     (existingScore?.resultText as ExtendedResult) ?? ''
   );
-  const [nonQualifyingReason, setNonQualifyingReason] = useState(
+  const [nonQualifyingReason, setNonQualifyingReasonRaw] = useState(
     existingScore?.nonQualifyingReason ?? ''
   );
+  // Kept in step with every write, like qualifyingRef, so a timer callback sees it.
+  const reasonRef = useRef(existingScore?.nonQualifyingReason ?? '');
+  const setNonQualifyingReason = useCallback((value: string) => {
+    reasonRef.current = value;
+    setNonQualifyingReasonRaw(value);
+  }, []);
   const [faultCount, setFaultCount] = useState(existingScore?.faultCount ?? 0);
   const disqualifyReasonMissing = qualifying === 'DQ' && !nonQualifyingReason.trim();
+  const excusedReasonMissing =
+    excusedReasonRequired && qualifying === 'EX' && !nonQualifyingReason.trim();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // React state updates after the current event. A ref closes the gap where a
@@ -182,9 +202,11 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   const applyMaxTimeNQ = useCallback(() => {
     const chosen = qualifyingRef.current;
     if (chosen === 'DQ' || chosen === 'EX' || chosen === 'ABS') return;
+    // An NQ reason already set, by the judge or an earlier expiry, stays (MYK9-2008).
+    if (chosen === 'NQ' && reasonRef.current.trim()) return;
     setQualifying('NQ');
     setNonQualifyingReason('Max Time');
-  }, [setQualifying]);
+  }, [setQualifying, setNonQualifyingReason]);
 
   const handleAreaUpdate = useCallback(
     (index: number, field: keyof AreaScore, value: AreaScore[keyof AreaScore]) => {
@@ -295,6 +317,10 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       errors.push('A disqualification needs a reason');
     }
 
+    if (excusedReasonMissing) {
+      errors.push('An excusal needs a reason');
+    }
+
     qualifiedTimeProblemList.forEach(problem => {
       if (problem) errors.push(problem);
     });
@@ -324,6 +350,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   }, [
     qualifying,
     disqualifyReasonMissing,
+    excusedReasonMissing,
     areas,
     rules.maxTimeSeconds,
     calculateTotalTime,
@@ -368,7 +395,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     setNonQualifyingReason('');
     setFaultCount(0);
     setSubmitError(null);
-  }, [rules, areaNames]);
+  }, [rules, areaNames, setNonQualifyingReason]);
 
   return {
     areas,
@@ -376,6 +403,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     setQualifying,
     nonQualifyingReason,
     disqualifyReasonMissing,
+    excusedReasonMissing,
     applyMaxTimeNQ,
     setNonQualifyingReason,
     faultCount,

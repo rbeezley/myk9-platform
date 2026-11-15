@@ -4,6 +4,7 @@ import {
   type Browser,
   type Locator,
   type Page,
+  type Request,
   type TestInfo,
 } from '@playwright/test';
 import { performance } from 'node:perf_hooks';
@@ -39,6 +40,12 @@ const LIVE_WITHIN_MS = 10_000;
 const FALLBACK_WITHIN_MS = 75_000;
 // A realtime nudge lands in 1-2 s, so a change still absent after this was not delivered by it.
 const NOT_INSTANT_MS = 1_500;
+// MYK9-2034: a secretary sync pass counts as over once no REST read has been in flight for this
+// long. Until then its entries read can land inside the not-instant window above.
+const SETTLED_QUIET_MS = 3_000;
+const REST_URL = /\/rest\/v1\//;
+// A sync pass reading rows changed since its mark: what a poll tick, a nudge or the startup sync sends.
+const PULL_URL = /\/rest\/v1\/(?:.*[?&]updated_at=gt\.|rpc\/entry_results_changed_since)/;
 
 interface Setup {
   showId: string;
@@ -58,6 +65,33 @@ async function seed(client: Client): Promise<Setup> {
   if (error) throw error;
   await setState(client, cooperId, { check_in_status: 'no-status' });
   return { showId: f.showId, classId: f.classId, willowId, cooperId };
+}
+
+/**
+ * The secretary page's REST traffic. With realtime blocked a pull is the only way new data can
+ * reach the page, so it tells a poll tick that happened to fall inside a step from a leak.
+ */
+function restTraffic(page: Page) {
+  let inFlight = 0;
+  let lastActivity = performance.now();
+  const pullStarts: number[] = [];
+  page.on('request', request => {
+    if (!REST_URL.test(request.url())) return;
+    inFlight++;
+    lastActivity = performance.now();
+    if (PULL_URL.test(request.url())) pullStarts.push(lastActivity);
+  });
+  const settled = (request: Request) => {
+    if (!REST_URL.test(request.url())) return;
+    inFlight--;
+    lastActivity = performance.now();
+  };
+  page.on('requestfinished', settled);
+  page.on('requestfailed', settled);
+  return {
+    quietForMs: () => (inFlight > 0 ? 0 : performance.now() - lastActivity),
+    pullsSince: (since: number) => pullStarts.filter(start => start >= since).length,
+  };
 }
 
 /** Everything the secretary's page shows about the walk, scoped to one class. */
@@ -85,6 +119,7 @@ async function secretaryOnShowDesk(browser: Browser, s: Setup, blockRealtime: bo
       void ws.close();
     });
   const page = await context.newPage();
+  const rest = restTraffic(page);
   let realtimeFrames = 0;
   page.on('websocket', socket => {
     if (!/\/realtime\/v1\/websocket/.test(socket.url())) return;
@@ -97,6 +132,7 @@ async function secretaryOnShowDesk(browser: Browser, s: Setup, blockRealtime: bo
   return {
     context,
     page,
+    rest,
     blockedSockets: () => blockedSockets,
     realtimeFrames: () => realtimeFrames,
   };
@@ -109,27 +145,48 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
   const judge = await rolePage(browser, 'JUDGE', `/at-show/${s.showId}/class/${s.classId}`);
   const sec = desk(secretary.page);
   const arrivals: Record<string, number> = {};
+  // Steps whose change a pull showed inside the not-instant window, so the old picture was not owed.
+  const pulledEarly: string[] = [];
   const deadline = blockRealtime ? FALLBACK_WITHIN_MS : LIVE_WITHIN_MS;
 
-  /** Starts the clock once the judge's change is committed, then times the secretary's page. */
+  /**
+   * The judge acts, the clock starts once the change is committed, then times the secretary's page.
+   * `notYet` reads the old picture and must hold at once: the page never moves back to it.
+   */
   async function arrives(
     name: string,
+    act: () => Promise<void>,
     committed: () => Promise<unknown>,
     shown: () => Promise<void>,
     notYet?: () => Promise<void>
   ) {
+    // MYK9-2034: the secretary's last pass (the startup sync, or the poll that showed the
+    // previous step) must be over before the judge acts. Its entries read otherwise lands inside
+    // the not-instant window and shows the change early, timing that pass instead of the poll.
+    await expect
+      .poll(() => secretary.rest.quietForMs(), { timeout: 60_000, intervals: [250] })
+      .toBeGreaterThanOrEqual(SETTLED_QUIET_MS);
+    const actedAt = performance.now();
+    await act();
     await committed();
     const start = performance.now();
     if (notYet) {
       await expect
         .poll(() => performance.now() - start, { intervals: [100] })
         .toBeGreaterThan(NOT_INSTANT_MS);
-      await notYet();
+      // The old picture is owed unless a pull went out after the judge acted: a 60 s poll tick
+      // can fall inside these 1.5 s by chance. A change shown with no pull is a leak and fails.
+      await notYet().catch((error: unknown) => {
+        if (secretary.rest.pullsSince(actedAt) === 0) throw error;
+        pulledEarly.push(name);
+      });
     }
     // Blocked variant: a realtime leak on any step would make the arrival look like the poll's.
     if (blockRealtime) expect(secretary.realtimeFrames()).toBe(0);
     await expect(shown).toPass({ timeout: deadline, intervals: [250, 500, 1_000] });
     arrivals[name] = Math.round(performance.now() - start);
+    // Every delivery is a pull made after the change: a nudge asks for one, the poll is one.
+    expect(secretary.rest.pullsSince(actedAt)).toBeGreaterThan(0);
     // No navigation: the secretary is still on the Show Desk URL for this class.
     await expect(secretary.page).toHaveURL(new RegExp(`/shows/${s.showId}\\?.*focus=${s.classId}`));
   }
@@ -148,11 +205,15 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
     await expect(cooperCard).toBeVisible({ timeout: 60_000 });
 
     // 1. The judge checks Cooper in.
-    await judge.page.locator('[data-testid="check-in-button"][aria-label$=" for Cooper"]').click();
-    const statusDialog = judge.page.getByRole('dialog', { name: 'Change Status' });
-    await statusDialog.getByRole('button', { name: /Checked-in/ }).click();
     await arrives(
       'check-in',
+      async () => {
+        await judge.page
+          .locator('[data-testid="check-in-button"][aria-label$=" for Cooper"]')
+          .click();
+        const statusDialog = judge.page.getByRole('dialog', { name: 'Change Status' });
+        await statusDialog.getByRole('button', { name: /Checked-in/ }).click();
+      },
       () =>
         expect
           .poll(async () => (await row(client, s.cooperId)).check_in_status, { timeout: 30_000 })
@@ -162,7 +223,8 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         await expect(sec.entryRow('Cooper')).not.toContainText('Not checked in');
       },
       blockRealtime
-        ? async () => expect(sec.entryRow('Cooper')).toContainText('Not checked in')
+        ? async () =>
+            expect(sec.entryRow('Cooper')).toContainText('Not checked in', { timeout: 1_000 })
         : undefined
     );
 
@@ -172,9 +234,9 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
       .click();
     const actionBar = judge.page.getByTestId('scoresheet-action-bar');
     await expect(actionBar).toBeVisible({ timeout: 60_000 });
-    await judge.page.getByTestId('timer-start').click();
     await arrives(
       'in-ring',
+      () => judge.page.getByTestId('timer-start').click(),
       () =>
         expect
           .poll(async () => (await row(client, s.willowId)).check_in_status, { timeout: 30_000 })
@@ -186,17 +248,19 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         await expect(sec.scheduleLine).toContainText('Willow in ring', { timeout: 1_000 });
       },
       blockRealtime
-        ? async () => expect(sec.inRingTile).toContainText('Nobody in the ring')
+        ? async () => expect(sec.inRingTile).toContainText('Nobody in the ring', { timeout: 1_000 })
         : undefined
     );
 
     // 3. The judge saves Willow's score.
     await judge.page.getByTestId('result-Q').click();
     await judge.page.getByRole('textbox', { name: /time$/i }).first().fill('01:02.03');
-    await judge.page.getByRole('button', { name: 'Save', exact: true }).click();
-    await judge.page.getByRole('button', { name: /Confirm & Submit/i }).click();
     await arrives(
       'score',
+      async () => {
+        await judge.page.getByRole('button', { name: 'Save', exact: true }).click();
+        await judge.page.getByRole('button', { name: /Confirm & Submit/i }).click();
+      },
       () =>
         expect
           .poll(async () => (await row(client, s.willowId)).is_scored, { timeout: 30_000 })
@@ -208,7 +272,7 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         await expect(sec.scheduleLine).not.toContainText('Willow in ring', { timeout: 1_000 });
       },
       blockRealtime
-        ? async () => expect(sec.scheduleLine).toContainText('Willow in ring')
+        ? async () => expect(sec.scheduleLine).toContainText('Willow in ring', { timeout: 1_000 })
         : undefined
     );
     if (blockRealtime) expect(secretary.realtimeFrames()).toBe(0);
@@ -216,6 +280,7 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
     await evidence(info, blockRealtime ? 'fallback-poll' : 'realtime', {
       withinMs: deadline,
       arrivalsMs: arrivals,
+      pulledEarly,
       realtimeFramesOnSecretary: secretary.realtimeFrames(),
       blockedSocketsOnSecretary: secretary.blockedSockets(),
     });

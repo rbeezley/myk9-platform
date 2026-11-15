@@ -981,7 +981,8 @@ ON CONFLICT (id) DO UPDATE
       accent_color                       = DEFAULT,
       default_withdrawal_retention_type  = DEFAULT,
       default_withdrawal_retention_value = DEFAULT,
-      default_withdrawal_policy_notes    = DEFAULT;
+      default_withdrawal_policy_notes    = DEFAULT,
+      default_withdrawal_policy_text     = DEFAULT;
 
 -- MYK9-1235: club numbers live in club_registry_numbers (one row per registry).
 -- Reset the demo clubs' numbers on every run so an edit made during a walk does

@@ -925,8 +925,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /** Resolve a conflict by keeping the local edit.
    *  Clears the conflict snapshot, resets syncStatus to 'pending', and refreshes
-   *  queued mutation OCC state so the local mutation uploads naturally on the
-   *  next sync cycle.
+   *  queued mutation OCC state so the local mutation uploads on the next upload
+   *  pass (`mutationManager.sendRowNow` runs one at once, MYK9-1993).
    *
    *  @param newServerVersion - The remote row's server version from the conflict
    *    snapshot. Pass this so the next upload uses the correct OCC precondition
@@ -1016,7 +1016,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    *   from PR #341. Without this, every subsequent replication pull takes
    *   the wasteful mergeDirtyRow branch instead of normal resolveConflict.
    */
-  async markAsSynced(id: string): Promise<void> {
+  async markAsSynced(id: string, onlyIfVersion?: number): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
 
@@ -1030,6 +1030,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     if (!existingRow || !existingRow.isDirty) {
       // No-op: row absent, or already synced. End the transaction cleanly.
+      await tx.done;
+      return;
+    }
+
+    // MYK9-2010: the caller judged the row clean at `onlyIfVersion`. A local edit since then bumped
+    // the version (and queued a write), so it must stay dirty; the check shares this transaction.
+    if (onlyIfVersion !== undefined && existingRow.version !== onlyIfVersion) {
       await tx.done;
       return;
     }
@@ -1115,6 +1122,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       mergedData?: T;
       /** Fields to take from `remote` over the merged value (MYK9-1104). */
       adoptRemoteFields?: readonly string[];
+      /** Fields the server won (MYK9-2010): queued writes stop carrying them. */
+      dropQueuedFields?: readonly string[];
       /** The local row `version` the conflict check read. Adopting is skipped
        *  (row left dirty for the next pass) if the row has moved since. */
       detectedAtVersion?: number;
@@ -1205,6 +1214,19 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       await this.reconcileQueuedMutations(normalizedId, params.remoteServerVersion, rebuiltData);
     }
 
+    if (params.dropQueuedFields?.length && this.mutationManager?.dropQueuedFieldsForRow) {
+      await this.mutationManager.dropQueuedFieldsForRow(
+        this.tableName,
+        normalizedId,
+        params.dropQueuedFields
+      );
+      // Dropping the last queued write leaves nothing to upload and mark the row synced.
+      const left = await this.mutationManager
+        .getPendingMutationsForRow(this.tableName, normalizedId)
+        .catch(() => [undefined]);
+      if (left.length === 0) await this.markAsSynced(normalizedId, row.version);
+    }
+
     this.logger.log(
       `[${this.tableName}] Reconciled dirty row ${normalizedId} ` +
         `(serverVersion: ${nextServerVersion}, merged: ${dataChanged})`
@@ -1252,10 +1274,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * the stored conflict snapshot so callers only need the rowId + choice.
    *
    * - 'keep-local': clears the conflict, resets syncStatus → 'pending'.  The
-   *   existing local mutation re-uploads with an updated OCC precondition.
+   *   existing local mutation re-uploads with an updated OCC precondition. Nothing
+   *   here sends it: callers follow with `mutationManager.sendRowNow` (MYK9-1993),
+   *   or it waits for the next upload pass.
    * - 'take-remote': replaces local data with the remote version, marks the row
-   *   synced.  Callers should also call
-   *   `mutationManager.discardPendingMutationsForRow` to drop any queued upload.
+   *   synced.  Callers should call `mutationManager.discardPendingMutationsForRow`
+   *   FIRST: once the row is released, an upload pass would send the old value.
    *
    * Returns false and is a no-op when the row has no persisted conflict snapshot
    * (e.g. already resolved or row doesn't exist).
@@ -1271,6 +1295,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     if (resolution === 'keep-local') {
       const merged = this.mergeServerFields(snapshot.baseData, row.data, snapshot.remoteData);
+      // MYK9-2010: keeping my side of the collision keeps the server's side of what was settled
+      // before it (a pull), in the row and in the writes still queued.
+      const serverWon = snapshot.serverWonFields ?? [];
+      for (const field of serverWon) {
+        (merged as Record<string, unknown>)[field] = (
+          snapshot.remoteData as Record<string, unknown>
+        )[field];
+      }
+      if (serverWon.length > 0) {
+        await this.mutationManager?.dropQueuedFieldsForRow?.(this.tableName, id, serverWon);
+      }
       await this.clearConflict(id, snapshot.remoteServerVersion, {
         mergedData: merged,
         newBaseData: snapshot.remoteData,

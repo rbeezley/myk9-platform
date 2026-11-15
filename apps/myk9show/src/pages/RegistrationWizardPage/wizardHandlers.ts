@@ -11,6 +11,7 @@
  */
 
 import { notifications } from '@/lib/notifications';
+import { useCartStore } from '@/store/cartStore';
 import {
   PaymentStatus,
   EntryStatus,
@@ -71,6 +72,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setRegistrationData,
     setClassSelections,
     setHandlerAssignments,
+    setHandlerClashDeferred,
     registrationId,
     setRegistrationNumber,
     paymentStatus,
@@ -173,10 +175,13 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       }
       // submittingRef is the in-flight guard read at the top of handleNext;
       // it's owned here so it resets on every path. setIsSubmitting (the
-      // mounted-gated spinner flag) is owned by submitPaymentStep.
+      // mounted-gated spinner flag) is owned by submitPaymentStep. MYK9-1964:
+      // it stays set while Stripe's page loads, so a second press cannot
+      // refill the cart that page is about to charge.
       submittingRef.current = true;
+      let leavingForStripe = false;
       try {
-        await submitPaymentStep({
+        leavingForStripe = await submitPaymentStep({
           showId,
           userId,
           registrationId,
@@ -208,7 +213,17 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           },
           juniorHandlerDogIds,
           currentStep,
-          cart: { clearCart, ensureCart, addItem, abandonCart },
+          cart: {
+            clearCart,
+            ensureCart,
+            addItem,
+            abandonCart,
+            // Read at checkout time, after the fill, not from this render.
+            getCart: () => useCartStore.getState().cart,
+            checkoutWithWaitlist: (exhibitorId, ids) =>
+              useCartStore.getState().checkoutWithWaitlist(exhibitorId, ids),
+            removeItem: itemId => useCartStore.getState().removeItem(itemId),
+          },
           submitRegistration,
           isMounted: () => mountedRef.current,
           setIsSubmitting,
@@ -227,7 +242,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           discardDraftsWithoutFinalSave,
         });
       } finally {
-        submittingRef.current = false;
+        if (!leavingForStripe) submittingRef.current = false;
       }
       return;
     }
@@ -284,6 +299,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       });
       setClassSelections([]);
       setHandlerAssignments({});
+      setHandlerClashDeferred([]);
       setStepCompletionState({});
       setPaymentStatus(PaymentStatus.PENDING);
       setEntryStatus(EntryStatus.PENDING);

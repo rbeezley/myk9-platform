@@ -18,7 +18,8 @@ const callerPaths = [
   'supabase/functions/send-results/index.ts',
   'supabase/functions/send-waitlist-invite/index.ts',
   'supabase/functions/push-trigger-support-message/index.ts',
-  'apps/myk9show/supabase/functions/cron-process-payouts/index.ts',
+  // cron-process-payouts sends its club money emails through this shared sender (MYK9-1986).
+  'apps/myk9show/supabase/functions/_shared/clubMoneyEmails.ts',
   'apps/myk9show/supabase/functions/_shared/alertAdmin.ts',
 ] as const;
 

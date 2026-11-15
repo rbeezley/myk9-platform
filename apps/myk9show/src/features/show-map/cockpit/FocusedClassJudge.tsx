@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { isUnsetJudgeName, judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
-import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
+import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
+import { ClassJudgeSelect, UNASSIGNED_JUDGE_VALUE } from '@/components/classes/ClassJudgeSelect';
 import type { JudgeListStatus } from '@/components/classes/useClassJudgeAssignment';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 
@@ -18,6 +20,7 @@ export function FocusedClassJudge({
   organization,
   judgeListStatus,
   lockReason,
+  classStatus,
   onJudgeChange,
 }: {
   showId: string;
@@ -31,8 +34,26 @@ export function FocusedClassJudge({
   judgeListStatus: JudgeListStatus;
   /** Why the judge cannot be changed here (`judgeLockReason`); null while it can. */
   lockReason: string | null;
+  /** The class's stored status, for the judge-change warning. */
+  classStatus?: string | null | undefined;
   onJudgeChange: (classId: string, judgeId: string) => void;
 }) {
+  // MYK9-2015: the picker saves on tap, so remember the judge the first change here replaced;
+  // that judge's phone may hold scores the new judge's class will refuse.
+  const [replaced, setReplaced] = useState<{
+    classId: string;
+    judgeId: string | null;
+    judgeName: string | null;
+  } | null>(null);
+  const outgoing = replaced?.classId === classId ? replaced : null;
+  const changeJudge = (changedClassId: string, judgeId: string) => {
+    const hadJudge = Boolean(assignedJudgeId) && assignedJudgeId !== UNASSIGNED_JUDGE_VALUE;
+    if (!outgoing && hadJudge && judgeId !== assignedJudgeId) {
+      setReplaced({ classId, judgeId: assignedJudgeId, judgeName });
+    }
+    onJudgeChange(changedClassId, judgeId);
+  };
+
   // A judge can be assigned before their name resolves; that is not "not set".
   const name = (
     <span className="font-medium">
@@ -76,14 +97,25 @@ export function FocusedClassJudge({
   }
 
   return (
-    <ClassJudgeSelect
-      classId={classId}
-      classLabel={classLabel}
-      assignedJudgeId={assignedJudgeId}
-      availableJudges={availableJudges}
-      organization={organization}
-      canAssign
-      onJudgeChange={onJudgeChange}
-    />
+    <div className="space-y-1">
+      <ClassJudgeSelect
+        classId={classId}
+        classLabel={classLabel}
+        assignedJudgeId={assignedJudgeId}
+        availableJudges={availableJudges}
+        organization={organization}
+        canAssign
+        onJudgeChange={changeJudge}
+      />
+      {outgoing && (
+        <JudgeChangeWarning
+          classId={classId}
+          classStatus={classStatus}
+          outgoingJudgeId={outgoing.judgeId}
+          outgoingJudgeName={outgoing.judgeName}
+          selectedJudgeId={assignedJudgeId}
+        />
+      )}
+    </div>
   );
 }

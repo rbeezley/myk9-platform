@@ -8,6 +8,7 @@ import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowStyle } from '@/features/registries';
 import type { GeneratedPremium } from '@/types/premium-types';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
+import type { ShowFormFees } from '@/features/_shared/juniorFeeLimit';
 
 export interface ShowEditPanelProps {
   open: boolean;
@@ -61,6 +62,8 @@ export interface ShowEditFormData extends Record<string, unknown> {
   clubName?: string;
   logoUrl?: string;
   trials?: Show['trials'];
+  /** The fees the form opened with; the junior fee limit checks only a changed fee (MYK9-1975). */
+  feesAsOpened?: ShowFormFees;
   /** Experience style — drives all 4 touchpoints (migration 195) */
   style: ShowStyle;
   publishExperience?: boolean;

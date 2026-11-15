@@ -109,19 +109,24 @@ const NOT_SCORE_FIELDS: ReadonlySet<string> = new Set([
   'version',
 ]);
 
-/** null and undefined are both "not set"; timestamps compare as instants, not as text. */
-function normalized(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null;
-  if (key.endsWith('_at') && typeof value === 'string') {
-    const at = Date.parse(value);
-    return Number.isNaN(at) ? value : at;
-  }
-  return value;
+/**
+ * Timestamps are not the score. One save can stamp `scoringCompletedAt` and
+ * `scoring_completed_at` a millisecond apart, so comparing them would read an unchanged refused
+ * score as replaced. A correction or a reset always changes the result, time, faults or finds.
+ */
+function isTimestampField(key: string): boolean {
+  return /(_at|At|_timestamp|Timestamp)$/.test(key);
+}
+
+/** null and undefined are both "not set". */
+function normalized(value: unknown): unknown {
+  return value === undefined || value === null ? null : value;
 }
 
 /**
- * Whether this device's replica still holds exactly the score this version would send. Any
- * difference in a score field means the dog's score moved on, so resending would overwrite it.
+ * Whether this device's replica still holds exactly the score this version would send. Score
+ * CONTENT only: any difference in a result, time, fault, find or reason field means the dog's
+ * score moved on, so resending would overwrite it. Timestamps are left out.
  * With no replica row there is nothing it could overwrite here, so it still matches.
  */
 export function replicaHoldsScore(
@@ -132,7 +137,9 @@ export function replicaHoldsScore(
   const row = entry as unknown as Record<string, unknown>;
   return Object.entries(mutation.rpc?.fields ?? {}).every(
     ([key, value]) =>
-      NOT_SCORE_FIELDS.has(key) || normalized(key, value) === normalized(key, row[key])
+      NOT_SCORE_FIELDS.has(key) ||
+      isTimestampField(key) ||
+      normalized(value) === normalized(row[key])
   );
 }
 

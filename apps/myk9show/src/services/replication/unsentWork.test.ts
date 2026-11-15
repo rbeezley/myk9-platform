@@ -119,6 +119,21 @@ describe('summarizeUnsentWork', () => {
       expect(work.unsentScoreCount).toBe(1);
     });
 
+    // Round 3: one save can stamp the camel and snake completed-at a millisecond apart.
+    it('same score with completed-at timestamps 1 ms apart stays refused with Try again', () => {
+      const work = summarizeUnsentWork(
+        [],
+        [old],
+        replicaWith({
+          ...refusedFields,
+          scoring_completed_at: '2026-11-14T10:00:00.001Z',
+          scoringCompletedAt: '2026-11-14T10:00:00.000Z',
+        })
+      );
+      expect(work.scores[0]).toMatchObject({ state: 'refused', retryIds: ['f1'] });
+      expect(work.unsentScoreCount).toBe(1);
+    });
+
     it('refused, then corrected: superseded, Remove only', () => {
       const corrected = {
         ...refusedFields,

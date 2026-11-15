@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 import {
   buildCalendarFeedUrls,
   EVENT_COUNT_HEADER,
@@ -18,6 +19,11 @@ import {
  * unwarned, which is the same place we were before — never a hung dialog.
  */
 const INSPECT_TIMEOUT_MS = 4000;
+
+export const CALENDAR_LINK_ERROR =
+  "We couldn't get your calendar link. Check your connection and try again.";
+const CALENDAR_REVOKE_ERROR =
+  "We couldn't turn off the calendar link. Check your connection and try again.";
 
 async function inspectFeed(url: string): Promise<number | null> {
   const abort = new AbortController();
@@ -115,7 +121,12 @@ export function useCalendarFeed(): UseCalendarFeedResult {
 
         return next;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not create the calendar link');
+        // Never `err.message`: a dropped connection arrives as "TypeError:
+        // Failed to fetch", which is no sentence to show an exhibitor.
+        logger.warn('Calendar link failed', 'calendar', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        setError(CALENDAR_LINK_ERROR);
         return null;
       } finally {
         setLoading(false);
@@ -136,7 +147,10 @@ export function useCalendarFeed(): UseCalendarFeedResult {
       setEventCount(null);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not turn off the calendar link');
+      logger.warn('Calendar link turn-off failed', 'calendar', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      setError(CALENDAR_REVOKE_ERROR);
       return false;
     } finally {
       setLoading(false);

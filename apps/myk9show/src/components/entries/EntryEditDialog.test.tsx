@@ -224,3 +224,28 @@ describe('EntryEditDialog — per-class handlers', () => {
     });
   });
 });
+
+describe('EntryEditDialog — sheet title by audience', () => {
+  it('names the exhibitor sheet for what it does', async () => {
+    render(
+      <EntryEditDialog open entry={makeEntry('Scent Work')} onOpenChange={noop} onUpdate={noop} />
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Change handler or jump height' })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Edit Entry')).not.toBeInTheDocument();
+  });
+
+  it('keeps Edit Entry for the show secretary', async () => {
+    render(
+      <EntryEditDialog
+        open
+        asShowManager
+        entry={makeEntry('Scent Work')}
+        onOpenChange={noop}
+        onUpdate={noop}
+      />
+    );
+    expect(await screen.findByRole('heading', { name: 'Edit Entry' })).toBeInTheDocument();
+  });
+});

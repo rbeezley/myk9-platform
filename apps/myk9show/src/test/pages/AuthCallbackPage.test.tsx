@@ -101,6 +101,36 @@ describe('AuthCallbackPage', () => {
     });
   });
 
+  describe('expired link recovery', () => {
+    it.each([
+      ['recovery', '', '/forgot-password'],
+      ['invite', '', '/forgot-password'],
+      ['magiclink', '', '/forgot-password'],
+      ['signup', '', '/sign-up?resend=1'],
+      ['signup', '&returnTo=%2Fshows%2F1', '/sign-up?returnTo=%2Fshows%2F1&resend=1'],
+    ])('offers Send a new link for %s%s', async (type, extra, href) => {
+      mockVerifyOtp.mockResolvedValue({ data: {}, error: { message: 'Token expired' } });
+      renderWithRouter(`?token_hash=abc&type=${type}${extra}`);
+      const link = await screen.findByRole('link', { name: 'Send a new link' });
+      expect(link).toHaveAttribute('href', href);
+      expect(screen.getByRole('link', { name: /back to sign in/i })).toBeInTheDocument();
+    });
+
+    it('does not offer a new link for a timed-out OAuth sign-in', async () => {
+      vi.useFakeTimers();
+      try {
+        renderWithRouter('');
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10000);
+        });
+        expect(screen.getByText(/took too long/i)).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Send a new link' })).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe('OAuth callback flow', () => {
     it('shows loading state for OAuth callback (no query params)', () => {
       renderWithRouter('');

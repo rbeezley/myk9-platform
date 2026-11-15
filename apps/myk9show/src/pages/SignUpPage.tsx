@@ -51,6 +51,9 @@ const SignUp: React.FC = () => {
   const captchaRequired = turnstileSiteKey.length > 0;
   const hasRedirectTarget = searchParams.has('redirectTo') || searchParams.has('returnTo');
   const signUpReturnTo = getSignInReturnTo(searchParams);
+  // `?resend=1`: an expired confirmation link sends people here to get a new
+  // one, so the card below asks for the email instead of reporting one sent.
+  const resendOnly = searchParams.get('resend') === '1' && !emailSent;
   const signInPath = hasRedirectTarget ? buildSignInPathForRedirect(signUpReturnTo) : '/sign-in';
 
   // Tick the resend cooldown down to zero. setState lives inside the interval
@@ -67,6 +70,7 @@ const SignUp: React.FC = () => {
 
   const handleResend = async () => {
     if (resending || resendPendingRef.current || resendCooldown > 0) return;
+    if (resendOnly && !email.trim()) return;
     resendPendingRef.current = true;
     setResending(true);
     try {
@@ -170,7 +174,7 @@ const SignUp: React.FC = () => {
   };
 
   if (!emailSent && isSignedIn(user, authLoading)) return <AlreadySignedInCard />;
-  if (emailSent) {
+  if (emailSent || resendOnly) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background px-2 pt-20">
         <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
@@ -183,15 +187,35 @@ const SignUp: React.FC = () => {
             </Link>
           </div>
           <Mail className="mx-auto h-12 w-12 text-primary mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Check your email</h2>
-          <p className="text-muted-foreground mb-4">
-            If this is a new account, we sent a confirmation link to <strong>{email}</strong>. Click
-            the link in the email to activate your account.
-          </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Already registered? No new confirmation email will arrive. Sign in or reset your
-            password below. Otherwise, check your spam folder or resend the email.
-          </p>
+          {resendOnly ? (
+            <>
+              <h2 className="text-2xl font-bold mb-2">Get a new link</h2>
+              <p className="text-muted-foreground mb-4">
+                Enter the email you signed up with and we&apos;ll send a new confirmation link.
+              </p>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                aria-label="Email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                className="mb-4 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold mb-2">Check your email</h2>
+              <p className="text-muted-foreground mb-4">
+                If this is a new account, we sent a confirmation link to <strong>{email}</strong>.
+                Click the link in the email to activate your account.
+              </p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Already registered? No new confirmation email will arrive. Sign in or reset your
+                password below. Otherwise, check your spam folder or resend the email.
+              </p>
+            </>
+          )}
           {captchaRequired && (
             <TurnstileChallenge
               ref={turnstileRef}
@@ -203,14 +227,21 @@ const SignUp: React.FC = () => {
           <button
             type="button"
             onClick={handleResend}
-            disabled={resending || resendCooldown > 0 || (captchaRequired && !captchaToken)}
+            disabled={
+              resending ||
+              resendCooldown > 0 ||
+              (captchaRequired && !captchaToken) ||
+              (resendOnly && !email.trim())
+            }
             className="w-full mb-6 px-4 py-2 rounded-lg border border-input bg-background text-foreground font-medium hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring transition"
           >
             {resending
               ? 'Sending…'
               : resendCooldown > 0
                 ? `Resend email in ${resendCooldown}s`
-                : 'Resend email'}
+                : resendOnly
+                  ? 'Send a new link'
+                  : 'Resend email'}
           </button>
           <div className="flex items-center justify-center gap-4">
             <Link to={signInPath} className="text-primary hover:underline font-medium">

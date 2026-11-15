@@ -236,8 +236,7 @@ export function detectDirtyRowConflict<T extends object>({
     hasConflict: conflicts.length > 0,
     fields: conflicts.sort(),
     ...(adopt.length > 0 && { adoptRemoteFields: adopt }),
-    ...(conflicts.length === 0 &&
-      adoptResolved.length > 0 && { serverWonFields: [...adoptResolved].sort() }),
+    ...(adoptResolved.length > 0 && { serverWonFields: [...adoptResolved].sort() }),
   };
 }
 

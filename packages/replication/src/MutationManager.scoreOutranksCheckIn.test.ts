@@ -101,4 +101,72 @@ describe('a check-in change never holds a queued score (MYK9-2010)', () => {
     expect(await pendingFor(tableName)).toHaveLength(0);
     expect((await table.getReplicatedRow('1'))?.syncStatus).not.toBe('conflict');
   });
+
+  it('last queued write dropped: the row is clean and the other device status stands', async () => {
+    const serverRow: ServerRow = { status: 'pulled', final_placement: null, version: 8 };
+    const adapter = { ...adapterFor(serverRow), dirtyRowComparePolicy: comparePolicy };
+    const table = new RefetchingEntriesTable(tableName, adapter);
+    const server = makeServer(serverRow);
+    manager = startStaleRowManager(table, server.supabase).manager;
+    // The judge's only queued write is the in-ring marker (nothing scored yet).
+    await table.set(
+      '1',
+      { id: '1', status: 'checked-in', finalPlacement: null },
+      false,
+      undefined,
+      3
+    );
+    await table.set('1', { id: '1', status: 'in-ring', finalPlacement: null }, true);
+    const db = await databaseManager.getDatabase('test');
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+      id: `mut-ring-${tableName}`,
+      authUserId: 'stale-row-refetch-user',
+      tableName,
+      operation: 'UPDATE',
+      rowId: '1',
+      data: { id: '1', status: 'in-ring' },
+      explicitDataKeys: ['id', 'status'],
+      timestamp: Date.now(),
+      retries: 0,
+      status: 'pending',
+      serverVersion: 3,
+    } as PendingMutation);
+    vi.stubGlobal('window', { dispatchEvent: () => true });
+
+    await manager.uploadPendingMutations();
+    await vi.waitFor(async () => expect(await pendingFor(tableName)).toHaveLength(0));
+
+    const row = await table.getReplicatedRow('1');
+    expect(row?.isDirty).toBe(false);
+    expect(row?.data).toMatchObject({ status: 'pulled' });
+    expect(serverRow).toMatchObject({ status: 'pulled', version: 8 });
+  });
+
+  it('a pull settled before a score collision survives keeping my score', async () => {
+    // The server holds the pull AND a different score; the device saved its own score.
+    const serverRow: ServerRow = { status: 'pulled', final_placement: 2, version: 8 };
+    const adapter = { ...adapterFor(serverRow), dirtyRowComparePolicy: comparePolicy };
+    const table = new RefetchingEntriesTable(tableName, adapter);
+    const server = makeServer(serverRow);
+    manager = startStaleRowManager(table, server.supabase).manager;
+    await seedScoredRun(table);
+    vi.stubGlobal('window', { dispatchEvent: () => true });
+
+    await manager.uploadPendingMutations();
+    await vi.waitFor(async () =>
+      expect((await table.getReplicatedRow('1'))?.syncStatus).toBe('conflict')
+    );
+    expect((await table.getReplicatedRow('1'))?.conflict?.serverWonFields).toEqual(['status']);
+
+    // The full-row fixture write needs the rebuild the real adapter supplies to rebase its token.
+    await table.resolveReplicationConflict('1', 'keep-local', {
+      rebuildUpdatePayload: local => ({ id: local.id, final_placement: local.finalPlacement }),
+    });
+    afterBackoff();
+    await manager.uploadPendingMutations();
+    await vi.waitFor(() => expect(serverRow.final_placement).toBe(1));
+
+    expect(serverRow.status).toBe('pulled');
+    expect(await pendingFor(tableName)).toHaveLength(0);
+  });
 });

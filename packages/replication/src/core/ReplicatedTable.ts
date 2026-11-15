@@ -1207,12 +1207,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       await this.reconcileQueuedMutations(normalizedId, params.remoteServerVersion, rebuiltData);
     }
 
-    if (params.dropQueuedFields?.length) {
-      await this.mutationManager?.dropQueuedFieldsForRow?.(
+    if (params.dropQueuedFields?.length && this.mutationManager?.dropQueuedFieldsForRow) {
+      await this.mutationManager.dropQueuedFieldsForRow(
         this.tableName,
         normalizedId,
         params.dropQueuedFields
       );
+      // Dropping the last queued write leaves nothing to upload and mark the row synced.
+      const left = await this.mutationManager
+        .getPendingMutationsForRow(this.tableName, normalizedId)
+        .catch(() => [undefined]);
+      if (left.length === 0) await this.markAsSynced(normalizedId);
     }
 
     this.logger.log(
@@ -1281,6 +1286,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     if (resolution === 'keep-local') {
       const merged = this.mergeServerFields(snapshot.baseData, row.data, snapshot.remoteData);
+      // MYK9-2010: keeping my side of the collision keeps the server's side of what was settled
+      // before it (a pull), in the row and in the writes still queued.
+      const serverWon = snapshot.serverWonFields ?? [];
+      for (const field of serverWon) {
+        (merged as Record<string, unknown>)[field] = (
+          snapshot.remoteData as Record<string, unknown>
+        )[field];
+      }
+      if (serverWon.length > 0) {
+        await this.mutationManager?.dropQueuedFieldsForRow?.(this.tableName, id, serverWon);
+      }
       await this.clearConflict(id, snapshot.remoteServerVersion, {
         mergedData: merged,
         newBaseData: snapshot.remoteData,

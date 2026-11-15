@@ -391,7 +391,7 @@ describe('detectDirtyRowConflict resolveCollision (MYK9-2010)', () => {
     expect(result).toEqual({ hasConflict: false, fields: [] });
   });
 
-  it('an unresolved collision on another field still surfaces', () => {
+  it('an unresolved collision on another field still surfaces, with the settled field named', () => {
     const result = detectDirtyRowConflict({
       base,
       local: { ...base, status: 'b', score: 2 },
@@ -400,6 +400,7 @@ describe('detectDirtyRowConflict resolveCollision (MYK9-2010)', () => {
     });
     expect(result.hasConflict).toBe(true);
     expect(result.fields).toEqual(['score']);
-    expect(result.serverWonFields).toBeUndefined();
+    // The settled field travels with the conflict, so keeping my side of the score keeps it.
+    expect(result.serverWonFields).toEqual(['status']);
   });
 });

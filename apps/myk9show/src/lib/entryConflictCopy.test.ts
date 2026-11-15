@@ -48,4 +48,22 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     expect(copy.keepLocalLabel).toBe('Keep my status: scratched');
     expect(copy.takeRemoteLabel).toBe('Keep the other status: withdrawn');
   });
+
+  it('names the field that collided on an already scored dog, not the score', () => {
+    const same = { ...dog, is_scored: true, result_status: 'qualified', handler_notes: 'a' };
+    const copy = entryConflictCopy(same, { ...same, handler_notes: 'b' }, ['handler_notes']);
+    expect(copy.title).toBe('#12 Rex was changed on two devices');
+    expect(copy.description).toContain('handler notes: this device a, other device b');
+    expect(copy.description).not.toContain('Qualified');
+  });
+
+  it('adds the other collided fields when a score collision comes with them', () => {
+    const copy = entryConflictCopy(
+      { ...dog, is_scored: true, result_status: 'qualified', handler_notes: 'a' },
+      { ...dog, is_scored: true, result_status: 'nq', handler_notes: 'b' },
+      ['result_status', 'handler_notes']
+    );
+    expect(copy.title).toBe('#12 Rex was scored two ways');
+    expect(copy.description).toContain('Also changed on both: handler notes: this device a');
+  });
 });

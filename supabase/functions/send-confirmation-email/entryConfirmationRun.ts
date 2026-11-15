@@ -37,18 +37,32 @@ export interface EntryConfirmationDeps {
   /** Published, not deleted shows whose last day is not long past, with their trials. */
   loadShows(): Promise<ConfirmationShow[]>;
   /**
+   * The shows whose acceptance email the secretary switched off: show_lifecycle_email_steps,
+   * step 'accepted', is_enabled false (the switch in Scheduled emails). No row means on, as the
+   * app reads it. A failed read throws, so the run sends nothing rather than ignore the switch.
+   */
+  loadAcceptedEmailOff(showIds: string[]): Promise<Set<string>>;
+  /**
    * Accepted ('confirmed'), not deleted entries with an armband and no confirmation yet, in
    * these shows, whose confirmation_email_status is one of `statuses` and that have not changed
-   * since `quietSince`.
+   * since `quietSince`. Oldest updated_at first: a failed attempt bumps updated_at, so the
+   * daily retry rotates through failures instead of taking the same ones every day.
    */
   loadCandidates(args: {
     showIds: string[];
     statuses: Array<'pending' | 'failed'>;
     quietSince: string;
   }): Promise<ConfirmationEntry[]>;
+  /**
+   * byRegistration: a registration that was read maps to its person, or to null when it has
+   * none; a registration not found is absent. `registrationsRead` / `handlersRead` are false
+   * when that read failed, which is never taken to mean "not found".
+   */
   loadRecipients(args: { registrationIds: string[]; handlerIds: string[] }): Promise<{
-    byRegistration: Map<string, ConfirmationRecipient>;
+    byRegistration: Map<string, ConfirmationRecipient | null>;
     byHandler: Map<string, ConfirmationRecipient>;
+    registrationsRead: boolean;
+    handlersRead: boolean;
   }>;
   loadJudges(classIds: string[]): Promise<Map<string, string>>;
   loadConfirmationNumbers(registrationIds: string[]): Promise<Map<string, string>>;
@@ -74,6 +88,8 @@ export interface EntryConfirmationDeps {
 export interface EntryConfirmationRunResult {
   sent: number;
   failed: number;
+  /** Exhibitors left untouched this run because their recipient could not be read. */
+  skipped: number;
   /** Exhibitors left for the next run because this one reached its cap. */
   deferred: number;
 }
@@ -87,8 +103,16 @@ export async function runEntryConfirmations(
   scope: ConfirmationScope
 ): Promise<EntryConfirmationRunResult> {
   const now = deps.now();
-  const shows = (await deps.loadShows()).filter(show => showTakesConfirmations(show, now));
-  if (shows.length === 0) return { sent: 0, failed: 0, deferred: 0 };
+  const liveShows = (await deps.loadShows()).filter(show => showTakesConfirmations(show, now));
+  // The secretary's switch for the acceptance email holds for this email too: it is that email.
+  // A show switched off is not read at all, so its entries stay unclaimed and pending (nothing
+  // logged, nothing to retry); switching it back on sends them.
+  const switchedOff =
+    liveShows.length > 0
+      ? await deps.loadAcceptedEmailOff(liveShows.map(show => show.id))
+      : new Set<string>();
+  const shows = liveShows.filter(show => !switchedOff.has(show.id));
+  if (shows.length === 0) return { sent: 0, failed: 0, skipped: 0, deferred: 0 };
   const showById = new Map(shows.map(show => [show.id, show]));
   const statuses: Array<'pending' | 'failed'> =
     scope === 'all' ? ['pending', 'failed'] : ['pending'];
@@ -102,7 +126,7 @@ export async function runEntryConfirmations(
     candidates.filter(entry => entry.armband && showById.has(entry.show_id))
   );
   const batch = groups.slice(0, CONFIRMATION_MAX_EMAILS_PER_RUN);
-  if (batch.length === 0) return { sent: 0, failed: 0, deferred: 0 };
+  if (batch.length === 0) return { sent: 0, failed: 0, skipped: 0, deferred: 0 };
 
   const unique = (ids: Array<string | null>) => [
     ...new Set(ids.filter((id): id is string => !!id)),
@@ -119,20 +143,31 @@ export async function runEntryConfirmations(
 
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   for (const group of batch) {
     const show = showById.get(group.showId);
     if (!show) continue;
     const anchor = group.entries[0]!;
-    const recipient =
-      (group.registrationId && recipients.byRegistration.get(group.registrationId)) ||
-      (anchor.handler_id && recipients.byHandler.get(anchor.handler_id)) ||
-      null;
+    const resolved = resolveRecipient(group.registrationId, anchor.handler_id, recipients);
+    if (resolved === 'unknown') {
+      // A failed read is not "no registration": sending to the handler instead could give one
+      // person's confirmation to another. Left unclaimed and unsent for the next run.
+      skipped++;
+      continue;
+    }
+    const recipient = resolved;
     const entryIds = group.entries.map(entry => entry.id);
 
     if (!recipient?.email) {
       // Nothing to send to. Marked 'failed' (not claimed) so the daily run looks again, in case
-      // an address is added, and logged so Delivery history says why she got nothing.
+      // an address is added; the update moves the group behind the others. Logged once, the
+      // first time, so Delivery history says why she got nothing without a row every day.
+      const firstTime = group.entries.some(entry => entry.confirmation_email_status === 'pending');
       await deps.markFailed(entryIds);
+      if (!firstTime) {
+        failed++;
+        continue;
+      }
       await deps.log({
         recipient_email: null,
         email_type: 'heritage_confirmation',
@@ -192,5 +227,25 @@ export async function runEntryConfirmations(
     });
   }
 
-  return { sent, failed, deferred: groups.length - batch.length };
+  return { sent, failed, skipped, deferred: groups.length - batch.length };
+}
+
+/**
+ * Who gets the group's email. Her registration's person when the registration was read; the
+ * entry's handler only when the registration read succeeded and found no person (or the group
+ * has no registration). 'unknown' when a read this depends on failed.
+ */
+function resolveRecipient(
+  registrationId: string | null,
+  handlerId: string | null,
+  recipients: Awaited<ReturnType<EntryConfirmationDeps['loadRecipients']>>
+): ConfirmationRecipient | null | 'unknown' {
+  if (registrationId) {
+    if (!recipients.registrationsRead) return 'unknown';
+    const person = recipients.byRegistration.get(registrationId);
+    if (person) return person;
+  }
+  if (!handlerId) return null;
+  if (!recipients.handlersRead) return 'unknown';
+  return recipients.byHandler.get(handlerId) ?? null;
 }

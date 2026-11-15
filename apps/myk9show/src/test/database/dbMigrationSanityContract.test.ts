@@ -43,6 +43,18 @@ describe('DB migration sanity contracts', () => {
     const entryQuery = sliceBetween(source, 'loadCandidates: async', 'loadRecipients: async');
     expect(entryQuery).toContain(".is('confirmation_email_sent_at', null)");
     expect(entryQuery).toContain(".in('confirmation_email_status', statuses)");
+    // Retries rotate: oldest change first, and a failed attempt bumps updated_at.
+    expect(entryQuery).toContain(".order('updated_at', { ascending: true })");
+
+    // The acceptance switch is read from the row the Scheduled emails switch writes.
+    const switchRead = sliceBetween(source, 'loadAcceptedEmailOff: async', 'loadCandidates: async');
+    expect(switchRead).toContain("from('show_lifecycle_email_steps')");
+    expect(switchRead).toContain(".eq('step_type', 'accepted')");
+    expect(switchRead).toContain(".eq('is_enabled', false)");
+
+    // A failed recipient read is reported, never read as "no registration".
+    const recipients = sliceBetween(source, 'loadRecipients: async', 'loadJudges: async');
+    expect(recipients).toContain('registrationsRead = false');
 
     const claim = sliceBetween(source, 'claim: async', 'markSent: async');
     expect(claim).toContain(".is('confirmation_email_sent_at', null)");

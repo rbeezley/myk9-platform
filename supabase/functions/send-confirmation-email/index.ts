@@ -51,7 +51,7 @@ const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 const SHOW_SELECT =
   'id, name, status, start_date, end_date, venue_name, address, city, state, zip_code, latitude, longitude, organization, confirmation_message, style, brand_color, experience_is_published, experience_published_style, experience_published_content, trials(id, name, trial_number, display_order, date, timezone, registry_id, deleted_at)';
 const ENTRY_SELECT =
-  'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
+  'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, confirmation_email_status, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
 
 /** Asks send-registration-email to re-send a failed receipt, as the sweep caller (same secret). */
 async function resendReceipt(
@@ -117,6 +117,17 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         ),
       }));
     },
+    loadAcceptedEmailOff: async showIds => {
+      // The same row the Scheduled emails switch writes (updateLifecycleEmailStepEnabled).
+      const { data, error } = await supabase
+        .from('show_lifecycle_email_steps')
+        .select('show_id')
+        .in('show_id', showIds)
+        .eq('step_type', 'accepted')
+        .eq('is_enabled', false);
+      if (error) throw new Error(`Could not read the acceptance email switch: ${error.message}`);
+      return new Set(((data ?? []) as Array<{ show_id: string }>).map(row => row.show_id));
+    },
     loadCandidates: async ({ showIds, statuses, quietSince }) => {
       const { data, error } = await supabase
         .from('entries')
@@ -128,39 +139,50 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .is('confirmation_email_sent_at', null)
         .in('confirmation_email_status', statuses)
         .lt('updated_at', quietSince)
-        .order('show_id', { ascending: true })
+        // Oldest change first: a failed attempt bumps updated_at, so retries rotate.
+        .order('updated_at', { ascending: true })
         .order('id', { ascending: true })
         .limit(CONFIRMATION_ROW_LIMIT);
       if (error) throw new Error(`Could not read accepted entries: ${error.message}`);
       return (data ?? []) as unknown as ConfirmationEntry[];
     },
     loadRecipients: async ({ registrationIds, handlerIds }) => {
-      const byRegistration = new Map<string, ConfirmationRecipient>();
+      const byRegistration = new Map<string, ConfirmationRecipient | null>();
       const byHandler = new Map<string, ConfirmationRecipient>();
+      let registrationsRead = true;
+      let handlersRead = true;
       if (registrationIds.length > 0) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('enrollments')
           .select('id, person:people(first_name, last_name, email)')
           .in('id', registrationIds);
+        if (error) {
+          // Never "no registration": the run leaves these groups unsent for the next run.
+          console.error('Could not read registration recipients', { message: error.message });
+          registrationsRead = false;
+        }
         for (const row of (data ?? []) as unknown as Array<{
           id: string;
           person: PersonRow | null;
         }>) {
-          const recipient = toRecipient(row.person);
-          if (recipient) byRegistration.set(row.id, recipient);
+          byRegistration.set(row.id, toRecipient(row.person));
         }
       }
       if (handlerIds.length > 0) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('people')
           .select('id, first_name, last_name, email')
           .in('id', handlerIds);
+        if (error) {
+          console.error('Could not read handler recipients', { message: error.message });
+          handlersRead = false;
+        }
         for (const row of (data ?? []) as Array<PersonRow & { id: string }>) {
           const recipient = toRecipient(row);
           if (recipient) byHandler.set(row.id, recipient);
         }
       }
-      return { byRegistration, byHandler };
+      return { byRegistration, byHandler, registrationsRead, handlersRead };
     },
     loadJudges: async classIds => {
       if (classIds.length === 0) return new Map();

@@ -83,6 +83,8 @@ export interface ConfirmationEntry {
   dog_id: string | null;
   armband: string | null;
   entry_fee: number | null;
+  /** 'pending' never tried, 'failed' tried before (the missing-address log is written once). */
+  confirmation_email_status?: string | null;
   dog: {
     name: string | null;
     call_name: string | null;

@@ -17,6 +17,7 @@ import { renderConfirmationEmail } from './renderConfirmationEmail';
 
 const NOW = new Date('2026-11-20T15:00:00Z');
 const LONG_AGO = '2026-11-20T14:00:00Z';
+const DAY = 24 * 60 * 60 * 1000;
 
 interface StoredEntry extends ConfirmationEntry {
   entry_status: string;
@@ -89,35 +90,57 @@ function entry(overrides: Partial<StoredEntry> = {}): StoredEntry {
 function makeDeps(args: {
   shows: ConfirmationShow[];
   entries: StoredEntry[];
-  people?: Record<string, ConfirmationRecipient>;
+  /** null: the registration was found with no person. */
+  people?: Record<string, ConfirmationRecipient | null>;
+  handlers?: Record<string, ConfirmationRecipient>;
+  registrationsRead?: boolean;
+  switchedOff?: string[];
   sendResult?: () => ConfirmationSendResult;
 }) {
-  const people: Record<string, ConfirmationRecipient> = args.people ?? {
+  const people: Record<string, ConfirmationRecipient | null> = args.people ?? {
     'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: 'Lovelace' },
   };
   const sends: Array<{ to: string; subject: string; html: string; idempotencyKey: string }> = [];
   const logs: ConfirmationLogRow[] = [];
   let messageSeq = 0;
+  let current = NOW;
+  const advance = (ms: number) => {
+    current = new Date(current.getTime() + ms);
+  };
   const deps: EntryConfirmationDeps = {
-    now: () => NOW,
+    now: () => current,
     siteUrl: 'https://myk9show.com',
     loadShows: async () => args.shows,
+    loadAcceptedEmailOff: async showIds =>
+      new Set((args.switchedOff ?? []).filter(id => showIds.includes(id))),
     loadCandidates: async ({ showIds, statuses, quietSince }) =>
-      args.entries.filter(
-        row =>
-          showIds.includes(row.show_id) &&
-          row.entry_status === 'confirmed' &&
-          row.armband !== null &&
-          row.deleted_at === null &&
-          row.confirmation_email_sent_at === null &&
-          (statuses as string[]).includes(row.confirmation_email_status) &&
-          row.updated_at < quietSince
-      ),
-    loadRecipients: async ({ registrationIds }) => ({
+      args.entries
+        .filter(
+          row =>
+            showIds.includes(row.show_id) &&
+            row.entry_status === 'confirmed' &&
+            row.armband !== null &&
+            row.deleted_at === null &&
+            row.confirmation_email_sent_at === null &&
+            (statuses as string[]).includes(row.confirmation_email_status) &&
+            row.updated_at < quietSince
+        )
+        .sort((a, b) =>
+          a.updated_at === b.updated_at
+            ? a.id.localeCompare(b.id)
+            : a.updated_at.localeCompare(b.updated_at)
+        ),
+    loadRecipients: async ({ registrationIds, handlerIds }) => ({
       byRegistration: new Map(
-        registrationIds.flatMap(id => (people[id] ? [[id, people[id]!] as const] : []))
+        args.registrationsRead === false
+          ? []
+          : registrationIds.flatMap(id => (id in people ? [[id, people[id]!] as const] : []))
       ),
-      byHandler: new Map(),
+      byHandler: new Map(
+        handlerIds.flatMap(id => (args.handlers?.[id] ? [[id, args.handlers[id]!] as const] : []))
+      ),
+      registrationsRead: args.registrationsRead !== false,
+      handlersRead: true,
     }),
     loadJudges: async classIds =>
       new Map(classIds.flatMap(id => (id === 'class-1' ? [[id, 'Dana Whitlock'] as const] : []))),
@@ -147,6 +170,8 @@ function makeDeps(args: {
     },
     markFailed: async ids => {
       for (const row of args.entries.filter(item => ids.includes(item.id))) {
+        // The entries updated_at trigger: a failed attempt moves the group to the back.
+        row.updated_at = current.toISOString();
         row.confirmation_email_sent_at = null;
         row.confirmation_email_status = 'failed';
       }
@@ -161,7 +186,7 @@ function makeDeps(args: {
       logs.push(row);
     },
   };
-  return { deps, sends, logs };
+  return { deps, sends, logs, advance };
 }
 
 beforeEach(() => {
@@ -186,9 +211,24 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
     ];
     const { deps, sends, logs } = makeDeps({ shows: [show()], entries });
 
-    expect(await runEntryConfirmations(deps, 'new')).toEqual({ sent: 1, failed: 0, deferred: 0 });
-    expect(await runEntryConfirmations(deps, 'new')).toEqual({ sent: 0, failed: 0, deferred: 0 });
-    expect(await runEntryConfirmations(deps, 'all')).toEqual({ sent: 0, failed: 0, deferred: 0 });
+    expect(await runEntryConfirmations(deps, 'new')).toEqual({
+      sent: 1,
+      failed: 0,
+      skipped: 0,
+      deferred: 0,
+    });
+    expect(await runEntryConfirmations(deps, 'new')).toEqual({
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      deferred: 0,
+    });
+    expect(await runEntryConfirmations(deps, 'all')).toEqual({
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      deferred: 0,
+    });
 
     expect(sends).toHaveLength(1);
     expect(sends[0]).toMatchObject({
@@ -299,7 +339,7 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
   it('releases a failed send for the daily run, which retries it with the same key', async () => {
     let fail = true;
     const entries = [entry()];
-    const { deps, sends, logs } = makeDeps({
+    const { deps, sends, logs, advance } = makeDeps({
       shows: [show()],
       entries,
       sendResult: () =>
@@ -315,6 +355,7 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
     expect(sends).toHaveLength(1);
 
     fail = false;
+    advance(DAY);
     expect(await runEntryConfirmations(deps, 'all')).toMatchObject({ sent: 1, failed: 0 });
     expect(sends).toHaveLength(2);
     expect(sends[1]!.idempotencyKey).toBe(sends[0]!.idempotencyKey);
@@ -326,7 +367,7 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
 
   it('sends nothing to an exhibitor with no email address, and says so in Delivery history', async () => {
     const entries = [entry()];
-    const { deps, sends, logs } = makeDeps({ shows: [show()], entries, people: {} });
+    const { deps, sends, logs, advance } = makeDeps({ shows: [show()], entries, people: {} });
     expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, failed: 1 });
     expect(sends).toHaveLength(0);
     expect(logs).toEqual([
@@ -337,9 +378,106 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
         show_id: 'show-1',
       }),
     ]);
-    // The frequent run does not log it again; the daily run looks once a day.
+    // The frequent run does not look again; the daily run does, and logs nothing new.
     await runEntryConfirmations(deps, 'new');
+    advance(DAY);
+    await runEntryConfirmations(deps, 'all');
     expect(logs).toHaveLength(1);
+    expect(entries[0]!.confirmation_email_status).toBe('failed');
+  });
+
+  it('never falls back to the handler when the registration read fails (Codex P1)', async () => {
+    const entries = [entry()];
+    const { deps, sends, logs } = makeDeps({
+      shows: [show()],
+      entries,
+      registrationsRead: false,
+      handlers: {
+        'person-ada': { email: 'handler@example.com', firstName: 'Hal', lastName: null },
+      },
+    });
+    expect(await runEntryConfirmations(deps, 'new')).toEqual({
+      sent: 0,
+      failed: 0,
+      skipped: 1,
+      deferred: 0,
+    });
+    expect(sends).toHaveLength(0);
+    expect(logs).toHaveLength(0);
+    // Left unclaimed and pending, so the next run tries again.
+    expect(entries[0]).toMatchObject({
+      confirmation_email_sent_at: null,
+      confirmation_email_status: 'pending',
+    });
+  });
+
+  it('falls back to the handler only when the read found no registration person', async () => {
+    const handlers = {
+      'person-ada': { email: 'handler@example.com', firstName: 'Hal', lastName: null },
+    };
+    const noPerson = makeDeps({
+      shows: [show()],
+      entries: [entry()],
+      people: { 'reg-ada': null },
+      handlers,
+    });
+    await runEntryConfirmations(noPerson.deps, 'new');
+    expect(noPerson.sends.map(email => email.to)).toEqual(['handler@example.com']);
+
+    // A registration person with no email address is that person's missing address, not a
+    // reason to email someone else.
+    const noEmail = makeDeps({
+      shows: [show()],
+      entries: [entry()],
+      people: { 'reg-ada': { email: null, firstName: 'Ada', lastName: null } },
+      handlers,
+    });
+    await runEntryConfirmations(noEmail.deps, 'new');
+    expect(noEmail.sends).toHaveLength(0);
+    expect(noEmail.logs[0]).toMatchObject({ error_message: 'missing_recipient' });
+  });
+
+  it('emails nobody on a show whose acceptance email is switched off, and leaves its entries unclaimed (Codex P2)', async () => {
+    const entries = [entry()];
+    const { deps, sends, logs } = makeDeps({ shows: [show()], entries, switchedOff: ['show-1'] });
+    await runEntryConfirmations(deps, 'all');
+    expect(sends).toHaveLength(0);
+    expect(logs).toHaveLength(0);
+    expect(entries[0]).toMatchObject({
+      confirmation_email_sent_at: null,
+      confirmation_email_status: 'pending',
+    });
+  });
+
+  it('rotates daily retries so permanent failures cannot starve the rest (Codex P2)', async () => {
+    // 60 exhibitors with no address, older than one whose send merely failed once.
+    const people: Record<string, ConfirmationRecipient | null> = {};
+    const entries: StoredEntry[] = [];
+    for (let i = 0; i < 60; i++) {
+      people[`reg-${i}`] = { email: null, firstName: `No${i}`, lastName: null };
+      entries.push(
+        entry({
+          registration_id: `reg-${i}`,
+          confirmation_email_status: 'failed',
+          updated_at: `2026-11-1${i < 30 ? 0 : 1}T00:00:${String(i % 60).padStart(2, '0')}Z`,
+        })
+      );
+    }
+    people['reg-late'] = { email: 'late@example.com', firstName: 'Late', lastName: null };
+    const late = entry({
+      registration_id: 'reg-late',
+      confirmation_email_status: 'failed',
+      updated_at: '2026-11-19T00:00:00Z',
+    });
+    entries.push(late);
+    const { deps, sends, advance } = makeDeps({ shows: [show()], entries, people });
+
+    await runEntryConfirmations(deps, 'all');
+    expect(sends).toHaveLength(0); // the first 50 retried are the oldest failures
+    advance(DAY);
+    await runEntryConfirmations(deps, 'all');
+    expect(sends.map(email => email.to)).toEqual(['late@example.com']);
+    expect(late.confirmation_email_status).toBe('sent');
   });
 
   it('emails two exhibitors in one show separately', async () => {

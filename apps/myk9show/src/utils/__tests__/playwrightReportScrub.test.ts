@@ -69,6 +69,7 @@ export default defineConfig({ testDir: '.', reporter: [${reporters.join(',')}], 
     ['exec', 'playwright', 'test', '--config', path.join(dir, 'playwright.config.ts')],
     {
       cwd: APP_ROOT,
+      shell: process.platform === 'win32',
       encoding: 'utf8',
       env: { ...process.env, CI: 'true', FAKE_E2E_SECRET: SECRET, E2E_FAKE_PASSWORD: SECRET },
     }

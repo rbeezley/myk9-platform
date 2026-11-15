@@ -48,6 +48,17 @@ async function open(
   return heading;
 }
 
+/**
+ * From lg the pinned header is compact and the settings fold behind Class settings (MYK9-1989), so
+ * the fixture's class (no entries) no longer overflows its panel. Opening them gives the class the
+ * height the scroll checks below need, as a class with entries has.
+ */
+async function openClassSettings(page: Page) {
+  const toggle = page.getByRole('button', { name: 'Class settings' });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
 /** Everything measured in the page; the header block is the focused-class-header around the h2. */
 async function probe(page: Page) {
   const result = await page.evaluate(
@@ -260,6 +271,7 @@ for (const layout of ['split', 'stacked'] as const) {
     page,
   }) => {
     await open(page, layout === 'stacked' ? 700 : null, layout);
+    await openClassSettings(page);
     const header = page.getByTestId('focused-class-header');
     await expect(header).toHaveCSS('position', 'sticky');
     // The first control in the card body (the class checklist): near enough the top of the card that it
@@ -357,6 +369,7 @@ test('long split panes cannot scroll the page into blank space and the class fil
   page,
 }) => {
   await open(page, null, 'split', 1464, 6);
+  await openClassSettings(page);
   const show = page.getByRole('region', { name: 'Show', exact: true });
   const panel = page.getByTestId('cockpit-split-focus');
   const header = page.getByTestId('focused-class-header');

@@ -188,7 +188,7 @@ test.describe('shell integrity responsive runtime matrix', () => {
     }
   });
 
-  test('exhibitor My Entries exposes filters before the balance card at 375px', async ({
+  test('exhibitor My Entries exposes filters in the first phone viewport at 375px', async ({
     page,
   }) => {
     const user = TEST_USERS.DEMO_EXHIBITOR;
@@ -202,27 +202,18 @@ test.describe('shell integrity responsive runtime matrix', () => {
     await waitForAppShell(page);
 
     const filters = page.getByTestId('entry-filter-strip');
-    const balance = page.getByTestId('entry-fee-balance');
     await expect(filters).toBeVisible();
-    await expect(balance).toBeVisible();
 
     const layout = await page.evaluate(() => {
       const filterStrip = document.querySelector('[data-testid="entry-filter-strip"]');
-      const feeBalance = document.querySelector('[data-testid="entry-fee-balance"]');
-      if (!filterStrip || !feeBalance) return null;
-      const filterRect = filterStrip.getBoundingClientRect();
-      const balanceRect = feeBalance.getBoundingClientRect();
+      if (!filterStrip) return null;
       return {
-        filterTop: filterRect.top,
-        balanceTop: balanceRect.top,
+        filterTop: filterStrip.getBoundingClientRect().top,
         viewportHeight: window.innerHeight,
       };
     });
 
     expect(layout).not.toBeNull();
-    expect(layout?.filterTop, 'filters should follow the hero context').toBeLessThan(
-      layout?.balanceTop ?? 0
-    );
     expect(
       layout?.filterTop,
       'filters should be usable in the initial phone viewport'

@@ -26,6 +26,7 @@ import type { ShowMoneyKind } from './showMoneyState';
 import { buildShowGroupIndex, groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
+import { useMyShowJudges } from './useMyShowJudges';
 import type { EntryStatusFilter, LeaveClassTarget, MyEntry } from './my-entries-types';
 import { narrowDogsToStatus } from './statusFilterPredicate';
 import { SELECTED_SHOW_PARAM, splitShowsIntoSections } from './myShowSections';
@@ -116,6 +117,20 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   // the paid strip may only confirm a payment that page shows (MYK9-1275).
   const { data: onlinePayments } = useMyPayments(ALL_PAYMENT_YEARS, useViewerId());
 
+  const judgeTargets = React.useMemo(
+    () =>
+      groups
+        .filter(group => group.showId && !group.isShowUnreadable)
+        .map(group => ({
+          showId: group.showId,
+          classIds: group.dogs.flatMap(dog =>
+            dog.classes.map(cls => cls.classId).filter((id): id is string => Boolean(id))
+          ),
+        })),
+    [groups]
+  );
+  const judgeByClassId = useMyShowJudges(judgeTargets);
+
   const sections = React.useMemo(() => splitShowsIntoSections(groups, now), [groups, now]);
   const [searchParams] = useSearchParams();
   const requested = searchParams.get(SELECTED_SHOW_PARAM);
@@ -154,6 +169,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
         source={source}
         now={now}
         selfCheckinByClassId={selfCheckinByClassId}
+        judgeByClassId={judgeByClassId}
         seenResultReleaseKeys={seenResultReleaseKeys}
         onCheckInDay={onCheckInDay}
         onOpenCheckIn={onOpenCheckIn}

@@ -15,7 +15,6 @@ const read = (rel: string) => readFileSync(path.join(dir, rel), 'utf8');
 const dogStep = read('DogSelectionStep.tsx');
 const classComponents = read('ClassSelectionStep.components.tsx');
 const classStep = read('ClassSelectionStep.tsx');
-const inlineHandler = read('InlineHandlerSection.tsx');
 const confirmation = read('ConfirmationStep.tsx');
 const summary = read('EntriesPanel/EntriesPanel.totals.tsx');
 const css = readFileSync(
@@ -61,14 +60,6 @@ describe('registration steps — mobile responsive guards', () => {
 
   it('the dog-tab strip can scroll horizontally instead of overflowing', () => {
     expect(classStep).toContain('overflow-x-auto');
-  });
-
-  it('the inline-handler entry row stacks on mobile and lets the name truncate', () => {
-    expect(inlineHandler).toContain('sm:flex-row');
-    // The text row must be full-width when stacked, or truncate has no width to
-    // act on and long dog/class names overflow the card instead of clipping.
-    expect(inlineHandler).toContain('w-full');
-    expect(inlineHandler).toContain('sm:w-auto');
   });
 
   it('level chips keep a 44px tap height on phones', () => {

@@ -89,6 +89,31 @@ describe('ShowAboutPage (MYK9-1683)', () => {
     expect(screen.getByRole('link', { name: /view as exhibitor/i })).toBeInTheDocument();
   });
 
+  it('links managers to the Access codes panel on Show Desk, the Actions menu href', () => {
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    const link = screen.getByRole('link', { name: /access codes/i });
+    expect(link).toHaveAttribute('href', '/shows/show-1?tool=access-codes');
+    expect(link).toHaveTextContent('Codes for judges and ringside phones');
+    expect(screen.queryByRole('button', { name: /regenerate/i })).toBeNull();
+  });
+
+  it('hides the Access codes row when Judges score on devices is off', () => {
+    harness.outlet = {
+      show: { ...show, usesDeviceScoring: false },
+      canManageShow: true,
+      judges: [],
+      managerEntryCount: 12,
+    };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.queryByRole('link', { name: /access codes/i })).toBeNull();
+  });
+
+  it('shows no Access codes row to a non-manager', () => {
+    harness.outlet = { show, canManageShow: false, judges: [], managerEntryCount: 12 };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.queryByRole('link', { name: /access codes/i })).toBeNull();
+  });
+
   it('has nothing editable in place', () => {
     const { container } = render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
     expect(container.querySelectorAll('input, textarea, select')).toHaveLength(0);

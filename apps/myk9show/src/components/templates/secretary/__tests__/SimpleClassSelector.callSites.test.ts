@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { toPosixPath } from '@/test/utils/posixPath';
 
 const SRC = join(__dirname, '../../../..');
 
@@ -44,7 +45,7 @@ function findMountSites(): Array<{ file: string; hasAddJudge: boolean }> {
       const start = source.indexOf('<SimpleClassSelector');
       const end = source.indexOf('/>', start);
       const attrs = source.slice(start, end === -1 ? undefined : end);
-      return { file: file.replace(SRC, ''), hasAddJudge: attrs.includes('addJudge') };
+      return { file: toPosixPath(file.replace(SRC, '')), hasAddJudge: attrs.includes('addJudge') };
     });
 }
 

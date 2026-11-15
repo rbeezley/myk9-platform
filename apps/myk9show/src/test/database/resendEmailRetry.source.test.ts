@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { toPosixPath } from '@/test/utils/posixPath';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(__dirname, '../../../../..');
@@ -18,7 +19,8 @@ const callerPaths = [
   'supabase/functions/send-results/index.ts',
   'supabase/functions/send-waitlist-invite/index.ts',
   'supabase/functions/push-trigger-support-message/index.ts',
-  'apps/myk9show/supabase/functions/cron-process-payouts/index.ts',
+  // cron-process-payouts sends its club money emails through this shared sender (MYK9-1986).
+  'apps/myk9show/supabase/functions/_shared/clubMoneyEmails.ts',
   'apps/myk9show/supabase/functions/_shared/alertAdmin.ts',
 ] as const;
 
@@ -65,7 +67,7 @@ describe('Resend retry source contract', () => {
     const endpointOwners = roots
       .flatMap(typescriptFiles)
       .filter(path => readFileSync(path, 'utf8').includes('https://api.resend.com/emails'))
-      .map(path => path.slice(repoRoot.length + 1))
+      .map(path => toPosixPath(path.slice(repoRoot.length + 1)))
       .sort();
 
     expect(endpointOwners).toEqual([...helperPaths].sort());

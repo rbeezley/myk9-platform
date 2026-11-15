@@ -163,7 +163,7 @@ describe('pending review', () => {
 });
 
 describe('unassigned armband', () => {
-  it('shows a muted dash rather than a filled pill', () => {
+  it('says the armband is not assigned yet rather than showing a bare dash', () => {
     renderRows([
       futureShowRow({
         id: 'e-noband',
@@ -175,9 +175,9 @@ describe('unassigned armband', () => {
     ]);
 
     const region = screen.getByRole('region', { name: 'Flint Hills Fall Classic' });
-    const dash = within(region).getByText('—');
-    expect(dash).toHaveClass('text-muted-foreground');
-    expect(dash.className).not.toMatch(/bg-primary/);
+    const note = within(region).getByText('Armband not assigned yet');
+    expect(note).toHaveClass('text-muted-foreground');
+    expect(within(region).queryByText('—')).not.toBeInTheDocument();
   });
 });
 

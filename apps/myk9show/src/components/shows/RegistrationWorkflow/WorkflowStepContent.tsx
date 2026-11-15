@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 import { ClassSelectionStep } from './ClassSelectionStep';
+import type { HandlerClashControl } from './ClassSelectionStep.types';
 import { PaymentStep } from './PaymentStep';
 import type { JuniorHandlerDeclaration } from './PaymentStep/JuniorHandlerDeclaration';
 import { ConfirmationStep } from './ConfirmationStep';
@@ -80,6 +81,8 @@ interface WorkflowStepContentProps {
   onDogSelectionChange: (dogs: string[]) => void | Promise<void>;
   onClassSelectionChange: (selections: ClassSelectionData[]) => void | Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void | Promise<void>;
+  /** MYK9-2021: the same-class handler question's state, held by the wizard. */
+  handlerClash?: HandlerClashControl | undefined;
   onPaymentMethodChange: (method: PaymentMethod) => void;
   onPaymentMethodClear?: (() => void) | undefined;
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
@@ -124,6 +127,7 @@ export function WorkflowStepContent({
   onDogSelectionChange,
   onClassSelectionChange,
   onHandlerAssignmentChange,
+  handlerClash,
   onPaymentMethodChange,
   onPaymentMethodClear,
   onPaymentDetailsChange,
@@ -398,6 +402,7 @@ export function WorkflowStepContent({
               {...(!hasHandlerStep && {
                 handlerAssignments: optimisticState.handlerAssignments,
                 onHandlerAssignmentChange,
+                handlerClash,
               })}
             />
             {/* MYK9-2020: said on the step before, because Next skips Handlers. */}

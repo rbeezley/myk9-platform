@@ -173,6 +173,25 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['My Shows', '/exhibitor/entries'],
+    ['My Shows legacy path', '/my-entries'],
+    ['the cart', '/cart'],
+    ['messages', '/messages/show-1'],
+  ])('never redirects an unfinished exhibitor from %s (%s)', (_name, pathname) => {
+    mockPathname = pathname;
+    setupMocks({ roles: [UserRole.EXHIBITOR], onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not exempt a look-alike path', () => {
+    mockPathname = '/cartoons';
+    setupMocks({ roles: [UserRole.EXHIBITOR], onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
+
   it('still redirects from an ordinary page (positive control)', () => {
     mockPathname = '/shows';
     setupMocks({ roles: [UserRole.EXHIBITOR], onboardingCompleted: false });

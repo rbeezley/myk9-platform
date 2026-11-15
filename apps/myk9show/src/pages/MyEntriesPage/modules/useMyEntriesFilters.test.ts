@@ -449,7 +449,7 @@ describe('useMyEntriesFilters tab is addressable via ?tab=', () => {
   // and the "Current entries" card to `?tab=upcoming`. Nothing read the param,
   // so both were no-ops: a chevron and a "View details" label that did nothing.
   // These pin the reader, not the card, because the card was never the broken
-  // half — CompactStatsRow's own test asserted `onNavigate` was called with the
+  // half — the stat card's own test asserted `onNavigate` was called with the
   // string and passed the whole time.
   it('opens on the tab named in the URL', () => {
     const { result } = renderFilters(

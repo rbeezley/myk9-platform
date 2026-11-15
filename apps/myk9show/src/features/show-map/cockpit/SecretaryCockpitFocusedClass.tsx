@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -20,6 +20,12 @@ import type {
   SecretaryCockpitTrial,
 } from './secretaryCockpitTypes';
 import { FocusedClassHeader } from './FocusedClassHeader';
+import { FocusedClassHeaderToggles, FocusedClassSummaryLine } from './FocusedClassCompactBits';
+import {
+  actualTimingText,
+  expectedStartValue,
+  focusedClassSummaryParts,
+} from './focusedClassTiming';
 import { entriesUnread } from './cockpitClassEntries';
 import { ClassCountTiles, ClassEntriesTable } from './FocusedClassEntries';
 import {
@@ -73,6 +79,11 @@ export function SecretaryCockpitFocusedClass({
 }) {
   // Which class's actual-start editor is open; the header's Actual timing field and the Class started step share it.
   const [editingStart, setEditingStart] = useState<string | null>(null);
+  // Compact (pinned) only: which class's Class settings are open. Keyed by class, so a class the
+  // secretary moves to opens with them closed.
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const settingsId = useId();
+  const workRef = useRef<HTMLDivElement>(null);
   if (!focused || !sourceClass || !trial) {
     return (
       <aside className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
@@ -118,6 +129,81 @@ export function SecretaryCockpitFocusedClass({
     showJudge: !judgeControl,
   });
 
+  // Where the header pins (from lg), a laptop's height goes to the entries (MYK9-1989): the header
+  // is one line of name and controls plus one line of values, the settings fold behind Class
+  // settings, and the entries come before the counts and the checklist. Below lg nothing pins and
+  // the card keeps its full layout.
+  const compact = pinMode !== 'none';
+  const settingsOpen = !compact || settingsFor === focused.id;
+  const summaryParts = compact
+    ? focusedClassSummaryParts({
+        facts: buildFocusedClassFacts({
+          focused,
+          entryCount: sourceClass.entryCount ?? null,
+          breakdown:
+            entryBreakdownByClassId?.get(focused.id) ?? (entryBreakdownByClassId && NO_ENTRIES),
+          showJudge: true,
+        }),
+        expectedStart: expectedStartValue(sourceClass, timeZone),
+        timing: actualTimingText(focused, sourceClass.lifecycle, timeZone),
+      })
+    : [];
+  const jumpToChecklist = () => {
+    const work = workRef.current;
+    if (!work) return;
+    work.focus({ preventScroll: true });
+    work.scrollIntoView?.({ block: 'start', behavior: 'instant' });
+  };
+
+  const entriesSection = (
+    <section aria-labelledby="focused-class-entries">
+      <h3
+        id="focused-class-entries"
+        className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+      >
+        Entries in run order
+      </h3>
+      <ClassEntriesTable
+        entries={focused.entries}
+        className={focused.name}
+        canChangeCheckIn={canManageShow}
+        {...(onRefreshEntries && { onRefreshEntries })}
+        hidden={focused.entriesHidden}
+        unread={unread}
+        // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).
+        rowMenu={rowMenu}
+        // Managers only (MYK9-1872): drag a waiting dog's grip to change the run order.
+        reorder={canManageShow && runOrder ? { showId, classId: focused.id, runOrder } : undefined}
+      />
+    </section>
+  );
+  const undoNotice = canManageShow && runOrder && (
+    <RunOrderUndoNotice classId={focused.id} runOrder={runOrder} />
+  );
+  // The Checklist button's target when compact; focusable so it scrolls under the pinned header.
+  const work = (
+    <div
+      ref={workRef}
+      tabIndex={compact ? -1 : undefined}
+      className="space-y-5 outline-none"
+      data-testid="focused-class-work"
+    >
+      <ClassCountTiles entries={focused.entries} unread={unread} />
+      <ClassChecklistSection
+        showId={showId}
+        sourceClass={sourceClass}
+        paperwork={focused.paperwork}
+        timeZone={timeZone}
+        onCommand={onCommand}
+        printTrackingInUse={focused.printTrackingInUse}
+        canManageShow={canManageShow}
+        trialDate={trial.date}
+        editingStart={editingStart}
+        onEditingStartChange={setEditingStart}
+      />
+    </div>
+  );
+
   return (
     <aside className="rounded-xl border bg-card text-card-foreground shadow-sm">
       {/* No overflow-hidden on the card: it would turn the card into the header's scroll
@@ -127,6 +213,22 @@ export function SecretaryCockpitFocusedClass({
         title={focused.name}
         facts={facts.join(' · ')}
         pinMode={pinMode}
+        compact={compact}
+        actions={
+          compact && (
+            <FocusedClassHeaderToggles
+              settingsOpen={settingsOpen}
+              settingsId={settingsId}
+              onToggleSettings={() => setSettingsFor(settingsOpen ? null : focused.id)}
+              onJumpToChecklist={jumpToChecklist}
+            />
+          )
+        }
+        summary={
+          compact && (
+            <FocusedClassSummaryLine lifecycle={focused.lifecycle.value} parts={summaryParts} />
+          )
+        }
         menu={
           <FocusedClassActionsMenu
             showId={showId}
@@ -144,22 +246,27 @@ export function SecretaryCockpitFocusedClass({
       >
         {/* Keyed by class: an open editor, its unsaved time or a pending status confirmation
             must never carry onto the next class the secretary clicks. */}
-        <FocusedClassFields
-          key={focused.id}
-          focused={focused}
-          sourceClass={sourceClass}
-          trial={trial}
-          timeZone={timeZone}
-          canManageShow={canManageShow}
-          judgeControl={judgeControl}
-          scoringControl={scoringControl}
-          onEditActualStart={() => setEditingStart(focused.id)}
-        />
+        <div id={settingsId} hidden={!settingsOpen}>
+          {settingsOpen && (
+            <FocusedClassFields
+              key={focused.id}
+              focused={focused}
+              sourceClass={sourceClass}
+              trial={trial}
+              timeZone={timeZone}
+              canManageShow={canManageShow}
+              judgeControl={judgeControl}
+              scoringControl={scoringControl}
+              onEditActualStart={() => setEditingStart(focused.id)}
+            />
+          )}
+        </div>
       </FocusedClassHeader>
 
       <div
         className={cn(
-          'space-y-5 p-5',
+          'space-y-5',
+          compact ? 'px-5 pb-5 pt-2' : 'p-5',
           pinMode === 'panel'
             ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL
             : pinMode === 'page'
@@ -167,44 +274,18 @@ export function SecretaryCockpitFocusedClass({
               : ''
         )}
       >
-        <ClassCountTiles entries={focused.entries} unread={unread} />
-        <ClassChecklistSection
-          showId={showId}
-          sourceClass={sourceClass}
-          paperwork={focused.paperwork}
-          timeZone={timeZone}
-          onCommand={onCommand}
-          printTrackingInUse={focused.printTrackingInUse}
-          canManageShow={canManageShow}
-          trialDate={trial.date}
-          editingStart={editingStart}
-          onEditingStartChange={setEditingStart}
-        />
-        <section aria-labelledby="focused-class-entries">
-          <h3
-            id="focused-class-entries"
-            className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-          >
-            Entries in run order
-          </h3>
-          <ClassEntriesTable
-            entries={focused.entries}
-            className={focused.name}
-            canChangeCheckIn={canManageShow}
-            {...(onRefreshEntries && { onRefreshEntries })}
-            hidden={focused.entriesHidden}
-            unread={unread}
-            // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).
-            rowMenu={rowMenu}
-            // Managers only (MYK9-1872): drag a waiting dog's grip to change the run order.
-            reorder={
-              canManageShow && runOrder ? { showId, classId: focused.id, runOrder } : undefined
-            }
-          />
-        </section>
-
-        {canManageShow && runOrder && (
-          <RunOrderUndoNotice classId={focused.id} runOrder={runOrder} />
+        {compact ? (
+          <>
+            {entriesSection}
+            {undoNotice}
+            {work}
+          </>
+        ) : (
+          <>
+            {work}
+            {entriesSection}
+            {undoNotice}
+          </>
         )}
 
         {attention.length > 0 && (

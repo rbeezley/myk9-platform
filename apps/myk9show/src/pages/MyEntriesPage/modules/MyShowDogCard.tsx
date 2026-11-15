@@ -17,7 +17,6 @@
 import React from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { StatusBadge } from '@/components/status';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
 import { formatMonthDay } from '@/lib/format/dates';
@@ -26,13 +25,16 @@ import { deriveDayCheckInTargets, type DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import { MyShowClassRow } from './MyShowClassRow';
 import type { MyEntry } from './my-entries-types';
+import type { JudgeByClassId } from './useMyShowJudges';
 import { deriveDogChip } from './myShowDogState';
 import { dogCardAnchorId } from './dogCardAnchor';
-import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
+import { armbandLabel, PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import type { RefundNote } from './showMoneyState';
 
 export interface MyShowDogCardProps {
   dog: MyShowDog;
+  /** classId -> judge name, for the row's "Judge ..." text. */
+  judgeByClassId?: JudgeByClassId | undefined;
   /** The show's orders, keyed by id — a dog can span several. */
   ordersById: Record<string, MyEntry>;
   checkInContext: DayCheckInContext;
@@ -55,6 +57,7 @@ export interface MyShowDogCardProps {
 
 const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
   dog,
+  judgeByClassId,
   ordersById,
   checkInContext,
   isShowCancelled,
@@ -78,9 +81,6 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
     <div className="myk9-entries-dog-card">
       <div className="myk9-entries-dog-card-head">
         <div className="myk9-entries-dog-card-identity">
-          {/* ArmbandBadge's own unassigned path renders a muted dash, so the
-              "not a filled pill yet" rule is one implementation, not two. */}
-          <ArmbandBadge armband={dog.armband} className="h-10 min-w-10 text-base" />
           {/* MYK9-658: where focus lands after leaving one of this card's
               classes. Programmatically focusable only, and unique per card. */}
           <span
@@ -91,6 +91,7 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
           >
             {dog.dogName}
           </span>
+          <span className="text-sm text-muted-foreground">{armbandLabel(dog.armband)}</span>
         </div>
         <div className="myk9-entries-dog-card-actions">
           <StatusBadge family="entry" status={chip.status} label={chip.label} />
@@ -121,6 +122,7 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
           <MyShowClassRow
             key={cls.id}
             cls={cls}
+            judgeName={cls.classId ? judgeByClassId?.[cls.classId] : undefined}
             dogName={dog.dogName}
             order={ordersById[cls.orderId]}
             checkInContext={checkInContext}

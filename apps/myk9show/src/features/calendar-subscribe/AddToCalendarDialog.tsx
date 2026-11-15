@@ -119,9 +119,19 @@ export function AddToCalendarDialog({
         )}
 
         {configured && error && !urls && (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+            <Button
+              variant="outline"
+              className="min-h-[44px]"
+              onClick={() => void issue(showId)}
+              disabled={loading}
+            >
+              Try again
+            </Button>
+          </div>
         )}
 
         {configured && urls && (

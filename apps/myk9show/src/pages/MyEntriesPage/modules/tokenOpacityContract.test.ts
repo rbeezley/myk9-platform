@@ -36,7 +36,6 @@ const PAGE_FILES = [
   ...readdirSync(resolve(SRC, 'pages/MyEntriesPage/modules'))
     .filter(f => f.endsWith('.tsx') && !f.includes('.test.'))
     .map(f => `pages/MyEntriesPage/modules/${f}`),
-  'components/exhibitor/CompactStatsRow.tsx',
   'components/exhibitor/DogStrip.tsx',
   'components/exhibitor/DogStripCard.tsx',
   'components/exhibitor/FirstRunZeroState.tsx',

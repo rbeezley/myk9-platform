@@ -229,18 +229,13 @@ test('an owed entry is never reported as paid on My Shows or My Payments (MYK9-4
     description: `${owed.length} owed (${owedCents} cents), ${masked} inside an order marked paid`,
   });
 
-  const feeButton = page.getByTestId('entry-fee-balance').getByRole('button', {
-    name: /^Entry fees:/,
-  });
-  await expect(feeButton, 'My Shows never confirmed a balance, so it hid the fee card').toBeVisible(
-    { timeout: 30000 }
-  );
-  // The two owed labels in CompactStatsRow (MYK9-1275 reworded "$X due" to "you owe $X");
-  // "paid in full" must never match.
+  // Money owed is stated per show (MYK9-2030): a show card with a balance shows
+  // its own "Pay $X" link, and there is no all-shows total row.
   await expect(
-    feeButton,
-    `${owed.length} own entries are pending with a fee, so the fee card must show money due`
-  ).toHaveAccessibleName(/^Entry fees: (you owe \$[\d,]+\.\d{2}|\$[\d,]+\.\d{2} outstanding)/);
+    page.getByRole('link', { name: /^Pay \$[\d,]+\.\d{2}$/ }).first(),
+    `${owed.length} own entries are pending with a fee, so a show card must offer Pay`
+  ).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('button', { name: /^Entry fees:/ })).toHaveCount(0);
 
   await page.goto('/exhibitor/payments');
   const heading = page.getByRole('heading', { name: 'Amount due' });

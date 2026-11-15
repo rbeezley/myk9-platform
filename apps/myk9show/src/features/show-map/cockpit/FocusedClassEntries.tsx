@@ -56,8 +56,11 @@ import {
 import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
-// scroll wrapper stays as the fallback for narrower ones.
-const CELL = 'px-2 py-2';
+// scroll wrapper stays as the fallback for narrower ones. 4px above and below the 44-48px controls
+// keeps a row at about 57px, so a laptop shows six of them under the pinned header (MYK9-1989).
+const CELL = 'px-2 py-1';
+/** The grip and menu cells: the control fills the width, the same 4px above and below. */
+const CONTROL_CELL = 'w-11 px-0 py-1';
 /** "#110 Hazel": how a dog is named in the grip, the announcements and the Undo summary. */
 const dogLabel = dayOfDogLabel;
 const NO_ACTIONS: readonly SecretaryCockpitEntryAction[] = [];
@@ -301,7 +304,7 @@ export function ClassEntriesTable({
                 <StatusPill label={run.label} kind={run.kind} outlined={run.outlined ?? false} />
               </TableCell>
               <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
-              <TableCell className="px-0">
+              <TableCell className="px-0 py-1">
                 {rowMenu && (
                   <ClassEntryRowMenu
                     entry={entry}
@@ -329,7 +332,7 @@ export function ClassEntriesTable({
           }
           return (
             <TableRow key={entry.nodeId} data-testid="class-entry-row">
-              {canReorder && <TableCell className="w-11 px-0" />}
+              {canReorder && <TableCell className={CONTROL_CELL} />}
               {cells}
             </TableRow>
           );

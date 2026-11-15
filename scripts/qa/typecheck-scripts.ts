@@ -128,7 +128,7 @@ export function findUncompiledFiles(
   trackedFiles: readonly string[],
   rootDir: string
 ): string[] {
-  const compiled = new Set(listedFiles.map(file => relative(rootDir, file)));
+  const compiled = new Set(listedFiles.map(file => relative(rootDir, file).replaceAll('\\', '/')));
   return trackedFiles.filter(file => !compiled.has(file));
 }
 
@@ -140,7 +140,11 @@ export function findWeakenedOptions(compilerOptions: Record<string, unknown>): s
 }
 
 function run(command: string, args: string[], rootDir: string): string {
-  const result = spawnSync(command, args, { cwd: rootDir, encoding: 'utf8' });
+  const result = spawnSync(command, args, {
+    cwd: rootDir,
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr ?? ''}`);
@@ -192,6 +196,7 @@ export function runCli(args: string[] = process.argv.slice(2), rootDir = process
   const result = spawnSync('tsc', ['--noEmit', '--project', configPath], {
     cwd: rootDir,
     encoding: 'utf8',
+    shell: process.platform === 'win32',
   });
   if (result.error) throw result.error;
 

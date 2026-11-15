@@ -1,0 +1,27 @@
+# Every text file is LF in the working tree on every machine, whatever core.autocrlf says.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF in the working tree.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary types present in the repo.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.mp4 binary
+*.webm binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
+*.pptx binary
+*.docx binary
+*.xlsx binary

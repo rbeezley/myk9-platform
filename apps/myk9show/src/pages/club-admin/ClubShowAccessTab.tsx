@@ -32,6 +32,7 @@ import type { ClubShowManager } from '@/services/database/club-memberships';
 import { MEMBERSHIP_STATUS_LABELS, type MembershipStatus } from '@/types/club-membership-types';
 import { STATUS_BADGE_CLASSES } from './ClubMemberDialogs';
 import { ClubShowAccessRequests } from './ClubShowAccessRequests';
+import { filterPeoplePicker } from './peoplePickerFilter';
 import type { RoleRequest } from '@/services/database/role-requests';
 
 // --- Appoint dialog ---
@@ -58,16 +59,14 @@ export const AppointSecretaryDialog: React.FC<AppointDialogProps> = ({
 
   // Deliberately NOT filtered to club members. That filter is the bug this tab exists
   // to fix: the people most likely to be appointed are the ones with no membership.
-  const availablePeople = useMemo(() => {
-    const filtered = people.filter(p => !appointedIds.has(p.id));
-    if (!search.trim()) return filtered;
-    const q = search.toLowerCase();
-    return filtered.filter(
-      p =>
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
-        p.email?.toLowerCase().includes(q)
-    );
-  }, [people, appointedIds, search]);
+  const picker = useMemo(
+    () =>
+      filterPeoplePicker(
+        search,
+        people.filter(p => !appointedIds.has(p.id))
+      ),
+    [people, appointedIds, search]
+  );
 
   const reset = () => {
     setSelectedPersonId('');
@@ -107,10 +106,10 @@ export const AppointSecretaryDialog: React.FC<AppointDialogProps> = ({
               />
             </div>
             <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
-              {availablePeople.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground text-center">No people found</p>
+              {picker.people.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground text-center">{picker.hint}</p>
               ) : (
-                availablePeople.slice(0, 20).map(person => (
+                picker.people.map(person => (
                   <button
                     key={person.id}
                     onClick={() => setSelectedPersonId(person.id)}
@@ -131,10 +130,8 @@ export const AppointSecretaryDialog: React.FC<AppointDialogProps> = ({
                 ))
               )}
             </div>
-            {availablePeople.length > 20 && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Showing the first 20 of {availablePeople.length}. Keep typing to narrow the list.
-              </p>
+            {picker.people.length > 0 && picker.hint && (
+              <p className="mt-1 text-sm text-muted-foreground">{picker.hint}</p>
             )}
           </FormField>
           <div className="flex justify-end gap-2 pt-2">

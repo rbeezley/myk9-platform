@@ -4,8 +4,13 @@
 # or manually: bash scripts/bootstrap-worktree.sh
 set -euo pipefail
 
+# Absolute means POSIX (/...) or, under Git Bash on Windows, a drive path (C:/...).
+is_absolute_path() {
+  [[ "$1" == /* || "$1" =~ ^[A-Za-z]:[/\\] ]]
+}
+
 WORKTREE_DIR="$(git rev-parse --show-toplevel)"
-if [[ "$WORKTREE_DIR" != /* ]]; then
+if ! is_absolute_path "$WORKTREE_DIR"; then
   echo "Refusing to bootstrap a worktree with a non-absolute path: $WORKTREE_DIR" >&2
   exit 1
 fi
@@ -31,7 +36,7 @@ if [ -z "$MAIN_REPO" ]; then
   echo "Failed to identify primary Git worktree from porcelain inventory." >&2
   exit 1
 fi
-if [[ "$MAIN_REPO" != /* ]]; then
+if ! is_absolute_path "$MAIN_REPO"; then
   echo "Refusing to bootstrap with a non-absolute primary worktree path: $MAIN_REPO" >&2
   exit 1
 fi
@@ -122,6 +127,15 @@ mkdir -p "$WORKTREE_DIR/.logs" || echo "  Could not create $WORKTREE_DIR/.logs (
 if [ "$WORKTREE_DIR" = "$MAIN_REPO" ]; then
   echo "  Not a worktree — skipping bootstrap" >&2
   exit 0
+fi
+
+# 0. Windows: .claude/skills and .agents/skills hold git symlinks. Without symlink
+# support they check out as plain files and the skill-tree tests fail.
+if [ "$(git config --get core.symlinks || echo true)" = "false" ]; then
+  echo "  WARNING: core.symlinks is false, so git symlinks check out as plain files." >&2
+  echo "  Windows: turn on Developer Mode (Settings > System > For developers), then run:" >&2
+  echo "    git config --worktree core.symlinks true" >&2
+  echo "    git ls-files -s | grep '^120000' | cut -f2 | xargs -d '\n' git restore --" >&2
 fi
 
 # 1. Install dependencies

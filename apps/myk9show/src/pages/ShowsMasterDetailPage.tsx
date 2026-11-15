@@ -1,4 +1,11 @@
-import React, { useEffect, useRef, type CSSProperties } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 import { List, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +20,7 @@ import { useViewPreference } from '@/hooks/useViewPreference';
 import { isAccountSession } from '@/hooks/guestServerRead';
 import { UserRole } from '@/types/auth-types';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
+import { ShowsPaneToggleContext } from '@/components/shows/ShowDetails/showsPaneToggleSlot';
 import {
   SHOWS_LIST_DEFAULT_PX,
   SHOWS_LIST_MAX_PX,
@@ -45,8 +53,8 @@ const SHOWS_LIST_SIZE = {
   min: `${SHOWS_LIST_MIN_PX}px`,
   max: `${SHOWS_LIST_MAX_PX}px`,
 };
-// The fixed header and page padding are the only chrome; each pane scrolls on its own. Folded,
-// the "Shows" button row (2.75rem button + 0.75rem gap) comes off the height too.
+// The fixed header and page padding are the only chrome; each pane scrolls on its own. Folded with
+// the "Shows" button on its own row (2.75rem button + 0.75rem gap), that row comes off the height too.
 // `--pane-scroll-h` (PANE_SCROLL_HEIGHT_VAR) republishes the same height for the focused-class panel,
 // which sizes itself to the pane it scrolls in; it must be declared here, above PANE_TOP_INSET.
 const SPLIT_HEIGHT =
@@ -149,24 +157,45 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
     </Button>
   );
 
+  // Folded, the open show's header may take the "Shows" button beside its name (MYK9-1989); this
+  // row is only for a detail that does not (a loading or error state, the exhibitor view).
+  const [claims, setClaims] = useState(0);
+  const claim = useCallback(() => {
+    setClaims(count => count + 1);
+    return () => setClaims(count => count - 1);
+  }, []);
+  const openList = useCallback(() => {
+    focusAfterToggle.current = 'list';
+    setPaneMode('open');
+  }, [setPaneMode]);
+  const showsButton = useMemo(
+    () => (
+      <Button variant="outline" data-shows-pane-toggle onClick={openList}>
+        <List className="mr-2 h-4 w-4" aria-hidden="true" />
+        Shows
+      </Button>
+    ),
+    [openList]
+  );
+  const ownRow = folded && claims === 0;
+  // Offered (and claimed) whether or not the list is folded, so folding never waits a render for
+  // the claim and the button is never drawn twice.
+  const slot = useMemo(
+    () => ({ toggle: folded ? showsButton : null, claim }),
+    [folded, showsButton, claim]
+  );
+
   return (
     <div className="px-[var(--app-shell-page-padding,1rem)] py-4 sm:px-6">
       <div ref={splitRef}>
         {/* A fixed slot ahead of the split, so showing the button never shifts the split's position. */}
-        <div className={folded ? 'pb-3' : 'hidden'}>
-          {folded && (
-            <Button variant="outline" data-shows-pane-toggle onClick={() => toggle('open')}>
-              <List className="mr-2 h-4 w-4" aria-hidden="true" />
-              Shows
-            </Button>
-          )}
-        </div>
+        <div className={ownRow ? 'pb-3' : 'hidden'}>{ownRow && showsButton}</div>
         <MasterDetailLayout
           id="shows"
           listLabel="Shows list"
           detailLabel="Show"
           listSize={SHOWS_LIST_SIZE}
-          heightClassName={folded ? FOLDED_HEIGHT : SPLIT_HEIGHT}
+          heightClassName={ownRow ? FOLDED_HEIGHT : SPLIT_HEIGHT}
           listHidden={folded}
           list={
             // A list that fails to render must never take the open show down with it.
@@ -188,7 +217,9 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
               {/* Mounted only once this page has measured itself (a layout effect, before paint),
                   so the show mounts once, at its final width: a first frame at full width that
                   then narrows would move the rows a returning anchor scrolls to. */}
-              {splitWidth !== null && <Outlet />}
+              <ShowsPaneToggleContext.Provider value={slot}>
+                {splitWidth !== null && <Outlet />}
+              </ShowsPaneToggleContext.Provider>
             </div>
           }
         />

@@ -10,6 +10,7 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     hasSeparateHandlerStep: false,
     entryCount: 1,
     unassignedHandlerCount: 0,
+    unansweredHandlerClashCount: 0,
     totalFees: 25,
     hasPaymentMethod: true,
     needsAgreement: false,
@@ -51,6 +52,20 @@ describe('proceedBlockedReason', () => {
   });
 
   describe('class-selection', () => {
+    it('blocks while a same-class handler question is unanswered (MYK9-2021)', () => {
+      expect(
+        proceedBlockedReason(ctx({ stepId: 'class-selection', unansweredHandlerClashCount: 1 }))
+      ).toBe(
+        "Tell us who will handle the second dog, or choose I'll decide at the show, to continue."
+      );
+    });
+
+    it('proceeds once every same-class handler question is answered', () => {
+      expect(
+        proceedBlockedReason(ctx({ stepId: 'class-selection', unansweredHandlerClashCount: 0 }))
+      ).toBeNull();
+    });
+
     it('blocks with no classes selected', () => {
       expect(
         proceedBlockedReason(ctx({ stepId: 'class-selection', hasSelectedClasses: false }))

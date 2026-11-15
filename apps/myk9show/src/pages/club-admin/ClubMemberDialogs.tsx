@@ -21,6 +21,7 @@ import {
   type MembershipStatus,
   type OfficerPosition,
 } from '@/types/club-membership-types';
+import { filterPeoplePicker } from './peoplePickerFilter';
 
 // --- Badge color constants ---
 
@@ -89,16 +90,14 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [membershipType, setMembershipType] = useState<MembershipType>('full');
 
-  const availablePeople = useMemo(() => {
-    const filtered = people.filter(p => !existingMemberIds.has(p.id));
-    if (!search.trim()) return filtered;
-    const q = search.toLowerCase();
-    return filtered.filter(
-      p =>
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
-        p.email?.toLowerCase().includes(q)
-    );
-  }, [people, existingMemberIds, search]);
+  const picker = useMemo(
+    () =>
+      filterPeoplePicker(
+        search,
+        people.filter(p => !existingMemberIds.has(p.id))
+      ),
+    [people, existingMemberIds, search]
+  );
 
   const handleSave = () => {
     if (!selectedPersonId) return;
@@ -143,10 +142,10 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
               />
             </div>
             <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
-              {availablePeople.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground text-center">No people found</p>
+              {picker.people.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground text-center">{picker.hint}</p>
               ) : (
-                availablePeople.slice(0, 20).map(person => (
+                picker.people.map(person => (
                   <button
                     key={person.id}
                     onClick={() => setSelectedPersonId(person.id)}
@@ -166,10 +165,8 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 ))
               )}
             </div>
-            {availablePeople.length > 20 && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Showing the first 20 of {availablePeople.length}. Keep typing to narrow the list.
-              </p>
+            {picker.people.length > 0 && picker.hint && (
+              <p className="mt-1 text-sm text-muted-foreground">{picker.hint}</p>
             )}
           </FormField>
 
@@ -230,18 +227,11 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
   const [search, setSearch] = useState('');
 
   // Show members first, then other people
-  const candidateList = useMemo(() => {
+  const picker = useMemo(() => {
     const memberPersonIds = new Set(members.map(m => m.personId));
     const memberPeople = people.filter(p => memberPersonIds.has(p.id));
     const otherPeople = people.filter(p => !memberPersonIds.has(p.id));
-    const combined = [...memberPeople, ...otherPeople];
-    if (!search.trim()) return combined;
-    const q = search.toLowerCase();
-    return combined.filter(
-      p =>
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
-        p.email?.toLowerCase().includes(q)
-    );
+    return filterPeoplePicker(search, [...memberPeople, ...otherPeople]);
   }, [members, people, search]);
 
   const handleSave = () => {
@@ -289,10 +279,10 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
               />
             </div>
             <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
-              {candidateList.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground text-center">No people found</p>
+              {picker.people.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground text-center">{picker.hint}</p>
               ) : (
-                candidateList.slice(0, 20).map(person => {
+                picker.people.map(person => {
                   const isMember = members.some(m => m.personId === person.id);
                   return (
                     <button
@@ -320,10 +310,8 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                 })
               )}
             </div>
-            {candidateList.length > 20 && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Showing the first 20 of {candidateList.length}. Keep typing to narrow the list.
-              </p>
+            {picker.people.length > 0 && picker.hint && (
+              <p className="mt-1 text-sm text-muted-foreground">{picker.hint}</p>
             )}
           </FormField>
 

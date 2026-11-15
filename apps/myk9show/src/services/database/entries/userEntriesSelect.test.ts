@@ -8,4 +8,10 @@ describe('USER_ENTRIES_SELECT', () => {
     const classEmbed = USER_ENTRIES_SELECT.match(/class:class_id \(([^()]*)/)?.[1] ?? '';
     expect(classEmbed.split(',').map(field => field.trim())).toContain('start_time');
   });
+
+  // The card's directions link is built from the street address, which lives in shows.location.
+  it('reads the street address inside the show embed', () => {
+    const showEmbed = USER_ENTRIES_SELECT.match(/show:show_id \(([^()]*)/)?.[1] ?? '';
+    expect(showEmbed.split(',').map(field => field.trim())).toContain('location');
+  });
 });

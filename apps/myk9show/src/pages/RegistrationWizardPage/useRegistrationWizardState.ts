@@ -307,6 +307,10 @@ export function useRegistrationWizardState() {
 
   const [classSelections, setClassSelections] = useState<ClassSelectionData[]>([]);
   const [handlerAssignments, setHandlerAssignments] = useState<Record<string, HandlerInfo>>({});
+  // MYK9-2021: the dog pairs the exhibitor chose "I'll decide at the show" for, and
+  // how many same-class handler questions the Classes step still has open.
+  const [handlerClashDeferred, setHandlerClashDeferred] = useState<string[]>([]);
+  const [handlerClashPending, setHandlerClashPending] = useState(0);
   const [registrationId, setRegistrationId] = useState<string | undefined>();
   const [registrationNumber, setRegistrationNumber] = useState<string | undefined>();
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
@@ -584,6 +588,7 @@ export function useRegistrationWizardState() {
       classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0),
     hasSeparateHandlerStep: currentWorkflowConfig.steps.includes('handler-assignment'),
     entryCount: allEntryKeys.length,
+    unansweredHandlerClashCount: handlerClashPending,
     unassignedHandlerCount: allEntryKeys.filter(key => !handlerAssignments[key]?.handlerName)
       .length,
     totalFees: liveTotalFees,
@@ -668,6 +673,9 @@ export function useRegistrationWizardState() {
     setClassSelections,
     handlerAssignments,
     setHandlerAssignments,
+    handlerClashDeferred,
+    setHandlerClashDeferred,
+    setHandlerClashPending,
     registrationId,
     setRegistrationId,
     registrationNumber,

@@ -2,14 +2,22 @@ import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-
 import type { WorkflowMode } from './RegistrationWorkflow.types';
 import type { RegistrationFix } from './ownerAddressPrerequisite';
 
+/** Wizard-held state for the same-class handler question (MYK9-2021). */
+export interface HandlerClashControl {
+  deferredPairKeys: string[];
+  onDeferredChange: (pairKeys: string[]) => void;
+  onPendingChange: (count: number) => void;
+}
+
 export interface ClassSelectionStepProps {
   selectedDogs: string[];
   classSelections: ClassSelectionData[];
   onSelectionChange: (selections: ClassSelectionData[]) => void;
   showId: string;
-  /** When provided, renders an inline handler section (used when handler-assignment step is removed) */
+  /** With the next two: asks who handles the second dog when one owner has two dogs in a class (MYK9-2021). Used when the handler-assignment step is removed. */
   handlerAssignments?: Record<string, HandlerInfo>;
   onHandlerAssignmentChange?: (assignments: Record<string, HandlerInfo>) => void;
+  handlerClash?: HandlerClashControl | undefined;
   /**
    * Which flow is rendering this shared step. Drives the already-entered
    * recovery path: exhibitors are pointed at the show team, staff at Entry

@@ -99,7 +99,8 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
     label: 'Handlers',
     icon: <UserCheck className="h-5 w-5" />,
     // Secretary/admin roles get a dedicated step. Exhibitors use an inline
-    // collapsible in ClassSelectionStep instead (see InlineHandlerSection).
+    // question in ClassSelectionStep instead, only when one owner has two dogs
+    // in the same class (see HandlerClashSection).
   },
   payment: {
     id: 3,

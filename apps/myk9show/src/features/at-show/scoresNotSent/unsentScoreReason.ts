@@ -3,9 +3,9 @@
  * own text: each refusal the server can give a score is matched to one plain sentence, and
  * anything unrecognised gets a plain sentence too.
  *
- * Add a refusal by adding a rule to `SCORE_REFUSAL_RULES`. MYK9-2015 adds the judge-change
- * refusal here; the existing per-judge refusal already reads "This class is now judged by Lee
- * Okafor".
+ * Add a refusal by adding a rule to `SCORE_REFUSAL_RULES`. A class whose judge changed after the
+ * first judge scored offline is the per-judge refusal, read "This class is now judged by Lee
+ * Okafor." (MYK9-2015, `judgeReassignedOffline.test.ts`).
  */
 import type { PendingMutation } from '@myk9/replication';
 import type { ScoreUnitState } from '@/services/replication/unsentWork';

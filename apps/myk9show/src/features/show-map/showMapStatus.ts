@@ -240,6 +240,26 @@ export function classifyEntryCheckInStatus(
   };
 }
 
+/**
+ * MYK9-2015: the class has started once its status says so, or once any dog that still belongs
+ * in it is checked in, at the gate, in the ring or scored. Read through the class, run and
+ * check-in classifiers above; a moved, pulled or scratched dog does not start a class.
+ */
+export function hasClassStarted(
+  status: string | null | undefined,
+  entries: readonly ShowMapEntryInput[]
+): boolean {
+  const classKind = classifyClassStatus(status ?? undefined)?.kind;
+  if (classKind === 'active' || classKind === 'complete') return true;
+  return entries.some(entry => {
+    const run = classifyEntryRunStatus(entry)?.kind;
+    if (run === 'muted') return false;
+    if (run === 'complete' || run === 'active') return true;
+    const checkIn = classifyEntryCheckInStatus(entry)?.kind;
+    return checkIn === 'active' || checkIn === 'complete';
+  });
+}
+
 export function isEntryComplete(entry: ShowMapEntryInput): boolean {
   const runStatus = classifyEntryRunStatus(entry);
   return runStatus?.kind === 'complete' || isEntryPulledOrScratched(entry);

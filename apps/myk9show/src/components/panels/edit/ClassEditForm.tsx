@@ -25,7 +25,8 @@ import { RuleBadge } from '@/components/classes/OfficialsSection';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
-import type { ClassEditFormData } from './ClassEditPanel.types';
+import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
+import type { ClassEditFormData, OutgoingJudge } from './ClassEditPanel.types';
 import { isScentWorkNovice } from './ClassEditPanel.helpers';
 import type { ClassTabValue } from './ClassEditPanel.validationTab';
 
@@ -100,7 +101,8 @@ export const ClassEditForm: React.FC<{
   onTabChange: (tab: ClassTabValue) => void;
   /** False when the class came from a source that did not load its limit and wait list. */
   capacityLoaded: boolean;
-}> = ({ showId, activeTab, onTabChange, capacityLoaded }) => {
+  outgoingJudge: OutgoingJudge;
+}> = ({ showId, activeTab, onTabChange, capacityLoaded, outgoingJudge }) => {
   const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
@@ -360,6 +362,7 @@ export const ClassEditForm: React.FC<{
                       </SelectContent>
                     </Select>
                   )}
+                  <JudgeChangeWarning {...outgoingJudge} selectedJudgeId={data.judgeId} />
                 </FormField>
 
                 {/* Steward positions */}

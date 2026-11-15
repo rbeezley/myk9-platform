@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildDiagnosticBundle } from '../support/supportDiagnostics';
-import { buildMockTestSubject, findMockTestTicket, saveMockNote } from './mockShowTickets';
+import {
+  buildMockTestSubject,
+  findMockTestTicket,
+  listMyMockTestTickets,
+  saveMockNote,
+} from './mockShowTickets';
 
 const mockFrom = vi.hoisted(() => vi.fn());
 const mockRpc = vi.hoisted(() => vi.fn());
@@ -13,6 +18,7 @@ type Row = Record<string, unknown>;
 
 /** Stubs the tables the support client reads and writes. */
 function stubTables(tickets: Row[]) {
+  let lastRead: { eq: ReturnType<typeof vi.fn> } | null = null;
   const messageInsert = vi.fn().mockResolvedValue({ error: null });
   const statusUpdate = vi.fn();
   mockFrom.mockImplementation((table: string) => {
@@ -27,6 +33,7 @@ function stubTables(tickets: Row[]) {
     };
     read.eq.mockReturnValue(read);
     read.order.mockReturnValue(read);
+    lastRead = read;
     return {
       select: () => read,
       update: (row: Row) => {
@@ -35,7 +42,7 @@ function stubTables(tickets: Row[]) {
       },
     };
   });
-  return { messageInsert, statusUpdate };
+  return { messageInsert, statusUpdate, read: () => lastRead };
 }
 
 function ticketRow(overrides: Row = {}): Row {
@@ -55,6 +62,23 @@ function ticketRow(overrides: Row = {}): Row {
 
 const diagnosticsFor = (mockTest: { part: 'task' | 'closing' | 'free'; number: number | null }) =>
   buildDiagnosticBundle({ userId: 'tester-1', route: '/account/mock-show-test', mockTest });
+
+describe('listMyMockTestTickets', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('asks the server for this owner and mock-test tickets only, so a long inbox cannot hide one', async () => {
+    const tables = stubTables([ticketRow()]);
+
+    const tickets = await listMyMockTestTickets('tester-1');
+
+    expect(mockFrom).toHaveBeenCalledWith('support_tickets');
+    expect(tables.read()?.eq).toHaveBeenCalledWith('owner_id', 'tester-1');
+    expect(tables.read()?.eq).toHaveBeenCalledWith('diagnostics->>kind', 'mock-test');
+    expect(tickets.map(ticket => ticket.id)).toEqual(['ticket-1']);
+  });
+});
 
 describe('mock show notes', () => {
   beforeEach(() => {

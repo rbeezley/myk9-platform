@@ -144,9 +144,10 @@ vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
   },
 }));
 
-vi.mock('@/services/database/supabaseClient', () => ({
+vi.mock('@/services/database/supabaseClient', async () => ({
   supabase: {
     auth: {
+      ...(await import('@/test/mocks/providerAuthSession')).providerAuthSessionStub,
       onAuthStateChange: (cb: (e: AuthChangeEvent, s: Session | null) => void) => {
         hoisted.authState.callback = cb;
         return {

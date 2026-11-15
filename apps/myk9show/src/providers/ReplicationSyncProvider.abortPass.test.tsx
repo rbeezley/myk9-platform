@@ -28,9 +28,10 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/services/database/supabaseClient', () => ({
+vi.mock('@/services/database/supabaseClient', async () => ({
   supabase: {
     auth: {
+      ...(await import('@/test/mocks/providerAuthSession')).providerAuthSessionStub,
       onAuthStateChange: (cb: (event: string, session: unknown) => void) => {
         cb('INITIAL_SESSION', { user: { id: 'u1' } });
         return { data: { subscription: { unsubscribe: vi.fn() } } };

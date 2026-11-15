@@ -12,6 +12,11 @@ import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache'
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { User } from '@supabase/supabase-js';
 import {
+  isNetworkClassAuthError,
+  resolveGetSessionUser,
+  resolveSessionUser,
+} from './authSessionUser';
+import {
   decodeOAuthRoleIntent,
   encodeOAuthRoleIntent,
   OAUTH_ROLE_INTENT_PARAM,
@@ -151,13 +156,15 @@ export function useAuth() {
     // Get initial session
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => {
+      .then(({ data: { session }, error }) => {
         if (disposed || authEventReceived) return;
-        setUser(session?.user ?? null);
+        // A null here may only be a refresh that failed offline (MYK9-1992).
+        setUser(resolveGetSessionUser(session, error));
         setLoading(false);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (disposed || authEventReceived) return;
+        if (isNetworkClassAuthError(error)) setUser(resolveSessionUser('GET_SESSION', null));
         setLoading(false);
       });
 
@@ -166,7 +173,9 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       authEventReceived = true;
-      setUser(session?.user ?? null);
+      // Only SIGNED_OUT is a verdict; a null INITIAL_SESSION is an unresolved refresh (MYK9-1992).
+      const nextUser = resolveSessionUser(_event, session);
+      setUser(nextUser);
       setLoading(false);
 
       // Create people + exhibitor_profiles for first-time OAuth users

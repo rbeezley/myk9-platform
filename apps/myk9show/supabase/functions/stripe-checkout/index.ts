@@ -8,6 +8,9 @@ import {
 } from '../_shared/platformFee.ts';
 import {
   findDriftedCartItems,
+  findUnpricedLines,
+  NO_ENTRY_FEE_CODE,
+  NO_ENTRY_FEE_MESSAGE,
   loadStoredEntryJunior,
   priceCartItems,
 } from '../_shared/cartItemPricing.ts';
@@ -755,6 +758,16 @@ async function checkoutUnderLease(
     storedJunior,
     nowIso
   );
+  // MYK9-1931: zero is never a price. A $0 line cannot be bought online, so the cart is
+  // refused before anything is healed or sent to Stripe.
+  const unpricedLines = findUnpricedLines(
+    pricingItems.map(item => item.id),
+    authoritativeByItem
+  );
+  if (unpricedLines.length > 0) {
+    console.warn(`Cart ${cart_id}: ${unpricedLines.length} line(s) have no entry fee set`);
+    return corsResponse(corsHeaders, { error: NO_ENTRY_FEE_MESSAGE, code: NO_ENTRY_FEE_CODE }, 409);
+  }
   const itemsWithAuthoritativeFee = pricingItems.map(item => ({
     item,
     authoritativeCents: authoritativeByItem.get(item.id) ?? 0,

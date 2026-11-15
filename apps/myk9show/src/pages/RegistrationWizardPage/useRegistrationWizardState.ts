@@ -33,7 +33,10 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useCartStore } from '@/store/cartStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import {
+  calculateTotalFees,
+  findNoEntryFeeClassIds,
+} from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { useWizardJuniorDeclaration } from './useWizardJuniorDeclaration';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useAutoTickMarker } from './useAutoTickMarker';
@@ -63,6 +66,8 @@ import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
 import { getRegistrationCapacityState } from './registrationCapacity';
+
+const EMPTY_CLASS_IDS: ReadonlySet<string> = new Set();
 
 // Exhibitor self-service defaults to online card payment; on-behalf modes
 // (secretary/admin/club) can't use card checkout, so they start unset and must
@@ -397,6 +402,53 @@ export function useRegistrationWizardState() {
       });
   }, [steps, currentWorkflowConfig.steps, stepCompletionState]);
 
+  const selectedDogIds = useMemo(
+    () => new Set(registrationData.selectedDogs),
+    [registrationData.selectedDogs]
+  );
+  const registrationCapacity = useMemo(
+    () => getRegistrationCapacityState(classSelections, availabilityClasses, selectedDogIds),
+    [classSelections, availabilityClasses, selectedDogIds]
+  );
+  const { capacityReady, capacityUnavailable } = resolveRegistrationCapacityGate({
+    enabled: capacityCheckEnabled,
+    isLoading: capacityLoading,
+    error: capacityError,
+    unknownClassCount: registrationCapacity.unknownClassIds.size,
+  });
+
+  // MYK9-1931, "zero is never a price": a selected payable class with no entry fee set
+  // (no show fee, no fee of its own) cannot be bought online. Read from the show's RAW
+  // fees, since the total below reads a missing pre-entry fee as $0.
+  const noEntryFeeClassIds = useMemo(
+    () =>
+      currentShow && entryWindowTimezoneReady
+        ? findNoEntryFeeClassIds(
+            registrationData.selectedDogs,
+            classSelections,
+            classes,
+            {
+              preEntryFee: currentShow.preEntryFee ?? '',
+              dayOfShowFee: currentShow.dayOfShowFee,
+              startDate: currentShow.startDate,
+              entryCloseDate: currentShow.entryCloseDate,
+              entryWindowTimezone,
+            },
+            capacityReady ? registrationCapacity.waitlistClassIds : new Set()
+          )
+        : EMPTY_CLASS_IDS,
+    [
+      currentShow,
+      entryWindowTimezoneReady,
+      entryWindowTimezone,
+      registrationData.selectedDogs,
+      classSelections,
+      classes,
+      capacityReady,
+      registrationCapacity.waitlistClassIds,
+    ]
+  );
+
   // MYK9-879: the exhibitor's per-dog junior-handler declarations (card checkout
   // only). The effective set feeds the SAME calculation as the panel, the Next
   // gate and the payment step, so the preview equals what checkout charges.
@@ -416,6 +468,7 @@ export function useRegistrationWizardState() {
     selectedDogs: registrationData.selectedDogs,
     selectedPaymentMethod: registrationData.paymentMethod,
     show: currentShow,
+    noEntryFeeSet: noEntryFeeClassIds.size > 0,
   });
   // Sync draft data
   useEffect(() => {
@@ -442,21 +495,6 @@ export function useRegistrationWizardState() {
     entryStatus,
     setDraftData,
   ]);
-
-  const selectedDogIds = useMemo(
-    () => new Set(registrationData.selectedDogs),
-    [registrationData.selectedDogs]
-  );
-  const registrationCapacity = useMemo(
-    () => getRegistrationCapacityState(classSelections, availabilityClasses, selectedDogIds),
-    [classSelections, availabilityClasses, selectedDogIds]
-  );
-  const { capacityReady, capacityUnavailable } = resolveRegistrationCapacityGate({
-    enabled: capacityCheckEnabled,
-    isLoading: capacityLoading,
-    error: capacityError,
-    unknownClassCount: registrationCapacity.unknownClassIds.size,
-  });
 
   // `capacityReady === false` covers two states the user experiences very
   // differently: still loading, and cannot be loaded. (Offline the query pauses
@@ -706,6 +744,7 @@ export function useRegistrationWizardState() {
     completedSteps,
     liveTotalFees,
     liveFeeCalculation,
+    noEntryFeeClassIds,
     paymentResolution,
     canDeclareJuniorHandler,
     juniorHandlerDogIds,

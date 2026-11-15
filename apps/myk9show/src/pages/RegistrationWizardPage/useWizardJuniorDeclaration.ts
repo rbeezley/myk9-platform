@@ -8,6 +8,8 @@ interface Params {
   /** The RAW selection in wizard state; the effective method is derived here. */
   selectedPaymentMethod: PaymentMethod | undefined;
   show: { juniorHandlerFee?: string | undefined; organization?: string | undefined } | undefined;
+  /** MYK9-1931: a selected payable class has no entry fee set; card is withdrawn. */
+  noEntryFeeSet?: boolean | undefined;
 }
 
 /**
@@ -26,8 +28,13 @@ export function useWizardJuniorDeclaration({
   selectedDogs,
   selectedPaymentMethod,
   show,
+  noEntryFeeSet = false,
 }: Params) {
-  const paymentResolution = usePaymentMethodResolution(showId, selectedPaymentMethod ?? '');
+  const paymentResolution = usePaymentMethodResolution(
+    showId,
+    selectedPaymentMethod ?? '',
+    noEntryFeeSet
+  );
   const declaration = useJuniorHandlerDeclaration({
     selectedDogs,
     paymentMethod: paymentResolution.effectivePaymentMethod,

@@ -153,6 +153,52 @@ function getNormalEntryFee(
   return classEntryFee ?? DEFAULT_ENTRY_FEE;
 }
 
+/** MYK9-1931: the same words checkout refuses a $0 line with (cartItemPricing.ts). */
+export const NO_ENTRY_FEE_MESSAGE =
+  "This class has no entry fee set yet. Ask the show's secretary.";
+
+/**
+ * MYK9-1931, owner rule "zero is never a price": true when the class has no price at all,
+ * meaning the show has no pre-entry fee, no day-of tier applies and the class has no fee of
+ * its own. The server prices it at $0, and such an entry cannot be bought online. A show
+ * whose pre-entry fee is a stored $0 is not this case.
+ */
+export function hasNoEntryFeeSet(
+  show: ShowFeeInfo,
+  classEntryFee: number | undefined,
+  isDayOfShow?: boolean
+): boolean {
+  if (classEntryFee !== undefined && Number.isFinite(classEntryFee) && classEntryFee > 0) {
+    return false;
+  }
+  const preFee = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));
+  if (!isNaN(preFee) && preFee >= 0) return false;
+  const dayOfShow = isDayOfShow ?? isDayOfShowEntry(showDayOfShowContext(show));
+  const dayFee = show.dayOfShowFee ? parseFloat(show.dayOfShowFee.replace(/[$,]/g, '')) : NaN;
+  return !(dayOfShow && !isNaN(dayFee) && dayFee > 0);
+}
+
+/** The selected payable classes (wait-list requests excluded) that have no entry fee set. */
+export function findNoEntryFeeClassIds(
+  selectedDogs: readonly string[],
+  classSelections: readonly ClassSelectionData[],
+  classes: readonly ClassLike[],
+  show: ShowFeeInfo,
+  nonPayableClassIds: NonPayableClassIds = new Set()
+): Set<string> {
+  const selected = new Set(selectedDogs);
+  const ids = new Set<string>();
+  for (const selection of classSelections) {
+    if (!selected.has(selection.dogId)) continue;
+    for (const { classId } of selection.selectedClasses) {
+      if (nonPayableClassIds.has(classId)) continue;
+      const classData = classes.find(c => c.id === classId);
+      if (hasNoEntryFeeSet(show, classData?.entryFee)) ids.add(classId);
+    }
+  }
+  return ids;
+}
+
 /**
  * Calculate the total fees, discounts, and per-dog breakdown for a registration.
  * When show info is provided, uses show-level fee tiers (pre-entry vs day-of-show)

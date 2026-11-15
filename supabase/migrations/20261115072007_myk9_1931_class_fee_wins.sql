@@ -21,6 +21,11 @@
 --       - a class without its own fee costs the show's day-of fee, as before.
 --   * Junior: unchanged, LEAST(junior fee, normal fee) on an explicit secretary
 --     override, so a junior pays the junior fee in a dearer class too.
+--   * A price of 0 (no show fee, no own class fee, no day-of tier) means "not
+--     sellable online", never "free": zero is never a price. This function still
+--     returns 0 there; card checkout and payment links refuse such a line before
+--     Stripe is called ("This class has no entry fee set yet. Ask the show's
+--     secretary."), and the entry wizard withdraws card for it.
 --
 -- CLEAN-UP, once. Every class fee that equals its show's pre-entry fee (a copy)
 -- or is 0 is set to NULL, so it follows the show's fee from now on. A fee above

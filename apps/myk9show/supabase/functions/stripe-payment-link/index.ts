@@ -2,7 +2,12 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeeRates } from '../_shared/platformFee.ts';
-import { priceExistingEntryCents } from '../_shared/cartItemPricing.ts';
+import {
+  findUnpricedLines,
+  NO_ENTRY_FEE_CODE,
+  NO_ENTRY_FEE_MESSAGE,
+  priceExistingEntryCents,
+} from '../_shared/cartItemPricing.ts';
 import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
@@ -347,6 +352,20 @@ Deno.serve(async req => {
       className: e.class?.name || 'Class',
       showName: show.name || 'Show Entry',
     }));
+
+    // MYK9-1931: zero is never a price. An entry priced $0 cannot be paid online, so
+    // no link is made for it and Stripe is never called.
+    const unpricedEntries = findUnpricedLines(
+      linkEntries.map(e => e.entryId),
+      new Map(linkEntries.map(e => [e.entryId, e.authoritativeFeeCents]))
+    );
+    if (unpricedEntries.length > 0) {
+      return corsResponse(
+        corsHeaders,
+        { error: NO_ENTRY_FEE_MESSAGE, code: NO_ENTRY_FEE_CODE },
+        409
+      );
+    }
 
     // Re-request safety: expire any prior OPEN links covering these entries so
     // two live links can't both be paid (full handling in Task 3.5 Step 2).

@@ -48,6 +48,16 @@ const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now. Pull is stil
  */
 const PULL_REFUND_FALLBACK = "Refunds for a pull are at the club's discretion.";
 
+/**
+ * MYK9-1976: the club's policy text is an online-only read (it does not replicate, and the
+ * effective text needs the club's row too), so offline and uncached the chooser says so
+ * rather than dropping the policy without a word.
+ */
+const POLICY_TEXT_UNAVAILABLE = {
+  offline: 'The club’s refund policy can’t be shown offline. Withdraw and Pull work as described.',
+  failed: 'The club’s refund policy can’t be shown right now. Withdraw and Pull work as described.',
+};
+
 /** Withdraw / Pull read as two clear choices: bold label, full-width, 44px+ target. */
 const CHOICE_BUTTON_CLASS = 'w-full justify-start font-semibold';
 /** "Keep my entry" on the chooser: secondary, unfilled, so it never reads as the main action. */
@@ -277,6 +287,8 @@ function RemoveFromClassBody({
             showId={showId}
             heading="The club’s refund and withdrawal policy"
             className="max-h-48 overflow-y-auto rounded-lg border p-3"
+            // Never silent: offline and uncached, the chooser says why the text is missing.
+            unavailable={POLICY_TEXT_UNAVAILABLE}
           />
         </div>
       )}

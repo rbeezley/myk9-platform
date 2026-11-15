@@ -28,7 +28,9 @@ vi.mock('@/features/payments/useWithdrawalRefundSuggestion', () => ({
 
 function expectClubText() {
   const blocks = screen.getAllByTestId('withdrawal-policy-text');
-  expect(blocks.some(block => block.textContent?.includes(CLUB_TEXT))).toBe(true);
+  expect(blocks.some(block => block.textContent === CLUB_TEXT)).toBe(true);
+  // Codex P2: the club's text never replaces the service-fee sentence.
+  expect(screen.getAllByText('Service fees are non-refundable.').length).toBeGreaterThan(0);
 }
 
 beforeEach(() => {
@@ -70,6 +72,32 @@ describe("the club's policy text on every policy surface", () => {
     );
     expectClubText();
     expect(hook).toHaveBeenCalledWith('show-1');
+  });
+
+  it('the Pull or withdraw chooser never goes silent offline (Codex P3)', () => {
+    hook.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      fetchStatus: 'paused',
+    });
+    render(
+      <RemoveFromClassDialog
+        open
+        classId="class-1"
+        className="Container Novice A"
+        registry={{ status: 'resolved', registry: 'AKC' }}
+        showId="show-1"
+        isSaving={false}
+        onOpenChange={() => {}}
+        onConfirm={() => {}}
+      />
+    );
+    expect(screen.getByTestId('withdrawal-policy-unavailable')).toHaveTextContent(
+      'The club’s refund policy can’t be shown offline. Withdraw and Pull work as described.'
+    );
+    expect(screen.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Pull' })).toBeEnabled();
   });
 
   it("the secretary's refund dialog", () => {

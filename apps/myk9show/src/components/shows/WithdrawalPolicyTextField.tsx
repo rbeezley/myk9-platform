@@ -9,7 +9,10 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { WITHDRAWAL_POLICY_TEXT_MAX_LENGTH } from '@/features/payments/withdrawalPolicyText';
+import {
+  SERVICE_FEE_SENTENCE,
+  WITHDRAWAL_POLICY_TEXT_MAX_LENGTH,
+} from '@/features/payments/withdrawalPolicyText';
 
 interface WithdrawalPolicyTextFieldProps {
   isShow: boolean;
@@ -66,9 +69,9 @@ export function WithdrawalPolicyTextField({
         </Button>
       )}
       <p className="text-xs text-muted-foreground">
-        Shown before payment, in the Pull or withdraw choice and on the show’s About page. Plain
-        text; line breaks are kept. It does not change the refund the app suggests, which follows
-        the fields above.
+        Shown before payment, in the Pull or withdraw choice and on the show’s About page, always
+        followed by “{SERVICE_FEE_SENTENCE}” Plain text; line breaks are kept. It does not change
+        the refund the app suggests, which follows the fields above.
       </p>
       {conflictNote && (
         <p

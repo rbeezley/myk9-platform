@@ -59,8 +59,11 @@ describe('stripe-payment-link waitlist and secretary paths', () => {
   it('discloses the withdrawal policy to the payer via Stripe custom_text (best-effort)', () => {
     // The payer (mail-in/waitlist) never sees the myK9 cart disclosure, so the
     // policy is resolved here and passed into the Checkout Session custom_text.
-    expect(source).toContain('describeWithdrawalPolicyText');
-    expect(source).toContain('resolveWithdrawalPolicy');
+    // MYK9-1976: the same show, else club, else default text the app prints, read with the
+    // text columns and the registry (withdrawalPolicy.test.ts covers the resolver itself).
+    expect(source).toContain('.select(WITHDRAWAL_DISCLOSURE_SELECT)');
+    expect(source).toContain('withdrawalDisclosureForShowRow(');
+    expect(source).not.toContain('describeWithdrawalPolicyText(');
     expect(source).toContain('withdrawalPolicyText');
     // Best-effort: a resolution failure (incl. columns not yet migrated) must not
     // block link generation.

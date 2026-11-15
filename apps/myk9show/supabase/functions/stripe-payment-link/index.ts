@@ -7,10 +7,8 @@ import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTi
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
-  resolveWithdrawalPolicy,
-  describeWithdrawalPolicyText,
-  type ShowWithdrawalColumns,
-  type ClubWithdrawalColumns,
+  WITHDRAWAL_DISCLOSURE_SELECT,
+  withdrawalDisclosureForShowRow,
 } from '../_shared/withdrawalPolicy.ts';
 import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts';
 
@@ -455,27 +453,21 @@ Deno.serve(async req => {
         .eq('id', prior.id);
     }
 
-    // Best-effort: resolve the show's effective withdrawal policy so the PAYER
-    // sees it on the Stripe page (custom_text) — the secretary dialog disclosure
-    // never reaches the mail-in/waitlist payer. A failure here (incl. columns
-    // not yet migrated) must not block link generation, so it's try/caught.
+    // Best-effort: resolve the show's policy text so the PAYER sees it on the Stripe page
+    // (custom_text): the show's text, else the club's, else the default, then the
+    // service-fee sentence (MYK9-1976). The same resolver the app uses, so the payer reads
+    // the terms the secretary sees. A failure here (incl. columns not yet migrated) must not
+    // block link generation, so it's try/caught.
     let withdrawalPolicyText: string | undefined;
     try {
       const { data: policyRow } = await supabase
         .from('shows')
-        .select(
-          'withdrawal_cutoff_date, withdrawal_retention_type, withdrawal_retention_value, withdrawal_policy_notes, clubs(default_withdrawal_retention_type, default_withdrawal_retention_value, default_withdrawal_policy_notes)'
-        )
+        .select(WITHDRAWAL_DISCLOSURE_SELECT)
         .eq('id', show.id)
         .single();
       if (policyRow) {
-        const rawClub = (policyRow as Record<string, unknown>).clubs;
-        const club = (Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null;
-        withdrawalPolicyText = describeWithdrawalPolicyText(
-          resolveWithdrawalPolicy(
-            policyRow as ShowWithdrawalColumns,
-            club as ClubWithdrawalColumns | null
-          )
+        withdrawalPolicyText = withdrawalDisclosureForShowRow(
+          policyRow as unknown as Record<string, unknown>
         );
       }
     } catch (err) {

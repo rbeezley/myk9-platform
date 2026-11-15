@@ -21,7 +21,7 @@ describe('buildDefaultWithdrawalPolicyText (MYK9-1976)', () => {
     const text = buildDefaultWithdrawalPolicyText(FLAT_10, 'AKC');
     expect(text).toBe(
       [
-        'Full refund of the entry fee until June 1, 2026; after that, $10.00 is kept. Service fees are non-refundable.',
+        'Full refund of the entry fee until June 1, 2026; after that, $10.00 is kept.',
         "Withdraw: an entry may be withdrawn only for a reason the AKC rules cover: dog in season or judge change. A withdrawal for that reason follows the AKC rule. Refund per the premium's rules; the show secretary confirms it.",
         "Pull: the dog does not run, for any other reason. Refunds for a pull are at the club's discretion.",
       ].join('\n\n')

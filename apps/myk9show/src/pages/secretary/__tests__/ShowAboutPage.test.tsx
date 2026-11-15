@@ -80,6 +80,7 @@ describe('ShowAboutPage (MYK9-1683)', () => {
       'Heartland refunds: full until December 1.\nAfter that, $5.00 is kept.'
     );
     expect(screen.getByText(/The club’s text/)).toBeInTheDocument();
+    expect(screen.getByText('Service fees are non-refundable.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Entries and fees' })).toBeInTheDocument();
     expect(screen.getByTestId('officials')).toBeInTheDocument();
     expect(screen.getByTestId('judges')).toBeInTheDocument();

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { WithdrawalPolicyDisclosure } from '../WithdrawalPolicyDisclosure';
 
@@ -49,6 +50,10 @@ async function policyText(): Promise<string> {
 describe('WithdrawalPolicyDisclosure', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
   });
 
   it('reads the show and club text columns and the show registry in the one show read', async () => {
@@ -111,6 +116,45 @@ describe('WithdrawalPolicyDisclosure', () => {
     const { container } = render(<WithdrawalPolicyDisclosure showId="show-1" />);
     expect(await policyText()).toBe('Refunds & credits');
     expect(container.querySelector('b')).toBeNull();
+  });
+
+  it('prints the service-fee sentence after a club text that leaves it out (Codex P2)', async () => {
+    mockSingle.mockResolvedValue({
+      data: showRow({}, { default_withdrawal_policy_text: 'Refunds at our discretion.' }),
+      error: null,
+    });
+    render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    expect(await policyText()).toBe('Refunds at our discretion.');
+    expect(screen.getByTestId('withdrawal-policy-service-fee')).toHaveTextContent(
+      'Service fees are non-refundable.'
+    );
+  });
+
+  it('with `unavailable`, says so when the read is paused offline (Codex P3)', async () => {
+    onlineManager.setOnline(false);
+    render(
+      <WithdrawalPolicyDisclosure
+        showId="show-1"
+        unavailable={{ offline: 'Offline line.', failed: 'Failed line.' }}
+      />
+    );
+    expect(await screen.findByTestId('withdrawal-policy-unavailable')).toHaveTextContent(
+      'Offline line.'
+    );
+    expect(mockSingle).not.toHaveBeenCalled();
+  });
+
+  it('with `unavailable`, says so when the read failed', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    render(
+      <WithdrawalPolicyDisclosure
+        showId="show-1"
+        unavailable={{ offline: 'Offline line.', failed: 'Failed line.' }}
+      />
+    );
+    expect(await screen.findByTestId('withdrawal-policy-unavailable')).toHaveTextContent(
+      'Failed line.'
+    );
   });
 
   it('renders nothing on error (e.g. columns not yet migrated)', async () => {

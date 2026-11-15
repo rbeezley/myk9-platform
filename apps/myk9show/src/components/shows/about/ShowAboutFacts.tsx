@@ -4,7 +4,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { useShowVenueWifi } from '@/hooks/queries/useShowVenueWifi';
 import { useEffectiveWithdrawalPolicy } from '@/features/payments/useEffectiveWithdrawalPolicy';
-import type { WithdrawalPolicyTextSource } from '@/features/payments/withdrawalPolicyText';
+import {
+  SERVICE_FEE_SENTENCE,
+  type WithdrawalPolicyTextSource,
+} from '@/features/payments/withdrawalPolicyText';
 import { buildVenueMapsUrls } from '@/utils/venueMaps';
 import type { Show } from '@/types/show-types';
 
@@ -102,6 +105,7 @@ export function ShowAboutWithdrawal({ showId }: { showId: string }) {
           <p className="whitespace-pre-line text-sm" data-testid="withdrawal-policy-text">
             {policy.data.text}
           </p>
+          <p className="text-sm">{SERVICE_FEE_SENTENCE}</p>
           <p className="text-xs text-muted-foreground">
             {POLICY_SOURCE_NOTE[policy.data.textSource]}
           </p>

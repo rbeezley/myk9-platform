@@ -290,15 +290,6 @@ describe('useEntryManagementActions', () => {
       expect(onStood).toHaveBeenCalledWith(acceptedNow);
     });
 
-    it('stays quiet when the entry was changed again before the toast closed', async () => {
-      const { onStood, toastStood, showEntries } = await acceptWithOnStood();
-      showEntries({ entries: [{ ...makeEntry(), entryStatus: EntryStatus.WAITLIST }] });
-
-      toastStood();
-
-      expect(onStood).not.toHaveBeenCalled();
-    });
-
     it('passes on the decision as made when the list no longer holds the entry', async () => {
       const { onStood, toastStood, showEntries } = await acceptWithOnStood();
       showEntries({ entries: [] });

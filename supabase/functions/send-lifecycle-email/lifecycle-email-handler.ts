@@ -2,6 +2,10 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { sendRegistrationNumberNeeded } from './lifecycle-email-numberNeeded.ts';
 import {
+  findSupersededDecisionJobs,
+  recordSupersededSkip,
+} from './lifecycle-email-decisionStatus.ts';
+import {
   deliverViaResend,
   fetchDogOwner,
   fetchJobs,
@@ -100,12 +104,26 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
 
     if (!deps.resendApiKey) throw new HttpError(503, 'Email service not configured');
 
+    // MYK9-1974: read every decision job's entries now, before anything is sent. A read
+    // failure throws here, so no email goes out on a guess and every job stays ready.
+    const superseded = await findSupersededDecisionJobs(supabase, jobs);
+
     const results = [];
     for (const job of jobs) {
       // MYK9-1212: this step is sent only through send_registration_number_needed,
       // whose claim mints the one attempt that may send it and record its outcome.
       if (job.step_type === 'registration_number_needed') {
         results.push({ jobId: job.id, status: 'skipped' as const, reason: 'send_on_demand' });
+        continue;
+      }
+      // The entry's decision changed since this email was saved: it would announce a decision
+      // that no longer holds. A failed job that did go out is left to sendOneJob to reconcile.
+      if (
+        superseded.has(job.id) &&
+        !(job.status === 'failed' && (await findExistingDelivery(supabase, job.id)))
+      ) {
+        await recordSupersededSkip(supabase, job, user.id);
+        results.push({ jobId: job.id, status: 'skipped' as const, reason: 'superseded' });
         continue;
       }
       results.push(await sendOneJob({ deps, job, payload, supabase, userId: user.id }));

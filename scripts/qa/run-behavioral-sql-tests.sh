@@ -87,7 +87,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1540_nationals_leaderboard_inputs_test.sql"
   "$TEST_DIR/judge_assignment_touches_class_test.sql"
   "$TEST_DIR/myk9_1300_armbands_updated_at_test.sql"
-  "$TEST_DIR/myk9_2040_armband_on_insert_test.sql"
+  "$TEST_DIR/myk9_2040_reacceptance_new_confirmation_test.sql"
   "$TEST_DIR/judge_qualification_rpc_authorization_test.sql"
   "$TEST_DIR/myk9_833_judge_draft_show_visibility_test.sql"
   "$TEST_DIR/myk9_819_passcode_draft_visibility_test.sql"

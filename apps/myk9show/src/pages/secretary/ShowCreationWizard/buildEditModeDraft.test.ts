@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { buildEditModeDraft } from './buildEditModeDraft';
+import { getShowDetailsValidationIssues } from './showCreationWizardValidation';
+import { wizardJuniorHandlerFee } from './wizardJuniorHandlerFee';
 
 const show = (assignedJudges: Array<{ judgeId: string; judgeName: string }>) =>
   ({
@@ -124,5 +126,44 @@ describe('buildEditModeDraft trial schedule', () => {
     const trial = build(undefined);
     expect(trial?.trialDate).toBe('2026-10-10');
     expect(trial?.startTimeDraft).toBeUndefined();
+  });
+});
+
+// MYK9-1975: over an existing show the wizard can still change the fee tiers, so the
+// draft keeps the stored junior fee to check them against. It never writes it.
+describe('buildEditModeDraft junior fee', () => {
+  const build = (juniorHandlerFee: string | undefined) =>
+    buildEditModeDraft({
+      editMode: { showId: 'show-1', mode: 'add-trials' } as never,
+      existingShow: { ...show([]), juniorHandlerFee } as Show,
+      showTrials: [],
+      existingClasses: [],
+      people: [],
+    });
+
+  it('carries the stored fee for the limit check, never as a fee to write', () => {
+    const draft = build('15');
+    expect(draft.show.storedJuniorHandlerFee).toBe(15);
+    expect(draft.show).not.toHaveProperty('juniorHandlerFee');
+    expect(wizardJuniorHandlerFee(draft.show)).toBeUndefined();
+  });
+
+  it('carries nothing for a show with no junior tier', () => {
+    expect(build('0').show).not.toHaveProperty('storedJuniorHandlerFee');
+    expect(build(undefined).show).not.toHaveProperty('storedJuniorHandlerFee');
+  });
+
+  it('blocks lowering the pre-entry fee below the stored junior fee, on no hidden field', () => {
+    const draft = build('15');
+    const issues = getShowDetailsValidationIssues({
+      ...draft.show,
+      preEntryFee: 10,
+      location: 'Venue',
+      officials: { chairman: ['p1'], secretary: ['p2'], steward: [] },
+    });
+    expect(issues).toContainEqual({
+      field: null,
+      message: "The junior fee can't be more than $10, the lowest class fee in this show.",
+    });
   });
 });

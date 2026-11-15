@@ -17,6 +17,7 @@ import type { Trial } from '@/store/trialStore';
 import type { SyncableClassData } from '@/store/classStore';
 import type { EditMode } from './show-creation-wizard-types';
 import { getTrialTimezone } from '@/features/registries';
+import { storedJuniorHandlerFee } from './wizardJuniorHandlerFee';
 
 interface BuildEditModeDraftArgs {
   editMode: EditMode;
@@ -119,6 +120,8 @@ export function buildEditModeDraft({
       entryCloseDate: existingShow.entryCloseDate,
       preEntryFee: parseFloat(existingShow.preEntryFee) || 0,
       dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
+      // MYK9-1975: checked against a lowered fee tier, never written from this draft.
+      ...storedJuniorHandlerFee(existingShow.juniorHandlerFee),
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
       acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
       acceptCashPayments: existingShow.acceptCashPayments ?? false,

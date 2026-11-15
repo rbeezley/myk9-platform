@@ -35,6 +35,7 @@ interface ShowData {
   juniorHandlerFee?: number | undefined;
   preEntryFee?: number | undefined;
   dayOfShowFee?: number | undefined;
+  storedJuniorHandlerFee?: number | undefined;
   officials: {
     secretary: string[];
     chairman: string[];
@@ -146,7 +147,12 @@ export function getShowDetailsValidationIssues(
   // Mirrors the column CHECK so the secretary sees the problem here, not as a raw database
   // error on the final save. ASCA hides the field, so its stale value is never checked.
   const juniorFeeError = juniorHandlerFeeError(show);
-  if (juniorFeeError) add(SHOW_FIELD.juniorHandlerFee, juniorFeeError);
+  // Over an existing show the junior field is hidden (the edit panel owns it).
+  const juniorFeeField =
+    show.juniorHandlerFee === undefined && show.storedJuniorHandlerFee !== undefined
+      ? null
+      : SHOW_FIELD.juniorHandlerFee;
+  if (juniorFeeError) add(juniorFeeField, juniorFeeError);
   if (requireEntryWindow) {
     if (!show.entryOpenDate) add(SHOW_FIELD.entryPeriod, 'Please select an entry open date');
     if (!show.entryCloseDate) add(SHOW_FIELD.entryPeriod, 'Please select an entry close date');

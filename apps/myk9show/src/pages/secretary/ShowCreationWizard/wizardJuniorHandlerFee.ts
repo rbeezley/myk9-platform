@@ -22,11 +22,14 @@ export function juniorHandlerFeeError(show: {
   juniorHandlerFee?: number | undefined;
   preEntryFee?: number | undefined;
   dayOfShowFee?: number | undefined;
+  storedJuniorHandlerFee?: number | undefined;
 }): string | undefined {
   if (show.organization === 'ASCA') return undefined;
   const fee = show.juniorHandlerFee;
   if (fee !== undefined && fee >= JUNIOR_HANDLER_FEE_LIMIT) return JUNIOR_HANDLER_FEE_MESSAGE;
-  return juniorFeeLimitError(show);
+  // Over an existing show the draft carries no junior fee, so a lowered tier is checked
+  // against the show's stored one.
+  return juniorFeeLimitError({ ...show, juniorHandlerFee: fee ?? show.storedJuniorHandlerFee });
 }
 
 /**
@@ -49,6 +52,14 @@ export function wizardJuniorHandlerFee(show: {
   if (show.organization === 'ASCA') return undefined;
   const fee = show.juniorHandlerFee;
   return fee !== undefined && Number.isFinite(fee) && fee > 0 ? fee : undefined;
+}
+
+/** The edit-mode draft's copy of the stored fee, for the limit check only (MYK9-1975). */
+export function storedJuniorHandlerFee(stored: string | undefined): {
+  storedJuniorHandlerFee?: number;
+} {
+  const seeded = seedJuniorHandlerFee(stored).juniorHandlerFee;
+  return seeded !== undefined ? { storedJuniorHandlerFee: seeded } : {};
 }
 
 /** Spread into a draft built from a stored show: carries a positive fee, else no key. */

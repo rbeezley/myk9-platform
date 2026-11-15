@@ -69,6 +69,11 @@ export interface WizardState {
     dayOfShowFee: number;
     /** Optional so drafts persisted before slice A2 still load. */
     juniorHandlerFee?: number | undefined;
+    /**
+     * MYK9-1975: the existing show's junior fee, for the fee limit check only. Set by the
+     * edit-mode draft, which never writes the junior fee (`juniorHandlerFee` stays unset).
+     */
+    storedJuniorHandlerFee?: number | undefined;
     startingArmbandNumber: number;
     officials: {
       secretary: string[]; // people.id values

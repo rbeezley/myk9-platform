@@ -69,6 +69,8 @@ export const CLONE_SHOW_FIELD_RULES: Record<ShowKey, FieldRule> = {
   preEntryFee: { kind: 'carried', label: 'Fees' },
   dayOfShowFee: { kind: 'carried', label: 'Fees' },
   juniorHandlerFee: { kind: 'carried', label: 'Fees' },
+  // Edit-mode only (MYK9-1975): a clone never sets it, so there is nothing to list.
+  storedJuniorHandlerFee: { kind: 'handled' },
   startingArmbandNumber: { kind: 'carried', label: 'Starting armband number' },
   acceptCheckPayments: { kind: 'carried', label: 'Payment options' },
   acceptCashPayments: { kind: 'carried', label: 'Payment options' },

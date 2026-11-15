@@ -66,11 +66,17 @@ read -r DRILL_REF                                   # the drill project's 20-cha
 read -rs DRILL_DB_URL && export DRILL_DB_URL        # its connection string (postgres user)
 read -rs DRILL_SERVICE_KEY && export DRILL_SERVICE_KEY
 drillsql() {
+  case "$DRILL_REF" in [a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9]) ;;
+    *) echo "REFUSED: DRILL_REF is not a 20-character ref" >&2; return 1;; esac
+  case "$DRILL_REF" in sojmvhhwsjxmfistvzbe) echo "REFUSED: that is production" >&2; return 1;; esac
   case "$DRILL_DB_URL" in *sojmvhhwsjxmfistvzbe*) echo "REFUSED: production URL" >&2; return 1;; esac
-  case "$DRILL_DB_URL" in *"$DRILL_REF"*) ;; *) echo "REFUSED: URL does not name $DRILL_REF" >&2; return 1;; esac
-  psql "$DRILL_DB_URL" -X -v ON_ERROR_STOP=1 "$@"
+  case "$DRILL_DB_URL" in                           # the ref must be in the host (direct) or the pooler user
+    *"@db.$DRILL_REF.supabase.co"*|*"//postgres.$DRILL_REF:"*) ;;
+    *) echo "REFUSED: host or pooler user does not name $DRILL_REF" >&2; return 1;; esac
+  env -u PGHOST -u PGHOSTADDR -u PGSERVICE -u PGSERVICEFILE -u PGPASSFILE \
+    psql "$DRILL_DB_URL" -X -v ON_ERROR_STOP=1 "$@"
 }
-drillsql -c '\conninfo'                             # check the host names the drill ref
+drillsql -c '\conninfo'   # REQUIRED: read the host it prints; it must contain the drill ref. Stop if not.
 ```
 
 Every SQL block below runs through `drillsql` (interactively: `drillsql`, then paste). Never paste them
@@ -106,7 +112,9 @@ and the result is labelled "weekday, not a weekend RPO test".
 
 1. Inspect first: `pg_restore --list "$DIR/decrypted/database.dump" | head -50`; compare extensions and
    roles with the empty project (restore doc steps 5 to 7).
-2. Build the reviewed restore inputs and run the single transaction exactly as in
+2. Build the reviewed restore inputs and run the single transaction exactly as in the restore doc (its
+   own `psql` session, with `PGSSLMODE`/`PGSSLROOTCERT` set and `SET ROLE postgres` as it says, is the one
+   allowed exception to "only through `drillsql`"; first check that its host names `$DRILL_REF`):
    [Build and review the restore inputs](independent-database-restore.md#build-and-review-the-restore-inputs)
    and [Execute as one transaction](independent-database-restore.md#execute-as-one-transaction). The
    destination has no application schema, so its drop and recreate step is a no-op. Note every statement
@@ -212,10 +220,15 @@ the dry-run command; **stop** when the verification below passes. Threshold: 60 
    drillsql -c 'select id, name from public.shows;'
    SHOW=<show-uuid>
    drillsql -c "select count(*) from public.show_payments where show_id = '$SHOW';"   # must be 0
+   # BEFORE the delete: entries and scored entries per show. Save the output; step 5 compares with it.
+   drillsql -c "select t.show_id, count(*) as entries, count(*) filter (where e.is_scored) as scored
+     from public.entries e join public.classes c on c.id = e.class_id
+     join public.trials t on t.id = c.trial_id group by t.show_id order by t.show_id;" | tee "$DIR/before.txt"
    drillsql -c "delete from public.shows where id = '$SHOW';"
    ```
 
-   Record every other show's entry count before and after.
+   The "before" figures are the baseline: the drill project already holds drill 3's online score save, so
+   it, not the archive, is what the restored show must match.
 
 2. **Dry run** (touches nothing):
 
@@ -235,15 +248,11 @@ the dry-run command; **stop** when the verification below passes. Threshold: 60 
 job(s) would be restored`: `show_lifecycle_email_jobs` rows with `status = 'ready'` (others are `sent`,
    `failed`, `skipped`, `dismissed`) that the email cron would send. The dedupe logs (`show_eve_nudge_log`,
    `sms_proximity_sends`, `waitlist_notification_events`) restore with the show, so nothing re-sends from
-   them. If N is not zero, decide before `--execute` which of them must not send. Editing `plan.sql` does
-   nothing: `--execute` rebuilds the plan from the export and never reads that file. The only control is to
-   mark them `skipped` as the very next command after `--execute` (step 4), before anything else. The
-   drill project runs no crons; production does, so there the gap is the seconds between the two commands.
-
-   ```bash
-   drillsql -c "select id, step_type, due_at, status from public.show_lifecycle_email_jobs
-     where show_id = '$SHOW' and status = 'ready' order by due_at;"
-   ```
+   them. The jobs themselves cannot be listed yet (the deleted show took them with it); N is the number.
+   Editing `plan.sql` does nothing: `--execute` rebuilds the plan from the export and never reads that
+   file. If N is not zero, the control is in step 4: list the restored jobs and mark the ones that must not
+   send `skipped`, as the very next commands after `--execute`. The drill project runs no crons;
+   production does, so there the gap is the seconds between those commands.
 
 4. **Execute** against the drill project (the URL stays in the environment, never on the command line):
 
@@ -251,7 +260,9 @@ job(s) would be restored`: `show_lifecycle_email_jobs` rows with `status = 'read
    export RESTORE_TARGET_DATABASE_URL="$DRILL_DB_URL"
    pnpm exec tsx scripts/backup/single-show-restore.ts \
      --dir "$DIR/decrypted" --show-id "$SHOW" --execute --target-ref "$DRILL_REF"
-   # next command, only if step 3 decided some ready jobs must not send:
+   # next commands, only if step 3's N was not zero: list the restored ready jobs, then skip them
+   drillsql -c "select id, step_type, due_at from public.show_lifecycle_email_jobs
+     where show_id = '$SHOW' and status = 'ready' order by due_at;"
    drillsql -c "update public.show_lifecycle_email_jobs set status = 'skipped', skipped_at = now()
      where show_id = '$SHOW' and status = 'ready';"
    ```
@@ -260,10 +271,17 @@ job(s) would be restored`: `show_lifecycle_email_jobs` rows with `status = 'read
    (`status` and `skipped_at` are the columns the app itself sets to skip a job, migration
    `20260708120000_show_lifecycle_emails.sql`.) Narrow it with `and id in (...)` to skip only some jobs.
 
-5. **Verify against the decrypted archive**, not the live source: per-table counts equal the dry run's (rows
-   skipped by `ON CONFLICT DO NOTHING` explain any difference); scored entries equal the archive's; other
-   shows' entry counts unchanged from step 1; run `recalculate_class_placements` only if placements differ.
-   **Stop the clock.**
+5. **Verify.** Re-run step 1's per-show query and compare it with `$DIR/before.txt`: the restored show's
+   entries and scored entries equal its "before" row, and every other show's row is unchanged. Note what
+   `--execute` printed (whether it reports per-table insert counts is unverified: see Known gaps). Run
+   `recalculate_class_placements` only if placements differ. **Stop the clock.**
+
+   ```bash
+   drillsql -c "select t.show_id, count(*) as entries, count(*) filter (where e.is_scored) as scored
+     from public.entries e join public.classes c on c.id = e.class_id
+     join public.trials t on t.id = c.trial_id group by t.show_id order by t.show_id;" > "$DIR/after.txt"
+   diff "$DIR/before.txt" "$DIR/after.txt" && echo "MATCH"
+   ```
 
 **Pass:** the missing-parent preflight passed, counts match, other shows unchanged, scored entries match,
 elapsed at most 60 minutes. **Fail:** missing parents (restore dogs, people, clubs and Auth users first,
@@ -285,6 +303,21 @@ go-live runbook (linked above) for classification and the rest; this page is not
 2. `rm -rf "$DIR"` (decrypted data, plans and `auth.hdr`), `unset BACKUP_ENCRYPTION_KEY AWS_SECRET_ACCESS_KEY
 AWS_ACCESS_KEY_ID RESTORE_TARGET_DATABASE_URL DRILL_SERVICE_KEY`, remove the drill's `.env.local` values.
 3. The owner deletes the drill project in the dashboard **the same day**. This is the last step.
+
+## Known gaps (fill in during the first drill)
+
+This page has not been run end to end. Shipped with these open by owner decision (2026-11-15); correct
+the page from what the first drill shows, and close MYK9-2071 with the fixes.
+
+- **Drill 1 fingerprints:** no fingerprint query exists in the repo; counts plus three sampled rows per
+  core table is the stand-in. Write the real query during the drill.
+- **Drill 1 session:** the restore doc's `psql` session (SSL settings, `SET ROLE postgres`) is described in
+  prose there, not as one command; record the exact command you used.
+- **Drill 4 output:** whether `--execute` prints per-table insert counts is unverified; record what it prints.
+- **Drill 3 tablet:** reaching `vite --host` from a tablet on the LAN is untested.
+- **Storage API paths** in drill 2 come from the vendor docs, not this repo.
+- **`.github/workflows/independent-database-exports.yml`** still opens with "Keep disabled until …", which
+  this page and the exports doc contradict.
 
 ## Results block (copy, fill in, paste)
 

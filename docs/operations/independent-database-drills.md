@@ -56,6 +56,26 @@ export BACKUP_ENCRYPTION_KEY="$MYK9_EXPORT_ENCRYPTION_KEY"
 R2_ENDPOINT="$(gh variable get MYK9_EXPORT_S3_ENDPOINT)"   # not a secret; the repository variable
 ```
 
+Then set the drill project's values (Dashboard, Project Settings: the ref, the database connection string,
+and under API the `service_role` key). Type them at the prompts; they never go on a command line or in a log.
+`drillsql` is the only way this page talks to a database: it refuses a URL that does not name the drill ref
+or that names production.
+
+```bash
+read -r DRILL_REF                                   # the drill project's 20-character ref
+read -rs DRILL_DB_URL && export DRILL_DB_URL        # its connection string (postgres user)
+read -rs DRILL_SERVICE_KEY && export DRILL_SERVICE_KEY
+drillsql() {
+  case "$DRILL_DB_URL" in *sojmvhhwsjxmfistvzbe*) echo "REFUSED: production URL" >&2; return 1;; esac
+  case "$DRILL_DB_URL" in *"$DRILL_REF"*) ;; *) echo "REFUSED: URL does not name $DRILL_REF" >&2; return 1;; esac
+  psql "$DRILL_DB_URL" -X -v ON_ERROR_STOP=1 "$@"
+}
+drillsql -c '\conninfo'                             # check the host names the drill ref
+```
+
+Every SQL block below runs through `drillsql` (interactively: `drillsql`, then paste). Never paste them
+into a dashboard SQL editor or a `psql` session opened another way.
+
 Pick the newest snapshot folder (they are UTC timestamps, so the last in sort order is newest), then
 **start the overall clock** at the first `cp`:
 
@@ -94,7 +114,9 @@ and the result is labelled "weekday, not a weekend RPO test".
 3. Run [verification](independent-database-restore.md#verification-and-cleanup). **Stop the overall clock
    when it passes.** Leave the project, the decrypted files and the restored data in place.
 
-**Pass:** all imported tables match archive counts and fingerprints; RLS, policies, table and column ACLs
+**Pass:** all imported tables match archive counts, and the restore doc's verification checks pass (where
+it asks for per-row fingerprints and no query is provided, counts plus three sampled rows per core table
+compared by eye is enough; note which you did); RLS, policies, table and column ACLs
 and sequences verified; zero active cron jobs; overall RTO at most 60 minutes.
 **Fail:** any mismatch, or over 60 minutes (record the real figure; the target then needs an owner decision).
 **Abort:** the transaction rolls back twice for a cause you cannot name, or the connection's ref is not the one from step 0.
@@ -110,7 +132,7 @@ from the inventory below.
 
 **Start** at the inventory query; **stop** after the last sampled request is recorded.
 
-1. In `psql` as `postgres` on the drill project:
+1. Through `drillsql` (Step 1):
 
    ```sql
    SELECT b.id AS bucket, b.public, count(o.id) AS objects,
@@ -122,13 +144,14 @@ from the inventory below.
 
 2. For one object per bucket, build the URL from the **drill project ref**, the `bucket_id` and `name`
    above, never from a stored URL column: restored rows embed production Storage URLs, and requesting
-   one tests production, not the drill.
-   - Public bucket: `curl -sS -o /dev/null -w '%{http_code}\n' "https://<DRILL_REF>.supabase.co/storage/v1/object/public/<bucket>/<name>"`
-   - Private bucket: put the drill project's service key in a header file, then request with it:
+   one tests production, not the drill. Set `B` and `N` from one row of the second query
+   (`B=premium-published; N='club/show/premium.pdf'`, for example), then:
+   - Public bucket: `curl -sS -o /dev/null -w '%{http_code}\n' "https://$DRILL_REF.supabase.co/storage/v1/object/public/$B/$N"`
+   - Private bucket: put the drill project's service key (Step 1) in a header file, then request with it:
 
      ```bash
      printf 'Authorization: Bearer %s\n' "$DRILL_SERVICE_KEY" > "$DIR/auth.hdr"
-     curl -sS -w '\n%{http_code}\n' -H @"$DIR/auth.hdr" "https://<DRILL_REF>.supabase.co/storage/v1/object/authenticated/<bucket>/<name>"
+     curl -sS -w '\n%{http_code}\n' -H @"$DIR/auth.hdr" "https://$DRILL_REF.supabase.co/storage/v1/object/authenticated/$B/$N"
      ```
 
    **Reading the answer:** HTTP 404, or HTTP 400 whose body says `"statusCode":"404"`, is the expected
@@ -152,9 +175,10 @@ doc are not. Sign-in after restore is unverified until this drill shows it.
 
 1. **Point a build at the drill project.** Dashboard, Project Settings, API: copy the URL and the anon key.
    Put them in an untracked `apps/myk9show/.env.local` as `VITE_SUPABASE_URL=...` and
-   `VITE_SUPABASE_ANON_KEY=...` (names from `apps/myk9show/.env.example`), then `pnpm dev:show`
-   (or a staging build; never the production Vercel project, and confirm with the owner before touching
-   any Vercel setting).
+   `VITE_SUPABASE_ANON_KEY=...` (names from `apps/myk9show/.env.example`), then serve it where the step 5
+   tablet can reach it: `cd apps/myk9show && pnpm exec vite --host` (the LAN address it prints), or a
+   staging build. Never the production Vercel project, and confirm with the owner before touching any
+   Vercel setting.
 2. **Sign-in.** Pick one restored Auth user per role you walk (secretary, judge, exhibitor). Set a known
    password on each directly in the drill project (dashboard Authentication, Users, or the Auth admin
    API with its service key). Never use "send recovery email".
@@ -179,15 +203,25 @@ and elapsed time is at most 30 minutes. **Fail:** any of the first three, or ove
 `scripts/backup/single-show-restore.ts` (a dry run unless `--execute`). **Start** at
 the dry-run command; **stop** when the verification below passes. Threshold: 60 minutes.
 
-1. **Make the gap.** Pick a show (`select id, name from public.shows;` on the drill project) with no
-   payments: `select count(*) from public.show_payments where show_id = '<show-uuid>';` must be 0. Hard-delete
-   it in the **drill project only**: `delete from public.shows where id = '<show-uuid>';`. Record every other show's
-   entry count before and after.
+1. **Make the gap, in the drill project only, through `drillsql`.** Show ids come from a production export,
+   so the same id exists in production: never run this anywhere else. Pick a show with no payments, then
+   hard-delete it:
+
+   ```bash
+   drillsql -c '\conninfo'                          # host must name $DRILL_REF
+   drillsql -c 'select id, name from public.shows;'
+   SHOW=<show-uuid>
+   drillsql -c "select count(*) from public.show_payments where show_id = '$SHOW';"   # must be 0
+   drillsql -c "delete from public.shows where id = '$SHOW';"
+   ```
+
+   Record every other show's entry count before and after.
+
 2. **Dry run** (touches nothing):
 
    ```bash
    pnpm exec tsx scripts/backup/single-show-restore.ts \
-     --dir "$DIR/decrypted" --show-id <show-uuid> --out "$DIR/plan.sql"
+     --dir "$DIR/decrypted" --show-id "$SHOW" --out "$DIR/plan.sql"
    ```
 
    Record the counts and read every WARNING. **Money tables are excluded by default**: the Stripe ledger,
@@ -201,23 +235,30 @@ the dry-run command; **stop** when the verification below passes. Threshold: 60 
 job(s) would be restored`: `show_lifecycle_email_jobs` rows with `status = 'ready'` (others are `sent`,
    `failed`, `skipped`, `dismissed`) that the email cron would send. The dedupe logs (`show_eve_nudge_log`,
    `sms_proximity_sends`, `waitlist_notification_events`) restore with the show, so nothing re-sends from
-   them. If N is not zero, decide before `--execute` whether to mark those jobs done first (edit `status`
-   and `sent_at` in the plan, or set `skipped` and `skipped_at` right after the restore). To list them:
+   them. If N is not zero, decide before `--execute` which of them must not send. Editing `plan.sql` does
+   nothing: `--execute` rebuilds the plan from the export and never reads that file. The only control is to
+   mark them `skipped` as the very next command after `--execute` (step 4), before anything else. The
+   drill project runs no crons; production does, so there the gap is the seconds between the two commands.
 
-   ```sql
-   select step_type, due_at, status from public.show_lifecycle_email_jobs
-   where show_id = '<show-uuid>' and status = 'ready' order by due_at;
+   ```bash
+   drillsql -c "select id, step_type, due_at, status from public.show_lifecycle_email_jobs
+     where show_id = '$SHOW' and status = 'ready' order by due_at;"
    ```
 
 4. **Execute** against the drill project (the URL stays in the environment, never on the command line):
 
    ```bash
-   read -rs RESTORE_TARGET_DATABASE_URL && export RESTORE_TARGET_DATABASE_URL
+   export RESTORE_TARGET_DATABASE_URL="$DRILL_DB_URL"
    pnpm exec tsx scripts/backup/single-show-restore.ts \
-     --dir "$DIR/decrypted" --show-id <show-uuid> --execute --target-ref <DRILL_REF>
+     --dir "$DIR/decrypted" --show-id "$SHOW" --execute --target-ref "$DRILL_REF"
+   # next command, only if step 3 decided some ready jobs must not send:
+   drillsql -c "update public.show_lifecycle_email_jobs set status = 'skipped', skipped_at = now()
+     where show_id = '$SHOW' and status = 'ready';"
    ```
 
    It refuses a missing or unmatched `--target-ref`, a URL that does not name that ref, and the production ref.
+   (`status` and `skipped_at` are the columns the app itself sets to skip a job, migration
+   `20260708120000_show_lifecycle_emails.sql`.) Narrow it with `and id in (...)` to skip only some jobs.
 
 5. **Verify against the decrypted archive**, not the live source: per-table counts equal the dry run's (rows
    skipped by `ON CONFLICT DO NOTHING` explain any difference); scored entries equal the archive's; other
@@ -234,7 +275,8 @@ go-live-runbook.md path D.
 
 **Production incident use.** The same script restores into production only with
 `--i-understand-this-is-production --target-ref sojmvhhwsjxmfistvzbe`, and the owner is the approver, in
-the incident record before the run. Keep step 3: production runs the email and SMS crons. Follow the
+the incident record before the run. Keep steps 3 and 4's skip update: production runs the email and SMS
+crons, and the skip update must be the very next command after `--execute`. Follow the
 go-live runbook (linked above) for classification and the rest; this page is not that procedure.
 
 ## Step 6. Clean up and delete the project (last)

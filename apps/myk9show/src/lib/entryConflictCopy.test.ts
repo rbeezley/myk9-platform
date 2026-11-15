@@ -45,9 +45,9 @@ describe('entryConflictCopy (MYK9-2010)', () => {
       ['entry_status']
     );
     expect(copy.title).toBe('#12 Rex was checked in two ways');
-    // The shared classifier names check-in statuses only; any other value stays neutral.
-    expect(copy.keepLocalLabel).toBe('Keep my status: another status');
-    expect(copy.takeRemoteLabel).toBe('Keep the other status: another status');
+    // Entry statuses use the shared entry-status words Show Desk already shows.
+    expect(copy.keepLocalLabel).toBe('Keep my status: Pulled');
+    expect(copy.takeRemoteLabel).toBe('Keep the other status: Withdrawn');
   });
 
   it('names the field that collided on an already scored dog, not the score', () => {
@@ -76,5 +76,25 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     );
     expect(copy.takeRemoteLabel).toBe('Keep the other status: another status');
     expect(copy.description).not.toContain('not a real status');
+  });
+
+  it('shows both entry-status words in the buttons and the description for confirmed vs withdrawn', () => {
+    const copy = entryConflictCopy(
+      { ...dog, entry_status: 'confirmed' },
+      { ...dog, entry_status: 'withdrawn' },
+      ['entry_status']
+    );
+    expect(copy.keepLocalLabel).toBe('Keep my status: Accepted');
+    expect(copy.takeRemoteLabel).toBe('Keep the other status: Withdrawn');
+    expect(copy.description).toContain('This device: Accepted. Other device: Withdrawn.');
+  });
+
+  it('keeps another status only for an entry-status value no source knows', () => {
+    const copy = entryConflictCopy(
+      { ...dog, entry_status: 'confirmed' },
+      { ...dog, entry_status: 'not-a-real-status' },
+      ['entry_status']
+    );
+    expect(copy.takeRemoteLabel).toBe('Keep the other status: another status');
   });
 });

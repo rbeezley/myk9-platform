@@ -1,5 +1,6 @@
 import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import { classifyEntryCheckInStatus } from '@/features/show-map/showMapStatus';
+import { ENTRY_STATUS_VALUES, getStatusDescriptor } from '@/components/status';
 import {
   CONFLICT_KEEP_LOCAL_LABEL,
   CONFLICT_TAKE_REMOTE_LABEL,
@@ -53,10 +54,20 @@ export function describeConflictScore(row: EntryConflictRow): string {
 
 const UNKNOWN_STATUS_WORDS = 'another status';
 
-function checkInWords(status: unknown): string {
+/**
+ * Status words come from the shared owners only: the check-in classifier for `check_in_status`,
+ * the shared entry-status descriptors (what Show Desk already shows) for `entry_status`. A value
+ * neither knows stays neutral; it is never reformatted into words of its own.
+ */
+function statusWords(status: unknown, kind: 'check-in' | 'entry'): string {
   if (typeof status !== 'string' || !status) return 'no status';
-  // Status words come from the shared classifier only; a value it does not know stays neutral.
-  return classifyEntryCheckInStatus({ check_in_status: status })?.label ?? UNKNOWN_STATUS_WORDS;
+  const known =
+    kind === 'entry'
+      ? (ENTRY_STATUS_VALUES as readonly string[]).includes(status)
+        ? getStatusDescriptor('entry', status).label
+        : undefined
+      : classifyEntryCheckInStatus({ check_in_status: status })?.label;
+  return known ?? UNKNOWN_STATUS_WORDS;
 }
 
 const STATUS_FIELDS = new Set(['check_in_status', 'checkInStatus', 'entry_status', 'entryStatus']);
@@ -129,8 +140,9 @@ export function entryConflictCopy(
       localStatus !== remoteStatus &&
       (localStatus || remoteStatus)
     ) {
-      const mine = checkInWords(localStatus);
-      const theirs = checkInWords(remoteStatus);
+      const kind = entryStatusConflict ? 'entry' : 'check-in';
+      const mine = statusWords(localStatus, kind);
+      const theirs = statusWords(remoteStatus, kind);
       return {
         title: `${subject} was checked in two ways`,
         description: `This device: ${mine}. Other device: ${theirs}. Choose the status to keep. ${dropsOthers}`,

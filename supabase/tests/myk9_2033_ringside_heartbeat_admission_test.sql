@@ -15,6 +15,11 @@
 
 begin;
 
+-- The judge's person row exists first; handle_new_user links it to the judge's account by email
+-- (it would otherwise create a second person for that account).
+insert into public.people (id, first_name, last_name, email, auth_user_id) values
+  ('00000000-0000-0000-0000-000000203321', 'Jill', 'Judge', 'myk9-2033-judge@example.test', NULL);
+
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -30,9 +35,6 @@ from (values
   ('00000000-0000-0000-0000-000000203303'::uuid, 'myk9-2033-outsider@example.test'::text, false),
   ('00000000-0000-0000-0000-000000203399'::uuid, null::text, true)
 ) as fixture(auth_id, email, anon);
-
-insert into public.people (id, first_name, last_name, auth_user_id) values
-  ('00000000-0000-0000-0000-000000203321', 'Jill', 'Judge', '00000000-0000-0000-0000-000000203302');
 
 insert into public.clubs (id, name)
 values ('00000000-0000-0000-0000-000000203330', 'MYK9-2033 Club');
@@ -55,6 +57,10 @@ values ('00000000-0000-0000-0000-000000203321', '00000000-0000-0000-0000-0000002
 
 do $$
 begin
+  if (select auth_user_id from public.people where id = '00000000-0000-0000-0000-000000203321')
+     is distinct from '00000000-0000-0000-0000-000000203302'::uuid then
+    raise exception 'FAIL setup: the judge''s person row is not linked to the judge''s account';
+  end if;
   if not exists (
     select 1 from public.show_passcodes
      where show_id = '00000000-0000-0000-0000-000000203331'

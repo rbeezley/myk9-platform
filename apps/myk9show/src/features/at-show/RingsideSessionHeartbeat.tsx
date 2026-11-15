@@ -4,12 +4,7 @@ import { getExistingSubscription } from '@myk9/notifications';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
-import { UserRole } from '@/types/auth-types';
-import {
-  deriveRingsideRoleFromClaim,
-  selectGrantRoleForShow,
-  useRingsideGrantStore,
-} from '@/store/ringsideGrantStore';
+import { deriveRingsideRoleFromClaim } from '@/store/ringsideGrantStore';
 import { readDogFavoriteArmbands } from './ringsideDogFavorites';
 import { getAccountUserId } from './dogFavoritesSync';
 import {
@@ -22,20 +17,42 @@ const HEARTBEAT_MS = 30_000;
 /** Consecutive failed presence writes before the refusal is reported (once). */
 const FAILURES_BEFORE_REPORT = 3;
 
+const NOT_ENTERED_MESSAGE = 'account is not entered in exactly one active ringside show';
+
+/** Refusals and connectivity failures that are normal, so they never count toward a report. */
+function isExpectedPresenceFailure(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  if (isPasscodeRegeneratedError(error)) return true;
+  const e = (error ?? {}) as { code?: unknown; message?: unknown };
+  if (e.code === '42501' && e.message === NOT_ENTERED_MESSAGE) return true;
+  // No HTTP/db code: the request never got an answer (offline, DNS, aborted).
+  return !e.code && /failed to fetch|network|load failed|aborted/i.test(String(e.message ?? ''));
+}
+
+/** PostgREST errors are plain objects, so lift the useful fields into the log metadata. */
+function describeError(error: unknown): Record<string, unknown> {
+  if (!error || typeof error !== 'object') return {};
+  const { code, message, details } = error as Record<string, unknown>;
+  return {
+    ...(code !== undefined ? { code } : {}),
+    ...(message !== undefined ? { message } : {}),
+    ...(details ? { details } : {}),
+  };
+}
+
 export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const location = useLocation();
-  const { user, hasRole } = useAuthContext();
-  const activeGrant = useRingsideGrantStore(state => state.activeGrant);
+  const { user } = useAuthContext();
   // Presence rule (MYK9-2033): the only reader of ringside_sessions presence is
-  // send-targeted-message, which selects role = 'exhibitor' rows. Judge and
-  // steward sessions (passcode grant/claim or account role) are never read, and
-  // the server refuses their upsert with 403, so they skip presence entirely.
-  // Their revocation check below still runs.
-  const sessionRole =
-    selectGrantRoleForShow(activeGrant, showId) ?? deriveRingsideRoleFromClaim(user, showId);
-  const staffAccount = hasRole(UserRole.JUDGE) || hasRole(UserRole.STEWARD);
-  const sendsPresence = !staffAccount && (sessionRole === null || sessionRole === 'exhibitor');
+  // send-targeted-message, which selects role = 'exhibitor' rows. A passcode
+  // (anonymous) session whose claim is judge, steward or admin is never read and
+  // the server refuses its upsert with 403, so it skips presence. A signed-in
+  // account always heartbeats: the server writes an exhibitor row only when the
+  // account is entered in exactly one active show, so a judge who also shows a
+  // dog keeps push suppression. The revocation check below still runs.
+  const claimRole = deriveRingsideRoleFromClaim(user, showId);
+  const sendsPresence = claimRole === null || claimRole === 'exhibitor';
   const failures = useRef({ count: 0, reported: false });
   const userId = getAccountUserId(user);
   const route = `${location.pathname}${location.search}`;
@@ -47,14 +64,15 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
     let endpoint: string | null = null;
 
     function recordFailure(error: unknown) {
+      if (isExpectedPresenceFailure(error)) return;
       const state = failures.current;
       state.count += 1;
       if (state.count < FAILURES_BEFORE_REPORT || state.reported) return;
       state.reported = true;
-      logger.error(
+      logger.warn(
         'Ringside presence heartbeat keeps failing',
         'ringside-heartbeat',
-        { consecutiveFailures: state.count, showId: heartbeatShowId },
+        { consecutiveFailures: state.count, showId: heartbeatShowId, ...describeError(error) },
         error instanceof Error ? error : undefined
       );
     }
@@ -93,7 +111,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       // best-effort (no toast) but a persistent run is reported once.
       if (error) {
         handleRingsidePasscodeRevoked(error);
-        if (!isPasscodeRegeneratedError(error)) recordFailure(error);
+        recordFailure(error);
       } else {
         failures.current = { count: 0, reported: false };
       }

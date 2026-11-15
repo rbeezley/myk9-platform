@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { UserRole } from '@/types/auth-types';
 import { Route, Routes } from 'react-router-dom';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { RingsideSessionHeartbeat } from '../RingsideSessionHeartbeat';
 
-const { authContextMock, getExistingSubscriptionMock, rpcMock, loggerErrorMock } = vi.hoisted(
+const { authContextMock, getExistingSubscriptionMock, rpcMock, loggerWarnMock } = vi.hoisted(
   () => ({
     authContextMock: {
       user: null as {
@@ -12,16 +11,15 @@ const { authContextMock, getExistingSubscriptionMock, rpcMock, loggerErrorMock }
         is_anonymous?: boolean;
         app_metadata?: Record<string, unknown>;
       } | null,
-      hasRole: (_role: string): boolean => false,
     },
-    loggerErrorMock: vi.fn(),
+    loggerWarnMock: vi.fn(),
     getExistingSubscriptionMock: vi.fn(),
     rpcMock: vi.fn((_name: string, _args?: Record<string, unknown>) =>
       Promise.resolve({ data: null, error: null } as { data: null; error: unknown })
     ),
   })
 );
-vi.mock('@/utils/logger', () => ({ logger: { error: loggerErrorMock } }));
+vi.mock('@/utils/logger', () => ({ logger: { warn: loggerWarnMock } }));
 
 vi.mock('@myk9/notifications', () => ({
   getExistingSubscription: getExistingSubscriptionMock,
@@ -82,7 +80,6 @@ describe('RingsideSessionHeartbeat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authContextMock.user = null;
-    authContextMock.hasRole = () => false;
     localStorage.clear();
     setVisibilityState('visible');
     getExistingSubscriptionMock.mockResolvedValue({
@@ -206,7 +203,7 @@ describe('RingsideSessionHeartbeat', () => {
     app_metadata: { kind: 'ringside_passcode', show_id: 'show-1', ringside_role: role },
   });
 
-  it.each(['judge', 'steward'])(
+  it.each(['judge', 'steward', 'admin'])(
     'sends no presence for a %s passcode session but still checks revocation',
     async role => {
       authContextMock.user = claimUser(role);
@@ -224,19 +221,12 @@ describe('RingsideSessionHeartbeat', () => {
     }
   );
 
-  it.each([UserRole.JUDGE, UserRole.STEWARD])(
-    'sends no presence for a %s account session',
-    async role => {
-      authContextMock.user = { id: 'user-1', is_anonymous: false };
-      authContextMock.hasRole = r => r === role;
-      renderHeartbeat();
+  it('still sends presence for a signed-in account, whatever its staff roles', async () => {
+    authContextMock.user = { id: 'user-1', is_anonymous: false };
+    renderHeartbeat();
 
-      await waitFor(() =>
-        expect(rpcMock).toHaveBeenCalledWith('ringside_claim_generation_current')
-      );
-      expect(upsertCalls()).toHaveLength(0);
-    }
-  );
+    await waitFor(() => expect(upsertCalls()).toHaveLength(1));
+  });
 
   it('still sends presence for an exhibitor passcode session', async () => {
     authContextMock.user = claimUser('exhibitor');
@@ -245,29 +235,88 @@ describe('RingsideSessionHeartbeat', () => {
     await waitFor(() => expect(upsertCalls()).toHaveLength(1));
   });
 
-  it('reports a persistent refusal once, after three consecutive failures', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      rpcMock.mockImplementation(() =>
-        Promise.resolve({ data: null, error: { code: '42501', message: 'forbidden' } })
-      );
+  describe('persistent failure reporting', () => {
+    const refuse = (error: unknown) =>
+      rpcMock.mockImplementation(() => Promise.resolve({ data: null, error }));
+    const tick = async (ms: number) => {
+      await vi.advanceTimersByTimeAsync(ms);
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('warns once, with the error detail, after three consecutive failures', async () => {
+      refuse({ code: 'PGRST500', message: 'boom', details: 'more' });
       renderHeartbeat();
 
-      await vi.advanceTimersByTimeAsync(0);
-      await vi.advanceTimersByTimeAsync(30_000);
-      expect(loggerErrorMock).not.toHaveBeenCalled();
-      await vi.advanceTimersByTimeAsync(30_000);
-      expect(loggerErrorMock).toHaveBeenCalledTimes(1);
-      expect(loggerErrorMock).toHaveBeenCalledWith(
+      await tick(0);
+      await tick(30_000);
+      expect(loggerWarnMock).not.toHaveBeenCalled();
+      await tick(30_000);
+      expect(loggerWarnMock).toHaveBeenCalledTimes(1);
+      expect(loggerWarnMock).toHaveBeenCalledWith(
         'Ringside presence heartbeat keeps failing',
         'ringside-heartbeat',
-        expect.objectContaining({ consecutiveFailures: 3, showId: 'show-1' }),
+        {
+          consecutiveFailures: 3,
+          showId: 'show-1',
+          code: 'PGRST500',
+          message: 'boom',
+          details: 'more',
+        },
         undefined
       );
-      await vi.advanceTimersByTimeAsync(60_000);
-      expect(loggerErrorMock).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+      await tick(60_000);
+      expect(loggerWarnMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('resets the count on a success', async () => {
+      refuse({ code: 'PGRST500', message: 'boom' });
+      renderHeartbeat();
+      await tick(0);
+      await tick(30_000);
+      rpcMock.mockImplementation(() => Promise.resolve({ data: null, error: null }));
+      await tick(30_000);
+      refuse({ code: 'PGRST500', message: 'boom' });
+      await tick(60_000);
+      expect(loggerWarnMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        'a passcode-regenerated error',
+        { code: '42501', message: 'Passcode has been regenerated; re-enter a new code' },
+      ],
+      [
+        'an expected not-entered refusal',
+        { code: '42501', message: 'account is not entered in exactly one active ringside show' },
+      ],
+      ['a network failure', { message: 'Failed to fetch' }],
+    ])('does not count %s', async (_label, error) => {
+      refuse(error);
+      renderHeartbeat();
+      await tick(0);
+      await tick(150_000);
+      expect(loggerWarnMock).not.toHaveBeenCalledWith(
+        'Ringside presence heartbeat keeps failing',
+        expect.anything(),
+        expect.anything(),
+        undefined
+      );
+    });
+
+    it('does not count failures while the device is offline', async () => {
+      const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      refuse({ code: 'PGRST500', message: 'boom' });
+      renderHeartbeat();
+      await tick(0);
+      await tick(150_000);
+      online.mockRestore();
+      expect(loggerWarnMock).not.toHaveBeenCalled();
+    });
   });
 });

@@ -58,6 +58,19 @@ export interface EntryConfirmationDeps {
    * none; a registration not found is absent. `registrationsRead` / `handlersRead` are false
    * when that read failed, which is never taken to mean "not found".
    */
+  /**
+   * Every eligible entry (same filters as loadCandidates, no row limit) of the chosen
+   * exhibitors: by registration, and by handler for entries with no registration. The candidate
+   * read is limited and ordered across exhibitors, so it can hold only part of one exhibitor's
+   * entries; her email is built from this complete set instead.
+   */
+  loadExhibitorEntries(args: {
+    showIds: string[];
+    registrationIds: string[];
+    handlerIds: string[];
+    statuses: Array<'pending' | 'failed'>;
+    quietSince: string;
+  }): Promise<ConfirmationEntry[]>;
   loadRecipients(args: { registrationIds: string[]; handlerIds: string[] }): Promise<{
     byRegistration: Map<string, ConfirmationRecipient | null>;
     byHandler: Map<string, ConfirmationRecipient>;
@@ -117,20 +130,44 @@ export async function runEntryConfirmations(
   const statuses: Array<'pending' | 'failed'> =
     scope === 'all' ? ['pending', 'failed'] : ['pending'];
 
+  const quietSince = new Date(now.getTime() - CONFIRMATION_QUIET_MS).toISOString();
+  const eligible = (entry: ConfirmationEntry) => !!entry.armband && showById.has(entry.show_id);
   const candidates = await deps.loadCandidates({
     showIds: shows.map(show => show.id),
     statuses,
-    quietSince: new Date(now.getTime() - CONFIRMATION_QUIET_MS).toISOString(),
+    quietSince,
   });
-  const groups = groupConfirmationsByExhibitor(
-    candidates.filter(entry => entry.armband && showById.has(entry.show_id))
-  );
-  const batch = groups.slice(0, CONFIRMATION_MAX_EMAILS_PER_RUN);
-  if (batch.length === 0) return { sent: 0, failed: 0, skipped: 0, deferred: 0 };
+  // The candidates choose WHICH exhibitors go this run (oldest first); each chosen exhibitor's
+  // email is then built from all of her eligible entries, never from the part the limit let in.
+  const groups = groupConfirmationsByExhibitor(candidates.filter(eligible));
+  const chosen = groups.slice(0, CONFIRMATION_MAX_EMAILS_PER_RUN);
+  if (chosen.length === 0) return { sent: 0, failed: 0, skipped: 0, deferred: 0 };
 
   const unique = (ids: Array<string | null>) => [
     ...new Set(ids.filter((id): id is string => !!id)),
   ];
+  const complete = new Map(
+    groupConfirmationsByExhibitor(
+      (
+        await deps.loadExhibitorEntries({
+          showIds: unique(chosen.map(group => group.showId)),
+          registrationIds: unique(chosen.map(group => group.registrationId)),
+          handlerIds: unique(chosen.map(group => group.handlerId)),
+          statuses,
+          quietSince,
+        })
+      ).filter(eligible)
+    ).map(group => [group.key, group])
+  );
+  // A chosen exhibitor whose complete read no longer holds every entry the candidates showed
+  // (her entries changed between the two reads) waits for the next run, whole.
+  const batch = chosen.flatMap(group => {
+    // No registration and no handler: one entry, nobody to read it for; it stands alone.
+    if (!group.registrationId && !group.handlerId) return [group];
+    const full = complete.get(group.key);
+    const ids = new Set(full?.entries.map(entry => entry.id));
+    return full && group.entries.every(entry => ids.has(entry.id)) ? [full] : [];
+  });
   const batchEntries = batch.flatMap(group => group.entries);
   const recipients = await deps.loadRecipients({
     registrationIds: unique(batch.map(group => group.registrationId)),
@@ -227,7 +264,12 @@ export async function runEntryConfirmations(
     });
   }
 
-  return { sent, failed, skipped, deferred: groups.length - batch.length };
+  return {
+    sent,
+    failed,
+    skipped: skipped + chosen.length - batch.length,
+    deferred: groups.length - chosen.length,
+  };
 }
 
 /**

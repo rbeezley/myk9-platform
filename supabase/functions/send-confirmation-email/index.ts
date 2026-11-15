@@ -146,6 +146,40 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       if (error) throw new Error(`Could not read accepted entries: ${error.message}`);
       return (data ?? []) as unknown as ConfirmationEntry[];
     },
+    loadExhibitorEntries: async ({
+      showIds,
+      registrationIds,
+      handlerIds,
+      statuses,
+      quietSince,
+    }) => {
+      // Same filters as loadCandidates and no row limit: at most one run's exhibitors.
+      const eligible = () =>
+        supabase
+          .from('entries')
+          .select(ENTRY_SELECT)
+          .in('show_id', showIds)
+          .eq('entry_status', 'confirmed')
+          .not('armband', 'is', null)
+          .is('deleted_at', null)
+          .is('confirmation_email_sent_at', null)
+          .in('confirmation_email_status', statuses)
+          .lt('updated_at', quietSince);
+      const rows: ConfirmationEntry[] = [];
+      if (registrationIds.length > 0) {
+        const { data, error } = await eligible().in('registration_id', registrationIds);
+        if (error) throw new Error(`Could not read exhibitor entries: ${error.message}`);
+        rows.push(...((data ?? []) as unknown as ConfirmationEntry[]));
+      }
+      if (handlerIds.length > 0) {
+        const { data, error } = await eligible()
+          .is('registration_id', null)
+          .in('handler_id', handlerIds);
+        if (error) throw new Error(`Could not read exhibitor entries: ${error.message}`);
+        rows.push(...((data ?? []) as unknown as ConfirmationEntry[]));
+      }
+      return rows;
+    },
     loadRecipients: async ({ registrationIds, handlerIds }) => {
       const byRegistration = new Map<string, ConfirmationRecipient | null>();
       const byHandler = new Map<string, ConfirmationRecipient>();

@@ -95,6 +95,8 @@ function makeDeps(args: {
   handlers?: Record<string, ConfirmationRecipient>;
   registrationsRead?: boolean;
   switchedOff?: string[];
+  /** The candidate read's row limit (CONFIRMATION_ROW_LIMIT in production). */
+  rowLimit?: number;
   sendResult?: () => ConfirmationSendResult;
 }) {
   const people: Record<string, ConfirmationRecipient | null> = args.people ?? {
@@ -107,6 +109,31 @@ function makeDeps(args: {
   const advance = (ms: number) => {
     current = new Date(current.getTime() + ms);
   };
+  const eligibleRows = ({
+    showIds,
+    statuses,
+    quietSince,
+  }: {
+    showIds: string[];
+    statuses: string[];
+    quietSince: string;
+  }) =>
+    args.entries
+      .filter(
+        row =>
+          showIds.includes(row.show_id) &&
+          row.entry_status === 'confirmed' &&
+          row.armband !== null &&
+          row.deleted_at === null &&
+          row.confirmation_email_sent_at === null &&
+          (statuses as string[]).includes(row.confirmation_email_status) &&
+          row.updated_at < quietSince
+      )
+      .sort((a, b) =>
+        a.updated_at === b.updated_at
+          ? a.id.localeCompare(b.id)
+          : a.updated_at.localeCompare(b.updated_at)
+      );
   const deps: EntryConfirmationDeps = {
     now: () => current,
     siteUrl: 'https://myk9show.com',
@@ -114,22 +141,13 @@ function makeDeps(args: {
     loadAcceptedEmailOff: async showIds =>
       new Set((args.switchedOff ?? []).filter(id => showIds.includes(id))),
     loadCandidates: async ({ showIds, statuses, quietSince }) =>
-      args.entries
-        .filter(
-          row =>
-            showIds.includes(row.show_id) &&
-            row.entry_status === 'confirmed' &&
-            row.armband !== null &&
-            row.deleted_at === null &&
-            row.confirmation_email_sent_at === null &&
-            (statuses as string[]).includes(row.confirmation_email_status) &&
-            row.updated_at < quietSince
-        )
-        .sort((a, b) =>
-          a.updated_at === b.updated_at
-            ? a.id.localeCompare(b.id)
-            : a.updated_at.localeCompare(b.updated_at)
-        ),
+      eligibleRows({ showIds, statuses, quietSince }).slice(0, args.rowLimit ?? 500),
+    loadExhibitorEntries: async ({ showIds, registrationIds, handlerIds, statuses, quietSince }) =>
+      eligibleRows({ showIds, statuses, quietSince }).filter(row =>
+        row.registration_id
+          ? registrationIds.includes(row.registration_id)
+          : !!row.handler_id && handlerIds.includes(row.handler_id)
+      ),
     loadRecipients: async ({ registrationIds, handlerIds }) => ({
       byRegistration: new Map(
         args.registrationsRead === false
@@ -478,6 +496,45 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
     await runEntryConfirmations(deps, 'all');
     expect(sends.map(email => email.to)).toEqual(['late@example.com']);
     expect(late.confirmation_email_status).toBe('sent');
+  });
+
+  it('sends one exhibitor her whole email when the row limit cuts through her entries (Codex round 2)', async () => {
+    const ada1 = entry({ updated_at: '2026-11-20T10:00:00Z' });
+    const bea1 = entry({
+      registration_id: 'reg-bea',
+      handler_id: 'person-bea',
+      updated_at: '2026-11-20T10:01:00Z',
+    });
+    const bea2 = entry({
+      registration_id: 'reg-bea',
+      handler_id: 'person-bea',
+      updated_at: '2026-11-20T10:02:00Z',
+    });
+    const ada2 = entry({
+      class: { name: 'Novice Exterior', level: 'Novice', element: 'Exterior' },
+      updated_at: '2026-11-20T10:03:00Z',
+    });
+    const entries = [ada1, bea1, bea2, ada2];
+    const { deps, sends } = makeDeps({
+      shows: [show()],
+      entries,
+      rowLimit: 3, // reads ada1, bea1, bea2: Ada is cut in two
+      people: {
+        'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: null },
+        'reg-bea': { email: 'bea@example.com', firstName: 'Bea', lastName: null },
+      },
+    });
+
+    await runEntryConfirmations(deps, 'new');
+    await runEntryConfirmations(deps, 'new');
+
+    const toAda = sends.filter(email => email.to === 'ada@example.com');
+    expect(toAda).toHaveLength(1);
+    expect(toAda[0]!.subject).toBe('Your entries to Heartland Scent Work Classic are accepted');
+    expect(toAda[0]!.html).toContain('Exterior');
+    expect(toAda[0]!.html).toContain('Interior');
+    expect(sends.filter(email => email.to === 'bea@example.com')).toHaveLength(1);
+    expect(entries.every(row => row.confirmation_email_status === 'sent')).toBe(true);
   });
 
   it('emails two exhibitors in one show separately', async () => {

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
 import type { PendingMutation } from '@myk9/replication';
@@ -256,6 +256,18 @@ function makeConflictSnapshot(tableName: string) {
     detectedAt: 0,
   };
 }
+
+// MYK9-2035: sonner's exit animation leaves a 200ms removal timer that unmounting does not
+// clear, so a toast still leaving when the file ends fires after the jsdom window is gone.
+// Dismiss every notice and wait until each has been removed before unmounting.
+afterEach(async () => {
+  const { toast: actualToast } = await vi.importActual<typeof import('sonner')>('sonner');
+  act(() => {
+    actualToast.dismiss();
+  });
+  await waitFor(() => expect(document.querySelector('[data-sonner-toast]')).toBeNull());
+  cleanup();
+});
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 

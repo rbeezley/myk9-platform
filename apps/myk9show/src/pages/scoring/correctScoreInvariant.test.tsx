@@ -3,6 +3,7 @@
 // on the submitted score data (what the optimistic writer persists), not the form.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { NATIONALS_SCORING } from '@myk9/core';
 import {
   getScoresheetComponent,
   type ResolvedClassRules,
@@ -106,15 +107,24 @@ describe('Correct this score invariant (MYK9-1025)', () => {
         expect(payload.correctCount).toBe(row.total_correct_finds);
         expect(payload.incorrectCount).toBe(row.total_incorrect_finds);
         expect(payload.finishCallErrors).toBe(row.no_finish_count);
-        // Nationals points are computed from the alert counts (10 per correct,
-        // 5 off per incorrect, never below 0), not stored separately.
+        // Nationals points are computed from the alert counts and finish call errors
+        // (10 per correct, 5 off per incorrect and per finish call error, never below 0),
+        // not stored separately (MYK9-1835: finish call errors cost 5 each).
         expect(payload.points).toBe(
           key === 'AKC_SCENT_WORK_NATIONAL'
-            ? Math.max(0, row.total_correct_finds! * 10 - row.total_incorrect_finds! * 5)
+            ? Math.max(
+                0,
+                row.total_correct_finds! * NATIONALS_SCORING.CORRECT_ALERT_POINTS -
+                  row.total_incorrect_finds! * NATIONALS_SCORING.INCORRECT_ALERT_PENALTY -
+                  row.no_finish_count! * NATIONALS_SCORING.FINISH_CALL_ERROR_PENALTY
+              )
             : row.points_earned
         );
         expect(payload.nonQualifyingReason).toBe(row.disqualification_reason ?? undefined);
-        expect(payload.areaTimes).toEqual(['1:10.00']);
+        // MYK9-2016: a Nationals sheet always has 5 areas; the other four stay blank here.
+        expect(payload.areaTimes).toEqual(
+          key === 'AKC_SCENT_WORK_NATIONAL' ? ['1:10.00', '', '', '', ''] : ['1:10.00']
+        );
       }
     );
   });

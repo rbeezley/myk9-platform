@@ -350,6 +350,13 @@ function classDurationRangeIssues(
 }
 
 // Class validation schemas
+/** MYK9-1931: the class's own fee. Empty (0) charges the show's fee. */
+const classEntryFeeFields = {
+  entryFee: z.number().min(0, 'Enter a fee of $0 or more, or leave it empty').optional(),
+  entryFeeLoaded: z.boolean().optional(),
+  entryFeeEdited: z.boolean().optional(),
+};
+
 export const classSchemas = {
   /** Full mode — ClassData editing (element/level read-only but required) */
   full: z
@@ -382,16 +389,7 @@ export const classSchemas = {
         .optional(),
       allowsWaitlist: z.boolean().nullable().optional(),
       editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
-      preEntryFee: z
-        .number()
-        .min(0, 'Please enter a valid pre-entry fee')
-        .optional()
-        .or(z.literal(0)),
-      dayOfShowFee: z
-        .number()
-        .min(0, 'Please enter a valid day of show fee')
-        .optional()
-        .or(z.literal(0)),
+      ...classEntryFeeFields,
     })
     .superRefine((data, ctx) => {
       for (const issue of classDurationRangeIssues(data))
@@ -415,6 +413,7 @@ export const classSchemas = {
       .optional(),
     allowsWaitlist: z.boolean().nullable().optional(),
     editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
+    ...classEntryFeeFields,
   }),
 };
 

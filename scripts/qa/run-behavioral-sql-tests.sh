@@ -247,6 +247,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1950_per_judge_passcodes_test.sql"
   "$TEST_DIR/myk9_2005_qualified_time_test.sql"
   "$TEST_DIR/myk9_1975_junior_fee_limit_test.sql"
+  "$TEST_DIR/myk9_1931_class_fee_wins_test.sql"
   "$TEST_DIR/golden_replay_trial_27835_test.sql"
 )
 

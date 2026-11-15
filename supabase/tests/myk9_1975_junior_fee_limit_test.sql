@@ -8,11 +8,12 @@
 --      a junior fee of NULL or 0 (no tier) and a day-of fee of 0 are never limits
 --   B. with no pre-entry fee, the live class fees are the limit (a soft-deleted class is not,
 --      and a class with no fee counts as $0, which is what checkout charges for it):
---      a show write and a class write are both refused; with a pre-entry fee a class fee is not
---      priced, so it is not limited
+--      a show write and a class write are both refused. MYK9-1931 (20261115072007): a class's
+--      own fee is priced whenever it is set, so with a pre-entry fee it is a limit too; a class
+--      without one is priced at the pre-entry fee and is not limited
 --   C. an existing show already over the limit keeps working: a write that changes no fee, and
 --      an INSERT ... ON CONFLICT DO NOTHING that re-uses its id, are not refused
---   D. no API role can execute the new functions; checkout pricing is unchanged (LEAST)
+--   D. no API role can execute the new functions; checkout pricing still takes LEAST
 --
 -- Fixtures roll back.
 
@@ -60,8 +61,9 @@ values
 
 insert into public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
 values
+  -- No fee of its own (MYK9-1931): it is priced at show 1's fee.
   ('00000000-0000-0000-0000-000001975301', '00000000-0000-0000-0000-000001975201',
-   'MYK9-1975 Class 1', 'Container', 'Novice', 'upcoming', 'manual', 15),
+   'MYK9-1975 Class 1', 'Container', 'Novice', 'upcoming', 'manual', NULL),
   ('00000000-0000-0000-0000-000001975331', '00000000-0000-0000-0000-000001975203',
    'MYK9-1975 Class 3a', 'Container', 'Novice', 'upcoming', 'manual', 20),
   ('00000000-0000-0000-0000-000001975332', '00000000-0000-0000-0000-000001975203',
@@ -216,23 +218,52 @@ select pg_temp.expect('with no pre-entry fee, a live class with no fee makes the
      where id = '00000000-0000-0000-0000-000001975103'
   $q$),
   '23514|The junior fee can''t be more than $0, the lowest class fee in this show.');
+-- MYK9-1931: 0 and no fee are the same "no own fee", so swapping one for the other changes
+-- no price and is not checked (the MYK9-1931 clean-up empties zero fees this way).
+select pg_temp.expect('swapping no class fee for 0 is not a price change',
+  pg_temp.attempt($q$
+    update public.classes set entry_fee = 0
+     where id = '00000000-0000-0000-0000-000001975335'
+  $q$),
+  'ok');
+select pg_temp.expect('swapping a class fee of 0 for none is not a price change',
+  pg_temp.attempt($q$
+    update public.classes set entry_fee = NULL
+     where id = '00000000-0000-0000-0000-000001975335'
+  $q$),
+  'ok');
 update public.classes set deleted_at = now()
  where id = '00000000-0000-0000-0000-000001975335';
 
 
-select pg_temp.expect('with a pre-entry fee, a class fee is not priced and not limited',
+-- MYK9-1931: a class's own fee wins over the pre-entry fee, so it is priced and limited.
+select pg_temp.expect('with a pre-entry fee, a class fee below the junior fee is refused',
   pg_temp.attempt($q$
     update public.classes set entry_fee = 14
      where id = '00000000-0000-0000-0000-000001975301'
   $q$),
+  '23514|A class fee can''t be less than the junior fee of $15. Lower the junior fee first.');
+
+select pg_temp.expect('with a pre-entry fee, a class fee above it is allowed',
+  pg_temp.attempt($q$
+    update public.classes set entry_fee = 16
+     where id = '00000000-0000-0000-0000-000001975301'
+  $q$),
   'ok');
 
-select pg_temp.expect('removing the pre-entry fee makes the class fees the limit',
+select pg_temp.expect('with a pre-entry fee, a class''s own fee below it is the limit',
   pg_temp.attempt($q$
-    update public.shows set pre_entry_fee = NULL, day_of_show_fee = NULL
+    update public.shows set pre_entry_fee = 20, junior_handler_fee = 17
      where id = '00000000-0000-0000-0000-000001975101'
   $q$),
-  '23514|The junior fee can''t be more than $14, the lowest class fee in this show.');
+  '23514|The junior fee can''t be more than $16, the lowest class fee in this show.');
+
+select pg_temp.expect('removing the pre-entry fee leaves the class fees as the limit',
+  pg_temp.attempt($q$
+    update public.shows set pre_entry_fee = NULL, day_of_show_fee = NULL, junior_handler_fee = 16.5
+     where id = '00000000-0000-0000-0000-000001975101'
+  $q$),
+  '23514|The junior fee can''t be more than $16, the lowest class fee in this show.');
 
 -- A soft-deleted class is never entered, so its fee is not a limit. Class 3a ($12) goes;
 -- class 3b ($12.50) is the lowest live fee.
@@ -315,9 +346,11 @@ select pg_temp.expect('no API role can execute the MYK9-1975 functions',
 insert into public.trials (id, show_id, name, date, registry_id, trial_type)
 values ('00000000-0000-0000-0000-000001975204', '00000000-0000-0000-0000-000001975104',
         'MYK9-1975 Trial 4', current_date + 30, 'AKC', 'Scent Work');
+-- No fee of its own (MYK9-1931): it is priced at the show's pre-entry fee. A class fee of
+-- 10 would now be checked against the legacy junior fee of 20 and refused.
 insert into public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
 values ('00000000-0000-0000-0000-000001975341', '00000000-0000-0000-0000-000001975204',
-        'MYK9-1975 Class 4', 'Container', 'Novice', 'upcoming', 'manual', 10);
+        'MYK9-1975 Class 4', 'Container', 'Novice', 'upcoming', 'manual', NULL);
 select pg_temp.expect('checkout still prices the legacy show at its regular fee',
   (select fee::numeric(10,2)::text
      from private.price_entry_fee('00000000-0000-0000-0000-000001975104',

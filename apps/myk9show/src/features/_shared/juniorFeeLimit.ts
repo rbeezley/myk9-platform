@@ -10,8 +10,10 @@
  *
  * "Lowest regular fee" is the lowest normal fee a junior entry could be priced at:
  * the pre-entry fee when it is set (0 counts), the day-of fee when it is above 0, and
- * each class's own fee only when the show has no pre-entry fee (the only time a class
- * fee is charged).
+ * each class's own fee when it is above 0 (a class's own fee wins, MYK9-1931). A class
+ * without its own fee (0 or none) is priced at the pre-entry fee, or at $0 when the show
+ * has none, so it counts as 0 only then. The server mirrors this in migration
+ * 20261115072007.
  */
 
 export interface ShowFeeTiers {
@@ -19,7 +21,7 @@ export interface ShowFeeTiers {
   preEntryFee: number | null;
   /** The day-of-show fee; null or 0 is no day-of tier. */
   dayOfShowFee: number | null;
-  /** Each live class's own fee. Read only when `preEntryFee` is null. */
+  /** Each live class's fee; 0 is "no fee of its own" (it follows the show's fee). */
   classFees?: readonly number[] | undefined;
 }
 
@@ -32,8 +34,10 @@ export function lowestRegularFee(tiers: ShowFeeTiers): number | null {
   if (tiers.dayOfShowFee !== null && Number.isFinite(tiers.dayOfShowFee)) {
     if (tiers.dayOfShowFee > 0) candidates.push(tiers.dayOfShowFee);
   }
-  if (tiers.preEntryFee === null) {
-    candidates.push(...(tiers.classFees ?? []).filter(fee => Number.isFinite(fee)));
+  for (const fee of tiers.classFees ?? []) {
+    if (!Number.isFinite(fee)) continue;
+    if (fee > 0) candidates.push(fee);
+    else if (tiers.preEntryFee === null) candidates.push(0);
   }
   return candidates.length > 0 ? Math.min(...candidates) : null;
 }
@@ -94,10 +98,10 @@ function storedFormFees(fees: ShowFormFees) {
  * day-of fee from the values the form opened with (`feesAsOpened`): a show saved before the
  * limit with a junior fee already above it can still be renamed.
  *
- * Class fees come from the trials the form was opened with, when they were loaded. They are
- * the limit only with no pre-entry fee, and then a class with no fee counts as $0, which is
- * what checkout charges for it (the class read already maps a missing fee to 0). The
- * server is the full check.
+ * Class fees come from the trials the form was opened with, when they were loaded. A class's
+ * own fee is always a limit; a class with no fee counts as $0 only with no pre-entry fee,
+ * which is what checkout charges for it (the class read already maps a missing fee to 0).
+ * The server is the full check.
  */
 export function showFormJuniorFeeLimitError(
   form: ShowFormFees & {

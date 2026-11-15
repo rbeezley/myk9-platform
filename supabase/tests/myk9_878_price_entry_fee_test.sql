@@ -225,12 +225,16 @@ update public.shows set junior_handler_fee = 15 where id = '00000000-0000-0000-0
 -- A junior tier ABOVE the regular fee never exceeds it: regular 10, junior 15 => 10.
 -- Show setup now refuses that state (MYK9-1975, trg_shows_junior_fee_limit), so the
 -- fixture writes it with the limit off, as a show saved before the limit would hold it.
+-- MYK9-1931: a class's own fee wins over the show's, so the class follows the show's fee
+-- (no fee of its own) for this case.
 alter table public.shows disable trigger trg_shows_junior_fee_limit;
+update public.classes set entry_fee = NULL where id = '00000000-0000-0000-0000-000000878301';
 update public.shows set pre_entry_fee = 10 where id = '00000000-0000-0000-0000-000000878101';
 select pg_temp.expect('junior tier above the regular fee is capped at the regular fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, true),
   '10.00|true');
 update public.shows set pre_entry_fee = 30 where id = '00000000-0000-0000-0000-000000878101';
+update public.classes set entry_fee = 30 where id = '00000000-0000-0000-0000-000000878301';
 alter table public.shows enable trigger trg_shows_junior_fee_limit;
 
 -- ORACLE-NEGATIVE: the same call, with the trial moved across dates that flip every

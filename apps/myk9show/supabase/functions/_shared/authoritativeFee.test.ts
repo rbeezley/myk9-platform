@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { authoritativeEntryFeeCents } from './authoritativeFee';
 
+// A class with no fee of its own charges the show's fee (MYK9-1931).
 const base = {
   showPreEntryFee: 30,
   showDayOfShowFee: 35,
   showStartDate: '2026-07-01',
-  classEntryFee: 28,
+  classEntryFee: null,
   nowIso: '2026-06-15T12:00:00Z',
 };
 
@@ -31,8 +32,31 @@ describe('authoritativeEntryFeeCents', () => {
 
   it('falls back to the class fee when the show has no fees', () => {
     expect(
-      authoritativeEntryFeeCents({ ...base, showPreEntryFee: null, showDayOfShowFee: null })
+      authoritativeEntryFeeCents({
+        ...base,
+        showPreEntryFee: null,
+        showDayOfShowFee: null,
+        classEntryFee: 28,
+      })
     ).toBe(2800);
+  });
+
+  // MYK9-1931: a class's own fee wins; on the day it carries the show's surcharge.
+  it("charges a class's own fee over the show's pre-entry fee", () => {
+    expect(authoritativeEntryFeeCents({ ...base, classEntryFee: 40 })).toBe(4000);
+    expect(authoritativeEntryFeeCents({ ...base, classEntryFee: 20 })).toBe(2000);
+  });
+
+  it("adds the show's day-of surcharge to a class's own fee once the show has started", () => {
+    const showDay = { ...base, classEntryFee: 40, nowIso: '2026-07-01T16:00:00Z' };
+    expect(authoritativeEntryFeeCents(showDay)).toBe(4500);
+    expect(authoritativeEntryFeeCents({ ...showDay, showDayOfShowFee: 25 })).toBe(4000);
+    expect(authoritativeEntryFeeCents({ ...showDay, showDayOfShowFee: null })).toBe(4000);
+  });
+
+  it("treats a class fee of 0 as no fee of its own: the show's fee", () => {
+    expect(authoritativeEntryFeeCents({ ...base, classEntryFee: 0 })).toBe(3000);
+    expect(authoritativeEntryFeeCents({ ...base, classEntryFee: '0.00' })).toBe(3000);
   });
 
   it('respects an explicit $0 class fee (free classes exist)', () => {
@@ -46,7 +70,8 @@ describe('authoritativeEntryFeeCents', () => {
     ).toBe(0);
   });
 
-  it('defaults to $25 when nothing is configured', () => {
+  // MYK9-1931: the server prices this at COALESCE(..., 0) = $0; checkout no longer invents $25.
+  it('charges $0 when neither the show nor the class has a fee', () => {
     expect(
       authoritativeEntryFeeCents({
         ...base,
@@ -54,7 +79,7 @@ describe('authoritativeEntryFeeCents', () => {
         showDayOfShowFee: null,
         classEntryFee: null,
       })
-    ).toBe(2500);
+    ).toBe(0);
   });
 
   it('parses numeric strings and currency formatting from DECIMAL columns', () => {
@@ -70,7 +95,9 @@ describe('authoritativeEntryFeeCents', () => {
   });
 
   it('ignores negative or garbage fees instead of charging them', () => {
-    expect(authoritativeEntryFeeCents({ ...base, showPreEntryFee: -5 })).toBe(2800);
+    expect(authoritativeEntryFeeCents({ ...base, showPreEntryFee: -5, classEntryFee: 28 })).toBe(
+      2800
+    );
     expect(
       authoritativeEntryFeeCents({
         ...base,
@@ -78,6 +105,6 @@ describe('authoritativeEntryFeeCents', () => {
         showDayOfShowFee: null,
         classEntryFee: null,
       })
-    ).toBe(2500);
+    ).toBe(0);
   });
 });

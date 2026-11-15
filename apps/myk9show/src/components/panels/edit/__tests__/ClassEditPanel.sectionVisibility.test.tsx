@@ -183,13 +183,23 @@ describe('ClassEditForm (full mode) — Section field visibility', () => {
   });
 });
 
-describe('ClassEditForm (full mode) — fee labels', () => {
-  // MYK9-917: the same two fees read the same way here as on the show wizard and show edit.
-  it('names the fees "Pre-Entry Fee" and "Day-of-Show Fee", with no ($) suffix', async () => {
-    const { user } = renderFullPanel('Novice', 'Interior');
+describe('ClassEditForm (full mode) — fee field', () => {
+  // MYK9-1931: one fee, the class's own, with no ($) suffix (MYK9-917). The class has no
+  // pre-entry and day-of fee columns, so those two fields are gone.
+  it('offers "Entry fee for this class" and no per-class pre-entry or day-of fee', async () => {
+    const { user } = render(
+      <ClassEditPanel
+        open={true}
+        onClose={vi.fn()}
+        classId="cls-1"
+        className="Interior Novice"
+        initialClassData={{ ...makeClassData('Novice', 'Interior'), entryFee: 0 }}
+      />
+    );
     await user.click(screen.getByRole('tab', { name: /requirements/i }));
-    expect(await screen.findByLabelText('Pre-Entry Fee')).toBeInTheDocument();
-    expect(screen.getByLabelText('Day-of-Show Fee')).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Entry fee for this class/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Pre-Entry Fee')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Day-of-Show Fee')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/\(\$\)/)).not.toBeInTheDocument();
   });
 });

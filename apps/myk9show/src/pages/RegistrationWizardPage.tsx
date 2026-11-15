@@ -94,6 +94,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     capacityUnavailable,
     refetchClassAvailability,
     waitlistClassIds,
+    noEntryFeeClassIds,
     blockedClassIds,
     armbandAssignments,
     entryOutcomes,
@@ -210,6 +211,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
         waitlistClassIds={waitlistClassIds}
+        noEntryFeeClassIds={noEntryFeeClassIds}
         staffWorkflow={isStaff}
         {...(isPaymentStep
           ? {

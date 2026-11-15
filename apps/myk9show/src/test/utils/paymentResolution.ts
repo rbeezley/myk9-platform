@@ -36,6 +36,7 @@ export function makePaymentResolution(
     isOnBehalf: false,
     canChargeJuniorFee: false,
     canUseDeskPaymentActions: false,
+    noEntryFeeSet: false,
     show: undefined,
     ...rest,
   };

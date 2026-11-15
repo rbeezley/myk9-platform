@@ -33,7 +33,6 @@ describe('createClassDataFromWizard judge (MYK9-1853)', () => {
       'show-1',
       [],
       undefined,
-      undefined,
       createWizardTrialView([{ id: 'wt1', trialDate: '2026-06-01', nameOverride: undefined }], []),
       [normalized(0), normalized(1)]
     );

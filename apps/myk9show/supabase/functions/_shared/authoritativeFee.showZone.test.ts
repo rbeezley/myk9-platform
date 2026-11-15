@@ -30,7 +30,7 @@ const fees = {
   showPreEntryFee: 25,
   showDayOfShowFee: 35,
   showStartDate: '2026-11-10T00:00:00+00:00',
-  classEntryFee: 28,
+  classEntryFee: null,
 };
 
 describe('authoritativeEntryFeeCents decides show day in the show zone', () => {
@@ -83,7 +83,9 @@ describe('authoritativeEntryFeeCents decides show day in the show zone', () => {
     ).toBe(2500);
   });
 
-  it('keeps the start-date-only rule and the zero day-of fee behaviour', () => {
+  // MYK9-1931: a day-of fee of 0 (a blank one is stored as 0.00) is no day-of tier, as
+  // price_entry_fee reads it, so show day charges the pre-entry fee, never $0.
+  it('keeps the start-date-only rule, and a zero day-of fee is no day-of tier', () => {
     expect(
       authoritativeEntryFeeCents({
         ...fees,
@@ -91,7 +93,7 @@ describe('authoritativeEntryFeeCents decides show day in the show zone', () => {
         showTimeZone: 'America/New_York',
         nowIso: JUST_AFTER_MIDNIGHT_IN_NEW_YORK,
       })
-    ).toBe(0);
+    ).toBe(2500);
     expect(
       authoritativeEntryFeeCents({
         ...fees,
@@ -117,7 +119,7 @@ describe('cart pricing threads the show zone through', () => {
     class_id: 'class-1',
     entry_id: null,
     junior_fee_declared: false,
-    class_entry_fee: 28,
+    class_entry_fee: null,
   };
 
   it('priceCartItems prices a new line by the show-zone day', () => {
@@ -133,10 +135,13 @@ describe('cart pricing threads the show zone through', () => {
 
   it('priceExistingEntryCents prices an unfrozen entry by the show-zone day', () => {
     const entry = { junior_fee_declared: null, junior_fee_override_by: null, entry_fee: null };
-    expect(priceExistingEntryCents(show, entry, 28, EVENING_BEFORE_IN_NEW_YORK)).toBe(2500);
-    expect(priceExistingEntryCents(show, entry, 28, JUST_AFTER_MIDNIGHT_IN_NEW_YORK)).toBe(3500);
+    // A class with no fee of its own (MYK9-1931) prices at the show's tiers.
+    expect(priceExistingEntryCents(show, entry, null, EVENING_BEFORE_IN_NEW_YORK)).toBe(2500);
+    expect(priceExistingEntryCents(show, entry, null, JUST_AFTER_MIDNIGHT_IN_NEW_YORK)).toBe(3500);
     const pacific = { ...show, timezone: 'America/Los_Angeles' };
-    expect(priceExistingEntryCents(pacific, entry, 28, JUST_AFTER_MIDNIGHT_IN_NEW_YORK)).toBe(2500);
+    expect(priceExistingEntryCents(pacific, entry, null, JUST_AFTER_MIDNIGHT_IN_NEW_YORK)).toBe(
+      2500
+    );
   });
 
   it('a frozen entry fee is never re-priced', () => {

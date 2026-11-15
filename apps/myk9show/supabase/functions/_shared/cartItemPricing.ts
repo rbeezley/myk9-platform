@@ -157,6 +157,23 @@ export function priceCartItems(
 }
 
 /**
+ * MYK9-1931, owner rule "zero is never a price": a line whose authoritative fee is $0
+ * (no show fee, no fee of the class's own, no day-of tier) cannot be bought online.
+ * Checkout and payment links refuse it before Stripe is called, in these words.
+ */
+export const NO_ENTRY_FEE_MESSAGE =
+  "This class has no entry fee set yet. Ask the show's secretary.";
+export const NO_ENTRY_FEE_CODE = 'no_entry_fee';
+
+/** The ids priced at $0 or less, in input order. Empty means every line is sellable. */
+export function findUnpricedLines(
+  ids: readonly string[],
+  authoritativeById: ReadonlyMap<string, number>
+): string[] {
+  return ids.filter(id => (authoritativeById.get(id) ?? 0) <= 0);
+}
+
+/**
  * The lines whose stored `entry_fee_cents` is not the authoritative price. The
  * column is client-writable, so a line that disagrees is healed to the authoritative
  * value and the exhibitor is asked to review, never silently charged.

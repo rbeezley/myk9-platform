@@ -56,8 +56,6 @@ export const RECOVERABLE_ENTRY_STATUSES = [
   'moved',
 ] as const;
 
-const DEFAULT_ENTRY_FEE_DOLLARS = 25;
-
 const parseFeeDollars = (value: number | string | null): number | null => {
   if (value == null) return null;
   const parsed =
@@ -76,12 +74,26 @@ const getNormalEntryFeeCents = (entry: RecoverableEntryRow): number => {
     getTrialTimezone({ timezone: entry.show_timezone })
   );
 
-  if (showStartDate && todayInShowZone >= showStartDate && dayOfShowFee != null) {
+  const dayOfTier = Boolean(showStartDate && todayInShowZone >= showStartDate);
+  const classFee = parseFeeDollars(entry.class_entry_fee);
+
+  // MYK9-1931: a class's own fee (above 0) wins, plus the show's day-of surcharge on the
+  // day; the same rule as `stripe-checkout` (authoritativeFee.ts) and price_entry_fee.
+  if (classFee != null && classFee > 0) {
+    const surchargeCents =
+      dayOfTier && dayOfShowFee != null && preEntryFee != null && dayOfShowFee > preEntryFee
+        ? Math.round(dayOfShowFee * 100) - Math.round(preEntryFee * 100)
+        : 0;
+    return Math.round(classFee * 100) + surchargeCents;
+  }
+  // A day-of fee of 0 is "no day-of tier", never a $0 price (MYK9-1931, price_entry_fee).
+  if (dayOfTier && dayOfShowFee != null && dayOfShowFee > 0) {
     return Math.round(dayOfShowFee * 100);
   }
   if (preEntryFee != null) return Math.round(preEntryFee * 100);
 
-  return Math.round((parseFeeDollars(entry.class_entry_fee) ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
+  // No fee anywhere: $0, as price_entry_fee and stripe-checkout price it (MYK9-1931).
+  return 0;
 };
 
 /**

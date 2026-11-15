@@ -64,7 +64,6 @@ function writtenClasses(trials: WizardTrial[], persisted: PersistedClassIdentity
     'show-1',
     [],
     { showId: 'show-1', mode: 'add-classes' },
-    undefined,
     createWizardTrialView([], []),
     normalized
   ).map(cls => ({ element: cls.element, level: cls.level, section: cls.section }));

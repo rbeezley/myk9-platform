@@ -115,15 +115,15 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     expect(screen.queryByTestId('clone-status-banner')).not.toBeInTheDocument();
   });
 
-  it('preserves the current wizard route when handing off complete club creation', () => {
+  // MYK9-2048: a club not listed is asked for on the one form, the home page form.
+  it('sends a club that is not listed to the home page form', () => {
     render(<ShowDetailsStep />, {
       initialRoute: '/secretary/create-show/wizard?source=club-handoff',
     });
 
-    expect(screen.getByRole('link', { name: /add club/i })).toHaveAttribute(
-      'href',
-      '/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard%3Fsource%3Dclub-handoff'
-    );
+    expect(
+      screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
+    ).toHaveAttribute('href', '/?onboarding=true#get-started');
   });
 
   // MYK9-979: card payment exists only online, and online entries are a

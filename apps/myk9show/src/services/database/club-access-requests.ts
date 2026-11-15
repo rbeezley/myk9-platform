@@ -4,14 +4,6 @@ import {
   type ClubRegistryNumbers,
 } from '@/utils/clubRegistryNumbers';
 
-export interface SubmitNewClubAccessRequestInput {
-  clubName: string;
-  website?: string;
-  note?: string;
-  /** MYK9-1235: at least one is required; the RPC refuses a request with none. */
-  clubNumbers: ClubRegistryNumbers;
-}
-
 export type ClubAccessRequestStatus = 'pending' | 'approved' | 'denied';
 
 export interface ClubAccessRequest {
@@ -68,24 +60,6 @@ function mapClubAccessRequest(row: ClubAccessRequestDbRow): ClubAccessRequest {
     createdAt: row.created_at,
     reviewNote: row.review_note,
   };
-}
-
-/**
- * Asks the myK9Show team to set up a club that is not on the platform yet.
- * This creates a review request; it does not create the club or grant access.
- */
-export async function submitNewClubAccessRequest(
-  input: SubmitNewClubAccessRequestInput
-): Promise<string | null> {
-  const { data, error } = await (supabase.rpc as CallableFunction)('submit_club_access_request', {
-    p_requested_club_name: input.clubName,
-    p_requested_club_website: input.website || null,
-    p_request_note: input.note || null,
-    p_club_numbers: normalizeClubRegistryNumbers(input.clubNumbers),
-  });
-
-  if (error) throw error;
-  return (data as string | null) ?? null;
 }
 
 export async function getPendingClubAccessRequests(): Promise<ClubAccessRequest[]> {

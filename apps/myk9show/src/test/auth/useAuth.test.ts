@@ -655,7 +655,9 @@ describe('useAuth', () => {
       });
     });
 
-    it('captures OAuth role intent before callback navigation can replace the URL', async () => {
+    // MYK9-2048: sign-up asks for no role, so an OAuth callback never files a role request,
+    // even when an old link still carries the retired `requestedRoles` param.
+    it('files no role request from an OAuth callback', async () => {
       const oauthUser: User = {
         ...mockUser,
         app_metadata: { provider: 'google' },
@@ -706,9 +708,11 @@ describe('useAuth', () => {
         resolveExisting({ data: null, error: null });
       });
 
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('submit_signup_role_requests', {
-        p_intended_roles: ['club_officer'],
-      });
+      await waitFor(() => expect(profileInsertChain.insert).toHaveBeenCalled());
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith(
+        'submit_signup_role_requests',
+        expect.anything()
+      );
       window.history.pushState({}, '', '/');
     });
 

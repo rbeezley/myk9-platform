@@ -26,6 +26,7 @@ import {
 } from '@/utils/clubRegistryNumbers';
 import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
+import { ADD_YOUR_CLUB_PATH } from './landingCtas';
 
 // Club-onboarding form for the marketing homepage. Restyled onto the editorial
 // l-* system so it reads as one page with the lifecycle landing page. It reuses
@@ -122,7 +123,7 @@ export function ClubOnboarding() {
         firstShowDate,
         message,
       });
-      navigate(buildSignInPathForRedirect('/?onboarding=true#get-started'));
+      navigate(buildSignInPathForRedirect(ADD_YOUR_CLUB_PATH));
       return;
     }
 

@@ -6,7 +6,9 @@ import type { Club } from '@/types/club-types';
 import { HostClubField } from './HostClubField';
 
 describe('HostClubField club-management handoff', () => {
-  it('links to the complete club creator instead of opening an inline form', () => {
+  // MYK9-2048: adding a club goes through the one form on the home page, not the
+  // clubs-page creator and not an inline form.
+  it('links to the home page form instead of opening an inline form', () => {
     render(
       <HostClubField
         clubId={undefined}
@@ -17,14 +19,12 @@ describe('HostClubField club-management handoff', () => {
         searchTerm=""
         setSearchTerm={vi.fn()}
         onSelectClub={vi.fn()}
-        createClubHref="/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard"
       />
     );
 
-    expect(screen.getByRole('link', { name: /add club/i })).toHaveAttribute(
-      'href',
-      '/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard'
-    );
+    expect(
+      screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
+    ).toHaveAttribute('href', '/?onboarding=true#get-started');
     expect(screen.queryByLabelText(/club name/i)).not.toBeInTheDocument();
   });
 });
@@ -47,7 +47,6 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
         searchTerm=""
         setSearchTerm={vi.fn()}
         onSelectClub={vi.fn()}
-        createClubHref="/clubs?create=true"
         {...props}
       />
     );
@@ -56,17 +55,18 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
     renderField();
     expect(screen.getByText(/Hosting club: Summit K9 Masters/)).toBeInTheDocument();
     expect(screen.getByText(/nothing to create/i)).toBeInTheDocument();
-    // The create action stays reachable, but phrased as the exception.
-    expect(screen.getByRole('link', { name: /not the right club\? add club/i })).toHaveAttribute(
-      'href',
-      '/clubs?create=true'
-    );
+    // The add action stays reachable, but as a quiet text link.
+    expect(
+      screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
+    ).toHaveAttribute('href', '/?onboarding=true#get-started');
   });
 
-  it('frames Add Club as the not-listed path before a club is chosen', () => {
+  it('frames Add your club as the not-listed path before a club is chosen', () => {
     renderField({ clubId: undefined });
     expect(screen.getByText(/only create a new club if yours is not listed/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /club not listed\? add club/i })).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: /your club isn't listed\? add your club/i })
+    ).toBeVisible();
   });
 
   it('explains missing create permission inline only when denied', () => {

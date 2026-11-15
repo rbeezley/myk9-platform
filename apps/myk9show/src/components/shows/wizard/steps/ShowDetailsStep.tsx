@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
@@ -36,7 +35,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
   persistedOrganization,
 }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
-  const location = useLocation();
   const {
     show,
     trials,
@@ -187,11 +185,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
   // secretaries and site admins are offered "Add new judge" or "add credentials".
   const canWriteJudgeQualifications = useCanWriteJudgeQualifications();
 
-  const createClubHref = React.useMemo(() => {
-    const returnTo = `${location.pathname}${location.search}`;
-    return `/clubs?${new URLSearchParams({ create: 'true', returnTo }).toString()}`;
-  }, [location.pathname, location.search]);
-
   // Entry close date is set manually by the secretary — no auto-populate.
 
   const dateRangeValid = isValidDateRange(show.startDate, show.endDate);
@@ -242,7 +235,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
                 searchTerm={clubSearchTerm}
                 setSearchTerm={setClubSearchTerm}
                 onSelectClub={clubId => updateShowData({ clubId })}
-                createClubHref={createClubHref}
                 clubCreateDenied={clubCreateDenied}
               />
             }

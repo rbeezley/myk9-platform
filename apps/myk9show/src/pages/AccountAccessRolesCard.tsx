@@ -2,6 +2,10 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  ADD_YOUR_CLUB_PATH,
+  ADD_YOUR_CLUB_PROMPT,
+} from '@/components/landing/lifecycle/landingCtas';
 
 // One card: the access request first (the action), the read-only roles last
 // (the current state). Kept together so the two never get split by the
@@ -15,11 +19,19 @@ export function AccountAccessRolesCard({ roleBadges }: { roleBadges: string[] })
       <CardContent className="space-y-4">
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Set up a new club or ask an existing club to appoint you as its show secretary.
+            Ask a club already on myK9Show to add you as a member or its show secretary.
           </p>
           <Button asChild variant="outline" size="touch">
             <Link to="/request-access">Request additional access</Link>
           </Button>
+          <p className="text-sm">
+            <Link
+              to={ADD_YOUR_CLUB_PATH}
+              className="inline-flex min-h-11 items-center font-medium text-primary hover:underline"
+            >
+              {ADD_YOUR_CLUB_PROMPT}
+            </Link>
+          </p>
         </div>
         <div className="space-y-2 border-t pt-4">
           <h3 className="text-sm font-medium">Your roles</h3>

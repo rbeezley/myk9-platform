@@ -17,11 +17,6 @@ import {
   resolveGetSessionUser,
   resolveSessionUser,
 } from './authSessionUser';
-import {
-  decodeOAuthRoleIntent,
-  encodeOAuthRoleIntent,
-  OAUTH_ROLE_INTENT_PARAM,
-} from '@/services/auth/oauthRoleIntent';
 
 /**
  * Custom authentication hook that provides user authentication state and methods
@@ -60,12 +55,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
  * Extracted from onAuthStateChange so it runs in the background without blocking signOut.
  */
 async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
-  // Capture this synchronously before the record setup awaits any database
-  // work. AuthCallbackPage navigates away as soon as the session is available.
-  const requestedRoles = decodeOAuthRoleIntent(
-    new URL(window.location.href).searchParams.get(OAUTH_ROLE_INTENT_PARAM)
-  );
-
   const { data: existing } = await supabase
     .from('people')
     .select('id')
@@ -120,15 +109,6 @@ async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
 
     if (profileError) {
       console.error('Failed to create exhibitor profile for OAuth user:', profileError);
-    }
-  }
-
-  if (requestedRoles.length > 0) {
-    const { error } = await (supabase.rpc as CallableFunction)('submit_signup_role_requests', {
-      p_intended_roles: requestedRoles,
-    });
-    if (error) {
-      console.error('Failed to create OAuth role requests:', error);
     }
   }
 }
@@ -239,7 +219,7 @@ export function useAuth() {
     async (
       email: string,
       password: string,
-      metadata?: { firstName?: string; lastName?: string; roles?: string[] },
+      metadata?: { firstName?: string; lastName?: string },
       captchaToken?: string,
       redirectTo?: string
     ) => {
@@ -250,7 +230,6 @@ export function useAuth() {
           data: {
             first_name: metadata?.firstName || 'First',
             last_name: metadata?.lastName || 'Name',
-            ...(metadata?.roles?.length ? { intended_roles: metadata.roles } : {}),
           },
           ...(captchaToken ? { captchaToken } : {}),
           ...(redirectTo ? { emailRedirectTo: buildAuthCallbackUrl(redirectTo) } : {}),
@@ -330,17 +309,11 @@ export function useAuth() {
    * @throws {AuthError} If OAuth initiation fails
    */
   const signInWithOAuthProvider = useCallback(
-    async (
-      provider: 'google' | 'apple',
-      redirectTo?: string,
-      intendedRoles: readonly string[] = []
-    ) => {
+    async (provider: 'google' | 'apple', redirectTo?: string) => {
       const callbackUrl = new URL('/auth/callback', window.location.origin);
       if (redirectTo) {
         callbackUrl.searchParams.set('redirectTo', redirectTo);
       }
-      const encodedRoles = encodeOAuthRoleIntent(intendedRoles);
-      if (encodedRoles) callbackUrl.searchParams.set(OAUTH_ROLE_INTENT_PARAM, encodedRoles);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -358,8 +331,7 @@ export function useAuth() {
    * @throws {AuthError} If OAuth initiation fails
    */
   const signInWithGoogle = useCallback(
-    (redirectTo?: string, intendedRoles?: readonly string[]) =>
-      signInWithOAuthProvider('google', redirectTo, intendedRoles),
+    (redirectTo?: string) => signInWithOAuthProvider('google', redirectTo),
     [signInWithOAuthProvider]
   );
 
@@ -368,8 +340,7 @@ export function useAuth() {
    * @throws {AuthError} If OAuth initiation fails
    */
   const signInWithApple = useCallback(
-    (redirectTo?: string, intendedRoles?: readonly string[]) =>
-      signInWithOAuthProvider('apple', redirectTo, intendedRoles),
+    (redirectTo?: string) => signInWithOAuthProvider('apple', redirectTo),
     [signInWithOAuthProvider]
   );
 

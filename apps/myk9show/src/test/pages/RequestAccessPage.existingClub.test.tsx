@@ -33,10 +33,6 @@ vi.mock('@/services/database/club-membership-requests', async importOriginal => 
   submitClubMembershipRequest: vi.fn(),
 }));
 
-vi.mock('@/services/database/club-access-requests', () => ({
-  submitNewClubAccessRequest: vi.fn(),
-}));
-
 const mockAuth = vi.hoisted(() => ({ userWithRoles: null as unknown }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mockAuth }));
 

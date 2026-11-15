@@ -13,6 +13,9 @@ import { OfflineScoresIndicator } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { OfflineStatusLine } from '@/features/offline-readiness/OfflineStatusLine';
+import { useParams } from 'react-router-dom';
+import { scoresNotSentLabel } from '../scoresNotSent/scoresNotSentModel';
+import { ScoresNotSentLink } from '../scoresNotSent/ScoresNotSentLink';
 import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
 
 /**
@@ -56,10 +59,13 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
           : status === 'offline'
             ? CloudOff
             : AlertCircle;
-  const label = getSyncLabel(status);
   const hasPending = typeof pendingCount === 'number' && pendingCount > 0;
+  // MYK9-2011: idle with unsent scores, the pill says how many in scores and opens the list.
+  const countInLabel = status === 'pending' && hasPending;
+  const label = countInLabel ? scoresNotSentLabel(pendingCount) : getSyncLabel(status);
+  const { showId } = useParams<{ showId: string }>();
 
-  return (
+  const pill = (
     <span
       className={cn(
         'at-show-sync-indicator inline-flex items-center gap-2 rounded-lg font-medium',
@@ -74,7 +80,14 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
           CompactOfflineIndicator, so the pill cannot squeeze the class title away. */}
       <span className={cn(compact && 'max-sm:sr-only')}>{label}</span>
       {hasPending && (
-        <span className="at-show-sync-pending rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-semibold">
+        <span
+          className={cn(
+            'at-show-sync-pending rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-semibold',
+            // The label already carries the count; phones keep only this badge.
+            countInLabel && (compact ? 'sm:hidden' : 'hidden')
+          )}
+          aria-hidden={countInLabel || undefined}
+        >
           {pendingCount}
         </span>
       )}
@@ -90,6 +103,13 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
         </button>
       )}
     </span>
+  );
+  return hasPending && showId ? (
+    <ScoresNotSentLink showId={showId} from="Entries" className="hover:no-underline">
+      {pill}
+    </ScoresNotSentLink>
+  ) : (
+    pill
   );
 };
 

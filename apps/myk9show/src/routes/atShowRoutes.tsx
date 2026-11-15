@@ -53,6 +53,11 @@ const AtShowSetupSheetPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowSetupSheetPage' }
 );
 
+const AtShowScoresNotSentPage = createEnhancedLazy(
+  () => import('@/features/at-show/scoresNotSent/AtShowScoresNotSentPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowScoresNotSentPage' }
+);
+
 const AtShowDogsPage = createEnhancedLazy(() => import('@/features/at-show/AtShowDogsPage'), {
   ...RouteLazyPresets.mediumPriority,
   displayName: 'AtShowDogsPage',
@@ -133,6 +138,11 @@ export const AtShowRoutes = () => {
       <Route
         path="/at-show/:showId/setup-sheet"
         element={atShowElement(<AtShowSetupSheetPage />)}
+      />
+      {/* Scores not sent (MYK9-2011): every unsent score on this device, reached from the counts. */}
+      <Route
+        path="/at-show/:showId/scores-not-sent"
+        element={atShowElement(<AtShowScoresNotSentPage />)}
       />
       {/* Live scoresheet (judge's mobile timer) — entry cards navigate here. */}
       <Route

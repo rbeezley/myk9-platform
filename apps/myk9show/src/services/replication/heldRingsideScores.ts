@@ -62,6 +62,8 @@ export async function adoptHeldRingsideScoresForLiveClaim(): Promise<number> {
         toAuthUserId: claim.userId,
         rpcNames: ADOPTABLE_RPCS,
         failedErrorIncludes: PASSCODE_REGENERATED_DB_MESSAGE,
+        // MYK9-2011: the judge's other refused scores move too and stay refused, so they stay listed.
+        relabelFailed: true,
         ...(claim.claim !== undefined ? { claim: claim.claim } : {}),
       })
       .finally(() => inFlight.delete(key));

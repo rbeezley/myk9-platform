@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { SyncMetrics } from '@/types/sync-types';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
-import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
+import { useFailedMutationCount, usePendingMutationCount } from '@/hooks/usePendingMutationCount';
+import { useUnsentScoreCount } from '@/features/at-show/scoresNotSent/useUnsentScores';
 
 export type SyncStatus = 'synced' | 'pending' | 'error' | 'conflict' | 'offline';
 
@@ -9,6 +10,10 @@ interface GlobalSyncState {
   status: SyncStatus;
   lastSyncAt?: Date;
   queueSize: number;
+  /** Scores on this device not on the server yet, waiting or refused, one per dog (MYK9-2011). */
+  unsentScoreCount: number;
+  /** Writes the server refused or that ran out of tries, kept until retried or removed. */
+  failedCount: number;
   isOnline: boolean;
   conflictCount: number;
   errorCount: number;
@@ -28,6 +33,8 @@ interface GlobalSyncState {
 export function useGlobalSyncStatus(): GlobalSyncState {
   const { status: replication } = useReplicationSync();
   const queueSize = usePendingMutationCount();
+  const unsentScoreCount = useUnsentScoreCount();
+  const failedCount = useFailedMutationCount();
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -45,7 +52,8 @@ export function useGlobalSyncStatus(): GlobalSyncState {
   }, []);
 
   const errorCount = Object.values(replication.tablesStatus).filter(s => s === 'error').length;
-  const hasError = Boolean(replication.error) || errorCount > 0;
+  // MYK9-2011: a refused write is not saved on the server, so it can never read as "synced".
+  const hasError = Boolean(replication.error) || errorCount > 0 || failedCount > 0;
 
   let status: SyncStatus;
   if (!isOnline) {
@@ -61,6 +69,8 @@ export function useGlobalSyncStatus(): GlobalSyncState {
   const state: GlobalSyncState = {
     status,
     queueSize,
+    unsentScoreCount,
+    failedCount,
     isOnline,
     conflictCount: 0,
     errorCount,

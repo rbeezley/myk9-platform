@@ -1,15 +1,14 @@
 import { CloudUpload, Heart, Info, MoreHorizontal } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useParams } from 'react-router-dom';
 import type { ClassEntry } from '@myk9/ringside';
 import { cn } from '@/lib/utils';
+import { scoresNotSentLabel } from './scoresNotSent/scoresNotSentModel';
+import { ScoresNotSentLink } from './scoresNotSent/ScoresNotSentLink';
 
 /** Gloved taps want 48px targets (INTENT s.6), so every icon button is h-12 w-12. */
 const ICON_BUTTON =
   'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
-function queuedScoresLabel(count: number): string {
-  return `${count} ${count === 1 ? 'score' : 'scores'} not sent yet`;
-}
 
 /** Completed over total, drawn only when the count is known and there is something to complete. */
 function ClassProgressBar({ entry }: { entry: ClassEntry }) {
@@ -58,16 +57,28 @@ export function AtShowClassCardFooter({
   onOpenOptions,
 }: AtShowClassCardFooterProps) {
   const hasProgress = showProgress && entry.entry_count > 0;
+  const { showId } = useParams<{ showId: string }>();
 
   return (
     <div className="border-t border-border/60 pb-1 pl-4 pr-2 pt-1">
-      {queuedScoreCount > 0 && (
+      {queuedScoreCount > 0 &&
         // Amber, from what this device queued: no clock, so a finished class never reads stale.
-        <div className="flex items-center gap-1.5 px-2 pt-1 text-xs font-medium text-warning">
-          <CloudUpload size={14} className="shrink-0" aria-hidden />
-          {queuedScoresLabel(queuedScoreCount)}
-        </div>
-      )}
+        // Tapping it opens "Scores not sent" (MYK9-2011).
+        (showId ? (
+          <ScoresNotSentLink
+            showId={showId}
+            from="Classes"
+            className="px-2 text-xs font-medium text-warning"
+          >
+            <CloudUpload size={14} className="shrink-0" aria-hidden />
+            {scoresNotSentLabel(queuedScoreCount)}
+          </ScoresNotSentLink>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2 pt-1 text-xs font-medium text-warning">
+            <CloudUpload size={14} className="shrink-0" aria-hidden />
+            {scoresNotSentLabel(queuedScoreCount)}
+          </div>
+        ))}
       {/* Wraps rather than overflows: on a 320px phone the wider "Offline Scoring"
           badge would push the buttons past the card, so they drop to a line of
           their own, still right-aligned and 48px. */}

@@ -34,6 +34,7 @@ import { RingsideReturnBar } from '@/features/at-show/menu/RingsideReturnBar';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { ToastContainer } from '@/components/notifications/ToastContainer';
 import { AppToaster } from '@/components/layout/AppToaster';
+import { ScoresNotSentNotice } from '@/features/at-show/scoresNotSent/ScoresNotSentNotice';
 import { StepUpReauthHost } from '@/features/step-up/StepUpReauthDialog';
 
 // Exhibitor Onboarding
@@ -211,6 +212,7 @@ function App() {
                         <RingsideReturnBar />
                         <NotificationCenter />
                         <AppToaster />
+                        <ScoresNotSentNotice />
                         <ToastContainer />
                         <StepUpReauthHost />
                         <Outlet />

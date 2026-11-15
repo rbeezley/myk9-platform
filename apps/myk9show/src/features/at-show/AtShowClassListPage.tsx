@@ -62,36 +62,9 @@ import { ClassListUpAndMenu } from './ClassListUpAndMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
-import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
-import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
+import { AtShowOfflineReadySlot } from './AtShowOfflineReadySlot';
 import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
 import { deriveRingsideJudgePersonIdFromClaim } from '@/store/ringsideGrantStore';
-
-/**
- * Staff-only readiness action. Rendered in EVERY branch of the page — the
- * moment the device most needs priming is precisely when classes or
- * assignments failed to load, so hiding it behind the happy path would
- * withhold the recovery action when it matters (MYK9-203).
- */
-function AtShowOfflineReadySlot({
-  showId,
-  isExhibitorOnly,
-}: {
-  showId: string | undefined;
-  isExhibitorOnly: boolean;
-}) {
-  const note = useSyncNote();
-  if (isExhibitorOnly) return null;
-  return (
-    <div className="mb-1 flex justify-center">
-      <OfflineReadyBadge
-        showId={showId}
-        note={note.label}
-        noteNeedsAttention={note.needsAttention}
-      />
-    </div>
-  );
-}
 
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();

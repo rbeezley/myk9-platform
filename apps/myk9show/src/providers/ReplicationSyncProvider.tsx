@@ -12,6 +12,7 @@
  */
 
 import { adoptHeldRingsideScoresForLiveClaim } from '@/services/replication/heldRingsideScores';
+import { withoutRingsideScoreFailures } from '@/features/at-show/scoresNotSent/ScoresNotSentNotice';
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -768,7 +769,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         return;
       }
 
-      for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
+      // MYK9-2011: refused scores live on "Scores not sent", announced by ScoresNotSentNotice.
+      const otherFailures = withoutRingsideScoreFailures(detail);
+      if (!otherFailures) return;
+      for (const failureDetail of splitPermanentScoreAuthorizationFailures(otherFailures)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
         const isPermanentScoreAuthorizationFailure =
           hasPermanentScoreAuthorizationFailure(failureDetail);

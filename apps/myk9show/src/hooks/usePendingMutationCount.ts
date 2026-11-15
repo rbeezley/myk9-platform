@@ -12,6 +12,8 @@ const REFRESH_EVENTS = [
   'replication:queue-overflow',
   'replication:recovery',
   'replication:conflict',
+  // Try again / Remove on "Scores not sent" (MYK9-2011) move rows between the two stores.
+  'scores-not-sent:changed',
 ] as const;
 
 /**
@@ -21,13 +23,28 @@ const REFRESH_EVENTS = [
  * sync" affordances — never fabricate it.
  */
 export function usePendingMutationCount(pollMs = 15000): number {
+  return useQueueCount(readPendingCount, pollMs);
+}
+
+/**
+ * This user's writes the server refused or that ran out of tries (the failed-mutation store),
+ * kept until retried or removed. A refused write has not reached the server, so no "all saved"
+ * line may show while this is above zero (MYK9-2011).
+ */
+export function useFailedMutationCount(pollMs = 15000): number {
+  return useQueueCount(readFailedCount, pollMs);
+}
+
+const readPendingCount = () => mutationManager.getPendingCount();
+const readFailedCount = async () => (await mutationManager.getFailedMutations()).length;
+
+function useQueueCount(read: () => Promise<number>, pollMs: number): number {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      mutationManager
-        .getPendingCount()
+      read()
         .then(next => {
           if (!cancelled) setCount(next);
         })
@@ -49,7 +66,7 @@ export function usePendingMutationCount(pollMs = 15000): number {
       }
       clearInterval(interval);
     };
-  }, [pollMs]);
+  }, [read, pollMs]);
 
   return count;
 }

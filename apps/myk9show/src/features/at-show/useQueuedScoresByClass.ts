@@ -1,10 +1,10 @@
 /**
- * Scores queued on this device and not yet uploaded, counted per class
- * (MYK9-1506). Reads the same durable mutation queue the scoresheet writes to and
- * the header's "N waiting to sync" count reads; there is no second queue.
+ * Scores on this device that have not reached the server, counted per class
+ * (MYK9-1506). Waiting or refused (MYK9-2011): the same rows "Scores not sent"
+ * lists, read from the durable queue the scoresheet writes to; there is no second queue.
  *
- * A queued score is a pending `entries` write routed through the ringside RPC
- * whose delta marks the entry scored. A class with none is in sync, which is
+ * A score is an `entries` write routed through the ringside RPC whose delta marks
+ * the entry scored. A class with none is in sync, which is
  * all the card claims: it never infers staleness from elapsed time, so a
  * finished or untouched class cannot read as "outdated".
  */
@@ -12,18 +12,8 @@ import { useEffect, useState } from 'react';
 import type { PendingMutation } from '@myk9/replication';
 import { replicatedEntriesTable } from '@/services/replication';
 import { RINGSIDE_RPC_FUNCTION } from '@/services/replication/ringsideEntryRpc';
-import { mutationManager } from '@/services/replication/sharedMutationManager';
-
-// Same signals as `usePendingMutationCount`: queued while offline, and every way
-// the queue can shrink or change.
-const REFRESH_EVENTS = [
-  'replication:mutation-queued',
-  'replication:upload-complete',
-  'replication:sync-failed',
-  'replication:queue-overflow',
-  'replication:recovery',
-  'replication:conflict',
-] as const;
+import { readUnsentScores } from './scoresNotSent/useUnsentScores';
+import { SCORES_NOT_SENT_REFRESH_EVENTS } from './scoresNotSent/scoresNotSentModel';
 
 const EMPTY: ReadonlyMap<string, number> = new Map();
 
@@ -51,9 +41,9 @@ export function countQueuedScoresByClass(
 }
 
 async function readQueuedScoresByClass(showId: string): Promise<Map<string, number>> {
-  const entryIds = queuedScoreEntryIds(
-    await mutationManager.getPendingMutationsForTable('entries')
-  );
+  // MYK9-2011: every score not on the server, waiting or refused, so a card never reads in sync
+  // while one of its scores was refused.
+  const entryIds = new Set((await readUnsentScores()).map(score => score.entryId));
   if (entryIds.size === 0) return new Map();
   const entries = await replicatedEntriesTable.getEntriesByShow(showId);
   return countQueuedScoresByClass(
@@ -79,10 +69,12 @@ export function useQueuedScoresByClass(showId: string | undefined): ReadonlyMap<
         });
     };
     refresh();
-    for (const eventName of REFRESH_EVENTS) window.addEventListener(eventName, refresh);
+    for (const eventName of SCORES_NOT_SENT_REFRESH_EVENTS)
+      window.addEventListener(eventName, refresh);
     return () => {
       cancelled = true;
-      for (const eventName of REFRESH_EVENTS) window.removeEventListener(eventName, refresh);
+      for (const eventName of SCORES_NOT_SENT_REFRESH_EVENTS)
+        window.removeEventListener(eventName, refresh);
     };
   }, [showId]);
 

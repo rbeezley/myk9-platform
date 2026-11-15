@@ -243,7 +243,9 @@ describe('a new code for a judge with scores still queued (MYK9-2009)', () => {
     expect((await failed())[0]).toMatchObject({ authUserId: 'anon-2', showId: SHOW });
   });
 
-  it('never adopts a dead letter refused for another reason, or one from another show', async () => {
+  // MYK9-2011: one refused for another reason moves to the new code so it stays on "Scores not
+  // sent", but stays refused: it is never sent again without a tap.
+  it('never re-sends a dead letter refused for another reason, nor adopts one from another show', async () => {
     const oldToken = enterCode('anon-1');
     await queueScore('e1');
     await queueScore('e2');
@@ -259,11 +261,15 @@ describe('a new code for a judge with scores still queued (MYK9-2009)', () => {
     signOut();
 
     const newToken = enterCode('anon-2');
-    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(1);
     await mutationManager.uploadPendingMutations();
 
     expect(fake.rpcCalls.filter(call => call.token === newToken)).toEqual([]);
     expect(rowIds(await failed())).toEqual(['e1', 'e2']);
+    const byRow = Object.fromEntries((await failed()).map(row => [row.rowId, row]));
+    expect(byRow.e1).toMatchObject({ authUserId: 'anon-2', status: 'failed' });
+    expect(byRow.e2).toMatchObject({ authUserId: 'anon-1' });
+    expect(rowIds(await mutationManager.getFailedMutations())).toEqual(['e1']);
   });
 
   it("keeps one judge's refused and queued scores from another judge on a shared device", async () => {

@@ -32,11 +32,12 @@ vi.mock('@/services/database/judges', () => ({
   subscribeToJudgeAssignmentChanges: vi.fn(() => vi.fn()),
 }));
 
-const queue = vi.hoisted(() => ({ pending: [] as unknown[] }));
+const queue = vi.hoisted(() => ({ pending: [] as unknown[], failed: [] as unknown[] }));
 vi.mock('@/services/replication/sharedMutationManager', () => ({
   mutationManager: {
     getPendingMutationsForTable: vi.fn(async () => queue.pending),
     getPendingCount: vi.fn(async () => queue.pending.length),
+    getFailedMutations: vi.fn(async () => queue.failed),
   },
 }));
 
@@ -124,6 +125,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   queue.pending = [];
+  queue.failed = [];
   lookup.scoresheetKey.mockReset();
   lookup.toastError.mockReset();
   vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
@@ -399,7 +401,31 @@ describe('upload indicator', () => {
     const card = (await screen.findByText('Interior Excellent')).closest('li') as HTMLElement;
     expect(await within(card).findByText('1 score not sent yet')).toBeInTheDocument();
     expect(within(card).getByText('Offline Scoring')).toBeInTheDocument();
-    expect(screen.getAllByText(/not sent yet/)).toHaveLength(1);
+    // One card, plus the header's device line, which counts the same score (MYK9-2011).
+    const counts = screen.getAllByText(/not sent yet/);
+    expect(counts.filter(node => node.closest('li'))).toHaveLength(1);
+    expect(counts).toHaveLength(2);
+  });
+
+  // MYK9-2011: a refused score has not reached the server either, and the count opens the list.
+  it('counts a score the server refused, and the count opens Scores not sent', async () => {
+    queue.failed = [
+      {
+        ...queuedScore,
+        id: 'refused-1',
+        status: 'failed',
+        failureKind: 'permanent',
+        error: 'Non-retryable error: This class is cancelled. Scores and check-ins are closed.',
+      },
+    ];
+    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([
+      { id: 'entry-1', classId: 'class-c', showId: 'show-1' },
+    ] as never);
+    renderPage();
+
+    const card = (await screen.findByText('Interior Excellent')).closest('li') as HTMLElement;
+    const count = await within(card).findByRole('link', { name: '1 score not sent yet' });
+    expect(count).toHaveAttribute('href', '/at-show/show-1/scores-not-sent');
   });
 
   it('shows nothing when the queue is empty', async () => {

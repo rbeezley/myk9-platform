@@ -400,8 +400,10 @@ describe('ReplicationSyncProvider: the conflict notice (MYK9-1995)', () => {
       .mock.calls.filter(([, options]) => options?.id === 'conflict:classes:row-1');
     expect(forClasses.length).toBeGreaterThanOrEqual(2);
     // 11 tables replay one conflict each, plus the live one on classes which the replay repeats:
-    // 11 notices, never 12.
-    expect(screen.getAllByText(CONFLICT_TOAST_TITLE)).toHaveLength(11);
+    // 11 notices, never 12. A dog's notice names the dog instead of using the shared title
+    // (MYK9-2010), so the other 10 tables carry the shared one.
+    expect(screen.getAllByText(CONFLICT_TOAST_TITLE)).toHaveLength(10);
+    expect(screen.getByText(/^A dog was changed on two devices$/)).toBeInTheDocument();
   });
 
   it('tells the header a choice was saved, after the resolve lands', async () => {

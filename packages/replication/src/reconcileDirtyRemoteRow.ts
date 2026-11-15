@@ -71,6 +71,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
       localVersion: existing.version,
       remoteServerVersion: remoteServerVersion ?? 0,
       detectedAt: Date.now(),
+      ...(detection.serverWonFields && { serverWonFields: detection.serverWonFields }),
     };
     // A snapshot older than the row's token marks nothing (MYK9-794).
     const marked = await table.markConflict(id, snapshot, remoteServerVersion);
@@ -91,6 +92,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
     remote: remoteLocal,
     remoteServerVersion,
     adoptRemoteFields: detection.adoptRemoteFields,
+    dropQueuedFields: detection.serverWonFields,
     detectedAtVersion: existing.version,
     mergedData: adapter.mergeDirtyRow
       ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)

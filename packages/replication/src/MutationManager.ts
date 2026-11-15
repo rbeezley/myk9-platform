@@ -538,6 +538,22 @@ export class MutationManager {
     }
   }
 
+  /** Stop this row's queued UPDATEs carrying `fields` the server won (MYK9-2010). */
+  async dropQueuedFieldsForRow(
+    tableName: string,
+    rowId: string,
+    fields: readonly string[]
+  ): Promise<void> {
+    const authUserId = await this.requireCurrentUserId();
+    const changed = await this.queueStore.dropQueuedFieldsForRow(
+      tableName,
+      rowId,
+      fields,
+      authUserId
+    );
+    if (changed > 0) await this.backupStore.writeCurrent();
+  }
+
   // ========================================
   // MUTATION UPLOAD
   // ========================================

@@ -66,6 +66,14 @@ export function ClassCheckInCell({
       {checkIn.canChange && !entry.deskEditable && entry.lockedReason && (
         <span className="mt-1 block text-xs text-muted-foreground">{entry.lockedReason}</span>
       )}
+      {entry.scoredAfterRemoval && (
+        <span
+          className="block text-xs font-medium text-foreground"
+          data-testid="scored-after-removal"
+        >
+          {entry.scoredAfterRemoval}
+        </span>
+      )}
       {editable && isFlaggedPull({ deskStatusEditable: true, checkInStatus: shown }) && (
         <span className="block text-xs text-muted-foreground">{flaggedPullLabel(undefined)}</span>
       )}

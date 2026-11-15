@@ -78,6 +78,7 @@ import {
   CONFLICT_TOAST_DESCRIPTION,
   CONFLICT_TOAST_TITLE,
 } from '@/lib/offlineCopy';
+import { entryConflictCopy } from '@/lib/entryConflictCopy';
 import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
 import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCacheSync';
 import {
@@ -866,14 +867,29 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const tableConfig = REPLICATED_TABLES.find(t => t.name === detail.tableName);
       const anyTable = tableConfig?.table as ReplicatedTable<{ id: string }> | undefined;
 
-      toast.warning(CONFLICT_TOAST_TITLE, {
+      // MYK9-2010: a dog's conflict names the dog and shows both scores on the notice and buttons.
+      const copy =
+        detail.tableName === 'entries'
+          ? entryConflictCopy(
+              (detail.localData ?? {}) as Record<string, unknown>,
+              (detail.remoteData ?? {}) as Record<string, unknown>,
+              detail.fields
+            )
+          : {
+              title: CONFLICT_TOAST_TITLE,
+              description: CONFLICT_TOAST_DESCRIPTION,
+              takeRemoteLabel: CONFLICT_TAKE_REMOTE_LABEL,
+              keepLocalLabel: CONFLICT_KEEP_LOCAL_LABEL,
+            };
+
+      toast.warning(copy.title, {
         id: conflictId,
         // INTENT: Conflict toasts persist until the user makes an explicit choice.
         // See docs/plan-show-presence.md §7 conflict-state lifecycle.
         duration: Infinity,
-        description: CONFLICT_TOAST_DESCRIPTION,
+        description: copy.description,
         action: {
-          label: CONFLICT_TAKE_REMOTE_LABEL,
+          label: copy.takeRemoteLabel,
           onClick: () => {
             // Replace local row with remote data (reads snapshot from IDB) AND
             // discard the pending mutation that would re-upload the old local value.
@@ -889,7 +905,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           },
         },
         cancel: {
-          label: CONFLICT_KEEP_LOCAL_LABEL,
+          label: copy.keepLocalLabel,
           onClick: () => {
             // Clear the conflict snapshot and let the table refresh queued
             // mutation OCC state from the resolved row.

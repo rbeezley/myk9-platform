@@ -15,6 +15,7 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import { SERVICE_FEE_SENTENCE } from '@/features/payments/withdrawalPolicyText';
+import { AKC_PREMIUM_SCOUTING_STATEMENT } from '@/features/registries';
 
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
@@ -198,6 +199,24 @@ describe('premium PDF prints the refund and withdrawal policy whole (MYK9-1976)'
     const text = pdfText('AKC', premium);
     expect(text).toContain('Withdrawals and Pulls');
     expect(text).toContain(`${CLUB_POLICY_TEXT}\n\n${SERVICE_FEE_SENTENCE}`);
+  });
+});
+
+describe("premium PDF prints the registry's scouting statement (MYK9-2043)", () => {
+  it.each(ALL_STYLES)('%s prints the AKC statement in the regulation’s words', style => {
+    const text = pdfText('AKC', fullPremium('AKC', style));
+    expect(text).toContain('Scouting the Trial Location');
+    expect(text).toContain(AKC_PREMIUM_SCOUTING_STATEMENT);
+  });
+
+  it.each(ALL_STYLES)('%s prints it on an AKC show with nothing else filled in', style => {
+    expect(pdfText('AKC', sparsePremium('AKC', style))).toContain(AKC_PREMIUM_SCOUTING_STATEMENT);
+  });
+
+  it.each(ALL_STYLES)('%s does not print it for a UKC show', style => {
+    const text = pdfText('UKC', fullPremium('UKC', style));
+    expect(text).not.toContain('Scouting the Trial Location');
+    expect(text).not.toMatch(/scout the trial location/);
   });
 });
 

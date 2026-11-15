@@ -35,6 +35,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -212,6 +214,8 @@ Entry Closes
 [REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 [REQUIRED — add before submitting]
@@ -259,6 +263,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -405,6 +411,8 @@ Lodging
 Motel 6 · 200 Inn Rd
 §07
 Notices
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Parking is free.
 Lunch on Saturday.
 Ribbons 1st through 4th."
@@ -535,7 +543,11 @@ LEVELS
 JUDGES
 0
 --- page 2 ---
-Style: Field Guide"
+Style: Field Guide
+§07
+Notices
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future."
 `;
 
 exports[`premium PDF facts parity (8 styles) > fieldGuide prints the same facts with ink saver on 1`] = `
@@ -626,6 +638,8 @@ Lodging
 Motel 6 · 200 Inn Rd
 §07
 Notices
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Parking is free.
 Lunch on Saturday.
 Ribbons 1st through 4th."
@@ -697,6 +711,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Show Hours
 Building opens at 8:00 AM.
 Trial Information
@@ -793,7 +809,9 @@ At a Glance
 Sanctioning
 AKC
 --- page 2 ---
-Style: Gazette"
+Style: Gazette
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future."
 `;
 
 exports[`premium PDF facts parity (8 styles) > gazette prints the same facts with ink saver on 1`] = `
@@ -862,6 +880,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Show Hours
 Building opens at 8:00 AM.
 Trial Information
@@ -905,6 +925,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -1078,6 +1100,8 @@ Entry Closes
 [REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 [REQUIRED — add before submitting]
@@ -1124,6 +1148,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -1217,6 +1243,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 §
 Trial Secretary
 Name
@@ -1413,6 +1441,8 @@ Entry Closes
 [REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 §
 Trial Secretary
 Name
@@ -1465,6 +1495,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 §
 Trial Secretary
 Name
@@ -1575,6 +1607,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -1757,6 +1791,8 @@ Entry Closes
 [REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 [REQUIRED — add before submitting]
@@ -1811,6 +1847,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -1902,6 +1940,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -2074,6 +2114,8 @@ Entry Closes
 [REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 [REQUIRED — add before submitting]
@@ -2119,6 +2161,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 Jane Smith
@@ -2205,6 +2249,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Jane Smith
 jane@test.com · (918) 555-0000
@@ -2330,6 +2376,8 @@ Entry Closes
 [REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Name
 [REQUIRED — add before submitting]
@@ -2370,6 +2418,8 @@ After May 15 the club keeps $5.
 Pulls are at the club's discretion.
 
 Service fees are non-refundable.
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
 Jane Smith
 jane@test.com · (918) 555-0000
@@ -2442,6 +2492,8 @@ per dog, per trial
 Day-of entry
 $25.00
 per dog, day of show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 04 / ROSTER
 slowly.
 —
@@ -2509,6 +2561,8 @@ FIRST ENTRY
 $20.00 · PER DOG / PER TRIAL
 DAY-OF ENTRY
 $25.00 · PER DOG / DAY OF SHOW
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 §06
 Show hours
 EACH DAY
@@ -2583,6 +2637,8 @@ First entry
 $20.00
 Day-of entry
 $25.00
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 SECTION D · ROSTER
 PAGE 04
 VOL. LXXIX
@@ -2698,6 +2754,8 @@ per dog, per trial where applicable
 Day-of entry
 .00
 per dog, per trial where applicable
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 § 03
 Live status
 Entry status at a glance.
@@ -2814,6 +2872,8 @@ $20.00
 First entry
 $25.00
 Day-of entry
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 § IV
 The Roster
 —
@@ -2908,6 +2968,8 @@ First entry
 $20.00
 Day-of entry
 $25.00
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 The roster
 quickly
 —
@@ -2998,6 +3060,8 @@ First entry
 $20.00
 Day-of entry
 $25.00
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 iv
 The roster
 slowly
@@ -3056,6 +3120,8 @@ FIRST ENTRY
 per dog, per trial
 DAY-OF ENTRY
 per dog, day of show
+Scouting the Trial Location
+It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 № 05 / ROSTER
 slowly.
 —

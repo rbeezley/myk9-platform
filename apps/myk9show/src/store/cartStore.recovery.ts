@@ -86,7 +86,8 @@ const getNormalEntryFeeCents = (entry: RecoverableEntryRow): number => {
         : 0;
     return Math.round(classFee * 100) + surchargeCents;
   }
-  if (dayOfTier && dayOfShowFee != null) {
+  // A day-of fee of 0 is "no day-of tier", never a $0 price (MYK9-1931, price_entry_fee).
+  if (dayOfTier && dayOfShowFee != null && dayOfShowFee > 0) {
     return Math.round(dayOfShowFee * 100);
   }
   if (preEntryFee != null) return Math.round(preEntryFee * 100);

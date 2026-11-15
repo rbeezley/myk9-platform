@@ -83,7 +83,9 @@ describe('authoritativeEntryFeeCents decides show day in the show zone', () => {
     ).toBe(2500);
   });
 
-  it('keeps the start-date-only rule and the zero day-of fee behaviour', () => {
+  // MYK9-1931: a day-of fee of 0 (a blank one is stored as 0.00) is no day-of tier, as
+  // price_entry_fee reads it, so show day charges the pre-entry fee, never $0.
+  it('keeps the start-date-only rule, and a zero day-of fee is no day-of tier', () => {
     expect(
       authoritativeEntryFeeCents({
         ...fees,
@@ -91,7 +93,7 @@ describe('authoritativeEntryFeeCents decides show day in the show zone', () => {
         showTimeZone: 'America/New_York',
         nowIso: JUST_AFTER_MIDNIGHT_IN_NEW_YORK,
       })
-    ).toBe(0);
+    ).toBe(2500);
     expect(
       authoritativeEntryFeeCents({
         ...fees,

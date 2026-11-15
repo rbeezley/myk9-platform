@@ -158,24 +158,19 @@ export const NO_ENTRY_FEE_MESSAGE =
   "This class has no entry fee set yet. Ask the show's secretary.";
 
 /**
- * MYK9-1931, owner rule "zero is never a price": true when the class has no price at all,
- * meaning the show has no pre-entry fee, no day-of tier applies and the class has no fee of
- * its own. The server prices it at $0, and such an entry cannot be bought online. A show
- * whose pre-entry fee is a stored $0 is not this case.
+ * MYK9-1931, owner rule "zero is never a price": true when the class's normal price is $0,
+ * the same test stripe-checkout refuses a line on (`findUnpricedLines`, price <= 0). That is
+ * a show with no pre-entry fee or a stored $0 one, no day-of tier that applies (a day-of fee
+ * of 0 is none) and no fee of the class's own. Such an entry cannot be bought online. The
+ * shared pricing matrix (supabase/tests/myk9_1931_class_fee_wins_test.sql) pins it: a row is
+ * unpriced exactly when the server prices it at 0.
  */
 export function hasNoEntryFeeSet(
   show: ShowFeeInfo,
   classEntryFee: number | undefined,
   isDayOfShow?: boolean
 ): boolean {
-  if (classEntryFee !== undefined && Number.isFinite(classEntryFee) && classEntryFee > 0) {
-    return false;
-  }
-  const preFee = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));
-  if (!isNaN(preFee) && preFee >= 0) return false;
-  const dayOfShow = isDayOfShow ?? isDayOfShowEntry(showDayOfShowContext(show));
-  const dayFee = show.dayOfShowFee ? parseFloat(show.dayOfShowFee.replace(/[$,]/g, '')) : NaN;
-  return !(dayOfShow && !isNaN(dayFee) && dayFee > 0);
+  return getNormalEntryFee(show, classEntryFee, isDayOfShow) <= 0;
 }
 
 /** The selected payable classes (wait-list requests excluded) that have no entry fee set. */

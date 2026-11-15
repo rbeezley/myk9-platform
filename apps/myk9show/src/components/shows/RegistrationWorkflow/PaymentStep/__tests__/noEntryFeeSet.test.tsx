@@ -83,8 +83,11 @@ describe('hasNoEntryFeeSet', () => {
   it('is false when the class has its own fee, or the show has any fee that applies', () => {
     expect(hasNoEntryFeeSet(noFeeShow, 40, false)).toBe(false);
     expect(hasNoEntryFeeSet({ ...noFeeShow, preEntryFee: '25' }, undefined, false)).toBe(false);
-    // A stored $0 pre-entry fee is a set fee, not a missing one.
-    expect(hasNoEntryFeeSet({ ...noFeeShow, preEntryFee: '0' }, undefined, false)).toBe(false);
+    // Zero is never a price: a stored $0 pre-entry fee is unpriced too, as checkout refuses it.
+    expect(hasNoEntryFeeSet({ ...noFeeShow, preEntryFee: '0' }, undefined, false)).toBe(true);
+    expect(hasNoEntryFeeSet({ ...noFeeShow, preEntryFee: '0' }, 40, false)).toBe(false);
+    // A day-of fee of 0 is no day-of tier, so it prices nothing.
+    expect(hasNoEntryFeeSet({ ...noFeeShow, dayOfShowFee: '0' }, undefined, true)).toBe(true);
     expect(hasNoEntryFeeSet({ ...noFeeShow, dayOfShowFee: '30' }, undefined, true)).toBe(false);
     expect(hasNoEntryFeeSet({ ...noFeeShow, dayOfShowFee: '30' }, undefined, false)).toBe(true);
   });

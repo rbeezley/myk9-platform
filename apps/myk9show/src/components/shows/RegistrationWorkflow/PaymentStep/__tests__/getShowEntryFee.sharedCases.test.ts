@@ -6,7 +6,7 @@
  * the other does not make fails here or there.
  */
 import { describe, expect, it } from 'vitest';
-import { getShowEntryFee, type ShowFeeInfo } from '../utils';
+import { getShowEntryFee, hasNoEntryFeeSet, type ShowFeeInfo } from '../utils';
 import { readClassFeeSharedCases, type ClassFeeCase } from '@/test/utils/classFeeSharedCases';
 
 /** The show as the wizard reads it: fee columns as strings, a NULL as blank or absent. */
@@ -30,5 +30,15 @@ describe('getShowEntryFee agrees with private.price_entry_fee (MYK9-1931 shared 
     expect(
       getShowEntryFee(showFor(row), row.classFee ?? undefined, row.dayOf, row.juniorOverride)
     ).toBe(row.expected);
+  });
+});
+
+// The wizard's "no entry fee set" test is the same zero-is-not-a-price rule checkout refuses
+// on: a row is unpriced exactly when the server prices it at $0.
+describe('hasNoEntryFeeSet agrees with the server price (MYK9-1931 shared cases)', () => {
+  it.each(cases.map(row => [row.label, row] as const))('%s', (_label, row) => {
+    expect(hasNoEntryFeeSet(showFor(row), row.classFee ?? undefined, row.dayOf)).toBe(
+      row.expected <= 0
+    );
   });
 });

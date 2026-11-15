@@ -87,7 +87,9 @@ function normalEntryFeeCents(input: AuthoritativeFeeInput): number {
       new Date(input.nowIso),
       resolveShowTimeZone(input.showTimeZone)
     );
-    dayOfTier = nowDay >= startDay && day != null;
+    // A day-of fee of 0 or NULL is "no day-of tier" (a blank one is stored as 0.00), never a
+    // $0 price: the same rule as private.price_entry_fee and getShowEntryFee (MYK9-1931).
+    dayOfTier = nowDay >= startDay && day != null && day > 0;
   }
 
   // MYK9-1931: a class's own fee wins; on the day it carries the show's surcharge.

@@ -388,7 +388,6 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       }}
       releaseBlockedReason={releaseBlockedReason}
       verifyBlockedReason={verifyBlockedReason}
-      reopenConflictClassId={classRowSync === 'conflict' ? selected.id : null}
       verifying={verification.isPending}
       online={isOnline}
       onRecordCoinFlip={() => setCoinFlipOpen(true)}

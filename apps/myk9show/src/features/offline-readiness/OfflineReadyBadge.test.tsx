@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OfflineReadyBadge } from './OfflineReadyBadge';
+import { resetAutoSaveAttempts } from './autoSaveAttempts';
 
 const { hookState, primeSpy } = vi.hoisted(() => ({
   hookState: {
@@ -17,12 +18,22 @@ vi.mock('./useOfflineReadiness', () => ({
   useOfflineReadiness: () => ({ ...hookState, prime: primeSpy }),
 }));
 
+const { held } = vi.hoisted(() => ({ held: { count: 0, reopen: vi.fn(async () => 1) } }));
+vi.mock('@/features/replication-conflicts/heldConflictStore', () => ({
+  useHeldConflictCount: () => held.count,
+}));
+vi.mock('@/features/replication-conflicts/heldConflicts', () => ({
+  reopenHeldConflicts: held.reopen,
+}));
+
 const { network } = vi.hoisted(() => ({ network: { isOnline: true } }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => network.isOnline }));
 
 describe('OfflineReadyBadge', () => {
   beforeEach(() => {
     network.isOnline = true;
+    held.count = 0;
+    resetAutoSaveAttempts();
     vi.clearAllMocks();
     hookState.readiness = null;
     hookState.checking = false;
@@ -245,6 +256,96 @@ describe('OfflineReadyBadge', () => {
       network.isOnline = false;
       render(<OfflineReadyBadge showId="show-1" />);
       expect(screen.getByRole('status')).toHaveTextContent('Offline · scores saved on this device');
+    });
+  });
+
+  describe('automatic save for show-day staff (MYK9-1994)', () => {
+    beforeEach(() => {
+      hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+    });
+
+    it('saves the offline copy once, without a click, when it has a key', () => {
+      const { rerender } = render(<OfflineReadyBadge showId="show-1" autoSaveKey="u1:in:show-1" />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+      rerender(<OfflineReadyBadge showId="show-1" autoSaveKey="u1:in:show-1" />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not start another save when the header remounts', () => {
+      const first = render(<OfflineReadyBadge showId="show-1" autoSaveKey="u1:in:show-1" />);
+      first.unmount();
+      render(<OfflineReadyBadge showId="show-1" autoSaveKey="u1:in:show-1" />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves again after a new sign-in, which is a new key', () => {
+      render(<OfflineReadyBadge showId="show-1" autoSaveKey="u1:in-1:show-1" />).unmount();
+      render(<OfflineReadyBadge showId="show-1" autoSaveKey="u1:in-2:show-1" />);
+      expect(primeSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry in a loop after a failed save, and keeps the Try again button', () => {
+      hookState.primeFailed = true;
+      const { rerender } = render(<OfflineReadyBadge showId="show-1" autoSaveKey="k" />);
+      rerender(<OfflineReadyBadge showId="show-1" autoSaveKey="k" />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+
+    it('waits for a connection, then saves', () => {
+      network.isOnline = false;
+      const { rerender } = render(<OfflineReadyBadge showId="show-1" autoSaveKey="k" />);
+      expect(primeSpy).not.toHaveBeenCalled();
+      network.isOnline = true;
+      rerender(<OfflineReadyBadge showId="show-1" autoSaveKey="k" />);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing without a key or when the copy is already saved', () => {
+      render(<OfflineReadyBadge showId="show-1" />);
+      expect(primeSpy).not.toHaveBeenCalled();
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      render(<OfflineReadyBadge showId="show-1" autoSaveKey="other" />);
+      expect(primeSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows the outside-the-window save as a bordered button with an icon', () => {
+      render(<OfflineReadyBadge showId="show-1" inPromptWindow={false} />);
+      const button = screen.getByRole('button', { name: 'Save for show day' });
+      expect(button.className).toContain('border');
+      expect(button.querySelector('svg')).not.toBeNull();
+    });
+  });
+
+  describe('a change held for a choice (MYK9-1995)', () => {
+    it('shows the choice as a button beside, not instead of, the device status', async () => {
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      held.count = 1;
+      render(
+        <OfflineReadyBadge showId="show-1" note="Some changes need attention" noteNeedsAttention />
+      );
+      const choice = screen.getByRole('button', { name: '1 change needs your choice' });
+      expect(screen.getByRole('status')).toHaveTextContent('Some changes need attention');
+      expect(screen.getByRole('status')).not.toContainElement(choice);
+      await userEvent.click(choice);
+      expect(held.reopen).toHaveBeenCalledWith('show-1');
+    });
+
+    it('shows the choice while offline, with the offline line intact', () => {
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      network.isOnline = false;
+      held.count = 2;
+      render(<OfflineReadyBadge showId="show-1" note="Offline · 3 changes saved on this device" />);
+      expect(
+        screen.getByRole('button', { name: '2 changes need your choice' })
+      ).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Offline · 3 changes saved');
+    });
+
+    it('shows no button when nothing is held', () => {
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+      render(<OfflineReadyBadge showId="show-1" note="1 change saved on this device" />);
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
   });
 });

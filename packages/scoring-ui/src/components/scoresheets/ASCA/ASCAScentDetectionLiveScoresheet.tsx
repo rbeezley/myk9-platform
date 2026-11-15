@@ -82,6 +82,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
     qualifiedRules: { faultLimit: faultLimitFor('ASCA_SCENT_DETECTION', classInfo.level) },
+    excusedReasonRequired: true,
   });
 
   // Each area runs against its own max time, as on the AKC sheet (MYK9-1103).
@@ -177,6 +178,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
+            scoring.excusedReasonMissing ||
             scoring.hasUnresolvedTime ||
             scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,

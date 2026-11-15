@@ -112,6 +112,12 @@ describe.each(sheets)('$name: search-timer expiry', ({ Sheet }) => {
         target: { value: 'Attacked a person' },
       });
     }
+    // UKC and ASCA save an Excused only with a reason the judge picked (MYK9-2008).
+    if (code === 'EX' && screen.queryByTestId('ex-reason-select')) {
+      fireEvent.change(screen.getByTestId('ex-reason-select'), {
+        target: { value: 'Poor Sportsmanship' },
+      });
+    }
 
     act(() => timers.firstStopwatch!.onTimeExpired!('3:00.00'));
 

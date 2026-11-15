@@ -30,6 +30,7 @@ describe('reason lists per registry', () => {
       'Prior to Alert',
       'Missed Indication',
       'Handler Stopped Search',
+      'Handler Error',
     ]);
     expect(excusedReasonsFor('UKC_NOSEWORK')).toEqual([
       'Dog Eliminated in Area',
@@ -54,6 +55,8 @@ describe('reason lists per registry', () => {
       'Excessive Disturbance',
       'Damaged Property',
       "Couldn't Point to Hide",
+      'Fault Limit',
+      'False Alert',
     ]);
     expect(excusedReasonsFor('ASCA_SCENT_DETECTION')).toEqual([
       'Extreme Stress/Fear/Aggression',
@@ -83,9 +86,9 @@ describe('the reason a result starts with', () => {
     }
   });
 
-  it('Excused starts with Dog Eliminated in Area on AKC and UKC, and with none on ASCA', () => {
+  it('Excused starts with Dog Eliminated in Area on AKC, and with none on UKC and ASCA', () => {
     expect(startingReasonFor('AKC_SCENT_WORK', 'EX')).toBe('Dog Eliminated in Area');
-    expect(startingReasonFor('UKC_NOSEWORK', 'EX')).toBe('Dog Eliminated in Area');
+    expect(startingReasonFor('UKC_NOSEWORK', 'EX')).toBe('');
     expect(startingReasonFor('ASCA_SCENT_DETECTION', 'EX')).toBe('');
   });
 

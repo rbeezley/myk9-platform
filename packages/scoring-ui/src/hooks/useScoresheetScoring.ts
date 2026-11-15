@@ -42,6 +42,8 @@ export interface ScoresheetScoringConfig {
    * a Qualified saves as before (Obedience, Rally, Fast CAT).
    */
   qualifiedRules?: { faultLimit?: FaultLimit | undefined } | undefined;
+  /** UKC and ASCA (MYK9-2008): an Excused saves only with a reason the judge chose. */
+  excusedReasonRequired?: boolean;
 }
 
 export interface ValidationResult {
@@ -63,6 +65,8 @@ export interface ScoresheetScoringReturn {
   applyMaxTimeNQ: () => void;
   /** A DQ with no reason: the result cannot be saved until the judge states one. */
   disqualifyReasonMissing: boolean;
+  /** An Excused with no reason where the sheet requires one (UKC, ASCA). */
+  excusedReasonMissing: boolean;
   setNonQualifyingReason: (value: string) => void;
   faultCount: number;
   setFaultCount: (value: number) => void;
@@ -142,7 +146,15 @@ function initializeAreas(
 }
 
 export function useScoresheetScoring(config: ScoresheetScoringConfig): ScoresheetScoringReturn {
-  const { rules, areaNames, existingScore, recordFinds = true, qualifiedRules, timerKey } = config;
+  const {
+    rules,
+    areaNames,
+    existingScore,
+    recordFinds = true,
+    qualifiedRules,
+    timerKey,
+    excusedReasonRequired = false,
+  } = config;
 
   const [areas, setAreas] = useState<AreaScore[]>(() =>
     initializeAreas(rules, areaNames, existingScore)
@@ -161,6 +173,8 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   }, []);
   const [faultCount, setFaultCount] = useState(existingScore?.faultCount ?? 0);
   const disqualifyReasonMissing = qualifying === 'DQ' && !nonQualifyingReason.trim();
+  const excusedReasonMissing =
+    excusedReasonRequired && qualifying === 'EX' && !nonQualifyingReason.trim();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // React state updates after the current event. A ref closes the gap where a
@@ -303,6 +317,10 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       errors.push('A disqualification needs a reason');
     }
 
+    if (excusedReasonMissing) {
+      errors.push('An excusal needs a reason');
+    }
+
     qualifiedTimeProblemList.forEach(problem => {
       if (problem) errors.push(problem);
     });
@@ -332,6 +350,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   }, [
     qualifying,
     disqualifyReasonMissing,
+    excusedReasonMissing,
     areas,
     rules.maxTimeSeconds,
     calculateTotalTime,
@@ -384,6 +403,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     setQualifying,
     nonQualifyingReason,
     disqualifyReasonMissing,
+    excusedReasonMissing,
     applyMaxTimeNQ,
     setNonQualifyingReason,
     faultCount,

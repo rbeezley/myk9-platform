@@ -51,7 +51,7 @@ interface Sport {
   hasDq: boolean;
   /** How the sheet records an NQ reason, when it has one. */
   nqReason?: () => void;
-  /** Whether the read-back shows an Excused reason (ASCA once the judge picks one). */
+  /** Whether the read-back shows an Excused reason (UKC and ASCA once the judge picks one). */
   excusedReason: boolean;
 }
 
@@ -176,8 +176,8 @@ describe.each(sports)('$name: Score Confirmation read-back', sport => {
   if (sport.excusedReason) {
     it('shows the Excused reason, in words', () => {
       openConfirmation(sport, 'EX');
-      if (sport.name === 'ASCA Scent Detection') {
-        // ASCA starts an Excused with no reason chosen (MYK9-2008).
+      if (sport.name === 'ASCA Scent Detection' || sport.name === 'UKC Nosework') {
+        // UKC and ASCA start an Excused with no reason chosen (MYK9-2008).
         fireEvent.change(screen.getByTestId('ex-reason-select'), {
           target: { value: 'Poor Sportsmanship' },
         });

@@ -132,6 +132,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     ...scoringSource(entry),
     recordFinds: false,
     qualifiedRules: { faultLimit: faultLimitFor('UKC_NOSEWORK', classInfo.level) },
+    excusedReasonRequired: true,
   });
 
   const { maxTimeMs, searchMaxTime, elementMaxTimeMs } = splitMaxTime(isDual, rules, maxTimeStr);
@@ -299,6 +300,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
+            scoring.excusedReasonMissing ||
             scoring.hasUnresolvedTime ||
             scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,

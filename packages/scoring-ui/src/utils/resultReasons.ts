@@ -7,9 +7,13 @@
  * - UKC: ukc-nose-work-rules.txt, Chapter 3 Section 10 (non-qualifying faults and
  *   Excused), Section 9 (control and aggression), Section 11 (poor sportsmanship,
  *   double handling), eligibility (lame, ill, in season), and the Code of Conduct
- *   (reactive dogs). "Fault Limit" is the class rule "more than one fault".
+ *   (reactive dogs). "Fault Limit" is the class rule "more than one fault";
+ *   "Handler Error" covers the handler-conduct NQs (a kicked box, directing the
+ *   dog, stepping out of the area, too many restarts).
  * - ASCA: asca-scent-detection-rules.txt, 9.2 (non-qualifying faults) and 9.3
  *   (Excusal). In ASCA a dog that eliminates is an NQ (9.2.1), not an excusal.
+ *   "Fault Limit" is each level's fault cap (5.5.2, 6.5.2, 7.5.1, 8.5.2); "False
+ *   Alert" is a false alert in the first area (7.8E, 8.8E).
  */
 
 import type { ExtendedResult, ScoresheetSportType } from '../types/scoreData';
@@ -39,6 +43,7 @@ const NQ_REASONS: Record<ReasonRegistry, readonly string[]> = {
     'Prior to Alert',
     'Missed Indication',
     'Handler Stopped Search',
+    'Handler Error',
   ],
   ASCA: [
     'Incorrect Call',
@@ -49,6 +54,8 @@ const NQ_REASONS: Record<ReasonRegistry, readonly string[]> = {
     'Excessive Disturbance',
     'Damaged Property',
     "Couldn't Point to Hide",
+    'Fault Limit',
+    'False Alert',
   ],
 };
 
@@ -73,11 +80,12 @@ const EXCUSED_REASONS: Record<ReasonRegistry, readonly string[]> = {
   ],
 };
 
-// ASCA starts an Excused with no reason: each of its four is a judgement the
-// judge makes, never one to fill in for her.
+// UKC and ASCA start an Excused with no reason, and the sheet will not save one
+// until the judge picks: each reason is a judgement, and a pre-chosen "Dog
+// Eliminated in Area" would record a false elimination for a reactive dog.
 const EXCUSED_DEFAULT: Record<ReasonRegistry, string> = {
   AKC: 'Dog Eliminated in Area',
-  UKC: 'Dog Eliminated in Area',
+  UKC: '',
   ASCA: '',
 };
 

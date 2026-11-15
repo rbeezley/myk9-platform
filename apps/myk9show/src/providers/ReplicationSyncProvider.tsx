@@ -894,7 +894,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           onClick: () => {
             // Drop the queued write, then show the server's copy (conflictChoices.ts).
             toast.dismiss(conflictId);
-            if (!anyTable) return announceConflictSettled();
+            if (!anyTable) {
+              announceConflictSettled();
+              return;
+            }
             void keepOtherChange(anyTable, mutationManager, detail.tableName, detail.rowId)
               .catch(err => {
                 // Nothing was released: ask again rather than leave the rows different.
@@ -909,7 +912,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           onClick: () => {
             // MYK9-1993: send the kept write now, not at the next poll (conflictChoices.ts).
             toast.dismiss(conflictId);
-            if (!anyTable) return announceConflictSettled();
+            if (!anyTable) {
+              announceConflictSettled();
+              return;
+            }
             void keepMyChange(anyTable, mutationManager, detail.tableName, detail.rowId)
               .then(outcome => {
                 if (outcome.kind !== 'refused') return;

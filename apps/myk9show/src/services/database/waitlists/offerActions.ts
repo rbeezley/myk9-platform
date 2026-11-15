@@ -42,7 +42,7 @@ export async function refreshOfferRowsInReplica(waitlistEntryId: string): Promis
     const { data, error } = await supabase
       .from('waitlist_entries')
       .select(
-        'id, class_id, dog_id, exhibitor_id, handler_id, position, status, joined_via, offered_at, offer_expires_at, promoted_entry_id, created_at, updated_at'
+        'id, class_id, dog_id, exhibitor_id, handler_id, position, status, joined_via, offered_at, offer_expires_at, promoted_entry_id, replaces_offer_id, created_at, updated_at'
       )
       .eq('id', waitlistEntryId)
       .maybeSingle();

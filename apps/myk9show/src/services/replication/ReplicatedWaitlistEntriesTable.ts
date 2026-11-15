@@ -41,6 +41,8 @@ interface WaitlistEntryRow {
   offered_at: string | null;
   offer_expires_at: string | null;
   promoted_entry_id?: string | null;
+  /** MYK9-1988: the expired offer whose spot this offer refills. */
+  replaces_offer_id?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -61,6 +63,11 @@ export interface ReplicatedWaitlistEntry {
   offerExpiresAt?: string | undefined;
   /** The pending-payment entry an offer created (MYK9-1001: its payment state). */
   promotedEntryId?: string | undefined;
+  /**
+   * The expired offer whose spot this offer refills (MYK9-1988), set by the server when the
+   * offer is made. An expired offer no row names here has not been offered again.
+   */
+  replacesOfferId?: string | undefined;
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
   // Sync metadata
@@ -87,6 +94,7 @@ export function rowToWaitlistEntry(row: WaitlistEntryRow): ReplicatedWaitlistEnt
     offeredAt: row.offered_at ?? undefined,
     offerExpiresAt: row.offer_expires_at ?? undefined,
     promotedEntryId: row.promoted_entry_id ?? undefined,
+    replacesOfferId: row.replaces_offer_id ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };

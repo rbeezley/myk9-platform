@@ -112,12 +112,17 @@ export function useWaitlistManagementData(showId: string) {
   const classes = useMemo(() => classesQuery.data ?? [], [classesQuery.data]);
 
   // Which classes' queues to read: the judge-day's classes, else every class in the show that has
-  // anyone waiting or an open offer (MYK9-1001).
+  // anyone waiting, an open offer (MYK9-1001) or an offer that ran out and was not offered again
+  // (MYK9-1988).
   const targetClassIds = useMemo(
     () =>
       (selectedJudgeDay
         ? selectedJudgeDay.classIds
-        : classes.filter(c => c.waitlist_count > 0 || (c.offered_count ?? 0) > 0).map(c => c.id)
+        : classes
+            .filter(
+              c => c.waitlist_count > 0 || (c.offered_count ?? 0) > 0 || (c.run_out_count ?? 0) > 0
+            )
+            .map(c => c.id)
       )
         .slice()
         .sort(),
@@ -388,6 +393,7 @@ export function useWaitlistManagementData(showId: string) {
     waitlistEntries,
     groups,
     offers: offersRead.offers,
+    runOutOffers: offersRead.runOutOffers,
     isLoading,
     isProcessing,
     error,

@@ -240,10 +240,14 @@ export function classifyEntryCheckInStatus(
   };
 }
 
+/** Check-ins that mean the dog is at this class: not just called or waiting at the gate. */
+const STARTED_CHECK_IN_STATUSES = new Set(['checked-in', 'in-ring', 'completed']);
+
 /**
  * MYK9-2015: the class has started once its status says so, or once any dog that still belongs
- * in it is checked in, at the gate, in the ring or scored. Read through the class, run and
- * check-in classifiers above; a moved, pulled or scratched dog does not start a class.
+ * in it is scored, in the ring, or checked in. Called to the gate or at the gate is not started:
+ * on show morning that is most classes. Read through the class, run and check-in classifiers
+ * above; a moved, pulled or scratched dog does not start a class.
  */
 export function hasClassStarted(
   status: string | null | undefined,
@@ -255,8 +259,8 @@ export function hasClassStarted(
     const run = classifyEntryRunStatus(entry)?.kind;
     if (run === 'muted') return false;
     if (run === 'complete' || run === 'active') return true;
-    const checkIn = classifyEntryCheckInStatus(entry)?.kind;
-    return checkIn === 'active' || checkIn === 'complete';
+    const checkIn = classifyEntryCheckInStatus(entry)?.value;
+    return checkIn !== undefined && STARTED_CHECK_IN_STATUSES.has(checkIn);
   });
 }
 

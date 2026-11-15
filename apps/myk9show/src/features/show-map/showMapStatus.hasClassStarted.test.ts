@@ -1,6 +1,7 @@
 /**
  * MYK9-2015: a class has started once any dog is checked in, in the ring or scored, or its
- * status says so. Rows are shaped like this device's replicated entry rows.
+ * status says so. Called to the gate or at the gate is not started (Mac review of #3963).
+ * Rows are shaped like this device's replicated entry rows.
  */
 import { describe, expect, it } from 'vitest';
 import { hasClassStarted } from './showMapStatus';
@@ -21,13 +22,20 @@ describe('hasClassStarted', () => {
 
   it.each([
     ['checked in', { check_in_status: 'checked-in' }],
-    ['at the gate', { check_in_status: 'at-gate' }],
     ['in the ring', { check_in_status: 'in-ring' }],
     ['in the ring by flag', { is_in_ring: true }],
     ['scored', { is_scored: true, result_status: 'qualified' }],
     ['completed', { check_in_status: 'completed' }],
   ])('is true once a dog is %s', (_label, fields) => {
     expect(hasClassStarted('Scheduled', [dog({}), dog(fields)])).toBe(true);
+  });
+
+  it.each([
+    ['called to the gate', 'come-to-gate'],
+    ['at the gate', 'at-gate'],
+    ['in conflict', 'conflict'],
+  ])('is false when the only dog is %s', (_label, status) => {
+    expect(hasClassStarted('Scheduled', [dog({}), dog({ check_in_status: status })])).toBe(false);
   });
 
   it.each(['In Progress', 'in_progress', 'Completed'])('is true for a class status of %s', s => {

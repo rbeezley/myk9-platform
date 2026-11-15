@@ -51,7 +51,7 @@ function StartedClassWarning({
   const started = failed || hasClassStarted(classStatus, entries);
   if (!started) return null;
   return (
-    <p role="status" className="mt-1 text-xs text-warning">
+    <p role="status" className="mt-1 text-sm text-warning">
       {judgeChangeWarningText(outgoingJudgeName)}
     </p>
   );

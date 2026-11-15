@@ -70,7 +70,8 @@ describe('authoritativeEntryFeeCents', () => {
     ).toBe(0);
   });
 
-  it('defaults to $25 when nothing is configured', () => {
+  // MYK9-1931: the server prices this at COALESCE(..., 0) = $0; checkout no longer invents $25.
+  it('charges $0 when neither the show nor the class has a fee', () => {
     expect(
       authoritativeEntryFeeCents({
         ...base,
@@ -78,7 +79,7 @@ describe('authoritativeEntryFeeCents', () => {
         showDayOfShowFee: null,
         classEntryFee: null,
       })
-    ).toBe(2500);
+    ).toBe(0);
   });
 
   it('parses numeric strings and currency formatting from DECIMAL columns', () => {
@@ -104,6 +105,6 @@ describe('authoritativeEntryFeeCents', () => {
         showDayOfShowFee: null,
         classEntryFee: null,
       })
-    ).toBe(2500);
+    ).toBe(0);
   });
 });

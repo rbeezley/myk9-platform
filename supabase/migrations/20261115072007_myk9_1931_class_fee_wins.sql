@@ -30,6 +30,11 @@
 -- class fee was never reached on a show with a fee (and prices 0 on a show
 -- without one, as NULL does). The clean-up is private.clear_copied_class_fees(),
 -- kept so the behavioral test exercises the same statement; it is idempotent.
+-- Data read on production, 2026-11-15: 0 classes had a fee different from their
+-- show's pre-entry fee, so this clean-up empties every copy and keeps nothing.
+-- A copy left stale by a later show-fee change would read as a real choice and
+-- be kept, so the read is re-run right before the push, which stops if any
+-- differing fee appears.
 --
 -- EXISTING ENTRIES keep the fee they were charged: entries.entry_fee is frozen at
 -- creation (20260930214300) and nothing here touches entries.

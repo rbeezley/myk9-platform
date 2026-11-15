@@ -12,8 +12,9 @@
 //      it) is added. 0 or none means "charge the show's fee".
 //   2. Show-level fee, date-tiered: day-of-show fee once the show has
 //      started, else pre-entry fee.
-//   3. Class-level entry_fee as given (explicit 0 respected).
-//   4. $25 default.
+//   3. Otherwise $0, exactly as private.price_entry_fee's COALESCE(..., 0): a
+//      show with no pre-entry fee and a class with no fee of its own (NULL or 0)
+//      is free. The server prices the entry, so checkout must not invent a fee.
 // "Has the show started" compares calendar days in the SHOW's time zone (owner
 // decision 2026-10-15, MYK9-1198): the fee switches at midnight where the show
 // is held, the same for every exhibitor, as `submit_show_entries` decides it.
@@ -55,8 +56,6 @@ export interface AuthoritativeFeeInput {
    */
   showOrganization?: string | null | undefined;
 }
-
-const DEFAULT_ENTRY_FEE_DOLLARS = 25;
 
 function parseDollars(value: number | string | null | undefined): number | null {
   if (value == null) return null;
@@ -105,5 +104,5 @@ function normalEntryFeeCents(input: AuthoritativeFeeInput): number {
   if (pre != null) {
     return Math.round(pre * 100);
   }
-  return Math.round((classFee ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
+  return 0;
 }

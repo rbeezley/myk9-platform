@@ -82,7 +82,9 @@ const DEFAULT_ENTRY_FEE = 25;
  * 1. The class's own fee, when it is set and above 0. On a day-of entry the show's
  *    day-of surcharge (day-of fee minus pre-entry fee, when above it) is added.
  * 2. Otherwise the show's fee tier based on date (pre-entry vs day-of-show).
- * 3. Otherwise the class fee as given (0 stays 0), else DEFAULT_ENTRY_FEE ($25).
+ * 3. Otherwise $0 when the show is known: no show fee and no class fee of its own
+ *    is free, exactly as the server's COALESCE(..., 0) prices it.
+ * 4. With no show at all: the class fee as given (0 stays 0), else DEFAULT_ENTRY_FEE ($25).
  *
  * A class fee of 0 or none means "charge the show's fee": zero is never a price.
  */
@@ -141,6 +143,8 @@ function getNormalEntryFee(
     }
     if (dayOfTier) return dayFee;
     if (preFee !== null) return preFee;
+    // The server's COALESCE(..., 0): no show fee and no class fee of its own is $0.
+    return 0;
   }
 
   if (ownFee !== null) return ownFee;

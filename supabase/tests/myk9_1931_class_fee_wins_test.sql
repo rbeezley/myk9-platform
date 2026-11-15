@@ -6,8 +6,9 @@
 --   A. the pricing matrix: private.price_entry_fee for every row of the SHARED CASES
 --      table below. The client runs the same rows through getShowEntryFee
 --      (apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep/__tests__/
---      getShowEntryFee.sharedCases.test.ts parses this block), so server and client
---      return the same fee for the same inputs
+--      getShowEntryFee.sharedCases.test.ts parses this block), and so does checkout's
+--      authoritativeEntryFeeCents (apps/myk9show/supabase/functions/_shared/
+--      authoritativeFee.sharedCases.test.ts), so all three return the same fee
 --   B. the clean-up: a copied fee is emptied, a zero is emptied, a different fee is
 --      kept, a fee on a show with no pre-entry fee is kept; running it again changes
 --      nothing
@@ -88,6 +89,8 @@ insert into fee_cases (label, pre, dos, class_fee, junior, day_of, junior_overri
   ('day-of fee below pre-entry still prices a class without a fee', 25, 20, NULL, NULL, true, false, 20),
   ('free pre-entry, day-of surcharge on a class fee', 0, 10, 40, NULL, true, false, 50),
   ('no show fee, class fee', NULL, NULL, 28, NULL, false, false, 28),
+  ('no show fee, no class fee is free', NULL, NULL, NULL, NULL, false, false, 0),
+  ('no show fee, class fee zero is free', NULL, NULL, 0, NULL, false, false, 0),
   ('no pre-entry fee, day-of adds nothing to a class fee', NULL, 30, 40, NULL, true, false, 40),
   ('junior in a dearer class', 25, 30, 40, 15, false, true, 15),
   ('junior in a dearer class, day-of', 25, 30, 40, 15, true, true, 15),

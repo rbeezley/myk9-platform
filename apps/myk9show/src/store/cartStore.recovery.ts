@@ -56,8 +56,6 @@ export const RECOVERABLE_ENTRY_STATUSES = [
   'moved',
 ] as const;
 
-const DEFAULT_ENTRY_FEE_DOLLARS = 25;
-
 const parseFeeDollars = (value: number | string | null): number | null => {
   if (value == null) return null;
   const parsed =
@@ -93,7 +91,8 @@ const getNormalEntryFeeCents = (entry: RecoverableEntryRow): number => {
   }
   if (preEntryFee != null) return Math.round(preEntryFee * 100);
 
-  return Math.round((classFee ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
+  // No fee anywhere: $0, as price_entry_fee and stripe-checkout price it (MYK9-1931).
+  return 0;
 };
 
 /**

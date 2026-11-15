@@ -39,11 +39,14 @@ describe('Score Confirmation read-back is readable at arm’s length', () => {
     expect(screen.getByText(value)).toHaveClass('text-2xl');
   });
 
-  it('keeps the reason at prose size', () => {
+  // MYK9-2008 (owner decision, plan-judge-at-the-ring.md) replaces MYK9-1724's
+  // prose-sized reason: the reason is read back as large as the result, right under it.
+  it('shows the reason large, in the row right under the result', () => {
     renderDialog();
     const reason = screen.getByText('Dog left the search area');
-    expect(reason).toHaveClass('text-base');
-    expect(reason).not.toHaveClass('text-2xl');
+    expect(reason).toHaveClass('text-2xl');
+    const labels = screen.getAllByText(/^(Result|NQ Reason|Area 1)$/).map(el => el.textContent);
+    expect(labels).toEqual(['Result', 'NQ Reason', 'Area 1']);
   });
 
   it('shows the armband and dog name large, so the score goes on the right dog', () => {

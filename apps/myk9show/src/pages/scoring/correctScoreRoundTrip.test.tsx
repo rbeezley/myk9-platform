@@ -274,7 +274,7 @@ describe('Correct this score: NQ with its reason (MYK9-2006)', () => {
   it.each([
     ['AKC_SCENT_WORK', 'Incorrect Call'],
     ['ASCA_SCENT_DETECTION', 'Incorrect Call'],
-    ['UKC_NOSEWORK', 'Fault Limit'],
+    ['UKC_NOSEWORK', 'Incorrect Call'], // the rulebook's first NQ fault (MYK9-2008)
   ] as const)('%s keeps the NQ and its reason', async (key, reason) => {
     const label = key === 'UKC_NOSEWORK' ? 'Recorded time' : 'Area 1 time';
     const first = await runSheet(key, oneArea, blankRow, () => {

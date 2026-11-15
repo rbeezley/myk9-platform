@@ -10,6 +10,7 @@ vi.mock('@/lib/notifications', () => ({ notifications: { info: infoMock } }));
 
 import {
   CONFIRMATION_EMAIL_FAILED_MESSAGE,
+  KEYED_RECEIPT_FAILED_MESSAGE,
   sendSubmittedEntryEmail,
   submittedEntryIdsToEmail,
 } from './sendSubmittedEntryEmail';
@@ -20,18 +21,12 @@ const created = [
 ] as never;
 
 describe('submittedEntryIdsToEmail', () => {
-  it('lists every created entry of an exhibitor submission', () => {
-    expect(submittedEntryIdsToEmail('exhibitor', { createdEntryOutcomes: created })).toEqual([
-      'e1',
-      'e2',
-    ]);
+  it('lists every created entry of a submission, whoever filed it', () => {
+    expect(submittedEntryIdsToEmail({ createdEntryOutcomes: created })).toEqual(['e1', 'e2']);
   });
 
-  it('is empty for a secretary submission or when nothing was created', () => {
-    expect(submittedEntryIdsToEmail('secretary_new', { createdEntryOutcomes: created })).toEqual(
-      []
-    );
-    expect(submittedEntryIdsToEmail('exhibitor', {})).toEqual([]);
+  it('is empty when nothing was created', () => {
+    expect(submittedEntryIdsToEmail({})).toEqual([]);
   });
 });
 
@@ -54,5 +49,12 @@ describe('sendSubmittedEntryEmail', () => {
     await sendSubmittedEntryEmail('reg-1', ['e1']);
     expect(infoMock).toHaveBeenCalledTimes(2);
     expect(infoMock).toHaveBeenCalledWith(CONFIRMATION_EMAIL_FAILED_MESSAGE);
+  });
+
+  it('tells a show official in her own words when a keyed receipt could not be sent', async () => {
+    sendMock.mockResolvedValueOnce({ ok: false, error: 'No email address for registrant' });
+    await sendSubmittedEntryEmail('reg-1', ['e1'], 'secretary_new');
+    expect(infoMock).toHaveBeenCalledWith(KEYED_RECEIPT_FAILED_MESSAGE);
+    expect(infoMock).not.toHaveBeenCalledWith(CONFIRMATION_EMAIL_FAILED_MESSAGE);
   });
 });

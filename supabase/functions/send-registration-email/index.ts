@@ -9,6 +9,13 @@ import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { isReceiptSweepCaller } from './systemCaller.ts';
+import { roleManagesShow, type CallerRoleRow } from './showOfficial.ts';
+import {
+  formatStreetAddress,
+  loadJudgeNamesByClass,
+  myShowsUrl,
+  type ClassJudgeClient,
+} from '../_shared/exhibitorEmailFacts.ts';
 import { formatUsShowDateRange } from './dateFormat.ts';
 import { buildRegistrationEmailHtml, payAtShowMethod } from './registrationEmailHtml.ts';
 import { REGISTRATION_ENTRIES_SELECT, mapRegistrationEntries } from './registrationEntries.ts';
@@ -85,7 +92,7 @@ handle<SendRegistrationEmailPayload>(
     const { data: registration, error: regError } = await supabase
       .from('enrollments')
       .select(
-        '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message, club_id, secretary_email, cc_secretary_on_exhibitor_emails), person:people(first_name, last_name, email, auth_user_id)'
+        '*, show:shows(name, start_date, end_date, location, venue_name, address, city, state, zip_code, club_id, secretary_email, cc_secretary_on_exhibitor_emails), person:people(first_name, last_name, email, auth_user_id)'
       )
       .eq('id', registrationId)
       .single();
@@ -98,53 +105,27 @@ handle<SendRegistrationEmailPayload>(
       throw new HttpError(404, 'Registration not found');
     }
 
-    // Verify the caller owns this registration or is a secretary/admin for the show
+    // Verify the caller owns this registration or manages its show (MYK9-1999: a show official
+    // keying a mail-in entry has its receipt sent, with the same rule send-lifecycle-email uses).
     const isOwner = !!user && registration.person?.auth_user_id === user.id;
-    let isSecretary = false;
-    let isAdmin = false;
-
+    let managesShow = false;
     if (!isOwner && user) {
-      // Look up caller's person record (needed for both secretary and admin checks)
-      const { data: callerPerson } = await supabase
-        .from('people')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .maybeSingle();
-
-      if (callerPerson) {
-        // Check secretary role for show's club
-        if (registration.show?.club_id) {
-          const { data: secretaryRole, error: secretaryRoleError } = await applyActiveRoleValidity(
-            supabase
-              .from('user_roles')
-              .select('id, role:roles!inner(name)')
-              .eq('user_id', callerPerson.id)
-              .eq('club_id', registration.show.club_id)
-              .eq('roles.name', 'trial_secretary')
-          ).maybeSingle();
-          if (secretaryRoleError) {
-            throw new HttpError(500, 'Failed to verify sender role');
-          }
-          isSecretary = !!secretaryRole;
-        }
-
-        // Check platform admin role via database (SA-014: not JWT claims)
-        if (!isSecretary) {
-          const { data: adminRole, error: adminRoleError } = await applyActiveRoleValidity(
-            supabase
-              .from('user_roles')
-              .select('id, role:roles!inner(name)')
-              .eq('user_id', callerPerson.id)
-              .in('roles.name', ['site_admin', 'platform_admin'])
-          ).maybeSingle();
-          if (adminRoleError) {
-            throw new HttpError(500, 'Failed to verify sender role');
-          }
-          isAdmin = !!adminRole;
-        }
+      const { data: roles, error: roleError } = await applyActiveRoleValidity(
+        supabase
+          .from('user_roles')
+          .select('id, club_id, show_id, auth_user_id, is_active, expires_at, roles!inner(name)')
+          .eq('auth_user_id', user.id)
+      );
+      if (roleError) {
+        throw new HttpError(500, 'Failed to verify sender role');
       }
+      const show = {
+        id: registration.show_id as string,
+        club_id: registration.show?.club_id ?? null,
+      };
+      managesShow = ((roles ?? []) as CallerRoleRow[]).some(role => roleManagesShow(role, show));
     }
-    if (!isSweep && !isOwner && !isSecretary && !isAdmin) {
+    if (!isSweep && !isOwner && !managesShow) {
       throw new HttpError(403, 'Not authorized');
     }
 
@@ -222,7 +203,10 @@ handle<SendRegistrationEmailPayload>(
           .maybeSingle();
         clubName = club?.name ?? undefined;
       }
-      const siteUrl = (Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '');
+      const judgesByClass = await loadJudgeNamesByClass(
+        supabase as unknown as ClassJudgeClient,
+        entries.map((entry: { class_id?: string | null }) => entry.class_id)
+      );
       const html = buildRegistrationEmailHtml({
         firstName: registration.person?.first_name || 'there',
         confirmationNumber: registration.confirmation_number || null,
@@ -230,13 +214,13 @@ handle<SendRegistrationEmailPayload>(
         showDates: formatUsShowDateRange(show?.start_date, show?.end_date),
         showLocation: show?.location || '',
         showVenue: show?.venue_name,
-        confirmationMessage: show?.confirmation_message,
-        entries: mapRegistrationEntries(entries),
+        streetAddress: formatStreetAddress(show),
+        entries: mapRegistrationEntries(entries, judgesByClass),
         subtotal: submission ? submission.totalCents : registration.total_amount || 0,
         discount: submission ? 0 : registration.discount_amount,
         total: submission ? submission.totalCents : registration.total_amount || 0,
         paymentMethod: registration.payment_method || 'Payment on file',
-        entriesUrl: `${siteUrl}/exhibitor/entries`,
+        entriesUrl: myShowsUrl(Deno.env.get('SITE_URL')),
         clubName,
         payAtShow,
       });
@@ -282,6 +266,8 @@ handle<SendRegistrationEmailPayload>(
         email_type: 'registration_confirmation',
         related_id: registrationId,
         show_id: registration.show_id,
+        subject: emailPayload.subject,
+        body_html: emailPayload.html,
         status: 'failed',
         error_message: 'email_delivery_error',
         status_updated_at: new Date().toISOString(),
@@ -315,6 +301,9 @@ handle<SendRegistrationEmailPayload>(
         email_type: 'registration_confirmation',
         related_id: registrationId,
         show_id: registration.show_id,
+        // MYK9-1999: what the email said, so the secretary can read it from Delivery history.
+        subject: emailPayload.subject,
+        body_html: emailPayload.html,
         resend_message_id: resendMessageId,
         status: sendStatus,
         error_message: errorMessage,

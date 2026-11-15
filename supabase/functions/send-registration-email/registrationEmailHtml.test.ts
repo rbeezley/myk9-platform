@@ -90,3 +90,29 @@ describe('buildRegistrationEmailHtml confirmation number', () => {
     expect(html).not.toContain('Confirmation Number');
   });
 });
+
+describe('buildRegistrationEmailHtml receipt facts (MYK9-1999)', () => {
+  it('names the judge of each class and the street address', () => {
+    const html = buildRegistrationEmailHtml({
+      ...base,
+      streetAddress: 'Fairgrounds Hall, 1200 Fairgrounds Rd, Springfield, IL 62701',
+      entries: [{ dogName: 'Rocket', className: 'Novice A', judgeName: 'Dana Whitlock' }],
+    });
+    expect(html).toContain('Novice A, Judge Dana Whitlock');
+    expect(html).toContain('1200 Fairgrounds Rd, Springfield, IL 62701');
+    expect(html).not.toContain('Madison, WI');
+  });
+
+  it('falls back to the city when the show has no street address', () => {
+    expect(buildRegistrationEmailHtml({ ...base, streetAddress: null })).toContain('Madison, WI');
+  });
+
+  it('carries no free text from the secretary', () => {
+    const html = buildRegistrationEmailHtml({
+      ...base,
+      ...({ confirmationMessage: 'Park behind the barn' } as object),
+    });
+    expect(html).not.toContain('Park behind the barn');
+    expect(html).not.toContain('From the show secretary');
+  });
+});

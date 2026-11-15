@@ -72,4 +72,16 @@ describe('renderStripeEntryConfirmationEmail', () => {
   it('has no em dashes in what the exhibitor reads', () => {
     expect(renderStripeEntryConfirmationEmail(base)).not.toContain('—');
   });
+
+  it('names the judge of each class and the street address (MYK9-1999)', () => {
+    const html = renderStripeEntryConfirmationEmail({
+      ...base,
+      showLocation: 'Fairgrounds Hall, Springfield, IL',
+      streetAddress: 'Fairgrounds Hall, 1200 Fairgrounds Rd, Springfield, IL 62701',
+      entries: [{ ...base.entries[0]!, judgeName: 'Dana Whitlock' }],
+    });
+    expect(html).toContain('Judge Dana Whitlock');
+    expect(html).toContain('1200 Fairgrounds Rd, Springfield, IL 62701');
+    expect(html).not.toContain('Fairgrounds Hall, Springfield, IL<');
+  });
 });

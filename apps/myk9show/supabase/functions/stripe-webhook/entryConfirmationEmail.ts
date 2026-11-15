@@ -3,10 +3,14 @@ export interface StripeEntryConfirmationEmailData {
   showName: string;
   showDate: string;
   showLocation?: string;
+  /** The show's street address on one line (MYK9-1999). Shown in place of showLocation. */
+  streetAddress?: string | null;
   entries: Array<{
     dogName: string;
     className: string;
     classLevel?: string;
+    /** The class's confirmed judge, or "Judge to be announced". */
+    judgeName?: string;
     entryFee: number;
   }>;
   subtotal: number;
@@ -31,7 +35,7 @@ export function renderStripeEntryConfirmationEmail(data: StripeEntryConfirmation
       entry => `<tr>
         <td style="padding:12px;border-bottom:1px solid #e5e7eb">
           <strong>${escapeHtml(entry.dogName)}</strong><br>
-          <span style="color:#6b7280;font-size:14px">${escapeHtml(entry.className)}${entry.classLevel ? `, ${escapeHtml(entry.classLevel)}` : ''}</span>
+          <span style="color:#6b7280;font-size:14px">${escapeHtml(entry.className)}${entry.classLevel ? `, ${escapeHtml(entry.classLevel)}` : ''}${entry.judgeName ? `<br>Judge ${escapeHtml(entry.judgeName)}` : ''}</span>
         </td>
         <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right">${formatCurrency(entry.entryFee)}</td>
       </tr>`
@@ -59,7 +63,7 @@ export function renderStripeEntryConfirmationEmail(data: StripeEntryConfirmation
       <div style="padding:28px 24px">
         ${confirmationBlock}
         <p>Hi ${escapeHtml(data.exhibitorName)}, your paid entries for <strong>${escapeHtml(data.showName)}</strong> are confirmed.</p>
-        <p style="color:#6b7280">${escapeHtml(data.showDate)}${data.showLocation ? `<br>${escapeHtml(data.showLocation)}` : ''}</p>
+        <p style="color:#6b7280">${escapeHtml(data.showDate)}${(data.streetAddress ?? data.showLocation) ? `<br>${escapeHtml(data.streetAddress ?? data.showLocation ?? '')}` : ''}</p>
         <table style="width:100%;border-collapse:collapse">${entryRows}</table>
         <div style="margin-top:20px;border-top:1px solid #e5e7eb;padding-top:16px">
           <p style="margin:4px 0">Subtotal: <strong>${formatCurrency(data.subtotal)}</strong></p>

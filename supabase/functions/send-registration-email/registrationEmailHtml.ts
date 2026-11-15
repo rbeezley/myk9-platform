@@ -45,8 +45,10 @@ export function buildRegistrationEmailHtml(data: {
   showDates: string;
   showLocation: string;
   showVenue?: string;
-  confirmationMessage?: string;
-  entries: Array<{ dogName: string; className: string; armband?: string }>;
+  /** The show's street address on one line; the email falls back to the city when null. */
+  streetAddress?: string | null;
+  /** Each entry with its class's judge. A money email carries no free text from the secretary. */
+  entries: Array<{ dogName: string; className: string; judgeName?: string; armband?: string }>;
   subtotal: number;
   discount?: number;
   total: number;
@@ -66,7 +68,7 @@ export function buildRegistrationEmailHtml(data: {
         `<tr>
       <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
         <strong>${escapeHtml(e.dogName)}</strong><br>
-        <span style="color: #6b7280; font-size: 14px;">${escapeHtml(e.className)}</span>
+        <span style="color: #6b7280; font-size: 14px;">${escapeHtml(e.className)}${e.judgeName ? `, Judge ${escapeHtml(e.judgeName)}` : ''}</span>
       </td>
       ${e.armband ? `<td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right; color: #6b7280; font-size: 14px;">#${escapeHtml(e.armband)}</td>` : '<td></td>'}
     </tr>`
@@ -80,14 +82,6 @@ export function buildRegistrationEmailHtml(data: {
         <p style="margin: 4px 0 0; font-size: 20px; font-weight: 600; color: #059669; font-family: monospace;">${escapeHtml(data.confirmationNumber)}</p>
       </div>
 `
-    : '';
-
-  const messageSection = data.confirmationMessage
-    ? `
-    <div style="background-color: #eff6ff; border-radius: 6px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #3b82f6;">
-      <p style="margin: 0 0 4px; font-weight: 600; font-size: 14px; color: #1e40af;">From the show secretary</p>
-      <p style="margin: 0; color: #1e3a5f; font-size: 14px; line-height: 22px;">${escapeHtml(data.confirmationMessage)}</p>
-    </div>`
     : '';
 
   const discountRow =
@@ -119,10 +113,8 @@ ${confirmationSection}
       <div style="background-color: #f9fafb; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
         <p style="margin: 0; font-weight: 600; font-size: 18px; color: #1a1a1e;">${escapeHtml(data.showName)}</p>
         <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">${escapeHtml(data.showDates)}</p>
-        <p style="margin: 2px 0 0; color: #6b7280; font-size: 14px;">${escapeHtml(data.showLocation)}${data.showVenue ? ` · ${escapeHtml(data.showVenue)}` : ''}</p>
+        <p style="margin: 2px 0 0; color: #6b7280; font-size: 14px;">${data.streetAddress ? escapeHtml(data.streetAddress) : `${escapeHtml(data.showLocation)}${data.showVenue ? ` · ${escapeHtml(data.showVenue)}` : ''}`}</p>
       </div>
-
-      ${messageSection}
 
       <h2 style="font-size: 16px; margin: 24px 0 12px; color: #1a1a1e;">Your Entries</h2>
       <table style="width: 100%; border-collapse: collapse;">${entriesHtml}</table>

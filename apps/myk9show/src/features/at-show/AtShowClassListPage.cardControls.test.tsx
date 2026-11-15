@@ -36,9 +36,16 @@ const queue = vi.hoisted(() => ({ pending: [] as unknown[] }));
 vi.mock('@/services/replication/sharedMutationManager', () => ({
   mutationManager: {
     getPendingMutationsForTable: vi.fn(async () => queue.pending),
-    getPendingCount: vi.fn(async () => queue.pending.length),
   },
 }));
+// This device's unsent work (MYK9-2011): the queue the counts read, refused scores included.
+vi.mock('@/services/replication/unsentWork', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication/unsentWork')>();
+  return {
+    ...actual,
+    readDeviceUnsentWork: vi.fn(async () => actual.summarizeUnsentWork(queue.pending as never, [])),
+  };
+});
 
 // The real role hook runs; the account's primary role decides Class Options access
 // (a secretary is a class manager, an exhibitor is not).
@@ -384,8 +391,10 @@ describe('Set Max Time scoring-mode lookup', () => {
 
 describe('upload indicator', () => {
   const queuedScore = {
+    id: 'm-1',
     tableName: 'entries',
     rowId: 'entry-1',
+    timestamp: 1,
     rpc: { name: 'ringside_update_entry', fields: { is_scored: true } },
   };
 
@@ -397,9 +406,14 @@ describe('upload indicator', () => {
     renderPage();
 
     const card = (await screen.findByText('Interior Excellent')).closest('li') as HTMLElement;
-    expect(await within(card).findByText('1 score not sent yet')).toBeInTheDocument();
+    const count = await within(card).findByRole('link', { name: '1 score not sent yet' });
+    // The count opens the Scores not sent list (MYK9-2011).
+    expect(count).toHaveAttribute('href', '/at-show/show-1/scores-not-sent');
     expect(within(card).getByText('Offline Scoring')).toBeInTheDocument();
-    expect(screen.getAllByText(/not sent yet/)).toHaveLength(1);
+    // One class card holds it; the header counts the same score.
+    const cards = document.querySelectorAll('li[data-class-id]');
+    const cardsWithCount = [...cards].filter(li => /not sent yet/.test(li.textContent ?? ''));
+    expect(cardsWithCount).toHaveLength(1);
   });
 
   it('shows nothing when the queue is empty', async () => {

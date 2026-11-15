@@ -164,39 +164,20 @@ function registerZoomReflowChecks(
         );
         expect(wrapModes, `${zoom * 100}%: action rows are not set to wrap`).toEqual(['wrap']);
 
-        // 5. Money stays readable — the report claimed "Current Fees clipped".
-        //    Below 721px `CompactStatsRow` collapses the stat grid behind a
-        //    summary toggle, and a `display:none` element reports zero width, so
-        //    a truncation check alone would pass vacuously at 200%. Expand first,
-        //    then require a real painted box before judging truncation.
-        const statsToggle = page.locator('button[aria-controls="exhibitor-stat-cards"]');
-        if ((await statsToggle.count()) > 0 && (await statsToggle.first().isVisible())) {
-          if ((await statsToggle.first().getAttribute('aria-expanded')) !== 'true') {
-            await statsToggle.first().click();
-          }
+        // 5. Money stays readable: a show's own "Pay $X" button (MYK9-2030), when
+        //    the demo exhibitor owes anything, must paint and not truncate.
+        const payLinks = page.getByRole('link', { name: /^Pay \$[\d,]+\.\d{2}$/ });
+        if ((await payLinks.count()) > 0) {
+          const pay = await payLinks.first().evaluate(element => {
+            const box = element.getBoundingClientRect();
+            return {
+              painted: box.width > 0 && box.height > 0,
+              truncated: element.scrollWidth > element.clientWidth + 1,
+            };
+          });
+          expect(pay.painted, `${zoom * 100}%: Pay button has no painted box`).toBe(true);
+          expect(pay.truncated, `${zoom * 100}%: Pay button truncates its text`).toBe(false);
         }
-        // "Entry fees" since the four-card stat grid became a single fee strip
-        // (#1862). This spec is not in the PR-gating set, so the rename broke it
-        // silently — hence the assertion below reads the shipped label.
-        await expect(page.getByText('Entry fees', { exact: true }).first()).toBeVisible();
-
-        const fees = await page.evaluate(() => {
-          const label = Array.from(document.querySelectorAll('*')).find(
-            el => el.children.length === 0 && el.textContent?.trim() === 'Entry fees'
-          );
-          if (!label) return { found: false, painted: false, truncated: true };
-          // Judge the whole stat card, not just the label: the amount lives in a
-          // sibling node and is the part that actually matters.
-          const card = label.closest('button') ?? label.parentElement!;
-          const box = card.getBoundingClientRect();
-          const truncated = Array.from(card.querySelectorAll('*')).some(
-            el => el.children.length === 0 && el.scrollWidth > el.clientWidth + 1
-          );
-          return { found: true, painted: box.width > 0 && box.height > 0, truncated };
-        });
-        expect(fees.found, `${zoom * 100}%: "Entry fees" not rendered`).toBe(true);
-        expect(fees.painted, `${zoom * 100}%: "Entry fees" has no painted box`).toBe(true);
-        expect(fees.truncated, `${zoom * 100}%: "Entry fees" card truncates its text`).toBe(false);
 
         // 6. "Add Dog" must be on screen without scrolling the dog rail
         //    (MYK9-124). It used to be the rail's last child, so with 3+ dogs at

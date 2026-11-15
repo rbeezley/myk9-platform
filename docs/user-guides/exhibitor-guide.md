@@ -150,7 +150,7 @@ Each show has an **Actions** menu: **Add Entry**, **Change handler or jump heigh
 
 **When the status changes to Accepted,** you'll receive a push notification (if notifications are enabled on your device).
 
-**Unpaid entries:** If you see a **Finish Payment** button, your entry is reserved but payment didn't complete. Tap it to return to checkout before the deadline.
+**Unpaid entries:** Each show lists what you owe for that show, with its own **Pay** button showing the amount. Your entry is reserved but payment didn't complete. Tap **Pay** to return to checkout before the deadline.
 
 ---
 

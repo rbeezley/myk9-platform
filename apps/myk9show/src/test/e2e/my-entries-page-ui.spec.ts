@@ -53,9 +53,8 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
   });
 
   test('should not display hardcoded trend percentages', async ({ page }) => {
-    // Wait for stat cards to load (StatCard renders icon inside [data-slot="icon"])
-    await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
-
+    // `navigateToMyShows` already waited for the loaded page (the filter rail),
+    // so these absence checks run against real content.
     // Check that no fake trend percentages exist anywhere on the page
     const fakeTrends = ['+5%', '+12%', '-3%', '+8%'];
     for (const trend of fakeTrends) {
@@ -64,38 +63,27 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     }
   });
 
-  test('shows the entry-fee strip, and only that', async ({ page }) => {
-    // The four-card grid is gone. Current entries / Upcoming shows / Completed
-    // shows were deleted: two deep-linked to filters rendered a few hundred
-    // pixels below them, and "Completed Shows" counted SHOWS beside a filter
-    // counting entries. Only the fee balance is left, because it is the one
-    // fact here that lives off this page and can be acted on.
-    await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
-
-    await expect(page.getByRole('button', { name: /^Entry fees:/ })).toBeVisible();
-
-    for (const retired of [/^Current entries:/, /^Upcoming Shows?:/, /^Completed Shows?:/]) {
+  test('shows no stat cards and no all-shows fee row', async ({ page }) => {
+    // The four-card grid went first (Current entries / Upcoming / Completed),
+    // and the last strip, the all-shows "Entry fees" total, went with MYK9-2030
+    // (owner decision 2026-11-14): it added several shows together and disagreed
+    // with each card's own "Pay $X". Money owed now lives on each show card.
+    for (const retired of [
+      /^Entry fees:/,
+      /^Current entries:/,
+      /^Upcoming Shows?:/,
+      /^Completed Shows?:/,
+    ]) {
       await expect(page.getByRole('button', { name: retired })).toHaveCount(0);
     }
   });
 
-  test('keeps the fee balance visible on a phone, with no disclosure to open', async ({
-    page,
-  }, testInfo) => {
+  test('has no collapsed summary to open on a phone', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'mobile projects only');
 
-    // The old mobile summary line existed to collapse a four-card grid while
-    // still surfacing this balance. With one strip there is nothing to hide,
-    // so the balance is simply present — and there must be no toggle.
-    await expect(page.getByRole('button', { name: /^Entry fees:/ })).toBeVisible();
+    // The old mobile summary line collapsed the stat grid; with the grid and the
+    // fee row gone there is nothing to hide, and there must be no toggle.
     await expect(page.locator('[aria-controls="exhibitor-stat-cards"]')).toHaveCount(0);
-  });
-
-  test('states the fee balance in words, not just a figure', async ({ page }) => {
-    await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
-
-    const feeStrip = page.getByRole('button', { name: /^Entry fees:/ });
-    await expect(feeStrip).toHaveAccessibleName(/paid in full|you owe|outstanding/i);
   });
 });
 

@@ -82,9 +82,6 @@ vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({
   useSelfCheckinMap: (classIds: string[]) =>
     Object.fromEntries(classIds.map(classId => [classId, true])),
 }));
-vi.mock('@/components/exhibitor/CompactStatsRow', () => ({
-  CompactStatsRow: () => null,
-}));
 vi.mock('@/components/exhibitor/DogStrip', () => ({
   DogStrip: () => null,
 }));
@@ -441,9 +438,8 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByRole('radiogroup', { name: /filter by time/i });
 
-      // CompactStatsRow is mocked to null in this file; its label assertions
-      // live in CompactStatsRow.test.tsx. Verify the page renders its filters
-      // and no fake trend strings leak in from anywhere else on the page.
+      // Verify the page renders its filters and no fake trend strings leak in
+      // from anywhere on the page.
       expect(
         screen.getByRole('radiogroup', { name: /filter by entry status/i })
       ).toBeInTheDocument();
@@ -601,7 +597,7 @@ describe('MyEntriesPage UI Improvements', () => {
       const stack = entriesWrapper!.parentElement!;
       expect(stack).toHaveClass('flex', 'flex-col', 'gap-8');
       const dogWrapper = Array.from(stack.children).find(child =>
-        child.className.includes('max-[720px]:order-2')
+        child.className.includes('max-[720px]:order-3')
       );
       expect(dogWrapper).toBeTruthy();
     });
@@ -979,6 +975,32 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(screen.getAllByText(/outstanding balance/).length).toBeGreaterThan(0);
       expect(screen.getByText(/contact the club to settle/i)).toBeInTheDocument();
       expect(screen.queryByText('Paid')).not.toBeInTheDocument();
+      // The balance is stated on the show card; no all-shows total sits above it.
+      expect(screen.queryByTestId('entry-fee-balance')).not.toBeInTheDocument();
+    });
+
+    it('states money owed per show with its own Pay button and no all-shows total (MYK9-2030)', async () => {
+      seedAuthWithPerson();
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
+        data: makeShowRows(2, {
+          payment_status: 'pending',
+          payment_method: 'credit_card',
+          entry_fee: 30,
+        }).map(row => ({
+          ...row,
+          show: { ...row.show, start_date: '2099-12-01', end_date: '2099-12-02' },
+        })),
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByText('Show 1');
+      expect(await screen.findAllByRole('link', { name: 'Pay $30.00' })).toHaveLength(2);
+      expect(screen.queryByTestId('entry-fee-balance')).not.toBeInTheDocument();
+      expect(screen.queryByText('$60.00')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Finish Payment/)).not.toBeInTheDocument();
     });
 
     it('opens the result reveal from a resultEntryId query param when the result is visible', async () => {

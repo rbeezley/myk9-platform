@@ -20,7 +20,6 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { FinishSetupLine } from './modules/FinishSetupLine';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
-import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { Calendar as CalendarIcon } from 'lucide-react';
@@ -117,7 +116,6 @@ const MyEntriesPage: React.FC = () => {
     statusCounts,
     statusCountsAllWindows,
     setSelectedTab,
-    entryStats,
     tabCounts,
     scopeMatch,
     clearScope,
@@ -206,18 +204,6 @@ const MyEntriesPage: React.FC = () => {
   const isInitialEntriesSyncing =
     entries.length === 0 &&
     areReplicationTablesPendingFirstSync(syncStatus, ['entries', 'dogs', 'classes', 'shows']);
-
-  // The pay link must target the SAME debt the amount-due figure describes.
-  // `balanceSummary` comes from the raw ungrouped rows (exhibitor-money-clarity);
-  // deriving the href from the grouped entries instead could send the exhibitor
-  // to a cart that disagrees with the amount they were just shown. The
-  // `?? summarizeEntryBalances(entries)` arm that used to sit here was dead
-  // (`balanceSummary` is non-null) and would have re-derived an UNGATED summary
-  // on the one page whose rule is one derivation, one gate (MYK9-629 round 2).
-  const currentFeesHref = useMemo(
-    () => buildEntryBalanceRecoveryHref(balanceSummary),
-    [balanceSummary]
-  );
 
   // Dialog state and the result-reveal cluster live in modules/ (MYK9-217).
   // `useResultReveal` also owns the `?resultEntryId=` deep link.
@@ -392,31 +378,20 @@ const MyEntriesPage: React.FC = () => {
               <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
             ) : (
               <>
-                {/* A wait-list-only exhibitor skips these two: a stat row of
-                  zeros and an empty dog strip are the noise FirstRunZeroState
-                  exists to suppress, and they have no entries to summarise.
+                {/* A wait-list-only exhibitor skips this: an empty dog strip is
+                  the noise FirstRunZeroState exists to suppress, and they have
+                  no entries to summarise. Money owed is stated per show on each
+                  show card, never added up here (MYK9-2030).
                   The filter section below still renders for them, so the
                   filters keep working and every filter that hides their
                   position still explains itself — the alternative was a blank
                   page under `?status=accepted`. */}
-                {/* The stat row is two dollar figures. When the balance is
-                  `unknown` they would both render as $0.00 — "paid up" stated
-                  about rows the server never confirmed — so the ROW is withheld
-                  (`showMoney`), exactly as the amount-due card on My Payments
-                  is. The dog strip beside it is not money and stays: gating the
-                  whole component took "Add a dog" away from an exhibitor whose
-                  read happened to be unconfirmed (MYK9-629 round 1). */}
                 {entries.length > 0 && (
                   <MyEntriesOverview
-                    showMoney={balanceSummary.kind === 'known'}
                     moneyWarning={
                       balanceSummary.kind === 'unknown' ||
                       (balanceSummary.unresolvedShowIds?.length ?? 0) > 0
                     }
-                    amountDue={entryStats.currentAmountDue}
-                    hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
-                    currentFeesHref={currentFeesHref}
-                    onNavigate={navigate}
                     dogs={visibleDogs as OverviewDog[]}
                     entries={entries}
                     showDogStrip={!isWide}
@@ -425,13 +400,10 @@ const MyEntriesPage: React.FC = () => {
                 )}
 
                 {/* Entries section — order-1 on mobile puts the primary filters directly
-                  below the hero/today context. The balance card stays intact immediately
-                  after the filtered list, while the dog strip remains secondary. Desktop
-                  keeps source order (balance, dogs, entries). */}
+                  below the hero/today context, while the dog strip remains secondary.
+                  Desktop keeps source order (dogs, entries). */}
                 <div data-testid="entries-filter-section" className="space-y-8 max-[720px]:order-1">
-                  {/* The scope note distinguishes this all-time count from the
-                    "Current entries" stat card above, which is scoped to
-                    upcoming/in-review only. */}
+                  {/* The scope note says this count is all-time. */}
                   {/* Also the focus fallback after leaving a class (MYK9-658). */}
                   <MyShowsListHeading />
 

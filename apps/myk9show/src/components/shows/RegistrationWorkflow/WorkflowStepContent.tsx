@@ -30,6 +30,7 @@ import { notifications } from '@/lib/notifications';
 import { NoDogsYetAlert } from './NoDogsYetAlert';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
 import type { WorkflowMode } from './RegistrationWorkflow.types';
+import { fullConfirmationNote } from './fullConfirmationNote';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
@@ -194,7 +195,6 @@ export function WorkflowStepContent({
     // to wire the gate" bugs.
     const style = getShowStyle(currentShow);
 
-    const firstTrial = allTrials.find(t => t.showId === showId);
     const firstDogId = receiptSelectedDogs[0];
     const firstDog = dogs.find(d => d.id === firstDogId);
     const firstClassSelection = receiptClassSelections.find(s => s.dogId === firstDogId);
@@ -232,25 +232,18 @@ export function WorkflowStepContent({
       dogRegisteredName: firstDog ? (getDogRegisteredName(firstDog) ?? '') : '',
       dogCallName: firstDog?.callName ?? null,
       classSummary,
-      // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar
-      // day when parsed as UTC midnight by users west of UTC. Strip any existing time
-      // component first in case the DB ever stores a full timestamp.
-      confirmationDateLabel: firstTrial?.confirmationDate
-        ? new Date(firstTrial.confirmationDate.split('T')[0] + 'T12:00:00').toLocaleDateString(
-            'en-US',
-            { day: 'numeric', month: 'long', year: 'numeric' }
-          )
-        : null,
+      // MYK9-1999: the full confirmation goes by itself once the entry is accepted; the
+      // secretary sets no date for it.
+      fullConfirmationNote: fullConfirmationNote(currentWorkflowMode),
     } as const;
   }, [
     currentStepId,
-    showId,
-    allTrials,
     dogs,
     classes,
     receiptSelectedDogs,
     receiptClassSelections,
     currentShow,
+    currentWorkflowMode,
   ]);
 
   const entryBlankResult = useMemo(() => {
@@ -334,7 +327,7 @@ export function WorkflowStepContent({
             ? FREE_ENTRY_AMOUNT_LABEL
             : `$${receiptTotalFees.toFixed(2)}`,
           registrationNumber: registrationNumber ?? null,
-          confirmationDateLabel: styledReceipt.confirmationDateLabel,
+          fullConfirmationNote: styledReceipt.fullConfirmationNote,
           // INTENT: Exhibitor self-service still waits for the post-draw blank.
           // Staff workflows can print a specific created entry here because the
           // replication-backed class data already carries its judge assignment.

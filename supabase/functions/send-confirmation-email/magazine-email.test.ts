@@ -166,13 +166,13 @@ describe('buildMagazineHtml', () => {
 
   it('omits the CTA when trialUrl is null', () => {
     const html = buildMagazineHtml(makeData({ trialUrl: null }));
-    expect(html).not.toContain('View trial particulars');
+    expect(html).not.toContain('See your entries in My Shows');
   });
 
-  it('renders the CTA + "View in browser" link when trialUrl is set', () => {
+  it('renders the CTA + "My Shows" link when trialUrl is set', () => {
     const html = buildMagazineHtml(makeData({ trialUrl: 'https://myk9show.com/bckc-spring-2026' }));
-    expect(html).toContain('View trial particulars →');
-    expect(html).toContain('View in browser');
+    expect(html).toContain('See your entries in My Shows →');
+    expect(html).toContain('>My Shows<');
   });
 
   it('renders the license reference in the footer fine print', () => {

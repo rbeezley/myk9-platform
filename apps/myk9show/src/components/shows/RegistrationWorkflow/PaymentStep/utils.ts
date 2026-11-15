@@ -74,16 +74,19 @@ export function showDayOfShowContext(show: ShowFeeInfo): DayOfShowEntryContext {
 const DEFAULT_ENTRY_FEE = 25;
 
 /**
- * Determine the entry fee for a class.
+ * Determine the entry fee for a class. The same rule as `private.price_entry_fee`
+ * (MYK9-1931; the shared cases in supabase/tests/myk9_1931_class_fee_wins_test.sql
+ * run through both).
  *
  * Priority:
- * 1. Show-level fee tier based on date (pre-entry vs day-of-show)
- * 2. Class-level entryFee (fallback when show has no fees)
- * 3. DEFAULT_ENTRY_FEE ($25 fallback)
+ * 1. The class's own fee, when it is set and above 0. On a day-of entry the show's
+ *    day-of surcharge (day-of fee minus pre-entry fee, when above it) is added.
+ * 2. Otherwise the show's fee tier based on date (pre-entry vs day-of-show).
+ * 3. Otherwise $0 when the show is known: no show fee and no class fee of its own
+ *    is free, exactly as the server's COALESCE(..., 0) prices it.
+ * 4. With no show at all: the class fee as given (0 stays 0), else DEFAULT_ENTRY_FEE ($25).
  *
- * Note: per-class fee overrides (e.g. detective costs more) require a
- * separate `feeOverride` flag on the class so template defaults don't
- * accidentally override show-level fees.
+ * A class fee of 0 or none means "charge the show's fee": zero is never a price.
  */
 export function getShowEntryFee(
   show: ShowFeeInfo | undefined,
@@ -108,6 +111,11 @@ function getNormalEntryFee(
   classEntryFee: number | undefined,
   isDayOfShow: boolean | undefined
 ): number {
+  const ownFee =
+    classEntryFee !== undefined && Number.isFinite(classEntryFee) && classEntryFee > 0
+      ? classEntryFee
+      : null;
+
   // Show-level fee with date-based tier
   if (show) {
     // ONE rule, shared with `entries.is_day_of_show` (MYK9-642). The app used to
@@ -116,25 +124,74 @@ function getNormalEntryFee(
     // certified to the registry as a pre-entry. Both judgements now come from
     // `isDayOfShowEntry`, which the server restates in `submit_show_entries`.
     const dayOfShow = isDayOfShow ?? isDayOfShowEntry(showDayOfShowContext(show));
-    if (dayOfShow && show.dayOfShowFee) {
-      const dayFee = parseFloat(show.dayOfShowFee.replace(/[$,]/g, ''));
-      // Zero means "no day-of tier", NOT "free". Leaving Day-of-Show Fee blank in
-      // the creation wizard persists "0.00" rather than NULL, so there is nothing
-      // else to distinguish "unset" from "deliberately free" -- and a day-of tier
-      // exists to charge more, never less than nothing. Accepting 0 here overrode
-      // the pre-entry fee for every entry taken from the show's start date onward
-      // and stored it `payment_status: paid`, so no downstream check ever flagged
-      // the missing money. Any positive amount still wins, even below pre-entry.
-      if (!isNaN(dayFee) && dayFee > 0) return dayFee;
-    }
+    const dayFee = show.dayOfShowFee ? parseFloat(show.dayOfShowFee.replace(/[$,]/g, '')) : NaN;
+    // Zero means "no day-of tier", NOT "free". Leaving Day-of-Show Fee blank in
+    // the creation wizard persists "0.00" rather than NULL, so there is nothing
+    // else to distinguish "unset" from "deliberately free" -- and a day-of tier
+    // exists to charge more, never less than nothing. Accepting 0 here overrode
+    // the pre-entry fee for every entry taken from the show's start date onward
+    // and stored it `payment_status: paid`, so no downstream check ever flagged
+    // the missing money. Any positive amount still wins, even below pre-entry.
+    const dayOfTier = dayOfShow && !isNaN(dayFee) && dayFee > 0;
+    const parsedPre = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));
+    const preFee = !isNaN(parsedPre) && parsedPre >= 0 ? parsedPre : null;
 
-    const preFee = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));
-    if (!isNaN(preFee) && preFee >= 0) return preFee;
+    // MYK9-1931: a class's own fee wins. A day-of entry adds the show's surcharge.
+    if (ownFee !== null) {
+      const surcharge = dayOfTier && preFee !== null && dayFee > preFee ? dayFee - preFee : 0;
+      return Math.round((ownFee + surcharge) * 100) / 100;
+    }
+    if (dayOfTier) return dayFee;
+    if (preFee !== null) return preFee;
+    // The server's COALESCE(..., 0): no show fee and no class fee of its own is $0.
+    return 0;
   }
 
+  if (ownFee !== null) return ownFee;
   // Class-level fee as fallback. Use ?? so an explicit 0 is respected
   // (a legitimately free class should not silently fall back to $25).
   return classEntryFee ?? DEFAULT_ENTRY_FEE;
+}
+
+/** MYK9-1931: the same words checkout refuses a $0 line with (cartItemPricing.ts). */
+export const NO_ENTRY_FEE_MESSAGE =
+  "This class has no entry fee set yet. Ask the show's secretary.";
+
+/**
+ * MYK9-1931, owner rule "zero is never a price": true when the class's normal price is $0,
+ * the same test stripe-checkout refuses a line on (`findUnpricedLines`, price <= 0). That is
+ * a show with no pre-entry fee or a stored $0 one, no day-of tier that applies (a day-of fee
+ * of 0 is none) and no fee of the class's own. Such an entry cannot be bought online. The
+ * shared pricing matrix (supabase/tests/myk9_1931_class_fee_wins_test.sql) pins it: a row is
+ * unpriced exactly when the server prices it at 0.
+ */
+export function hasNoEntryFeeSet(
+  show: ShowFeeInfo,
+  classEntryFee: number | undefined,
+  isDayOfShow?: boolean
+): boolean {
+  return getNormalEntryFee(show, classEntryFee, isDayOfShow) <= 0;
+}
+
+/** The selected payable classes (wait-list requests excluded) that have no entry fee set. */
+export function findNoEntryFeeClassIds(
+  selectedDogs: readonly string[],
+  classSelections: readonly ClassSelectionData[],
+  classes: readonly ClassLike[],
+  show: ShowFeeInfo,
+  nonPayableClassIds: NonPayableClassIds = new Set()
+): Set<string> {
+  const selected = new Set(selectedDogs);
+  const ids = new Set<string>();
+  for (const selection of classSelections) {
+    if (!selected.has(selection.dogId)) continue;
+    for (const { classId } of selection.selectedClasses) {
+      if (nonPayableClassIds.has(classId)) continue;
+      const classData = classes.find(c => c.id === classId);
+      if (hasNoEntryFeeSet(show, classData?.entryFee)) ids.add(classId);
+    }
+  }
+  return ids;
 }
 
 /**

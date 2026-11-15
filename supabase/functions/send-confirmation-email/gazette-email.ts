@@ -18,6 +18,7 @@ import {
   hasOnTheDayDetails,
   type ConfirmationEmailBaseData,
   type ConfirmationEmailRunRow,
+  renderSecretaryNoteBlock,
 } from './confirmation-email-shared.ts';
 import { renderVenueMapBlock } from './venue-directions.ts';
 
@@ -139,7 +140,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
         </td>
       </tr>
     </table>
-    ${renderVenueMapBlock(data.venueMap, data.venue)}
+    ${renderVenueMapBlock(data.venueMap, data.venue)}${renderSecretaryNoteBlock(data.secretaryNote)}
   </td>
 </tr>`
     : '';
@@ -155,7 +156,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td style="background:${GZ_INK};">
-          <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:16px 28px;font-family:${GZ_DISPLAY};font-weight:700;font-size:15px;letter-spacing:0.04em;text-transform:uppercase;color:${GZ_PAPER};text-decoration:none;">View Trial Particulars ▸</a>
+          <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:16px 28px;font-family:${GZ_DISPLAY};font-weight:700;font-size:15px;letter-spacing:0.04em;text-transform:uppercase;color:${GZ_PAPER};text-decoration:none;">See Your Entries in My Shows ▸</a>
         </td>
       </tr>
     </table>
@@ -212,7 +213,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
   <tr>
     <td style="padding:20px 40px 8px;font-family:${GZ_BODY};font-size:15px;line-height:1.65;color:${GZ_SOFT};">
       <p style="margin:0 0 14px;">Dear <em style="font-family:${GZ_DISPLAY};font-style:italic;font-weight:400;color:${GZ_INK};font-size:17px;">${esc(data.salutation)}</em>,</p>
-      <p style="margin:0 0 14px;">Your entry has been received and the draw is complete. Below: the dog, the runs, and your armband — please bring this email to check-in or write the number on a slip of paper.</p>
+      <p style="margin:0 0 14px;">Your entry has been accepted. Below: the dog, the runs, and your armband. Please bring this email to check-in or write the number on a slip of paper.</p>
       <p style="margin:0;">We look forward to seeing you.</p>
     </td>
   </tr>

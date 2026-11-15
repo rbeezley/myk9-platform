@@ -12,11 +12,12 @@ export interface ClassFeeShow {
 
 /**
  * What entering this class costs today, by the same rule registration charges
- * (`getShowEntryFee`: day-of fee from the show's start or after entries close,
- * otherwise the pre-entry fee).
+ * (`getShowEntryFee`: the class's own fee when it has one, plus the show's day-of
+ * surcharge on the day (MYK9-1931); otherwise the day-of fee from the show's start
+ * or after entries close, else the pre-entry fee).
  *
- * `classes.entry_fee` is a copy of the show's pre-entry fee, so reading it
- * directly showed $30 on a show charging $35 at the gate (MYK9-724 F52). Until
+ * Reading `classes.entry_fee` directly showed $30 on a show charging $35 at the
+ * gate (MYK9-724 F52), and shows nothing for a class without its own fee. Until
  * the show and its entry-window timezone are known, the class's own fee is the
  * only honest answer, as before.
  */

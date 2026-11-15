@@ -24,7 +24,7 @@ interface JuniorFeeDraft {
 /**
  * The blocking message for a draft whose fee the server would reject, else undefined: the
  * column CHECK, or a junior fee above the lowest regular fee (MYK9-1975). A wizard draft's
- * classes take the show's pre-entry fee, so the show's own fees are the whole limit.
+ * classes have no fee of their own (MYK9-1931), so the show's own fees are the whole limit.
  */
 export function juniorHandlerFeeError(show: JuniorFeeDraft): string | undefined {
   if (show.organization === 'ASCA') return undefined;

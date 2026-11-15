@@ -163,7 +163,7 @@ describe('buildPosterHtml', () => {
 
   it('renders the CTA button when trialUrl is set', () => {
     const html = buildPosterHtml(makeData());
-    expect(html).toContain('VIEW TRIAL PARTICULARS');
+    expect(html).toContain('SEE YOUR ENTRIES IN MY SHOWS');
     expect(html).toContain('https://myk9show.com/bckc-spring-2026');
   });
 

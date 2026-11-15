@@ -186,10 +186,7 @@ describe('submitOfflineLateEntry', () => {
         dayOfShowFee: '35',
         startDate: '2026-07-01',
       },
-      classes: [
-        { id: 'class-1', entryFee: 30 },
-        { id: 'class-2', entryFee: 32 },
-      ],
+      classes: [{ id: 'class-1' }, { id: 'class-2' }],
       classSelections: [
         {
           dogId: 'dog-1',
@@ -283,7 +280,7 @@ describe('submitOfflineLateEntry', () => {
         dayOfShowFee: '35',
         startDate: '2026-07-01',
       },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         {
           dogId: 'dog-1',
@@ -321,7 +318,7 @@ describe('submitOfflineLateEntry', () => {
         showId: 'show-1',
         paymentMethod: 'cash',
         showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
-        classes: [{ id: 'class-1', entryFee: 30 }],
+        classes: [{ id: 'class-1' }],
         classSelections: [
           { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
           { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
@@ -345,7 +342,7 @@ describe('submitOfflineLateEntry', () => {
         dayOfShowFee: '35',
         startDate: '2026-07-01',
       },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         {
           dogId: 'dog-1',
@@ -387,7 +384,7 @@ describe('submitOfflineLateEntry', () => {
         dayOfShowFee: '35',
         startDate: '2026-07-01',
       },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         {
           dogId: 'dog-1',
@@ -414,7 +411,7 @@ describe('submitOfflineLateEntry', () => {
         dayOfShowFee: '35',
         startDate: '2026-07-01',
       },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         {
           dogId: 'dog-1',
@@ -436,7 +433,7 @@ describe('submitOfflineLateEntry', () => {
       showId: 'show-1',
       paymentMethod: 'secretary_paid' as const,
       showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
       ],
@@ -497,7 +494,7 @@ describe('submitOfflineLateEntry', () => {
         dayOfShowFee: '35',
         startDate: '2026-07-01',
       },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         {
           dogId: 'dog-1',
@@ -536,7 +533,7 @@ describe('submitOfflineLateEntry', () => {
           entryCloseDate: '2026-09-10T00:00:00+00:00',
           entryWindowTimezone: 'America/New_York',
         },
-        classes: [{ id: 'class-1', entryFee: 30 }],
+        classes: [{ id: 'class-1' }],
         classSelections: [
           { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
         ],
@@ -570,7 +567,7 @@ describe('submitOfflineLateEntry', () => {
           entryCloseDate: '2026-12-01T00:00:00+00:00',
           entryWindowTimezone: 'America/Chicago',
         },
-        classes: [{ id: 'class-1', entryFee: 30 }],
+        classes: [{ id: 'class-1' }],
         classSelections: [
           { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
         ],
@@ -601,7 +598,7 @@ describe('submitOfflineLateEntry', () => {
           startDate: '2026-11-07T00:00:00+00:00',
           entryWindowTimezone: 'America/Chicago',
         },
-        classes: [{ id: 'class-1', entryFee: 30 }],
+        classes: [{ id: 'class-1' }],
         classSelections: [
           { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
         ],
@@ -629,7 +626,7 @@ describe('submitOfflineLateEntry', () => {
       paymentMethod: 'check',
       paymentDetails: { paymentDate: '2026-06-30' },
       showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
       ],
@@ -653,7 +650,7 @@ describe('submitOfflineLateEntry', () => {
       paymentStatus: PaymentStatus.PAID_BY_CHECK,
       paymentDetails: { paymentDate: '2026-06-30' },
       showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
       ],
@@ -671,7 +668,7 @@ describe('submitOfflineLateEntry', () => {
       showId: 'show-1',
       paymentMethod: 'check',
       showFeeInfo: { preEntryFee: '25', dayOfShowFee: '35', startDate: '2026-07-01' },
-      classes: [{ id: 'class-1', entryFee: 30 }],
+      classes: [{ id: 'class-1' }],
       classSelections: [
         { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
       ],
@@ -694,7 +691,7 @@ describe('submitOfflineLateEntry', () => {
           { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
         ],
         handlerAssignments: {},
-        classes: [{ id: 'class-1', entryFee: 25 }],
+        classes: [{ id: 'class-1' }],
         paymentMethod: 'waived',
         showFeeInfo: {} as never,
       });

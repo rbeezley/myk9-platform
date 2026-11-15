@@ -186,7 +186,6 @@ export function buildCreateShowPayload(
     showId,
     [],
     undefined,
-    { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
     trialView,
     normalizedClasses
   );
@@ -202,7 +201,8 @@ export function buildCreateShowPayload(
       level: cls.level || null,
       element: cls.element || null,
       section: cls.section || null,
-      entry_fee: cls.preEntryFee ?? cls.entryFee ?? null,
+      // MYK9-1931: empty means "use the show's fee"; nothing copies the show's fee here.
+      entry_fee: cls.entryFee ?? null,
       max_entries: cls.maxEntries ?? null,
       status: 'upcoming',
       start_time: cls.startTime || null,

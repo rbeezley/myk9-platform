@@ -12,6 +12,8 @@ export interface EntriesPanelLinesProps {
   removingLineKey?: string | null | undefined;
   /** Selected classes that are wait-list requests, so they are not charged now. */
   waitlistClassIds?: ReadonlySet<string> | undefined;
+  /** MYK9-1931: selected classes with no entry fee set; they show that, not $0. */
+  noEntryFeeClassIds?: ReadonlySet<string> | undefined;
   capacityReady?: boolean | undefined;
   capacityUnavailable?: boolean | undefined;
   /** Overrides the availability copy when another read is the reason. */
@@ -29,6 +31,7 @@ export const EntriesPanelLines: React.FC<EntriesPanelLinesProps> = ({
   onRemoveLine,
   removingLineKey,
   waitlistClassIds,
+  noEntryFeeClassIds,
   capacityReady = true,
   capacityUnavailable,
   placeholder,
@@ -65,7 +68,9 @@ export const EntriesPanelLines: React.FC<EntriesPanelLinesProps> = ({
                       ? (placeholder ?? availabilityPlaceholder(capacityUnavailable))
                       : isWaitlist
                         ? 'No payment due'
-                        : formatCartCurrency(line.feeCents)}
+                        : noEntryFeeClassIds?.has(line.classId)
+                          ? 'No entry fee set yet'
+                          : formatCartCurrency(line.feeCents)}
                   </span>
                   {onRemoveLine && (
                     <Button

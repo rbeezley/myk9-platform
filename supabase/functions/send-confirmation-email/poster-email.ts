@@ -1,3 +1,4 @@
+import { renderSecretaryNoteBlock } from './confirmation-email-shared.ts';
 import { renderVenueMapBlock } from './venue-directions.ts';
 
 // supabase/functions/send-confirmation-email/poster-email.ts
@@ -69,6 +70,8 @@ export interface PosterEmailData {
   trialChairName: string | null;
   trialChairTitle: string | null;
   memberClubLanguage: string;
+  /** The secretary's note to exhibitors (MYK9-1999). */
+  secretaryNote?: string | null;
   licenseLanguage: string;
 }
 
@@ -161,7 +164,7 @@ export function buildPosterHtml(data: PosterEmailData): string {
       ${dayRow({ label: 'Crating', value: data.cratingNotes }, { label: 'Parking', value: data.parkingNotes })}
       ${dayRow({ label: 'Hospitality', value: data.hospitalityNotes }, { label: 'Venue', value: data.venue })}
     </table>
-    ${renderVenueMapBlock(data.venueMap, data.venue)}
+    ${renderVenueMapBlock(data.venueMap, data.venue)}${renderSecretaryNoteBlock(data.secretaryNote)}
   </td>
 </tr>`
       : '';
@@ -180,7 +183,7 @@ export function buildPosterHtml(data: PosterEmailData): string {
   <td style="padding:28px 32px 0;">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
       <tr><td bgcolor="${PO_RED}" style="background:${PO_RED};">
-        <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:18px 32px;font-family:${PO_DISPLAY};font-size:18px;letter-spacing:-0.02em;color:${PO_CREAM};text-decoration:none;">VIEW TRIAL PARTICULARS →</a>
+        <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:18px 32px;font-family:${PO_DISPLAY};font-size:18px;letter-spacing:-0.02em;color:${PO_CREAM};text-decoration:none;">SEE YOUR ENTRIES IN MY SHOWS →</a>
       </td></tr>
     </table>
   </td>
@@ -219,7 +222,7 @@ export function buildPosterHtml(data: PosterEmailData): string {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td align="left">CONFIRMED <span style="color:${PO_RED};">●</span> ${esc((data.showAbbreviation ?? 'TRIAL').toUpperCase())}</td>
-          ${data.trialUrl ? `<td align="right"><a href="${esc(data.trialUrl)}" style="color:${PO_CREAM};text-decoration:none;">VIEW IN BROWSER</a></td>` : '<td></td>'}
+          ${data.trialUrl ? `<td align="right"><a href="${esc(data.trialUrl)}" style="color:${PO_CREAM};text-decoration:none;">MY SHOWS</a></td>` : '<td></td>'}
         </tr>
       </table>
     </td>

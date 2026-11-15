@@ -30,7 +30,7 @@ function item(overrides: Partial<CartItemForPricing> = {}): CartItemForPricing {
     class_id: 'class-1',
     entry_id: null,
     junior_fee_declared: false,
-    class_entry_fee: 28,
+    class_entry_fee: null,
     ...overrides,
   };
 }
@@ -282,6 +282,7 @@ describe('checkout and webhook agree on the charged total', () => {
   });
 });
 
+// A class with no fee of its own (null) prices at the show's tiers (MYK9-1931).
 describe('priceExistingEntryCents and the payment link', () => {
   const entry = (over = {}) => ({
     junior_fee_declared: false,
@@ -290,22 +291,24 @@ describe('priceExistingEntryCents and the payment link', () => {
   });
 
   it('prices an existing entry from its stored record', () => {
-    expect(priceExistingEntryCents(show, entry(), 28, NOW)).toBe(3000);
-    expect(priceExistingEntryCents(show, entry({ junior_fee_declared: true }), 28, NOW)).toBe(1500);
-    expect(priceExistingEntryCents(show, entry({ junior_fee_override_by: 'p-1' }), 28, NOW)).toBe(
+    expect(priceExistingEntryCents(show, entry(), null, NOW)).toBe(3000);
+    expect(priceExistingEntryCents(show, entry({ junior_fee_declared: true }), null, NOW)).toBe(
+      1500
+    );
+    expect(priceExistingEntryCents(show, entry({ junior_fee_override_by: 'p-1' }), null, NOW)).toBe(
       1500
     );
   });
 
   it('charges the normal fee when the show has no junior tier or the junior fee is above it', () => {
     const declared = entry({ junior_fee_declared: true });
-    expect(priceExistingEntryCents({ ...show, junior_handler_fee: null }, declared, 28, NOW)).toBe(
+    expect(
+      priceExistingEntryCents({ ...show, junior_handler_fee: null }, declared, null, NOW)
+    ).toBe(3000);
+    expect(priceExistingEntryCents({ ...show, junior_handler_fee: 0 }, declared, null, NOW)).toBe(
       3000
     );
-    expect(priceExistingEntryCents({ ...show, junior_handler_fee: 0 }, declared, 28, NOW)).toBe(
-      3000
-    );
-    expect(priceExistingEntryCents({ ...show, junior_handler_fee: 40 }, declared, 28, NOW)).toBe(
+    expect(priceExistingEntryCents({ ...show, junior_handler_fee: 40 }, declared, null, NOW)).toBe(
       3000
     );
   });
@@ -318,7 +321,7 @@ describe('priceExistingEntryCents and the payment link', () => {
           authoritativeFeeCents: priceExistingEntryCents(
             show,
             entry({ junior_fee_declared: true }),
-            28,
+            null,
             NOW
           ),
           dogName: 'Rex',
@@ -327,7 +330,7 @@ describe('priceExistingEntryCents and the payment link', () => {
         },
         {
           entryId: 'e-adult',
-          authoritativeFeeCents: priceExistingEntryCents(show, entry(), 28, NOW),
+          authoritativeFeeCents: priceExistingEntryCents(show, entry(), null, NOW),
           dogName: 'Bella',
           className: 'Open B',
           showName: 'Spring Trial',

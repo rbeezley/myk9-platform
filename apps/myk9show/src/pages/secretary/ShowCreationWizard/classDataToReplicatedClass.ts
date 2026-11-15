@@ -14,7 +14,8 @@ export function classDataToReplicatedClass(
     level: classData.level,
     element: classData.element,
     section: classData.section,
-    entryFee: classData.preEntryFee || classData.entryFee,
+    // MYK9-1931: only a fee chosen for this class; empty charges the show's fee.
+    entryFee: classData.entryFee,
     maxEntries: classData.maxEntries ?? undefined,
     judgeName: classData.judge,
     // The person id behind `judge`. createWizardClasses writes the class-level

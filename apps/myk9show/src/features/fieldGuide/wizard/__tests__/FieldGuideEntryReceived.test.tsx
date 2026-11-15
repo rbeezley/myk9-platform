@@ -19,7 +19,8 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent Containers · Judge C. Beagles',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
+  fullConfirmationNote:
+    'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
 };
 
 describe('FieldGuideEntryReceived', () => {
@@ -128,7 +129,7 @@ describe('FieldGuideEntryReceived', () => {
 
   it('shows the confirmation-date caption when supplied', () => {
     render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/we will email you a full confirmation/)).toBeInTheDocument();
   });
 
   it('scopes its styles under [data-field-guide]', () => {

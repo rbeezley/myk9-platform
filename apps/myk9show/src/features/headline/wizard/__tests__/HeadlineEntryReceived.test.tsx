@@ -19,7 +19,8 @@ const BASE_PROPS = {
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000427',
-  confirmationDateLabel: '6 June 2026',
+  fullConfirmationNote:
+    'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
 };
 
 describe('HeadlineEntryReceived', () => {
@@ -45,7 +46,7 @@ describe('HeadlineEntryReceived', () => {
 
   it('shows the confirmation date caption when present', () => {
     render(<HeadlineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/6 June 2026/)).toBeTruthy();
+    expect(screen.getByText(/we will email you a full confirmation/)).toBeTruthy();
     expect(screen.getByText(/Watch your inbox/i)).toBeTruthy();
   });
 
@@ -70,12 +71,9 @@ describe('HeadlineEntryReceived', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  it('renders without optional call name and confirmation date', () => {
-    render(
-      <HeadlineEntryReceived {...BASE_PROPS} dogCallName={null} confirmationDateLabel={null} />
-    );
+  it('renders without the optional call name', () => {
+    render(<HeadlineEntryReceived {...BASE_PROPS} dogCallName={null} />);
 
     expect(screen.getByRole('heading', { name: /entry submitted/i })).toBeTruthy();
-    expect(screen.queryByText(/Watch your inbox/i)).toBeNull();
   });
 });

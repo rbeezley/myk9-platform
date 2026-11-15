@@ -183,8 +183,8 @@ describe('buildGazetteHtml', () => {
   it('renders the CTA only when trialUrl is set', () => {
     const without = buildGazetteHtml(makeData({ trialUrl: null }));
     const withUrl = buildGazetteHtml(makeData({ trialUrl: 'https://myk9show.com/bckc' }));
-    expect(without).not.toContain('View Trial Particulars');
-    expect(withUrl).toContain('View Trial Particulars');
+    expect(without).not.toContain('See Your Entries in My Shows');
+    expect(withUrl).toContain('See Your Entries in My Shows');
     expect(withUrl).toContain('https://myk9show.com/bckc');
   });
 

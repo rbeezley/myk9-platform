@@ -38,24 +38,33 @@ function sliceBetween(source: string, start: string, end: string): string {
 
 describe('DB migration sanity contracts', () => {
   it('selects confirmation email entries by unsent timestamp for retry idempotency', () => {
+    // MYK9-1999: one email per exhibitor per show; the claim and the key cover its entries.
     const source = readRepoFile('supabase/functions/send-confirmation-email/index.ts');
-    const entryQuery = sliceBetween(
-      source,
-      '// Entries not yet sent for this trial',
-      'for (const entry'
-    );
-
+    const entryQuery = sliceBetween(source, 'loadCandidates: async', 'loadRecipients: async');
     expect(entryQuery).toContain(".is('confirmation_email_sent_at', null)");
-    expect(entryQuery).toContain(".in('confirmation_email_status', ['pending', 'failed'])");
+    expect(entryQuery).toContain(".in('confirmation_email_status', statuses)");
+    // Retries rotate: oldest change first, and a failed attempt bumps updated_at.
+    expect(entryQuery).toContain(".order('updated_at', { ascending: true })");
 
-    const sendLoop = sliceBetween(
-      source,
-      'for (const entry of entries ?? [])',
-      'return { sent, skipped, failed, receiptRetry };'
+    // The acceptance switch is read from the row the Scheduled emails switch writes.
+    const switchRead = sliceBetween(source, 'loadAcceptedEmailOff: async', 'loadCandidates: async');
+    expect(switchRead).toContain("from('show_lifecycle_email_steps')");
+    expect(switchRead).toContain(".eq('step_type', 'accepted')");
+    expect(switchRead).toContain(".eq('is_enabled', false)");
+
+    // A failed recipient read is reported, never read as "no registration".
+    const recipients = sliceBetween(source, 'loadRecipients: async', 'loadJudges: async');
+    expect(recipients).toContain('registrationsRead = false');
+
+    const claim = sliceBetween(source, 'claim: async', 'markSent: async');
+    expect(claim).toContain(".is('confirmation_email_sent_at', null)");
+    expect(claim).not.toContain("confirmation_email_status: 'pending'");
+
+    const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
+    expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
+    expect(run).toContain(
+      'idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations)'
     );
-    expect(sendLoop).not.toContain(".update({ confirmation_email_status: 'pending' })");
-    expect(sendLoop).toContain("'Idempotency-Key': `confirmation-email-${entry.id}`");
-    expect(sendLoop).not.toContain("'Idempotency-Key': `${showStyle}-confirm-${entry.id}`");
   });
 
   it('keeps the final people_insert_secretary policy role-gated', () => {

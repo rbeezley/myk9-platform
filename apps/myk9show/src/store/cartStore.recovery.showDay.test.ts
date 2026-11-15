@@ -74,7 +74,7 @@ function row(overrides: Partial<RecoverableEntryRow> = {}): RecoverableEntryRow 
     entry_fee: null,
     jump_height: null,
     special_requests: null,
-    class_entry_fee: 28,
+    class_entry_fee: null,
     show_pre_entry_fee: 25,
     show_day_of_show_fee: 35,
     show_start_date: '2026-11-10T00:00:00+00:00',
@@ -134,7 +134,7 @@ describe('findRecoverableEntries carries the show zone to the quote', () => {
     entry_fee: null,
     jump_height: null,
     special_requests: null,
-    class: { entry_fee: 28 },
+    class: { entry_fee: null },
     show: {
       pre_entry_fee: 25,
       day_of_show_fee: 35,

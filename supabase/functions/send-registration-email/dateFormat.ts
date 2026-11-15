@@ -34,5 +34,5 @@ export function formatUsShowDateRange(
   const end = formatUsCalendarDate(endDate);
   if (!start) return end;
   if (!end || start === end) return start;
-  return `${start} — ${end}`;
+  return `${start} to ${end}`;
 }

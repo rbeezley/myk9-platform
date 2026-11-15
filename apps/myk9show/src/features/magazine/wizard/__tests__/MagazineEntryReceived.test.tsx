@@ -23,7 +23,8 @@ const BASE_PROPS = {
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: '6 June 2026',
+  fullConfirmationNote:
+    'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
 };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ describe('MagazineEntryReceived', () => {
 
   it('renders confirmation date caption', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/6 June 2026/)).toBeTruthy();
+    expect(screen.getByText(/we will email you a full confirmation/)).toBeTruthy();
   });
 
   it('renders "Print my entry blank" button enabled when handler is provided', () => {
@@ -119,12 +120,5 @@ describe('MagazineEntryReceived', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
     await userEvent.click(screen.getByRole('button', { name: /return to dashboard/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
-  it('omits the caption when confirmationDateLabel is null', () => {
-    render(<MagazineEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
-    expect(screen.queryByText(/A formal confirmation will be emailed/)).toBeNull();
-    // Header still renders.
-    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
   });
 });

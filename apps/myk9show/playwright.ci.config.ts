@@ -79,6 +79,10 @@ const REGRESSION_SPECS = [
   // Verified both directions before promotion: green at head, and red with the
   // pane scrollers' `relative` removed (1974px of outer-page overflow).
   '**/secretary/focusedClassHeaderPinned.spec.ts',
+  // MYK9-1989: with a class picked and its panel pinned, six whole entry rows show at 1280x800 and
+  // 1440x900 and the first one starts in the window's upper half. Read-only; needs the seeded
+  // Heartland show, so it skips unless the isolated target is set.
+  '**/secretary/showDeskEntriesAboveFold.spec.ts',
   '**/authentication-validation.spec.ts',
   '**/slice2-dog-workspace-evidence.spec.ts',
   // The former entities/entriesUI suite targets the deleted table/card

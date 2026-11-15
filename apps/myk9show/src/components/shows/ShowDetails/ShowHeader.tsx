@@ -5,6 +5,7 @@ import type { HeroParent } from '@/components/common/DetailHero';
 import { cn } from '@/lib/utils';
 import { usePublishedHeightVar } from '@/hooks/usePublishedHeightVar';
 import { SHOW_HEADER_CLASS, SHOW_HEADER_HEIGHT_VAR } from './showStickyLayout';
+import { useClaimShowsPaneToggle } from './showsPaneToggleSlot';
 
 interface ShowHeaderProps {
   name: string;
@@ -40,6 +41,8 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
 }) => {
   const headerRef = useRef<HTMLDivElement>(null);
   usePublishedHeightVar(headerRef, SHOW_HEADER_HEIGHT_VAR);
+  // The folded Shows list's button sits beside the name instead of on a row above it (MYK9-1989).
+  const paneToggle = useClaimShowsPaneToggle();
   const dates = startDate ? formatDateRange(startDate, endDate ?? startDate) : '';
   const facts = [
     dates,
@@ -57,6 +60,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
         SHOW_HEADER_CLASS
       )}
     >
+      {paneToggle && <div className="shrink-0">{paneToggle}</div>}
       {/* The name keeps a floor; the controls wrap onto a second line before it truncates. */}
       <div className="min-w-0 flex-1 basis-48 lg:min-w-[14rem]">
         <div className="flex min-w-0 items-center gap-2">

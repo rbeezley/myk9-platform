@@ -11,11 +11,13 @@ const { saveMock, listMock } = vi.hoisted(() => ({
 vi.mock('../lunchOrdersService', () => ({
   lunchOrdersService: { listForTrial: listMock, save: saveMock, remove: vi.fn() },
 }));
+const judgesState = vi.hoisted(() => ({ paused: false }));
 vi.mock('../judgesOnDays', async importOriginal => ({
   ...(await importOriginal<typeof import('../judgesOnDays')>()),
   useJudgesOnDays: () => ({
     byTrial: new Map([['trial-1', [{ person_id: 'p-judge', judge_name: 'Jo Judge' }]]]),
     isLoading: false,
+    isPaused: judgesState.paused,
     isError: false,
     refetch: vi.fn(),
   }),
@@ -55,8 +57,19 @@ import { LunchOrdersTool } from '../LunchOrdersTool';
 describe('LunchOrdersTool', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    judgesState.paused = false;
     listMock.mockResolvedValue([]);
     saveMock.mockResolvedValue(undefined);
+  });
+
+  it('says it needs a connection, with no day cards or second heading, while the judges read is paused (MYK9-1997)', () => {
+    judgesState.paused = true;
+    render(<LunchOrdersTool showId="show-1" trials={[{ id: 'trial-1', name: 'Saturday' }]} />);
+    expect(screen.getByTestId('lunch-orders-offline')).toHaveTextContent(
+      'Not available offline. Connect to load the judges and their lunch orders.'
+    );
+    expect(screen.queryByText(/No one is assigned/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Lunch orders' })).toBeNull();
   });
 
   it('heads each day with a readable date, not the raw ISO string', async () => {

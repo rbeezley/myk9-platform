@@ -92,6 +92,7 @@ const launchCriticalSqlTests = [
   'myk9_1540_nationals_leaderboard_inputs_test.sql',
   'judge_assignment_touches_class_test.sql',
   'myk9_1300_armbands_updated_at_test.sql',
+  'myk9_2040_reacceptance_new_confirmation_test.sql',
   'myk9_819_passcode_draft_visibility_test.sql',
   'myk9_833_judge_draft_show_visibility_test.sql',
   'myk9_841_staff_on_behalf_entries_accepted_test.sql',
@@ -244,6 +245,7 @@ const launchCriticalSqlTests = [
   'myk9_1950_per_judge_passcodes_test.sql',
   'myk9_2005_qualified_time_test.sql',
   'myk9_1975_junior_fee_limit_test.sql',
+  'myk9_1931_class_fee_wins_test.sql',
   'golden_replay_trial_27835_test.sql',
 ];
 

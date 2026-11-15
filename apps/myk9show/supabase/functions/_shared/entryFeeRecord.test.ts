@@ -80,7 +80,7 @@ describe('recovery of an existing entry records what was charged', () => {
     class_id: 'class-1',
     entry_id: 'entry-1',
     junior_fee_declared: false,
-    class_entry_fee: 28,
+    class_entry_fee: null,
   };
   const stored = (fee: number | string | null) =>
     new Map<string, StoredEntryJunior>([

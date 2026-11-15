@@ -30,7 +30,7 @@ describe('submitRegistrationCartCheckout', () => {
       handlerAssignments: {
         'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
       },
-      classes: [{ id: 'class-1', entryFee: 20 }],
+      classes: [{ id: 'class-1' }],
       showFeeInfo: {
         preEntryFee: '25',
         dayOfShowFee: '30',

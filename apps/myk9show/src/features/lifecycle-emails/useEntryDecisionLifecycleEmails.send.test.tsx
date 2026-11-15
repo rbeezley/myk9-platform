@@ -86,6 +86,20 @@ describe('useEntryDecisionLifecycleEmails send result', () => {
     );
   });
 
+  it('says not sent, not success, when the server skips a superseded decision (MYK9-1974)', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({
+      sent: 0,
+      failed: 0,
+      skipped: 1,
+      total: 1,
+    });
+    await sendDecisionEmail();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      'Entry status changed since this prompt opened, so the email was not sent.'
+    );
+  });
+
   it('keeps the success toast when the send succeeds', async () => {
     vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 1, failed: 0, total: 1 });
     await sendDecisionEmail();

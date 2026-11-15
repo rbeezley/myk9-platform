@@ -48,7 +48,7 @@ export function PosterEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
 }: PosterEntryReceivedProps) {
@@ -277,7 +277,7 @@ export function PosterEntryReceived({
       </div>
 
       {/* Caption */}
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           style={{
             textAlign: 'left',
@@ -292,11 +292,7 @@ export function PosterEntryReceived({
             zIndex: 1,
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: posterColors.ink, fontWeight: 600 }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete. Watch your inbox — your armband number will be included.
+          {fullConfirmationNote}
         </p>
       )}
     </div>

@@ -2,7 +2,6 @@ import React, { useCallback, useMemo } from 'react';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -19,12 +18,12 @@ import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
 import { useClassRequirements } from '@/hooks/useClassRequirements';
-import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
+import { ClassEntryFeeField } from './ClassEntryFeeField';
 import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
 import type { ClassEditFormData, OutgoingJudge } from './ClassEditPanel.types';
 import { isScentWorkNovice } from './ClassEditPanel.helpers';
@@ -97,18 +96,16 @@ function ClassDurationField({
 // Full mode form for ClassData
 export const ClassEditForm: React.FC<{
   showId?: string;
+  classId?: string;
   activeTab: ClassTabValue;
   onTabChange: (tab: ClassTabValue) => void;
   /** False when the class came from a source that did not load its limit and wait list. */
   capacityLoaded: boolean;
   outgoingJudge: OutgoingJudge;
-}> = ({ showId, activeTab, onTabChange, capacityLoaded, outgoingJudge }) => {
+}> = ({ showId, classId, activeTab, onTabChange, capacityLoaded, outgoingJudge }) => {
   const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
-
-  const preEntryFeeError = form?.getError('preEntryFee');
-  const dayOfShowFeeError = form?.getError('dayOfShowFee');
 
   const assignedJudges = useMemo(() => {
     if (!showId) return [];
@@ -407,7 +404,7 @@ export const ClassEditForm: React.FC<{
         >
           <Card>
             <CardHeader>
-              <CardTitle>Requirements & Fees</CardTitle>
+              <CardTitle>Requirements</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -430,52 +427,10 @@ export const ClassEditForm: React.FC<{
                 value={data.itemsUsed || ''}
                 onChange={handleInputChange('itemsUsed')}
               />
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Fee Structure
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField label="Pre-Entry Fee" fieldId="preEntryFee" error={preEntryFeeError}>
-                    <CurrencyInput
-                      id="preEntryFee"
-                      value={data.preEntryFee}
-                      onChange={value => {
-                        form?.setValue('preEntryFee', value);
-                        form?.touchField('preEntryFee');
-                      }}
-                      placeholder="0.00"
-                      className={cn(preEntryFeeError && 'border-destructive')}
-                      aria-invalid={!!preEntryFeeError}
-                      aria-describedby={preEntryFeeError ? 'preEntryFee-error' : undefined}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="Day-of-Show Fee"
-                    fieldId="dayOfShowFee"
-                    error={dayOfShowFeeError}
-                  >
-                    <CurrencyInput
-                      id="dayOfShowFee"
-                      value={data.dayOfShowFee}
-                      onChange={value => {
-                        form?.setValue('dayOfShowFee', value);
-                        form?.touchField('dayOfShowFee');
-                      }}
-                      placeholder="0.00"
-                      className={cn(dayOfShowFeeError && 'border-destructive')}
-                      aria-invalid={!!dayOfShowFeeError}
-                      aria-describedby={dayOfShowFeeError ? 'dayOfShowFee-error' : undefined}
-                    />
-                  </FormField>
-                </div>
-              </div>
             </CardContent>
           </Card>
+
+          {data.entryFeeLoaded && <ClassEntryFeeField showId={showId} classId={classId} />}
         </TabsContent>
       </Tabs>
     </div>

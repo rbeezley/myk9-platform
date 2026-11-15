@@ -199,18 +199,17 @@ export function useEntryManagementActions({
             void runSingleUndo(entryId, priorStatus, newStatus, priorCheckInStatus);
           },
           duration: STATUS_UNDO_WINDOW_MS,
-          // The decision stood: Undo is off the screen and the entry still has this status
-          // (a later change to the same entry, inside the window, supersedes this one).
+          // The decision stood: Undo is off the screen without being pressed. Whether the
+          // entry STILL has this decision is the server's call when it sends (MYK9-1974):
+          // this list may be another show's by now, and another operator may have changed
+          // the entry since, so nothing here guesses at it.
           onStood: options?.onStood
             ? () => {
+                // The live row when it is on this list (it carries the armband the Accept
+                // assigned); otherwise the decision as it was made: she switched shows inside
+                // the window, and perhaps back to a list still loading.
                 const current = entriesRef.current.find(e => e.id === entryId);
-                if (current) {
-                  if (current.entryStatus === newStatus) options.onStood?.(current);
-                } else {
-                  // Not on this list: she switched shows inside the window (and perhaps back
-                  // to a list still loading). The decision still stood.
-                  options.onStood?.(decided);
-                }
+                options.onStood?.(current ?? decided);
               }
             : undefined,
           ...(offline ? { description: COPY.savedOffline } : {}),

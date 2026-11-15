@@ -43,6 +43,8 @@ export default defineConfig({
       '../../supabase/functions/_shared/userRolePerson.test.ts',
       // MYK9-1208: the root-tree copy of the step-up helper must match the app-tree copy.
       '../../supabase/functions/_shared/stepUpReauthParity.test.ts',
+      // MYK9-1999: the judge and street address helper, and its parity with the app-tree copy.
+      '../../supabase/functions/_shared/exhibitorEmailDetails.test.ts',
       '../../supabase/functions/push-trigger-scoring/*.test.ts',
       '../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts',
       // Whole directory rather than a named file: this allowlist is
@@ -68,6 +70,7 @@ export default defineConfig({
       // config, so the glob closes that gap.
       '../../supabase/functions/send-confirmation-email/*.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.decisionStatus.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.retries.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.lease.test.ts',

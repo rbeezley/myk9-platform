@@ -295,6 +295,11 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
         <UnconfirmedReadNotice detail="Payment amounts are hidden until we can confirm them. Receipts, under Actions above, still open." />
       )}
 
+      {/* INTENT: a show's balance due is always visible on its own card with
+          its own Pay button, never collapsed behind a disclosure. The all-shows
+          total that used to sit above the cards was removed on the owner's
+          decision of 2026-11-14 (MYK9-2030) because two totals on one page
+          disagreed; do not add it back. */}
       {money.kind === 'balance-due' && (
         <div className="myk9-entries-strip border-warning/20 bg-warning/10 text-warning">
           <div className="min-w-0">

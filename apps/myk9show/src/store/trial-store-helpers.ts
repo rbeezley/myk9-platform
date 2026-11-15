@@ -69,6 +69,9 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
     displayOrder: replicated.displayOrder,
     maxEntries: replicated.maxEntries ?? null,
     allowsWaitlist: replicated.allowsWaitlist,
+    // The replica stores a NULL fee as undefined; a replicated row always carried it, so a
+    // missing fee is 0, "no fee of its own" (MYK9-1931), as `mapDatabaseToClass` maps it.
+    entryFee: replicated.entryFee ?? 0,
     runOrder: replicated.classOrder,
     reopenedAfterCloseoutAt: replicated.reopenedAfterCloseoutAt ?? null,
     resultsReleasedAt: replicated.resultsReleasedAt ?? null,

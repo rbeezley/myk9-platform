@@ -89,7 +89,7 @@ function params(
       startDate: '2026-07-01',
       ...(juniorHandlerFee !== undefined ? { juniorHandlerFee } : {}),
     },
-    classes: [{ id: 'class-1', entryFee: 30 }],
+    classes: [{ id: 'class-1' }],
     classSelections: [
       { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
     ],

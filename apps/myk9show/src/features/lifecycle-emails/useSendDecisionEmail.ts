@@ -34,6 +34,9 @@ interface SendDecisionEmailArgs {
  *  - offline, or the send failed: one notice that names "Email Exhibitor" on the entry, the
  *    button that is always there. No retry button: it would act later on an entry that may
  *    have changed since.
+ *  - the entry no longer has this decision when the server sends (another operator changed it,
+ *    perhaps while she was on another show): the server skips it (MYK9-1974), and one notice
+ *    says the email was not sent. This hook does not check the status itself.
  *
  * The caller passes the name of the show the decision was made on: she may have switched
  * shows inside the Undo window, and the live name would then be the wrong show's.
@@ -160,6 +163,15 @@ export function useSendDecisionEmail({
           });
           // The send handler answers 200 even when delivery fails.
           if (result.failed > 0) throw new Error('Lifecycle email delivery failed');
+          // The server found the entry no longer has this decision (MYK9-1974): someone
+          // changed it since. The exhibitor was not told, so she hears it plainly.
+          if (result.skipped) {
+            toast.info(
+              `The ${emailName} email to ${who}${where().about} was not sent, because the entry's status changed before it went.`,
+              UNTIL_CLOSED
+            );
+            return;
+          }
           toast.success(`${emailTitle} email sent to ${who}${where().about}`);
         } catch (error) {
           if (error instanceof LifecycleEmailAlreadySavedError) return;

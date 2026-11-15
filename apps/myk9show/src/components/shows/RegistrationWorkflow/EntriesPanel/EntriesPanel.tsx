@@ -49,6 +49,8 @@ export interface EntriesPanelProps {
    */
   feeTier?: { isReady: boolean; isUnavailable: boolean } | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
+  /** MYK9-1931: selected classes with no entry fee set (not sellable online). */
+  noEntryFeeClassIds?: ReadonlySet<string> | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
   /** MYK9-2020: a secretary keying in someone's entry (no service fee line). */
@@ -79,6 +81,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   capacityUnavailable: capacityUnavailableProp,
   feeTier,
   waitlistClassIds,
+  noEntryFeeClassIds,
   onRemoveLine,
   removingLineKey,
   rates,
@@ -146,6 +149,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       capacityUnavailable={capacityUnavailable}
       placeholder={moneyPlaceholder}
       waitlistClassIds={waitlistClassIds}
+      noEntryFeeClassIds={noEntryFeeClassIds}
       {...(showRemove ? { onRemoveLine: requestRemove, removingLineKey } : {})}
     />
   );

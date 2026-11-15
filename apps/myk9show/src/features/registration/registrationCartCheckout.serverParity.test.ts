@@ -36,9 +36,10 @@ const classSelections = [
     selectedClasses: [{ classId: 'class-1' }, { classId: 'class-2' }],
   },
 ];
-const classes = [
-  { id: 'class-1', className: 'Interior Novice A', entryFee: 28 },
-  { id: 'class-2', className: 'Exterior Novice A', entryFee: 28 },
+// No fee of their own: both sides charge the show's fee (MYK9-1931).
+const classes: { id: string; className: string; entryFee?: number }[] = [
+  { id: 'class-1', className: 'Interior Novice A' },
+  { id: 'class-2', className: 'Exterior Novice A' },
 ];
 const dogs = [
   { id: 'dog-1', name: 'Rocket' },

@@ -19,7 +19,11 @@ import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
 import type { Show } from '@/types/show-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
-import { getEffectivePaymentMethod, type AcceptedPaymentMethods } from './utils';
+import {
+  getEffectivePaymentMethod,
+  NO_ENTRY_FEE_MESSAGE,
+  type AcceptedPaymentMethods,
+} from './utils';
 
 export interface PaymentMethodResolution {
   /** The method actually in force — the card fallback already applied. */
@@ -49,6 +53,11 @@ export interface PaymentMethodResolution {
    * (`is_show_secretary` and `is_trial_secretary` require show_id IS NULL).
    */
   canUseDeskPaymentActions: boolean;
+  /**
+   * MYK9-1931: a selected class has no entry fee set (no show fee, no fee of its own), so
+   * it cannot be bought online. Card checkout is withdrawn, with that as the reason.
+   */
+  noEntryFeeSet: boolean;
   /** The show record this lookup already resolved — reused for fees and the
    *  entry agreement rather than looked up a second time. */
   show: Show | undefined;
@@ -56,7 +65,9 @@ export interface PaymentMethodResolution {
 
 export function usePaymentMethodResolution(
   showId: string | undefined,
-  paymentMethod: PaymentMethod | ''
+  paymentMethod: PaymentMethod | '',
+  /** MYK9-1931: a selected payable class has no entry fee set. */
+  noEntryFeeSet = false
 ): PaymentMethodResolution {
   const { shows = [] } = useShowStore();
   const { isSecretary, isClubAdmin, isSiteAdmin } = useRegistrationPermissions();
@@ -68,8 +79,16 @@ export function usePaymentMethodResolution(
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
   const clubStripeAccountQuery = useClubStripePaymentReadiness(show?.clubId);
+  // Zero is never a price (MYK9-1931): checkout refuses a $0 line, so card is not offered.
   const cardCheckoutAvailable =
-    !isOnBehalf && clubStripeAccountQuery.isSuccess && clubStripeAccountQuery.data === true;
+    !isOnBehalf &&
+    !noEntryFeeSet &&
+    clubStripeAccountQuery.isSuccess &&
+    clubStripeAccountQuery.data === true;
+  const accountCheckPending =
+    !isOnBehalf &&
+    !noEntryFeeSet &&
+    (clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching);
   const acceptedMethods: AcceptedPaymentMethods = {
     check: show?.acceptCheckPayments ?? true,
     cash: show?.acceptCashPayments ?? true,
@@ -83,8 +102,8 @@ export function usePaymentMethodResolution(
     }),
     acceptedMethods,
     cardCheckoutAvailable,
-    accountCheckPending:
-      !isOnBehalf && (clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching),
+    accountCheckPending,
+    noEntryFeeSet,
     isOnBehalf,
     // Scoped like every other club-staff gate (utils/roleScopes): a global
     // secretary role says nothing about THIS show's club. Denied while the club
@@ -99,10 +118,12 @@ export function usePaymentMethodResolution(
     show,
     cardCheckoutUnavailableReason: isOnBehalf
       ? undefined
-      : !show?.clubId
-        ? "Online card payment isn't available because this show has no hosting club bank account. Choose check or cash instead."
-        : clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching
-          ? 'Checking online payment availability for this club.'
-          : "Online card payment isn't available for this club. Choose check or cash instead.",
+      : noEntryFeeSet
+        ? NO_ENTRY_FEE_MESSAGE
+        : !show?.clubId
+          ? "Online card payment isn't available because this show has no hosting club bank account. Choose check or cash instead."
+          : clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching
+            ? 'Checking online payment availability for this club.'
+            : "Online card payment isn't available for this club. Choose check or cash instead.",
   };
 }

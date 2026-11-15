@@ -1,12 +1,17 @@
+import { judgeLine, RECEIPT_ARMBAND_NOTE } from '../_shared/exhibitorEmailDetails.ts';
+
 export interface StripeEntryConfirmationEmailData {
   exhibitorName: string;
   showName: string;
   showDate: string;
+  /** The venue name and street address, one per line (MYK9-1999). */
   showLocation?: string;
   entries: Array<{
     dogName: string;
     className: string;
     classLevel?: string;
+    /** The class's confirmed judge; absent prints "Judge to be announced". */
+    judgeName?: string | null;
     entryFee: number;
   }>;
   subtotal: number;
@@ -21,17 +26,14 @@ export interface StripeEntryConfirmationEmailData {
   entriesUrl: string;
 }
 
-/** Armbands are given out closer to the show, so the email says where the number will appear. */
-const ARMBAND_NOTE =
-  'Your armband number is assigned closer to the show. It will appear next to each dog in My Shows.';
-
 export function renderStripeEntryConfirmationEmail(data: StripeEntryConfirmationEmailData): string {
   const entryRows = data.entries
     .map(
       entry => `<tr>
         <td style="padding:12px;border-bottom:1px solid #e5e7eb">
           <strong>${escapeHtml(entry.dogName)}</strong><br>
-          <span style="color:#6b7280;font-size:14px">${escapeHtml(entry.className)}${entry.classLevel ? `, ${escapeHtml(entry.classLevel)}` : ''}</span>
+          <span style="color:#6b7280;font-size:14px">${escapeHtml(entry.className)}${entry.classLevel ? `, ${escapeHtml(entry.classLevel)}` : ''}</span><br>
+          <span style="color:#6b7280;font-size:14px">${escapeHtml(judgeLine(entry.judgeName))}</span>
         </td>
         <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right">${formatCurrency(entry.entryFee)}</td>
       </tr>`
@@ -54,12 +56,12 @@ export function renderStripeEntryConfirmationEmail(data: StripeEntryConfirmation
   <body style="margin:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937">
     <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:8px;overflow:hidden">
       <div style="background:#2563eb;padding:24px;text-align:center">
-        <h1 style="margin:0;color:#fff;font-size:24px">Entry confirmed</h1>
+        <h1 style="margin:0;color:#fff;font-size:24px">Entry received</h1>
       </div>
       <div style="padding:28px 24px">
         ${confirmationBlock}
-        <p>Hi ${escapeHtml(data.exhibitorName)}, your paid entries for <strong>${escapeHtml(data.showName)}</strong> are confirmed.</p>
-        <p style="color:#6b7280">${escapeHtml(data.showDate)}${data.showLocation ? `<br>${escapeHtml(data.showLocation)}` : ''}</p>
+        <p>Hi ${escapeHtml(data.exhibitorName)}, we have your paid entries for <strong>${escapeHtml(data.showName)}</strong>.</p>
+        <p style="color:#6b7280">${escapeHtml(data.showDate)}${data.showLocation ? `<br>${escapeHtml(data.showLocation).replace(/\n/g, '<br>')}` : ''}</p>
         <table style="width:100%;border-collapse:collapse">${entryRows}</table>
         <div style="margin-top:20px;border-top:1px solid #e5e7eb;padding-top:16px">
           <p style="margin:4px 0">Subtotal: <strong>${formatCurrency(data.subtotal)}</strong></p>
@@ -67,7 +69,7 @@ export function renderStripeEntryConfirmationEmail(data: StripeEntryConfirmation
           ${refundPendingRow}
           <p style="margin:8px 0;font-size:18px">Total charged: <strong>${formatCurrency(data.total)}</strong></p>
         </div>
-        <p style="margin-top:20px;color:#6b7280;font-size:14px">${ARMBAND_NOTE}</p>
+        <p style="margin-top:20px;color:#6b7280;font-size:14px">${RECEIPT_ARMBAND_NOTE}</p>
         <p style="margin:20px 0 0"><a href="${escapeHtml(data.entriesUrl)}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">See your entries in My Shows</a></p>
       </div>
     </div>

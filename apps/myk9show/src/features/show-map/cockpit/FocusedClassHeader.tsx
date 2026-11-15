@@ -14,6 +14,8 @@ import {
  * show header while the class's checklist and exhibitors scroll (MYK9-1266); its height is published so focused controls scroll
  * to just below it. Stacked, it pins to the page under the show header; split, the card lives in a
  * sticky panel with its own scroll (FOCUSED_CLASS_PANEL_CLASS) and the header pins to the panel's top.
+ * Wherever it pins it is compact (MYK9-1989): pinned at full size it took most of a laptop's
+ * window and left room for one entry.
  */
 export function FocusedClassHeader({
   eyebrow,
@@ -21,6 +23,9 @@ export function FocusedClassHeader({
   facts,
   pinMode = 'none',
   menu,
+  compact = false,
+  actions,
+  summary,
   children,
 }: {
   eyebrow: string;
@@ -30,6 +35,15 @@ export function FocusedClassHeader({
   pinMode?: FocusedClassPinMode;
   /** The ⋯ Actions menu, pinned top-right like the trial card's. */
   menu?: ReactNode;
+  /**
+   * Where the header pins (a laptop's height is scarce): the name, the eyebrow and the controls on
+   * one line, the values on the next, so the class's entries start right under it (MYK9-1989).
+   */
+  compact?: boolean;
+  /** Compact only: buttons on the name's line, before the menu. */
+  actions?: ReactNode;
+  /** Compact only: the one line of values under the name, in place of `facts`. */
+  summary?: ReactNode;
   children?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -38,8 +52,10 @@ export function FocusedClassHeader({
     <div
       ref={ref}
       data-testid="focused-class-header"
+      data-compact={compact ? 'true' : undefined}
       className={cn(
-        'rounded-t-xl border-b p-5',
+        'rounded-t-xl border-b',
+        compact ? 'px-4 py-2' : 'p-5',
         pinMode === 'panel'
           ? FOCUSED_CLASS_HEADER_CLASS_IN_PANEL
           : pinMode === 'page'
@@ -47,16 +63,40 @@ export function FocusedClassHeader({
             : 'bg-card'
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-            {eyebrow}
+      {compact ? (
+        <>
+          <div className="flex flex-wrap items-center gap-x-2">
+            <div className="flex min-w-0 flex-1 basis-48 items-baseline gap-x-3">
+              {/* The name keeps its width; the eyebrow is what gives way. */}
+              <h2
+                className="max-w-full shrink-0 truncate text-lg font-semibold tracking-tight"
+                title={title}
+              >
+                {title}
+              </h2>
+              <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                {eyebrow}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {actions}
+              {menu}
+            </div>
           </div>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
-          {facts && <p className="mt-1 text-sm text-muted-foreground">{facts}</p>}
+          {summary}
+        </>
+      ) : (
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+              {eyebrow}
+            </div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
+            {facts && <p className="mt-1 text-sm text-muted-foreground">{facts}</p>}
+          </div>
+          {menu && <div className="-mr-2 -mt-2 shrink-0">{menu}</div>}
         </div>
-        {menu && <div className="-mr-2 -mt-2 shrink-0">{menu}</div>}
-      </div>
+      )}
       {children}
     </div>
   );

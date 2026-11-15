@@ -31,8 +31,8 @@ const classSelections = [
   },
 ];
 const classes = [
-  { id: 'class-1', className: 'Interior Novice A', entryFee: 28 },
-  { id: 'class-2', className: 'Exterior Novice A', entryFee: 28 },
+  { id: 'class-1', className: 'Interior Novice A' },
+  { id: 'class-2', className: 'Exterior Novice A' },
 ];
 const dogs = [
   { id: 'dog-1', name: 'Rocket' },

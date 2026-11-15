@@ -6,6 +6,7 @@ import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import ShowsMasterDetailPage from '../ShowsMasterDetailPage';
+import { useClaimShowsPaneToggle } from '@/components/shows/ShowDetails/showsPaneToggleSlot';
 
 const SECRETARY = { id: 'auth-1', roles: ['secretary'] };
 const auth = {
@@ -72,6 +73,12 @@ function OpenShowLink() {
       <Link to="/shows/show-1">Open show-1</Link>
     </>
   );
+}
+
+/** A show header that takes the folded list's "Shows" button beside its name (MYK9-1989). */
+function ClaimingShowHeader() {
+  const toggle = useClaimShowsPaneToggle();
+  return <header data-testid="claiming-header">{toggle}</header>;
 }
 
 const renderAt = (path: string) =>
@@ -312,5 +319,34 @@ describe('ShowsMasterDetailPage', () => {
     renderAt('/shows/show-1');
     expect(screen.getByText('show page (full page)')).toBeInTheDocument();
     expect(screen.queryByText(/shows list/)).not.toBeInTheDocument();
+  });
+
+  it('puts the folded "Shows" button in the show header that claims it, not on its own row (MYK9-1989)', async () => {
+    setWindow(1280);
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1']}>
+        <Routes>
+          <Route element={<ShowsMasterDetailPage />}>
+            <Route path="/shows/:id" element={<ClaimingShowHeader />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+    // One button, inside the show's header; the pane's own row above the split is gone.
+    const buttons = screen.getAllByRole('button', { name: 'Shows' });
+    expect(buttons).toHaveLength(1);
+    expect(screen.getByTestId('claiming-header')).toContainElement(buttons[0]!);
+    expect(screen.getByTestId('master-detail-layout').previousElementSibling).toHaveClass('hidden');
+
+    await user.click(buttons[0]!);
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
+
+    // Folding again puts the button back in the header, with focus on it.
+    await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
+    const again = screen.getByRole('button', { name: 'Shows' });
+    expect(screen.getByTestId('claiming-header')).toContainElement(again);
+    expect(again).toHaveFocus();
   });
 });

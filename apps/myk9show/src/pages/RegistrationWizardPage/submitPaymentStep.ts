@@ -274,9 +274,13 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       },
     });
     if (submissionResult.aborted) return false;
-    const emailEntryIds = submittedEntryIdsToEmail(ctx.currentWorkflowMode, submissionResult);
+    const emailEntryIds = submittedEntryIdsToEmail(submissionResult);
     if (emailEntryIds.length > 0) {
-      void sendSubmittedEntryEmail(submissionResult.dbRegistrationId, emailEntryIds);
+      void sendSubmittedEntryEmail(
+        submissionResult.dbRegistrationId,
+        emailEntryIds,
+        ctx.currentWorkflowMode
+      );
     }
     if (ctx.currentWorkflowMode === 'exhibitor') ctx.invalidateOwnTodayEntries();
     ctx.setRegistrationNumber(submissionResult.registrationNumber);

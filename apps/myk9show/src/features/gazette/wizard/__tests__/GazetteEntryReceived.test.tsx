@@ -31,7 +31,8 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
+  fullConfirmationNote:
+    'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
 };
 
 describe('GazetteEntryReceived', () => {
@@ -84,14 +85,7 @@ describe('GazetteEntryReceived', () => {
 
   it('renders the confirmation date caption when supplied', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeTruthy();
-  });
-
-  it('omits the confirmation caption when null', () => {
-    const { container } = render(
-      <GazetteEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />
-    );
-    expect(container.textContent).not.toMatch(/A formal confirmation will be emailed/);
+    expect(screen.getByText(/we will email you a full confirmation/)).toBeTruthy();
   });
 
   it('disables the print button when no handler is supplied', () => {

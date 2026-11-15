@@ -30,7 +30,15 @@ describe('getShowEntryFee — zero-fee handling', () => {
       startDate: '2099-01-01',
       preEntryFee: '$0',
     };
-    expect(getShowEntryFee(show, 25)).toBe(0);
+    expect(getShowEntryFee(show, undefined)).toBe(0);
+    // A class fee of 0 is no fee of its own: the show's $0 (MYK9-1931).
+    expect(getShowEntryFee(show, 0)).toBe(0);
+  });
+
+  // MYK9-1931: a class's own fee wins over the show's, even a free show's.
+  it("charges a class's own fee over the show's pre-entry fee", () => {
+    const show: ShowFeeInfo = { startDate: '2099-01-01', preEntryFee: '$0' };
+    expect(getShowEntryFee(show, 25)).toBe(25);
   });
 
   it('falls through to class fee when show fees parse to NaN', () => {
@@ -115,7 +123,8 @@ describe('getShowEntryFee — timezone-safe date comparison', () => {
 const DOG_ID = 'dog-1';
 const CLASS_ID = 'class-1';
 const dog = { id: DOG_ID, name: 'Ace' };
-const classObj = { id: CLASS_ID, entryFee: 25 };
+// No fee of its own: the class charges the show's fee (MYK9-1931).
+const classObj = { id: CLASS_ID };
 const selection: ClassSelectionData = {
   dogId: DOG_ID,
   trialId: 'trial-1',
@@ -175,7 +184,7 @@ describe('calculateTotalFees — multi-dog discount', () => {
       ownedDogs.map(ownedDog => ownedDog.id),
       selections,
       ownedDogs,
-      [classObj, { id: 'class-2', entryFee: 25 }, { id: 'class-3', entryFee: 25 }]
+      [classObj, { id: 'class-2' }, { id: 'class-3' }]
     );
 
     expect(result.subtotal).toBe(75);

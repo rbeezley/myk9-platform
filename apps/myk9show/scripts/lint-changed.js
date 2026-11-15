@@ -53,9 +53,11 @@ if (lintTargets.length === 0) {
 }
 
 console.log(`[lint:changed] Linting ${lintTargets.length} file(s) vs ${baseLabel}`);
+// Windows runs the .cmd shim, which only spawns through a shell.
+const isWindows = process.platform === 'win32';
 const result = spawnSync(
-  ESLINT_BIN,
+  isWindows ? `"${ESLINT_BIN}.cmd"` : ESLINT_BIN,
   ['--cache', '--cache-location', ESLINT_CACHE_LOCATION, ...lintTargets],
-  { cwd: appRoot, stdio: 'inherit' }
+  { cwd: appRoot, stdio: 'inherit', shell: isWindows }
 );
 process.exit(result.status ?? 1);

@@ -1,20 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
+import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import { createSupabaseNetworkGuard } from '@/test/supabaseNetworkGuard';
-import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import {
-  buildEntryBalanceRecoveryHref,
   mapEntryRowToBalanceSource,
   summarizeEntryBalances,
 } from '@/features/payments/entryBalanceSummary';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useCartStore } from '@/store/cartStore';
 import type { EntryCartItemInsert } from '@/store/cartStore.types';
 import CartPage from '@/pages/CartPage';
-import MyEntriesPage from '@/pages/MyEntriesPage';
 import { AmountDueSection } from '@/pages/exhibitor/AmountDueSection';
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -54,141 +51,6 @@ vi.mock('@/hooks/queries/useMyWaitlistEntries', () => ({
   }),
 }));
 vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({ useSelfCheckinMap: () => ({}) }));
-vi.mock('@/pages/MyEntriesPage/modules', async () => {
-  const actual = await vi.importActual<typeof import('@/pages/MyEntriesPage/modules')>(
-    '@/pages/MyEntriesPage/modules'
-  );
-  const { mapEntryRowToBalanceSource, summarizeEntryBalances } = await vi.importActual<
-    typeof import('@/features/payments/entryBalanceSummary')
-  >('@/features/payments/entryBalanceSummary');
-  const balanceSummary = summarizeEntryBalances(
-    ['entry-53', 'entry-54', 'entry-57'].map(id =>
-      mapEntryRowToBalanceSource({
-        id,
-        show_id: 'show-423',
-        entry_status: 'confirmed',
-        payment_status: 'pending',
-        payment_method: 'credit_card',
-        entry_fee: 30,
-        show: {
-          id: 'show-423',
-          name: 'Recovery Trial',
-          start_date: '2099-12-01',
-          end_date: '2099-12-02',
-          entry_close_date: '2099-11-20',
-        },
-      })
-    )
-  );
-  return {
-    ...actual,
-    useMyEntriesData: () => ({
-      entries: [
-        {
-          id: 'entry-53',
-          registrationId: null,
-          showId: 'show-423',
-          showName: 'Recovery Trial',
-          showDate: new Date('2099-12-01'),
-          location: { venue: '', city: '', state: '' },
-          dogName: 'Ranger',
-          dogId: 'dog-53',
-          classes: [],
-          dogs: [],
-          totalFee: 30,
-          entryStatus: EntryStatus.ACCEPTED,
-          paymentStatus: PaymentStatus.PENDING,
-          submittedAt: new Date('2099-01-01'),
-          lastUpdated: new Date('2099-01-01'),
-        },
-        {
-          id: 'entry-54',
-          registrationId: null,
-          showId: 'show-423',
-          showName: 'Recovery Trial',
-          showDate: new Date('2099-12-01'),
-          location: { venue: '', city: '', state: '' },
-          dogName: 'Juni',
-          dogId: 'dog-54',
-          classes: [],
-          dogs: [],
-          totalFee: 30,
-          entryStatus: EntryStatus.ACCEPTED,
-          paymentStatus: PaymentStatus.PENDING,
-          paymentMethod: 'credit_card',
-          entryCloseDay: '2099-11-20',
-          submittedAt: new Date('2099-01-01'),
-          lastUpdated: new Date('2099-01-01'),
-        },
-        {
-          id: 'entry-57',
-          registrationId: null,
-          showId: 'show-423',
-          showName: 'Recovery Trial',
-          showDate: new Date('2099-12-01'),
-          location: { venue: '', city: '', state: '' },
-          dogName: 'Maple',
-          dogId: 'dog-57',
-          classes: [],
-          dogs: [],
-          totalFee: 30,
-          entryStatus: EntryStatus.ACCEPTED,
-          paymentStatus: PaymentStatus.PENDING,
-          paymentMethod: 'credit_card',
-          entryCloseDay: '2099-11-20',
-          submittedAt: new Date('2099-01-01'),
-          lastUpdated: new Date('2099-01-01'),
-        },
-      ],
-      balanceSummary,
-      identityState: 'resolved',
-      isLoading: false,
-      isError: false,
-      refreshing: false,
-      refreshEntries: vi.fn(),
-      updateEntryCheckIn: vi.fn(),
-    }),
-    useMyEntriesFilters: () => ({
-      filteredEntries: [],
-      selectedTab: 'all',
-      selectedStatus: 'all',
-      setSelectedStatus: vi.fn(),
-      statusCounts: {},
-      setSelectedTab: vi.fn(),
-      entryStats: { currentFees: 90, currentAmountDue: 90 },
-      tabCounts: {},
-      scopeMatch: null,
-      clearScope: vi.fn(),
-      waitlistSurface: { hasPositions: false },
-    }),
-    useMyEntriesDialogs: () => ({
-      checkInDialog: { open: false, entry: null, classEntry: null },
-      editDialog: { open: false, entry: null },
-      receiptDialog: { open: false, entry: null },
-      leaveClassDialog: { open: false, target: null },
-      addDogOpen: false,
-      openCheckIn: vi.fn(),
-      openEdit: vi.fn(),
-      openReceipt: vi.fn(),
-      openLeaveClass: vi.fn(),
-      openAddDog: vi.fn(),
-      closeCheckIn: vi.fn(),
-      closeEdit: vi.fn(),
-      closeReceipt: vi.fn(),
-      closeLeaveClass: vi.fn(),
-      closeAddDog: vi.fn(),
-      submitCheckInStatus: vi.fn(),
-      entryUpdated: vi.fn(),
-    }),
-    useResultReveal: () => ({}),
-    EntryFilterStrip: () => null,
-    EntryScopeBanner: () => null,
-    ScopedPaymentSummary: () => null,
-    MyEntryCard: () => null,
-    EntriesEmptyState: () => null,
-  };
-});
-
 const entries = [
   {
     id: 'entry-53',
@@ -226,9 +88,8 @@ type RecoveryFixtureEntry = {
 };
 
 describe('MYK9-423 fee-card payment recovery', () => {
-  it('clears both money surfaces when the same recovered entries return paid', () => {
+  it('clears the My Payments balance when the same recovered entries return paid', () => {
     function MoneySurfaces({ paid }: { paid: boolean }) {
-      const navigate = useNavigate();
       const summary = summarizeEntryBalances(
         entries.map(entry =>
           mapEntryRowToBalanceSource({
@@ -250,13 +111,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
       );
       return (
         <>
-          <section aria-label="My Shows balance">
-            <CompactStatsRow
-              amountDue={summary.amountDueCents / 100}
-              currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
-              onNavigate={navigate}
-            />
-          </section>
           <section aria-label="My Payments balance">
             <AmountDueSection summary={summary} isLoading={false} isError={false} />
           </section>
@@ -264,20 +118,13 @@ describe('MYK9-423 fee-card payment recovery', () => {
       );
     }
     const { rerender } = render(<MoneySurfaces paid={false} />);
-    const showBalance = within(screen.getByRole('region', { name: 'My Shows balance' }));
     const paymentBalance = within(screen.getByRole('region', { name: 'My Payments balance' }));
-    expect(showBalance.getByText('$90.00')).toBeInTheDocument();
     expect(paymentBalance.getByText('$90.00')).toBeInTheDocument();
     expect(paymentBalance.getByRole('link', { name: 'Finish payment' })).toBeInTheDocument();
 
     // Only the three original rows' payment_status changes; identity and fees
     // remain intact. The real row mapper, summary and both displays must agree.
     rerender(<MoneySurfaces paid />);
-    expect(
-      showBalance.getByRole('button', {
-        name: 'Entry fees: paid in full. View your payments.',
-      })
-    ).toBeInTheDocument();
     expect(paymentBalance.getByText('$0.00')).toBeInTheDocument();
     expect(paymentBalance.getByText('Current entries are paid up.')).toBeInTheDocument();
     expect(screen.queryByText('$90.00')).not.toBeInTheDocument();
@@ -535,14 +382,20 @@ describe('MYK9-423 fee-card payment recovery', () => {
 
     const { user } = render(
       <Routes>
-        <Route path="/exhibitor/entries" element={<MyEntriesPage />} />
+        <Route
+          path="/exhibitor/entries"
+          element={
+            // The href is the one each show card's Pay button links to (MYK9-2030).
+            <Link to={buildFinishPaymentHref('show-423', ['entry-53', 'entry-54', 'entry-57'])}>
+              Pay $90.00
+            </Link>
+          }
+        />
         <Route path="/cart" element={<CartPage />} />
       </Routes>,
       { initialRoute: '/exhibitor/entries' }
     );
-    await user.click(
-      screen.getByRole('button', { name: /Entry fees: you owe \$90.00.*Finish payment/i })
-    );
+    await user.click(screen.getByRole('link', { name: 'Pay $90.00' }));
     expect(unsupportedFilter).toBeNull();
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });
     expect(checkout).toBeEnabled();

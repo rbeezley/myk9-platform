@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
+import { relativePosix } from '@/test/utils/posixPath';
 
 const brandName = ['my', 'K9', 'Q'].join('');
 const lowercaseBrand = brandName.toLowerCase();
@@ -45,7 +46,7 @@ describe('unified app branding', () => {
     const matches = SEARCH_ROOTS.flatMap(root => listFiles(join(appRoot, root)))
       .filter(hasTextExtension)
       .flatMap(file => {
-        const rel = relative(appRoot, file);
+        const rel = relativePosix(appRoot, file);
         if (SKIP_FILES.has(rel)) return [];
 
         const content = readFileSync(file, 'utf8').replace(approvedLineage, '');

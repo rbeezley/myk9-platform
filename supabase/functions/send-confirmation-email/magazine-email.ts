@@ -20,6 +20,7 @@ import {
   hasOnTheDayDetails,
   type ConfirmationEmailBaseData,
   type ConfirmationEmailRunRow,
+  renderSecretaryNoteBlock,
 } from './confirmation-email-shared.ts';
 import { renderVenueMapBlock } from './venue-directions.ts';
 
@@ -130,7 +131,7 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
       <tr>${infoCell('Crating', data.cratingNotes)}${infoCell('Parking', data.parkingNotes, { borderLeft: true })}</tr>
       <tr>${infoCell('Hospitality', data.hospitalityNotes, { borderBottom: `1px solid ${MZ_INK}` })}${infoCell('Venue', data.venue, { borderLeft: true, borderBottom: `1px solid ${MZ_INK}` })}</tr>
     </table>
-    ${renderVenueMapBlock(data.venueMap, data.venue)}
+    ${renderVenueMapBlock(data.venueMap, data.venue)}${renderSecretaryNoteBlock(data.secretaryNote)}
   </td>
 </tr>`
     : '';
@@ -149,7 +150,7 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td bgcolor="${MZ_INK}" style="background:${MZ_INK};">
-          <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:16px 28px;font-family:${MZ_DISPLAY};font-style:italic;font-size:16px;color:${MZ_PAPER};text-decoration:none;">View trial particulars →</a>
+          <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:16px 28px;font-family:${MZ_DISPLAY};font-style:italic;font-size:16px;color:${MZ_PAPER};text-decoration:none;">See your entries in My Shows →</a>
         </td>
       </tr>
     </table>
@@ -174,7 +175,7 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
     .join(' · ');
 
   const viewInBrowserCell = data.trialUrl
-    ? `<a href="${esc(data.trialUrl)}" style="color:${MZ_MUTE};text-decoration:none;">View in browser</a>`
+    ? `<a href="${esc(data.trialUrl)}" style="color:${MZ_MUTE};text-decoration:none;">My Shows</a>`
     : '';
 
   return `<!doctype html>
@@ -222,7 +223,7 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
       <tr>
         <td style="padding:28px 40px 8px;font-family:${MZ_BODY};font-size:16px;line-height:1.7;color:${MZ_SOFT};">
           <p style="margin:0 0 14px;">Dear <em style="font-family:${MZ_DISPLAY};font-style:italic;color:${MZ_INK};font-size:18px;">${esc(data.salutation)}</em>,</p>
-          <p style="margin:0 0 14px;">Your entry has been received and the draw is complete. You will find the dog, the runs, and your armband number below. Please bring this email to check-in.</p>
+          <p style="margin:0 0 14px;">Your entry has been accepted. You will find the dog, the runs, and your armband number below. Please bring this email to check-in.</p>
         </td>
       </tr>
 

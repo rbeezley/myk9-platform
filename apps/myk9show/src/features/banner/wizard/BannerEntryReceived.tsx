@@ -37,7 +37,7 @@ export function BannerEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
   brandColor,
@@ -249,7 +249,7 @@ export function BannerEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           style={{
             textAlign: 'left',
@@ -262,11 +262,7 @@ export function BannerEntryReceived({
             margin: '4px 0 0',
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: bannerColors.ink, fontWeight: 600 }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete. Watch your inbox — your armband number will be included.
+          {fullConfirmationNote}
         </p>
       )}
     </div>

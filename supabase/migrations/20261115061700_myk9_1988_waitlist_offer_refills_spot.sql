@@ -72,8 +72,8 @@ SET search_path = ''
 AS $$
 BEGIN
   IF current_user IN ('anon', 'authenticated')
-     AND NEW.refilled_by_offer_id IS DISTINCT FROM
-         CASE WHEN TG_OP = 'UPDATE' THEN OLD.refilled_by_offer_id END THEN
+     AND (NEW.refilled_by_offer_id IS DISTINCT FROM
+         (CASE WHEN TG_OP = 'UPDATE' THEN OLD.refilled_by_offer_id END)) THEN
     RAISE EXCEPTION 'waitlist_entries.refilled_by_offer_id is set by the server only'
       USING ERRCODE = '42501';
   END IF;

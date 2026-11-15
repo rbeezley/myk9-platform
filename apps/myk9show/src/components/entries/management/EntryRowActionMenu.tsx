@@ -1,6 +1,7 @@
 import { RowActionMenu, toRowActions } from '@/components/ui/RowActionMenu';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { entryActions, type EntryActionHandlers } from './entryActions';
+import { isPullBlockedByResult, pullBlockedByResultNote } from './checkInDesk/deskEditable';
 import { usePullAwareStatusChange } from './entryPull';
 import { useScoredRevertGuard } from './useScoredRevertGuard';
 
@@ -24,7 +25,20 @@ export function EntryRowActionMenu({ entry, ...handlers }: EntryRowActionMenuPro
   const guardedHandlers: EntryActionHandlers = handlers.onStatusChange
     ? { ...handlers, onStatusChange: guardedOnStatusChange }
     : handlers;
-  const actions = toRowActions(entry, guardedHandlers, entryActions);
+  // A dog with a result is not pulled (MYK9-1990): the Pull row stays, disabled, and says why.
+  const actions = toRowActions(entry, guardedHandlers, entryActions).map(action =>
+    action.id === 'pull' && handlers.onStatusChange && isPullBlockedByResult(entry)
+      ? {
+          ...action,
+          hidden: false,
+          disabled: true,
+          description: pullBlockedByResultNote(
+            entry.dogName,
+            entry.classes[0]?.name ?? 'this class'
+          ),
+        }
+      : action
+  );
 
   return (
     <>

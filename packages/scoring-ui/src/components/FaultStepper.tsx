@@ -21,6 +21,11 @@ export interface FaultStepperProps {
   max?: number | undefined;
   /** Shown under the row when the limit is reached ("At maximum faults for Novice level"). */
   maxNote?: string | undefined;
+  /**
+   * Sentence shown when a Qualified is over the registry's limit (MYK9-2004). The
+   * counter still counts past the limit; this only says why Save is off.
+   */
+  limitProblem?: string | null | undefined;
   /** Test ids kept per sport so existing suites keep finding their controls. */
   testIds?: { decrement?: string; increment?: string; count?: string };
   className?: string;
@@ -31,6 +36,7 @@ export const FaultStepper: React.FC<FaultStepperProps> = ({
   onChange,
   max,
   maxNote,
+  limitProblem,
   testIds,
   className,
 }) => {
@@ -85,6 +91,11 @@ export const FaultStepper: React.FC<FaultStepperProps> = ({
           </button>
         </div>
       </div>
+      {limitProblem && (
+        <div role="alert" className="text-center text-sm font-medium text-red-500">
+          {limitProblem}
+        </div>
+      )}
       {atMax && maxNote && (
         <div className="text-center text-sm font-medium text-red-500">{maxNote}</div>
       )}

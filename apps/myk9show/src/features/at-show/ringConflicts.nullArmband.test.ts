@@ -50,6 +50,10 @@ describe('detectMyRingConflicts — entries without an armband (MYK9-977)', () =
       classes,
       ownEntryIds: new Set(['a2', 'b1']),
       leadDogs: 3,
+      claims: new Map([
+        ['a2', 'live'],
+        ['b1', 'live'],
+      ]),
     });
 
     const byId = new Map(seen.queues.flat().map(e => [e.id, e.armband]));
@@ -69,6 +73,10 @@ describe('detectMyRingConflicts — entries without an armband (MYK9-977)', () =
       classes,
       ownEntryIds: new Set(['a2', 'b1']),
       leadDogs: 3,
+      claims: new Map([
+        ['a2', 'live'],
+        ['b1', 'live'],
+      ]),
     });
 
     expect(conflicts.get('a2')).toBe('b1 next in Buried Master');

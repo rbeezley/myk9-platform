@@ -198,7 +198,7 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
   it('shows the server run position in ringside wording, and nothing when there is none', () => {
     const base = exhibitorDog().entries[0]!;
     mocks.exhibitorDogs = [
-      exhibitorDog({ entries: [{ ...base, runPosition: 3 }] }),
+      exhibitorDog({ entries: [{ ...base, runPosition: 3, runClaimState: 'live' }] }),
       exhibitorDog({
         key: 'armband:8',
         armband: 8,
@@ -208,6 +208,25 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     renderRoutes('/at-show/s1/dogs');
     expect(screen.getByTestId('at-show-dog-armband:7')).toHaveTextContent('3rd up');
     expect(screen.getByTestId('at-show-dog-armband:8')).not.toHaveTextContent(/ up/);
+  });
+
+  it('words a paper class as a position and a quiet one as out of date (MYK9-1970)', () => {
+    const base = exhibitorDog().entries[0]!;
+    mocks.exhibitorDogs = [
+      exhibitorDog({ entries: [{ ...base, runPosition: 7, runClaimState: 'paper' }] }),
+      exhibitorDog({
+        key: 'armband:8',
+        armband: 8,
+        entries: [{ ...base, entryId: '8:c1', runPosition: 4, runClaimState: 'stale' }],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs');
+    const paper = screen.getByTestId('at-show-dog-armband:7');
+    expect(paper).toHaveTextContent('7th in the running order');
+    expect(paper).not.toHaveTextContent(/\d(st|nd|rd|th) up|ahead/);
+    expect(screen.getByTestId('at-show-dog-armband:8')).toHaveTextContent(
+      'Order may be out of date'
+    );
   });
 
   it("searches, and favorites a friend's dog through the synced favorites", () => {

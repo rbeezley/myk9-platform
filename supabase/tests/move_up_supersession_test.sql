@@ -385,12 +385,12 @@ $$;
 RESET ROLE;
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
-  is_scored, result_status
+  is_scored, result_status, search_time_seconds
 )
 VALUES ('00000000-0000-0000-0000-000000639064', '00000000-0000-0000-0000-000000639043',
   '00000000-0000-0000-0000-000000639031', '00000000-0000-0000-0000-000000639011',
   '00000000-0000-0000-0000-000000639021', 'completed', 'paid', 35.00,
-  true, 'qualified');
+  true, 'qualified', 30);
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000639151', true);

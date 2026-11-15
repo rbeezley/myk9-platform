@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Dog, getDogBreedLabel } from '@/types/dog-types';
+import type { Dog } from '@/types/dog-types';
+import { matchesDogSearch } from './dogSearchMatch';
 
 import { DogSearchFilters } from './DogSearchFilters';
 import {
@@ -24,21 +25,6 @@ interface DogSearchInterfaceProps {
   showQuickFilters?: boolean;
   showAdvancedFilters?: boolean;
   className?: string;
-}
-
-function matchesSearch(dog: Dog, query: string): boolean {
-  return (
-    !!dog.callName?.toLowerCase().includes(query) ||
-    !!dog.name?.toLowerCase().includes(query) ||
-    !!dog.ownerName?.toLowerCase().includes(query) ||
-    !!dog.registrations?.some(
-      reg =>
-        reg.registeredName?.toLowerCase().includes(query) ||
-        reg.registrationNumber?.toLowerCase().includes(query)
-    ) ||
-    getDogBreedLabel(dog).toLowerCase().includes(query) ||
-    !!dog.microchip?.toLowerCase().includes(query)
-  );
 }
 
 export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
@@ -70,7 +56,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   const filteredDogs = useMemo(() => {
     const narrowed = applyDogFilters(dogs, selection);
     return normalizedSearchQuery
-      ? narrowed.filter(dog => matchesSearch(dog, normalizedSearchQuery))
+      ? narrowed.filter(dog => matchesDogSearch(dog, normalizedSearchQuery))
       : narrowed;
   }, [dogs, normalizedSearchQuery, selection]);
 

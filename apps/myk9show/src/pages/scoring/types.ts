@@ -565,6 +565,8 @@ export function toScoresheetEntry(
     ...(classInfo.element != null && { element: classInfo.element }),
     ...(classInfo.level != null && { level: classInfo.level }),
     ...(entry.existingScore && canPrefillSheet(sheetKey) && { existingScore: entry.existingScore }),
+    // Timers left on the device from before this save are stale (MYK9-2007).
+    ...(entry.isScored && { hasSavedScore: true }),
   };
 }
 

@@ -13,6 +13,9 @@ import {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  parseClaimState,
+  resolveClaim,
+  runQueueStateNote,
   notRunningLabel,
   notRunningReasonOf,
   isInQueue,
@@ -232,6 +235,42 @@ describe('place in line (MYK9-992)', () => {
     expect(formatRunQueueState({ kind: 'in-ring' })).toBe('In ring');
     expect(formatRunQueueState({ kind: 'done' })).toBe('Done');
     expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
+  });
+
+  it('words a paper class and a stale order once (MYK9-1970)', () => {
+    expect(formatRunQueueState({ kind: 'paper', place: 7 })).toBe('7th in the running order');
+    expect(formatRunQueueState({ kind: 'paper' })).toBe('In the running order');
+    expect(formatRunQueueState({ kind: 'stale' })).toBe('Order may be out of date');
+    expect(runQueueStateNote({ kind: 'paper', place: 7 })).toBe(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
+    expect(runQueueStateNote({ kind: 'stale' })).toBeNull();
+    expect(runQueueStateNote({ kind: 'waiting', place: 2 })).toBeNull();
+  });
+
+  it('resolves a claim: the server answer, else paper from the class or the show, else unknown (MYK9-1970)', () => {
+    // An explicit server claim always wins.
+    expect(resolveClaim({ server: 'live', classOnPaper: true })).toBe('live');
+    expect(resolveClaim({ server: 'stale' })).toBe('stale');
+    // No claim: the class flag, else the show switch when the class follows the show.
+    expect(resolveClaim({ classOnPaper: true })).toBe('paper');
+    expect(resolveClaim({ classOnPaper: null, showUsesDeviceScoring: false })).toBe('paper');
+    expect(resolveClaim({ showUsesDeviceScoring: false })).toBe('paper');
+    // A class explicitly on devices is not paper whatever the show says.
+    expect(resolveClaim({ classOnPaper: false, showUsesDeviceScoring: false })).toBe('stale');
+    // Nothing known: never live, unless the caller says what an unknown means.
+    expect(resolveClaim({})).toBe('stale');
+    expect(resolveClaim({ classOnPaper: null, showUsesDeviceScoring: true })).toBe('stale');
+    expect(resolveClaim({ unknown: 'live' })).toBe('live');
+    expect(resolveClaim({ showUsesDeviceScoring: false, unknown: 'live' })).toBe('paper');
+  });
+
+  it('reads only the three claim states the server sends', () => {
+    expect(parseClaimState('paper')).toBe('paper');
+    expect(parseClaimState('stale')).toBe('stale');
+    expect(parseClaimState('live')).toBe('live');
+    expect(parseClaimState(null)).toBeNull();
+    expect(parseClaimState('PAPER')).toBeNull();
   });
 });
 

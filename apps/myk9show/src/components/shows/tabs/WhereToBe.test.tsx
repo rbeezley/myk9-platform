@@ -39,7 +39,9 @@ vi.mock('@/hooks/queries/useShowTrials', () => ({
   useShowTrials: () => ({ data: mockTrials.data }),
 }));
 
-const mockPlaces = vi.hoisted(() => ({ map: new Map<string, number>() }));
+const mockPlaces = vi.hoisted(() => ({
+  map: new Map<string, { place: number; claimState: 'live' | 'paper' | 'stale' }>(),
+}));
 vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
   useMyEntryQueuePlaces: () => mockPlaces.map,
 }));
@@ -465,7 +467,7 @@ describe('WhereToBe', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
       mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
-      mockPlaces.map = new Map(days.map(d => [d.id, 1]));
+      mockPlaces.map = new Map(days.map(d => [d.id, { place: 1, claimState: 'live' as const }]));
       render(
         <WhereToBe
           entries={days.map(d =>
@@ -520,7 +522,7 @@ describe('WhereToBe', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
       mockTrials.data = [];
-      mockPlaces.map = new Map([['e-unresolved', 1]]);
+      mockPlaces.map = new Map([['e-unresolved', { place: 1, claimState: 'live' as const }]]);
       render(
         <WhereToBe
           entries={[

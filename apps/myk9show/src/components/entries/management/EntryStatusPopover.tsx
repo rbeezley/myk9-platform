@@ -9,6 +9,7 @@ import { resolveEntryStatusActions, type EntryStatusActionDefinition } from './e
 import { getEntryStatusStateLabel } from './reviewStateLabels';
 import { getStatusActionHelp } from './entryVerbHelp';
 import { SENT_WHEN_ONLINE } from '@/lib/offlineCopy';
+import { isPullBlockedByResult, pullBlockedByResultNote } from './checkInDesk/deskEditable';
 import { usePullAwareStatusChange } from './entryPull';
 import { REVERT_CANCELLED, useScoredRevertGuard } from './useScoredRevertGuard';
 
@@ -138,6 +139,11 @@ export function EntryStatusPopover({
               </button>
             );
           })}
+          {isPullBlockedByResult(entry) && (
+            <p className="px-2 pt-1 text-xs text-muted-foreground">
+              {pullBlockedByResultNote(entry.dogName, entryClassName)}
+            </p>
+          )}
           {additionalContent && (
             <div
               className="mt-2 border-t pt-2"

@@ -65,14 +65,17 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
 /**
  * Sheets whose every authoritative input is hydrated from `existingScore` (result,
  * area times, faults, reason, and the saved find totals/points through
- * `useScoresheetScoring`). The rest hold extra inputs in local state that start at
- * zero (Rally deductions, Nationals alert counts, FastCAT result, Obedience
- * result, Nosework element time), so a time-only correction would overwrite real
- * saved data. They keep opening blank until each is hydrated.
+ * `useScoresheetScoring`; Nationals seeds its alert counts from the saved totals).
+ * The rest hold extra inputs in local state that start at zero (Rally deductions,
+ * FastCAT result, Obedience result), so a time-only correction would overwrite
+ * real saved data. They keep opening blank until each is hydrated. The Nosework
+ * element time is never stored, so there is nothing of it to lose.
  */
 const PREFILL_SHEETS: ReadonlySet<ScoresheetSportType> = new Set([
   'AKC_SCENT_WORK',
   'ASCA_SCENT_DETECTION',
+  'AKC_SCENT_WORK_NATIONAL',
+  'UKC_NOSEWORK',
 ]);
 
 export function canPrefillSheet(key: ScoresheetSportType | null | undefined): boolean {

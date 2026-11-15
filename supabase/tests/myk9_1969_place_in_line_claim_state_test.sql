@@ -173,7 +173,7 @@ begin
     raise exception 'FAIL C upcoming class: %', pg_temp.state_as('U', 1);
   end if;
   -- next score: back to live (the scored dog leaves the queue, the other moves up)
-  update public.entries set is_scored = true, result_status = 'qualified'
+  update public.entries set is_scored = true, result_status = 'qualified', search_time_seconds = 30
    where id = (select entry_id from fx where cls = 'P' and n = 1);
   if pg_temp.state_as('P', 2) is distinct from '1/live' then
     raise exception 'FAIL C next score should make it live: %', pg_temp.state_as('P', 2);
@@ -299,7 +299,7 @@ begin
     raise exception 'FAIL H check-in change on a scored dog must stay stale: %', pg_temp.state_as('P', 3);
   end if;
   -- a new score does refresh it (P2 was in the ring, now scored)
-  update public.entries set is_scored = true, result_status = 'qualified'
+  update public.entries set is_scored = true, result_status = 'qualified', search_time_seconds = 30
    where id = (select entry_id from fx where cls = 'P' and n = 2);
   if pg_temp.state_as('P', 3) is distinct from '1/live' then
     raise exception 'FAIL H a new score must make it live: %', pg_temp.state_as('P', 3);

@@ -15,6 +15,7 @@ import { logger } from '@/services/LoggingService';
 import { acquireCacheClearWriteLock } from '@/services/cacheClearGate';
 import {
   readPersistedAuthIsAnonymous,
+  readPersistedAuthRingsideClaim,
   readPersistedAuthUserId,
 } from '@/services/database/persistedAuthUserId';
 
@@ -60,6 +61,8 @@ export const mutationManager = new MutationManager(supabase, {
   // Stamps a new queue entry as a passcode owner's, so a later passcode session
   // can adopt it for the same show (MYK9-1205).
   getOwnerIsAnonymous: authUserId => readPersistedAuthIsAnonymous(authUserId),
+  // Which judge's claim queued it, so a refused score is only adopted back by that claim (MYK9-2009).
+  getOwnerRingsideClaim: authUserId => readPersistedAuthRingsideClaim(authUserId),
   getCurrentUploadContext: async () => {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;

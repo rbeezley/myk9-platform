@@ -17,6 +17,8 @@
  * not reused.
  */
 
+import { ringsideClaimKey } from './ringsideClaimKey';
+
 type ReadableStorage = Pick<Storage, 'getItem'>;
 
 /** The key supabase-js uses when `auth.storageKey` is not set (as in supabaseClient.ts). */
@@ -74,5 +76,31 @@ export function readPersistedAuthIsAnonymous(
     return id === authUserId && isAnonymous === true;
   } catch {
     return false;
+  }
+}
+
+/** The passcode claim of the persisted session for `authUserId`, or undefined on any doubt. */
+export function readPersistedAuthRingsideClaim(
+  authUserId: string,
+  storage: ReadableStorage | undefined = typeof window === 'undefined'
+    ? undefined
+    : window.localStorage,
+  storageKey?: string
+): string | undefined {
+  try {
+    const key = storageKey ?? deriveDefaultAuthStorageKey(import.meta.env.VITE_SUPABASE_URL || '');
+    const raw = storage?.getItem(key);
+    if (!raw) return undefined;
+    const parsed: unknown = JSON.parse(raw);
+    const user =
+      (parsed as { user?: unknown; currentSession?: { user?: unknown } } | null)?.user ??
+      (parsed as { currentSession?: { user?: unknown } } | null)?.currentSession?.user;
+    const { id, app_metadata: appMetadata } = (user ?? {}) as {
+      id?: unknown;
+      app_metadata?: unknown;
+    };
+    return id === authUserId ? ringsideClaimKey(appMetadata) : undefined;
+  } catch {
+    return undefined;
   }
 }

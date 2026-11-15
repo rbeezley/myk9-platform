@@ -396,7 +396,7 @@ export function useShowEntriesForUser(
       // conflict label and the "your turn" push all report.
       const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
       // Own rows only (see ownEntryQueueState): state, never a counted place.
-      const queue = ownEntryQueueState(entry);
+      const queue = ownEntryQueueState(entry, cls?.scoresOnPaper === true);
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;

@@ -198,6 +198,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
         waitlistClassIds={waitlistClassIds}
+        staffWorkflow={isStaff}
         {...(isPaymentStep
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,

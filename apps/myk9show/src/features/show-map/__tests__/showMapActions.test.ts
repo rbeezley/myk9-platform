@@ -1682,6 +1682,29 @@ describe('showMapActions', () => {
       expect(action?.label).toBe('Change class');
     });
 
+    it('does not offer Pull for a dog that already has a result (MYK9-1990)', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'Upcoming' },
+        ],
+        entries: [
+          {
+            id: 'entry-scored',
+            class_id: 'class-source',
+            entry_status: 'accepted',
+            is_scored: true,
+          },
+        ],
+      });
+
+      const ids = getDirectActionsForNode(tree.nodesById['entry:entry-scored']!, { tree }).map(
+        a => a.id
+      );
+      expect(ids).not.toContain('scratch-entry');
+    });
+
     it('labels the Show Desk pull "Pull" with no day-of claim (MYK9-1858)', () => {
       const tree = buildShowMapTree({
         show,

@@ -4,6 +4,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
+import { parseClaimState, type ClaimState } from '@myk9/ringside/run-queue';
 import { useEntriesReplicaInvalidation } from './useEntriesReplicaInvalidation';
 
 /**
@@ -21,8 +22,18 @@ import { useEntriesReplicaInvalidation } from './useEntriesReplicaInvalidation';
  * worse than no place at all.
  */
 
-/** Entry id -> 1-based place. Only waiting entries with a set run order appear. */
-export type QueuePlaces = ReadonlyMap<string, number>;
+/**
+ * A place in line and whether it may be shown as a live count (MYK9-1970). The server
+ * decides (`claim_state`, MYK9-1969): `paper` is a position in the running order only,
+ * `stale` may be out of date. No surface decides this for itself.
+ */
+export interface QueuePlace {
+  place: number;
+  claimState: ClaimState;
+}
+
+/** Entry id -> its place. Only waiting entries with a set run order appear. */
+export type QueuePlaces = ReadonlyMap<string, QueuePlace>;
 
 const NO_PLACES: QueuePlaces = new Map();
 
@@ -41,14 +52,35 @@ export async function fetchMyEntryQueuePlaces(entryIds: readonly string[]): Prom
     { p_entry_ids: [...entryIds] }
   );
   if (error) throw error;
-  const places = new Map<string, number>();
+  const places = new Map<string, QueuePlace>();
   for (const row of Array.isArray(data) ? data : []) {
-    const { entry_id: entryId, place } = (row ?? {}) as { entry_id?: unknown; place?: unknown };
+    const {
+      entry_id: entryId,
+      place,
+      claim_state: claimState,
+    } = (row ?? {}) as { entry_id?: unknown; place?: unknown; claim_state?: unknown };
     if (typeof entryId === 'string' && typeof place === 'number' && place >= 1) {
-      places.set(entryId, place);
+      // A claim the client does not recognise is not a live count: read it as stale.
+      places.set(entryId, { place, claimState: parseClaimState(claimState) ?? 'stale' });
     }
   }
   return places;
+}
+
+/** The server's claim state per own entry; empty when it cannot be read (offline, failed). */
+export async function readOwnClaimStates(
+  entryIds: readonly string[]
+): Promise<Map<string, ClaimState>> {
+  const claims = new Map<string, ClaimState>();
+  if (entryIds.length === 0) return claims;
+  try {
+    for (const [entryId, answer] of await fetchMyEntryQueuePlaces(entryIds)) {
+      claims.set(entryId, answer.claimState);
+    }
+  } catch {
+    // The caller falls back to what the class row says.
+  }
+  return claims;
 }
 
 /** What the query may honestly say, given its state. */

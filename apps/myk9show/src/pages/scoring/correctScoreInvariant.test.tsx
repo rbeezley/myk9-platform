@@ -34,14 +34,13 @@ const rules: ResolvedClassRules = {
   distractionCount: 0,
 };
 
-const PREFILLED: ScoresheetSportType[] = ['AKC_SCENT_WORK', 'ASCA_SCENT_DETECTION'];
-const BLANK: ScoresheetSportType[] = [
+const PREFILLED: ScoresheetSportType[] = [
+  'AKC_SCENT_WORK',
+  'ASCA_SCENT_DETECTION',
   'AKC_SCENT_WORK_NATIONAL',
-  'AKC_FASTCAT',
   'UKC_NOSEWORK',
-  'UKC_OBEDIENCE',
-  'UKC_RALLY',
 ];
+const BLANK: ScoresheetSportType[] = ['AKC_FASTCAT', 'UKC_OBEDIENCE', 'UKC_RALLY'];
 
 const savedQ: ReplicatedEntry = {
   id: 'entry-1',
@@ -83,7 +82,8 @@ async function correctTimeOnly(key: ScoresheetSportType, row: ReplicatedEntry) {
       onBack={() => {}}
     />
   );
-  fireEvent.change(screen.getByLabelText('Area 1 time'), { target: { value: '1:10.00' } });
+  const label = key === 'UKC_NOSEWORK' ? 'Recorded time' : 'Area 1 time';
+  fireEvent.change(screen.getByLabelText(label), { target: { value: '1:10.00' } });
   fireEvent.click(screen.getByTestId('submit-btn'));
   fireEvent.click(await screen.findByTestId('confirm-submit-btn'));
   await waitFor(() => expect(onSubmit).toHaveBeenCalled());
@@ -97,14 +97,22 @@ describe('Correct this score invariant (MYK9-1025)', () => {
       ['NQ', savedNq, 'NQ'],
     ])(
       'time-only correction of a saved %s keeps every other saved value',
-      async (_n, row, code) => {
+      async (_n, savedRow, code) => {
+        // A saved UKC Qualified is within the UKC fault limit (MYK9-2004).
+        const row = key === 'UKC_NOSEWORK' ? { ...savedRow, total_faults: 0 } : savedRow;
         const payload = await correctTimeOnly(key, row);
         expect(payload.resultText).toBe(code);
         expect(payload.faultCount).toBe(row.total_faults);
         expect(payload.correctCount).toBe(row.total_correct_finds);
         expect(payload.incorrectCount).toBe(row.total_incorrect_finds);
         expect(payload.finishCallErrors).toBe(row.no_finish_count);
-        expect(payload.points).toBe(row.points_earned);
+        // Nationals points are computed from the alert counts (10 per correct,
+        // 5 off per incorrect, never below 0), not stored separately.
+        expect(payload.points).toBe(
+          key === 'AKC_SCENT_WORK_NATIONAL'
+            ? Math.max(0, row.total_correct_finds! * 10 - row.total_incorrect_finds! * 5)
+            : row.points_earned
+        );
         expect(payload.nonQualifyingReason).toBe(row.disqualification_reason ?? undefined);
         expect(payload.areaTimes).toEqual(['1:10.00']);
       }

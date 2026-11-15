@@ -43,3 +43,14 @@ describe('at-show class list: cancelled (MYK9-1847)', () => {
     expect(isCancelledClassStatus(undefined)).toBe(false);
   });
 });
+
+describe('at-show class list: scored on paper (MYK9-1970)', () => {
+  it('carries the replicated paper fact to the class row, and only when it is true', () => {
+    const row = (scoresOnPaper: boolean | null | undefined) =>
+      toClassEntry({ id: 'c', name: 'C', scoresOnPaper }, [], new Set());
+    expect(row(true).scores_on_paper).toBe(true);
+    expect(row(false).scores_on_paper).toBeUndefined();
+    expect(row(null).scores_on_paper).toBeUndefined();
+    expect(row(undefined).scores_on_paper).toBeUndefined();
+  });
+});

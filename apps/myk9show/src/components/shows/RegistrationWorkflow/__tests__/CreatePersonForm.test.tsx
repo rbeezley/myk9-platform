@@ -51,6 +51,14 @@ describe('CreatePersonForm', () => {
     mockGetPendingPersonMutationIdsForRow.mockResolvedValue(['person-mutation-1']);
   });
 
+  it('does not point the secretary at role assignments while she adds an exhibitor (MYK9-2020)', async () => {
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+
+    expect(await screen.findByLabelText(/First Name/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Role assignments are managed/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'User Management' })).not.toBeInTheDocument();
+  });
+
   it('persists a mail-in exhibitor as a people row', async () => {
     createUserMock.mockResolvedValue(
       fromAny({

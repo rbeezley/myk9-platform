@@ -39,7 +39,7 @@ function setup(
     myEntries: [{ ...entry, queue }],
     isAfterClass: false,
   });
-  rpc.mockResolvedValue({ data: [{ entry_id: 'e1', place: 3 }], error: null });
+  rpc.mockResolvedValue({ data: [{ entry_id: 'e1', place: 3, claim_state: 'live' }], error: null });
   render(<ExhibitorClassCallout classId="c1" {...props} />);
 }
 

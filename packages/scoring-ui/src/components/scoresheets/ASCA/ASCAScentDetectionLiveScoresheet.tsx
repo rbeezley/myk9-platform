@@ -25,12 +25,14 @@ import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { useTimedArea } from '../../../hooks/useTimedArea';
 import { maxTimeForArea } from '../../../utils/buildResolvedClassRules';
+import { faultLimitFor } from '../../../utils/qualifiedCheck';
 import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
+import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
 const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
@@ -76,9 +78,10 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
 
   const scoring = useScoresheetScoring({
     rules,
-    existingScore: entry.existingScore,
+    ...scoringSource(entry),
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
+    qualifiedRules: { faultLimit: faultLimitFor('ASCA_SCENT_DETECTION', classInfo.level) },
   });
 
   // Each area runs against its own max time, as on the AKC sheet (MYK9-1103).
@@ -87,6 +90,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
   const maxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
   const stopwatch = useStopwatch({
+    ...timerPersist(entry),
     maxTime: maxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -175,11 +179,13 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
-            scoring.hasUnresolvedTime,
+            scoring.hasUnresolvedTime ||
+            scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,
         }}
       >
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery}
           clock={
             <span
               className={cn(
@@ -274,6 +280,8 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             onChange={value => scoring.handleAreaUpdate(index, 'time', value)}
             ariaLabel={`${searchArea.areaName} time`}
             maxLabel={maxTimeLabel(maxTimeForArea(rules, index))}
+            problem={scoring.qualifiedTimeProblems[index]}
+            onUseMax={scoring.setToMaxTime(index)}
           />
         ))}
 
@@ -296,6 +304,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             <FaultStepper
               value={scoring.faultCount}
               onChange={scoring.setFaultCount}
+              limitProblem={scoring.qualifiedFaultProblem}
               testIds={{ decrement: 'fault-decrement', increment: 'fault-increment' }}
             />
           )}

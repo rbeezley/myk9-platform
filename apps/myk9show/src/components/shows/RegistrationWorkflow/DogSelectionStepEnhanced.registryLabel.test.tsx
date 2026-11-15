@@ -76,10 +76,10 @@ describe('DogSelectionStepEnhanced — registration-number wording follows the s
       />
     );
 
-    const search = screen.getByPlaceholderText(/^Search all dogs by name, breed, or /);
+    const search = screen.getByPlaceholderText(/^Search all dogs by name, owner, breed, or /);
     expect(search).toHaveAttribute(
       'placeholder',
-      `Search all dogs by name, breed, or ${expected}...`
+      `Search all dogs by name, owner, breed, or ${expected}...`
     );
     expect(
       screen.getByText(`Search by name, breed, or ${expected} to find a dog to enter.`)

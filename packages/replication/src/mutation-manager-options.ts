@@ -29,6 +29,11 @@ export interface MutationManagerOptions {
    * later anonymous session can adopt it. Defaults to false: never adoptable.
    */
   getOwnerIsAnonymous?: (authUserId: string) => boolean;
+  /**
+   * The passcode claim (role and judge) of the persisted session for `authUserId`, or
+   * undefined. Stamped on each new queue entry as `ringsideClaim` (MYK9-2009).
+   */
+  getOwnerRingsideClaim?: (authUserId: string) => string | undefined;
   /** Resolve a request client pinned to the same auth session as its owner id. */
   getCurrentUploadContext?: () => Promise<MutationUploadAuthContext | null>;
   /** Acquire a synchronous app-level write slot before queueing a mutation. */

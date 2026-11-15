@@ -12,6 +12,7 @@ import {
   type MembershipType,
   type MembershipStatus,
   type OfficerPosition,
+  type OfficerTarget,
 } from '@/types/club-membership-types';
 import {
   getClubMembers,
@@ -206,10 +207,10 @@ export function useClubMembersManager(clubId: string) {
   });
 
   const addOfficerMutation = useMutation({
-    mutationFn: (data: { personId: string; position: string }) =>
+    mutationFn: (data: OfficerTarget & { position: string }) =>
       addClubOfficer({
         clubId: clubId,
-        personId: data.personId,
+        ...('personId' in data ? { personId: data.personId } : { displayName: data.displayName }),
         position: data.position as OfficerPosition,
       }),
     onSuccess: () => {
@@ -218,9 +219,9 @@ export function useClubMembersManager(clubId: string) {
     },
     onError: error =>
       reportMutationFailure(
-        // club_officers carries UNIQUE(club_id, person_id, position), so the
-        // reachable failure is a duplicate assignment. Name it rather than
-        // reporting a generic problem the admin cannot act on.
+        // club_officers carries UNIQUE(club_id, person_id, position) (and the same for a
+        // typed name), so the reachable failure is a duplicate assignment. Name it rather
+        // than reporting a generic problem the admin cannot act on.
         'That person already holds this position, or we could not save the change.',
         error
       ),

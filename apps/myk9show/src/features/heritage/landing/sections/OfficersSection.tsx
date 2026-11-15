@@ -33,7 +33,10 @@ export function OfficersSection({ officers, secretaryName, secretaryEmail }: Off
         <HeritageOrnamentRule className="w-32" />
         <dl className="w-full space-y-2">
           {allOfficers.map(officer => (
-            <div key={officer.title} className="flex items-baseline justify-center gap-3">
+            <div
+              key={`${officer.title}-${officer.name}`}
+              className="flex items-baseline justify-center gap-3"
+            >
               <dt
                 className="text-xs uppercase tracking-widest"
                 style={{ color: 'var(--hl-quill)', fontFamily: "'EB Garamond', Georgia, serif" }}

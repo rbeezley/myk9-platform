@@ -12,7 +12,12 @@ export {
   removeClubMember,
 } from './members';
 
-export { getClubOfficers, addClubOfficer, removeClubOfficer } from './officers';
+export {
+  getClubOfficers,
+  addClubOfficer,
+  removeClubOfficer,
+  fetchShowClubOfficers,
+} from './officers';
 
 export { getClubShowManagers, setClubShowManagerAccess } from './show-managers';
 export type { ClubShowManager } from './show-managers';

@@ -44,7 +44,7 @@ export function useBannerLandingData(
       brandColors,
       judges,
       fees,
-      officers: [],
+      officers: shared.clubOfficers ?? [],
       onTheDay: [],
     };
   }, [shared, brandColors]);

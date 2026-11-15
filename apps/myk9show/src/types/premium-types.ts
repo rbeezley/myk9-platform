@@ -114,6 +114,11 @@ export interface GeneratedPremium {
   officials: {
     chairman: { name: string; email: string | null; phone: string | null } | null;
   };
+  /**
+   * MYK9-2045: the host club's Officers list (position and name). Absent on a premium
+   * generated before it, which prints no officers.
+   */
+  officers?: Array<{ position: string; name: string }>;
   trials: Array<{
     name: string;
     date: string;

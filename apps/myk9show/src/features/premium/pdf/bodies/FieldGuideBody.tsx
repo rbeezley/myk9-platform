@@ -48,7 +48,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const blockStyle = { marginBottom: 14 };
 
   const hasOverview = Boolean(f.trialInformation.trim());
-  const hasOfficials = Boolean(chair || secretary.name);
+  const hasOfficials = Boolean(chair || secretary.name || f.officers.length > 0);
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.length > 0;
   const hasEntry = Boolean(
@@ -141,6 +141,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               </Text>
             </View>
           )}
+          {f.officers.map(o => (
+            <View key={`${o.title}-${o.name}`} style={rowStyle}>
+              <Text style={labelStyle}>{o.title}</Text>
+              <Text style={valueStyle}>{o.name}</Text>
+            </View>
+          ))}
         </View>
       )}
 

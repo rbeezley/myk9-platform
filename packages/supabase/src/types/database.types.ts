@@ -1588,9 +1588,10 @@ export type Database = {
         Row: {
           club_id: string
           created_at: string
+          display_name: string | null
           elected_date: string | null
           id: string
-          person_id: string
+          person_id: string | null
           position: string
           term_end: string | null
           term_start: string | null
@@ -1599,9 +1600,10 @@ export type Database = {
         Insert: {
           club_id: string
           created_at?: string
+          display_name?: string | null
           elected_date?: string | null
           id?: string
-          person_id: string
+          person_id?: string | null
           position: string
           term_end?: string | null
           term_start?: string | null
@@ -1610,9 +1612,10 @@ export type Database = {
         Update: {
           club_id?: string
           created_at?: string
+          display_name?: string | null
           elected_date?: string | null
           id?: string
-          person_id?: string
+          person_id?: string | null
           position?: string
           term_end?: string | null
           term_start?: string | null
@@ -14542,6 +14545,13 @@ export type Database = {
           judge_id: string
           show_date: string
           waitlist_count: number
+        }[]
+      }
+      get_show_club_officers: {
+        Args: { p_show_id: string }
+        Returns: {
+          name: string
+          position: string
         }[]
       }
       get_show_judges: {

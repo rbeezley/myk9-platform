@@ -46,7 +46,7 @@ export function GazetteBody({ data, tokens }: Props) {
   };
   const denseStyle = { ...bodyTextStyle, fontSize: tokens.bodyFontSize - 1 };
 
-  const hasOfficials = Boolean(chair);
+  const hasOfficials = Boolean(chair || f.officers.length > 0);
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.some(t => t.classLabels.length > 0);
   const hasFees = f.fees.hasAny;
@@ -79,6 +79,11 @@ export function GazetteBody({ data, tokens }: Props) {
             {chair?.email && <Text style={bodyTextStyle}>Chair Email: {chair.email}</Text>}
             {chair?.phone && <Text style={bodyTextStyle}>Chair Phone: {chair.phone}</Text>}
             {secretary.name && <Text style={bodyTextStyle}>Secretary: {secretary.name}</Text>}
+            {f.officers.map(o => (
+              <Text key={`${o.title}-${o.name}`} style={bodyTextStyle}>
+                {o.title}: {o.name}
+              </Text>
+            ))}
           </View>
         )}
 

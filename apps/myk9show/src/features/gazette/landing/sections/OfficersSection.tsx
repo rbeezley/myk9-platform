@@ -42,7 +42,7 @@ export function OfficersSection({ officers, secretaryName, volumeRoman }: Office
       <div className="grid grid-cols-1 gap-x-12 gap-y-8 sm:grid-cols-2 md:grid-cols-3">
         {all.map(officer => (
           <div
-            key={officer.title}
+            key={`${officer.title}-${officer.name}`}
             className="pt-2.5"
             style={{ borderTop: '1px solid var(--gz-ink)' }}
           >

@@ -20,7 +20,7 @@
  * happened and never touches the caller's UI state.
  */
 
-import type { CartItemWithDetails, CheckoutResult } from '@/store/cartStore';
+import type { CartItemWithDetails, CheckoutResult, WaitlistEntryResult } from '@/store/cartStore';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CART_ERROR, reportCheckoutFailure } from '@/pages/cartErrorCopy';
 import { writeCartSplitCheckoutSummary } from './cartSplitCheckoutStorage';
@@ -40,8 +40,17 @@ export type CartCheckoutOutcome =
   | { kind: 'redirecting' }
   /** Every line went to a wait list; nothing to pay. The caller navigates. */
   | { kind: 'waitlistOnly'; path: string }
-  /** Checkout did not start. `status` is the server's HTTP status when it sent one. */
-  | { kind: 'failed'; message: string; status: number | null };
+  /**
+   * Checkout did not start. `status` is the server's HTTP status when it sent
+   * one. `savedWaitlist` is present when wait-list requests were already saved
+   * before the payment step failed, so the caller can say so.
+   */
+  | {
+      kind: 'failed';
+      message: string;
+      status: number | null;
+      savedWaitlist?: WaitlistEntryResult[];
+    };
 
 export interface StartCartCheckoutInput {
   cart: { id: string; show_id: string };
@@ -87,6 +96,8 @@ export async function startCartCheckout({
   // is an already-submitted entry; a mixed cart stays fail closed so a new line
   // is never charged while availability is unknown.
   const onlyRecoveredItems = areAllCartItemsRecovered(items);
+  // Wait-list requests this call saved; a later failure must not hide them.
+  let savedWaitlist: WaitlistEntryResult[] = [];
 
   try {
     // Re-check capacity at submit rather than trusting a render-time snapshot.
@@ -125,6 +136,7 @@ export async function startCartCheckout({
     if (!splitResult) {
       return failed(CART_ERROR.waitlistFailed);
     }
+    savedWaitlist = splitResult.waitlisted;
 
     for (const itemId of Array.from(splitDecision.waitlistItemIds)) {
       const removed = await removeItem(itemId);
@@ -165,6 +177,9 @@ export async function startCartCheckout({
     // failures they can act on (fees were re-priced, review and retry) from
     // ones they cannot (the club has no payout account).
     const status = err instanceof CheckoutSessionError ? err.status : null;
-    return failed(reportCheckoutFailure(err, cart.id), status);
+    const message = reportCheckoutFailure(err, cart.id);
+    return savedWaitlist.length > 0
+      ? { kind: 'failed', message, status, savedWaitlist }
+      : failed(message, status);
   }
 }

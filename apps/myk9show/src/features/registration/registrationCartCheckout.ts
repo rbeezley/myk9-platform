@@ -10,7 +10,12 @@ import {
 import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
 import { fetchCartCapacity } from '@/hooks/queries/useCartCapacity';
 import { CART_ERROR } from '@/pages/cartErrorCopy';
-import type { CartWithDetails, EnsureCartResult, NewCartItem } from '@/store/cartStore';
+import type {
+  CartWithDetails,
+  EnsureCartResult,
+  NewCartItem,
+  WaitlistEntryResult,
+} from '@/store/cartStore';
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { registrationToCartItems } from '@/utils/registrationToCartItems';
 import { PlainEntryError } from './entrySubmitErrorCopy';
@@ -162,7 +167,30 @@ export async function submitRegistrationCartCheckout({
   if (!(await deps.clearCart())) {
     await deps.abandonCart();
   }
-  throw new PlainEntryError(outcome.message);
+  // A full class may already be on its wait list (saved before Stripe was
+  // asked). Say so, or she cannot tell from the kept selections. A retry
+  // re-sends that line, and `add_to_waitlist` answers with the request it
+  // already holds for that dog and class rather than adding a second one.
+  const saved = outcome.savedWaitlist ?? [];
+  throw new PlainEntryError(
+    saved.length > 0 ? `${describeSavedWaitlist(saved)} ${outcome.message}` : outcome.message
+  );
+}
+
+/** "Your waitlist request for Novice Container is saved. Payment for ..." */
+export function describeSavedWaitlist(saved: readonly WaitlistEntryResult[]): string {
+  const names = Array.from(
+    new Set(saved.map(entry => entry.className?.trim()).filter((name): name is string => !!name))
+  );
+  const plural = saved.length > 1;
+  const subject = plural ? 'Your waitlist requests' : 'Your waitlist request';
+  const forClasses =
+    names.length === 0
+      ? ''
+      : names.length === 1
+        ? ` for ${names[0]}`
+        : ` for ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `${subject}${forClasses} ${plural ? 'are' : 'is'} saved. Payment for the other classes did not start.`;
 }
 
 interface WizardCardCheckoutParams {

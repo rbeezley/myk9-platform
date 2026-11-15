@@ -21,9 +21,15 @@ vi.mock('@/services/LoggingService', () => ({
 
 import { CAPACITY_UNCONFIRMED_MESSAGE } from '@/features/payments/startCartCheckout';
 import { CheckoutSessionError } from '@/lib/stripe';
-import type { CartItemWithDetails, CartWithDetails } from '@/store/cartStore';
+import type {
+  CartItemWithDetails,
+  CartWithDetails,
+  NewCartItem,
+  WaitlistEntryResult,
+} from '@/store/cartStore';
 import { PlainEntryError } from './entrySubmitErrorCopy';
 import {
+  describeSavedWaitlist,
   startWizardCardCheckout,
   submitRegistrationCartCheckout,
 } from './registrationCartCheckout';
@@ -197,5 +203,185 @@ describe('startWizardCardCheckout', () => {
       message: 'This club cannot take card payments yet.',
       status: 403,
     });
+  });
+});
+
+describe('a mixed entry whose payment does not start after a wait list is saved', () => {
+  // A cart in memory, filled and emptied the way the store does it.
+  function makeMixedEntry() {
+    let items: CartItemWithDetails[] = [];
+    let nextId = 1;
+    const waitlistRows = new Map<string, WaitlistEntryResult>();
+    const className: Record<string, string> = {
+      'class-open': 'Novice Interior',
+      'class-full': 'Novice Container',
+    };
+    // Stands in for `add_to_waitlist`, which answers with the request it already
+    // holds for a dog and class (20260629015413) instead of adding a second one.
+    const addToWaitlist = vi.fn((classId: string, dogId: string) => {
+      const key = `${classId}|${dogId}`;
+      const row = waitlistRows.get(key) ?? {
+        id: `wl-${waitlistRows.size + 1}`,
+        class_id: classId,
+        dog_id: dogId,
+        exhibitor_id: 'profile-1',
+        handler_id: null,
+        position: 1,
+        status: 'waiting',
+      };
+      waitlistRows.set(key, row);
+      return row;
+    });
+    const getCart = () => ({ id: 'cart-1', show_id: 'show-1', items }) as CartWithDetails;
+    const checkoutWithWaitlist = vi.fn(async (_exhibitorId: string, ids: Set<string>) => {
+      const confirmed: string[] = [];
+      const waitlisted: WaitlistEntryResult[] = [];
+      for (const item of items) {
+        if (!ids.has(item.id)) {
+          confirmed.push(item.class_id);
+          continue;
+        }
+        waitlisted.push({
+          ...addToWaitlist(item.class_id, item.dog_id),
+          className: item.class?.name,
+        });
+      }
+      return { confirmed, waitlisted };
+    });
+    const removeItem = vi.fn(async (itemId: string) => {
+      items = items.filter(item => item.id !== itemId);
+      return true;
+    });
+    const deps = {
+      ...makeDeps(),
+      clearCart: vi.fn(async () => {
+        items = [];
+        return true;
+      }),
+      addItem: vi.fn(async (line: NewCartItem) => {
+        items.push({
+          id: `item-${nextId++}`,
+          cart_id: 'cart-1',
+          dog_id: line.dogId,
+          class_id: line.classId,
+          entry_fee_cents: line.entryFeeCents,
+          class: { name: className[line.classId] },
+        } as CartItemWithDetails);
+        return true;
+      }),
+      startCheckout: vi.fn(() =>
+        startWizardCardCheckout({
+          showId: 'show-1',
+          exhibitorProfileId: 'profile-1',
+          getCart,
+          checkoutWithWaitlist,
+          removeItem,
+        })
+      ),
+    };
+    const submitMixed = () =>
+      submitRegistrationCartCheckout({
+        showId: 'show-1',
+        ownerResolution: { ok: true, ownerId: 'people-1' },
+        exhibitorProfileId: 'profile-1',
+        classSelections: [
+          {
+            dogId: 'dog-1',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-open' }, { classId: 'class-full' }],
+          },
+        ],
+        handlerAssignments: {},
+        classes: [{ id: 'class-open' }, { id: 'class-full' }],
+        showFeeInfo: { preEntryFee: '25', startDate: '2099-05-01' },
+        deps,
+      });
+    return { deps, submitMixed, addToWaitlist, waitlistRows, getItems: () => items };
+  }
+
+  beforeEach(() => {
+    sessionStorage.clear();
+    createEntryCheckoutSessionMock.mockReset();
+    fetchCartCapacityMock.mockReset().mockResolvedValue({
+      judgeDays: [],
+      classSpots: [
+        { classId: 'class-open', availableSpots: 5 },
+        { classId: 'class-full', availableSpots: 0 },
+      ],
+      waitlistClassIds: ['class-full'],
+    });
+  });
+
+  it('says the wait list is saved, sends no amount, and a retry adds no second request', async () => {
+    createEntryCheckoutSessionMock.mockRejectedValueOnce(
+      new CheckoutSessionError('This club cannot take card payments yet.', 403, null, true)
+    );
+    const entry = makeMixedEntry();
+
+    const first = entry.submitMixed();
+    await expect(first).rejects.toBeInstanceOf(PlainEntryError);
+    await expect(first).rejects.toThrow(
+      'Your waitlist request for Novice Container is saved. Payment for the other classes did not start. This club cannot take card payments yet.'
+    );
+    // Only the cart id and show travel; the server prices the cart row.
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', {
+      showId: 'show-1',
+      splitCheckoutId: expect.any(String),
+    });
+    expect(entry.getItems()).toEqual([]);
+
+    createEntryCheckoutSessionMock.mockResolvedValueOnce(undefined);
+    await expect(entry.submitMixed()).resolves.toEqual({ kind: 'redirecting' });
+
+    // The retry re-sends the same dog and class, and the server answers with the
+    // request it already holds: one wait-list request, never two.
+    expect(entry.addToWaitlist).toHaveBeenCalledTimes(2);
+    expect(entry.addToWaitlist).toHaveBeenNthCalledWith(2, 'class-full', 'dog-1');
+    expect(entry.waitlistRows.size).toBe(1);
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledTimes(2);
+    expect(createEntryCheckoutSessionMock).toHaveBeenLastCalledWith('cart-1', {
+      showId: 'show-1',
+      splitCheckoutId: expect.any(String),
+    });
+    // Only the open class is left to pay for.
+    expect(entry.getItems().map(item => item.class_id)).toEqual(['class-open']);
+  });
+
+  it('a payment failure with nothing waitlisted shows only the payment copy', async () => {
+    fetchCartCapacityMock.mockResolvedValue({
+      judgeDays: [],
+      classSpots: [],
+      waitlistClassIds: [],
+    });
+    createEntryCheckoutSessionMock.mockRejectedValueOnce(
+      new CheckoutSessionError('This club cannot take card payments yet.', 403, null, true)
+    );
+    const entry = makeMixedEntry();
+
+    const outcome = entry.submitMixed();
+    await expect(outcome).rejects.toThrow(/^This club cannot take card payments yet\.$/);
+    expect(entry.addToWaitlist).not.toHaveBeenCalled();
+  });
+});
+
+describe('describeSavedWaitlist', () => {
+  const row = (className?: string): WaitlistEntryResult => ({
+    id: 'wl',
+    class_id: 'c',
+    dog_id: 'd',
+    exhibitor_id: 'e',
+    handler_id: null,
+    position: 1,
+    status: 'waiting',
+    className,
+  });
+
+  it('names every class in plain words', () => {
+    expect(describeSavedWaitlist([row('Novice Container'), row('Novice Exterior')])).toBe(
+      'Your waitlist requests for Novice Container and Novice Exterior are saved. Payment for the other classes did not start.'
+    );
+    expect(describeSavedWaitlist([row()])).toBe(
+      'Your waitlist request is saved. Payment for the other classes did not start.'
+    );
   });
 });

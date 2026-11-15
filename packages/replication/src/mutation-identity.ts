@@ -1,3 +1,5 @@
+import type { PendingMutation } from './types';
+
 /**
  * Who owns the local queue: the auth identity lookups MutationManager stamps
  * onto and checks against queue entries. Kept apart from the queue and upload
@@ -7,7 +9,9 @@ export class MutationIdentity {
   constructor(
     private readonly getCurrentUserId: () => Promise<string | null>,
     private readonly getCachedUserId: () => string | null,
-    private readonly getOwnerIsAnonymous: (authUserId: string) => boolean
+    private readonly getOwnerIsAnonymous: (authUserId: string) => boolean,
+    private readonly getOwnerRingsideClaim: (authUserId: string) => string | undefined = () =>
+      undefined
   ) {}
 
   /**
@@ -70,6 +74,24 @@ export class MutationIdentity {
     } catch {
       return false;
     }
+  }
+
+  /** The adoption stamps for a new queue entry (MYK9-1205, MYK9-2009). Any throwing reader means "not adoptable". */
+  readAdoptionStamp(
+    authUserId: string,
+    showId: string | undefined
+  ): Pick<PendingMutation, 'ownerIsAnonymous' | 'showId' | 'ringsideClaim'> {
+    let ringsideClaim: string | undefined;
+    try {
+      ringsideClaim = this.getOwnerRingsideClaim(authUserId);
+    } catch {
+      ringsideClaim = undefined;
+    }
+    return {
+      ownerIsAnonymous: this.readOwnerIsAnonymous(authUserId),
+      ...(showId !== undefined && { showId }),
+      ...(ringsideClaim !== undefined && { ringsideClaim }),
+    };
   }
 
   /**

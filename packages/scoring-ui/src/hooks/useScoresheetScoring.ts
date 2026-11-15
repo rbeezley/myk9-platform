@@ -7,21 +7,41 @@
  * Used by the live scoresheets shared across judge and secretary workflows.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 
-import { formatSecondsAsMSSCC, isUnresolvedDuration, parseDuration } from '@myk9/core';
+import {
+  formatDuration,
+  formatSecondsAsMSSCC,
+  isUnresolvedDuration,
+  parseDuration,
+} from '@myk9/core';
+import {
+  qualifiedFaultProblem,
+  qualifiedTimeProblems,
+  type FaultLimit,
+} from '../utils/qualifiedCheck';
+import { maxTimeForArea } from '../utils/buildResolvedClassRules';
 import type { AreaScore, ScoreData, ExtendedResult, ResolvedClassRules } from '../types';
+import { clearRunTimers } from '../utils/runTimerStorage';
 
 export interface ScoresheetScoringConfig {
   rules: ResolvedClassRules;
   areaNames?: string[];
   existingScore?: ScoreData;
+  /** The entry id: a successful save retires the timers kept for it (MYK9-2007). */
+  timerKey?: string;
   /**
    * False for sports that never score found / correct per area (UKC Nosework,
    * MYK9-1086): the save then carries no find counts and no FOUND/CORRECT
    * words, instead of recording every dog as "NOT FOUND INCORRECT".
    */
   recordFinds?: boolean;
+  /**
+   * Scent-work sheets (MYK9-2004): a Qualified needs a time above zero and at or
+   * under the limit in every area, and no more faults than `faultLimit`. Absent,
+   * a Qualified saves as before (Obedience, Rally, Fast CAT).
+   */
+  qualifiedRules?: { faultLimit?: FaultLimit | undefined } | undefined;
 }
 
 export interface ValidationResult {
@@ -60,9 +80,41 @@ export interface ScoresheetScoringReturn {
   ) => Promise<void>;
   buildScoreData: (extra?: Partial<ScoreData>) => ScoreData;
   validate: () => ValidationResult;
+  /** Per area, why a Qualified cannot be saved yet; all null unless Q is chosen. */
+  qualifiedTimeProblems: (string | null)[];
+  /** Why a Qualified is over the fault limit; null unless Q is chosen and over. */
+  qualifiedFaultProblem: string | null;
+  /**
+   * The "Use max time" action for an area: sets its time to the class limit in one
+   * tap. Undefined when the class has no limit.
+   */
+  setToMaxTime: (index: number) => (() => void) | undefined;
+  /** True while a Qualified has a time or fault problem; Save stays off. */
+  qualifiedBlocked: boolean;
   /** A typed time that is not a valid time yet; the sheet cannot be saved (MYK9-1503). */
   hasUnresolvedTime: boolean;
   reset: () => void;
+}
+
+/** The entries table stores area1..area4 times only. */
+const STORED_AREA_COLUMNS = 4;
+
+function secondsOf(time: string | undefined): number {
+  const parsed = time ? parseDuration(time, 'search') : null;
+  return parsed?.ok ? parsed.seconds : 0;
+}
+
+/**
+ * Only four area times are stored (MYK9-2006), so a reopened sheet cannot rebuild
+ * a fifth area's time. Its total is the saved total moved by what the judge changed.
+ */
+function savedTotalPlusChanges(existingScore: ScoreData, areas: AreaScore[]): string {
+  const change = areas.reduce(
+    (sum, area, i) => sum + secondsOf(area.time) - secondsOf(existingScore.areaTimes[i]),
+    0
+  );
+  const total = secondsOf(existingScore.searchTime) + change;
+  return formatSecondsAsMSSCC(Math.max(0, Math.round(total * 100) / 100));
 }
 
 function initializeAreas(
@@ -90,7 +142,7 @@ function initializeAreas(
 }
 
 export function useScoresheetScoring(config: ScoresheetScoringConfig): ScoresheetScoringReturn {
-  const { rules, areaNames, existingScore, recordFinds = true } = config;
+  const { rules, areaNames, existingScore, recordFinds = true, qualifiedRules, timerKey } = config;
 
   const [areas, setAreas] = useState<AreaScore[]>(() =>
     initializeAreas(rules, areaNames, existingScore)
@@ -142,6 +194,16 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     []
   );
 
+  const setToMaxTime = useCallback(
+    (index: number) => {
+      const limit = maxTimeForArea(rules, index);
+      return limit > 0
+        ? () => handleAreaUpdate(index, 'time', formatDuration(limit, 'search'))
+        : undefined;
+    },
+    [rules, handleAreaUpdate]
+  );
+
   const calculateTotalTime = useCallback((): string => {
     const validTimes = areas.filter(area => area.time && area.time !== '').map(area => area.time);
 
@@ -159,6 +221,19 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
   const hasUnresolvedTime = areas.some(area => isUnresolvedDuration(area.time, 'search'));
 
+  // A Qualified must carry a real time and stay within the limits (MYK9-2004).
+  // The sheet never changes the result: it names the problem and Save stays off.
+  const checkQualified = qualifiedRules !== undefined && qualifying === 'Q';
+  const qualifiedTimeProblemList = useMemo(
+    () => (checkQualified ? qualifiedTimeProblems(areas, rules) : areas.map(() => null)),
+    [checkQualified, areas, rules]
+  );
+  const qualifiedFaultProblemText = checkQualified
+    ? qualifiedFaultProblem(faultCount, qualifiedRules?.faultLimit)
+    : null;
+  const qualifiedBlocked =
+    qualifiedFaultProblemText !== null || qualifiedTimeProblemList.some(p => p !== null);
+
   const buildScoreData = useCallback(
     (extra?: Partial<ScoreData>): ScoreData => {
       const keepSavedFinds = existingScore !== undefined && !findFlagsEditedRef.current;
@@ -171,7 +246,10 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
       return {
         resultText: qualifying || 'NQ',
-        searchTime: calculateTotalTime() || '0.00',
+        searchTime:
+          existingScore && areas.length > STORED_AREA_COLUMNS
+            ? savedTotalPlusChanges(existingScore, areas)
+            : calculateTotalTime() || '0.00',
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
         areaTimes: areas.map(a => a.time),
@@ -217,6 +295,11 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       errors.push('A disqualification needs a reason');
     }
 
+    qualifiedTimeProblemList.forEach(problem => {
+      if (problem) errors.push(problem);
+    });
+    if (qualifiedFaultProblemText) errors.push(qualifiedFaultProblemText);
+
     // Nothing is saved that the field's preview did not show (MYK9-1503).
     areas.forEach(area => {
       if (isUnresolvedDuration(area.time, 'search')) {
@@ -238,7 +321,15 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     }
 
     return { valid: errors.length === 0, errors, warnings };
-  }, [qualifying, disqualifyReasonMissing, areas, rules.maxTimeSeconds, calculateTotalTime]);
+  }, [
+    qualifying,
+    disqualifyReasonMissing,
+    areas,
+    rules.maxTimeSeconds,
+    calculateTotalTime,
+    qualifiedTimeProblemList,
+    qualifiedFaultProblemText,
+  ]);
 
   const handleSubmit = useCallback(
     async (onSubmit: (data: ScoreData) => void | Promise<void>, extra?: Partial<ScoreData>) => {
@@ -252,6 +343,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       let submissionAccepted = true;
       try {
         await onSubmit(buildScoreData(extra));
+        if (timerKey) clearRunTimers(timerKey);
       } catch (err) {
         submissionAccepted = false;
         setSubmitError(err instanceof Error ? err.message : 'Score submission failed');
@@ -265,7 +357,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         setIsSubmitting(false);
       }
     },
-    [validate, buildScoreData]
+    [validate, buildScoreData, timerKey]
   );
 
   const reset = useCallback(() => {
@@ -295,6 +387,10 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     handleSubmit,
     buildScoreData,
     validate,
+    qualifiedTimeProblems: qualifiedTimeProblemList,
+    qualifiedFaultProblem: qualifiedFaultProblemText,
+    qualifiedBlocked,
+    setToMaxTime,
     hasUnresolvedTime,
     reset,
   };

@@ -14,6 +14,7 @@
  * places; only place-based entries need them.
  */
 import { describeNearUp, type NearUpItem } from './ringConflicts';
+import type { QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 /**
@@ -34,14 +35,16 @@ function isClassInProgress(classStatus: string | undefined): boolean {
 
 export function detectPlaceRingConflicts(
   entries: readonly AtShowEntryDetail[],
-  places: ReadonlyMap<string, number> | undefined,
+  places: QueuePlaces | undefined,
   leadDogs: number
 ): ReadonlyMap<string, string> {
   const result = new Map<string, string>();
   const nearUp: NearUpItem[] = [];
   for (const detail of entries) {
     if (!detail.classId || !isClassInProgress(detail.classStatus) || detail.isScored) continue;
-    const place = places?.get(detail.entryId);
+    const answer = places?.get(detail.entryId);
+    // MYK9-1970: only a live place is a countdown. A paper or stale class makes no "N away" claim.
+    const place = answer?.claimState === 'live' ? answer.place : undefined;
     const inRing = detail.checkInStatus === 'in-ring';
     if (!inRing && (place === undefined || place - 1 > leadDogs)) continue;
     nearUp.push({

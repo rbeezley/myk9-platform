@@ -27,10 +27,12 @@ import {
   notRunningReasonOf,
   pendingByRunOrder,
   runQueueStateOf,
+  stateForClaim,
   type RunQueueEntry,
   type RunQueueState,
 } from '@myk9/ringside/run-queue';
 import type { ShowEntry } from '@/store/entry-store-types';
+import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 
 /** A `ShowEntry` plus the normalized fields the run queue sorts on. */
 export interface ShowEntryQueueRow extends RunQueueEntry {
@@ -117,27 +119,38 @@ export function dogsAheadInClass(entries: readonly ShowEntry[], entryId: string)
  * "Waiting" once the secretary has set an order, and nothing before that.
  * A true place needs the full queue from the server.
  */
-export function ownEntryQueueState(entry: ShowEntry): RunQueueState | null {
+export function ownEntryQueueState(entry: ShowEntry, onPaper = false): RunQueueState | null {
   // `toShowEntryQueueRow` folds every not-running lifecycle onto 'pulled' for
   // queue membership; a withdrawal is a different act and keeps its own label.
   if (entry.status === 'withdrawn') return { kind: 'withdrawn' };
   const state = runQueueStateOf([toShowEntryQueueRow(entry)], entry.id);
   if (state?.kind !== 'waiting') return state;
-  return (entry.registrationData?.runOrder ?? 0) > 0 ? { kind: 'waiting-unknown' } : null;
+  if ((entry.registrationData?.runOrder ?? 0) <= 0) return null;
+  // MYK9-1970: the class row this device already holds says it is judged on paper, so the paper
+  // line shows offline too; the place is added when the server answers.
+  return onPaper ? { kind: 'paper' } : { kind: 'waiting-unknown' };
+}
+
+/** True for a state that may take the server's place: waiting with an order, or a paper class. */
+export function isAwaitingServerPlace(state: RunQueueState | null | undefined): boolean {
+  return state?.kind === 'waiting-unknown' || state?.kind === 'paper';
 }
 
 /**
- * An own-row state upgraded by the server's count (MYK9-995). Only a dog the
- * row already calls waiting, with an order set, may take a place; every other
- * state is the row's own fact and wins. No place (offline, loading, or the
- * server says it is not waiting) leaves the state label as it was.
+ * An own-row state upgraded by the server's count (MYK9-995) and its claim state (MYK9-1969,
+ * MYK9-1970). Only a dog the row already calls waiting, with an order set, may take a place;
+ * every other state is the row's own fact and wins. When the server answers it wins over the
+ * device's paper mirror (the switch may have flipped since the class row synced). No answer (offline, loading, or the server
+ * says it is not waiting) leaves the state label as it was. The claim state decides how the
+ * place reads: live is a count, paper is a position only, stale says the order may be out of date.
  */
 export function withServerPlace(
   state: RunQueueState | null,
-  place: number | undefined
+  answer: QueuePlace | undefined
 ): RunQueueState | null {
-  if (state?.kind !== 'waiting-unknown' || place === undefined || place < 1) return state;
-  return { kind: 'waiting', place };
+  if (state?.kind !== 'waiting-unknown' && state?.kind !== 'paper') return state;
+  if (answer === undefined || answer.place < 1) return state;
+  return stateForClaim(answer.place, answer.claimState);
 }
 
 /**

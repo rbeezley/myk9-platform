@@ -777,6 +777,29 @@ export const forceDeleteDog = async (
 // search" hint when the returned row count hits this limit.
 export const SEARCH_ALL_DOGS_LIMIT = 50;
 
+/** Most first-name / last-name splits tried for a typed full name. */
+const OWNER_NAME_MAX_SPLITS = 3;
+
+/**
+ * PostgREST `.or(...)` body matching a person by first or last name, and a
+ * typed full name by every split of it into a first name (the first k words)
+ * and a last name (the rest), so "Mary Jane Smith" finds first name "Mary
+ * Jane". At most three splits (four words); later words stay in the last name.
+ * `term` is already escaped by `sanitizePostgRESTFilter`, so commas,
+ * parentheses, dots and asterisks in it are literal text.
+ */
+function ownerNameFilter(term: string): string {
+  const filters = [`first_name.ilike.%${term}%`, `last_name.ilike.%${term}%`];
+  const words = term.split(/\s+/).filter(Boolean);
+  const splits = Math.min(words.length - 1, OWNER_NAME_MAX_SPLITS);
+  for (let k = 1; k <= splits; k += 1) {
+    const first = words.slice(0, k).join(' ');
+    const last = words.slice(k).join(' ');
+    filters.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
+  }
+  return filters.join(',');
+}
+
 // Search dogs across the entire system (not scoped to ownership).
 // Used by secretaries/admins entering mail-in registrations — the secretary
 // rarely owns the dog being registered, so ownership-scoped search is useless.
@@ -831,9 +854,39 @@ export const searchAllDogs = async (
       ),
     ];
 
+    // MYK9-2020: the owner's name. The secretary's search box promises it, and
+    // her local roster is capped, so a dog beyond it is found here or not at
+    // all. Same shape as the registration pre-query (ids folded into the one
+    // `.or(...)`), over the `people` rows RLS already lets her read (the same
+    // rows the `owner` embed below returns). Its error is thrown, not
+    // swallowed, for the same reason.
+    const ownerQuery = supabase
+      .from('people')
+      .select('id')
+      .is('deleted_at', null)
+      .or(ownerNameFilter(sanitized))
+      .limit(limit);
+    const { data: ownerMatches, error: ownerError } = signal
+      ? await ownerQuery.abortSignal(signal)
+      : await ownerQuery;
+    if (ownerError) throw createDatabaseError(ownerError, 'dog', 'search_all');
+    // A full page of owners means more may exist that were never folded in, so
+    // the result is reported truncated ("type more") whatever the dog count.
+    const ownersTruncated = (ownerMatches ?? []).length >= limit;
+    const ownerIds = [
+      ...new Set(
+        ((ownerMatches ?? []) as Array<{ id?: string | null }>)
+          .map(r => r.id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      ),
+    ];
+
     const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
     if (registrationDogIds.length > 0) {
       orFilters.push(`id.in.(${registrationDogIds.join(',')})`);
+    }
+    if (ownerIds.length > 0) {
+      orFilters.push(`owner_id.in.(${ownerIds.join(',')})`);
     }
 
     const dogQuery = supabase
@@ -862,7 +915,7 @@ export const searchAllDogs = async (
 
     if (error) throw createDatabaseError(error, 'dog', 'search_all');
     const rows = (data as Record<string, unknown>[] | null) ?? [];
-    return { data: rows, error: null, hitLimit: rows.length >= limit };
+    return { data: rows, error: null, hitLimit: rows.length >= limit || ownersTruncated };
   } catch (error) {
     // React Query treats an aborted query as a superseded request. Preserve
     // that cancellation signal instead of converting it into a search error

@@ -101,10 +101,17 @@ const sports: Sport[] = [
   },
 ];
 
+/** A Qualified needs a time (MYK9-2004); the scent-work sheets offer Use max time. */
+function giveTime() {
+  const useMax = screen.queryByRole('button', { name: /use max time/i });
+  if (useMax) fireEvent.click(useMax);
+}
+
 function openConfirmation(sport: Sport, result: string, areaCount = 1) {
   const { Sheet } = sport;
   const utils = render(<Sheet {...props(areaCount)} />);
   sport.prepare?.();
+  if (result === 'Q') giveTime();
   fireEvent.click(screen.getByTestId(`result-${result}`));
   return utils;
 }
@@ -134,6 +141,7 @@ describe.each(sports)('$name: Score Confirmation read-back', sport => {
     const { Sheet } = sport;
     render(<Sheet {...p} />);
     sport.prepare?.();
+    giveTime();
     fireEvent.click(screen.getByTestId('result-Q'));
     save();
     expect(p.onSubmit).not.toHaveBeenCalled();

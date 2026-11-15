@@ -161,6 +161,13 @@ export type RunQueueState =
    * `runQueueStateOf` never returns this; callers holding a partial queue do.
    */
   | { kind: 'waiting-unknown' }
+  /**
+   * MYK9-1970: a class scored on paper. The place is a position in the running
+   * order, never a countdown; absent when the count is unavailable (offline).
+   */
+  | { kind: 'paper'; place?: number | undefined }
+  /** MYK9-1970: a phone-scored class gone quiet, so a place would be a stale claim. */
+  | { kind: 'stale' }
   | { kind: 'in-ring' }
   | { kind: 'done' }
   /** Pulled and withdrawn are different acts (INTENT: Withdraw vs Pull). */
@@ -209,6 +216,56 @@ export function formatPlaceInLine(place: number): string {
   return `${ordinal(place)} up`;
 }
 
+/**
+ * What the server says about a place in line (MYK9-1969): `live` may be shown as a
+ * countdown, `paper` is position only, `stale` may be out of date.
+ */
+export type ClaimState = 'live' | 'paper' | 'stale';
+
+/** Read the server's claim state; anything unrecognised is null, never a guess. */
+export function parseClaimState(value: unknown): ClaimState | null {
+  return value === 'live' || value === 'paper' || value === 'stale' ? value : null;
+}
+
+/**
+ * The state a counted place takes under the server's claim state (MYK9-1970): live is a count,
+ * paper is a position only, stale says the order may be out of date. An absent or unknown claim
+ * is read as stale, never as a live count.
+ */
+export function stateForClaim(place: number, claim: ClaimState | null | undefined): RunQueueState {
+  if (claim === 'live') return { kind: 'waiting', place };
+  if (claim === 'paper') return { kind: 'paper', place };
+  return { kind: 'stale' };
+}
+
+/**
+ * The one rule for a claim state when it is not certain (MYK9-1970). The server's answer wins.
+ * With none (offline, loading, a failed read, a dog the account does not own): paper when the
+ * class is flagged paper, or follows the show (`classOnPaper` null) and the show's device-scoring
+ * switch is off, which is the server's own rule. Otherwise `unknown`, which is stale unless the
+ * caller says what unknown means: nothing is a live count without an explicit `live`.
+ */
+export function resolveClaim(input: {
+  server?: ClaimState | null | undefined;
+  classOnPaper?: boolean | null | undefined;
+  showUsesDeviceScoring?: boolean | null | undefined;
+  unknown?: ClaimState | undefined;
+}): ClaimState {
+  if (input.server) return input.server;
+  if (input.classOnPaper === true) return 'paper';
+  if (input.classOnPaper == null && input.showUsesDeviceScoring === false) return 'paper';
+  return input.unknown ?? 'stale';
+}
+
+/** The second line a paper class shows beside its position (MYK9-1970). */
+export const PAPER_CLASS_NOTE =
+  'This class is scored on paper. Listen for your number at the ring.';
+
+/** The note that goes with a state, or null when it carries none. */
+export function runQueueStateNote(state: RunQueueState | null | undefined): string | null {
+  return state?.kind === 'paper' ? PAPER_CLASS_NOTE : null;
+}
+
 /** The label for any state: a place for a waiting dog, otherwise the state itself. */
 export function formatRunQueueState(state: RunQueueState): string {
   switch (state.kind) {
@@ -216,6 +273,12 @@ export function formatRunQueueState(state: RunQueueState): string {
       return formatPlaceInLine(state.place);
     case 'waiting-unknown':
       return 'Waiting';
+    case 'paper':
+      return state.place && state.place >= 1
+        ? `${ordinal(state.place)} in the running order`
+        : 'In the running order';
+    case 'stale':
+      return 'Order may be out of date';
     case 'in-ring':
       return 'In ring';
     case 'done':

@@ -212,6 +212,12 @@ describe('EntriesPanel before payment', () => {
     expect(aside().queryByText('Total due')).not.toBeInTheDocument();
   });
 
+  it('promises no service fee to a secretary keying in an entry, who cannot pay by card (MYK9-2020)', () => {
+    renderPanel({ staffWorkflow: true });
+    expect(aside().queryByText(/service fee/i)).not.toBeInTheDocument();
+    expect(aside().getByText('Entry fees')).toBeInTheDocument();
+  });
+
   it('lists a selected dog with no classes and a $0.00 total', () => {
     renderPanel({
       groups: groupCartByDogAndDay([], dogs, panelClasses(1), trials, ['dog-1', 'dog-2']),

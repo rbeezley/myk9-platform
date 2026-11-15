@@ -170,8 +170,8 @@ describe('AtShowMyEntriesToday — ring conflict in words (MYK9-1046)', () => {
   it('says what was found, calmly, with an icon and the words, when both server places are near', async () => {
     rpc.mockResolvedValue({
       data: [
-        { entry_id: 'juni-am', place: 1 },
-        { entry_id: 'rex-pm', place: 2 },
+        { entry_id: 'juni-am', place: 1, claim_state: 'live' },
+        { entry_id: 'rex-pm', place: 2, claim_state: 'live' },
       ],
       error: null,
     });
@@ -188,8 +188,8 @@ describe('AtShowMyEntriesToday — ring conflict in words (MYK9-1046)', () => {
   it('does not warn when the server places the other dog 30th, though this account holds few rows', async () => {
     rpc.mockResolvedValue({
       data: [
-        { entry_id: 'juni-am', place: 1 },
-        { entry_id: 'rex-pm', place: 30 },
+        { entry_id: 'juni-am', place: 1, claim_state: 'live' },
+        { entry_id: 'rex-pm', place: 30, claim_state: 'live' },
       ],
       error: null,
     });
@@ -209,7 +209,10 @@ describe('AtShowMyEntriesToday — saved information (MYK9-1046)', () => {
   const NOTICE = 'Showing saved information. Check-in and running order may be out of date.';
 
   it('online with a confirmed answer: the place carries its freshness and no notice shows', async () => {
-    rpc.mockResolvedValue({ data: [{ entry_id: 'juni-am', place: 4 }], error: null });
+    rpc.mockResolvedValue({
+      data: [{ entry_id: 'juni-am', place: 4, claim_state: 'live' }],
+      error: null,
+    });
     renderList();
     expect(await screen.findByText('4th up')).toBeInTheDocument();
     expect(screen.getByText(/^updated \d{1,2}:\d{2} (AM|PM)$/)).toBeInTheDocument();

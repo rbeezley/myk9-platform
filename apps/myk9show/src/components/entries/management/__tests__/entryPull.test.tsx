@@ -156,3 +156,77 @@ describe("Pull on the Entries page is the desks' Pull (MYK9-1940 phase 3)", () =
     expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.REJECTED);
   });
 });
+
+describe('Pull is offered only where it works (MYK9-1990)', () => {
+  const pullCases: Array<[string, Partial<EntryManagementEntry>, boolean]> = [
+    ['accepted', { entryStatus: EntryStatus.ACCEPTED }, true],
+    ['pending', { entryStatus: EntryStatus.PENDING }, true],
+    ['missing info', { entryStatus: EntryStatus.MISSING_INFO }, true],
+    ['completed', { entryStatus: EntryStatus.COMPLETED }, false],
+    ['rejected', { entryStatus: EntryStatus.REJECTED }, false],
+    ['cancelled', { entryStatus: EntryStatus.CANCELLED }, false],
+    ['already pulled', { entryStatus: EntryStatus.SCRATCHED }, false],
+    ['moved', { entryStatus: EntryStatus.MOVED }, false],
+  ];
+
+  it.each(pullCases)(
+    'a %s entry: Pull in the row menu is %s and opens the dialog when shown',
+    async (_name, override, shown) => {
+      const user = userEvent.setup();
+      const target = { ...entry, ...override };
+      render(
+        <EntryPullProvider entries={[target]}>
+          <EntryRowActionMenu entry={target} onStatusChange={vi.fn()} />
+        </EntryPullProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: /actions for hazel/i }));
+      await screen.findAllByRole('menuitem');
+      const item = screen.queryByRole('menuitem', { name: /^Pull/ });
+      if (!shown) {
+        expect(item).toBeNull();
+        return;
+      }
+      expect(item).not.toBeNull();
+      await user.click(item as HTMLElement);
+      // A shown Pull must do something: the dialog opens.
+      expect(await screen.findByText('Pull Hazel?')).toBeInTheDocument();
+    }
+  );
+});
+
+describe('A dog with a result is not pulled (MYK9-1990)', () => {
+  const scored = { ...entry, isScored: true };
+  const note =
+    "Hazel already has a result in Novice A, so it can't be pulled. To change what happened, edit the result on Results.";
+
+  it('the row menu shows the note and a disabled Pull that does nothing', async () => {
+    const user = userEvent.setup();
+    render(
+      <EntryPullProvider entries={[scored]}>
+        <EntryRowActionMenu entry={scored} onStatusChange={vi.fn()} />
+      </EntryPullProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for hazel/i }));
+    expect(await screen.findByText(note)).toBeInTheDocument();
+    const pull = screen.getByRole('menuitem', { name: /^Pull/ });
+    expect(pull).toHaveAttribute('aria-disabled', 'true');
+    await user.click(pull);
+    expect(screen.queryByText('Pull Hazel?')).toBeNull();
+    expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+  });
+
+  it('the status chip offers no Pull and shows the note', async () => {
+    const user = userEvent.setup();
+    render(
+      <EntryPullProvider entries={[scored]}>
+        <EntryStatusPopover entry={scored} entryClassName="Novice A" onStatusChange={vi.fn()} />
+      </EntryPullProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /change entry status for Hazel/i }));
+    expect(await screen.findByText(note)).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^Pull/ })).toBeNull();
+  });
+});

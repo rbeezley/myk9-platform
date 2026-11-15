@@ -46,7 +46,7 @@ export function resolveWizardTitles({
         ? 'Add entry'
         : 'Enter This Show',
     workflowSubtitle: isInsideSidebar
-      ? 'Enter a dog for any exhibitor, including yourself.'
+      ? 'Find the dog or its owner, or add them, then choose classes and payment.'
       : undefined,
   };
 }

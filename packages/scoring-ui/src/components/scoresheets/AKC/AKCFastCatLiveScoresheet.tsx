@@ -23,6 +23,7 @@ import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types';
+import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
 // FastCAT results: the standard codes plus DQ
 type FastCATResult = 'Q' | 'NQ' | 'EX' | 'DQ';
@@ -78,12 +79,13 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const scoring = useScoresheetScoring({
     rules,
-    existingScore: entry.existingScore,
+    ...scoringSource(entry),
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
   });
 
   const stopwatch = useStopwatch({
+    ...timerPersist(entry),
     maxTime: '1:00.00',
     level: classInfo.level,
     enableVoiceAnnouncements,
@@ -179,6 +181,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         }}
       >
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery}
           clock={
             <span className={cn('font-mono', stopwatch.isTimeExpired() && 'text-destructive')}>
               <StopwatchTime stopwatch={stopwatch} />

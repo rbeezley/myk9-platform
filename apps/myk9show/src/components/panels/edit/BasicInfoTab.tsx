@@ -72,6 +72,8 @@ interface BasicInfoTabProps {
    * address). Photo, junior handler and bio are edited after the person exists.
    */
   isCreate?: boolean;
+  /** MYK9-2020: the entry flow's Add Person has no roles to point at. */
+  hideRoleAssignmentNote?: boolean | undefined;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -80,6 +82,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   canEditAdvancedFields,
   onOpenPhotoModal,
   isCreate = false,
+  hideRoleAssignmentNote = false,
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
   // `admin:manage` is held by site_admin only, which is who the database lets
@@ -210,18 +213,20 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </>
       )}
 
-      <p className="text-sm text-muted-foreground">
-        Role assignments are managed from the{' '}
-        <Link
-          className="text-primary underline underline-offset-2"
-          to="/admin/users"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          User Management
-        </Link>{' '}
-        page so club and show scopes remain visible.
-      </p>
+      {!hideRoleAssignmentNote && (
+        <p className="text-sm text-muted-foreground">
+          Role assignments are managed from the{' '}
+          <Link
+            className="text-primary underline underline-offset-2"
+            to="/admin/users"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            User Management
+          </Link>{' '}
+          page so club and show scopes remain visible.
+        </p>
+      )}
 
       {canEditAdvancedFields && !isCreate && (
         <>

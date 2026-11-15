@@ -28,6 +28,7 @@ import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
 import { ResultChoiceChips } from '../../ResultChoiceChips';
 import type { LiveScoresheetProps, QualifyingResult } from '../../../types/scoreData';
+import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
 /**
  * Header title lines: trial date, then the trial's label on its own line (MYK9-704;
@@ -64,9 +65,10 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const scoring = useScoresheetScoring({
     rules,
-    existingScore: entry.existingScore,
+    ...scoringSource(entry),
     // MYK9-1767: no found/correct control on this sheet, so record no finds.
     recordFinds: false,
+    qualifiedRules: {},
   });
 
   // Each area runs against its own max time (MYK9-1098).
@@ -75,6 +77,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const maxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
   const stopwatch = useStopwatch({
+    ...timerPersist(entry),
     maxTime: maxTimeStr,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -166,12 +169,14 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             scoring.isSubmitting ||
             !scoring.qualifying ||
             scoring.disqualifyReasonMissing ||
-            scoring.hasUnresolvedTime,
+            scoring.hasUnresolvedTime ||
+            scoring.qualifiedBlocked,
           isSubmitting: scoring.isSubmitting,
         }}
       >
         {/* Timer: neutral surface; the Start button carries the accent. */}
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery}
           clock={
             <span
               className={cn(
@@ -263,6 +268,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             onChange={value => scoring.handleAreaUpdate(index, 'time', value)}
             ariaLabel={`${searchArea.areaName} time`}
             maxLabel={maxTimeLabel(maxTimeForArea(rules, index))}
+            problem={scoring.qualifiedTimeProblems[index]}
+            onUseMax={scoring.setToMaxTime(index)}
           />
         ))}
 

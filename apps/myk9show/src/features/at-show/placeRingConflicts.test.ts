@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 import { detectPlaceRingConflicts } from './placeRingConflicts';
 
@@ -24,6 +25,7 @@ function row(overrides: Partial<AtShowEntryDetail> & { entryId: string }): AtSho
   };
 }
 
+const live = (place: number): QueuePlace => ({ place, claimState: 'live' });
 const juni = row({ entryId: 'juni' });
 const rex = row({ entryId: 'rex', dogName: 'Rex', classId: 'c2', className: 'Interior Excellent' });
 
@@ -32,8 +34,8 @@ describe('detectPlaceRingConflicts', () => {
     const result = detectPlaceRingConflicts(
       [juni, rex],
       new Map([
-        ['juni', 1],
-        ['rex', 3],
+        ['juni', live(1)],
+        ['rex', live(3)],
       ]),
       2
     );
@@ -45,8 +47,8 @@ describe('detectPlaceRingConflicts', () => {
     const result = detectPlaceRingConflicts(
       [juni, rex],
       new Map([
-        ['juni', 1],
-        ['rex', 30],
+        ['juni', live(1)],
+        ['rex', live(30)],
       ]),
       2
     );
@@ -56,8 +58,8 @@ describe('detectPlaceRingConflicts', () => {
   it('puts the edge at place leadDogs + 1, like dogsAhead <= leadDogs', () => {
     const places = (rexPlace: number) =>
       new Map([
-        ['juni', 1],
-        ['rex', rexPlace],
+        ['juni', live(1)],
+        ['rex', live(rexPlace)],
       ]);
     expect(detectPlaceRingConflicts([juni, rex], places(3), 2).size).toBe(2);
     expect(detectPlaceRingConflicts([juni, rex], places(4), 2).size).toBe(0);
@@ -66,8 +68,8 @@ describe('detectPlaceRingConflicts', () => {
   it('needs different classes, both running', () => {
     const sameClass = row({ entryId: 'rex', dogName: 'Rex' });
     const places = new Map([
-      ['juni', 1],
-      ['rex', 2],
+      ['juni', live(1)],
+      ['rex', live(2)],
     ]);
     expect(detectPlaceRingConflicts([juni, sameClass], places, 2).size).toBe(0);
     const waiting = { ...rex, classStatus: 'upcoming' };
@@ -83,13 +85,13 @@ describe('detectPlaceRingConflicts', () => {
     const inRing = { ...juni, checkInStatus: 'in-ring' as const };
 
     it('counts with a near dog at another running class, and is worded as in the ring', () => {
-      const result = detectPlaceRingConflicts([inRing, rex], new Map([['rex', 2]]), 2);
+      const result = detectPlaceRingConflicts([inRing, rex], new Map([['rex', live(2)]]), 2);
       expect(result.get('rex')).toBe('Juni in the ring in Container Novice');
       expect(result.get('juni')).toBe('Rex 1 away in Interior Excellent');
     });
 
     it('does not count when the other dog is 30th', () => {
-      expect(detectPlaceRingConflicts([inRing, rex], new Map([['rex', 30]]), 2).size).toBe(0);
+      expect(detectPlaceRingConflicts([inRing, rex], new Map([['rex', live(30)]]), 2).size).toBe(0);
     });
 
     it('is fact even offline, but alone it is no conflict', () => {
@@ -99,7 +101,22 @@ describe('detectPlaceRingConflicts', () => {
 
     it('needs its class to be running', () => {
       const idle = { ...inRing, classStatus: 'upcoming' };
-      expect(detectPlaceRingConflicts([idle, rex], new Map([['rex', 1]]), 2).size).toBe(0);
+      expect(detectPlaceRingConflicts([idle, rex], new Map([['rex', live(1)]]), 2).size).toBe(0);
     });
   });
+
+  it.each(['paper', 'stale'] as const)(
+    'makes no "N away" claim for a %s place (MYK9-1970)',
+    claimState => {
+      const result = detectPlaceRingConflicts(
+        [juni, rex],
+        new Map([
+          ['juni', live(1)],
+          ['rex', { place: 2, claimState }],
+        ]),
+        2
+      );
+      expect(result.size).toBe(0);
+    }
+  );
 });

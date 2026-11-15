@@ -161,6 +161,10 @@ export interface PendingMutation {
   /** The show a ringside RPC mutation belongs to, stamped at enqueue (MYK9-1205).
    *  Scopes adoption to the show a fresh passcode claim covers. Absent: never adoptable. */
   showId?: string;
+  /** Which passcode claim queued a ringside RPC mutation (role and judge), stamped at enqueue
+   *  (MYK9-2009). A new session adopts a dead letter only from the SAME claim, so one judge's
+   *  refused scores are never handed to another judge on a shared device. */
+  ringsideClaim?: string;
   tableName: string;
   operation: MutationOperation;
   rowId: string; // ID of affected row

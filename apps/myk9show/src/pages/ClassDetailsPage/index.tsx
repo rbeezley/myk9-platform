@@ -313,6 +313,7 @@ const ClassDetailsPage: React.FC = () => {
           <ExhibitorClassCallout
             classId={classId}
             releasedRows={releasedResults.rawEntries}
+            scoresOnPaper={currentClass?.scoresOnPaper === true}
             trialDate={parentTrial?.trialDate}
             trialTimezone={parentTrial ? getTrialTimezone(parentTrial) : undefined}
           />

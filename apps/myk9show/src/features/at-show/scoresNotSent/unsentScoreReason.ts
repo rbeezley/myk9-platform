@@ -68,7 +68,7 @@ export function unsentScoreReason(
     return 'This sign-in is not allowed to score this class.';
   }
   if (mutation.failureKind === 'max-retries') {
-    return 'The server did not take it after several tries.';
+    return 'myK9Show did not take it after several tries.';
   }
-  return 'The server did not accept this score.';
+  return 'myK9Show did not accept this score.';
 }

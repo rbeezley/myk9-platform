@@ -79,3 +79,10 @@ export function toUnsentScoreRow(
     failedMutationIds: score.failedMutationIds,
   };
 }
+
+/** The removal question's body: names the dog, the class and the score, since removing deletes it. */
+export function removeScoreDescription(row: UnsentScoreRow): string {
+  const score = row.scoreReason ? `${row.scoreText} · ${row.scoreReason}` : row.scoreText;
+  const where = row.className ? ` in ${row.className}` : '';
+  return `${row.dogLabel}${where}: ${score}. This score has not reached myK9Show. Removing it deletes it from this phone for good, so write it down or show it to the secretary first.`;
+}

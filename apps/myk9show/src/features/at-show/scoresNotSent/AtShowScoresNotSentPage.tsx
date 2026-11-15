@@ -39,7 +39,7 @@ export function AtShowScoresNotSentPage() {
         </p>
       ) : readFailed ? (
         <p role="status" className="py-12 text-center text-destructive">
-          We could not read the scores saved on this phone. Reload the page to try again.
+          We could not read the scores saved on this phone. Restart the app to try again.
         </p>
       ) : rows.length === 0 ? (
         <p role="status" className="py-12 text-center text-muted-foreground">
@@ -49,7 +49,7 @@ export function AtShowScoresNotSentPage() {
         <>
           <p role="status" className="mt-1 text-sm text-muted-foreground">
             {rows.length} {rows.length === 1 ? 'score is' : 'scores are'} saved on this phone and
-            not on the server yet
+            not in myK9Show yet
             {refused > 0 ? `, ${refused} of them refused` : ''}. Each one shows the score, so the
             secretary can enter it at the desk.
           </p>

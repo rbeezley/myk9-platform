@@ -59,8 +59,12 @@ export function isScoreMutation(
   );
 }
 
+/** The later of two writes: by queue sequence when both have one, else by when they were saved. */
 function newest(a: PendingMutation, b: PendingMutation): PendingMutation {
-  return (b.sequenceNumber ?? b.timestamp) > (a.sequenceNumber ?? a.timestamp) ? b : a;
+  if (a.sequenceNumber !== undefined && b.sequenceNumber !== undefined) {
+    return b.sequenceNumber > a.sequenceNumber ? b : a;
+  }
+  return b.timestamp > a.timestamp ? b : a;
 }
 
 export function summarizeUnsentWork(

@@ -18,6 +18,6 @@ export const SCORES_NOT_SENT_TOAST_ID = 'scores-not-sent';
 export function scoresNotSentNoticeText(refused: number): { title: string; description: string } {
   return {
     title: `${refused} ${refused === 1 ? 'score' : 'scores'} not sent`,
-    description: `The server did not take ${refused === 1 ? 'it' : 'them'}. The list shows each dog, the score and why.`,
+    description: `myK9Show did not take ${refused === 1 ? 'it' : 'them'}. The list shows each dog, the score and why.`,
   };
 }

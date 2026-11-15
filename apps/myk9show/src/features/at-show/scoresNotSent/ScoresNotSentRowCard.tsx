@@ -10,12 +10,7 @@ import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { announceUnsentChanged } from '@/hooks/useUnsentWork';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { ScoresNotSentRow } from './useScoresNotSent';
-
-export function removeScoreDescription(row: ScoresNotSentRow): string {
-  const score = row.scoreReason ? `${row.scoreText} · ${row.scoreReason}` : row.scoreText;
-  const where = row.className ? ` in ${row.className}` : '';
-  return `${row.dogLabel}${where}: ${score}. This score has not reached the server. Removing it deletes it from this phone for good, so write it down or show it to the secretary first.`;
-}
+import { removeScoreDescription } from './unsentScoreDetails';
 
 export function ScoresNotSentRowCard({ row }: { row: ScoresNotSentRow }) {
   const [confirming, setConfirming] = useState(false);

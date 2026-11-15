@@ -125,7 +125,7 @@ describe('AtShowScoresNotSentPage', () => {
     ).toBeInTheDocument();
     expect(within(rows[2]!).getByText('Not qualified · 0:06.35 · 2 faults')).toBeInTheDocument();
     expect(within(rows[2]!).getByText('Reason: Handler error')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('The server did not accept this score.')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('myK9Show did not accept this score.')).toBeInTheDocument();
     // No row shows the server's own text.
     expect(document.body.textContent).not.toContain('entries_chk_42');
     expect(document.body.textContent).not.toContain('Non-retryable');

@@ -42,10 +42,10 @@ describe('unsentScoreReason', () => {
   it('never shows the server text it does not recognise', () => {
     const raw = 'Non-retryable error: new row violates check constraint "entries_chk_42"';
     const why = unsentScoreReason(failed(raw, 'permanent'));
-    expect(why).toBe('The server did not accept this score.');
+    expect(why).toBe('myK9Show did not accept this score.');
     expect(why).not.toContain('entries_chk_42');
     expect(unsentScoreReason(failed('Max retries exceeded: XX000 boom', 'max-retries'))).toBe(
-      'The server did not take it after several tries.'
+      'myK9Show did not take it after several tries.'
     );
     expect(unsentScoreReason(failed('Non-retryable error: RLS said no', 'authorization'))).toBe(
       'This sign-in is not allowed to score this class.'

@@ -48,7 +48,7 @@ VALUES
   ('00000000-0000-0000-0000-000002040009',
    '00000000-0000-0000-0000-000002040007', '00000000-0000-0000-0000-000002040005',
    '00000000-0000-0000-0000-000002040003', '00000000-0000-0000-0000-000002040004',
-   '00000000-0000-0000-0000-000002040002', 'pending', 'pending', 25);
+   '00000000-0000-0000-0000-000002040002', 'submitted', 'pending', 25);
 
 -- Inserted confirmed WITH an armband reserved offline: it is kept.
 INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,

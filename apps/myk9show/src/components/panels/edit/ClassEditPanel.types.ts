@@ -2,6 +2,7 @@ import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 
+import type { JudgeChangeWarningProps } from '@/components/classes/JudgeChangeWarning';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
 
 export type CapacityControl = 'maxEntries' | 'allowsWaitlist';
@@ -19,6 +20,9 @@ export interface ClassEditPanelProps {
   /** "Delete class" in the footer. Omit for a viewer who cannot delete. */
   onDelete?: EditPanelDeleteOption | undefined;
 }
+
+/** The judge the edit panel opened with, for the judge-change warning (MYK9-2015). */
+export type OutgoingJudge = Omit<JudgeChangeWarningProps, 'selectedJudgeId'>;
 
 // Form data interface for ClassData
 export interface ClassEditFormData extends Record<string, unknown> {

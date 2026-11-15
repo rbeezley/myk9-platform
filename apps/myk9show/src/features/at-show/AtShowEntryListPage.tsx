@@ -44,6 +44,7 @@ import { createRunOrderUpdater } from './runOrderUpdater';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { EntryListNotices } from './StaleReadNotice';
+import { SavedScoreLine } from './SavedScoreLine';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -389,6 +390,8 @@ export const AtShowEntryListPage: React.FC = () => {
             // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.
             hideMaxTimeOption: !canManageClasses,
             hideSettingsOption: !canManageClasses || !hasSettingsLinks,
+            // MYK9-2012: pinned inside the header's sticky block.
+            banner: <SavedScoreLine />,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
             // One menu (MYK9-1697): the class actions list inside it.
             menu: classActions => (

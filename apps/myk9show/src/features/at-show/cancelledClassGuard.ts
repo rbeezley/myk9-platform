@@ -88,12 +88,6 @@ export function useClassCancelledStatus(classIds: Array<string | undefined>): {
   return { isClassCancelled, known };
 }
 
-export function useIsClassCancelledFor(
-  classIds: Array<string | undefined>
-): (classId: string) => boolean {
-  return useClassCancelledStatus(classIds).isClassCancelled;
-}
-
 /**
  * Holds a dog tap (returns true, "do not open the scoresheet") until the class replica has
  * answered, then defers to `gate`. A tap that lands first would otherwise open the scoresheet

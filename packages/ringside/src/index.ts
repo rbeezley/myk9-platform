@@ -150,7 +150,7 @@ export {
 export type { DogsAheadResult, EntryListOwnership } from './pages/EntryList';
 
 // Shared run-queue primitive — one ordering rule ("who's in the ring, who runs
-// next") for the at-show class-row preview, post-save quick-advance chips, and
+// next") for the at-show class-row preview and
 // favorite-dog push proximity. Typed structurally, so hosts can pass their own
 // row type (e.g. replicated entries) and get it back with display fields intact.
 export {
@@ -175,18 +175,9 @@ export {
 } from './pages/EntryList';
 export type { ClaimState, NotRunningReason, RunQueueEntry, RunQueueState } from './pages/EntryList';
 
-// Quick-advance ranking (MYK9-83) — the post-save "up next" chips and the
-// pending-tab gate bubble share this one gate-aware layer over the run queue.
-export {
-  DEFAULT_QUICK_ADVANCE_LIMIT,
-  GATE_PRIORITY_STATUSES,
-  gatePromotedPending,
-  gateRank,
-  gateStatusLabel,
-  gateStatusOf,
-  quickAdvanceCandidates,
-} from './pages/EntryList';
-export type { GateStatus, QuickAdvanceEntry } from './pages/EntryList';
+// Gate ranking (MYK9-83): a dog at or called to the gate sorts ahead on the Pending tab.
+export { GATE_PRIORITY_STATUSES, gateRank, gateStatusOf } from './pages/EntryList';
+export type { GateStatus, GateRankEntry } from './pages/EntryList';
 
 export { useDragAndDropEntries } from './pages/EntryList';
 

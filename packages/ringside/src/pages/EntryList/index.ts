@@ -57,8 +57,8 @@ export {
 export type { DogsAheadResult, EntryListOwnership } from './dogsAheadInList';
 
 // ── Shared run-queue primitive (who's in the ring, who's next, in what order) ──
-// One ordering rule for the class-row next-up preview, the post-save
-// quick-advance chips, and favorite-dog push proximity. Typed structurally so
+// One ordering rule for the class-row next-up preview and
+// favorite-dog push proximity. Typed structurally so
 // at-show can pass replicated rows through it.
 export {
   armbandSortKey,
@@ -82,19 +82,11 @@ export {
 } from './runQueue';
 export type { ClaimState, NotRunningReason, RunQueueEntry, RunQueueState } from './runQueue';
 
-// ── Quick-advance ranking (MYK9-83) ──────────────────────────────────────
-// Gate-aware layer over the run queue: opportunistic at-gate promotion that
-// degrades to plain run order when no check-in statuses exist.
-export {
-  DEFAULT_QUICK_ADVANCE_LIMIT,
-  GATE_PRIORITY_STATUSES,
-  gatePromotedPending,
-  gateRank,
-  gateStatusLabel,
-  gateStatusOf,
-  quickAdvanceCandidates,
-} from './quickAdvanceCandidates';
-export type { GateStatus, QuickAdvanceEntry } from './quickAdvanceCandidates';
+// ── Gate ranking (MYK9-83) ───────────────────────────────────────────────
+// A dog at or called to the gate sorts ahead on the Pending tab. Nothing here
+// picks or suggests the next dog (MYK9-2012).
+export { GATE_PRIORITY_STATUSES, gateRank, gateStatusOf } from './gateRank';
+export type { GateStatus, GateRankEntry } from './gateRank';
 
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';

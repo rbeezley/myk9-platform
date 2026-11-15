@@ -228,7 +228,7 @@ test.describe('At-show judge scoring authorization', () => {
       );
   });
 
-  test('reopens the saved dog for correction and keeps the next-dog shortcut explicit', async ({
+  test('returns to the list with the saved score, and Correct reopens that dog (MYK9-2012)', async ({
     page,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
@@ -244,11 +244,14 @@ test.describe('At-show judge scoring authorization', () => {
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();
     await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
 
-    await expect(page.getByRole('button', { name: 'Correct this score' })).toBeVisible();
-    await expect(page.getByText('Or jump straight to whoever is at the gate:')).toBeVisible();
-    await expect(page.getByTestId('quick-advance-entry').first()).toBeVisible();
+    // No Saved screen and no next-dog suggestion: the judge is on the list with one line.
+    const savedLine = page.getByTestId('saved-score-line');
+    await expect(savedLine).toContainText('Saved:');
+    await expect(savedLine).toContainText('Qualified');
+    await expect(page.getByText('Or jump straight to whoever is at the gate:')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Back to Entries' })).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Correct this score' }).click();
+    await savedLine.getByRole('button', { name: 'Correct' }).click();
     await expect(page).toHaveURL(new RegExp(escapeRegExp(scorePath)));
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 

@@ -187,6 +187,8 @@ export interface EntryListHeaderProps {
    * function receives this class's actions to list (MYK9-1697).
    */
   menu?: EntryListMenuSlot;
+  /** A host notice pinned as the header's last row, inside its sticky block (MYK9-2012). */
+  banner?: React.ReactNode;
   /** What this viewer may do to the class; handed to `menu` as a list. */
   actionsMenu: ActionsMenuConfig;
   /** For combined view - show section badge */
@@ -217,6 +219,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   actionsMenu,
   up,
   menu,
+  banner,
   showSectionsBadge = false,
   CompactOfflineIndicator,
   SyncIndicator,
@@ -264,91 +267,95 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 max-sm:flex-wrap max-sm:gap-y-0 sm:max-xl:flex-wrap sm:max-xl:gap-y-0 rounded-b-xl border-b border-border bg-card p-3 max-sm:py-1.5 sm:gap-4">
-        {/* MYK9-1770: the host menu sits first, Up beside it, top-left on every ringside screen. */}
-        <div className="flex shrink-0 items-center gap-2" data-testid="entry-list-header-left">
-          {menuControl}
-          <RingsideUpButton label={up.label} onClick={() => navigate(up.to)} />
-        </div>
-        <CompactOfflineIndicator />
-        {/* Class name: pinned with the bar (D7). Phones give it its own line under
+      <header className="sticky top-0 z-10 rounded-b-xl border-b border-border bg-card">
+        <div className="flex min-h-[60px] items-center gap-2 max-sm:flex-wrap max-sm:gap-y-0 sm:max-xl:flex-wrap sm:max-xl:gap-y-0 p-3 max-sm:py-1.5 sm:gap-4">
+          {/* MYK9-1770: the host menu sits first, Up beside it, top-left on every ringside screen. */}
+          <div className="flex shrink-0 items-center gap-2" data-testid="entry-list-header-left">
+            {menuControl}
+            <RingsideUpButton label={up.label} onClick={() => navigate(up.to)} />
+          </div>
+          <CompactOfflineIndicator />
+          {/* Class name: pinned with the bar (D7). Phones give it its own line under
             the bar; it wraps there instead of clamping, and since that line is
             always full width a sync indicator coming and going beside the bar
             cannot rewrap it (the 2026-10-09 bounce). Tap or keyboard opens the
             class details. */}
-        <div
-          ref={classInfoRef}
-          data-class-info-trigger={hasExtraInfo ? '' : undefined}
-          className={cn(
-            'flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-center max-sm:order-last max-sm:basis-full sm:max-xl:order-last sm:max-xl:basis-full xl:min-w-[16rem]',
-            hasExtraInfo &&
-              'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-          )}
-          onClick={hasExtraInfo ? toggleInfoPopup : undefined}
-          role={hasExtraInfo ? 'button' : undefined}
-          tabIndex={hasExtraInfo ? 0 : undefined}
-          {...getClassInfoA11yProps(hasExtraInfo, showInfoPopup)}
-          onKeyDown={
-            hasExtraInfo ? event => handleClassInfoKeyDown(event, toggleInfoPopup) : undefined
-          }
-        >
-          <h1 className="m-0 min-w-0 break-words text-balance text-center text-base font-[590] leading-tight tracking-tight text-foreground md:text-lg">
-            {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
-              'Loading...'}
-          </h1>
-          {hasExtraInfo && (
-            <span
-              className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-muted-foreground text-card opacity-60 transition-colors group-hover:bg-primary group-hover:opacity-100"
-              aria-hidden="true"
-            >
-              <Info size={12} />
-            </span>
-          )}
-        </div>
-        {/* Class Details Popover - renders via portal */}
-        {hasExtraInfo && popoverData && (
-          <ClassDetailsPopover
-            isOpen={showInfoPopup}
-            onClose={closeInfoPopup}
-            anchorRef={classInfoRef}
-            position="bottom"
-            showJudgeB={showSectionsBadge}
-            data={popoverData}
-          />
-        )}
-
-        <div className="relative z-[100] ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-          <HeaderSyncState
-            isRefreshing={isRefreshing}
-            isSyncing={isSyncing}
-            hasError={hasError}
-            pendingCount={pendingCount}
-            RefreshIndicator={RefreshIndicator}
-            SyncIndicator={SyncIndicator}
-          />
-
-          <FilterTriggerButton
-            onClick={onFilterClick}
-            hasActiveFilters={hasActiveFilters}
-            disabled={filterDisabled}
-          />
-
-          {/* Refresh, in the same place as on the class list (D3). */}
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            aria-label="Refresh entries"
-            title="Refresh"
-            className={REFRESH_BUTTON_CLASS}
+          <div
+            ref={classInfoRef}
+            data-class-info-trigger={hasExtraInfo ? '' : undefined}
+            className={cn(
+              'flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-center max-sm:order-last max-sm:basis-full sm:max-xl:order-last sm:max-xl:basis-full xl:min-w-[16rem]',
+              hasExtraInfo &&
+                'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+            )}
+            onClick={hasExtraInfo ? toggleInfoPopup : undefined}
+            role={hasExtraInfo ? 'button' : undefined}
+            tabIndex={hasExtraInfo ? 0 : undefined}
+            {...getClassInfoA11yProps(hasExtraInfo, showInfoPopup)}
+            onKeyDown={
+              hasExtraInfo ? event => handleClassInfoKeyDown(event, toggleInfoPopup) : undefined
+            }
           >
-            <RefreshCw
-              size={20}
-              aria-hidden
-              className={cn(isRefreshing && 'animate-spin motion-reduce:animate-none')}
+            <h1 className="m-0 min-w-0 break-words text-balance text-center text-base font-[590] leading-tight tracking-tight text-foreground md:text-lg">
+              {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
+                'Loading...'}
+            </h1>
+            {hasExtraInfo && (
+              <span
+                className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-muted-foreground text-card opacity-60 transition-colors group-hover:bg-primary group-hover:opacity-100"
+                aria-hidden="true"
+              >
+                <Info size={12} />
+              </span>
+            )}
+          </div>
+          {/* Class Details Popover - renders via portal */}
+          {hasExtraInfo && popoverData && (
+            <ClassDetailsPopover
+              isOpen={showInfoPopup}
+              onClose={closeInfoPopup}
+              anchorRef={classInfoRef}
+              position="bottom"
+              showJudgeB={showSectionsBadge}
+              data={popoverData}
             />
-          </button>
+          )}
+
+          <div className="relative z-[100] ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+            <HeaderSyncState
+              isRefreshing={isRefreshing}
+              isSyncing={isSyncing}
+              hasError={hasError}
+              pendingCount={pendingCount}
+              RefreshIndicator={RefreshIndicator}
+              SyncIndicator={SyncIndicator}
+            />
+
+            <FilterTriggerButton
+              onClick={onFilterClick}
+              hasActiveFilters={hasActiveFilters}
+              disabled={filterDisabled}
+            />
+
+            {/* Refresh, in the same place as on the class list (D3). */}
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              aria-label="Refresh entries"
+              title="Refresh"
+              className={REFRESH_BUTTON_CLASS}
+            >
+              <RefreshCw
+                size={20}
+                aria-hidden
+                className={cn(isRefreshing && 'animate-spin motion-reduce:animate-none')}
+              />
+            </button>
+          </div>
         </div>
+        {/* Pinned with the bar, so a host notice (MYK9-2012) never covers its controls. */}
+        {banner}
       </header>
       <TrialLine trialInfoText={trialInfoText} statusLabel={classInfo?.statusLabel} />
     </>

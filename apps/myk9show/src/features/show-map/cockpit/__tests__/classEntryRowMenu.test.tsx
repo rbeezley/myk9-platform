@@ -43,7 +43,11 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 }));
 vi.mock('@/utils/checkInTransitions', () => ({ transitionToCompleted }));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => isOnline.value }));
-vi.mock('@/features/at-show/clearEntryScore', () => ({ clearEntryScore }));
+vi.mock('@/features/at-show/clearEntryScore', () => ({
+  clearEntryScore,
+  entryScoreStamp: (row: { scoring_completed_at?: string | null }) =>
+    row.scoring_completed_at ?? null,
+}));
 vi.mock('@/lib/undoToast', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/undoToast')>()),
   showUndoToast,
@@ -119,7 +123,7 @@ beforeEach(() => {
   getStored.mockReset().mockResolvedValue({ entry_status: 'accepted', is_scored: false });
   transitionToCompleted.mockReset();
   showUndoToast.mockReset();
-  clearEntryScore.mockReset().mockResolvedValue(undefined);
+  clearEntryScore.mockReset().mockResolvedValue(true);
   isOnline.value = true;
 });
 
@@ -242,6 +246,11 @@ describe('Mark absent: one tap, says what happened, Undo (MYK9-1940)', () => {
   });
 
   it('Undo clears the result with the same write as Reset score, then refreshes', async () => {
+    getStored.mockResolvedValue({
+      entry_status: 'accepted',
+      is_scored: false,
+      scoring_completed_at: '2026-11-15T10:00:00.000Z',
+    });
     const onRefreshEntries = vi.fn();
     const { user } = await openMenu(table(row('waiting'), { onRefreshEntries }));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
@@ -250,7 +259,9 @@ describe('Mark absent: one tap, says what happened, Undo (MYK9-1940)', () => {
 
     showUndoToast.mock.calls[0]?.[0].onUndo();
 
-    await waitFor(() => expect(clearEntryScore).toHaveBeenCalledWith('e-110'));
+    await waitFor(() =>
+      expect(clearEntryScore).toHaveBeenCalledWith('e-110', '2026-11-15T10:00:00.000Z')
+    );
     await waitFor(() => expect(onRefreshEntries).toHaveBeenCalled());
   });
 

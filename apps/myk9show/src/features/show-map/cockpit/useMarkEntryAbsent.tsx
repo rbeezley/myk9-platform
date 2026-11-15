@@ -2,8 +2,9 @@ import { toast } from 'sonner';
 
 import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 import { ABSENT_SCORE } from '@/features/at-show/absentScore';
-import { clearEntryScore } from '@/features/at-show/clearEntryScore';
+import { clearEntryScore, entryScoreStamp } from '@/features/at-show/clearEntryScore';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import { buildStatusUndoToastMessage } from '@/services/database/entries/statusUndo';
 import { STATUS_UNDO_WINDOW_MS, showUndoToast } from '@/lib/undoToast';
 import { toOptimisticScorePayload } from '@/pages/scoring/types';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -12,11 +13,21 @@ import { transitionToCompleted } from '@/utils/checkInTransitions';
 import { dayOfDogLabel, markedAbsentMessage } from '../dayOfMessages';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
 
+async function readScoreStamp(entryId: string): Promise<string | null> {
+  try {
+    const stored = await replicatedEntriesTable.get(entryId);
+    return stored ? entryScoreStamp(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Mark absent from the entries table (MYK9-1873, MYK9-1940). Absent is a RESULT, not a check-in
  * status: this submits the same `ABSENT_SCORE` Ringside's held-entry notice does, through the
  * scoresheet's offline-first score write. One tap, no confirmation: the toast says what happened
- * and its Undo clears the result with the same write the judge's Reset score uses.
+ * and its Undo clears the result with the same write the judge's Reset score uses, but only while the
+ * row still holds this Absent (MYK9-2037).
  */
 export function useMarkEntryAbsent({
   classId,
@@ -29,9 +40,19 @@ export function useMarkEntryAbsent({
 }): { request: (entry: SecretaryCockpitClassEntry) => void } {
   const { submitScoreOptimistically } = useOptimisticScoring();
 
-  const undo = async (entry: SecretaryCockpitClassEntry, label: string) => {
+  // `absentStamp` is the score timestamp this Absent wrote. Undo clears only while the replica row
+  // still carries it, so a score recorded after the Absent (or a later Absent) is never erased.
+  const undo = async (
+    entry: SecretaryCockpitClassEntry,
+    label: string,
+    absentStamp: string | null
+  ) => {
     try {
-      await clearEntryScore(entry.entryId);
+      const cleared = await clearEntryScore(entry.entryId, absentStamp);
+      if (!cleared) {
+        toast.error(buildStatusUndoToastMessage('superseded').message);
+        return;
+      }
       await onRefreshEntries?.();
     } catch {
       toast.error(`Could not undo ${label} marked absent in ${className}. Try again.`);
@@ -71,9 +92,10 @@ export function useMarkEntryAbsent({
     if (outcome.saved) {
       // As the scoresheet does after a score: a dog that was in the ring leaves it.
       if (entry.state === 'in-ring') transitionToCompleted(entry.entryId);
+      const absentStamp = await readScoreStamp(entry.entryId);
       showUndoToast({
         message: markedAbsentMessage(label, className),
-        onUndo: () => void undo(entry, label),
+        onUndo: () => void undo(entry, label, absentStamp),
         duration: STATUS_UNDO_WINDOW_MS,
       });
       await onRefreshEntries?.();

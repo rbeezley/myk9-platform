@@ -160,6 +160,8 @@ export function useOptimisticScoring() {
         // and updateEntry merges over the cached row). Write the reason when present.
         detailFields.disqualification_reason = scoreData.nonQualifyingReason ?? null;
 
+        // One instant for both spellings: Show Desk's Absent Undo compares this stamp (MYK9-2037).
+        const completedAt = new Date().toISOString();
         const mutationId = await replicatedEntriesTable.updateEntry(String(entryId), {
           // Write both camelCase and snake_case so toSupabaseRow() picks up the values
           resultStatus: resultStatus,
@@ -170,8 +172,8 @@ export function useOptimisticScoring() {
           search_time_seconds: searchTimeSeconds,
           totalFaults: scoreData.faultCount ?? 0,
           total_faults: scoreData.faultCount ?? 0,
-          scoringCompletedAt: new Date().toISOString(),
-          scoring_completed_at: new Date().toISOString(),
+          scoringCompletedAt: completedAt,
+          scoring_completed_at: completedAt,
           ...detailFields,
         });
 

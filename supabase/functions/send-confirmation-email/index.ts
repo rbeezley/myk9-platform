@@ -45,6 +45,7 @@ import {
 } from './entryConfirmations.ts';
 import { runEntryConfirmations, type EntryConfirmationDeps } from './entryConfirmationRun.ts';
 import { renderConfirmationEmail } from './renderConfirmationEmail.ts';
+import { readAllPages, type PageResult } from './pagedRead.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -153,7 +154,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       statuses,
       quietSince,
     }) => {
-      // Same filters as loadCandidates and no row limit: at most one run's exhibitors.
+      // Same filters as loadCandidates and no row limit, paged past PostgREST's max_rows.
       const eligible = () =>
         supabase
           .from('entries')
@@ -165,18 +166,24 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
           .is('confirmation_email_sent_at', null)
           .in('confirmation_email_status', statuses)
           .lt('updated_at', quietSince);
+      const readAll = (
+        narrow: (query: ReturnType<typeof eligible>) => ReturnType<typeof eligible>
+      ) =>
+        readAllPages<ConfirmationEntry>(
+          (from, to) =>
+            narrow(eligible()).order('id', { ascending: true }).range(from, to) as PromiseLike<
+              PageResult<ConfirmationEntry>
+            >,
+          'Could not read exhibitor entries'
+        );
       const rows: ConfirmationEntry[] = [];
       if (registrationIds.length > 0) {
-        const { data, error } = await eligible().in('registration_id', registrationIds);
-        if (error) throw new Error(`Could not read exhibitor entries: ${error.message}`);
-        rows.push(...((data ?? []) as unknown as ConfirmationEntry[]));
+        rows.push(...(await readAll(q => q.in('registration_id', registrationIds))));
       }
       if (handlerIds.length > 0) {
-        const { data, error } = await eligible()
-          .is('registration_id', null)
-          .in('handler_id', handlerIds);
-        if (error) throw new Error(`Could not read exhibitor entries: ${error.message}`);
-        rows.push(...((data ?? []) as unknown as ConfirmationEntry[]));
+        rows.push(
+          ...(await readAll(q => q.is('registration_id', null).in('handler_id', handlerIds)))
+        );
       }
       return rows;
     },

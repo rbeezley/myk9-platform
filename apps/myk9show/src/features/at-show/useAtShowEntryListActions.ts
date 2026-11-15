@@ -19,7 +19,7 @@ import type { EntryListActions, EntryStatusCheckIn } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
 import { SelfCheckinRefusedError, isSelfCheckinRefusal } from './entryStatusAccess';
-import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
+import { useUnsentWork } from '@/hooks/useUnsentWork';
 import {
   isStaleCheckIn,
   updateReplicatedCheckInStatus,
@@ -88,9 +88,9 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
   const writer: CheckInWriter = deps.writer ?? 'replicated';
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasError, setHasError] = useState(false);
-  // Real count of queued-but-unsynced writes — powers the header's "N waiting to
-  // sync" signal so a judge can tell whether it's safe to close the iPad.
-  const pendingCount = usePendingMutationCount();
+  // Real count of unsent work, waiting or refused, in scores (MYK9-2011): powers the
+  // header's "Not sent yet" signal so a judge can tell whether it's safe to close the iPad.
+  const pendingCount = useUnsentWork().total;
   // Tracks concurrent in-flight mutations so `isSyncing` only clears when the
   // last one settles (useState lags within a sync burst).
   const inFlight = useRef(0);

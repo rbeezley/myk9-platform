@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { CloudDownload, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { ChoiceNeededButton } from './ChoiceNeededButton';
 import { OfflineStatusLine } from './OfflineStatusLine';
@@ -12,6 +13,8 @@ interface OfflineReadyBadgeProps {
   note?: string | undefined;
   /** Whether the note needs the secretary's attention (conflict, error) rather than reassures. */
   noteNeedsAttention?: boolean | undefined;
+  /** MYK9-2011: the note is a count of unsent scores, and tapping it opens their list. */
+  noteHref?: string | undefined;
   /**
    * MYK9-1621: false = before the show's prompt window (`isInOfflinePromptWindow`). An unsaved
    * device then shows no amber sentence, only a quiet "Save for show day" button. Defaults to
@@ -62,6 +65,7 @@ function OfflineReadyStatus({
   showId,
   note,
   noteNeedsAttention,
+  noteHref,
   inPromptWindow = true,
   autoSaveKey,
 }: OfflineReadyBadgeProps) {
@@ -74,9 +78,14 @@ function OfflineReadyStatus({
     void prime();
   }, [autoSaveKey, needsCopy, isOnline, priming, prime]);
 
-  const noteText = note ? (
-    <span className={noteNeedsAttention ? 'text-warning' : 'text-muted-foreground'}>{note}</span>
-  ) : null;
+  const noteTone = noteNeedsAttention ? 'text-warning' : 'text-muted-foreground';
+  const noteText = !note ? null : noteHref ? (
+    <Link to={noteHref} className={`inline-flex min-h-11 items-center underline ${noteTone}`}>
+      {note}
+    </Link>
+  ) : (
+    <span className={noteTone}>{note}</span>
+  );
 
   if (!readiness) {
     return noteText ? (
@@ -92,6 +101,7 @@ function OfflineReadyStatus({
     return (
       <OfflineStatusLine
         note={note ?? 'Offline · scores saved on this device'}
+        href={noteHref}
         className="min-h-11 flex-wrap gap-x-2 gap-y-1 text-sm"
       />
     );

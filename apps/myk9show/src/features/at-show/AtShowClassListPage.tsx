@@ -64,6 +64,7 @@ import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
+import { syncNoteBadgeProps } from './scoresNotSent/scoresNotSentPath';
 import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
 import { deriveRingsideJudgePersonIdFromClaim } from '@/store/ringsideGrantStore';
 
@@ -84,11 +85,7 @@ function AtShowOfflineReadySlot({
   if (isExhibitorOnly) return null;
   return (
     <div className="mb-1 flex justify-center">
-      <OfflineReadyBadge
-        showId={showId}
-        note={note.label}
-        noteNeedsAttention={note.needsAttention}
-      />
+      <OfflineReadyBadge showId={showId} {...syncNoteBadgeProps(showId, note)} />
     </div>
   );
 }

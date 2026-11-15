@@ -21,6 +21,7 @@
  *   pnpm qa:edge-function-drift --content            # check every deployed row by
  *                                                    # download + formatted compare
  *
+ * Dates skip docs- and test-only commits (`UNBUNDLED_GLOBS`), as `--content` does.
  * Dates never see a `_shared/*` edit (it touches no function dir); `--content`
  * does, because a download carries every `_shared` file the function bundles.
  * Both modes only READ the project: nothing here deploys.
@@ -48,6 +49,8 @@ import { outOfTreeImports } from './edge-function-imports.ts';
 export const PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 export const FUNCTION_DIRS = ['supabase/functions', 'apps/myk9show/supabase/functions'] as const;
 export const IGNORE_REVS_FILE = '.git-blame-ignore-revs';
+/** Files a deploy never bundles: a commit touching only these does not date a function. */
+const UNBUNDLED_GLOBS = ['*.md', '*.test.ts'] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type DriftStatus =
@@ -270,7 +273,11 @@ export function collectSources(root: string): SourceFunction[] {
     for (const d of readdirSync(abs, { withFileTypes: true })) {
       if (!d.isDirectory() || d.name.startsWith('_') || d.name.startsWith('.')) continue;
       const rel = `${dir}/${d.name}`;
-      const commit = pickSourceCommit(git(root, ['log', '--format=%H%x09%cI', '--', rel]), ignore);
+      const excludes = UNBUNDLED_GLOBS.map(g => `:(exclude,glob)${rel}/**/${g}`);
+      const commit = pickSourceCommit(
+        git(root, ['log', '--format=%H%x09%cI', '--', rel, ...excludes]),
+        ignore
+      );
       out.push({
         name: d.name,
         dir,

@@ -18,6 +18,7 @@ import {
   signsInFixtureAccounts,
   targetsProductionProject,
 } from './productionFixtureGuard';
+import { toPosixPath } from './utils/posixPath';
 import { authenticateAndResolveScope } from './load/loadStaffCredentials';
 
 const PRODUCTION = 'https://sojmvhhwsjxmfistvzbe.supabase.co';
@@ -224,7 +225,7 @@ describe('a Playwright run refuses to start against production with fixture pass
       mkdirSync(join(dist, 'assets', 'scripts'));
       writeFileSync(join(dist, 'assets', 'scripts', 'chunk.js'), `x="${PRODUCTION}"`);
       writeFileSync(join(dist, 'assets', 'note.txt'), PRODUCTION);
-      expect(bundleFilesNamingProduction(dist).map(f => f.replace(dist, ''))).toEqual([
+      expect(bundleFilesNamingProduction(dist).map(f => f.replace(toPosixPath(dist), ''))).toEqual([
         '/assets/scripts/chunk.js',
       ]);
     });

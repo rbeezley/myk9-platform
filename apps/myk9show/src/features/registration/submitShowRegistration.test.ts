@@ -23,7 +23,7 @@ function makeParams(
     handlerAssignments: {
       'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
     },
-    classes: [{ id: 'class-1', entryFee: 20 }],
+    classes: [{ id: 'class-1' }],
     showFeeInfo: {
       preEntryFee: '25',
       dayOfShowFee: '30',
@@ -181,7 +181,7 @@ describe('submitShowRegistration', () => {
           paymentDate: '2026-07-07',
           receivedMethod: 'check',
         },
-        classes: [{ id: 'class-1', entryFee: 20 }],
+        classes: [{ id: 'class-1' }],
       });
 
       await submitShowRegistration(params);
@@ -306,7 +306,7 @@ describe('submitShowRegistration', () => {
   // "nothing unusual"), so the created entries travel in their own field for the
   // Receipt step's entry-blank downloads.
   it('carries the created entries separately on an ordinary submission', async () => {
-    const params = makeParams({ classes: [{ id: 'class-1', entryFee: 30 }] });
+    const params = makeParams({ classes: [{ id: 'class-1' }] });
 
     const result = await submitShowRegistration(params);
 
@@ -340,10 +340,7 @@ describe('submitShowRegistration', () => {
         'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
         'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Lee Handler', isOwner: false },
       },
-      classes: [
-        { id: 'class-1', entryFee: 20 },
-        { id: 'class-2', entryFee: 20 },
-      ],
+      classes: [{ id: 'class-1' }, { id: 'class-2' }],
     });
     vi.mocked(params.deps.submitShowEntries!).mockResolvedValue({
       entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],

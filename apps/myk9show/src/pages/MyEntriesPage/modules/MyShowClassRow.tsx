@@ -27,6 +27,7 @@ import {
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from '@myk9/core';
+import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { canLeaveClass } from './leaveClassRow';
 import type { ClassRowKind } from './myShowDogState';
 import { CLASS_ROW_TEXT, classRowDisplay } from './classRowStatusText';
@@ -60,6 +61,8 @@ const MUTED_LINK_CLASS = `${LINK_BASE_CLASS} text-muted-foreground underline`;
 
 export interface MyShowClassRowProps {
   cls: MyShowClass;
+  /** The class's judge, when known; nothing renders otherwise. */
+  judgeName?: string | undefined;
   dogName: string;
   /** The order that owns this class row — the dialogs and result card key off it. */
   order: MyEntry | undefined;
@@ -86,6 +89,7 @@ export interface MyShowClassRowProps {
 
 export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   cls,
+  judgeName,
   dogName,
   order,
   checkInContext,
@@ -106,6 +110,11 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       ? formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber })
       : null,
   ].filter((part): part is string => Boolean(part));
+  // Judge and time sit on their own line: both are optional and the judge's
+  // name can be long, while the date stays on one line (never "TBD").
+  const detail = [judgeName ? `Judge ${judgeName}` : null, formatStartTime(cls.startTime ?? null)]
+    .filter((part): part is string => Boolean(part))
+    .join(' · ');
 
   // All five terms live in `leaveClassRow.ts` so the rule is drivable without a
   // render. Deliberately NOT gated on the entry-close deadline — see that
@@ -127,7 +136,10 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   return (
     <div className="myk9-entries-class-row">
       <span className="myk9-entries-class-name text-foreground">{cls.name}</span>
-      <span className="myk9-entries-class-when">{when.join(' · ')}</span>
+      <span className="myk9-entries-class-when">
+        {classWhen}
+        {detail && <span className="myk9-entries-class-when-detail">{detail}</span>}
+      </span>
       <span className="myk9-entries-class-state">
         {state.kind === 'result' && renderResult()}
         {word && (

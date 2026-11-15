@@ -20,6 +20,7 @@ import {
   ShowAboutWhere,
   ShowAboutWithdrawal,
 } from '@/components/shows/about/ShowAboutFacts';
+import { ShowAboutAccessCodesLink } from '@/components/shows/about/ShowAboutAccessCodesLink';
 import { useShowManagementOutlet } from '@/components/shows/ShowDetails/showManagementOutlet';
 
 /**
@@ -41,7 +42,8 @@ export default function ShowAboutPage() {
   const anchor = publishAnchorFromHash(hash);
   // MYK9-1686: no public landing page, no Landing page card. Premium stays; a link to the hidden
   // card's anchor falls back to it.
-  const { usesLandingPage } = resolveShowUses(useShowWithLiveUses(show));
+  const liveShow = useShowWithLiveUses(show);
+  const { usesLandingPage } = resolveShowUses(liveShow);
   const scrollTarget =
     anchor === LANDING_CARD_ANCHOR && !usesLandingPage ? PREMIUM_CARD_ANCHOR : anchor;
 
@@ -72,6 +74,9 @@ export default function ShowAboutPage() {
         entryCount={managerEntryCount ?? null}
       />
       <AboutThisShowCard show={show} judges={judges} />
+      {canManageShow && (
+        <ShowAboutAccessCodesLink showId={show.id} usesDeviceScoring={liveShow.usesDeviceScoring} />
+      )}
       <Link
         to={`/secretary/messages?showId=${show.id}&view=email`}
         className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

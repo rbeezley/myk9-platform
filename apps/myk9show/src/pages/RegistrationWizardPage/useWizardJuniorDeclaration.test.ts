@@ -44,7 +44,7 @@ const classSelections = [
   { dogId: 'dog-1', trialId: 't1', selectedClasses: [{ classId: 'c1' }] },
   { dogId: 'dog-2', trialId: 't1', selectedClasses: [{ classId: 'c1' }] },
 ];
-const classes = [{ id: 'c1', className: 'A', entryFee: 28 }];
+const classes = [{ id: 'c1', className: 'A' }];
 const dogs = [
   { id: 'dog-1', name: 'Rocket' },
   { id: 'dog-2', name: 'Juno' },

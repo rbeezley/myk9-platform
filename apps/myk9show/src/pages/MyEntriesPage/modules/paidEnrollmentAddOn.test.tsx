@@ -24,19 +24,14 @@
  *    one class is a dialog with one class;
  *  - each class keeps its OWN effective payment status, so the enrollment's
  *    `paid_by_cash` cannot mask the pending add-on (MYK9-495);
- *  - the dashboard balance counts the add-on, and `CompactStatsRow` rendered on
- *    the real prop shape does NOT say "Paid in full" (LESSONS `last-hop-drop`).
+ *  - the page balance counts the add-on, so the show's balance is not zero
+ *    while the add-on is pending (LESSONS `last-hop-drop`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, screen, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-// The project's custom render (QueryClient + Auth + Router providers), never
-// raw `render` — see CLAUDE.md § Testing.
-import { render } from '@/test/utils/testUtils';
 import { useMyEntriesData } from './useMyEntriesData';
 import { useMyEntriesFilters } from './useMyEntriesFilters';
-import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
-import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { PaymentStatus } from '@/types/show-registration-types';
@@ -231,28 +226,19 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
     return { data, filters };
   }
 
-  it('shows the outstanding balance on the dashboard strip the page actually renders', async () => {
+  it('counts the pending add-on in the balance the page renders per show', async () => {
     const { result } = renderHook(() => useDashboardStrip(), { wrapper: RouterWrapper });
 
     await waitFor(() => expect(result.current.data.entries).toHaveLength(1));
 
     const summary = result.current.data.balanceSummary;
     const stats = result.current.filters.entryStats;
-    render(
-      <CompactStatsRow
-        amountDue={stats.currentAmountDue}
-        hasPastBalance={summary.onlineShowBalances.some(show => show.isPastShow)}
-        currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
-        onNavigate={vi.fn()}
-      />
-    );
 
-    expect(screen.queryByText('Paid in full')).not.toBeInTheDocument();
-    expect(screen.getByText('$30.00')).toBeInTheDocument();
-    expect(screen.getByText('You owe')).toBeInTheDocument();
+    expect(summary.amountDueCents).toBe(3000);
+    expect(stats.currentAmountDue).toBe(30);
   });
 
-  it('still says "Paid in full" once the add-on is settled', async () => {
+  it('owes nothing once the add-on is settled', async () => {
     const settled = pendingAddOnRow();
     settled.payment_status = 'paid_by_check';
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -266,18 +252,7 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
     await waitFor(() => expect(result.current.data.entries).toHaveLength(1));
 
     const summary = result.current.data.balanceSummary;
-    const stats = result.current.filters.entryStats;
     expect(summary.amountDueCents).toBe(0);
-
-    render(
-      <CompactStatsRow
-        amountDue={stats.currentAmountDue}
-        hasPastBalance={summary.onlineShowBalances.some(show => show.isPastShow)}
-        currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
-        onNavigate={vi.fn()}
-      />
-    );
-
-    expect(screen.getByText('Paid in full')).toBeInTheDocument();
+    expect(result.current.filters.entryStats.currentAmountDue).toBe(0);
   });
 });

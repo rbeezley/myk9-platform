@@ -1,6 +1,6 @@
 import { formatTrialLabel } from '@myk9/core';
 import { useMemo, useState } from 'react';
-import { useJudgesOnDays } from '@/features/lunch-orders/judgesOnDays';
+import { JUDGES_OFFLINE_COPY, useJudgesOnDays } from '@/features/lunch-orders/judgesOnDays';
 import { deriveRegistryId } from '@/features/registries';
 import { Button } from '@/components/ui/button';
 import { judgesAcrossTrials, type JudgeAcrossTrials } from './judgesAcrossTrials';
@@ -62,15 +62,16 @@ export function ShowJudgeSuppliesTool({
   const suppliesPaused = !rows && !suppliesFailed && suppliesQuery.fetchStatus === 'paused';
 
   return (
-    <section className="space-y-4" aria-labelledby="judge-supplies-title">
-      <div>
-        <h3 id="judge-supplies-title" className="text-base font-semibold">
-          Judge supplies
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Set each judge&apos;s supply list once. It applies to every trial the judge is on.
+    // The Show Desk panel title already says "Judge supplies"; no second heading here.
+    <section className="space-y-4" aria-label="Judge supplies">
+      <p className="text-sm text-muted-foreground">
+        Set each judge&apos;s supply list once. It applies to every trial the judge is on.
+      </p>
+      {judgesQuery.isPaused && (
+        <p className="text-sm text-muted-foreground" data-testid="judge-supplies-offline">
+          {JUDGES_OFFLINE_COPY}
         </p>
-      </div>
+      )}
       {judgesQuery.isLoading && <p className="text-sm text-muted-foreground">Loading judges…</p>}
       {judgesQuery.isError && (
         <p className="text-sm text-destructive">Could not load the show&apos;s judges.</p>

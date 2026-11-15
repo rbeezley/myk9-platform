@@ -29,7 +29,7 @@ const line = (over: Partial<CartItemForPricing> = {}): CartItemForPricing => ({
   class_id: 'class-1',
   entry_id: 'entry-1',
   junior_fee_declared: false,
-  class_entry_fee: 28,
+  class_entry_fee: null,
   ...over,
 });
 
@@ -132,7 +132,7 @@ describe('ASCA honors no declaration (server side)', () => {
       showPreEntryFee: 30,
       showDayOfShowFee: 45,
       showStartDate: '2026-10-10',
-      classEntryFee: 28,
+      classEntryFee: null,
       nowIso: NOW,
       showJuniorHandlerFee: 15,
       juniorDeclared: true,

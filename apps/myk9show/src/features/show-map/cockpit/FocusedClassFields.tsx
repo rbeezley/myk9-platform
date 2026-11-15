@@ -7,7 +7,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatTime } from '@/lib/format/dates';
 import {
   ClassStatusBadge,
   ClassStatusChoices,
@@ -16,7 +15,7 @@ import {
   useClassStatusChange,
 } from './ClassOperationalControls';
 import { SCORING_COPY } from './classScoringModel';
-import { instantToClockTime, scheduledClockValue } from './cockpitTime';
+import { actualTimingText, expectedStartValue } from './focusedClassTiming';
 import type {
   FocusedClassModel,
   SecretaryCockpitClass,
@@ -101,8 +100,7 @@ function ExpectedStartField({
   }, [editing]);
   const scheduledStart = sourceClass.scheduledStart ?? null;
   const revisedExpectedStart = sourceClass.revisedExpectedStart ?? null;
-  const effective =
-    instantToClockTime(revisedExpectedStart, timeZone) || scheduledClockValue(scheduledStart);
+  const effective = expectedStartValue(sourceClass, timeZone);
   return (
     <div className="space-y-0.5">
       {canManageShow && !editing ? (
@@ -160,14 +158,7 @@ export function FocusedClassFields({
   scoringControl?: ReactNode;
   onEditActualStart: () => void;
 }) {
-  const timing = `${
-    focused.actualStart.value
-      ? `Started ${formatTime(focused.actualStart.value, timeZone)}`
-      : // A class that ran without a recorded start must not claim it never started.
-        sourceClass.lifecycle === 'not-started'
-        ? 'Not started'
-        : 'Start not recorded'
-  }${focused.actualFinish.value ? ` · Finished ${formatTime(focused.actualFinish.value, timeZone)}` : ''}`;
+  const timing = actualTimingText(focused, sourceClass.lifecycle, timeZone);
   // The editor is mounted by the class checklist, which a cancelled class does not have
   // (buildClassChecklist returns no items; ClassChecklistSection renders the editor only with items).
   const editable = canManageShow && sourceClass.lifecycle !== 'cancelled';

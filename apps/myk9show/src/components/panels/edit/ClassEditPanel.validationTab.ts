@@ -30,8 +30,7 @@ const FIELD_LOCATION: Record<string, FieldLocation<ClassTabValue>> = {
   itemsUsed: at('requirements', 'itemsUsed'),
   maxEntries: at('basic', 'maxEntries'),
   allowsWaitlist: at('basic', 'allowsWaitlist'),
-  preEntryFee: at('requirements', 'preEntryFee'),
-  dayOfShowFee: at('requirements', 'dayOfShowFee'),
+  entryFee: at('requirements', 'classEntryFee'),
 };
 
 export const locateClassField = (field: string): FieldLocation<ClassTabValue> | undefined =>

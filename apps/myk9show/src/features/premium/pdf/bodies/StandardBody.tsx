@@ -66,6 +66,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <Text style={s.value}>Mail-in entries also accepted (see Trial Secretary).</Text>
         </View>
       )}
+      {f.withdrawalPolicy && (
+        <View style={s.row}>
+          <Text style={s.label}>{f.withdrawalPolicy.label}</Text>
+          <Text style={s.value}>{f.withdrawalPolicy.text}</Text>
+        </View>
+      )}
 
       {divider}
 

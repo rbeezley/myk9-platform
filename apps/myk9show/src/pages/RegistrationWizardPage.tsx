@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { helpUrl } from '@/lib/help';
@@ -35,6 +35,7 @@ import {
 import { CreatedInSessionProvider } from '@/components/shows/RegistrationWorkflow/CreatedInSessionContext';
 import { WizardLeaveGuard } from './RegistrationWizardPage/WizardLeaveGuard';
 import { EntriesClosedNotice } from './RegistrationWizardPage/EntriesClosedNotice';
+import { ShowMissingNotice } from './RegistrationWizardPage/ShowMissingNotice';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { useOnlyDogPreselect } from './RegistrationWizardPage/useOnlyDogPreselect';
@@ -93,6 +94,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     capacityUnavailable,
     refetchClassAvailability,
     waitlistClassIds,
+    noEntryFeeClassIds,
     blockedClassIds,
     armbandAssignments,
     entryOutcomes,
@@ -110,6 +112,9 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     handleDogSelectionChange,
     handleClassSelectionChange,
     handleHandlerAssignmentChange,
+    handlerClashDeferred,
+    setHandlerClashDeferred,
+    setHandlerClashPending,
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,
@@ -206,6 +211,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
         waitlistClassIds={waitlistClassIds}
+        noEntryFeeClassIds={noEntryFeeClassIds}
         staffWorkflow={isStaff}
         {...(isPaymentStep
           ? {
@@ -423,6 +429,11 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               }}
               onClassSelectionChange={handleClassSelectionChange}
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
+              handlerClash={{
+                deferredPairKeys: handlerClashDeferred,
+                onDeferredChange: setHandlerClashDeferred,
+                onPendingChange: setHandlerClashPending,
+              }}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
               onPaymentMethodClear={handlePaymentMethodClear}
               getPaymentDetails={() => paymentDetailsRef.current}
@@ -453,7 +464,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
 // Wrap with RegistrationProvider for RBAC context
 export default function RegistrationWizardPage() {
   const { showId } = useParams<{ showId: string }>();
-  const navigate = useNavigate();
   const { shows } = useShowStore();
   const [runKey, setRunKey] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -469,18 +479,7 @@ export default function RegistrationWizardPage() {
     : shows.length > 0 && !shows.some(s => s.id === showId)
       ? 'Show not found.'
       : null;
-  if (missing) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">{missing}</p>
-          <Button variant="outline" onClick={() => navigate('/shows')}>
-            Browse Shows
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  if (missing) return <ShowMissingNotice message={missing} />;
 
   // A new key is a fresh wizard: every step's state, the registration and the
   // created-in-session list start over for the next paper form (MYK9-1742).

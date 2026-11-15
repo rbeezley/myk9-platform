@@ -102,11 +102,18 @@ async function fetchJudgeAssignments(
   return [...rows.values()];
 }
 
+/** Shown by the Show Desk tools that read the judges while that read is paused offline. */
+export const JUDGES_OFFLINE_COPY = 'Not available offline. Connect to load judges and supplies.';
+export const LUNCH_ORDERS_OFFLINE_COPY =
+  'Not available offline. Connect to load the judges and their lunch orders.';
+
 export interface JudgesOnDaysResult {
   byTrial: Map<string, JudgeOnDay[]>;
   /** True once an answer exists (an empty map before that is not "no judges"). */
   hasData: boolean;
   isLoading: boolean;
+  /** Offline with nothing cached: the read is paused (no request runs), so it is not loading. */
+  isPaused: boolean;
   /** True while any read is in flight, including a refetch over cached rows. */
   isFetching: boolean;
   isError: boolean;
@@ -128,6 +135,7 @@ export function useJudgesOnDays(
     byTrial: query.data ?? new Map(),
     hasData: query.data !== undefined,
     isLoading: query.isLoading,
+    isPaused: query.data === undefined && !query.isError && query.fetchStatus === 'paused',
     isFetching: query.isFetching,
     isError: query.isError,
     refetch: () => void query.refetch(),

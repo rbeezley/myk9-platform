@@ -48,6 +48,8 @@ import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
 import { buildReceiptStampPayload } from '../_shared/entryReceiptStamp.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
+import { createPayoutsDisabledDeps, notifyPayoutsTurnedOff } from './payoutsDisabledNotice.ts';
+import { createResendSender } from '../_shared/clubMoneyEmails.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
 import { buildPaymentLinkOrder } from './paymentLinkOrder.ts';
 import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
@@ -888,6 +890,16 @@ async function alertIfShowRefundEntriesUnstamped(charge: Stripe.Charge, showId: 
  */
 async function handleAccountUpdated(account: Stripe.Account) {
   const patch = accountToRowPatch(account);
+  // MYK9-1986: claims the true -> false transition before the patch below, so the club is emailed once.
+  await notifyPayoutsTurnedOff(
+    createPayoutsDisabledDeps(
+      supabase,
+      account.id,
+      createResendSender(resendApiKey, FROM_EMAIL),
+      Deno.env.get('SITE_URL')
+    ),
+    patch
+  );
   const { data, error } = await supabase
     .from('club_stripe_accounts')
     .update(patch)

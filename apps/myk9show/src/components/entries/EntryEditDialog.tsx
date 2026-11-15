@@ -339,9 +339,13 @@ export function EntryEditDialog({
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Dog className="h-5 w-5" />
-              Edit Entry
+              {asShowManager ? 'Edit Entry' : 'Change handler or jump height'}
             </SheetTitle>
-            <SheetDescription>Modify this entry for {entry.showName}</SheetDescription>
+            <SheetDescription>
+              {asShowManager
+                ? `Modify this entry for ${entry.showName}`
+                : `Change the handler or jump height for ${entry.dogName} at ${entry.showName}`}
+            </SheetDescription>
           </SheetHeader>
 
           <SheetBody>
@@ -445,6 +449,7 @@ export function EntryEditDialog({
         classId={pullDialog.classId}
         className={pullDialog.className}
         registry={registry}
+        showId={entry.showId}
         isSaving={isSaving}
         withdrawDisabledReason={
           pullDialog.classId

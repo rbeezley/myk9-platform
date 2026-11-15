@@ -37,8 +37,8 @@ const classSelections: ClassSelectionData[] = [
   },
 ];
 const classes = [
-  { id: 'class-1', className: 'A', entryFee: 28 },
-  { id: 'class-2', className: 'B', entryFee: 28 },
+  { id: 'class-1', className: 'A' },
+  { id: 'class-2', className: 'B' },
 ];
 const dogs = [
   { id: 'dog-1', name: 'Rocket' },

@@ -18,7 +18,6 @@ import { renderHook, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { render } from '@/test/utils/testUtils';
-import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { formatPaymentCents, formatPaymentDate } from '@/features/payments/moneyPresentation';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import type { MyPayment } from '@/features/payments/useMyPayments';
@@ -226,13 +225,8 @@ describe('My Shows and My Payments agree (MYK9-1275)', () => {
     expect(myPayments.amountDueCents).toBe(myShows.balanceSummary.amountDueCents);
 
     // Both rendered figures, side by side.
-    const { unmount } = render(
-      <CompactStatsRow
-        amountDue={myShows.balanceSummary.amountDueCents / 100}
-        onNavigate={vi.fn()}
-      />
-    );
-    expect(screen.getByRole('button')).toHaveTextContent('You owe$90.00');
+    const { unmount } = renderMyShowsList(myShows.entries);
+    expect(screen.getByRole('link', { name: 'Pay $90.00' })).toBeInTheDocument();
     expect(screen.queryByText(/due of/)).not.toBeInTheDocument();
     unmount();
 

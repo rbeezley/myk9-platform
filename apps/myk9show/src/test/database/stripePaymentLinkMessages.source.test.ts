@@ -9,10 +9,14 @@ import { PAYMENT_LINK_SERVER_MESSAGES } from '@/components/entries/management/pa
  * wording changes, the dialog would quietly fall back to the generic sentence, so
  * every key must still appear verbatim in the function's source.
  */
-const source = readFileSync(
-  resolve(__dirname, '../../../supabase/functions/stripe-payment-link/index.ts'),
-  'utf8'
-);
+// The function's source plus the shared module it sends the refund-policy refusal from
+// (MYK9-1976), which is the only other place its answers are written.
+const source = [
+  '../../../supabase/functions/stripe-payment-link/index.ts',
+  '../../../supabase/functions/_shared/withdrawalPolicyDisclosureText.ts',
+]
+  .map(path => readFileSync(resolve(__dirname, path), 'utf8'))
+  .join('\n');
 
 describe('stripe-payment-link answers the dialog maps', () => {
   it.each(Object.keys(PAYMENT_LINK_SERVER_MESSAGES))('the function still sends %s', key => {

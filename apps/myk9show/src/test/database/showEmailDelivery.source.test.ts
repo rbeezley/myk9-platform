@@ -10,7 +10,8 @@ function source(path: string): string {
 
 const classifiedProductionResendWriters = {
   'apps/myk9show/supabase/functions/_shared/alertAdmin.ts': 'platform-operator',
-  'apps/myk9show/supabase/functions/cron-process-payouts/index.ts': 'club-finance',
+  // The payout cron's club money emails send from this shared module (MYK9-1986).
+  'apps/myk9show/supabase/functions/_shared/clubMoneyEmails.ts': 'club-finance',
   'apps/myk9show/supabase/functions/stripe-webhook/index.ts': 'show-owned',
   'supabase/functions/admin-invite-user/index.ts': 'platform-account',
   'supabase/functions/admin-invite-user/inviteUserHandler.ts': 'platform-account',
@@ -169,6 +170,7 @@ describe('MYK9-180 show email delivery source contract', () => {
     'supabase/functions/admin-invite-user/inviteUserHandler.ts',
     'apps/myk9show/supabase/functions/_shared/alertAdmin.ts',
     'apps/myk9show/supabase/functions/cron-process-payouts/index.ts',
+    'apps/myk9show/supabase/functions/_shared/clubMoneyEmails.ts',
   ])('%s remains platform-scoped', path => {
     const contents = source(path);
     expect(contents).not.toContain("email_type: 'registration_confirmation'");

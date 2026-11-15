@@ -12,10 +12,21 @@ describe('lowestRegularFee (mirrors private.show_lowest_regular_fee)', () => {
     ['a day-of fee below the pre-entry fee', { preEntryFee: 30, dayOfShowFee: 12 }, 12],
     ['a day-of fee of 0 is no tier', { preEntryFee: 30, dayOfShowFee: 0 }, 30],
     ['a pre-entry fee of 0 is charged as 0', { preEntryFee: 0, dayOfShowFee: null }, 0],
+    // MYK9-1931: a class's own fee wins, so it is a limit even with a pre-entry fee.
     [
-      'class fees are ignored while there is a pre-entry fee',
+      "a class's own fee below the pre-entry fee is the limit",
       { preEntryFee: 30, dayOfShowFee: null, classFees: [10] },
+      10,
+    ],
+    [
+      'a class without its own fee follows the pre-entry fee',
+      { preEntryFee: 30, dayOfShowFee: null, classFees: [0, 40] },
       30,
+    ],
+    [
+      'a class without its own fee counts as $0 with no pre-entry fee',
+      { preEntryFee: null, dayOfShowFee: null, classFees: [0, 40] },
+      0,
     ],
     [
       'class fees are the limit with no pre-entry fee',

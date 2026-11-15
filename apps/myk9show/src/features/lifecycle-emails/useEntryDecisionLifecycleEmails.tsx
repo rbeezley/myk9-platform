@@ -271,6 +271,11 @@ export function useEntryDecisionLifecycleEmails({
             toast.error(
               "The decision email couldn't be sent. It's still on the list to send again."
             );
+          } else if (result.skipped) {
+            // The server found the entry's decision changed since (MYK9-1974).
+            toast.error(
+              'Entry status changed since this prompt opened, so the email was not sent.'
+            );
           } else {
             toast.success(
               prompt.correctionForJobId ? 'Correction email sent' : 'Decision email sent'

@@ -38,6 +38,31 @@ const generatedPremiumSchema = z.object({
     dayOfFee: nullableAmount,
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
+    // MYK9-1976: optional, so a premium generated before it still parses (and prints no
+    // policy row). Without it here zod would strip the policy from every new premium.
+    withdrawal: z
+      .object({
+        withdrawal_cutoff_date: nullableText.optional(),
+        withdrawal_retention_type: nullableText.optional(),
+        withdrawal_retention_value: nullableAmount.optional(),
+        withdrawal_policy_notes: nullableText.optional(),
+        withdrawal_policy_text: nullableText.optional(),
+        trials: z
+          .array(z.object({ registry_id: nullableText.optional() }))
+          .nullable()
+          .optional(),
+        clubs: z
+          .object({
+            default_withdrawal_retention_type: nullableText.optional(),
+            default_withdrawal_retention_value: nullableAmount.optional(),
+            default_withdrawal_policy_notes: nullableText.optional(),
+            default_withdrawal_policy_text: nullableText.optional(),
+          })
+          .nullable()
+          .optional(),
+      })
+      .nullable()
+      .optional(),
   }),
   club: z.object({ name: nullableText, logoUrl: nullableText }),
   secretary: z.object({

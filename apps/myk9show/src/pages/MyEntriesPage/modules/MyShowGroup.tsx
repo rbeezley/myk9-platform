@@ -22,6 +22,9 @@ import type { ResultCardModel } from '@/features/result-card';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { UserEntriesSource } from '@/services/database/entries';
 import { buildDayCheckInContext, trialDayState } from './dayCheckIn';
+import { deriveShowCountdown } from './myShowCountdown';
+import { MyShowAddressLine } from './MyShowAddressLine';
+import type { JudgeByClassId } from './useMyShowJudges';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
 import { MyShowActionsMenu } from './MyShowActionsMenu';
@@ -64,6 +67,8 @@ export interface MyShowGroupProps {
   /** Captured once per render pass by the list; never `new Date()` inline. */
   now: Date;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
+  /** classId -> judge name; a class missing here has no judge we know of. */
+  judgeByClassId?: JudgeByClassId | undefined;
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
@@ -84,6 +89,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   source,
   now,
   selfCheckinByClassId,
+  judgeByClassId,
   seenResultReleaseKeys,
   onCheckInDay,
   onOpenCheckIn,
@@ -148,14 +154,22 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   const hasClassToday = canShowToday && enteredDayStates.includes('today');
   // A class whose trial has not replicated has no known day, so "no class
   // today" is not a fact: say so rather than show nothing (MYK9-1557).
-  const hasUnknownDayClass = canShowToday && !hasClassToday && enteredDayStates.includes('unknown');
+  // A show she cannot read has no trial dates to wait for; its classes already
+  // say "Class not published yet", so the strip stays quiet there.
+  const hasUnknownDayClass =
+    canShowToday &&
+    !group.isShowUnreadable &&
+    !hasClassToday &&
+    enteredDayStates.includes('unknown');
+  const countdown = isPastShow ? null : deriveShowCountdown(group.dogs, now);
 
+  const street = group.location.street?.trim() ?? '';
   const mapAddress = formatVenueAddress([
     group.location.venue,
     group.location.city,
     group.location.state,
   ]);
-  const directionsUrl = mapAddress ? buildVenueMapsUrls(mapAddress).directionsUrl : null;
+  const directionsUrl = !street && mapAddress ? buildVenueMapsUrls(mapAddress).directionsUrl : null;
   const placeLabel = [group.location.city, group.location.state].filter(Boolean).join(', ');
   const dateRange = formatShowHeaderDateRange(group.showDate, group.showEndDate);
   // Two trials on one day are only distinguishable by number; a show that only
@@ -174,8 +188,10 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             {group.showName}
           </h3>
           <p className="myk9-entries-show-meta">
+            {countdown && <span className="font-semibold text-foreground">{countdown}</span>}
+            {countdown && dateRange && <span aria-hidden="true">·</span>}
             {dateRange && <span>{dateRange}</span>}
-            {placeLabel && (
+            {placeLabel && !street && (
               <>
                 <span aria-hidden="true">·</span>
                 {directionsUrl ? (
@@ -221,6 +237,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               </>
             )}
           </p>
+          {street && <MyShowAddressLine street={street} />}
         </div>
 
         {/* MYK9-631 AC2: ONE trigger, where four links used to sit. Every item
@@ -278,6 +295,11 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
         <UnconfirmedReadNotice detail="Payment amounts are hidden until we can confirm them. Receipts, under Actions above, still open." />
       )}
 
+      {/* INTENT: a show's balance due is always visible on its own card with
+          its own Pay button, never collapsed behind a disclosure. The all-shows
+          total that used to sit above the cards was removed on the owner's
+          decision of 2026-11-14 (MYK9-2030) because two totals on one page
+          disagreed; do not add it back. */}
       {money.kind === 'balance-due' && (
         <div className="myk9-entries-strip border-warning/20 bg-warning/10 text-warning">
           <div className="min-w-0">
@@ -373,6 +395,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           <li key={dog.dogId}>
             <MyShowDogCard
               dog={dog}
+              judgeByClassId={judgeByClassId}
               ordersById={ordersById}
               checkInContext={checkInContext}
               isShowCancelled={group.isShowCancelled}

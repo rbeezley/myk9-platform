@@ -198,7 +198,6 @@ export function useShowCreationWizardActions({
         showId,
         existingTrials,
         editMode,
-        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
         trialView,
         normalizedClasses
       );

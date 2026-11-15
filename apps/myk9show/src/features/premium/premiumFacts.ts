@@ -11,6 +11,8 @@
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
 import type { RegistryId } from '@/features/registries';
+import { resolveEffectiveWithdrawalTerms } from '@/features/payments/effectiveWithdrawalTerms';
+import { buildWithdrawalDisclosure } from '@/features/payments/withdrawalPolicyText';
 import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
@@ -28,6 +30,7 @@ export type PremiumFactId =
   | 'showHours'
   | 'trialInformation'
   | 'fees'
+  | 'withdrawalPolicy'
   | 'classes'
   | 'judges'
   | 'secretary'
@@ -58,6 +61,8 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'showHours', label: 'Trial hours', source: 'show', requiredBy: ['AKC'] },
   { id: 'trialInformation', label: 'Trial information', source: 'show', requiredBy: [] },
   { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
+  // MYK9-1976: the club's text (a show may override it), else the registry-correct default.
+  { id: 'withdrawalPolicy', label: 'Withdrawals and Pulls', source: 'club', requiredBy: ['AKC'] },
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
@@ -164,6 +169,33 @@ export interface PremiumContact {
   phone: string;
 }
 
+/** The premium's label for the refund and withdrawal policy row, in every style. */
+export const WITHDRAWAL_POLICY_ROW_LABEL = 'Withdrawals and Pulls';
+
+/** The refund and withdrawal policy as the premium prints it. */
+export interface PremiumWithdrawalPolicyFact {
+  label: string;
+  /**
+   * The effective text (the show's, else the club's, else the default for the show's
+   * registry) with its line breaks, then a blank line and the service-fee sentence. Plain
+   * text, never cut: a style prints all of it.
+   */
+  text: string;
+}
+
+/**
+ * MYK9-1976: the same text an exhibitor reads in the app, from the policy row generate-premium
+ * sends. A premium generated before that row existed carries none, and prints no policy row
+ * rather than a default that may not be the club's.
+ */
+function buildWithdrawalPolicyFact(
+  row: GeneratedPremium['show']['withdrawal']
+): PremiumWithdrawalPolicyFact | null {
+  if (!row) return null;
+  const { text } = resolveEffectiveWithdrawalTerms(row);
+  return { label: WITHDRAWAL_POLICY_ROW_LABEL, text: buildWithdrawalDisclosure(text) };
+}
+
 export interface PremiumTrialFacts {
   name: string;
   /** Long display date. */
@@ -196,6 +228,8 @@ export interface PremiumFacts {
     /** "Checks", "Cash" in that order, only those the show accepts. */
     paymentMethods: string[];
   };
+  /** Null only on a premium generated before MYK9-1976 part 2. */
+  withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
   entry: {
     /** Long display dates, null when unset. */
     opens: string | null;
@@ -253,6 +287,7 @@ export function buildPremiumFacts(
         (m): m is string => Boolean(m)
       ),
     },
+    withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     entry: {
       opens: show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : null,
       closes: show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : null,

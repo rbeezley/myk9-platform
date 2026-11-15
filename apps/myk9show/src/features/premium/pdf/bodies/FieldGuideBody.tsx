@@ -51,7 +51,9 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const hasOfficials = Boolean(chair || secretary.name);
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.length > 0;
-  const hasEntry = Boolean(f.entry.opens || f.entry.closes || f.fees.preEntry || f.fees.dayOf);
+  const hasEntry = Boolean(
+    f.entry.opens || f.entry.closes || f.fees.preEntry || f.fees.dayOf || f.withdrawalPolicy
+  );
   const hasSchedule = Boolean(f.showHours.trim());
   const hasLocation = Boolean(f.venue || f.accommodations.length > 0 || f.vetClinic);
   const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes || f.awardsDescription);
@@ -171,7 +173,8 @@ export function FieldGuideBody({ data, tokens }: Props) {
       )}
 
       {hasEntry && (
-        <View style={blockStyle} wrap={false}>
+        // MYK9-1976: with the policy in it the block may break across pages, so it is never cut.
+        <View style={blockStyle} wrap={Boolean(f.withdrawalPolicy)}>
           {renderHeader('§04', 'Entry')}
           {/* INTENT: Online via myK9Show is the primary entry method —
               listed first and bolded so this reference layout doesn't bury
@@ -198,6 +201,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>
                 Pre-entry ${f.fees.preEntry ?? '—'} · Day-of ${f.fees.dayOf ?? '—'}
               </Text>
+            </View>
+          )}
+          {f.withdrawalPolicy && (
+            <View style={rowStyle}>
+              <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>
+              <Text style={valueStyle}>{f.withdrawalPolicy.text}</Text>
             </View>
           )}
         </View>

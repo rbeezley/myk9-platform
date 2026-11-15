@@ -36,7 +36,7 @@ export function SortableClassEntryRow({
   };
   return (
     <TableRow ref={setNodeRef} style={style} data-testid="class-entry-row">
-      <TableCell className="w-11 px-0">
+      <TableCell className="w-11 px-0 py-1">
         <button
           type="button"
           {...attributes}

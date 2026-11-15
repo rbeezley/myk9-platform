@@ -19,10 +19,10 @@ const isExpired = (entry: RunOutOfferEntry) => (entry.status ?? '').toLowerCase(
  *
  * Which offer refilled which is the server's answer, never worked out here: when an offer is made,
  * `promote_waitlist_entry_internal` records on it the expired offer in the class whose spot it
- * refills (the earliest made, MYK9-1988). So an expired offer stops counting as soon as any row
- * names it, whatever that row became since (open, accepted, paid, or run out itself, which then
- * counts on its own). Pass every waitlist row of the classes in view, of any status: a refill row
- * left out would make its expired offer count again.
+ * refills (the earliest made, MYK9-1988). So an expired offer stops counting once a row names
+ * it, whatever that row became since (open, accepted, paid, or run out itself, which then
+ * counts on its own). Pass every waitlist row of the classes in view, whatever its status: a refill
+ * row left out would make its expired offer count again.
  *
  * Rows come in the order the offers were made, oldest first.
  */

@@ -40,7 +40,7 @@ function groupByClass(offers: WaitlistOffer[]): ClassRunOut[] {
   return [...groups.values()];
 }
 
-export function runOutHeadline(count: number, className: string): string {
+function runOutHeadline(count: number, className: string): string {
   return count === 1
     ? `1 offer has run out in ${className}.`
     : `${count} offers have run out in ${className}.`;

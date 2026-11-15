@@ -191,8 +191,10 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- R1-R5. Offers made through promote_waitlist_entry_internal
+-- R1-R5. Offers made through promote_waitlist_entry_internal, as the edge
+-- functions call it (service_role).
 -- ---------------------------------------------------------------------------
+SET LOCAL ROLE service_role;
 DO $$
 BEGIN
   PERFORM public.promote_waitlist_entry_internal(pg_temp.fid('511'));
@@ -228,6 +230,7 @@ BEGIN
   PERFORM pg_temp.expect_eq(pg_temp.refills('531'), '521', 'R5 its own class refills it');
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- U1. One refill per expired offer; never itself

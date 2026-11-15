@@ -198,9 +198,11 @@ describe('WaitlistManagementPage offers', () => {
     const notice = within(await screen.findByTestId('waitlist-run-out-offers'));
 
     expect(
-      notice.getByText('2 offers have run out in Novice A (Trial 1 · Sat, Oct 10).')
+      notice.getByText('2 offers have run out in Novice A (Trial 1 · Sat, Oct 10, 2026).')
     ).toBeInTheDocument();
-    const lines = notice.getAllByTestId('waitlist-run-out-offer').map(li => li.textContent);
+    const lines = notice
+      .getAllByTestId('waitlist-run-out-offer')
+      .map(li => (li.textContent ?? '').replace(/\s/g, ' '));
     expect(lines).toEqual([
       'Scout · offered Mon, Oct 5, 10:00 AM CDT · ran out Wed, Oct 7, 10:00 AM CDT',
       'Pip · offered Tue, Oct 6, 10:00 AM CDT · ran out Wed, Oct 7, 10:00 AM CDT',
@@ -218,7 +220,7 @@ describe('WaitlistManagementPage offers', () => {
 
     const notice = within(await screen.findByTestId('waitlist-run-out-offers'));
     expect(
-      notice.getByText('1 offer has run out in Novice A (Trial 1 · Sat, Oct 10).')
+      notice.getByText('1 offer has run out in Novice A (Trial 1 · Sat, Oct 10, 2026).')
     ).toBeInTheDocument();
   });
 

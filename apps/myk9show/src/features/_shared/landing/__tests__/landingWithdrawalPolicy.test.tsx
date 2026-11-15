@@ -4,7 +4,7 @@
  * it. Renders the REAL pages and the REAL policy hook; only the PostgREST transport is
  * stubbed, with the row an anonymous visitor gets back.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { render } from '@/test/utils/testUtils';
@@ -12,7 +12,7 @@ import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
-import { EFFECTIVE_WITHDRAWAL_SELECT } from '@/features/payments/useEffectiveWithdrawalPolicy';
+import { EFFECTIVE_WITHDRAWAL_SELECT } from '@/features/payments/effectiveWithdrawalTerms';
 import { SERVICE_FEE_SENTENCE } from '@/features/payments/withdrawalPolicyText';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import type { PremiumStyle } from '@/types/premium-types';

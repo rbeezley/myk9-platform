@@ -20,6 +20,26 @@ import {
   type WithdrawalPolicyTextSource,
 } from './withdrawalPolicyText';
 
+/**
+ * The one read of a show's policy: its policy columns and text, its trials' registry and its
+ * club's defaults and text. generate-premium sends this same row shape (MYK9-1976); its test
+ * fails if the two selects drift.
+ */
+export const EFFECTIVE_WITHDRAWAL_SELECT = `
+  withdrawal_cutoff_date,
+  withdrawal_retention_type,
+  withdrawal_retention_value,
+  withdrawal_policy_notes,
+  withdrawal_policy_text,
+  trials ( registry_id ),
+  clubs (
+    default_withdrawal_retention_type,
+    default_withdrawal_retention_value,
+    default_withdrawal_policy_notes,
+    default_withdrawal_policy_text
+  )
+`;
+
 export interface EffectiveWithdrawalTerms {
   policy: WithdrawalPolicy | null;
   text: string;

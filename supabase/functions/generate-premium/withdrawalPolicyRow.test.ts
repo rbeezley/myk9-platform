@@ -7,8 +7,10 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
-import { EFFECTIVE_WITHDRAWAL_SELECT } from '@/features/payments/useEffectiveWithdrawalPolicy';
-import { resolveEffectiveWithdrawalTerms } from '@/features/payments/effectiveWithdrawalTerms';
+import {
+  EFFECTIVE_WITHDRAWAL_SELECT,
+  resolveEffectiveWithdrawalTerms,
+} from '@/features/payments/effectiveWithdrawalTerms';
 
 const columns = (list: string) =>
   list

@@ -13,28 +13,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import {
+  EFFECTIVE_WITHDRAWAL_SELECT,
   resolveEffectiveWithdrawalTerms,
   type EffectiveWithdrawalRow,
   type EffectiveWithdrawalTerms,
 } from './effectiveWithdrawalTerms';
 
-export { registryFromTrials, type EffectiveWithdrawalTerms } from './effectiveWithdrawalTerms';
-
-// generate-premium sends this same row shape (MYK9-1976): keep its select in step.
-export const EFFECTIVE_WITHDRAWAL_SELECT = `
-  withdrawal_cutoff_date,
-  withdrawal_retention_type,
-  withdrawal_retention_value,
-  withdrawal_policy_notes,
-  withdrawal_policy_text,
-  trials ( registry_id ),
-  clubs (
-    default_withdrawal_retention_type,
-    default_withdrawal_retention_value,
-    default_withdrawal_policy_notes,
-    default_withdrawal_policy_text
-  )
-`;
+export {
+  EFFECTIVE_WITHDRAWAL_SELECT,
+  registryFromTrials,
+  type EffectiveWithdrawalTerms,
+} from './effectiveWithdrawalTerms';
 
 export function useEffectiveWithdrawalPolicy(showId: string | null | undefined) {
   return useQuery<EffectiveWithdrawalTerms>({

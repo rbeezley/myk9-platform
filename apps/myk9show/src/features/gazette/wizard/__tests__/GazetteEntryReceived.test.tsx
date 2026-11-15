@@ -82,11 +82,6 @@ describe('GazetteEntryReceived', () => {
     expect(screen.getByText(/Total fees/i)).toBeTruthy();
   });
 
-  it('renders the confirmation date caption when supplied', () => {
-    render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeTruthy();
-  });
-
   it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
     expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();

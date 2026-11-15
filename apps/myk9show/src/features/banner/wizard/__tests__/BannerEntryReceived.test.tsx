@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { BannerEntryReceived } from '../BannerEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -96,11 +97,6 @@ describe('BannerEntryReceived', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  it('shows the confirmation-date caption when supplied', () => {
-    render(<BannerEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeInTheDocument();
-  });
-
   it('honors a custom brandColor on the masthead', () => {
     const { container } = render(<BannerEntryReceived {...BASE_PROPS} brandColor="#7a1f1f" />);
     const masthead = container.querySelector('header') as HTMLElement | null;
@@ -116,5 +112,11 @@ describe('BannerEntryReceived', () => {
   it('scopes its styles under [data-banner]', () => {
     const { container } = render(<BannerEntryReceived {...BASE_PROPS} />);
     expect(container.querySelector('[data-banner]')).not.toBeNull();
+  });
+
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<BannerEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
+    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 });

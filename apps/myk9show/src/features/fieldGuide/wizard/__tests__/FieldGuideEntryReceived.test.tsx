@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { FieldGuideEntryReceived } from '../FieldGuideEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -125,11 +126,6 @@ describe('FieldGuideEntryReceived', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  it('shows the confirmation-date caption when supplied', () => {
-    render(<FieldGuideEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeInTheDocument();
-  });
-
   it('scopes its styles under [data-field-guide]', () => {
     const { container } = render(<FieldGuideEntryReceived {...BASE_PROPS} />);
     expect(container.querySelector('[data-field-guide]')).not.toBeNull();
@@ -150,5 +146,11 @@ describe('FieldGuideEntryReceived', () => {
     expect(container.innerHTML).not.toContain('Playfair');
     expect(container.innerHTML).not.toContain('Bodoni');
     expect(container.innerHTML).not.toContain('EB Garamond');
+  });
+
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<FieldGuideEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
+    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 });

@@ -88,11 +88,6 @@ describe('HeritageEntryReceived', () => {
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
-  it('displays confirmation date caption', () => {
-    render(<HeritageEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/6 June 2026/)).toBeTruthy();
-  });
-
   it('renders "Print my entry blank" button', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} onPrintEntryBlank={() => {}} />);
     const btn = screen.getByRole('button', { name: /print my entry blank/i });

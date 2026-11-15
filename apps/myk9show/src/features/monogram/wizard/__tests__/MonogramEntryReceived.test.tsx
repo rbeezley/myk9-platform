@@ -96,11 +96,6 @@ describe('MonogramEntryReceived', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  it('shows the confirmation-date caption when supplied', () => {
-    render(<MonogramEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeInTheDocument();
-  });
-
   it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} />);
     expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();

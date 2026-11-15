@@ -228,15 +228,7 @@ export function WorkflowStepContent({
       dogCallName: firstDog?.callName ?? null,
       classSummary,
     } as const;
-  }, [
-    currentStepId,
-    showId,
-    dogs,
-    classes,
-    receiptSelectedDogs,
-    receiptClassSelections,
-    currentShow,
-  ]);
+  }, [currentStepId, dogs, classes, receiptSelectedDogs, receiptClassSelections, currentShow]);
 
   const entryBlankResult = useMemo(() => {
     if (

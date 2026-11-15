@@ -43,12 +43,6 @@ describe('HeadlineEntryReceived', () => {
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
-  it('shows the confirmation date caption when present', () => {
-    render(<HeadlineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/6 June 2026/)).toBeTruthy();
-    expect(screen.getByText(/Watch your inbox/i)).toBeTruthy();
-  });
-
   it('disables print when no print handler is provided', () => {
     render(<HeadlineEntryReceived {...BASE_PROPS} />);
     const btn = screen.getByRole('button', { name: /print my entry blank/i });

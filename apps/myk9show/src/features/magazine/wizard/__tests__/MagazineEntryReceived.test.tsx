@@ -89,11 +89,6 @@ describe('MagazineEntryReceived', () => {
     expect(screen.getByText('Fees due')).toBeTruthy();
   });
 
-  it('renders confirmation date caption', () => {
-    render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/6 June 2026/)).toBeTruthy();
-  });
-
   it('renders "Print my entry blank" button enabled when handler is provided', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} onPrintEntryBlank={() => {}} />);
     const btn = screen.getByRole('button', { name: /print my entry blank/i });

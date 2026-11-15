@@ -6,21 +6,34 @@
  * junior status. A draft that switched organization after typing a fee therefore never
  * writes it. Edit mode relies on the same rule: a draft that carries no fee sends no key.
  */
+import { juniorFeeLimitError } from '@/features/_shared/juniorFeeLimit';
+
 /** Exclusive upper bound; mirrors shows_junior_handler_fee_bounded (< 100000). */
 export const JUNIOR_HANDLER_FEE_LIMIT = 100_000;
 
 export const JUNIOR_HANDLER_FEE_MESSAGE = 'Junior handler fee must be less than $100,000';
 
-/** The blocking message for a draft whose fee the column CHECK would reject, else undefined. */
-export function juniorHandlerFeeError(show: {
+interface JuniorFeeDraft {
   organization: string;
   juniorHandlerFee?: number | undefined;
-}): string | undefined {
+  /** Stored as typed: 0 is a pre-entry fee of $0 (create_show_with_children keeps it). */
+  preEntryFee?: number | undefined;
+  dayOfShowFee?: number | undefined;
+}
+
+/**
+ * The blocking message for a draft whose fee the server would reject, else undefined: the
+ * column CHECK, or a junior fee above the lowest regular fee (MYK9-1975). A wizard draft's
+ * classes take the show's pre-entry fee, so the show's own fees are the whole limit.
+ */
+export function juniorHandlerFeeError(show: JuniorFeeDraft): string | undefined {
   if (show.organization === 'ASCA') return undefined;
   const fee = show.juniorHandlerFee;
-  return fee !== undefined && fee >= JUNIOR_HANDLER_FEE_LIMIT
-    ? JUNIOR_HANDLER_FEE_MESSAGE
-    : undefined;
+  if (fee !== undefined && fee >= JUNIOR_HANDLER_FEE_LIMIT) return JUNIOR_HANDLER_FEE_MESSAGE;
+  return juniorFeeLimitError(fee, {
+    preEntryFee: show.preEntryFee ?? null,
+    dayOfShowFee: show.dayOfShowFee ?? null,
+  });
 }
 
 /**
@@ -28,10 +41,7 @@ export function juniorHandlerFeeError(show: {
  * back to Review and save without revalidating Details, so the bound is enforced again here
  * rather than silently dropping the fee or surfacing the raw database CHECK error.
  */
-export function assertJuniorHandlerFee(show: {
-  organization: string;
-  juniorHandlerFee?: number | undefined;
-}): void {
+export function assertJuniorHandlerFee(show: JuniorFeeDraft): void {
   const message = juniorHandlerFeeError(show);
   if (message) throw new Error(message);
 }

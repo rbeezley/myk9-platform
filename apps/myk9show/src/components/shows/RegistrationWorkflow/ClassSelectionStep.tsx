@@ -20,7 +20,7 @@ import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { toast } from 'sonner';
-import { InlineHandlerSection } from './InlineHandlerSection';
+import { HandlerClashSection } from './HandlerClashSection';
 import type {
   ClassSelectionStepProps,
   ElementGroup,
@@ -74,6 +74,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   showId,
   handlerAssignments,
   onHandlerAssignmentChange,
+  handlerClash,
   workflowMode,
   ownerAddressWarnOnly = false,
 }) => {
@@ -131,7 +132,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const addItem = useCartStore(state => state.addItem);
   const removeItem = useCartStore(state => state.removeItem);
 
-  const { getExistingEntry, getEntriesForDog, getReEntryBlockReason } = useExistingEntries(showId);
+  const { existingEntries, getExistingEntry, getEntriesForDog, getReEntryBlockReason } =
+    useExistingEntries(showId);
   const { classes: availabilityClasses, isLoading: availabilityLoading } =
     useClassAvailability(showId);
 
@@ -713,12 +715,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         })}
       </Tabs>
 
-      {handlerAssignments && onHandlerAssignmentChange && (
-        <InlineHandlerSection
+      {handlerAssignments && onHandlerAssignmentChange && handlerClash && (
+        <HandlerClashSection
           selectedDogs={selectedDogs}
           classSelections={classSelections}
+          existingEntries={existingEntries}
           handlerAssignments={handlerAssignments}
           onHandlerAssignmentChange={onHandlerAssignmentChange}
+          deferredPairKeys={handlerClash.deferredPairKeys}
+          onDeferredChange={handlerClash.onDeferredChange}
+          onPendingChange={handlerClash.onPendingChange}
         />
       )}
 

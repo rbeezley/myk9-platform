@@ -109,6 +109,9 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     handleDogSelectionChange,
     handleClassSelectionChange,
     handleHandlerAssignmentChange,
+    handlerClashDeferred,
+    setHandlerClashDeferred,
+    setHandlerClashPending,
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,
@@ -415,6 +418,11 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               }}
               onClassSelectionChange={handleClassSelectionChange}
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
+              handlerClash={{
+                deferredPairKeys: handlerClashDeferred,
+                onDeferredChange: setHandlerClashDeferred,
+                onPendingChange: setHandlerClashPending,
+              }}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
               onPaymentMethodClear={handlePaymentMethodClear}
               getPaymentDetails={() => paymentDetailsRef.current}

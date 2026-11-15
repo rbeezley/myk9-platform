@@ -71,6 +71,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setRegistrationData,
     setClassSelections,
     setHandlerAssignments,
+    setHandlerClashDeferred,
     registrationId,
     setRegistrationNumber,
     paymentStatus,
@@ -284,6 +285,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       });
       setClassSelections([]);
       setHandlerAssignments({});
+      setHandlerClashDeferred([]);
       setStepCompletionState({});
       setPaymentStatus(PaymentStatus.PENDING);
       setEntryStatus(EntryStatus.PENDING);

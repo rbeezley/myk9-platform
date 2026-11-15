@@ -30,6 +30,8 @@ import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
+import { ResultReasonSelect } from '../../ResultReasonSelect';
+import { startingReasonFor } from '../../../utils/resultReasons';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
 import { scoringSource, timerPersist } from '../../../utils/timerPersist';
@@ -57,8 +59,6 @@ const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: strin
   },
   { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
 ];
-
-const NQ_REASONS = ['Incorrect Call', 'Max Time', 'False Alert', 'Handler Error'];
 
 export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
@@ -128,13 +128,11 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
   }, [stopwatch, scoring]);
 
   const handleResultSelect = (value: ExtendedResult) => {
-    // Re-tapping DQ keeps the reason already typed (MYK9-1011).
-    if (value === 'DQ' && scoring.qualifying === 'DQ') return;
+    // A tap on the result already chosen keeps its reason, whether the judge or
+    // the timer set it (MYK9-1011, MYK9-2008).
+    if (value === scoring.qualifying) return;
     scoring.setQualifying(value);
-    if (value === 'NQ') scoring.setNonQualifyingReason('Incorrect Call');
-    else if (value === 'ABS') scoring.setNonQualifyingReason('Absent');
-    else if (value === 'EX') scoring.setNonQualifyingReason('Dog Eliminated in Area');
-    else scoring.setNonQualifyingReason('');
+    scoring.setNonQualifyingReason(startingReasonFor('ASCA_SCENT_DETECTION', value));
   };
 
   const handleSubmitClick = () => {
@@ -317,21 +315,13 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             />
           )}
 
-          {scoring.qualifying === 'NQ' && (
-            <div className="flex items-center gap-2">
-              <label className="flex-shrink-0 text-sm font-medium">NQ Reason:</label>
-              <select
-                value={scoring.nonQualifyingReason}
-                onChange={e => scoring.setNonQualifyingReason(e.target.value)}
-                className="h-11 w-full rounded-md border border-input bg-background px-3"
-              >
-                {NQ_REASONS.map(reason => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {(scoring.qualifying === 'NQ' || scoring.qualifying === 'EX') && (
+            <ResultReasonSelect
+              result={scoring.qualifying}
+              sportType="ASCA_SCENT_DETECTION"
+              reason={scoring.nonQualifyingReason}
+              onReasonChange={scoring.setNonQualifyingReason}
+            />
           )}
         </Card>
       </ScoresheetShell>

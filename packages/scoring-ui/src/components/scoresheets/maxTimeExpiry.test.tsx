@@ -141,6 +141,65 @@ describe.each(sheets)('$name: search-timer expiry', ({ Sheet }) => {
   });
 });
 
+// MYK9-2008: a reason already set, by the timer or the judge, is never replaced
+// unless the judge picks another one.
+const pickOtherNq = {
+  'AKC Scent Work': () => fireEvent.click(screen.getByRole('button', { name: 'Point to Hide' })),
+  'ASCA Scent Detection': () =>
+    fireEvent.change(screen.getByTestId('nq-reason-select'), {
+      target: { value: 'Dog Stopped Working' },
+    }),
+  'UKC Nosework': () =>
+    fireEvent.change(screen.getByTestId('nq-reason-select'), {
+      target: { value: 'False Alert' },
+    }),
+} as const;
+
+describe.each(sheets)('$name: an NQ reason already set stays', ({ name, Sheet }) => {
+  const otherReason = {
+    'AKC Scent Work': 'Point to Hide',
+    'ASCA Scent Detection': 'Dog Stopped Working',
+    'UKC Nosework': 'False Alert',
+  }[name];
+
+  it('timer sets Max Time, judge taps NQ: the reason stays Max Time', async () => {
+    const p = props();
+    render(<Sheet {...p} />);
+    act(() => timers.firstStopwatch!.onTimeExpired!('3:00.00'));
+    fireEvent.click(screen.getByTestId('result-NQ'));
+    const data = await confirmedSubmit(p.onSubmit as ReturnType<typeof vi.fn>);
+    expect([data.resultText, data.nonQualifyingReason]).toEqual(['NQ', 'Max Time']);
+  });
+
+  it('a reason the judge picked survives a second tap on NQ', async () => {
+    const p = props();
+    render(<Sheet {...p} />);
+    fireEvent.click(screen.getByTestId('result-NQ'));
+    pickOtherNq[name as keyof typeof pickOtherNq]();
+    fireEvent.click(screen.getByTestId('result-NQ'));
+    const data = await confirmedSubmit(p.onSubmit as ReturnType<typeof vi.fn>);
+    expect(data.nonQualifyingReason).toBe(otherReason);
+  });
+
+  it('a reason the judge picked survives the timer running out', async () => {
+    const p = props();
+    render(<Sheet {...p} />);
+    fireEvent.click(screen.getByTestId('result-NQ'));
+    pickOtherNq[name as keyof typeof pickOtherNq]();
+    act(() => timers.firstStopwatch!.onTimeExpired!('3:00.00'));
+    const data = await confirmedSubmit(p.onSubmit as ReturnType<typeof vi.fn>);
+    expect([data.resultText, data.nonQualifyingReason]).toEqual(['NQ', otherReason]);
+  });
+
+  it('a first tap on NQ starts with Incorrect Call', async () => {
+    const p = props();
+    render(<Sheet {...p} />);
+    fireEvent.click(screen.getByTestId('result-NQ'));
+    const data = await confirmedSubmit(p.onSubmit as ReturnType<typeof vi.fn>);
+    expect(data.nonQualifyingReason).toBe('Incorrect Call');
+  });
+});
+
 describe('UKC Nosework dual timer: element expiry and Finish at max', () => {
   it('keeps a DQ and its reason when the element timer expires', async () => {
     const p = props('dual');

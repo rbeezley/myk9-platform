@@ -5,6 +5,7 @@ import type { QualifyingResult, ScoresheetSportType } from '../types/scoreData';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from './DisqualifyReason';
 import { FaultStepper } from './FaultStepper';
 import { resultLabel } from '../utils/resultLabel';
+import { excusedReasonsFor, nqReasonsFor } from '../utils/resultReasons';
 import { faultLimitFor, qualifiedFaultProblem } from '../utils/qualifiedCheck';
 
 // Each option carries its own label colour beside its own fill. A blanket
@@ -40,42 +41,6 @@ const RESULT_OPTIONS: { value: QualifyingResult; label: string; activeClass: str
   // Rare, official record: kept last and styled apart from Excused (MYK9-1011).
   { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
 ];
-
-const NQ_REASONS: Record<string, string[]> = {
-  default: [
-    'Incorrect Call',
-    'Max Time',
-    'Point to Hide',
-    'Harsh Correction',
-    'Significant Disruption',
-  ],
-  ASCA_SCENT_DETECTION: [
-    'Incorrect Call',
-    'Exceeded Max Time',
-    'Dog Eliminated in Area',
-    'Dog Stopped Working',
-    'Destroyed Containers',
-    'Excessive Disturbance',
-    'Damaged Property',
-    "Couldn't Point to Hide",
-  ],
-};
-
-const EXCUSED_REASONS: Record<string, string[]> = {
-  default: [
-    'Dog Eliminated in Area',
-    'Handler Request',
-    'Out of Control',
-    'Overly Stressed',
-    'Other',
-  ],
-  ASCA_SCENT_DETECTION: [
-    'Extreme Stress/Fear/Aggression',
-    'Harsh Handling',
-    'Poor Sportsmanship',
-    'Revealed Hide Location',
-  ],
-};
 
 /**
  * ASCA's long-standing cap on the + (pinned by scoresheetPhoneLayout.test). UKC and
@@ -128,8 +93,8 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
   hideFaults = false,
   className,
 }) => {
-  const nqReasons = NQ_REASONS[sportType || ''] || NQ_REASONS.default;
-  const excusedReasons = EXCUSED_REASONS[sportType || ''] || EXCUSED_REASONS.default;
+  const nqReasons = nqReasonsFor(sportType);
+  const excusedReasons = excusedReasonsFor(sportType);
   const maxFaults = getMaxFaults(sportType, level);
   // The counter counts past the limit; the sentence says why a Qualified cannot be saved.
   const faultProblem = qualifiedFaultProblem(faultCount, faultLimitFor(sportType, level));

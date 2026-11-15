@@ -8,7 +8,8 @@
  * check against the sheet, then Confirm & Submit.
  *
  * The steward shows it to the judge at arm's length, so the armband, dog name
- * and each row are large (MYK9-1724); the reason stays prose-sized.
+ * and each row are large (MYK9-1724), the reason too, right under the result
+ * (MYK9-2008).
  *
  * One component so every sport reads back the same words, the same reasons and
  * the same layout, and the longest case (a DQ with a reason, or a multi-area
@@ -83,18 +84,20 @@ export const ScoreConfirmationDialog: React.FC<ScoreConfirmationDialogProps> = (
 }) => {
   const showReason =
     (result === 'NQ' || result === 'EX' || result === 'DQ') && Boolean(reason?.trim());
+  // The reason sits right under the result, as large as it, so the judge reads
+  // "Not Qualified, Max Time" as one line of the sheet (MYK9-2008).
   const allRows: ConfirmationRow[] = [
     { label: 'Result', value: resultLabel(result) },
-    ...rows,
     ...(showReason
       ? [
           {
             label: `${resultLabel(result)} Reason`,
             value: reason?.trim(),
-            className: 'text-right text-base',
+            className: cn('min-w-0 break-words text-right', result && RESULT_CLASS[result]),
           },
         ]
       : []),
+    ...rows,
   ];
 
   return (

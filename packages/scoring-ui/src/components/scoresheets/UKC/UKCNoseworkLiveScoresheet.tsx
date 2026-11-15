@@ -36,6 +36,8 @@ import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { timerLimitLine } from '../../../utils/maxTimeLabel';
 import { faultLimitFor } from '../../../utils/qualifiedCheck';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
+import { ResultReasonSelect } from '../../ResultReasonSelect';
+import { startingReasonFor } from '../../../utils/resultReasons';
 import type { LiveScoresheetProps, ResolvedClassRules, StopwatchReturn } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
 import { scoringSource, timerPersist } from '../../../utils/timerPersist';
@@ -63,8 +65,6 @@ const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: strin
   },
   { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
 ];
-
-const NQ_REASONS = ['Fault Limit', 'Max Time', 'False Alert', 'Handler Error'];
 
 /**
  * Which clock carries the max. The rulebook maximum is an ELEMENT time
@@ -215,13 +215,11 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   }, [stopwatch, scoring]);
 
   const handleResultSelect = (value: ExtendedResult) => {
-    // Re-tapping DQ keeps the reason already typed (MYK9-1011).
-    if (value === 'DQ' && scoring.qualifying === 'DQ') return;
+    // A tap on the result already chosen keeps its reason, whether the judge or
+    // the timer set it (MYK9-1011, MYK9-2008).
+    if (value === scoring.qualifying) return;
     scoring.setQualifying(value);
-    if (value === 'NQ') scoring.setNonQualifyingReason('Fault Limit');
-    else if (value === 'ABS') scoring.setNonQualifyingReason('Absent');
-    else if (value === 'EX') scoring.setNonQualifyingReason('Excused');
-    else scoring.setNonQualifyingReason('');
+    scoring.setNonQualifyingReason(startingReasonFor('UKC_NOSEWORK', value));
   };
 
   const handleSubmitClick = () => {
@@ -442,22 +440,13 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             />
           )}
 
-          {scoring.qualifying === 'NQ' && (
-            <div className="flex items-center gap-2">
-              <label className="flex-shrink-0 text-sm font-medium">NQ Reason:</label>
-              <select
-                value={scoring.nonQualifyingReason}
-                onChange={e => scoring.setNonQualifyingReason(e.target.value)}
-                className="h-11 w-full rounded-md border border-input bg-background px-3"
-                data-testid="nq-reason-select"
-              >
-                {NQ_REASONS.map(reason => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {(scoring.qualifying === 'NQ' || scoring.qualifying === 'EX') && (
+            <ResultReasonSelect
+              result={scoring.qualifying}
+              sportType="UKC_NOSEWORK"
+              reason={scoring.nonQualifyingReason}
+              onReasonChange={scoring.setNonQualifyingReason}
+            />
           )}
         </Card>
       </ScoresheetShell>

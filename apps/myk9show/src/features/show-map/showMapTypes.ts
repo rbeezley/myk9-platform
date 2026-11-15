@@ -125,6 +125,8 @@ export interface ShowMapClassInput {
   judgeId?: string | undefined;
   /** MYK9-1030: when the judge's end-of-day sign-off was recorded for this class. */
   judgeSignedOffAt?: string | null | undefined;
+  /** `classes.scores_on_paper` (MYK9-1969): true = paper, false = phone, null = follows the show. */
+  scoresOnPaper?: boolean | null | undefined;
   time?: string | undefined;
   revisedExpectedStart?: string | null | undefined;
   actualStartTime?: string | undefined;

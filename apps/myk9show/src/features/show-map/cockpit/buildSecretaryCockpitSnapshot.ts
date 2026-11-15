@@ -241,6 +241,7 @@ export function buildSecretaryCockpitSnapshot({
       registryId: node?.registryId ?? null,
       judgeName: classItem.judgeName ?? null,
       judgeId: classItem.judgeId ?? null,
+      scoresOnPaper: classItem.scoresOnPaper ?? null,
       attention,
       actions: classWorkActions({
         showId,

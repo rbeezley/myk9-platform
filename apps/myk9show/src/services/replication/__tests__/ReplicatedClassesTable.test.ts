@@ -822,6 +822,20 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).toHaveProperty('num_hides', 3);
     });
 
+    it('queues scores_on_paper for an explicit choice, both ways, and omits it otherwise (MYK9-1971)', async () => {
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
+
+      await classesTable.set('class-paper', createMockClass({ id: 'class-paper' }));
+      await classesTable.updateClass('class-paper', { scoresOnPaper: true });
+      await classesTable.updateClass('class-paper', { scoresOnPaper: false });
+      await classesTable.updateClass('class-paper', { displayOrder: 2 });
+
+      const payloads = queueMutation.mock.calls.map(call => call[2] as Record<string, unknown>);
+      expect(payloads[0]).toHaveProperty('scores_on_paper', true);
+      expect(payloads[1]).toHaveProperty('scores_on_paper', false);
+      expect(payloads[2]).not.toHaveProperty('scores_on_paper');
+    });
+
     it('scrubs cached hide counts and resets sync watermarks at a session boundary', async () => {
       const classId = 'class-hide-boundary';
       await classesTable.set(

@@ -44,6 +44,7 @@ export function SecretaryCockpitFocusedClass({
   runOrder,
   editClass,
   judgeControl,
+  scoringControl,
   entryBreakdownByClassId,
   onRefreshEntries,
 }: {
@@ -63,6 +64,8 @@ export function SecretaryCockpitFocusedClass({
   editClass?: FocusedClassEditAction | undefined;
   /** The Judge setting (MYK9-1323); the cockpit owns its pending assignment. Managers only. */
   judgeControl?: ReactNode;
+  /** The Scoring switch (MYK9-1971). Managers only. */
+  scoringControl?: ReactNode;
   /** Entered/pending per class, the schedule row's own count (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
@@ -149,6 +152,7 @@ export function SecretaryCockpitFocusedClass({
           timeZone={timeZone}
           canManageShow={canManageShow}
           judgeControl={judgeControl}
+          scoringControl={scoringControl}
           onEditActualStart={() => setEditingStart(focused.id)}
         />
       </FocusedClassHeader>

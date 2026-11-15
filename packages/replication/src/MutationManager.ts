@@ -538,6 +538,20 @@ export class MutationManager {
     }
   }
 
+  /**
+   * Send a row's queued writes now (MYK9-1993), after a person chose to keep them ("Keep my
+   * change"). While the conflict was open every pass held them back, and the OCC rejection
+   * that found it left a retry wait, so nothing was due to send them before the next poll
+   * (3 to 5 minutes). Clears the row's retry wait and runs one upload pass. Offline it only
+   * clears the wait: the queue sends on reconnect as it always does.
+   */
+  async sendRowNow(tableName: string, rowId: string): Promise<SyncResult[]> {
+    const authUserId = await this.requireCurrentUserId();
+    await this.queueStore.clearRetryWaitForRow(tableName, rowId, authUserId);
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return [];
+    return this.uploadPendingMutations();
+  }
+
   /** Stop this row's queued UPDATEs carrying `fields` the server won (MYK9-2010). */
   async dropQueuedFieldsForRow(
     tableName: string,

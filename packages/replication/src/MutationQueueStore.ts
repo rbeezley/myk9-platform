@@ -381,6 +381,31 @@ export class MutationQueueStore {
     return changed;
   }
 
+  /** MYK9-1993: a person chose to send this row's queued writes, so no retry wait holds them. */
+  async clearRetryWaitForRow(
+    tableName: string,
+    rowId: string,
+    authUserId: string
+  ): Promise<number> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
+    const ids = all
+      .filter(
+        m =>
+          m.tableName === tableName &&
+          String(m.rowId) === rowId &&
+          m.authUserId === authUserId &&
+          m.nextRetryAt !== undefined
+      )
+      .map(m => m.id);
+    return rewriteQueuedMutations(db, ids, mutation => {
+      if (mutation.nextRetryAt === undefined) return undefined;
+      const ready = { ...mutation };
+      delete ready.nextRetryAt;
+      return ready;
+    });
+  }
+
   async clearMutationsForOwner(
     authUserId: string,
     confirmOwner: () => Promise<void>

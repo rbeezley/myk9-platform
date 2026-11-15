@@ -23,3 +23,11 @@ describe('formatSyncFailureReason with unreadable stored errors (MYK9-1146)', ()
     }
   });
 });
+
+describe('formatSyncFailureReason for a ringside refusal (MYK9-1993)', () => {
+  it('says "permission" in plain words instead of the server line with the class id', () => {
+    const detail = stored('Non-retryable error: Not authorized to update class 6b1d-c1');
+    detail.mutations[0]!.tableName = 'classes';
+    expect(formatSyncFailureReason(detail)).toBe("You don't have permission to change this class.");
+  });
+});

@@ -7,11 +7,14 @@
 --    armband. The trigger now also fires BEFORE INSERT, and the function guards
 --    on TG_OP (OLD is NULL on insert). One numbering rule: the same function.
 --
+--    An insert that supplies its own armband keeps it.
+--
 -- 2. Accept (confirmation sent) -> waitlist -> accept again left
 --    confirmation_email_sent_at set from the first time, so the confirmation
 --    sender skipped the entry. A new acceptance is a new confirmation: when an
---    entry leaves 'confirmed' the mark is cleared and the status reset to
---    'pending'. This is done in the same BEFORE trigger pass, ahead of the
+--    entry moves from 'confirmed' back to a pre-acceptance status the mark is
+--    cleared and the status reset to 'pending'. Day-of and terminal moves
+--    keep it. This is done in the same BEFORE trigger pass, ahead of the
 --    nested-trigger early return, so it holds however the status changed.
 --
 -- 3. Backfill: confirmed, live entries with no armband. A no-op status touch is
@@ -40,12 +43,20 @@ DECLARE
   v_armband text;
   v_next_num integer;
   v_start_num integer;
+  -- Moving from 'confirmed' back to one of these means the entry is under
+  -- review again, so a later acceptance is a new confirmation. Day-of and
+  -- terminal moves (checked-in .. completed, withdrawn, scratched, absent,
+  -- moved) are deliberately absent: a Pull then Put back, or Absent then Undo,
+  -- must not trigger a second full confirmation mid-show.
+  v_back_to_review constant text[] := ARRAY[
+    'no-status', 'draft', 'submitted', 'paid', 'pending-payment',
+    'not_accepted', 'move-up-requested', 'promotion-expired'
+  ];
 BEGIN
-  -- Leaving 'confirmed' voids the confirmation: the next acceptance is a new
-  -- confirmation. Before the depth guard so a nested status change clears too.
+  -- Before the depth guard so a nested status change clears too.
   IF TG_OP = 'UPDATE'
      AND OLD.entry_status = 'confirmed'
-     AND NEW.entry_status IS DISTINCT FROM 'confirmed' THEN
+     AND NEW.entry_status = ANY (v_back_to_review) THEN
     NEW.confirmation_email_sent_at := NULL;
     NEW.confirmation_email_status := 'pending';
   END IF;
@@ -60,6 +71,13 @@ BEGIN
   -- OLD does not exist on INSERT: an entry inserted accepted/confirmed is a
   -- new acceptance.
   IF TG_OP = 'UPDATE' AND OLD.entry_status IN ('accepted', 'confirmed') THEN
+    RETURN NEW;
+  END IF;
+
+  -- An insert that brings its own armband (one reserved offline on the
+  -- secretary's device, or a day-of add) keeps it: renumbering would change a
+  -- number already shown to her.
+  IF TG_OP = 'INSERT' AND NULLIF(btrim(COALESCE(NEW.armband, '')), '') IS NOT NULL THEN
     RETURN NEW;
   END IF;
 

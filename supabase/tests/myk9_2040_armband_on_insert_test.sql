@@ -31,6 +31,12 @@ VALUES
   ('00000000-0000-0000-0000-000002040006', 'AKC', 'SR20400001', true),
   ('00000000-0000-0000-0000-000002040007', 'AKC', 'SR20400002', true);
 
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES ('00000000-0000-0000-0000-000002040010', 'Reserved Dog', 'Resv', '',
+        '00000000-0000-0000-0000-000002040002');
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+VALUES ('00000000-0000-0000-0000-000002040010', 'AKC', 'SR20400003', true);
+
 -- Inserted already confirmed, and inserted pending.
 INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
                             entry_status, payment_status, entry_fee)
@@ -43,6 +49,27 @@ VALUES
    '00000000-0000-0000-0000-000002040007', '00000000-0000-0000-0000-000002040005',
    '00000000-0000-0000-0000-000002040003', '00000000-0000-0000-0000-000002040004',
    '00000000-0000-0000-0000-000002040002', 'pending', 'pending', 25);
+
+-- Inserted confirmed WITH an armband reserved offline: it is kept.
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
+                            entry_status, payment_status, entry_fee, armband)
+VALUES ('00000000-0000-0000-0000-000002040011',
+        '00000000-0000-0000-0000-000002040010', '00000000-0000-0000-0000-000002040005',
+        '00000000-0000-0000-0000-000002040003', '00000000-0000-0000-0000-000002040004',
+        '00000000-0000-0000-0000-000002040002', 'confirmed', 'pending', 25, '777');
+
+DO $$
+DECLARE
+  v_armband text;
+BEGIN
+  SELECT armband INTO v_armband FROM public.entries
+  WHERE id = '00000000-0000-0000-0000-000002040011';
+  IF v_armband IS DISTINCT FROM '777' THEN
+    RAISE EXCEPTION 'FAIL insert with armband: expected 777 kept, found %', v_armband;
+  END IF;
+  RAISE NOTICE 'PASS insert with armband: a supplied armband is not renumbered';
+END;
+$$;
 
 DO $$
 DECLARE
@@ -93,7 +120,25 @@ UPDATE public.entries
 SET confirmation_email_sent_at = now(), confirmation_email_status = 'sent'
 WHERE id = '00000000-0000-0000-0000-000002040008';
 
-UPDATE public.entries SET entry_status = 'submitted'
+UPDATE public.entries SET entry_status = 'scratched'
+WHERE id = '00000000-0000-0000-0000-000002040008';
+
+DO $$
+DECLARE
+  v_sent timestamptz;
+BEGIN
+  SELECT confirmation_email_sent_at INTO v_sent
+  FROM public.entries WHERE id = '00000000-0000-0000-0000-000002040008';
+  IF v_sent IS NULL THEN
+    RAISE EXCEPTION 'FAIL scratched: a day-of/terminal move must keep the confirmation mark';
+  END IF;
+  RAISE NOTICE 'PASS scratched: the mark is kept';
+END;
+$$;
+
+UPDATE public.entries SET entry_status = 'confirmed'
+WHERE id = '00000000-0000-0000-0000-000002040008';
+UPDATE public.entries SET entry_status = 'not_accepted'
 WHERE id = '00000000-0000-0000-0000-000002040008';
 
 DO $$
@@ -112,7 +157,7 @@ BEGIN
   IF v_armband IS DISTINCT FROM '200' THEN
     RAISE EXCEPTION 'FAIL leave confirmed: the armband must survive, found %', v_armband;
   END IF;
-  RAISE NOTICE 'PASS leave confirmed: the mark is cleared';
+  RAISE NOTICE 'PASS not_accepted: the mark is cleared';
 END;
 $$;
 

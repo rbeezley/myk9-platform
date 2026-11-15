@@ -197,6 +197,50 @@ describe('showMapActionMutations', () => {
     });
   });
 
+  it.each([
+    ['a scored entry', { entryStatus: 'accepted', isScored: true }],
+    ['a scored entry no longer accepted', { entryStatus: 'pending', isScored: true }],
+    ['a scored entry stored with is_scored', { entryStatus: 'accepted', is_scored: true }],
+  ])(
+    'refuses %s because it already has a result, and writes nothing (MYK9-1990)',
+    async (_name, stored) => {
+      mockGetReplicatedEntryById.mockResolvedValueOnce({ id: 'entry-1', ...stored });
+
+      await expect(scratchShowMapEntry('entry-1', 'Dog absent')).rejects.toThrow(
+        /already has a result, so it can't be pulled/
+      );
+      expect(mockUpdateReplicatedDayOfScratch).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['complete', 'completed'],
+    ['not accepted', 'not_accepted'],
+    ['withdrawn', 'withdrawn'],
+    ['waitlisted', 'waitlist'],
+  ])('refuses a %s entry by naming its status (MYK9-1990)', async (label, status) => {
+    mockGetReplicatedEntryById.mockResolvedValueOnce({ id: 'entry-1', entryStatus: status });
+
+    const error = await scratchShowMapEntry('entry-1', 'Dog absent').catch(e => e as Error);
+    expect((error as Error).message).toMatch(/can't be pulled while it is /);
+    expect((error as Error).message.toLowerCase()).toContain(label);
+    expect(mockUpdateReplicatedDayOfScratch).not.toHaveBeenCalled();
+  });
+
+  it.each(['pending', 'missing_info', 'accepted'])(
+    'still pulls a %s entry that has not run (MYK9-1990)',
+    async status => {
+      mockGetReplicatedEntryById.mockResolvedValueOnce({
+        id: 'entry-1',
+        entryStatus: status,
+        isScored: false,
+      });
+
+      await scratchShowMapEntry('entry-1', 'Dog absent');
+      expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith('entry-1', 'Dog absent');
+    }
+  );
+
   it('does not write a second Pull over an entry the stored row already shows as pulled (MYK9-1812)', async () => {
     mockGetReplicatedEntryById.mockResolvedValueOnce({
       id: 'entry-1',

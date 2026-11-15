@@ -16,6 +16,13 @@ import {
 const CLUB = { kind: 'club', clubId: 'club-1' } as const;
 const SHOW = { kind: 'show', showId: 'show-1' } as const;
 
+/** The show's own rows read (select.eq.order.order), answering with `rows`. */
+function emptyShowRows(rows: unknown[] = []) {
+  const order2 = vi.fn().mockResolvedValue({ data: rows, error: null });
+  const order1 = vi.fn().mockReturnValue({ order: order2 });
+  return { select: () => ({ eq: () => ({ order: order1 }) }) };
+}
+
 describe('Event Committee service (MYK9-2064)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -109,7 +116,7 @@ describe('Event Committee service (MYK9-2064)', () => {
       error: null,
     });
     const insert = vi.fn().mockResolvedValue({ error: null });
-    from.mockReturnValue({ insert });
+    from.mockReturnValue({ insert, ...emptyShowRows() });
 
     await copyClubCommitteeToShow('show-1');
 
@@ -121,10 +128,23 @@ describe('Event Committee service (MYK9-2064)', () => {
     ]);
   });
 
+  it('refuses to copy when the show already has its own committee', async () => {
+    const insert = vi.fn();
+    const own = [
+      { id: 's-1', person_id: null, display_name: 'Olive', sort_order: 0, people: null },
+    ];
+    from.mockReturnValue({ insert, ...emptyShowRows(own) });
+
+    await expect(copyClubCommitteeToShow('show-1')).rejects.toThrow(
+      'This show already has its own committee.'
+    );
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it('refuses to copy when the club list could not be read', async () => {
+    from.mockReturnValue(emptyShowRows());
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' } });
     await expect(copyClubCommitteeToShow('show-1')).rejects.toThrow();
-    expect(from).not.toHaveBeenCalled();
   });
 
   it("clears only this show's own list", async () => {

@@ -4,7 +4,6 @@
  * club's list is untouched. "Use the club's committee" drops the show's own list.
  */
 
-import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
@@ -17,6 +16,8 @@ import { CommitteeList } from './CommitteeList';
 import { COMMITTEE_QUERY_KEY, useCommittee } from './useCommittee';
 import type { User } from '@/types/user-types';
 
+const ALREADY_OWN_MESSAGE = 'This show already has its own committee.';
+
 interface ShowCommitteeEditorProps {
   showId: string;
   people: User[];
@@ -25,12 +26,16 @@ interface ShowCommitteeEditorProps {
 export function ShowCommitteeEditor({ showId, people }: ShowCommitteeEditorProps) {
   const queryClient = useQueryClient();
   const own = useCommittee({ kind: 'show', showId });
-  const [started, setStarted] = useState(false);
 
   // What the premium prints today: this show's own list, else the club's.
   const effective = useQuery({
     queryKey: [COMMITTEE_QUERY_KEY, 'effective', showId],
-    queryFn: () => fetchShowCommittee(showId),
+    // A failed read is an error here, never an empty list: null must not read as "none".
+    queryFn: async () => {
+      const names = await fetchShowCommittee(showId);
+      if (!names) throw new Error('Could not read the committee');
+      return names;
+    },
   });
 
   const refresh = () => {
@@ -40,19 +45,18 @@ export function ShowCommitteeEditor({ showId, people }: ShowCommitteeEditorProps
 
   const change = useMutation({
     mutationFn: () => copyClubCommitteeToShow(showId),
-    onSuccess: () => {
-      setStarted(true);
-      refresh();
-    },
-    onError: () => notifications.error("We couldn't copy the club's committee. Please try again."),
+    onSuccess: refresh,
+    onError: error =>
+      notifications.error(
+        error instanceof Error && error.message === ALREADY_OWN_MESSAGE
+          ? ALREADY_OWN_MESSAGE
+          : "We couldn't copy the club's committee. Please try again."
+      ),
   });
 
   const switchToClub = useMutation({
     mutationFn: () => clearShowCommittee(showId),
-    onSuccess: () => {
-      setStarted(false);
-      refresh();
-    },
+    onSuccess: refresh,
     onError: () =>
       notifications.error("We couldn't switch back to the club's committee. Please try again."),
   });
@@ -75,7 +79,9 @@ export function ShowCommitteeEditor({ showId, people }: ShowCommitteeEditorProps
     return <p className="text-sm text-muted-foreground">Loading the committee...</p>;
   }
 
-  const hasOwnList = own.members.length > 0 || started;
+  // The show's own rows are the only thing that makes it differ from the club: with none,
+  // get_show_committee falls back to the club's list, so that is what prints.
+  const hasOwnList = own.members.length > 0;
   const busy = own.busy || change.isPending || switchToClub.isPending;
 
   return (
@@ -99,7 +105,7 @@ export function ShowCommitteeEditor({ showId, people }: ShowCommitteeEditorProps
             onRemove={own.remove}
             onMove={own.move}
             busy={busy}
-            emptyText="No committee members yet. The premium prints no committee until you add one."
+            emptyText="No committee members yet."
           />
           <Button
             type="button"
@@ -112,18 +118,50 @@ export function ShowCommitteeEditor({ showId, people }: ShowCommitteeEditorProps
         </>
       ) : (
         <>
-          {effective.data && effective.data.length > 0 ? (
-            <ul className="list-disc pl-5 text-sm text-foreground">
-              {effective.data.map(name => (
-                <li key={name}>{name}</li>
-              ))}
-            </ul>
+          {effective.isError ? (
+            <p role="status" className="text-sm text-warning">
+              We couldn&apos;t load the club&apos;s committee. This isn&apos;t the same as the club
+              having none.{' '}
+              <button
+                type="button"
+                onClick={() => void effective.refetch()}
+                className="underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </p>
+          ) : effective.isLoading || !effective.data ? (
+            <p className="text-sm text-muted-foreground">Loading the club&apos;s committee...</p>
+          ) : effective.data.length > 0 ? (
+            <>
+              <ul className="list-disc pl-5 text-sm text-foreground">
+                {effective.data.map(name => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => change.mutate()}
+              >
+                Change for this show
+              </Button>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">The club lists no committee yet.</p>
+            <>
+              <p className="text-sm text-muted-foreground">The club lists no committee yet.</p>
+              <CommitteeList
+                members={[]}
+                people={people}
+                onAdd={own.add}
+                onRemove={own.remove}
+                onMove={own.move}
+                busy={busy}
+                emptyText="Add names here to give this show its own committee."
+              />
+            </>
           )}
-          <Button type="button" variant="outline" disabled={busy} onClick={() => change.mutate()}>
-            Change for this show
-          </Button>
         </>
       )}
     </section>

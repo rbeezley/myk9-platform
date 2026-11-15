@@ -115,6 +115,9 @@ export async function moveCommitteeMember(
  * only prints names, and it never grants anything.
  */
 export async function copyClubCommitteeToShow(showId: string): Promise<void> {
+  // Another tab may have started this show's own list already: never insert a second copy.
+  const existing = await getCommittee({ kind: 'show', showId });
+  if (existing.length > 0) throw new Error('This show already has its own committee.');
   const names = await fetchShowCommittee(showId);
   if (!names) throw new Error('Could not read the club committee');
   const seen = new Set<string>();

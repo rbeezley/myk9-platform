@@ -57,7 +57,8 @@ export function useCommittee(scope: CommitteeScope) {
   const move = useMutation({
     mutationFn: ({ memberId, direction }: { memberId: string; direction: 'up' | 'down' }) =>
       moveCommitteeMember(scope, members, memberId, direction),
-    onSuccess: refresh,
+    // Settled, not success: a partly failed renumber must still reload the true order.
+    onSettled: refresh,
     onError: () => notifications.error("We couldn't change the order. Please try again."),
   });
 

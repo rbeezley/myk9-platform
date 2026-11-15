@@ -139,7 +139,7 @@ export function FinalCtaSection({
                 margin: '0 0 40px',
               }}
             >
-              First-received until the limit is hit. Refunds for written withdrawals before close.
+              First-received until the limit is hit.
             </p>
             {/* MYK9-633: the button here duplicated the top strip's
                 "ENTER" CTA — that header CTA is the page's one entry action

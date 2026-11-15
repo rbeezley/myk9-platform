@@ -68,6 +68,12 @@ describe.each(STYLES)('%s landing fees and premium download (MYK9-2041)', (_styl
     expect(text).toMatch(/\$\s*47(\.00)?/);
   });
 
+  it('makes no refund promise of its own (the club writes its policy, MYK9-1976)', () => {
+    const { container } = render(<Page show={baseShow} trial={trial} allTrials={[trial]} />);
+    // Hard-coded copy once promised refunds in Field Guide, Poster and Magazine.
+    expect(container.textContent ?? '').not.toMatch(/refunds?\s*(\(less|for written|issued)/i);
+  });
+
   it('offers no premium download when no PDF is published', () => {
     render(<Page show={baseShow} trial={trial} allTrials={[trial]} />);
     expect(screen.queryByRole('button', { name: PREMIUM_DOWNLOAD_LABEL })).toBeNull();

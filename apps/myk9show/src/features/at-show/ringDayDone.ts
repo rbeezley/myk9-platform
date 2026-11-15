@@ -8,12 +8,14 @@
  */
 import { getEffectiveClassStatus } from '@myk9/ringside';
 import { unsentPhrase } from '@/components/layout/signOutGuard';
+import { isScoreForShow } from './scoresNotSent/scoresNotSentFilter';
 import type { UnsentWorkState } from '@/hooks/useUnsentWork';
 import type { DatedRingClass } from './orderRingClassesByDay';
 
 export type RingDayDone =
   | { kind: 'sent'; text: string }
   | { kind: 'unsent'; text: string; unsentScoreCount: number }
+  | { kind: 'elsewhere'; text: string }
   | { kind: 'checking'; text: string }
   | { kind: 'unchecked'; text: string };
 
@@ -25,18 +27,30 @@ export function todaysRingClassesDone(yourRing: readonly DatedRingClass[]): numb
   return allDone ? today.length : null;
 }
 
+/**
+ * Scores are counted for THIS show, by the Scores not sent list's own rule, so the card's count
+ * and the list it links to agree. A score from another show on this phone is named in words,
+ * with no link. Other changes (a check-in) carry no show and count wherever they are.
+ */
 export function ringDayDone(
+  showId: string | undefined,
   yourRing: readonly DatedRingClass[],
   { work, status }: UnsentWorkState
 ): RingDayDone | null {
   const classCount = todaysRingClassesDone(yourRing);
   if (classCount === null) return null;
   const done = classCount === 1 ? '1 class done.' : `All ${classCount} classes done.`;
-  if (work.total > 0) {
+  const here = showId
+    ? work.scores.filter(score => score.state !== 'superseded' && isScoreForShow(score, showId))
+        .length
+    : 0;
+  // From the source's own count, so nothing it counts can fall through to "sent".
+  const elsewhere = work.unsentScoreCount - here;
+  if (here > 0 || work.otherChangeCount > 0) {
     return {
       kind: 'unsent',
-      text: `${unsentPhrase({ scores: work.unsentScoreCount, otherChanges: work.otherChangeCount })}. Keep this phone on and connected.`,
-      unsentScoreCount: work.unsentScoreCount,
+      text: `${unsentPhrase({ scores: here, otherChanges: work.otherChangeCount })}. Keep this phone on and connected.`,
+      unsentScoreCount: here,
     };
   }
   // INTENT: never "sent" before a read of this device succeeded; an empty value is not the truth.
@@ -47,6 +61,12 @@ export function ringDayDone(
     return {
       kind: 'unchecked',
       text: `${done} This phone could not be checked for scores not sent.`,
+    };
+  }
+  if (elsewhere > 0) {
+    return {
+      kind: 'elsewhere',
+      text: `${done} Every score for this show is sent. ${elsewhere} from another show ${elsewhere === 1 ? 'is' : 'are'} still on this phone.`,
     };
   }
   return { kind: 'sent', text: `${done} Every score is sent.` };

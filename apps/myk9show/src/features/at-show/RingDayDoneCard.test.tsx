@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClassEntry } from '@myk9/ringside';
 import { render, screen } from '@/test/utils/testUtils';
-import { EMPTY_UNSENT_WORK } from '@/services/replication/unsentWork';
+import { EMPTY_UNSENT_WORK, type UnsentScore } from '@/services/replication/unsentWork';
 import type { UnsentWorkState } from '@/hooks/useUnsentWork';
 import type { DatedRingClass } from './orderRingClassesByDay';
 
@@ -40,7 +40,15 @@ describe('RingDayDoneCard (MYK9-2013)', () => {
 
   it('links unsent scores to the Scores not sent list', () => {
     unsent.state = {
-      work: { ...EMPTY_UNSENT_WORK, unsentScoreCount: 2, total: 2 },
+      work: {
+        ...EMPTY_UNSENT_WORK,
+        scores: [
+          { entryId: 'e1', showId: 'show-1', state: 'waiting' },
+          { entryId: 'e2', showId: 'show-1', state: 'refused' },
+        ] as UnsentScore[],
+        unsentScoreCount: 2,
+        total: 2,
+      },
       status: 'known',
     };
     render(<RingDayDoneCard showId="show-1" yourRing={[done('a')]} />);
@@ -51,6 +59,23 @@ describe('RingDayDoneCard (MYK9-2013)', () => {
       'href',
       '/at-show/show-1/scores-not-sent'
     );
+  });
+
+  it('names another show’s scores without a link to this show’s empty list', () => {
+    unsent.state = {
+      work: {
+        ...EMPTY_UNSENT_WORK,
+        scores: [{ entryId: 'e1', showId: 'show-2', state: 'waiting' }] as UnsentScore[],
+        unsentScoreCount: 1,
+        total: 1,
+      },
+      status: 'known',
+    };
+    render(<RingDayDoneCard showId="show-1" yourRing={[done('a')]} />);
+    expect(screen.getByRole('status', { name: 'Your day' })).toHaveTextContent(
+      '1 class done. Every score for this show is sent. 1 from another show is still on this phone.'
+    );
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('renders nothing while a class is still open', () => {

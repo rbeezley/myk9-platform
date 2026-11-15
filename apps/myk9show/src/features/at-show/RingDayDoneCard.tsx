@@ -15,7 +15,7 @@ export function RingDayDoneCard({
   yourRing: readonly DatedRingClass[];
 }) {
   const unsent = useUnsentWorkState();
-  const done = ringDayDone(yourRing, unsent);
+  const done = ringDayDone(showId, yourRing, unsent);
   if (!done) return null;
   const href =
     done.kind === 'unsent' ? scoresNotSentHref(showId, done.unsentScoreCount) : undefined;
@@ -30,7 +30,7 @@ export function RingDayDoneCard({
       className={cn(
         'mb-3 flex flex-wrap items-center gap-3 rounded-xl border p-3',
         done.kind === 'sent' && 'border-success/30 bg-success/10 text-success',
-        (done.kind === 'unsent' || done.kind === 'unchecked') &&
+        (done.kind === 'unsent' || done.kind === 'unchecked' || done.kind === 'elsewhere') &&
           'border-warning/30 bg-warning/10 text-warning',
         done.kind === 'checking' && 'border-border bg-muted text-foreground'
       )}

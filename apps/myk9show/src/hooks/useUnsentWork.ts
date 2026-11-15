@@ -53,14 +53,19 @@ export function useUnsentWorkState(pollMs = 15000): UnsentWorkState {
 
   useEffect(() => {
     let cancelled = false;
+    // Reads overlap (an event during a slow read); only the newest one may set the state, so an
+    // older read that finishes last can never put back a count from before a save or a send.
+    let latest = 0;
     const refresh = () => {
+      const request = ++latest;
+      const current = () => !cancelled && request === latest;
       readDeviceUnsentWork()
         .then(next => {
-          if (!cancelled) setState({ work: next, status: 'known' });
+          if (current()) setState({ work: next, status: 'known' });
         })
         .catch(() => {
           // Keep the last known value for the counts, but it is no longer known.
-          if (!cancelled) setState(prev => ({ work: prev.work, status: 'failed' }));
+          if (current()) setState(prev => ({ work: prev.work, status: 'failed' }));
         });
     };
 

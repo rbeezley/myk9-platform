@@ -155,6 +155,7 @@ TEST_FILES=(
   "$TEST_DIR/support_triage_atomic_send_test.sql"
   "$TEST_DIR/support_ticket_creation_atomicity_test.sql"
   "$TEST_DIR/show_email_delivery_history_test.sql"
+  "$TEST_DIR/myk9_1999_show_email_content_test.sql"
   "$TEST_DIR/soft_delete_dog_cascade_test.sql"
   "$TEST_DIR/force_delete_dog_test.sql"
   "$TEST_DIR/myk9_607_608_dog_delete_audit_restore_test.sql"

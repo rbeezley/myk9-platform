@@ -198,6 +198,7 @@ const launchCriticalSqlTests = [
   'myk9_822_blocking_entries_rpc_test.sql',
   'myk9_970_role_onboarding_test.sql',
   'show_email_delivery_history_test.sql',
+  'myk9_1999_show_email_content_test.sql',
   'user_roles_show_manager_read_test.sql',
   'myk9_1514_trials_auto_complete_stale_classes_test.sql',
   'myk9_1701_claim_push_subscription_test.sql',

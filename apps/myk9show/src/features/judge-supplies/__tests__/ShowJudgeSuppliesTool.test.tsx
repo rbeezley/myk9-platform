@@ -14,11 +14,14 @@ const byTrial = new Map([
   ],
 ]);
 
-vi.mock('@/features/lunch-orders/judgesOnDays', () => ({
+const judgesState = vi.hoisted(() => ({ paused: false }));
+vi.mock('@/features/lunch-orders/judgesOnDays', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/lunch-orders/judgesOnDays')>()),
   useJudgesOnDays: () => ({
-    byTrial,
-    hasData: true,
+    byTrial: judgesState.paused ? new Map() : byTrial,
+    hasData: !judgesState.paused,
     isLoading: false,
+    isPaused: judgesState.paused,
     isFetching: false,
     isError: false,
     refetch: vi.fn(),
@@ -64,6 +67,7 @@ function supply(overrides: Partial<ShowJudgeSupplyRow>): ShowJudgeSupplyRow {
 describe('ShowJudgeSuppliesTool (MYK9-1728)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    judgesState.paused = false;
     onlineManager.setOnline(true);
     listForShow.mockResolvedValue([]);
   });
@@ -147,6 +151,24 @@ describe('ShowJudgeSuppliesTool (MYK9-1728)', () => {
     );
     expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  describe('paused judges read (MYK9-1997)', () => {
+    it('says it needs a connection instead of rendering blank, and has no second heading', () => {
+      judgesState.paused = true;
+      render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />);
+      expect(screen.getByTestId('judge-supplies-offline')).toHaveTextContent(
+        'Not available offline. Connect to load judges and supplies.'
+      );
+      expect(screen.queryByTestId('judge-supplies-empty')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Judge supplies' })).toBeNull();
+    });
+
+    it('lists the judges once the read has data', async () => {
+      render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />);
+      expect(screen.queryByTestId('judge-supplies-offline')).not.toBeInTheDocument();
+      expect(await screen.findByTestId('judge-row-j1')).toBeInTheDocument();
+    });
   });
 
   describe('offline first read (MYK9-1882)', () => {

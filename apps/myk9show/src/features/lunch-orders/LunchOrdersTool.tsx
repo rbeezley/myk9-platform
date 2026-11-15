@@ -1,6 +1,6 @@
 import { formatTrialLabel } from '@myk9/core';
 import { useCallback, useState } from 'react';
-import { useJudgesOnDays } from './judgesOnDays';
+import { LUNCH_ORDERS_OFFLINE_COPY, useJudgesOnDays } from './judgesOnDays';
 import { useShowDeskCloseGuard } from '@/features/show-map/showDeskCloseGuard';
 import { formatEntryDate } from '@/lib/format/dates';
 import { LunchOrdersDay } from './LunchOrdersDay';
@@ -45,19 +45,19 @@ export function LunchOrdersTool({ showId, trials }: LunchOrdersToolProps) {
   );
 
   return (
-    <section className="space-y-4" aria-labelledby="lunch-orders-title">
-      <div>
-        <h3 id="lunch-orders-title" className="text-base font-semibold">
-          Lunch orders
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Plan lunch for anyone working each day. People already assigned are listed for you. Use
-          Add person for anyone else.
-        </p>
-      </div>
+    // The Show Desk panel title already says "Lunch orders"; no second heading here.
+    <section className="space-y-4" aria-label="Lunch orders">
+      <p className="text-sm text-muted-foreground">
+        Plan lunch for anyone working each day. People already assigned are listed for you. Use Add
+        person for anyone else.
+      </p>
       {trials.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Add a trial day to the show before planning lunch.
+        </p>
+      ) : judges.isPaused ? (
+        <p className="text-sm text-muted-foreground" data-testid="lunch-orders-offline">
+          {LUNCH_ORDERS_OFFLINE_COPY}
         </p>
       ) : (
         trials.map(trial => (

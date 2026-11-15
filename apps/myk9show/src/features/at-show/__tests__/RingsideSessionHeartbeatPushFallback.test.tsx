@@ -34,7 +34,7 @@ vi.mock('../ringsidePasscodeRevocation', () => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { id: 'user-1' } }),
+  useAuthContext: () => ({ user: { id: 'user-1' }, hasRole: () => false }),
 }));
 
 const SHOW_ID = '11111111-1111-1111-1111-111111111111';

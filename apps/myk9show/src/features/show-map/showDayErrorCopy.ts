@@ -20,8 +20,6 @@ export const SHOW_MAP_MUTATION_FAILED: Record<ShowMapActionMutationKey, string> 
 };
 
 export const SHOW_MAP_COPY = {
-  pullFailed: "We couldn't pull this entry. Check the entry's status before you try again.",
-  pullUndoFailed: "We couldn't undo the pull. Check the entry's status before you try again.",
   /**
    * The executor's 8-second undo goes through the same move-back RPC. No screen calls
    * it today, so the sentence names no control.

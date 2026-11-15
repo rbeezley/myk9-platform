@@ -8,7 +8,6 @@ import { SHOW_MAP_COPY, SHOW_MAP_MUTATION_FAILED, showDayErrorMessage } from './
 import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
 import { STATUS_UNDO_WINDOW_MS, showUndoToast } from '@/lib/undoToast';
 import { classChangedMessage } from './dayOfMessages';
-import { buildStatusUndoToastMessage } from '@/services/database/entries/statusUndo';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
@@ -26,13 +25,10 @@ import {
   markShowMapClassStarted,
   markShowMapEntryCheckedIn,
   moveUpShowMapEntry,
-  scratchShowMapEntry,
   sourceIdFromShowMapNodeId,
   undoShowMapMoveUp,
-  undoShowMapScratch,
   type ShowMapMoveUpResult,
   type ShowMapMoveUpUndoInput,
-  type ShowMapScratchUndoInput,
 } from './showMapActionMutations';
 
 interface UseShowMapActionExecutorInput {
@@ -64,17 +60,12 @@ export interface LastShowMapMoveUp extends ShowMapMoveUpUndoInput {
   classId?: string | undefined;
 }
 
-export interface ShowMapScratchUndoMutationInput extends ShowMapScratchUndoInput {
-  classId?: string | undefined;
-}
-
 export function useShowMapActionExecutor({
   showId,
   onEntriesChanged,
   entryLabelOf,
 }: UseShowMapActionExecutorInput) {
   const queryClient = useQueryClient();
-  const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
   const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
   const [messageAction, setMessageAction] = useState<ShowMapAction | null>(null);
   const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
@@ -243,58 +234,6 @@ export function useShowMapActionExecutor({
     },
   });
 
-  const undoScratchMutation = useMutation({
-    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
-    // pause it BEFORE the function runs while offline and a reload would lose it.
-    networkMode: 'always',
-    mutationFn: async (input: ShowMapScratchUndoMutationInput) => undoShowMapScratch(input),
-    onSuccess: () => {
-      toast.success('Pull undone');
-    },
-    onError: error => {
-      if ((error as { code?: unknown } | null)?.code === 'pull-superseded') {
-        toast.error(buildStatusUndoToastMessage('superseded').message);
-        return;
-      }
-      toast.error(showDayErrorMessage(error, SHOW_MAP_COPY.pullUndoFailed));
-    },
-    onSettled: (_data, _error, variables) => {
-      invalidateShowMapActionQueries(variables?.classId);
-    },
-  });
-
-  const scratchMutation = useMutation({
-    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
-    // pause it BEFORE the function runs while offline and a reload would lose it.
-    networkMode: 'always',
-    mutationFn: async ({
-      action,
-      reason,
-    }: {
-      action: ShowMapAction;
-      reason?: string | undefined;
-    }) => {
-      const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
-      if (!entryId) throw new Error('Unable to find the entry for this action.');
-
-      return scratchShowMapEntry(entryId, reason);
-    },
-    onSuccess: (result, { action }) => {
-      const undoInput: ShowMapScratchUndoMutationInput = { ...result, classId: action.classId };
-      showUndoToast({
-        message: 'Entry marked pulled',
-        onUndo: () => undoScratchMutation.mutate(undoInput),
-      });
-      setScratchAction(null);
-    },
-    onError: error => {
-      toast.error(showDayErrorMessage(error, SHOW_MAP_COPY.pullFailed));
-    },
-    onSettled: (_data, _error, variables) => {
-      invalidateShowMapActionQueries(variables?.action.classId);
-    },
-  });
-
   const undoMoveUpMutation = useMutation({
     mutationFn: async (input: LastShowMapMoveUp) => undoShowMapMoveUp(input),
     onSuccess: () => {
@@ -396,10 +335,6 @@ export function useShowMapActionExecutor({
         setMoveUpAction(action);
         return;
       }
-      if (execution.kind === 'dialog' && execution.dialog === 'scratch-entry') {
-        setScratchAction(action);
-        return;
-      }
       if (execution.kind === 'dialog' && execution.dialog === 'message-handler') {
         setMessageAction(action);
         return;
@@ -419,20 +354,11 @@ export function useShowMapActionExecutor({
       if (moveUpAction) moveUpMutation.mutate({ action: moveUpAction, targetClassId, reason });
     },
     ...moveUpReversal,
-    scratchAction,
-    closeScratchDialog: () => setScratchAction(null),
-    confirmScratchNoShow: (reason: string | undefined) => {
-      if (scratchAction) scratchMutation.mutate({ action: scratchAction, reason });
-    },
     messageAction,
     closeMessageDialog: () => setMessageAction(null),
     confirmMessageHandler: ({ body }: ConfirmShowMapMessageInput) => {
       if (messageAction) messageHandlerMutation.mutate({ action: messageAction, body });
     },
-    isExecuting:
-      mutation.isPending ||
-      scratchMutation.isPending ||
-      moveUpMutation.isPending ||
-      messageHandlerMutation.isPending,
+    isExecuting: mutation.isPending || moveUpMutation.isPending || messageHandlerMutation.isPending,
   };
 }

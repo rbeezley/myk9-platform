@@ -99,19 +99,6 @@ describe('showMapActionExecution', () => {
     });
   });
 
-  it('enables scratch / no-show through the shared dialog lane', () => {
-    const scratch = makeAction({
-      id: 'scratch-entry',
-      label: 'Pull',
-      href: null,
-    });
-
-    expect(resolveShowMapActionExecution(scratch)).toEqual({
-      kind: 'dialog',
-      dialog: 'scratch-entry',
-    });
-  });
-
   it('enables move-up through the shared dialog lane', () => {
     const moveUp = makeAction({
       id: 'move-up-entry',

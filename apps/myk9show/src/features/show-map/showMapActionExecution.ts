@@ -1,6 +1,6 @@
 import type { ShowMapAction, ShowMapActionId } from './showMapActions';
 
-export type ShowMapActionDialogKey = 'move-up-entry' | 'scratch-entry' | 'message-handler';
+export type ShowMapActionDialogKey = 'move-up-entry' | 'message-handler';
 
 export type ShowMapActionMutationKey =
   'mark-checked-in' | 'mark-class-started' | 'mark-class-complete';
@@ -72,10 +72,6 @@ export const showMapActionExecutionById = {
   'move-up-entry': {
     kind: 'dialog',
     dialog: 'move-up-entry',
-  },
-  'scratch-entry': {
-    kind: 'dialog',
-    dialog: 'scratch-entry',
   },
   'message-handler': {
     kind: 'dialog',

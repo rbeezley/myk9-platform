@@ -1,8 +1,20 @@
 # Independent database exports (MYK9-110 item 2)
 
-This runbook is the activation companion to the disabled workflow
+This runbook covers the independent export workflow
 `.github/workflows/independent-database-exports.yml`. It is separate from Supabase physical
-backups and from the item 1 recovery rehearsal.
+backups and from the item 1 recovery rehearsal. The activation checklist below is the record of
+how the export was brought live; the recovery drills still owed are in
+[independent-database-drills.md](independent-database-drills.md).
+
+> **Status (corrected 2026-11-15).** The text that called the workflow disabled, the schedule
+> UTC-based, and activation pending was written before activation and is superseded. Evidence in
+> this repository: [nightly-backup-recovery.md](nightly-backup-recovery.md) records that scheduled
+> runs were firing 4 to 6 times a day between Oct 29 and Nov 2, which a disabled workflow cannot do
+> (MYK9-1642), and the owner selected America/Chicago and 30-day retention on 2026-09-08 (below).
+> The repository's git history is a single squashed commit, so per-change history is in the Linear
+> issue comments, not in `git log`. The repository variables themselves (`MYK9_EXPORTS_ENABLED`,
+> `MYK9_EXPORT_TIME_ZONE`) cannot be read from the repo; confirm with
+> `gh variable list | grep MYK9_EXPORT` before relying on them.
 
 ## Scope and boundary
 
@@ -21,7 +33,8 @@ The export workflow is dispatched hourly at minute 3 UTC by Supabase `pg_cron` (
 `nightly-backup-recovery.md`, Hourly export trigger), because GitHub drops scheduled runs. Its own
 GitHub `schedule` (minute 7 UTC, avoiding the congested top of the hour) is an idempotent fallback.
 The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
-(default UTC), `MYK9_EXPORT_WEEKEND_DAYS` (default `0,5,6`), and `MYK9_EXPORT_NIGHTLY_HOUR`
+(the code default is UTC; the effective setting is `America/Chicago`, see below),
+`MYK9_EXPORT_WEEKEND_DAYS` (default `0,5,6`), and `MYK9_EXPORT_NIGHTLY_HOUR`
 (default `3`) to export hourly during the daytime on selected show weekends and once
 overnight otherwise. Weekend daytime is **06:00–22:00 America/Chicago**, and the preflight
 checks `public.shows` for a show overlapping that Friday–Sunday window. Overnight weekend
@@ -39,8 +52,8 @@ R2 credential, network or bucket access errors stop scheduled runs before a data
 The separate health workflow wakes hourly at minute 22 and validates the newest stored payloads
 against the latest due slot whose 30-minute grace has elapsed. Thus detection can take until
 the next health run after grace, plus scheduler delays. A GitHub outage can hide both jobs;
-operator checks remain necessary. Both scheduled jobs stay disabled until
-`MYK9_EXPORTS_ENABLED=true`; explicit manual dispatch is available for activation testing.
+operator checks remain necessary. Both scheduled jobs run only while
+`MYK9_EXPORTS_ENABLED=true`; explicit manual dispatch always works.
 The 30-minute grace is intentional: a delayed job beyond the monitored slot is a backup gap
 that should alert, even when caused by GitHub scheduling. It is not a guarantee of hourly recovery.
 The workflow installs PostgreSQL client 18 and defaults `MYK9_EXPORT_PG_CLIENT_MAJOR` to `18`;
@@ -61,7 +74,8 @@ credential and a separately generated encryption key in GitHub Actions secrets. 
 reports a local recovery copy of the key. GitHub secret names and the exact bucket, prefix,
 endpoint and `auto` region variables were verified; download, authenticated decryption, and the scoped restore have since passed. See the
 [tested recovery procedure and exclusions](independent-database-restore.md).
-`MYK9_EXPORTS_ENABLED=false` remains verified. Scheduled activation is pending.
+`MYK9_EXPORTS_ENABLED=false` was verified at the time of that setup; the exports have since been
+activated (see the status note at the top).
 
 The repository was verified **public** on 2026-09-08. Both workflows use standard
 `ubuntu-latest` runners, which are [free for public repositories](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).

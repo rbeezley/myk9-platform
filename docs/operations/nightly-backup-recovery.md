@@ -2,6 +2,7 @@
 
 Owner: Richard Beezley. Tracking: [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110).
 Evidence recorded 2026-09-07. Source: `myK9-platform` (`sojmvhhwsjxmfistvzbe`).
+Outstanding drills and how to run them: [independent-database-drills.md](independent-database-drills.md).
 
 ## Current decision
 

@@ -9,6 +9,7 @@
  *  - `/at-show/:showId/dogs` + `/dogs/:dogKey`       → staff dog finder + dog page (MYK9-1509)
  *  - `/at-show/:showId/leaderboard`                → nationals leaderboard (MYK9-1540)
  *  - `/at-show/:showId/setup-sheet`               → printable judge setup cheat sheet
+ *  - `/at-show/:showId/scores-not-sent`           → this device's unsent scores (MYK9-2011)
  * Mounted OUTSIDE UnifiedAppLayout (full-screen ringside — no host sidebar or
  * header; see App.tsx), which is why the boundary's states use a full-screen
  * wrapper.
@@ -51,6 +52,11 @@ const AtShowScoresheetPage = createEnhancedLazy(
 const AtShowSetupSheetPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowSetupSheetPage'),
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowSetupSheetPage' }
+);
+
+const AtShowScoresNotSentPage = createEnhancedLazy(
+  () => import('@/features/at-show/scoresNotSent/AtShowScoresNotSentPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowScoresNotSentPage' }
 );
 
 const AtShowDogsPage = createEnhancedLazy(() => import('@/features/at-show/AtShowDogsPage'), {
@@ -133,6 +139,11 @@ export const AtShowRoutes = () => {
       <Route
         path="/at-show/:showId/setup-sheet"
         element={atShowElement(<AtShowSetupSheetPage />)}
+      />
+      {/* Every score on this device not on the server yet (MYK9-2011): works offline. */}
+      <Route
+        path="/at-show/:showId/scores-not-sent"
+        element={atShowElement(<AtShowScoresNotSentPage />)}
       />
       {/* Live scoresheet (judge's mobile timer) — entry cards navigate here. */}
       <Route

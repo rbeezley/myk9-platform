@@ -1,29 +1,19 @@
 /**
- * Scores queued on this device and not yet uploaded, counted per class
- * (MYK9-1506). Reads the same durable mutation queue the scoresheet writes to and
- * the header's "N waiting to sync" count reads; there is no second queue.
+ * Scores on this device that have not reached the server, counted per class
+ * (MYK9-1506). Reads the same durable queue and dead letters the header's count
+ * reads (`readDeviceUnsentWork`); there is no second queue. MYK9-2011: a score the
+ * server refused still counts, so a card never reads as sent while a score sits here.
  *
- * A queued score is a pending `entries` write routed through the ringside RPC
- * whose delta marks the entry scored. A class with none is in sync, which is
- * all the card claims: it never infers staleness from elapsed time, so a
- * finished or untouched class cannot read as "outdated".
+ * A score is an `entries` write routed through the ringside RPC whose delta marks
+ * the entry scored. A class with none is in sync, which is all the card claims: it
+ * never infers staleness from elapsed time, so a finished or untouched class cannot
+ * read as "outdated".
  */
 import { useEffect, useState } from 'react';
 import type { PendingMutation } from '@myk9/replication';
 import { replicatedEntriesTable } from '@/services/replication';
-import { RINGSIDE_RPC_FUNCTION } from '@/services/replication/ringsideEntryRpc';
-import { mutationManager } from '@/services/replication/sharedMutationManager';
-
-// Same signals as `usePendingMutationCount`: queued while offline, and every way
-// the queue can shrink or change.
-const REFRESH_EVENTS = [
-  'replication:mutation-queued',
-  'replication:upload-complete',
-  'replication:sync-failed',
-  'replication:queue-overflow',
-  'replication:recovery',
-  'replication:conflict',
-] as const;
+import { isScoreMutation, readDeviceUnsentWork } from '@/services/replication/unsentWork';
+import { UNSENT_WORK_REFRESH_EVENTS as REFRESH_EVENTS } from '@/hooks/useUnsentWork';
 
 const EMPTY: ReadonlyMap<string, number> = new Map();
 
@@ -31,8 +21,7 @@ const EMPTY: ReadonlyMap<string, number> = new Map();
 export function queuedScoreEntryIds(mutations: readonly PendingMutation[]): Set<string> {
   const ids = new Set<string>();
   for (const mutation of mutations) {
-    if (mutation.rpc?.name !== RINGSIDE_RPC_FUNCTION) continue;
-    if (mutation.rpc.fields?.is_scored === true) ids.add(mutation.rowId);
+    if (isScoreMutation(mutation)) ids.add(mutation.rowId);
   }
   return ids;
 }
@@ -51,9 +40,7 @@ export function countQueuedScoresByClass(
 }
 
 async function readQueuedScoresByClass(showId: string): Promise<Map<string, number>> {
-  const entryIds = queuedScoreEntryIds(
-    await mutationManager.getPendingMutationsForTable('entries')
-  );
+  const entryIds = new Set((await readDeviceUnsentWork()).scores.map(score => score.entryId));
   if (entryIds.size === 0) return new Map();
   const entries = await replicatedEntriesTable.getEntriesByShow(showId);
   return countQueuedScoresByClass(

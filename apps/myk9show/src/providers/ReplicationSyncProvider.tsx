@@ -58,6 +58,7 @@ import { invalidateEnrichmentForUpload } from '@/services/replication/classJudge
 import { requestPersistentStorage } from '@/lib/persistentStorage';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
+import { withoutListedScores } from '@/features/at-show/scoresNotSent/scoresNotSentFilter';
 import {
   isPasscodeRegeneratedMessage,
   revokeRingsidePasscodeAccess,
@@ -768,7 +769,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         return;
       }
 
-      for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
+      // MYK9-2011: refused scores live on the Scores not sent list (ScoresNotSentNotice).
+      const listed = withoutListedScores(detail);
+      if (listed.mutations.length === 0) return;
+      for (const failureDetail of splitPermanentScoreAuthorizationFailures(listed)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
         const isPermanentScoreAuthorizationFailure =
           hasPermanentScoreAuthorizationFailure(failureDetail);

@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react';
 import type { SyncMetrics } from '@/types/sync-types';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
-import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
+import { useUnsentWork } from '@/hooks/useUnsentWork';
 
 export type SyncStatus = 'synced' | 'pending' | 'error' | 'conflict' | 'offline';
 
 interface GlobalSyncState {
   status: SyncStatus;
   lastSyncAt?: Date;
+  /** Unsent work, waiting or refused: scores plus other changed rows (MYK9-2011). */
   queueSize: number;
+  /** Dogs whose score has not reached the server. */
+  unsentScoreCount: number;
+  /** Changed rows other than scores. */
+  otherChangeCount: number;
+  /** Refused work that will not send on its own and needs a person. */
+  refusedCount: number;
   isOnline: boolean;
   conflictCount: number;
   errorCount: number;
@@ -18,7 +25,7 @@ interface GlobalSyncState {
 /**
  * Global sync status derived from REAL replication state:
  * - `status`, `lastSyncAt`, `error` from the ReplicationSyncProvider context
- * - `queueSize` from the actual pending-mutation count (mutationManager)
+ * - `queueSize` from the device's unsent work, waiting and refused (useUnsentWork)
  * - `isOnline` from navigator + online/offline events
  *
  * Previously this fabricated status with Math.random(), so users saw
@@ -27,7 +34,8 @@ interface GlobalSyncState {
  */
 export function useGlobalSyncStatus(): GlobalSyncState {
   const { status: replication } = useReplicationSync();
-  const queueSize = usePendingMutationCount();
+  const unsent = useUnsentWork();
+  const queueSize = unsent.total;
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -61,6 +69,9 @@ export function useGlobalSyncStatus(): GlobalSyncState {
   const state: GlobalSyncState = {
     status,
     queueSize,
+    unsentScoreCount: unsent.scores.length,
+    otherChangeCount: unsent.otherChangeCount,
+    refusedCount: unsent.refusedCount,
     isOnline,
     conflictCount: 0,
     errorCount,

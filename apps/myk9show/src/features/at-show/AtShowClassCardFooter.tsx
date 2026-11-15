@@ -1,5 +1,6 @@
 import { CloudUpload, Heart, Info, MoreHorizontal } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { ClassEntry } from '@myk9/ringside';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +43,8 @@ interface AtShowClassCardFooterProps {
   /** False when the counts are unknown (not yet read, or an exhibitor's partial replica). */
   showProgress: boolean;
   queuedScoreCount: number;
+  /** MYK9-2011: the count opens the Scores not sent list. */
+  scoresNotSentHref?: string | undefined;
   onToggleFavorite?: ((entry: ClassEntry) => void) | undefined;
   onShowDetails?:
     ((entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void) | undefined;
@@ -53,6 +56,7 @@ export function AtShowClassCardFooter({
   status,
   showProgress,
   queuedScoreCount,
+  scoresNotSentHref,
   onToggleFavorite,
   onShowDetails,
   onOpenOptions,
@@ -61,13 +65,22 @@ export function AtShowClassCardFooter({
 
   return (
     <div className="border-t border-border/60 pb-1 pl-4 pr-2 pt-1">
-      {queuedScoreCount > 0 && (
-        // Amber, from what this device queued: no clock, so a finished class never reads stale.
-        <div className="flex items-center gap-1.5 px-2 pt-1 text-xs font-medium text-warning">
-          <CloudUpload size={14} className="shrink-0" aria-hidden />
-          {queuedScoresLabel(queuedScoreCount)}
-        </div>
-      )}
+      {queuedScoreCount > 0 &&
+        // Amber, from what this device holds: no clock, so a finished class never reads stale.
+        (scoresNotSentHref ? (
+          <Link
+            to={scoresNotSentHref}
+            className="flex min-h-11 items-center gap-1.5 px-2 text-xs font-medium text-warning underline"
+          >
+            <CloudUpload size={14} className="shrink-0" aria-hidden />
+            {queuedScoresLabel(queuedScoreCount)}
+          </Link>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2 pt-1 text-xs font-medium text-warning">
+            <CloudUpload size={14} className="shrink-0" aria-hidden />
+            {queuedScoresLabel(queuedScoreCount)}
+          </div>
+        ))}
       {/* Wraps rather than overflows: on a 320px phone the wider "Offline Scoring"
           badge would push the buttons past the card, so they drop to a line of
           their own, still right-aligned and 48px. */}

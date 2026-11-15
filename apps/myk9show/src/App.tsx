@@ -47,6 +47,7 @@ import { NewRoleStepBanner } from './components/exhibitor/NewRoleStepBanner';
 
 // Error Handling
 import { GlobalErrorHandler } from './services/error/GlobalErrorHandler';
+import { ScoresNotSentNotice } from '@/features/at-show/scoresNotSent/ScoresNotSentNotice';
 
 // Debug utilities - only load in development
 if (import.meta.env.DEV) {
@@ -211,6 +212,7 @@ function App() {
                         <RingsideReturnBar />
                         <NotificationCenter />
                         <AppToaster />
+                        <ScoresNotSentNotice />
                         <ToastContainer />
                         <StepUpReauthHost />
                         <Outlet />

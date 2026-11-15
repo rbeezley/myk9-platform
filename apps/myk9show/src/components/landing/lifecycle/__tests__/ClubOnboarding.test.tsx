@@ -29,8 +29,12 @@ vi.mock('react-router-dom', async importOriginal => ({
 
 vi.mock('@/services/database/club-access-requests.request', () => {
   class ClubNameTakenError extends Error {}
+  class TooManyClubRequestsError extends Error {}
   return {
     ClubNameTakenError,
+    TooManyClubRequestsError,
+    TOO_MANY_CLUB_REQUESTS_MESSAGE:
+      "You already have 3 club requests waiting. We'll answer those first.",
     requestNewClub: (...args: unknown[]) => mockSubmit(...args),
   };
 });
@@ -102,6 +106,21 @@ describe('ClubOnboarding', () => {
       'mailto:support@myk9show.com'
     );
     expect(screen.queryByText(/waiting for myK9Show approval/i)).not.toBeInTheDocument();
+  });
+
+  it('says plainly that she has too many requests waiting, with no retry hint', async () => {
+    const { TooManyClubRequestsError } =
+      await import('@/services/database/club-access-requests.request');
+    mockSubmit.mockRejectedValue(new TooManyClubRequestsError());
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    expect(
+      await screen.findByText("You already have 3 club requests waiting. We'll answer those first.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/try again/i)).not.toBeInTheDocument();
   });
 
   it('says how to join a club already on myK9Show and offers only AKC, UKC and ASCA', () => {

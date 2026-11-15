@@ -189,18 +189,36 @@ BEGIN
   FROM jsonb_each_text(v_numbers) AS kv
   ON CONFLICT (club_id, organization) DO NOTHING;
 
-  INSERT INTO public.club_access_requests (
-    requester_person_id,
-    requester_auth_user_id,
-    requested_club_name,
-    requested_club_website,
-    request_note,
-    club_numbers,
-    created_club_id
-  ) VALUES (
-    v_person_id, v_uid, v_name, v_website, v_note, v_numbers, v_club_id
-  )
-  RETURNING id INTO v_request_id;
+  -- She may already have a pending request for this name from an older path (the
+  -- signup trigger, submit_club_access_request). A second row would hit
+  -- club_access_requests_pending_person_club_unique, so that row is upgraded to point
+  -- at the new club instead; her note and numbers fill in only where it has none.
+  UPDATE public.club_access_requests r
+  SET created_club_id = v_club_id,
+      request_note = coalesce(nullif(btrim(r.request_note), ''), v_note),
+      requested_club_website = coalesce(r.requested_club_website, v_website),
+      club_numbers = CASE WHEN r.club_numbers = '{}'::jsonb THEN v_numbers ELSE r.club_numbers END,
+      updated_at = now()
+  WHERE r.requester_person_id = v_person_id
+    AND r.status = 'pending'
+    AND r.created_club_id IS NULL
+    AND lower(r.requested_club_name) = lower(v_name)
+  RETURNING r.id INTO v_request_id;
+
+  IF v_request_id IS NULL THEN
+    INSERT INTO public.club_access_requests (
+      requester_person_id,
+      requester_auth_user_id,
+      requested_club_name,
+      requested_club_website,
+      request_note,
+      club_numbers,
+      created_club_id
+    ) VALUES (
+      v_person_id, v_uid, v_name, v_website, v_note, v_numbers, v_club_id
+    )
+    RETURNING id INTO v_request_id;
+  END IF;
 
   INSERT INTO public.permission_audit_log (user_id, action, target_type, target_id, new_value)
   VALUES (
@@ -315,7 +333,14 @@ BEGIN
     -- that is a show people may have seen or entered, and removing it is a separate,
     -- deliberate act. soft_delete_show / soft_delete_club are the established paths and
     -- are recoverable; the name frees up because name checks skip deleted clubs.
-    IF v_request.status = 'pending' AND v_request.created_club_id IS NOT NULL THEN
+    -- A club already soft-deleted (the approve refusal sends the owner here) has nothing
+    -- left to remove: the request is still marked denied below.
+    IF v_request.status = 'pending'
+       AND v_request.created_club_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM public.clubs
+         WHERE id = v_request.created_club_id AND deleted_at IS NULL
+       ) THEN
       IF EXISTS (
         SELECT 1 FROM public.shows s
         WHERE s.club_id = v_request.created_club_id

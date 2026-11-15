@@ -136,6 +136,17 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
+  it('ignores a malformed club-form draft: it neither exempts onboarding nor crashes', () => {
+    mockPathname = '/';
+    sessionStorage.setItem(
+      'myk9:club-onboarding-draft',
+      JSON.stringify({ clubName: 42, clubNumbers: [] })
+    );
+    setupMocks({ hasProfile: false, onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
+
   // MYK9-970 round 4: staff are never force-redirected — their show desk at
   // /shows/:id is where they run a show (docs/INTENT.md). NewRoleStepBanner
   // offers their unfinished set-up instead.

@@ -334,4 +334,59 @@ END;
 $$;
 RESET ROLE;
 
+-- 9. Declining a request whose club is already deleted still succeeds and denies it.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002046102', true);
+SET LOCAL ROLE authenticated;
+SELECT public.review_club_access_request(
+  (SELECT (r->>'request_id')::uuid FROM result_third), 'denied', NULL, NULL, NULL
+);
+RESET ROLE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.club_access_requests
+    WHERE id = (SELECT (r->>'request_id')::uuid FROM result_third) AND status = 'denied'
+  ) THEN
+    RAISE EXCEPTION 'FAIL 2046.12 decline of a deleted-club request did not deny it';
+  END IF;
+  RAISE NOTICE 'PASS 2046.12 decline works when the club is already deleted';
+END;
+$$;
+
+-- 10. An older pending request with the same name is upgraded, not duplicated.
+INSERT INTO public.club_access_requests (
+  id, requester_person_id, requester_auth_user_id, requested_club_name
+) VALUES (
+  '00000000-0000-0000-0000-000002046301',
+  '00000000-0000-0000-0000-000002046013',
+  '00000000-0000-0000-0000-000002046103',
+  'MYK9-2046 Older Path Club'
+);
+CREATE TEMP TABLE result_fourth (r jsonb);
+GRANT ALL ON result_fourth TO PUBLIC;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002046103', true);
+INSERT INTO result_fourth
+SELECT public.request_new_club('MYK9-2046 Older Path Club', '{"ASCA":"A1"}'::jsonb, 'My note');
+RESET ROLE;
+DO $$
+DECLARE
+  v_r jsonb := (SELECT r FROM result_fourth);
+BEGIN
+  IF v_r->>'request_id' <> '00000000-0000-0000-0000-000002046301'
+     OR (SELECT count(*) FROM public.club_access_requests
+         WHERE requester_person_id = '00000000-0000-0000-0000-000002046013'
+           AND lower(requested_club_name) = 'myk9-2046 older path club') <> 1
+     OR NOT EXISTS (
+       SELECT 1 FROM public.club_access_requests
+       WHERE id = '00000000-0000-0000-0000-000002046301' AND status = 'pending'
+         AND created_club_id = (v_r->>'club_id')::uuid
+         AND request_note = 'My note' AND club_numbers = '{"ASCA":"A1"}'::jsonb
+     ) THEN
+    RAISE EXCEPTION 'FAIL 2046.13 the older pending request was not upgraded in place';
+  END IF;
+  RAISE NOTICE 'PASS 2046.13 older pending request upgraded to the new club';
+END;
+$$;
+
 ROLLBACK;

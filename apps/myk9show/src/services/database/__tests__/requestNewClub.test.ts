@@ -4,7 +4,11 @@ const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
 
 vi.mock('../supabaseClient', () => ({ supabase: { rpc: mocks.rpc } }));
 
-import { ClubNameTakenError, requestNewClub } from '../club-access-requests.request';
+import {
+  ClubNameTakenError,
+  TooManyClubRequestsError,
+  requestNewClub,
+} from '../club-access-requests.request';
 
 // MYK9-2046: the form's one server call. The RPC name and every key are what the
 // database function reads, so they are pinned on the wire, blanks as null.
@@ -54,8 +58,18 @@ describe('requestNewClub', () => {
     ).rejects.toBeInstanceOf(ClubNameTakenError);
   });
 
+  it('turns the pending-limit refusal (53400) into TooManyClubRequestsError', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { code: '53400', message: 'Too many pending club requests (max 3).' },
+    });
+    await expect(
+      requestNewClub({ clubName: 'Another Club', clubNumbers: { AKC: '1' } })
+    ).rejects.toBeInstanceOf(TooManyClubRequestsError);
+  });
+
   it('rethrows any other error unchanged', async () => {
-    const failure = { code: '53400', message: 'Too many pending club requests' };
+    const failure = { code: '08006', message: 'connection failure' };
     mocks.rpc.mockResolvedValue({ data: null, error: failure });
     await expect(requestNewClub({ clubName: 'X Club', clubNumbers: { AKC: '1' } })).rejects.toBe(
       failure

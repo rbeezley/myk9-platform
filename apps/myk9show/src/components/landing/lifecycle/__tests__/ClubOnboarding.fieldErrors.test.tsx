@@ -10,6 +10,8 @@ const auth = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth }));
 vi.mock('@/services/database/club-access-requests.request', () => ({
   ClubNameTakenError: class extends Error {},
+  TooManyClubRequestsError: class extends Error {},
+  TOO_MANY_CLUB_REQUESTS_MESSAGE: 'too many',
   requestNewClub: (...args: unknown[]) => mockSubmit(...args),
 }));
 vi.mock('@/services/LoggingService', () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));

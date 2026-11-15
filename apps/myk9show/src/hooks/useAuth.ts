@@ -11,6 +11,7 @@ import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { User } from '@supabase/supabase-js';
+import { clearClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 import {
   isNetworkClassAuthError,
   resolveGetSessionUser,
@@ -205,6 +206,8 @@ export function useAuth() {
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
         clearOwnerNameCache();
+        // MYK9-2046: the unsent home page club form holds contact details.
+        clearClubOnboardingDraft();
         clearAllRbacWarmTokens();
         useRingsideGrantStore.getState().clearGrant();
       }

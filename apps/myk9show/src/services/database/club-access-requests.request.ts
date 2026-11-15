@@ -30,6 +30,17 @@ export class ClubNameTakenError extends Error {
   }
 }
 
+/** The pending-request limit (SQLSTATE 53400). Retrying cannot succeed until she is answered. */
+export class TooManyClubRequestsError extends Error {
+  constructor() {
+    super('too_many_club_requests');
+    this.name = 'TooManyClubRequestsError';
+  }
+}
+
+export const TOO_MANY_CLUB_REQUESTS_MESSAGE =
+  "You already have 3 club requests waiting. We'll answer those first.";
+
 export async function requestNewClub(input: RequestNewClubInput): Promise<RequestNewClubResult> {
   const { data, error } = await (supabase.rpc as CallableFunction)('request_new_club', {
     p_club_name: input.clubName,
@@ -42,6 +53,7 @@ export async function requestNewClub(input: RequestNewClubInput): Promise<Reques
     if (error.code === '23505' && String(error.message).includes('club_name_taken')) {
       throw new ClubNameTakenError();
     }
+    if (error.code === '53400') throw new TooManyClubRequestsError();
     throw error;
   }
 

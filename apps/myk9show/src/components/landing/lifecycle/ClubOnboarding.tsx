@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   ClubNameTakenError,
+  TOO_MANY_CLUB_REQUESTS_MESSAGE,
+  TooManyClubRequestsError,
   requestNewClub,
 } from '@/services/database/club-access-requests.request';
 import {
@@ -146,6 +148,8 @@ export function ClubOnboarding() {
     } catch (err) {
       if (err instanceof ClubNameTakenError) {
         setNameTaken(true);
+      } else if (err instanceof TooManyClubRequestsError) {
+        setError(TOO_MANY_CLUB_REQUESTS_MESSAGE);
       } else {
         const isAuthError = err instanceof Error && /401|403|JWT|auth/i.test(err.message);
         setError(

@@ -21,7 +21,7 @@ interface ClubHeaderProps {
   isUploadingCover?: boolean;
   canEditBranding?: boolean;
   // MYK9-572: who may authorize (site admin) and the club's state, for the
-  // Unauthorized badge and notice. isClubAuthorized is undefined while loading.
+  // waiting-for-approval badge and notice. isClubAuthorized is undefined while loading.
   // The Authorize / Revoke action itself is in the header Actions menu.
   canAuthorizeClub?: boolean;
   isClubAuthorized?: boolean | undefined;
@@ -158,7 +158,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     ...(isClubAuthorized === false
       ? [
           {
-            label: 'Unauthorized',
+            label: 'Waiting for myK9Show approval',
             variant: 'warning' as const,
             icon: <ShieldAlert className="h-3 w-3" />,
             title: CLUB_UNAUTHORIZED_MESSAGE,
@@ -191,15 +191,15 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
       {/* MYK9-855: the badge alone only reads on hover (the `title` above),
           which a touch device never shows. Say in visible text what is pending
           and who acts on it next, instead of leaving the requester with a bare
-          "Unauthorized" word. */}
+          badge. */}
       {isClubAuthorized === false && (
         <p
           data-testid="club-unauthorized-notice"
           className="max-w-2xl text-sm text-muted-foreground"
         >
           {canAuthorizeClub
-            ? 'Pending myK9 authorization. Authorize this club from the Actions menu at the top of the page to unlock show publishing and the public club directory.'
-            : 'Pending myK9 authorization — a myK9 operator reviews new clubs and will authorize this one soon. You can build shows now; publishing unlocks once the club is authorized.'}
+            ? 'Waiting for myK9Show approval. Authorize this club from the Actions menu at the top of the page to unlock show publishing and the public club directory.'
+            : 'Waiting for myK9Show approval. A myK9 operator reviews every new club, usually within a day. Meanwhile you can build draft shows and connect the bank account on the Payments tab. Nothing is public until the club is approved.'}
         </p>
       )}
     </>

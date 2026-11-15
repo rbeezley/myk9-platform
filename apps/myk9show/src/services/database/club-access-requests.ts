@@ -25,6 +25,8 @@ export interface ClubAccessRequest {
   clubNumbers: ClubRegistryNumbers;
   status: ClubAccessRequestStatus;
   approvedClubId: string | null;
+  /** MYK9-2046: the club the home page form already created, waiting for approval. */
+  createdClubId: string | null;
   createdAt: string;
   reviewNote: string | null;
 }
@@ -38,6 +40,7 @@ interface ClubAccessRequestDbRow {
   club_numbers?: Record<string, string | null> | null;
   status: string;
   approved_club_id: string | null;
+  created_club_id?: string | null;
   created_at: string;
   review_note: string | null;
   requester:
@@ -61,6 +64,7 @@ function mapClubAccessRequest(row: ClubAccessRequestDbRow): ClubAccessRequest {
     clubNumbers: normalizeClubRegistryNumbers(row.club_numbers),
     status: row.status as ClubAccessRequestStatus,
     approvedClubId: row.approved_club_id,
+    createdClubId: row.created_club_id ?? null,
     createdAt: row.created_at,
     reviewNote: row.review_note,
   };

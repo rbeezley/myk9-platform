@@ -46,6 +46,7 @@ const launchCriticalSqlTests = [
   'class_lifecycle_absent_parity_test.sql',
   'checkout_confirmation_on_insert_test.sql',
   'club_access_request_approval_test.sql',
+  'request_new_club_test.sql',
   'entry_requires_dog_registration_test.sql',
   'emergency_packet_handler_identity_test.sql',
   'club_secretary_grant_test.sql',

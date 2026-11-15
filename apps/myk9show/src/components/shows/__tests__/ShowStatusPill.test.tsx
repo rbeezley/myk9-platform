@@ -386,7 +386,9 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     await user.click(await screen.findByText(/publish show/i));
 
     expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/waiting for myK9Show approval/i)
+    );
     expect(refetchAuth).toHaveBeenCalled();
   });
 

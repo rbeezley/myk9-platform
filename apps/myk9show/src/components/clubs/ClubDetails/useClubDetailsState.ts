@@ -440,7 +440,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     canDeleteClub,
     canAddShow,
     ...authorizationControl, // MYK9-572: authorize/revoke control (site-admin only)
-    // MYK9-1314: the Unauthorized badge and "Pending myK9 authorization" notice were written
+    // MYK9-1314: the "Waiting for myK9Show approval" badge and notice were written
     // for club staff (MYK9-855). An outsider can neither build shows nor is waiting on
     // anything, so withhold the state from them; ClubHeader renders undefined as no badge.
     // Staff = site admin or hasClubStaffGrant (club admin or either secretary role) on this club. Active

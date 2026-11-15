@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Inbox, RefreshCw, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { useQueryClient } from '@tanstack/react-query';
 import { clubQueryKeys, useClubsQuery } from '@/hooks/queries/useClubsDatabase';
@@ -30,6 +31,9 @@ function ReviewCard({
   const [clubName, setClubName] = useState(request.requestedClubName);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  // MYK9-2046: the requester already has her club (waiting for approval). Approving
+  // confirms it; declining only marks the request denied.
+  const hasCreatedClub = request.createdClubId !== null;
   const queryClient = useQueryClient();
   const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
   const websiteLink = getSafeWebsiteLink(request.requestedClubWebsite);
@@ -40,8 +44,9 @@ function ReviewCard({
       const clubId = await reviewClubAccessRequest({
         requestId: request.id,
         decision,
-        existingClubId: decision === 'approved' && clubChoice !== 'new' ? clubChoice : null,
-        clubName: decision === 'approved' ? clubName.trim() : null,
+        existingClubId:
+          decision === 'approved' && !hasCreatedClub && clubChoice !== 'new' ? clubChoice : null,
+        clubName: decision === 'approved' && !hasCreatedClub ? clubName.trim() : null,
         reviewNote: note.trim() || null,
       });
       notifications.success(
@@ -109,33 +114,45 @@ function ReviewCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(180px,auto)_minmax(220px,1fr)]">
-        <label className="block text-sm font-medium">
-          Club to use
-          <select
-            aria-label={`Club to use for ${request.requestedClubName}`}
-            value={clubChoice}
-            onChange={event => setClubChoice(event.target.value)}
-            className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+      {hasCreatedClub ? (
+        <p className="mt-4 text-sm">
+          This club is already created and its requester is its club admin and secretary.{' '}
+          <Link
+            to={`/clubs/${request.createdClubId}`}
+            className="inline-flex min-h-11 items-center text-primary underline-offset-4 hover:underline"
           >
-            <option value="new">Create a new club</option>
-            {clubs.map(club => (
-              <option key={club.id} value={club.id}>
-                Use {club.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-medium">
-          New club name
-          <Input
-            value={clubName}
-            onChange={event => setClubName(event.target.value)}
-            disabled={clubChoice !== 'new'}
-            className="mt-1 min-h-11"
-          />
-        </label>
-      </div>
+            Open the club
+          </Link>
+        </p>
+      ) : (
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(180px,auto)_minmax(220px,1fr)]">
+          <label className="block text-sm font-medium">
+            Club to use
+            <select
+              aria-label={`Club to use for ${request.requestedClubName}`}
+              value={clubChoice}
+              onChange={event => setClubChoice(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+            >
+              <option value="new">Create a new club</option>
+              {clubs.map(club => (
+                <option key={club.id} value={club.id}>
+                  Use {club.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-medium">
+            New club name
+            <Input
+              value={clubName}
+              onChange={event => setClubName(event.target.value)}
+              disabled={clubChoice !== 'new'}
+              className="mt-1 min-h-11"
+            />
+          </label>
+        </div>
+      )}
       <label className="mt-3 block text-sm font-medium">
         Review note
         <Input
@@ -150,7 +167,7 @@ function ReviewCard({
           type="button"
           className="min-h-11"
           onClick={() => void handleReview('approved')}
-          disabled={busy || (clubChoice === 'new' && !clubName.trim())}
+          disabled={busy || (!hasCreatedClub && clubChoice === 'new' && !clubName.trim())}
           loading={busy}
         >
           <CheckCircle2 className="mr-2 h-4 w-4" />

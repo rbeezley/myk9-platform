@@ -7,15 +7,19 @@ const auth = vi.hoisted(() => ({
   user: null as null | { id: string; email: string; user_metadata: Record<string, string> },
 }));
 
-vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth }));
-vi.mock('@/services/database/onboarding-requests', () => ({
-  submitOnboardingRequest: (...args: unknown[]) => mockSubmit(...args),
-  getMyOnboardingRequests: vi.fn().mockResolvedValue([]),
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ ...auth, refreshPermissions: vi.fn().mockResolvedValue(undefined) }),
+}));
+vi.mock('@/services/database/club-access-requests.request', () => ({
+  ClubNameTakenError: class extends Error {},
+  TooManyClubRequestsError: class extends Error {},
+  TOO_MANY_CLUB_REQUESTS_MESSAGE: 'too many',
+  requestNewClub: (...args: unknown[]) => mockSubmit(...args),
 }));
 vi.mock('@/services/LoggingService', () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
 
 const submit = () =>
-  fireEvent.submit(screen.getByRole('button', { name: /submit request/i }).closest('form')!);
+  fireEvent.submit(screen.getByRole('button', { name: /add my club/i }).closest('form')!);
 
 describe('ClubOnboarding required-field callouts', () => {
   beforeEach(() => {
@@ -26,7 +30,7 @@ describe('ClubOnboarding required-field callouts', () => {
   it('puts a callout under each empty field, focuses the first, and drops the bottom line', async () => {
     render(<ClubOnboarding />, { initialRoute: '/' });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add my club/i })).toBeInTheDocument()
     );
     submit();
 
@@ -51,7 +55,7 @@ describe('ClubOnboarding required-field callouts', () => {
   it('treats a malformed email as a field error under the email', async () => {
     render(<ClubOnboarding />, { initialRoute: '/' });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add my club/i })).toBeInTheDocument()
     );
     fireEvent.change(screen.getByLabelText(/contact email/i), { target: { value: 'nope' } });
     submit();
@@ -64,7 +68,7 @@ describe('ClubOnboarding required-field callouts', () => {
     mockSubmit.mockRejectedValue(new Error('boom'));
     render(<ClubOnboarding />, { initialRoute: '/' });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add my club/i })).toBeInTheDocument()
     );
     fireEvent.change(screen.getByLabelText(/club name/i), { target: { value: 'K' } });
     fireEvent.change(screen.getByLabelText(/organization/i), { target: { value: 'AKC' } });
@@ -73,7 +77,7 @@ describe('ClubOnboarding required-field callouts', () => {
     fireEvent.change(screen.getByLabelText(/contact email/i), { target: { value: 'a@b.co' } });
     submit();
     await waitFor(() =>
-      expect(screen.getByText("We couldn't send your request. Try again.")).toBeInTheDocument()
+      expect(screen.getByText("We couldn't add your club. Try again.")).toBeInTheDocument()
     );
   });
 });

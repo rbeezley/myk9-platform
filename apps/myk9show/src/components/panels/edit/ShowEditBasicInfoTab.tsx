@@ -196,7 +196,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               {!initialIsPublic && (
                 <p id="status-hint" className="text-xs text-muted-foreground">
                   {clubUnauthorized
-                    ? 'Publishing opens once myK9 authorizes this club. Until then you can keep building the show as a draft.'
+                    ? 'Publishing opens once myK9Show approves this club. Until then you can keep building the show as a draft.'
                     : 'Publish from the status badge on the show page.'}
                 </p>
               )}

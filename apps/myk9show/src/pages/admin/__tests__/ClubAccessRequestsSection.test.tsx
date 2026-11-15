@@ -48,6 +48,7 @@ const request = {
   requestNote: 'We are setting up our first show.',
   status: 'pending' as const,
   approvedClubId: null,
+  createdClubId: null,
   createdAt: '2026-09-19T12:00:00Z',
   clubNumbers: { AKC: '4521', UKC: 'U-88' },
   reviewNote: null,
@@ -185,5 +186,55 @@ describe('ClubAccessRequestsSection', () => {
         reviewNote: 'Please contact support first.',
       })
     );
+  });
+
+  // MYK9-2046: the home page form already created the club and made her its admin and
+  // secretary. Approve confirms that club; decline only marks the request denied.
+  describe('a request that already has its club', () => {
+    const withClub = { ...request, createdClubId: 'club-new' };
+
+    beforeEach(() => {
+      vi.mocked(getPendingClubAccessRequests).mockResolvedValue([withClub]);
+    });
+
+    it('offers no club picker and links to the club', async () => {
+      render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
+
+      expect(await screen.findByRole('link', { name: /open the club/i })).toHaveAttribute(
+        'href',
+        '/clubs/club-new'
+      );
+      expect(screen.queryByLabelText(/club to use/i)).not.toBeInTheDocument();
+    });
+
+    it('approves without choosing another club or a new name', async () => {
+      const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
+      await user.click(
+        await screen.findByRole('button', { name: /approve and give club access/i })
+      );
+
+      await waitFor(() =>
+        expect(reviewClubAccessRequest).toHaveBeenCalledWith({
+          requestId: 'request-1',
+          decision: 'approved',
+          existingClubId: null,
+          clubName: null,
+          reviewNote: null,
+        })
+      );
+    });
+
+    it('declines with one click, as before: no removal wording, no confirm step', async () => {
+      vi.mocked(reviewClubAccessRequest).mockResolvedValue(null);
+      const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
+      await user.click(await screen.findByRole('button', { name: /deny request/i }));
+
+      await waitFor(() =>
+        expect(reviewClubAccessRequest).toHaveBeenCalledWith(
+          expect.objectContaining({ requestId: 'request-1', decision: 'denied' })
+        )
+      );
+      expect(screen.queryByText(/remove/i)).not.toBeInTheDocument();
+    });
   });
 });

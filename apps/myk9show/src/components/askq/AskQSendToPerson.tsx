@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
  */
 export function AskQSendToPerson({ onSend }: { onSend: () => void }) {
   return (
-    <Button type="button" variant="outline" size="sm" onClick={onSend}>
+    // A primary way out, not a compact control: 44px on every width (docs/INTENT.md).
+    <Button type="button" variant="outline" className="min-h-[44px]" onClick={onSend}>
       Send this to a person
     </Button>
   );

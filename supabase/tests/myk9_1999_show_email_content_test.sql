@@ -44,7 +44,7 @@ SET LOCAL ROLE service_role;
 INSERT INTO public.show_lifecycle_email_jobs (
   id, show_id, step_id, step_type, status, recipient_scope,
   recipient_email, recipient_name, idempotency_key, due_at,
-  rendered_subject, rendered_body
+  rendered_subject, rendered_body, sent_at
 )
 VALUES (
   '00000000-0000-0000-0000-000001999302',
@@ -56,7 +56,7 @@ VALUES (
   'accepted', 'sent', 'show_recipient',
   'lifecycle@example.test', 'Lifecycle Recipient',
   'myk9-1999-lifecycle', now(),
-  'Entry accepted - MYK9-1999 Show A', 'Your entry has been accepted.'
+  'Entry accepted - MYK9-1999 Show A', 'Your entry has been accepted.', now()
 );
 
 INSERT INTO public.email_log (

@@ -3,10 +3,10 @@
  * dead letters, so a refused score keeps the count above zero, and refreshed on every event.
  */
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseManager, REPLICATION_STORES, type PendingMutation } from '@myk9/replication';
 import { RINGSIDE_RPC_FUNCTION } from '@/services/replication/ringsideEntryRpc';
-import { announceUnsentChanged, useUnsentWork } from './useUnsentWork';
+import { announceUnsentChanged, useUnsentWork, useUnsentWorkState } from './useUnsentWork';
 
 // The replication database stays open across tests; empty its queue stores so no row leaks.
 async function clearQueue() {
@@ -43,5 +43,27 @@ describe('useUnsentWork', () => {
     });
     await waitFor(() => expect(result.current.total).toBe(2));
     expect(result.current.scores.map(s => s.entryId)).toEqual(['e1', 'e2']);
+  });
+});
+
+// MYK9-2013: "Every score is sent" waits for a real read; empty before it, or after a failure, is not the truth.
+describe('useUnsentWorkState', () => {
+  beforeEach(clearQueue);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('is loading until the first read, then known', async () => {
+    const { result } = renderHook(() => useUnsentWorkState());
+    expect(result.current.status).toBe('loading');
+    await waitFor(() => expect(result.current.status).toBe('known'));
+    expect(result.current.work.total).toBe(0);
+  });
+
+  it('reports a failed read as failed, never as known', async () => {
+    vi.spyOn(databaseManager, 'getDatabase').mockRejectedValue(new Error('IndexedDB closed'));
+    const { result } = renderHook(() => useUnsentWorkState());
+    await waitFor(() => expect(result.current.status).toBe('failed'));
+    expect(result.current.work.total).toBe(0);
   });
 });

@@ -20,12 +20,22 @@ const { getActiveJudgeAssignmentsForShow, subscribeToJudgeAssignmentChanges, syn
   }));
 
 let judgeTableStatus: 'idle' | 'syncing' | 'success' | 'error' = 'syncing';
+const lookupRetry = vi.hoisted(() => vi.fn());
+// null = the saved pairing; a lookup state overrides it for the identity cases.
+let identity: {
+  personId: string | null;
+  personIdentityState: 'resolved' | 'unresolved';
+  fetching: boolean;
+} = { personId: 'judge-1', personIdentityState: 'resolved', fetching: false };
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     hasRole: (role: UserRole) => role === UserRole.JUDGE,
     user: { is_anonymous: false },
     userWithRoles: { databaseUserId: 'judge-1' },
+    personId: identity.personId,
+    personIdentityState: identity.personIdentityState,
+    personIdentityLookup: { fetching: identity.fetching, failed: false, retry: lookupRetry },
   }),
 }));
 
@@ -57,6 +67,8 @@ describe('useMyAtShowJudgeAssignments', () => {
     syncTable.mockReset();
     syncTable.mockResolvedValue({ success: true });
     judgeTableStatus = 'syncing';
+    lookupRetry.mockReset();
+    identity = { personId: 'judge-1', personIdentityState: 'resolved', fetching: false };
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     vi.stubGlobal('navigator', { onLine: true });
   });
@@ -163,5 +175,32 @@ describe('useMyAtShowJudgeAssignments', () => {
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(getActiveJudgeAssignmentsForShow).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports loading, not unknown, while the first online person lookup is in flight (MYK9-2014)', () => {
+    identity = { personId: null, personIdentityState: 'unresolved', fetching: true };
+
+    const { result } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), { wrapper });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isUnknown).toBe(false);
+  });
+
+  it('is unknown once the lookup has stopped and no pairing is saved', () => {
+    identity = { personId: null, personIdentityState: 'unresolved', fetching: false };
+
+    const { result } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), { wrapper });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isUnknown).toBe(true);
+  });
+
+  it('Try again asks the person lookup again, the piece that is missing', async () => {
+    identity = { personId: null, personIdentityState: 'unresolved', fetching: false };
+
+    const { result } = renderHook(() => useMyAtShowJudgeAssignments('show-1'), { wrapper });
+    result.current.retry();
+
+    expect(lookupRetry).toHaveBeenCalledTimes(1);
   });
 });

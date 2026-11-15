@@ -46,7 +46,11 @@ const authState = vi.hoisted(() => ({
 // The picker resolves the ringside role (for Class Options gating) the way the
 // entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ ...authState, getUserRoles: () => [] }),
+  useAuthContext: () => ({
+    ...authState,
+    personId: authState.userWithRoles?.databaseUserId ?? null,
+    getUserRoles: () => [],
+  }),
   getPrimaryRole: () => null,
 }));
 
@@ -395,7 +399,7 @@ describe('AtShowClassListPage Your ring', () => {
     expect(syncJudgeAssignments).toHaveBeenCalledWith('judge_assignments');
   });
 
-  it('shows the full picker offline rather than waiting for a sync or claiming no assignments', async () => {
+  it('settles on a plain "not on this device" page offline rather than waiting for a sync or claiming no assignments', async () => {
     authState.hasRole = role => role === UserRole.JUDGE;
     authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
     authState.user = { is_anonymous: false };
@@ -419,8 +423,11 @@ describe('AtShowClassListPage Your ring', () => {
       // never synced on this device, so an empty cache is unknown rather than
       // authoritative, and "your secretary has not assigned you" was a
       // statement about the secretary drawn from a table that was never read.
-      // The picker now fails open to the full class list instead.
-      expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+      // The page names what is missing and lists no one else's classes.
+      expect(
+        await screen.findByText('Your classes are not on this device yet')
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
       expect(screen.queryByText('No classes assigned yet')).not.toBeInTheDocument();
       expect(
         screen.queryByRole('status', { name: 'Loading at-show classes' })
@@ -509,9 +516,9 @@ describe('AtShowClassListPage Your ring', () => {
 
   // MYK9-769: a failed assignment read is UNKNOWN, not "none". It used to put a
   // judge-only account on a page with no classes at all — a dead end at the
-  // ring. Like an unresolved identity, it now fails open to the full picker
-  // with the "couldn't load your assigned classes" warning and a retry.
-  it('fails open to the full class list with a retry when assignments fail to load', async () => {
+  // ring. Like an unresolved identity, it now shows the "not on this device"
+  // page with a retry, never the whole show (MYK9-2014).
+  it('lists no classes and offers a retry when assignments fail to load', async () => {
     authState.hasRole = role => role === UserRole.JUDGE;
     authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
     authState.user = { is_anonymous: false };
@@ -521,8 +528,10 @@ describe('AtShowClassListPage Your ring', () => {
 
     // Generous wait: four class reads, the at-show sync effect and the failed
     // judge read all settle first, which can pass 1s in a loaded shuffled run.
-    expect(await screen.findByText(/Container Novice/, {}, { timeout: 5000 })).toBeInTheDocument();
-    expect(screen.getByText(/The full class list is still available/)).toBeInTheDocument();
+    expect(
+      await screen.findByText('Your classes are not on this device yet', {}, { timeout: 5000 })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
     expect(screen.queryByText("We couldn't load your judge assignments")).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(syncJudgeAssignments).toHaveBeenCalledWith('judge_assignments');

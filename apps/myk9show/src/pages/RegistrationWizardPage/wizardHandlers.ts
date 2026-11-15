@@ -25,6 +25,10 @@ import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { submitPaymentStep } from './submitPaymentStep';
+import { useCartStore } from '@/store/cartStore';
+import { createEntryCheckoutSession } from '@/lib/stripe';
+import { releaseOnPageRestore } from '@/features/payments/releaseOnPageRestore';
+import { freshCartCapacityReader, judgeNamesLoader } from '@/features/payments/cartCheckoutReads';
 import {
   everyEntryHandledByOwner,
   wizardStepStride,
@@ -172,11 +176,13 @@ export function createWizardHandlers(state: RegistrationWizardState) {
         return;
       }
       // submittingRef is the in-flight guard read at the top of handleNext;
-      // it's owned here so it resets on every path. setIsSubmitting (the
-      // mounted-gated spinner flag) is owned by submitPaymentStep.
+      // it's owned here so it resets on every path but the redirect to Stripe
+      // (MYK9-1964). setIsSubmitting (the mounted-gated spinner flag) is owned
+      // by submitPaymentStep.
       submittingRef.current = true;
+      let redirecting = false;
       try {
-        await submitPaymentStep({
+        const outcome = await submitPaymentStep({
           showId,
           userId,
           registrationId,
@@ -208,7 +214,23 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           },
           juniorHandlerDogIds,
           currentStep,
-          cart: { clearCart, ensureCart, addItem, abandonCart },
+          cart: {
+            clearCart,
+            ensureCart,
+            addItem,
+            abandonCart,
+            getCart: () => useCartStore.getState().cart,
+            // MYK9-1964: the steps /cart's Pay button runs, so card goes
+            // straight to Stripe without a second "Your Entry" page.
+            checkout: {
+              refetchCapacity: freshCartCapacityReader(queryClient, showId),
+              checkoutWithWaitlist: (exhibitorId, waitlistIds) =>
+                useCartStore.getState().checkoutWithWaitlist(exhibitorId, waitlistIds),
+              removeItem: itemId => useCartStore.getState().removeItem(itemId),
+              createCheckoutSession: createEntryCheckoutSession,
+            },
+            loadJudgeNames: judgeNamesLoader(queryClient),
+          },
           submitRegistration,
           isMounted: () => mountedRef.current,
           setIsSubmitting,
@@ -226,8 +248,17 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           navigate: path => navigate(path),
           discardDraftsWithoutFinalSave,
         });
+        redirecting = outcome === 'redirecting';
+        if (redirecting) {
+          releaseOnPageRestore(() => {
+            submittingRef.current = false;
+            setIsSubmitting(false);
+          });
+        }
       } finally {
-        submittingRef.current = false;
+        // Held while the browser leaves for Stripe: a press in that moment
+        // would clear and refill the cart under the page being opened.
+        if (!redirecting) submittingRef.current = false;
       }
       return;
     }

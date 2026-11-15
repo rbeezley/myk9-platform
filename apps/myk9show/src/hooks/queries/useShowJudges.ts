@@ -20,7 +20,7 @@ export interface ShowJudge {
  * email column, so it publishes names without admitting anon rows on `people`. See the migration
  * 20260912211500 header for why that is preferred over an anon-visible people policy.
  */
-async function fetchShowJudges(showId: string): Promise<ShowJudge[]> {
+export async function fetchShowJudges(showId: string): Promise<ShowJudge[]> {
   const { data, error } = await supabase.rpc('get_show_judges', { p_show_id: showId });
 
   if (error) throw error;

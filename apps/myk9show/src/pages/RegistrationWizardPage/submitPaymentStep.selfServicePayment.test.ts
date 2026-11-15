@@ -23,6 +23,7 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { submitPaymentStep, type SubmitPaymentStepContext } from './submitPaymentStep';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { getEffectivePaymentMethod } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import { stubCardCheckoutDeps } from '@/features/registration/registrationCartCheckout.testHelpers';
 
 const fromMock = vi.hoisted(() => vi.fn());
 const rpcMock = vi.hoisted(() => vi.fn());
@@ -168,6 +169,7 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
       ensureCart: vi.fn(),
       addItem: vi.fn(),
       abandonCart: vi.fn(),
+      ...stubCardCheckoutDeps(),
     },
     submitRegistration: vi.fn(async () => {}),
     isMounted: () => true,

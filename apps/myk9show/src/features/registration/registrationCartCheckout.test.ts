@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { submitRegistrationCartCheckout } from './registrationCartCheckout';
+import { stubCardCheckoutDeps } from './registrationCartCheckout.testHelpers';
 
 function makeDeps() {
   return {
@@ -8,11 +9,12 @@ function makeDeps() {
     addItem: vi.fn().mockResolvedValue(true),
     abandonCart: vi.fn().mockResolvedValue(true),
     navigate: vi.fn(),
+    ...stubCardCheckoutDeps(),
   };
 }
 
 describe('submitRegistrationCartCheckout', () => {
-  it('creates a cart using exhibitorProfileId (not ownerId), clears it, adds items, navigates', async () => {
+  it('creates a cart using exhibitorProfileId (not ownerId), clears it, adds items, opens Stripe', async () => {
     const deps = makeDeps();
 
     await submitRegistrationCartCheckout({
@@ -52,7 +54,11 @@ describe('submitRegistrationCartCheckout', () => {
       jumpHeight: '16',
       entryFeeCents: 2500,
     });
-    expect(deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
+    // MYK9-1964: straight to Stripe, no second "Your Entry" page.
+    expect(deps.checkout.createCheckoutSession).toHaveBeenCalledWith('cart-1', {
+      showId: 'show-1',
+    });
+    expect(deps.navigate).not.toHaveBeenCalled();
   });
 
   it('abandons a partially populated cart when adding a later item fails', async () => {
@@ -115,7 +121,7 @@ describe('submitRegistrationCartCheckout', () => {
     expect(deps.clearCart).toHaveBeenCalledTimes(1);
     expect(deps.ensureCart).toHaveBeenCalledTimes(1);
     expect(deps.addItem).toHaveBeenCalledTimes(1);
-    expect(deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
+    expect(deps.checkout.createCheckoutSession).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces the opener's own message when the cart cannot be opened", async () => {

@@ -8,13 +8,8 @@ import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { useRegistrationShellChrome } from '../RegistrationShellChrome';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult } from '../PaymentStep/types';
-import {
-  computePaymentTotals,
-  countPanelLines,
-  formatAmountDue,
-  sumPanelFeeCents,
-  type PanelDogGroup,
-} from './EntriesPanel.helpers';
+import type { PanelDogGroup } from './EntriesPanel.helpers';
+import { resolveEntriesPanelMoney } from './EntriesPanel.money';
 import { EntriesPanelLines } from './EntriesPanel.lines';
 import { useRemoveLineConfirm } from './EntriesPanel.removeConfirm';
 import { EntriesPanelTotals } from './EntriesPanel.totals';
@@ -84,51 +79,29 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   rates,
   staffWorkflow = false,
 }) => {
-  // One pair for every money read this panel makes. Two different unresolved
-  // reads (class availability, the show's timezone) blank the same figures, so
-  // they are combined once here rather than at each of the six call sites.
-  const feeTierReady = feeTier?.isReady ?? true;
-  const feeTierUnavailable = feeTier?.isUnavailable ?? false;
-  const capacityReady = capacityReadyProp && feeTierReady;
-  const capacityUnavailable = capacityUnavailableProp || feeTierUnavailable;
-  // Which read is the reason decides the copy: "Checking availability" beside a
-  // "Loading show details" alert names the wrong thing. Availability wins when
-  // both are unresolved, because it is the one with a retry affordance.
-  const moneyPlaceholder = capacityReadyProp
-    ? feeTierUnavailable
-      ? 'Not available'
-      : 'Checking fees'
-    : undefined;
-
   const liveRates = usePlatformFeeRates();
   const resolvedRates = rates ?? liveRates;
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const isPayment = variant === 'payment' && !!feeCalculation;
-  const totals = isPayment
-    ? computePaymentTotals({
-        paymentMethod,
-        feeCalculation,
-        capacityReady,
-        rates: resolvedRates,
-      })
-    : undefined;
-
-  const classCount = countPanelLines(groups);
-  // ALWAYS the sum of the lines rendered above it (Codex #2210 round 6 P2). The
-  // lines carry the server's per-line price and Total due the computed total;
-  // any gap between them (junior minimum fee, a wait-list line, rounding, a
-  // stale line price) is reconciled as its own "Adjustment" row (MYK9-1822).
-  const entryFeeCents = sumPanelFeeCents(groups);
-  const adjustmentCents = totals ? totals.entryFeeCents - entryFeeCents : 0;
-  // The SAME string the totals block shows — one derivation, two widths.
-  const headline = formatAmountDue({
+  const {
     capacityReady,
     capacityUnavailable,
-    placeholder: moneyPlaceholder,
+    moneyPlaceholder,
     totals,
-    entryFeeCents,
     classCount,
+    entryFeeCents,
+    adjustmentCents,
+    headline,
+  } = resolveEntriesPanelMoney({
+    groups,
+    variant,
+    paymentMethod,
+    feeCalculation,
+    capacityReady: capacityReadyProp,
+    capacityUnavailable: capacityUnavailableProp,
+    feeTier,
+    rates: resolvedRates,
   });
 
   // Removing a line asks first; `requestRemove` opens the confirmation and the

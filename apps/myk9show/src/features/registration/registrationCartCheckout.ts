@@ -3,7 +3,11 @@ import {
   type ShowFeeInfo,
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
+import { runCartCheckout, type RunCartCheckoutParams } from '@/features/payments/runCartCheckout';
+import { reportCheckoutFailure } from '@/pages/cartErrorCopy';
 import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
+import type { CartWithDetails } from '@/store/cartStore.types';
+import { PlainEntryError } from './entrySubmitErrorCopy';
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { registrationToCartItems } from '@/utils/registrationToCartItems';
 import type { SelectedDogsOwnerResult } from './selectedDogsOwner';
@@ -19,7 +23,29 @@ interface RegistrationCartCheckoutDeps {
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
   navigate: (path: string) => void;
+  /** The cart as the store holds it once the adds have landed. */
+  getCart: () => CartWithDetails | null;
+  /** `/cart`'s own checkout steps (MYK9-1964): one checkout path, not two. */
+  checkout: RunCartCheckoutParams['deps'];
+  /** Judge names, which only label a full judge day in a refusal. */
+  loadJudgeNames?: (showId: string) => Promise<ReadonlyMap<string, string>>;
 }
+
+/**
+ * How a card hand-off ended when it did not throw. A failure that leaves the
+ * cart exactly as the wizard built it throws instead (a `PlainEntryError`), so
+ * the exhibitor stays on the Payment step with her selections.
+ */
+export type RegistrationCardCheckoutResult =
+  /** On the way to Stripe. */
+  | { kind: 'redirecting' }
+  /** Every class went to a wait list; sent to the wait-list confirmation. */
+  | { kind: 'navigated' }
+  /**
+   * Checkout failed AFTER wait-list requests were filed, so the cart no longer
+   * matches the wizard. Sent to `/cart`, which shows what is left to pay.
+   */
+  | { kind: 'sentToCart'; message: string };
 
 interface RegistrationCartCheckoutParams {
   showId: string;
@@ -45,7 +71,7 @@ export async function submitRegistrationCartCheckout({
   showFeeInfo,
   juniorHandlerDogIds,
   deps,
-}: RegistrationCartCheckoutParams): Promise<void> {
+}: RegistrationCartCheckoutParams): Promise<RegistrationCardCheckoutResult> {
   if (!ownerResolution.ok) {
     throw new Error('Cannot determine exhibitor for this entry.');
   }
@@ -102,10 +128,50 @@ export async function submitRegistrationCartCheckout({
 
   // MYK9-509: the wizard draft deliberately SURVIVES the hand-off. Deleting it
   // here retired the exhibitor's selections the moment the lines reached the
-  // cart — before Stripe had even loaded — so a cancelled checkout left nothing
+  // cart, before Stripe had even loaded, so a cancelled checkout left nothing
   // to come back to and Continue Shopping opened an empty wizard. The draft is
   // retired where the entries are actually filed: the non-card submit paths
   // call `discardDraftsWithoutFinalSave`, and a verified card checkout prunes
   // the filed lines from `CheckoutSuccessPage`.
-  deps.navigate(buildScopedCartHref(showId));
+  //
+  // MYK9-1964: straight to Stripe from here, through the very steps /cart's
+  // Pay button runs. The checkout carries the cart id only; stripe-checkout
+  // prices the row these adds just wrote.
+  const cart = deps.getCart();
+  if (!cart || cart.show_id !== showId) {
+    throw new Error('The entry was not ready for payment.');
+  }
+  const judgeNameById = deps.loadJudgeNames
+    ? await deps.loadJudgeNames(showId).catch(() => new Map<string, string>())
+    : undefined;
+  const outcome = await runCartCheckout({
+    cartId: cart.id,
+    showId,
+    exhibitorProfileId: exhibitorId,
+    items: cart.items,
+    // Lines the wizard just added are new entries: always re-read capacity.
+    onlyRecoveredItems: false,
+    judgeNameById,
+    deps: deps.checkout,
+  });
+
+  if (outcome.kind === 'redirecting') return { kind: 'redirecting' };
+  if (outcome.kind === 'waitlistOnly') {
+    deps.navigate(outcome.successPath);
+    return { kind: 'navigated' };
+  }
+
+  const message =
+    outcome.kind === 'refused' ? outcome.message : reportCheckoutFailure(outcome.error, cart.id);
+  if (outcome.waitlistCommitted) {
+    // Wait-list rows exist and their lines left the cart. Throwing the cart
+    // away would lose the lines still to pay, and a retry from the wizard
+    // would file the same wait-list requests again.
+    deps.navigate(buildScopedCartHref(showId));
+    return { kind: 'sentToCart', message };
+  }
+  // Nothing was filed or charged: the cart goes, the wizard keeps her choices,
+  // and the next press refills it from them.
+  await deps.abandonCart();
+  throw new PlainEntryError(message);
 }

@@ -21,7 +21,9 @@ const stepProps = vi.hoisted(() => ({
   repick: true,
 }));
 const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
-const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const submitRegistrationCartCheckoutMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ kind: 'redirecting' })
+);
 const deleteDraftMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const createRegistrationMock = vi.hoisted(() => vi.fn(() => ({ id: 'reg-1' })));
 const clearDraftDataMock = vi.hoisted(() => vi.fn());

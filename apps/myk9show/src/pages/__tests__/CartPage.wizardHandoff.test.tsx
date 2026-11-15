@@ -1,9 +1,11 @@
 /**
- * MYK9-1661: the wizard's Submit & pay hand-off must open THE SUBMITTED SHOW's
+ * MYK9-1661: the wizard's card hand-off must come back to THE SUBMITTED SHOW's
  * cart, not the exhibitor's newest populated cart across shows. Drives the real
- * hand-off (`submitRegistrationCartCheckout` on the real cart store) and feeds
- * the path it navigates to into the real CartPage hydration, against an
- * in-memory cart database holding a newer populated cart for another show.
+ * hand-off (`submitRegistrationCartCheckout` on the real cart store), which
+ * since MYK9-1964 goes straight to Stripe; the Stripe call is stubbed and the
+ * show it names (which the cancel URL carries) is fed into the real CartPage
+ * hydration, against an in-memory cart database holding a newer populated cart
+ * for another show.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
@@ -51,6 +53,7 @@ import CheckoutCancelPage from '@/pages/CheckoutCancelPage';
 import { useCartStore } from '@/store/cartStore';
 import { resetEnsureCartInFlight } from '@/store/cartStore.ensureCart';
 import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
+import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
 
 const SHOW_A = 'show-a';
 const SHOW_D = 'show-d';
@@ -101,11 +104,15 @@ function seed(newerShowFeeCents: number) {
   });
 }
 
-/** Submits show A's wizard through the real store, returns where it navigated. */
+/**
+ * Submits show A's wizard through the real store. Returns the cart a Stripe
+ * cancel comes back to: `/cart` scoped to the show the checkout call named.
+ */
 async function submitShowA(entryFee: number): Promise<string> {
   const store = useCartStore.getState();
-  let target = '';
-  await submitRegistrationCartCheckout({
+  const createCheckoutSession = vi.fn(async () => {});
+  const navigate = vi.fn();
+  const outcome = await submitRegistrationCartCheckout({
     showId: SHOW_A,
     ownerResolution: { ok: true, ownerId: 'people-1' },
     exhibitorProfileId: 'exhibitor-1',
@@ -124,12 +131,28 @@ async function submitShowA(entryFee: number): Promise<string> {
       clearCart: store.clearCart,
       addItem: store.addItem,
       abandonCart: store.abandonCart,
-      navigate: path => {
-        target = path;
+      navigate,
+      getCart: () => useCartStore.getState().cart,
+      checkout: {
+        refetchCapacity: async () => ({
+          isError: false,
+          data: { judgeDays: [], classSpots: [], waitlistClassIds: [] },
+        }),
+        checkoutWithWaitlist: store.checkoutWithWaitlist,
+        removeItem: store.removeItem,
+        createCheckoutSession,
       },
     },
   });
-  return target;
+  expect(outcome).toEqual({ kind: 'redirecting' });
+  expect(navigate).not.toHaveBeenCalled();
+  expect(createCheckoutSession).toHaveBeenCalledTimes(1);
+  const [cartId, options] = createCheckoutSession.mock.calls[0] as unknown as [
+    string,
+    { showId: string },
+  ];
+  expect(cartId).toBe('cart-a');
+  return buildScopedCartHref(options.showId, { checkout: 'cancelled' });
 }
 
 describe('wizard hand-off opens the submitted show cart (MYK9-1661)', () => {

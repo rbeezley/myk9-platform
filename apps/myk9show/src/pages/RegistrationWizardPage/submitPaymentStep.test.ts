@@ -43,7 +43,7 @@ describe('submitPaymentStep', () => {
       armbandAssignments: [],
       armbandFailures: [],
     });
-    submitRegistrationCartCheckoutMock.mockResolvedValue(undefined);
+    submitRegistrationCartCheckoutMock.mockResolvedValue({ kind: 'redirecting' });
     submitOfflineLateEntryMock.mockResolvedValue({
       armbandAssignments: [{ dogId: 'dog-1', armband: '13' }],
       entryIds: ['entry-1'],
@@ -77,6 +77,50 @@ describe('submitPaymentStep', () => {
     expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1);
     const [{ deps }] = submitRegistrationCartCheckoutMock.mock.calls[0];
     expect(deps).not.toHaveProperty('deleteDraft');
+    expect(ctx.discardDraftsWithoutFinalSave).not.toHaveBeenCalled();
+  });
+
+  // MYK9-1964: card opens Stripe from this step. While the browser leaves, the
+  // button stays busy so a second press cannot start a second checkout.
+  it('keeps the step busy and reports the redirect when card goes to Stripe', async () => {
+    const { ctx } = makeContextAndOrder({ paymentMethod: 'credit_card' });
+
+    await expect(submitPaymentStep(ctx)).resolves.toBe('redirecting');
+
+    expect(ctx.setIsSubmitting).toHaveBeenCalledWith(true);
+    expect(ctx.setIsSubmitting).not.toHaveBeenCalledWith(false);
+    expect(notificationErrorMock).not.toHaveBeenCalled();
+  });
+
+  it('says why when a failed card checkout sent her to the cart', async () => {
+    submitRegistrationCartCheckoutMock.mockResolvedValue({
+      kind: 'sentToCart',
+      message: 'We could not open the payment page, so nothing was charged. Try again.',
+    });
+    const { ctx } = makeContextAndOrder({ paymentMethod: 'credit_card' });
+
+    await expect(submitPaymentStep(ctx)).resolves.toBeUndefined();
+
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      'We could not open the payment page, so nothing was charged. Try again.'
+    );
+    expect(ctx.setIsSubmitting).toHaveBeenLastCalledWith(false);
+  });
+
+  it('shows a refused card checkout as written and frees the button', async () => {
+    submitRegistrationCartCheckoutMock.mockRejectedValue(
+      new PlainEntryError("This club's payment account is not set up to receive online entry fees.")
+    );
+    const { ctx } = makeContextAndOrder({ paymentMethod: 'credit_card' });
+
+    await expect(submitPaymentStep(ctx)).resolves.toBeUndefined();
+
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      "This club's payment account is not set up to receive online entry fees."
+    );
+    expect(ctx.setIsSubmitting).toHaveBeenLastCalledWith(false);
+    // Nothing advances: she stays on the Payment step with her selections.
+    expect(ctx.setCurrentStep).not.toHaveBeenCalled();
     expect(ctx.discardDraftsWithoutFinalSave).not.toHaveBeenCalled();
   });
 

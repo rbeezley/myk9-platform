@@ -27,6 +27,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
+import { stubCardCheckoutDeps } from '@/features/registration/registrationCartCheckout.testHelpers';
 import { useCartStore } from './cartStore';
 import { resetEnsureCartInFlight } from './cartStore.ensureCart';
 
@@ -113,6 +114,7 @@ describe('clearCart when another tab fills the replacement slot', () => {
         addItem,
         abandonCart: store.abandonCart,
         navigate,
+        ...stubCardCheckoutDeps(),
       },
     }).then(
       () => 'resolved',

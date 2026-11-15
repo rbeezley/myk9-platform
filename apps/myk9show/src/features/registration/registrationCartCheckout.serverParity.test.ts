@@ -27,6 +27,7 @@ import {
   type StoredEntryJunior,
 } from '../../../supabase/functions/_shared/cartItemPricing';
 import { submitRegistrationCartCheckout } from './registrationCartCheckout';
+import { stubCardCheckoutDeps } from './registrationCartCheckout.testHelpers';
 
 const classSelections = [
   { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
@@ -111,6 +112,7 @@ async function quoteAndCharge(
       addItem,
       abandonCart: vi.fn().mockResolvedValue(true),
       navigate: vi.fn(),
+      ...stubCardCheckoutDeps(),
     },
   });
 

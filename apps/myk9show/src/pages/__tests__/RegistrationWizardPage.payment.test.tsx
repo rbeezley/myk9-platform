@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { StepId } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import type {
@@ -11,7 +11,9 @@ import type {
 
 const navigateMock = vi.hoisted(() => vi.fn());
 const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
-const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const submitRegistrationCartCheckoutMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ kind: 'redirecting' })
+);
 const deleteDraftMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const createRegistrationMock = vi.hoisted(() => vi.fn(() => ({ id: 'reg-1' })));
 const clearDraftDataMock = vi.hoisted(() => vi.fn());
@@ -391,5 +393,53 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
     expect(discardDraftsWithoutFinalSaveMock).not.toHaveBeenCalled();
     expect(clearDraftDataMock).not.toHaveBeenCalled();
     expect(deleteDraftMock).not.toHaveBeenCalled();
+  });
+
+  it('starts one checkout for a double press, and none while the browser leaves for Stripe (MYK9-1964)', async () => {
+    let finish: (value: { kind: 'redirecting' }) => void = () => {};
+    submitRegistrationCartCheckoutMock.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const { user } = render(<RegistrationWizardPage />, {
+      initialRoute: '/shows/show-1/register',
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection')
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('payment'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+
+    // Two presses in the same frame, before the busy state can render.
+    const pay = screen.getByRole('button', { name: 'Next' });
+    fireEvent.click(pay);
+    fireEvent.click(pay);
+    await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled());
+
+    // On its way to Stripe: the button stays busy, and no press starts another.
+    finish({ kind: 'redirecting' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1);
+
+    // Back from Stripe restores the page from cache: the button works again.
+    const restored = new Event('pageshow');
+    Object.defineProperty(restored, 'persisted', { value: true });
+    window.dispatchEvent(restored);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(2));
   });
 });

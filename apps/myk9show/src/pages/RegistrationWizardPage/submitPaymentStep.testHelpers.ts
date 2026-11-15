@@ -38,6 +38,13 @@ export function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext>
       ensureCart: vi.fn(),
       addItem: vi.fn(),
       abandonCart: vi.fn(),
+      getCart: vi.fn(() => null),
+      checkout: {
+        refetchCapacity: vi.fn(),
+        checkoutWithWaitlist: vi.fn(),
+        removeItem: vi.fn(),
+        createCheckoutSession: vi.fn(),
+      },
     },
     submitRegistration: vi.fn(),
     isMounted: () => true,

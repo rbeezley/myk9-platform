@@ -38,6 +38,8 @@ import type {
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { HandledDraftClass } from '@/hooks/pruneFiledDogsFromDraft';
 import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
+import type { CartWithDetails } from '@/store/cartStore.types';
+import type { RunCartCheckoutParams } from '@/features/payments/runCartCheckout';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
 import { sendSubmittedEntryEmail, submittedEntryIdsToEmail } from './sendSubmittedEntryEmail';
 
@@ -47,6 +49,10 @@ export interface PaymentStepCartDeps {
   ensureCart: (showId: string, exhibitorId: string) => Promise<EnsureCartResult>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
+  getCart: () => CartWithDetails | null;
+  /** `/cart`'s checkout steps, so card goes straight to Stripe (MYK9-1964). */
+  checkout: RunCartCheckoutParams['deps'];
+  loadJudgeNames?: (showId: string) => Promise<ReadonlyMap<string, string>>;
 }
 
 /** Per-show fee inputs shared by both submission paths. */
@@ -143,7 +149,15 @@ function submitPath(ctx: SubmitPaymentStepContext): EntrySubmitPath {
   return ctx.currentWorkflowMode === 'exhibitor' ? 'exhibitorSubmit' : 'organizerSubmit';
 }
 
-export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
+/**
+ * Resolves `'redirecting'` when the browser is on its way to Stripe: the caller
+ * then keeps its in-flight latch, and the button stays busy, so a second press
+ * in the moment before the page unloads cannot start a second checkout.
+ */
+export async function submitPaymentStep(
+  ctx: SubmitPaymentStepContext
+): Promise<'redirecting' | undefined> {
+  let redirecting = false;
   ctx.setIsSubmitting(true);
   try {
     const entryWindowBlocker = getEntrySubmitBlocker({
@@ -171,7 +185,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
         );
       }
-      await submitRegistrationCartCheckout({
+      const handoff = await submitRegistrationCartCheckout({
         showId: ctx.showId,
         ownerResolution: ctx.ownerResolution,
         exhibitorProfileId: ctx.exhibitorProfileId,
@@ -186,9 +200,18 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           addItem: ctx.cart.addItem,
           abandonCart: ctx.cart.abandonCart,
           navigate: path => ctx.navigate(path),
+          getCart: ctx.cart.getCart,
+          checkout: ctx.cart.checkout,
+          ...(ctx.cart.loadJudgeNames ? { loadJudgeNames: ctx.cart.loadJudgeNames } : {}),
         },
       });
-      return;
+      if (handoff.kind === 'redirecting') {
+        redirecting = true;
+        return 'redirecting';
+      }
+      // Sent to /cart, so this page is unmounting: the toast is not gated on it.
+      if (handoff.kind === 'sentToCart') notifications.error(handoff.message);
+      return undefined;
     }
 
     if (ctx.isLateEntryMode && ctx.currentWorkflowMode !== 'exhibitor') {
@@ -216,7 +239,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       ctx.triggerSync();
       ctx.markStepComplete(ctx.currentStep);
       ctx.setCurrentStep(prev => prev + 1);
-      return;
+      return undefined;
     }
 
     // Update local Zustand state to reflect submission in progress
@@ -238,7 +261,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         submitRegistration: ctx.submitRegistration,
       },
     });
-    if (submissionResult.aborted) return;
+    if (submissionResult.aborted) return undefined;
     const emailEntryIds = submittedEntryIdsToEmail(ctx.currentWorkflowMode, submissionResult);
     if (emailEntryIds.length > 0) {
       void sendSubmittedEntryEmail(submissionResult.dbRegistrationId, emailEntryIds);
@@ -268,7 +291,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     ctx.triggerSync();
     ctx.markStepComplete(ctx.currentStep);
     ctx.setCurrentStep(prev => prev + 1);
-    return;
+    return undefined;
   } catch (error) {
     // Roll back local registration status so retry starts from correct state
     ctx.updateShowRegistration(ctx.registrationId, { status: ctx.previousStatus });
@@ -276,8 +299,9 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     if (ctx.isMounted()) {
       notifications.error(entrySubmitErrorMessage(error, submitPath(ctx)));
     }
+    return undefined;
   } finally {
-    if (ctx.isMounted()) {
+    if (ctx.isMounted() && !redirecting) {
       ctx.setIsSubmitting(false);
     }
   }

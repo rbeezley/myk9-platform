@@ -1,4 +1,5 @@
 import type { PaymentMethod } from '@/types/show-registration-types';
+import type { EntriesPanelMoney } from '@/components/shows/RegistrationWorkflow/EntriesPanel/EntriesPanel.money';
 
 /**
  * Honest, method-aware label for the Payment-step commit button
@@ -11,10 +12,13 @@ import type { PaymentMethod } from '@/types/show-registration-types';
  * DONE here, not that money is owed online right now — the same confusion the "Finish
  * Payment" nag caused on cash entries (4.C).
  */
-export function getPaymentSubmitLabel(paymentMethod: PaymentMethod | undefined): string {
+export function getPaymentSubmitLabel(
+  paymentMethod: PaymentMethod | undefined,
+  money?: Pick<EntriesPanelMoney, 'capacityReady' | 'totals' | 'headline'> | undefined
+): string {
   switch (paymentMethod) {
     case 'credit_card':
-      return 'Submit & pay';
+      return cardSubmitLabel(money);
     case 'cash':
       return 'Submit, pay cash at show';
     case 'check':
@@ -28,4 +32,18 @@ export function getPaymentSubmitLabel(paymentMethod: PaymentMethod | undefined):
     default:
       return 'Submit entry';
   }
+}
+
+/**
+ * MYK9-1964: card opens Stripe straight from this button, so it names the
+ * amount, read from the entries panel's own figures ("Total due"). Before the
+ * figure is known it is a plain "Pay"; a card entry that owes nothing once
+ * known (every class went to a wait list) only submits, and says so.
+ */
+function cardSubmitLabel(
+  money: Pick<EntriesPanelMoney, 'capacityReady' | 'totals' | 'headline'> | undefined
+): string {
+  if (money?.totals?.isPayableCard) return `Pay ${money.headline}`;
+  if (money?.capacityReady && money.totals) return 'Submit entry';
+  return 'Pay';
 }

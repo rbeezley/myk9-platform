@@ -229,7 +229,7 @@ async function selectFirstAvailableDog(page: Page) {
   await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled({ timeout: 10000 });
 }
 
-test('exhibitor card entry hands off to cart checkout without enrollment writes', async ({
+test('exhibitor card entry goes straight to Stripe checkout without enrollment writes', async ({
   page,
 }) => {
   // MYK9-545: the fallback used to be a fixed '2026-05-15'. The seed's entry
@@ -310,28 +310,30 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   const agreement = page.getByText(/I have read and agree to the .* entry agreement/i);
   await expect(agreement).toBeVisible({ timeout: 15000 });
   await agreement.click();
-  const submitAndPay = page.getByRole('button', { name: /^Submit & pay$/ });
-  await expect(submitAndPay).toBeEnabled();
-
-  await submitAndPay.click();
-
-  await expect(page).toHaveURL(`/cart?showId=${SHOW_ID}`, { timeout: 15000 });
-  for (const viewport of VIEWPORTS) {
-    await page.setViewportSize(viewport);
-    await expect(page.getByText('Total', { exact: true }).locator('..')).toContainText(
-      quotedTotal!
-    );
-    await expect(
-      page.getByRole('button', { name: new RegExp(`Pay.*${quotedTotal!.replace('$', '\\$')}`) })
-    ).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-      viewport.width
-    );
-    await test.info().attach(`cart-${viewport.width}`, {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
+  // MYK9-1964: card goes straight to Stripe. The button names the total the
+  // panel quoted, and the checkout call carries the cart id the server prices
+  // from, never an amount. Stripe itself is stubbed: no session is created.
+  let checkoutBody: Record<string, unknown> | null = null;
+  await page.route('**/functions/v1/stripe-checkout', async route => {
+    checkoutBody = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ url: `${new URL(page.url()).origin}/e2e-stripe-stub` }),
     });
-  }
+  });
+  const pay = page.getByRole('button', {
+    name: new RegExp(`^Pay ${quotedTotal!.replace('$', '\\$')}$`),
+  });
+  await expect(pay).toBeEnabled();
+
+  await pay.click();
+
+  await expect(page).toHaveURL(/\/e2e-stripe-stub$/, { timeout: 15000 });
+  expect(checkoutBody).toMatchObject({ mode: 'entry', cart_id: MOCK_CART_ID });
+  expect(Object.keys(checkoutBody ?? {}).sort()).toEqual(
+    ['cancel_url', 'cart_id', 'mode', 'success_url'].sort()
+  );
 
   expect(captured.cartItem?.cart_id).toBe(MOCK_CART_ID);
   expect(typeof captured.cartItem?.entry_fee_cents).toBe('number');

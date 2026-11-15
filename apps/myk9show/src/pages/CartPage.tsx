@@ -38,9 +38,7 @@ import {
   PaymentLinkNotice,
 } from '@/components/cart/ClosedClassRemovedNotice';
 import { paymentLinkKey } from '@/store/cartStore.paymentLink';
-import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
-import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
-import { describeBlockedCheckout } from '@/features/payments/cartFullReasonCopy';
+import { runCartCheckout } from '@/features/payments/runCartCheckout';
 import {
   areAllCartItemsRecovered,
   buildCartFulfillmentView,
@@ -49,14 +47,6 @@ import {
   ENTRY_SCOPE_ENTRIES_PARAM,
   ENTRY_SCOPE_SHOW_PARAM,
 } from '@/features/payments/entryScopeParams';
-
-function createSplitCheckoutCorrelationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `split-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -279,136 +269,70 @@ export default function CartPage() {
     setIsCheckingOut(true);
     setError(null);
 
-    try {
-      // Re-check capacity at submit rather than trusting the render-time
-      // snapshot. Global query defaults are staleTime 5min with
-      // refetchOnWindowFocus:false, so an exhibitor who leaves the tab open
-      // while deciding can submit against capacity that is many minutes old.
-      // A class that filled in that window would be classified payable, sent
-      // to Stripe, charged, and then refunded by the server's overflow path -
-      // money made whole, but a charge-then-refund the exhibitor never
-      // expected. One refetch routes it to the waitlist cleanly instead.
-      const fresh = onlyRecoveredItems ? null : await refetchCapacity();
+    // MYK9-1964: the same function the wizard's Pay button runs, so the two
+    // can never check different things before a Stripe page opens.
+    const outcome = await runCartCheckout({
+      cartId: cart.id,
+      showId: cart.show_id,
+      exhibitorProfileId: profile.id,
+      items,
+      onlyRecoveredItems,
+      judgeNameById,
+      deps: {
+        refetchCapacity,
+        checkoutWithWaitlist,
+        removeItem,
+        createCheckoutSession: createEntryCheckoutSession,
+      },
+    });
 
-      // Fail closed. refetch() resolves with the error inside the result rather
-      // than rejecting, and on failure `fresh.data` still holds the last
-      // SUCCESSFUL payload - so a naive `fresh.data ?? judgeDays` would hand
-      // back exactly the stale snapshot this re-check exists to replace, and
-      // send the exhibitor to Stripe as though availability had been confirmed.
-      // Better to stop and say so than to charge against capacity we could not
-      // verify.
-      if (!onlyRecoveredItems && (fresh?.isError || !fresh?.data)) {
-        setError(
-          'We could not confirm which classes are still open. Please check availability and try again.'
-        );
-        stopCheckingOut();
-        return;
-      }
+    // Deliberately keeps the latch held: the page is navigating away to Stripe.
+    if (outcome.kind === 'redirecting') return;
 
-      const freshJudgeDays = fresh?.data?.judgeDays ?? [];
-      const freshClassSpots = fresh?.data?.classSpots ?? [];
-      // MYK9-1019: the server's effective "takes a waitlist", read fresh, so a
-      // setting the secretary changed while this cart was open is honoured.
-      const freshWaitlistClassIds = fresh?.data?.waitlistClassIds ?? [];
-
-      const splitDecision = splitCartItemsByJudgeDayCapacity(
-        items,
-        freshJudgeDays,
-        freshClassSpots,
-        freshWaitlistClassIds
-      );
-      const blockedItems = splitDecision.blockedItems;
-
-      if (blockedItems.length > 0) {
-        setError(
-          describeBlockedCheckout(blockedItems, splitDecision.fullReasonByItemId, judgeNameById)
-        );
-        stopCheckingOut();
-        return;
-      }
-
-      const splitResult = await checkoutWithWaitlist(profile.id, splitDecision.waitlistItemIds);
-
-      if (!splitResult) {
-        setError(CART_ERROR.waitlistFailed);
-        stopCheckingOut();
-        return;
-      }
-
-      const waitlistedItemIds = Array.from(splitDecision.waitlistItemIds);
-
-      for (const itemId of waitlistedItemIds) {
-        const removed = await removeItem(itemId);
-        if (!removed) {
-          setError(
-            'Your waitlist request was saved, but we could not refresh your entry for payment. Please restart the app before trying again.'
-          );
-          stopCheckingOut();
-          return;
-        }
-      }
-
-      const splitCheckoutId =
-        splitResult.waitlisted.length > 0 ? createSplitCheckoutCorrelationId() : null;
-
-      if (splitCheckoutId) {
-        writeCartSplitCheckoutSummary({
-          correlationId: splitCheckoutId,
-          showId: cart.show_id,
-          confirmedEntryCount: splitResult.confirmed.length,
-          waitlistEntries: splitResult.waitlisted,
-        });
-      }
-
-      if (splitResult.confirmed.length === 0) {
-        stopCheckingOut();
-        navigate(
-          splitCheckoutId
-            ? `/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`
-            : '/checkout/success?waitlist=1'
-        );
-        return;
-      }
-
-      // This will redirect to Stripe Checkout for the remaining confirmed entries.
-      await createEntryCheckoutSession(cart.id, {
-        showId: cart.show_id,
-        ...(splitCheckoutId ? { splitCheckoutId } : {}),
-      });
-      // If we get here, the redirect didn't happen (shouldn't normally occur)
-    } catch (err) {
-      // Say what the server said when it wrote it for the exhibitor: it tells
-      // failures they can act on (fees were re-priced, review and retry) from
-      // ones they cannot (the club has no payout account). The 409 re-pricing
-      // case looped forever before the reload below: the server heals the stored
-      // cart, but the client kept re-sending the stale in-memory copy.
-      const status = err instanceof CheckoutSessionError ? err.status : null;
-      const message = reportCheckoutFailure(err, cart.id);
-
-      if (status === 409 && profile?.id) {
-        // Re-hydrate so "review your cart" is actually possible - with the same
-        // options as the mount-time load. An empty object drops the recovery
-        // showId, and cartStore then falls back to "most recently created
-        // active cart", which for someone who arrived via /cart?showId=X on an
-        // older cart would silently swap them onto a different show's cart
-        // underneath a 409 about the one they were paying for.
-        const reloadOptions: Parameters<typeof loadActiveCart>[1] = {};
-        if (recoveryShowId) {
-          reloadOptions.showId = recoveryShowId;
-        }
-        // Awaited before the latch is released. Fire-and-forget left the cart
-        // visible with its stale in-memory fees while the reload was still in
-        // flight, so a quick retry re-submitted exactly the same stale cart and
-        // earned another 409 - the loop this fix exists to break.
-        await loadActiveCart(profile.id, reloadOptions);
-        // A class that filled at Pay (MYK9-1012) must read as full on the
-        // reloaded cart, with its waitlist option, not as payable.
-        await refetchCapacity();
-      }
-
-      setError(message);
+    if (outcome.kind === 'waitlistOnly') {
       stopCheckingOut();
+      navigate(outcome.successPath);
+      return;
     }
+
+    if (outcome.kind === 'refused') {
+      setError(outcome.message);
+      stopCheckingOut();
+      return;
+    }
+
+    // Say what the server said when it wrote it for the exhibitor: it tells
+    // failures they can act on (fees were re-priced, review and retry) from
+    // ones they cannot (the club has no payout account). The 409 re-pricing
+    // case looped forever before the reload below: the server heals the stored
+    // cart, but the client kept re-sending the stale in-memory copy.
+    const err = outcome.error;
+    const status = err instanceof CheckoutSessionError ? err.status : null;
+    const message = reportCheckoutFailure(err, cart.id);
+
+    if (status === 409) {
+      // Re-hydrate so "review your cart" is actually possible - with the same
+      // options as the mount-time load. An empty object drops the recovery
+      // showId, and cartStore then falls back to "most recently created
+      // active cart", which for someone who arrived via /cart?showId=X on an
+      // older cart would silently swap them onto a different show's cart
+      // underneath a 409 about the one they were paying for.
+      const reloadOptions: Parameters<typeof loadActiveCart>[1] = {};
+      if (recoveryShowId) {
+        reloadOptions.showId = recoveryShowId;
+      }
+      // Awaited before the latch is released. Fire-and-forget left the cart
+      // visible with its stale in-memory fees while the reload was still in
+      // flight, so a quick retry re-submitted exactly the same stale cart and
+      // earned another 409 - the loop this fix exists to break.
+      await loadActiveCart(profile.id, reloadOptions);
+      // A class that filled at Pay (MYK9-1012) must read as full on the
+      // reloaded cart, with its waitlist option, not as payable.
+      await refetchCapacity();
+    }
+
+    setError(message);
+    stopCheckingOut();
   };
 
   const handleContinueShopping = () => {

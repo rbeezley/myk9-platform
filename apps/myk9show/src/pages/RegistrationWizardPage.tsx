@@ -38,7 +38,7 @@ import { EntriesClosedNotice } from './RegistrationWizardPage/EntriesClosedNotic
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { useOnlyDogPreselect } from './RegistrationWizardPage/useOnlyDogPreselect';
-import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+import { usePaymentSubmitLabel } from './RegistrationWizardPage/usePaymentSubmitLabel';
 import { EMPTY_ENTRY_NOTICE } from './RegistrationWizardPage/proceedGating';
 import {
   buildAddAnotherEntrySearch,
@@ -141,6 +141,15 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     selectedDogIds: registrationData.selectedDogs,
     feeCalculation: liveFeeCalculation,
   });
+  const paymentSubmitLabel = usePaymentSubmitLabel({
+    selectedPaymentMethod: registrationData.paymentMethod,
+    effectivePaymentMethod: paymentResolution.effectivePaymentMethod,
+    groups: panelGroups,
+    feeCalculation: liveFeeCalculation,
+    capacityReady,
+    capacityUnavailable,
+    feeTier: entryWindowTimezoneState,
+  });
   const { removeLine, removingLineKey } = useRemoveEntryLine(
     classSelections,
     handleClassSelectionChange
@@ -172,11 +181,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
         canGoNext={canProceed()}
         onBack={handleBack}
         onNext={handleNext}
-        nextLabel={
-          currentStepId === 'payment'
-            ? getPaymentSubmitLabel(registrationData.paymentMethod)
-            : 'Next'
-        }
+        nextLabel={currentStepId === 'payment' ? paymentSubmitLabel : 'Next'}
         backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
         isLoading={isSubmitting}
         {...(className ? { className } : {})}

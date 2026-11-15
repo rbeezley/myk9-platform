@@ -14,6 +14,7 @@ import {
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import type { HandlerInfo } from '@/types/show-registration-types';
 import { submitRegistrationCartCheckout } from './registrationCartCheckout';
+import { stubCardCheckoutDeps } from './registrationCartCheckout.testHelpers';
 
 const showFeeInfo: ShowFeeInfo = {
   preEntryFee: '30',
@@ -46,6 +47,7 @@ function makeDeps() {
     addItem: vi.fn().mockResolvedValue(true),
     abandonCart: vi.fn().mockResolvedValue(true),
     navigate: vi.fn(),
+    ...stubCardCheckoutDeps(),
   };
 }
 

@@ -116,6 +116,22 @@ describe('RequestPaymentDialog', () => {
   });
 
   // MYK9-1824: the function's catch-all returns Stripe's own text; it never reaches the screen.
+  it('MYK9-1976: shows the over-long refund policy refusal in the server’s words', async () => {
+    const tooLong =
+      'The refund policy is too long for the payment page. Shorten the policy notes or the policy text on the Withdrawal policy card, then try again.';
+    mockedInvoke.mockResolvedValue({
+      data: null,
+      error: {
+        message: 'non-2xx',
+        context: { json: async () => ({ error: tooLong }) },
+      } as unknown as Error,
+    });
+    renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: /generate link/i }));
+    expect(await screen.findByText(tooLong)).toBeInTheDocument();
+    expect(screen.queryByText(LINK_FAILED)).toBeNull();
+  });
+
   it('shows the fixed sentence, not the raw text, for an unknown server answer', async () => {
     const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     const invokeError = {

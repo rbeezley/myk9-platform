@@ -192,6 +192,8 @@ export interface MyEntry {
     venue: string;
     city: string;
     state: string;
+    /** `shows.location`: the street address; absent or empty when none is stored. */
+    street?: string | undefined;
   };
   dogName: string;
   dogId: string;

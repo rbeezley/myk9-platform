@@ -7,6 +7,8 @@
  * @module MyEntriesPage/modules/myShowsCopy
  */
 
+import { formatArmbandDisplay, UNASSIGNED_ARMBAND_DISPLAY } from '@/utils/armbandUtils';
+
 /** Summary card label for the current (non-past accepted+pending) count. */
 export const CURRENT_ENTRIES_LABEL = 'Current entries';
 
@@ -36,3 +38,9 @@ export const ENTRIES_LOAD_ERROR =
  * into a void?" anxiety before the exhibitor expands details.
  */
 export const PENDING_REVIEW_REASSURANCE = 'The show secretary is reviewing this entry.';
+
+/** The dog card's armband line: the number, or what is still to come. */
+export function armbandLabel(armband: string | undefined): string {
+  const display = formatArmbandDisplay(armband);
+  return display === UNASSIGNED_ARMBAND_DISPLAY ? 'Armband not assigned yet' : `Armband ${display}`;
+}

@@ -61,6 +61,7 @@ const USER_ENTRIES_SELECT_BASE = `
         end_date,
         entry_close_date,
         venue_name,
+        location,
         city,
         state,
         trials:trials (

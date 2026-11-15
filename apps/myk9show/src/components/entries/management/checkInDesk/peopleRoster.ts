@@ -66,8 +66,10 @@ export interface PeopleRosterClassRow {
   dayLabel: string | null;
   /** Why a locked row is locked, when its badge does not already say. */
   lockedReason: string | null;
-  /** A real Pull the desk may put back today (MYK9-1749): no refund issued or decided. */
+  /** A real Pull the desk may put back, on any day (MYK9-2038): unscored, no refund issued or decided. */
   deskCanUnpull: boolean;
+  /** Why a real Pull cannot be put back (scored, refund decided); null when offered or no Pull. */
+  putBackReason: string | null;
   sourceEntry: EntryManagementEntry;
   sourceClass: EntryClass;
 }
@@ -347,7 +349,7 @@ function buildClassRows(
         ? statusPresentation(entry, cls, true, null)
         : statusPresentation(entry, cls, eligibility.eligible, eligibility.reason);
       const dayLabel = deskDayLabel(info, currentDate);
-      const unpull = deskUnpullState(entry, cls, info, currentDate);
+      const unpull = deskUnpullState(entry, cls);
       return {
         id: `${entry.id}:${classId}`,
         entryId: entry.id,
@@ -366,6 +368,7 @@ function buildClassRows(
         dayLabel,
         lockedReason: deskLockedReason(entry, current, deskStatusEditable),
         deskCanUnpull: unpull.canUnpull,
+        putBackReason: unpull.blockedReason,
         sourceEntry: entry,
         sourceClass: cls,
       };

@@ -30,6 +30,8 @@ export interface DeskPullRow {
   armband: string | null;
   deskStatusEditable: boolean;
   deskCanUnpull: boolean;
+  /** Why a real Pull cannot be put back (MYK9-2038); null when it can, or there is no Pull. */
+  putBackReason?: string | null | undefined;
   sourceEntry?: EntryManagementEntry | undefined;
 }
 

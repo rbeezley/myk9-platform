@@ -39,6 +39,7 @@ import type {
   SecretaryCockpitRunOrderControls,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 export function SecretaryCockpit({
@@ -48,6 +49,7 @@ export function SecretaryCockpit({
   runOrder,
   entryBreakdownByClassId,
   onRefreshEntries,
+  putBackEntries,
 }: {
   snapshot: SecretaryCockpitSnapshot;
   canManageShow: boolean;
@@ -61,6 +63,8 @@ export function SecretaryCockpit({
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
   onRefreshEntries?: EntriesRefresh | undefined;
+  /** The stored entries by id, so a real Pull can be put back from its row (MYK9-2038). */
+  putBackEntries?: ReadonlyMap<string, EntryManagementEntry> | undefined;
 }) {
   const { state: urlState, updateState } = useSecretaryCockpitUrlState();
   // A Select classes link's trial or class (MYK9-1324) opens and scrolls like the cockpit's own.
@@ -149,6 +153,7 @@ export function SecretaryCockpit({
       onCommand={onCommand}
       entryBreakdownByClassId={entryBreakdownByClassId}
       onRefreshEntries={onRefreshEntries}
+      putBackEntries={putBackEntries}
       {...(runOrder !== undefined && { runOrder })}
       {...(canManageShow &&
         sourceClass && {

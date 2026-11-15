@@ -1,7 +1,9 @@
 import { ChevronDown } from 'lucide-react';
 
 import type { CheckInStatus } from '@/types/check-in-types';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import {
+  deskPutBackReason,
   flaggedPullLabel,
   isFlaggedPull,
 } from '@/components/entries/management/checkInDesk/deskStatus';
@@ -29,6 +31,14 @@ export function ClassCheckInCell({
   entry: SecretaryCockpitClassEntry;
   checkIn: ClassCheckIn;
 }) {
+  const isOnline = useIsOnline();
+  const putBack = checkIn.putBackOf(entry.entryId);
+  const putBackNote = putBack
+    ? deskPutBackReason(
+        { deskCanUnpull: putBack.canUnpull, putBackReason: putBack.reason },
+        isOnline
+      )
+    : null;
   const shown = entry.checkInValue;
   const display = entry.checkIn ?? displayOf(shown);
   const notCheckedIn = shown === 'no-status';
@@ -45,7 +55,18 @@ export function ClassCheckInCell({
   const shape = 'flex min-h-11 items-center gap-0.5 rounded-md px-1';
   return (
     <>
-      {checkIn.canChange ? (
+      {putBack?.canUnpull ? (
+        <button
+          type="button"
+          disabled={!isOnline || checkIn.isBusy(entry.entryId)}
+          aria-label={`Put ${entry.dogName} back in this class`}
+          onClick={() => checkIn.requestUnpull(putBack.row)}
+          className={`${shape} hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:hover:bg-transparent`}
+        >
+          {pill}
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+        </button>
+      ) : checkIn.canChange ? (
         <button
           type="button"
           disabled={!editable || checkIn.isBusy(entry.entryId)}
@@ -63,8 +84,14 @@ export function ClassCheckInCell({
       ) : (
         <div className={shape}>{body}</div>
       )}
-      {checkIn.canChange && !entry.deskEditable && entry.lockedReason && (
-        <span className="mt-1 block text-xs text-muted-foreground">{entry.lockedReason}</span>
+      {putBackNote ? (
+        <span className="mt-1 block text-xs text-muted-foreground">{putBackNote}</span>
+      ) : (
+        checkIn.canChange &&
+        !entry.deskEditable &&
+        entry.lockedReason && (
+          <span className="mt-1 block text-xs text-muted-foreground">{entry.lockedReason}</span>
+        )
       )}
       {entry.scoredAfterRemoval && (
         <span

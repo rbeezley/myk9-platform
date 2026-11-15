@@ -1,3 +1,8 @@
+import { useMemo } from 'react';
+
+import { mapSecretaryEntryToEntryManagementEntry } from '@/hooks/useEntryManagementData';
+import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   isAccountedFor,
   isExpectedEntry,
@@ -114,4 +119,24 @@ export function tallyEntriesByClass(
     tallies.set(classId, tally);
   }
   return tallies;
+}
+
+/**
+ * The two views of the show's entries Show Desk reads: the tree's loose input, and the Entries
+ * page's own read model by id (MYK9-2038), so a real Pull can be put back from the class table
+ * through the Check-in desk's rule and write.
+ */
+export function useShowDeskEntryViews(entries: readonly SecretaryEntry[]): {
+  showMapEntries: ShowMapEntryInput[];
+  putBackEntries: ReadonlyMap<string, EntryManagementEntry>;
+} {
+  return useMemo(
+    () => ({
+      showMapEntries: entries as unknown as ShowMapEntryInput[],
+      putBackEntries: new Map(
+        entries.map(entry => [entry.id, mapSecretaryEntryToEntryManagementEntry(entry)])
+      ),
+    }),
+    [entries]
+  );
 }

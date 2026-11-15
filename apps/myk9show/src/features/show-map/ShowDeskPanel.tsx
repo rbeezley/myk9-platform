@@ -17,6 +17,7 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
@@ -27,6 +28,8 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a class-table Check-in write (MYK9-1797). */
   onRefreshEntries?: EntriesRefresh | undefined;
+  /** The stored entries by id, so a real Pull can be put back from the class table (MYK9-2038). */
+  putBackEntries?: ReadonlyMap<string, EntryManagementEntry> | undefined;
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -43,6 +46,7 @@ export default function ShowDeskPanel({
   tools,
   entryBreakdownByClassId,
   onRefreshEntries,
+  putBackEntries,
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -202,6 +206,7 @@ export default function ShowDeskPanel({
       <SecretaryCockpit
         entryBreakdownByClassId={entryBreakdownByClassId}
         onRefreshEntries={onRefreshEntries}
+        putBackEntries={putBackEntries}
         snapshot={snapshot}
         canManageShow={canManageShow}
         onCommand={runCommand}

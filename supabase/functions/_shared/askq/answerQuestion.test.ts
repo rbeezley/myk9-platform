@@ -327,6 +327,68 @@ describe('guide claims fail closed (criterion 4)', () => {
   });
 });
 
+describe('money pre-check runs only on guides-only routes (supportMode)', () => {
+  it('answers a show-data question that uses money words', async () => {
+    const model = stubModel({ verdict: ['show_data'], showData: 'Paid entries: 12.' });
+    const answered = await run(model, {
+      message: 'How many entries have paid?',
+      supportMode: true,
+    }).promise;
+    expect(answered.escalation).toBeNull();
+    expect(answered.text).toContain('Paid entries: 12.');
+    expect(model.recorded.showData).toHaveLength(1);
+  });
+
+  it('answers a rules withdrawal question', async () => {
+    const model = stubModel({ verdict: ['rulebook'], rulebook: RULE_REPLY });
+    const answered = await run(model, {
+      message: 'What is the AKC withdrawal rule for a refund?',
+      supportMode: true,
+    }).promise;
+    expect(answered.escalation).toBeNull();
+    expect(answered.text).toContain(RULE_REPLY);
+  });
+
+  it('answers a show-data question with a destructive word', async () => {
+    const model = stubModel({ verdict: ['show_data'], showData: 'Run order: 3 dogs.' });
+    const answered = await run(model, {
+      message: 'Can I remove a dog from the run order?',
+      supportMode: true,
+    }).promise;
+    expect(answered.escalation).toBeNull();
+  });
+
+  it('still escalates a guide refund question without calling the guides model', async () => {
+    const model = stubModel({ verdict: ['guides'], guides: GUIDE_REPLY });
+    const answered = await run(model, {
+      message: 'Can I get a refund for my entry?',
+      supportMode: true,
+    }).promise;
+    expect(answered.escalation).toMatchObject({ escalate: true, reason: 'payment_or_refund' });
+    expect(model.recorded.guides).toHaveLength(0);
+  });
+
+  it('does not pre-check outside supportMode', async () => {
+    const model = stubModel({ verdict: ['guides'], guides: GUIDE_REPLY });
+    const answered = await run(model, { message: 'Can I get a refund for my entry?' }).promise;
+    expect(answered.escalation).toBeNull();
+    expect(model.recorded.guides).toHaveLength(1);
+  });
+
+  it('answers a mixed guides plus rulebook route', async () => {
+    const model = stubModel({
+      verdict: ['guides', 'rulebook'],
+      guides: GUIDE_REPLY,
+      rulebook: RULE_REPLY,
+    });
+    const answered = await run(model, {
+      message: 'Refund policy and the AKC withdrawal rule?',
+      supportMode: true,
+    }).promise;
+    expect(answered.escalation).toBeNull();
+  });
+});
+
 describe('classifier failure and bookkeeping', () => {
   it('asks every applicable source when the verdict is unusable', async () => {
     const model = stubModel({

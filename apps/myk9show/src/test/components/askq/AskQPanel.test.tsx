@@ -47,102 +47,6 @@ describe('AskQPanel', () => {
     expect(screen.getByText('AskQ')).toBeInTheDocument();
   });
 
-  it('hides Operator Support from non-site-admin users', () => {
-    act(() => useAskQPanelStore.getState().open());
-    render(<AskQPanel />);
-
-    expect(screen.queryByRole('button', { name: 'Operator Support' })).not.toBeInTheDocument();
-  });
-
-  it('shows Operator Support to site admins and routes only through its dedicated sender', async () => {
-    authState.userWithRoles.roles = ['site_admin'];
-    vi.mocked(askqService.sendOperatorSupportQuery).mockResolvedValue(createMockStream());
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />);
-
-    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
-    const input = screen.getByPlaceholderText('Ask about platform alerts...');
-    fireEvent.change(input, { target: { value: 'Summarize unresolved alerts' } });
-    await user.click(screen.getByRole('button', { name: 'Send query' }));
-
-    await waitFor(() => {
-      expect(askqService.sendOperatorSupportQuery).toHaveBeenCalledWith(
-        { message: 'Summarize unresolved alerts' },
-        expect.any(AbortSignal)
-      );
-    });
-    expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
-  });
-
-  it('describes system-health snapshots as read-only and incomplete coverage', async () => {
-    authState.userWithRoles.roles = ['site_admin'];
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />);
-
-    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
-
-    expect(screen.getByText(/latest automated System Health snapshot/i)).toBeInTheDocument();
-    expect(screen.getByText(/does not guarantee complete platform health/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/No user lookup, payment tracing, or write actions/i)
-    ).toBeInTheDocument();
-  });
-
-  it('does not offer a subscription upgrade for the fixed Operator Support limit', async () => {
-    authState.userWithRoles.roles = ['site_admin'];
-    vi.mocked(askqService.sendOperatorSupportQuery).mockRejectedValue(
-      new askqService.RateLimitError(0, 20, '2026-07-25T00:00:00.000Z')
-    );
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />);
-
-    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
-    fireEvent.change(screen.getByPlaceholderText('Ask about platform alerts...'), {
-      target: { value: 'Summarize unresolved alerts' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Send query' }));
-
-    expect(
-      await screen.findByText('Daily limit reached. Resets at midnight UTC.')
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('link', { name: 'Upgrade for more queries' })
-    ).not.toBeInTheDocument();
-  });
-
-  it('clears private Operator Support state when returning to normal AskQ', async () => {
-    authState.userWithRoles.roles = ['site_admin'];
-    vi.mocked(askqService.sendOperatorSupportQuery).mockResolvedValue(
-      createMockStream('Two unresolved operator alerts.')
-    );
-    vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
-      onEvent('token', 'Two unresolved operator alerts.');
-      onEvent('done', {});
-    });
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />);
-
-    await user.click(screen.getByRole('button', { name: 'Operator Support' }));
-    fireEvent.change(screen.getByPlaceholderText('Ask about platform alerts...'), {
-      target: { value: 'Summarize unresolved alerts' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Send query' }));
-    expect(await screen.findByText('Two unresolved operator alerts.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open full System Health' })).toHaveAttribute(
-      'href',
-      '/admin/health'
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Rules' }));
-
-    expect(screen.queryByText('Two unresolved operator alerts.')).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Ask about the selected rulebook...')).toBeInTheDocument();
-  });
-
   describe('reaching a person when AskQ cannot answer', () => {
     async function askOnShowPage(text: string) {
       act(() => useAskQPanelStore.getState().open());
@@ -188,17 +92,32 @@ describe('AskQPanel', () => {
       expect(askqService.sendAskQQuery).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps the daily limit in force after sending the question to a person', async () => {
+    it('hides Send this to a person once the ticket step is open, so a second click cannot file a duplicate', async () => {
       vi.mocked(askqService.sendAskQQuery).mockRejectedValue(
         new askqService.RateLimitError(0, 10, '2026-11-15T00:00:00.000Z')
       );
       const { user } = await askOnShowPage('Need a human');
       await user.click(await screen.findByRole('button', { name: 'Send this to a person' }));
 
-      await user.click(screen.getByRole('button', { name: 'Rules' }));
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toBeInTheDocument();
+      expect(screen.getByText(/Daily limit reached/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Send this to a person' })).toBeNull();
+    });
 
-      expect(screen.getByText(/Daily limit reached\. Resets at midnight/)).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Ask about the selected rulebook...')).toBeDisabled();
+    it('treats a finished turn with no text and no escalation as a handoff, with no feedback', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+      vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
+        onEvent('meta', { remaining: 9, limit: 10, responseTimeMs: 1, queryLogId: 'log-1' });
+        onEvent('done', {});
+      });
+      const { user } = await askOnShowPage('Anything?');
+
+      expect(
+        await screen.findByText("I couldn't find a reliable answer for that.")
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /helpful/i })).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Send this to a person' }));
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue('Anything?');
     });
 
     it('says plainly it could not be sent offline, keeps the note and sends nothing', async () => {
@@ -214,18 +133,6 @@ describe('AskQPanel', () => {
         'Judge is missing'
       );
       expect(createSupportTicket).not.toHaveBeenCalled();
-    });
-
-    it('offers Send this to a person when App Help itself fails', async () => {
-      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(new Error('down'));
-      act(() => useAskQPanelStore.getState().open());
-      const { user } = render(<AskQPanel />, { initialRoute: '/secretary/dashboard' });
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Print help' } });
-      await user.click(screen.getByRole('button', { name: 'Send query' }));
-
-      await user.click(await screen.findByRole('button', { name: 'Send this to a person' }));
-
-      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue('Print help');
     });
   });
 
@@ -249,17 +156,63 @@ describe('AskQPanel', () => {
     });
   });
 
-  it('shows example queries in empty state', () => {
-    act(() => useAskQPanelStore.getState().open());
-    render(<AskQPanel />);
-    expect(screen.getByText('Rules')).toBeInTheDocument();
-    expect(screen.getByText('This show')).toBeInTheDocument();
+  it('has no mode tabs on a show page, an app page or for a site admin', () => {
+    const pages = ['/shows/show-1', '/exhibitor/entries', '/at-show/show-1'];
+    for (const role of ['exhibitor', 'secretary', 'site_admin']) {
+      authState.userWithRoles.roles = [role];
+      for (const initialRoute of pages) {
+        act(() => useAskQPanelStore.getState().open());
+        const { unmount } = render(<AskQPanel />, { initialRoute });
+        for (const name of ['App help', 'Rules', 'This show', 'Operator Support']) {
+          expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+        }
+        unmount();
+      }
+    }
   });
 
-  it('shows the input bar', () => {
+  it('sends a question from a page with no show without a question mode', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+
     act(() => useAskQPanelStore.getState().open());
-    render(<AskQPanel />);
-    expect(screen.getByPlaceholderText('Ask about using myK9Show...')).toBeInTheDocument();
+    const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Where is my armband?' } });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+    await waitFor(() => {
+      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
+        { message: 'Where is my armband?', supportMode: true },
+        expect.any(AbortSignal)
+      );
+    });
+  });
+
+  describe.each([
+    ['a show page', '/shows/show-1'],
+    ['an app page', '/exhibitor/entries'],
+  ])('when the server cannot verify a guide answer on %s', (_label, initialRoute) => {
+    it('offers the human handoff and carries the question into the ticket note', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+      vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
+        onEvent('support_escalation', {
+          escalate: true,
+          reason: 'low_confidence',
+          message: "I couldn't verify that answer.",
+        });
+        onEvent('done', {});
+      });
+
+      act(() => useAskQPanelStore.getState().open());
+      const { user } = render(<AskQPanel />, { initialRoute });
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Where is my armband?' } });
+      await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+      expect(await screen.findByText("I couldn't verify that answer.")).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Send this to a person' }));
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue(
+        'Where is my armband?'
+      );
+    });
   });
 
   it('prefills the input from a workbench prompt', () => {
@@ -270,7 +223,9 @@ describe('AskQPanel', () => {
     );
     render(<AskQPanel />);
 
-    expect(screen.getByPlaceholderText('Ask about using myK9Show...')).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText('Ask about rules, your results, or the app...')
+    ).toBeInTheDocument();
   });
 
   it('clears the suggested prompt after submit', async () => {
@@ -284,103 +239,6 @@ describe('AskQPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
     expect(useAskQPanelStore.getState().suggestedPrompt).toBeNull();
-  });
-
-  it('asks guests to sign in before creating an App Help ticket', async () => {
-    authState.user = null;
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
-
-    await user.click(screen.getByRole('button', { name: 'I need help with a payment or refund' }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('Sign in to create a support ticket so we can reply in the app.')
-      ).toBeInTheDocument();
-    });
-    expect(screen.getByRole('link', { name: 'Sign in to create a ticket' })).toHaveAttribute(
-      'href',
-      '/sign-in?returnTo=%2Fexhibitor%2Fentries'
-    );
-    expect(screen.queryByLabelText('Support request')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Create ticket/i })).not.toBeInTheDocument();
-    expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
-  });
-
-  it('routes typed default App Help questions through support mode', async () => {
-    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
-
-    const input = screen.getByPlaceholderText('Ask about using myK9Show...');
-    fireEvent.change(input, { target: { value: 'Where is my armband?' } });
-    expect(input).toHaveValue('Where is my armband?');
-
-    await user.click(screen.getByRole('button', { name: 'Send query' }));
-
-    await waitFor(() => {
-      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
-        {
-          message: 'Where is my armband?',
-          supportMode: true,
-        },
-        expect.any(AbortSignal)
-      );
-    });
-  });
-
-  it('gives a clear next step when App Help escalates to ticket creation', async () => {
-    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />, { initialRoute: '/exhibitor/entries' });
-
-    // Set the value instantly with fireEvent.change rather than user.type: the
-    // per-character async typing races the escalation assertion under CI load
-    // (this file's historic flake). The reliable sibling tests use the same
-    // instant-change pattern.
-    fireEvent.change(screen.getByPlaceholderText('Ask about using myK9Show...'), {
-      target: { value: 'Where are my entries?' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Send query' }));
-
-    expect(
-      await screen.findByText("I couldn't find a reliable answer for that.")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Use the box below, then click Create ticket so we can follow up in the app.'
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Create ticket/i })).toBeInTheDocument();
-  });
-
-  it('sends rules mode with the selected rulebook scope', async () => {
-    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />);
-
-    await user.click(screen.getByRole('button', { name: 'Rules' }));
-    await user.selectOptions(screen.getByLabelText('Organization'), 'AKC');
-    await user.selectOptions(screen.getByLabelText('Sport'), 'akc-scent-work');
-    const input = screen.getByPlaceholderText('Ask about the selected rulebook...');
-    fireEvent.change(input, { target: { value: 'Max time?' } });
-    expect(input).toHaveValue('Max time?');
-    await user.click(screen.getByRole('button', { name: 'Send query' }));
-
-    await waitFor(() => {
-      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
-        {
-          message: 'Max time?',
-          questionMode: 'rules',
-          rulebookScope: { organizationCode: 'AKC', sportCode: 'akc-scent-work' },
-        },
-        expect.any(AbortSignal)
-      );
-    });
   });
 
   it('shows Tera working while waiting for the first AskQ response token, then idle', async () => {
@@ -401,11 +259,7 @@ describe('AskQPanel', () => {
     act(() => useAskQPanelStore.getState().open());
     const { user } = render(<AskQPanel />);
 
-    await user.click(screen.getByRole('button', { name: 'Rules' }));
-    // Barrier: prove the mode selection committed before interacting further
-    // (same stale-closure hazard as the 'This show' test below).
-    await screen.findByRole('button', { name: 'Rules', pressed: true });
-    const input = screen.getByPlaceholderText('Ask about the selected rulebook...');
+    const input = screen.getByPlaceholderText('Ask about rules, your results, or the app...');
     fireEvent.change(input, { target: { value: 'Max time?' } });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
 
@@ -428,7 +282,7 @@ describe('AskQPanel', () => {
     expect(screen.getByTestId('tera-face')).toBeInTheDocument();
   });
 
-  it('keeps route-default mode out of the payload until the user chooses it', async () => {
+  it('sends one unrouted question with the show context and no question mode', async () => {
     vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
 
     act(() => useAskQPanelStore.getState().open());
@@ -444,36 +298,7 @@ describe('AskQPanel', () => {
         {
           message: 'Schedule?',
           showId: 'show-1',
-        },
-        expect.any(AbortSignal)
-      );
-    });
-  });
-
-  it('sends This show mode after the user explicitly chooses it', async () => {
-    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
-
-    act(() => useAskQPanelStore.getState().open());
-    const { user } = render(<AskQPanel />, { initialRoute: '/at-show/show-1' });
-
-    await user.click(screen.getByRole('button', { name: 'This show' }));
-    // Barrier: prove the mode selection has committed before sending. Send reads the
-    // committed `mode` via a captured closure; without this the click can fire against a
-    // stale render where mode is still null and `questionMode: 'show-data'` is dropped.
-    await screen.findByRole('button', { name: 'This show', pressed: true });
-    // Instant fireEvent.change instead of per-character user.type — same CI
-    // race avoidance as the escalation test above.
-    fireEvent.change(screen.getByPlaceholderText('Ask about rules, your results, or the app...'), {
-      target: { value: 'Schedule?' },
-    });
-    await user.click(screen.getByRole('button', { name: 'Send query' }));
-
-    await waitFor(() => {
-      expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
-        {
-          message: 'Schedule?',
-          showId: 'show-1',
-          questionMode: 'show-data',
+          supportMode: true,
         },
         expect.any(AbortSignal)
       );

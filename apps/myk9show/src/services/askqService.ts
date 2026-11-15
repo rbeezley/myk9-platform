@@ -1,27 +1,18 @@
 import { supabase } from '@/lib/supabase';
 
 const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ask-myk9show`;
-const OPERATOR_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ask-operator-support`;
 
 export interface AskQRequest {
   message: string;
   showId?: string;
+  /** True when the caller can show a `support_escalation` event (the human-handoff offer). */
   supportMode?: boolean;
-  questionMode?: AskQQuestionMode;
-  rulebookScope?: AskQRulebookScope;
 }
-
-export type AskQQuestionMode = 'app-help' | 'rules' | 'show-data';
 
 export type AskQQuerySender = (
   request: AskQRequest,
   signal?: AbortSignal
 ) => Promise<ReadableStream<Uint8Array>>;
-
-export interface AskQRulebookScope {
-  organizationCode?: string;
-  sportCode?: string;
-}
 
 export interface AskQFeedback {
   queryLogId: string;
@@ -35,21 +26,6 @@ export async function sendAskQQuery(
   request: AskQRequest,
   signal?: AbortSignal
 ): Promise<ReadableStream<Uint8Array>> {
-  return sendAuthenticatedQuery(FUNCTION_URL, request, signal);
-}
-
-export async function sendOperatorSupportQuery(
-  request: AskQRequest,
-  signal?: AbortSignal
-): Promise<ReadableStream<Uint8Array>> {
-  return sendAuthenticatedQuery(OPERATOR_FUNCTION_URL, { message: request.message }, signal);
-}
-
-async function sendAuthenticatedQuery(
-  functionUrl: string,
-  request: AskQRequest,
-  signal?: AbortSignal
-): Promise<ReadableStream<Uint8Array>> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -59,7 +35,7 @@ async function sendAuthenticatedQuery(
 
   let response: Response;
   try {
-    response = await fetch(functionUrl, {
+    response = await fetch(FUNCTION_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,9 +63,8 @@ async function sendAuthenticatedQuery(
   }
 
   if (response.status === 401) throw new AskQRequestError('signed-out');
-  // A 403 means "account required" only from the app AskQ function (its anonymous-user check);
-  // Operator Support's 403 is a missing site-admin role, which signing up cannot fix.
-  if (response.status === 403 && functionUrl === FUNCTION_URL) {
+  // The function's anonymous-user check.
+  if (response.status === 403) {
     throw new AskQRequestError('account-required');
   }
 

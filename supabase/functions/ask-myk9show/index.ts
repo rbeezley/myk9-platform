@@ -12,7 +12,6 @@ import {
   routeMarkers,
 } from '../_shared/askq/answerQuestion.ts';
 import {
-  getSupportEscalationForQuestion,
   isSupportModeEnabled,
   type SupportEscalationPayload,
 } from '../_shared/askq/supportMode.ts';
@@ -170,28 +169,6 @@ Deno.serve(async (req: Request) => {
         .update({ tools_used: [marker], response_time_ms: Date.now() - startTime })
         .eq('id', reservation.logId);
     const { remaining, limit } = reservation;
-    const supportQuestionEscalation = supportMode ? getSupportEscalationForQuestion(message) : null;
-
-    if (supportQuestionEscalation) {
-      const responseTimeMs = Date.now() - startTime;
-      if (logRow?.id) {
-        await serviceClient
-          .from('chatbot_query_log')
-          .update({
-            tools_used: ['support_escalation'],
-            response_time_ms: responseTimeMs,
-          })
-          .eq('id', logRow.id);
-      }
-
-      return buildSupportEscalationStream(supportQuestionEscalation, {
-        remaining,
-        limit,
-        responseTimeMs,
-        queryLogId: logRow?.id ?? null,
-      });
-    }
-
     const personId = personData?.id;
     const displayName = personData
       ? [personData.first_name, personData.last_name].filter(Boolean).join(' ')

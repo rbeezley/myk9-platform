@@ -1,76 +1,22 @@
-import { ExternalLink } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { SupportTicketThread } from '@/features/support/SupportTicketThread';
 import { useSupportHelp } from '@/features/support/useSupportHelp';
-import { AskQSendToPerson } from './AskQSendToPerson';
-import { AskQAnswer, TeraWorkingIndicator } from './AskQAnswer';
-import { cleanAskQAnswer } from './cleanAskQAnswer';
-import { TeraAnswerMark, useFoundIt } from './TeraAnswerMark';
+import { AskQAnswer } from './AskQAnswer';
 
 const SUPPORT_TICKET_NEXT_STEP =
   'Use the box below, then click Create ticket so we can follow up in the app.';
 
 export function AskQAppHelpContent({
   currentUserId,
-  onEscalate,
   state,
 }: {
   currentUserId: string | null;
-  onEscalate: () => void;
   state: ReturnType<typeof useSupportHelp>['state'];
 }) {
-  // An escalation is not an answer, so only 'answered' plays Found it.
-  const [foundIt, clearFoundIt] = useFoundIt(
-    state.status === 'streaming',
-    state.status === 'answered'
-  );
-
   return (
     <>
       {state.question && (
         <AskQAnswer query={state.question} answer="" toolsUsed={[]} isStreaming={false} />
-      )}
-
-      {state.status === 'streaming' &&
-        (state.answer ? (
-          <div className="rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
-            <p className="whitespace-pre-wrap break-words text-sm">
-              {cleanAskQAnswer(state.answer)}
-            </p>
-          </div>
-        ) : (
-          <TeraWorkingIndicator />
-        ))}
-
-      {state.route?.kind === 'answer' && (
-        <div className="flex items-start gap-2">
-          <TeraAnswerMark foundIt={foundIt} onDone={clearFoundIt} />
-          <div className="min-w-0 flex-1 space-y-3 rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
-            <p className="whitespace-pre-wrap break-words text-sm">
-              {cleanAskQAnswer(state.route.answer)}
-            </p>
-            {state.route.deepLink && (
-              <Button asChild variant="outline" size="sm" className="gap-2">
-                <Link to={state.route.deepLink.href}>
-                  {state.route.deepLink.label}
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="px-0 text-muted-foreground"
-              onClick={onEscalate}
-            >
-              Still need help?
-            </Button>
-          </div>
-        </div>
       )}
 
       {state.status === 'escalating' && (
@@ -110,7 +56,6 @@ export function AskQAppHelpContent({
         <Alert variant="destructive">
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             <span>{state.error}</span>
-            {state.status === 'error' && <AskQSendToPerson onSend={onEscalate} />}
           </AlertDescription>
         </Alert>
       )}

@@ -58,31 +58,26 @@ describe('useAskQ', () => {
     expect(result.current.status).toBe('done');
   });
 
-  it('sends selected question mode and rulebook scope to the service', async () => {
-    const mockStream = createMockStream([{ event: 'done', data: {} }]);
-    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(mockStream);
+  it('sends the question and show context with no question mode', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(
+      createMockStream([{ event: 'done', data: {} }])
+    );
 
     const { result } = renderHook(() => useAskQ());
     await act(async () => {
-      await result.current.submitQuery('What is max time?', {
-        questionMode: 'rules',
-        rulebookScope: { organizationCode: 'AKC', sportCode: 'akc-scent-work' },
-      });
+      await result.current.submitQuery('What is max time?', { showId: 'show-1' });
     });
 
     expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
-      {
-        message: 'What is max time?',
-        questionMode: 'rules',
-        rulebookScope: { organizationCode: 'AKC', sportCode: 'akc-scent-work' },
-      },
+      { message: 'What is max time?', showId: 'show-1', supportMode: true },
       expect.any(AbortSignal)
     );
   });
 
-  it('keeps omitted mode backward compatible', async () => {
-    const mockStream = createMockStream([{ event: 'done', data: {} }]);
-    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(mockStream);
+  it('omits showId when the page has no show', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(
+      createMockStream([{ event: 'done', data: {} }])
+    );
 
     const { result } = renderHook(() => useAskQ());
     await act(async () => {
@@ -90,9 +85,32 @@ describe('useAskQ', () => {
     });
 
     expect(askqService.sendAskQQuery).toHaveBeenCalledWith(
-      { message: 'test question' },
+      { message: 'test question', supportMode: true },
       expect.any(AbortSignal)
     );
+  });
+
+  it('keeps a support_escalation event for the panel to show', async () => {
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(
+      createMockStream([
+        {
+          event: 'support_escalation',
+          data: { escalate: true, reason: 'low_confidence', message: 'Not verified.' },
+        },
+        { event: 'done', data: {} },
+      ])
+    );
+
+    const { result } = renderHook(() => useAskQ());
+    await act(async () => {
+      await result.current.submitQuery('test question');
+    });
+
+    expect(result.current.status).toBe('done');
+    expect(result.current.escalation).toEqual({
+      reason: 'low_confidence',
+      message: 'Not verified.',
+    });
   });
 
   it('handles rate limit errors', async () => {

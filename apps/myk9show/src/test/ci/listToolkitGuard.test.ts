@@ -85,7 +85,6 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     count: 1,
     reason: 'text formatting toggle',
   },
-  'components/askq/AskQModeSelector.tsx': { count: 1, reason: 'mode selector' },
   'components/landing/lifecycle/LifecycleTimeline.tsx': {
     count: 1,
     reason: 'landing audience story switch (club / exhibitor), not a list filter',

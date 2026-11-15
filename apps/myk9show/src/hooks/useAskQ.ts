@@ -17,19 +17,20 @@ import {
   saveAskQHistory,
   type AskQHistoryEntry,
 } from './askqHistory';
-import type {
-  AskQQuerySender,
-  AskQQuestionMode,
-  AskQRequest,
-  AskQRulebookScope,
-} from '@/services/askqService';
+import type { AskQQuerySender, AskQRequest } from '@/services/askqService';
+
+const SUPPORT_HANDOFF_FALLBACK = "I couldn't answer that confidently.";
 
 export type AskQStatus = 'idle' | 'streaming' | 'done' | 'error' | 'rate-limited';
 
 interface SubmitAskQOptions {
   showId?: string;
-  questionMode?: AskQQuestionMode;
-  rulebookScope?: AskQRulebookScope;
+}
+
+/** The server could not verify a guide answer (or the question needs a person). */
+export interface AskQEscalation {
+  reason: string;
+  message: string;
 }
 
 interface AskQState {
@@ -42,6 +43,7 @@ interface AskQState {
   limit: number | null;
   queryLogId: string | null;
   error: string | null;
+  escalation: AskQEscalation | null;
 }
 
 const INITIAL_STATE: AskQState = {
@@ -54,6 +56,7 @@ const INITIAL_STATE: AskQState = {
   limit: null,
   queryLogId: null,
   error: null,
+  escalation: null,
 };
 
 /** Cleared request state that keeps the usage counters and a still-active daily limit. */
@@ -147,8 +150,9 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
         const request: AskQRequest = {
           message,
           ...(options.showId ? { showId: options.showId } : {}),
-          ...(options.questionMode ? { questionMode: options.questionMode } : {}),
-          ...(options.rulebookScope ? { rulebookScope: options.rulebookScope } : {}),
+          // No mode: the server classifies the question. supportMode says this client can show
+          // a support_escalation event, which the server then sends instead of an unverified guide answer.
+          supportMode: true,
         };
         const stream = await sendQuery(request, signal);
 
@@ -165,6 +169,17 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
               toolsUsed = data as string[];
               setState(prev => ({ ...prev, toolsUsed }));
               break;
+            case 'support_escalation': {
+              const escalation = data as { reason?: string; message?: string };
+              setState(prev => ({
+                ...prev,
+                escalation: {
+                  reason: escalation.reason ?? 'low_confidence',
+                  message: escalation.message ?? SUPPORT_HANDOFF_FALLBACK,
+                },
+              }));
+              break;
+            }
             case 'sources':
               sources = data as Record<string, unknown[]>;
               setState(prev => ({ ...prev, sources }));

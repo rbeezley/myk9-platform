@@ -4,7 +4,7 @@
  * This is the body of `handleNext` that runs once the user is on the payment
  * step with a live registration. It forks on payment method:
  *
- *  - `credit_card` → hand off to the Stripe-backed cart checkout. Card checkout
+ *  - `credit_card` → fill the cart and open Stripe (MYK9-1964). Card checkout
  *    is exhibitor-self-service ONLY; on-behalf modes are rejected here (the UI
  *    already hides the option — this guards loaded drafts and any other bypass).
  *  - everything else → submit through `submitShowRegistration`, surface armband
@@ -21,7 +21,10 @@ import {
   type EntrySubmitPath,
 } from '@/features/registration/entrySubmitErrorCopy';
 import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
-import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
+import {
+  startWizardCardCheckout,
+  submitRegistrationCartCheckout,
+} from '@/features/registration/registrationCartCheckout';
 import { submitOfflineLateEntry } from '@/features/registration/submitOfflineLateEntry';
 import type { SubmitShowRegistrationParams } from '@/features/registration/submitShowRegistration';
 import type { SelectedDogsOwnerResult } from '@/features/registration/selectedDogsOwner';
@@ -37,7 +40,12 @@ import type {
 } from '@/types/show-registration-types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { HandledDraftClass } from '@/hooks/pruneFiledDogsFromDraft';
-import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
+import type {
+  CartWithDetails,
+  CheckoutResult,
+  EnsureCartResult,
+  NewCartItem,
+} from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
 import { sendSubmittedEntryEmail, submittedEntryIdsToEmail } from './sendSubmittedEntryEmail';
 
@@ -47,6 +55,13 @@ export interface PaymentStepCartDeps {
   ensureCart: (showId: string, exhibitorId: string) => Promise<EnsureCartResult>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
+  /** MYK9-1964: what card checkout reads and runs once the cart is filled. */
+  getCart: () => CartWithDetails | null;
+  checkoutWithWaitlist: (
+    exhibitorId: string,
+    waitlistCartItemIds: Set<string>
+  ) => Promise<CheckoutResult | null>;
+  removeItem: (itemId: string) => Promise<boolean>;
 }
 
 /** Per-show fee inputs shared by both submission paths. */
@@ -143,8 +158,14 @@ function submitPath(ctx: SubmitPaymentStepContext): EntrySubmitPath {
   return ctx.currentWorkflowMode === 'exhibitor' ? 'exhibitorSubmit' : 'organizerSubmit';
 }
 
-export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
+/**
+ * Resolves true only when the page is handing off to Stripe: the caller keeps
+ * its in-flight latch held, because a second press while Stripe's page loads
+ * would refill (and so retire) the cart that page is about to charge.
+ */
+export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<boolean> {
   ctx.setIsSubmitting(true);
+  let leavingForStripe = false;
   try {
     const entryWindowBlocker = getEntrySubmitBlocker({
       startDate: ctx.showFeeInfo.startDate,
@@ -171,7 +192,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
         );
       }
-      await submitRegistrationCartCheckout({
+      const handoff = await submitRegistrationCartCheckout({
         showId: ctx.showId,
         ownerResolution: ctx.ownerResolution,
         exhibitorProfileId: ctx.exhibitorProfileId,
@@ -185,10 +206,24 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           ensureCart: ctx.cart.ensureCart,
           addItem: ctx.cart.addItem,
           abandonCart: ctx.cart.abandonCart,
+          startCheckout: () =>
+            startWizardCardCheckout({
+              showId: ctx.showId,
+              exhibitorProfileId: ctx.exhibitorProfileId,
+              getCart: ctx.cart.getCart,
+              checkoutWithWaitlist: ctx.cart.checkoutWithWaitlist,
+              removeItem: ctx.cart.removeItem,
+            }),
           navigate: path => ctx.navigate(path),
         },
       });
-      return;
+      if (handoff.kind === 'reviewOnCart') {
+        // A global toast, shown over /cart, where the re-priced or reconciled
+        // entry now is (the wizard is already navigating away).
+        notifications.warning(handoff.message);
+      }
+      leavingForStripe = handoff.kind === 'redirecting';
+      return leavingForStripe;
     }
 
     if (ctx.isLateEntryMode && ctx.currentWorkflowMode !== 'exhibitor') {
@@ -216,7 +251,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       ctx.triggerSync();
       ctx.markStepComplete(ctx.currentStep);
       ctx.setCurrentStep(prev => prev + 1);
-      return;
+      return false;
     }
 
     // Update local Zustand state to reflect submission in progress
@@ -238,7 +273,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         submitRegistration: ctx.submitRegistration,
       },
     });
-    if (submissionResult.aborted) return;
+    if (submissionResult.aborted) return false;
     const emailEntryIds = submittedEntryIdsToEmail(ctx.currentWorkflowMode, submissionResult);
     if (emailEntryIds.length > 0) {
       void sendSubmittedEntryEmail(submissionResult.dbRegistrationId, emailEntryIds);
@@ -268,7 +303,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     ctx.triggerSync();
     ctx.markStepComplete(ctx.currentStep);
     ctx.setCurrentStep(prev => prev + 1);
-    return;
+    return false;
   } catch (error) {
     // Roll back local registration status so retry starts from correct state
     ctx.updateShowRegistration(ctx.registrationId, { status: ctx.previousStatus });
@@ -276,8 +311,9 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     if (ctx.isMounted()) {
       notifications.error(entrySubmitErrorMessage(error, submitPath(ctx)));
     }
+    return false;
   } finally {
-    if (ctx.isMounted()) {
+    if (ctx.isMounted() && !leavingForStripe) {
       ctx.setIsSubmitting(false);
     }
   }

@@ -110,6 +110,7 @@ async function quoteAndCharge(
       clearCart: vi.fn().mockResolvedValue(true),
       addItem,
       abandonCart: vi.fn().mockResolvedValue(true),
+      startCheckout: vi.fn().mockResolvedValue({ kind: 'redirecting' }),
       navigate: vi.fn(),
     },
   });

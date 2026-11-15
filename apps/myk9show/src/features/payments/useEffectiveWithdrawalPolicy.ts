@@ -12,19 +12,16 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { resolveConfiguredRegistryId, type RegistryId } from '@/features/registries';
 import {
-  getEffectiveWithdrawalPolicy,
-  type WithdrawalPolicy,
-  type ClubWithdrawalFields,
-  type ShowWithdrawalFields,
-} from './withdrawalPolicy';
-import {
-  resolveWithdrawalPolicyText,
-  type WithdrawalPolicyTextSource,
-} from './withdrawalPolicyText';
+  resolveEffectiveWithdrawalTerms,
+  type EffectiveWithdrawalRow,
+  type EffectiveWithdrawalTerms,
+} from './effectiveWithdrawalTerms';
 
-const SELECT = `
+export { registryFromTrials, type EffectiveWithdrawalTerms } from './effectiveWithdrawalTerms';
+
+// generate-premium sends this same row shape (MYK9-1976): keep its select in step.
+export const EFFECTIVE_WITHDRAWAL_SELECT = `
   withdrawal_cutoff_date,
   withdrawal_retention_type,
   withdrawal_retention_value,
@@ -39,30 +36,6 @@ const SELECT = `
   )
 `;
 
-export interface EffectiveWithdrawalTerms {
-  policy: WithdrawalPolicy | null;
-  text: string;
-  textSource: WithdrawalPolicyTextSource;
-  registryId: RegistryId | null;
-}
-
-type ClubTextFields = ClubWithdrawalFields & { default_withdrawal_policy_text?: string | null };
-
-/** Embedded to-one can come back as an object or a single-element array; normalize both. */
-function toOne<T>(raw: unknown): T | null {
-  return ((Array.isArray(raw) ? raw[0] : raw) as T | undefined) ?? null;
-}
-
-/** A show never mixes registries (MYK9-490): the first trial naming a configured one answers. */
-export function registryFromTrials(raw: unknown): RegistryId | null {
-  const trials = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  for (const trial of trials as Array<{ registry_id?: string | null }>) {
-    const id = resolveConfiguredRegistryId(trial?.registry_id);
-    if (id) return id;
-  }
-  return null;
-}
-
 export function useEffectiveWithdrawalPolicy(showId: string | null | undefined) {
   return useQuery<EffectiveWithdrawalTerms>({
     queryKey: ['effective-withdrawal-policy', showId],
@@ -70,22 +43,12 @@ export function useEffectiveWithdrawalPolicy(showId: string | null | undefined) 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('shows')
-        .select(SELECT)
+        .select(EFFECTIVE_WITHDRAWAL_SELECT)
         .eq('id', showId as string)
         .single();
       if (error) throw error;
 
-      const row = data as unknown as Record<string, unknown>;
-      const club = toOne<ClubTextFields>(row.clubs);
-      const policy = getEffectiveWithdrawalPolicy(row as ShowWithdrawalFields, club);
-      const registryId = registryFromTrials(row.trials);
-      const { text, source } = resolveWithdrawalPolicyText({
-        showText: row.withdrawal_policy_text as string | null | undefined,
-        clubText: club?.default_withdrawal_policy_text,
-        policy,
-        registryId,
-      });
-      return { policy, text, textSource: source, registryId };
+      return resolveEffectiveWithdrawalTerms(data as unknown as EffectiveWithdrawalRow);
     },
   });
 }

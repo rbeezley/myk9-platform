@@ -18,7 +18,20 @@ import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import { alertAdmin as sharedAlertAdmin } from '../_shared/alertAdmin.ts';
-import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { loadClubMoneyRecipients } from '../_shared/clubMoneyRecipients.ts';
+import {
+  bankNeedsAttentionEmail,
+  clubPaymentsUrl,
+  connectAccountEmail,
+  createResendSender,
+  payoutSentEmail,
+} from '../_shared/clubMoneyEmails.ts';
+import {
+  emailClub,
+  loadPreviousPayoutAttempt,
+  notifyClubOfTransferFailure,
+} from '../_shared/payoutClubNotices.ts';
+import { transferFailureOutcome } from '../_shared/payoutFailureOwner.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -51,29 +64,20 @@ interface ClubStripeAccount {
   id: string;
   stripe_account_id: string;
   payouts_enabled: boolean;
+  onboarding_complete: boolean;
   livemode: boolean;
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  if (!resendApiKey) {
-    console.log(`Email skipped (no RESEND_API_KEY): ${subject} -> ${to}`);
-    return;
-  }
-  try {
-    const res = await sendResendEmailWithRetry({
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
-    });
-    if (!res.ok) {
-      console.error(`Email send failed (${res.status}): ${subject} -> ${to}`);
-    }
-  } catch (err) {
-    console.error(`Email send error: ${subject} -> ${to}`, err);
-  }
+const sendEmail = createResendSender(resendApiKey, FROM_EMAIL);
+const siteUrl = Deno.env.get('SITE_URL');
+
+// MYK9-1986: every money email to a club goes to each active club admin and the
+// club's contact address, one message per address.
+function clubNoticeDeps(clubId: string, contactEmail: string | null | undefined) {
+  return {
+    loadRecipients: () => loadClubMoneyRecipients(supabase, clubId, contactEmail),
+    send: sendEmail,
+  };
 }
 
 // Wraps the shared, persist-then-email alertAdmin (MP-08) with this
@@ -195,10 +199,11 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     console.error(`Show ${show.id} has no club — cannot pay out`);
     return;
   }
+  const clubId = show.club_id;
 
   const { data: accounts } = await supabase
     .from('club_stripe_accounts')
-    .select('id, stripe_account_id, payouts_enabled, livemode')
+    .select('id, stripe_account_id, payouts_enabled, onboarding_complete, livemode')
     .eq('club_id', show.club_id)
     .limit(2);
   const account = ((accounts ?? []) as ClubStripeAccount[]).find(
@@ -246,14 +251,17 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
         status: 'pending',
         scheduled_date: new Date().toISOString().slice(0, 10),
       });
-      if (!insertError && club?.email) {
-        await sendEmail(
-          club.email,
-          `Action needed: connect ${club.name}'s payment account`,
-          `<p>${show.name} has ${dollars(amountCents)} in online entry fees ready to send to
-           ${club.name} — but your club hasn't connected its bank account yet.</p>
-           <p>A club admin can set this up in about 10 minutes: sign in to myK9Show and go to
-           <strong>My Club → Payments</strong>. The money waits safely until you do.</p>`
+      if (!insertError && club) {
+        // An onboarded account with payouts off needs fixing, not connecting (MYK9-1986).
+        const notice = account?.onboarding_complete ? bankNeedsAttentionEmail : connectAccountEmail;
+        await emailClub(
+          clubNoticeDeps(clubId, club.email),
+          notice({
+            clubName: club.name,
+            showName: show.name,
+            amountCents,
+            paymentsUrl: clubPaymentsUrl(siteUrl, clubId),
+          })
         );
       }
     }
@@ -408,27 +416,33 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     summary.completed++;
     console.log(`Paid out ${dollars(finalAmountCents)} for show ${show.id} (${transfer.id})`);
 
-    if (club?.email) {
-      await sendEmail(
-        club.email,
-        `${dollars(finalAmountCents)} on its way to ${club.name}`,
-        `<p>Entry fees for <strong>${show.name}</strong> — ${dollars(finalAmountCents)} — have been
-         sent to ${club.name}'s bank account and typically arrive within 2 business days.</p>
-         <p>Questions about the amount? Your show secretary can see the entry-by-entry detail
-         in myK9Show.</p>`
+    if (club) {
+      await emailClub(
+        clubNoticeDeps(clubId, club.email),
+        payoutSentEmail({ clubName: club.name, showName: show.name, amountCents: finalAmountCents })
       );
     }
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'Unknown Stripe error';
     const benign = /insufficient.*balance|balance.*insufficient/i.test(reason);
+    // MYK9-1986: whose failure this is; only the club's own emails the club, once per episode.
+    const { owner, failureReason } = transferFailureOutcome(err, reason, benign);
     if (rowId) {
+      const failedRowId = rowId;
       await supabase
         .from('show_payouts')
-        .update({
-          status: 'failed',
-          failure_reason: benign ? `insufficient_balance: ${reason}` : reason,
-        })
-        .eq('id', rowId);
+        .update({ status: 'failed', failure_reason: failureReason })
+        .eq('id', failedRowId);
+      if (club) {
+        await notifyClubOfTransferFailure(clubNoticeDeps(clubId, club.email), {
+          owner,
+          clubName: club.name,
+          showName: show.name,
+          amountCents,
+          paymentsUrl: clubPaymentsUrl(siteUrl, clubId),
+          loadPreviousAttempt: () => loadPreviousPayoutAttempt(supabase, show.id, failedRowId),
+        });
+      }
     }
     summary.failed++;
     console.error(`Transfer failed for show ${show.id}: ${reason}`);

@@ -7,8 +7,8 @@ export interface RunOutOfferEntry {
   status: string | null | undefined;
   /** When the offer was made (the server's `offered_at`). */
   offeredAt?: string | null | undefined;
-  /** The expired offer whose spot this offer refills (the server's `replaces_offer_id`). */
-  replacesOfferId?: string | null | undefined;
+  /** On an expired offer, the offer that refilled its spot (the server's `refilled_by_offer_id`). */
+  refilledByOfferId?: string | null | undefined;
 }
 
 const isExpired = (entry: RunOutOfferEntry) => (entry.status ?? '').toLowerCase() === 'expired';
@@ -18,22 +18,18 @@ const isExpired = (entry: RunOutOfferEntry) => (entry.status ?? '').toLowerCase(
  * the rows of the Waitlist tab's run-out list, and its count.
  *
  * Which offer refilled which is the server's answer, never worked out here: when an offer is made,
- * `promote_waitlist_entry_internal` records on it the expired offer in the class whose spot it
- * refills (the earliest made, MYK9-1988). So an expired offer stops counting once a row names
- * it, whatever that row became since (open, accepted, paid, or run out itself, which then
- * counts on its own). Pass every waitlist row of the classes in view, whatever its status: a refill
- * row left out would make its expired offer count again.
+ * `promote_waitlist_entry_internal` marks the expired offer in the class whose spot it refills
+ * (the earliest made, MYK9-1988) with the new offer's id. The mark is on the expired row itself,
+ * so it holds whatever the new offer became since (open, accepted, paid, run out, or deleted).
+ * A refill that ran out is an expired offer of its own and counts until it is refilled.
  *
  * Rows come in the order the offers were made, oldest first.
  */
 export function findRunOutOffers<Row extends RunOutOfferEntry>(
   waitlist: readonly Row[]
 ): WaitingList<Row> {
-  const refilled = new Set(
-    waitlist.map(entry => entry.replacesOfferId).filter((id): id is string => Boolean(id))
-  );
   const rows = waitlist
-    .filter(entry => isExpired(entry) && !refilled.has(entry.id))
+    .filter(entry => isExpired(entry) && !entry.refilledByOfferId)
     .sort(
       (a, b) => (a.offeredAt ?? '').localeCompare(b.offeredAt ?? '') || a.id.localeCompare(b.id)
     );

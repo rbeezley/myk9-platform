@@ -24,26 +24,21 @@ describe('findRunOutOffers (MYK9-1988)', () => {
   it.each(['offered', 'accepted', 'expired', 'declined', 'withdrawn'])(
     'stops counting once its spot was offered to another dog, whose offer is now %s',
     status => {
-      const refill = row({
-        id: 'refill',
-        status,
-        offeredAt: '2026-10-03T12:00:00Z',
-        replacesOfferId: 'expired-1',
-      });
+      const refilled = { ...expired, refilledByOfferId: 'refill' };
+      const refill = row({ id: 'refill', status, offeredAt: '2026-10-03T12:00:00Z' });
       // A refill that ran out itself counts on its own: its spot needs a new offer.
-      expect(ids([expired, refill])).toEqual(status === 'expired' ? ['refill'] : []);
+      expect(ids([refilled, refill])).toEqual(status === 'expired' ? ['refill'] : []);
     }
   );
 
+  it('stays refilled when the refill row is gone (deleted with its dog)', () => {
+    expect(ids([{ ...expired, refilledByOfferId: 'deleted-refill' }])).toEqual([]);
+  });
+
   it('two expired offers in one class with one new offer still count one', () => {
     const second = row({ id: 'expired-2', status: 'expired', offeredAt: '2026-10-02T12:00:00Z' });
-    const refill = row({
-      id: 'refill',
-      status: 'offered',
-      offeredAt: '2026-10-04T12:00:00Z',
-      replacesOfferId: 'expired-1',
-    });
-    const list = findRunOutOffers([expired, second, refill]);
+    const refill = row({ id: 'refill', status: 'offered', offeredAt: '2026-10-04T12:00:00Z' });
+    const list = findRunOutOffers([{ ...expired, refilledByOfferId: 'refill' }, second, refill]);
     expect(list.count).toBe(1);
     expect(list.rows.map(r => r.id)).toEqual(['expired-2']);
   });

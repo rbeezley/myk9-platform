@@ -160,13 +160,12 @@ describe('getWaitlistOffersByClass', () => {
         offeredAt: '2026-10-02T12:00:00Z',
         offerExpiresAt: '2026-10-03T12:00:00Z',
       }),
-      row({ id: 'wl-refilled', status: 'expired', offeredAt: '2026-09-30T12:00:00Z' }),
-      // The paid refill of wl-refilled: accepted, so it is not an open offer either.
+      // Refilled by an offer whose row has since been deleted: still refilled.
       row({
-        id: 'wl-refill',
-        status: 'accepted',
-        offeredAt: '2026-10-06T12:00:00Z',
-        replacesOfferId: 'wl-refilled',
+        id: 'wl-refilled',
+        status: 'expired',
+        offeredAt: '2026-09-30T12:00:00Z',
+        refilledByOfferId: 'wl-deleted-refill',
       }),
     ];
     t.waitlist.getByClass.mockResolvedValue(rows);

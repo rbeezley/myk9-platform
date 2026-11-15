@@ -11440,7 +11440,7 @@ export type Database = {
           offered_at: string | null
           position: number
           promoted_entry_id: string | null
-          replaces_offer_id: string | null
+          refilled_by_offer_id: string | null
           status: string | null
           updated_at: string | null
           version: number
@@ -11457,7 +11457,7 @@ export type Database = {
           offered_at?: string | null
           position: number
           promoted_entry_id?: string | null
-          replaces_offer_id?: string | null
+          refilled_by_offer_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number
@@ -11474,7 +11474,7 @@ export type Database = {
           offered_at?: string | null
           position?: number
           promoted_entry_id?: string | null
-          replaces_offer_id?: string | null
+          refilled_by_offer_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number
@@ -11591,13 +11591,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["entry_id"]
-          },
-          {
-            foreignKeyName: "waitlist_entries_replaces_offer_id_fkey"
-            columns: ["replaces_offer_id"]
-            isOneToOne: false
-            referencedRelation: "waitlist_entries"
-            referencedColumns: ["id"]
           },
         ]
       }

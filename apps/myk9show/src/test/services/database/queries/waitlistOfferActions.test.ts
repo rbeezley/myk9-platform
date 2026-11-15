@@ -1,6 +1,7 @@
 /**
  * MYK9-1001: withdrawing an offer goes through the secretary-authorised edge function, shows the
  * server's own reason when refused, and brings the changed row into the replica on success.
+ * MYK9-1988: after an offer, the expired offer it refilled is brought in too.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,6 +34,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 }));
 
 import {
+  refreshOfferRowsInReplica,
   WaitlistOfferNotWithdrawnError,
   WITHDRAW_OFFER_FAILED_MESSAGE,
   withdrawWaitlistOffer,
@@ -185,5 +187,38 @@ describe('withdrawWaitlistOffer (client)', () => {
       notified: true,
       checkoutClosed: false,
     });
+  });
+});
+
+describe('refreshOfferRowsInReplica after an offer (MYK9-1988)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('also brings in the expired offer the new offer refilled, so it leaves the run-out list', async () => {
+    const offered = { ...serverRow, id: 'wl-new', status: 'offered' };
+    const refilled = {
+      ...serverRow,
+      id: 'wl-old',
+      status: 'expired',
+      promoted_entry_id: null,
+      refilled_by_offer_id: 'wl-new',
+    };
+    const offerQuery = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn() };
+    offerQuery.select.mockReturnValue(offerQuery);
+    offerQuery.eq.mockReturnValue(offerQuery);
+    offerQuery.maybeSingle.mockResolvedValue({ data: offered, error: null });
+    const refilledQuery = { select: vi.fn(), eq: vi.fn() };
+    refilledQuery.select.mockReturnValue(refilledQuery);
+    refilledQuery.eq.mockResolvedValue({ data: [refilled], error: null });
+    m.from.mockReturnValueOnce(offerQuery as never).mockReturnValueOnce(refilledQuery as never);
+
+    await refreshOfferRowsInReplica('wl-new');
+
+    expect(refilledQuery.eq).toHaveBeenCalledWith('refilled_by_offer_id', 'wl-new');
+    expect(m.set).toHaveBeenCalledWith(
+      'wl-old',
+      expect.objectContaining({ id: 'wl-old', status: 'expired', refilledByOfferId: 'wl-new' })
+    );
   });
 });

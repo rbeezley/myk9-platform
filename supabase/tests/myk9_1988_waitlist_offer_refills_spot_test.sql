@@ -1,6 +1,6 @@
--- MYK9-1988 (migration 20261115163300): every offer records the expired offer
--- whose spot it refills, so "an offer has run out" means "its spot has not been
--- offered to another dog since".
+-- MYK9-1988 (migration 20261115163300): when an offer refills an expired offer's
+-- spot, the expired offer records it (refilled_by_offer_id), so "an offer has run
+-- out" means "its spot has not been offered to another dog since".
 --
 -- Properties asserted here:
 --   A1  waitlist_offer_to_refill is SECURITY DEFINER with search_path '' and
@@ -15,7 +15,10 @@
 --   R3  A second new offer refills the second expired offer; a third refills none.
 --   R4  A refill that itself runs out is refilled by the next offer (a chain).
 --   R5  Another class's expired offer is never refilled by this class's offers.
---   U1  One expired offer is refilled once (unique), and an offer never names itself.
+--   D1  Deleting the refill row keeps the expired offer refilled, and no later
+--       offer can claim it a second time.
+--   F1  anon and authenticated cannot write refilled_by_offer_id (an exhibitor's
+--       direct insert is refused by the trigger); an offer never names itself.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -53,11 +56,34 @@ RETURNS uuid LANGUAGE sql IMMUTABLE AS $f$
   SELECT ('00000000-0000-0000-0000-000001988' || p_suffix)::uuid
 $f$;
 
--- The suffix of the offer a row refills, or NULL.
-CREATE FUNCTION pg_temp.refills(p_id text)
+-- The suffix of the offer that refilled an expired offer, or NULL.
+CREATE FUNCTION pg_temp.refilled_by(p_id text)
 RETURNS text LANGUAGE sql AS $f$
-  SELECT right(w.replaces_offer_id::text, 3)
+  SELECT right(w.refilled_by_offer_id::text, 3)
     FROM public.waitlist_entries w WHERE w.id = pg_temp.fid(p_id)
+$f$;
+
+-- How many expired offers an offer refilled.
+CREATE FUNCTION pg_temp.refilled_count(p_offer text)
+RETURNS text LANGUAGE sql AS $f$
+  SELECT count(*)::text FROM public.waitlist_entries w
+   WHERE w.refilled_by_offer_id = pg_temp.fid(p_offer)
+$f$;
+
+CREATE FUNCTION pg_temp.expect_error_like(p_sql text, p_pattern text, p_label text)
+RETURNS void LANGUAGE plpgsql AS $f$
+BEGIN
+  BEGIN
+    EXECUTE p_sql;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE p_pattern THEN
+      RAISE EXCEPTION 'FAIL %: % (%), expected %', p_label, SQLERRM, SQLSTATE, p_pattern;
+    END IF;
+    RAISE NOTICE 'PASS % (% %)', p_label, SQLSTATE, SQLERRM;
+    RETURN;
+  END;
+  RAISE EXCEPTION 'FAIL %: succeeded, expected an error like %', p_label, p_pattern;
+END;
 $f$;
 
 -- The client's rule: expired offers in a class that no offer refills.
@@ -66,7 +92,7 @@ RETURNS text LANGUAGE sql AS $f$
   SELECT coalesce(string_agg(right(e.id::text, 3), ',' ORDER BY e.offered_at), '')
     FROM public.waitlist_entries e
    WHERE e.class_id = pg_temp.fid(p_class) AND e.status = 'expired'
-     AND NOT EXISTS (SELECT 1 FROM public.waitlist_entries r WHERE r.replaces_offer_id = e.id)
+     AND e.refilled_by_offer_id IS NULL
 $f$;
 
 -- ---------------------------------------------------------------------------
@@ -198,7 +224,7 @@ SET LOCAL ROLE service_role;
 DO $$
 BEGIN
   PERFORM public.promote_waitlist_entry_internal(pg_temp.fid('511'));
-  PERFORM pg_temp.expect_eq(pg_temp.refills('511'), '502', 'R1 the new offer refills 502');
+  PERFORM pg_temp.expect_eq(pg_temp.refilled_by('502'), '511', 'R1 the new offer refills 502');
   PERFORM pg_temp.expect_eq(pg_temp.run_out('301'), '501',
     'R1 two expired offers and one new offer: one still not offered again');
 
@@ -208,11 +234,11 @@ BEGIN
     'R2 an accepted (paid) refill still refills 502');
 
   PERFORM public.promote_waitlist_entry_internal(pg_temp.fid('512'));
-  PERFORM pg_temp.expect_eq(pg_temp.refills('512'), '501', 'R3 the second offer refills 501');
+  PERFORM pg_temp.expect_eq(pg_temp.refilled_by('501'), '512', 'R3 the second offer refills 501');
   PERFORM pg_temp.expect_eq(pg_temp.run_out('301'), '', 'R3 nothing left run out');
 
   PERFORM public.promote_waitlist_entry_internal(pg_temp.fid('513'));
-  PERFORM pg_temp.expect_eq(pg_temp.refills('513'), NULL, 'R3 a third offer refills nothing');
+  PERFORM pg_temp.expect_eq(pg_temp.refilled_count('513'), '0', 'R3 a third offer refills nothing');
 
   -- 513's own offer runs out (made two hours ago, deadline an hour ago).
   UPDATE public.waitlist_entries
@@ -221,27 +247,58 @@ BEGIN
    WHERE id = pg_temp.fid('513');
   PERFORM pg_temp.expect_eq(pg_temp.run_out('301'), '513', 'R4 the run-out refill counts');
   PERFORM public.promote_waitlist_entry_internal(pg_temp.fid('514'));
-  PERFORM pg_temp.expect_eq(pg_temp.refills('514'), '513', 'R4 the next offer refills it');
+  PERFORM pg_temp.expect_eq(pg_temp.refilled_by('513'), '514', 'R4 the next offer refills it');
   PERFORM pg_temp.expect_eq(pg_temp.run_out('301'), '', 'R4 nothing left run out');
 
   PERFORM pg_temp.expect_eq(pg_temp.run_out('302'), '521',
     'R5 the other class''s expired offer is untouched by class 301''s offers');
   PERFORM public.promote_waitlist_entry_internal(pg_temp.fid('531'));
-  PERFORM pg_temp.expect_eq(pg_temp.refills('531'), '521', 'R5 its own class refills it');
+  PERFORM pg_temp.expect_eq(pg_temp.refilled_by('521'), '531', 'R5 its own class refills it');
 END;
 $$;
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------
--- U1. One refill per expired offer; never itself
+-- D1. The refill row is deleted (a dog's hard delete removes its waitlist rows)
+-- ---------------------------------------------------------------------------
+DELETE FROM public.waitlist_entries WHERE id = pg_temp.fid('511');
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(pg_temp.refilled_by('502'), '511',
+    'D1 502 stays refilled after its refill row is deleted');
+  PERFORM pg_temp.expect_eq(pg_temp.run_out('301'), '', 'D1 nothing in 301 runs out again');
+  PERFORM pg_temp.expect_eq(
+    public.waitlist_offer_to_refill(pg_temp.fid('301'), now())::text, NULL,
+    'D1 no later offer can claim 502 a second time');
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- F1. Only the server writes the link
 -- ---------------------------------------------------------------------------
 SELECT pg_temp.expect_sqlstate(
-  $q$UPDATE public.waitlist_entries SET replaces_offer_id = '00000000-0000-0000-0000-000001988502'
-      WHERE id = '00000000-0000-0000-0000-000001988513'$q$,
-  '23505', 'U1 a second offer cannot refill 502');
-SELECT pg_temp.expect_sqlstate(
-  $q$UPDATE public.waitlist_entries SET replaces_offer_id = id
+  $q$UPDATE public.waitlist_entries SET refilled_by_offer_id = id
       WHERE id = '00000000-0000-0000-0000-000001988512'$q$,
-  '23514', 'U1 an offer cannot refill itself');
+  '23514', 'F1 an offer cannot refill itself');
+
+-- The exhibitor's own row, written as literals so the statement reads no table
+-- under the exhibitor's RLS.
+SELECT set_config('myk9_1988.forged_insert', format(
+  $q$INSERT INTO public.waitlist_entries (
+       id, class_id, exhibitor_id, dog_id, position, status, joined_via, refilled_by_offer_id)
+     VALUES (%L, %L, %L, %L, 9, 'expired', 'online', %L)$q$,
+  pg_temp.fid('541'), pg_temp.fid('302'), ep.id, pg_temp.fid('409'), pg_temp.fid('531')), true)
+FROM public.exhibitor_profiles ep WHERE ep.auth_user_id = pg_temp.fid('023');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001988023', true);
+SELECT set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000001988023","role":"authenticated","app_metadata":{}}', true);
+SELECT pg_temp.expect_error_like(
+  current_setting('myk9_1988.forged_insert'),
+  '%set by the server only%', 'F1 an exhibitor''s direct insert cannot mark a spot refilled');
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT set_config('request.jwt.claims', '', true);
 
 ROLLBACK;

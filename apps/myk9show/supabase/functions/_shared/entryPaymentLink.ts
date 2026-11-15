@@ -126,6 +126,13 @@ export function buildEntryPaymentLinkSession(
   const entryIdsJson = JSON.stringify(input.entries.map(e => e.entryId));
 
   const disclosure = input.withdrawalPolicyText?.trim();
+  // MYK9-1976: never cut a refund policy. The caller refuses an over-long one with words for
+  // the secretary; reaching here with one is a bug, so fail loudly rather than send half.
+  if (disclosure && disclosure.length > CUSTOM_TEXT_MAX) {
+    throw new Error(
+      `withdrawal policy disclosure is ${disclosure.length} characters; Stripe allows ${CUSTOM_TEXT_MAX}`
+    );
+  }
 
   return {
     mode: 'payment',
@@ -144,8 +151,6 @@ export function buildEntryPaymentLinkSession(
       metadata: { type: 'entry_payment_request', entry_ids: entryIdsJson },
       statement_descriptor_suffix: formatStatementDescriptorSuffix(input.entries[0].showName),
     },
-    ...(disclosure
-      ? { custom_text: { submit: { message: disclosure.slice(0, CUSTOM_TEXT_MAX) } } }
-      : {}),
+    ...(disclosure ? { custom_text: { submit: { message: disclosure } } } : {}),
   };
 }

@@ -11,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   SERVICE_FEE_SENTENCE,
+  WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE,
   WITHDRAWAL_POLICY_TEXT_MAX_LENGTH,
+  withdrawalDisclosureFitsPaymentPage,
 } from '@/features/payments/withdrawalPolicyText';
 
 interface WithdrawalPolicyTextFieldProps {
@@ -73,6 +75,17 @@ export function WithdrawalPolicyTextField({
         followed by “{SERVICE_FEE_SENTENCE}” Plain text; line breaks are kept. It does not change
         the refund the app suggests, which follows the fields above.
       </p>
+      {/* The payment page cannot hold a longer policy and never cuts one, so the link would
+          be refused; she learns it here, before sending one. Long policy notes can make
+          even the default too long. */}
+      {!withdrawalDisclosureFitsPaymentPage(value) && (
+        <p
+          className="rounded-md border border-warning/30 bg-warning/10 p-2 text-sm"
+          data-testid="withdrawal-policy-too-long"
+        >
+          {WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE}
+        </p>
+      )}
       {conflictNote && (
         <p
           className="rounded-md border border-warning/30 bg-warning/10 p-2 text-sm"

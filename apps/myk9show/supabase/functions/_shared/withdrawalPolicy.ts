@@ -16,6 +16,8 @@
 
 import {
   buildDefaultWithdrawalPolicyTextFromParts,
+  WITHDRAWAL_DISCLOSURE_MAX_LENGTH,
+  WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE,
   buildWithdrawalDisclosure,
   resolveWithdrawalPolicyTextFromParts,
   withdrawalRegistryFromTrials,
@@ -407,9 +409,12 @@ export const WITHDRAWAL_DISCLOSURE_SELECT =
 /**
  * MYK9-1976: the disclosure the payer reads on the Stripe page, from a row read with
  * {@link WITHDRAWAL_DISCLOSURE_SELECT}: the show's text, else the club's, else the default
- * (the same words the app prints), then the service-fee sentence, within Stripe's cap.
+ * (the same words the app prints), then the service-fee sentence. Never cut: when the whole
+ * message does not fit Stripe's cap the answer is a refusal with words for the secretary.
  */
-export function withdrawalDisclosureForShowRow(row: Record<string, unknown>): string {
+export function withdrawalDisclosureForShowRow(
+  row: Record<string, unknown>
+): { ok: true; message: string } | { ok: false; error: string } {
   const rawClub = row.clubs;
   const club = ((Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null) as
     (ClubWithdrawalColumns & { default_withdrawal_policy_text?: string | null }) | null;
@@ -424,5 +429,8 @@ export function withdrawalDisclosureForShowRow(row: Record<string, unknown>): st
       registryId: withdrawalRegistryFromTrials(row.trials),
     }),
   });
-  return buildWithdrawalDisclosure(text);
+  const message = buildWithdrawalDisclosure(text);
+  return message.length <= WITHDRAWAL_DISCLOSURE_MAX_LENGTH
+    ? { ok: true, message }
+    : { ok: false, error: WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE };
 }

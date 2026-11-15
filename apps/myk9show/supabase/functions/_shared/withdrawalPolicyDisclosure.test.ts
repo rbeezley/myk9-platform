@@ -15,6 +15,12 @@ import { withdrawalPolicyTermFixtures } from '../../../src/features/payments/wit
 
 const SERVICE = 'Service fees are non-refundable.';
 
+function messageFor(r: Record<string, unknown>): string {
+  const result = withdrawalDisclosureForShowRow(r);
+  if (!result.ok) throw new Error(result.error);
+  return result.message;
+}
+
 function row(show: Record<string, unknown> = {}, club: Record<string, unknown> = {}) {
   return {
     withdrawal_cutoff_date: '2026-06-01',
@@ -37,16 +43,16 @@ function row(show: Record<string, unknown> = {}, club: Record<string, unknown> =
 describe('payment link disclosure', () => {
   it("prints the show's text, then the service-fee sentence", () => {
     expect(
-      withdrawalDisclosureForShowRow(
+      messageFor(
         row({ withdrawal_policy_text: 'Show words.' }, { default_withdrawal_policy_text: 'Club.' })
       )
     ).toBe(`Show words.\n\n${SERVICE}`);
   });
 
   it("falls back to the club's text", () => {
-    expect(
-      withdrawalDisclosureForShowRow(row({}, { default_withdrawal_policy_text: 'Club words.' }))
-    ).toBe(`Club words.\n\n${SERVICE}`);
+    expect(messageFor(row({}, { default_withdrawal_policy_text: 'Club words.' }))).toBe(
+      `Club words.\n\n${SERVICE}`
+    );
   });
 
   it.each(['AKC', 'UKC', 'ASCA', null])(
@@ -59,15 +65,28 @@ describe('payment link disclosure', () => {
         policy: getEffectiveWithdrawalPolicy(r, r.clubs),
         registryId: registry as 'AKC' | 'UKC' | 'ASCA' | null,
       }).text;
-      expect(withdrawalDisclosureForShowRow(r)).toBe(`${appText}\n\n${SERVICE}`);
+      expect(messageFor(r)).toBe(`${appText}\n\n${SERVICE}`);
     }
   );
 
-  it('keeps the service-fee sentence within the Stripe cap for a long default', () => {
-    const message = withdrawalDisclosureForShowRow(
-      row({ withdrawal_policy_notes: 'x '.repeat(900) })
-    );
+  it('refuses, never cuts, a default made too long by long policy notes', () => {
+    expect(
+      withdrawalDisclosureForShowRow(row({ withdrawal_policy_notes: 'x '.repeat(900) }))
+    ).toEqual({
+      ok: false,
+      error:
+        'The refund policy is too long for the payment page. Shorten the policy notes or the policy text on the Withdrawal policy card, then try again.',
+    });
+  });
+
+  it('sends a long policy that fits whole, notes and Withdraw and Pull terms included', () => {
+    const notes = 'n'.repeat(600);
+    const message = messageFor(row({ withdrawal_policy_notes: notes }));
     expect(message.length).toBeLessThanOrEqual(1200);
+    expect(message).toContain(notes);
+    expect(message).toContain(
+      "Pull: the dog does not run, for any other reason. Refunds for a pull are at the club's discretion."
+    );
     expect(message.endsWith(SERVICE)).toBe(true);
   });
 });

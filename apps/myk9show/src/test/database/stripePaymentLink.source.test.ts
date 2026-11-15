@@ -69,4 +69,15 @@ describe('stripe-payment-link waitlist and secretary paths', () => {
     // block link generation.
     expect(source).toContain('skipping disclosure');
   });
+
+  it('MYK9-1976: refuses a policy too long for the page with a 400, before any prior link is expired', () => {
+    const refusal = source.indexOf(
+      'return corsResponse(corsHeaders, { error: withdrawalPolicyTooLong }, 400);'
+    );
+    const expirePrior = source.indexOf("from('entry_payment_links')");
+    expect(refusal).toBeGreaterThan(-1);
+    expect(expirePrior).toBeGreaterThan(refusal);
+    // Nothing slices the policy any more.
+    expect(source).not.toMatch(/withdrawalPolicyText[^\n]*\.slice\(/);
+  });
 });

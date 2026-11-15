@@ -143,11 +143,19 @@ export function resolveWithdrawalPolicyTextFromParts(input: {
 
 /**
  * The whole disclosure as one string (the Stripe page): the policy text, then the service-fee
- * sentence, within the Stripe cap. A long default is cut before the sentence, never the
- * sentence itself.
+ * sentence. NEVER cut: a payer must read the whole policy or none of it. Callers that face
+ * Stripe's cap check {@link withdrawalDisclosureFitsPaymentPage} and refuse instead.
  */
 export function buildWithdrawalDisclosure(text: string): string {
-  const room = WITHDRAWAL_DISCLOSURE_MAX_LENGTH - SERVICE_FEE_SENTENCE.length - 2;
-  const body = text.trim().slice(0, room).trim();
+  const body = text.trim();
   return body ? `${body}\n\n${SERVICE_FEE_SENTENCE}` : SERVICE_FEE_SENTENCE;
 }
+
+/** Whether the whole disclosure for this text fits Stripe's custom_text cap. */
+export function withdrawalDisclosureFitsPaymentPage(text: string): boolean {
+  return buildWithdrawalDisclosure(text).length <= WITHDRAWAL_DISCLOSURE_MAX_LENGTH;
+}
+
+/** Said to the secretary when the disclosure does not fit: the link is refused, not cut. */
+export const WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE =
+  'The refund policy is too long for the payment page. Shorten the policy notes or the policy text on the Withdrawal policy card, then try again.';

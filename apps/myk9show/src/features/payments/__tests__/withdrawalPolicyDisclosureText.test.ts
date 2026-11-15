@@ -13,6 +13,7 @@ import {
   WITHDRAWAL_POLICY_TEXT_MAX_LENGTH,
   WITHDRAW_REFUND_NOTE_TEXT,
   buildWithdrawalDisclosure,
+  withdrawalDisclosureFitsPaymentPage,
 } from '../withdrawalPolicyDisclosureText';
 
 describe('shared withdrawal policy text resolver (MYK9-1976)', () => {
@@ -30,12 +31,13 @@ describe('shared withdrawal policy text resolver (MYK9-1976)', () => {
     expect(PULL_REFUND_NOTE).toBe(PULL_REFUND_NOTE_TEXT);
   });
 
-  it('the disclosure always ends with the service-fee sentence and fits the Stripe cap', () => {
+  it('the disclosure is the whole text then the service-fee sentence, never cut', () => {
     expect(buildWithdrawalDisclosure('Our words.')).toBe(`Our words.\n\n${SERVICE_FEE_SENTENCE}`);
-    const longest = buildWithdrawalDisclosure('a'.repeat(WITHDRAWAL_POLICY_TEXT_MAX_LENGTH));
-    expect(longest).toHaveLength(WITHDRAWAL_DISCLOSURE_MAX_LENGTH);
-    const tooLong = buildWithdrawalDisclosure('b'.repeat(5000));
-    expect(tooLong.length).toBeLessThanOrEqual(WITHDRAWAL_DISCLOSURE_MAX_LENGTH);
-    expect(tooLong.endsWith(SERVICE_FEE_SENTENCE)).toBe(true);
+    const longest = 'a'.repeat(WITHDRAWAL_POLICY_TEXT_MAX_LENGTH);
+    expect(buildWithdrawalDisclosure(longest)).toHaveLength(WITHDRAWAL_DISCLOSURE_MAX_LENGTH);
+    expect(withdrawalDisclosureFitsPaymentPage(longest)).toBe(true);
+    const tooLong = 'b'.repeat(5000);
+    expect(buildWithdrawalDisclosure(tooLong)).toBe(`${tooLong}\n\n${SERVICE_FEE_SENTENCE}`);
+    expect(withdrawalDisclosureFitsPaymentPage(tooLong)).toBe(false);
   });
 });

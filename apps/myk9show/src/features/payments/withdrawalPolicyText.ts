@@ -35,8 +35,10 @@ export {
   SERVICE_FEE_SENTENCE,
   WITHDRAWAL_DISCLOSURE_MAX_LENGTH,
   WITHDRAWAL_POLICY_TEXT_MAX_LENGTH,
+  WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE,
   buildWithdrawalDisclosure,
   normalizeWithdrawalPolicyText,
+  withdrawalDisclosureFitsPaymentPage,
 } from './withdrawalPolicyDisclosureText';
 export type {
   ResolvedWithdrawalPolicyText,

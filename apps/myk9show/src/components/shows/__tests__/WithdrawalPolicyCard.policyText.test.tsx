@@ -248,4 +248,21 @@ describe('WithdrawalPolicyCard policy text (MYK9-1976)', () => {
       /full refund for a withdrawal on or before June 1, 2026/
     );
   });
+
+  it('warns before a link is sent when long policy notes make the default too long for the payment page', async () => {
+    mockSingle.mockResolvedValue({ data: showRow(), error: null });
+    render(<WithdrawalPolicyCard scope="show" entityId="show-1" />);
+    await loaded();
+    expect(screen.queryByTestId('withdrawal-policy-too-long')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Policy notes (optional)'), {
+      target: { value: 'Long note. '.repeat(100) },
+    });
+    expect(screen.getByTestId('withdrawal-policy-too-long')).toHaveTextContent(
+      'The refund policy is too long for the payment page. Shorten the policy notes or the policy text on the Withdrawal policy card, then try again.'
+    );
+    // Nothing is cut: the box still holds every word of the default.
+    expect(textBox().value).toContain('Long note. '.repeat(99).trim());
+    expect(textBox().value).toContain('Pull: the dog does not run');
+  });
 });

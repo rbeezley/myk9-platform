@@ -271,6 +271,28 @@ export function captureMonitoredQueryFailure(error: unknown, queryKey: readonly 
   });
 }
 
+/**
+ * Report a Ringside presence heartbeat the server keeps refusing (MYK9-2033). The heartbeat
+ * swallows single failures (presence is best-effort), so a refusal on every beat was otherwise
+ * visible only in the edge logs. The caller reports once per streak of refusals.
+ */
+export function captureRingsideHeartbeatFailure(
+  error: { code?: string; message?: string },
+  consecutiveFailures: number
+): void {
+  const code = error.code || 'unknown';
+
+  Sentry.withScope(scope => {
+    scope.setTag('ringside_heartbeat_code', code);
+    scope.setContext('ringside_heartbeat', {
+      code,
+      message: error.message ?? null,
+      consecutiveFailures,
+    });
+    Sentry.captureException(new Error(`Ringside presence heartbeat refused (${code})`));
+  });
+}
+
 export function isAuthEmailOperationalFailure(error: unknown): boolean {
   if (!isRecord(error)) return false;
 

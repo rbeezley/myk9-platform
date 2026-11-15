@@ -3,15 +3,21 @@ import { Route, Routes } from 'react-router-dom';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { RingsideSessionHeartbeat } from '../RingsideSessionHeartbeat';
 
-const { authContextMock, getExistingSubscriptionMock, rpcMock } = vi.hoisted(() => ({
-  authContextMock: {
-    user: null as { id: string; is_anonymous?: boolean } | null,
-  },
-  getExistingSubscriptionMock: vi.fn(),
-  rpcMock: vi.fn((_name: string, _args?: Record<string, unknown>) =>
-    Promise.resolve({ data: null, error: null })
-  ),
-}));
+const { authContextMock, captureHeartbeatFailureMock, getExistingSubscriptionMock, rpcMock } =
+  vi.hoisted(() => ({
+    captureHeartbeatFailureMock: vi.fn(),
+    authContextMock: {
+      user: null as { id: string; is_anonymous?: boolean } | null,
+    },
+    getExistingSubscriptionMock: vi.fn(),
+    rpcMock: vi.fn(
+      (
+        _name: string,
+        _args?: Record<string, unknown>
+      ): Promise<{ data: null; error: { code?: string; message?: string } | null }> =>
+        Promise.resolve({ data: null, error: null })
+    ),
+  }));
 
 vi.mock('@myk9/notifications', () => ({
   getExistingSubscription: getExistingSubscriptionMock,
@@ -39,6 +45,10 @@ vi.mock('@/hooks/useAuth', () => ({
     updatePassword: vi.fn(),
     updateProfile: vi.fn(),
   }),
+}));
+
+vi.mock('@/services/observability/sentry', () => ({
+  captureRingsideHeartbeatFailure: captureHeartbeatFailureMock,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -71,6 +81,7 @@ function renderHeartbeat() {
 describe('RingsideSessionHeartbeat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    rpcMock.mockImplementation(() => Promise.resolve({ data: null, error: null }));
     authContextMock.user = null;
     localStorage.clear();
     setVisibilityState('visible');
@@ -177,6 +188,55 @@ describe('RingsideSessionHeartbeat', () => {
       ([fn]) => fn === 'upsert_ringside_session' || fn === 'clear_ringside_session_presence'
     );
     expect(presenceCalls).toHaveLength(0);
+  });
+
+  it('reports a refusal that persists across beats to Sentry once, never as a toast (MYK9-2033)', async () => {
+    const refusal = {
+      code: '42501',
+      message: 'account is not entered in exactly one active ringside show',
+    };
+    rpcMock.mockImplementation(name =>
+      Promise.resolve({
+        data: null,
+        error: name === 'upsert_ringside_session' ? refusal : null,
+      })
+    );
+    const upsertCalls = () =>
+      rpcMock.mock.calls.filter(([fn]) => fn === 'upsert_ringside_session').length;
+
+    renderHeartbeat();
+    await waitFor(() => expect(upsertCalls()).toBe(1));
+    // Each return to the foreground beats once; four beats in all.
+    for (let beat = 2; beat <= 4; beat += 1) {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await waitFor(() => expect(upsertCalls()).toBe(beat));
+    }
+
+    await waitFor(() => expect(captureHeartbeatFailureMock).toHaveBeenCalledTimes(1));
+    expect(captureHeartbeatFailureMock).toHaveBeenCalledWith(refusal, 3);
+  });
+
+  it('does not report the regenerated-passcode refusal, which the revocation flow handles', async () => {
+    rpcMock.mockImplementation(name =>
+      Promise.resolve({
+        data: null,
+        error:
+          name === 'upsert_ringside_session'
+            ? { code: '42501', message: 'Passcode has been regenerated; re-enter a new code' }
+            : null,
+      })
+    );
+    const upsertCalls = () =>
+      rpcMock.mock.calls.filter(([fn]) => fn === 'upsert_ringside_session').length;
+
+    renderHeartbeat();
+    await waitFor(() => expect(upsertCalls()).toBe(1));
+    for (let beat = 2; beat <= 4; beat += 1) {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await waitFor(() => expect(upsertCalls()).toBe(beat));
+    }
+
+    expect(captureHeartbeatFailureMock).not.toHaveBeenCalled();
   });
 
   it('does a push-independent generation check with no endpoint (J1.3)', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { getExistingSubscription } from '@myk9/notifications';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -9,6 +9,7 @@ import {
   handleRingsidePasscodeRevoked,
   revokeRingsidePasscodeAccess,
 } from './ringsidePasscodeRevocation';
+import { createHeartbeatFailureTracker } from './ringsideHeartbeatFailures';
 
 const HEARTBEAT_MS = 30_000;
 
@@ -18,6 +19,8 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
   const { user } = useAuthContext();
   const userId = getAccountUserId(user);
   const route = `${location.pathname}${location.search}`;
+  // Outlives the effect, so a refusal streak survives route changes inside /at-show.
+  const [failures] = useState(createHeartbeatFailureTracker);
 
   useEffect(() => {
     if (!showId || !route.startsWith('/at-show')) return;
@@ -55,9 +58,11 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
 
       // J1.3 — if the secretary regenerated passcodes, this stale claim is now
       // rejected. Surface "access revoked — re-enter code" and route back to
-      // sign-in instead of silently retrying every 30s. Other errors stay
-      // swallowed (presence is best-effort).
-      if (error) handleRingsidePasscodeRevoked(error);
+      // sign-in instead of silently retrying every 30s. Any other refusal shows
+      // the user nothing (presence is best-effort), but one that persists is
+      // reported to Sentry (MYK9-2033).
+      if (!error) failures.recordSuccess();
+      else if (!handleRingsidePasscodeRevoked(error)) failures.recordFailure(error);
     }
 
     const runIfVisible = () => {
@@ -88,7 +93,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearPresence();
     };
-  }, [route, showId, userId]);
+  }, [failures, route, showId, userId]);
 
   return <>{children}</>;
 }

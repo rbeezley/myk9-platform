@@ -1,9 +1,11 @@
 /**
- * MYK9-1661: the wizard's Submit & pay hand-off must open THE SUBMITTED SHOW's
+ * MYK9-1661: the wizard's card hand-off must check out THE SUBMITTED SHOW's
  * cart, not the exhibitor's newest populated cart across shows. Drives the real
- * hand-off (`submitRegistrationCartCheckout` on the real cart store) and feeds
- * the path it navigates to into the real CartPage hydration, against an
- * in-memory cart database holding a newer populated cart for another show.
+ * hand-off (`submitRegistrationCartCheckout` on the real cart store) through
+ * the real shared checkout (MYK9-1964: straight to Stripe, no /cart stop),
+ * against an in-memory cart database holding a newer populated cart for another
+ * show, and checks a Stripe cancel return lands on that show's cart with its
+ * lines intact.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
@@ -12,6 +14,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { createFakeCartDb, fakeCart, fakeCartItem, type FakeCartDb } from '@/test/utils/fakeCartDb';
 
 const holder = vi.hoisted(() => ({ db: null as unknown as FakeCartDb }));
+const createEntryCheckoutSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -40,17 +43,30 @@ vi.mock('@/hooks/queries/useCartCapacity', () => ({
     isError: false,
     refetch: async () => ({ data: { judgeDays: [], classSpots: [] }, isError: false }),
   }),
+  fetchCartCapacity: async () => ({ judgeDays: [], classSpots: [], waitlistClassIds: [] }),
 }));
+vi.mock('@/lib/stripe', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/stripe')>('@/lib/stripe');
+  return { ...actual, createEntryCheckoutSession: createEntryCheckoutSessionMock };
+});
 vi.mock('@/components/cart/CartItemCard', () => ({ CartItemCard: () => <div>Cart Item</div> }));
 vi.mock('@/components/cart/CartSummary', () => ({
-  CartSummary: () => <button type="button">Checkout</button>,
+  CartSummary: ({ onCheckout }: { onCheckout: () => void }) => (
+    <button type="button" onClick={onCheckout}>
+      Checkout
+    </button>
+  ),
 }));
 
 import CartPage from '@/pages/CartPage';
 import CheckoutCancelPage from '@/pages/CheckoutCancelPage';
+import { CheckoutSessionError } from '@/lib/stripe';
 import { useCartStore } from '@/store/cartStore';
 import { resetEnsureCartInFlight } from '@/store/cartStore.ensureCart';
-import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
+import {
+  startWizardCardCheckout,
+  submitRegistrationCartCheckout,
+} from '@/features/registration/registrationCartCheckout';
 
 const SHOW_A = 'show-a';
 const SHOW_D = 'show-d';
@@ -101,11 +117,11 @@ function seed(newerShowFeeCents: number) {
   });
 }
 
-/** Submits show A's wizard through the real store, returns where it navigated. */
-async function submitShowA(entryFee: number): Promise<string> {
+/** Submits show A's wizard through the real store and the real shared checkout. */
+async function submitShowA(entryFee: number) {
   const store = useCartStore.getState();
-  let target = '';
-  await submitRegistrationCartCheckout({
+  const navigate = vi.fn();
+  const result = await submitRegistrationCartCheckout({
     showId: SHOW_A,
     ownerResolution: { ok: true, ownerId: 'people-1' },
     exhibitorProfileId: 'exhibitor-1',
@@ -124,33 +140,43 @@ async function submitShowA(entryFee: number): Promise<string> {
       clearCart: store.clearCart,
       addItem: store.addItem,
       abandonCart: store.abandonCart,
-      navigate: path => {
-        target = path;
-      },
+      startCheckout: () =>
+        startWizardCardCheckout({
+          showId: SHOW_A,
+          exhibitorProfileId: 'exhibitor-1',
+          getCart: () => useCartStore.getState().cart,
+          checkoutWithWaitlist: store.checkoutWithWaitlist,
+          removeItem: store.removeItem,
+        }),
+      navigate,
     },
   });
-  return target;
+  return { result, navigate };
 }
 
 describe('wizard hand-off opens the submitted show cart (MYK9-1661)', () => {
   beforeEach(() => {
     resetEnsureCartInFlight();
     useCartStore.getState().reset();
+    createEntryCheckoutSessionMock.mockClear();
   });
 
   it.each([
     ['differing amounts', 20, 35],
     ['equal amounts', 30, 30],
-  ])('shows show A, not the newer show D cart, with %s', async (_label, feeA, feeD) => {
+  ])('sends show A, not the newer show D cart, to Stripe, with %s', async (_label, feeA, feeD) => {
     seed(feeD);
-    const target = await submitShowA(feeA);
+    const { result, navigate } = await submitShowA(feeA);
     // The hand-off must not have touched the newer show's cart.
     expect(holder.db.items.filter(i => i.cart_id === 'cart-d')).toHaveLength(1);
 
-    useCartStore.getState().reset();
-    render(<CartPage />, { initialRoute: target });
+    // One session, for show A's cart, with only the ids /cart's Pay sends: the
+    // amount is priced by stripe-checkout from the cart row, never sent.
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledTimes(1);
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-a', { showId: SHOW_A });
+    expect(result).toBe('redirecting');
+    expect(navigate).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(useCartStore.getState().cart).not.toBeNull());
     const cart = useCartStore.getState().cart;
     expect(cart?.id).toBe('cart-a');
     expect(cart?.show_id).toBe(SHOW_A);
@@ -180,6 +206,28 @@ describe('wizard hand-off opens the submitted show cart (MYK9-1661)', () => {
 
     await waitFor(() => expect(useCartStore.getState().cart?.id).toBe('cart-a'));
     expect(useCartStore.getState().cart?.show_id).toBe(SHOW_A);
+    // MYK9-1964: the lines the wizard filled are still there to pay from /cart.
+    expect(
+      useCartStore.getState().cart?.items.map(i => [i.dog_id, i.class_id, i.entry_fee_cents])
+    ).toEqual([['dog-a', 'class-a', feeA * 100]]);
+    expect(holder.db.items.filter(i => i.cart_id === 'cart-d')).toHaveLength(1);
+
+    // ...and paying from there opens the same session for the same cart.
+    await user.click(await screen.findByRole('button', { name: 'Checkout' }));
+    await waitFor(() => expect(createEntryCheckoutSessionMock).toHaveBeenCalledTimes(2));
+    expect(createEntryCheckoutSessionMock).toHaveBeenLastCalledWith('cart-a', { showId: SHOW_A });
+  });
+
+  it('a session that will not open leaves no lines in the cart (MYK9-1964)', async () => {
+    seed(35);
+    createEntryCheckoutSessionMock.mockRejectedValueOnce(
+      new CheckoutSessionError('This club cannot take card payments yet.', 403, null, true)
+    );
+
+    await expect(submitShowA(20)).rejects.toThrow('This club cannot take card payments yet.');
+    expect(holder.db.items.filter(i => i.cart_id === 'cart-a')).toHaveLength(0);
+    expect(useCartStore.getState().cart?.items ?? []).toHaveLength(0);
+    // The other show's cart is untouched.
     expect(holder.db.items.filter(i => i.cart_id === 'cart-d')).toHaveLength(1);
   });
 });

@@ -2,10 +2,17 @@ import {
   parseJuniorHandlerFee,
   type ShowFeeInfo,
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
-import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
-import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
+import {
+  startCartCheckout,
+  type CartCheckoutOutcome,
+  type StartCartCheckoutInput,
+} from '@/features/payments/startCartCheckout';
+import { fetchCartCapacity } from '@/hooks/queries/useCartCapacity';
+import { CART_ERROR } from '@/pages/cartErrorCopy';
+import type { CartWithDetails, EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { registrationToCartItems } from '@/utils/registrationToCartItems';
+import { PlainEntryError } from './entrySubmitErrorCopy';
 import type { SelectedDogsOwnerResult } from './selectedDogsOwner';
 
 interface ClassLike {
@@ -18,8 +25,20 @@ interface RegistrationCartCheckoutDeps {
   clearCart: () => Promise<boolean>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
+  /**
+   * MYK9-1964: opens Stripe for the cart just filled, through the same
+   * `startCartCheckout` /cart's Pay runs (see `startWizardCardCheckout`).
+   */
+  startCheckout: () => Promise<CartCheckoutOutcome>;
   navigate: (path: string) => void;
 }
+
+/** How the hand-off ended when it did not throw. */
+export type RegistrationCartCheckoutResult =
+  /** Stripe's page is loading: the caller keeps its in-flight latch held. */
+  | 'redirecting'
+  /** Every line went to a wait list; the caller has been navigated away. */
+  | 'navigated';
 
 interface RegistrationCartCheckoutParams {
   showId: string;
@@ -45,7 +64,7 @@ export async function submitRegistrationCartCheckout({
   showFeeInfo,
   juniorHandlerDogIds,
   deps,
-}: RegistrationCartCheckoutParams): Promise<void> {
+}: RegistrationCartCheckoutParams): Promise<RegistrationCartCheckoutResult> {
   if (!ownerResolution.ok) {
     throw new Error('Cannot determine exhibitor for this entry.');
   }
@@ -102,10 +121,63 @@ export async function submitRegistrationCartCheckout({
 
   // MYK9-509: the wizard draft deliberately SURVIVES the hand-off. Deleting it
   // here retired the exhibitor's selections the moment the lines reached the
-  // cart — before Stripe had even loaded — so a cancelled checkout left nothing
+  // cart, before Stripe had even loaded, so a cancelled checkout left nothing
   // to come back to and Continue Shopping opened an empty wizard. The draft is
   // retired where the entries are actually filed: the non-card submit paths
   // call `discardDraftsWithoutFinalSave`, and a verified card checkout prunes
   // the filed lines from `CheckoutSuccessPage`.
-  deps.navigate(buildScopedCartHref(showId));
+  //
+  // MYK9-1964: straight to Stripe, not through a second review of the same
+  // lines on /cart. Cancelling on Stripe still lands on /cart.
+  const outcome = await deps.startCheckout();
+  if (outcome.kind === 'redirecting') return 'redirecting';
+  if (outcome.kind === 'waitlistOnly') {
+    deps.navigate(outcome.path);
+    return 'navigated';
+  }
+
+  // Checkout did not start. Empty the cart this call just filled, so nothing
+  // half-done waits on /cart; the wizard still holds every selection, so a
+  // retry refills it. Clear first (it also retires a cart that holds a
+  // checkout session, MYK9-975); abandon if the clear itself fails.
+  if (!(await deps.clearCart())) {
+    await deps.abandonCart();
+  }
+  throw new PlainEntryError(outcome.message);
+}
+
+interface WizardCardCheckoutParams {
+  showId: string;
+  exhibitorProfileId: string;
+  /** The store's cart as it is now, read AFTER the fill. */
+  getCart: () => CartWithDetails | null;
+  checkoutWithWaitlist: StartCartCheckoutInput['checkoutWithWaitlist'];
+  removeItem: StartCartCheckoutInput['removeItem'];
+}
+
+/**
+ * The wizard's `startCheckout`: /cart's checkout, on the cart the wizard just
+ * filled. Availability is read fresh from the server, exactly as /cart's Pay
+ * re-checks it; a failed read fails closed.
+ */
+export async function startWizardCardCheckout({
+  showId,
+  exhibitorProfileId,
+  getCart,
+  checkoutWithWaitlist,
+  removeItem,
+}: WizardCardCheckoutParams): Promise<CartCheckoutOutcome> {
+  const cart = getCart();
+  // The fill opened this show's cart; anything else on the store now is not it.
+  if (!cart || cart.show_id !== showId) {
+    return { kind: 'failed', message: CART_ERROR.checkoutFailed, status: null };
+  }
+  return startCartCheckout({
+    cart,
+    items: cart.items,
+    exhibitorProfileId,
+    readCapacity: () => fetchCartCapacity(cart.show_id).catch(() => null),
+    checkoutWithWaitlist,
+    removeItem,
+  });
 }

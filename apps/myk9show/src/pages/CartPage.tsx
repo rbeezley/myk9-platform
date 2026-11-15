@@ -27,8 +27,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
-import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
-import { CART_ERROR, reportCheckoutFailure } from './cartErrorCopy';
+import { startCartCheckout } from '@/features/payments/startCartCheckout';
+import { CART_ERROR } from './cartErrorCopy';
 import { useCartPageError } from './useCartPageError';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { CHECKOUT_HOLD_ENDED_MESSAGE, checkoutHoldEnded } from '@/features/payments/checkoutHold';
@@ -38,9 +38,6 @@ import {
   PaymentLinkNotice,
 } from '@/components/cart/ClosedClassRemovedNotice';
 import { paymentLinkKey } from '@/store/cartStore.paymentLink';
-import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
-import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
-import { describeBlockedCheckout } from '@/features/payments/cartFullReasonCopy';
 import {
   areAllCartItemsRecovered,
   buildCartFulfillmentView,
@@ -49,14 +46,6 @@ import {
   ENTRY_SCOPE_ENTRIES_PARAM,
   ENTRY_SCOPE_SHOW_PARAM,
 } from '@/features/payments/entryScopeParams';
-
-function createSplitCheckoutCorrelationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `split-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -279,136 +268,60 @@ export default function CartPage() {
     setIsCheckingOut(true);
     setError(null);
 
-    try {
-      // Re-check capacity at submit rather than trusting the render-time
-      // snapshot. Global query defaults are staleTime 5min with
-      // refetchOnWindowFocus:false, so an exhibitor who leaves the tab open
-      // while deciding can submit against capacity that is many minutes old.
-      // A class that filled in that window would be classified payable, sent
-      // to Stripe, charged, and then refunded by the server's overflow path -
-      // money made whole, but a charge-then-refund the exhibitor never
-      // expected. One refetch routes it to the waitlist cleanly instead.
-      const fresh = onlyRecoveredItems ? null : await refetchCapacity();
+    // MYK9-1964: the same checks and session creation the wizard's card Pay
+    // runs. The submit-time capacity re-check reads through this page's query
+    // so the summary updates with what it found. refetch() resolves with the
+    // error inside the result, and on failure `fresh.data` still holds the
+    // last SUCCESSFUL payload, so a failed read is reported as null, never
+    // handed back as though availability had been confirmed.
+    const outcome = await startCartCheckout({
+      cart,
+      items,
+      exhibitorProfileId: profile.id,
+      readCapacity: async () => {
+        const fresh = await refetchCapacity();
+        return fresh.isError || !fresh.data ? null : fresh.data;
+      },
+      judgeNameById,
+      checkoutWithWaitlist,
+      removeItem,
+    });
 
-      // Fail closed. refetch() resolves with the error inside the result rather
-      // than rejecting, and on failure `fresh.data` still holds the last
-      // SUCCESSFUL payload - so a naive `fresh.data ?? judgeDays` would hand
-      // back exactly the stale snapshot this re-check exists to replace, and
-      // send the exhibitor to Stripe as though availability had been confirmed.
-      // Better to stop and say so than to charge against capacity we could not
-      // verify.
-      if (!onlyRecoveredItems && (fresh?.isError || !fresh?.data)) {
-        setError(
-          'We could not confirm which classes are still open. Please check availability and try again.'
-        );
-        stopCheckingOut();
-        return;
-      }
+    // Stripe's page is loading: the latch is deliberately left held.
+    if (outcome.kind === 'redirecting') return;
 
-      const freshJudgeDays = fresh?.data?.judgeDays ?? [];
-      const freshClassSpots = fresh?.data?.classSpots ?? [];
-      // MYK9-1019: the server's effective "takes a waitlist", read fresh, so a
-      // setting the secretary changed while this cart was open is honoured.
-      const freshWaitlistClassIds = fresh?.data?.waitlistClassIds ?? [];
-
-      const splitDecision = splitCartItemsByJudgeDayCapacity(
-        items,
-        freshJudgeDays,
-        freshClassSpots,
-        freshWaitlistClassIds
-      );
-      const blockedItems = splitDecision.blockedItems;
-
-      if (blockedItems.length > 0) {
-        setError(
-          describeBlockedCheckout(blockedItems, splitDecision.fullReasonByItemId, judgeNameById)
-        );
-        stopCheckingOut();
-        return;
-      }
-
-      const splitResult = await checkoutWithWaitlist(profile.id, splitDecision.waitlistItemIds);
-
-      if (!splitResult) {
-        setError(CART_ERROR.waitlistFailed);
-        stopCheckingOut();
-        return;
-      }
-
-      const waitlistedItemIds = Array.from(splitDecision.waitlistItemIds);
-
-      for (const itemId of waitlistedItemIds) {
-        const removed = await removeItem(itemId);
-        if (!removed) {
-          setError(
-            'Your waitlist request was saved, but we could not refresh your entry for payment. Please restart the app before trying again.'
-          );
-          stopCheckingOut();
-          return;
-        }
-      }
-
-      const splitCheckoutId =
-        splitResult.waitlisted.length > 0 ? createSplitCheckoutCorrelationId() : null;
-
-      if (splitCheckoutId) {
-        writeCartSplitCheckoutSummary({
-          correlationId: splitCheckoutId,
-          showId: cart.show_id,
-          confirmedEntryCount: splitResult.confirmed.length,
-          waitlistEntries: splitResult.waitlisted,
-        });
-      }
-
-      if (splitResult.confirmed.length === 0) {
-        stopCheckingOut();
-        navigate(
-          splitCheckoutId
-            ? `/checkout/success?waitlist=1&split=${encodeURIComponent(splitCheckoutId)}`
-            : '/checkout/success?waitlist=1'
-        );
-        return;
-      }
-
-      // This will redirect to Stripe Checkout for the remaining confirmed entries.
-      await createEntryCheckoutSession(cart.id, {
-        showId: cart.show_id,
-        ...(splitCheckoutId ? { splitCheckoutId } : {}),
-      });
-      // If we get here, the redirect didn't happen (shouldn't normally occur)
-    } catch (err) {
-      // Say what the server said when it wrote it for the exhibitor: it tells
-      // failures they can act on (fees were re-priced, review and retry) from
-      // ones they cannot (the club has no payout account). The 409 re-pricing
-      // case looped forever before the reload below: the server heals the stored
-      // cart, but the client kept re-sending the stale in-memory copy.
-      const status = err instanceof CheckoutSessionError ? err.status : null;
-      const message = reportCheckoutFailure(err, cart.id);
-
-      if (status === 409 && profile?.id) {
-        // Re-hydrate so "review your cart" is actually possible - with the same
-        // options as the mount-time load. An empty object drops the recovery
-        // showId, and cartStore then falls back to "most recently created
-        // active cart", which for someone who arrived via /cart?showId=X on an
-        // older cart would silently swap them onto a different show's cart
-        // underneath a 409 about the one they were paying for.
-        const reloadOptions: Parameters<typeof loadActiveCart>[1] = {};
-        if (recoveryShowId) {
-          reloadOptions.showId = recoveryShowId;
-        }
-        // Awaited before the latch is released. Fire-and-forget left the cart
-        // visible with its stale in-memory fees while the reload was still in
-        // flight, so a quick retry re-submitted exactly the same stale cart and
-        // earned another 409 - the loop this fix exists to break.
-        await loadActiveCart(profile.id, reloadOptions);
-        // A class that filled at Pay (MYK9-1012) must read as full on the
-        // reloaded cart, with its waitlist option, not as payable.
-        await refetchCapacity();
-      }
-
-      setError(message);
+    if (outcome.kind === 'waitlistOnly') {
       stopCheckingOut();
+      navigate(outcome.path);
+      return;
     }
+
+    // The 409 re-pricing case looped forever before the reload below: the
+    // server heals the stored cart, but the client kept re-sending the stale
+    // in-memory copy.
+    if (outcome.status === 409) {
+      // Re-hydrate so "review your cart" is actually possible - with the same
+      // options as the mount-time load. An empty object drops the recovery
+      // showId, and cartStore then falls back to "most recently created
+      // active cart", which for someone who arrived via /cart?showId=X on an
+      // older cart would silently swap them onto a different show's cart
+      // underneath a 409 about the one they were paying for.
+      const reloadOptions: Parameters<typeof loadActiveCart>[1] = {};
+      if (recoveryShowId) {
+        reloadOptions.showId = recoveryShowId;
+      }
+      // Awaited before the latch is released. Fire-and-forget left the cart
+      // visible with its stale in-memory fees while the reload was still in
+      // flight, so a quick retry re-submitted exactly the same stale cart and
+      // earned another 409 - the loop this fix exists to break.
+      await loadActiveCart(profile.id, reloadOptions);
+      // A class that filled at Pay (MYK9-1012) must read as full on the
+      // reloaded cart, with its waitlist option, not as payable.
+      await refetchCapacity();
+    }
+
+    setError(outcome.message);
+    stopCheckingOut();
   };
 
   const handleContinueShopping = () => {

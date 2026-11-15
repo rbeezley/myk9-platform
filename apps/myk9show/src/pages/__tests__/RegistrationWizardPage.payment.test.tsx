@@ -125,6 +125,19 @@ vi.mock('@/store/cartStore', () => ({
   }),
 }));
 
+// The club can take cards, so the card pick stands (as on a real card entry).
+vi.mock('@/features/payments/useClubStripeAccount', async () => ({
+  ...(await vi.importActual<typeof import('@/features/payments/useClubStripeAccount')>(
+    '@/features/payments/useClubStripeAccount'
+  )),
+  useClubStripePaymentReadiness: () => ({
+    isSuccess: true,
+    data: true,
+    isPending: false,
+    isFetching: false,
+  }),
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' } }),
 }));
@@ -238,8 +251,18 @@ vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () =
 }));
 
 vi.mock('@/components/shows/wizard/components/WizardNavigation', () => ({
-  default: (props: { canGoNext: boolean; onNext: () => void; isLoading?: boolean }) => (
-    <button type="button" disabled={!props.canGoNext || props.isLoading} onClick={props.onNext}>
+  default: (props: {
+    canGoNext: boolean;
+    onNext: () => void;
+    isLoading?: boolean;
+    nextLabel?: string;
+  }) => (
+    <button
+      type="button"
+      disabled={!props.canGoNext || props.isLoading}
+      onClick={props.onNext}
+      data-label={props.nextLabel}
+    >
       Next
     </button>
   ),
@@ -258,6 +281,7 @@ vi.mock('@/services/database/armbands', () => ({
 }));
 
 import RegistrationWizardPage from '../RegistrationWizardPage';
+import { PlainEntryError } from '@/features/registration/entrySubmitErrorCopy';
 
 describe('RegistrationWizardPage — Stripe payment handoff', () => {
   beforeEach(() => {
@@ -391,5 +415,62 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
     expect(discardDraftsWithoutFinalSaveMock).not.toHaveBeenCalled();
     expect(clearDraftDataMock).not.toHaveBeenCalled();
     expect(deleteDraftMock).not.toHaveBeenCalled();
+  });
+});
+
+/** Dogs, then Classes, then Payment with card; returns the Pay button. */
+async function walkToCardPayment() {
+  const rendered = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+  for (const step of ['dog-selection', 'class-selection']) {
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent(step));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await rendered.user.click(screen.getByRole('button', { name: 'Next' }));
+  }
+  await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('payment'));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+  return { ...rendered, pay: screen.getByRole('button', { name: 'Next' }) };
+}
+
+describe('RegistrationWizardPage — card Pay opens Stripe (MYK9-1964)', () => {
+  beforeEach(() => {
+    submitRegistrationCartCheckoutMock.mockReset();
+    submitShowRegistrationMock.mockReset();
+  });
+
+  it('names the same total the entries panel shows', async () => {
+    const { pay } = await walkToCardPayment();
+    const shown = screen.getByTestId('entries-panel-total').textContent ?? '';
+    const amount = shown.match(/\$\d+\.\d{2}/)?.[0];
+    expect(amount).toBeDefined();
+    expect(pay).toHaveAttribute('data-label', `Pay ${amount}`);
+  });
+
+  it('starts one checkout for a double press, and stays busy while Stripe loads', async () => {
+    submitRegistrationCartCheckoutMock.mockResolvedValue('redirecting');
+    const { user, pay } = await walkToCardPayment();
+    await user.click(pay);
+    await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
+    // Released here, a second press would refill the cart Stripe is about to charge.
+    await waitFor(() => expect(pay).toBeDisabled());
+    await user.click(pay);
+    expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a checkout that does not start leaves her on Payment, able to try again', async () => {
+    submitRegistrationCartCheckoutMock.mockRejectedValueOnce(
+      new PlainEntryError('This club cannot take card payments yet.')
+    );
+    const { user, pay } = await walkToCardPayment();
+    await user.click(pay);
+    await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(pay).not.toBeDisabled());
+    expect(screen.getByTestId('step-content')).toHaveTextContent('payment');
+    expect(navigateMock).not.toHaveBeenCalled();
+    const [{ classSelections }] = submitRegistrationCartCheckoutMock.mock.calls[0] as Array<{
+      classSelections: ClassSelectionData[];
+    }>;
+    expect(classSelections).toEqual([
+      { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+    ]);
   });
 });

@@ -925,8 +925,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /** Resolve a conflict by keeping the local edit.
    *  Clears the conflict snapshot, resets syncStatus to 'pending', and refreshes
-   *  queued mutation OCC state so the local mutation uploads naturally on the
-   *  next sync cycle.
+   *  queued mutation OCC state so the local mutation uploads on the next upload
+   *  pass (`mutationManager.sendRowNow` runs one at once, MYK9-1993).
    *
    *  @param newServerVersion - The remote row's server version from the conflict
    *    snapshot. Pass this so the next upload uses the correct OCC precondition
@@ -1274,10 +1274,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * the stored conflict snapshot so callers only need the rowId + choice.
    *
    * - 'keep-local': clears the conflict, resets syncStatus → 'pending'.  The
-   *   existing local mutation re-uploads with an updated OCC precondition.
+   *   existing local mutation re-uploads with an updated OCC precondition. Nothing
+   *   here sends it: callers follow with `mutationManager.sendRowNow` (MYK9-1993),
+   *   or it waits for the next upload pass.
    * - 'take-remote': replaces local data with the remote version, marks the row
-   *   synced.  Callers should also call
-   *   `mutationManager.discardPendingMutationsForRow` to drop any queued upload.
+   *   synced.  Callers should call `mutationManager.discardPendingMutationsForRow`
+   *   FIRST: once the row is released, an upload pass would send the old value.
    *
    * Returns false and is a no-op when the row has no persisted conflict snapshot
    * (e.g. already resolved or row doesn't exist).

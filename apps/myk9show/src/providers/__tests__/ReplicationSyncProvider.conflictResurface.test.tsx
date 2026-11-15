@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
+import type { PendingMutation } from '@myk9/replication';
 import { Toaster, toast } from 'sonner';
 import { CONFLICT_TOAST_TITLE } from '@/lib/offlineCopy';
 import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
@@ -48,7 +49,10 @@ const hoisted = vi.hoisted(() => {
   // Override per-test with flagEnabled.mockReturnValue(false) to verify suppression.
   const flagEnabled = vi.fn().mockReturnValue(true);
 
-  return { authState, unsubscribeSpy, conflictSpies, flagEnabled };
+  // MYK9-1993: the classes table's resolver, so a test can click the notice's buttons.
+  const resolveClassConflict = vi.fn().mockResolvedValue(true);
+
+  return { authState, unsubscribeSpy, conflictSpies, flagEnabled, resolveClassConflict };
 });
 
 const { authState, unsubscribeSpy, conflictSpies, flagEnabled } = hoisted;
@@ -100,6 +104,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
     setMutationManager: vi.fn(),
     sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
     getConflictedRows: hoisted.conflictSpies.classes,
+    resolveReplicationConflict: hoisted.resolveClassConflict,
   },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
@@ -195,11 +200,14 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
       // failed-mutation path itself is covered in the listener test file.
       getFailedMutations = vi.fn().mockResolvedValue([]);
       discardPendingMutationsForRow = vi.fn().mockResolvedValue(undefined);
+      sendRowNow = vi.fn().mockResolvedValue([]);
+      discardFailedMutation = vi.fn().mockResolvedValue(undefined);
     } as unknown as typeof actual.MutationManager,
   };
 });
 
 import { ReplicationSyncProvider } from '../ReplicationSyncProvider';
+import { mutationManager } from '@/services/replication/sharedMutationManager';
 
 function fakeSession(): Session {
   return { access_token: 'tok', user: { id: 'u1' } } as unknown as Session;
@@ -431,5 +439,107 @@ describe('ReplicationSyncProvider: the conflict notice (MYK9-1995)', () => {
     } finally {
       window.removeEventListener('replication:conflict-settled', settled);
     }
+  });
+});
+
+describe('ReplicationSyncProvider: answering a class-status conflict (MYK9-1993)', () => {
+  beforeEach(async () => {
+    const { toast: actualToast } = await vi.importActual<typeof import('sonner')>('sonner');
+    vi.mocked(toast.warning).mockReset().mockImplementation(actualToast.warning);
+    vi.mocked(toast.dismiss).mockReset().mockImplementation(actualToast.dismiss);
+    flagEnabled.mockReturnValue(true);
+    // Notices from earlier tests stay in sonner's store; only this test's one may be on screen.
+    actualToast.dismiss();
+    hoisted.resolveClassConflict.mockReset().mockResolvedValue(true);
+    vi.mocked(mutationManager.sendRowNow).mockReset().mockResolvedValue([]);
+    vi.mocked(mutationManager.getFailedMutations).mockReset().mockResolvedValue([]);
+    vi.mocked(mutationManager.discardFailedMutation).mockReset().mockResolvedValue(undefined);
+    vi.mocked(mutationManager.discardPendingMutationsForRow)
+      .mockReset()
+      .mockResolvedValue(undefined);
+  });
+
+  async function showClassConflict() {
+    renderProvider();
+    render(<Toaster />);
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:conflict', { detail: makeConflictSnapshot('classes') })
+      );
+    });
+  }
+
+  async function click(name: string) {
+    const button = await screen.findByRole('button', { name });
+    await act(async () => {
+      button.click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+  }
+
+  it('Keep my change sends the kept write at once', async () => {
+    await showClassConflict();
+    await click('Keep my change');
+
+    expect(hoisted.resolveClassConflict).toHaveBeenCalledWith('row-1', 'keep-local');
+    await waitFor(() =>
+      expect(mutationManager.sendRowNow).toHaveBeenCalledWith('classes', 'row-1')
+    );
+    expect(mutationManager.discardFailedMutation).not.toHaveBeenCalled();
+  });
+
+  it('a refused kept write gets the queue notice in plain words, and stays until Discard', async () => {
+    const refused: PendingMutation = {
+      id: 'm1',
+      authUserId: 'u1',
+      tableName: 'classes',
+      operation: 'UPDATE',
+      rowId: 'row-1',
+      data: { status: 'in_progress' },
+      timestamp: 0,
+      retries: 1,
+      status: 'failed',
+      error: 'Non-retryable error: Not authorized to update class row-1',
+      failureKind: 'authorization',
+    };
+    // As the real queue does when the upload pass is refused for good.
+    vi.mocked(mutationManager.sendRowNow).mockImplementation(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-failed', {
+          detail: { count: 1, mutations: [refused], message: '1 change could not be sent.' },
+        })
+      );
+      return [];
+    });
+    await showClassConflict();
+    await click('Keep my change');
+
+    expect(
+      await screen.findByText("We couldn't update this class. Try again or discard this change.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("You don't have permission to change this class.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    // Nothing is discarded for the judge: the kept value stays until they choose.
+    expect(mutationManager.discardFailedMutation).not.toHaveBeenCalled();
+
+    await click('Discard');
+
+    expect(mutationManager.discardFailedMutation).toHaveBeenCalledWith('m1');
+  });
+
+  it('Keep the other change drops the queued write before showing the server copy', async () => {
+    const order: string[] = [];
+    vi.mocked(mutationManager.discardPendingMutationsForRow).mockImplementation(async () => {
+      order.push('discard');
+    });
+    hoisted.resolveClassConflict.mockImplementation(async (_id: string, choice: string) => {
+      order.push(choice);
+      return true;
+    });
+    await showClassConflict();
+    await click('Keep the other change');
+
+    await waitFor(() => expect(order).toEqual(['discard', 'take-remote']));
+    expect(mutationManager.sendRowNow).not.toHaveBeenCalled();
   });
 });

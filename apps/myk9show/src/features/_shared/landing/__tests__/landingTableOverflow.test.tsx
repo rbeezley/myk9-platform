@@ -25,7 +25,7 @@ describe('styled landing table overflow', () => {
   });
 
   it('makes the Poster particulars table keyboard reachable', () => {
-    render(<PosterParticulars {...commonProps} />);
+    render(<PosterParticulars {...commonProps} fees={[]} />);
 
     expect(screen.getByRole('region', { name: 'Show particulars table' })).toHaveAttribute(
       'tabindex',

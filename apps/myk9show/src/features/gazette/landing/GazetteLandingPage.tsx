@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureGazetteFontsLoaded } from '../fonts';
 import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
@@ -121,6 +122,10 @@ export function GazetteLandingPage({
         />
         <WithdrawalPolicySection
           showId={show?.id}
+          className="mx-auto max-w-[1100px] border-b px-6 py-12 md:px-12 md:py-14"
+        />
+        <PremiumDownloadSection
+          show={show}
           className="mx-auto max-w-[1100px] border-b px-6 py-12 md:px-12 md:py-14"
         />
 

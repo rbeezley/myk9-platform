@@ -26,6 +26,8 @@ import {
 import { useRecentPremiumGenerations } from '../../../../hooks/queries/usePremiumGenerations';
 import { detectFrequentOverrides } from '../../../../features/premium/detectFrequentOverrides';
 import type { ClubPremiumTemplate, PremiumStyle } from '../../../../types/premium-types';
+import { TemplateHotelsEditor } from './TemplateHotelsEditor';
+import { cleanTemplateHotels } from './templateHotels';
 
 interface Props {
   clubId: string;
@@ -99,12 +101,13 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
   }
 
   async function save() {
+    const payload = { ...form, accommodations: cleanTemplateHotels(form.accommodations) };
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, updates: form });
+        await updateMutation.mutateAsync({ id: editing.id, updates: payload });
         setEditing(null);
       } else {
-        await createMutation.mutateAsync(form);
+        await createMutation.mutateAsync(payload);
         setCreating(false);
         onClose?.();
       }
@@ -255,6 +258,10 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
               />
             </div>
           </div>
+          <TemplateHotelsEditor
+            hotels={form.accommodations}
+            onChange={accommodations => setForm(f => ({ ...f, accommodations }))}
+          />
           <div className="space-y-1">
             <Label className="text-xs">Hospitality Notes</Label>
             <Textarea

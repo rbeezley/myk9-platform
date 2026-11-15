@@ -128,7 +128,9 @@ export function FinalCtaSection({
             ) : entryLimit != null ? (
               `${entryLimit} runs · first-received basis until the limit is hit.`
             ) : (
-              'First-received basis. Refunds (less processing fees) for written withdrawals received before close.'
+              // MYK9-2041: no refund promise here. The club's own policy prints in
+              // WithdrawalPolicySection, the one place the page states it.
+              'First-received basis.'
             )}
           </p>
         </div>

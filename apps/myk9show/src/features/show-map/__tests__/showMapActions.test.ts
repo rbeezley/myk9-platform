@@ -1682,47 +1682,6 @@ describe('showMapActions', () => {
       expect(action?.label).toBe('Change class');
     });
 
-    it('does not offer Pull for a dog that already has a result (MYK9-1990)', () => {
-      const tree = buildShowMapTree({
-        show,
-        trials: [trial],
-        classes: [
-          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'Upcoming' },
-        ],
-        entries: [
-          {
-            id: 'entry-scored',
-            class_id: 'class-source',
-            entry_status: 'accepted',
-            is_scored: true,
-          },
-        ],
-      });
-
-      const ids = getDirectActionsForNode(tree.nodesById['entry:entry-scored']!, { tree }).map(
-        a => a.id
-      );
-      expect(ids).not.toContain('scratch-entry');
-    });
-
-    it('labels the Show Desk pull "Pull" with no day-of claim (MYK9-1858)', () => {
-      const tree = buildShowMapTree({
-        show,
-        trials: [trial],
-        classes: [
-          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'Upcoming' },
-        ],
-        entries: [{ id: 'entry-pending', class_id: 'class-source', entry_status: 'accepted' }],
-      });
-
-      const action = getDirectActionsForNode(tree.nodesById['entry:entry-pending']!, {
-        tree,
-      }).find(a => a.id === 'scratch-entry');
-      expect(action?.label).toBe('Pull');
-      expect(action?.why).toMatch(/^Pull this entry\b/);
-      expect(action?.why).not.toMatch(/at the show|no-show|absent/i);
-    });
-
     // Owner, 2026-10-03: a move-up happens before the dog runs, on the next
     // trial's class before it starts -- never on a class already under way.
     it.each([

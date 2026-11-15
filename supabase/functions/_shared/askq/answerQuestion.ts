@@ -34,7 +34,19 @@ export interface AnsweredQuestion {
   guideSources: VerifiedGuideQuote[];
   /** Set only when guides was the sole source and refused or tripped the money pre-check on a supportMode request. */
   escalation: SupportEscalationPayload | null;
-  escalationCause: SupportQuoteRefusal | null;
+  escalationCause: SupportQuoteRefusal | 'precheck' | null;
+}
+
+/** The `tools_used` markers an escalation logs; the cause tells money pre-checks from guide refusals. */
+export function escalationMarkers(cause: AnsweredQuestion['escalationCause']): string[] {
+  return [
+    'support_escalation',
+    cause === 'quote_rejected'
+      ? 'support_quote_rejected'
+      : cause === 'precheck'
+        ? 'support_precheck'
+        : 'support_handoff',
+  ];
 }
 
 export function routeMarkers(sources: AskQSource[]): string[] {
@@ -56,7 +68,11 @@ export function guideSourcesForEvent(
 /** One classifier call, then each chosen source answered under its own guard, in parallel. */
 export async function answerQuestion(input: AnswerQuestionInput): Promise<AnsweredQuestion> {
   const hasVerifiedShow = input.userContext.showId !== null;
-  const { sources: chosen, needsShow } = await classifyQuestionSources({
+  const {
+    sources: chosen,
+    needsShow,
+    fallback,
+  } = await classifyQuestionSources({
     message: input.message,
     hasVerifiedShow,
     showRegistries: input.userContext.showRegistries ?? [],
@@ -67,8 +83,12 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
   // paid?", "AKC withdrawal rule") are answered. A mixed route is answered too: its guide
   // section is quoted from the guides under the support prompt, which never answers account money.
   const guidesOnly = chosen.length === 1 && chosen[0] === 'guides' && !needsShow;
+  // A classifier failure (fallback) counts as guides-only for this check only: with no verdict,
+  // a refund or delete question must not reach show data or the rulebook.
   const precheck =
-    guidesOnly && input.supportMode ? getSupportEscalationForQuestion(input.message) : null;
+    (guidesOnly || fallback) && input.supportMode
+      ? getSupportEscalationForQuestion(input.message)
+      : null;
   if (precheck) {
     return {
       sources: chosen,
@@ -76,7 +96,7 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
       toolsUsed: [],
       guideSources: [],
       escalation: precheck,
-      escalationCause: null,
+      escalationCause: 'precheck',
     };
   }
   const base = { call: input.call, message: input.message, userContext: input.userContext };

@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   answerQuestion,
+  escalationMarkers,
   guideSourcesForEvent,
   routeMarkers,
   type AnswerQuestionInput,
@@ -375,7 +376,7 @@ describe('money pre-check runs only on guides-only routes (supportMode)', () => 
     expect(model.recorded.guides).toHaveLength(1);
   });
 
-  it('answers a mixed guides plus rulebook route', async () => {
+  it('answers a mixed guides plus rulebook route, running both sections', async () => {
     const model = stubModel({
       verdict: ['guides', 'rulebook'],
       guides: GUIDE_REPLY,
@@ -386,6 +387,86 @@ describe('money pre-check runs only on guides-only routes (supportMode)', () => 
       supportMode: true,
     }).promise;
     expect(answered.escalation).toBeNull();
+    expect(model.recorded.guides).toHaveLength(1);
+    expect(model.recorded.rulebook).toHaveLength(1);
+    expect(answered.text).toContain(ENTRY_FEE_ONLY);
+    expect(answered.text).toContain(RULE_REPLY);
+  });
+
+  it('answers a money question that needs a show when none is in context, reading no data', async () => {
+    const model = stubModel({ verdict: ['show_data'], showData: 'Paid entries: 12.' });
+    const { promise, runTool } = run(model, {
+      message: 'How many entries have paid?',
+      userContext: noShowContext,
+      supportMode: true,
+    });
+    const answered = await promise;
+    expect(answered.escalation).toBeNull();
+    expect(answered.text).toBe(NEEDS_SHOW_SENTENCE);
+    expect(model.recorded.showData).toHaveLength(0);
+    expect(runTool).not.toHaveBeenCalled();
+  });
+
+  describe('classifier failure still pre-checks money questions', () => {
+    const refund = 'Can I get a refund for my entry?';
+
+    it('escalates when the classifier throws, calling no show-data or rulebook model', async () => {
+      const model = stubModel({ verdict: ['guides'], showData: 'x', rulebook: RULE_REPLY });
+      const call: ModelCall = async (messages, tools, system, max) => {
+        if (system === CLASSIFIER_SYSTEM_PROMPT) throw new Error('outage');
+        return model.call(messages, tools, system, max);
+      };
+      const { promise, runTool } = run(model, { call, message: refund, supportMode: true });
+      const answered = await promise;
+      expect(answered.escalation).toMatchObject({ escalate: true, reason: 'payment_or_refund' });
+      expect(model.recorded.showData).toHaveLength(0);
+      expect(model.recorded.rulebook).toHaveLength(0);
+      expect(model.recorded.guides).toHaveLength(0);
+      expect(runTool).not.toHaveBeenCalled();
+    });
+
+    it('escalates when the classifier returns garbage', async () => {
+      const model = stubModel({ verdict: 'I am not JSON', showData: 'x', rulebook: RULE_REPLY });
+      const { promise, runTool } = run(model, { message: refund, supportMode: true });
+      const answered = await promise;
+      expect(answered.escalation).toMatchObject({ escalate: true, reason: 'payment_or_refund' });
+      expect(model.recorded.showData).toHaveLength(0);
+      expect(model.recorded.rulebook).toHaveLength(0);
+      expect(runTool).not.toHaveBeenCalled();
+    });
+
+    it('still answers an ordinary question on a classifier failure', async () => {
+      const model = stubModel({ verdict: 'garbage', showData: 'Running now: 2.' });
+      const answered = await run(model, {
+        message: 'What is running now?',
+        supportMode: true,
+      }).promise;
+      expect(answered.escalation).toBeNull();
+    });
+  });
+
+  it('logs the pre-check under its own marker, apart from a guide refusal', async () => {
+    const pre = await run(stubModel({ verdict: ['guides'] }), {
+      message: 'Can I get a refund for my entry?',
+      supportMode: true,
+    }).promise;
+    expect(escalationMarkers(pre.escalationCause)).toEqual([
+      'support_escalation',
+      'support_precheck',
+    ]);
+
+    const refused = await run(stubModel({ verdict: ['guides'], guides: 'SUPPORT_HANDOFF' }), {
+      message: 'How do I print a thing?',
+      supportMode: true,
+    }).promise;
+    expect(escalationMarkers(refused.escalationCause)).toEqual([
+      'support_escalation',
+      'support_handoff',
+    ]);
+    expect(escalationMarkers('quote_rejected')).toEqual([
+      'support_escalation',
+      'support_quote_rejected',
+    ]);
   });
 });
 

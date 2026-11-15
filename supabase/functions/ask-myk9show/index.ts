@@ -8,6 +8,7 @@ import { type AskQRulebookAsset, selectRulebook } from '../_shared/askq/document
 import { parseAskQRouting } from '../_shared/askq/requestRouting.ts';
 import {
   answerQuestion,
+  escalationMarkers,
   guideSourcesForEvent,
   routeMarkers,
 } from '../_shared/askq/answerQuestion.ts';
@@ -262,14 +263,7 @@ Deno.serve(async (req: Request) => {
       ...new Set([
         ...routeMarkers(answered.sources),
         ...toolsUsed,
-        ...(supportAnswerEscalation
-          ? [
-              'support_escalation',
-              answered.escalationCause === 'quote_rejected'
-                ? 'support_quote_rejected'
-                : 'support_handoff',
-            ]
-          : []),
+        ...(supportAnswerEscalation ? escalationMarkers(answered.escalationCause) : []),
       ]),
     ];
 

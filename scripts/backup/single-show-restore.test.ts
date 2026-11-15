@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPlan,
+  isMoneyTable,
   cascadeClosure,
   decodeCopyField,
   formatSummary,
@@ -120,6 +121,7 @@ describe('single-show restore model', () => {
       showId: SHOW,
       sourceRef: 'src',
       exportCreatedAt: '2026-11-15T00:00:00Z',
+      includeMoney: true,
     });
     expect(plan.totalRows).toBe(1 + 1 + 1 + 3 + 1 + 1);
     expect(plan.tables.find(t => t.table === 'public.entries')?.rows).toBe(3);
@@ -134,7 +136,6 @@ describe('single-show restore model', () => {
       ['public.dogs', ['d1', 'd2']],
     ]);
     expect(plan.sql).toContain('RAISE EXCEPTION');
-    expect(plan.warnings.join(' ')).toContain('public.show_payouts');
     expect(formatSummary(plan)).toContain('public.dogs.id');
   });
 
@@ -148,5 +149,66 @@ describe('single-show restore model', () => {
     });
     expect(plan.sql).not.toContain('show_payouts');
     expect(plan.warnings.join(' ')).not.toContain('money tables');
+  });
+
+  it('excludes money tables by default and says so', () => {
+    const { keys, selection } = select();
+    const plan = buildPlan(selection, keys, {
+      showId: SHOW,
+      sourceRef: 'src',
+      exportCreatedAt: 'x',
+    });
+    expect(plan.sql).not.toContain('show_payouts');
+    expect(plan.tables.map(t => t.table)).not.toContain('public.show_payouts');
+    expect(plan.totalRows).toBe(1 + 1 + 1 + 3 + 1);
+    expect(plan.warnings).toEqual([expect.stringContaining('excluded by default')]);
+    expect(plan.warnings[0]).toContain('public.show_payouts');
+    expect(formatSummary(plan)).toContain('WARNING: money tables excluded by default');
+  });
+
+  it('includes money tables only with includeMoney, and prints the warning', () => {
+    const { keys, selection } = select();
+    const plan = buildPlan(selection, keys, {
+      showId: SHOW,
+      sourceRef: 'src',
+      exportCreatedAt: 'x',
+      includeMoney: true,
+    });
+    expect(plan.sql).toContain('"public"."show_payouts"');
+    expect(plan.tables.find(t => t.table === 'public.show_payouts')?.rows).toBe(1);
+    expect(plan.warnings).toHaveLength(1);
+    expect(plan.warnings[0]).toContain('--include-money');
+    expect(plan.warnings[0]).toContain('double-count');
+    expect(formatSummary(plan)).toContain('WARNING: --include-money');
+  });
+
+  it('does not warn about money when includeMoney is set and an exclusion covers it', () => {
+    const { keys, selection } = select();
+    const plan = buildPlan(selection, keys, {
+      showId: SHOW,
+      sourceRef: 'src',
+      exportCreatedAt: 'x',
+      includeMoney: true,
+      excludeTables: ['public.show_payouts'],
+    });
+    expect(plan.sql).not.toContain('show_payouts');
+    expect(plan.warnings).toEqual([]);
+  });
+
+  it('classifies the Stripe-ledger tables as money and show data as not', () => {
+    for (const t of [
+      'public.orders',
+      'public.show_payments',
+      'public.show_payouts',
+      'public.show_money_locks',
+      'public.refund_requests',
+      'public.refund_request_attempts',
+      'public.stripe_order_refunds',
+      'public.entry_payment_links',
+      'public.club_stripe_accounts',
+    ])
+      expect(isMoneyTable(t), t).toBe(true);
+    for (const t of ['public.entries', 'public.trial_lunch_orders', 'public.shows'])
+      expect(isMoneyTable(t), t).toBe(false);
   });
 });

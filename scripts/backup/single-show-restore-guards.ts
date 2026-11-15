@@ -14,11 +14,12 @@ export interface RestoreArgs {
   allowProduction: boolean;
   out: string | undefined;
   excludeTables: string[];
+  includeMoney: boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALUE_OPTIONS = ['--dir', '--show-id', '--target-ref', '--out', '--exclude-table'] as const;
-const FLAG_OPTIONS = ['--dry-run', '--execute', PRODUCTION_FLAG] as const;
+const FLAG_OPTIONS = ['--dry-run', '--execute', '--include-money', PRODUCTION_FLAG] as const;
 
 export function parseRestoreArgs(argv: string[]): RestoreArgs {
   const values = new Map<string, string[]>();
@@ -54,6 +55,7 @@ export function parseRestoreArgs(argv: string[]): RestoreArgs {
     allowProduction: flags.has(PRODUCTION_FLAG),
     out: values.get('--out')?.[0],
     excludeTables: values.get('--exclude-table') ?? [],
+    includeMoney: flags.has('--include-money'),
   };
   assertTargetAllowed(args);
   return args;

@@ -174,8 +174,11 @@ project: for a realistic drill, a disposable project restored from an **older** 
      --dir "$DIR/decrypted" --show-id <show-uuid> --out "$DIR/plan.sql"
    ```
 
-   Record the counts. Read the WARNING lines: money tables are included by default; add
-   `--exclude-table public.<name>` for any table the target must not receive (restoring a payout row does not restore Stripe).
+   Record the counts. Read the WARNING lines: **money tables are excluded by default** (orders,
+   show payments, payouts, money locks, refund requests and attempts, Stripe order refunds, payment links, Stripe
+   accounts; whichever of these the schema has in the show's cascade). Stripe is the record for money, and restoring old rows
+   can double-count. Pass `--include-money` only when the owner has decided the target must receive them; the plan then prints a warning and
+   you reconcile against Stripe afterwards. `--exclude-table public.<name>` drops any other table.
 
 2. Start the clock. Execute against the disposable target only (the URL stays in the environment, not on the command line):
 

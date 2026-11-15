@@ -68,4 +68,20 @@ describe('single-show restore guards', () => {
       )
     ).toThrow(/points at production/);
   });
+
+  it('parses --include-money and defaults it off', () => {
+    expect(parseRestoreArgs(base).includeMoney).toBe(false);
+    expect(parseRestoreArgs([...base, '--include-money']).includeMoney).toBe(true);
+  });
+
+  it('refuses an execute run whose URL names production, even with a staging target-ref', () => {
+    const args = parseRestoreArgs([...base, '--execute', '--target-ref', 'abcdefghijklmnopqrst']);
+    expect(() =>
+      targetConnection(
+        `postgresql://postgres.${PRODUCTION_PROJECT_REF}:x@pooler.supabase.com/postgres`,
+        args
+      )
+    ).toThrow(/points at production/);
+    expect(() => targetConnection('mysql://x@h/db', args)).toThrow(/postgresql/);
+  });
 });

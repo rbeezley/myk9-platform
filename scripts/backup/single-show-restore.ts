@@ -16,6 +16,12 @@ import {
   selectShowRows,
 } from './single-show-restore-model';
 import {
+  buildPgRestoreArgs,
+  buildPsqlInvocation,
+  DATA_ONLY_ARGS,
+  SCHEMA_ONLY_ARGS,
+} from './single-show-restore-commands';
+import {
   parseRestoreArgs,
   targetConnection,
   TARGET_URL_ENV,
@@ -29,11 +35,10 @@ function pgRestoreText(dumpPath: string, extra: string[]): string {
   const scratch = mkdtempSync(join(tmpdir(), 'myk9-show-restore-'));
   const target = join(scratch, 'out.sql');
   try {
-    const result = spawnSync(
-      'pg_restore',
-      [...extra, '--no-owner', '--no-privileges', '-f', target, dumpPath],
-      { encoding: 'utf8', maxBuffer: MAX_BUFFER }
-    );
+    const result = spawnSync('pg_restore', buildPgRestoreArgs(extra, target, dumpPath), {
+      encoding: 'utf8',
+      maxBuffer: MAX_BUFFER,
+    });
     if (result.error || result.status !== 0) {
       throw new Error(`pg_restore failed: ${result.error?.message ?? result.stderr.slice(0, 500)}`);
     }
@@ -48,15 +53,16 @@ export function planFromExport(args: RestoreArgs) {
   const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'));
   assertManifest(manifest);
   const dumpPath = join(resolve(args.dir), 'database.dump');
-  const keys = parseForeignKeys(pgRestoreText(dumpPath, ['--schema-only']));
+  const keys = parseForeignKeys(pgRestoreText(dumpPath, SCHEMA_ONLY_ARGS));
   const closure = cascadeClosure(keys);
-  const dataSql = pgRestoreText(dumpPath, ['--data-only', '--schema', 'public']);
+  const dataSql = pgRestoreText(dumpPath, DATA_ONLY_ARGS);
   const selection = selectShowRows(args.showId, keys, parseCopyData(dataSql, closure));
   return buildPlan(selection, keys, {
     showId: args.showId,
     sourceRef: manifest.projectRef,
     exportCreatedAt: manifest.createdAt,
     excludeTables: args.excludeTables,
+    includeMoney: args.includeMoney,
   });
 }
 
@@ -65,11 +71,12 @@ function execute(args: RestoreArgs, sql: string): void {
   console.log(
     `Executing against ${connection.host} as ${connection.user} (project ${args.targetRef})`
   );
-  const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-f', '-'], {
+  const psql = buildPsqlInvocation(connection, process.env, CA_FILE);
+  const result = spawnSync('psql', psql.args, {
     input: sql, // BEGIN/COMMIT are in the plan; ON_ERROR_STOP aborts and the open transaction rolls back
     encoding: 'utf8',
     maxBuffer: MAX_BUFFER,
-    env: { ...process.env, ...connection.env, PGSSLROOTCERT: CA_FILE },
+    env: psql.env,
   });
   if (result.error || result.status !== 0) {
     throw new Error(
@@ -89,7 +96,7 @@ function main(): void {
   }
   if (!args.execute) {
     console.log(
-      'DRY RUN: nothing was executed. Re-run with --execute --target-ref <ref> to apply.'
+      'DRY RUN: nothing was executed. Re-run with --execute --target-ref <ref> to apply. Money tables are excluded unless --include-money is passed.'
     );
     return;
   }

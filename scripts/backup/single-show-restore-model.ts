@@ -220,13 +220,19 @@ function preflightSql(ref: ExternalRef): string {
   ].join('\n');
 }
 
-const MONEY = /stripe|payout|payment|refund|money|order/i;
+// Stripe-ledger tables. Stripe is the record for money; restoring old rows can double-count, so
+// these are excluded unless the operator passes --include-money (owner decision 2026-11-15).
+// Matched on the table name; lunch orders are show data, not the ledger, so only `orders` itself
+// counts among the order tables.
+const MONEY = /stripe|payout|payment|refund|money|^public\.orders$/i;
+export const isMoneyTable = (table: string): boolean => MONEY.test(table);
 
 export interface PlanOptions {
   showId: string;
   sourceRef: string;
   exportCreatedAt: string;
   excludeTables?: string[];
+  includeMoney?: boolean;
 }
 
 export function buildPlan(
@@ -246,12 +252,21 @@ export function buildPlan(
     }
   }
   const money = [...selection.included]
-    .filter(([t, rows]) => rows.size && MONEY.test(t) && !exclude.has(t))
+    .filter(([t, rows]) => rows.size && isMoneyTable(t) && !exclude.has(t))
     .map(([t]) => t);
-  if (money.length) {
-    warnings.push(
-      `money tables included (${money.join(', ')}): restoring rows does not restore Stripe state; reconcile separately or pass --exclude-table`
-    );
+  if (options.includeMoney) {
+    if (money.length) {
+      warnings.push(
+        `--include-money: money tables included (${money.join(', ')}). Stripe is the record for money and restoring old rows can double-count; reconcile against Stripe after the restore`
+      );
+    }
+  } else {
+    for (const t of money) exclude.add(t);
+    if (money.length) {
+      warnings.push(
+        `money tables excluded by default (${money.join(', ')}); pass --include-money to restore them`
+      );
+    }
   }
   const tables = orderTables(
     [...selection.included.keys()].filter(t => !exclude.has(t)),

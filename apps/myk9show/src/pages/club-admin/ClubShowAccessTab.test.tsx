@@ -169,6 +169,7 @@ describe('AppointSecretaryDialog', () => {
   it('offers people who are not club members', async () => {
     // The picker must NOT be filtered to the roster. Filtering it to members is the
     // exact bug this work removes from the database, reintroduced in the client.
+    const user = userEvent.setup();
     render(
       <AppointSecretaryDialog
         open
@@ -180,6 +181,7 @@ describe('AppointSecretaryDialog', () => {
       />
     );
 
+    await user.type(screen.getByLabelText('Person'), 'Kath');
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
   });
 
@@ -199,6 +201,7 @@ describe('AppointSecretaryDialog', () => {
   });
 
   it('hides people who are already appointed', async () => {
+    const user = userEvent.setup();
     render(
       <AppointSecretaryDialog
         open
@@ -210,6 +213,8 @@ describe('AppointSecretaryDialog', () => {
       />
     );
 
+    // Both fixtures' emails match, so only the appointed filter can hide Ada.
+    await user.type(screen.getByLabelText('Person'), 'example.com');
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
     expect(screen.queryByText('Ada Lovelace')).toBeNull();
   });
@@ -228,10 +233,38 @@ describe('AppointSecretaryDialog', () => {
       />
     );
 
+    await user.type(screen.getByLabelText('Person'), 'Kath');
     await user.click(await screen.findByText('Katherine Johnson'));
     await user.click(screen.getByRole('button', { name: /^appoint$/i }));
 
     expect(appointed).toEqual(['p-outsider']);
+  });
+});
+
+describe('AppointSecretaryDialog before a search (MYK9-1983)', () => {
+  it('lists no names or emails until two characters are typed', async () => {
+    const user = userEvent.setup();
+    render(
+      <AppointSecretaryDialog
+        open
+        onClose={() => {}}
+        onAppoint={() => {}}
+        people={people}
+        appointedIds={new Set()}
+        isSaving={false}
+      />
+    );
+
+    expect(screen.getByText('Type a name or email to find someone.')).toBeInTheDocument();
+    expect(screen.queryByText('Katherine Johnson')).toBeNull();
+    expect(screen.queryByText('kj@example.com')).toBeNull();
+
+    await user.type(screen.getByLabelText('Person'), 'K');
+    expect(screen.queryByText('Katherine Johnson')).toBeNull();
+
+    await user.type(screen.getByLabelText('Person'), 'a');
+    expect(screen.getByText('Katherine Johnson')).toBeInTheDocument();
+    expect(screen.queryByText('Type a name or email to find someone.')).toBeNull();
   });
 });
 

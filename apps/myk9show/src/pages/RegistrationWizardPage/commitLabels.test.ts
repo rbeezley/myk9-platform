@@ -18,3 +18,24 @@ describe('getPaymentSubmitLabel (4.A honest commit)', () => {
     expect(getPaymentSubmitLabel(undefined)).toBe('Submit entry');
   });
 });
+
+describe('getPaymentSubmitLabel with the amount due (MYK9-1964)', () => {
+  it('names the total for card, since the press opens Stripe', () => {
+    expect(getPaymentSubmitLabel('credit_card', 3210)).toBe('Pay $32.10');
+  });
+
+  it('keeps the plain card label while the total is not known', () => {
+    expect(getPaymentSubmitLabel('credit_card', null)).toBe('Submit & pay');
+    expect(getPaymentSubmitLabel('credit_card', 0)).toBe('Submit & pay');
+  });
+
+  it.each([
+    ['cash', 'Submit, pay cash at show'],
+    ['check', 'Submit, bring check to show'],
+  ] satisfies Array<[PaymentMethod, string]>)(
+    'leaves %s unchanged by an amount',
+    (method, label) => {
+      expect(getPaymentSubmitLabel(method, 3210)).toBe(label);
+    }
+  );
+});

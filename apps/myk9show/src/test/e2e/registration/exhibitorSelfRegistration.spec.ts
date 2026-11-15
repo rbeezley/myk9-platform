@@ -310,12 +310,36 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   const agreement = page.getByText(/I have read and agree to the .* entry agreement/i);
   await expect(agreement).toBeVisible({ timeout: 15000 });
   await agreement.click();
-  const submitAndPay = page.getByRole('button', { name: /^Submit & pay$/ });
-  await expect(submitAndPay).toBeEnabled();
+  // MYK9-1964: card Pay names the total and opens Stripe directly. Stripe is
+  // stood in for by answering stripe-checkout with this app's own cancel page,
+  // which is where a cancelled payment returns; /cart must still hold the lines.
+  const checkoutBodies: Record<string, unknown>[] = [];
+  await page.route('**/functions/v1/stripe-checkout', async route => {
+    checkoutBodies.push(route.request().postDataJSON() as Record<string, unknown>);
+    const origin = new URL(page.url()).origin;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ url: `${origin}/checkout/cancel?show=${SHOW_ID}` }),
+    });
+  });
+  const pay = page.getByRole('button', { name: `Pay ${quotedTotal!}`, exact: true });
+  await expect(pay).toBeEnabled();
 
-  await submitAndPay.click();
+  await pay.click();
 
-  await expect(page).toHaveURL(`/cart?showId=${SHOW_ID}`, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/checkout\/cancel/, { timeout: 15000 });
+  // One session, for the mocked cart, and no amount from the client.
+  expect(checkoutBodies).toHaveLength(1);
+  expect(checkoutBodies[0]).toMatchObject({ mode: 'entry', cart_id: MOCK_CART_ID });
+  expect(Object.keys(checkoutBodies[0]!).sort()).toEqual([
+    'cancel_url',
+    'cart_id',
+    'mode',
+    'success_url',
+  ]);
+  await page.getByRole('button', { name: 'Return to Your Entry' }).click();
+  await expect(page).toHaveURL(new RegExp(`/cart\\?showId=${SHOW_ID}`), { timeout: 15000 });
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await expect(page.getByText('Total', { exact: true }).locator('..')).toContainText(

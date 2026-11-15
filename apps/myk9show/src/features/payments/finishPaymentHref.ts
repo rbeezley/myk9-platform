@@ -23,8 +23,8 @@ export function buildFinishPaymentHref(showId: string, entryIds: string[]): stri
 }
 
 /**
- * The wizard's Submit & pay hand-off (MYK9-1661): `/cart` scoped to the show
- * just submitted. Without `showId` the cart page opens the exhibitor's newest
+ * The way back to `/cart` after a cancelled card checkout (MYK9-1661), scoped
+ * to the show just submitted. Without `showId` the cart page opens the exhibitor's newest
  * populated cart across shows, which may be another show's. The scope lives in
  * the URL so it survives a reload and the 409 repricing reload.
  */

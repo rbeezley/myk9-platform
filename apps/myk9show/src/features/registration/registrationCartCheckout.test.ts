@@ -7,12 +7,13 @@ function makeDeps() {
     ensureCart: vi.fn().mockResolvedValue({ kind: 'ready', cart: { id: 'cart-1', items: [] } }),
     addItem: vi.fn().mockResolvedValue(true),
     abandonCart: vi.fn().mockResolvedValue(true),
+    startCheckout: vi.fn().mockResolvedValue({ kind: 'redirecting' }),
     navigate: vi.fn(),
   };
 }
 
 describe('submitRegistrationCartCheckout', () => {
-  it('creates a cart using exhibitorProfileId (not ownerId), clears it, adds items, navigates', async () => {
+  it('creates a cart using exhibitorProfileId (not ownerId), clears it, adds items, opens checkout', async () => {
     const deps = makeDeps();
 
     await submitRegistrationCartCheckout({
@@ -52,7 +53,9 @@ describe('submitRegistrationCartCheckout', () => {
       jumpHeight: '16',
       entryFeeCents: 2500,
     });
-    expect(deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
+    // MYK9-1964: straight to Stripe, not through a second review on /cart.
+    expect(deps.startCheckout).toHaveBeenCalledTimes(1);
+    expect(deps.navigate).not.toHaveBeenCalled();
   });
 
   it('abandons a partially populated cart when adding a later item fails', async () => {
@@ -83,6 +86,7 @@ describe('submitRegistrationCartCheckout', () => {
 
     expect(deps.abandonCart).toHaveBeenCalledTimes(1);
     expect(deps.navigate).not.toHaveBeenCalled();
+    expect(deps.startCheckout).not.toHaveBeenCalled();
   });
 
   it('reuses and clears an existing cart before adding registration items', async () => {
@@ -115,7 +119,9 @@ describe('submitRegistrationCartCheckout', () => {
     expect(deps.clearCart).toHaveBeenCalledTimes(1);
     expect(deps.ensureCart).toHaveBeenCalledTimes(1);
     expect(deps.addItem).toHaveBeenCalledTimes(1);
-    expect(deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
+    // MYK9-1964: straight to Stripe, not through a second review on /cart.
+    expect(deps.startCheckout).toHaveBeenCalledTimes(1);
+    expect(deps.navigate).not.toHaveBeenCalled();
   });
 
   it("surfaces the opener's own message when the cart cannot be opened", async () => {
@@ -150,6 +156,7 @@ describe('submitRegistrationCartCheckout', () => {
     expect(deps.clearCart).not.toHaveBeenCalled();
     expect(deps.addItem).not.toHaveBeenCalled();
     expect(deps.navigate).not.toHaveBeenCalled();
+    expect(deps.startCheckout).not.toHaveBeenCalled();
   });
 
   it('stops before adding items when clearing an existing cart fails', async () => {
@@ -184,6 +191,7 @@ describe('submitRegistrationCartCheckout', () => {
 
     expect(deps.addItem).not.toHaveBeenCalled();
     expect(deps.navigate).not.toHaveBeenCalled();
+    expect(deps.startCheckout).not.toHaveBeenCalled();
   });
 
   it('leaves a newly empty cart in place when the first item fails to add', async () => {
@@ -214,6 +222,7 @@ describe('submitRegistrationCartCheckout', () => {
 
     expect(deps.abandonCart).not.toHaveBeenCalled();
     expect(deps.navigate).not.toHaveBeenCalled();
+    expect(deps.startCheckout).not.toHaveBeenCalled();
   });
 
   it('throws when exhibitorProfileId is empty', async () => {

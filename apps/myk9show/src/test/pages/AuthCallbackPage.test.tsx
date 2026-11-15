@@ -104,9 +104,10 @@ describe('AuthCallbackPage', () => {
   describe('expired link recovery', () => {
     it.each([
       ['recovery', '', '/forgot-password'],
-      ['signup', '', '/sign-up'],
-      ['magiclink', '', '/sign-up'],
-      ['signup', '&returnTo=%2Fshows%2F1', '/sign-up?returnTo=%2Fshows%2F1'],
+      ['invite', '', '/forgot-password'],
+      ['magiclink', '', '/forgot-password'],
+      ['signup', '', '/sign-up?resend=1'],
+      ['signup', '&returnTo=%2Fshows%2F1', '/sign-up?returnTo=%2Fshows%2F1&resend=1'],
     ])('offers Send a new link for %s%s', async (type, extra, href) => {
       mockVerifyOtp.mockResolvedValue({ data: {}, error: { message: 'Token expired' } });
       renderWithRouter(`?token_hash=abc&type=${type}${extra}`);

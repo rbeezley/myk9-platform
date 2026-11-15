@@ -37,15 +37,15 @@ const AuthCallbackPage = () => {
     [redirectTarget, searchParams]
   );
 
-  // Where "Send a new link" goes. Recovery has its own request page. The
-  // sign-up page owns confirmation resend (email plus captcha) and nothing
-  // reachable by URL resends from sign-in, so the rest go there rather than
-  // growing a second resend form here.
+  // Where "Send a new link" goes. An unconfirmed signup resends
+  // from the sign-up page in resend-only mode (email plus captcha live there).
+  // Recovery, invite and magiclink all get a password-reset email: an invited
+  // account has no password, and the app has no magic-link sign-in.
   const newLinkPath = useMemo(() => {
-    if (params?.type === 'recovery') return '/forgot-password';
+    if (params?.type !== 'signup') return '/forgot-password';
     return searchParams.has('redirectTo') || searchParams.has('returnTo')
-      ? buildSignUpPathForRedirect(redirectTarget)
-      : '/sign-up';
+      ? `${buildSignUpPathForRedirect(redirectTarget)}&resend=1`
+      : '/sign-up?resend=1';
   }, [params, redirectTarget, searchParams]);
   const expiredLink = error === EXPIRED_LINK_MESSAGE;
 
@@ -126,11 +126,11 @@ const AuthCallbackPage = () => {
               <Button asChild className="min-h-[44px] w-full">
                 <Link to={newLinkPath}>Send a new link</Link>
               </Button>
-              {params?.type !== 'recovery' && (
-                <p className="text-sm text-muted-foreground">
-                  Enter your email again and we&apos;ll send a new link.
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                {params?.type === 'signup'
+                  ? "Enter your email again and we'll send a new confirmation link."
+                  : "Enter your email and we'll send you an email to set a password."}
+              </p>
             </div>
           )}
           <Link to={signInPath} className="text-primary hover:underline font-medium">

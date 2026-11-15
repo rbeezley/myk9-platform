@@ -110,10 +110,32 @@ const NOT_SCORE_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Timestamps are not the score. One save can stamp `scoringCompletedAt` and
- * `scoring_completed_at` a millisecond apart, so comparing them would read an unchanged refused
- * score as replaced. A correction or a reset always changes the result, time, faults or finds.
+ * The score's own save times, compared as instants with a 1-second tolerance. One save can
+ * stamp `scoringCompletedAt` and `scoring_completed_at` a millisecond apart, so within 1 s is the
+ * same save. Further apart is a different save: a judge who re-saved the same result after a
+ * refusal has a newer completion time, and resending the old one would put it back.
  */
+const SAVE_TIME_FIELDS: Readonly<Record<string, string>> = {
+  scoring_completed_at: 'scoringCompletedAt',
+  scoring_started_at: 'scoringStartedAt',
+};
+const SAME_SAVE_TOLERANCE_MS = 1000;
+
+function instant(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? null : at;
+}
+
+function sameSaveTime(value: unknown, row: Record<string, unknown>, key: string): boolean {
+  const camel = SAVE_TIME_FIELDS[key] as string;
+  const mine = instant(value);
+  const replica = instant(row[key] ?? row[camel]);
+  if (mine === null || replica === null) return mine === replica;
+  return Math.abs(replica - mine) <= SAME_SAVE_TOLERANCE_MS;
+}
+
+/** Every other timestamp is bookkeeping, not the score, and is left out. */
 function isTimestampField(key: string): boolean {
   return /(_at|At|_timestamp|Timestamp)$/.test(key);
 }
@@ -126,7 +148,8 @@ function normalized(value: unknown): unknown {
 /**
  * Whether this device's replica still holds exactly the score this version would send. Score
  * CONTENT only: any difference in a result, time, fault, find or reason field means the dog's
- * score moved on, so resending would overwrite it. Timestamps are left out.
+ * score moved on, so resending would overwrite it. Of the timestamps, only the score's own
+ * save times count (see `SAVE_TIME_FIELDS`).
  * With no replica row there is nothing it could overwrite here, so it still matches.
  */
 export function replicaHoldsScore(
@@ -138,8 +161,9 @@ export function replicaHoldsScore(
   return Object.entries(mutation.rpc?.fields ?? {}).every(
     ([key, value]) =>
       NOT_SCORE_FIELDS.has(key) ||
-      isTimestampField(key) ||
-      normalized(value) === normalized(row[key])
+      (key in SAVE_TIME_FIELDS
+        ? sameSaveTime(value, row, key)
+        : isTimestampField(key) || normalized(value) === normalized(row[key]))
   );
 }
 

@@ -134,6 +134,19 @@ describe('summarizeUnsentWork', () => {
       expect(work.unsentScoreCount).toBe(1);
     });
 
+    it('the same result re-saved 30 s later supersedes it: Remove only', () => {
+      const work = summarizeUnsentWork(
+        [],
+        [old],
+        replicaWith({ ...refusedFields, scoring_completed_at: '2026-11-14T10:00:30.000Z' })
+      );
+      expect(work.scores[0]).toMatchObject({
+        state: 'superseded',
+        retryIds: [],
+        removeIds: ['f1'],
+      });
+    });
+
     it('refused, then corrected: superseded, Remove only', () => {
       const corrected = {
         ...refusedFields,

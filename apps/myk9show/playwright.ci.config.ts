@@ -79,6 +79,11 @@ const REGRESSION_SPECS = [
   // Verified both directions before promotion: green at head, and red with the
   // pane scrollers' `relative` removed (1974px of outer-page overflow).
   '**/secretary/focusedClassHeaderPinned.spec.ts',
+  // showDeskEntriesRoom: room for the entries under Show Desk's pinned headers on a laptop
+  // (MYK9-1989). Hermetic fixture with twelve entries, every write aborted. Its geometry helper
+  // was run both ways against a local dev server with a faked backend: red before the change (at
+  // 1280x800 the first entry row sat at 661px with two rows showing), green after (331px, seven).
+  '**/secretary/showDeskEntriesRoom.spec.ts',
   '**/authentication-validation.spec.ts',
   '**/slice2-dog-workspace-evidence.spec.ts',
   // The former entities/entriesUI suite targets the deleted table/card

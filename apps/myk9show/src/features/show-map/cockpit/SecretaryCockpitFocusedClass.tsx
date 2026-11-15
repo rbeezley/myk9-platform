@@ -118,6 +118,14 @@ export function SecretaryCockpitFocusedClass({
     showJudge: !judgeControl,
   });
 
+  // A focused control in the card stops below the pinned name line, not under it.
+  const scrollMargin =
+    pinMode === 'panel'
+      ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL
+      : pinMode === 'page'
+        ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS
+        : '';
+
   return (
     <aside className="rounded-xl border bg-card text-card-foreground shadow-sm">
       {/* No overflow-hidden on the card: it would turn the card into the header's scroll
@@ -127,6 +135,7 @@ export function SecretaryCockpitFocusedClass({
         title={focused.name}
         facts={facts.join(' · ')}
         pinMode={pinMode}
+        settingsClassName={scrollMargin}
         menu={
           <FocusedClassActionsMenu
             showId={showId}
@@ -157,16 +166,7 @@ export function SecretaryCockpitFocusedClass({
         />
       </FocusedClassHeader>
 
-      <div
-        className={cn(
-          'space-y-5 p-5',
-          pinMode === 'panel'
-            ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL
-            : pinMode === 'page'
-              ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS
-              : ''
-        )}
-      >
+      <div className={cn('space-y-5 p-5', scrollMargin)}>
         <ClassCountTiles entries={focused.entries} unread={unread} />
         <ClassChecklistSection
           showId={showId}

@@ -1,10 +1,18 @@
-import React, { useEffect, useRef, type CSSProperties } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 import { List, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { MasterDetailLayout, MASTER_DETAIL_QUERY } from '@/components/layout/MasterDetailLayout';
 import { readSavedListPercent } from '@/components/layout/masterDetailStorage';
+import { ShowsPaneToggleProvider } from '@/components/layout/showsPaneToggle';
 import { ShowsPaneList } from '@/components/shows/browse/ShowsPaneList';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useElementWidth } from '@/hooks/useElementWidth';
@@ -46,7 +54,8 @@ const SHOWS_LIST_SIZE = {
   max: `${SHOWS_LIST_MAX_PX}px`,
 };
 // The fixed header and page padding are the only chrome; each pane scrolls on its own. Folded,
-// the "Shows" button row (2.75rem button + 0.75rem gap) comes off the height too.
+// the "Shows" button row (2.75rem button + 0.75rem gap) comes off the height too, unless the show's
+// header has taken the button inline (MYK9-1989), when there is no row.
 // `--pane-scroll-h` (PANE_SCROLL_HEIGHT_VAR) republishes the same height for the focused-class panel,
 // which sizes itself to the pane it scrolls in; it must be declared here, above PANE_TOP_INSET.
 const SPLIT_HEIGHT =
@@ -135,6 +144,33 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
     setPaneMode(next);
   };
 
+  // The show's header takes the Shows button inline (MYK9-1989); a page without one keeps the row.
+  const [claims, setClaims] = useState(0);
+  const claim = useCallback(() => {
+    setClaims(count => count + 1);
+    return () => setClaims(count => count - 1);
+  }, []);
+  const inline = folded && claims > 0;
+  // Built once per state the button can be in, so the header's claim effect does not re-run.
+  const showsButton = useMemo(
+    () =>
+      folded ? (
+        <Button
+          variant="outline"
+          data-shows-pane-toggle
+          onClick={() => {
+            focusAfterToggle.current = 'list';
+            setPaneMode('open');
+          }}
+        >
+          <List className="mr-2 h-4 w-4" aria-hidden="true" />
+          Shows
+        </Button>
+      ) : null,
+    [folded, setPaneMode]
+  );
+  const paneToggle = useMemo(() => ({ toggle: showsButton, claim }), [showsButton, claim]);
+
   const hideButton = (
     <Button
       variant="ghost"
@@ -153,20 +189,13 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
     <div className="px-[var(--app-shell-page-padding,1rem)] py-4 sm:px-6">
       <div ref={splitRef}>
         {/* A fixed slot ahead of the split, so showing the button never shifts the split's position. */}
-        <div className={folded ? 'pb-3' : 'hidden'}>
-          {folded && (
-            <Button variant="outline" data-shows-pane-toggle onClick={() => toggle('open')}>
-              <List className="mr-2 h-4 w-4" aria-hidden="true" />
-              Shows
-            </Button>
-          )}
-        </div>
+        <div className={folded && !inline ? 'pb-3' : 'hidden'}>{!inline && showsButton}</div>
         <MasterDetailLayout
           id="shows"
           listLabel="Shows list"
           detailLabel="Show"
           listSize={SHOWS_LIST_SIZE}
-          heightClassName={folded ? FOLDED_HEIGHT : SPLIT_HEIGHT}
+          heightClassName={folded && !inline ? FOLDED_HEIGHT : SPLIT_HEIGHT}
           listHidden={folded}
           list={
             // A list that fails to render must never take the open show down with it.
@@ -184,12 +213,14 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
             </ErrorBoundary>
           }
           detail={
-            <div style={PANE_TOP_INSET}>
-              {/* Mounted only once this page has measured itself (a layout effect, before paint),
+            <ShowsPaneToggleProvider value={paneToggle}>
+              <div style={PANE_TOP_INSET}>
+                {/* Mounted only once this page has measured itself (a layout effect, before paint),
                   so the show mounts once, at its final width: a first frame at full width that
                   then narrows would move the rows a returning anchor scrolls to. */}
-              {splitWidth !== null && <Outlet />}
-            </div>
+                {splitWidth !== null && <Outlet />}
+              </div>
+            </ShowsPaneToggleProvider>
           }
         />
       </div>

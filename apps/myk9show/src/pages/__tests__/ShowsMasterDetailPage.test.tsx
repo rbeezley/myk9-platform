@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
+import { useClaimedShowsPaneToggle } from '@/components/layout/showsPaneToggle';
 import ShowsMasterDetailPage from '../ShowsMasterDetailPage';
 
 const SECRETARY = { id: 'auth-1', roles: ['secretary'] };
@@ -65,6 +66,17 @@ function Page({ name }: { name: string }) {
   );
 }
 
+/** A show page with a header, which takes the folded list's Shows button inline (MYK9-1989). */
+function HeaderedShowPage() {
+  const toggle = useClaimedShowsPaneToggle();
+  return (
+    <header data-testid="show-header">
+      {toggle}
+      <h1>Headered show</h1>
+    </header>
+  );
+}
+
 function OpenShowLink() {
   return (
     <>
@@ -83,6 +95,7 @@ const renderAt = (path: string) =>
           <Route path="/shows/:id" element={<Page name="show page" />}>
             <Route path="entries" element={null} />
           </Route>
+          <Route path="/shows/:id/about" element={<HeaderedShowPage />} />
         </Route>
       </Routes>
     </MemoryRouter>
@@ -312,5 +325,33 @@ describe('ShowsMasterDetailPage', () => {
     renderAt('/shows/show-1');
     expect(screen.getByText('show page (full page)')).toBeInTheDocument();
     expect(screen.queryByText(/shows list/)).not.toBeInTheDocument();
+  });
+
+  it("puts the folded list's Shows button in the show's header, not on a row above it (MYK9-1989)", async () => {
+    const user = userEvent.setup();
+    setWindow(1100);
+    renderAt('/shows/show-1/about');
+
+    const header = screen.getByTestId('show-header');
+    const shows = screen.getByRole('button', { name: 'Shows' });
+    expect(header).toContainElement(shows);
+    expect(screen.getAllByRole('button', { name: 'Shows' })).toHaveLength(1);
+
+    await user.click(shows);
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
+    expect(within(header).queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
+
+    // Hiding again hands focus back to the button, wherever it now lives.
+    await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
+    expect(
+      within(screen.getByTestId('show-header')).getByRole('button', { name: 'Shows' })
+    ).toHaveFocus();
+  });
+
+  it('keeps the Shows button on its own row for a show page without a header', () => {
+    setWindow(1100);
+    renderAt('/shows/show-1');
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shows' })).toBeInTheDocument();
   });
 });

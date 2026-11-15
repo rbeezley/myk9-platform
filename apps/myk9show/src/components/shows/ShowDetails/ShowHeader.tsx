@@ -4,6 +4,7 @@ import { formatDateRange } from '@/utils/date-format';
 import type { HeroParent } from '@/components/common/DetailHero';
 import { cn } from '@/lib/utils';
 import { usePublishedHeightVar } from '@/hooks/usePublishedHeightVar';
+import { useClaimedShowsPaneToggle } from '@/components/layout/showsPaneToggle';
 import { SHOW_HEADER_CLASS, SHOW_HEADER_HEIGHT_VAR } from './showStickyLayout';
 
 interface ShowHeaderProps {
@@ -25,6 +26,7 @@ interface ShowHeaderProps {
  * pinned under the app header from `lg` up. The show's facts live on the About tab, not behind a
  * control here (MYK9-1683). Its height is measured and published as `--show-header-h` (see
  * `showStickyLayout`), since the controls wrap on a narrow window.
+ * Beside a folded Shows list it also carries that list's Shows button, ahead of the name.
  * The host club is plain text, not a link: a link here would need a 44px target (docs/INTENT.md),
  * which does not fit one line.
  */
@@ -40,6 +42,8 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
 }) => {
   const headerRef = useRef<HTMLDivElement>(null);
   usePublishedHeightVar(headerRef, SHOW_HEADER_HEIGHT_VAR);
+  // The folded Shows list's button, beside the name instead of on a row of its own (MYK9-1989).
+  const paneToggle = useClaimedShowsPaneToggle();
   const dates = startDate ? formatDateRange(startDate, endDate ?? startDate) : '';
   const facts = [
     dates,
@@ -57,6 +61,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
         SHOW_HEADER_CLASS
       )}
     >
+      {paneToggle && <div className="shrink-0">{paneToggle}</div>}
       {/* The name keeps a floor; the controls wrap onto a second line before it truncates. */}
       <div className="min-w-0 flex-1 basis-48 lg:min-w-[14rem]">
         <div className="flex min-w-0 items-center gap-2">

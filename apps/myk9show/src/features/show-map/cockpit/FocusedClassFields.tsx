@@ -172,7 +172,7 @@ export function FocusedClassFields({
   // (buildClassChecklist returns no items; ClassChecklistSection renders the editor only with items).
   const editable = canManageShow && sourceClass.lifecycle !== 'cancelled';
   return (
-    <dl className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-2">
+    <dl className="flex flex-wrap items-start gap-x-6 gap-y-1">
       <Field label="Status">
         <StatusField focused={focused} canManageShow={canManageShow} />
       </Field>

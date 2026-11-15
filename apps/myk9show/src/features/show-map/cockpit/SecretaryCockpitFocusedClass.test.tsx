@@ -374,10 +374,15 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     );
   }
 
-  it('shows what the secretary sets as inline fields in the class header', () => {
+  it('shows what the secretary sets as inline fields under the class name, outside its pinned line', () => {
     renderPanel(sourceClass);
 
-    const settings = screen.getByTestId('focused-class-header');
+    const settings = screen.getByTestId('focused-class-settings');
+    // MYK9-1989: only the name line pins; the settings scroll with the class.
+    expect(screen.getByTestId('focused-class-header')).not.toContainElement(settings);
+    expect(
+      within(screen.getByTestId('focused-class-header')).getByRole('heading')
+    ).toHaveTextContent(sourceClass.name);
     expect(within(settings).getByText('Status')).toBeInTheDocument();
     expect(within(settings).getByText('Expected start')).toBeInTheDocument();
     expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
@@ -386,7 +391,7 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
   it('closes an open expected-start editor when the secretary moves to another class', async () => {
     const { user, rerender } = renderPanel(sourceClass);
     await user.click(
-      within(screen.getByTestId('focused-class-header')).getByRole('button', { name: /9:00/ })
+      within(screen.getByTestId('focused-class-settings')).getByRole('button', { name: /9:00/ })
     );
     expect(screen.getByRole('button', { name: 'Save expected start' })).toBeInTheDocument();
 
@@ -428,7 +433,7 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
       { ...focused, lifecycle: { evidence: 'recorded', value: 'complete' } }
     );
 
-    const settings = screen.getByTestId('focused-class-header');
+    const settings = screen.getByTestId('focused-class-settings');
     expect(within(settings).getByText('Start not recorded')).toBeInTheDocument();
     expect(within(settings).queryByText('Not started')).toBeNull();
   });

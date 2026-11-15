@@ -32,7 +32,8 @@ import {
 import { awaitIdentity, deferred, installExhibitorProfile } from './exhibitorProfileRoute';
 
 export const SECRETARY_FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000101';
-const TRIAL_ID = 'f1f1f1f1-0000-0000-0000-000000000111';
+export const SECRETARY_FIXTURE_TRIAL_ID = 'f1f1f1f1-0000-0000-0000-000000000111';
+const TRIAL_ID = SECRETARY_FIXTURE_TRIAL_ID;
 /** The fixture trial's classes, in display order; a spec focuses one with `?focus=`. */
 export const SECRETARY_FIXTURE_CLASS_IDS = [
   'f1f1f1f1-0000-0000-0000-000000000121',

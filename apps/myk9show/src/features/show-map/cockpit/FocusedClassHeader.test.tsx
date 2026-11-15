@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import {
   FOCUSED_CLASS_HEADER_CLASS,
   FOCUSED_CLASS_HEADER_CLASS_IN_PANEL,
@@ -107,5 +107,35 @@ describe('FocusedClassHeader', () => {
     expect(title.parentElement?.parentElement).toBe(menu.parentElement?.parentElement);
     expect(menu.parentElement?.previousElementSibling).toBe(title.parentElement);
     expect(screen.getByText('Field')).toBeInTheDocument();
+  });
+
+  it('pins only the name line; the settings follow it, unpinned, with the scroll margin they are given (MYK9-1989)', () => {
+    render(
+      <FocusedClassHeader
+        eyebrow="Selected class · Trial 1"
+        title="Buried Novice A"
+        facts="5 entered"
+        pinMode="panel"
+        settingsClassName="scroll-mt-test"
+      >
+        <span>Expected start</span>
+      </FocusedClassHeader>
+    );
+    const pinned = screen.getByTestId('focused-class-header');
+    const settings = screen.getByTestId('focused-class-settings');
+    // The name, which class and trial, and the facts stay on the pinned line.
+    expect(pinned).toHaveTextContent('Selected class · Trial 1');
+    expect(within(pinned).getByRole('heading', { name: 'Buried Novice A' })).toBeInTheDocument();
+    expect(pinned).toHaveTextContent('5 entered');
+    // The settings are the next sibling, not inside the pinned line, and do not pin themselves.
+    expect(pinned).not.toContainElement(screen.getByText('Expected start'));
+    expect(pinned.nextElementSibling).toBe(settings);
+    expect(settings.className).not.toMatch(/(^|\s)sticky(\s|$)/);
+    expect(settings).toHaveClass('scroll-mt-test');
+  });
+
+  it('renders no settings block without settings', () => {
+    render(<FocusedClassHeader eyebrow="Selected class" title="Buried Novice A" facts="" />);
+    expect(screen.queryByTestId('focused-class-settings')).not.toBeInTheDocument();
   });
 });

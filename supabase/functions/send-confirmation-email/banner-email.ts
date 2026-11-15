@@ -1,3 +1,4 @@
+import { renderSecretaryNoteBlock } from './confirmation-email-shared.ts';
 import { renderVenueMapBlock } from './venue-directions.ts';
 import {
   BANNER_BAND_MUTED_OPACITY,
@@ -69,6 +70,8 @@ export interface BannerEmailData {
   trialChairName: string | null;
   trialChairTitle: string | null;
   memberClubLanguage: string;
+  /** The secretary's note to exhibitors (MYK9-1999). */
+  secretaryNote?: string | null;
 }
 
 // ─── HTML escape helpers ────────────────────────────────────────────────────
@@ -157,7 +160,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
   const ctaBlock = data.trialUrl
     ? `<tr>
   <td align="left" style="padding:12px 36px 32px;">
-    <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:14px 28px;background:${flag};color:${textOnFlag};font-family:${BN_DISPLAY};font-weight:700;font-size:13px;letter-spacing:0.04em;text-decoration:none;">View trial particulars</a>
+    <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:14px 28px;background:${flag};color:${textOnFlag};font-family:${BN_DISPLAY};font-weight:700;font-size:13px;letter-spacing:0.04em;text-decoration:none;">See your entries in My Shows</a>
   </td>
 </tr>`
     : '';
@@ -204,7 +207,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
   <tr>
     <td style="padding:32px 36px 4px;font-family:${BN_BODY};font-size:15px;line-height:1.6;color:${BN_INK};">
       <p style="margin:0;">Dear ${esc(data.salutation)},</p>
-      <p style="margin:12px 0 0;">Your entry is confirmed. The draw is set and your particulars are recorded below.</p>
+      <p style="margin:12px 0 0;">Your entry is accepted. Your particulars are recorded below.</p>
     </td>
   </tr>
 
@@ -226,7 +229,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
           <td style="padding-bottom:16px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BN_HAIR};">
               <tr>
-                <td style="padding-top:12px;font-family:${BN_BODY};font-weight:500;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${BN_MUTE};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} · Fees received</td>
+                <td style="padding-top:12px;font-family:${BN_BODY};font-weight:500;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${BN_MUTE};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} · Entry fees</td>
                 <td style="padding-top:12px;font-family:${BN_DISPLAY};font-weight:900;font-size:28px;letter-spacing:-0.035em;color:${flagText};text-align:right;">${esc(data.totalFeesFormatted)}</td>
               </tr>
             </table>
@@ -241,7 +244,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
     <td style="padding:0 36px 8px;">
       <h2 style="margin:8px 0 16px;font-family:${BN_DISPLAY};font-weight:800;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${flagText};">02 / ON THE DAY</h2>
       ${doorsBlock}${firstClassBlock}${venueBlock}${parkingBlock}${hospitalityBlock}${cratingBlock}
-      ${renderVenueMapBlock(data.venueMap, data.venue)}
+      ${renderVenueMapBlock(data.venueMap, data.venue)}${renderSecretaryNoteBlock(data.secretaryNote)}
     </td>
   </tr>
 

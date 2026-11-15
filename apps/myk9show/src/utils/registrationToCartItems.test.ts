@@ -14,7 +14,7 @@ describe('registrationToCartItems', () => {
       {
         'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
       },
-      [{ id: 'class-1', entryFee: 20 }],
+      [{ id: 'class-1' }],
       {
         preEntryFee: '25',
         dayOfShowFee: '30',
@@ -50,10 +50,7 @@ describe('registrationToCartItems', () => {
       {
         'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Riley Handler', isOwner: false },
       },
-      [
-        { id: 'class-1', entryFee: 18 },
-        { id: 'class-2', entryFee: 22 },
-      ],
+      [{ id: 'class-1' }, { id: 'class-2' }],
       {
         preEntryFee: '25',
         startDate: '2099-05-01',
@@ -116,7 +113,7 @@ describe('registrationToCartItems', () => {
         },
       ],
       {},
-      [{ id: 'class-1', entryFee: 20 }],
+      [{ id: 'class-1' }],
       {
         preEntryFee: '25',
         startDate: '2099-05-01',

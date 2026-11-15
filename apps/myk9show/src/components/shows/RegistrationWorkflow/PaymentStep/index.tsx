@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { parseJuniorHandlerFee } from './utils';
+import { NO_ENTRY_FEE_MESSAGE, parseJuniorHandlerFee } from './utils';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { JuniorHandlerDeclarationControl } from './JuniorHandlerDeclaration';
@@ -170,6 +170,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             the waitlist classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
             let you know, and you pay only if you decide to claim it.
           </AlertDescription>
+        </Alert>
+      )}
+
+      {/* MYK9-1931: zero is never a price. A class with no entry fee set cannot be paid
+          online, so card is withdrawn and the exhibitor is told why. */}
+      {paymentResolution.noEntryFeeSet && (
+        <Alert role="alert" variant="destructive">
+          <Info className="h-4 w-4" />
+          <AlertDescription>{NO_ENTRY_FEE_MESSAGE}</AlertDescription>
         </Alert>
       )}
 

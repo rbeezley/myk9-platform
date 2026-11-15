@@ -1,5 +1,4 @@
 import { Input } from '@/components/ui/input';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -227,43 +226,6 @@ export function RequirementsFields({
         onChange={v => onFieldChange('itemsUsed', v)}
         colSpan={2}
       />
-    </>
-  );
-}
-
-export function FeeFields({
-  classData,
-  onFieldChange,
-}: {
-  classData: ClassData;
-  onFieldChange: (field: string, value: string | number) => void;
-}) {
-  return (
-    <>
-      <div className="space-y-3">
-        <Label htmlFor="preEntryFee" className="text-sm font-medium">
-          Pre-Entry Fee
-        </Label>
-        <CurrencyInput
-          id="preEntryFee"
-          value={classData.preEntryFee}
-          onChange={value => onFieldChange('preEntryFee', value)}
-          placeholder="0.00"
-          className="h-11"
-        />
-      </div>
-      <div className="space-y-3">
-        <Label htmlFor="dayOfShowFee" className="text-sm font-medium">
-          Day-of-Show Fee
-        </Label>
-        <CurrencyInput
-          id="dayOfShowFee"
-          value={classData.dayOfShowFee}
-          onChange={value => onFieldChange('dayOfShowFee', value)}
-          placeholder="0.00"
-          className="h-11"
-        />
-      </div>
     </>
   );
 }

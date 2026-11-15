@@ -119,7 +119,7 @@ describe('buildMonogramHtml', () => {
     it('renders the CTA when trialUrl is set', () => {
       const html = buildMonogramHtml(BASE);
       expect(html).toContain('https://bckc.org/trials/spring-2026');
-      expect(html).toContain('View trial particulars');
+      expect(html).toContain('See your entries in My Shows');
     });
 
     it('renders the trial chair signature when set', () => {
@@ -212,7 +212,7 @@ describe('buildMonogramHtml', () => {
 
     it('omits the CTA block when trialUrl is null', () => {
       const html = buildMonogramHtml({ ...BASE, trialUrl: null });
-      expect(html).not.toContain('View trial particulars');
+      expect(html).not.toContain('See your entries in My Shows');
     });
 
     it('omits the signature block when both chair fields are null', () => {

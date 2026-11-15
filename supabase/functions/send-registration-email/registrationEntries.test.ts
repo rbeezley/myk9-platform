@@ -17,6 +17,24 @@ describe('registration email entries', () => {
           class: { name: 'Excellent' },
         },
       ])
-    ).toEqual([{ dogName: 'Cooper', className: 'Excellent', armband: '142' }]);
+    ).toEqual([{ dogName: 'Cooper', className: 'Excellent', armband: '142', judgeName: null }]);
+  });
+
+  it("names each class's confirmed judge", () => {
+    expect(
+      mapRegistrationEntries(
+        [
+          {
+            armband: null,
+            class_id: 'c1',
+            dog: { call_name: 'Cooper' },
+            class: { name: 'Novice' },
+          },
+        ],
+        new Map([['c1', 'Dana Whitlock']])
+      )
+    ).toEqual([
+      { dogName: 'Cooper', className: 'Novice', armband: undefined, judgeName: 'Dana Whitlock' },
+    ]);
   });
 });

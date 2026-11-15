@@ -50,7 +50,7 @@ function row(overrides: Partial<RecoverableEntryRow> = {}): RecoverableEntryRow 
     entry_fee: 15,
     jump_height: null,
     special_requests: null,
-    class_entry_fee: 28,
+    class_entry_fee: null,
     show_pre_entry_fee: 30,
     show_day_of_show_fee: 45,
     show_start_date: '2099-05-01',
@@ -74,6 +74,11 @@ describe('getAuthoritativeEntryFeeCents quotes the frozen entry fee', () => {
       expect(getAuthoritativeEntryFeeCents(row({ entry_fee }))).toBe(3000);
     }
   });
+  // MYK9-1931: in that fallback a class's own fee wins over the show's, and 0 is no fee.
+  it("falls back to the class's own fee when it has one", () => {
+    expect(getAuthoritativeEntryFeeCents(row({ entry_fee: null, class_entry_fee: 40 }))).toBe(4000);
+    expect(getAuthoritativeEntryFeeCents(row({ entry_fee: null, class_entry_fee: 0 }))).toBe(3000);
+  });
 });
 
 describe('findRecoverableEntries carries the stored fee to the quote', () => {
@@ -91,7 +96,7 @@ describe('findRecoverableEntries carries the stored fee to the quote', () => {
         entry_fee: 15,
         jump_height: null,
         special_requests: null,
-        class: { entry_fee: 28 },
+        class: { entry_fee: null },
         show: { pre_entry_fee: 30, day_of_show_fee: 45, start_date: '2099-05-01' },
       },
     ];

@@ -78,6 +78,12 @@ export interface TrialClass {
    */
   maxEntries?: number | null | undefined;
   allowsWaitlist?: boolean | null | undefined;
+  /**
+   * `classes.entry_fee`, the class's own fee (MYK9-1931), carried so Edit class can show it.
+   * 0 = no fee of its own (the show's fee is charged), as `mapDatabaseToClass` maps NULL;
+   * undefined = the source did not load it (the editor then shows no fee field).
+   */
+  entryFee?: number | undefined;
   /** The class's run-order position (`classes.class_order`), shown on Setup → Classes. */
   runOrder?: number | undefined;
   // Optional fields for enhanced class cards

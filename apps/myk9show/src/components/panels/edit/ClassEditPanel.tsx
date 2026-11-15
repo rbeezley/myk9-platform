@@ -33,6 +33,7 @@ import {
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
+import { ClassEntryFeeField } from './ClassEntryFeeField';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import { locateClassField, type ClassTabValue } from './ClassEditPanel.validationTab';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
@@ -64,9 +65,10 @@ type CapacitySourceLike = Parameters<typeof hasLoadedCapacity>[0];
 // Simple mode form for TrialClass
 const TrialClassEditForm: React.FC<{
   showId?: string;
+  classId?: string;
   capacityLoaded: boolean;
   outgoingJudge: OutgoingJudge;
-}> = ({ showId, capacityLoaded, outgoingJudge }) => {
+}> = ({ showId, classId, capacityLoaded, outgoingJudge }) => {
   const { data, form } = useEditPanel<TrialClassEditFormData>();
   const { shows } = useShowStore();
 
@@ -217,6 +219,7 @@ const TrialClassEditForm: React.FC<{
       </Card>
 
       {capacityLoaded && <ClassWaitlistFields showId={showId} />}
+      {data.entryFeeLoaded && <ClassEntryFeeField showId={showId} classId={classId} />}
     </div>
   );
 };
@@ -282,6 +285,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
         schema={classSimpleSchema}
       >
         <TrialClassEditForm
+          classId={classId}
           capacityLoaded={capacityLoaded}
           outgoingJudge={outgoingJudge}
           {...(showId !== undefined && { showId })}
@@ -306,6 +310,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
       onValidationFail={handleValidationFail}
     >
       <ClassEditForm
+        classId={classId}
         activeTab={activeTab}
         outgoingJudge={outgoingJudge}
         onTabChange={setActiveTab}

@@ -10,7 +10,7 @@ const base = {
   showPreEntryFee: 30,
   showDayOfShowFee: 45,
   showStartDate: '2026-10-10',
-  classEntryFee: 28,
+  classEntryFee: null,
   nowIso: '2026-10-01T12:00:00Z',
   showJuniorHandlerFee: 15,
 };
@@ -42,6 +42,7 @@ describe('authoritativeEntryFeeCents with a junior declaration', () => {
       ...base,
       showPreEntryFee: null,
       showDayOfShowFee: null,
+      classEntryFee: 28,
       juniorDeclared: true,
     };
     expect(authoritativeEntryFeeCents(classFeeOnly)).toBe(1500);

@@ -72,7 +72,37 @@ describe('buildRegistrationEmailHtml', () => {
     expect(html).toContain('CONF-1234');
     expect(html).toContain('$30.00');
     expect(html).toContain('href="https://myk9show.com/exhibitor/entries"');
-    expect(html).toContain('Your armband number is assigned closer to the show.');
+    expect(html).toContain(
+      'Your armband number is given when the show secretary accepts your entry.'
+    );
+  });
+
+  it('names the judge for each class and the street address (MYK9-1999)', () => {
+    const html = buildRegistrationEmailHtml({
+      ...base,
+      showLocation: 'Expo Hall\n1200 Fairgrounds Rd, Springfield, IL 62701',
+      entries: [
+        { dogName: 'Rocket', className: 'Novice A', judgeName: 'Dana Whitlock' },
+        { dogName: 'Rocket', className: 'Advanced', judgeName: null },
+      ],
+    });
+    expect(html).toContain('Judge Dana Whitlock');
+    expect(html).toContain('Judge to be announced');
+    expect(html).toContain('Expo Hall<br>1200 Fairgrounds Rd, Springfield, IL 62701');
+  });
+
+  it('carries no free text from the secretary', () => {
+    const html = buildRegistrationEmailHtml(base);
+    expect(html).not.toContain('From the show secretary');
+  });
+
+  it('leaves out the armband note when every entry already has its armband', () => {
+    const html = buildRegistrationEmailHtml({
+      ...base,
+      entries: [{ dogName: 'Rocket', className: 'Novice A', armband: '142' }],
+    });
+    expect(html).toContain('#142');
+    expect(html).not.toContain('Your armband number is given');
   });
 
   it('has no em dashes in the body', () => {

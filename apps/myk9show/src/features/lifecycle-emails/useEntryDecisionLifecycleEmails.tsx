@@ -137,9 +137,14 @@ export function useEntryDecisionLifecycleEmails({
   });
 
   // The show's switch in Scheduled emails is the decision to email (MYK9-1800). On, and the
-  // show is published and not yet over: the email goes by itself. On, but the show is a
+  // show is published and not yet over: the email goes by itself (for an Accept, that email is
+  // the server's full confirmation, below). On, but the show is a
   // draft or finished, or the switch is not known yet: she gets the preview. Off: nothing.
   const decisionEmailPlan = (stepType: DecisionStepType): DecisionEmailPlan => {
+    // MYK9-1999: on a published show that is not over, the full confirmation IS the accepted
+    // email. send-confirmation-email sends it by itself once the Accept has stood a few quiet
+    // minutes, with the armband, judge and directions; a second "Entry accepted" would double it.
+    if (stepType === 'accepted' && sendUnasked) return 'none';
     const step = summaryQuery.data?.steps.find(candidate => candidate.stepType === stepType);
     if (!step) return 'preview';
     if (!step.isEnabled) return 'none';

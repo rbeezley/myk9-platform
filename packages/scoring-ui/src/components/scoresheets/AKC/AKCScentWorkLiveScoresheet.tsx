@@ -27,6 +27,7 @@ import { maxTimeForArea } from '../../../utils/buildResolvedClassRules';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
 import { ResultChoiceChips } from '../../ResultChoiceChips';
+import { startingReasonFor } from '../../../utils/resultReasons';
 import type { LiveScoresheetProps, QualifyingResult } from '../../../types/scoreData';
 import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
@@ -116,13 +117,11 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   };
 
   const handleResultSelect = (value: QualifyingResult) => {
-    // Re-tapping DQ keeps the reason already typed (MYK9-1011).
-    if (value === 'DQ' && scoring.qualifying === 'DQ') return;
+    // A tap on the result already chosen keeps its reason, whether the judge or
+    // the timer set it (MYK9-1011, MYK9-2008).
+    if (value === scoring.qualifying) return;
     scoring.setQualifying(value);
-    if (value === 'NQ') scoring.setNonQualifyingReason('Incorrect Call');
-    else if (value === 'ABS') scoring.setNonQualifyingReason('Absent');
-    else if (value === 'EX') scoring.setNonQualifyingReason('Dog Eliminated in Area');
-    else scoring.setNonQualifyingReason('');
+    scoring.setNonQualifyingReason(startingReasonFor('AKC_SCENT_WORK', value));
   };
 
   const handleSubmitClick = () => {

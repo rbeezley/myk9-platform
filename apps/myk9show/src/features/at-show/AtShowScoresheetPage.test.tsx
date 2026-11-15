@@ -70,6 +70,19 @@ const { supabaseSignOut, supabaseGetSession } = vi.hoisted(() => ({
   // decides by the RESULTING session, not the returned error. Default: gone.
   supabaseGetSession: vi.fn().mockResolvedValue({ data: { session: null } }),
 }));
+// MYK9-2013: the passcode escape is a guarded sign-out; it reads this device's unsent work.
+const unsent = vi.hoisted(() => ({ scores: 0 }));
+vi.mock('@/services/replication/unsentWork', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication/unsentWork')>();
+  return {
+    ...actual,
+    readDeviceUnsentWork: async () => ({
+      ...actual.EMPTY_UNSENT_WORK,
+      unsentScoreCount: unsent.scores,
+      total: unsent.scores,
+    }),
+  };
+});
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { auth: { signOut: supabaseSignOut, getSession: supabaseGetSession } },
 }));
@@ -899,6 +912,35 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   // sync. A passcode grant does NOT establish server authz for an account
   // session, so it is not an exemption.
   describe('judge assignment pre-flight (MYK9-82)', () => {
+    // A judge account online gets the sign-out guard first (MYK9-202, MYK9-2013).
+    const signOutToPasscode = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Sign out anyway' }));
+    };
+    beforeEach(() => {
+      unsent.scores = 0;
+    });
+
+    it('warns with the unsent count before signing out to a passcode', async () => {
+      unsent.scores = 2;
+      judgeAssignmentsGetAll.mockResolvedValue([
+        { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
+      ]);
+      renderPage();
+
+      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
+
+      expect(await screen.findByRole('alertdialog', { name: '2 scores not sent' })).toBeVisible();
+      expect(supabaseSignOut).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Stay signed in' }));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(supabaseSignOut).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: /sign out to use a passcode/i }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Sign out anyway' }));
+      await waitFor(() => expect(supabaseSignOut).toHaveBeenCalledWith({ scope: 'local' }));
+    });
+
     it('blocks a signed-in judge with no matching assignment, offering the guest-passcode escape', async () => {
       judgeAssignmentsGetAll.mockResolvedValue([
         { id: 'a1', personId: 'judge-1', classId: 'some-other-class', status: 'confirmed' },
@@ -931,8 +973,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       ]);
       renderPage();
 
-      const escape = await screen.findByRole('button', { name: /sign out to use a passcode/i });
-      fireEvent.click(escape);
+      await signOutToPasscode();
 
       // Direct supabase sign-out (not the hard-redirecting AuthContext signOut),
       // LOCAL scope so we don't revoke the user's other devices. Session is gone
@@ -956,7 +997,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       ]);
       renderPage();
 
-      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
+      await signOutToPasscode();
 
       await waitFor(() => expect(useRingsideGrantStore.getState().activeGrant).toBeNull());
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -976,7 +1017,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       ]);
       renderPage();
 
-      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
+      await signOutToPasscode();
 
       await screen.findByRole('alert');
       expect(screen.getByText("You're not assigned to judge this class")).toBeInTheDocument();
@@ -1002,7 +1043,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       ]);
       renderPage();
 
-      fireEvent.click(await screen.findByRole('button', { name: /sign out to use a passcode/i }));
+      await signOutToPasscode();
 
       await screen.findByRole('alert');
       expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();

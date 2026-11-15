@@ -840,7 +840,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         detail.tableName === 'entries'
           ? entryConflictCopy(
               (detail.localData ?? {}) as Record<string, unknown>,
-              (detail.remoteData ?? {}) as Record<string, unknown>
+              (detail.remoteData ?? {}) as Record<string, unknown>,
+              detail.fields
             )
           : {
               title: CONFLICT_TOAST_TITLE,

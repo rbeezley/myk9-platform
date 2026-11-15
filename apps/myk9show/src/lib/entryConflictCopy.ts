@@ -53,12 +53,14 @@ export function describeConflictScore(row: EntryConflictRow): string {
 
 function checkInWords(status: unknown): string {
   if (typeof status !== 'string' || !status) return 'no status';
-  return classifyEntryCheckInStatus({ check_in_status: status })?.label ?? status;
+  const label = classifyEntryCheckInStatus({ check_in_status: status })?.label;
+  return label ?? status.replace(/[-_]/g, ' ');
 }
 
 export function entryConflictCopy(
   local: EntryConflictRow,
-  remote: EntryConflictRow
+  remote: EntryConflictRow,
+  fields: readonly string[] = []
 ): EntryConflictCopy {
   const named = describeConflictDog(remote);
   const dog = named !== 'this dog' ? named : describeConflictDog(local);
@@ -66,10 +68,20 @@ export function entryConflictCopy(
   const scored = Boolean(
     read(local, 'is_scored', 'isScored') || read(remote, 'is_scored', 'isScored')
   );
-  const localStatus = read(local, 'check_in_status', 'checkInStatus');
-  const remoteStatus = read(remote, 'check_in_status', 'checkInStatus');
-  // Two staff changed the status: say what each chose, so the pull is never dropped by guesswork.
-  if (!scored && localStatus !== remoteStatus && (localStatus || remoteStatus)) {
+  const entryStatusConflict = fields.some(
+    field => field === 'entry_status' || field === 'entryStatus'
+  );
+  const statusKeys = entryStatusConflict
+    ? (['entry_status', 'entryStatus'] as const)
+    : (['check_in_status', 'checkInStatus'] as const);
+  const localStatus = read(local, ...statusKeys);
+  const remoteStatus = read(remote, ...statusKeys);
+  // Two changes inside the check-in group: say what each chose, so a pull is never dropped by guesswork.
+  if (
+    (!scored || entryStatusConflict) &&
+    localStatus !== remoteStatus &&
+    (localStatus || remoteStatus)
+  ) {
     const mine = checkInWords(localStatus);
     const theirs = checkInWords(remoteStatus);
     return {

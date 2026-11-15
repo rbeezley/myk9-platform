@@ -37,4 +37,15 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     expect(copy.keepLocalLabel).toMatch(/^Keep my status: /);
     expect(copy.description).toContain('drops anything else');
   });
+
+  it('shows both values when two changes collide on the entry status', () => {
+    const copy = entryConflictCopy(
+      { ...dog, entry_status: 'scratched' },
+      { ...dog, entry_status: 'withdrawn' },
+      ['entry_status']
+    );
+    expect(copy.title).toBe('#12 Rex was checked in two ways');
+    expect(copy.keepLocalLabel).toBe('Keep my status: scratched');
+    expect(copy.takeRemoteLabel).toBe('Keep the other status: withdrawn');
+  });
 });

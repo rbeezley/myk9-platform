@@ -88,4 +88,38 @@ describe('entries compare policy: a check-in change and a score are different fa
     expect(result.hasConflict).toBe(false);
     expect(result.adoptRemoteFields).toEqual(expect.arrayContaining(['check_in_status']));
   });
+
+  it('a pull made here stays when the other device saved the score', () => {
+    const checkedIn = { ...base, ...status('checked-in') };
+    const result = detect(
+      { ...checkedIn, ...status('pulled') },
+      { ...checkedIn, ...status('completed'), is_scored: true, isScored: true },
+      checkedIn
+    );
+    expect(result.hasConflict).toBe(false);
+    expect(result.adoptRemoteFields ?? []).not.toContain('check_in_status');
+  });
+
+  it('a status change made here beats the other device unscored in-ring marker', () => {
+    const checkedIn = { ...base, ...status('checked-in') };
+    const result = detect(
+      { ...checkedIn, ...status('pulled') },
+      { ...checkedIn, ...status('in-ring') },
+      checkedIn
+    );
+    expect(result.hasConflict).toBe(false);
+    expect(result.adoptRemoteFields ?? []).not.toContain('check_in_status');
+  });
+
+  it('a day-of entry_status collision between two check-in changes asks', () => {
+    const accepted = { id: 'e1', entry_status: 'accepted' };
+    const result = detectDirtyRowConflict({
+      base: accepted,
+      local: { ...accepted, entry_status: 'scratched' },
+      remote: { ...accepted, entry_status: 'withdrawn' },
+      comparePolicy: ENTRY_DIRTY_ROW_COMPARE_POLICY,
+    });
+    expect(result.hasConflict).toBe(true);
+    expect(result.fields).toEqual(['entry_status']);
+  });
 });

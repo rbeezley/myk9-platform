@@ -80,6 +80,8 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   'trial_secretary_show_ids -> is_trial_secretary',
   'entry_enrollment_select_show_ids -> is_trial_secretary',
   'get_show_judges -> is_club_admin',
+  // MYK9-2045: reads s.club_id from shows (NOT NULL since MYK9-1008), as get_show_judges does.
+  'get_show_club_officers -> is_club_admin',
 ];
 
 describe('club-scoped authorization helpers are never handed a bare club_id column', () => {

@@ -23,6 +23,8 @@ const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
     'Pre-existing anon grant, untouched by 20260830160000 and its revert 20260830190000, both of which edit the body only. Narrowing it belongs in a deliberate ACL sweep.',
   'get_my_person_id()':
     'Anon-readable RLS policies resolve the current person through this helper.',
+  'get_show_club_officers(uuid)':
+    "MYK9-2045 (20261115213700) granted anon deliberately: the owner decided on 2026-11-14 that the club's Officers list is what the premium prints, and the premium's public page and PDF are read signed out. The function's gate is get_show_judges', limiting unauthenticated callers to published/upcoming/in-progress/completed shows, and it also refuses a soft-deleted show or club. Its RETURNS TABLE is (position, name) only: no email and no person id, so it exposes nothing beyond what the published premium prints.",
   'get_show_officials(uuid)':
     "SA-006's follow-up (20260704152531) granted anon deliberately so the officials card renders on the public show overview; 20260830240000 preserves it. The function's own gate limits unauthenticated callers to published/upcoming/in-progress/completed shows, and its return shape is unchanged, so the exposure is the one SA-006 chose.",
   'get_show_judges(uuid)':

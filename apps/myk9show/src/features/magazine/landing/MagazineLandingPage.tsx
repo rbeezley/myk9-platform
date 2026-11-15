@@ -140,8 +140,14 @@ export function MagazineLandingPage({
           fees={data.fees}
           timezone={data.timezone}
         />
-        <WithdrawalPolicySection showId={show?.id} className="mz-section" />
-        <PremiumDownloadSection show={show} className="mz-section" />
+        <WithdrawalPolicySection
+          showId={show?.id}
+          className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
+        />
+        <PremiumDownloadSection
+          show={show}
+          className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
+        />
 
         <RosterSection
           entryCount={data.entryCount}

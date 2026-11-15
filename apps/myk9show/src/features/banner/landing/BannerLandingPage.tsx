@@ -8,7 +8,7 @@ import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownlo
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureBannerFontsLoaded, BANNER_DISPLAY_FAMILY } from '../fonts';
 import { useBannerLandingData } from './useBannerLandingData';
-import { bannerColors } from '../tokens';
+import { bannerColors, bannerSpacing } from '../tokens';
 import { FlagMasthead } from './sections/FlagMasthead';
 import { StickyNav } from './sections/StickyNav';
 import { WelcomeSection } from './sections/WelcomeSection';
@@ -42,6 +42,14 @@ interface BannerLandingPageProps {
  * through component props for sections that need it inline (FlagBar
  * background, gradient bar fill, etc).
  */
+// MYK9-2041: the shared policy and premium sections take the page's column, like
+// the sections around them; the class alone sets padding only on narrow screens.
+const SHARED_SECTION_STYLE = {
+  maxWidth: bannerSpacing.contentMax,
+  margin: '0 auto',
+  padding: `${bannerSpacing.sectionPaddingY}px ${bannerSpacing.pageGutterX}px`,
+} as const;
+
 export function BannerLandingPage({
   show,
   trial,
@@ -134,8 +142,12 @@ export function BannerLandingPage({
           flag={brandColors.flag}
           flagText={brandColors.flagText}
         />
-        <WithdrawalPolicySection showId={show?.id} className="bn-section" />
-        <PremiumDownloadSection show={show} className="bn-section" />
+        <WithdrawalPolicySection
+          showId={show?.id}
+          className="bn-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <PremiumDownloadSection show={show} className="bn-section" style={SHARED_SECTION_STYLE} />
         <JudgesSection
           judges={data.judges}
           trialsCount={data.trials.length}

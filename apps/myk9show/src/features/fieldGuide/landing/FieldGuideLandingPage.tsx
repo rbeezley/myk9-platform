@@ -8,7 +8,7 @@ import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownlo
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureFieldGuideFontsLoaded, FIELD_GUIDE_DISPLAY_FAMILY } from '../fonts';
 import { useFieldGuideLandingData } from './useFieldGuideLandingData';
-import { fieldGuideColors } from '../tokens';
+import { fieldGuideColors, fieldGuideSpacing } from '../tokens';
 import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { TopStrip } from './sections/TopStrip';
 import { DataGridHero } from './sections/DataGridHero';
@@ -40,6 +40,14 @@ interface FieldGuideLandingPageProps {
  * Banner there's no `style` prop carrying a CSS-var bundle — the
  * `[data-field-guide]` scope picks up the palette from `fieldGuide.css`.
  */
+// MYK9-2041: the shared policy and premium sections take the page's column, like
+// the sections around them; the class alone sets padding only on narrow screens.
+const SHARED_SECTION_STYLE = {
+  maxWidth: fieldGuideSpacing.contentMax,
+  margin: '0 auto',
+  padding: `${fieldGuideSpacing.sectionPaddingY}px ${fieldGuideSpacing.pageGutterX}px`,
+} as const;
+
 export function FieldGuideLandingPage({
   show,
   trial,
@@ -114,8 +122,12 @@ export function FieldGuideLandingPage({
           trialsCount={data.trials.length}
           timezone={data.timezone}
         />
-        <WithdrawalPolicySection showId={show?.id} className="fg-section" />
-        <PremiumDownloadSection show={show} className="fg-section" />
+        <WithdrawalPolicySection
+          showId={show?.id}
+          className="fg-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <PremiumDownloadSection show={show} className="fg-section" style={SHARED_SECTION_STYLE} />
         <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
         <RosterSection
           entryCount={data.entryCount}

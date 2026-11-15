@@ -96,6 +96,16 @@ describe('send-lifecycle-email: the decision must still hold when it sends (MYK9
     ]);
   });
 
+  it('sends a correction for an acceptance after the entry was withdrawn (correction exempt)', async () => {
+    const { fetch, send } = setup({
+      show_lifecycle_email_jobs: [{ ...acceptanceJob, correction_for_job_id: 'job-original' }],
+      entries: [entry({ entry_status: 'withdrawn' })],
+    });
+
+    await expect(send()).resolves.toMatchObject({ sent: 1, skipped: 0 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('sends a waitlist email while the entry is still waitlisted', async () => {
     const { fetch, send } = setup({
       show_lifecycle_email_jobs: [{ ...acceptanceJob, step_type: 'waitlisted' }],

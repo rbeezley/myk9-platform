@@ -43,8 +43,14 @@ export function decisionJobEntryIds(job: LifecycleEmailJobRow): string[] {
   return ids.includes(anchor) ? [...new Set(ids)] : [anchor];
 }
 
+/**
+ * A correction is exempt: it describes the entry's NEW status but keeps the original
+ * decision's step type when that status has no step of its own (withdrawn, not accepted,
+ * pulled), so matching it would skip the very email that tells the exhibitor of the change.
+ * Same exemption as the app's `isDecisionEmailSuperseded`.
+ */
 function isDecisionJob(job: LifecycleEmailJobRow): boolean {
-  return job.step_type in DECIDED_STATUS && !!job.entry_id;
+  return job.step_type in DECIDED_STATUS && !!job.entry_id && !job.correction_for_job_id;
 }
 
 /**

@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
     is_anonymous: boolean;
   } | null,
   inWindow: true,
+  timeZone: 'America/New_York',
   badge: vi.fn(),
 }));
 
@@ -23,8 +24,9 @@ vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: state.
 vi.mock('@/hooks/queries/useShowTrials', () => ({
   useShowTrials: () => ({ data: state.trials }),
 }));
-vi.mock('@/features/registries', () => ({ getTrialTimezone: () => 'America/New_York' }));
-vi.mock('@/features/offline-readiness/offlinePromptWindow', () => ({
+vi.mock('@/features/registries', () => ({ getTrialTimezone: () => state.timeZone }));
+vi.mock('@/features/offline-readiness/offlinePromptWindow', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/offline-readiness/offlinePromptWindow')>()),
   isInOfflinePromptWindow: () => state.inWindow,
 }));
 vi.mock('@/components/shows/ShowDetails/ShowSyncStatus', () => ({
@@ -52,6 +54,7 @@ describe('ShowHeaderControls auto-save key', () => {
     state.badge.mockClear();
     state.trials = [{ id: 't1' }];
     state.inWindow = true;
+    state.timeZone = 'America/New_York';
     state.user = { id: 'u1', last_sign_in_at: '2026-11-14T10:00:00Z', is_anonymous: false };
   });
 
@@ -68,6 +71,20 @@ describe('ShowHeaderControls auto-save key', () => {
 
   it('does not auto-save when the start date is unreadable', () => {
     render(<ShowHeaderControls show={{ ...show, startDate: '' } as Show} />);
+    expect(lastKey()).toBeUndefined();
+  });
+
+  it.each(['2026-13-45', 'next week', '2026-02-30'])(
+    'does not auto-save on a malformed start date (%s)',
+    startDate => {
+      render(<ShowHeaderControls show={{ ...show, startDate } as Show} />);
+      expect(lastKey()).toBeUndefined();
+    }
+  );
+
+  it.each(['', 'Not/AZone'])('does not auto-save on a missing or invalid timezone (%j)', zone => {
+    state.timeZone = zone;
+    render(<ShowHeaderControls show={show} />);
     expect(lastKey()).toBeUndefined();
   });
 

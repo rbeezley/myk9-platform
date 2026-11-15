@@ -1,4 +1,5 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { CONFLICT_SETTLED_EVENT } from './conflictEvents';
 import { listHeldConflicts, type HeldConflict } from './heldConflicts';
 
@@ -15,15 +16,29 @@ const POLL_MS = 15000;
 const listeners = new Set<() => void>();
 let current: readonly HeldConflict[] = [];
 let stopWatching: (() => void) | null = null;
+// Bumped whenever the list is dropped, so a read that started for the previous person cannot land.
+let generation = 0;
+
+function setCurrent(next: readonly HeldConflict[]) {
+  current = next;
+  listeners.forEach(listener => listener());
+}
+
+/** Forget the list (sign-out or a different person); a read already in flight is ignored. */
+function resetHeldConflicts() {
+  generation += 1;
+  setCurrent([]);
+}
 
 function refresh() {
+  const started = generation;
   void listHeldConflicts()
     .then(next => {
-      current = next;
-      listeners.forEach(listener => listener());
+      if (started === generation) setCurrent(next);
     })
     .catch(() => {
-      /* best-effort; keep the last known list */
+      // An unreadable list is unknown, not "still the same": never keep showing the last one.
+      if (started === generation) setCurrent([]);
     });
 }
 
@@ -57,5 +72,13 @@ export function useHeldConflictCount(showId: string | undefined): number {
     () => (showId ? current.filter(item => item.showId === showId).length : 0),
     [showId]
   );
-  return useSyncExternalStore(subscribe, getSnapshot, () => 0);
+  const count = useSyncExternalStore(subscribe, getSnapshot, () => 0);
+  // The list belongs to whoever is signed in: drop it when that changes, then read it again.
+  const userId = useAuthContext().user?.id ?? null;
+  useEffect(() => {
+    resetHeldConflicts();
+    if (userId) refresh();
+    return resetHeldConflicts;
+  }, [userId]);
+  return count;
 }

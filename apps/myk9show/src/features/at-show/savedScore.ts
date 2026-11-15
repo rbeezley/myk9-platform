@@ -29,6 +29,8 @@ export interface SavedScore {
   listPath: string;
   /** The scoresheet route that reopens this dog with what was saved. */
   scoreRoute: string;
+  /** Where the list was scrolled when the dog was opened; the list returns to it once. */
+  scrollY?: number;
 }
 
 const RESULT_LABELS: Record<string, string> = {
@@ -64,7 +66,7 @@ export interface SavedScoreInput {
 
 export function toSavedScore(
   input: SavedScoreInput,
-  routes: Pick<SavedScore, 'listPath' | 'scoreRoute'>
+  routes: Pick<SavedScore, 'listPath' | 'scoreRoute' | 'scrollY'>
 ): SavedScore {
   const { scoreData } = input;
   const dogLabel = [input.armband == null ? '' : String(input.armband), input.callName]
@@ -83,10 +85,18 @@ interface SavedScoreState {
   saved: SavedScore | null;
   set: (saved: SavedScore) => void;
   clear: () => void;
+  /** The list has scrolled back; do not do it again if the line remounts. */
+  clearScroll: () => void;
 }
 
 export const useSavedScoreStore = create<SavedScoreState>()(set => ({
   saved: null,
   set: saved => set({ saved }),
   clear: () => set({ saved: null }),
+  clearScroll: () =>
+    set(state => {
+      if (!state.saved) return state;
+      const { entryId, dogLabel, resultLabel, timeLabel, listPath, scoreRoute } = state.saved;
+      return { saved: { entryId, dogLabel, resultLabel, timeLabel, listPath, scoreRoute } };
+    }),
 }));

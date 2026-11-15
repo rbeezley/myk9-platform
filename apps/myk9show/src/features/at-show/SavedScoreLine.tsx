@@ -14,6 +14,7 @@
  * network.
  */
 
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,18 @@ export const SavedScoreLine: React.FC = () => {
 
 const SavedScoreLineBody: React.FC<{ saved: SavedScore }> = ({ saved }) => {
   const navigate = useNavigate();
+  const clearScroll = useSavedScoreStore(store => store.clearScroll);
+  // Back from the sheet lands on the list entry the dog was opened from: put the list back where
+  // it was, once, so the dog just scored is not where the screen jumps to (MYK9-2012).
+  const { scrollY } = saved;
+  useEffect(() => {
+    if (!scrollY) return;
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo(0, scrollY);
+      clearScroll();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollY, clearScroll]);
   const { state, sawQueued } = useScoreSaveState(saved.entryId);
   useScoresSentToast(state, sawQueued);
 
@@ -63,7 +76,7 @@ const SavedScoreLineBody: React.FC<{ saved: SavedScore }> = ({ saved }) => {
         variant="outline"
         size="sm"
         className="min-h-9"
-        onClick={() => navigate(saved.scoreRoute)}
+        onClick={() => navigate(saved.scoreRoute, { state: { returnScrollY: window.scrollY } })}
       >
         Correct
       </Button>

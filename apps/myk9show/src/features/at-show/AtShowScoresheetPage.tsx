@@ -234,8 +234,8 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // The sheet reports whether leaving would lose work; the guard owns the one prompt.
   const { sheetDirty, dirtyRef, onDirtyChange: setSheetDirty } = useScoresheetDirty();
   // MYK9-2012: a confirmed save returns to this class's entry list by itself, with the saved
-  // score shown at the top. The app never picks or suggests the next dog. The list is REPLACED
-  // into history: the sheet being left is already saved, so the back gesture from the next dog
+  // score shown at the top. The app never picks or suggests the next dog. The sheet leaves
+  // history (back to the list entry, or replaced by it), so the back gesture from the next dog
   // goes where the judge came from instead of stepping back through every dog scored (MYK9-1500).
   const listRoute = resolveScoreSheetEntryListRoute(showId ?? '', classId ?? '', combined);
   const returnScrollY = (useLocation().state as ScoresheetReturnState | null)?.returnScrollY;
@@ -248,6 +248,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       setSavedScore(
         toSavedScore(input, {
           listPath: listRoute.split('?')[0] ?? listRoute,
+          ...(typeof returnScrollY === 'number' && { scrollY: returnScrollY }),
           scoreRoute: buildAtShowScoreSheetRoute(
             showId ?? '',
             classId ?? '',
@@ -260,11 +261,11 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       // call: the route blocker reads the ref at navigation time and would otherwise ask
       // "Discard this score?" about a score that is already saved.
       setSheetDirty(false);
-      // The list keeps the scroll position it had when the dog was opened.
-      navigate(listRoute, {
-        replace: true,
-        ...(typeof returnScrollY === 'number' && { state: { scrollY: returnScrollY } }),
-      });
+      // Opened from the list (it left its scroll in the state): step back to that same history
+      // entry, so repeated scoring never stacks copies of the list. A deep link has nothing to
+      // step back to, so it replaces the sheet with the list instead.
+      if (typeof returnScrollY === 'number') navigate(-1);
+      else navigate(listRoute, { replace: true });
     },
     [setSavedScore, setSheetDirty, navigate, listRoute, showId, classId, combined, returnScrollY]
   );

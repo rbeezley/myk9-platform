@@ -11,7 +11,6 @@ import '@/test/utils/pageRenderWait';
  * covered in @myk9/scoring-ui + the secretary ScoresheetPage).
  */
 
-import { useEffect } from 'react';
 import {
   Routes,
   Route,
@@ -518,26 +517,23 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     const NavProbe = () => {
       const location = useLocation();
       const type = useNavigationType();
-      const scrollY = (location.state as { scrollY?: number } | null)?.scrollY;
       return (
         <div>
           nav {type} {location.pathname}
           {location.search}
-          {scrollY === undefined ? '' : ` scrollY ${scrollY}`}
         </div>
       );
     };
 
     // The entry list opens a dog with the scroll it was at, as the real list does.
-    const Launch = ({ to, state }: { to: string; state: unknown }) => {
+    const OpenDog = ({ scrollY }: { scrollY: number }) => {
       const open = useNavigate();
-      useEffect(() => {
-        void open(to, { state });
-      }, [open, to, state]);
-      return null;
+      return (
+        <button onClick={() => open(SHEET, { state: { returnScrollY: scrollY } })}>Open dog</button>
+      );
     };
 
-    const renderFlow = (initialRoute: string, state?: unknown) => {
+    const renderFlow = (initialRoute: string, openFromList?: { scrollY: number }) => {
       submitScoreOptimistically.mockImplementationOnce(
         async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
       );
@@ -546,7 +542,6 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
           value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
         >
           <Routes>
-            <Route path="/launch" element={<Launch to={initialRoute} state={state} />} />
             <Route
               path="/at-show/:showId/class/:classId/score/:entryId"
               element={<AtShowScoresheetPage />}
@@ -561,13 +556,14 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
                 <>
                   <SavedScoreLine />
                   <div>Entry List</div>
+                  {openFromList && <OpenDog scrollY={openFromList.scrollY} />}
                 </>
               }
             />
           </Routes>
           <NavProbe />
         </ReplicationSyncTestProvider>,
-        { initialRoute: state === undefined ? initialRoute : '/launch' }
+        { initialRoute }
       );
     };
 
@@ -616,11 +612,25 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       );
     });
 
-    it('hands the list the scroll position the dog was opened from', async () => {
-      renderFlow(SHEET, { returnScrollY: 640 });
+    it('from the list, steps back to that list entry instead of stacking another copy', async () => {
+      renderFlow(LIST, { scrollY: 640 });
+      fireEvent.click(await screen.findByText('Open dog'));
+      expect(await screen.findByText(`nav PUSH ${SHEET}`)).toBeInTheDocument();
       await save();
 
-      expect(await screen.findByText(`nav REPLACE ${LIST} scrollY 640`)).toBeInTheDocument();
+      expect(await screen.findByText(`nav POP ${LIST}`)).toBeInTheDocument();
+      expect(screen.getByTestId('saved-score-line')).toBeInTheDocument();
+    });
+
+    it('scrolls the list back to where the dog was opened, once (MYK9-2012)', async () => {
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+      renderFlow(LIST, { scrollY: 640 });
+      fireEvent.click(await screen.findByText('Open dog'));
+      await save();
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 640));
+      expect(useSavedScoreStore.getState().saved?.scrollY).toBeUndefined();
+      scrollTo.mockRestore();
     });
 
     it('Correct reopens that dog from the device without waiting on the network (MYK9-1106)', async () => {
@@ -775,6 +785,44 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       fireEvent.click(screen.getByText('Back'));
       fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
       expect(await screen.findByText('Entry List')).toBeInTheDocument();
+    });
+
+    it('does not ask after a save when the sheet was opened from the list (history step back)', async () => {
+      submitScoreOptimistically.mockImplementationOnce(
+        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+      );
+      const router = createMemoryRouter(
+        [
+          {
+            path: '/at-show/:showId/class/:classId/score/:entryId',
+            element: <AtShowScoresheetPage />,
+          },
+          { path: '/at-show/:showId/class/:classId', element: <div>Entry List</div> },
+        ],
+        {
+          initialEntries: [
+            '/at-show/show-1/class/class-1',
+            { pathname: SHEET_ROUTE, state: { returnScrollY: 300 } },
+          ],
+          initialIndex: 1,
+        }
+      );
+      rawRender(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <ReplicationSyncTestProvider
+            value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+          >
+            <RouterProvider router={router} />
+          </ReplicationSyncTestProvider>
+        </QueryClientProvider>
+      );
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+      fireEvent.click(screen.getByText('Submit Score'));
+
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+      expect(router.state.historyAction).toBe('POP');
     });
 
     it('does not ask after a save: a dirty sheet that saved returns to the list freely', async () => {

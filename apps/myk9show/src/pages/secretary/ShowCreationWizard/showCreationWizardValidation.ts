@@ -33,6 +33,8 @@ interface ShowData {
   entryOpenDate: string;
   entryCloseDate: string;
   juniorHandlerFee?: number | undefined;
+  preEntryFee?: number | undefined;
+  dayOfShowFee?: number | undefined;
   officials: {
     secretary: string[];
     chairman: string[];

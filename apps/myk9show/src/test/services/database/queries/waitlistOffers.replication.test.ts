@@ -1,7 +1,8 @@
 /**
  * MYK9-1001: the Waitlist tab's Offered group reads open offers from the same replica rows as
  * the queue, and the class counts carry an offered count so a class whose only dog was offered
- * is still read.
+ * is still read. MYK9-1988: the same read lists offers that ran out and were not offered again,
+ * and the class counts carry that count, so a class whose only row is one is still read.
  */
 import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,6 +58,7 @@ import {
   getClassesWithWaitlistCounts,
   getWaitlistOffersByClass,
 } from '@/services/database/waitlists';
+import { findRunOutOffers } from '@/features/waiting-for-you';
 
 const row = (over: Partial<ReplicatedWaitlistEntry>): ReplicatedWaitlistEntry => ({
   id: 'wl-1',
@@ -141,10 +143,60 @@ describe('getWaitlistOffersByClass', () => {
     ]);
   });
 
+  it('lists offers that ran out and were not offered again, oldest offer first (MYK9-1988)', async () => {
+    const rows = [
+      row({ id: 'wl-wait', status: 'waiting' }),
+      // Made first with the longer window: its deadline came last.
+      row({
+        id: 'wl-run-out-b',
+        status: 'expired',
+        offeredAt: '2026-10-01T12:00:00Z',
+        offerExpiresAt: '2026-10-05T12:00:00Z',
+      }),
+      row({
+        id: 'wl-run-out-a',
+        dogId: 'dog-2',
+        status: 'expired',
+        offeredAt: '2026-10-02T12:00:00Z',
+        offerExpiresAt: '2026-10-03T12:00:00Z',
+      }),
+      // Refilled by an offer whose row has since been deleted: still refilled.
+      row({
+        id: 'wl-refilled',
+        status: 'expired',
+        offeredAt: '2026-09-30T12:00:00Z',
+        refilledByOfferId: 'wl-deleted-refill',
+      }),
+    ];
+    t.waitlist.getByClass.mockResolvedValue(rows);
+    t.entries.getEntryById.mockResolvedValue(null);
+
+    const { data, runOut, error } = await getWaitlistOffersByClass('class-1');
+
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+    expect(runOut.map(o => [o.id, o.dog?.call_name, o.class?.name, o.trial_timezone])).toEqual([
+      ['wl-run-out-b', 'Rex', 'Interior Novice', 'America/Denver'],
+      ['wl-run-out-a', 'Bolt', 'Interior Novice', 'America/Denver'],
+    ]);
+    // One count, one source: the count is the rows the tab shows.
+    expect(findRunOutOffers(rows).count).toBe(runOut.length);
+
+    t.trials.getTrialsByShow.mockResolvedValue([{ id: 'trial-1', showId: 'show-1' }]);
+    t.classes.getClassesByTrial.mockResolvedValue([
+      { id: 'class-1', name: 'Novice', trialId: 'trial-1' },
+    ]);
+    t.entries.getAllOrThrow.mockResolvedValue([]);
+    t.waitlist.getAllOrThrow.mockResolvedValue(rows);
+    const classes = await getClassesWithWaitlistCounts('show-1');
+    expect(classes.data[0]?.run_out_count).toBe(runOut.length);
+  });
+
   it('reads nothing else when the class has no open offer', async () => {
     t.waitlist.getByClass.mockResolvedValue([row({ status: 'waiting' })]);
-    const { data, error } = await getWaitlistOffersByClass('class-1');
+    const { data, runOut, error } = await getWaitlistOffersByClass('class-1');
     expect(data).toEqual([]);
+    expect(runOut).toEqual([]);
     expect(error).toBeNull();
     expect(t.classes.getClassById).not.toHaveBeenCalled();
   });

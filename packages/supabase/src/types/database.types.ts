@@ -11440,6 +11440,7 @@ export type Database = {
           offered_at: string | null
           position: number
           promoted_entry_id: string | null
+          refilled_by_offer_id: string | null
           status: string | null
           updated_at: string | null
           version: number
@@ -11456,6 +11457,7 @@ export type Database = {
           offered_at?: string | null
           position: number
           promoted_entry_id?: string | null
+          refilled_by_offer_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number
@@ -11472,6 +11474,7 @@ export type Database = {
           offered_at?: string | null
           position?: number
           promoted_entry_id?: string | null
+          refilled_by_offer_id?: string | null
           status?: string | null
           updated_at?: string | null
           version?: number
@@ -15806,6 +15809,10 @@ export type Database = {
       waitlist_class_trial_has_passed: {
         Args: { p_class_id: string }
         Returns: boolean
+      }
+      waitlist_offer_to_refill: {
+        Args: { p_class_id: string; p_offered_at: string }
+        Returns: string
       }
       withdraw_own_entry: {
         Args: {

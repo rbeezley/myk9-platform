@@ -6,6 +6,10 @@ import {
   type WizardShowData,
 } from '../showCreationWizardTransformers';
 import { seedJuniorHandlerFee, wizardJuniorHandlerFee } from '../wizardJuniorHandlerFee';
+import { getShowDetailsValidationIssues } from '../showCreationWizardValidation';
+import { SHOW_FIELD } from '../wizardFieldIds';
+import { buildEditModeDraft } from '../buildEditModeDraft';
+import type { Show } from '@/types/show-types';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const baseShow: WizardShowData = {
@@ -120,5 +124,95 @@ describe('junior handler fee through show creation', () => {
     const without = transformWizardDataToShow(baseShow, [], {}, [], 'unpublished', undefined, view);
     expect('juniorHandlerFee' in without).toBe(false);
     expect('juniorHandlerFee' in showToShowInput(without)).toBe(false);
+  });
+});
+
+describe('the junior fee cannot be above the lowest regular fee (MYK9-1975)', () => {
+  const message = (limit: string) =>
+    `The junior fee can't be more than ${limit}, the lowest class fee in this show.`;
+
+  it('blocks Next on the Details step, beside the junior fee', () => {
+    const issues = getShowDetailsValidationIssues({
+      ...baseShow,
+      officials: { secretary: ['p1'], chairman: ['p2'], steward: [] },
+      preEntryFee: 15,
+      juniorHandlerFee: 20,
+    });
+    expect(issues).toContainEqual({ field: SHOW_FIELD.juniorHandlerFee, message: message('$15') });
+  });
+
+  it('counts a day-of fee below the pre-entry fee', () => {
+    expect(() => build({ ...baseShow, dayOfShowFee: 12.5, juniorHandlerFee: 15 })).toThrow(
+      message('$12.50')
+    );
+  });
+
+  it('refuses in both write paths, so the step rail cannot bypass it', () => {
+    const over = { ...baseShow, preEntryFee: 10, juniorHandlerFee: 15 };
+    expect(() => build(over)).toThrow(message('$10'));
+    expect(() =>
+      transformWizardDataToShow(
+        over,
+        [],
+        {},
+        [],
+        'unpublished',
+        undefined,
+        createWizardTrialView([], [])
+      )
+    ).toThrow(message('$10'));
+  });
+
+  it('allows a junior fee equal to the lowest regular fee', () => {
+    const { rpcInput } = build({ ...baseShow, juniorHandlerFee: 30 });
+    expect(rpcInput.p_show.junior_handler_fee).toBe(30);
+  });
+
+  it('does not limit an ASCA draft, which writes no junior fee', () => {
+    expect(() =>
+      build({ ...baseShow, organization: 'ASCA', preEntryFee: 10, juniorHandlerFee: 15 })
+    ).not.toThrow();
+  });
+});
+
+describe('the wizard over a show saved before the limit (MYK9-1975)', () => {
+  // Edit mode never edits the junior fee (it lives on the show edit panel), so the draft it
+  // builds carries none, and an existing over-limit fee cannot block adding trials or classes.
+  const legacyShow = {
+    id: 'show-1',
+    name: 'Heartland',
+    organization: 'AKC',
+    startDate: '2026-10-10',
+    endDate: '2026-10-11',
+    location: 'Venue',
+    clubId: 'club-1',
+    entryOpenDate: '2026-09-01',
+    entryCloseDate: '2026-10-01',
+    preEntryFee: '10',
+    dayOfShowFee: '35',
+    juniorHandlerFee: '20',
+    assignedJudges: [],
+  } as unknown as Show;
+
+  it('builds an edit draft that carries no junior fee and saves', () => {
+    const draft = buildEditModeDraft({
+      editMode: { showId: 'show-1', mode: 'add-trials' } as never,
+      existingShow: legacyShow,
+      showTrials: [],
+      existingClasses: [],
+      people: [],
+    });
+    expect('juniorHandlerFee' in draft.show).toBe(false);
+    expect(() =>
+      transformWizardDataToShow(
+        { ...baseShow, ...draft.show, style: 'monogram' } as WizardShowData,
+        [],
+        {},
+        [],
+        'unpublished',
+        undefined,
+        createWizardTrialView([], [])
+      )
+    ).not.toThrow();
   });
 });

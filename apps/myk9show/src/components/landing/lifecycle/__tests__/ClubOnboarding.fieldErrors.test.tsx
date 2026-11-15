@@ -7,7 +7,9 @@ const auth = vi.hoisted(() => ({
   user: null as null | { id: string; email: string; user_metadata: Record<string, string> },
 }));
 
-vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth }));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ ...auth, refreshPermissions: vi.fn().mockResolvedValue(undefined) }),
+}));
 vi.mock('@/services/database/club-access-requests.request', () => ({
   ClubNameTakenError: class extends Error {},
   TooManyClubRequestsError: class extends Error {},

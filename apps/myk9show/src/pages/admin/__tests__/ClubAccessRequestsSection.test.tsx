@@ -189,7 +189,7 @@ describe('ClubAccessRequestsSection', () => {
   });
 
   // MYK9-2046: the home page form already created the club and made her its admin and
-  // secretary. Approve confirms that club; decline removes it and its drafts, after asking.
+  // secretary. Approve confirms that club; decline only marks the request denied.
   describe('a request that already has its club', () => {
     const withClub = { ...request, createdClubId: 'club-new' };
 
@@ -224,46 +224,17 @@ describe('ClubAccessRequestsSection', () => {
       );
     });
 
-    it('asks before declining, then declines and removes the club', async () => {
+    it('declines with one click, as before: no removal wording, no confirm step', async () => {
       vi.mocked(reviewClubAccessRequest).mockResolvedValue(null);
       const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
-      await user.click(await screen.findByRole('button', { name: /decline and remove club/i }));
+      await user.click(await screen.findByRole('button', { name: /deny request/i }));
 
-      expect(reviewClubAccessRequest).not.toHaveBeenCalled();
-      expect(screen.getByRole('alert')).toHaveTextContent(/removes the club and its draft shows/i);
-
-      await user.click(screen.getByRole('button', { name: /remove the club and decline/i }));
       await waitFor(() =>
         expect(reviewClubAccessRequest).toHaveBeenCalledWith(
           expect.objectContaining({ requestId: 'request-1', decision: 'denied' })
         )
       );
-    });
-
-    it('lets the owner keep the club after asking', async () => {
-      const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
-      await user.click(await screen.findByRole('button', { name: /decline and remove club/i }));
-      await user.click(screen.getByRole('button', { name: /keep the club/i }));
-
-      expect(reviewClubAccessRequest).not.toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: /decline and remove club/i })).toBeInTheDocument();
-    });
-
-    it('shows the database refusal when the club has a show that is not a draft', async () => {
-      vi.mocked(reviewClubAccessRequest).mockRejectedValue({
-        code: '23514',
-        message:
-          'This club has a show that is not a draft, so the request cannot be declined here.',
-      });
-      const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
-      await user.click(await screen.findByRole('button', { name: /decline and remove club/i }));
-      await user.click(screen.getByRole('button', { name: /remove the club and decline/i }));
-
-      await waitFor(() =>
-        expect(notifications.error).toHaveBeenCalledWith(
-          'This club has a show that is not a draft, so the request cannot be declined here.'
-        )
-      );
+      expect(screen.queryByText(/remove/i)).not.toBeInTheDocument();
     });
   });
 });

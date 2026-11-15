@@ -39,7 +39,7 @@ import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
 // back to the form with what she typed.
 
 export function ClubOnboarding() {
-  const { user } = useAuthContext();
+  const { user, refreshPermissions } = useAuthContext();
   const navigate = useNavigate();
 
   // Form state
@@ -143,7 +143,21 @@ export function ClubOnboarding() {
           message,
         }),
       });
-      clearClubOnboardingDraft();
+      // She now holds club admin and secretary, which exempts her from the first-run
+      // profile step. Load those roles before the saved draft (the other exemption) goes.
+      // If the refresh fails she still has her club: keep the draft so the exemption
+      // holds, and the next load picks the roles up.
+      try {
+        await refreshPermissions();
+        clearClubOnboardingDraft();
+      } catch (refreshError) {
+        logger.warn(
+          'Roles refresh after club request failed',
+          'onboarding',
+          {},
+          refreshError as Error
+        );
+      }
       setCreatedClubId(result.clubId);
     } catch (err) {
       if (err instanceof ClubNameTakenError) {

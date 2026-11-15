@@ -31,9 +31,8 @@ function ReviewCard({
   const [clubName, setClubName] = useState(request.requestedClubName);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   // MYK9-2046: the requester already has her club (waiting for approval). Approving
-  // confirms it; declining removes it and its draft shows, so it asks first.
+  // confirms it; declining only marks the request denied.
   const hasCreatedClub = request.createdClubId !== null;
   const queryClient = useQueryClient();
   const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
@@ -72,13 +71,7 @@ function ReviewCard({
         { requestId: request.id },
         error as Error
       );
-      // The server refuses a decline while the club has a show that is not a draft, in words
-      // an owner can act on.
-      const refusal =
-        typeof error === 'object' && error !== null && 'code' in error && error.code === '23514'
-          ? (error as { message?: string }).message
-          : undefined;
-      notifications.error(refusal || "We couldn't update this club request. Try again.");
+      notifications.error("We couldn't update this club request. Try again.");
     } finally {
       setBusy(false);
     }
@@ -180,45 +173,16 @@ function ReviewCard({
           <CheckCircle2 className="mr-2 h-4 w-4" />
           Approve and give club access
         </Button>
-        {confirmingRemoval ? (
-          <>
-            <p role="alert" className="self-center text-sm">
-              This removes the club and its draft shows. Her work is lost.
-            </p>
-            <Button
-              type="button"
-              variant="destructive"
-              className="min-h-11"
-              onClick={() => void handleReview('denied')}
-              disabled={busy}
-              loading={busy}
-            >
-              Remove the club and decline
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              onClick={() => setConfirmingRemoval(false)}
-              disabled={busy}
-            >
-              Keep the club
-            </Button>
-          </>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() =>
-              hasCreatedClub ? setConfirmingRemoval(true) : void handleReview('denied')
-            }
-            disabled={busy}
-          >
-            <XCircle className="mr-2 h-4 w-4" />
-            {hasCreatedClub ? 'Decline and remove club' : 'Deny request'}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={() => void handleReview('denied')}
+          disabled={busy}
+        >
+          <XCircle className="mr-2 h-4 w-4" />
+          Deny request
+        </Button>
       </div>
     </article>
   );

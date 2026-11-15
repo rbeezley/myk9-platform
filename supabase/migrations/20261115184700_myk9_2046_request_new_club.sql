@@ -19,11 +19,12 @@
 --
 -- review_club_access_request() is replaced (body copied from
 -- 20261020215300_myk9_1310_approval_authorizes_club.sql, the latest definition)
--- with two changes, both only for a request that carries created_club_id:
---   * approve confirms that club instead of creating or attaching another;
---   * decline soft-deletes the club and its draft shows (soft_delete_show /
---     soft_delete_club), and is refused while the club has a show that is not a
---     draft. Requests without created_club_id behave exactly as before.
+-- with one change, only for a request that carries created_club_id:
+--   * approve confirms that club instead of creating or attaching another, and is
+--     refused if that club was deleted;
+--   * decline is unchanged: it marks the request denied and removes nothing. The
+--     owner deletes an unapproved club with the existing club delete.
+--   Requests without created_club_id behave exactly as before.
 --
 -- NOT PUSHED by the authoring agent.
 
@@ -268,8 +269,6 @@ DECLARE
   v_secretary_assignment_id uuid;
   v_membership_id uuid;
   v_requester_auth_user_id uuid;
-  v_draft_show_id uuid;
-  v_club_removed boolean := false;
 BEGIN
   IF NOT public.is_site_admin() THEN
     RAISE EXCEPTION 'Only site admins can review club access requests' USING ERRCODE = '42501';
@@ -303,11 +302,14 @@ BEGIN
     -- MYK9-2046: request_new_club() already created this club and made the requester
     -- its admin and secretary. Approval confirms that club; it never makes a second one
     -- or swaps it for another.
-    IF p_existing_club_id IS NOT NULL AND p_existing_club_id <> v_request.created_club_id THEN
+    IF p_decision = 'approved' AND p_existing_club_id IS NOT NULL
+       AND p_existing_club_id <> v_request.created_club_id THEN
       RAISE EXCEPTION 'This request already has its club. Approve it as it is, or decline it.'
         USING ERRCODE = '22023';
     END IF;
-    IF NOT EXISTS (
+    -- Only approving needs a live club; declining a request whose club was deleted just
+    -- marks it denied.
+    IF p_decision = 'approved' AND NOT EXISTS (
       SELECT 1 FROM public.clubs WHERE id = v_request.created_club_id AND deleted_at IS NULL
     ) THEN
       RAISE EXCEPTION 'This request''s club has been deleted, so it cannot be approved. Decline the request instead.'
@@ -328,62 +330,6 @@ BEGIN
   END IF;
 
   IF p_decision = 'denied' THEN
-    -- MYK9-2046: a request that came with a club (request_new_club) takes the club and
-    -- its draft shows with it. Refused while the club has any show that is not a draft:
-    -- that is a show people may have seen or entered, and removing it is a separate,
-    -- deliberate act. soft_delete_show / soft_delete_club are the established paths and
-    -- are recoverable; the name frees up because name checks skip deleted clubs.
-    -- A club already soft-deleted (the approve refusal sends the owner here) has nothing
-    -- left to remove: the request is still marked denied below.
-    IF v_request.status = 'pending'
-       AND v_request.created_club_id IS NOT NULL
-       AND EXISTS (
-         SELECT 1 FROM public.clubs
-         WHERE id = v_request.created_club_id AND deleted_at IS NULL
-       ) THEN
-      IF EXISTS (
-        SELECT 1 FROM public.shows s
-        WHERE s.club_id = v_request.created_club_id
-          AND s.deleted_at IS NULL
-          AND s.status <> 'draft'
-      ) THEN
-        RAISE EXCEPTION 'This club has a show that is not a draft, so the request cannot be declined here. Move or remove that show first.'
-          USING ERRCODE = '23514';
-      END IF;
-
-      -- A draft that already holds a paid or scored entry is not just a draft: removing
-      -- it is soft_delete_show's MK010 refusal, so say so here in plain words.
-      IF EXISTS (
-        SELECT 1
-        FROM public.entries e
-        JOIN public.shows s ON s.id = e.show_id
-        WHERE s.club_id = v_request.created_club_id
-          AND s.deleted_at IS NULL
-          AND e.deleted_at IS NULL
-          AND private.is_blocking_entry(
-            e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status
-          )
-      ) THEN
-        RAISE EXCEPTION 'This club has a draft show with a paid or scored entry, so the request cannot be declined here. Move or remove that show first.'
-          USING ERRCODE = '23514';
-      END IF;
-
-      FOR v_draft_show_id IN
-        SELECT s.id FROM public.shows s
-        WHERE s.club_id = v_request.created_club_id AND s.deleted_at IS NULL
-      LOOP
-        BEGIN
-          PERFORM public.soft_delete_show(v_draft_show_id, false, NULL);
-        EXCEPTION WHEN SQLSTATE 'MK010' THEN
-          RAISE EXCEPTION 'This club has a draft show with a paid or scored entry, so the request cannot be declined here. Move or remove that show first.'
-            USING ERRCODE = '23514';
-        END;
-      END LOOP;
-
-      PERFORM public.soft_delete_club(v_request.created_club_id);
-      v_club_removed := true;
-    END IF;
-
     update public.club_access_requests
     set status = 'denied',
         reviewed_by = v_reviewer_person_id,
@@ -404,10 +350,7 @@ BEGIN
       'club_access_request_denied',
       'club_access_request',
       p_request_id,
-      jsonb_build_object(
-        'requester_person_id', v_request.requester_person_id,
-        'club_removed', v_club_removed
-      )
+      jsonb_build_object('requester_person_id', v_request.requester_person_id)
     );
 
     return null;

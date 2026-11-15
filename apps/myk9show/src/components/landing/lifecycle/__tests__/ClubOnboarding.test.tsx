@@ -2,10 +2,13 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { ClubOnboarding } from '../ClubOnboarding';
 import { BANNED_COPY } from '../lifecycleStories';
+import { readClubOnboardingDraft, saveClubOnboardingDraft } from '../clubOnboardingDraft';
 
 const mockSubmit = vi.fn();
+const mockRefreshPermissions = vi.hoisted(() => vi.fn());
 const mockNavigate = vi.hoisted(() => vi.fn());
 const auth = vi.hoisted(() => ({
+  refreshPermissions: (...args: unknown[]) => mockRefreshPermissions(...args),
   user: null as null | {
     id: string;
     email: string;
@@ -58,12 +61,24 @@ function submitForm() {
   fireEvent.submit(screen.getByRole('button', { name: /add my club/i }).closest('form')!);
 }
 
+const fullDraft = {
+  clubName: 'Tri-State Kennel Club',
+  organization: 'AKC',
+  clubNumbers: { AKC: '', UKC: '', ASCA: '' },
+  contactName: 'Pat Morgan',
+  contactEmail: 'club@example.com',
+  contactPhone: '',
+  firstShowDate: '',
+  message: '',
+};
+
 const created = { clubId: 'club-9', requestId: 'request-9', alreadyRequested: false };
 
 describe('ClubOnboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    mockRefreshPermissions.mockResolvedValue(undefined);
     auth.user = signedInUser;
   });
 
@@ -87,6 +102,36 @@ describe('ClubOnboarding', () => {
         note: expect.stringContaining('Organization: AKC'),
       })
     );
+  });
+
+  it('loads her new roles before the saved draft is cleared, then shows success', async () => {
+    const order: string[] = [];
+    saveClubOnboardingDraft(fullDraft);
+    mockSubmit.mockResolvedValue(created);
+    mockRefreshPermissions.mockImplementation(async () => {
+      order.push(
+        readClubOnboardingDraft() ? 'refresh (draft still saved)' : 'refresh (draft gone)'
+      );
+    });
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
+    expect(order).toEqual(['refresh (draft still saved)']);
+    expect(readClubOnboardingDraft()).toBeNull();
+  });
+
+  it('still shows success and keeps the draft when the roles refresh fails', async () => {
+    saveClubOnboardingDraft(fullDraft);
+    mockSubmit.mockResolvedValue(created);
+    mockRefreshPermissions.mockRejectedValue(new Error('offline'));
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
+    expect(readClubOnboardingDraft()).not.toBeNull();
   });
 
   it('refuses a taken club name in plain words with a way to reach us', async () => {

@@ -2,8 +2,8 @@
 -- Covers: anon refused; signed-in caller gets an unauthorized club with admin,
 -- secretary and member rows, registry numbers and a pending request; a repeat
 -- returns the same club; a taken name (any case or spacing) is refused; the owner's
--- approve confirms that club; decline removes the club and its drafts, and is
--- refused while a show is not a draft. All fixtures and role changes roll back.
+-- approve confirms that club; decline marks the request denied and removes nothing,
+-- even when the club was already deleted. All fixtures and role changes roll back.
 -- Only request.jwt.claim.sub is set, so auth.jwt() is NULL and
 -- require_recent_reauth() treats the session as system (as the MYK9-682 test does).
 
@@ -166,35 +166,13 @@ END;
 $$;
 RESET ROLE;
 
--- 4. Decline is refused while a show is not a draft, then removes club and drafts.
+-- 4. Decline removes nothing: the club and its draft show stay, the request is denied.
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 SELECT '00000000-0000-0000-0000-000002046201', 'MYK9-2046 Draft Show', 'AKC',
        DATE '2027-03-01', DATE '2027-03-02', (r->>'club_id')::uuid, 'draft'
 FROM result_first;
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002046102', true);
-
-UPDATE public.shows SET status = 'upcoming'
-WHERE id = '00000000-0000-0000-0000-000002046201';
-
-SET LOCAL ROLE authenticated;
-DO $$
-DECLARE
-  v_request uuid := (SELECT (r->>'request_id')::uuid FROM result_first);
-BEGIN
-  BEGIN
-    PERFORM public.review_club_access_request(v_request, 'denied', NULL, NULL, NULL);
-    RAISE EXCEPTION 'FAIL 2046.6 decline ignored a published show';
-  EXCEPTION WHEN check_violation THEN
-    RAISE NOTICE 'PASS 2046.6 decline refused while a show is not a draft';
-  END;
-END;
-$$;
-RESET ROLE;
-
-UPDATE public.shows SET status = 'draft'
-WHERE id = '00000000-0000-0000-0000-000002046201';
-
 SET LOCAL ROLE authenticated;
 SELECT public.review_club_access_request(
   (SELECT (r->>'request_id')::uuid FROM result_first), 'denied', NULL, NULL, 'No'
@@ -202,29 +180,31 @@ SELECT public.review_club_access_request(
 RESET ROLE;
 
 DO $$
-DECLARE
-  v_club uuid := (SELECT (r->>'club_id')::uuid FROM result_first);
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.clubs WHERE id = v_club AND deleted_at IS NOT NULL)
+  IF NOT EXISTS (
+       SELECT 1 FROM public.clubs
+       WHERE id = (SELECT (r->>'club_id')::uuid FROM result_first) AND deleted_at IS NULL
+     )
      OR NOT EXISTS (
        SELECT 1 FROM public.shows
-       WHERE id = '00000000-0000-0000-0000-000002046201' AND deleted_at IS NOT NULL
+       WHERE id = '00000000-0000-0000-0000-000002046201' AND deleted_at IS NULL
      )
      OR NOT EXISTS (
        SELECT 1 FROM public.club_access_requests
-       WHERE id = (SELECT (r->>'request_id')::uuid FROM result_first) AND status = 'denied'
+       WHERE id = (SELECT (r->>'request_id')::uuid FROM result_first)
+         AND status = 'denied' AND review_note = 'No'
      ) THEN
-    RAISE EXCEPTION 'FAIL 2046.7 decline did not remove the club and its draft show';
+    RAISE EXCEPTION 'FAIL 2046.6 decline removed something or did not deny the request';
   END IF;
-  RAISE NOTICE 'PASS 2046.7 decline removes the club and its draft shows';
+  RAISE NOTICE 'PASS 2046.6 decline marks the request denied and removes nothing';
 END;
 $$;
 
--- 5. The name is free again, and approving a fresh request confirms its club.
+-- 5. Approving a fresh request confirms its club.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002046101', true);
 INSERT INTO result_second
-SELECT public.request_new_club('MYK9-2046 New Club', '{"UKC":"U7"}'::jsonb);
+SELECT public.request_new_club('MYK9-2046 Second Club', '{"UKC":"U7"}'::jsonb);
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002046102', true);
 SELECT public.review_club_access_request(
   (SELECT (r->>'request_id')::uuid FROM result_second), 'approved', NULL, 'Ignored Name', NULL
@@ -238,7 +218,7 @@ BEGIN
   IF (v_r->>'club_id') = (SELECT r->>'club_id' FROM result_first)
      OR NOT EXISTS (
        SELECT 1 FROM public.clubs
-       WHERE id = (v_r->>'club_id')::uuid AND name = 'MYK9-2046 New Club'
+       WHERE id = (v_r->>'club_id')::uuid AND name = 'MYK9-2046 Second Club'
          AND authorized_at IS NOT NULL
      )
      OR NOT EXISTS (

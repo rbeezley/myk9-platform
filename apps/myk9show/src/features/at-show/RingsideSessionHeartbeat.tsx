@@ -1,21 +1,42 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { getExistingSubscription } from '@myk9/notifications';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/utils/logger';
+import { UserRole } from '@/types/auth-types';
+import {
+  deriveRingsideRoleFromClaim,
+  selectGrantRoleForShow,
+  useRingsideGrantStore,
+} from '@/store/ringsideGrantStore';
 import { readDogFavoriteArmbands } from './ringsideDogFavorites';
 import { getAccountUserId } from './dogFavoritesSync';
 import {
   handleRingsidePasscodeRevoked,
+  isPasscodeRegeneratedError,
   revokeRingsidePasscodeAccess,
 } from './ringsidePasscodeRevocation';
 
 const HEARTBEAT_MS = 30_000;
+/** Consecutive failed presence writes before the refusal is reported (once). */
+const FAILURES_BEFORE_REPORT = 3;
 
 export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const location = useLocation();
-  const { user } = useAuthContext();
+  const { user, hasRole } = useAuthContext();
+  const activeGrant = useRingsideGrantStore(state => state.activeGrant);
+  // Presence rule (MYK9-2033): the only reader of ringside_sessions presence is
+  // send-targeted-message, which selects role = 'exhibitor' rows. Judge and
+  // steward sessions (passcode grant/claim or account role) are never read, and
+  // the server refuses their upsert with 403, so they skip presence entirely.
+  // Their revocation check below still runs.
+  const sessionRole =
+    selectGrantRoleForShow(activeGrant, showId) ?? deriveRingsideRoleFromClaim(user, showId);
+  const staffAccount = hasRole(UserRole.JUDGE) || hasRole(UserRole.STEWARD);
+  const sendsPresence = !staffAccount && (sessionRole === null || sessionRole === 'exhibitor');
+  const failures = useRef({ count: 0, reported: false });
   const userId = getAccountUserId(user);
   const route = `${location.pathname}${location.search}`;
 
@@ -25,8 +46,21 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
     let cancelled = false;
     let endpoint: string | null = null;
 
+    function recordFailure(error: unknown) {
+      const state = failures.current;
+      state.count += 1;
+      if (state.count < FAILURES_BEFORE_REPORT || state.reported) return;
+      state.reported = true;
+      logger.error(
+        'Ringside presence heartbeat keeps failing',
+        'ringside-heartbeat',
+        { consecutiveFailures: state.count, showId: heartbeatShowId },
+        error instanceof Error ? error : undefined
+      );
+    }
+
     async function heartbeat() {
-      const subscription = await getExistingSubscription();
+      const subscription = sendsPresence ? await getExistingSubscription() : null;
       endpoint = subscription?.endpoint ?? null;
       if (cancelled) return;
 
@@ -55,13 +89,18 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
 
       // J1.3 — if the secretary regenerated passcodes, this stale claim is now
       // rejected. Surface "access revoked — re-enter code" and route back to
-      // sign-in instead of silently retrying every 30s. Other errors stay
-      // swallowed (presence is best-effort).
-      if (error) handleRingsidePasscodeRevoked(error);
+      // sign-in instead of silently retrying every 30s. Other errors are
+      // best-effort (no toast) but a persistent run is reported once.
+      if (error) {
+        handleRingsidePasscodeRevoked(error);
+        if (!isPasscodeRegeneratedError(error)) recordFailure(error);
+      } else {
+        failures.current = { count: 0, reported: false };
+      }
     }
 
     const runIfVisible = () => {
-      if (document.visibilityState === 'visible') void heartbeat().catch(() => {});
+      if (document.visibilityState === 'visible') void heartbeat().catch(recordFailure);
     };
 
     runIfVisible();
@@ -88,7 +127,7 @@ export function RingsideSessionHeartbeat({ children }: { children: ReactNode }) 
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearPresence();
     };
-  }, [route, showId, userId]);
+  }, [route, showId, userId, sendsPresence]);
 
   return <>{children}</>;
 }

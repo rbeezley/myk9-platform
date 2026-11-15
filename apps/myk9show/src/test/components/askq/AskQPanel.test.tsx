@@ -188,6 +188,19 @@ describe('AskQPanel', () => {
       expect(askqService.sendAskQQuery).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the daily limit in force after sending the question to a person', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(
+        new askqService.RateLimitError(0, 10, '2026-11-15T00:00:00.000Z')
+      );
+      const { user } = await askOnShowPage('Need a human');
+      await user.click(await screen.findByRole('button', { name: 'Send this to a person' }));
+
+      await user.click(screen.getByRole('button', { name: 'Rules' }));
+
+      expect(screen.getByText(/Daily limit reached\. Resets at midnight/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Ask about the selected rulebook...')).toBeDisabled();
+    });
+
     it('says plainly it could not be sent offline, keeps the note and sends nothing', async () => {
       vi.mocked(askqService.sendAskQQuery).mockRejectedValue(new Error('down'));
       const { user } = await askOnShowPage('Judge is missing');

@@ -191,7 +191,7 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
   // Ticket creation is a separate write, so this works with no AskQ questions left.
   const sendToPerson = useCallback(() => {
     const question = askq.query;
-    askq.reset();
+    askq.newQuestion(); // keeps the usage counters and a still-active daily limit
     setMode('app-help');
     support.startEscalation(question);
   }, [askq, support]);

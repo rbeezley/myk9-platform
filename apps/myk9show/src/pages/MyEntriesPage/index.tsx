@@ -18,6 +18,7 @@ import { useInFlightCount } from '@/hooks/useInFlightCount';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
+import { FinishSetupLine } from './modules/FinishSetupLine';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
 import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
@@ -340,6 +341,7 @@ const MyEntriesPage: React.FC = () => {
               retired /exhibitor/show-day route. Renders nothing when no show is
               today. This is the surface an entered exhibitor actually lands on,
               since HomeRedirect keeps them off Home (where the banner also mounts). */}
+            <FinishSetupLine />
             <ShowTodayBanner />
 
             {/* First-run zero-state: a brand-new exhibitor with no entries would

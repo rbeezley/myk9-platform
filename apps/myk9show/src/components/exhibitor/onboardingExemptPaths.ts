@@ -27,3 +27,15 @@ export function isOnboardingExemptPath(pathname: string): boolean {
     ONBOARDING_EXEMPT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
   );
 }
+
+// Her own pages. MYK9-1998 owner decision: "Never block her own pages". An
+// exhibitor with unfinished first-run set-up still opens My Shows, her cart and
+// her messages; My Shows offers the set-up as a line instead (MYK9-2028).
+// Kept out of `isOnboardingExemptPath` and `sensitiveRoutes.ts`: the new-role
+// banner still shows for staff here, and the PWA update prompt must not change.
+const EXHIBITOR_OWN_PAGE_PATHS = ['/exhibitor/entries', '/my-entries', '/cart', '/messages'];
+
+/** True on My Shows, the cart and messages, where the onboarding redirect never fires. */
+export function isExhibitorOwnPagePath(pathname: string): boolean {
+  return EXHIBITOR_OWN_PAGE_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+}

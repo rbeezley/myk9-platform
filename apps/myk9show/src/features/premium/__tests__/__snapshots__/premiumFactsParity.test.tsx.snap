@@ -2505,6 +2505,10 @@ FORMAT
 1 trial
 OPEN — CLOSE
 2026-04-01 → 2030-05-15
+FIRST ENTRY
+$20.00 · PER DOG / PER TRIAL
+DAY-OF ENTRY
+$25.00 · PER DOG / DAY OF SHOW
 §06
 Show hours
 EACH DAY
@@ -2532,7 +2536,7 @@ Container
 Novice A
 §09 · ENTRY · CLOSES WEDNESDAY, MAY 15, 2030
 entry
-First-received basis. Refunds (less processing fees) for written withdrawals received before close.
+First-received basis.
 ONLINE ENTRY URL
 localhost:3000/shows/show-1/register
 See classes first
@@ -3048,6 +3052,10 @@ ENTRIES OPEN
 Apr 1, 2026
 ENTRIES CLOSE
 MAY 15
+FIRST ENTRY
+per dog, per trial
+DAY-OF ENTRY
+per dog, day of show
 № 05 / ROSTER
 slowly.
 —

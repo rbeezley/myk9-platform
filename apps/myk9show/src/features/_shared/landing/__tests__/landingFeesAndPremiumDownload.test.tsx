@@ -32,7 +32,7 @@ const baseShow = {
   organization: 'Heartland Dog Club',
   preEntryFee: 32,
   dayOfShowFee: 47,
-} as Show;
+} as unknown as Show;
 
 const publishedShow = {
   ...baseShow,

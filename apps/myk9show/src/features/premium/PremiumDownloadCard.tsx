@@ -1,5 +1,5 @@
 import { FileText, AlertTriangle, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -79,7 +79,9 @@ export function PremiumDownloadCard({
     infoState,
   } = usePremiumPublishControl(showId, showStaleBadge, canManageShow);
   const activeShowId = useRef(showId);
-  activeShowId.current = showId;
+  useEffect(() => {
+    activeShowId.current = showId;
+  }, [showId]);
   const [downloadState, setDownloadState] = useState<{
     showId: string;
     isDownloading: boolean;

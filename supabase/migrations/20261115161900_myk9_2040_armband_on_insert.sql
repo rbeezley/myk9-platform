@@ -26,11 +26,11 @@
 --    unconditional BEFORE UPDATE triggers that do fire (updated_at, version,
 --    the cancelled-class and refund-column guards) are guards or the bumps the
 --    replication delta needs, and none of them reads the armband.
---    The number is chosen with the function's own rule (existing armbands row
+--    The number is chosen with the function's own rule as of 20260830190000 (existing armbands row
 --    for the dog and show is reused, otherwise MAX numeric + 1 from the show's
 --    starting number, under the same advisory lock and show row lock).
 --
--- SECURITY INVOKER and SET search_path are unchanged from 20260830160000, and
+-- SECURITY INVOKER and SET search_path are unchanged from 20260830190000, and
 -- CREATE OR REPLACE keeps the ACL: EXECUTE for authenticated (granted there),
 -- plus the pre-existing anon/PUBLIC entries. Nothing here changes grants.
 
@@ -76,7 +76,10 @@ BEGIN
 
   -- An insert that brings its own armband (one reserved offline on the
   -- secretary's device, or a day-of add) keeps it: renumbering would change a
-  -- number already shown to her.
+  -- number already shown to her. The caller owns the ledger row:
+  -- submitOfflineLateEntry.ts writes it through
+  -- replicatedArmbandsTable.upsertAssignedArmband before the entry, and the
+  -- entry depends on that mutation.
   IF TG_OP = 'INSERT' AND NULLIF(btrim(COALESCE(NEW.armband, '')), '') IS NOT NULL THEN
     RETURN NEW;
   END IF;
@@ -114,14 +117,7 @@ BEGIN
     VALUES (NEW.show_id, NEW.dog_id, v_armband, NOW(), FALSE)
     ON CONFLICT (show_id, dog_id) DO UPDATE
       SET armband_number = EXCLUDED.armband_number,
-          assigned_at    = EXCLUDED.assigned_at,
-          is_available   = FALSE;
-  ELSE
-    UPDATE armbands
-    SET is_available = FALSE, assigned_at = COALESCE(assigned_at, NOW())
-    WHERE show_id = NEW.show_id
-      AND dog_id = NEW.dog_id
-      AND is_available IS DISTINCT FROM FALSE;
+          assigned_at    = EXCLUDED.assigned_at;
   END IF;
 
   -- On INSERT the row is not in the table yet, so this only reaches siblings.
@@ -142,6 +138,12 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.auto_assign_armband_on_accept() TO authenticated;
 
+-- Ordering note: on INSERT this trigger now fires before
+-- entries_00_refuse_deleted_parent (alphabetical) and takes `shows FOR UPDATE`
+-- before that trigger's parent gate. A confirmed insert racing a show
+-- soft-delete can deadlock (40P01); the replication queue retries it. Accepted.
+-- The trigger is not renamed: renaming would change the UPDATE firing order the
+-- 20261027003700 (MYK9-1407) migration documents.
 DROP TRIGGER IF EXISTS auto_assign_armband_on_accept_trigger ON public.entries;
 CREATE TRIGGER auto_assign_armband_on_accept_trigger
   BEFORE INSERT OR UPDATE OF entry_status ON public.entries
@@ -192,14 +194,7 @@ BEGIN
       VALUES (r.show_id, r.dog_id, v_armband, NOW(), FALSE)
       ON CONFLICT (show_id, dog_id) DO UPDATE
         SET armband_number = EXCLUDED.armband_number,
-            assigned_at    = EXCLUDED.assigned_at,
-            is_available   = FALSE;
-    ELSE
-      UPDATE public.armbands
-      SET is_available = FALSE, assigned_at = COALESCE(assigned_at, NOW())
-      WHERE show_id = r.show_id
-        AND dog_id = r.dog_id
-        AND is_available IS DISTINCT FROM FALSE;
+            assigned_at    = EXCLUDED.assigned_at;
     END IF;
 
     UPDATE public.entries

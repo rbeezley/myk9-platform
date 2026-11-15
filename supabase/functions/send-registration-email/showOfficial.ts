@@ -1,11 +1,11 @@
 // Who may ask for a registration's receipt besides its owner (MYK9-1999): a show official keying
-// a mail-in entry, or a site admin. The same rule send-lifecycle-email applies
-// (callerRoleAuthorizesLifecycleShow), so a club admin or show-scoped secretary who can key the
-// entry can also have its receipt sent. Deno-free so vitest can import it.
+// a mail-in entry, or a site admin. Access is club-derived, as can_manage_show_lifecycle_email
+// is: a show-scoped user_roles row records paperwork and grants nothing since the
+// label/permission split, so only a secretary or club admin of the show's club passes.
+// Deno-free so vitest can import it.
 
 export interface CallerRoleRow {
   club_id: string | null;
-  show_id?: string | null;
   roles?: { name?: string | null } | null;
 }
 
@@ -19,5 +19,5 @@ export function roleManagesShow(
   const name = role.roles?.name ?? '';
   if (ADMIN_ROLES.has(name)) return true;
   if (!SHOW_OFFICIAL_ROLES.has(name)) return false;
-  return role.show_id === show.id || (!!show.club_id && role.club_id === show.club_id);
+  return !!show.club_id && role.club_id === show.club_id;
 }

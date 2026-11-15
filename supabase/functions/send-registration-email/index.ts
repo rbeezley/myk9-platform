@@ -106,14 +106,14 @@ handle<SendRegistrationEmailPayload>(
     }
 
     // Verify the caller owns this registration or manages its show (MYK9-1999: a show official
-    // keying a mail-in entry has its receipt sent, with the same rule send-lifecycle-email uses).
+    // keying a mail-in entry has its receipt sent; access is club-derived, see showOfficial.ts).
     const isOwner = !!user && registration.person?.auth_user_id === user.id;
     let managesShow = false;
     if (!isOwner && user) {
       const { data: roles, error: roleError } = await applyActiveRoleValidity(
         supabase
           .from('user_roles')
-          .select('id, club_id, show_id, auth_user_id, is_active, expires_at, roles!inner(name)')
+          .select('id, club_id, auth_user_id, is_active, expires_at, roles!inner(name)')
           .eq('auth_user_id', user.id)
       );
       if (roleError) {

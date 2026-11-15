@@ -55,7 +55,9 @@ describe('renderStripeEntryConfirmationEmail', () => {
   it('links to My Shows and says where the armband will appear', () => {
     const html = renderStripeEntryConfirmationEmail(base);
     expect(html).toContain('href="https://myk9show.com/exhibitor/entries"');
-    expect(html).toContain('Your armband number is assigned closer to the show.');
+    expect(html).toContain(
+      'Your armband number is assigned when the secretary accepts your entry.'
+    );
     expect(html).toContain('appear next to each dog in My Shows');
   });
 

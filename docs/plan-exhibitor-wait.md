@@ -159,6 +159,11 @@ One overlap is removed: the secretary's send date for the fuller confirmation go
 - Whether a declined refund records a reason.
 - Walk the first-run redirect as a brand-new exhibitor on a throwaway account, with writes refused after sign-up.
 
+Answered in code for MYK9-1999 (2026-11-15):
+
+- **A card-paid entry is not accepted at payment.** `create_online_paid_entry` inserts it as `entry_status = 'paid'`, and the armband comes from `auto_assign_armband_on_accept` when the secretary accepts it. So the "Entry accepted" email and the full confirmation are not sent at the same moment by payment; the full confirmation goes on the first scheduled run (hourly) after acceptance. A mail-in entry a show official keys is inserted `confirmed` (MYK9-841) and gets its armband from the wizard's `assign_armband` call.
+- **Nothing in the app edits `shows.confirmation_message`.** It was mapped but had no field. MYK9-1999 adds the Note to exhibitors card on the Edit show panel's Venue & policies tab.
+
 **Phase 1: the receipt and the full confirmation** (MYK9-1999).
 
 **Phase 2: My Shows and her own pages** (MYK9-1998). No edge function, so it can ship alone.

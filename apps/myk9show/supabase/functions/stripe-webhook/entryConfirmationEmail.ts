@@ -25,9 +25,9 @@ export interface StripeEntryConfirmationEmailData {
   entriesUrl: string;
 }
 
-/** Armbands are given out closer to the show, so the email says where the number will appear. */
+/** The armband is assigned on acceptance (MYK9-1999): the receipt says what comes next. */
 const ARMBAND_NOTE =
-  'Your armband number is assigned closer to the show. It will appear next to each dog in My Shows.';
+  'Your armband number is assigned when the secretary accepts your entry. We will email you a full confirmation with it, and it will appear next to each dog in My Shows.';
 
 export function renderStripeEntryConfirmationEmail(data: StripeEntryConfirmationEmailData): string {
   const entryRows = data.entries

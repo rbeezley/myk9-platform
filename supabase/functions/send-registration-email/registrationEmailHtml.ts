@@ -1,8 +1,8 @@
 // Builds the registration confirmation email. Deno-free so vitest can import it.
 
-/** The armband is given out closer to the show, so the email says where the number will appear. */
+/** The armband is assigned on acceptance (MYK9-1999): the receipt says what comes next. */
 const ARMBAND_NOTE =
-  'Your armband number is assigned closer to the show. It will appear next to each dog in My Shows.';
+  'Your armband number is assigned when the secretary accepts your entry. We will email you a full confirmation with it, and it will appear next to each dog in My Shows.';
 
 /** What a check or cash entry still owes, in plain words. null for any other payment. */
 export function payAtShowLine(

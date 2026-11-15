@@ -72,7 +72,9 @@ describe('buildRegistrationEmailHtml', () => {
     expect(html).toContain('CONF-1234');
     expect(html).toContain('$30.00');
     expect(html).toContain('href="https://myk9show.com/exhibitor/entries"');
-    expect(html).toContain('Your armband number is assigned closer to the show.');
+    expect(html).toContain(
+      'Your armband number is assigned when the secretary accepts your entry.'
+    );
   });
 
   it('has no em dashes in the body', () => {

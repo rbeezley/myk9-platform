@@ -22,7 +22,8 @@ export interface GazetteEntryReceivedProps {
   totalFeesFormatted: string;
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "Jun 6, 2026". Null if none set. */
-  confirmationDateLabel: string | null;
+  /** What happens next by email (MYK9-1999): the full confirmation once the entry is accepted. */
+  fullConfirmationNote: string;
   /** Entry-specific download controls rendered in the existing primary CTA slot. */
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. Disabled when omitted. */
@@ -48,7 +49,7 @@ export function GazetteEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
 }: GazetteEntryReceivedProps) {
@@ -208,7 +209,7 @@ export function GazetteEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           className="m-0 px-7 pt-3.5 pb-7 text-center"
           style={{
@@ -220,12 +221,7 @@ export function GazetteEntryReceived({
             color: BROWN,
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: INK, fontStyle: 'normal', fontWeight: 700, fontFamily: DISPLAY }}>
-            {confirmationDateLabel}
-          </strong>
-          <br />
-          once the draw is complete.
+          {fullConfirmationNote}
         </p>
       )}
     </div>

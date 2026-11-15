@@ -19,7 +19,8 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent Containers, Excellent Interiors · Judge Mrs. Beagles',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
+  fullConfirmationNote:
+    'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
 };
 
 describe('MonogramEntryReceived', () => {
@@ -98,12 +99,7 @@ describe('MonogramEntryReceived', () => {
 
   it('shows the confirmation-date caption when supplied', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeInTheDocument();
-  });
-
-  it('omits the confirmation caption when confirmationDateLabel is null', () => {
-    render(<MonogramEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
-    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
+    expect(screen.getByText(/we will email you a full confirmation/)).toBeInTheDocument();
   });
 
   it('derives initials from the club name when monogramLetters is not supplied', () => {

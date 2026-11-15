@@ -44,7 +44,7 @@ export function MonogramEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
   monogramLetters,
@@ -261,7 +261,7 @@ export function MonogramEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           style={{
             textAlign: 'center',
@@ -274,19 +274,7 @@ export function MonogramEntryReceived({
             margin: 0,
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong
-            style={{
-              color: INK,
-              fontWeight: 400,
-              fontStyle: 'normal',
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            }}
-          >
-            {confirmationDateLabel}
-          </strong>
-          <br />
-          once the draw is complete.
+          {fullConfirmationNote}
         </p>
       )}
     </div>

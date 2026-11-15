@@ -27,7 +27,7 @@ export function HeadlineEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
 }: HeadlineEntryReceivedProps) {
@@ -274,7 +274,7 @@ export function HeadlineEntryReceived({
         </Button>
       </div>
 
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           style={{
             textAlign: 'left',
@@ -287,9 +287,7 @@ export function HeadlineEntryReceived({
             margin: '4px 0 0',
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: INK, fontWeight: 600 }}>{confirmationDateLabel}</strong> once the
-          draw is complete.
+          {fullConfirmationNote}
           <span
             style={{
               display: 'block',

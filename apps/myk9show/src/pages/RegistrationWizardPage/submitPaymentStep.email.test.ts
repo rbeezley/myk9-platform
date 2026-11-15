@@ -55,7 +55,11 @@ describe('the one confirmation email for a check or cash entry (MYK9-1963)', () 
     await submitPaymentStep(ctx);
 
     expect(sendSubmittedEntryEmailMock).toHaveBeenCalledTimes(1);
-    expect(sendSubmittedEntryEmailMock).toHaveBeenCalledWith('enrollment-1', ['entry-1']);
+    expect(sendSubmittedEntryEmailMock).toHaveBeenCalledWith(
+      'enrollment-1',
+      ['entry-1'],
+      'exhibitor'
+    );
   });
 
   it('sends one email for a cash entry too', async () => {
@@ -71,10 +75,14 @@ describe('the one confirmation email for a check or cash entry (MYK9-1963)', () 
     await submitPaymentStep(ctx);
 
     expect(sendSubmittedEntryEmailMock).toHaveBeenCalledTimes(1);
-    expect(sendSubmittedEntryEmailMock).toHaveBeenCalledWith('enrollment-1', ['entry-1']);
+    expect(sendSubmittedEntryEmailMock).toHaveBeenCalledWith(
+      'enrollment-1',
+      ['entry-1'],
+      'exhibitor'
+    );
   });
 
-  it('sends nothing when a secretary enters the dog, or when no entry was created', async () => {
+  it('sends the receipt for a mail-in entry the secretary keys in (MYK9-1999)', async () => {
     submitShowRegistrationMock.mockResolvedValue({
       aborted: false,
       dbRegistrationId: 'enrollment-1',
@@ -84,6 +92,15 @@ describe('the one confirmation email for a check or cash entry (MYK9-1963)', () 
     });
     await submitPaymentStep(makeContextAndOrder({ currentWorkflowMode: 'secretary_new' }).ctx);
 
+    expect(sendSubmittedEntryEmailMock).toHaveBeenCalledTimes(1);
+    expect(sendSubmittedEntryEmailMock).toHaveBeenCalledWith(
+      'enrollment-1',
+      ['entry-1'],
+      'secretary_new'
+    );
+  });
+
+  it('sends nothing when no entry was created', async () => {
     submitShowRegistrationMock.mockResolvedValue({
       aborted: false,
       dbRegistrationId: 'enrollment-1',

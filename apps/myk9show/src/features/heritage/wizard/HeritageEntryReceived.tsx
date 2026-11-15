@@ -17,7 +17,8 @@ export interface HeritageEntryReceivedProps {
   totalFeesFormatted: string;
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
-  confirmationDateLabel: string | null;
+  /** What happens next by email (MYK9-1999): the full confirmation once the entry is accepted. */
+  fullConfirmationNote: string;
   /** Entry-specific download controls rendered in the existing primary CTA slot. */
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. If omitted, button is disabled. */
@@ -42,7 +43,7 @@ export function HeritageEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
 }: HeritageEntryReceivedProps) {
@@ -267,7 +268,7 @@ export function HeritageEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           className="text-center px-8 pb-8"
           style={{
@@ -278,8 +279,7 @@ export function HeritageEntryReceived({
             lineHeight: 1.6,
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <span style={{ color: INK }}>{confirmationDateLabel}</span> once the draw is complete.
+          {fullConfirmationNote}
         </p>
       )}
     </div>

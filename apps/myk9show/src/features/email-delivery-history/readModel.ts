@@ -127,10 +127,11 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {
+    // MYK9-1999: the exhibitor's two entry emails, in the words her own email uses.
     case 'registration_confirmation':
-      return 'Registration confirmation';
+      return 'Receipt';
     case 'heritage_confirmation':
-      return 'Heritage confirmation';
+      return 'Full confirmation';
     case 'entry_decision':
       return 'Entry decision';
     case 'waitlist_notification':

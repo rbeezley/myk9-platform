@@ -86,13 +86,14 @@ describe('claimSubmissionEntries (once per submission)', () => {
       confirmation_email_sent_at: null,
       confirmation_email_status: 'pending',
     });
-    // The scheduled pre-show sender still selects the entry: a receipt never suppresses it.
+    // The full confirmation still selects the entry: a receipt never suppresses it.
     const scheduled = readFileSync(
       new URL('../send-confirmation-email/index.ts', import.meta.url),
       'utf8'
     );
     expect(scheduled).toContain(".is('confirmation_email_sent_at', null)");
-    expect(scheduled).toContain(".in('confirmation_email_status', ['pending', 'failed'])");
+    expect(scheduled).toContain(".in('confirmation_email_status', statuses)");
+    expect(scheduled).not.toContain('receipt_email_');
   });
 
   it('a released claim is marked failed for the retry sweep, receipt marker only', async () => {

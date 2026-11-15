@@ -38,6 +38,7 @@ import {
   hasCreatedEntryOutcome,
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
+import { everyEntryHandledByOwner } from './ownerHandledEntries';
 import { getDogRegisteredName } from '@/types/dog-types';
 import { FREE_ENTRY_AMOUNT_LABEL, isFreeEntry } from '@/utils/entryAmountOwed';
 
@@ -386,18 +387,31 @@ export function WorkflowStepContent({
             />
           )
         ) : (
-          <ClassSelectionStep
-            selectedDogs={registrationData.selectedDogs}
-            classSelections={optimisticState.classSelections}
-            onSelectionChange={onClassSelectionChange}
-            showId={showId}
-            workflowMode={currentWorkflowMode}
-            ownerAddressWarnOnly={offlineFirstCreate}
-            {...(!hasHandlerStep && {
-              handlerAssignments: optimisticState.handlerAssignments,
-              onHandlerAssignmentChange,
-            })}
-          />
+          <>
+            <ClassSelectionStep
+              selectedDogs={registrationData.selectedDogs}
+              classSelections={optimisticState.classSelections}
+              onSelectionChange={onClassSelectionChange}
+              showId={showId}
+              workflowMode={currentWorkflowMode}
+              ownerAddressWarnOnly={offlineFirstCreate}
+              {...(!hasHandlerStep && {
+                handlerAssignments: optimisticState.handlerAssignments,
+                onHandlerAssignmentChange,
+              })}
+            />
+            {/* MYK9-2020: said on the step before, because Next skips Handlers. */}
+            {hasHandlerStep &&
+              everyEntryHandledByOwner(
+                optimisticState.classSelections,
+                optimisticState.handlerAssignments
+              ) && (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Each dog is handled by its owner, so Next goes straight to Payment. You can still
+                  open Handlers from the steps at the top to change one.
+                </p>
+              )}
+          </>
         ))}
 
       {currentStepId === 'handler-assignment' && (
@@ -424,6 +438,7 @@ export function WorkflowStepContent({
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
             preTickAgreement={currentWorkflowMode !== 'exhibitor'}
+            staffWorkflow={currentWorkflowMode !== 'exhibitor'}
             juniorDeclaration={juniorDeclaration}
             capacityReady={capacityReady}
             capacityError={capacityError}

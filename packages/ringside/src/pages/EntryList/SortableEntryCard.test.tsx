@@ -322,7 +322,7 @@ describe('SortableEntryCard', () => {
     expect(onEntryClick).toHaveBeenCalledWith(baseEntry);
   });
 
-  // MYK9-1086: the big Score/Resume button is gone; the whole row is the tap target.
+  // MYK9-1086: the big Score button is gone; the whole row is the tap target.
   it('renders no separate Score button for a scorer', () => {
     renderInDndContext(
       <SortableEntryCard
@@ -342,7 +342,7 @@ describe('SortableEntryCard', () => {
     expect(screen.queryByTestId('primary-action-slot')).toBeNull();
   });
 
-  it('shows Resume on the in-ring hero for a scorer and navigates once on tap', () => {
+  it('shows no Resume pill on the in-ring hero, and a card tap still resumes once (MYK9-1991)', () => {
     const onEntryClick = vi.fn();
     const inRing: Entry = { ...baseEntry, inRing: true, status: 'in-ring' };
     renderInDndContext(
@@ -360,10 +360,90 @@ describe('SortableEntryCard', () => {
     );
 
     expect(screen.getByTestId('dog-card').getAttribute('data-variant')).toBe('hero');
-    expect(screen.getByText('Resume')).toBeTruthy();
+    expect(screen.queryByText('Resume')).toBeNull();
+    // The check-in control is the only visible control on the right.
+    expect(screen.getByTestId('check-in-button')).toBeTruthy();
     fireEvent.click(screen.getByTestId('dog-card'));
     expect(onEntryClick).toHaveBeenCalledTimes(1);
   });
+
+  it('shows no Time pill on an up-next card, and a card tap still opens the scoresheet (MYK9-1991)', () => {
+    const onEntryClick = vi.fn();
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        variant="next"
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={onEntryClick}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    expect(screen.queryByText('Time')).toBeNull();
+    expect(screen.getByTestId('check-in-button')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('dog-card'));
+    expect(onEntryClick).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['next', 'hero'] as const)(
+    'keeps the hidden keyboard Score button on the %s card, and it opens the sheet once (MYK9-1991)',
+    variant => {
+      const onEntryClick = vi.fn();
+      const entry: Entry =
+        variant === 'hero' ? { ...baseEntry, inRing: true, status: 'in-ring' } : baseEntry;
+      renderInDndContext(
+        <SortableEntryCard
+          entry={entry}
+          variant={variant}
+          isDragMode={false}
+          hasPermission={allowAll}
+          handleEntryClick={onEntryClick}
+          handleStatusClick={vi.fn()}
+          handleResetMenuClick={vi.fn()}
+          setSelfCheckinDisabledDialog={vi.fn()}
+          DogCard={StubDogCard}
+        />
+      );
+
+      const score = screen.getByRole('button', { name: 'Score Rex' });
+      expect(score.className).toContain('sr-only');
+      fireEvent.click(score);
+      expect(onEntryClick).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each(['next', 'hero'] as const)(
+    'a tap on the %s check-in control changes check-in and does not open the scoresheet (MYK9-1991)',
+    variant => {
+      const onEntryClick = vi.fn();
+      // The host's handleStatusClick owns stopping the click here (the myK9Show one does).
+      const onStatusClick = vi.fn((e: React.MouseEvent) => e.stopPropagation());
+      const entry: Entry =
+        variant === 'hero' ? { ...baseEntry, inRing: true, status: 'in-ring' } : baseEntry;
+      renderInDndContext(
+        <SortableEntryCard
+          entry={entry}
+          variant={variant}
+          isDragMode={false}
+          hasPermission={allowAll}
+          handleEntryClick={onEntryClick}
+          handleStatusClick={onStatusClick}
+          handleResetMenuClick={vi.fn()}
+          setSelfCheckinDisabledDialog={vi.fn()}
+          DogCard={StubDogCard}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('check-in-button'));
+
+      expect(onStatusClick).toHaveBeenCalledTimes(1);
+      expect(onEntryClick).not.toHaveBeenCalled();
+    }
+  );
 
   it('keeps the check-in button on the hero and no own-dog tint over its fill', () => {
     const inRing: Entry = { ...baseEntry, inRing: true, status: 'in-ring' };
@@ -424,7 +504,7 @@ describe('SortableEntryCard', () => {
     expect(screen.queryByRole('button', { name: 'Score Rex' })).toBeNull();
   });
 
-  it('shows no Resume on the hero for a viewer who cannot score', () => {
+  it('shows no Resume or Score control on the hero for a viewer who cannot score', () => {
     const inRing: Entry = { ...baseEntry, inRing: true, status: 'in-ring' };
     renderInDndContext(
       <SortableEntryCard

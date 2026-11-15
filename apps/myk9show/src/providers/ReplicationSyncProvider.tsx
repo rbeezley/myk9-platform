@@ -16,6 +16,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useStoreSubscriptions } from '@/hooks/useStoreSubscriptions';
+import { resolveSessionUser } from '@/hooks/authSessionUser';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import {
@@ -34,6 +35,7 @@ import {
 } from '@myk9/replication';
 import { toast } from 'sonner';
 import { SyncFailureReason } from './SyncFailureReason';
+import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { features } from '@/config/features';
 import { supabase } from '@/services/database/supabaseClient';
@@ -112,6 +114,9 @@ interface ReplicationSyncProviderProps {
   /** Whether to sync when coming back online */
   syncOnReconnect?: boolean;
 }
+
+// The header's count of held conflicts re-reads after the saved choice, not before it lands.
+const announceConflictSettled = () => window.dispatchEvent(new CustomEvent(CONFLICT_SETTLED_EVENT));
 
 // All replicated tables with their names
 export const REPLICATED_TABLES = [
@@ -245,14 +250,26 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const prevIsAuthenticated = useRef(false);
+  const syncDeferredForSessionRef = useRef(false);
 
   // INITIAL_SESSION fires on subscribe with the current session (null for guests),
   // so getSession() is not needed — onAuthStateChange covers both initial state and changes.
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
-      setIsAuthenticated(!!session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // A null session that is not SIGNED_OUT is a refresh that failed offline, not a sign-out:
+      // queued changes keep their owner and send on reconnect (MYK9-1992).
+      setIsAuthenticated(!!resolveSessionUser(event, session));
+      // The refresh that was failing has landed (or a sign-in did): run the sync deferred for want of
+      // a session. A reconnect needs no case here: its own trigger re-reads the session.
+      if (
+        (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') &&
+        syncDeferredForSessionRef.current
+      ) {
+        syncDeferredForSessionRef.current = false;
+        void triggerSyncRef.current?.();
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -345,6 +362,21 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
       if (!isOnline) {
         logger.debug('Skipping sync - offline', 'replication');
+        return;
+      }
+
+      // MYK9-1992: `isAuthenticated` may rest on the saved session while a refresh has failed
+      // (a 5xx or transient error online). Nothing can upload without a bound session, so defer
+      // quietly: no attempt, no retry-budget or dead-letter hit, until a session exists.
+      let hasLiveSession = false;
+      try {
+        hasLiveSession = !!(await supabase.auth.getSession()).data.session;
+      } catch {
+        // A throwing read is a deferral too, never a rejected sync.
+      }
+      if (!hasLiveSession) {
+        logger.debug('Deferring sync - session not resolved yet', 'replication');
+        syncDeferredForSessionRef.current = true;
         return;
       }
 
@@ -862,8 +894,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             // Replace local row with remote data (reads snapshot from IDB) AND
             // discard the pending mutation that would re-upload the old local value.
             if (anyTable) {
-              void anyTable.resolveReplicationConflict(detail.rowId, 'take-remote');
+              void anyTable
+                .resolveReplicationConflict(detail.rowId, 'take-remote')
+                .finally(announceConflictSettled);
               void mutationManager.discardPendingMutationsForRow(detail.tableName, detail.rowId);
+            } else {
+              announceConflictSettled();
             }
             toast.dismiss(conflictId);
           },
@@ -873,7 +909,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           onClick: () => {
             // Clear the conflict snapshot and let the table refresh queued
             // mutation OCC state from the resolved row.
-            void anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local');
+            void (
+              anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local') ?? Promise.resolve()
+            ).finally(announceConflictSettled);
             toast.dismiss(conflictId);
           },
         },

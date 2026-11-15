@@ -93,6 +93,18 @@ const renderHeader = (override: Partial<EntryListHeaderProps> = {}) =>
   );
 
 describe('EntryListHeader', () => {
+  it('pins a host banner as the last row inside the sticky header, with the controls still there (MYK9-2012)', () => {
+    renderHeader({ banner: <div data-testid="host-banner">Saved</div> });
+
+    const header = screen.getByRole('banner');
+    expect(header.className).toContain('sticky');
+    expect(header).toContainElement(screen.getByTestId('host-banner'));
+    expect(header.lastElementChild).toBe(screen.getByTestId('host-banner'));
+    expect(header).toContainElement(screen.getByRole('button', { name: 'Classes' }));
+    expect(header).toContainElement(screen.getByTestId('filter'));
+    expect(header).toContainElement(screen.getByRole('button', { name: 'Refresh entries' }));
+  });
+
   it('shows the Up control with the parent name and goes to its fixed route', () => {
     render(
       <MemoryRouter initialEntries={['/at-show/show-1/class/c1']}>
@@ -228,7 +240,8 @@ describe('EntryListHeader', () => {
     const block = heading.parentElement;
     // Class names are pinned, not measured: jsdom has no layout. The browser measurement at 375px is the proof.
     expect(screen.getByRole('banner')).toContainElement(heading);
-    expect(screen.getByRole('banner').className).toContain('max-sm:flex-wrap');
+    // The wrapping bar is the header's inner row; the header itself only pins it (MYK9-2012).
+    expect(block?.parentElement?.className).toContain('max-sm:flex-wrap');
     expect(block?.className).toContain('max-sm:order-last');
     expect(block?.className).toContain('max-sm:basis-full');
     expect(heading.className).toContain('break-words');

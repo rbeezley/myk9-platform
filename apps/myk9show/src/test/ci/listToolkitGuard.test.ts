@@ -56,6 +56,10 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     reason: 'focus toggle on a schedule row, not a filter',
   },
   'features/at-show/AtShowScoresheetPage.tsx': { count: 1, reason: 'ringside scoring toggle' },
+  'features/show-map/cockpit/FocusedClassScoring.tsx': {
+    count: 2,
+    reason: 'paper / phone choice on a class and a judge (MYK9-1971), a setting, not a filter',
+  },
   'features/at-show/AtShowClassCardFooter.tsx': {
     count: 1,
     reason: 'favorite heart on a class card (MYK9-1506), a per-class toggle, not a filter',
@@ -92,8 +96,12 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
   'components/announcements/CreateAnnouncementDialog.tsx': { count: 1, reason: 'form toggle' },
   'components/admin/users/BulkRoleEditPanel.tsx': { count: 1, reason: 'role chip in a form' },
   'components/shows/RegistrationWorkflow/PaymentStep/PaymentMethodSelector.tsx': {
-    count: 2,
-    reason: 'payment method choice',
+    count: 1,
+    reason: 'received as cash or check, inside a payment method choice',
+  },
+  'components/shows/RegistrationWorkflow/PaymentStep/PaymentOptionCard.tsx': {
+    count: 1,
+    reason: 'payment method choice card (MYK9-2020: shared by both payment lists)',
   },
   'components/shows/RegistrationWorkflow/PaymentStep/SecretaryPaymentManagement.tsx': {
     count: 2,

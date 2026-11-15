@@ -25,6 +25,7 @@ import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
 import { FocusedClassJudge } from './FocusedClassJudge';
+import { FocusedClassJudgeScoring, FocusedClassScoringField } from './FocusedClassScoringControls';
 import { judgeLockReason } from './focusedClassJudgeModel';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
@@ -152,17 +153,31 @@ export function SecretaryCockpit({
       {...(canManageShow &&
         sourceClass && {
           judgeControl: (
-            <FocusedClassJudge
+            <>
+              <FocusedClassJudge
+                showId={snapshot.showId}
+                classId={sourceClass.id}
+                classLabel={model.focusedClass.name}
+                judgeName={sourceClass.judgeName ?? null}
+                assignedJudgeId={sourceClass.judgeId ?? null}
+                availableJudges={judges.availableJudges}
+                organization={judges.showOrganization}
+                judgeListStatus={judges.judgeListStatus}
+                lockReason={judgeLockReason(model.focusedClass)}
+                onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
+              />
+              <FocusedClassJudgeScoring
+                showId={snapshot.showId}
+                sourceClass={sourceClass}
+                classes={snapshot.classes}
+              />
+            </>
+          ),
+          scoringControl: (
+            <FocusedClassScoringField
               showId={snapshot.showId}
-              classId={sourceClass.id}
-              classLabel={model.focusedClass.name}
-              judgeName={sourceClass.judgeName ?? null}
-              assignedJudgeId={sourceClass.judgeId ?? null}
-              availableJudges={judges.availableJudges}
-              organization={judges.showOrganization}
-              judgeListStatus={judges.judgeListStatus}
-              lockReason={judgeLockReason(model.focusedClass)}
-              onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
+              sourceClass={sourceClass}
+              className={model.focusedClass.name}
             />
           ),
         })}

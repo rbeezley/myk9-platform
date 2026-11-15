@@ -25,6 +25,11 @@ export interface EntriesPanelTotalsProps {
    * (omitted) when they match.
    */
   adjustmentCents?: number | undefined;
+  /**
+   * MYK9-2020: a secretary keying in someone's entry. On-behalf entries are
+   * never paid by card, so there is no service fee to promise.
+   */
+  staffWorkflow?: boolean | undefined;
   /** Payment step only — when present the money block is the payable one. */
   payment?:
     | {
@@ -61,6 +66,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
   placeholder,
   discounts,
   adjustmentCents,
+  staffWorkflow = false,
   payment,
 }) => {
   const totals = payment?.totals;
@@ -92,7 +98,9 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
       </div>
 
       {!payment ? (
-        <p className="text-xs text-muted-foreground">Plus a service fee, shown at payment.</p>
+        !staffWorkflow && (
+          <p className="text-xs text-muted-foreground">Plus a service fee, shown at payment.</p>
+        )
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">

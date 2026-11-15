@@ -11,6 +11,7 @@
 
 import React, { type ReactNode } from 'react';
 import { Card } from '@myk9/ui';
+import { recoveryNotice, type TimerRecovery } from '../utils/runTimerStorage';
 
 /** Primary timer button (Start, Stop, Resume): fills the row beside Reset. */
 export const timerPrimaryButtonClass =
@@ -33,6 +34,8 @@ export interface ScoresheetTimerCardProps {
   progress?: ReactNode;
   /** Anything that belongs above the clock (the dual timer's element row). */
   above?: ReactNode;
+  /** What a reload did to this run; says so plainly under the controls (MYK9-2007). */
+  recovery?: TimerRecovery;
   /** The controls row: buttons only. */
   children: ReactNode;
 }
@@ -44,6 +47,7 @@ export const ScoresheetTimerCard: React.FC<ScoresheetTimerCardProps> = ({
   aside,
   progress,
   above,
+  recovery,
   children,
 }) => (
   <Card className="relative overflow-hidden p-3" data-testid="scoresheet-timer-card">
@@ -66,5 +70,14 @@ export const ScoresheetTimerCard: React.FC<ScoresheetTimerCardProps> = ({
     </div>
     {progress}
     <div className="mt-2 flex flex-wrap gap-2">{children}</div>
+    {recoveryNotice(recovery ?? null) && (
+      <p
+        role="status"
+        data-testid="timer-recovery-notice"
+        className="mt-2 text-sm text-muted-foreground"
+      >
+        {recoveryNotice(recovery ?? null)}
+      </p>
+    )}
   </Card>
 );

@@ -332,24 +332,27 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
       );
     }
 
-    actions.push(
-      withHref(
-        {
-          id: 'scratch-entry',
-          nodeId: node.id,
-          // UX-Low: unify on the app's dominant "Pull/Pulled" vocabulary
-          // (matches Pull Management and the exhibitor's "Pull or withdraw"
-          // chooser). Internal id/dialog key
-          // stay 'scratch-entry'; only the user-facing label changes.
-          label: 'Pull',
-          why: withEntryContext(node, 'Pull this entry'),
-          priority: 30,
-          icon: Ban,
-          ...(classId ? { classId } : {}),
-        },
-        undefined
-      )
-    );
+    // A dog with a result is never pulled (MYK9-1990); its result is edited on Results.
+    if (!entryScored) {
+      actions.push(
+        withHref(
+          {
+            id: 'scratch-entry',
+            nodeId: node.id,
+            // UX-Low: unify on the app's dominant "Pull/Pulled" vocabulary
+            // (matches Pull Management and the exhibitor's "Pull or withdraw"
+            // chooser). Internal id/dialog key
+            // stay 'scratch-entry'; only the user-facing label changes.
+            label: 'Pull',
+            why: withEntryContext(node, 'Pull this entry'),
+            priority: 30,
+            icon: Ban,
+            ...(classId ? { classId } : {}),
+          },
+          undefined
+        )
+      );
+    }
     if (canMessageEntryHandler(node)) {
       actions.push(
         withHref(

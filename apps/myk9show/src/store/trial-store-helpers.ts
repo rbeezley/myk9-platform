@@ -74,6 +74,7 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
     resultsReleasedAt: replicated.resultsReleasedAt ?? null,
     judgeSignedOffAt: replicated.judgeSignedOffAt ?? null,
     judgeSignedOffBy: replicated.judgeSignedOffBy ?? null,
+    scoresOnPaper: replicated.scoresOnPaper ?? null,
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),
     _lastModifiedBy: replicated._lastModifiedBy || '',

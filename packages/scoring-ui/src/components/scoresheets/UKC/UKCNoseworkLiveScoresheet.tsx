@@ -38,6 +38,7 @@ import { faultLimitFor } from '../../../utils/qualifiedCheck';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps, ResolvedClassRules, StopwatchReturn } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
+import { scoringSource, timerPersist } from '../../../utils/timerPersist';
 
 const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
@@ -67,9 +68,8 @@ const NQ_REASONS = ['Fault Limit', 'Max Time', 'False Alert', 'Handler Error'];
 
 /**
  * Which clock carries the max. The rulebook maximum is an ELEMENT time
- * (MYK9-1093): single mode has one clock, so it carries the max; in dual mode
- * the element clock does, and the search clock (which pauses at each alert)
- * has none of its own.
+ * (MYK9-1093): single mode has one clock, so it carries it; in dual mode the
+ * element clock does, and the search clock (paused at each alert) has none.
  */
 function splitMaxTime(isDual: boolean, rules: ResolvedClassRules, maxTimeStr: string) {
   const maxTimeMs = rules.maxTimeSeconds * 1000;
@@ -129,7 +129,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const scoring = useScoresheetScoring({
     rules: { ...rules, areaCount: 1 },
-    existingScore: entry.existingScore,
+    ...scoringSource(entry),
     recordFinds: false,
     qualifiedRules: { faultLimit: faultLimitFor('UKC_NOSEWORK', classInfo.level) },
   });
@@ -137,6 +137,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const { maxTimeMs, searchMaxTime, elementMaxTimeMs } = splitMaxTime(isDual, rules, maxTimeStr);
 
   const stopwatch = useStopwatch({
+    ...timerPersist(entry),
     maxTime: searchMaxTime,
     level: classInfo.level,
     thirtySecondWarning: rules.thirtySecondWarning,
@@ -152,6 +153,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const elementTimer = useElementTimer({
+    ...timerPersist(entry),
     maxTimeMs: elementMaxTimeMs,
     onExpired: () => {
       const elapsedMs = capAtElementMax(stopwatch.pause(), elementMaxTimeMs);
@@ -305,6 +307,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         }}
       >
         <ScoresheetTimerCard
+          recovery={stopwatch.recovery ?? elementTimer.recovery}
           label={isDual ? 'Search Time' : 'Time'}
           clock={
             <span

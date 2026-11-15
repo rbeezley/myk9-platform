@@ -6,13 +6,14 @@
 import type { ListView } from '@/components/list-toolkit';
 import type { SupportTicket, SupportTicketStatus } from '@/features/support/supportTickets';
 
-export type SupportTicketFilter = SupportTicketStatus | 'all';
+export type SupportTicketFilter = SupportTicketStatus | 'all' | 'mock-test';
 
 export const SUPPORT_FILTERS: readonly SupportTicketFilter[] = [
   'open',
   'waiting',
   'resolved',
   'all',
+  'mock-test',
 ];
 export const DEFAULT_SUPPORT_FILTER: SupportTicketFilter = 'open';
 
@@ -21,6 +22,7 @@ export const SUPPORT_STATUS_LABELS: Record<SupportTicketFilter, string> = {
   waiting: 'Waiting',
   resolved: 'Resolved',
   all: 'All',
+  'mock-test': 'Mock test',
 };
 
 export const SUPPORT_TICKET_NOUN = ['ticket', 'tickets'] as const;
@@ -29,7 +31,11 @@ export function filterTickets(
   tickets: SupportTicket[],
   filter: SupportTicketFilter
 ): SupportTicket[] {
-  return filter === 'all' ? tickets : tickets.filter(ticket => ticket.status === filter);
+  if (filter === 'all') return tickets;
+  // MYK9-2022: mock-test feedback in any status, so the owner reads it in one list.
+  if (filter === 'mock-test')
+    return tickets.filter(ticket => ticket.diagnostics?.kind === 'mock-test');
+  return tickets.filter(ticket => ticket.status === filter);
 }
 
 /** `tickets` is null while the data is unavailable; every count is then unknown. */

@@ -7,6 +7,8 @@ export interface CreateSupportTicketInput {
   diagnostics: SupportDiagnosticBundle;
   showId: string | null;
   isShowDayPriority: boolean;
+  /** Overrides the subject built from the first sentence of the body. */
+  subject?: string;
 }
 
 export interface CreatedSupportTicket {
@@ -41,6 +43,10 @@ export interface SupportTicketMessage {
 
 export interface ListSupportTicketsOptions {
   resolveOwners?: boolean;
+  /** Server-side filter: only this owner's tickets. */
+  ownerId?: string;
+  /** Server-side filter on `diagnostics.kind`. */
+  kind?: 'mock-test';
 }
 
 type SupportTableClient = {
@@ -83,7 +89,7 @@ export async function createSupportTicket(
   const client = supabase as unknown as SupportTableClient;
   const { data: ticket, error: ticketError } = await client.rpc('create_support_ticket', {
     p_owner_id: input.ownerId,
-    p_subject: buildTicketSubject(body),
+    p_subject: input.subject ?? buildTicketSubject(body),
     p_diagnostics: input.diagnostics,
     p_show_id: input.showId,
     p_is_show_day_priority: input.isShowDayPriority,
@@ -110,6 +116,8 @@ export async function listSupportTickets(
   if (status) {
     query = query.eq('status', status);
   }
+  if (options?.ownerId) query = query.eq('owner_id', options.ownerId);
+  if (options?.kind) query = query.eq('diagnostics->>kind', options.kind);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

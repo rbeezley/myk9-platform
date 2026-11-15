@@ -143,6 +143,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
     user: authState.userId ? { id: authState.userId, is_anonymous: authState.isAnonymous } : null,
     hasRole: (role: string) => (authState.isJudge ? role === 'judge' : false),
     userWithRoles: authState.userId ? { databaseUserId: authState.databaseUserId } : null,
+    personId: authState.userId ? (authState.databaseUserId ?? null) : null,
     refreshPermissions: refreshSpy,
   }),
 }));

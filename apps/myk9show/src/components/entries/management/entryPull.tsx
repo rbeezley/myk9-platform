@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { canPullEntry } from './checkInDesk/deskEditable';
 import { DeskPullDialogs } from './checkInDesk/DeskPullDialogs';
 import type { EntriesRefresh } from './checkInDesk/entriesRefresh';
 import { useDeskPull, type DeskPullRow } from './checkInDesk/useDeskPull';
@@ -11,14 +12,12 @@ export const ENTRIES_PULL_STARTED_AT = 'Pulled on the Entries page';
 
 /** The class a Pull names: the entry's own class, as the desks name theirs. */
 function toPullRow(entry: EntryManagementEntry): DeskPullRow {
-  const pullable =
-    entry.entryStatus !== EntryStatus.SCRATCHED && entry.entryStatus !== EntryStatus.MOVED;
   return {
     entryId: entry.id,
     dogName: entry.dogName,
     className: entry.classes[0]?.name ?? 'this class',
     armband: entry.armbandNumber ?? null,
-    deskStatusEditable: pullable,
+    deskStatusEditable: canPullEntry(entry),
     deskCanUnpull: false,
   };
 }

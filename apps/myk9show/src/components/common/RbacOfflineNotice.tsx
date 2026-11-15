@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useOnlineStatus } from '@/lib/networkUtils';
+import { OFFLINE_SAVED_MESSAGE } from '@/lib/offlineCopy';
+import { OFFLINE_TOAST_ID } from './networkStatusToast';
 
 /**
  * Visible marker that role/permission data is being served from the
@@ -11,6 +15,17 @@ import { useAuthContext } from '@/hooks/useAuthContext';
  */
 export const RbacOfflineNotice: React.FC = () => {
   const { rbacFromCacheAt } = useAuthContext();
+  const isOnline = useOnlineStatus();
+  const showsOfflineSentence = Boolean(rbacFromCacheAt) && !isOnline;
+
+  // One offline message, not two (MYK9-2014): this card carries the "saved on this
+  // device" sentence, so the offline toast is dropped. The provider's own effect runs
+  // after this one on a shared mount, hence the deferred dismiss.
+  useEffect(() => {
+    if (!showsOfflineSentence) return;
+    const timer = setTimeout(() => toast.dismiss(OFFLINE_TOAST_ID), 0);
+    return () => clearTimeout(timer);
+  }, [showsOfflineSentence]);
 
   if (!rbacFromCacheAt) return null;
 
@@ -31,6 +46,9 @@ export const RbacOfflineNotice: React.FC = () => {
             Using your saved permissions as of {asOf}. They will refresh automatically when the
             connection returns.
           </div>
+          {showsOfflineSentence && (
+            <div className="text-sm text-orange-800">{OFFLINE_SAVED_MESSAGE}</div>
+          )}
         </AlertDescription>
       </Alert>
     </div>

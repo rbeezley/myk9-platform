@@ -109,7 +109,9 @@ describe('useAtShowEntryListHandlers while the class is cancelled', () => {
     const { result, rerender, actions, navigate } = setup(true);
     rerender({ cancelled: false });
     act(() => result.current.handleEntryClick(entry));
-    expect(navigate).toHaveBeenCalledWith('/route');
+    expect(navigate).toHaveBeenCalledWith('/route', {
+      state: { returnScrollY: expect.any(Number) },
+    });
     await act(async () => {
       await result.current.handleStatusChange('entry-1', 'checked-in' as never);
     });
@@ -139,7 +141,9 @@ describe('useAtShowEntryListHandlers while the class is cancelled', () => {
   it('decides per entry: only the cancelled section is blocked', async () => {
     const { result, actions, navigate } = setup(false, ['class-2']);
     act(() => result.current.handleEntryClick(entry));
-    expect(navigate).toHaveBeenCalledWith('/route');
+    expect(navigate).toHaveBeenCalledWith('/route', {
+      state: { returnScrollY: expect.any(Number) },
+    });
     navigate.mockClear();
     act(() => result.current.handleEntryClick(entryB));
     expect(navigate).not.toHaveBeenCalled();

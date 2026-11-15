@@ -9,6 +9,8 @@ export interface ShowWorkbenchClassSummary {
   judgeId?: string | undefined;
   /** MYK9-1030: when the judge's sign-off was recorded for this class. */
   judgeSignedOffAt?: string | null | undefined;
+  /** `classes.scores_on_paper` (MYK9-1969): true = paper, false = phone, null = follows the show. */
+  scoresOnPaper?: boolean | null | undefined;
   trialId: string;
   time: string;
   revisedExpectedStart?: string | null;

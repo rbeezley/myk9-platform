@@ -25,7 +25,6 @@ import type { ResultsClassRow } from './buildResultsClassRows';
 import { useClassManualReleaseTiming } from './classManualReleaseTiming';
 import { HideResultsButton, hideBlockedReason } from './HideResultsButton';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
-import { ReopenConflictButton } from './ReopenConflictButton';
 import { ResultsStatusChip } from './ResultsClassList';
 import { getFixScoreHref } from './resultsTabRoutes';
 
@@ -56,8 +55,6 @@ interface ResultsClassDetailProps {
   releaseBlockedReason: string | null;
   /** Why the saved check could not show here yet (class row unsynced or in conflict), or null. */
   verifyBlockedReason: string | null;
-  /** Set while the class is in conflict: the class whose closed notice the button brings back. */
-  reopenConflictClassId?: string | null | undefined;
   /** Auth uid of the signed-in user, so the check can say "you". */
   currentUserId: string | null;
   /** The Judge sign-off section, rendered between the results table and "Then". */
@@ -74,7 +71,6 @@ interface PrimaryWorkProps extends Pick<
   | 'onRecordCoinFlip'
   | 'releaseBlockedReason'
   | 'verifyBlockedReason'
-  | 'reopenConflictClassId'
 > {
   verifying: boolean;
 }
@@ -88,7 +84,6 @@ function PrimaryWork({
   onRecordCoinFlip,
   releaseBlockedReason,
   verifyBlockedReason,
-  reopenConflictClassId,
   verifying,
 }: PrimaryWorkProps) {
   const { phase } = row;
@@ -155,14 +150,6 @@ function PrimaryWork({
                 : 'Release results'}
         </Button>
         {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
-        {reopenConflictClassId && (
-          <>
-            {verifyBlockedReason && blocked !== verifyBlockedReason && (
-              <p className="text-xs text-muted-foreground">{verifyBlockedReason}</p>
-            )}
-            <ReopenConflictButton classId={reopenConflictClassId} />
-          </>
-        )}
       </div>
     ) : (
       <div className="space-y-1">
@@ -343,7 +330,6 @@ export function ResultsClassDetail({
   onRecordCoinFlip,
   releaseBlockedReason,
   verifyBlockedReason,
-  reopenConflictClassId,
   currentUserId,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
@@ -405,7 +391,6 @@ export function ResultsClassDetail({
         onRecordCoinFlip={onRecordCoinFlip}
         releaseBlockedReason={releaseBlockedReason}
         verifyBlockedReason={verifyBlockedReason}
-        reopenConflictClassId={reopenConflictClassId}
         verifying={verifying}
       />
       {coinFlipAction(row) === 'change' && (

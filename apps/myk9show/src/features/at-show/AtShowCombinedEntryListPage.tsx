@@ -54,6 +54,7 @@ import { buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { EntryListNotices } from './StaleReadNotice';
+import { SavedScoreLine } from './SavedScoreLine';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -445,6 +446,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // A combined A/B view has no single class to carry to the Settings links (the page's
             // dialog gets an empty class id), so it never offers Settings (MYK9-1627).
             hideSettingsOption: true,
+            // MYK9-2012: pinned inside the header's sticky block.
+            banner: <SavedScoreLine />,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
             // One menu (MYK9-1697): the class actions list inside it.
             menu: classActions => (

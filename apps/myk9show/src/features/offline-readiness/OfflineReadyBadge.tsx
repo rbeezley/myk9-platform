@@ -1,6 +1,9 @@
+import { useEffect } from 'react';
 import { CloudDownload, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useOnlineStatus } from '@/lib/networkUtils';
+import { ChoiceNeededButton } from './ChoiceNeededButton';
 import { OfflineStatusLine } from './OfflineStatusLine';
+import { hasTriedAutoSave, markAutoSaveTried } from './autoSaveAttempts';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
 interface OfflineReadyBadgeProps {
@@ -15,6 +18,13 @@ interface OfflineReadyBadgeProps {
    * true so ringside surfaces keep the prompt.
    */
   inPromptWindow?: boolean | undefined;
+  /**
+   * MYK9-1994: save the offline copy without being asked. Set only when the show's dates are
+   * known and today is inside the show-day window. The value names who is signed in and which
+   * show, and one attempt is made per value for the whole page session, so a remount (a tab or
+   * route change) never starts another full sync; a new sign-in is a new value.
+   */
+  autoSaveKey?: string | undefined;
 }
 
 /**
@@ -38,14 +48,31 @@ interface OfflineReadyBadgeProps {
  * contain the visible words breaks WCAG 2.5.3 (Label in Name) for anyone
  * driving the app by voice.
  */
-export function OfflineReadyBadge({
+export function OfflineReadyBadge(props: OfflineReadyBadgeProps) {
+  // The choice button is its own element, outside the status line's live region (MYK9-1995).
+  return (
+    <>
+      <ChoiceNeededButton showId={props.showId} />
+      <OfflineReadyStatus {...props} />
+    </>
+  );
+}
+
+function OfflineReadyStatus({
   showId,
   note,
   noteNeedsAttention,
   inPromptWindow = true,
+  autoSaveKey,
 }: OfflineReadyBadgeProps) {
   const { readiness, priming, primeFailed, prime } = useOfflineReadiness(showId);
   const isOnline = useOnlineStatus();
+  const needsCopy = readiness !== null && !readiness.ready;
+  useEffect(() => {
+    if (!autoSaveKey || !needsCopy || !isOnline || priming || hasTriedAutoSave(autoSaveKey)) return;
+    markAutoSaveTried(autoSaveKey);
+    void prime();
+  }, [autoSaveKey, needsCopy, isOnline, priming, prime]);
 
   const noteText = note ? (
     <span className={noteNeedsAttention ? 'text-warning' : 'text-muted-foreground'}>{note}</span>
@@ -119,7 +146,7 @@ export function OfflineReadyBadge({
           disabled={priming}
           title={actionDetail}
           data-offline-missing={readiness.missing.join(',')}
-          className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground sm:px-3 hover:bg-muted hover:text-foreground disabled:opacity-70"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-70"
         >
           {priming ? (
             <>
@@ -127,7 +154,10 @@ export function OfflineReadyBadge({
               Saving to this device…
             </>
           ) : (
-            'Save for show day'
+            <>
+              <CloudDownload className="h-4 w-4" aria-hidden />
+              Save for show day
+            </>
           )}
         </button>
       </span>

@@ -13,6 +13,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { formatMsAsMSSCC } from '@myk9/core';
 import type { ElementTimerReturn } from '../types';
+import { runClockNow } from '../utils/runClock';
+import {
+  PERSIST_INTERVAL_MS,
+  clearTimerSnapshot,
+  restoreTimer,
+  writeTimerSnapshot,
+  type TimerRecovery,
+} from '../utils/runTimerStorage';
+
+/** Which of a scoresheet's timers this is, in the saved snapshot's key. */
+const TIMER_KIND = 'element';
 
 /**
  * Hook for continuous Element Time tracking in UKC Nosework scoresheets.
@@ -43,6 +54,10 @@ export interface ElementTimerOptions {
   maxTimeMs?: number | undefined;
   /** Called once when the element time reaches `maxTimeMs`. */
   onExpired?: (() => void) | undefined;
+  /** Keep the run on the device under this key so a reload mid-run restores it (MYK9-2007). */
+  persistKey?: string | undefined;
+  /** The entry already has a saved score, so a timer left on the device is stale. */
+  hasSavedScore?: boolean | undefined;
 }
 
 /** The last 30 seconds before the max, where the host shows the warning. */
@@ -51,7 +66,7 @@ function isInWarningWindow(elapsedMs: number, maxTimeMs: number | undefined): bo
 }
 
 export function useElementTimer(options: ElementTimerOptions = {}): ElementTimerReturn {
-  const { maxTimeMs } = options;
+  const { maxTimeMs, persistKey, hasSavedScore } = options;
   // Latest callback without restarting the interval on every render.
   // Latest max and callback, read by the running interval: a class limit
   // corrected mid-run applies on the next tick.
@@ -64,9 +79,11 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
 
   // `time` (state) is the value as of the last transition; the live clock is
   // `timeRef`, which the 100ms paint moves without a React render (MYK9-1375).
-  const [time, setTime] = useState(0);
+  const [restored] = useState(() => restoreTimer(persistKey, TIMER_KIND, hasSavedScore));
+  const [recovery, setRecovery] = useState<TimerRecovery>(restored?.recovery ?? null);
+  const [time, setTime] = useState(restored?.elapsedMs ?? 0);
   const [isRunning, setIsRunning] = useState(false);
-  const timeRef = useRef(0);
+  const timeRef = useRef(restored?.elapsedMs ?? 0);
   const listenersRef = useRef(new Set<() => void>());
 
   const subscribeTime = useCallback((listener: () => void) => {
@@ -94,17 +111,28 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
 
   // Track the start timestamp and any accumulated time from previous runs
   const startTimestampRef = useRef<number | null>(null);
-  const accumulatedTimeRef = useRef(0);
+  const accumulatedTimeRef = useRef(restored?.elapsedMs ?? 0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cleanup interval on unmount
+  // Cleanup interval on unmount. Leaving the sheet in the app ends the run; only a
+  // reload (which runs no cleanup) leaves the saved timer to restore.
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      if (persistKey) clearTimerSnapshot(persistKey, TIMER_KIND);
     };
-  }, []);
+  }, [persistKey]);
+
+  const persist = useCallback(
+    (elapsedMs: number, running: boolean) => {
+      if (persistKey) {
+        writeTimerSnapshot(persistKey, TIMER_KIND, { elapsedMs, running, wallAt: Date.now() });
+      }
+    },
+    [persistKey]
+  );
 
   /**
    * Format milliseconds as "M:SS.ss"
@@ -124,12 +152,16 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     // Never orphan a running interval (two starts within one render).
     if (intervalRef.current) clearInterval(intervalRef.current);
     setIsRunning(true);
-    startTimestampRef.current = Date.now();
+    // Monotonic: a wall-clock correction mid-run must not move the time (MYK9-2007).
+    startTimestampRef.current = runClockNow();
+    persist(accumulatedTimeRef.current, true);
+    let lastPersist = startTimestampRef.current;
     // Whether the host already rendered the warning window (a resume inside it has).
     let inWarningWindow = isInWarningWindow(accumulatedTimeRef.current, maxTimeMsRef.current);
     intervalRef.current = setInterval(() => {
       if (startTimestampRef.current === null) return;
-      const elapsed = Date.now() - startTimestampRef.current + accumulatedTimeRef.current;
+      const now = runClockNow();
+      const elapsed = now - startTimestampRef.current + accumulatedTimeRef.current;
       const maxTimeMs = maxTimeMsRef.current;
       if (maxTimeMs && elapsed >= maxTimeMs) {
         if (intervalRef.current) clearInterval(intervalRef.current);
@@ -138,8 +170,13 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
         accumulatedTimeRef.current = maxTimeMs;
         commitTime(maxTimeMs);
         setIsRunning(false);
+        persist(maxTimeMs, false);
         onExpiredRef.current?.();
         return;
+      }
+      if (now - lastPersist >= PERSIST_INTERVAL_MS) {
+        lastPersist = now;
+        persist(elapsed, true);
       }
       const warning = isInWarningWindow(elapsed, maxTimeMs);
       if (warning === inWarningWindow) {
@@ -149,7 +186,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
         commitTime(elapsed);
       }
     }, 100);
-  }, [commitTime, publishTime]);
+  }, [commitTime, publishTime, persist]);
 
   /**
    * Start the timer
@@ -157,8 +194,16 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
   const start = useCallback(() => {
     if (isRunning) return;
 
+    setRecovery(null);
     run();
   }, [isRunning, run]);
+
+  // A run that was going when the page reloaded keeps going from the restored time.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resuming an external timer run
+    if (restored?.running) run();
+    // Once, on mount.
+  }, []);
 
   /**
    * Stop the timer (freezes current time, can be resumed)
@@ -171,7 +216,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     // Save accumulated time, and freeze the display on it: the interval paints
     // every 100ms, so the last painted `time` can trail the real stop instant.
     if (startTimestampRef.current !== null) {
-      accumulatedTimeRef.current += Date.now() - startTimestampRef.current;
+      accumulatedTimeRef.current += runClockNow() - startTimestampRef.current;
     }
     // Stopped at or past the max before a tick noticed it: report it to the caller,
     // which owns the stop and records the result (onExpired is for tick expiry).
@@ -179,6 +224,8 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     if (maxTimeMs) accumulatedTimeRef.current = Math.min(accumulatedTimeRef.current, maxTimeMs);
     startTimestampRef.current = null;
     commitTime(accumulatedTimeRef.current);
+    persist(accumulatedTimeRef.current, false);
+    setRecovery(null);
 
     // Clear interval
     if (intervalRef.current) {
@@ -186,7 +233,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
       intervalRef.current = null;
     }
     return reachedMax;
-  }, [isRunning, maxTimeMs, commitTime]);
+  }, [isRunning, maxTimeMs, commitTime, persist]);
 
   /**
    * Resume the timer after stop
@@ -202,15 +249,17 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
    */
   const reset = useCallback(() => {
     setIsRunning(false);
+    setRecovery(null);
     commitTime(0);
     startTimestampRef.current = null;
     accumulatedTimeRef.current = 0;
+    if (persistKey) clearTimerSnapshot(persistKey, TIMER_KIND);
 
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, [commitTime]);
+  }, [commitTime, persistKey]);
 
   return {
     time,
@@ -223,5 +272,6 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     resume,
     reset,
     formatTime,
+    recovery,
   };
 }

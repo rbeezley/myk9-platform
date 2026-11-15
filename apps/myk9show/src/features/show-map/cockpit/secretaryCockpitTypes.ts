@@ -147,6 +147,8 @@ export interface SecretaryCockpitClass {
   judgeName?: string | null;
   /** The assigned judge's person id, for the class panel's judge picker (MYK9-1323). */
   judgeId?: string | null;
+  /** `classes.scores_on_paper`: true = paper, false = phone, null = follows the show (MYK9-1971). */
+  scoresOnPaper?: boolean | null;
   attention: readonly SecretaryCockpitAttention[];
   actions: readonly SecretaryCockpitAction[];
   paperwork: readonly SecretaryCockpitPaperwork[];

@@ -39,3 +39,37 @@ export function isInOfflinePromptWindow(input: {
   if (today === null) return true;
   return today >= first - OFFLINE_PROMPT_LEAD_DAYS && today <= Math.max(first, last);
 }
+
+function isKnownTimeZone(timeZone: string | null | undefined): boolean {
+  if (!timeZone) return false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isCalendarDate(date: string | null | undefined): boolean {
+  const match = date ? /^(\d{4})-(\d{2})-(\d{2})/.exec(date) : null;
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}
+
+/**
+ * Whether the dates and timezone are real, so `isInOfflinePromptWindow` is answering from facts
+ * rather than failing open. Automatic actions (MYK9-1994) require this; showing a prompt does not.
+ */
+export function hasKnownOfflineWindowInputs(input: {
+  firstDay: string | null | undefined;
+  lastDay?: string | null | undefined;
+  timeZone: string | null | undefined;
+}): boolean {
+  return (
+    isCalendarDate(input.firstDay) &&
+    (!input.lastDay || isCalendarDate(input.lastDay)) &&
+    isKnownTimeZone(input.timeZone)
+  );
+}

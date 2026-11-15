@@ -2,6 +2,9 @@
  * Shared types for scoring UI hooks
  */
 
+import type { TimerRecovery } from '../utils/runTimerStorage';
+export type { TimerRecovery };
+
 // Class rules (resolved from class record for scoresheet rendering)
 export type { ResolvedClassRules, ClassRuleFields } from './resolvedClassRules';
 
@@ -56,6 +59,13 @@ export interface StopwatchOptions {
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   /** Optional callback for scoring active state change */
   onScoringActiveChange?: (isActive: boolean) => void;
+  /**
+   * Keep the run on the device under this key (the entry id) so a reload mid-run
+   * restores it (MYK9-2007). Omit for a timer that need not survive a reload.
+   */
+  persistKey?: string;
+  /** The entry already has a saved score, so a timer left on the device is stale. */
+  hasSavedScore?: boolean;
 }
 
 /**
@@ -100,6 +110,8 @@ export interface StopwatchReturn {
   isTimeExpired: () => boolean;
   /** Get warning message: "Time Expired" | "30 Second Warning" | null */
   getWarningMessage: () => string | null;
+  /** What a reload did to this run, until the judge acts on the timer (MYK9-2007). */
+  recovery: TimerRecovery;
 }
 
 /**
@@ -137,6 +149,8 @@ export interface ElementTimerReturn {
   reset: () => void;
   /** Format milliseconds as "M:SS.ss" */
   formatTime: (milliseconds: number) => string;
+  /** What a reload did to this run, until the judge acts on the timer (MYK9-2007). */
+  recovery: TimerRecovery;
 }
 
 // Score data types (scoresheet convergence)

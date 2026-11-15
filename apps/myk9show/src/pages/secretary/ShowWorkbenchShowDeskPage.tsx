@@ -152,6 +152,7 @@ function ShowWorkbenchShowDeskBody() {
           judgeName: cls.judgeName || '',
           judgeId: cls.judgeId || undefined,
           judgeSignedOffAt: cls.judgeSignedOffAt ?? null,
+          scoresOnPaper: cls.scoresOnPaper ?? null,
           trialId: trial.id,
           time: cls.startTime || '',
           revisedExpectedStart: cls.revisedExpectedStart ?? null,

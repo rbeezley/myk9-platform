@@ -17,7 +17,8 @@ export interface MyAtShowJudgeAssignmentsResult {
    * means "unknown", not "none". True when the judge's person identity has not
    * resolved (offline cold boot: roles are cached, identity is not) or when the
    * lookup never completed. Callers MUST NOT render "no classes assigned" from
-   * an empty set while this is true; fail open to the unfiltered picker instead.
+   * an empty set while this is true, and a judge-only picker must not list the
+   * whole show either: it shows a "not on this device yet" page with a retry (MYK9-2014).
    */
   isUnknown: boolean;
   error: Error | null;
@@ -35,18 +36,34 @@ export function useMyAtShowJudgeAssignments(
   showId: string | undefined
 ): MyAtShowJudgeAssignmentsResult {
   const queryClient = useQueryClient();
-  const { hasRole, user, userWithRoles } = useAuthContext();
+  const {
+    hasRole,
+    user,
+    personId: accountPersonId,
+    personIdentityState,
+    personIdentityLookup,
+  } = useAuthContext();
   const { status: syncStatus, syncTable } = useReplicationSync();
   const isJudgeAccount = !user?.is_anonymous && hasRole(UserRole.JUDGE);
   const passcodePersonId = deriveRingsideJudgePersonIdFromClaim(user, showId);
-  const personId = isJudgeAccount ? userWithRoles?.databaseUserId : (passcodePersonId ?? undefined);
-  // Roles survive a cold offline boot via the MYK9-200 permissions cache, but
-  // `databaseUserId` still comes from the `people` lookup in AuthContext, which
-  // is a plain network query. So offline a judge holds hasRole(JUDGE) === true
-  // and databaseUserId === undefined at the same time. Assignments are then
+  const personId = isJudgeAccount
+    ? (accountPersonId ?? undefined)
+    : (passcodePersonId ?? undefined);
+  // Roles survive a cold offline boot via the MYK9-200 permissions cache. The
+  // person id comes from AuthContext's `personId`, which falls back to the
+  // device-saved pairing (MYK9-2014) -- `databaseUserId` is the network-only
+  // lookup and is undefined offline. Only a device that never confirmed the
+  // pairing still holds hasRole(JUDGE) with no person id. Assignments are then
   // UNKNOWABLE, not empty -- rendering them as empty tells a judge standing at
   // their ring that their secretary never assigned them.
-  const identityUnresolved = isJudgeAccount && !personId;
+  // A first online sign-in has no saved pairing while the `people` lookup is in flight:
+  // that is loading (the skeleton), not unknown.
+  const identityLoading =
+    isJudgeAccount &&
+    !personId &&
+    personIdentityState === 'unresolved' &&
+    Boolean(personIdentityLookup?.fetching);
+  const identityUnresolved = isJudgeAccount && !personId && !identityLoading;
   const isApplicable = Boolean(showId && personId);
   const lookupKey = isApplicable ? `${showId}:${personId}` : null;
   const refreshedEmptyCacheKey = useRef<string | null>(null);
@@ -165,8 +182,10 @@ export function useMyAtShowJudgeAssignments(
     assignedClassIds,
     isUnknown: identityUnresolved || assignmentsUnresolved,
     error: query.error instanceof Error ? query.error : replicationError,
-    isLoading: isApplicable && (query.isLoading || isWaitingForFirstSync),
+    isLoading: identityLoading || (isApplicable && (query.isLoading || isWaitingForFirstSync)),
     retry: () => {
+      // Without a person id the assignments query is disabled; ask for the missing piece.
+      if (isJudgeAccount && !personId) personIdentityLookup?.retry();
       void syncTable('judge_assignments').then(() => query.refetch());
     },
   };

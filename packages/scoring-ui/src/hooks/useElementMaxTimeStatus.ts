@@ -52,7 +52,8 @@ export function useElementMaxTimeStatus({
     remainingMs <= 30_000;
 
   // Once per run: a reset (element time back to 0) re-arms it.
-  const announcedRef = useRef(false);
+  // Mounting already inside the window means the run was restored: it was warned.
+  const announcedRef = useRef(active && elementTimeMs > 0 && remainingMs <= 30_000);
   useEffect(() => {
     if (elementTimeMs === 0) announcedRef.current = false;
     if (!isWarning || announcedRef.current) return;

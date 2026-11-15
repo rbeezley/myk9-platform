@@ -248,6 +248,24 @@ describe('against real git history', () => {
     expect(beta().status).toBe('current'); // dated by the real edit, 2026-03-01
   });
 
+  it('a commit touching only docs or tests does not date the function (MYK9-2060)', () => {
+    const { origin } = build();
+    const alphaDate = () => collectSources(origin).find(s => s.name === 'alpha')!.commit!.dateMs;
+    const commitAt = (date: string) => {
+      git(origin, ['add', '-A']);
+      git(origin, ['commit', '-q', '-m', date], date);
+    };
+    write(origin, 'supabase/functions/alpha/README.md', 'docs\n');
+    write(origin, 'supabase/functions/alpha/lib/index.test.ts', 'test\n');
+    commitAt('2026-08-01T00:00:00Z');
+    expect(alphaDate()).toBe(ms('2026-01-01T00:00:00Z'));
+
+    write(origin, 'supabase/functions/alpha/README.md', 'docs 2\n');
+    write(origin, 'supabase/functions/alpha/index.ts', 'export const v = 9;\n');
+    commitAt('2026-09-01T00:00:00Z');
+    expect(alphaDate()).toBe(ms('2026-09-01T00:00:00Z'));
+  });
+
   it('runCli exits 1 on an unknown row and 0 once everything is current', async () => {
     const { shallow } = build();
     const logs: string[] = [];

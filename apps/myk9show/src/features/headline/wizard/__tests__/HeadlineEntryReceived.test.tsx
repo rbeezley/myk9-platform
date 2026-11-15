@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineEntryReceived } from '../HeadlineEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -19,7 +20,6 @@ const BASE_PROPS = {
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000427',
-  confirmationDateLabel: '6 June 2026',
 };
 
 describe('HeadlineEntryReceived', () => {
@@ -70,12 +70,9 @@ describe('HeadlineEntryReceived', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  it('renders without optional call name and confirmation date', () => {
-    render(
-      <HeadlineEntryReceived {...BASE_PROPS} dogCallName={null} confirmationDateLabel={null} />
-    );
-
-    expect(screen.getByRole('heading', { name: /entry submitted/i })).toBeTruthy();
-    expect(screen.queryByText(/Watch your inbox/i)).toBeNull();
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<HeadlineEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
+    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 });

@@ -28,7 +28,6 @@ const BASE_PROPS: HeritageEntryReceivedProps = {
   classSummary: '3 runs · Excellent Containers · Judge C. Beagles',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
 };
 
 describe('STYLED_RECEIPT_BY_STYLE', () => {

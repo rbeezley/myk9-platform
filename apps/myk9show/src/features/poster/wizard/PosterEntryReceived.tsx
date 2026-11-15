@@ -14,6 +14,7 @@ import { formatConfirmationNumberLabel } from '@/features/registration/confirmat
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
 import { useEffect } from 'react';
 import '../poster.css';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 /**
  * Poster wizard completion props mirror Heritage 1:1 — Poster has no
@@ -48,7 +49,6 @@ export function PosterEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
 }: PosterEntryReceivedProps) {
@@ -277,28 +277,22 @@ export function PosterEntryReceived({
       </div>
 
       {/* Caption */}
-      {confirmationDateLabel && (
-        <p
-          style={{
-            textAlign: 'left',
-            padding: '14px 28px 28px',
-            fontFamily: POSTER_BODY_FAMILY,
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: posterColors.mute,
-            borderTop: `1px solid ${posterColors.hair}`,
-            margin: '4px 0 0',
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: posterColors.ink, fontWeight: 600 }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete. Watch your inbox — your armband number will be included.
-        </p>
-      )}
+      <p
+        style={{
+          textAlign: 'left',
+          padding: '14px 28px 28px',
+          fontFamily: POSTER_BODY_FAMILY,
+          fontSize: 13,
+          lineHeight: 1.6,
+          color: posterColors.mute,
+          borderTop: `1px solid ${posterColors.hair}`,
+          margin: '4px 0 0',
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+      </p>
     </div>
   );
 }

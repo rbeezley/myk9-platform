@@ -4,6 +4,7 @@ import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { heritageColors, heritageOrnaments } from '@/features/heritage/tokens';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -16,8 +17,6 @@ export interface HeritageEntryReceivedProps {
   classSummary: string;
   totalFeesFormatted: string;
   registrationNumber: string | null;
-  /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
-  confirmationDateLabel: string | null;
   /** Entry-specific download controls rendered in the existing primary CTA slot. */
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. If omitted, button is disabled. */
@@ -42,7 +41,6 @@ export function HeritageEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
 }: HeritageEntryReceivedProps) {
@@ -267,21 +265,18 @@ export function HeritageEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
-        <p
-          className="text-center px-8 pb-8"
-          style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
-            fontStyle: 'italic',
-            fontSize: '0.8rem',
-            color: QUILL,
-            lineHeight: 1.6,
-          }}
-        >
-          A formal confirmation will be emailed on{' '}
-          <span style={{ color: INK }}>{confirmationDateLabel}</span> once the draw is complete.
-        </p>
-      )}
+      <p
+        className="text-center px-8 pb-8"
+        style={{
+          fontFamily: "'Cormorant Garamond', Georgia, serif",
+          fontStyle: 'italic',
+          fontSize: '0.8rem',
+          color: QUILL,
+          lineHeight: 1.6,
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+      </p>
     </div>
   );
 }

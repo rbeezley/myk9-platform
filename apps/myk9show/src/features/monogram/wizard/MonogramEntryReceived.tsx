@@ -7,6 +7,7 @@ import { monogramColors } from '../tokens';
 import { buildMonogram } from '../utils/buildMonogram';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 /**
  * Monogram wizard completion props extend the Heritage shape 1:1 — only the
@@ -44,7 +45,6 @@ export function MonogramEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
   monogramLetters,
@@ -261,34 +261,20 @@ export function MonogramEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
-        <p
-          style={{
-            textAlign: 'center',
-            padding: '14px 28px 32px',
-            fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            fontStyle: 'italic',
-            fontSize: 14,
-            lineHeight: 1.6,
-            color: QUILL,
-            margin: 0,
-          }}
-        >
-          A formal confirmation will be emailed on{' '}
-          <strong
-            style={{
-              color: INK,
-              fontWeight: 400,
-              fontStyle: 'normal',
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            }}
-          >
-            {confirmationDateLabel}
-          </strong>
-          <br />
-          once the draw is complete.
-        </p>
-      )}
+      <p
+        style={{
+          textAlign: 'center',
+          padding: '14px 28px 32px',
+          fontFamily: MONOGRAM_DISPLAY_FAMILY,
+          fontStyle: 'italic',
+          fontSize: 14,
+          lineHeight: 1.6,
+          color: QUILL,
+          margin: 0,
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+      </p>
     </div>
   );
 }

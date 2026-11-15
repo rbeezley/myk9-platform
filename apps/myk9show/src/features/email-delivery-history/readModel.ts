@@ -128,9 +128,9 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
   }
   switch (sourceKind) {
     case 'registration_confirmation':
-      return 'Registration confirmation';
+      return 'Receipt';
     case 'heritage_confirmation':
-      return 'Heritage confirmation';
+      return 'Full confirmation';
     case 'entry_decision':
       return 'Entry decision';
     case 'waitlist_notification':

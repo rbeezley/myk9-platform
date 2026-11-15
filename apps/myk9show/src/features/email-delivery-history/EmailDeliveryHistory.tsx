@@ -7,6 +7,7 @@ import {
   type EmailDeliveryCursor,
   type EmailDeliverySupabaseClient,
 } from './api';
+import { EmailContentView } from './EmailContentView';
 import {
   getEmailDeliveryStatusPresentation,
   normalizeEmailDeliveryRow,
@@ -128,6 +129,7 @@ function DeliveryHistoryRow({ row }: { row: EmailDeliveryHistoryRow }) {
               {row.failureSummary ?? presentation.description}
             </p>
           ) : null}
+          <EmailContentView emailLogId={row.id} />
           {needsAttention && row.recoveryHref ? (
             <Link
               to={row.recoveryHref}

@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { MagazineEntryReceived } from '../MagazineEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,6 @@ const BASE_PROPS = {
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: '6 June 2026',
 };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -121,10 +121,9 @@ describe('MagazineEntryReceived', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  it('omits the caption when confirmationDateLabel is null', () => {
-    render(<MagazineEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
-    expect(screen.queryByText(/A formal confirmation will be emailed/)).toBeNull();
-    // Header still renders.
-    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<MagazineEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
+    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 });

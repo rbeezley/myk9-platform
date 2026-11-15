@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { GazetteEntryReceived } from '../GazetteEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -31,7 +32,6 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
 };
 
 describe('GazetteEntryReceived', () => {
@@ -87,11 +87,10 @@ describe('GazetteEntryReceived', () => {
     expect(screen.getByText(/Jun 6, 2026/)).toBeTruthy();
   });
 
-  it('omits the confirmation caption when null', () => {
-    const { container } = render(
-      <GazetteEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />
-    );
-    expect(container.textContent).not.toMatch(/A formal confirmation will be emailed/);
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<GazetteEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
+    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 
   it('disables the print button when no handler is supplied', () => {

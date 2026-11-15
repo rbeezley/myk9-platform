@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { PosterEntryReceived } from '../PosterEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -19,7 +20,6 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent Containers, Excellent Interiors, Excellent Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
 };
 
 describe('PosterEntryReceived', () => {
@@ -111,9 +111,10 @@ describe('PosterEntryReceived', () => {
     expect(screen.getByText('Jun 6, 2026')).toBeInTheDocument();
   });
 
-  it('omits the confirmation-date caption when null', () => {
-    render(<PosterEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
-    expect(screen.queryByText(/A formal confirmation will be emailed/)).toBeNull();
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<PosterEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
+    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 
   it('renders the decorative ink-blot in the upper-right corner', () => {

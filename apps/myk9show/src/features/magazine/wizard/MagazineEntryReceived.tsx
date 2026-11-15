@@ -4,6 +4,7 @@ import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { magazineColors } from '../tokens';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 //
@@ -21,8 +22,6 @@ export interface MagazineEntryReceivedProps {
   classSummary: string;
   totalFeesFormatted: string;
   registrationNumber: string | null;
-  /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
-  confirmationDateLabel: string | null;
   /** Entry-specific download controls rendered in the existing primary CTA slot. */
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. If omitted, button is
@@ -76,7 +75,6 @@ export function MagazineEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
 }: MagazineEntryReceivedProps) {
@@ -302,27 +300,21 @@ export function MagazineEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
-        <p
-          style={{
-            textAlign: 'center',
-            padding: '14px 28px 32px',
-            fontFamily: DISPLAY,
-            fontStyle: 'italic',
-            fontSize: '15px',
-            lineHeight: 1.55,
-            color: QUILL,
-            background: PAPER_DEEP,
-            margin: 0,
-          }}
-        >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: INK, fontWeight: 500, fontStyle: 'normal' }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete.
-        </p>
-      )}
+      <p
+        style={{
+          textAlign: 'center',
+          padding: '14px 28px 32px',
+          fontFamily: DISPLAY,
+          fontStyle: 'italic',
+          fontSize: '15px',
+          lineHeight: 1.55,
+          color: QUILL,
+          background: PAPER_DEEP,
+          margin: 0,
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+      </p>
     </div>
   );
 }

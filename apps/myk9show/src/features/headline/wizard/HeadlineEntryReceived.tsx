@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { headlineColors, headlineTypography } from '@/features/headline/tokens';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 export type HeadlineEntryReceivedProps = HeritageEntryReceivedProps;
 
@@ -27,7 +28,6 @@ export function HeadlineEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
 }: HeadlineEntryReceivedProps) {
@@ -274,37 +274,33 @@ export function HeadlineEntryReceived({
         </Button>
       </div>
 
-      {confirmationDateLabel && (
-        <p
+      <p
+        style={{
+          textAlign: 'left',
+          padding: '14px 28px 28px',
+          fontFamily: BODY,
+          fontSize: '0.75rem',
+          lineHeight: 1.6,
+          color: MUTE,
+          borderTop: `1px solid ${HAIR}`,
+          margin: '4px 0 0',
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+        <span
           style={{
-            textAlign: 'left',
-            padding: '14px 28px 28px',
-            fontFamily: BODY,
-            fontSize: '0.75rem',
-            lineHeight: 1.6,
-            color: MUTE,
-            borderTop: `1px solid ${HAIR}`,
-            margin: '4px 0 0',
+            display: 'block',
+            marginTop: '6px',
+            fontFamily: MONO,
+            fontSize: '0.625rem',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: ACCENT,
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: INK, fontWeight: 600 }}>{confirmationDateLabel}</strong> once the
-          draw is complete.
-          <span
-            style={{
-              display: 'block',
-              marginTop: '6px',
-              fontFamily: MONO,
-              fontSize: '0.625rem',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              color: ACCENT,
-            }}
-          >
-            Watch your inbox · Armband assignment included
-          </span>
-        </p>
-      )}
+          Watch your inbox · Armband assignment included
+        </span>
+      </p>
     </div>
   );
 }

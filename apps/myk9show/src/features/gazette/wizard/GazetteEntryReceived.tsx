@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { gazetteColors, GAZETTE_DEFAULT_VOLUME_ROMAN } from '../tokens';
 import { GazetteMasthead } from '../components/GazetteMasthead';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 /**
  * Gazette wizard completion props mirror Heritage's verbatim — the
@@ -21,8 +22,6 @@ export interface GazetteEntryReceivedProps {
   classSummary: string;
   totalFeesFormatted: string;
   registrationNumber: string | null;
-  /** Formatted confirmation date, e.g. "Jun 6, 2026". Null if none set. */
-  confirmationDateLabel: string | null;
   /** Entry-specific download controls rendered in the existing primary CTA slot. */
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. Disabled when omitted. */
@@ -48,7 +47,6 @@ export function GazetteEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
 }: GazetteEntryReceivedProps) {
@@ -208,26 +206,19 @@ export function GazetteEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
-        <p
-          className="m-0 px-7 pt-3.5 pb-7 text-center"
-          style={{
-            borderTop: `4px double ${INK}`,
-            fontFamily: DISPLAY,
-            fontStyle: 'italic',
-            fontSize: 14,
-            lineHeight: 1.6,
-            color: BROWN,
-          }}
-        >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: INK, fontStyle: 'normal', fontWeight: 700, fontFamily: DISPLAY }}>
-            {confirmationDateLabel}
-          </strong>
-          <br />
-          once the draw is complete.
-        </p>
-      )}
+      <p
+        className="m-0 px-7 pt-3.5 pb-7 text-center"
+        style={{
+          borderTop: `4px double ${INK}`,
+          fontFamily: DISPLAY,
+          fontStyle: 'italic',
+          fontSize: 14,
+          lineHeight: 1.6,
+          color: BROWN,
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+      </p>
     </div>
   );
 }

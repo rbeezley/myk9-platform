@@ -3,10 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VenueLocationCard } from '@/components/secretary/VenueLocationCard';
 import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
+import { ExhibitorNoteCard } from '@/components/secretary/ExhibitorNoteCard';
 import { RefundAllEntriesCard } from '@/components/shows/RefundAllEntriesCard';
 import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { useVenueWifiMutation } from '@/hooks/mutations/useVenueWifiMutation';
 import { useShowVenueWifi } from '@/hooks/queries/useShowVenueWifi';
+import {
+  useExhibitorNoteMutation,
+  useShowExhibitorNote,
+} from '@/hooks/queries/useShowExhibitorNote';
 
 /**
  * Venue Wi-Fi, composed so the card never seeds its inputs from an unloaded read: it is mounted
@@ -39,9 +44,36 @@ const ShowVenueWifi: React.FC<{ showId: string }> = ({ showId }) => {
   );
 };
 
+/** The Note to exhibitors, mounted once the saved note loads, so it is never shown blank. */
+const ShowExhibitorNote: React.FC<{ showId: string }> = ({ showId }) => {
+  const { data, isError, refetch } = useShowExhibitorNote(showId);
+  const mutation = useExhibitorNoteMutation();
+  if (isError && data === undefined) {
+    return (
+      <div role="alert" className="space-y-2 rounded-lg border bg-card p-4 text-sm">
+        <p>We couldn't load the note to exhibitors. Please try again.</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+  if (data === undefined)
+    return <Skeleton className="h-32 w-full rounded-lg" aria-label="Loading note to exhibitors" />;
+  return (
+    <ExhibitorNoteCard
+      key={data}
+      note={data}
+      onSave={note => mutation.mutate({ showId, note })}
+      isSaving={mutation.isPending}
+    />
+  );
+};
+
 /**
  * The show-level settings that used to live on the unlinked /secretary/settings page (IA-1):
- * the venue map pin, the Wi-Fi the armband labels print, the per-show withdrawal policy, and the
+ * the venue map pin, the Wi-Fi the armband labels print, the Note to exhibitors (MYK9-1999), the
+ * per-show withdrawal policy, and the
  * human-approved refund-all for a cancelled show. Every card is keyed on the show the route
  * opened, never on the store's `selectedShowId`. Managers only. Rendered by the Edit show panel's Venue & policies tab.
  *
@@ -58,6 +90,7 @@ export const ShowSettingsCards: React.FC<{ showId: string; showStatus: string }>
   <div className="space-y-3" data-testid="show-settings-cards">
     <VenueLocationCard showId={showId} />
     <ShowVenueWifi showId={showId} />
+    <ShowExhibitorNote showId={showId} />
     <WithdrawalPolicyCard scope="show" entityId={showId} />
     {showStatus === 'cancelled' && <RefundAllEntriesCard showId={showId} />}
   </div>

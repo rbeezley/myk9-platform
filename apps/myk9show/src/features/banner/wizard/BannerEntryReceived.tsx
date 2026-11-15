@@ -6,6 +6,7 @@ import { bannerColors } from '../tokens';
 import { deriveBannerBrandColors } from '../hooks/useBannerBrandColor';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { HeritageEntryReceivedProps } from '@/features/heritage/wizard/HeritageEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 /**
  * Banner wizard completion props mirror Heritage 1:1 plus an optional
@@ -37,7 +38,6 @@ export function BannerEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
   brandColor,
@@ -249,26 +249,20 @@ export function BannerEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
-        <p
-          style={{
-            textAlign: 'left',
-            padding: '14px 28px 28px',
-            fontFamily: BANNER_BODY_FAMILY,
-            fontSize: 12,
-            lineHeight: 1.6,
-            color: bannerColors.mute,
-            borderTop: `1px solid ${bannerColors.hair}`,
-            margin: '4px 0 0',
-          }}
-        >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: bannerColors.ink, fontWeight: 600 }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete. Watch your inbox — your armband number will be included.
-        </p>
-      )}
+      <p
+        style={{
+          textAlign: 'left',
+          padding: '14px 28px 28px',
+          fontFamily: BANNER_BODY_FAMILY,
+          fontSize: 12,
+          lineHeight: 1.6,
+          color: bannerColors.mute,
+          borderTop: `1px solid ${bannerColors.hair}`,
+          margin: '4px 0 0',
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+      </p>
     </div>
   );
 }

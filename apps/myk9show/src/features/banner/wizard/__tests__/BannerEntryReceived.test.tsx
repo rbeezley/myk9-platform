@@ -19,7 +19,6 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent Containers · Judge Mrs. Beagles',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
 };
 
 describe('BannerEntryReceived', () => {

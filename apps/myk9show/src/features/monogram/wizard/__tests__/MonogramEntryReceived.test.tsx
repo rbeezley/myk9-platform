@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { MonogramEntryReceived } from '../MonogramEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -19,7 +20,6 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent Containers, Excellent Interiors · Judge Mrs. Beagles',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
 };
 
 describe('MonogramEntryReceived', () => {
@@ -101,8 +101,9 @@ describe('MonogramEntryReceived', () => {
     expect(screen.getByText(/Jun 6, 2026/)).toBeInTheDocument();
   });
 
-  it('omits the confirmation caption when confirmationDateLabel is null', () => {
-    render(<MonogramEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<MonogramEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
     expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 

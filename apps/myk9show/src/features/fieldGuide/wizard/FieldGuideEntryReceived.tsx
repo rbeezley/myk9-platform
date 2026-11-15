@@ -18,6 +18,7 @@ import { formatConfirmationNumberLabel } from '@/features/registration/confirmat
 // page — the inline-styles-only approach we use today is otherwise easy
 // to silently regress.
 import '../fieldGuide.css';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 /**
  * Field Guide wizard completion props mirror Heritage 1:1, no extensions.
@@ -56,7 +57,6 @@ export function FieldGuideEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
   entryBlankActions,
   onPrintEntryBlank,
 }: FieldGuideEntryReceivedProps) {
@@ -275,40 +275,34 @@ export function FieldGuideEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
-        <p
+      <p
+        style={{
+          textAlign: 'left',
+          padding: '14px 28px 28px',
+          fontFamily: FIELD_GUIDE_BODY_FAMILY,
+          fontSize: 13,
+          lineHeight: 1.6,
+          color: fieldGuideColors.mute,
+          borderTop: `1px solid ${fieldGuideColors.hair}`,
+          margin: '4px 0 0',
+        }}
+      >
+        {FULL_CONFIRMATION_PROMISE}
+        <span
           style={{
-            textAlign: 'left',
-            padding: '14px 28px 28px',
-            fontFamily: FIELD_GUIDE_BODY_FAMILY,
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: fieldGuideColors.mute,
-            borderTop: `1px solid ${fieldGuideColors.hair}`,
-            margin: '4px 0 0',
+            display: 'block',
+            marginTop: 6,
+            fontFamily: FIELD_GUIDE_MONO_FAMILY,
+            fontWeight: 500,
+            fontSize: 10,
+            letterSpacing: '0.04em',
+            color: fieldGuideColors.orangeDeep,
+            textTransform: 'uppercase',
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: fieldGuideColors.ink, fontWeight: 700 }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete. Watch your inbox — your armband number will be included.
-          <span
-            style={{
-              display: 'block',
-              marginTop: 6,
-              fontFamily: FIELD_GUIDE_MONO_FAMILY,
-              fontWeight: 500,
-              fontSize: 10,
-              letterSpacing: '0.04em',
-              color: fieldGuideColors.orangeDeep,
-              textTransform: 'uppercase',
-            }}
-          >
-            NEXT: §02 ON THE DAY · §03 WITHDRAW POLICY
-          </span>
-        </p>
-      )}
+          NEXT: §02 ON THE DAY · §03 WITHDRAW POLICY
+        </span>
+      </p>
     </div>
   );
 }

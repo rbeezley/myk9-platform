@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { HeritageEntryReceived } from '../HeritageEntryReceived';
+import { FULL_CONFIRMATION_PROMISE } from '@/features/_shared/fullConfirmationPromise';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,6 @@ const BASE_PROPS = {
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000427',
-  confirmationDateLabel: '6 June 2026',
 };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -124,9 +124,9 @@ describe('HeritageEntryReceived', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  it('renders without confirmationDateLabel when null', () => {
-    render(<HeritageEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
-    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
-    // No crash, caption just omits the date
+  it('says the full confirmation is emailed once the secretary accepts the entry (MYK9-1999)', () => {
+    render(<HeritageEntryReceived {...BASE_PROPS} />);
+    expect(screen.getByText(FULL_CONFIRMATION_PROMISE)).toBeInTheDocument();
+    expect(screen.queryByText(/once the draw is complete/)).toBeNull();
   });
 });

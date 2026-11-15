@@ -190,7 +190,6 @@ export function WorkflowStepContent({
     // to wire the gate" bugs.
     const style = getShowStyle(currentShow);
 
-    const firstTrial = allTrials.find(t => t.showId === showId);
     const firstDogId = receiptSelectedDogs[0];
     const firstDog = dogs.find(d => d.id === firstDogId);
     const firstClassSelection = receiptClassSelections.find(s => s.dogId === firstDogId);
@@ -213,7 +212,7 @@ export function WorkflowStepContent({
       dateRange: currentShow?.startDate
         ? (() => {
             // Format as "12–14 June 2026" (Heritage style). T12:00:00 prevents UTC-midnight
-            // drift for date-only ISO strings (same guard applied to confirmationDate below).
+            // drift for date-only ISO strings.
             const fmt = (iso: string) =>
               new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('en-US', {
                 day: 'numeric',
@@ -228,20 +227,10 @@ export function WorkflowStepContent({
       dogRegisteredName: firstDog ? (getDogRegisteredName(firstDog) ?? '') : '',
       dogCallName: firstDog?.callName ?? null,
       classSummary,
-      // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar
-      // day when parsed as UTC midnight by users west of UTC. Strip any existing time
-      // component first in case the DB ever stores a full timestamp.
-      confirmationDateLabel: firstTrial?.confirmationDate
-        ? new Date(firstTrial.confirmationDate.split('T')[0] + 'T12:00:00').toLocaleDateString(
-            'en-US',
-            { day: 'numeric', month: 'long', year: 'numeric' }
-          )
-        : null,
     } as const;
   }, [
     currentStepId,
     showId,
-    allTrials,
     dogs,
     classes,
     receiptSelectedDogs,
@@ -330,7 +319,6 @@ export function WorkflowStepContent({
             ? FREE_ENTRY_AMOUNT_LABEL
             : `$${receiptTotalFees.toFixed(2)}`,
           registrationNumber: registrationNumber ?? null,
-          confirmationDateLabel: styledReceipt.confirmationDateLabel,
           // INTENT: Exhibitor self-service still waits for the post-draw blank.
           // Staff workflows can print a specific created entry here because the
           // replication-backed class data already carries its judge assignment.

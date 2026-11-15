@@ -204,7 +204,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
   <tr>
     <td style="padding:32px 36px 4px;font-family:${BN_BODY};font-size:15px;line-height:1.6;color:${BN_INK};">
       <p style="margin:0;">Dear ${esc(data.salutation)},</p>
-      <p style="margin:12px 0 0;">Your entry is confirmed. The draw is set and your particulars are recorded below.</p>
+      <p style="margin:12px 0 0;">Your entry is accepted. Your particulars are recorded below.</p>
     </td>
   </tr>
 

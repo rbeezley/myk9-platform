@@ -37,25 +37,24 @@ function sliceBetween(source: string, start: string, end: string): string {
 }
 
 describe('DB migration sanity contracts', () => {
-  it('selects confirmation email entries by unsent timestamp for retry idempotency', () => {
-    const source = readRepoFile('supabase/functions/send-confirmation-email/index.ts');
-    const entryQuery = sliceBetween(
-      source,
-      '// Entries not yet sent for this trial',
-      'for (const entry'
+  it('selects and claims full confirmation entries by unsent timestamp for retry idempotency', () => {
+    // MYK9-1999: the sender moved to fullConfirmationStore.ts; the once-only behaviour itself is
+    // proven by fullConfirmationSender.test.ts on an in-memory store.
+    const source = readRepoFile(
+      'supabase/functions/send-confirmation-email/fullConfirmationStore.ts'
     );
+    const dueQuery = sliceBetween(source, 'async listDueEntries', 'async loadShowFacts');
+    expect(dueQuery).toContain(".is('confirmation_email_sent_at', null)");
+    expect(dueQuery).toContain(".eq('confirmation_email_status', 'pending')");
 
-    expect(entryQuery).toContain(".is('confirmation_email_sent_at', null)");
-    expect(entryQuery).toContain(".in('confirmation_email_status', ['pending', 'failed'])");
+    const claim = sliceBetween(source, 'async claim', 'async markSent');
+    expect(claim).toContain(".is('confirmation_email_sent_at', null)");
+    expect(claim).toContain(".select('id')");
 
-    const sendLoop = sliceBetween(
-      source,
-      'for (const entry of entries ?? [])',
-      'return { sent, skipped, failed, receiptRetry };'
+    const sender = readRepoFile(
+      'supabase/functions/send-confirmation-email/fullConfirmationSender.ts'
     );
-    expect(sendLoop).not.toContain(".update({ confirmation_email_status: 'pending' })");
-    expect(sendLoop).toContain("'Idempotency-Key': `confirmation-email-${entry.id}`");
-    expect(sendLoop).not.toContain("'Idempotency-Key': `${showStyle}-confirm-${entry.id}`");
+    expect(sender).toContain('await fullConfirmationIdempotencyKey(claimedGroup)');
   });
 
   it('keeps the final people_insert_secretary policy role-gated', () => {

@@ -155,7 +155,7 @@ export function buildFieldGuideHtml(data: FieldGuideEmailData): string {
     : '';
 
   const contactPieces: string[] = [
-    'Draw is set. Refunds no longer available. Please notify the secretary if you cannot attend so we can release your slot',
+    'If you cannot attend, please notify the secretary so we can release your slot',
   ];
   if (data.secretaryEmail) {
     contactPieces.push(

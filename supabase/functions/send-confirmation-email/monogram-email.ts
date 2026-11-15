@@ -217,7 +217,7 @@ export function buildMonogramHtml(data: MonogramEmailData): string {
   <tr>
     <td style="padding:8px 56px 6px;font-family:${MG_BODY};font-size:15px;line-height:1.6;color:${MG_INK};">
       <p style="margin:0 0 12px;">Dear <em style="font-family:${MG_DISPLAY};font-style:italic;color:${MG_BRONZE};">${esc(data.salutation)}</em>,</p>
-      <p style="margin:0 0 12px;">Your entry to <em style="font-family:${MG_DISPLAY};font-style:italic;">${esc(data.showTitle)}</em> is confirmed. The draw is set and your particulars are recorded as follows.</p>
+      <p style="margin:0 0 12px;">Your entry to <em style="font-family:${MG_DISPLAY};font-style:italic;">${esc(data.showTitle)}</em> is accepted. Your particulars are recorded as follows.</p>
     </td>
   </tr>
 

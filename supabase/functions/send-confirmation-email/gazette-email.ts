@@ -212,7 +212,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
   <tr>
     <td style="padding:20px 40px 8px;font-family:${GZ_BODY};font-size:15px;line-height:1.65;color:${GZ_SOFT};">
       <p style="margin:0 0 14px;">Dear <em style="font-family:${GZ_DISPLAY};font-style:italic;font-weight:400;color:${GZ_INK};font-size:17px;">${esc(data.salutation)}</em>,</p>
-      <p style="margin:0 0 14px;">Your entry has been received and the draw is complete. Below: the dog, the runs, and your armband — please bring this email to check-in or write the number on a slip of paper.</p>
+      <p style="margin:0 0 14px;">Your entry has been accepted. Below: the dog, the runs, and your armband — please bring this email to check-in or write the number on a slip of paper.</p>
       <p style="margin:0;">We look forward to seeing you.</p>
     </td>
   </tr>
@@ -251,7 +251,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
   <tr>
     <td style="padding:24px 40px 0;">
       <div style="font-family:${GZ_META};font-weight:600;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${GZ_BROWN};margin-bottom:6px;">Section C · Notices</div>
-      <p style="margin:0;font-family:${GZ_BODY};font-size:15px;line-height:1.65;color:${GZ_SOFT};">Draw is set, so refunds are no longer available, but please notify the secretary if you cannot attend so we can release your slot. Email ${noticeContact}${noticePhone} as early as you can.</p>
+      <p style="margin:0;font-family:${GZ_BODY};font-size:15px;line-height:1.65;color:${GZ_SOFT};">If you cannot attend, please notify the secretary so we can release your slot. Email ${noticeContact}${noticePhone} as early as you can.</p>
     </td>
   </tr>
 

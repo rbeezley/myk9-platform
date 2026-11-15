@@ -45,6 +45,10 @@ export interface ConfirmationEmailBaseData {
   trialChairName: string | null;
   trialChairTitle: string | null;
   memberClubLanguage: string;
+  /** The show's Note to exhibitors (shows.confirmation_message), printed as written. MYK9-1999. */
+  noteToExhibitors?: string | null;
+  /** My Shows, where she always finds the current details. MYK9-1999. */
+  myShowsUrl?: string | null;
 }
 
 export type OnTheDayFields = Pick<
@@ -94,4 +98,37 @@ export function hasOnTheDayDetails(data: OnTheDayFields): boolean {
     data.hospitalityNotes ||
     data.cratingNotes
   );
+}
+
+/**
+ * The secretary's Note to exhibitors and the My Shows link (MYK9-1999), as one table row with
+ * neutral styling: it sits inside eight differently themed templates, like the directions link.
+ * Renders '' when there is neither.
+ */
+export function renderExhibitorExtras(
+  data: Pick<ConfirmationEmailBaseData, 'noteToExhibitors' | 'myShowsUrl'>
+): string {
+  const note = data.noteToExhibitors?.trim();
+  const noteBlock = note
+    ? `<div style="margin:0 0 16px;padding:14px 16px;border-left:4px solid #1a4fa0;background:#f2f5fb;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a1612;"><p style="margin:0 0 4px;font-weight:bold;">Note from the show secretary</p><p style="margin:0;">${escMultiline(note)}</p></div>`
+    : '';
+  const linkBlock = data.myShowsUrl
+    ? `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a1612;">Your entries, armbands and the latest show details are always in My Shows.</p><p style="margin:10px 0 0;"><a href="${esc(data.myShowsUrl)}" style="display:inline-block;padding:12px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#1a4fa0;text-decoration:underline;border:1px solid #cfc8ba;border-radius:4px;">Open My Shows</a></p>`
+    : '';
+  if (!noteBlock && !linkBlock) return '';
+  return `<tr><td style="padding:16px 40px 24px;">${noteBlock}${linkBlock}</td></tr>`;
+}
+
+/** Every template marks its footer row with this comment; the extras go just above it. */
+export const FOOTER_MARKER = '<!-- FOOTER';
+
+/** The built email with the note and My Shows link above its footer. */
+export function withExhibitorExtras(
+  html: string,
+  data: Pick<ConfirmationEmailBaseData, 'noteToExhibitors' | 'myShowsUrl'>
+): string {
+  const extras = renderExhibitorExtras(data);
+  const at = html.indexOf(FOOTER_MARKER);
+  if (!extras || at < 0) return html;
+  return `${html.slice(0, at)}${extras}\n  ${html.slice(at)}`;
 }

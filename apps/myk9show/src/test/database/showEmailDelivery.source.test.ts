@@ -62,8 +62,8 @@ describe('MYK9-180 show email delivery source contract', () => {
     ],
     [
       'Heritage confirmations',
-      'supabase/functions/send-confirmation-email/index.ts',
-      'show_id: show.id',
+      'supabase/functions/send-confirmation-email/fullConfirmationStore.ts',
+      'show_id: row.showId',
     ],
     [
       'lifecycle emails',
@@ -107,15 +107,15 @@ describe('MYK9-180 show email delivery source contract', () => {
   });
 
   it('records a failed Heritage attempt when the recipient address is missing', () => {
-    const contents = source('supabase/functions/send-confirmation-email/index.ts');
+    const contents = source('supabase/functions/send-confirmation-email/fullConfirmationSender.ts');
     const missingRecipientBlock = contents.slice(
-      contents.indexOf('if (!recipientEmail)'),
-      contents.indexOf('const dogName = entry.dog?.name')
+      contents.indexOf('if (!person?.email)'),
+      contents.indexOf('const claimed = await store.claim')
     );
-    expect(missingRecipientBlock).toContain("confirmation_email_status: 'failed'");
-    expect(missingRecipientBlock).toContain('recipient_email: null');
-    expect(missingRecipientBlock).toContain("error_message: 'missing_recipient'");
-    expect(missingRecipientBlock).toContain('failed++');
+    expect(missingRecipientBlock).toContain('markUndeliverable');
+    expect(missingRecipientBlock).toContain('recipientEmail: null');
+    expect(missingRecipientBlock).toContain("errorMessage: 'missing_recipient'");
+    expect(missingRecipientBlock).toContain("return 'failed'");
   });
 
   it('fails loudly on delivery-history write errors for every root show-owned sender', () => {

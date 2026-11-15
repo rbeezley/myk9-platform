@@ -222,7 +222,7 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
       <tr>
         <td style="padding:28px 40px 8px;font-family:${MZ_BODY};font-size:16px;line-height:1.7;color:${MZ_SOFT};">
           <p style="margin:0 0 14px;">Dear <em style="font-family:${MZ_DISPLAY};font-style:italic;color:${MZ_INK};font-size:18px;">${esc(data.salutation)}</em>,</p>
-          <p style="margin:0 0 14px;">Your entry has been received and the draw is complete. You will find the dog, the runs, and your armband number below. Please bring this email to check-in.</p>
+          <p style="margin:0 0 14px;">Your entry has been accepted. You will find the dog, the runs, and your armband number below. Please bring this email to check-in.</p>
         </td>
       </tr>
 
@@ -255,7 +255,7 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
         <td style="padding:36px 40px 0;">
           <div style="font-family:${MZ_META};font-weight:500;font-size:11px;letter-spacing:0.32em;text-transform:uppercase;color:${MZ_GOLD3};margin-bottom:8px;">Article iii · If you must withdraw</div>
           <p style="margin:0;font-family:${MZ_BODY};font-size:15px;line-height:1.7;color:${MZ_SOFT};">
-            The draw is set, so refunds are no longer available, but please notify the secretary if you cannot attend so we can release your slot.${withdrawContactPieces.join('')}.
+            If you cannot attend, please notify the secretary so we can release your slot.${withdrawContactPieces.join('')}.
           </p>
         </td>
       </tr>

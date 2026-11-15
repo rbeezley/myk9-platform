@@ -127,7 +127,7 @@ export function buildHeadlineHtml(data: HeadlineEmailData): string {
   </tr>
   <tr>
     <td style="padding:22px 34px 10px;">
-      <p style="margin:0 0 14px;font-family:${HN_BODY};font-size:15px;line-height:1.6;color:${HN_SOFT};">Dear <strong style="color:${HN_INK};">${esc(data.salutation)}</strong>, your entry has been recorded. The draw has been completed and the running order is set.</p>
+      <p style="margin:0 0 14px;font-family:${HN_BODY};font-size:15px;line-height:1.6;color:${HN_SOFT};">Dear <strong style="color:${HN_INK};">${esc(data.salutation)}</strong>, your entry has been accepted.</p>
       <p style="margin:0 0 10px;font-family:${HN_MONO};font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${HN_ACCENT};">§ 01 · The dog</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${HN_INK};border-bottom:1px solid ${HN_INK};">
         <tr><td style="padding:16px 0;">
@@ -166,6 +166,7 @@ export function buildHeadlineHtml(data: HeadlineEmailData): string {
       ${data.trialUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-top:18px;"><a href="${esc(data.trialUrl)}" style="display:inline-block;background:${HN_INK};color:${HN_PAPER};padding:12px 18px;font-family:${HN_DISPLAY};font-weight:700;font-size:14px;text-decoration:none;">View trial particulars</a></td></tr></table>` : ''}
     </td>
   </tr>
+  <!-- FOOTER -->
   <tr>
     <td style="background:${HN_INK};padding:22px 34px;text-align:center;">
       <p style="margin:0;font-family:${HN_MONO};font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:${HN_PAPER};">${esc(data.clubName)}</p>

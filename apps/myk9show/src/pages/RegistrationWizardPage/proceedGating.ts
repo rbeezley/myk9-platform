@@ -19,6 +19,8 @@ export interface ProceedGatingContext {
   hasSeparateHandlerStep: boolean;
   entryCount: number;
   unassignedHandlerCount: number;
+  /** MYK9-2021: same-class handler questions with no answer yet (Classes step, exhibitor). */
+  unansweredHandlerClashCount: number;
   totalFees: number;
   hasPaymentMethod: boolean;
   needsAgreement: boolean;
@@ -74,6 +76,9 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       return null;
     case 'class-selection':
       if (!ctx.hasSelectedClasses) return 'Select at least one class to continue.';
+      if (ctx.unansweredHandlerClashCount > 0) {
+        return "Tell us who will handle the second dog, or choose I'll decide at the show, to continue.";
+      }
       if (!ctx.hasSeparateHandlerStep && ctx.unassignedHandlerCount > 0) {
         return handlerReason(ctx.unassignedHandlerCount);
       }

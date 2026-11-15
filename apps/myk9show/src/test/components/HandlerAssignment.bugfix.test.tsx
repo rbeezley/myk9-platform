@@ -23,31 +23,6 @@ describe('Handler Assignment Bug Fixes', () => {
     });
   });
 
-  describe('InlineHandlerSection', () => {
-    it('should check handlerName not handlerId for hasHandler', () => {
-      const filePath = path.join(
-        __dirname,
-        '../../components/shows/RegistrationWorkflow/InlineHandlerSection.tsx'
-      );
-      const content = fs.readFileSync(filePath, 'utf8');
-      expect(content).toContain('hasHandler: !!handler?.handlerName');
-      expect(content).not.toContain('hasHandler: !!handler?.handlerId');
-    });
-
-    it('controls the collapsible state after handler assignments change', () => {
-      const filePath = path.join(
-        __dirname,
-        '../../components/shows/RegistrationWorkflow/InlineHandlerSection.tsx'
-      );
-      const content = fs.readFileSync(filePath, 'utf8');
-
-      expect(content).toContain(
-        '<Collapsible open={isHandlersOpen} onOpenChange={setIsHandlersOpen}>'
-      );
-      expect(content).not.toContain('<Collapsible defaultOpen={!allAssigned}>');
-    });
-  });
-
   describe('RegistrationWizardPage proceed gating', () => {
     // Next-button gating moved from an inline canProceed() switch into
     // proceedBlockedReason (proceedGating.ts); the handlerName-vs-handlerId

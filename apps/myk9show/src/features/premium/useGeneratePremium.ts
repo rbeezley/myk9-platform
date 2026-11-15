@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../services/database/supabaseClient';
 import type { GeneratedPremium } from '../../types/premium-types';
+import { fetchShowClubOfficers } from '@/services/database/club-memberships/officers';
 import { classifyPremiumFunctionError } from './premiumPublishErrors';
 import { parseGeneratedPremium } from './premiumPublishSchema';
 
@@ -28,7 +29,12 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
         throw classified;
       }
       try {
-        return parseGeneratedPremium(data);
+        const premium = parseGeneratedPremium(data);
+        // MYK9-2045: the club's Officers list rides along with the generated facts. A failed
+        // read prints no officers rather than blocking the premium; the next generation retries.
+        const officers = await fetchShowClubOfficers(showId);
+        if (!officers) console.error('[premium-generation] officers read failed', { showId });
+        return officers ? { ...premium, officers } : premium;
       } catch (error) {
         console.error('[premium-generation] invalid response shape', { showId, error });
         throw error;

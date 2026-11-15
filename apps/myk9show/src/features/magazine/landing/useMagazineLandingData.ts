@@ -62,7 +62,7 @@ export function useMagazineLandingData(
         portraitUrl: null,
       })),
       coverCaption: null,
-      officers: [],
+      officers: shared.clubOfficers ?? [],
     }),
     [shared]
   );

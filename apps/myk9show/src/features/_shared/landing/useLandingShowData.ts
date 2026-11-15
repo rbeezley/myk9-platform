@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { isAccountSession } from '@/hooks/guestServerRead';
+import { fetchShowClubOfficers } from '@/services/database/club-memberships/officers';
 import { fetchShowConfirmedJudgeAssignments } from '@/services/database/_shared/judgeNamesByClass';
 import { fetchPublicEntryCountsByShow } from '@/services/database/_shared/entryCounts';
 import type { Show } from '@/types/show-types';
@@ -76,6 +77,15 @@ export function useLandingShowData(
     [officialsQuery.data, officialsQuery.isSuccess]
   );
 
+  // MYK9-2045: the club's Officers list. A failed read prints none, never a blocked page.
+  const officersQuery = useQuery({
+    queryKey: ['public-show-club-officers', showId],
+    queryFn: () => fetchShowClubOfficers(showId),
+    enabled: !!showId,
+    staleTime: 60_000,
+  });
+  const clubOfficers = officersQuery.data;
+
   return useMemo(
     () =>
       buildLandingData(
@@ -85,8 +95,18 @@ export function useLandingShowData(
         entryCount,
         judgeAssignments,
         judgesState,
-        secretary
+        secretary,
+        clubOfficers
       ),
-    [show, currentTrial, allTrials, entryCount, judgeAssignments, judgesState, secretary]
+    [
+      show,
+      currentTrial,
+      allTrials,
+      entryCount,
+      judgeAssignments,
+      judgesState,
+      secretary,
+      clubOfficers,
+    ]
   );
 }

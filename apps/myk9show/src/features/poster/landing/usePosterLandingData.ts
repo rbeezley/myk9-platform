@@ -37,7 +37,7 @@ export function usePosterLandingData(
       ...shared,
       judges,
       fees,
-      officers: [],
+      officers: shared.clubOfficers ?? [],
       onTheDay: [],
     };
   }, [shared]);

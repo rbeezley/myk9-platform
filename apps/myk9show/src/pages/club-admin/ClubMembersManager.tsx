@@ -218,7 +218,11 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
                     </button>
                   </p>
                 )}
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    Printed in your premium list. Doesn&apos;t change what anyone can do in
+                    myK9Show.
+                  </p>
                   <Button onClick={() => setShowAssignOfficer(true)}>
                     <Shield className="h-4 w-4 mr-2" />
                     Assign Officer
@@ -281,7 +285,7 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
       <AssignOfficerDialog
         open={showAssignOfficer}
         onClose={() => setShowAssignOfficer(false)}
-        onSave={(personId, position) => addOfficerMutation.mutate({ personId, position })}
+        onSave={(target, position) => addOfficerMutation.mutate({ ...target, position })}
         members={members}
         people={people}
         isSaving={addOfficerMutation.isPending}

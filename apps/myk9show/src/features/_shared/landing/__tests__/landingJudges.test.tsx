@@ -16,7 +16,16 @@ const mockRpc = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/database/supabaseClient', async importOriginal => {
   const actual = await importOriginal<typeof import('@/services/database/supabaseClient')>();
-  return { ...actual, supabase: { rpc: (...args: unknown[]) => mockRpc(...args) } };
+  return {
+    ...actual,
+    supabase: {
+      // MYK9-2045: the club officers read is not this test's subject; answer it with none.
+      rpc: (name: string, ...rest: unknown[]) =>
+        name === 'get_show_club_officers'
+          ? Promise.resolve({ data: [], error: null })
+          : mockRpc(name, ...rest),
+    },
+  };
 });
 
 const { BannerLandingPage } = await import('@/features/banner/landing/BannerLandingPage');

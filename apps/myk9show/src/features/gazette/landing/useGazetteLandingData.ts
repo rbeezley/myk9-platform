@@ -56,7 +56,7 @@ export function useGazetteLandingData(
       cityLabel: null,
       accommodations,
       schedule: [],
-      officers: [],
+      officers: shared.clubOfficers ?? [],
       secretaryPhone: null,
     };
   }, [shared]);

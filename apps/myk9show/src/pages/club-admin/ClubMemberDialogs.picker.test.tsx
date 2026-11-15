@@ -3,7 +3,7 @@
  * more characters is typed. Rendered output, so a picker that bypasses the shared helper
  * fails here, not just in the helper's unit test.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
@@ -103,5 +103,67 @@ describe('Assign Officer picker', () => {
 
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Member')).toBeInTheDocument();
+  });
+});
+
+describe('Assign Officer typed name (MYK9-2045)', () => {
+  it('lists the Secretary position as Club secretary, keeping the stored value', () => {
+    pickers[1]!.renderPicker();
+
+    const option = screen.getByRole('option', { name: 'Club secretary' }) as HTMLOptionElement;
+    expect(option.value).toBe('secretary');
+  });
+
+  it('cannot save until a person is picked or a name is typed', async () => {
+    const user = userEvent.setup();
+    pickers[1]!.renderPicker();
+
+    const save = screen.getByRole('button', { name: 'Assign Officer' });
+    expect(save).toBeDisabled();
+    await user.type(screen.getByLabelText('Not on myK9Show? Type their name'), '   ');
+    expect(save).toBeDisabled();
+    await user.type(screen.getByLabelText('Not on myK9Show? Type their name'), 'Pat Typed');
+    expect(save).toBeEnabled();
+  });
+
+  it('hands a typed name over as displayName, trimmed, with no personId', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <AssignOfficerDialog
+        open
+        onClose={() => {}}
+        onSave={onSave}
+        members={[adaMember]}
+        people={people}
+        isSaving={false}
+      />
+    );
+
+    await user.type(screen.getByLabelText('Not on myK9Show? Type their name'), '  Pat Typed ');
+    await user.click(screen.getByRole('button', { name: 'Assign Officer' }));
+
+    expect(onSave).toHaveBeenCalledWith({ displayName: 'Pat Typed' }, 'president');
+  });
+
+  it('hands a picked person over as personId', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <AssignOfficerDialog
+        open
+        onClose={() => {}}
+        onSave={onSave}
+        members={[adaMember]}
+        people={people}
+        isSaving={false}
+      />
+    );
+
+    await user.type(screen.getByLabelText('Person'), 'Ka');
+    await user.click(screen.getByText('Katherine Johnson'));
+    await user.click(screen.getByRole('button', { name: 'Assign Officer' }));
+
+    expect(onSave).toHaveBeenCalledWith({ personId: 'p-kj' }, 'president');
   });
 });

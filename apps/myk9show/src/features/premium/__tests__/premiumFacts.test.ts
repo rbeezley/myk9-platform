@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generatedPremium } from './fixtures/generatedPremium';
 import {
   PREMIUM_FACT_CATALOG,
+  buildOfficerFacts,
   buildPremiumFacts,
   pickSupplementalFacts,
   formatPhone,
@@ -43,5 +44,43 @@ describe('premiumFacts', () => {
       awardsDescription: null,
       additionalNotes: null,
     });
+  });
+});
+
+describe('buildOfficerFacts (MYK9-2045)', () => {
+  it('lists "Title: Name" in the Officers list position order, Club secretary for secretary', () => {
+    expect(
+      buildOfficerFacts([
+        { position: 'board_member', name: 'Zed Board' },
+        { position: 'secretary', name: 'Sam Typed' },
+        { position: 'board_member', name: 'Abe Board' },
+        { position: 'president', name: 'Pat President' },
+      ])
+    ).toEqual([
+      { title: 'President', name: 'Pat President' },
+      { title: 'Club secretary', name: 'Sam Typed' },
+      { title: 'Board Member', name: 'Abe Board' },
+      { title: 'Board Member', name: 'Zed Board' },
+    ]);
+  });
+
+  it('prints nothing for no officers, blank names or an unknown position', () => {
+    expect(buildOfficerFacts(undefined)).toEqual([]);
+    expect(buildOfficerFacts([])).toEqual([]);
+    expect(
+      buildOfficerFacts([
+        { position: 'president', name: '  ' },
+        { position: 'janitor', name: 'Nobody' },
+      ])
+    ).toEqual([]);
+  });
+
+  it('puts the club officers on the facts every style prints from', () => {
+    const premium = generatedPremium();
+    premium.officers = [{ position: 'treasurer', name: 'Tia Treasurer' }];
+    expect(buildPremiumFacts(premium).officers).toEqual([
+      { title: 'Treasurer', name: 'Tia Treasurer' },
+    ]);
+    expect(buildPremiumFacts(generatedPremium()).officers).toEqual([]);
   });
 });

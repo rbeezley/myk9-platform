@@ -220,6 +220,38 @@ describe("premium PDF prints the registry's scouting statement (MYK9-2043)", () 
   });
 });
 
+describe("premium PDF prints the club's officers (MYK9-2045)", () => {
+  const OFFICERS = [
+    { position: 'secretary', name: 'Sam Typed' },
+    { position: 'president', name: 'Pat President' },
+  ];
+
+  it.each(ALL_STYLES)('%s prints each officer as Title and Name, president first', style => {
+    const premium = fullPremium('AKC', style);
+    premium.officers = OFFICERS;
+    const text = pdfText('AKC', premium);
+    expect(text).toContain('Club secretary');
+    expect(text).toContain('Sam Typed');
+    expect(text).toContain('Pat President');
+    expect(text.indexOf('Pat President')).toBeLessThan(text.indexOf('Sam Typed'));
+  });
+
+  it.each(ALL_STYLES)('%s prints officers on a show with nothing else filled in', style => {
+    const premium = sparsePremium('AKC', style);
+    premium.officers = OFFICERS;
+    expect(pdfText('AKC', premium)).toContain('Sam Typed');
+  });
+
+  it.each(ALL_STYLES)('%s prints no officer titles or placeholder with no officers', style => {
+    for (const premium of [fullPremium('AKC', style), sparsePremium('AKC', style)]) {
+      const text = pdfText('AKC', premium);
+      expect(text).not.toContain('Club secretary');
+      expect(text).not.toContain('Club Officers');
+      expect(text).not.toContain('President');
+    }
+  });
+});
+
 const PUBLISHED_SHOW: Show = fromAny<Show, unknown>({
   id: 'show-1',
   name: 'Spring Scent Trial',

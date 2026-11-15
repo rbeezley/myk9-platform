@@ -29,7 +29,7 @@ export function useMonogramLandingData(
         bio: null,
       })),
       fees: shared.fees,
-      officers: [],
+      officers: shared.clubOfficers ?? [],
     }),
     [shared]
   );

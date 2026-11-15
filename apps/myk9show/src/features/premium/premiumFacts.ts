@@ -10,6 +10,11 @@
  * Deliberately free of `@react-pdf/renderer` and font side effects: the public landing pages
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
+import {
+  OFFICER_POSITION_LABELS,
+  OFFICER_POSITION_ORDER,
+  type OfficerPosition,
+} from '@/types/club-membership-types';
 import { getPremiumScoutingStatement, type RegistryId } from '@/features/registries';
 import { resolveEffectiveWithdrawalTerms } from '@/features/payments/effectiveWithdrawalTerms';
 import { buildWithdrawalDisclosure } from '@/features/payments/withdrawalPolicyText';
@@ -35,6 +40,7 @@ export type PremiumFactId =
   | 'classes'
   | 'judges'
   | 'secretary'
+  | 'officers'
   | 'chair'
   | 'entryWindow'
   | 'vetClinic'
@@ -75,6 +81,8 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
+  // MYK9-2045: the club's Officers list (Club admin > Officers), the one list the premium prints.
+  { id: 'officers', label: 'Club officers', source: 'club', requiredBy: [] },
   { id: 'chair', label: 'Trial Chair', source: 'person', requiredBy: ['AKC'] },
   { id: 'entryWindow', label: 'Entries open and close', source: 'show', requiredBy: ['AKC'] },
   { id: 'vetClinic', label: 'Veterinary services', source: 'template', requiredBy: [] },
@@ -225,6 +233,28 @@ export function buildScoutingStatementFact(
   return text ? { label: SCOUTING_STATEMENT_LABEL, text } : null;
 }
 
+/** One line of the club's officers: "Club secretary: Sam Typed". */
+export interface PremiumOfficerFact {
+  title: string;
+  name: string;
+}
+
+/**
+ * MYK9-2045: the club's officers as "Title: Name" facts in the Officers list's own position
+ * order (president first), ties by name so the order is stable. A title is a label only; it
+ * grants nothing. Empty (nothing printed, never a placeholder) when the club lists none.
+ */
+export function buildOfficerFacts(
+  officers: ReadonlyArray<{ position: string; name: string }> | null | undefined
+): PremiumOfficerFact[] {
+  const rank = (position: string) => OFFICER_POSITION_ORDER.indexOf(position as OfficerPosition);
+  return (officers ?? [])
+    .map(o => ({ position: o.position, name: o.name.trim() }))
+    .filter(o => o.name && rank(o.position) >= 0)
+    .sort((a, b) => rank(a.position) - rank(b.position) || a.name.localeCompare(b.name))
+    .map(o => ({ title: OFFICER_POSITION_LABELS[o.position as OfficerPosition], name: o.name }));
+}
+
 export interface PremiumTrialFacts {
   name: string;
   /** Long display date. */
@@ -273,6 +303,8 @@ export interface PremiumFacts {
     mailingAddress: string | null;
   };
   chair: PremiumContact | null;
+  /** The club's officers, [] when none: no style prints a heading or placeholder then. */
+  officers: PremiumOfficerFact[];
   trials: PremiumTrialFacts[];
   vetClinic: { name: string; address: string; phone: string } | null;
   accommodations: Array<{ name: string; address: string; phone: string }>;
@@ -337,6 +369,7 @@ export function buildPremiumFacts(
           phone: formatPhone(officials.chairman.phone),
         }
       : null,
+    officers: buildOfficerFacts(data.officers),
     trials: (data.trials ?? []).map(trial => ({
       name: trial.name,
       date: formatPremiumDate(trial.date),

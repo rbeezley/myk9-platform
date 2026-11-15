@@ -43,7 +43,7 @@ export function PosterBody({ data, tokens }: Props) {
   };
   const sectionGap = { marginBottom: 22 };
 
-  const hasOfficials = Boolean(chair);
+  const hasOfficials = Boolean(chair || f.officers.length > 0);
   const hasAccommodations = f.accommodations.length > 0;
 
   return (
@@ -119,6 +119,11 @@ export function PosterBody({ data, tokens }: Props) {
             {chair?.email ? ` · ${chair.email}` : ''}
             {chair?.phone ? ` · ${chair.phone}` : ''}
           </Text>
+          {f.officers.map(o => (
+            <Text key={`${o.title}-${o.name}`} style={bodyStyle}>
+              {o.title}: {o.name}
+            </Text>
+          ))}
         </View>
       )}
 

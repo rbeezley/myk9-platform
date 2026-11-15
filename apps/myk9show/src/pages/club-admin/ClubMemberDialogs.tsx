@@ -20,6 +20,7 @@ import {
   type MembershipType,
   type MembershipStatus,
   type OfficerPosition,
+  type OfficerTarget,
 } from '@/types/club-membership-types';
 import { filterPeoplePicker } from './peoplePickerFilter';
 
@@ -208,7 +209,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
 interface AssignOfficerDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (personId: string, position: OfficerPosition) => void;
+  onSave: (target: OfficerTarget, position: OfficerPosition) => void;
   members: ClubMember[];
   people: User[];
   isSaving: boolean;
@@ -225,6 +226,7 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [position, setPosition] = useState<OfficerPosition>('president');
   const [search, setSearch] = useState('');
+  const [typedName, setTypedName] = useState('');
 
   // Show members first, then other people
   const picker = useMemo(() => {
@@ -234,18 +236,28 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
     return filterPeoplePicker(search, [...memberPeople, ...otherPeople]);
   }, [members, people, search]);
 
-  const handleSave = () => {
-    if (!selectedPersonId) return;
-    onSave(selectedPersonId, position);
+  const trimmedTypedName = typedName.trim();
+  const canSave = Boolean(selectedPersonId || trimmedTypedName);
+
+  const reset = () => {
     setSelectedPersonId('');
     setPosition('president');
     setSearch('');
+    setTypedName('');
+  };
+
+  const handleSave = () => {
+    if (!canSave) return;
+    // A picked person wins; the typed name is only for someone with no account.
+    onSave(
+      selectedPersonId ? { personId: selectedPersonId } : { displayName: trimmedTypedName },
+      position
+    );
+    reset();
   };
 
   const handleClose = () => {
-    setSelectedPersonId('');
-    setPosition('president');
-    setSearch('');
+    reset();
     onClose();
   };
 
@@ -287,7 +299,10 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                   return (
                     <button
                       key={person.id}
-                      onClick={() => setSelectedPersonId(person.id)}
+                      onClick={() => {
+                        setSelectedPersonId(person.id);
+                        setTypedName('');
+                      }}
                       className={`w-full text-left px-3 py-2 text-sm min-h-11 transition-colors ${
                         selectedPersonId === person.id
                           ? 'bg-primary/10 text-primary'
@@ -315,6 +330,21 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
             )}
           </FormField>
 
+          {/* Someone with no account: the list prints their name; they get no access. */}
+          <FormField label="Not on myK9Show? Type their name" fieldId="officer-typed-name">
+            <Input
+              id="officer-typed-name"
+              placeholder="Full name"
+              maxLength={120}
+              value={typedName}
+              onChange={e => {
+                setTypedName(e.target.value);
+                if (e.target.value) setSelectedPersonId('');
+              }}
+              className="border-border"
+            />
+          </FormField>
+
           {/* Position select */}
           <FormField label="Position" fieldId="officer-position">
             <select
@@ -336,7 +366,7 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
             <Button variant="outline" onClick={handleClose} className="border-border">
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!selectedPersonId || isSaving}>
+            <Button onClick={handleSave} disabled={!canSave || isSaving}>
               {isSaving ? 'Assigning...' : 'Assign Officer'}
             </Button>
           </div>

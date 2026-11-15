@@ -128,6 +128,19 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </>
       )}
 
+      {f.officers.length > 0 && (
+        <>
+          {divider}
+          <Text style={s.sectionTitle}>Club Officers</Text>
+          {f.officers.map(o => (
+            <View key={`${o.title}-${o.name}`} style={s.row}>
+              <Text style={s.label}>{o.title}</Text>
+              <Text style={s.value}>{o.name}</Text>
+            </View>
+          ))}
+        </>
+      )}
+
       {divider}
 
       <Text style={s.sectionTitle}>Trials &amp; Judges</Text>

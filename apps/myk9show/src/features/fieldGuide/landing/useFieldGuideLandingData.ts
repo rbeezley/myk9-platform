@@ -79,7 +79,7 @@ export function useFieldGuideLandingData(
       judges,
       quickRefCells,
       fees,
-      officers: [],
+      officers: shared.clubOfficers ?? [],
       onTheDay: [],
     };
   }, [shared]);

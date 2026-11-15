@@ -74,6 +74,7 @@ const generatedPremiumSchema = z.object({
   officials: z.object({
     chairman: z.object({ name: z.string(), email: nullableText, phone: nullableText }).nullable(),
   }),
+  officers: z.array(z.object({ position: z.string(), name: z.string() })).optional(),
   trials: z.array(
     z.object({
       name: z.string(),

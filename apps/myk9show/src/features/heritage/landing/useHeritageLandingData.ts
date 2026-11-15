@@ -23,7 +23,7 @@ export function useHeritageLandingData(
         ...trial,
         ...(trial.judgeName ? { judge: trial.judgeName } : {}),
       })),
-      officers: [],
+      officers: shared.clubOfficers ?? [],
     }),
     [shared]
   );

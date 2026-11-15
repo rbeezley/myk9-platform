@@ -8,8 +8,10 @@ import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
 import {
+  buildOfficerFacts,
   buildScoutingStatementFact,
   pickSupplementalFacts,
+  type PremiumOfficerFact,
   type PremiumRegistryStatementFact,
 } from '@/features/premium/premiumFacts';
 import { hasShowHappened } from './showResults';
@@ -115,6 +117,11 @@ export interface LandingData<
    * fact the premium PDF prints. Null (or absent) for a registry that requires none.
    */
   scoutingStatement?: PremiumRegistryStatementFact | null;
+  /**
+   * MYK9-2045: the club's Officers list as "Title: Name" facts, the same the premium PDF
+   * prints. [] when the club lists none or the read has not finished.
+   */
+  clubOfficers?: PremiumOfficerFact[];
   journeySteps: LandingJourneyStep[];
   entryWizardUrl: string;
   /** True once the show's last day has passed: rosters read as final, not as still filling. */
@@ -211,7 +218,8 @@ export function buildLandingData(
   judgeAssignments: readonly ConfirmedJudgeAssignment[] = [],
   judgesState: LandingJudgesState = 'ready',
   /** undefined = not known yet (loading or failed); null = the read succeeded and none is listed. */
-  secretary?: { name: string | null; email: string | null } | null
+  secretary?: { name: string | null; email: string | null } | null,
+  clubOfficers?: ReadonlyArray<{ position: string; name: string }> | null
 ): LandingData {
   const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
   // The same normalised template facts the premium PDF prints (features/premium/premiumFacts).
@@ -360,6 +368,7 @@ export function buildLandingData(
     licenseLanguage: registry.licenseLanguage,
     memberClubLanguage: registry.memberClubLanguage,
     scoutingStatement: buildScoutingStatementFact(registry.id),
+    clubOfficers: buildOfficerFacts(clubOfficers),
     journeySteps: buildJourneySteps(
       show?.entryOpenDate ?? null,
       entryCloseDate,

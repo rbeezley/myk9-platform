@@ -93,6 +93,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_841_staff_on_behalf_entries_accepted_test.sql"
   "$TEST_DIR/myk9_878_price_entry_fee_test.sql"
   "$TEST_DIR/myk9_878_submit_entries_junior_fee_test.sql"
+  "$TEST_DIR/myk9_1975_junior_fee_within_regular_fee_test.sql"
   "$TEST_DIR/myk9_879_junior_declaration_test.sql"
   "$TEST_DIR/myk9_854_dogs_select_show_scoped_secretary_test.sql"
   "$TEST_DIR/dogs_update_secretary_created_dogs_test.sql"

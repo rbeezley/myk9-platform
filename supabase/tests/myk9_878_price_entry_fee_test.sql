@@ -223,7 +223,12 @@ select pg_temp.expect('a zero junior fee is no tier: the normal fee even on over
 update public.shows set junior_handler_fee = 15 where id = '00000000-0000-0000-0000-000000878101';
 
 -- A junior tier ABOVE the regular fee never exceeds it: regular 10, junior 15 => 10.
+-- Since MYK9-1975 show setup refuses that state (trg_shows_junior_fee_within_regular),
+-- so the trigger is off for this write to model a row saved before it. The LEAST stays
+-- as the safety net for those rows.
+alter table public.shows disable trigger trg_shows_junior_fee_within_regular;
 update public.shows set pre_entry_fee = 10 where id = '00000000-0000-0000-0000-000000878101';
+alter table public.shows enable trigger trg_shows_junior_fee_within_regular;
 select pg_temp.expect('junior tier above the regular fee is capped at the regular fee',
   pg_temp.price('00000000-0000-0000-0000-000000878101', '00000000-0000-0000-0000-000000878301', false, true),
   '10.00|true');

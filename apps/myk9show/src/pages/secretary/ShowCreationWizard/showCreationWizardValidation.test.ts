@@ -61,6 +61,36 @@ describe('getShowDetailsValidationMessages — junior handler fee bound', () => 
   });
 });
 
+describe('getShowDetailsValidationMessages — junior fee within the lowest regular fee (MYK9-1975)', () => {
+  const limit = (dollars: string) =>
+    `The junior fee can't be more than ${dollars}, the lowest class fee in this show.`;
+  const fees = { preEntryFee: 30, dayOfShowFee: 35 };
+
+  it('blocks a junior fee above the pre-entry fee', () => {
+    const show = baseShow({ ...fees, juniorHandlerFee: 31 });
+    expect(getShowDetailsValidationMessages(show)).toContain(limit('$30'));
+  });
+
+  it('blocks a day-of fee set below the junior fee', () => {
+    const show = baseShow({ ...fees, dayOfShowFee: 20, juniorHandlerFee: 25 });
+    expect(getShowDetailsValidationMessages(show)).toContain(limit('$20'));
+  });
+
+  it('allows a junior fee equal to the lowest fee, and a zero day-of fee is no tier', () => {
+    const show = baseShow({ preEntryFee: 30, dayOfShowFee: 0, juniorHandlerFee: 30 });
+    expect(getShowDetailsValidationMessages(show).some(m => m.includes('lowest class fee'))).toBe(
+      false
+    );
+  });
+
+  it('ignores a stale fee on an ASCA show', () => {
+    const show = baseShow({ ...fees, organization: 'ASCA', juniorHandlerFee: 40 });
+    expect(getShowDetailsValidationMessages(show).some(m => m.includes('lowest class fee'))).toBe(
+      false
+    );
+  });
+});
+
 describe('getShowDetailsValidationMessages — entry close vs show start', () => {
   it('accepts entries closing at 11:59 PM on the show start date (day-of entry)', () => {
     expect(getShowDetailsValidationMessages(baseShow())).not.toContain(CLOSE_RULE);

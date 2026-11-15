@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { formatDuration, isUnresolvedDuration, parseDuration } from '@myk9/core';
 import { canonicalizeWebsiteUrl } from './websiteUrl';
+import { juniorFeeLimitError } from '@/features/_shared/juniorFeeLimit';
 
 export interface NormalizedWebsiteUrl {
   /** The trimmed input, or `https://`-prefixed when a bare domain normalized cleanly. */
@@ -245,6 +246,11 @@ export const showSchemas = {
     .refine(data => !data.publishExperience || Boolean(data.generatedPremium), {
       message: 'Wait for shared show content to finish before publishing to exhibitors',
       path: ['generatedPremium'],
+    })
+    // MYK9-1975: also blocks lowering a fee tier below the junior fee, on the junior field.
+    .superRefine((data, ctx) => {
+      const message = juniorFeeLimitError(data);
+      if (message) ctx.addIssue({ code: 'custom', message, path: ['juniorHandlerFee'] });
     }),
 
   trial: z.object({

@@ -38,6 +38,8 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   const handleFeeChange = (field: keyof ShowEditFormData) => (value: number) => {
     form?.setValue(field, String(value));
     form?.touchField(field);
+    // MYK9-1975: a tier lowered below the junior fee shows the junior fee's limit at once.
+    if (field === 'preEntryFee' || field === 'dayOfShowFee') form?.touchField('juniorHandlerFee');
   };
 
   return (

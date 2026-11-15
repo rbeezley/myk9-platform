@@ -14,6 +14,7 @@ import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistr
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
+import { SERVICE_FEE_SENTENCE } from '@/features/payments/withdrawalPolicyText';
 
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
@@ -21,6 +22,9 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
 
 const ALL_STYLES = Object.keys(STYLE_TOKENS) as PremiumStyle[];
 type Org = 'AKC' | 'UKC';
+
+const CLUB_POLICY_TEXT =
+  "Full refund until May 15.\nAfter May 15 the club keeps $5.\n\nPulls are at the club's discretion.";
 
 function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
   return {
@@ -38,6 +42,20 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
       dayOfFee: 25,
       acceptChecks: true,
       acceptCash: true,
+      withdrawal: {
+        withdrawal_cutoff_date: '2026-05-15',
+        withdrawal_retention_type: 'flat',
+        withdrawal_retention_value: 500,
+        withdrawal_policy_notes: null,
+        withdrawal_policy_text: null,
+        trials: [{ registry_id: org }],
+        clubs: {
+          default_withdrawal_retention_type: null,
+          default_withdrawal_retention_value: null,
+          default_withdrawal_policy_notes: null,
+          default_withdrawal_policy_text: CLUB_POLICY_TEXT,
+        },
+      },
     },
     club: { name: 'Test Club', logoUrl: null },
     secretary: {
@@ -157,6 +175,29 @@ describe('premium PDF facts parity (8 styles)', () => {
   });
   it.each(ALL_STYLES)('%s prints the same facts with ink saver on', style => {
     expect(pdfText('AKC', fullPremium('AKC', style), true)).toMatchSnapshot();
+  });
+});
+
+describe('premium PDF prints the refund and withdrawal policy whole (MYK9-1976)', () => {
+  const LONG_TEXT = `${'The club keeps a five dollar office fee after the cutoff. '.repeat(19)}Last line.`;
+
+  it.each(ALL_STYLES)(
+    '%s prints the label, the whole text, then the service-fee sentence',
+    style => {
+      const premium = fullPremium('AKC', style);
+      premium.show.withdrawal = { ...premium.show.withdrawal, withdrawal_policy_text: LONG_TEXT };
+      const text = pdfText('AKC', premium);
+      expect(text).toContain('Withdrawals and Pulls');
+      expect(text).toContain(`${LONG_TEXT.trim()}\n\n${SERVICE_FEE_SENTENCE}`);
+    }
+  );
+
+  it.each(ALL_STYLES)('%s prints the policy on a show with nothing else filled in', style => {
+    const premium = sparsePremium('AKC', style);
+    premium.show.withdrawal = fullPremium('AKC', style).show.withdrawal;
+    const text = pdfText('AKC', premium);
+    expect(text).toContain('Withdrawals and Pulls');
+    expect(text).toContain(`${CLUB_POLICY_TEXT}\n\n${SERVICE_FEE_SENTENCE}`);
   });
 });
 

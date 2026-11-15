@@ -14,9 +14,11 @@ export function cleanTemplateHotels(hotels: TemplateHotel[]): TemplateHotel[] {
   return hotels
     .map(h => ({
       ...h,
-      name: h.name.trim(),
-      address: h.address.trim(),
-      phone: h.phone.trim(),
+      // Stored hotels are free-form jsonb: a field can be missing or null (the publish
+      // schema reads them loosely too), so never trust the TypeScript shape here.
+      name: (h.name ?? '').trim(),
+      address: (h.address ?? '').trim(),
+      phone: (h.phone ?? '').trim(),
     }))
     .filter(h => h.name || h.address || h.phone)
     .map(canonicalizeAccommodationUrl);

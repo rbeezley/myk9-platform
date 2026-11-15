@@ -9,7 +9,7 @@ interface Props {
   onChange: (hotels: TemplateHotel[]) => void;
 }
 
-/** The club template's hotel list: printed on every show's premium and public page. */
+/** The club template's hotel list, copied onto a show's premium when it is generated. */
 export function TemplateHotelsEditor({ hotels, onChange }: Props) {
   function update(index: number, field: keyof TemplateHotel, value: string) {
     onChange(hotels.map((h, i) => (i === index ? { ...h, [field]: value } : h)));
@@ -20,7 +20,8 @@ export function TemplateHotelsEditor({ hotels, onChange }: Props) {
       <legend className="text-xs font-medium">Hotels</legend>
       {hotels.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          No hotels yet. Hotels you add here appear on each show&apos;s premium and public page.
+          No hotels yet. Hotels are copied onto a show&apos;s premium when it is generated;
+          regenerate a show&apos;s premium to pick up a change.
         </p>
       )}
       {hotels.map((hotel, index) => {
@@ -33,18 +34,18 @@ export function TemplateHotelsEditor({ hotels, onChange }: Props) {
               </Label>
               <Input
                 id={`hotel-${n}-name`}
-                value={hotel.name}
+                value={hotel.name ?? ''}
                 onChange={e => update(index, 'name', e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor={`hotel-${n}-address`} className="text-xs">
                   Hotel {n} address
                 </Label>
                 <Input
                   id={`hotel-${n}-address`}
-                  value={hotel.address}
+                  value={hotel.address ?? ''}
                   onChange={e => update(index, 'address', e.target.value)}
                 />
               </div>
@@ -55,7 +56,7 @@ export function TemplateHotelsEditor({ hotels, onChange }: Props) {
                 <Input
                   id={`hotel-${n}-phone`}
                   type="tel"
-                  value={hotel.phone}
+                  value={hotel.phone ?? ''}
                   onChange={e => update(index, 'phone', e.target.value)}
                 />
               </div>

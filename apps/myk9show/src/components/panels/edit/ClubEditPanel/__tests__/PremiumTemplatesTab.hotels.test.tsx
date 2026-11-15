@@ -119,6 +119,37 @@ describe('PremiumTemplatesTab hotels', () => {
     );
   });
 
+  it('saves a stored hotel that is missing fields, and cleans its stored link', async () => {
+    // Stored accommodations are free-form jsonb; an older row may lack fields.
+    templatesRef.current = [
+      {
+        ...template,
+        accommodations: [
+          { name: 'Inn', url: 'inn.example.com' },
+          { name: 'Motel', address: null, phone: '555-0300', url: 'javascript:alert(1)' },
+        ] as unknown as ClubPremiumTemplate['accommodations'],
+      },
+    ];
+    updateMock.mockResolvedValue(undefined);
+    render(<PremiumTemplatesTab clubId="club-1" onClose={undefined} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Hotel 1 address')).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(updateMock).toHaveBeenCalledWith({
+        id: 'tpl-1',
+        updates: expect.objectContaining({
+          accommodations: [
+            { name: 'Inn', address: '', phone: '', url: 'https://inn.example.com/' },
+            { name: 'Motel', address: '', phone: '555-0300' },
+          ],
+        }),
+      })
+    );
+  });
+
   it('creates a template with a hotel and drops a hotel left blank', async () => {
     createMock.mockResolvedValue(undefined);
     render(<PremiumTemplatesTab clubId="club-1" onClose={undefined} />);

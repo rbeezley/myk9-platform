@@ -1,4 +1,4 @@
--- MYK9-1988 (migration 20261115163300): when an offer refills an expired offer's
+-- MYK9-1988 (migration 20261115061700): when an offer refills an expired offer's
 -- spot, the expired offer records it (refilled_by_offer_id), so "an offer has run
 -- out" means "its spot has not been offered to another dog since".
 --

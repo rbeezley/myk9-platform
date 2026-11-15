@@ -50,6 +50,10 @@ const INITIAL_STATE: SupportHelpState = {
   error: null,
 };
 
+// Tickets are an online-only write and nothing is queued: say so and keep the note in the box.
+export const OFFLINE_TICKET_MESSAGE =
+  "You're offline, so this could not be sent. Your note is still here. Connect, then press Create ticket.";
+
 const GENERIC_ESCALATION_MESSAGE = "I couldn't answer that confidently.";
 
 export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles | null) {
@@ -160,20 +164,29 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
     [routeContext.showId, user]
   );
 
-  const startEscalation = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      status: 'escalating',
-      route:
-        prev.route?.kind === 'escalate'
-          ? prev.route
-          : {
-              kind: 'escalate',
-              reason: 'low_confidence',
-              message: GENERIC_ESCALATION_MESSAGE,
-              question: prev.question,
-            },
-    }));
+  /**
+   * Opens the ticket step without calling AskQ, so it never spends a daily question. Pass
+   * `question` to carry text typed somewhere else (an AskQ error or daily limit) into the note.
+   */
+  const startEscalation = useCallback((question?: string) => {
+    setState(prev => {
+      const carried = question?.trim();
+      return {
+        ...prev,
+        status: 'escalating',
+        error: null,
+        ...(carried ? { question: carried } : {}),
+        route:
+          !carried && prev.route?.kind === 'escalate'
+            ? prev.route
+            : {
+                kind: 'escalate',
+                reason: 'low_confidence',
+                message: GENERIC_ESCALATION_MESSAGE,
+                question: carried || prev.question,
+              },
+      };
+    });
   }, []);
 
   const createTicket = useCallback(
@@ -182,6 +195,9 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
       try {
         if (!user) {
           throw new Error('Sign in before sending a support request.');
+        }
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          throw new Error(OFFLINE_TICKET_MESSAGE);
         }
 
         const input: CreateSupportTicketInput = {

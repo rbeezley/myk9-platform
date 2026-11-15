@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { SupportTicketThread } from '@/features/support/SupportTicketThread';
 import { useSupportHelp } from '@/features/support/useSupportHelp';
+import { AskQSendToPerson } from './AskQSendToPerson';
 import { AskQAnswer, TeraWorkingIndicator } from './AskQAnswer';
 import { cleanAskQAnswer } from './cleanAskQAnswer';
 import { TeraAnswerMark, useFoundIt } from './TeraAnswerMark';
@@ -107,7 +108,10 @@ export function AskQAppHelpContent({
 
       {state.error && (
         <Alert variant="destructive">
-          <AlertDescription>{state.error}</AlertDescription>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>{state.error}</span>
+            {state.status === 'error' && <AskQSendToPerson onSend={onEscalate} />}
+          </AlertDescription>
         </Alert>
       )}
     </>

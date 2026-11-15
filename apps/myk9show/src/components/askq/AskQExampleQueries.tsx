@@ -1,19 +1,31 @@
-import { EXAMPLE_QUERIES, CATEGORY_LABELS, type ExampleQuery } from './askq-config';
+import {
+  EXAMPLE_QUERIES,
+  STAFF_EXAMPLE_QUERIES,
+  CATEGORY_LABELS,
+  type ExampleQuery,
+} from './askq-config';
 
 interface AskQExampleQueriesProps {
   onSelectQuery: (query: string, category: ExampleQuery['category']) => void;
   category?: ExampleQuery['category'];
+  /** Staff get how-to suggestions; exhibitor questions (my dog, my results) do not fit them. */
+  isStaff?: boolean;
 }
 
 const CATEGORIES: ExampleQuery['category'][] = ['rules', 'show-data', 'app-help'];
 
-export function AskQExampleQueries({ onSelectQuery, category }: AskQExampleQueriesProps) {
-  const categories = category ? [category] : CATEGORIES;
+export function AskQExampleQueries({
+  onSelectQuery,
+  category,
+  isStaff = false,
+}: AskQExampleQueriesProps) {
+  const categories = isStaff ? CATEGORIES.slice(2) : category ? [category] : CATEGORIES;
+  const source = isStaff ? STAFF_EXAMPLE_QUERIES : EXAMPLE_QUERIES;
 
   return (
     <div className="space-y-4">
       {categories.map(currentCategory => {
-        const queries = EXAMPLE_QUERIES.filter(q => q.category === currentCategory);
+        const queries = source.filter(q => q.category === currentCategory);
 
         return (
           <div key={currentCategory}>

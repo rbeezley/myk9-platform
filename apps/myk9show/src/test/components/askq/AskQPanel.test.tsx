@@ -6,9 +6,13 @@ import { TERA_WORKING_COPY } from '@/components/askq/askq-config';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { act } from '@testing-library/react';
 import * as askqService from '@/services/askqService';
+import { createSupportTicket } from '@/features/support/supportTickets';
 import { ASKQ_HISTORY_MAX_ENTRIES, saveAskQHistory } from '@/hooks/askqHistory';
 
 vi.mock('@/services/askqService');
+vi.mock('@/features/support/supportTickets', () => ({
+  createSupportTicket: vi.fn(),
+}));
 
 const authState = vi.hoisted(() => ({
   user: { id: 'user-1' } as { id: string } | null,
@@ -137,6 +141,99 @@ describe('AskQPanel', () => {
 
     expect(screen.queryByText('Two unresolved operator alerts.')).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('Ask about the selected rulebook...')).toBeInTheDocument();
+  });
+
+  describe('reaching a person when AskQ cannot answer', () => {
+    async function askOnShowPage(text: string) {
+      act(() => useAskQPanelStore.getState().open());
+      const view = render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: text } });
+      await view.user.click(screen.getByRole('button', { name: 'Send query' }));
+      return view;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('offers Send this to a person after an AskQ error and carries the question into the note', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(new Error('down'));
+      vi.mocked(createSupportTicket).mockResolvedValue({ id: 'ticket-1' });
+      const { user } = await askOnShowPage('Why is my scoresheet blank?');
+
+      await user.click(await screen.findByRole('button', { name: 'Send this to a person' }));
+
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue(
+        'Why is my scoresheet blank?'
+      );
+      expect(askqService.sendAskQQuery).toHaveBeenCalledTimes(1);
+
+      await user.click(screen.getByRole('button', { name: /Create ticket/i }));
+      await waitFor(() =>
+        expect(createSupportTicket).toHaveBeenCalledWith(
+          expect.objectContaining({ ownerId: 'user-1', body: 'Why is my scoresheet blank?' })
+        )
+      );
+    });
+
+    it('still offers Send this to a person when the daily limit is reached, without asking AskQ', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(
+        new askqService.RateLimitError(0, 10, '2026-11-15T00:00:00.000Z')
+      );
+      const { user } = await askOnShowPage('Need a human');
+
+      await user.click(await screen.findByRole('button', { name: 'Send this to a person' }));
+
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue('Need a human');
+      expect(askqService.sendAskQQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('says plainly it could not be sent offline, keeps the note and sends nothing', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(new Error('down'));
+      const { user } = await askOnShowPage('Judge is missing');
+      await user.click(await screen.findByRole('button', { name: 'Send this to a person' }));
+
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      await user.click(screen.getByRole('button', { name: /Create ticket/i }));
+
+      expect(await screen.findByText(/You're offline, so this could not be sent/)).toBeVisible();
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue(
+        'Judge is missing'
+      );
+      expect(createSupportTicket).not.toHaveBeenCalled();
+    });
+
+    it('offers Send this to a person when App Help itself fails', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(new Error('down'));
+      act(() => useAskQPanelStore.getState().open());
+      const { user } = render(<AskQPanel />, { initialRoute: '/secretary/dashboard' });
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Print help' } });
+      await user.click(screen.getByRole('button', { name: 'Send query' }));
+
+      await user.click(await screen.findByRole('button', { name: 'Send this to a person' }));
+
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue('Print help');
+    });
+  });
+
+  describe('suggestions by role', () => {
+    it('shows a secretary how-to suggestions and no exhibitor questions', () => {
+      authState.userWithRoles.roles = ['secretary'];
+      act(() => useAskQPanelStore.getState().open());
+      render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+
+      expect(screen.getByText('How do I add a late entry?')).toBeInTheDocument();
+      expect(screen.queryByText('How did my dog do today?')).not.toBeInTheDocument();
+      expect(screen.queryByText('Show me the trial schedule')).not.toBeInTheDocument();
+    });
+
+    it('keeps the exhibitor suggestions for an exhibitor', () => {
+      act(() => useAskQPanelStore.getState().open());
+      render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+
+      expect(screen.getByText('How did my dog do today?')).toBeInTheDocument();
+      expect(screen.queryByText('How do I add a late entry?')).not.toBeInTheDocument();
+    });
   });
 
   it('shows example queries in empty state', () => {

@@ -190,7 +190,7 @@ describe('ShowEditBasicInfoTab — unauthorized club hint (MYK9-1387)', () => {
     mockAuth(null);
     renderTab('draft');
     expect(
-      screen.getByText(/publishing opens once myK9 authorizes this club/i)
+      screen.getByText(/publishing opens once myK9Show approves this club/i)
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/publish from the status badge on the show page/i)

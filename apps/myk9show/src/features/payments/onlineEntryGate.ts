@@ -144,7 +144,7 @@ export const PUBLISH_GATE_ERRCODE = 'MK003';
 export const PUBLISH_GATE_ERRCODE_UNAUTHORIZED = 'MK004';
 
 export const CLUB_UNAUTHORIZED_MESSAGE =
-  "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.";
+  'This club is waiting for myK9Show approval. Shows can be built now and published once the club is approved.';
 
 // MYK9-716: a draft may have no entry window, but publishing requires one —
 // both dates set, and the window opening before it closes. Checked LAST by

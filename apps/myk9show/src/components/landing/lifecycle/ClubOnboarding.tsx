@@ -1,12 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { ONBOARDING_ORGANIZATIONS } from '@/data/organizations';
 import {
-  submitOnboardingRequest,
-  getMyOnboardingRequests,
-  type OnboardingRequest,
-} from '@/services/database/onboarding-requests';
+  ClubNameTakenError,
+  requestNewClub,
+} from '@/services/database/club-access-requests.request';
+import {
+  clearClubOnboardingDraft,
+  readClubOnboardingDraft,
+  saveClubOnboardingDraft,
+} from './clubOnboardingDraft';
+import { buildClubOnboardingNote } from './clubOnboardingNote';
 import { logger } from '@/services/LoggingService';
 import {
   CLUB_NUMBER_HELP_TEXT,
@@ -19,17 +23,18 @@ import {
   type ClubRegistryNumberInputs,
 } from '@/utils/clubRegistryNumbers';
 import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
-import { buildSignInPathForRedirect, buildSignUpPathForRedirect } from '@/pages/SignInPage.helpers';
+import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
 
-// Club-onboarding lead form for the marketing homepage. Restyled onto the
-// editorial l-* system so it reads as one page with the lifecycle landing
-// page. It reuses the `.l-waitlist` form styles (inputs, labels,
-// buttons) and adds only a thin `.l-onboard` section shell in landing.css.
+// Club-onboarding form for the marketing homepage. Restyled onto the editorial
+// l-* system so it reads as one page with the lifecycle landing page. It reuses
+// the `.l-waitlist` form styles (inputs, labels, buttons) and adds only a thin
+// `.l-onboard` section shell in landing.css.
 //
-// A submission writes a `pending` row to `onboarding_requests`; the team
-// works the pending → contacted → onboarded queue by hand. The form is
-// idempotent per user: an existing pending/contacted request shows a
-// status card instead of the form.
+// MYK9-2046: submitting creates the club at once, waiting for myK9Show
+// approval, and makes the signed-in requester its club admin and secretary
+// (request_new_club, one transaction). Nothing is public until the owner
+// approves. A visitor who is not signed in is sent to sign in first and comes
+// back to the form with what she typed.
 
 export function ClubOnboarding() {
   const { user } = useAuthContext();
@@ -49,10 +54,9 @@ export function ClubOnboarding() {
 
   // UI state
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [createdClubId, setCreatedClubId] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [existingRequest, setExistingRequest] = useState<OnboardingRequest | null>(null);
-  const [checkingExisting, setCheckingExisting] = useState(false);
+  const [nameTaken, setNameTaken] = useState(false);
 
   // Required-field and format errors sit under their own field; `error` keeps only
   // what belongs to no field (a failed submission).
@@ -69,7 +73,25 @@ export function ClubOnboarding() {
   const { shown, fail } = useSubmitFieldErrors(errors);
   const clubNumberError = shown[firstClubNumberId];
 
-  // Pre-fill from auth session (only once to avoid overwriting user edits)
+  // Bring back what a signed-out visitor typed before she was sent to sign in.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    const draft = readClubOnboardingDraft();
+    if (!draft) return;
+    setClubName(draft.clubName);
+    setOrganization(draft.organization);
+    setClubNumbers(draft.clubNumbers);
+    setContactName(draft.contactName);
+    setContactEmail(draft.contactEmail);
+    setContactPhone(draft.contactPhone);
+    setFirstShowDate(draft.firstShowDate);
+    setMessage(draft.message);
+  }, []);
+
+  // Pre-fill from the auth session, only into fields still empty (never over
+  // what the visitor typed or a restored draft).
   const prefilled = useRef(false);
   useEffect(() => {
     if (user && !prefilled.current) {
@@ -78,154 +100,85 @@ export function ClubOnboarding() {
       const firstName = (meta?.firstName as string) ?? (meta?.first_name as string) ?? '';
       const lastName = (meta?.lastName as string) ?? (meta?.last_name as string) ?? '';
       const fullName = [firstName, lastName].filter(Boolean).join(' ');
-      if (fullName) setContactName(fullName);
-      if (user.email) setContactEmail(user.email);
+      if (fullName) setContactName(current => current || fullName);
+      if (user.email) setContactEmail(current => current || (user.email ?? ''));
     }
   }, [user]);
 
-  // Check for existing pending/contacted request
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    setCheckingExisting(true);
-
-    getMyOnboardingRequests()
-      .then(requests => {
-        if (cancelled) return;
-        const active = requests.find(r => r.status === 'pending' || r.status === 'contacted');
-        setExistingRequest(active ?? null);
-      })
-      .catch(err => {
-        if (!cancelled) {
-          logger.warn('Failed to check existing onboarding requests', 'onboarding', {}, err);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setCheckingExisting(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  const handleSignIn = useCallback(() => {
-    navigate(buildSignInPathForRedirect('/?onboarding=true#get-started'));
-  }, [navigate]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     if (fail()) return;
+
+    if (!user) {
+      saveClubOnboardingDraft({
+        clubName,
+        organization,
+        clubNumbers,
+        contactName,
+        contactEmail,
+        contactPhone,
+        firstShowDate,
+        message,
+      });
+      navigate(buildSignInPathForRedirect('/?onboarding=true#get-started'));
+      return;
+    }
 
     setSubmitting(true);
     setError('');
+    setNameTaken(false);
 
     try {
-      await submitOnboardingRequest({
-        authUserId: user.id,
+      const result = await requestNewClub({
         clubName: clubName.trim(),
-        organization,
         clubNumbers: normalizeClubRegistryNumbers(clubNumbers),
-        contactName: contactName.trim(),
-        contactEmail: contactEmail.trim(),
-        contactPhone: contactPhone.trim() || undefined,
-        firstShowDate: firstShowDate || undefined,
-        message: message.trim() || undefined,
+        note: buildClubOnboardingNote({
+          organization,
+          contactName,
+          contactEmail,
+          contactPhone,
+          firstShowDate,
+          message,
+        }),
       });
-      setSubmitted(true);
+      clearClubOnboardingDraft();
+      setCreatedClubId(result.clubId);
     } catch (err) {
-      const isAuthError = err instanceof Error && /401|403|JWT|auth/i.test(err.message);
-      const isDuplicateRequest =
-        typeof err === 'object' && err !== null && 'code' in err && err.code === '23505';
-      if (isDuplicateRequest) {
-        setError('You already have a request under review.');
-      } else if (isAuthError) {
-        setError('Your session has expired. Please sign in again.');
+      if (err instanceof ClubNameTakenError) {
+        setNameTaken(true);
       } else {
-        setError("We couldn't send your request. Try again.");
+        const isAuthError = err instanceof Error && /401|403|JWT|auth/i.test(err.message);
+        setError(
+          isAuthError
+            ? 'Your session has expired. Please sign in again.'
+            : "We couldn't add your club. Try again."
+        );
       }
-      logger.error('Onboarding request submission failed', 'onboarding', {}, err as Error);
+      logger.error('Club request failed', 'onboarding', {}, err as Error);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // --- Card body: switches on auth / request state ---
+  // --- Card body: the form, or the confirmation once the club exists ---
   let card: React.ReactNode;
 
-  if (!user) {
-    // Sign-in gate for unauthenticated visitors.
+  if (createdClubId) {
     card = (
-      <div className="l-onboard-card">
-        {/* Visual-only title — a <p>, not <h*>, to avoid a heading-level
-            skip under the section's own <h2>. */}
-        <p className="l-success-title">Create your free account</p>
+      <div className="l-onboard-card" role="status" aria-live="polite">
+        <p className="l-success-title">Your club is waiting for myK9Show approval.</p>
         <p>
-          Requesting club onboarding takes a myK9Show account, and the account is free. Sign in or
-          sign up, then your request form will be ready when you return.
+          You can start now: build a draft show and connect the club&apos;s bank account. Nothing is
+          public until we approve the club, usually within a day.
         </p>
         <div className="l-submit-row">
-          <button
-            type="button"
-            className="l-btn l-btn-primary l-btn-lg min-h-11"
-            onClick={handleSignIn}
+          <Link
+            to={`/clubs/${createdClubId}`}
+            className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
           >
-            Sign in to get started
-          </button>
+            Open your club
+          </Link>
         </div>
-        <p className="l-fineprint">
-          Don't have an account?{' '}
-          <button
-            type="button"
-            className="l-btn-text inline-flex min-h-11 items-center"
-            onClick={() => navigate(buildSignUpPathForRedirect('/?onboarding=true#get-started'))}
-          >
-            Create one for free
-          </button>
-        </p>
-        <a
-          href="/training/sign-up-and-sign-in.mp4"
-          target="_blank"
-          rel="noopener"
-          className="l-btn-text inline-flex min-h-11 items-center"
-        >
-          Watch how to create an account (55 sec)
-        </a>
-      </div>
-    );
-  } else if (checkingExisting) {
-    card = (
-      <div className="l-onboard-card" aria-busy="true">
-        <p className="l-onboard-loading">Checking request status…</p>
-      </div>
-    );
-  } else if (existingRequest) {
-    const submittedDate = new Date(existingRequest.createdAt).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    card = (
-      <div className="l-onboard-card" role="status" aria-live="polite">
-        <p className="l-success-title">Request under review</p>
-        <p>
-          Your onboarding request for <strong>{existingRequest.clubName}</strong> is being reviewed.
-        </p>
-        <p className="l-fineprint">
-          Submitted {submittedDate} · Status:{' '}
-          <span className="l-onboard-status">{existingRequest.status}</span>
-        </p>
-      </div>
-    );
-  } else if (submitted) {
-    card = (
-      <div className="l-onboard-card" role="status" aria-live="polite">
-        <p className="l-success-title">Request submitted.</p>
-        <p>
-          Thanks for your interest. We'll review your request and get back to you, usually within 24
-          hours.
-        </p>
       </div>
     );
   } else {
@@ -241,12 +194,21 @@ export function ClubOnboarding() {
               className="l-pill-input"
               type="text"
               value={clubName}
-              onChange={e => setClubName(e.target.value)}
+              onChange={e => {
+                setClubName(e.target.value);
+                setNameTaken(false);
+              }}
               placeholder="e.g. Tri-State Kennel Club"
               required
               {...fieldErrorControlProps('onb-club-name', shown['onb-club-name'])}
             />
             <FieldError field="onb-club-name" message={shown['onb-club-name']} />
+            {nameTaken && (
+              <p className="l-error" role="alert" data-testid="club-name-taken">
+                A club with this name is already on myK9Show. If it&apos;s yours, ask its admin to
+                add you, or <a href="mailto:support@myk9show.com">email us</a>.
+              </p>
+            )}
           </div>
 
           <div>
@@ -262,9 +224,9 @@ export function ClubOnboarding() {
               {...fieldErrorControlProps('onb-organization', shown['onb-organization'])}
             >
               <option value="">Select organization…</option>
-              {ONBOARDING_ORGANIZATIONS.map(org => (
-                <option key={org.value} value={org.value}>
-                  {org.label}
+              {CLUB_REGISTRY_ORGS.map(org => (
+                <option key={org} value={org}>
+                  {org}
                 </option>
               ))}
             </select>
@@ -391,11 +353,20 @@ export function ClubOnboarding() {
             className="l-btn l-btn-primary l-btn-lg min-h-11"
             disabled={submitting}
           >
-            {submitting ? 'Submitting…' : 'Submit request'}
+            {submitting ? 'Adding your club…' : user ? 'Add my club' : 'Sign in to add my club'}
           </button>
         </div>
         <p className="l-fineprint">
-          No obligation. This just starts a conversation. We'll only email you about your request.
+          {user
+            ? 'Your club is created right away. We review every new club before anything goes public.'
+            : 'You will sign in or create a free account first, then come straight back to this form.'}
+        </p>
+        <p className="l-fineprint">
+          Is your club already on myK9Show? Ask its admin to add you, or{' '}
+          <Link to="/request-access" className="l-btn-text inline-flex min-h-11 items-center">
+            find your club
+          </Link>
+          .
         </p>
       </form>
     );
@@ -409,8 +380,8 @@ export function ClubOnboarding() {
           Add your club to <em>myK9Show</em>.
         </h2>
         <p>
-          Adding your club is a quick request, not a migration. Tell us who you are and we'll get
-          you set up, across AKC, UKC, and ASCA.
+          Tell us about your club and start building your first show right away. We review every new
+          club before anything goes public. Works for AKC, UKC, and ASCA.
         </p>
         {card}
       </div>

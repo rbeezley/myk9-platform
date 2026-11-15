@@ -14,7 +14,8 @@
  *     passcode session,
  *   - the current route is not exempt (auth, legal, and the show-day/payment
  *     routes in `@/utils/sensitiveRoutes`), and
- *   - there is no profile row, or it has no onboarding_completed_at.
+ *   - there is no profile row, or it has no onboarding_completed_at, and
+ *   - she has no saved home page club-form draft waiting for her return (MYK9-2046).
  */
 
 import React, { useEffect } from 'react';
@@ -22,6 +23,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { holdsStaffRole } from '@/pages/onboarding/onboardingSteps';
+import { readClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 import { isExhibitorOwnPagePath, isOnboardingExemptPath } from './onboardingExemptPaths';
 
 interface ExhibitorOnboardingCheckerProps {
@@ -49,6 +51,10 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // Her own pages are never blocked (MYK9-2028); My Shows offers set-up instead.
     if (isExhibitorOwnPagePath(location.pathname)) return;
     if (profileError) return;
+    // MYK9-2046: a visitor who typed the home page club form and was sent to sign in
+    // comes back to finish it. The first-run profile step waits until the club exists:
+    // submitting makes her club admin and secretary, which exempts her anyway.
+    if (readClubOnboardingDraft()) return;
 
     // Anonymous (passcode ringside) sessions are NOT accounts. As of migration
     // 20260625000000 they have no exhibitor_profiles row by design, and they

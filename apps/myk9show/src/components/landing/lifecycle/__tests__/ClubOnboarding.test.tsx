@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { ClubOnboarding } from '../ClubOnboarding';
 import { BANNED_COPY } from '../lifecycleStories';
 
 const mockSubmit = vi.fn();
-const mockGetRequests = vi.fn();
+const mockNavigate = vi.hoisted(() => vi.fn());
 const auth = vi.hoisted(() => ({
   user: null as null | {
     id: string;
@@ -22,10 +22,18 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth,
 }));
 
-vi.mock('@/services/database/onboarding-requests', () => ({
-  submitOnboardingRequest: (...args: unknown[]) => mockSubmit(...args),
-  getMyOnboardingRequests: (...args: unknown[]) => mockGetRequests(...args),
+vi.mock('react-router-dom', async importOriginal => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
+  useNavigate: () => mockNavigate,
 }));
+
+vi.mock('@/services/database/club-access-requests.request', () => {
+  class ClubNameTakenError extends Error {}
+  return {
+    ClubNameTakenError,
+    requestNewClub: (...args: unknown[]) => mockSubmit(...args),
+  };
+});
 
 vi.mock('@/services/LoggingService', () => ({
   logger: { warn: vi.fn(), error: vi.fn() },
@@ -43,37 +51,103 @@ function fillRequiredFields() {
 }
 
 function submitForm() {
-  fireEvent.submit(screen.getByRole('button', { name: /submit request/i }).closest('form')!);
+  fireEvent.submit(screen.getByRole('button', { name: /add my club/i }).closest('form')!);
 }
+
+const created = { clubId: 'club-9', requestId: 'request-9', alreadyRequested: false };
 
 describe('ClubOnboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     auth.user = signedInUser;
-    mockGetRequests.mockResolvedValue([]);
   });
 
-  it('shows a friendly message when an active request wins a concurrent submit', async () => {
-    mockSubmit.mockRejectedValue({ code: '23505', message: 'duplicate key value' });
+  it('creates the club and points her at it, waiting for approval', async () => {
+    mockSubmit.mockResolvedValue(created);
     render(<ClubOnboarding />, { initialRoute: '/' });
-
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
-    );
     fillRequiredFields();
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
     submitForm();
 
-    await waitFor(() =>
-      expect(screen.getByText(/already have a request under review/i)).toBeInTheDocument()
+    expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
+    expect(screen.queryByText(/unauthorized/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open your club/i })).toHaveAttribute(
+      'href',
+      '/clubs/club-9'
     );
+    expect(mockSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clubName: 'Tri-State Kennel Club',
+        clubNumbers: { AKC: '123' },
+        note: expect.stringContaining('Organization: AKC'),
+      })
+    );
+  });
+
+  it('refuses a taken club name in plain words with a way to reach us', async () => {
+    const { ClubNameTakenError } = await import('@/services/database/club-access-requests.request');
+    mockSubmit.mockRejectedValue(new ClubNameTakenError());
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    const refusal = await screen.findByTestId('club-name-taken');
+    expect(refusal).toHaveTextContent(
+      "A club with this name is already on myK9Show. If it's yours, ask its admin to add you, or email us."
+    );
+    expect(within(refusal).getByRole('link', { name: /email us/i })).toHaveAttribute(
+      'href',
+      'mailto:support@myk9show.com'
+    );
+    expect(screen.queryByText(/waiting for myK9Show approval/i)).not.toBeInTheDocument();
+  });
+
+  it('says how to join a club already on myK9Show and offers only AKC, UKC and ASCA', () => {
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    expect(screen.getByText(/already on myK9Show\? Ask its admin to add you/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /find your club/i })).toHaveAttribute(
+      'href',
+      '/request-access'
+    );
+    const options = within(screen.getByLabelText(/organization/i)).getAllByRole('option');
+    expect(options.map(o => o.textContent)).toEqual(['Select organization…', 'AKC', 'UKC', 'ASCA']);
+  });
+
+  it('sends a signed-out visitor to sign in and keeps what she typed', () => {
+    auth.user = null;
+    const first = render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-9' } });
+    fireEvent.submit(
+      screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
+    );
+
+    expect(mockSubmit).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(String(mockNavigate.mock.calls[0][0])).toContain('/sign-in');
+
+    first.unmount();
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    expect(screen.getByLabelText(/club name/i)).toHaveValue('Tri-State Kennel Club');
+    expect(screen.getByLabelText('UKC club number')).toHaveValue('U-9');
+  });
+
+  it('keeps a failed submission in the bottom line', async () => {
+    mockSubmit.mockRejectedValue(new Error('boom'));
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+    expect(await screen.findByText("We couldn't add your club. Try again.")).toBeInTheDocument();
   });
 
   describe('club numbers (MYK9-1235)', () => {
     async function openForm() {
       render(<ClubOnboarding />, { initialRoute: '/' });
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /add my club/i })).toBeInTheDocument()
       );
       fillRequiredFields();
     }
@@ -96,7 +170,7 @@ describe('ClubOnboarding', () => {
     });
 
     it('submits an AKC-only club with just that number', async () => {
-      mockSubmit.mockResolvedValue(undefined);
+      mockSubmit.mockResolvedValue(created);
       await openForm();
       fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: ' 4521 ' } });
       submitForm();
@@ -108,7 +182,7 @@ describe('ClubOnboarding', () => {
     });
 
     it('submits a UKC-only club with just that number', async () => {
-      mockSubmit.mockResolvedValue(undefined);
+      mockSubmit.mockResolvedValue(created);
       await openForm();
       fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-9' } });
       submitForm();
@@ -119,7 +193,7 @@ describe('ClubOnboarding', () => {
     });
 
     it('sends every number entered when a club has two', async () => {
-      mockSubmit.mockResolvedValue(undefined);
+      mockSubmit.mockResolvedValue(created);
       await openForm();
       fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '4521' } });
       fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-9' } });

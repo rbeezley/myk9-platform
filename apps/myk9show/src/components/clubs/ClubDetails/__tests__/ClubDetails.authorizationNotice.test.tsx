@@ -1,5 +1,5 @@
 /**
- * MYK9-1314: the Unauthorized badge and "Pending myK9 authorization" notice are for club staff
+ * MYK9-1314: the "Waiting for myK9Show approval" badge and notice are for club staff
  * (MYK9-855). Goes through the real hook feeding the real ClubHeader, asserting on the DOM.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -104,7 +104,9 @@ describe('unauthorized club notice is staff-only (MYK9-1314)', () => {
       [clubScope(CLUB_A, UserRole.CLUB_ADMIN)]
     );
     renderPage();
-    expect(await screen.findByText(/Pending myK9 authorization/)).toBeInTheDocument();
+    expect(await screen.findByTestId('club-unauthorized-notice')).toHaveTextContent(
+      /Waiting for myK9Show approval/
+    );
     expect(screen.getByTestId('club-unauthorized-badge')).toBeInTheDocument();
   });
 
@@ -115,7 +117,9 @@ describe('unauthorized club notice is staff-only (MYK9-1314)', () => {
       [clubScope(CLUB_A, UserRole.SECRETARY)]
     );
     renderPage();
-    expect(await screen.findByText(/Pending myK9 authorization/)).toBeInTheDocument();
+    expect(await screen.findByTestId('club-unauthorized-notice')).toHaveTextContent(
+      /Waiting for myK9Show approval/
+    );
     expect(screen.getByTestId('club-unauthorized-badge')).toBeInTheDocument();
   });
 
@@ -123,7 +127,9 @@ describe('unauthorized club notice is staff-only (MYK9-1314)', () => {
     mockAuth.user = { id: 'auth-uid' };
     mockAuth.userWithRoles = userWith([UserRole.SECRETARY], [clubScope(CLUB_A, 'trial_secretary')]);
     renderPage();
-    expect(await screen.findByText(/Pending myK9 authorization/)).toBeInTheDocument();
+    expect(await screen.findByTestId('club-unauthorized-notice')).toHaveTextContent(
+      /Waiting for myK9Show approval/
+    );
     expect(screen.getByTestId('club-unauthorized-badge')).toBeInTheDocument();
   });
 
@@ -131,7 +137,9 @@ describe('unauthorized club notice is staff-only (MYK9-1314)', () => {
     mockAuth.user = { id: 'auth-uid' };
     mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN]);
     renderPage();
-    expect(await screen.findByText(/Pending myK9 authorization/)).toBeInTheDocument();
+    expect(await screen.findByTestId('club-unauthorized-notice')).toHaveTextContent(
+      /Waiting for myK9Show approval/
+    );
     expect(screen.getByTestId('club-unauthorized-badge')).toBeInTheDocument();
   });
 
@@ -151,8 +159,7 @@ describe('unauthorized club notice is staff-only (MYK9-1314)', () => {
     renderPage();
     // Positive control: the hero rendered, so absence is not an empty page.
     expect(await screen.findByRole('heading', { name: 'Heartland Club' })).toBeInTheDocument();
-    expect(screen.queryByText(/Pending myK9 authorization/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Unauthorized/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Waiting for myK9Show approval/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('club-unauthorized-badge')).not.toBeInTheDocument();
   });
 });

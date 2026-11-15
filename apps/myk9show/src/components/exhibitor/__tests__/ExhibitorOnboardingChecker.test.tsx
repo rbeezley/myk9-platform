@@ -3,6 +3,10 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ExhibitorOnboardingChecker } from '../ExhibitorOnboardingChecker';
 import { UserRole } from '@/types/auth-types';
+import {
+  clearClubOnboardingDraft,
+  saveClubOnboardingDraft,
+} from '@/components/landing/lifecycle/clubOnboardingDraft';
 
 // Mock hooks
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -88,6 +92,7 @@ describe('ExhibitorOnboardingChecker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname = '/exhibitor/dashboard';
+    sessionStorage.clear();
   });
 
   it('renders children when profile exists and onboarding is complete', () => {
@@ -105,6 +110,28 @@ describe('ExhibitorOnboardingChecker', () => {
 
   it('redirects when profile exists but onboarding is not complete', () => {
     setupMocks({ onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
+
+  // MYK9-2046: she typed the home page club form, signed in and came back to finish it.
+  it('does not redirect while a club-form draft is waiting, and does once it is gone', () => {
+    mockPathname = '/';
+    saveClubOnboardingDraft({
+      clubName: 'Tri-State Kennel Club',
+      organization: 'AKC',
+      clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
+      contactName: 'Pat',
+      contactEmail: 'pat@example.com',
+      contactPhone: '',
+      firstShowDate: '',
+      message: '',
+    });
+    setupMocks({ hasProfile: false, onboardingCompleted: false });
+    renderChecker().unmount();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    clearClubOnboardingDraft();
     renderChecker();
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });

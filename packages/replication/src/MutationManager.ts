@@ -538,17 +538,17 @@ export class MutationManager {
     }
   }
 
-  /** Stop this row's queued UPDATEs carrying `fields` the server won (MYK9-2010). */
-  async dropQueuedFieldsForRow(
+  /** This row's queued UPDATEs carry the server's value for `values` (MYK9-2010). */
+  async echoServerFieldsInQueue(
     tableName: string,
     rowId: string,
-    fields: readonly string[]
+    values: Readonly<Record<string, unknown>>
   ): Promise<void> {
     const authUserId = await this.requireCurrentUserId();
-    const changed = await this.queueStore.dropQueuedFieldsForRow(
+    const changed = await this.queueStore.echoServerFieldsInQueue(
       tableName,
       rowId,
-      fields,
+      values,
       authUserId
     );
     if (changed > 0) await this.backupStore.writeCurrent();

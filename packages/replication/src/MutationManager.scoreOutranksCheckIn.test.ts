@@ -97,12 +97,14 @@ describe('a check-in change never holds a queued score (MYK9-2010)', () => {
 
     expect(conflicts).toHaveLength(0);
     expect(serverRow).toMatchObject({ status: 'pulled', final_placement: 1, version: 9 });
-    expect(updates.filter(call => call.applied).every(call => !('status' in call.data))).toBe(true);
+    expect(updates.filter(call => call.applied).every(call => call.data.status === 'pulled')).toBe(
+      true
+    );
     expect(await pendingFor(tableName)).toHaveLength(0);
     expect((await table.getReplicatedRow('1'))?.syncStatus).not.toBe('conflict');
   });
 
-  it('last queued write dropped: the row is clean and the other device status stands', async () => {
+  it('the only queued write echoes the other device status and the row goes clean on upload', async () => {
     const serverRow: ServerRow = { status: 'pulled', final_placement: null, version: 8 };
     const adapter = { ...adapterFor(serverRow), dirtyRowComparePolicy: comparePolicy };
     const table = new RefetchingEntriesTable(tableName, adapter);
@@ -134,12 +136,16 @@ describe('a check-in change never holds a queued score (MYK9-2010)', () => {
     vi.stubGlobal('window', { dispatchEvent: () => true });
 
     await manager.uploadPendingMutations();
-    await vi.waitFor(async () => expect(await pendingFor(tableName)).toHaveLength(0));
+    await vi.waitFor(async () => expect((await pendingFor(tableName))[0]?.serverVersion).toBe(8));
+    // Reconcile never deletes the write or marks the row clean itself.
+    expect(await pendingFor(tableName)).toMatchObject([{ data: { id: '1', status: 'pulled' } }]);
+    expect((await table.getReplicatedRow('1'))?.isDirty).toBe(true);
 
-    const row = await table.getReplicatedRow('1');
-    expect(row?.isDirty).toBe(false);
-    expect(row?.data).toMatchObject({ status: 'pulled' });
-    expect(serverRow).toMatchObject({ status: 'pulled', version: 8 });
+    afterBackoff();
+    await manager.uploadPendingMutations();
+    await vi.waitFor(async () => expect(await pendingFor(tableName)).toHaveLength(0));
+    expect(serverRow.status).toBe('pulled');
+    await vi.waitFor(async () => expect((await table.getReplicatedRow('1'))?.isDirty).toBe(false));
   });
 
   it('a pull settled before a score collision survives keeping my score', async () => {
@@ -170,10 +176,12 @@ describe('a check-in change never holds a queued score (MYK9-2010)', () => {
     expect(await pendingFor(tableName)).toHaveLength(0);
   });
 
-  it('an edit made after the queue was judged empty keeps the row dirty', async () => {
-    const serverRow: ServerRow = { status: 'checked-in', final_placement: null, version: 3 };
-    const table = new RefetchingEntriesTable(tableName, adapterFor(serverRow));
-    manager = startStaleRowManager(table, makeServer(serverRow).supabase).manager;
+  it('an edit made after reconcile is not marked clean by the echo upload', async () => {
+    const serverRow: ServerRow = { status: 'pulled', final_placement: null, version: 8 };
+    const adapter = { ...adapterFor(serverRow), dirtyRowComparePolicy: comparePolicy };
+    const table = new RefetchingEntriesTable(tableName, adapter);
+    const server = makeServer(serverRow);
+    manager = startStaleRowManager(table, server.supabase).manager;
     await table.set(
       '1',
       { id: '1', status: 'checked-in', finalPlacement: null },
@@ -182,14 +190,50 @@ describe('a check-in change never holds a queued score (MYK9-2010)', () => {
       3
     );
     await table.set('1', { id: '1', status: 'in-ring', finalPlacement: null }, true);
-    const judgedClean = (await table.getReplicatedRow('1'))?.version;
-    // The judge saves a score between the empty-queue check and the mark.
-    await table.set('1', { id: '1', status: 'completed', finalPlacement: 1 }, true);
+    const db = await databaseManager.getDatabase('test');
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+      id: `mut-ring-${tableName}`,
+      authUserId: 'stale-row-refetch-user',
+      tableName,
+      operation: 'UPDATE',
+      rowId: '1',
+      data: { id: '1', status: 'in-ring' },
+      explicitDataKeys: ['id', 'status'],
+      timestamp: Date.now(),
+      retries: 0,
+      status: 'pending',
+      serverVersion: 3,
+    } as PendingMutation);
+    vi.stubGlobal('window', { dispatchEvent: () => true });
+    await manager.uploadPendingMutations();
+    await vi.waitFor(async () => expect((await pendingFor(tableName))[0]?.serverVersion).toBe(8));
 
-    await table.markAsSynced('1', judgedClean);
-    expect((await table.getReplicatedRow('1'))?.isDirty).toBe(true);
+    // The judge saves a score after the reconcile, before the echo uploads. Its write is queued
+    // and held back (not yet due), so only the echo goes out.
+    await table.set('1', { id: '1', status: 'pulled', finalPlacement: 1 }, true);
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+      id: `mut-score-late-${tableName}`,
+      authUserId: 'stale-row-refetch-user',
+      tableName,
+      operation: 'UPDATE',
+      rowId: '1',
+      data: { id: '1', final_placement: 1 },
+      explicitDataKeys: ['id', 'final_placement'],
+      timestamp: Date.now() + 1,
+      retries: 0,
+      status: 'pending',
+      serverVersion: 8,
+      nextRetryAt: Date.now() + 3_600_000,
+    } as PendingMutation);
+    afterBackoff();
+    await manager.uploadPendingMutations();
+    await vi.waitFor(async () =>
+      expect((await pendingFor(tableName)).map(m => m.id)).toEqual([`mut-score-late-${tableName}`])
+    );
 
-    await table.markAsSynced('1', (await table.getReplicatedRow('1'))?.version);
-    expect((await table.getReplicatedRow('1'))?.isDirty).toBe(false);
+    // The echo landed; the unsent score keeps the row dirty and its data is not overwritten.
+    const row = await table.getReplicatedRow('1');
+    expect(row?.isDirty).toBe(true);
+    expect(row?.data).toMatchObject({ finalPlacement: 1 });
   });
 });

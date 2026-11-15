@@ -1016,7 +1016,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    *   from PR #341. Without this, every subsequent replication pull takes
    *   the wasteful mergeDirtyRow branch instead of normal resolveConflict.
    */
-  async markAsSynced(id: string, onlyIfVersion?: number): Promise<void> {
+  async markAsSynced(id: string): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
 
@@ -1030,13 +1030,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     if (!existingRow || !existingRow.isDirty) {
       // No-op: row absent, or already synced. End the transaction cleanly.
-      await tx.done;
-      return;
-    }
-
-    // MYK9-2010: the caller judged the row clean at `onlyIfVersion`. A local edit since then bumped
-    // the version (and queued a write), so it must stay dirty; the check shares this transaction.
-    if (onlyIfVersion !== undefined && existingRow.version !== onlyIfVersion) {
       await tx.done;
       return;
     }
@@ -1122,8 +1115,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       mergedData?: T;
       /** Fields to take from `remote` over the merged value (MYK9-1104). */
       adoptRemoteFields?: readonly string[];
-      /** Fields the server won (MYK9-2010): queued writes stop carrying them. */
-      dropQueuedFields?: readonly string[];
+      /** Fields the server won (MYK9-2010) with its values: queued writes carry these instead. */
+      echoQueuedFields?: Readonly<Record<string, unknown>>;
       /** The local row `version` the conflict check read. Adopting is skipped
        *  (row left dirty for the next pass) if the row has moved since. */
       detectedAtVersion?: number;
@@ -1214,17 +1207,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       await this.reconcileQueuedMutations(normalizedId, params.remoteServerVersion, rebuiltData);
     }
 
-    if (params.dropQueuedFields?.length && this.mutationManager?.dropQueuedFieldsForRow) {
-      await this.mutationManager.dropQueuedFieldsForRow(
+    if (params.echoQueuedFields && Object.keys(params.echoQueuedFields).length > 0) {
+      // The write stays queued and uploads an echo; the row goes clean when it is acknowledged.
+      await this.mutationManager?.echoServerFieldsInQueue?.(
         this.tableName,
         normalizedId,
-        params.dropQueuedFields
+        params.echoQueuedFields
       );
-      // Dropping the last queued write leaves nothing to upload and mark the row synced.
-      const left = await this.mutationManager
-        .getPendingMutationsForRow(this.tableName, normalizedId)
-        .catch(() => [undefined]);
-      if (left.length === 0) await this.markAsSynced(normalizedId, row.version);
     }
 
     this.logger.log(
@@ -1302,7 +1291,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         )[field];
       }
       if (serverWon.length > 0) {
-        await this.mutationManager?.dropQueuedFieldsForRow?.(this.tableName, id, serverWon);
+        await this.mutationManager?.echoServerFieldsInQueue?.(
+          this.tableName,
+          id,
+          Object.fromEntries(
+            serverWon.map(field => [field, (snapshot.remoteData as Record<string, unknown>)[field]])
+          )
+        );
       }
       await this.clearConflict(id, snapshot.remoteServerVersion, {
         mergedData: merged,

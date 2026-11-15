@@ -84,8 +84,8 @@ SET search_path = ''
 AS $$
   SELECT 'The junior fee can''t be more than $'
     || CASE
-         WHEN round(p_limit, 2) = trunc(p_limit) THEN pg_catalog.to_char(trunc(p_limit), 'FM999,999,990')
-         ELSE pg_catalog.to_char(round(p_limit, 2), 'FM999,999,990.00')
+         WHEN round(p_limit, 2) = trunc(p_limit) THEN pg_catalog.to_char(trunc(p_limit), 'FM999,999,999,990')
+         ELSE pg_catalog.to_char(round(p_limit, 2), 'FM999,999,999,990.00')
        END
     || ', the lowest class fee in this show.';
 $$;

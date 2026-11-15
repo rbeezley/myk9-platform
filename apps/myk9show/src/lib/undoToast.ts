@@ -1,7 +1,7 @@
 import { toast } from 'sonner';
 
-/** How long a secretary's entry-status change offers Undo before the toast closes itself. */
-export const STATUS_UNDO_WINDOW_MS = 6000;
+/** How long every day-of Undo is offered before it closes itself (owner decision, MYK9-2062). */
+export const STATUS_UNDO_WINDOW_MS = 8000;
 
 /**
  * Shared time-boxed undo toast (design.md decision D6).
@@ -12,9 +12,8 @@ export const STATUS_UNDO_WINDOW_MS = 6000;
  * one consistent affordance instead of hand-rolling `toast.success(..., { action })`
  * at each call site.
  *
- * `duration` is only forwarded to sonner when provided — omitting it preserves
- * sonner's default toast duration, so migrating an existing call site that relied
- * on the default does not change its behavior.
+ * `duration` defaults to `STATUS_UNDO_WINDOW_MS`, so no day-of Undo ever falls back to
+ * sonner's own default. Only a non-day-of caller (the delete toast) passes its own.
  */
 export interface ShowUndoToastOptions {
   /** Primary toast message, e.g. "Entry marked pulled". */
@@ -23,7 +22,7 @@ export interface ShowUndoToastOptions {
   onUndo: () => void;
   /** Undo action label. Defaults to "Undo". */
   undoLabel?: string;
-  /** Auto-dismiss window in ms. Omit to keep sonner's default duration. */
+  /** Auto-dismiss window in ms. Defaults to `STATUS_UNDO_WINDOW_MS`. */
   duration?: number;
   /** Optional secondary line under the message. */
   description?: string;
@@ -40,7 +39,7 @@ export function showUndoToast({
   message,
   onUndo,
   undoLabel = 'Undo',
-  duration,
+  duration = STATUS_UNDO_WINDOW_MS,
   description,
   onStood,
 }: ShowUndoToastOptions): void {
@@ -60,7 +59,7 @@ export function showUndoToast({
         onUndo();
       },
     },
-    ...(duration !== undefined ? { duration } : {}),
+    duration,
     ...(description ? { description } : {}),
     ...(onStood ? { onAutoClose: stood, onDismiss: stood } : {}),
   });

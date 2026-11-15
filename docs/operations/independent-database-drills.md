@@ -226,7 +226,24 @@ project: for a realistic drill, a disposable project restored from an **older** 
    can double-count. Pass `--include-money` only when the owner has decided the target must receive them; the plan then prints a warning and
    you reconcile against Stripe afterwards. `--exclude-table public.<name>` drops any other table.
 
-2. Start the clock. Execute against the disposable target only (the URL stays in the environment, not on the command line):
+2. **Messaging check, after the dry run and before `--execute`.** A real single-show recovery restores
+   into production, where the email and SMS crons run. The dry-run summary prints
+   `messaging: N pending lifecycle email job(s) would be restored`: the
+   `show_lifecycle_email_jobs` rows with `status = 'ready'` (the other statuses are `sent`, `failed`,
+   `skipped`, `dismissed`), which the email cron would send again. The steps table
+   (`show_lifecycle_email_steps`) holds only an `is_enabled` setting, not send state. The dedupe logs
+   (`show_eve_nudge_log`, `sms_proximity_sends`, `waitlist_notification_events`) are show data and
+   restore with the show, so nothing re-sends from them. If N is not zero, decide before `--execute`
+   whether to mark those jobs done first (for example edit the `status` and `sent_at` values in the plan, or
+   set them to `skipped` with `skipped_at` after the restore and before the cron next runs). To see the
+   rows in a target that already holds them:
+
+   ```sql
+   select step_type, due_at, status from public.show_lifecycle_email_jobs
+   where show_id = '<show-uuid>' and status = 'ready' order by due_at;
+   ```
+
+3. Start the clock. Execute against the disposable target only (the URL stays in the environment, not on the command line):
 
    ```bash
    RESTORE_TARGET_DATABASE_URL='postgresql://…' pnpm exec tsx scripts/backup/single-show-restore.ts \
@@ -235,10 +252,10 @@ project: for a realistic drill, a disposable project restored from an **older** 
 
    `--execute` without `--target-ref`, a URL that does not name that ref, or the production ref all refuse.
 
-3. Verify against the **decrypted archive**, not the live source: per-table counts equal the dry-run
+4. Verify against the **decrypted archive**, not the live source: per-table counts equal the dry-run
    counts; entries with scores equal the archive's scored count; run `recalculate_class_placements`
    only if placements differ; every other show's entry count unchanged from before the run.
-4. Stop the clock.
+5. Stop the clock.
 
 **Record:** export `createdAt`; dry-run counts; psql `INSERT 0 n` lines (rows skipped by
 `ON CONFLICT DO NOTHING` are the difference from the dry-run count; explain any); elapsed time.

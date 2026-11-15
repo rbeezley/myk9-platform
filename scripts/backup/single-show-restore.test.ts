@@ -4,6 +4,7 @@ import {
   cascadeClosure,
   decodeCopyField,
   formatSummary,
+  LIFECYCLE_JOBS_TABLE,
   orderTables,
   parseCopyData,
   parseForeignKeys,
@@ -257,5 +258,35 @@ h1\tk1
     const withMoney = buildPlan(selection, keys, { ...options, includeMoney: true });
     expect(withMoney.sql).toContain('"public"."entry_carts"');
     expect(withMoney.sql).toContain('"public"."cart_spot_holds"');
+  });
+
+  it('counts pending lifecycle email jobs in the plan and the summary', () => {
+    const schema = `${SCHEMA}
+ALTER TABLE ONLY public.show_lifecycle_email_jobs
+    ADD CONSTRAINT show_lifecycle_email_jobs_show_id_fkey FOREIGN KEY (show_id) REFERENCES public.shows(id) ON DELETE CASCADE;
+`;
+    const data = `${DATA}COPY public.show_lifecycle_email_jobs (id, show_id, status) FROM stdin;
+j1\t${SHOW}\tready
+j2\t${SHOW}\tready
+j3\t${SHOW}\tsent
+j4\t${OTHER}\tready
+\\.
+`;
+    const keys = parseForeignKeys(schema);
+    const selection = selectShowRows(SHOW, keys, parseCopyData(data, cascadeClosure(keys)));
+    const options = { showId: SHOW, sourceRef: 'src', exportCreatedAt: 'x', showDataTables: KNOWN };
+    const plan = buildPlan(selection, keys, options);
+    expect(plan.pendingLifecycleEmailJobs).toBe(2);
+    expect(formatSummary(plan)).toContain(
+      'messaging: 2 pending lifecycle email job(s) would be restored'
+    );
+    expect(
+      buildPlan(selection, keys, { ...options, excludeTables: [LIFECYCLE_JOBS_TABLE] })
+        .pendingLifecycleEmailJobs
+    ).toBe(0);
+    const base = select();
+    expect(formatSummary(buildPlan(base.selection, base.keys, options))).toContain(
+      'messaging: 0 pending'
+    );
   });
 });

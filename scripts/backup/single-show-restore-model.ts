@@ -40,6 +40,7 @@ export interface RestorePlan {
   totalRows: number;
   externalRefs: ExternalRef[];
   warnings: string[];
+  pendingLifecycleEmailJobs: number;
   sql: string;
 }
 
@@ -234,6 +235,22 @@ export interface PlanOptions {
   showDataTables?: ReadonlySet<string>; // tests only; defaults to SHOW_DATA_TABLES
 }
 
+export const LIFECYCLE_JOBS_TABLE = 'public.show_lifecycle_email_jobs';
+// status check constraint (20260708120000_show_lifecycle_emails.sql): ready | sent | failed | skipped | dismissed
+const PENDING_JOB_STATUS = 'ready';
+
+/** Restored `ready` jobs are sent by the production email cron, so the plan counts them. */
+function countPendingJobs(selection: Selection): number {
+  const data = selection.data.get(LIFECYCLE_JOBS_TABLE);
+  const col = data?.columns.indexOf('status') ?? -1;
+  if (!data || col < 0) return 0;
+  let count = 0;
+  for (const index of selection.included.get(LIFECYCLE_JOBS_TABLE) ?? []) {
+    if (data.rows[index][col] === PENDING_JOB_STATUS) count += 1;
+  }
+  return count;
+}
+
 export function buildPlan(
   selection: Selection,
   keys: ForeignKey[],
@@ -273,6 +290,9 @@ export function buildPlan(
       );
     }
   }
+  const pendingLifecycleEmailJobs = exclude.has(LIFECYCLE_JOBS_TABLE)
+    ? 0
+    : countPendingJobs(selection);
   const tables = orderTables(
     [...selection.included.keys()].filter(t => !exclude.has(t)),
     keys
@@ -318,6 +338,7 @@ export function buildPlan(
     totalRows,
     externalRefs: refs,
     warnings,
+    pendingLifecycleEmailJobs,
     sql,
   };
 }
@@ -334,6 +355,9 @@ export function formatSummary(plan: RestorePlan): string {
       `  ${String(r.values.length).padStart(7)}  ${r.refTable}.${r.refColumn}  <- ${r.table}.${r.column}`
     );
   }
+  lines.push(
+    `messaging: ${plan.pendingLifecycleEmailJobs} pending lifecycle email job(s) would be restored`
+  );
   for (const w of plan.warnings) lines.push(`WARNING: ${w}`);
   return lines.join('\n');
 }

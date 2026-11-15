@@ -541,11 +541,6 @@ describe('classifyMutationFailure', () => {
       ['a statement timeout (57014)', { message: 'statement timeout', code: '57014' }, undefined],
       ['a deadlock (40P01)', { message: 'deadlock detected', code: '40P01' }, undefined],
       ['a plain 500', { message: 'internal', code: '', httpStatus: 500 }, undefined],
-      [
-        'P0002 on ringside_update_entry',
-        { message: 'Entry not found', code: 'P0002' },
-        'ringside_update_entry',
-      ],
     ])('%s at the last retry stays pending and spends no budget', (_n, error, rpcName) => {
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
       const result = classifyMutationFailure({
@@ -580,15 +575,21 @@ describe('classifyMutationFailure', () => {
       expect(result.mutation.nextRetryAt).toBeLessThanOrEqual(MAX_BACKOFF_MS);
     });
 
+    // P0002 is never waited on forever: a score for an entry the server does not have refuses
+    // after the normal budget and is listed with Try again.
     it.each([
+      [
+        'ringside_update_entry (a score)',
+        { name: 'ringside_update_entry', fields: { is_scored: true } },
+      ],
       ['ringside_update_class', { name: 'ringside_update_class', fields: { status: 'completed' } }],
       ['a plain table write', undefined],
-    ])('P0002 on %s spends the normal budget and refuses (the row is gone)', (_n, rpc) => {
+    ])('P0002 on %s spends the normal budget and refuses', (_n, rpc) => {
       let current = mutation(rpc ? { rpc } : {});
       for (let i = 0; i < 3; i += 1) {
         const result = classifyMutationFailure({
           mutation: current,
-          error: { message: 'Class not found', code: 'P0002' },
+          error: { message: 'Entry 123 not found', code: 'P0002' },
           maxRetries: 3,
           retryBackoffBase: 10,
           now: i,

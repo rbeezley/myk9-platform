@@ -11,12 +11,15 @@
  * here and used by every count, the Scores not sent list and its actions:
  *  - the unit shows the NEWEST version of the dog's score on this device, so a correction
  *    saved after a refusal is what the judge sees;
- *  - Try again resends only that newest version, and only when it is the refused one. A
- *    refused version that a newer score replaced (still waiting, or already on the replica
- *    from an upload) is never resent over it; it can only be removed;
+ *  - Try again resends only that newest version, only when it is the refused one, and only
+ *    while this device's replica still holds exactly that score. Supersession is by VALUE:
+ *    if any score field on the replica differs from the refused payload (a correction, a
+ *    reset that cleared it, another device's score pulled down), resending would overwrite
+ *    what the dog now has, so the version is superseded and can only be removed;
  *  - Remove acts only on the score's own queue rows. A refused check-in or ring change on the
  *    same entry is its own change, counted on its own and never removed with the score.
- * Waiting rows that ride along with a score (the ring exit of the same save) fold into it.
+ * A waiting check-in or ring change on the same entry folds into the score only while that
+ * score is itself counted (waiting or refused); behind a superseded score it counts on its own.
  *
  * Reads IndexedDB only, so it works with no signal, and reads every account on this device,
  * like the sign-out guard: a score saved under an earlier passcode is still on this phone and
@@ -30,8 +33,8 @@ import type { ReplicatedEntry } from './ReplicatedEntriesTable.mapper';
 /**
  * - `waiting`: the newest version is queued and will send on its own.
  * - `refused`: the newest version was refused; Try again resends it.
- * - `superseded`: a refused version that a newer score for the dog replaced (the replica holds a
- *   later scored run). Nothing to send; it can only be removed.
+ * - `superseded`: a refused version the replica no longer matches (its score fields differ).
+ *   Nothing to send; it can only be removed.
  */
 export type ScoreUnitState = 'waiting' | 'refused' | 'superseded';
 
@@ -95,17 +98,42 @@ function byNewest(a: PendingMutation, b: PendingMutation): number {
   return b.timestamp - a.timestamp;
 }
 
-function scoredAt(value: unknown): number | undefined {
-  if (typeof value !== 'string') return undefined;
-  const at = Date.parse(value);
-  return Number.isNaN(at) ? undefined : at;
+/** Ringside columns a score payload may carry that are not the score itself. */
+const NOT_SCORE_FIELDS: ReadonlySet<string> = new Set([
+  'run_order',
+  'check_in_status',
+  'is_in_ring',
+  'ring_entry_time',
+  'ring_exit_time',
+  'updated_at',
+  'version',
+]);
+
+/** null and undefined are both "not set"; timestamps compare as instants, not as text. */
+function normalized(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null;
+  if (key.endsWith('_at') && typeof value === 'string') {
+    const at = Date.parse(value);
+    return Number.isNaN(at) ? value : at;
+  }
+  return value;
 }
 
-/** The replica holds a later scored run than this version: a newer score replaced it. */
-function replacedOnReplica(mutation: PendingMutation, entry: ReplicatedEntry | undefined): boolean {
-  const mine = scoredAt(mutation.rpc?.fields?.scoring_completed_at);
-  const replica = scoredAt(entry?.scoring_completed_at ?? entry?.scoringCompletedAt);
-  return mine !== undefined && replica !== undefined && replica > mine;
+/**
+ * Whether this device's replica still holds exactly the score this version would send. Any
+ * difference in a score field means the dog's score moved on, so resending would overwrite it.
+ * With no replica row there is nothing it could overwrite here, so it still matches.
+ */
+export function replicaHoldsScore(
+  mutation: PendingMutation,
+  entry: ReplicatedEntry | undefined
+): boolean {
+  if (!entry) return true;
+  const row = entry as unknown as Record<string, unknown>;
+  return Object.entries(mutation.rpc?.fields ?? {}).every(
+    ([key, value]) =>
+      NOT_SCORE_FIELDS.has(key) || normalized(key, value) === normalized(key, row[key])
+  );
 }
 
 interface Versions {
@@ -124,9 +152,9 @@ function scoreUnit(
   const newestRefused = failedIds.has(newest.id);
   const state: ScoreUnitState = !newestRefused
     ? 'waiting'
-    : replacedOnReplica(newest, entry)
-      ? 'superseded'
-      : 'refused';
+    : replicaHoldsScore(newest, entry)
+      ? 'refused'
+      : 'superseded';
   return {
     entryId,
     showId: sorted.find(v => v.showId)?.showId ?? entry?.showId,
@@ -155,14 +183,26 @@ export function summarizeUnsentWork(
   for (const mutation of failed) collect(mutation, true);
   for (const mutation of pending) collect(mutation, false);
 
-  // Every other change counts once per row. A waiting row on a scored dog's entry rides with
-  // the score; a refused one is its own change, named on the dog's row and counted here.
+  const refusedOnEntry = new Set(
+    failed.filter(m => !isScoreMutation(m) && m.tableName === 'entries').map(m => m.rowId)
+  );
+  const scores = [...byEntry.entries()]
+    .map(([entryId, versions]) =>
+      scoreUnit(entryId, versions, entries.get(entryId), refusedOnEntry.has(entryId))
+    )
+    .sort((a, b) => a.mutation.timestamp - b.mutation.timestamp);
+  const countedUnits = new Set(
+    scores.filter(score => score.state !== 'superseded').map(score => score.entryId)
+  );
+
+  // Every other change counts once per row. A waiting row rides with its dog's score only while
+  // that score is counted; a refused one is always its own change, named on the dog's row.
   const otherRows = new Set<string>();
   const refusedOtherRows = new Set<string>();
   const countOther = (mutation: PendingMutation, refused: boolean) => {
     if (isScoreMutation(mutation)) return;
-    const onScoredEntry = mutation.tableName === 'entries' && byEntry.has(mutation.rowId);
-    if (onScoredEntry && !refused) return;
+    const ridesWithScore = mutation.tableName === 'entries' && countedUnits.has(mutation.rowId);
+    if (ridesWithScore && !refused) return;
     const key = `${mutation.tableName}:${mutation.rowId}`;
     otherRows.add(key);
     if (refused) refusedOtherRows.add(key);
@@ -170,11 +210,6 @@ export function summarizeUnsentWork(
   for (const mutation of failed) countOther(mutation, true);
   for (const mutation of pending) countOther(mutation, false);
 
-  const scores = [...byEntry.entries()]
-    .map(([entryId, versions]) =>
-      scoreUnit(entryId, versions, entries.get(entryId), refusedOtherRows.has(`entries:${entryId}`))
-    )
-    .sort((a, b) => a.mutation.timestamp - b.mutation.timestamp);
   const unsent = scores.filter(score => score.state !== 'superseded');
   const refusedScores = unsent.filter(score => score.state === 'refused').length;
   return {

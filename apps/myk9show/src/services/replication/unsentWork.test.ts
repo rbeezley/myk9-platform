@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseManager, REPLICATION_STORES, type PendingMutation } from '@myk9/replication';
 import { RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import type { ReplicatedEntry } from './ReplicatedEntriesTable.mapper';
+import { SCORE_DETAIL_CLEAR_FIELDS } from './scoreResetFields';
 import { readDeviceUnsentWork, summarizeUnsentWork } from './unsentWork';
 
 // The replication database stays open across tests; empty its queue stores so no row leaks.
@@ -39,11 +40,6 @@ const refused = (id: string, rowId: string, extra: Partial<PendingMutation> = {}
     error: 'Non-retryable error: This class is cancelled. Scores and check-ins are closed.',
     ...extra,
   });
-
-const scoredRun = (at: string) => ({
-  name: RINGSIDE_RPC_FUNCTION,
-  fields: { is_scored: true, result_status: 'qualified', scoring_completed_at: at },
-});
 
 const checkInChange = (id: string, rowId: string, status: 'pending' | 'failed') =>
   mutation({
@@ -93,47 +89,108 @@ describe('summarizeUnsentWork', () => {
   });
 
   // Review finding 3: a correction saved after a refusal is the score; the old one is never resent.
-  describe('a score refused, then corrected, then the correction uploaded', () => {
-    const old = refused('f1', 'entry-1', { rpc: scoredRun('2026-11-14T10:00:00Z') });
-    const correction = score('p2', 'entry-1', {
-      timestamp: 9,
-      rpc: scoredRun('2026-11-14T10:05:00Z'),
+  // Round 2: a refused version is resent only while the replica holds exactly that score.
+  describe('supersession by value', () => {
+    const refusedFields = {
+      is_scored: true,
+      result_status: 'nq',
+      search_time_seconds: 42.5,
+      total_faults: 1,
+      area1_time_seconds: 42.5,
+      disqualification_reason: 'Handler error',
+      scoring_completed_at: '2026-11-14T10:00:00.000Z',
+    };
+    const old = refused('f1', 'entry-1', {
+      rpc: { name: RINGSIDE_RPC_FUNCTION, fields: refusedFields },
     });
+    const replicaWith = (fields: Record<string, unknown>) =>
+      new Map([['entry-1', { id: 'entry-1', ...fields } as ReplicatedEntry]]);
 
-    it('while the correction waits, shows the correction and offers nothing to resend', () => {
-      const work = summarizeUnsentWork([correction], [old]);
-      expect(work.scores).toEqual([
-        expect.objectContaining({
-          state: 'waiting',
-          mutation: correction,
-          retryIds: [],
-          removeIds: [],
-        }),
-      ]);
+    it('refused and unchanged: Try again is offered and resends the same values', () => {
+      // The same instant written differently still matches.
+      const work = summarizeUnsentWork(
+        [],
+        [old],
+        replicaWith({ ...refusedFields, scoring_completed_at: '2026-11-14T10:00:00+00:00' })
+      );
+      expect(work.scores[0]).toMatchObject({ state: 'refused', retryIds: ['f1'] });
+      // Try again re-queues this exact mutation, so what it sends is the refused payload itself.
+      expect(work.scores[0]?.mutation.rpc?.fields).toEqual(refusedFields);
       expect(work.unsentScoreCount).toBe(1);
-      expect(work.refusedCount).toBe(0);
     });
 
-    it('once the correction is on the replica, the old version is superseded: Remove only', () => {
-      const replica = new Map([
-        ['entry-1', { id: 'entry-1', scoring_completed_at: '2026-11-14T10:05:00Z' }],
-      ]);
-      const work = summarizeUnsentWork([], [old], replica);
+    it('refused, then corrected: superseded, Remove only', () => {
+      const corrected = {
+        ...refusedFields,
+        result_status: 'qualified',
+        disqualification_reason: null,
+        scoring_completed_at: '2026-11-14T10:05:00.000Z',
+      };
+      const work = summarizeUnsentWork([], [old], replicaWith(corrected));
       expect(work.scores).toEqual([
         expect.objectContaining({ state: 'superseded', retryIds: [], removeIds: ['f1'] }),
       ]);
-      // Nothing is left to send for this dog.
       expect(work.unsentScoreCount).toBe(0);
       expect(work.total).toBe(0);
     });
 
-    it('a refused version that is still the newest run stays refused', () => {
-      const replica = new Map([
-        ['entry-1', { id: 'entry-1', scoring_completed_at: '2026-11-14T10:00:00Z' }],
-      ]);
-      const work = summarizeUnsentWork([], [old], replica);
-      expect(work.scores[0]).toMatchObject({ state: 'refused', retryIds: ['f1'] });
+    it('refused, then cleared by Reset score (clearEntryScore): superseded, Remove only', () => {
+      // The values clearEntryScore writes (clearEntryScore.ts), with the same detail clears.
+      const cleared = {
+        is_scored: false,
+        result_status: 'pending',
+        search_time_seconds: 0,
+        total_faults: 0,
+        scoring_completed_at: null,
+        disqualification_reason: null,
+        ...SCORE_DETAIL_CLEAR_FIELDS,
+      };
+      const work = summarizeUnsentWork([], [old], replicaWith(cleared));
+      expect(work.scores[0]).toMatchObject({ state: 'superseded', retryIds: [] });
     });
+
+    it('a different score pulled from another device also supersedes it', () => {
+      const work = summarizeUnsentWork(
+        [],
+        [old],
+        replicaWith({ ...refusedFields, search_time_seconds: 40.1 })
+      );
+      expect(work.scores[0]?.state).toBe('superseded');
+    });
+
+    it('while a correction waits, the row shows the correction and offers nothing to resend', () => {
+      const correction = score('p2', 'entry-1', { timestamp: 9 });
+      const work = summarizeUnsentWork([correction], [old]);
+      expect(work.scores).toEqual([
+        expect.objectContaining({ state: 'waiting', mutation: correction, retryIds: [] }),
+      ]);
+    });
+  });
+
+  // Round 2 [P2]: a waiting change never hides behind a score that is not counted.
+  it("counts a waiting check-in on its own when the dog's score is superseded", () => {
+    const old = refused('f1', 'entry-1', {
+      rpc: { name: RINGSIDE_RPC_FUNCTION, fields: { is_scored: true, result_status: 'nq' } },
+    });
+    const replica = new Map([
+      ['entry-1', { id: 'entry-1', is_scored: false, result_status: 'pending' } as ReplicatedEntry],
+    ]);
+    const behindSuperseded = summarizeUnsentWork(
+      [checkInChange('c1', 'entry-1', 'pending')],
+      [old],
+      replica
+    );
+    expect(behindSuperseded.scores[0]?.state).toBe('superseded');
+    expect(behindSuperseded.otherChangeCount).toBe(1);
+    expect(behindSuperseded.total).toBe(1);
+
+    // Behind a counted (waiting) score it rides with the score, counted once.
+    const behindWaiting = summarizeUnsentWork(
+      [score('p1', 'entry-1'), checkInChange('c1', 'entry-1', 'pending')],
+      []
+    );
+    expect(behindWaiting.otherChangeCount).toBe(0);
+    expect(behindWaiting.total).toBe(1);
   });
 
   // Review finding 2: Remove and Try again act on the score's own rows, never another change.

@@ -38,6 +38,13 @@ export const SCORE_REFUSAL_RULES: readonly ScoreRefusalRule[] = [
     say: m => `This ${m[1]?.toLowerCase()} was deleted.`,
   },
   {
+    // P0002 from ringside_update_entry, after the normal tries (MYK9-2011): the entry is not
+    // there, either not synced yet or deleted. Never waited on forever.
+    match: /Entry \S+ not found/i,
+    say: () =>
+      "This dog's entry is not in myK9Show yet, or it was removed. Ask the secretary, then try again.",
+  },
+  {
     match: /A Qualified needs a time/i,
     say: () => 'A Qualified needs a time.',
   },

@@ -30,6 +30,11 @@ describe('unsentScoreReason', () => {
       'This class was deleted.',
     ],
     [
+      'Max retries exceeded: Entry 9f3c2a1e-0000-4000-8000-000000000001 not found',
+      'max-retries',
+      "This dog's entry is not in myK9Show yet, or it was removed. Ask the secretary, then try again.",
+    ],
+    [
       'Non-retryable error: A Qualified needs a time. Add the time, or change the result to NQ.',
       'permanent',
       'A Qualified needs a time.',

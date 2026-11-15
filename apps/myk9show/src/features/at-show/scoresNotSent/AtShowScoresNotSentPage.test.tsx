@@ -97,7 +97,18 @@ function field(row: HTMLElement, label: string): string | null {
   return term?.nextElementSibling?.textContent ?? null;
 }
 
+/**
+ * Queue rows as the device holds them. A refused score's own local write is still on the
+ * replica (the row stays dirty), so the replica carries its score fields unless a test moves
+ * the dog's score on (a correction, a reset).
+ */
 async function seed(failed: PendingMutation[], pending: PendingMutation[] = []) {
+  for (const m of failed) {
+    const dog = replica.dogs[m.rowId];
+    if (dog && m.rpc?.fields?.is_scored === true) {
+      replica.dogs[m.rowId] = { ...dog, ...m.rpc.fields };
+    }
+  }
   const db = await databaseManager.getDatabase('AtShowScoresNotSentPage.test');
   for (const m of failed) await db.put(REPLICATION_STORES.FAILED_MUTATIONS, m);
   for (const m of pending) await db.put(REPLICATION_STORES.PENDING_MUTATIONS, m);
@@ -306,7 +317,7 @@ describe('AtShowScoresNotSentPage', () => {
     // The correction uploads: it leaves the queue and the replica holds its run.
     const db = await databaseManager.getDatabase('AtShowScoresNotSentPage.test');
     await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, 'p2');
-    replica.dogs = { e1: { ...DOGS.e1, scoring_completed_at: '2026-11-14T10:05:00Z' } };
+    replica.dogs = { e1: { ...DOGS.e1, ...correction.rpc?.fields } };
     renderPage();
     row = await screen.findByTestId('score-not-sent-row');
     expect(row).toHaveAttribute('data-state', 'superseded');
@@ -338,5 +349,25 @@ describe('AtShowScoresNotSentPage', () => {
     replica.fail = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByTestId('score-not-sent-row')).toBeInTheDocument();
+  });
+
+  // Round 2: a reset that clears the dog's score leaves the refused version Remove only.
+  it('offers only Remove for a refused score after Reset score cleared the dog', async () => {
+    await seed([refusedScore(0)]);
+    replica.dogs = {
+      e1: {
+        ...DOGS.e1,
+        is_scored: false,
+        result_status: 'pending',
+        search_time_seconds: 0,
+        total_faults: 0,
+        scoring_completed_at: null,
+      },
+    };
+    renderPage();
+    const row = await screen.findByTestId('score-not-sent-row');
+    expect(row).toHaveAttribute('data-state', 'superseded');
+    expect(within(row).queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(within(row).getByRole('button', { name: 'Remove' })).toBeVisible();
   });
 });

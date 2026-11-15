@@ -44,6 +44,7 @@ import type {
   StepId,
 } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
+import type { HandlerClashControl } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep.types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import {
   WORKFLOW_CONFIGS,
@@ -676,6 +677,11 @@ export function useRegistrationWizardState() {
     handlerClashDeferred,
     setHandlerClashDeferred,
     setHandlerClashPending,
+    handlerClash: {
+      deferredPairKeys: handlerClashDeferred,
+      onDeferredChange: setHandlerClashDeferred,
+      onPendingChange: setHandlerClashPending,
+    } satisfies HandlerClashControl,
     registrationId,
     setRegistrationId,
     registrationNumber,

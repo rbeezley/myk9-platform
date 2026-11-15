@@ -1,7 +1,9 @@
 import React, { useContext } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { CloudOff, CloudUpload } from 'lucide-react';
 import { ReplicationSyncStatusContext } from '@/context/ReplicationSyncContext';
 import type {
+  SyncIndicatorProps,
   CompactOfflineIndicatorProps,
   ErrorStateProps,
   FilterPanelProps,
@@ -14,11 +16,34 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useReplicationContainment } from '@/hooks/useReplicationContainment';
 import { cn } from '@/lib/utils';
 import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
+import { useUnsentWork } from '@/hooks/useUnsentWork';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { badgeClass } from './atShowChrome.helpers';
-import { OfflineSyncNoteView } from './atShowSyncChrome';
+import { OfflineSyncNoteView, SyncIndicator as SyncIndicatorView } from './atShowSyncChrome';
+import { scoresNotSentHref } from '../scoresNotSent/scoresNotSentPath';
 
-export { FilterTriggerButton, SyncIndicator } from './atShowSyncChrome';
+export { FilterTriggerButton } from './atShowSyncChrome';
+
+/** Where the header's unsent count leads: the Scores not sent list, when a score is unsent. */
+function useScoresNotSentHref(unsentScoreCount: number): string | undefined {
+  const { showId } = useParams<{ showId: string }>();
+  return scoresNotSentHref(showId, unsentScoreCount);
+}
+
+/**
+ * The header's "Not sent yet N" pill. MYK9-2011: with a score unsent, tapping the count opens
+ * the Scores not sent list. A pill with its own Try again stays a plain pill (no button in a link).
+ */
+export const SyncIndicator: React.FC<SyncIndicatorProps> = props => {
+  // The device read, not the sync provider: the online header stays free of the provider.
+  const href = useScoresNotSentHref(useUnsentWork().unsentScoreCount);
+  if (!href || props.onRetry || props.status === 'syncing') return <SyncIndicatorView {...props} />;
+  return (
+    <Link to={href} className="inline-flex min-h-11 items-center rounded-lg">
+      <SyncIndicatorView {...props} />
+    </Link>
+  );
+};
 
 /** The tables the at-show surface must hold locally before it can promise offline use. */
 const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as const;
@@ -28,9 +53,11 @@ const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as cons
  * Phones get the icon-only popover button (44px, no wrap in the pinned bar); `sm` and up get the
  * amber note, which wraps rather than truncates (MYK9-1899).
  */
-const OfflineSyncNote: React.FC<{ className?: string | undefined }> = ({ className }) => (
-  <OfflineSyncNoteView label={useSyncNote().label} className={className} />
-);
+const OfflineSyncNote: React.FC<{ className?: string | undefined }> = ({ className }) => {
+  const note = useSyncNote();
+  const href = useScoresNotSentHref(note.unsentScoreCount);
+  return <OfflineSyncNoteView label={note.label} href={href} className={className} />;
+};
 
 /**
  * The persistent "this app works offline" affordance in the at-show header.

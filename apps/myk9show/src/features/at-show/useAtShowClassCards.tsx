@@ -11,6 +11,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import { AtShowClassCardDialogs, type ActiveClassCard } from './AtShowClassCardDialogs';
 import { useAtShowClassFavorites } from './atShowClassFavorites';
 import { useQueuedScoresByClass } from './useQueuedScoresByClass';
+import { scoresNotSentHref } from './scoresNotSent/scoresNotSentPath';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import type { AtShowClassGroup } from './atShowClassListAdapter';
 
@@ -25,6 +26,7 @@ function prefersTouchSheet(): boolean {
 
 export interface ClassCardRowProps {
   queuedScoreCount: number;
+  scoresNotSentHref: string | undefined;
   onToggleFavorite: (entry: ClassEntry) => void;
   onShowDetails: (entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void;
   /** Undefined hides the ellipsis for roles that may not open Class Options. */
@@ -78,23 +80,28 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
   const onOpenOptions = useMemo(() => open('options'), [open]);
 
   const rowProps = useCallback(
-    (entry: ClassEntry): ClassCardRowProps => ({
-      queuedScoreCount: getClassIds(entry).reduce(
+    (entry: ClassEntry): ClassCardRowProps => {
+      const queuedScoreCount = getClassIds(entry).reduce(
         (sum, id) => sum + (queuedByClass.get(id) ?? 0),
         0
-      ),
-      onToggleFavorite: card =>
-        void toggleClassFavorite(trialByClassId.get(card.id)?.id, getClassIds(card)),
-      onShowDetails,
-      // Class Options is the entry list's own gate: managers only, and one class at a
-      // time (a combined A/B card has no single class to act on).
-      onOpenOptions: canManageClasses && !isCombinedEntry(entry) ? onOpenOptions : undefined,
-    }),
+      );
+      return {
+        queuedScoreCount,
+        scoresNotSentHref: scoresNotSentHref(showId, queuedScoreCount),
+        onToggleFavorite: card =>
+          void toggleClassFavorite(trialByClassId.get(card.id)?.id, getClassIds(card)),
+        onShowDetails,
+        // Class Options is the entry list's own gate: managers only, and one class at a
+        // time (a combined A/B card has no single class to act on).
+        onOpenOptions: canManageClasses && !isCombinedEntry(entry) ? onOpenOptions : undefined,
+      };
+    },
     [
       canManageClasses,
       onOpenOptions,
       onShowDetails,
       queuedByClass,
+      showId,
       toggleClassFavorite,
       trialByClassId,
     ]

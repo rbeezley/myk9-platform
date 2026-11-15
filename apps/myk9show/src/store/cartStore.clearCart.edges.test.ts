@@ -112,6 +112,7 @@ describe('clearCart when another tab fills the replacement slot', () => {
         clearCart: store.clearCart,
         addItem,
         abandonCart: store.abandonCart,
+        startCheckout: vi.fn(async () => ({ kind: 'redirecting' as const })),
         navigate,
       },
     }).then(

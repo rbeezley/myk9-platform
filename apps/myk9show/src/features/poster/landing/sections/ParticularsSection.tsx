@@ -4,6 +4,7 @@ import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { POSTER_DISPLAY_TIGHT_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
 import { formatDateInTimezone } from '../utils/dateFormat';
+import type { PosterFee } from '../types';
 
 interface ParticularsSectionProps {
   licenseLanguage: string;
@@ -11,6 +12,7 @@ interface ParticularsSectionProps {
   entryCloseDate: string | null;
   confirmationDate: string | null;
   entryLimit: number | null;
+  fees: PosterFee[];
   trialsCount: number;
   timezone: string;
 }
@@ -34,6 +36,7 @@ export function ParticularsSection({
   entryCloseDate,
   confirmationDate,
   entryLimit,
+  fees,
   trialsCount,
   timezone,
 }: ParticularsSectionProps) {
@@ -82,6 +85,12 @@ export function ParticularsSection({
         ) : null,
       emphasizeRed: true,
     },
+    // MYK9-2041: the same pre-entry and day-of fees every other style prints.
+    ...fees.map<Row>(fee => ({
+      label: fee.label,
+      value: fee.amount,
+      ...(fee.sub ? { sub: fee.sub } : {}),
+    })),
   ].filter(r => r.value);
 
   if (!rows.length) return null;

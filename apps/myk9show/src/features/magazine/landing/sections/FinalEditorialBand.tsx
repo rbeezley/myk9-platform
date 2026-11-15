@@ -109,8 +109,7 @@ export function FinalEditorialBand({
                 lineHeight: 1.5,
               }}
             >
-              First-received basis until the limit is hit. Refunds (less processing) issued for
-              written withdrawals received before closing.
+              First-received basis until the limit is hit.
             </p>
 
             {/* MYK9-633: the button here duplicated the header nav's

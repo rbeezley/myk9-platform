@@ -4,10 +4,11 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensurePosterFontsLoaded, POSTER_DISPLAY_FAMILY } from '../fonts';
 import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
-import { posterColors } from '../tokens';
+import { posterColors, posterSpacing } from '../tokens';
 import { usePosterLandingData } from './usePosterLandingData';
 import { StickyNav } from './sections/StickyNav';
 import { HeroBlock } from './sections/HeroBlock';
@@ -55,6 +56,14 @@ interface PosterLandingPageProps {
  * Section №3 (Fees dark band) was inlined into Particulars to keep the
  * fee data flow simple — see ParticularsSection's red highlight chips.
  */
+// MYK9-2041: the shared policy and premium sections take the page's column, like
+// the sections around them; the class alone sets padding only on narrow screens.
+const SHARED_SECTION_STYLE = {
+  maxWidth: posterSpacing.contentMax,
+  margin: '0 auto',
+  padding: `${posterSpacing.sectionPaddingY}px ${posterSpacing.pageGutterX}px`,
+} as const;
+
 export function PosterLandingPage({
   show,
   trial,
@@ -144,10 +153,16 @@ export function PosterLandingPage({
           entryCloseDate={data.entryCloseDate}
           confirmationDate={data.confirmationDate}
           entryLimit={data.entryLimit}
+          fees={data.fees}
           trialsCount={data.trials.length}
           timezone={data.timezone}
         />
-        <WithdrawalPolicySection showId={show?.id} className="po-section" />
+        <WithdrawalPolicySection
+          showId={show?.id}
+          className="po-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <PremiumDownloadSection show={show} className="po-section" style={SHARED_SECTION_STYLE} />
         <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
         <RosterSection
           entryCount={data.entryCount}

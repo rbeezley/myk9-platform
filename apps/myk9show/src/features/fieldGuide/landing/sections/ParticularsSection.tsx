@@ -9,6 +9,7 @@ import {
 } from '../../components/FieldGuideTable';
 import { fieldGuideSpacing } from '../../tokens';
 import { formatDateInTimezone } from '../utils/dateFormat';
+import type { FieldGuideFee } from '../types';
 
 interface ParticularsSectionProps {
   licenseLanguage: string;
@@ -16,6 +17,7 @@ interface ParticularsSectionProps {
   entryCloseDate: string | null;
   confirmationDate: string | null;
   entryLimit: number | null;
+  fees: FieldGuideFee[];
   trialsCount: number;
   timezone: string;
 }
@@ -31,6 +33,7 @@ export function ParticularsSection({
   entryCloseDate,
   confirmationDate,
   entryLimit,
+  fees,
   trialsCount,
   timezone,
 }: ParticularsSectionProps) {
@@ -59,6 +62,11 @@ export function ParticularsSection({
           : null,
     },
     { label: 'CONFIRMATION', value: fmt(confirmationDate) },
+    // MYK9-2041: the same pre-entry and day-of fees every other style prints.
+    ...fees.map(fee => ({
+      label: fee.label,
+      value: fee.sub ? `${fee.amount} · ${fee.sub}` : fee.amount,
+    })),
   ].filter(r => r.value);
 
   if (rows.length === 0) return null;

@@ -1,5 +1,5 @@
 import { FileText, AlertTriangle, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { usePremiumPublishControl } from './usePremiumPublishControl';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { PREMIUM_UP_TO_DATE_REASON } from './premiumPublishAction';
-import { getFreshPremiumDownloadUrl } from './usePublishInfo';
+import { openPublishedPremium } from './usePublishInfo';
 
 // `scroll-mt-20` only. The `target:ring-*` classes that used to live here could
 // never fire: the one link that carried `#setup-publish-premium` was a router
@@ -79,7 +79,9 @@ export function PremiumDownloadCard({
     infoState,
   } = usePremiumPublishControl(showId, showStaleBadge, canManageShow);
   const activeShowId = useRef(showId);
-  activeShowId.current = showId;
+  useEffect(() => {
+    activeShowId.current = showId;
+  }, [showId]);
   const [downloadState, setDownloadState] = useState<{
     showId: string;
     isDownloading: boolean;
@@ -91,27 +93,10 @@ export function PremiumDownloadCard({
 
   const downloadPublishedPremium = async () => {
     const downloadShowId = showId;
-    const pendingTab = window.open('about:blank', '_blank');
-    if (!pendingTab) {
-      setDownloadState({ showId: downloadShowId, isDownloading: false, failed: true });
-      return;
-    }
-    pendingTab.opener = null;
     setDownloadState({ showId: downloadShowId, isDownloading: true, failed: false });
-    try {
-      const url = await getFreshPremiumDownloadUrl(downloadShowId);
-      pendingTab.location.href = url;
-    } catch {
-      pendingTab.close();
-      if (activeShowId.current === downloadShowId) {
-        setDownloadState({ showId: downloadShowId, isDownloading: false, failed: true });
-      }
-    } finally {
-      if (activeShowId.current === downloadShowId) {
-        setDownloadState(current =>
-          current?.showId === downloadShowId ? { ...current, isDownloading: false } : current
-        );
-      }
+    const opened = await openPublishedPremium(downloadShowId);
+    if (activeShowId.current === downloadShowId) {
+      setDownloadState({ showId: downloadShowId, isDownloading: false, failed: !opened });
     }
   };
 

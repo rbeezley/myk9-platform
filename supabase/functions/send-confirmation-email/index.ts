@@ -38,6 +38,8 @@ import {
 import {
   CONFIRMATION_LIVE_SHOW_STATUSES,
   CONFIRMATION_ROW_LIMIT,
+  latestAcceptanceGenerations,
+  type AcceptanceHistoryRow,
   showRegistry,
   type ConfirmationEntry,
   type ConfirmationRecipient,
@@ -241,6 +243,18 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         supabase as unknown as Parameters<typeof loadConfirmationNumbers>[0],
         registrationIds
       ),
+    loadAcceptanceGenerations: async entryIds => {
+      if (entryIds.length === 0) return new Map();
+      const { data, error } = await supabase
+        .from('entry_status_history')
+        .select('id, entry_id, changed_at')
+        .in('entry_id', entryIds)
+        .eq('new_status', 'confirmed')
+        .order('changed_at', { ascending: false })
+        .order('id', { ascending: false });
+      if (error) throw new Error(`Could not read acceptance history: ${error.message}`);
+      return latestAcceptanceGenerations((data ?? []) as AcceptanceHistoryRow[]);
+    },
     claim: async (entryIds, statuses, nowIso) => {
       const { data, error } = await supabase
         .from('entries')

@@ -142,7 +142,7 @@ export function buildHeadlineHtml(data: HeadlineEmailData): string {
           </table>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;border-top:1px solid ${HN_HAIR};">
             <tr>
-              <td style="padding-top:12px;font-family:${HN_MONO};font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:${HN_MUTE};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} &middot; fees received</td>
+              <td style="padding-top:12px;font-family:${HN_MONO};font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:${HN_MUTE};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} &middot; entry fees</td>
               <td style="padding-top:12px;font-family:${HN_DISPLAY};font-weight:800;font-size:28px;color:${HN_ACCENT};text-align:right;">${esc(data.totalFeesFormatted)}</td>
             </tr>
           </table>

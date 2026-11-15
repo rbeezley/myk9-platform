@@ -229,7 +229,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
           <td style="padding-bottom:16px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${BN_HAIR};">
               <tr>
-                <td style="padding-top:12px;font-family:${BN_BODY};font-weight:500;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${BN_MUTE};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} · Fees received</td>
+                <td style="padding-top:12px;font-family:${BN_BODY};font-weight:500;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${BN_MUTE};">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} · Entry fees</td>
                 <td style="padding-top:12px;font-family:${BN_DISPLAY};font-weight:900;font-size:28px;letter-spacing:-0.035em;color:${flagText};text-align:right;">${esc(data.totalFeesFormatted)}</td>
               </tr>
             </table>

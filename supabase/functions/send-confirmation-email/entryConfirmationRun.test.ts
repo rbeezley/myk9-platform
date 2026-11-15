@@ -8,7 +8,9 @@ import {
   type EntryConfirmationDeps,
 } from './entryConfirmationRun';
 import {
+  latestAcceptanceGenerations,
   showRegistry,
+  type AcceptanceHistoryRow,
   type ConfirmationEntry,
   type ConfirmationRecipient,
   type ConfirmationShow,
@@ -98,6 +100,9 @@ function makeDeps(args: {
   /** The candidate read's row limit (CONFIRMATION_ROW_LIMIT in production). */
   rowLimit?: number;
   sendResult?: () => ConfirmationSendResult;
+  /** entry_status_history rows into 'confirmed'; the acceptance generation is the latest id. */
+  history?: AcceptanceHistoryRow[];
+  historyReadFails?: boolean;
 }) {
   const people: Record<string, ConfirmationRecipient | null> = args.people ?? {
     'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: 'Lovelace' },
@@ -163,6 +168,12 @@ function makeDeps(args: {
     loadJudges: async classIds =>
       new Map(classIds.flatMap(id => (id === 'class-1' ? [[id, 'Dana Whitlock'] as const] : []))),
     loadConfirmationNumbers: async () => new Map([['reg-ada', 'CONF-1234']]),
+    loadAcceptanceGenerations: async ids => {
+      if (args.historyReadFails) throw new Error('history read failed');
+      return latestAcceptanceGenerations(
+        (args.history ?? []).filter(row => ids.includes(row.entry_id))
+      );
+    },
     claim: async (ids, statuses, nowIso) => {
       const claimed: string[] = [];
       for (const row of args.entries) {
@@ -563,5 +574,60 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
         expect(sends[0]!.html, `${registry} ${style}`).not.toContain('AKC');
       }
     }
+  });
+
+  it('sends a re-accepted entry under a new idempotency key, and a retry under the same one', async () => {
+    const accepted = entry();
+    const history: AcceptanceHistoryRow[] = [
+      { id: 'hist-1', entry_id: accepted.id, changed_at: '2026-11-20T13:00:00Z' },
+    ];
+    const { deps, sends } = makeDeps({ shows: [show()], entries: [accepted], history });
+    await runEntryConfirmations(deps, 'new');
+
+    // Returned to review and accepted again: the trigger resets the markers, history gains a row.
+    accepted.confirmation_email_sent_at = null;
+    accepted.confirmation_email_status = 'pending';
+    accepted.updated_at = LONG_AGO;
+    history.push({ id: 'hist-2', entry_id: accepted.id, changed_at: '2026-11-20T13:30:00Z' });
+    await runEntryConfirmations(deps, 'new');
+
+    expect(sends).toHaveLength(2);
+    expect(sends[1]!.idempotencyKey).not.toBe(sends[0]!.idempotencyKey);
+  });
+
+  it('sends nothing, and releases the group for retry, when the acceptance history cannot be read', async () => {
+    const entries = [entry()];
+    const { deps, sends } = makeDeps({ shows: [show()], entries, historyReadFails: true });
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, failed: 1 });
+    expect(sends).toHaveLength(0);
+    expect(entries[0]).toMatchObject({
+      confirmation_email_sent_at: null,
+      confirmation_email_status: 'failed',
+    });
+  });
+
+  it('labels the fees as entry fees, never as money received', async () => {
+    const { deps, sends } = makeDeps({ shows: [show()], entries: [entry()] });
+    await runEntryConfirmations(deps, 'new');
+    expect(sends[0]!.html).toContain('Entry fees:');
+    expect(sends[0]!.html.toLowerCase()).not.toContain('fees received');
+  });
+});
+
+describe('acceptance generations', () => {
+  it('picks the latest history row per entry by changed_at, then id', () => {
+    expect(
+      latestAcceptanceGenerations([
+        { id: 'h1', entry_id: 'e1', changed_at: '2026-11-20T10:00:00Z' },
+        { id: 'h3', entry_id: 'e1', changed_at: '2026-11-20T11:00:00Z' },
+        { id: 'h2', entry_id: 'e1', changed_at: '2026-11-20T11:00:00Z' },
+        { id: 'h4', entry_id: 'e2', changed_at: '2026-11-20T09:00:00Z' },
+      ])
+    ).toEqual(
+      new Map([
+        ['e1', 'h3'],
+        ['e2', 'h4'],
+      ])
+    );
   });
 });

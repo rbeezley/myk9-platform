@@ -237,7 +237,7 @@ export function buildHeritageHtml(data: HeritageEmailData): string {
             ${runsTable(data.runs)}
             <p style="margin:16px 0 0;font-family:${BODY_FONT};font-size:12px;color:${QUILL};line-height:1.55;">
               <em style="font-family:${DISPLAY};font-style:italic;">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} entered.</em>
-              Total fees received: <span style="color:${INK};">${esc(data.totalFeesFormatted)}</span>${data.receiptNumber ? `. Receipt #${esc(data.receiptNumber)}.` : '.'}
+              Entry fees: <span style="color:${INK};">${esc(data.totalFeesFormatted)}</span>${data.receiptNumber ? `. Receipt #${esc(data.receiptNumber)}.` : '.'}
             </p>
           </td>
         </tr>

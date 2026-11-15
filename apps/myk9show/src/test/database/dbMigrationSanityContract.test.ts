@@ -62,7 +62,9 @@ describe('DB migration sanity contracts', () => {
 
     const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
     expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
-    expect(run).toContain('idempotencyKey: await confirmationIdempotencyKey(group, claimed)');
+    expect(run).toContain(
+      'idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations)'
+    );
   });
 
   it('keeps the final people_insert_secretary policy role-gated', () => {

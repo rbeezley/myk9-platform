@@ -79,6 +79,12 @@ export interface EntryConfirmationDeps {
   }>;
   loadJudges(classIds: string[]): Promise<Map<string, string>>;
   loadConfirmationNumbers(registrationIds: string[]): Promise<Map<string, string>>;
+  /**
+   * Each entry's acceptance generation: the id of its latest entry_status_history row into
+   * 'confirmed' (entries with none are absent). Throws when the read fails, so the group is not
+   * sent under a key that could repeat an earlier acceptance's.
+   */
+  loadAcceptanceGenerations(entryIds: string[]): Promise<Map<string, string>>;
   /** Stamps the entries still unclaimed and still confirmed; returns the ids it stamped. */
   claim(
     entryIds: string[],
@@ -225,6 +231,7 @@ export async function runEntryConfirmations(
 
     let result: ConfirmationSendResult;
     try {
+      const generations = await deps.loadAcceptanceGenerations(claimed);
       const html = deps.render(
         buildConfirmationEmailData({
           show,
@@ -240,7 +247,7 @@ export async function runEntryConfirmations(
         to: recipient.email,
         subject: confirmationSubject(show.name, entries.length),
         html,
-        idempotencyKey: await confirmationIdempotencyKey(group, claimed),
+        idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations),
       });
     } catch {
       result = { ok: false, error: 'email_delivery_error' };

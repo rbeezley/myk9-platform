@@ -14,7 +14,7 @@
 // Once only, per entry: an entry is claimed (confirmation_email_sent_at stamped) before the send,
 // and only an unclaimed, still-confirmed entry can be claimed, so two overlapping runs cannot both
 // send it. A failed send releases the claim as 'failed'; the daily run retries those. Resend's
-// idempotency key is derived from the claimed ids, so a retry of a send that did go out is the
+// idempotency key is derived from the claimed ids and their acceptance generations, so a retry of a send that did go out is the
 // same message, not a second one.
 //
 // The quiet period: an entry is gathered only once it has gone CONFIRMATION_QUIET_MS without a
@@ -177,12 +177,50 @@ export function groupConfirmationsByExhibitor(entries: ConfirmationEntry[]): Con
   return [...groups.values()];
 }
 
-/** Resend's idempotency key for one email: the show, the exhibitor and the entries it covers. */
+/** The generation an entry with no 'confirmed' history row carries. */
+export const NO_ACCEPTANCE_GENERATION = 'none';
+
+export interface AcceptanceHistoryRow {
+  id: string;
+  entry_id: string;
+  changed_at: string;
+}
+
+/** Each entry's latest acceptance row id (changed_at, then id, descending); none: absent. */
+export function latestAcceptanceGenerations(
+  rows: readonly AcceptanceHistoryRow[]
+): Map<string, string> {
+  const latest = new Map<string, AcceptanceHistoryRow>();
+  for (const row of rows) {
+    const best = latest.get(row.entry_id);
+    if (
+      !best ||
+      row.changed_at > best.changed_at ||
+      (row.changed_at === best.changed_at && row.id > best.id)
+    ) {
+      latest.set(row.entry_id, row);
+    }
+  }
+  return new Map([...latest].map(([entryId, row]) => [entryId, row.id]));
+}
+
+/**
+ * Resend's idempotency key for one email: the show, the exhibitor and the entries it covers,
+ * each with its acceptance generation (the id of its latest entry_status_history row into
+ * 'confirmed'). An entry returned to review and accepted again gets a new generation, so its
+ * second confirmation is a new message; a retry after a failed send keeps the same generation
+ * and so the same key.
+ */
 export async function confirmationIdempotencyKey(
   group: Pick<ConfirmationGroup, 'key'>,
-  entryIds: string[]
+  entryIds: string[],
+  generations: ReadonlyMap<string, string>
 ): Promise<string> {
-  const data = new TextEncoder().encode(`${group.key}|${[...entryIds].sort().join(',')}`);
+  const covered = [...entryIds]
+    .sort()
+    .map(id => `${id}:${generations.get(id) ?? NO_ACCEPTANCE_GENERATION}`)
+    .join(',');
+  const data = new TextEncoder().encode(`${group.key}|${covered}`);
   const digest = await crypto.subtle.digest('SHA-256', data);
   const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
   return `entry-confirmation:${hex.slice(0, 48)}`;

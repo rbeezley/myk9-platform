@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SignOutWarningDialog } from '@/components/layout/SignOutWarningDialog';
-import { getSignOutGuardMode, type SignOutWarningContext } from '@/components/layout/signOutGuard';
+import type { SignOutWarningContext } from '@/components/layout/signOutGuard';
+import { resolveSignOutWarning } from '@/components/layout/signOutWarning';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -25,19 +26,12 @@ export function AlreadySignedInCard() {
   const [warning, setWarning] = useState<SignOutWarningContext | null>(null);
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
-  const hasUnsyncedChanges =
-    globalSync.status === 'pending' ||
-    globalSync.status === 'error' ||
-    globalSync.status === 'conflict' ||
-    globalSync.queueSize > 0;
-  const guardMode = getSignOutGuardMode({ isOffline, roles: getUserRoles() });
 
   const handleSignOut = () => {
-    if (guardMode === 'none') {
-      signOut();
-      return;
-    }
-    setWarning({ mode: guardMode, hasUnsyncedChanges });
+    void resolveSignOutWarning({ isOffline, roles: getUserRoles() }).then(next => {
+      if (next) setWarning(next);
+      else signOut();
+    });
   };
 
   return (

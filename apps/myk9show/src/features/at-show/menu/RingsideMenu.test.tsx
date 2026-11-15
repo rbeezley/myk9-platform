@@ -22,6 +22,19 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mocks.auth }));
+// MYK9-2013: the guard reads this device's unsent work at the click.
+const unsent = vi.hoisted(() => ({ scores: 0 }));
+vi.mock('@/services/replication/unsentWork', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication/unsentWork')>();
+  return {
+    ...actual,
+    readDeviceUnsentWork: async () => ({
+      ...actual.EMPTY_UNSENT_WORK,
+      unsentScoreCount: unsent.scores,
+      total: unsent.scores,
+    }),
+  };
+});
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ canManage: mocks.canManage }),
 }));
@@ -81,6 +94,7 @@ describe('RingsideMenu', () => {
     mocks.auth.userWithRoles = null;
     mocks.auth.user = { id: 'u1', is_anonymous: false };
     mocks.auth.signOut.mockReset();
+    unsent.scores = 0;
     mocks.online = true;
     mocks.canManage = false;
     mocks.dogKind = null;
@@ -286,6 +300,19 @@ describe('RingsideMenu', () => {
     const nav = await openMenu(user);
     await user.click(within(nav).getByRole('button', { name: 'Sign out' }));
     await waitFor(() => expect(mocks.auth.signOut).toHaveBeenCalledTimes(1), { timeout: 2000 });
+  });
+
+  // MYK9-2013: a passcode session has no staff role, so online it used to sign out silently.
+  it('warns a passcode judge online with unsent scores, naming the count', async () => {
+    mocks.auth.user = { id: 'anon-1', is_anonymous: true };
+    unsent.scores = 2;
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    await user.click(within(nav).getByRole('button', { name: 'Sign out' }));
+    expect(
+      await screen.findByRole('alertdialog', { name: '2 scores not sent' }, { timeout: 2000 })
+    ).toBeVisible();
+    expect(mocks.auth.signOut).not.toHaveBeenCalled();
   });
 
   it('warns before a staff sign-out instead of ending the session', async () => {

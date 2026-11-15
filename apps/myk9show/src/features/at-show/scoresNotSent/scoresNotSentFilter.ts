@@ -1,5 +1,5 @@
 import type { SyncFailedEventDetail } from '@/providers/replicationSyncFormatters';
-import { isScoreMutation } from '@/services/replication/unsentWork';
+import { isScoreMutation, type UnsentScore } from '@/services/replication/unsentWork';
 
 /**
  * A refused score lives on the Scores not sent list, not in a per-change toast (MYK9-2011):
@@ -20,4 +20,13 @@ export function scoresNotSentNoticeText(refused: number): { title: string; descr
     title: `${refused} ${refused === 1 ? 'score' : 'scores'} not sent`,
     description: `myK9Show did not take ${refused === 1 ? 'it' : 'them'}. The list shows each dog, the score and why.`,
   };
+}
+
+/**
+ * Whether a score unit belongs on this show's Scores not sent list. A score with no show stamp
+ * and no replica row still sits on this phone, so every show lists it (MYK9-2011). The list and
+ * the end-of-day card (MYK9-2013) use this one rule, so the card's count and the list agree.
+ */
+export function isScoreForShow(score: Pick<UnsentScore, 'showId'>, showId: string): boolean {
+  return score.showId === showId || score.showId === undefined;
 }

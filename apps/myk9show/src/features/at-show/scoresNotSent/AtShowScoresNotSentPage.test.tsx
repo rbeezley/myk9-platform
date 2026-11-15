@@ -175,7 +175,7 @@ describe('AtShowScoresNotSentPage', () => {
 
   it('says every score is sent only once the device has been read and holds none', async () => {
     renderPage();
-    expect(await screen.findByText('Every score is sent.')).toBeInTheDocument();
+    expect(await screen.findByText('Every score for this show is sent.')).toBeInTheDocument();
   });
 
   it('Try again re-queues the refused score', async () => {
@@ -344,7 +344,7 @@ describe('AtShowScoresNotSentPage', () => {
         'We could not read the scores on this phone, so we cannot say which are sent.'
       )
     ).toBeVisible();
-    expect(screen.queryByText('Every score is sent.')).toBeNull();
+    expect(screen.queryByText('Every score for this show is sent.')).toBeNull();
 
     replica.fail = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));

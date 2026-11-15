@@ -1,4 +1,4 @@
-import { fireEvent, isInaccessible, screen, within } from '@testing-library/react';
+import { fireEvent, isInaccessible, screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
@@ -22,6 +22,23 @@ const { authState, networkState, syncState, signOutSpy, themeState, toggleThemeS
     toggleThemeSpy: vi.fn(),
   })
 );
+// MYK9-2013: the sign-out guard reads this device's unsent work at the click.
+const unsentState = vi.hoisted(() => ({ scores: 0, other: 0, fail: false }));
+vi.mock('@/services/replication/unsentWork', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication/unsentWork')>();
+  return {
+    ...actual,
+    readDeviceUnsentWork: async () => {
+      if (unsentState.fail) throw new Error('IndexedDB closed');
+      return {
+        ...actual.EMPTY_UNSENT_WORK,
+        unsentScoreCount: unsentState.scores,
+        otherChangeCount: unsentState.other,
+        total: unsentState.scores + unsentState.other,
+      };
+    },
+  };
+});
 
 vi.mock('@/hooks/useProfileForm', () => ({
   useCurrentUserPerson: () => ({ data: null }),
@@ -92,6 +109,9 @@ beforeEach(() => {
   networkState.isOnline = true;
   syncState.status = 'synced';
   syncState.queueSize = 0;
+  unsentState.scores = 0;
+  unsentState.other = 0;
+  unsentState.fail = false;
   signOutSpy.mockClear();
   // themeState is module-scope mutable state, so a test that flips it to dark
   // would leak into every file that runs after it under --sequence.shuffle.
@@ -320,7 +340,7 @@ describe('AccountMenuContent sign-out guard (MYK9-202)', () => {
     const { user } = await renderAccountMenuAndOpen();
     await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
 
-    expect(signOutSpy).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(signOutSpy).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
@@ -366,29 +386,53 @@ describe('AccountMenuContent sign-out guard (MYK9-202)', () => {
     expect(dialog).toHaveTextContent(/cannot sign back in until/i);
   });
 
-  it('mentions unsynced changes in the offline warning when sync is pending', async () => {
-    networkState.isOnline = false;
-    syncState.status = 'pending';
-
-    const { user } = await renderAccountMenuAndOpen();
-    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
-
-    const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent(/not been sent yet/i);
-  });
-
-  it('mentions unsynced changes when offline status hides a non-empty queue', async () => {
-    // useGlobalSyncStatus reports status 'offline' regardless of queueSize, so
-    // the queue count itself must drive the warning line.
+  it('names the unsent scores in the offline warning', async () => {
     networkState.isOnline = false;
     syncState.status = 'offline';
-    syncState.queueSize = 3;
+    unsentState.scores = 3;
+
+    const { user } = await renderAccountMenuAndOpen();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: '3 scores not sent' });
+    expect(dialog).toHaveTextContent(/cannot sign back in until/i);
+  });
+
+  // MYK9-2013: online with no staff role used to sign out silently over unsent scores.
+  it('warns an exhibitor-role account online when scores are not sent', async () => {
+    authState.roles.push(UserRole.EXHIBITOR);
+    unsentState.scores = 2;
+
+    const { user } = await renderAccountMenuAndOpen();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+    expect(await screen.findByRole('alertdialog', { name: '2 scores not sent' })).toBeVisible();
+    expect(signOutSpy).not.toHaveBeenCalled();
+  });
+
+  it('names the count in the staff warning online', async () => {
+    authState.roles.push(UserRole.JUDGE);
+    unsentState.scores = 1;
+    unsentState.other = 1;
+
+    const { user } = await renderAccountMenuAndOpen();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+    expect(
+      await screen.findByRole('alertdialog', { name: '1 score and 1 other change not sent' })
+    ).toBeVisible();
+  });
+
+  it('warns when this device could not be checked', async () => {
+    authState.roles.push(UserRole.EXHIBITOR);
+    unsentState.fail = true;
 
     const { user } = await renderAccountMenuAndOpen();
     await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
 
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent(/not been sent yet/i);
+    expect(dialog).toHaveTextContent(/could not be checked/i);
+    expect(signOutSpy).not.toHaveBeenCalled();
   });
 });
 

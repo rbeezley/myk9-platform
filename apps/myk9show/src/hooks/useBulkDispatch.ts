@@ -146,7 +146,7 @@ export function useBulkDispatch<T>({
         const onUndo = buildUndo?.(outcome);
         const stood = onStood && outcome.succeeded.length > 0 ? () => onStood(outcome) : undefined;
         if (!onUndo) {
-          toast.success(summary.title);
+          toast.success(summary.title, undefined);
           stood?.();
           return;
         }

@@ -100,8 +100,10 @@ describe('ShowEditPanel helpers', () => {
   });
 
   it('validates the junior handler fee like a currency amount', () => {
+    // Fees high enough that only the format is under test, not the MYK9-1975 limit.
     const parse = (juniorHandlerFee: string) =>
-      showSchemas.edit.safeParse({ ...baseFormData, juniorHandlerFee }).success;
+      showSchemas.edit.safeParse({ ...baseFormData, preEntryFee: '100000', juniorHandlerFee })
+        .success;
     expect(parse('-1')).toBe(false);
     expect(parse('15.999')).toBe(false);
     expect(parse('100000')).toBe(false);

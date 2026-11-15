@@ -1016,7 +1016,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    *   from PR #341. Without this, every subsequent replication pull takes
    *   the wasteful mergeDirtyRow branch instead of normal resolveConflict.
    */
-  async markAsSynced(id: string): Promise<void> {
+  async markAsSynced(id: string, onlyIfVersion?: number): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
 
@@ -1030,6 +1030,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     if (!existingRow || !existingRow.isDirty) {
       // No-op: row absent, or already synced. End the transaction cleanly.
+      await tx.done;
+      return;
+    }
+
+    // MYK9-2010: the caller judged the row clean at `onlyIfVersion`. A local edit since then bumped
+    // the version (and queued a write), so it must stay dirty; the check shares this transaction.
+    if (onlyIfVersion !== undefined && existingRow.version !== onlyIfVersion) {
       await tx.done;
       return;
     }
@@ -1217,7 +1224,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       const left = await this.mutationManager
         .getPendingMutationsForRow(this.tableName, normalizedId)
         .catch(() => [undefined]);
-      if (left.length === 0) await this.markAsSynced(normalizedId);
+      if (left.length === 0) await this.markAsSynced(normalizedId, row.version);
     }
 
     this.logger.log(

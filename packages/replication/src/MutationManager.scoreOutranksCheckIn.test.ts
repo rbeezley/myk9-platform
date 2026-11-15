@@ -169,4 +169,27 @@ describe('a check-in change never holds a queued score (MYK9-2010)', () => {
     expect(serverRow.status).toBe('pulled');
     expect(await pendingFor(tableName)).toHaveLength(0);
   });
+
+  it('an edit made after the queue was judged empty keeps the row dirty', async () => {
+    const serverRow: ServerRow = { status: 'checked-in', final_placement: null, version: 3 };
+    const table = new RefetchingEntriesTable(tableName, adapterFor(serverRow));
+    manager = startStaleRowManager(table, makeServer(serverRow).supabase).manager;
+    await table.set(
+      '1',
+      { id: '1', status: 'checked-in', finalPlacement: null },
+      false,
+      undefined,
+      3
+    );
+    await table.set('1', { id: '1', status: 'in-ring', finalPlacement: null }, true);
+    const judgedClean = (await table.getReplicatedRow('1'))?.version;
+    // The judge saves a score between the empty-queue check and the mark.
+    await table.set('1', { id: '1', status: 'completed', finalPlacement: 1 }, true);
+
+    await table.markAsSynced('1', judgedClean);
+    expect((await table.getReplicatedRow('1'))?.isDirty).toBe(true);
+
+    await table.markAsSynced('1', (await table.getReplicatedRow('1'))?.version);
+    expect((await table.getReplicatedRow('1'))?.isDirty).toBe(false);
+  });
 });

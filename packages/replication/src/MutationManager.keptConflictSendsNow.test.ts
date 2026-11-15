@@ -216,3 +216,24 @@ describe('a kept class-status change is sent at once (MYK9-1993)', () => {
     expect(write?.serverVersion).toBe(5);
   });
 });
+
+describe('discardRestoresServerCopy (MYK9-1993)', () => {
+  it('reports whether the table puts a discarded row back to the server copy', () => {
+    class Plain extends ReplicatedTable<ClassRow> {
+      async sync(): Promise<SyncResult> {
+        return {
+          tableName: 'x',
+          success: true,
+          operation: 'incremental-sync',
+          rowsAffected: 0,
+          duration: 0,
+        };
+      }
+      protected resolveConflict(_local: ClassRow, remote: ClassRow): ClassRow {
+        return remote;
+      }
+    }
+    expect(new ClassesTable('classes_flag').discardRestoresServerCopy()).toBe(true);
+    expect(new Plain('plain_flag').discardRestoresServerCopy()).toBe(false);
+  });
+});

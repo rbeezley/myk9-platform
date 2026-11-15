@@ -104,6 +104,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
     sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
     getConflictedRows: hoisted.conflictSpies.classes,
     resolveReplicationConflict: hoisted.resolveClassConflict,
+    discardRestoresServerCopy: () => true,
   },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({

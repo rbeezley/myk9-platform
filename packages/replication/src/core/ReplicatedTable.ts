@@ -175,6 +175,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * Off by default. Opted in: dogs (MYK9-1076) and entries (MYK9-1922).
    */
   protected readonly revertsOnDiscard: boolean = false;
+
+  /** True when discarding a failed write puts the row back to the server's copy (MYK9-1993). */
+  discardRestoresServerCopy(): boolean {
+    return this.revertsOnDiscard;
+  }
   /** Rows whose mutation was queued first with deferUpload=true. */
   private readonly deferredMutationRows = new Map<string, number>();
   /** Queue locks retained until the dependent deferred dirty writes complete. */

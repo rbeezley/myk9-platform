@@ -9,9 +9,10 @@ import {
 
 /** MYK9-1993: what each answer to the conflict notice does, and in what order. */
 
-function makeFakes(failed: PendingMutation[] = [], resolved = true) {
+function makeFakes(failed: PendingMutation[] = [], resolved = true, restores = true) {
   const calls: string[] = [];
   const table = {
+    discardRestoresServerCopy: () => restores,
     resolveReplicationConflict: vi.fn(async (_id: string, choice: string) => {
       calls.push(`resolve ${choice}`);
       return resolved;
@@ -89,6 +90,22 @@ describe('Keep my change', () => {
     const outcome = await keepMyChange(table, queue, 'classes', 'c1');
 
     expect(outcome).toMatchObject({ kind: 'refused', reason: 'Reason: Nothing to update.' });
+  });
+
+  it('keeps a write that ran out of retries, with the queue notice to try again', async () => {
+    const { table, queue } = makeFakes([
+      refusal({ error: 'Max retries exceeded: 503', failureKind: 'max-retries' }),
+    ]);
+
+    expect(await keepMyChange(table, queue, 'classes', 'c1')).toEqual({ kind: 'kept' });
+    expect(queue.discardFailedMutation).not.toHaveBeenCalled();
+  });
+
+  it('keeps a refused write on a table whose Discard cannot restore the server copy', async () => {
+    const { table, queue } = makeFakes([refusal({ tableName: 'shows' })], true, false);
+
+    expect(await keepMyChange(table, queue, 'shows', 'c1')).toEqual({ kind: 'kept' });
+    expect(queue.discardFailedMutation).not.toHaveBeenCalled();
   });
 
   it('leaves older failures and other rows alone', async () => {

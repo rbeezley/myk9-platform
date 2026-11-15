@@ -235,7 +235,7 @@ test('an owed entry is never reported as paid on My Shows or My Payments (MYK9-4
     page.getByRole('link', { name: /^Pay \$[\d,]+\.\d{2}$/ }).first(),
     `${owed.length} own entries are pending with a fee, so a show card must offer Pay`
   ).toBeVisible({ timeout: 30000 });
-  await expect(page.getByTestId('entry-fee-balance')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Entry fees:/ })).toHaveCount(0);
 
   await page.goto('/exhibitor/payments');
   const heading = page.getByRole('heading', { name: 'Amount due' });

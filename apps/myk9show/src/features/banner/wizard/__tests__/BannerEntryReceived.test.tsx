@@ -19,7 +19,8 @@ const BASE_PROPS = {
   classSummary: '3 runs · Excellent Containers · Judge Mrs. Beagles',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000137',
-  confirmationDateLabel: 'Jun 6, 2026',
+  fullConfirmationNote:
+    'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
 };
 
 describe('BannerEntryReceived', () => {
@@ -99,7 +100,7 @@ describe('BannerEntryReceived', () => {
 
   it('shows the confirmation-date caption when supplied', () => {
     render(<BannerEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Jun 6, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/we will email you a full confirmation/)).toBeInTheDocument();
   });
 
   it('honors a custom brandColor on the masthead', () => {

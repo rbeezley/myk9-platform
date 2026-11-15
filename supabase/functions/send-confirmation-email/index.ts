@@ -1,340 +1,57 @@
 // supabase/functions/send-confirmation-email/index.ts
 //
-// Styled confirmation email — sent on trials.confirmation_date via pg_cron.
-// Called with { trial_id } or with no body (batch mode: process today's trials).
+// The full confirmation (MYK9-1999): armband, judge, classes, street address with directions and
+// the secretary's note, once per exhibitor per show, as soon as her entry is accepted. The rules
+// are in entryConfirmations.ts and entryConfirmationRun.ts; this file wires them to the database
+// and Resend. The secretary sets no date: trials.confirmation_date no longer decides anything.
+//
+// Callers (pg_cron, with the HERITAGE_CONFIRMATION_SECRET header):
+//   heritage-confirmation-emails  daily 09:00 UTC, body {}: retries failed receipts
+//                                 (receiptSweep.ts), then sends new and retries failed
+//                                 confirmations.
+//   entry-confirmation-emails     every 15 minutes, body {"scope":"new"}: sends confirmations
+//                                 never tried (migration 20261115065613).
 //
 // Deploy: supabase functions deploy send-confirmation-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
-//
-// Idempotent: tracks per-entry send state in entries.confirmation_email_* columns.
-// The pg_cron job (migration 193) calls this at 09:00 UTC each day.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import {
+  JUDGE_ASSIGNMENT_NAME_SELECT,
+  judgeNamesByClass,
+  type JudgeAssignmentNameRow,
+} from '../_shared/exhibitorEmailDetails.ts';
 
-import { handle } from '../_shared/http/handler.ts';
+import { handle, type HandlerCtx } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 
-import { resolveEmailStyle, selectEmailBuilderKey } from './email-style-registry.ts';
-import { buildHeadlineHtml } from './headline-email.ts';
-import { buildMonogramHtml } from './monogram-email.ts';
-import { buildBannerHtml } from './banner-email.ts';
-import { buildFieldGuideHtml } from './fieldGuide-email.ts';
-import { buildGazetteHtml } from './gazette-email.ts';
-import { buildMagazineHtml } from './magazine-email.ts';
-import { buildPosterHtml } from './poster-email.ts';
 import { requireConfirmationEmailSecret } from './auth.ts';
-import {
-  deriveGazetteEditionLabel,
-  deriveMagazineEditionLabel,
-  deriveShowAbbreviation,
-  deriveShowCode,
-} from './dispatch-helpers.ts';
-import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
-import {
-  buildVenueMapAssets,
-  renderVenueMapBlock,
-  type VenueMapAssets,
-} from './venue-directions.ts';
-import { formatEntryFee } from './entryFee.ts';
-import { buildTrialLabelMap } from './trialLabel.ts';
 import { loadConfirmationNumbers } from './receiptNumbers.ts';
 import {
   sweepFailedReceipts,
   type ReceiptResendOutcome,
   type ReceiptSweepClient,
 } from './receiptSweep.ts';
+import {
+  CONFIRMATION_LIVE_SHOW_STATUSES,
+  CONFIRMATION_ROW_LIMIT,
+  showRegistry,
+  type ConfirmationEntry,
+  type ConfirmationRecipient,
+  type ConfirmationShow,
+} from './entryConfirmations.ts';
+import { runEntryConfirmations, type EntryConfirmationDeps } from './entryConfirmationRun.ts';
+import { renderConfirmationEmail } from './renderConfirmationEmail.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
-// ─── Production Heritage email palette (owned by this builder) ──
-
-const INK = '#1a1612';
-const PAPER = '#f8f4ea';
-const CLARET = '#8a1818';
-const GOLD = '#8a6a45';
-const QUILL = '#6b4f3a';
-const DISPLAY = "'Cormorant Garamond', Georgia, serif";
-const BODY_FONT = "'EB Garamond', Georgia, serif";
-// ─── HTML helpers ─────────────────────────────────────────────────────────────
-
-function esc(s: string | null | undefined): string {
-  if (!s) return '';
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// Ornament rule — div line-trick required for Outlook (borders get stripped).
-function ornamentRule(color = INK, lineWidth = 110): string {
-  return `
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
-  <tr>
-    <td style="width:${lineWidth}px;vertical-align:middle;font-size:0;line-height:0;">
-      <div style="width:${lineWidth}px;height:1px;background:${color};font-size:0;line-height:0;">&nbsp;</div>
-    </td>
-    <td style="padding:0 10px;font-family:${DISPLAY};font-size:18px;line-height:1;color:${CLARET};vertical-align:middle;">✦</td>
-    <td style="width:${lineWidth}px;vertical-align:middle;font-size:0;line-height:0;">
-      <div style="width:${lineWidth}px;height:1px;background:${color};font-size:0;line-height:0;">&nbsp;</div>
-    </td>
-  </tr>
-</table>`;
-}
-
-interface RunRow {
-  numeral: string;
-  dayLabel: string;
-  classLabel: string;
-  judgeName: string;
-  armband: string | null;
-}
-
-function runsTable(runs: RunRow[]): string {
-  const headerCells = ['Trial', 'Day', 'Class', 'Judge', 'Armband']
-    .map(
-      (h, i) =>
-        `<td style="padding-bottom:6px;border-bottom:1px solid ${INK};font-family:${DISPLAY};font-style:italic;font-size:11px;color:${QUILL};letter-spacing:0.06em;text-transform:uppercase;${i === 4 ? 'text-align:right;' : ''}">${h}</td>`
-    )
-    .join('');
-
-  const rows = runs
-    .map((r, i) => {
-      const last = i === runs.length - 1;
-      const border = last ? '' : `border-bottom:1px dotted ${GOLD};`;
-      return `<tr>
-      <td style="padding:8px 0;${border}font-family:${DISPLAY};font-style:italic;color:${CLARET};font-size:14px;">${esc(r.numeral)}</td>
-      <td style="padding:8px 0;${border}font-family:${BODY_FONT};font-size:13px;">${esc(r.dayLabel)}</td>
-      <td style="padding:8px 0;${border}font-family:${BODY_FONT};font-size:13px;">${esc(r.classLabel)}</td>
-      <td style="padding:8px 0;${border}font-family:${BODY_FONT};font-size:13px;">${esc(r.judgeName)}</td>
-      <td style="padding:8px 0;${border}font-family:${DISPLAY};font-weight:500;font-size:16px;color:${INK};text-align:right;">${r.armband ? esc(r.armband) : '—'}</td>
-    </tr>`;
-    })
-    .join('');
-
-  return `
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px;">
-  <tr>${headerCells}</tr>
-  ${rows}
-</table>`;
-}
-
-function buildHtml(data: {
-  clubName: string;
-  clubEstablished: string | null;
-  clubCity: string | null;
-  showTitle: string;
-  dateRange: string;
-  salutation: string;
-  dogName: string;
-  dogCallName: string | null;
-  dogBreed: string | null;
-  dogSex: string | null;
-  runs: RunRow[];
-  runCount: number;
-  totalFeesFormatted: string;
-  receiptNumber: string | null;
-  venue: string | null;
-  venueMap?: VenueMapAssets | null;
-  doorsTime: string | null;
-  firstClassTime: string | null;
-  parkingNotes: string | null;
-  hospitalityNotes: string | null;
-  cratingNotes: string | null;
-  secretaryEmail: string | null;
-  secretaryPhone: string | null;
-  trialUrl: string | null;
-  trialChairName: string | null;
-  trialChairTitle: string | null;
-  memberClubLanguage: string;
-}): string {
-  const dogLine = [
-    data.dogCallName ? `called &ldquo;${esc(data.dogCallName)}&rdquo;` : null,
-    data.dogBreed ? esc(data.dogBreed) : null,
-    data.dogSex ? esc(data.dogSex) : null,
-  ]
-    .filter(Boolean)
-    .join(' &middot; ');
-
-  const onTheDaySection =
-    data.doorsTime ||
-    data.firstClassTime ||
-    data.venue ||
-    data.parkingNotes ||
-    data.hospitalityNotes ||
-    data.cratingNotes
-      ? `
-<tr>
-  <td style="padding:24px 48px 8px;">
-    <p style="margin:0;text-align:center;font-family:${DISPLAY};font-style:italic;font-size:13px;color:${CLARET};letter-spacing:0.04em;">§ On the Day</p>
-    <h2 style="margin:4px 0 16px;text-align:center;font-family:${DISPLAY};font-style:italic;font-weight:500;font-size:26px;color:${INK};">What to expect</h2>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="width:50%;padding:6px 12px 6px 0;vertical-align:top;font-family:${BODY_FONT};font-size:13px;line-height:1.55;">
-          ${data.doorsTime ? `<p style="margin:0;font-family:${DISPLAY};font-style:italic;color:${QUILL};font-size:12px;">Doors</p><p style="margin:2px 0 10px;color:${INK};">${esc(data.doorsTime)}</p>` : ''}
-          ${data.firstClassTime ? `<p style="margin:0;font-family:${DISPLAY};font-style:italic;color:${QUILL};font-size:12px;">First class</p><p style="margin:2px 0 10px;color:${INK};">${esc(data.firstClassTime)}</p>` : ''}
-          ${data.cratingNotes ? `<p style="margin:0;font-family:${DISPLAY};font-style:italic;color:${QUILL};font-size:12px;">Crating</p><p style="margin:2px 0;color:${INK};">${esc(data.cratingNotes)}</p>` : ''}
-        </td>
-        <td style="width:50%;padding:6px 0 6px 12px;vertical-align:top;font-family:${BODY_FONT};font-size:13px;line-height:1.55;">
-          ${data.venue ? `<p style="margin:0;font-family:${DISPLAY};font-style:italic;color:${QUILL};font-size:12px;">Venue</p><p style="margin:2px 0 10px;color:${INK};">${esc(data.venue).replace(/\n/g, '<br/>')}</p>` : ''}
-          ${data.parkingNotes ? `<p style="margin:0;font-family:${DISPLAY};font-style:italic;color:${QUILL};font-size:12px;">Parking</p><p style="margin:2px 0 10px;color:${INK};">${esc(data.parkingNotes)}</p>` : ''}
-          ${data.hospitalityNotes ? `<p style="margin:0;font-family:${DISPLAY};font-style:italic;color:${QUILL};font-size:12px;">Hospitality</p><p style="margin:2px 0;color:${INK};">${esc(data.hospitalityNotes)}</p>` : ''}
-        </td>
-      </tr>
-    </table>
-    ${renderVenueMapBlock(data.venueMap, data.venue)}
-    ${data.runs[0]?.armband ? `<p style="margin:18px 0 0;padding:12px 16px;background:rgba(138,106,69,0.08);border-left:2px solid ${GOLD};border-right:2px solid ${GOLD};font-family:${BODY_FONT};font-size:12.5px;line-height:1.55;color:${INK};"><em style="font-family:${DISPLAY};font-style:italic;color:${CLARET};">Please bring</em> your AKC registration confirmation, vaccination records, and a copy of this email. Armband <strong style="font-family:${DISPLAY};font-weight:500;">${esc(data.runs[0].armband)}</strong> will be issued at check-in.</p>` : ''}
-  </td>
-</tr>`
-      : '';
-
-  const signatureSection =
-    data.trialChairName || data.trialChairTitle
-      ? `
-<tr>
-  <td style="padding:0 56px 28px;font-family:${BODY_FONT};font-size:14px;line-height:1.55;color:${INK};">
-    <p style="margin:0 0 6px;">We look forward to seeing you and ${data.dogCallName ? `<em>${esc(data.dogCallName)}</em>` : esc(data.dogName)} at the trial.</p>
-    ${data.trialChairName ? `<p style="margin:0;font-family:${DISPLAY};font-style:italic;font-size:18px;color:${INK};">— ${esc(data.trialChairName)}</p>` : ''}
-    ${data.trialChairTitle ? `<p style="margin:0;font-family:${BODY_FONT};font-size:12px;color:${QUILL};font-style:italic;">${esc(data.trialChairTitle)}</p>` : ''}
-  </td>
-</tr>`
-      : '';
-
-  const ctaSection = data.trialUrl
-    ? `
-<tr>
-  <td align="center" style="padding:16px 48px 32px;">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="background:${INK};padding:12px 28px;">
-          <a href="${esc(data.trialUrl)}" style="font-family:${DISPLAY};font-style:italic;font-size:15px;color:${PAPER};text-decoration:none;letter-spacing:0.06em;">View trial particulars ›</a>
-        </td>
-      </tr>
-    </table>
-    <p style="margin:14px 0 0;font-family:${DISPLAY};font-style:italic;font-size:11px;color:${QUILL};">Add to calendar · directions · order of running</p>
-  </td>
-</tr>`
-    : '';
-
-  const contactLine = data.secretaryEmail
-    ? `<a href="mailto:${esc(data.secretaryEmail)}" style="color:${CLARET};text-decoration:none;">${esc(data.secretaryEmail)}</a>`
-    : 'the Trial Secretary';
-  const phonePart = data.secretaryPhone ? ` or telephone ${esc(data.secretaryPhone)}` : '';
-
-  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet"/>
-<title>Entry Confirmation · ${esc(data.showTitle)}</title>
-</head>
-<body style="margin:0;padding:0;background:#d9d2c2;">
-
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#d9d2c2;padding:32px 0;">
-<tr><td align="center">
-
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:${PAPER};">
-
-  <!-- HEADER -->
-  <tr>
-    <td style="padding:36px 48px 12px;text-align:center;">
-      <p style="margin:0;font-family:${DISPLAY};font-style:italic;font-size:13px;color:${QUILL};letter-spacing:0.04em;">A formal confirmation from</p>
-      <p style="margin:4px 0 2px;font-family:${DISPLAY};font-weight:600;font-size:18px;text-transform:uppercase;letter-spacing:0.18em;color:${INK};">${esc(data.clubName)}</p>
-      ${data.clubEstablished || data.clubCity ? `<p style="margin:0 0 16px;font-family:${BODY_FONT};font-style:italic;font-size:11px;color:${QUILL};">${[data.clubEstablished, data.clubCity].filter(Boolean).map(esc).join(' &middot; ')}</p>` : ''}
-      ${ornamentRule(INK, 110)}
-      <h1 style="margin:12px 0 4px;font-family:${DISPLAY};font-weight:500;font-style:italic;font-size:38px;line-height:1.05;color:${INK};">Your entry is <em style="color:${CLARET};font-style:italic;">confirmed</em>.</h1>
-      <p style="margin:8px 0 0;font-family:${BODY_FONT};font-size:12px;letter-spacing:0.28em;text-transform:uppercase;color:${QUILL};">${esc(data.showTitle)} &middot; ${esc(data.dateRange)}</p>
-    </td>
-  </tr>
-
-  <!-- GREETING -->
-  <tr>
-    <td style="padding:18px 56px 6px;font-family:${BODY_FONT};font-size:15px;line-height:1.6;color:${INK};">
-      <p style="margin:0 0 12px;">Dear <em style="font-family:${DISPLAY};font-style:italic;color:${CLARET};">${esc(data.salutation)}</em>,</p>
-      <p style="margin:0 0 12px;">We have the pleasure of confirming your entry to the <em style="font-family:${DISPLAY};font-style:italic;">${esc(data.showTitle)}</em>. The draw has been completed and the running order is set; your particulars are recorded as follows.</p>
-    </td>
-  </tr>
-
-  <!-- ENTRY DETAIL CARD -->
-  <tr>
-    <td style="padding:12px 48px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ${INK};border-bottom:1px solid ${INK};padding:18px 0;">
-        <tr>
-          <td style="padding:14px 8px;">
-            <p style="margin:0;font-family:${DISPLAY};font-style:italic;font-size:13px;color:${CLARET};letter-spacing:0.06em;">§ The Dog</p>
-            <p style="margin:4px 0 2px;font-family:${DISPLAY};font-size:24px;font-weight:500;line-height:1.15;color:${INK};">${esc(data.dogName)}</p>
-            ${dogLine ? `<p style="margin:0 0 14px;font-family:${BODY_FONT};font-style:italic;font-size:13px;color:${QUILL};">${dogLine}</p>` : ''}
-            ${runsTable(data.runs)}
-            <p style="margin:16px 0 0;font-family:${BODY_FONT};font-size:12px;color:${QUILL};line-height:1.55;">
-              <em style="font-family:${DISPLAY};font-style:italic;">${data.runCount} ${data.runCount === 1 ? 'run' : 'runs'} entered.</em>
-              Total fees received: <span style="color:${INK};">${esc(data.totalFeesFormatted)}</span>${data.receiptNumber ? `. Receipt #${esc(data.receiptNumber)}.` : '.'}
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-
-  ${onTheDaySection}
-
-  <!-- ORNAMENT DIVIDER -->
-  <tr>
-    <td style="padding:24px 48px 8px;" align="center">
-      ${ornamentRule(GOLD, 90)}
-    </td>
-  </tr>
-
-  <!-- WITHDRAW / CONTACT -->
-  <tr>
-    <td style="padding:4px 56px 12px;font-family:${BODY_FONT};font-size:13.5px;line-height:1.6;color:${INK};">
-      <p style="margin:0 0 10px;text-align:center;font-family:${DISPLAY};font-style:italic;font-size:13px;color:${CLARET};letter-spacing:0.04em;">§ If you must withdraw</p>
-      <p style="margin:0 0 10px;">Should circumstances prevent your attendance, kindly notify the Trial Secretary in writing. Refunds (less $5 processing) are issued for written withdrawals received before closing; entries withdrawn after closing cannot be refunded but the slot will be released to the wait list.</p>
-      <p style="margin:0;">For any other matter, please write to ${contactLine}${phonePart}.</p>
-    </td>
-  </tr>
-
-  ${ctaSection}
-  ${signatureSection}
-
-  <!-- FOOTER -->
-  <tr>
-    <td style="background:${INK};padding:24px 48px;text-align:center;">
-      <p style="margin:0;font-family:${DISPLAY};font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:0.18em;color:${PAPER};">${esc(data.clubName)}</p>
-      <p style="margin:4px 0 0;font-family:${BODY_FONT};font-style:italic;font-size:11px;color:rgba(248,244,234,0.7);">${esc(data.memberClubLanguage)}</p>
-      <p style="margin:16px 0 0;font-family:${BODY_FONT};font-size:10.5px;line-height:1.55;color:rgba(248,244,234,0.55);">You received this confirmation because you submitted an entry.</p>
-    </td>
-  </tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
-
-// ─── Database helpers ─────────────────────────────────────────────────────────
-
-function formatTrialDay(iso: string): string {
-  const d = new Date(iso + 'T00:00:00');
-  return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })}`;
-}
-
-function formatDateRange(start: string, end: string): string {
-  const s = new Date(start + 'T00:00:00');
-  const e = new Date(end + 'T00:00:00');
-  const month = s.toLocaleDateString('en-US', { month: 'long' });
-  return s.getMonth() === e.getMonth()
-    ? `${s.getDate()}–${e.getDate()} ${month} ${s.getFullYear()}`
-    : `${s.getDate()} ${month} – ${e.getDate()} ${e.toLocaleDateString('en-US', { month: 'long' })} ${e.getFullYear()}`;
-}
-
-// ─── Main handler ─────────────────────────────────────────────────────────────
+const SHOW_SELECT =
+  'id, name, status, start_date, end_date, venue_name, address, city, state, zip_code, latitude, longitude, organization, confirmation_message, style, brand_color, experience_is_published, experience_published_style, experience_published_content, trials(id, name, trial_number, display_order, date, timezone, registry_id, deleted_at)';
+const ENTRY_SELECT =
+  'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
 
 /** Asks send-registration-email to re-send a failed receipt, as the sweep caller (same secret). */
 async function resendReceipt(
@@ -366,19 +83,164 @@ async function resendReceipt(
 }
 
 interface ConfirmationEmailPayload {
-  trial_id?: string;
+  /** "new" sends only confirmations never tried; anything else is the daily run. */
+  scope?: string;
 }
 
-// auth: 'none' because the caller is pg_cron / pg_net (migration 193), which
-// passes the service-role key in `Authorization: Bearer <key>` — that is not a
-// user JWT, so the envelope's JWT check would fail. Caller validation is the
-// required HERITAGE_CONFIRMATION_SECRET header below.
+type PersonRow = { first_name: string | null; last_name: string | null; email: string | null };
+
+function toRecipient(person: PersonRow | null | undefined): ConfirmationRecipient | null {
+  if (!person) return null;
+  return { email: person.email, firstName: person.first_name, lastName: person.last_name };
+}
+
+type ServiceClient = HandlerCtx<unknown>['supabase'];
+
+function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryConfirmationDeps {
+  return {
+    now: () => new Date(),
+    siteUrl: Deno.env.get('SITE_URL'),
+    loadShows: async () => {
+      // A day of slack: the run decides "not over" in each show's own time zone.
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from('shows')
+        .select(SHOW_SELECT)
+        .in('status', [...CONFIRMATION_LIVE_SHOW_STATUSES])
+        .is('deleted_at', null)
+        .gte('end_date', yesterday);
+      if (error) throw new Error(`Could not read shows: ${error.message}`);
+      return (data ?? []).map((show: ConfirmationShow) => ({
+        ...show,
+        trials: (show.trials ?? []).filter(
+          trial => trial && !(trial as { deleted_at?: string | null }).deleted_at
+        ),
+      }));
+    },
+    loadCandidates: async ({ showIds, statuses, quietSince }) => {
+      const { data, error } = await supabase
+        .from('entries')
+        .select(ENTRY_SELECT)
+        .in('show_id', showIds)
+        .eq('entry_status', 'confirmed')
+        .not('armband', 'is', null)
+        .is('deleted_at', null)
+        .is('confirmation_email_sent_at', null)
+        .in('confirmation_email_status', statuses)
+        .lt('updated_at', quietSince)
+        .order('show_id', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(CONFIRMATION_ROW_LIMIT);
+      if (error) throw new Error(`Could not read accepted entries: ${error.message}`);
+      return (data ?? []) as unknown as ConfirmationEntry[];
+    },
+    loadRecipients: async ({ registrationIds, handlerIds }) => {
+      const byRegistration = new Map<string, ConfirmationRecipient>();
+      const byHandler = new Map<string, ConfirmationRecipient>();
+      if (registrationIds.length > 0) {
+        const { data } = await supabase
+          .from('enrollments')
+          .select('id, person:people(first_name, last_name, email)')
+          .in('id', registrationIds);
+        for (const row of (data ?? []) as unknown as Array<{
+          id: string;
+          person: PersonRow | null;
+        }>) {
+          const recipient = toRecipient(row.person);
+          if (recipient) byRegistration.set(row.id, recipient);
+        }
+      }
+      if (handlerIds.length > 0) {
+        const { data } = await supabase
+          .from('people')
+          .select('id, first_name, last_name, email')
+          .in('id', handlerIds);
+        for (const row of (data ?? []) as Array<PersonRow & { id: string }>) {
+          const recipient = toRecipient(row);
+          if (recipient) byHandler.set(row.id, recipient);
+        }
+      }
+      return { byRegistration, byHandler };
+    },
+    loadJudges: async classIds => {
+      if (classIds.length === 0) return new Map();
+      const { data, error } = await supabase
+        .from('judge_assignments')
+        .select(JUDGE_ASSIGNMENT_NAME_SELECT)
+        .in('class_id', classIds)
+        .eq('status', 'confirmed');
+      // A failed read names no judge ("To be announced"); the email still goes.
+      if (error) console.error('Could not read class judges', { message: error.message });
+      return judgeNamesByClass((data ?? []) as unknown as JudgeAssignmentNameRow[]);
+    },
+    loadConfirmationNumbers: registrationIds =>
+      loadConfirmationNumbers(
+        supabase as unknown as Parameters<typeof loadConfirmationNumbers>[0],
+        registrationIds
+      ),
+    claim: async (entryIds, statuses, nowIso) => {
+      const { data, error } = await supabase
+        .from('entries')
+        .update({ confirmation_email_sent_at: nowIso })
+        .in('id', entryIds)
+        .is('confirmation_email_sent_at', null)
+        .in('confirmation_email_status', statuses)
+        .eq('entry_status', 'confirmed')
+        .not('armband', 'is', null)
+        .is('deleted_at', null)
+        .select('id');
+      if (error) throw new Error(`Could not claim confirmations: ${error.message}`);
+      return ((data ?? []) as Array<{ id: string }>).map(row => row.id);
+    },
+    markSent: async (entryIds, messageId) => {
+      const { error } = await supabase
+        .from('entries')
+        .update({ confirmation_email_status: 'sent', confirmation_email_message_id: messageId })
+        .in('id', entryIds);
+      // The claim already stands, so the entries are not sent again; only the status lags.
+      if (error) console.error('Could not mark confirmations sent', { message: error.message });
+    },
+    markFailed: async entryIds => {
+      const { error } = await supabase
+        .from('entries')
+        .update({ confirmation_email_sent_at: null, confirmation_email_status: 'failed' })
+        .in('id', entryIds);
+      if (error) console.error('Could not release confirmations', { message: error.message });
+    },
+    render: (data, show) => renderConfirmationEmail(data, show, showRegistry(show)),
+    send: async ({ to, subject, html, idempotencyKey }) => {
+      const res = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+      });
+      if (!res.ok) {
+        await res.text();
+        console.error('Failed to send the full confirmation', { status: res.status });
+        return { ok: false, error: `provider_http_${res.status}` };
+      }
+      const result = (await res.json()) as { id: string };
+      return { ok: true, messageId: result.id };
+    },
+    log: async row => {
+      const { error } = await supabase
+        .from('email_log')
+        .insert({ ...row, status_updated_at: new Date().toISOString() });
+      requireEmailLogWrite(error, 'send-confirmation-email');
+    },
+  };
+}
+
+// auth: 'none' because the caller is pg_cron / pg_net, which passes the service-role key in
+// `Authorization: Bearer <key>`; that is not a user JWT, so the envelope's JWT check would fail.
+// Caller validation is the required HERITAGE_CONFIRMATION_SECRET header below.
 handle<ConfirmationEmailPayload>(
   { auth: 'none', origins: MYK9SHOW_ORIGINS },
   async ({ req, body, supabase }) => {
-    // Caller auth: every non-OPTIONS request must carry the configured
-    // HERITAGE_CONFIRMATION_SECRET in x-function-secret. The pg_cron SQL in
-    // migration 193 passes this header.
     requireConfirmationEmailSecret(req);
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -386,351 +248,23 @@ handle<ConfirmationEmailPayload>(
       throw new HttpError(503, 'Email service not configured');
     }
 
-    // Determine which trials to process.
-    // Body is optional — called with { trial_id } for a single trial,
-    // or with `{}` (pg_cron batch mode) to process all trials whose
-    // confirmation_date = today.
-    let trialIds: string[] = [];
+    const scope = body?.scope === 'new' ? 'new' : 'all';
 
-    // MYK9-1963: the scheduled (batch) run first retries failed submit receipts, whatever any
-    // trial's confirmation_date. A call for one trial does not sweep.
-    const receiptRetry = body?.trial_id
-      ? undefined
-      : await sweepFailedReceipts(
-          supabase as unknown as ReceiptSweepClient,
-          (registrationId, entryIds) => resendReceipt(req, registrationId, entryIds),
-          Date.now()
-        );
+    // MYK9-1963: the daily run first retries failed submit receipts. The frequent run does not,
+    // so a receipt that cannot be sent is retried once a day, not every few minutes.
+    const receiptRetry =
+      scope === 'all'
+        ? await sweepFailedReceipts(
+            supabase as unknown as ReceiptSweepClient,
+            (registrationId, entryIds) => resendReceipt(req, registrationId, entryIds),
+            Date.now()
+          )
+        : undefined;
 
-    if (body?.trial_id) {
-      trialIds = [body.trial_id];
-    }
-
-    if (trialIds.length === 0) {
-      // Batch: find trials whose confirmation_date is today (UTC)
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: trials } = await supabase
-        .from('trials')
-        .select('id')
-        .gte('confirmation_date', `${today}T00:00:00Z`)
-        .lt('confirmation_date', `${today}T23:59:59Z`);
-      trialIds = (trials ?? []).map((t: { id: string }) => t.id);
-    }
-
-    if (trialIds.length === 0) {
-      return { sent: 0, skipped: 0, failed: 0, receiptRetry, message: 'No trials due today' };
-    }
-
-    let sent = 0,
-      skipped = 0,
-      failed = 0;
-
-    for (const trialId of trialIds) {
-      // Load trial + show + club
-      const { data: trial } = await supabase
-        .from('trials')
-        .select('id, date, trial_number, display_order, show_id, name')
-        .eq('id', trialId)
-        .single();
-
-      if (!trial) continue;
-
-      const { data: show } = await supabase
-        .from('shows')
-        .select(
-          'id, name, start_date, end_date, venue_name, city, state, address, latitude, longitude, organization, club_id, style, experience_is_published, experience_published_style, experience_published_content'
-        )
-        .eq('id', trial.show_id)
-        .single();
-
-      if (!show) continue;
-
-      // All trials for this show (for the run-row trial labels)
-      const { data: allTrials } = await supabase
-        .from('trials')
-        .select('id, name, trial_number')
-        .eq('show_id', show.id)
-        .order('display_order', { ascending: true });
-
-      // Judges for this trial
-      const { data: judgeAssignments } = await supabase
-        .from('judge_assignments')
-        .select('trial_id, person:people(first_name, last_name)')
-        .eq('trial_id', trialId);
-
-      const judges = (judgeAssignments ?? []).map(
-        (j: { trial_id: string; person: { first_name?: string; last_name?: string } | null }) => ({
-          trial_id: j.trial_id,
-          judgeName: j.person
-            ? [j.person.first_name, j.person.last_name].filter(Boolean).join(' ')
-            : '—',
-        })
-      );
-
-      // Trial label per run row: name, else trial_number as-is, else 'Trial'
-      // (MYK9-713, the formatTrialLabel contract from @myk9/core).
-      const numeralMap = buildTrialLabelMap(allTrials ?? []);
-
-      // Entries not yet sent for this trial
-      const { data: entries } = await supabase
-        .from('entries')
-        .select(
-          `
-          id, armband, entry_fee, trial_id, class_id, registration_id,
-          dog:dogs(name, call_name, breed, sex),
-          handler:people(first_name, last_name, email),
-          class:classes(name, level, element)
-        `
-        )
-        .eq('trial_id', trialId)
-        .is('confirmation_email_sent_at', null)
-        .in('confirmation_email_status', ['pending', 'failed']);
-
-      const confirmationNumbers = await loadConfirmationNumbers(
-        supabase,
-        (entries ?? []).map((e: { registration_id: string | null }) => e.registration_id)
-      );
-
-      for (const entry of entries ?? []) {
-        const recipientEmail = entry.handler?.email;
-        if (!recipientEmail) {
-          const attemptedAt = new Date().toISOString();
-          await supabase
-            .from('entries')
-            .update({ confirmation_email_status: 'failed' })
-            .eq('id', entry.id);
-          const { error: logError } = await supabase.from('email_log').insert({
-            recipient_email: null,
-            email_type: 'heritage_confirmation',
-            related_id: entry.id,
-            status: 'failed',
-            status_updated_at: attemptedAt,
-            error_message: 'missing_recipient',
-            show_id: show.id,
-          });
-          requireEmailLogWrite(logError, 'send-confirmation-email');
-          failed++;
-          continue;
-        }
-
-        const dogName = entry.dog?.name ?? 'Unknown Dog';
-        const salutation =
-          [entry.handler?.first_name, entry.handler?.last_name].filter(Boolean).join(' ') ||
-          'Exhibitor';
-
-        const classLabel =
-          [entry.class?.level, entry.class?.element ?? entry.class?.name]
-            .filter(Boolean)
-            .join(' · ') || '—';
-
-        const judge = judges.find((j: { trial_id: string }) => j.trial_id === trialId);
-
-        const runRow: RunRow = {
-          numeral: numeralMap.get(trialId) ?? '—',
-          dayLabel: formatTrialDay(trial.date),
-          classLabel,
-          judgeName: judge?.judgeName ?? '—',
-          armband: entry.armband ?? null,
-        };
-
-        const venueStr =
-          [show.venue_name, [show.address, show.city, show.state].filter(Boolean).join(', ')]
-            .filter(Boolean)
-            .join('\n') || null;
-
-        // Keyless directions link: the venue pin when placed, else the address text.
-        const venueMap = buildVenueMapAssets(show.latitude, show.longitude, venueStr);
-
-        const emailData: Parameters<typeof buildHtml>[0] = {
-          venueMap,
-          // Prefer the org name from `shows.organization` (the real club
-          // identity) so per-style derivations like Field Guide's
-          // showCode get distinct club + show inputs. Falls back to
-          // `show.name` for legacy rows where organization is null.
-          clubName: show.organization ?? show.name,
-          clubEstablished: null,
-          clubCity: [show.city, show.state].filter(Boolean).join(', ') || null,
-          showTitle: show.name,
-          dateRange: formatDateRange(show.start_date, show.end_date),
-          salutation,
-          dogName,
-          dogCallName: entry.dog?.call_name ?? null,
-          dogBreed: entry.dog?.breed ?? null,
-          dogSex: entry.dog?.sex ?? null,
-          runs: [runRow],
-          runCount: 1,
-          totalFeesFormatted: formatEntryFee(entry.entry_fee),
-          receiptNumber: confirmationNumbers.get(entry.registration_id) ?? null,
-          venue: venueStr,
-          doorsTime: null,
-          firstClassTime: null,
-          parkingNotes: null,
-          hospitalityNotes: getPublishedExperienceHospitalityNotes(show),
-          cratingNotes: null,
-          secretaryEmail: null,
-          secretaryPhone: null,
-          trialUrl: null,
-          trialChairName: null,
-          trialChairTitle: null,
-          memberClubLanguage: 'A member club of the American Kennel Club',
-        };
-        const showStyle = resolveEmailStyle(show.experience_published_style ?? show.style);
-        const emailBuilder = selectEmailBuilderKey(showStyle);
-
-        // Mirrors apps/myk9show/src/features/monogram/utils/buildMonogram.ts
-        // (canonical app-side helper) and the older premium/pdf/pdfStyles.ts
-        // helper. Inline here because Deno edge functions cannot import from
-        // workspace packages. Keep the three copies semantically aligned.
-        const monogramLetters =
-          (emailData.clubName || '')
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean)
-            .slice(0, 3)
-            .map(w => w[0]!.toUpperCase())
-            .join('') || '?';
-
-        // Single armband across all runs for this entry (the dispatcher
-        // is per-entry per-trial with a single run in scope, so all four
-        // sibling styles that take a top-level armband field share the
-        // same value).
-        const primaryArmband = emailData.runs[0]?.armband ?? null;
-
-        let html: string;
-        if (emailBuilder === 'headline') {
-          html = buildHeadlineHtml(emailData);
-        } else if (emailBuilder === 'monogram') {
-          html = buildMonogramHtml({ ...emailData, monogramLetters });
-        } else if (emailBuilder === 'banner') {
-          // Migration 20260515212527 added shows.brand_color with a
-          // NOT NULL default, so rows should always have a value. The
-          // builder still validates the hex and falls back to deep teal
-          // defensively.
-          const brandColor = (show as Record<string, unknown>).brand_color;
-          html = buildBannerHtml({
-            ...emailData,
-            brandColor: typeof brandColor === 'string' ? brandColor : '#0d4d4f',
-          });
-        } else if (emailBuilder === 'fieldGuide') {
-          // armbandNumber is optional — Field Guide's builder derives it
-          // from runs when omitted. We pass it through explicitly so the
-          // chip surfaces with the same value as the data row.
-          html = buildFieldGuideHtml({
-            ...emailData,
-            showCode: deriveShowCode(emailData.clubName, emailData.showTitle, show.start_date),
-            armbandNumber: primaryArmband,
-          });
-        } else if (emailBuilder === 'gazette') {
-          html = buildGazetteHtml({
-            ...emailData,
-            editionLabel: deriveGazetteEditionLabel(),
-          });
-        } else if (emailBuilder === 'magazine') {
-          html = buildMagazineHtml({
-            ...emailData,
-            editionLabel: deriveMagazineEditionLabel(show.start_date),
-            primaryArmband,
-            // No license-reference column yet — leave the footer line off
-            // until a `shows.license_reference` field lands.
-            licenseReference: null,
-          });
-        } else if (emailBuilder === 'poster') {
-          html = buildPosterHtml({
-            ...emailData,
-            showAbbreviation: deriveShowAbbreviation(emailData.showTitle, show.start_date),
-            armband: primaryArmband,
-            // Canonical string mirrored from
-            // apps/myk9show/src/features/registries/akc.ts so Poster's
-            // email matches Poster's landing page exactly. Promote to
-            // a registry lookup once non-AKC trials land.
-            licenseLanguage: 'An A.K.C. Licensed Trial',
-          });
-        } else {
-          html = buildHtml(emailData);
-        }
-
-        let resendRes: Response;
-        try {
-          resendRes = await sendResendEmailWithRetry({
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${RESEND_API_KEY}`,
-              // Keep this stable across style/config edits; the DB sent-at
-              // filter is best-effort, while Resend owns duplicate suppression.
-              'Idempotency-Key': `confirmation-email-${entry.id}`,
-            },
-            body: JSON.stringify({
-              from: FROM_EMAIL,
-              to: recipientEmail,
-              subject: `Your entry to ${show.name} is confirmed`,
-              html,
-            }),
-          });
-        } catch {
-          await supabase
-            .from('entries')
-            .update({ confirmation_email_status: 'failed' })
-            .eq('id', entry.id);
-          const { error: logError } = await supabase.from('email_log').insert({
-            recipient_email: recipientEmail,
-            email_type: 'heritage_confirmation',
-            related_id: entry.id,
-            status: 'failed',
-            status_updated_at: new Date().toISOString(),
-            error_message: 'email_delivery_error',
-            show_id: show.id,
-          });
-          requireEmailLogWrite(logError, 'send-confirmation-email');
-          failed++;
-          continue;
-        }
-
-        const attemptedAt = new Date().toISOString();
-        if (resendRes.ok) {
-          const result = (await resendRes.json()) as { id: string };
-          await supabase
-            .from('entries')
-            .update({
-              confirmation_email_sent_at: new Date().toISOString(),
-              confirmation_email_message_id: result.id,
-              confirmation_email_status: 'sent',
-            })
-            .eq('id', entry.id);
-          const { error: logError } = await supabase.from('email_log').insert({
-            recipient_email: recipientEmail,
-            email_type: 'heritage_confirmation',
-            related_id: entry.id,
-            resend_message_id: result.id,
-            status: 'sent',
-            status_updated_at: attemptedAt,
-            show_id: show.id,
-          });
-          requireEmailLogWrite(logError, 'send-confirmation-email');
-          sent++;
-        } else {
-          console.error('Failed to send Heritage confirmation', { status: resendRes.status });
-          await supabase
-            .from('entries')
-            .update({
-              confirmation_email_status: 'failed',
-            })
-            .eq('id', entry.id);
-          const { error: logError } = await supabase.from('email_log').insert({
-            recipient_email: recipientEmail,
-            email_type: 'heritage_confirmation',
-            related_id: entry.id,
-            status: 'failed',
-            status_updated_at: attemptedAt,
-            error_message: `provider_http_${resendRes.status}`,
-            show_id: show.id,
-          });
-          requireEmailLogWrite(logError, 'send-confirmation-email');
-          failed++;
-        }
-      }
-    }
-
-    return { sent, skipped, failed, receiptRetry };
+    const confirmations = await runEntryConfirmations(
+      confirmationDeps(supabase, RESEND_API_KEY),
+      scope
+    );
+    return { ...confirmations, receiptRetry };
   }
 );

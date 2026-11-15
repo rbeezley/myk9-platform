@@ -22,7 +22,8 @@ export interface MagazineEntryReceivedProps {
   totalFeesFormatted: string;
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
-  confirmationDateLabel: string | null;
+  /** What happens next by email (MYK9-1999): the full confirmation once the entry is accepted. */
+  fullConfirmationNote: string;
   /** Entry-specific download controls rendered in the existing primary CTA slot. */
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. If omitted, button is
@@ -76,7 +77,7 @@ export function MagazineEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
 }: MagazineEntryReceivedProps) {
@@ -302,7 +303,7 @@ export function MagazineEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           style={{
             textAlign: 'center',
@@ -316,11 +317,7 @@ export function MagazineEntryReceived({
             margin: 0,
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: INK, fontWeight: 500, fontStyle: 'normal' }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete.
+          {fullConfirmationNote}
         </p>
       )}
     </div>

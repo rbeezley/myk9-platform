@@ -1,8 +1,10 @@
-// Builds the registration confirmation email. Deno-free so vitest can import it.
+// Builds the receipt for a check or cash entry. Deno-free so vitest can import it.
+//
+// MYK9-1999: a receipt is about money, so it carries no free text from the secretary. Her note
+// to exhibitors goes in the full confirmation, which send-confirmation-email sends once the
+// entry is accepted.
 
-/** The armband is given out closer to the show, so the email says where the number will appear. */
-const ARMBAND_NOTE =
-  'Your armband number is assigned closer to the show. It will appear next to each dog in My Shows.';
+import { judgeLine, RECEIPT_ARMBAND_NOTE } from '../_shared/exhibitorEmailDetails.ts';
 
 /** What a check or cash entry still owes, in plain words. null for any other payment. */
 export function payAtShowLine(
@@ -43,10 +45,15 @@ export function buildRegistrationEmailHtml(data: {
   confirmationNumber: string | null;
   showName: string;
   showDates: string;
+  /** The venue name and street address, one per line; empty when the show has neither. */
   showLocation: string;
-  showVenue?: string;
-  confirmationMessage?: string;
-  entries: Array<{ dogName: string; className: string; armband?: string }>;
+  entries: Array<{
+    dogName: string;
+    className: string;
+    armband?: string | undefined;
+    /** The class's confirmed judge; absent prints "Judge to be announced". */
+    judgeName?: string | null | undefined;
+  }>;
   subtotal: number;
   discount?: number;
   total: number;
@@ -66,7 +73,8 @@ export function buildRegistrationEmailHtml(data: {
         `<tr>
       <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
         <strong>${escapeHtml(e.dogName)}</strong><br>
-        <span style="color: #6b7280; font-size: 14px;">${escapeHtml(e.className)}</span>
+        <span style="color: #6b7280; font-size: 14px;">${escapeHtml(e.className)}</span><br>
+        <span style="color: #6b7280; font-size: 14px;">${escapeHtml(judgeLine(e.judgeName))}</span>
       </td>
       ${e.armband ? `<td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right; color: #6b7280; font-size: 14px;">#${escapeHtml(e.armband)}</td>` : '<td></td>'}
     </tr>`
@@ -80,14 +88,6 @@ export function buildRegistrationEmailHtml(data: {
         <p style="margin: 4px 0 0; font-size: 20px; font-weight: 600; color: #059669; font-family: monospace;">${escapeHtml(data.confirmationNumber)}</p>
       </div>
 `
-    : '';
-
-  const messageSection = data.confirmationMessage
-    ? `
-    <div style="background-color: #eff6ff; border-radius: 6px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #3b82f6;">
-      <p style="margin: 0 0 4px; font-weight: 600; font-size: 14px; color: #1e40af;">From the show secretary</p>
-      <p style="margin: 0; color: #1e3a5f; font-size: 14px; line-height: 22px;">${escapeHtml(data.confirmationMessage)}</p>
-    </div>`
     : '';
 
   const discountRow =
@@ -111,18 +111,16 @@ export function buildRegistrationEmailHtml(data: {
       <p style="color: #fff; font-size: 20px; font-weight: 600; margin: 0;">myK9Show</p>
     </div>
     <div style="padding: 32px 24px;">
-      <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1e;">Registration Confirmed</h1>
+      <h1 style="font-size: 24px; margin: 0 0 16px; color: #1a1a1e;">Entry received</h1>
 
 ${confirmationSection}
-      <p style="color: #1a1a1e; font-size: 16px;">Hi ${escapeHtml(data.firstName)}, your registration has been confirmed.</p>
+      <p style="color: #1a1a1e; font-size: 16px;">Hi ${escapeHtml(data.firstName)}, we have your entry for ${escapeHtml(data.showName)}.</p>
 
       <div style="background-color: #f9fafb; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
         <p style="margin: 0; font-weight: 600; font-size: 18px; color: #1a1a1e;">${escapeHtml(data.showName)}</p>
         <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">${escapeHtml(data.showDates)}</p>
-        <p style="margin: 2px 0 0; color: #6b7280; font-size: 14px;">${escapeHtml(data.showLocation)}${data.showVenue ? ` · ${escapeHtml(data.showVenue)}` : ''}</p>
+        ${data.showLocation ? `<p style="margin: 2px 0 0; color: #6b7280; font-size: 14px;">${escapeHtml(data.showLocation).replace(/\n/g, '<br>')}</p>` : ''}
       </div>
-
-      ${messageSection}
 
       <h2 style="font-size: 16px; margin: 24px 0 12px; color: #1a1a1e;">Your Entries</h2>
       <table style="width: 100%; border-collapse: collapse;">${entriesHtml}</table>
@@ -139,7 +137,7 @@ ${confirmationSection}
         <td style="font-weight: 600; font-size: 18px; text-align: right;">${formatCurrency(data.total)}</td>
       </tr></table>
       <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">${escapeHtml(paymentLine)}</p>
-      <p style="color: #6b7280; font-size: 14px;">${ARMBAND_NOTE}</p>
+      ${data.entries.some(e => !e.armband) ? `<p style="color: #6b7280; font-size: 14px;">${RECEIPT_ARMBAND_NOTE}</p>` : ''}
       <p style="margin: 20px 0 0;"><a href="${escapeHtml(data.entriesUrl)}" style="display: inline-block; background-color: ${brandColor}; color: #fff; padding: 10px 18px; border-radius: 6px; text-decoration: none;">See your entries in My Shows</a></p>
 
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px;">

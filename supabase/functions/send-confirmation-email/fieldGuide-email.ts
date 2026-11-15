@@ -1,3 +1,4 @@
+import { renderSecretaryNoteBlock } from './confirmation-email-shared.ts';
 import { renderVenueMapBlock } from './venue-directions.ts';
 
 // supabase/functions/send-confirmation-email/fieldGuide-email.ts
@@ -73,6 +74,8 @@ export interface FieldGuideEmailData {
   trialChairName: string | null;
   trialChairTitle: string | null;
   memberClubLanguage: string;
+  /** The secretary's note to exhibitors (MYK9-1999). */
+  secretaryNote?: string | null;
 }
 
 // ─── HTML escape helpers ────────────────────────────────────────────────────
@@ -171,7 +174,7 @@ export function buildFieldGuideHtml(data: FieldGuideEmailData): string {
   <td style="padding:28px 32px 0;">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
       <tr><td bgcolor="${FG_ORANGE}" style="background:${FG_ORANGE};">
-        <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:14px 28px;font-family:${FG_DISPLAY};font-weight:700;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:${FG_PAPER};text-decoration:none;">View trial particulars →</a>
+        <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:14px 28px;font-family:${FG_DISPLAY};font-weight:700;font-size:13px;letter-spacing:0.04em;text-transform:uppercase;color:${FG_PAPER};text-decoration:none;">See your entries in My Shows →</a>
       </td></tr>
     </table>
   </td>
@@ -265,7 +268,7 @@ export function buildFieldGuideHtml(data: FieldGuideEmailData): string {
       <div style="font-family:${FG_MONO};font-weight:600;font-size:11px;letter-spacing:0.04em;color:${FG_ORANGE_DEEP};margin-bottom:8px;">§02 · ON THE DAY</div>
       <h2 style="margin:0 0 24px;font-family:${FG_DISPLAY};font-weight:700;font-size:26px;letter-spacing:-0.02em;line-height:1.1;color:${FG_INK};">Be on site early.</h2>
       ${doorsBlock}${firstClassBlock}${venueBlock}${parkingBlock}${hospitalityBlock}${cratingBlock}
-      ${renderVenueMapBlock(data.venueMap, data.venue)}
+      ${renderVenueMapBlock(data.venueMap, data.venue)}${renderSecretaryNoteBlock(data.secretaryNote)}
     </td>
   </tr>
 

@@ -45,6 +45,8 @@ export interface ConfirmationEmailBaseData {
   trialChairName: string | null;
   trialChairTitle: string | null;
   memberClubLanguage: string;
+  /** The secretary's note to exhibitors (shows.confirmation_message), printed as written. */
+  secretaryNote?: string | null;
 }
 
 export type OnTheDayFields = Pick<
@@ -94,4 +96,15 @@ export function hasOnTheDayDetails(data: OnTheDayFields): boolean {
     data.hospitalityNotes ||
     data.cratingNotes
   );
+}
+
+/**
+ * The secretary's note to exhibitors (MYK9-1999): parking, crating, a late start. Renders ''
+ * when there is none, so every template can interpolate it unconditionally. Neutral styling,
+ * like the directions link, because it sits inside eight differently themed templates.
+ */
+export function renderSecretaryNoteBlock(note: string | null | undefined): string {
+  const text = note?.trim();
+  if (!text) return '';
+  return `<div style="margin:16px 0 0;padding:12px 16px;border:1px solid #cfc8ba;border-radius:4px;font-size:14px;line-height:1.55;"><p style="margin:0 0 4px;font-weight:bold;">Note from the show secretary</p><p style="margin:0;">${escMultiline(text)}</p></div>`;
 }

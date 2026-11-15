@@ -38,24 +38,19 @@ function sliceBetween(source: string, start: string, end: string): string {
 
 describe('DB migration sanity contracts', () => {
   it('selects confirmation email entries by unsent timestamp for retry idempotency', () => {
+    // MYK9-1999: one email per exhibitor per show; the claim and the key cover its entries.
     const source = readRepoFile('supabase/functions/send-confirmation-email/index.ts');
-    const entryQuery = sliceBetween(
-      source,
-      '// Entries not yet sent for this trial',
-      'for (const entry'
-    );
-
+    const entryQuery = sliceBetween(source, 'loadCandidates: async', 'loadRecipients: async');
     expect(entryQuery).toContain(".is('confirmation_email_sent_at', null)");
-    expect(entryQuery).toContain(".in('confirmation_email_status', ['pending', 'failed'])");
+    expect(entryQuery).toContain(".in('confirmation_email_status', statuses)");
 
-    const sendLoop = sliceBetween(
-      source,
-      'for (const entry of entries ?? [])',
-      'return { sent, skipped, failed, receiptRetry };'
-    );
-    expect(sendLoop).not.toContain(".update({ confirmation_email_status: 'pending' })");
-    expect(sendLoop).toContain("'Idempotency-Key': `confirmation-email-${entry.id}`");
-    expect(sendLoop).not.toContain("'Idempotency-Key': `${showStyle}-confirm-${entry.id}`");
+    const claim = sliceBetween(source, 'claim: async', 'markSent: async');
+    expect(claim).toContain(".is('confirmation_email_sent_at', null)");
+    expect(claim).not.toContain("confirmation_email_status: 'pending'");
+
+    const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
+    expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
+    expect(run).toContain('idempotencyKey: await confirmationIdempotencyKey(group, claimed)');
   });
 
   it('keeps the final people_insert_secretary policy role-gated', () => {

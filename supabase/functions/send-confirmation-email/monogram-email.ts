@@ -1,3 +1,4 @@
+import { renderSecretaryNoteBlock } from './confirmation-email-shared.ts';
 import { renderVenueMapBlock } from './venue-directions.ts';
 
 // supabase/functions/send-confirmation-email/monogram-email.ts
@@ -58,6 +59,8 @@ export interface MonogramEmailData {
   trialChairName: string | null;
   trialChairTitle: string | null;
   memberClubLanguage: string;
+  /** The secretary's note to exhibitors (MYK9-1999). */
+  secretaryNote?: string | null;
 }
 
 function esc(s: string | null | undefined): string {
@@ -160,7 +163,7 @@ export function buildMonogramHtml(data: MonogramEmailData): string {
   const ctaBlock = data.trialUrl
     ? `<tr>
   <td align="center" style="padding:0 48px 24px;">
-    <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:12px 28px;background:${MG_INK};color:${MG_PAPER};font-family:${MG_DISPLAY};font-size:12px;letter-spacing:0.2em;text-transform:uppercase;text-decoration:none;border-radius:1px;">View trial particulars</a>
+    <a href="${esc(data.trialUrl)}" style="display:inline-block;padding:12px 28px;background:${MG_INK};color:${MG_PAPER};font-family:${MG_DISPLAY};font-size:12px;letter-spacing:0.2em;text-transform:uppercase;text-decoration:none;border-radius:1px;">See your entries in My Shows</a>
   </td>
 </tr>`
     : '';
@@ -217,7 +220,7 @@ export function buildMonogramHtml(data: MonogramEmailData): string {
   <tr>
     <td style="padding:8px 56px 6px;font-family:${MG_BODY};font-size:15px;line-height:1.6;color:${MG_INK};">
       <p style="margin:0 0 12px;">Dear <em style="font-family:${MG_DISPLAY};font-style:italic;color:${MG_BRONZE};">${esc(data.salutation)}</em>,</p>
-      <p style="margin:0 0 12px;">Your entry to <em style="font-family:${MG_DISPLAY};font-style:italic;">${esc(data.showTitle)}</em> is confirmed. The draw is set and your particulars are recorded as follows.</p>
+      <p style="margin:0 0 12px;">Your entry to <em style="font-family:${MG_DISPLAY};font-style:italic;">${esc(data.showTitle)}</em> is accepted. Your particulars are recorded as follows.</p>
     </td>
   </tr>
 
@@ -254,7 +257,7 @@ export function buildMonogramHtml(data: MonogramEmailData): string {
     <td style="padding:8px 56px 8px;">
       <h2 style="margin:0 0 8px;font-family:${MG_DISPLAY};font-weight:500;font-size:18px;color:${MG_INK};">On the day</h2>
       ${doorsBlock}${firstClassBlock}${venueBlock}${parkingBlock}${hospitalityBlock}${cratingBlock}
-      ${renderVenueMapBlock(data.venueMap, data.venue)}
+      ${renderVenueMapBlock(data.venueMap, data.venue)}${renderSecretaryNoteBlock(data.secretaryNote)}
     </td>
   </tr>
 

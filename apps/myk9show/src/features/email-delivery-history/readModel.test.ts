@@ -60,6 +60,26 @@ describe('email delivery history read model', () => {
     expect(row.typeLabel).toBe('Show message');
   });
 
+  it.each([
+    ['registration_confirmation', 'Receipt'],
+    ['heritage_confirmation', 'Full confirmation'],
+  ])('labels the exhibitor %s email as her own email names it (MYK9-1999)', (kind, label) => {
+    const row = normalizeEmailDeliveryRow({
+      id: `attempt-${kind}`,
+      show_id: 'show-1',
+      source_kind: kind,
+      lifecycle_step_type: null,
+      related_id: 'entry-1',
+      recipient_name: 'Ada Lovelace',
+      recipient_email: 'ada@example.com',
+      attempted_at: '2026-11-20T15:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'sent',
+      failure_summary: null,
+    });
+    expect(row.typeLabel).toBe(label);
+  });
+
   it('routes failures to the existing owner surface', () => {
     expect(getEmailRecoveryHref('registration_confirmation', 'show-1')).toBe(
       '/shows/show-1/entries'

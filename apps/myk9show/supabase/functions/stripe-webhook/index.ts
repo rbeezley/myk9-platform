@@ -51,6 +51,13 @@ import { createWebhookRequestHandler } from './webhookHandler.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
 import { buildPaymentLinkOrder } from './paymentLinkOrder.ts';
 import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
+import {
+  formatVenueLines,
+  JUDGE_ASSIGNMENT_NAME_SELECT,
+  judgeNamesByClass,
+  myShowsUrl,
+  type JudgeAssignmentNameRow,
+} from '../_shared/exhibitorEmailDetails.ts';
 import { persistNoSubscription } from './noSubscription.ts';
 import {
   loadPaymentReconciliationEntries as loadPaymentReconciliationEntriesFrom,
@@ -2660,6 +2667,24 @@ function serializeCartOverflowRefundDecision(decision: CartOverflowRefundDecisio
 }
 
 /**
+ * Each class's confirmed judge (MYK9-1999). A failed read names no judge ("Judge to be
+ * announced") rather than holding the receipt: the receipt is about the money.
+ */
+async function loadClassJudgeNames(classIds: string[]): Promise<Map<string, string>> {
+  if (classIds.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from('judge_assignments')
+    .select(JUDGE_ASSIGNMENT_NAME_SELECT)
+    .in('class_id', [...new Set(classIds)])
+    .eq('status', 'confirmed');
+  if (error) {
+    console.error('Could not read class judges for the receipt:', error.message);
+    return new Map();
+  }
+  return judgeNamesByClass((data ?? []) as unknown as JudgeAssignmentNameRow[]);
+}
+
+/**
  * Send entry confirmation email via send-email function
  */
 async function sendEntryConfirmationEmail(
@@ -2718,7 +2743,7 @@ async function sendEntryConfirmationEmail(
     // Get show details
     const { data: show } = await supabase
       .from('shows')
-      .select('name, start_date, end_date, venue_name, city, state')
+      .select('name, start_date, end_date, venue_name, address, city, state, zip_code')
       .eq('id', cart.show_id)
       .single();
 
@@ -2737,6 +2762,7 @@ async function sendEntryConfirmationEmail(
         `
         id,
         entry_fee,
+        class_id,
         dogs:dog_id (name, call_name),
         classes:class_id (name, level)
       `
@@ -2773,8 +2799,11 @@ async function sendEntryConfirmationEmail(
       })}`;
     }
 
-    // Format location
-    const showLocation = [show.venue_name, show.city, show.state].filter(Boolean).join(', ');
+    // MYK9-1999: the venue and its street address, and each class's judge, both known at entry.
+    const showLocation = formatVenueLines(show);
+    const judgeByClass = await loadClassJudgeNames(
+      entries.map(e => e.class_id as string | null).filter((id): id is string => !!id)
+    );
 
     // Build email payload
     const emailData = {
@@ -2789,6 +2818,7 @@ async function sendEntryConfirmationEmail(
           'Unknown',
         className: (e.classes as { name: string })?.name || 'Unknown',
         classLevel: (e.classes as { level?: string })?.level || undefined,
+        judgeName: judgeByClass.get(e.class_id as string) ?? null,
         // cents, matching subtotal/platformFee/total below
         entryFee: Math.round(Number(e.entry_fee ?? 0) * 100),
       })),
@@ -2797,7 +2827,7 @@ async function sendEntryConfirmationEmail(
       total: authoritative.totalCents,
       refundPendingCents: authoritative.refundPendingCents,
       confirmationNumber: authoritative.confirmationNumber,
-      entriesUrl: `${(Deno.env.get('SITE_URL') || 'https://myk9show.com').replace(/\/+$/, '')}/exhibitor/entries`,
+      entriesUrl: myShowsUrl(Deno.env.get('SITE_URL')),
     };
 
     if (!resendApiKey) {
@@ -2818,7 +2848,7 @@ async function sendEntryConfirmationEmail(
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: person.email,
-        subject: `Entry Confirmation - ${show.name}`,
+        subject: `Entry received - ${show.name}`,
         html: renderStripeEntryConfirmationEmail(emailData),
       }),
     });

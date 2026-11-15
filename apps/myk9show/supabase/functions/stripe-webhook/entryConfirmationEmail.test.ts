@@ -55,8 +55,24 @@ describe('renderStripeEntryConfirmationEmail', () => {
   it('links to My Shows and says where the armband will appear', () => {
     const html = renderStripeEntryConfirmationEmail(base);
     expect(html).toContain('href="https://myk9show.com/exhibitor/entries"');
-    expect(html).toContain('Your armband number is assigned closer to the show.');
+    expect(html).toContain(
+      'Your armband number is given when the show secretary accepts your entry.'
+    );
     expect(html).toContain('appear next to each dog in My Shows');
+  });
+
+  it('names the judge for each class and the street address (MYK9-1999)', () => {
+    const html = renderStripeEntryConfirmationEmail({
+      ...base,
+      showLocation: 'Expo Hall\n1200 Fairgrounds Rd, Springfield, IL 62701',
+      entries: [
+        { dogName: 'Rocket', className: 'Novice', judgeName: 'Dana Whitlock', entryFee: 2500 },
+        { dogName: 'Rocket', className: 'Advanced', judgeName: null, entryFee: 2500 },
+      ],
+    });
+    expect(html).toContain('Judge Dana Whitlock');
+    expect(html).toContain('Judge to be announced');
+    expect(html).toContain('Expo Hall<br>1200 Fairgrounds Rd, Springfield, IL 62701');
   });
 
   it('shows the amount charged as the total and names entries the show could not accept', () => {

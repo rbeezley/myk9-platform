@@ -1,6 +1,8 @@
 /**
  * MYK9-1800: what follows an Accept or Waitlist. The show's switch for that email decides
  * whether anyone is emailed; whether the show is live decides whether she previews it first.
+ * MYK9-1999: on a live show an Accept sends nothing from here: the server's full confirmation
+ * is the accepted email.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -47,14 +49,31 @@ describe('decisionEmailPlan', () => {
     vi.mocked(fetchShowLifecycleEmailSummary).mockReturnValue(new Promise(() => {}));
     const { result } = mount(true);
 
-    expect(result.current.decisionEmailPlan('accepted')).toBe('preview');
+    expect(result.current.decisionEmailPlan('waitlisted')).toBe('preview');
   });
 
   it('sends with no preview when the switch is on and the show is live', async () => {
-    summaryLoads([{ stepType: 'accepted', isEnabled: true }]);
+    summaryLoads([{ stepType: 'waitlisted', isEnabled: true }]);
     const { result } = mount(true);
 
-    await waitFor(() => expect(result.current.decisionEmailPlan('accepted')).toBe('send'));
+    await waitFor(() => expect(result.current.decisionEmailPlan('waitlisted')).toBe('send'));
+  });
+
+  it('leaves an Accept on a live show to the full confirmation (MYK9-1999)', async () => {
+    vi.mocked(fetchShowLifecycleEmailSummary).mockReturnValue(new Promise(() => {}));
+    expect(mount(true).result.current.decisionEmailPlan('accepted')).toBe('none');
+
+    summaryLoads([{ stepType: 'accepted', isEnabled: true }]);
+    const { result, rerender, summaryLoaded } = mount(true);
+    await summaryLoaded();
+    rerender();
+    expect(result.current.decisionEmailPlan('accepted')).toBe('none');
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      expect(result.current.decisionEmailPlan('accepted')).toBe('none');
+    } finally {
+      online.mockRestore();
+    }
   });
 
   it('keeps the preview when the switch is on but the show is a draft or over', async () => {
@@ -71,24 +90,31 @@ describe('decisionEmailPlan', () => {
       { stepType: 'accepted', isEnabled: false },
       { stepType: 'waitlisted', isEnabled: true },
     ]);
-    const { result } = mount(true);
+    const { result, rerender, summaryLoaded } = mount(true);
+    await summaryLoaded();
+    rerender();
 
-    await waitFor(() => expect(result.current.decisionEmailPlan('accepted')).toBe('none'));
+    expect(result.current.decisionEmailPlan('accepted')).toBe('none');
     // Each email has its own switch.
     expect(result.current.decisionEmailPlan('waitlisted')).toBe('send');
+    // On a draft or finished show the accepted switch still decides.
+    const draft = mount(false);
+    await draft.summaryLoaded();
+    draft.rerender();
+    expect(draft.result.current.decisionEmailPlan('accepted')).toBe('none');
   });
 
   it('previews offline even when the switch is on and the show is live', async () => {
-    summaryLoads([{ stepType: 'accepted', isEnabled: true }]);
+    summaryLoads([{ stepType: 'waitlisted', isEnabled: true }]);
     const { result, rerender, summaryLoaded } = mount(true);
     await summaryLoaded();
     rerender();
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     try {
-      expect(result.current.decisionEmailPlan('accepted')).toBe('preview');
+      expect(result.current.decisionEmailPlan('waitlisted')).toBe('preview');
     } finally {
       online.mockRestore();
     }
-    expect(result.current.decisionEmailPlan('accepted')).toBe('send');
+    expect(result.current.decisionEmailPlan('waitlisted')).toBe('send');
   });
 });

@@ -35,7 +35,8 @@ const BASE_PROPS = {
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
   registrationNumber: 'MK9-000427',
-  confirmationDateLabel: '6 June 2026',
+  fullConfirmationNote:
+    'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
 };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ describe('HeritageEntryReceived', () => {
 
   it('displays confirmation date caption', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/6 June 2026/)).toBeTruthy();
+    expect(screen.getByText(/we will email you a full confirmation/)).toBeTruthy();
   });
 
   it('renders "Print my entry blank" button', () => {
@@ -122,11 +123,5 @@ describe('HeritageEntryReceived', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} />);
     await userEvent.click(screen.getByRole('button', { name: /return to dashboard/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
-  it('renders without confirmationDateLabel when null', () => {
-    render(<HeritageEntryReceived {...BASE_PROPS} confirmationDateLabel={null} />);
-    expect(screen.getByRole('heading', { name: /submitted/i })).toBeTruthy();
-    // No crash, caption just omits the date
   });
 });

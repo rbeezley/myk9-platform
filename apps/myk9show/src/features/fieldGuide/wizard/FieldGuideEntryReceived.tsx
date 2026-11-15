@@ -56,7 +56,7 @@ export function FieldGuideEntryReceived({
   classSummary,
   totalFeesFormatted,
   registrationNumber,
-  confirmationDateLabel,
+  fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
 }: FieldGuideEntryReceivedProps) {
@@ -275,7 +275,7 @@ export function FieldGuideEntryReceived({
       </div>
 
       {/* ── Caption ── */}
-      {confirmationDateLabel && (
+      {fullConfirmationNote && (
         <p
           style={{
             textAlign: 'left',
@@ -288,11 +288,7 @@ export function FieldGuideEntryReceived({
             margin: '4px 0 0',
           }}
         >
-          A formal confirmation will be emailed on{' '}
-          <strong style={{ color: fieldGuideColors.ink, fontWeight: 700 }}>
-            {confirmationDateLabel}
-          </strong>{' '}
-          once the draw is complete. Watch your inbox — your armband number will be included.
+          {fullConfirmationNote}
           <span
             style={{
               display: 'block',

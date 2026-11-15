@@ -54,7 +54,7 @@ Tapping a class opens its entry list — the dogs in run order, on the **Pending
 
 1. Each entry shows the **armband number**, the **dog's call name**, the **breed**, and the **handler**.
 2. **Stewards:** this list is yours to read. Use it to call dogs to the line. If you tap an entry, the scoresheet shows **No Scoring Access**, because stewards view ringside but do not score. Tap **Entries** to go back.
-3. **Judges and others allowed to score:** tap an entry to open its scoresheet.
+3. **Judges and others allowed to score:** tap anywhere on an entry's card to open its scoresheet. The check-in control on the right of the card only changes the dog's check-in status.
 
 ![Entry list — dogs in run order with armband number, call name, breed, and handler; Pending and Completed tabs (tablet)](../screenshots/J-03.png)
 
@@ -71,11 +71,10 @@ This section is for the judge, or anyone the secretary has given scoring access.
 5. Tap **Save**.
 6. Check the **Score Confirmation** screen, then tap **Confirm & Submit**. **Cancel** takes you back to fix it.
 
-After you confirm, a panel shows the result is saved on this device, and shows **Score saved** once it has reached the secretary. From there:
+After you confirm, you are back on the entry list. A line at the top says what was saved, for example **Saved: 100 Willow · Qualified · 0:04.35**. If the score has not reached the secretary yet, the line adds **on this device, not sent yet**, and the note goes once it has been sent. The line stays until you open another dog.
 
-- **Back to Entries** returns to the list.
-- **Correct this score** reopens the sheet with what you entered, so you can fix it.
-- Optional shortcut: the next dogs by run order are listed under **Or jump straight to whoever is at the gate**. Tap one to open that dog's scoresheet.
+- **Correct** on that line reopens the sheet with what you entered, so you can fix it.
+- The app never picks the next dog for you. Tap whichever dog comes in the ring.
 
 The entry list updates to show the saved result. The secretary sees it once it syncs. They don't re-enter anything.
 

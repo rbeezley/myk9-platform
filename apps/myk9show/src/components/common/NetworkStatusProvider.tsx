@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { OFFLINE_SAVED_MESSAGE } from '@/lib/offlineCopy';
+import { OFFLINE_TOAST_ID } from './networkStatusToast';
 import { WifiOff, Wifi } from 'lucide-react';
 import { useOnlineStatus, useNetworkQuality } from '@/lib/networkUtils';
 import {
@@ -13,7 +14,6 @@ interface NetworkStatusProviderProps {
   children: React.ReactNode;
 }
 
-const OFFLINE_TOAST_ID = 'network-offline';
 const OFFLINE_TOAST_MS = 6000;
 
 // INTENT: offline is expected ringside, not an alarm. One short toast on going

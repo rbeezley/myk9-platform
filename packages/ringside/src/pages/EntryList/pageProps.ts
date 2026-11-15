@@ -728,6 +728,11 @@ export interface EntryListPageProps {
      * menu of its own, so a host that wants them lists them in its menu.
      */
     menu?: EntryListMenuSlot;
+    /**
+     * A host notice pinned as the last row of the header's sticky block (MYK9-2012), so it
+     * stays in view without a second sticky element covering the header's controls.
+     */
+    banner?: ReactNode;
   };
 }
 

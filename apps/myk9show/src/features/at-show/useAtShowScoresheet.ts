@@ -27,6 +27,7 @@ import { useScoresheetRingMove } from '@/hooks/useScoresheetRingMove';
 import { isHeldEntry } from '@/features/dogs/identity';
 import { classScoringRules } from '@/pages/scoring/classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
+import type { SavedScoreInput } from './savedScore';
 import type { ScoringEntry, ClassInfo } from '@/pages/scoring/types';
 import {
   isCurrentFinalPendingEntry,
@@ -53,7 +54,7 @@ export interface UseAtShowScoresheetOptions {
   classId: string | undefined;
   entryId: string | undefined;
   /** Called after a score is successfully submitted (at-show nav happens here). */
-  onScored: () => void;
+  onScored: (saved: SavedScoreInput) => void;
 }
 
 export interface UseAtShowScoresheetResult {
@@ -346,7 +347,12 @@ export function useAtShowScoresheet({
     transitionToCompleted(entry.entryId);
     // MYK9-1514: ask about a class left behind at another level; never blocks the judge.
     if (showId) void checkForStaleClass(showId, completionClassId);
-    onScored();
+    onScored({
+      entryId: entry.entryId,
+      armband: entry.armband,
+      callName: entry.callName,
+      scoreData,
+    });
   };
 
   return {

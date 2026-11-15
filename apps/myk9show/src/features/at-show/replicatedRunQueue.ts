@@ -6,7 +6,7 @@
  * (`isScored`/`is_scored`, `isInRing`/`is_in_ring`, `status`/`entryStatus`),
  * store the armband as a *string*, and order by `runOrder` rather than the
  * ringside `exhibitorOrder`. Normalizing in one place keeps every at-show
- * consumer — class-row next-up preview, scoresheet quick-advance chips,
+ * consumer — class-row next-up preview,
  * favorite-dog push proximity — on one ordering rule instead of three.
  *
  * The row itself is carried through untouched, so callers keep `dogCallName`

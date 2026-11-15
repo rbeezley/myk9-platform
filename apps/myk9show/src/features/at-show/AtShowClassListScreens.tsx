@@ -44,36 +44,64 @@ export function AtShowClassListErrorScreen({
 
 export function AtShowClassListNoAssignmentsScreen({
   readySlot,
-  assignmentError,
+  onBack,
+}: Pick<ScreenProps, 'readySlot'> & { onBack: () => void }) {
+  return (
+    <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
+      <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
+      <h1 className="text-lg font-medium">No classes assigned yet</h1>
+      <p className="max-w-md text-sm text-muted-foreground">
+        Your secretary has not assigned you to a class for this show yet. Ask them to add your judge
+        assignment.
+      </p>
+      {readySlot}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button className="min-h-11" onClick={onBack}>
+          Back to Judge Dashboard
+        </Button>
+      </div>
+    </main>
+  );
+}
+
+/**
+ * A judge-only account whose assigned classes cannot be read yet (the person pairing or the
+ * assignments are not on this device). Listing the whole show would put other judges' classes
+ * in front of them, so say what is missing and how to get it (MYK9-2014).
+ */
+export function AtShowClassListScopeUnknownScreen({
+  readySlot,
+  isOnline,
   onRetry,
+  onSeeEveryClass,
   onBack,
 }: Pick<ScreenProps, 'readySlot'> & {
-  assignmentError: boolean;
+  isOnline: boolean;
   onRetry: () => void;
+  onSeeEveryClass: () => void;
   onBack: () => void;
 }) {
   return (
     <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
       <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
-      <h1 className="text-lg font-medium">
-        {assignmentError ? "We couldn't load your judge assignments" : 'No classes assigned yet'}
-      </h1>
+      <h1 className="text-lg font-medium">Your classes are not on this device yet</h1>
       <p className="max-w-md text-sm text-muted-foreground">
-        {assignmentError
-          ? 'Check your connection and try again. Your classes will appear here once assignments are available.'
-          : 'Your secretary has not assigned you to a class for this show yet. Ask them to add your judge assignment.'}
+        {isOnline
+          ? 'We could not tell which classes are yours. Try again.'
+          : 'We cannot tell which classes are yours without a signal. Reconnect once and they will be saved on this device.'}
       </p>
       {readySlot}
       <div className="flex flex-col gap-2 sm:flex-row">
-        {assignmentError && (
-          <Button variant="outline" className="min-h-11" onClick={onRetry}>
-            Try again
-          </Button>
-        )}
+        <Button variant="outline" className="min-h-11" onClick={onRetry}>
+          Try again
+        </Button>
         <Button className="min-h-11" onClick={onBack}>
           Back to Judge Dashboard
         </Button>
       </div>
+      <Button variant="link" className="min-h-11" onClick={onSeeEveryClass}>
+        Show every class in this show
+      </Button>
     </main>
   );
 }

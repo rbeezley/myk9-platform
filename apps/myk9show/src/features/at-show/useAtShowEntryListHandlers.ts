@@ -173,7 +173,8 @@ export function useAtShowEntryListHandlers(
       if (gateEntryClick?.()) return;
       // INTENT: A card tap is a view/navigation intent. It must not enqueue a
       // ringside status mutation; explicit in-ring controls own that write.
-      navigate(buildScoreSheetRoute(entry));
+      // MYK9-2012: remember the scroll so a saved score returns to this spot on the list.
+      navigate(buildScoreSheetRoute(entry), { state: { returnScrollY: window.scrollY } });
     },
     [isClassCancelled, hasPermission, navigate, buildScoreSheetRoute, gateEntryClick]
   );

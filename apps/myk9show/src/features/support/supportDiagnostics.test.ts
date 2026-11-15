@@ -142,4 +142,14 @@ describe('support diagnostics', () => {
     expect(() => buildDiagnosticBundle(input)).not.toThrow();
     expect(getSupportClientErrors().at(-1)?.source).toBe('buildDiagnosticBundle');
   });
+
+  it('marks a mock-test ticket so it can be read in one query, and marks nothing else', () => {
+    const marked = buildDiagnosticBundle({ mockTest: { part: 'task', number: 3 } });
+    expect(marked.kind).toBe('mock-test');
+    expect(marked.mockTest).toEqual({ part: 'task', number: 3 });
+
+    const ordinary = buildDiagnosticBundle({ route: '/account' });
+    expect('kind' in ordinary).toBe(false);
+    expect('mockTest' in ordinary).toBe(false);
+  });
 });

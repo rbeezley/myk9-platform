@@ -15,6 +15,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     hasRole: (role: UserRole) => mockRoles.includes(role),
     userWithRoles: { scopes: mockScopes, databaseUserId: 'person-1' },
+    personId: 'person-1',
   }),
 }));
 const mockSyncTable = vi.fn();

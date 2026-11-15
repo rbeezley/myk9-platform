@@ -18,16 +18,16 @@ import {
  *     RPC's real 40001 must be re-queued and re-uploaded — not dead-lettered,
  *     and not surfaced to the judge as a failure. A transient lost race is the
  *     system working; alarming a judge mid-ring over it is not.
- *  2. **Advance.** The post-save quick-advance chip actually navigates to the
- *     next dog's scoresheet. The sibling spec asserts the chip is *visible*;
- *     visible-but-inert would pass that and strand a judge at the gate.
+ *  2. **Return.** A confirmed save lands on the class's entry list with no
+ *     further tap, shows "Saved: ..." at the top, and suggests no next dog
+ *     (MYK9-2012). The judge then taps whichever dog walked in.
  *  3. **Escape proof.** Every shared-staging write is accounted for, and the
  *     ledger is attached to the run as the artifact behind the audit's "shared
  *     staging received no writes" claim.
  *
  * Fixture: Heartland Scent Work Classic demo seed. Entry ...052 (Willow,
  * Interior Advanced) is the scored dog; ...053 (Ranger) is the same class's
- * run-order-2 entry, so the quick-advance chip has a real destination. Both are
+ * run-order-2 entry, which the judge opens from the list after the save. Both are
  * intercepted — nothing here mutates the shared Supabase project.
  */
 
@@ -101,7 +101,7 @@ test.describe('At-show judge scheduled audit replay', () => {
     await attachWriteLedger(testInfo, ledger, { fixtureEntryId: ENTRY_ID });
   });
 
-  test('advances from the saved dog to the next dog via the quick-advance chip', async ({
+  test('returns to the list after Confirm & Submit, and any dog can be opened next', async ({
     page,
   }, testInfo) => {
     const ledger: SharedStagingWriteLedgerEntry[] = [];
@@ -115,21 +115,17 @@ test.describe('At-show judge scheduled audit replay', () => {
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();
     await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
 
-    const chip = page.getByTestId('quick-advance-entry').first();
-    await expect(chip).toBeVisible();
-    await chip.click();
+    await expect(page.getByTestId('saved-score-line')).toContainText('Saved:');
+    await expect(page.getByText('Or jump straight to whoever is at the gate:')).toHaveCount(0);
 
-    // The chip opens a *different* entry's scoresheet in the same class — the
-    // judge is moved on, not returned to the dog they just scored.
+    // Whoever walked in (here Ranger): open that dog's card straight from the list.
+    await page.getByRole('button', { name: /Score Ranger/i }).click();
     const scorePathPattern = new RegExp(
       `${escapeRegExp(`/at-show/${SHOW_ID}/class/${CLASS_ID}/score/`)}([0-9a-f-]{36})`
     );
     await expect(page).toHaveURL(scorePathPattern, { timeout: 15_000 });
     const advancedEntryId = scorePathPattern.exec(page.url())?.[1];
     expect(advancedEntryId).toBeTruthy();
-    expect(advancedEntryId).not.toBe(ENTRY_ID);
-
-    // It is a working scoresheet, not just a route change.
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 
     await attachWriteLedger(testInfo, ledger, { fixtureEntryId: ENTRY_ID, advancedEntryId });

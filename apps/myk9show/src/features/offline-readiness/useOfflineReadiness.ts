@@ -76,9 +76,8 @@ async function gatherReadiness(
     // Readiness is about the CACHE, not about having work: a judge with no
     // assignment in this show is accurately shown an empty list offline, so
     // table hydration is the right signal. Two exceptions still fail closed —
-    // an unhydrated table, and an unresolved identity (databaseUserId comes
-    // from the network profile query, not the RBAC cache, so a cold offline
-    // boot can leave useMyAtShowJudgeAssignments equally blind).
+    // an unhydrated table, and an unresolved identity (a device that never
+    // confirmed the person pairing has none to read offline).
     // A failed device read is NOT hydrated (MYK9-769): getAll() used to hand
     // back [] for it, which with 0 expected rows claimed "ready". Failing the
     // scope closed keeps the badge's truthful "Offline copy: not saved on this device" with its "Save for show day" action.
@@ -121,7 +120,7 @@ async function gatherReadiness(
  * red for them.
  */
 export function useOfflineReadiness(showId: string | undefined) {
-  const { user, hasRole, userWithRoles, refreshPermissions } = useAuthContext();
+  const { user, hasRole, personId, refreshPermissions } = useAuthContext();
   const userId = user?.id;
   // Only a judge-ONLY account depends on the assignment cache; a secretary who
   // also judges gets the full picker, so demanding assignments from them would
@@ -129,7 +128,7 @@ export function useOfflineReadiness(showId: string | undefined) {
   const judgeAssignmentsRequired = Boolean(
     user && isJudgeOnlyAtShow({ isAnonymous: Boolean(user.is_anonymous), hasRole })
   );
-  const judgePersonId = judgeAssignmentsRequired ? (userWithRoles?.databaseUserId ?? null) : null;
+  const judgePersonId = judgeAssignmentsRequired ? (personId ?? null) : null;
   const isAnonymous = user?.is_anonymous === true;
   const [readiness, setReadiness] = useState<OfflineReadiness | null>(null);
   const [checking, setChecking] = useState(false);

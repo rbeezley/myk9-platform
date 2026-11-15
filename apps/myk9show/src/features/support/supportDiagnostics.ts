@@ -34,9 +34,23 @@ export interface SupportDiagnosticInput {
   online?: boolean | null;
   replication?: SupportReplicationDiagnostics | null;
   clientErrors?: SupportClientError[] | null;
+  mockTest?: SupportMockTestMark | null;
+}
+
+/**
+ * MYK9-2022: marks a ticket as feedback from a mock show. `part` says which
+ * piece of the test sheet it answers; `number` is the task or closing question
+ * (null for a free note). Read in one query with `diagnostics->>kind`.
+ */
+export interface SupportMockTestMark {
+  part: 'task' | 'closing' | 'free';
+  number: number | null;
 }
 
 export interface SupportDiagnosticBundle {
+  /** MYK9-2022: present only on mock-test tickets. */
+  kind?: 'mock-test';
+  mockTest?: SupportMockTestMark;
   user: {
     authUserId: string | null;
     databaseUserId: string | null;
@@ -144,6 +158,7 @@ export function buildDiagnosticBundle(input: SupportDiagnosticInput): SupportDia
   try {
     const replication = input.replication ?? {};
     return {
+      ...(input.mockTest ? { kind: 'mock-test' as const, mockTest: input.mockTest } : {}),
       user: {
         authUserId: normalizeUuid(input.userId),
         databaseUserId: normalizeUuid(input.databaseUserId),

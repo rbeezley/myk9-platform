@@ -15,8 +15,8 @@
  * same structural permission gate.
  */
 
-import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   AlertCircle,
@@ -62,14 +62,18 @@ import { supabase } from '@/services/database/supabaseClient';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
 import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
-import { QuickAdvancePanel } from './quickAdvancePanel';
+import { useSavedScoreStore, toSavedScore, type SavedScoreInput } from './savedScore';
 import { AtShowScoresheetSkeleton } from './AtShowScoresheetSkeleton';
 import {
   COMBINED_PARAM,
   buildAtShowScoreSheetRoute,
-  pairedClassIdFor,
   resolveScoreSheetEntryListRoute,
 } from './atShowScoresheetRoutes';
+
+/** Router state the entry list passes when it opens a dog, so Save can return to the same scroll. */
+interface ScoresheetReturnState {
+  returnScrollY?: number;
+}
 
 export const AtShowScoresheetPage: React.FC = () => {
   const { showId, classId, entryId } = useParams<{
@@ -229,31 +233,41 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   const navigate = useNavigate();
   // The sheet reports whether leaving would lose work; the guard owns the one prompt.
   const { sheetDirty, dirtyRef, onDirtyChange: setSheetDirty } = useScoresheetDirty();
-  // MYK9-83: saving lands on a "Saved" state with optional up-next chips
-  // instead of navigating away on its own. NOTHING here auto-advances — the
-  // judge either taps a candidate or goes back to the list (the default).
-  const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
-  const handleScored = useCallback(() => setSavedEntryId(entryId ?? null), [entryId]);
-  const handlePickEntry = useCallback(
-    (nextEntryId: string, nextClassId: string) => {
-      setSavedEntryId(null);
-      // The normal scoresheet route, so the picked dog goes through the same
-      // load + in-ring path as a tap from the entry list.
-      // A chip from the other section opens under ITS class, keeping the pair.
-      // REPLACE, not push: the sheet being left is already saved, so the back
-      // gesture from the next dog goes where the judge came from instead of
-      // stepping back through every dog scored (MYK9-1500).
-      navigate(
-        buildAtShowScoreSheetRoute(
-          showId ?? '',
-          nextClassId || (classId ?? ''),
-          nextEntryId,
-          combined
-        ),
-        { replace: true }
+  // MYK9-2012: a confirmed save returns to this class's entry list by itself, with the saved
+  // score shown at the top. The app never picks or suggests the next dog. The sheet leaves
+  // history (back to the list entry, or replaced by it), so the back gesture from the next dog
+  // goes where the judge came from instead of stepping back through every dog scored (MYK9-1500).
+  const listRoute = resolveScoreSheetEntryListRoute(showId ?? '', classId ?? '', combined);
+  const returnScrollY = (useLocation().state as ScoresheetReturnState | null)?.returnScrollY;
+  const setSavedScore = useSavedScoreStore(store => store.set);
+  const clearSavedScore = useSavedScoreStore(store => store.clear);
+  // Opening any dog ends the previous "Saved:" line.
+  useEffect(() => clearSavedScore(), [clearSavedScore]);
+  const handleScored = useCallback(
+    (input: SavedScoreInput) => {
+      setSavedScore(
+        toSavedScore(input, {
+          listPath: listRoute.split('?')[0] ?? listRoute,
+          ...(typeof returnScrollY === 'number' && { scrollY: returnScrollY }),
+          scoreRoute: buildAtShowScoreSheetRoute(
+            showId ?? '',
+            classId ?? '',
+            input.entryId,
+            combined
+          ),
+        })
       );
+      // The score is saved, so the sheet is no longer unsaved work. Clear it now, in the same
+      // call: the route blocker reads the ref at navigation time and would otherwise ask
+      // "Discard this score?" about a score that is already saved.
+      setSheetDirty(false);
+      // Opened from the list (it left its scroll in the state): step back to that same history
+      // entry, so repeated scoring never stacks copies of the list. A deep link has nothing to
+      // step back to, so it replaces the sheet with the list instead.
+      if (typeof returnScrollY === 'number') navigate(-1);
+      else navigate(listRoute, { replace: true });
     },
-    [navigate, showId, classId, combined]
+    [setSavedScore, setSheetDirty, navigate, listRoute, showId, classId, combined, returnScrollY]
   );
   const {
     entry,
@@ -279,15 +293,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     submitError,
     clearSubmitError,
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
-  const handleCorrectScore = useCallback(() => {
-    setSavedEntryId(null);
-    // Same URL is a no-op in React Router, so re-read the row instead.
-    // INTENT: the optimistic save already wrote that score to the local
-    // replica, so this reads it from the device and never waits on the venue
-    // network. A forced foreground sync here held a judge on the skeleton for
-    // 10-40 s offline (MYK9-1106); the error screen's Retry still forces one.
-    reload();
-  }, [reload]);
   // Requests persistent storage on entering the scoring surface; may surface an
   // iOS "Add to Home Screen" nudge when durable storage isn't granted.
   const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =
@@ -317,19 +322,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     },
     [audioMuted]
   );
-
-  if (savedEntryId) {
-    return (
-      <QuickAdvancePanel
-        classId={classId}
-        pairedClassId={pairedClassIdFor(classId ?? '', combined)}
-        scoredEntryId={savedEntryId}
-        onBackToList={onBack}
-        onCorrectScore={handleCorrectScore}
-        onPickEntry={handlePickEntry}
-      />
-    );
-  }
 
   if (isLoading || (!isLoadedRoute && hasAnyScoresheetState)) {
     return <AtShowScoresheetSkeleton />;

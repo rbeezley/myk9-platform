@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import {
   CircleAlert,
   CircleCheck,
+  ClipboardCheck,
   Code2,
   Info,
   LifeBuoy,
@@ -33,6 +34,7 @@ import { UserRole } from '@/types/auth-types';
 import { refreshApp } from '@/services/pwa/refreshApp';
 import { formatRoleLabel } from '@/lib/roleLabel';
 import { AskQIcon } from '@/components/layout/AskQIcon';
+import { useMockShowTestAccess } from '@/features/mockShow/useMockShowTestAccess';
 
 export interface DevActionRequest {
   title: string;
@@ -74,6 +76,8 @@ export function AccountMenuContent({
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
   const { theme, toggleTheme } = useTheme();
+  // MYK9-2022: temporary, only for managers of a test club.
+  const mockShowTest = useMockShowTestAccess();
 
   // MYK9-1291: the Developer group is a site-admin tool, never shown to other
   // roles. Its items are local-state resets that only make sense against a dev
@@ -165,6 +169,14 @@ export function AccountMenuContent({
           Account
         </Link>
       </DropdownMenuItem>
+      {mockShowTest.hasAccess && (
+        <DropdownMenuItem asChild>
+          <Link to="/account/mock-show-test" className="w-full flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            Mock show test
+          </Link>
+        </DropdownMenuItem>
+      )}
       <AccountMenuSeparator />
 
       {/* Ask for help (AskQ) and Appearance both live here as the labeled compact-width

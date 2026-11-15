@@ -25,11 +25,11 @@ export function useHasRingsideStaffAccess(
   clubId: string | undefined
 ): boolean {
   const queryClient = useQueryClient();
-  const { hasRole, userWithRoles } = useAuthContext();
+  const { hasRole, userWithRoles, personId: accountPersonId } = useAuthContext();
   const { status: syncStatus, syncTable } = useReplicationSync();
   const grantRole = useRehydrateRingsideGrant(showId);
   const judged = useMyJudgedShows(true);
-  const personId = userWithRoles?.databaseUserId;
+  const personId = accountPersonId ?? undefined;
   const knownWithoutShow =
     judged.status === 'known' && !judged.shows.some(show => show.showId === showId);
   const canRefresh =

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { ClassEntry } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { classifyEntries } from '@/features/_shared/entryAccounting';
-import { toQuickAdvanceChips } from './quickAdvanceReplicated';
 import {
   buildNextUpPreview,
   isEmptyNextUpPreview,
@@ -157,8 +156,6 @@ describe('buildNextUpPreview', () => {
     expect(preview.total).toBe(2);
     expect(preview.remaining).toBe(0);
     expect(classifyEntries(rows)['absent']).toBe('completed');
-    // The chip row a judge taps after a save must not offer it either.
-    expect(toQuickAdvanceChips(rows, { excludeEntryId: 'scored' })).toEqual([]);
   });
 
   // Sibling branch (b): a stale `check_in_status: 'in-ring'` on a row the show

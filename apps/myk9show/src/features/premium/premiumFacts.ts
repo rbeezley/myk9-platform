@@ -10,7 +10,7 @@
  * Deliberately free of `@react-pdf/renderer` and font side effects: the public landing pages
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
-import type { RegistryId } from '@/features/registries';
+import { getPremiumScoutingStatement, type RegistryId } from '@/features/registries';
 import { resolveEffectiveWithdrawalTerms } from '@/features/payments/effectiveWithdrawalTerms';
 import { buildWithdrawalDisclosure } from '@/features/payments/withdrawalPolicyText';
 import { formatLongDate } from '@/lib/format/dates';
@@ -31,6 +31,7 @@ export type PremiumFactId =
   | 'trialInformation'
   | 'fees'
   | 'withdrawalPolicy'
+  | 'scoutingStatement'
   | 'classes'
   | 'judges'
   | 'secretary'
@@ -42,7 +43,8 @@ export type PremiumFactId =
   | 'awards'
   | 'additionalNotes';
 
-export type PremiumFactSource = 'club' | 'show' | 'trial' | 'class' | 'person' | 'template';
+export type PremiumFactSource =
+  'club' | 'show' | 'trial' | 'class' | 'person' | 'template' | 'registry';
 
 export interface PremiumFactDefinition {
   id: PremiumFactId;
@@ -63,6 +65,13 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
   // MYK9-1976: the club's text (a show may override it), else the registry-correct default.
   { id: 'withdrawalPolicy', label: 'Withdrawals and Pulls', source: 'club', requiredBy: ['AKC'] },
+  // MYK9-2043: the registry's own words (AKC Ch. 3 §15); the club types nothing.
+  {
+    id: 'scoutingStatement',
+    label: 'Scouting the Trial Location',
+    source: 'registry',
+    requiredBy: ['AKC'],
+  },
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
@@ -196,6 +205,26 @@ function buildWithdrawalPolicyFact(
   return { label: WITHDRAWAL_POLICY_ROW_LABEL, text: buildWithdrawalDisclosure(text) };
 }
 
+/** The premium's label for the registry's fixed statement about scouting, in every style. */
+export const SCOUTING_STATEMENT_LABEL = 'Scouting the Trial Location';
+
+/** A fixed statement the registry requires the premium to print, in the registry's words. */
+export interface PremiumRegistryStatementFact {
+  label: string;
+  text: string;
+}
+
+/**
+ * MYK9-2043: the registry's statement about not scouting the trial location, for the PDF and
+ * the public page alike. Null for a registry that requires none, so no style prints it there.
+ */
+export function buildScoutingStatementFact(
+  registry: RegistryId
+): PremiumRegistryStatementFact | null {
+  const text = getPremiumScoutingStatement(registry);
+  return text ? { label: SCOUTING_STATEMENT_LABEL, text } : null;
+}
+
 export interface PremiumTrialFacts {
   name: string;
   /** Long display date. */
@@ -230,6 +259,8 @@ export interface PremiumFacts {
   };
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
+  /** The registry's fixed statement about scouting; null for UKC and ASCA. */
+  scoutingStatement: PremiumRegistryStatementFact | null;
   entry: {
     /** Long display dates, null when unset. */
     opens: string | null;
@@ -288,6 +319,7 @@ export function buildPremiumFacts(
       ),
     },
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
+    scoutingStatement: buildScoutingStatementFact(registry),
     entry: {
       opens: show.entryOpenDate ? formatPremiumDate(show.entryOpenDate) : null,
       closes: show.entryCloseDate ? formatPremiumDate(show.entryCloseDate) : null,

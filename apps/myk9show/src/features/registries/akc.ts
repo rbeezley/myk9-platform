@@ -98,6 +98,14 @@ export const AKC_EXHIBITOR_AGREEMENT = [
   AKC_AGREEMENT_PARA_3,
 ].join('\n\n');
 
+/**
+ * MYK9-2043: AKC Scent Work Regulations Ch. 3 §15 (docs/rulebooks/akc-scent-work-regulations.txt):
+ * "The premium list must also include the statement: ...". Quoted exactly; the rulebook text
+ * file's spaces before each period are PDF-extraction artifacts, not part of the sentence.
+ */
+export const AKC_PREMIUM_SCOUTING_STATEMENT =
+  'It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.';
+
 export const akcRegistry: Registry = {
   id: 'AKC',
   name: 'American Kennel Club',
@@ -105,6 +113,7 @@ export const akcRegistry: Registry = {
   licenseLanguage: 'An A.K.C. Licensed Trial',
   memberClubLanguage: 'A member club of the American Kennel Club',
   exhibitorAgreement: AKC_EXHIBITOR_AGREEMENT,
+  premiumScoutingStatement: AKC_PREMIUM_SCOUTING_STATEMENT,
   registrationField: {
     label: 'A.K.C. registration number',
     pattern: null,

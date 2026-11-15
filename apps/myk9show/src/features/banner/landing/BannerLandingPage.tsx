@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { ScoutingStatementSection } from '@/features/_shared/landing/ScoutingStatementSection';
 import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureBannerFontsLoaded, BANNER_DISPLAY_FAMILY } from '../fonts';
@@ -144,6 +145,11 @@ export function BannerLandingPage({
         />
         <WithdrawalPolicySection
           showId={show?.id}
+          className="bn-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <ScoutingStatementSection
+          statement={data.scoutingStatement}
           className="bn-section"
           style={SHARED_SECTION_STYLE}
         />

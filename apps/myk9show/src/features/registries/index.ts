@@ -20,7 +20,7 @@ export type {
   ClassVariant,
   ClassVariantKind,
 } from './types';
-export { akcRegistry, AKC_EXHIBITOR_AGREEMENT } from './akc';
+export { akcRegistry, AKC_EXHIBITOR_AGREEMENT, AKC_PREMIUM_SCOUTING_STATEMENT } from './akc';
 export { ukcRegistry, UKC_EXHIBITOR_AGREEMENT } from './ukc';
 export { ascaRegistry, ASCA_EXHIBITOR_AGREEMENT } from './asca';
 export {
@@ -29,6 +29,7 @@ export {
   getTrialTimezone,
   resolveBrowserTrialTimezone,
   deriveRegistryId,
+  getPremiumScoutingStatement,
   resolveConfiguredRegistryId,
 } from './helpers';
 export type { ShowStyle } from './helpers';

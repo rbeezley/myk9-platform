@@ -63,6 +63,14 @@ export function getShowStyle(show: ShowLike | null | undefined): ShowStyle {
 }
 
 /**
+ * MYK9-2043: the registry's fixed premium-list statement about not scouting the trial
+ * location, in the rulebook's words, or `null` when the registry requires none (UKC, ASCA).
+ */
+export function getPremiumScoutingStatement(registryId: RegistryId): string | null {
+  return getRegistry(registryId).premiumScoutingStatement;
+}
+
+/**
  * Resolve the Registry config for a trial. Defaults to AKC when registry_id
  * is missing — every trial in the system today is AKC-sanctioned.
  */

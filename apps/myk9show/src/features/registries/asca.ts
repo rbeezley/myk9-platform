@@ -105,6 +105,8 @@ export const ascaRegistry: Registry = {
   // ASCA sanctions trials run by affiliate clubs; this is the footer phrase.
   memberClubLanguage: 'Sanctioned by The Australian Shepherd Club of America',
   exhibitorAgreement: ASCA_EXHIBITOR_AGREEMENT,
+  // MYK9-2043: the rulebook requires no scouting statement in the premium.
+  premiumScoutingStatement: null,
   registrationField: {
     // Accepts LEP / QT (QTracker) / REGULAR ids.
     label: 'ASCA Registration # (LEP/QT/REGULAR)',

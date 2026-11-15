@@ -72,6 +72,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <Text style={s.value}>{f.withdrawalPolicy.text}</Text>
         </View>
       )}
+      {f.scoutingStatement && (
+        <View style={s.row}>
+          <Text style={s.label}>{f.scoutingStatement.label}</Text>
+          <Text style={s.value}>{f.scoutingStatement.text}</Text>
+        </View>
+      )}
 
       {divider}
 

@@ -21,6 +21,78 @@ function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
 }
 
 describe('classifyMutationFailure', () => {
+  // MYK9-2011: the server answering "not now" keeps retrying with capped backoff and never parks a
+  // score as refused, however many times it happens.
+  describe('server-answered temporary errors never spend the retry budget (MYK9-2011)', () => {
+    it.each([
+      [
+        'a statement timeout',
+        { message: 'canceling statement due to statement timeout', code: '57014' },
+      ],
+      ['a deadlock', { message: 'deadlock detected', code: '40P01' }],
+      ['a serialization failure', { message: 'could not serialize access', code: '40001' }],
+      ['a lock it could not take', { message: 'could not obtain lock', code: '55P03' }],
+      ['too many connections', { message: 'too many connections', code: '53300' }],
+      ['a lost connection', { message: 'connection failure', code: '08006' }],
+      ['a plain 500', { message: 'internal', code: '', httpStatus: 500 }],
+      ['a 500 with a server code', { message: 'internal error', code: 'XX000', httpStatus: 500 }],
+      ['P0002 on the ringside RPC', { message: 'Entry e1 not found', code: 'P0002' }],
+    ])('keeps retrying %s after many failures', (_name, error) => {
+      let current = mutation({ rpc: { name: 'ringside_update_entry', args: {} } });
+      for (let i = 0; i < 20; i += 1) {
+        const result = classifyMutationFailure({
+          mutation: current,
+          error,
+          maxRetries: 3,
+          retryBackoffBase: 1_000,
+          now: 0,
+        });
+        expect(result.permanentlyFailed).toBe(false);
+        current = result.mutation;
+      }
+      expect(current).toMatchObject({ status: 'pending', retries: 0, transportRetries: 20 });
+      expect(current.failureKind).toBeUndefined();
+      expect(current.nextRetryAt).toBeLessThanOrEqual(MAX_BACKOFF_MS * 1.1);
+    });
+
+    it('backs off further each time', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      const first = classifyMutationFailure({
+        mutation: mutation(),
+        error: { message: 'statement timeout', code: '57014' },
+        maxRetries: 3,
+        retryBackoffBase: 1_000,
+        now: 0,
+      });
+      const second = classifyMutationFailure({
+        mutation: first.mutation,
+        error: { message: 'statement timeout', code: '57014' },
+        maxRetries: 3,
+        retryBackoffBase: 1_000,
+        now: 0,
+      });
+      expect(first.mutation.nextRetryAt).toBe(1_000);
+      expect(second.mutation.nextRetryAt).toBe(2_000);
+    });
+
+    it.each([
+      [
+        'a refusal with a 500 status',
+        { message: 'not authorized', code: '42501', httpStatus: 500 },
+      ],
+      ['P0002 on set_class_judge', { message: 'class not found', code: 'P0002' }],
+    ])('still parks %s at once', (_name, error) => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ rpc: { name: 'set_class_judge', args: {} } }),
+        error,
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(true);
+    });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -30,19 +102,19 @@ describe('classifyMutationFailure', () => {
 
     const result = classifyMutationFailure({
       mutation: mutation({ retries: 0 }),
-      error: { message: 'statement timeout', code: '57014' },
+      error: { message: 'rate limit exceeded', code: '429' },
       maxRetries: 3,
       retryBackoffBase: 10,
       now: 1_000,
     });
 
-    expect(result.message).toBe('statement timeout');
+    expect(result.message).toBe('rate limit exceeded');
     expect(result.canRetry).toBe(true);
     expect(result.permanentlyFailed).toBe(false);
     expect(result.mutation).toMatchObject({
       retries: 1,
       status: 'pending',
-      error: 'statement timeout',
+      error: 'rate limit exceeded',
       nextRetryAt: 1_010,
     });
     expect(result.mutation.failedAt).toBeUndefined();
@@ -51,7 +123,7 @@ describe('classifyMutationFailure', () => {
   it('marks retryable errors as failed when max retries are reached', () => {
     const result = classifyMutationFailure({
       mutation: mutation({ retries: 2 }),
-      error: { message: 'statement timeout', code: '57014' },
+      error: { message: 'rate limit exceeded', code: '429' },
       maxRetries: 3,
       retryBackoffBase: 10,
       now: 2_000,
@@ -62,7 +134,7 @@ describe('classifyMutationFailure', () => {
     expect(result.mutation).toMatchObject({
       retries: 3,
       status: 'failed',
-      error: 'Max retries exceeded: statement timeout',
+      error: 'Max retries exceeded: rate limit exceeded',
       failedAt: 2_000,
     });
     expect(result.mutation.nextRetryAt).toBeUndefined();
@@ -277,9 +349,8 @@ describe('classifyMutationFailure', () => {
     });
 
     it.each([
-      ['500', { message: 'internal', code: '', httpStatus: 500 }],
       ['429', { message: 'slow down', code: '429', httpStatus: 429 }],
-      ['a status-less ambiguous error', { message: 'statement timeout', code: '57014' }],
+      ['a status-less ambiguous error', { message: 'something odd', code: 'XX999' }],
     ])('still spends the budget on %s', (_n, error) => {
       const result = classifyMutationFailure({
         mutation: mutation(),
@@ -326,8 +397,8 @@ describe('classifyMutationFailure', () => {
     // Probe down, write path up: the probe only vouches for transport candidates. A write that
     // fails with any other error is classified by that error, never by the probe.
     it.each([
-      ['a 500', { message: 'internal', code: '', httpStatus: 500 }],
-      ['an ambiguous 57014', { message: 'statement timeout', code: '57014' }],
+      ['a 429', { message: 'slow down', code: '429', httpStatus: 429 }],
+      ['an ambiguous XX999', { message: 'something odd', code: 'XX999' }],
     ])('with the probe down, %s still spends the budget', (_n, error) => {
       const result = classifyMutationFailure({
         mutation: mutation({ retries: 2 }),
@@ -463,12 +534,12 @@ describe('classifyMutationFailure', () => {
       expect(result.mutation.status).toBe('failed');
     });
 
-    it('still parks an ambiguous non-transport error (57014) after maxRetries', () => {
+    it('still parks an ambiguous non-transport error (XX999) after maxRetries', () => {
       let current = mutation();
       for (let i = 0; i < 3; i += 1) {
         const result = classifyMutationFailure({
           mutation: current,
-          error: { code: '57014', message: 'canceling statement due to statement timeout' },
+          error: { code: 'XX999', message: 'something odd' },
           maxRetries: 3,
           retryBackoffBase: 10,
           now: i,
@@ -514,7 +585,7 @@ describe('classifyMutationFailure', () => {
     it('drops transportRetries once a failure spends the budget', () => {
       const result = classifyMutationFailure({
         mutation: mutation({ transportRetries: 7 }),
-        error: { message: 'statement timeout', code: '57014' },
+        error: { message: 'rate limit exceeded', code: '429' },
         maxRetries: 3,
         retryBackoffBase: 10,
         now: 0,

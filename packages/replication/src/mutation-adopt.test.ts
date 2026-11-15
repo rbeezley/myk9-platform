@@ -83,3 +83,32 @@ describe('isAdoptableHeldMutation (MYK9-2009 dead letters)', () => {
     expect(isAdoptableHeldMutation(mutation({ ringsideClaim: undefined }), OPTIONS)).toBe(true);
   });
 });
+
+describe('isAdoptableHeldMutation (MYK9-2011 relabelled dead letters)', () => {
+  const refused = (overrides: Partial<PendingMutation> = {}) =>
+    deadLetter({
+      failureKind: 'permanent',
+      error: 'Non-retryable error: class cancelled',
+      ...overrides,
+    });
+
+  it('adopts any same-claim dead letter when asked to relabel', () => {
+    expect(isAdoptableHeldMutation(refused(), { ...OPTIONS, relabelFailed: true })).toBe(true);
+  });
+
+  it('never relabels without the option, under another claim, or one the session already owns', () => {
+    expect(isAdoptableHeldMutation(refused(), OPTIONS)).toBe(false);
+    expect(
+      isAdoptableHeldMutation(refused({ ringsideClaim: 'judge:sam' }), {
+        ...OPTIONS,
+        relabelFailed: true,
+      })
+    ).toBe(false);
+    expect(
+      isAdoptableHeldMutation(refused({ authUserId: 'anon-2' }), {
+        ...OPTIONS,
+        relabelFailed: true,
+      })
+    ).toBe(false);
+  });
+});

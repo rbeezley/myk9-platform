@@ -38,6 +38,7 @@ describe('MutationManager adoption (MYK9-1205)', () => {
   beforeEach(async () => {
     db = await createMutationManagerTestDb('test-mutation-manager-adopt-db');
     await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);
+    await db.clear(REPLICATION_STORES.FAILED_MUTATIONS);
     vi.spyOn(databaseManager, 'getDatabase').mockResolvedValue(db);
     Object.defineProperty(globalThis, 'navigator', {
       configurable: true,
@@ -207,5 +208,52 @@ describe('MutationManager adoption (MYK9-1205)', () => {
 
     await expect(adopting).resolves.toBe(1);
     expect((await pending()).map(row => row.authUserId)).toEqual(['anon-2']);
+  });
+
+  // MYK9-2011: a refused score stays on the judge's "Scores not sent" list after a new code.
+  it('moves a same-claim refused score to the new owner and keeps it refused', async () => {
+    const refused = (id: string, overrides: Partial<PendingMutation> = {}): PendingMutation => ({
+      id,
+      authUserId: 'anon-1',
+      ownerIsAnonymous: true,
+      showId: 'show-x',
+      tableName: 'entries',
+      operation: 'UPDATE',
+      rowId: `row-${id}`,
+      data: { id: `row-${id}` },
+      timestamp: 1,
+      retries: 1,
+      status: 'failed',
+      failureKind: 'permanent',
+      error: 'Non-retryable error: This class is cancelled. Scores and check-ins are closed.',
+      rpc: SCORE_RPC,
+      ringsideClaim: 'judge:pat',
+      ...overrides,
+    });
+    await db.put(REPLICATION_STORES.FAILED_MUTATIONS, refused('f1'));
+    await db.put(
+      REPLICATION_STORES.FAILED_MUTATIONS,
+      refused('f2', { ringsideClaim: 'judge:sam' })
+    );
+    user = 'anon-2';
+
+    await expect(
+      manager.adoptHeldMutations({
+        showId: 'show-x',
+        toAuthUserId: 'anon-2',
+        rpcNames: RPCS,
+        claim: 'judge:pat',
+        relabelFailed: true,
+      })
+    ).resolves.toBe(1);
+
+    expect(await pending()).toEqual([]);
+    expect(await manager.getFailedMutations()).toEqual([
+      expect.objectContaining({ id: 'f1', authUserId: 'anon-2', status: 'failed', retries: 1 }),
+    ]);
+    // Another judge's refusal on a shared device stays with that judge.
+    expect(await db.get(REPLICATION_STORES.FAILED_MUTATIONS, 'f2')).toMatchObject({
+      authUserId: 'anon-1',
+    });
   });
 });

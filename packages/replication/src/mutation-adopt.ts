@@ -48,11 +48,24 @@ export interface AdoptHeldMutationsOptions {
    * on a shared device (MYK9-2009).
    */
   claim?: string;
+  /**
+   * MYK9-2011: every other dead letter queued under this same claim moves to the new owner too,
+   * and STAYS a dead letter, so the judge's "Scores not sent" list still shows it after a new code.
+   * Nothing is retried for it: Try again stays a person's call.
+   */
+  relabelFailed?: boolean;
 }
 
 export function isAdoptableHeldMutation(
   mutation: PendingMutation,
-  { showId, toAuthUserId, rpcNames, failedErrorIncludes, claim }: AdoptHeldMutationsOptions
+  {
+    showId,
+    toAuthUserId,
+    rpcNames,
+    failedErrorIncludes,
+    claim,
+    relabelFailed,
+  }: AdoptHeldMutationsOptions
 ): boolean {
   if (
     mutation.ownerIsAnonymous !== true ||
@@ -70,10 +83,21 @@ export function isAdoptableHeldMutation(
       mutation.ringsideClaim !== claim;
     return mutation.authUserId !== toAuthUserId && !otherClaim;
   }
+  if (mutation.status !== 'failed' || claim === undefined || mutation.ringsideClaim !== claim) {
+    return false;
+  }
   return (
-    mutation.status === 'failed' &&
-    claim !== undefined &&
-    mutation.ringsideClaim === claim &&
+    isRequeuedDeadLetter(mutation, failedErrorIncludes) ||
+    (relabelFailed === true && mutation.authUserId !== toAuthUserId)
+  );
+}
+
+/** A dead letter refused only because its code was replaced: adoption sends it again (MYK9-2009). */
+function isRequeuedDeadLetter(
+  mutation: PendingMutation,
+  failedErrorIncludes: string | undefined
+): boolean {
+  return (
     failedErrorIncludes !== undefined &&
     typeof mutation.error === 'string' &&
     mutation.error.includes(failedErrorIncludes)
@@ -93,7 +117,8 @@ export async function findAdoptableHeldMutations(
 /**
  * Re-owns the queue rows `ids` in ONE transaction, each only if it is still
  * adoptable (a row that drained or changed since it was found is skipped). A dead
- * letter moves out of the failed store into the queue as a fresh pending row.
+ * letter refused only because its code was replaced moves out of the failed store into the queue
+ * as a fresh pending row; any other adopted dead letter keeps its place in the failed store.
  * Returns how many moved. The replica rows they target are moved BEFORE this, by
  * their tables (see OwnerTransferRegistry and MutationManager.adoptHeldMutations).
  */
@@ -115,7 +140,9 @@ export async function adoptHeldMutationsInStore(
   let adopted = 0;
   for (const row of rows) {
     if (!ids.has(row.id) || !isAdoptableHeldMutation(row, options)) continue;
-    if (row.status === 'failed') {
+    if (row.status === 'failed' && !isRequeuedDeadLetter(row, options.failedErrorIncludes)) {
+      await failedStore.put({ ...row, authUserId: options.toAuthUserId });
+    } else if (row.status === 'failed') {
       await pendingStore.put({
         ...requeueFailedMutation(row),
         authUserId: options.toAuthUserId,

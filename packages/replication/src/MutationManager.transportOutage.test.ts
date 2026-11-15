@@ -268,6 +268,37 @@ describe('MutationManager transport outage (MYK9-1474)', () => {
     return manager;
   }
 
+  // MYK9-2011: a server that answers "not now" is a busy server, not a refusal. The score stays in
+  // the queue and keeps trying with backoff, never parked as refused after three quick tries.
+  describe('server-answered temporary errors keep retrying (MYK9-2011)', () => {
+    it.each([
+      [
+        'a statement timeout',
+        { code: '57014', message: 'canceling statement due to statement timeout' },
+        500,
+      ],
+      ['a deadlock', { code: '40P01', message: 'deadlock detected' }, 500],
+      ['a plain 500', { code: '', message: 'Internal Server Error' }, 500],
+      ['P0002', { code: 'P0002', message: 'Entry entry-1 not found' }, 404],
+    ])('%s never parks a ringside score', async (_name, error, status) => {
+      makeManagerWith(async () => true);
+      await db.put(PENDING, mutation({ rpc: { name: 'ringside_update_entry', args: {} } }));
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error, status } as never);
+
+      for (let i = 0; i < 12; i++) {
+        await manager.uploadPendingMutations();
+        await vi.advanceTimersByTimeAsync(31_000);
+      }
+
+      const { pending, failed } = await pendingAndFailed();
+      expect(failed).toHaveLength(0);
+      expect(pending).toEqual([
+        expect.objectContaining({ id: 'mutation-1', status: 'pending', retries: 0 }),
+      ]);
+      expect(vi.mocked(supabase.rpc).mock.calls.length).toBeGreaterThanOrEqual(10);
+    });
+  });
+
   describe('refusals park at once without asking the probe', () => {
     it.each([
       ['42501', 'permission denied', undefined],

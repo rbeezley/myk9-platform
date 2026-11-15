@@ -1,7 +1,7 @@
 /**
  * FirstRunZeroState — welcoming first-run surface for the My Shows page.
  *
- * Replaces the zeroed CompactStatsRow + empty DogStrip + empty tabs stack that a
+ * Replaces the zeroed stat row + empty DogStrip + empty tabs stack that a
  * brand-new exhibitor (no entries) would otherwise see. Showing all-zero stat
  * cards reads as noise and makes the page feel like a data-entry chore — the
  * opposite of the Exhibitor intent ("This respects my time"). Instead we present

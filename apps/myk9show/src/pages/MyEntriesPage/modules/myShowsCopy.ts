@@ -2,7 +2,7 @@
  * Pinned copy strings for the My Shows page legibility remediation
  * (exhibitor-my-shows-legibility). Centralized so tests can assert exact
  * wording and so the same string is never duplicated inline across
- * `index.tsx` and `CompactStatsRow.tsx`.
+ * `index.tsx` and other My Shows modules.
  *
  * @module MyEntriesPage/modules/myShowsCopy
  */

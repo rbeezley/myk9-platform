@@ -1,12 +1,14 @@
 /**
- * The two page-level summaries above the My Shows filter section: the
- * amount-due stat row and the dog strip.
+ * The page-level summary above the My Shows filter section: the dog strip, and
+ * the note that some balances could not be confirmed.
+ *
+ * Money owed is not summed here. Each show card states its own balance with its
+ * own Pay button (MYK9-2030); the all-shows total was removed because two totals
+ * on one page disagreed.
  *
  * Extracted from `index.tsx` when MYK9-417 made the filter section render for a
- * wait-list-only exhibitor while these two stayed behind `entries.length > 0` —
- * a stat row of zeros and an empty dog strip are the noise `FirstRunZeroState`
- * exists to suppress. Lifting the pair out keeps the page shell under the
- * 500-line ratchet and puts their mobile ordering in one place.
+ * wait-list-only exhibitor while this stayed behind `entries.length > 0` — an
+ * empty dog strip is the noise `FirstRunZeroState` exists to suppress.
  *
  * @module MyEntriesPage/modules/MyEntriesOverview
  */
@@ -14,8 +16,6 @@
 import React from 'react';
 import { countUpcomingClassesByDog, countUnpublishedClassesByDog } from './myEntriesStats.helpers';
 import type { MyEntry } from './my-entries-types';
-import type { NavigateFunction } from 'react-router-dom';
-import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip, type DogStripDog } from '@/components/exhibitor/DogStrip';
 
 /**
@@ -27,19 +27,10 @@ export type OverviewDog = DogStripDog;
 
 interface MyEntriesOverviewProps {
   /**
-   * False when the balance summary is `unknown`. It hides the STAT ROW only.
-   * Gating the whole component also removed the dog strip and its "Add a dog"
-   * entry point — neither of which is money — from an exhibitor whose read
-   * happened to be unconfirmed (MYK9-629 round 1).
+   * True when a balance is unknown or unresolved. Explains why a show card may
+   * show less money than expected instead of implying nothing is owed.
    */
-  showMoney: boolean;
-  /** Explains why the money row is withheld instead of implying no balance. */
   moneyWarning?: boolean;
-  amountDue: number;
-  hasPastBalance: boolean;
-  /** Targets the SAME debt `amountDue` describes — see the page's derivation. */
-  currentFeesHref: string;
-  onNavigate: NavigateFunction;
   dogs: OverviewDog[];
   /**
    * The one source of the dog strip's class counts. Required: an optional
@@ -56,12 +47,7 @@ interface MyEntriesOverviewProps {
 }
 
 export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
-  showMoney,
   moneyWarning = false,
-  amountDue,
-  hasPastBalance,
-  currentFeesHref,
-  onNavigate,
   dogs,
   entries,
   onAddDog,
@@ -76,25 +62,16 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   );
   return (
     <>
-      {showMoney && (
-        <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
-          <CompactStatsRow
-            amountDue={amountDue}
-            hasPastBalance={hasPastBalance}
-            currentFeesHref={currentFeesHref}
-            onNavigate={onNavigate}
-          />
-        </div>
-      )}
       {moneyWarning && (
         <p role="status" className="text-sm text-muted-foreground">
-          Some balances could not be confirmed yet; the money total covers confirmed balances only.
+          Some balances could not be confirmed yet; each show lists only the amounts we could
+          confirm.
         </p>
       )}
 
       {/* order-3 on mobile keeps the dog strip below the primary entry workflow.
-      On desktop every sibling is order-0, so source order keeps the balance and
-      dog strip above the entries. */}
+      On desktop every sibling is order-0, so source order keeps the dog strip
+      above the entries. */}
       {showDogStrip && (
         <div className="max-[720px]:order-3">
           <DogStrip

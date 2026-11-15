@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import {
   mapEntryRowToBalanceSource,
@@ -6,7 +6,6 @@ import {
   type EntryBalanceRawRow,
 } from '../entryBalanceSummary';
 import { AmountDueSection } from '@/pages/exhibitor/AmountDueSection';
-import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { render } from '@/test/utils/testUtils';
 
 /**
@@ -120,20 +119,6 @@ describe('the exhibitor money surfaces agree on the unmasked balance (MYK9-495)'
     expect(screen.getByText('$30.00')).toBeInTheDocument();
     expect(screen.queryByText('Current entries are paid up.')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Finish payment/i })).toBeInTheDocument();
-  });
-
-  it('the My Shows fee card does not claim paid in full', () => {
-    const s = summary();
-    render(
-      <CompactStatsRow
-        amountDue={s.amountDueCents / 100}
-        currentFeesHref={s.onlineShowBalances[0].paymentHref}
-        onNavigate={vi.fn()}
-      />
-    );
-
-    expect(screen.queryByText('Paid in full')).not.toBeInTheDocument();
-    expect(screen.getByText('$30.00')).toBeInTheDocument();
   });
 });
 

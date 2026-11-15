@@ -52,13 +52,16 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.length > 0;
   const hasEntry = Boolean(
-    f.entry.opens || f.entry.closes || f.fees.preEntry || f.fees.dayOf || f.withdrawalPolicy
+    f.entry.opens ||
+    f.entry.closes ||
+    f.fees.preEntry ||
+    f.fees.dayOf ||
+    f.withdrawalPolicy ||
+    f.scoutingStatement
   );
   const hasSchedule = Boolean(f.showHours.trim());
   const hasLocation = Boolean(f.venue || f.accommodations.length > 0 || f.vetClinic);
-  const hasNotices = Boolean(
-    f.scoutingStatement || f.additionalNotes || f.hospitalityNotes || f.awardsDescription
-  );
+  const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes || f.awardsDescription);
 
   const renderHeader = (num: string, title: string) => (
     <View
@@ -211,6 +214,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>{f.withdrawalPolicy.text}</Text>
             </View>
           )}
+          {f.scoutingStatement && (
+            <View style={rowStyle}>
+              <Text style={labelStyle}>{f.scoutingStatement.label}</Text>
+              <Text style={valueStyle}>{f.scoutingStatement.text}</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -255,12 +264,6 @@ export function FieldGuideBody({ data, tokens }: Props) {
       {hasNotices && (
         <View style={blockStyle} wrap={false}>
           {renderHeader('§07', 'Notices')}
-          {f.scoutingStatement && (
-            <View style={rowStyle}>
-              <Text style={labelStyle}>{f.scoutingStatement.label}</Text>
-              <Text style={valueStyle}>{f.scoutingStatement.text}</Text>
-            </View>
-          )}
           {f.additionalNotes && (
             <Text style={{ ...bodyStyle, marginBottom: 4 }}>{f.additionalNotes}</Text>
           )}

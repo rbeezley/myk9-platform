@@ -1,4 +1,5 @@
 import { replicatedEntriesTable } from '@/services/replication';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import {
   SCORE_DETAIL_CLEAR_FIELDS,
   scoreResetCheckInFields,
@@ -14,22 +15,56 @@ import {
  * `ringside_update_entry`, letting an assigned judge reset as well as a manager. The scoring-state
  * trigger clears any stale placement. The nullable field variants (camel `finalPlacement`, snake
  * `scoring_completed_at`, `disqualification_reason`) make the clears persist as NULL.
+ *
+ * With `expectedCompletedAt` (Show Desk's Undo of Mark absent, MYK9-2037) the clear happens only
+ * while the replica row still carries that score timestamp, read inside the same builder the write
+ * is based on, so it works offline. A newer score or a later Absent has a different timestamp and
+ * is left alone. Returns false when the clear was declined.
  */
-export async function clearEntryScore(entryId: string): Promise<void> {
-  await replicatedEntriesTable.updateEntryWith(entryId, current => ({
-    isScored: false,
-    is_scored: false,
-    resultStatus: 'pending',
-    result_status: 'pending',
-    searchTimeSeconds: 0,
-    search_time_seconds: 0,
-    totalFaults: 0,
-    total_faults: 0,
-    finalPlacement: null,
-    scoringCompletedAt: null,
-    scoring_completed_at: null,
-    disqualification_reason: null,
-    ...SCORE_DETAIL_CLEAR_FIELDS,
-    ...scoreResetCheckInFields(current),
-  }));
+export async function clearEntryScore(
+  entryId: string,
+  expectedCompletedAt?: string | null
+): Promise<boolean> {
+  let declined = false;
+  await replicatedEntriesTable.updateEntryWith(entryId, current => {
+    if (
+      expectedCompletedAt !== undefined &&
+      (expectedCompletedAt === null || !sameInstant(entryScoreStamp(current), expectedCompletedAt))
+    ) {
+      declined = true;
+      return null;
+    }
+    return {
+      isScored: false,
+      is_scored: false,
+      resultStatus: 'pending',
+      result_status: 'pending',
+      searchTimeSeconds: 0,
+      search_time_seconds: 0,
+      totalFaults: 0,
+      total_faults: 0,
+      finalPlacement: null,
+      scoringCompletedAt: null,
+      scoring_completed_at: null,
+      disqualification_reason: null,
+      ...SCORE_DETAIL_CLEAR_FIELDS,
+      ...scoreResetCheckInFields(current),
+    };
+  });
+  return !declined;
+}
+
+/** The timestamp the score write stamped on the row (null when unscored). */
+export function entryScoreStamp(
+  row: Pick<ReplicatedEntry, 'scoring_completed_at' | 'scoringCompletedAt'>
+): string | null {
+  return row.scoring_completed_at ?? row.scoringCompletedAt ?? null;
+}
+
+// A sync can hand the same instant back in the server's format (`+00:00` for `Z`), so compare
+// instants, not strings.
+function sameInstant(a: string | null, b: string): boolean {
+  if (a === null) return false;
+  const left = Date.parse(a);
+  return a === b || (!Number.isNaN(left) && left === Date.parse(b));
 }

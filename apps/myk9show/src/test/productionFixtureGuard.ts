@@ -29,6 +29,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
+import { toPosixPath } from './utils/posixPath';
 
 export const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 /** apps/myk9show/dist: what `vite preview` serves. */
@@ -149,7 +150,7 @@ export function bundleFilesNamingProduction(dir: string): string[] {
         entry.name.endsWith('.js') &&
         readFileSync(path, 'utf8').includes(PRODUCTION_PROJECT_REF)
       ) {
-        hits.push(path);
+        hits.push(toPosixPath(path));
       }
     }
   };

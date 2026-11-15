@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+import { relativePosix } from '@/test/utils/posixPath';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -53,7 +54,7 @@ function getAllCalls() {
         if (!CALL.test(text) || NOT_A_TABLE.test(text)) return;
         const above = lines.slice(Math.max(0, index - 5), index).join('\n');
         found.push({
-          file: relative(root, path),
+          file: relativePosix(root, path),
           line: index + 1,
           reasoned: above.includes(REASON_MARKER),
         });

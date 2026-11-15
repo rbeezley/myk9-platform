@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
+import { relativePosix } from '@/test/utils/posixPath';
 import { describe, expect, it } from 'vitest';
 
 const SRC = join(__dirname, '..', '..', '..');
@@ -69,14 +70,14 @@ describe('no path sets a show to completed except the close step (MYK9-1945)', (
         SHOW_COMPLETED_WRITE.lastIndex = 0;
         return SHOW_COMPLETED_WRITE.test(readFileSync(file, 'utf8'));
       })
-      .map(file => relative(SRC, file));
+      .map(file => relativePosix(SRC, file));
 
     expect(writers).toEqual([CLOSE_STEP]);
   });
 
   it('no show-status picker or type offers completed outside the close step', () => {
     const offers = sourceFiles(SRC).flatMap(file => {
-      const rel = relative(SRC, file);
+      const rel = relativePosix(SRC, file);
       if (rel === CLOSE_STEP) return [];
       return offersCompleted(readFileSync(file, 'utf8'), rel).map(kind => `${rel}: ${kind}`);
     });

@@ -185,8 +185,9 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
     };
     updateData.status = statusMap[updates.status] || updates.status;
   }
+  // MYK9-1931: 0 is "no fee of its own" (the show's fee is charged), stored as NULL.
   if (updates.entryFee !== undefined) {
-    updateData.entry_fee = updates.entryFee;
+    updateData.entry_fee = updates.entryFee > 0 ? updates.entryFee : null;
   }
   // null clears the class limit (no class cap); undefined leaves it untouched.
   if (updates.maxEntries !== undefined) {

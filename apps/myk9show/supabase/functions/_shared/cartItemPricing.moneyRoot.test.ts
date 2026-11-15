@@ -72,7 +72,7 @@ const line: CartItemForPricing = {
   class_id: 'class-new',
   entry_id: 'dest',
   junior_fee_declared: false,
-  class_entry_fee: 28,
+  class_entry_fee: null,
 };
 
 describe('Finish Payment line naming a moved-up destination', () => {

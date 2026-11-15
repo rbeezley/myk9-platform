@@ -28,7 +28,7 @@ function makeParams(
     handlerAssignments: {
       'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
     },
-    classes: [{ id: 'class-1', entryFee: 20 }],
+    classes: [{ id: 'class-1' }],
     // Show day (startDate in the past), so the normal fee is the day-of fee, 30.
     showFeeInfo: {
       preEntryFee: '25',

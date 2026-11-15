@@ -36,8 +36,7 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     maxEntries: classItem.maxEntries ?? null,
     allowsWaitlist: classItem.allowsWaitlist ?? null,
     editedCapacity: [],
-    preEntryFee: classItem.preEntryFee || 0,
-    dayOfShowFee: classItem.dayOfShowFee || 0,
+    ...entryFeeFormFields(classItem),
   };
 };
 
@@ -66,9 +65,32 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.distractionsUsed !== undefined && { distractionsUsed: formData.distractionsUsed }),
   ...(formData.itemsUsed !== undefined && { itemsUsed: formData.itemsUsed }),
   ...editedCapacityPatch(formData),
-  ...(formData.preEntryFee !== undefined && { preEntryFee: formData.preEntryFee }),
-  ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
+  ...entryFeePatch(formData),
 });
+
+type EntryFeeSource = { entryFee?: number | undefined };
+
+/**
+ * The fee field's starting state (MYK9-1931). A source that did not carry `entryFee` (a class
+ * mapped by hand) shows no field, so the editor never presents "no fee of its own" as fact.
+ * 0 is "no fee of its own".
+ */
+function entryFeeFormFields(source: EntryFeeSource) {
+  const loaded = source.entryFee !== undefined;
+  return {
+    entryFeeLoaded: loaded,
+    entryFeeEdited: false,
+    ...(source.entryFee !== undefined && { entryFee: source.entryFee }),
+  };
+}
+
+/** The fee, only when it was changed in this session. 0 (an emptied field) clears it. */
+export function entryFeePatch(formData: {
+  entryFee?: number | undefined;
+  entryFeeEdited?: boolean | undefined;
+}): { entryFee?: number } {
+  return formData.entryFeeEdited ? { entryFee: formData.entryFee ?? 0 } : {};
+}
 
 type CapacitySource = {
   maxEntries?: number | null | undefined;
@@ -128,6 +150,7 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     maxEntries: (trialClass as Partial<ClassData>).maxEntries ?? null,
     allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? null,
     editedCapacity: [],
+    ...entryFeeFormFields(trialClass),
   };
 };
 
@@ -142,4 +165,5 @@ export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<
   status: formData.status,
   entries: formData.entries,
   ...editedCapacityPatch(formData),
+  ...entryFeePatch(formData),
 });

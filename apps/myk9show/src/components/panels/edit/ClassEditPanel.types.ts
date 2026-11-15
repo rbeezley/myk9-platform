@@ -61,9 +61,12 @@ export interface ClassEditFormData extends Record<string, unknown> {
   /** Capacity controls the user edited in THIS session; only these reach the save. */
   editedCapacity?: CapacityControl[];
 
-  // Fee structure
-  preEntryFee?: number;
-  dayOfShowFee?: number;
+  // MYK9-1931: the class's own fee (`classes.entry_fee`); 0 or absent charges the show's fee.
+  entryFee?: number;
+  /** False when the class came from a source that did not carry its fee: no field is shown. */
+  entryFeeLoaded?: boolean;
+  /** Set once the fee is changed in this session; only then is it saved. */
+  entryFeeEdited?: boolean;
 }
 
 // Form data interface for simple TrialClass
@@ -81,4 +84,8 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   allowsWaitlist?: boolean | null;
   /** Capacity controls the user edited in THIS session; only these reach the save. */
   editedCapacity?: CapacityControl[];
+  /** MYK9-1931: the class's own fee; see ClassEditFormData. */
+  entryFee?: number;
+  entryFeeLoaded?: boolean;
+  entryFeeEdited?: boolean;
 }

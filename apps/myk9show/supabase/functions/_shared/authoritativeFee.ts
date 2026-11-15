@@ -5,11 +5,15 @@
 // lower the fee and buy a paid entry at any price. Checkout recomputes each
 // item's fee from this authority chain and refuses to charge anything else.
 //
-// Priority (mirrors PaymentStep/utils.ts getShowEntryFee):
-//   1. Show-level fee, date-tiered: day-of-show fee once the show has
+// Priority (mirrors PaymentStep/utils.ts getShowEntryFee and
+// private.price_entry_fee; MYK9-1931):
+//   1. The class's own entry_fee when it is above 0. Once the show has started
+//      the show's day-of surcharge (day-of fee minus pre-entry fee, when above
+//      it) is added. 0 or none means "charge the show's fee".
+//   2. Show-level fee, date-tiered: day-of-show fee once the show has
 //      started, else pre-entry fee.
-//   2. Class-level entry_fee (explicit 0 respected — free classes exist).
-//   3. $25 default.
+//   3. Class-level entry_fee as given (explicit 0 respected).
+//   4. $25 default.
 // "Has the show started" compares calendar days in the SHOW's time zone (owner
 // decision 2026-10-15, MYK9-1198): the fee switches at midnight where the show
 // is held, the same for every exhibitor, as `submit_show_entries` decides it.
@@ -74,20 +78,32 @@ export function authoritativeEntryFeeCents(input: AuthoritativeFeeInput): number
 function normalEntryFeeCents(input: AuthoritativeFeeInput): number {
   const pre = parseDollars(input.showPreEntryFee);
   const day = parseDollars(input.showDayOfShowFee);
+  const classFee = parseDollars(input.classEntryFee);
+  const ownFee = classFee != null && classFee > 0 ? classFee : null;
 
+  let dayOfTier = false;
   if (input.showStartDate) {
     const startDay = input.showStartDate.slice(0, 10);
     const nowDay = calendarDateInTimeZone(
       new Date(input.nowIso),
       resolveShowTimeZone(input.showTimeZone)
     );
-    if (nowDay >= startDay && day != null) {
-      return Math.round(day * 100);
-    }
+    dayOfTier = nowDay >= startDay && day != null;
+  }
+
+  // MYK9-1931: a class's own fee wins; on the day it carries the show's surcharge.
+  if (ownFee != null) {
+    const surchargeCents =
+      dayOfTier && day != null && pre != null && day > pre
+        ? Math.round(day * 100) - Math.round(pre * 100)
+        : 0;
+    return Math.round(ownFee * 100) + surchargeCents;
+  }
+  if (dayOfTier && day != null) {
+    return Math.round(day * 100);
   }
   if (pre != null) {
     return Math.round(pre * 100);
   }
-  const classFee = parseDollars(input.classEntryFee);
   return Math.round((classFee ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
 }

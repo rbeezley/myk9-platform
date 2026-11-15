@@ -89,7 +89,7 @@ describe('failed Save on a hidden tab', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('Class: switches to Requirements and focuses the invalid pre-entry fee', async () => {
+  it('Class: switches to Requirements and focuses the invalid class entry fee', async () => {
     const onSave = vi.fn();
     const { user } = render(
       <ClassEditPanel
@@ -105,7 +105,8 @@ describe('failed Save on a hidden tab', () => {
           section: 'A',
           status: 'Scheduled',
           estimatedJudgingTime: '',
-          preEntryFee: -5,
+          // MYK9-1931: the one class fee field (a stored fee below 0 is invalid).
+          entryFee: -5,
         }}
       />
     );
@@ -115,7 +116,7 @@ describe('failed Save on a hidden tab', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(selected()).toMatch(/Requirements/));
-    await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'preEntryFee'));
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'classEntryFee'));
     expect(onSave).not.toHaveBeenCalled();
   });
 

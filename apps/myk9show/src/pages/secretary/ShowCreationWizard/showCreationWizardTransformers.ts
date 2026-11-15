@@ -123,7 +123,6 @@ export function createClassDataFromWizard(
   showId: string,
   existingTrials: ExistingTrial[],
   editMode: EditMode | undefined,
-  showFees: { preEntryFee?: number; dayOfShowFee?: number } | undefined,
   trialView: WizardTrialView,
   normalizedClasses: readonly NormalizedWizardClassSelection[]
 ): ClassData[] {
@@ -179,12 +178,8 @@ export function createClassDataFromWizard(
           timeLimit3: '',
           photoUrl: '',
           className: className,
-          entryFee:
-            (cls.customizations?.entryFee as number | undefined) ?? showFees?.preEntryFee ?? 0,
-          preEntryFee:
-            (cls.customizations?.preEntryFee as number | undefined) ?? showFees?.preEntryFee ?? 0,
-          dayOfShowFee:
-            (cls.customizations?.dayOfShowFee as number | undefined) ?? showFees?.dayOfShowFee ?? 0,
+          // MYK9-1931: a new class has no fee of its own, so it charges the show's fee and
+          // follows it when the show's fee changes. A copy here would win over the show's fee.
           maxEntries: undefined,
           templateId: cls.templateId,
         };

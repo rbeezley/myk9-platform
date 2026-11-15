@@ -76,12 +76,24 @@ const getNormalEntryFeeCents = (entry: RecoverableEntryRow): number => {
     getTrialTimezone({ timezone: entry.show_timezone })
   );
 
-  if (showStartDate && todayInShowZone >= showStartDate && dayOfShowFee != null) {
+  const dayOfTier = Boolean(showStartDate && todayInShowZone >= showStartDate);
+  const classFee = parseFeeDollars(entry.class_entry_fee);
+
+  // MYK9-1931: a class's own fee (above 0) wins, plus the show's day-of surcharge on the
+  // day; the same rule as `stripe-checkout` (authoritativeFee.ts) and price_entry_fee.
+  if (classFee != null && classFee > 0) {
+    const surchargeCents =
+      dayOfTier && dayOfShowFee != null && preEntryFee != null && dayOfShowFee > preEntryFee
+        ? Math.round(dayOfShowFee * 100) - Math.round(preEntryFee * 100)
+        : 0;
+    return Math.round(classFee * 100) + surchargeCents;
+  }
+  if (dayOfTier && dayOfShowFee != null) {
     return Math.round(dayOfShowFee * 100);
   }
   if (preEntryFee != null) return Math.round(preEntryFee * 100);
 
-  return Math.round((parseFeeDollars(entry.class_entry_fee) ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
+  return Math.round((classFee ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
 };
 
 /**

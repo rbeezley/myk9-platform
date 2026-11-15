@@ -6,7 +6,8 @@
 --   A. a show insert or fee update that leaves the junior fee above the pre-entry fee, or above
 --      a day-of fee > 0, is refused with 23514 and a sentence naming the limit; equal is allowed;
 --      a junior fee of NULL or 0 (no tier) and a day-of fee of 0 are never limits
---   B. with no pre-entry fee, the live class fees are the limit (a soft-deleted class is not):
+--   B. with no pre-entry fee, the live class fees are the limit (a soft-deleted class is not,
+--      and a class with no fee counts as $0, which is what checkout charges for it):
 --      a show write and a class write are both refused; with a pre-entry fee a class fee is not
 --      priced, so it is not limited
 --   C. an existing show already over the limit keeps working: a write that changes no fee, and
@@ -176,6 +177,47 @@ select pg_temp.expect('a class fee equal to the junior fee is allowed',
      where id = '00000000-0000-0000-0000-000001975331'
   $q$),
   'ok');
+
+-- A class with no fee is charged $0 at checkout (price_entry_fee's COALESCE), so with no
+-- pre-entry fee it counts as a fee of 0.
+select pg_temp.expect('with no pre-entry fee, a new class with no fee is refused',
+  pg_temp.attempt($q$
+    insert into public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
+    values ('00000000-0000-0000-0000-000001975334', '00000000-0000-0000-0000-000001975203',
+            'MYK9-1975 Class 3d', 'Buried', 'Novice', 'upcoming', 'manual', NULL)
+  $q$),
+  '23514|A class fee can''t be less than the junior fee of $12. Lower the junior fee first.');
+
+select pg_temp.expect('with no pre-entry fee, clearing a class fee is refused',
+  pg_temp.attempt($q$
+    update public.classes set entry_fee = NULL
+     where id = '00000000-0000-0000-0000-000001975332'
+  $q$),
+  '23514|A class fee can''t be less than the junior fee of $12. Lower the junior fee first.');
+
+select pg_temp.expect('with a pre-entry fee, a class with no fee is not priced and not limited',
+  pg_temp.attempt($q$
+    insert into public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
+    values ('00000000-0000-0000-0000-000001975302', '00000000-0000-0000-0000-000001975201',
+            'MYK9-1975 Class 1b', 'Buried', 'Novice', 'upcoming', 'manual', NULL)
+  $q$),
+  'ok');
+delete from public.classes where id = '00000000-0000-0000-0000-000001975302';
+
+-- A legacy class with no fee (written before the limit) makes the show's limit $0.
+alter table public.classes disable trigger trg_classes_junior_fee_limit;
+insert into public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
+values ('00000000-0000-0000-0000-000001975335', '00000000-0000-0000-0000-000001975203',
+        'MYK9-1975 Class 3e', 'Handler Discrimination', 'Novice', 'upcoming', 'manual', NULL);
+alter table public.classes enable trigger trg_classes_junior_fee_limit;
+select pg_temp.expect('with no pre-entry fee, a live class with no fee makes the limit $0',
+  pg_temp.attempt($q$
+    update public.shows set junior_handler_fee = 11
+     where id = '00000000-0000-0000-0000-000001975103'
+  $q$),
+  '23514|The junior fee can''t be more than $0, the lowest class fee in this show.');
+update public.classes set deleted_at = now()
+ where id = '00000000-0000-0000-0000-000001975335';
 
 
 select pg_temp.expect('with a pre-entry fee, a class fee is not priced and not limited',

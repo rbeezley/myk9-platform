@@ -18,7 +18,8 @@
 --   * shows.day_of_show_fee, when it is > 0 (0 / NULL = no day-of tier);
 --   * classes.entry_fee of every live class (deleted_at IS NULL) in every live
 --     trial of the show, ONLY when pre_entry_fee IS NULL, because a class's own
---     fee is reached only then. A NULL class fee is not a fee and is skipped.
+--     fee is reached only then. A NULL class fee counts as 0: checkout charges
+--     COALESCE(..., class fee, 0), so a class with no fee is priced at $0.
 -- A show with no candidate has no limit. A junior fee that is NULL or 0 is "no
 -- junior tier" (the 20260930214300 convention) and is never limited.
 --
@@ -29,7 +30,8 @@
 --     already over the limit keeps working until someone changes a fee.
 --   * trg_classes_junior_fee_limit: AFTER INSERT, or an UPDATE that changes
 --     entry_fee or trial_id, of a live class whose show has a junior tier and no
---     pre-entry fee (the only case a class fee is priced).
+--     pre-entry fee (the only case a class fee is priced). Inserting a class with
+--     no fee, or clearing one, is checked as a fee of 0.
 -- AFTER, not BEFORE: an AFTER trigger sees the final row after every BEFORE
 -- trigger, and does not fire for a row that INSERT ... ON CONFLICT DO NOTHING
 -- skipped (create_show_with_children re-uses ids that way on a retry).
@@ -66,14 +68,14 @@ DECLARE
   v_class_fee numeric;
 BEGIN
   IF p_pre_entry_fee IS NULL THEN
-    SELECT pg_catalog.min(c.entry_fee)
+    -- A class with no fee is charged 0 (price_entry_fee's COALESCE), so it counts as 0.
+    SELECT pg_catalog.min(COALESCE(c.entry_fee, 0))
       INTO v_class_fee
       FROM public.classes c
       JOIN public.trials t ON t.id = c.trial_id
      WHERE t.show_id = p_show_id
        AND t.deleted_at IS NULL
-       AND c.deleted_at IS NULL
-       AND c.entry_fee IS NOT NULL;
+       AND c.deleted_at IS NULL;
   END IF;
 
   -- LEAST ignores NULLs and is NULL only when every argument is.
@@ -147,7 +149,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  IF NEW.deleted_at IS NOT NULL OR NEW.entry_fee IS NULL THEN
+  IF NEW.deleted_at IS NOT NULL THEN
     RETURN NULL;
   END IF;
 
@@ -163,7 +165,8 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  IF NEW.entry_fee < v_junior THEN
+  -- No fee is charged as 0 (price_entry_fee's COALESCE), so it is checked as 0.
+  IF COALESCE(NEW.entry_fee, 0) < v_junior THEN
     RAISE EXCEPTION 'A class fee can''t be less than the junior fee of %. Lower the junior fee first.',
       private.format_fee_dollars(v_junior)
       USING ERRCODE = '23514';
@@ -184,7 +187,7 @@ CREATE TRIGGER trg_classes_junior_fee_limit
   FOR EACH ROW EXECUTE FUNCTION private.classes_junior_fee_limit();
 
 COMMENT ON FUNCTION private.show_lowest_regular_fee(uuid, numeric, numeric) IS
-  'MYK9-1975: the lowest normal fee private.price_entry_fee can charge for any class of the show (pre-entry fee when set; day-of fee when > 0; live class fees only when there is no pre-entry fee). NULL when there is none.';
+  'MYK9-1975: the lowest normal fee private.price_entry_fee can charge for any class of the show (pre-entry fee when set; day-of fee when > 0; live class fees, a missing one as 0, only when there is no pre-entry fee). NULL when there is none.';
 COMMENT ON FUNCTION private.shows_junior_fee_limit() IS
   'MYK9-1975: refuses a show write that leaves the junior handler fee above the lowest regular fee. Fires only when a fee column changes, so existing rows never fail.';
 COMMENT ON FUNCTION private.classes_junior_fee_limit() IS

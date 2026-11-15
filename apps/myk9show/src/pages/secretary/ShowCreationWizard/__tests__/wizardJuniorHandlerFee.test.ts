@@ -8,6 +8,8 @@ import {
 import { seedJuniorHandlerFee, wizardJuniorHandlerFee } from '../wizardJuniorHandlerFee';
 import { getShowDetailsValidationIssues } from '../showCreationWizardValidation';
 import { SHOW_FIELD } from '../wizardFieldIds';
+import { buildEditModeDraft } from '../buildEditModeDraft';
+import type { Show } from '@/types/show-types';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const baseShow: WizardShowData = {
@@ -169,6 +171,48 @@ describe('the junior fee cannot be above the lowest regular fee (MYK9-1975)', ()
   it('does not limit an ASCA draft, which writes no junior fee', () => {
     expect(() =>
       build({ ...baseShow, organization: 'ASCA', preEntryFee: 10, juniorHandlerFee: 15 })
+    ).not.toThrow();
+  });
+});
+
+describe('the wizard over a show saved before the limit (MYK9-1975)', () => {
+  // Edit mode never edits the junior fee (it lives on the show edit panel), so the draft it
+  // builds carries none, and an existing over-limit fee cannot block adding trials or classes.
+  const legacyShow = {
+    id: 'show-1',
+    name: 'Heartland',
+    organization: 'AKC',
+    startDate: '2026-10-10',
+    endDate: '2026-10-11',
+    location: 'Venue',
+    clubId: 'club-1',
+    entryOpenDate: '2026-09-01',
+    entryCloseDate: '2026-10-01',
+    preEntryFee: '10',
+    dayOfShowFee: '35',
+    juniorHandlerFee: '20',
+    assignedJudges: [],
+  } as unknown as Show;
+
+  it('builds an edit draft that carries no junior fee and saves', () => {
+    const draft = buildEditModeDraft({
+      editMode: { showId: 'show-1', mode: 'add-trials' } as never,
+      existingShow: legacyShow,
+      showTrials: [],
+      existingClasses: [],
+      people: [],
+    });
+    expect('juniorHandlerFee' in draft.show).toBe(false);
+    expect(() =>
+      transformWizardDataToShow(
+        { ...baseShow, ...draft.show, style: 'monogram' } as WizardShowData,
+        [],
+        {},
+        [],
+        'unpublished',
+        undefined,
+        createWizardTrialView([], [])
+      )
     ).not.toThrow();
   });
 });

@@ -69,30 +69,62 @@ function parseFormFee(value: string | undefined): number | null {
   return Number.isFinite(fee) ? fee : null;
 }
 
-/**
- * The show edit form's check (the Fees tab). Reads the fees the way the save stores them:
- * a pre-entry fee of 0 or blank is saved as no pre-entry fee (`mapShowInputToUpdate`), and
- * ASCA has no junior tier (the field is hidden and the save clears it). Class fees come from
- * the trials the form was opened with, when they were loaded; a class fee of 0 is skipped,
- * because the class read cannot tell it from a class with no fee. The server is the full check.
- */
-export function showFormJuniorFeeLimitError(form: {
-  organization?: string | undefined;
+/** The fees as the show edit form holds them, typed or as it was opened with. */
+export interface ShowFormFees {
   preEntryFee?: string | undefined;
   dayOfShowFee?: string | undefined;
   juniorHandlerFee?: string | undefined;
-  trials?:
-    readonly { classes?: readonly { entryFee?: number | undefined }[] | undefined }[] | undefined;
-}): string | undefined {
+}
+
+/** The three fees as the save stores them; see `showFormJuniorFeeLimitError`. */
+function storedFormFees(fees: ShowFormFees) {
+  return {
+    junior: parseFormFee(fees.juniorHandlerFee?.trim()),
+    preEntry: parseFormFee(fees.preEntryFee) || null,
+    dayOfShow: parseFormFee(fees.dayOfShowFee),
+  };
+}
+
+/**
+ * The show edit form's check (the Fees tab). Reads the fees the way the save stores them:
+ * a pre-entry fee of 0 or blank is saved as no pre-entry fee (`mapShowInputToUpdate`), and
+ * ASCA has no junior tier (the field is hidden and the save clears it).
+ *
+ * Like the server trigger, it refuses only a save that changes the junior, pre-entry or
+ * day-of fee from the values the form opened with (`feesAsOpened`): a show saved before the
+ * limit with a junior fee already above it can still be renamed.
+ *
+ * Class fees come from the trials the form was opened with, when they were loaded. They are
+ * the limit only with no pre-entry fee, and then a class with no fee counts as $0, which is
+ * what checkout charges for it (the class read already maps a missing fee to 0). The
+ * server is the full check.
+ */
+export function showFormJuniorFeeLimitError(
+  form: ShowFormFees & {
+    organization?: string | undefined;
+    feesAsOpened?: ShowFormFees | undefined;
+    trials?:
+      readonly { classes?: readonly { entryFee?: number | undefined }[] | undefined }[] | undefined;
+  }
+): string | undefined {
   if (form.organization === 'ASCA') return undefined;
+  const now = storedFormFees(form);
+  if (form.feesAsOpened) {
+    const opened = storedFormFees(form.feesAsOpened);
+    if (
+      now.junior === opened.junior &&
+      now.preEntry === opened.preEntry &&
+      now.dayOfShow === opened.dayOfShow
+    ) {
+      return undefined;
+    }
+  }
   const classFees = (form.trials ?? []).flatMap(trial =>
-    (trial.classes ?? [])
-      .map(cls => cls.entryFee)
-      .filter((fee): fee is number => typeof fee === 'number' && fee > 0)
+    (trial.classes ?? []).map(cls => cls.entryFee ?? 0)
   );
-  return juniorFeeLimitError(parseFormFee(form.juniorHandlerFee?.trim()), {
-    preEntryFee: parseFormFee(form.preEntryFee) || null,
-    dayOfShowFee: parseFormFee(form.dayOfShowFee),
+  return juniorFeeLimitError(now.junior, {
+    preEntryFee: now.preEntry,
+    dayOfShowFee: now.dayOfShow,
     classFees,
   });
 }

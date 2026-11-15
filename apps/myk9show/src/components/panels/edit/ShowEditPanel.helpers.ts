@@ -38,6 +38,11 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     clubName: show.clubName || '',
     logoUrl: show.logoUrl || '',
     trials: show.trials || [],
+    feesAsOpened: {
+      preEntryFee: show.preEntryFee || '',
+      dayOfShowFee: show.dayOfShowFee || '',
+      juniorHandlerFee: show.juniorHandlerFee,
+    },
     experiencePublishedContent: show.experiencePublishedContent ?? null,
     // Read show.style (migration 195) with fallback to landing_style (migration 192).
     // Map 'default' → 'monogram' so legacy rows never produce a value rejected by

@@ -75,14 +75,45 @@ describe('showFormJuniorFeeLimitError (the show edit form)', () => {
     ).toBe("The junior fee can't be more than $12, the lowest class fee in this show.");
   });
 
-  it('skips a class fee of 0, which the class read cannot tell from no fee', () => {
+  it('counts a class with no fee as $0, what checkout charges for it', () => {
+    const message = "The junior fee can't be more than $0, the lowest class fee in this show.";
     expect(
       showFormJuniorFeeLimitError({
         preEntryFee: '',
         juniorHandlerFee: '15',
         trials: [{ classes: [{ entryFee: 0 }, { entryFee: 20 }] }],
       })
-    ).toBeUndefined();
+    ).toBe(message);
+    expect(
+      showFormJuniorFeeLimitError({
+        preEntryFee: '',
+        juniorHandlerFee: '15',
+        trials: [{ classes: [{}] }],
+      })
+    ).toBe(message);
+  });
+
+  describe('a show saved before the limit, already over it', () => {
+    const feesAsOpened = { preEntryFee: '10', dayOfShowFee: '', juniorHandlerFee: '20' };
+    const legacy = { ...feesAsOpened, feesAsOpened };
+
+    it('saves when no fee changed, like the server trigger', () => {
+      expect(showFormJuniorFeeLimitError(legacy)).toBeUndefined();
+      // The same amounts written differently are not a change.
+      expect(
+        showFormJuniorFeeLimitError({ ...legacy, preEntryFee: '10.00', juniorHandlerFee: '20.0' })
+      ).toBeUndefined();
+    });
+
+    it.each([
+      ['raising the junior fee', { juniorHandlerFee: '25' }, '$10'],
+      ['lowering the pre-entry fee', { preEntryFee: '8' }, '$8'],
+      ['adding a day-of fee', { dayOfShowFee: '9' }, '$9'],
+    ])('still refuses %s', (_label, change, limit) => {
+      expect(showFormJuniorFeeLimitError({ ...legacy, ...change })).toBe(
+        `The junior fee can't be more than ${limit}, the lowest class fee in this show.`
+      );
+    });
   });
 
   it('does not limit an ASCA show', () => {

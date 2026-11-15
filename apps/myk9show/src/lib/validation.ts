@@ -208,6 +208,7 @@ export const showSchemas = {
       inkSaver: z.boolean().optional(),
       // Read only by the junior fee limit below (class fees, when the show was loaded with them).
       trials: z.custom<import('@/types/show-types').Show['trials']>().optional(),
+      feesAsOpened: z.custom<import('@/features/_shared/juniorFeeLimit').ShowFormFees>().optional(),
     })
     .refine(
       data => {

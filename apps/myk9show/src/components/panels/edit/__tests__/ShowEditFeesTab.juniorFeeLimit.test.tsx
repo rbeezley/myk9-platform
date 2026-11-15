@@ -7,6 +7,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ShowEditPanel } from '../ShowEditPanel';
 import type { Show } from '@/types/show-types';
+import type { ShowEditSaveData } from '../ShowEditPanel.types';
 
 vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
   useJudgesWithQualifications: () => ({ data: [] }),
@@ -27,15 +28,15 @@ const show = (fees: Partial<Show>): Partial<Show> => ({
   ...fees,
 });
 
-function renderPanel(fees: Partial<Show>) {
-  const onSave = vi.fn(async () => {});
+function renderPanel(fees: Partial<Show>, initialTab: 'fees' | 'basic' = 'fees') {
+  const onSave = vi.fn<(data: ShowEditSaveData) => Promise<void>>(async () => {});
   const utils = render(
     <ShowEditPanel
       open
       onClose={vi.fn()}
       showId="show-1"
       showName="Heartland"
-      initialTab="fees"
+      initialTab={initialTab}
       onSave={onSave}
       initialShowData={show(fees)}
     />
@@ -148,5 +149,51 @@ describe('junior handler fee limit on the Fees tab', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
+  });
+
+  describe('a show saved before the limit, with its junior fee already above it', () => {
+    const legacy = { preEntryFee: '10', juniorHandlerFee: '20' };
+
+    it('can still be renamed', async () => {
+      const { user, onSave } = renderPanel(legacy, 'basic');
+
+      await user.type(await screen.findByLabelText(/Show Name/), ' 2');
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() =>
+        expect(onSave).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'Heartland 2', juniorHandlerFee: '20' })
+        )
+      );
+      expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('feesAsOpened');
+    });
+
+    it('refuses raising its junior fee further', async () => {
+      const { user, onSave, setFee } = renderPanel(legacy);
+
+      await setFee('Junior Handler Fee', '25');
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      expect(
+        await screen.findByText(
+          "The junior fee can't be more than $10, the lowest class fee in this show."
+        )
+      ).toBeVisible();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('refuses lowering a fee it is compared against', async () => {
+      const { user, onSave, setFee } = renderPanel(legacy);
+
+      await setFee('Pre-Entry Fee', '8');
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      expect(
+        await screen.findByText(
+          "The junior fee can't be more than $8, the lowest class fee in this show."
+        )
+      ).toBeVisible();
+      expect(onSave).not.toHaveBeenCalled();
+    });
   });
 });

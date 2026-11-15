@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { ScoutingStatementSection } from '@/features/_shared/landing/ScoutingStatementSection';
 import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureMagazineFontsLoaded } from '../fonts';
@@ -142,6 +143,10 @@ export function MagazineLandingPage({
         />
         <WithdrawalPolicySection
           showId={show?.id}
+          className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
+        />
+        <ScoutingStatementSection
+          statement={data.scoutingStatement}
           className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
         />
         <PremiumDownloadSection

@@ -103,6 +103,12 @@ export interface Registry {
    * agreement-checkbox.
    */
   exhibitorAgreement: string;
+  /**
+   * MYK9-2043: the fixed statement the registry requires every premium list to carry about
+   * not scouting the trial location, in the rulebook's own words, or `null` when the
+   * registry requires none. The club never types it.
+   */
+  premiumScoutingStatement: string | null;
   /** Registration-number input config. */
   registrationField: RegistryRegistrationField;
   /** Sport definitions keyed by sport id (e.g. 'scent-work'). */

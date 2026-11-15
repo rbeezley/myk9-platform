@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { ScoutingStatementSection } from '@/features/_shared/landing/ScoutingStatementSection';
 import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensurePosterFontsLoaded, POSTER_DISPLAY_FAMILY } from '../fonts';
@@ -159,6 +160,11 @@ export function PosterLandingPage({
         />
         <WithdrawalPolicySection
           showId={show?.id}
+          className="po-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <ScoutingStatementSection
+          statement={data.scoutingStatement}
           className="po-section"
           style={SHARED_SECTION_STYLE}
         />

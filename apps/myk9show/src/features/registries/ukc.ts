@@ -86,6 +86,8 @@ export const ukcRegistry: Registry = {
   // UKC uses "host club" framing, not "member club"; this is the footer phrase.
   memberClubLanguage: 'Held under the Official Rules and Regulations of the United Kennel Club',
   exhibitorAgreement: UKC_EXHIBITOR_AGREEMENT,
+  // MYK9-2043: the rulebook requires no scouting statement in the premium.
+  premiumScoutingStatement: null,
   registrationField: {
     // Accepts a permanent UKC registration number, or a PL/LP/TL number.
     label: 'UKC registration number',

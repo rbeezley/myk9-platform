@@ -190,6 +190,15 @@ export function GazetteBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.scoutingStatement && (
+        <View style={{ marginTop: 16 }} wrap={false}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>{f.scoutingStatement.label}</Text>
+          </View>
+          <Text style={bodyTextStyle}>{f.scoutingStatement.text}</Text>
+        </View>
+      )}
+
       {/* Show Hours, Trial Information, and Notices run full-width below the
           3-col grid — these are paragraph-length narratives that don't read
           well in a 32% column. */}

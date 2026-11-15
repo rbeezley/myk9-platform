@@ -4,6 +4,7 @@ import { AKCPremiumTemplate } from '../pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from '../pdf/UKCPremiumTemplate';
 import { STYLE_TOKENS } from '../pdf/pdfStyles';
 import type { GeneratedPremium, PremiumStyle } from '../../../types/premium-types';
+import { AKC_PREMIUM_SCOUTING_STATEMENT } from '@/features/registries';
 
 type Org = 'AKC' | 'UKC';
 
@@ -93,6 +94,10 @@ describe('All-styles render matrix (8 styles × 2 orgs × 2 ink-saver states)', 
       // styles (poster) split the title across multiple Text nodes for
       // typographic effect, so strip whitespace before asserting.
       expect(doc.textContent?.replace(/\s+/g, '')).toContain('SpringScentTrial');
+      // MYK9-2043: the AKC scouting statement prints on AKC premiums only.
+      const scouting = AKC_PREMIUM_SCOUTING_STATEMENT.replace(/\s+/g, '');
+      if (org === 'AKC') expect(doc.textContent?.replace(/\s+/g, '')).toContain(scouting);
+      else expect(doc.textContent?.replace(/\s+/g, '')).not.toContain(scouting);
     }
   );
 });

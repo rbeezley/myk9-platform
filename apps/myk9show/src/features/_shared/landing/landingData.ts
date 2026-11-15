@@ -7,7 +7,11 @@ import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
-import { pickSupplementalFacts } from '@/features/premium/premiumFacts';
+import {
+  buildScoutingStatementFact,
+  pickSupplementalFacts,
+  type PremiumRegistryStatementFact,
+} from '@/features/premium/premiumFacts';
 import { hasShowHappened } from './showResults';
 
 /**
@@ -106,6 +110,11 @@ export interface LandingData<
   secretaryEmail: string | null;
   licenseLanguage: string;
   memberClubLanguage: string;
+  /**
+   * MYK9-2043: the registry's fixed statement about scouting the trial location, the same
+   * fact the premium PDF prints. Null (or absent) for a registry that requires none.
+   */
+  scoutingStatement?: PremiumRegistryStatementFact | null;
   journeySteps: LandingJourneyStep[];
   entryWizardUrl: string;
   /** True once the show's last day has passed: rosters read as final, not as still filling. */
@@ -350,6 +359,7 @@ export function buildLandingData(
     secretaryEmail: secretary?.email ?? null,
     licenseLanguage: registry.licenseLanguage,
     memberClubLanguage: registry.memberClubLanguage,
+    scoutingStatement: buildScoutingStatementFact(registry.id),
     journeySteps: buildJourneySteps(
       show?.entryOpenDate ?? null,
       entryCloseDate,

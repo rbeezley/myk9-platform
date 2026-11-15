@@ -10,6 +10,7 @@ import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { ScoutingStatementSection } from '@/features/_shared/landing/ScoutingStatementSection';
 import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
@@ -461,6 +462,7 @@ export function HeadlineLandingPage({
         <Judges data={data} />
         <Particulars data={data} />
         <WithdrawalPolicySection showId={show?.id} className="hd-section" />
+        <ScoutingStatementSection statement={data.scoutingStatement} className="hd-section" />
         <PremiumDownloadSection show={show} className="hd-section" />
         <Roster data={data} />
         <ScheduleAndPlan data={data} />

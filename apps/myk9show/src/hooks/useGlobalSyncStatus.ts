@@ -69,7 +69,7 @@ export function useGlobalSyncStatus(): GlobalSyncState {
   const state: GlobalSyncState = {
     status,
     queueSize,
-    unsentScoreCount: unsent.scores.length,
+    unsentScoreCount: unsent.unsentScoreCount,
     otherChangeCount: unsent.otherChangeCount,
     refusedCount: unsent.refusedCount,
     isOnline,

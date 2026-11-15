@@ -36,7 +36,7 @@ function useScoresNotSentHref(unsentScoreCount: number): string | undefined {
  */
 export const SyncIndicator: React.FC<SyncIndicatorProps> = props => {
   // The device read, not the sync provider: the online header stays free of the provider.
-  const href = useScoresNotSentHref(useUnsentWork().scores.length);
+  const href = useScoresNotSentHref(useUnsentWork().unsentScoreCount);
   if (!href || props.onRetry || props.status === 'syncing') return <SyncIndicatorView {...props} />;
   return (
     <Link to={href} className="inline-flex min-h-11 items-center rounded-lg">

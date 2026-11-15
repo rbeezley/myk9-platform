@@ -580,6 +580,25 @@ describe('classifyMutationFailure', () => {
       expect(result.mutation.nextRetryAt).toBeLessThanOrEqual(MAX_BACKOFF_MS);
     });
 
+    it.each([
+      ['ringside_update_class', { name: 'ringside_update_class', fields: { status: 'completed' } }],
+      ['a plain table write', undefined],
+    ])('P0002 on %s spends the normal budget and refuses (the row is gone)', (_n, rpc) => {
+      let current = mutation(rpc ? { rpc } : {});
+      for (let i = 0; i < 3; i += 1) {
+        const result = classifyMutationFailure({
+          mutation: current,
+          error: { message: 'Class not found', code: 'P0002' },
+          maxRetries: 3,
+          retryBackoffBase: 10,
+          now: i,
+        });
+        expect(result.permanentlyFailed).toBe(i === 2);
+        current = result.mutation;
+      }
+      expect(current).toMatchObject({ status: 'failed', failureKind: 'max-retries', retries: 3 });
+    });
+
     it('still parks P0002 on set_class_judge at once', () => {
       const result = classifyMutationFailure({
         mutation: mutation({ rpc: { name: 'set_class_judge', args: {} } }),

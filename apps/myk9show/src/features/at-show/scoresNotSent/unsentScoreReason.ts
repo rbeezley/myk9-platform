@@ -8,6 +8,7 @@
  * Okafor".
  */
 import type { PendingMutation } from '@myk9/replication';
+import type { ScoreUnitState } from '@/services/replication/unsentWork';
 import { PASSCODE_REGENERATED_DB_MESSAGE } from '@/features/at-show/ringsidePasscodeRevocation';
 
 export interface ScoreRefusalRule {
@@ -54,11 +55,18 @@ export const SCORE_REFUSAL_RULES: readonly ScoreRefusalRule[] = [
 const QUEUE_PREFIX = /^(?:non-retryable error|max retries exceeded):\s*/i;
 
 export const WAITING_REASON = 'Waiting to send. It will be sent on its own.';
+export const SUPERSEDED_REASON =
+  'A newer score for this dog was saved after this one, so this one will not be sent.';
 
-export function unsentScoreReason(
-  mutation: Pick<PendingMutation, 'status' | 'error' | 'failureKind'>
-): string {
-  if (mutation.status !== 'failed') return WAITING_REASON;
+export function unsentScoreReason({
+  state,
+  mutation,
+}: {
+  state: ScoreUnitState;
+  mutation: Pick<PendingMutation, 'error' | 'failureKind'>;
+}): string {
+  if (state === 'waiting') return WAITING_REASON;
+  if (state === 'superseded') return SUPERSEDED_REASON;
   const error = (mutation.error ?? '').trim().replace(QUEUE_PREFIX, '');
   for (const rule of SCORE_REFUSAL_RULES) {
     const match = rule.match.exec(error);

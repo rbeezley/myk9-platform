@@ -28,7 +28,7 @@ export function ScoresNotSentNotice() {
       readDeviceUnsentWork()
         .then(work => {
           if (cancelled) return;
-          const refused = work.scores.filter(score => score.refused);
+          const refused = work.scores.filter(score => score.state === 'refused');
           if (refused.length === 0) {
             shownCount = 0;
             toast.dismiss(SCORES_NOT_SENT_TOAST_ID);

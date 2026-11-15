@@ -1,19 +1,17 @@
 /**
  * The rows of the Scores not sent list for one show (MYK9-2011). Every source is on this
- * device: the queue and dead letters (`readDeviceUnsentWork`), and the replicated entries and
- * classes for the dog and class names. Nothing here reads the server, so the list works
- * with no signal and comes back after a reload or a new passcode.
+ * device: the score units from `readDeviceUnsentWork` (queue, dead letters and the entry's
+ * replica row) and the replicated classes for the class names. Nothing here reads the server,
+ * so the list works with no signal and comes back after a reload or a new passcode.
+ *
+ * A failed device read is an unknown state, shown as such with Try again; it is never turned
+ * into an empty list, which would claim every score is sent.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { UNSENT_WORK_REFRESH_EVENTS } from '@/hooks/useUnsentWork';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
-import {
-  readDeviceUnsentWork,
-  type UnsentScore,
-  type UnsentWork,
-} from '@/services/replication/unsentWork';
+import { readDeviceUnsentWork, type UnsentWork } from '@/services/replication/unsentWork';
 import { toUnsentScoreRow, type UnsentScoreRow } from './unsentScoreDetails';
 
 export interface ScoresNotSentRow extends UnsentScoreRow {
@@ -28,8 +26,10 @@ export interface ScoresNotSentState {
   rows: ScoresNotSentRow[];
   /** True until the first read finishes, so an empty list is never shown before it is known. */
   loading: boolean;
-  /** The first read of this device failed: nothing is known, which is not "nothing waiting". */
+  /** The last read of this device failed: nothing is known, which is not "nothing waiting". */
   readFailed: boolean;
+  /** Read the device again. */
+  retry: () => void;
 }
 
 async function readMyFailedIds(): Promise<ReadonlySet<string>> {
@@ -44,40 +44,43 @@ export async function buildScoresNotSentRows(
   showId: string,
   work: UnsentWork
 ): Promise<ScoresNotSentRow[]> {
-  if (work.scores.length === 0) return [];
-  const entries = await replicatedEntriesTable.getEntriesByShow(showId).catch(() => []);
-  const entryById = new Map(entries.map(entry => [entry.id, entry]));
-  const scores: UnsentScore[] = work.scores.filter(
-    score => score.showId === showId || entryById.has(score.entryId)
-  );
+  // A score with no show stamp and no replica row still sits on this phone: list it here too.
+  const scores = work.scores.filter(s => s.showId === showId || s.showId === undefined);
   if (scores.length === 0) return [];
-  const classIds = new Set(scores.flatMap(s => entryById.get(s.entryId)?.classId ?? []));
+  const classIds = new Set(scores.flatMap(s => s.entry?.classId ?? []));
   const classNames = new Map<string, string>();
   await Promise.all(
     [...classIds].map(async classId => {
+      // A class name is a label only; without it the row still names the dog and the score.
       const cls = await replicatedClassesTable.getClassById(classId).catch(() => null);
       if (cls?.name) classNames.set(classId, cls.name);
     })
   );
   const mine = await readMyFailedIds();
   return scores.map(score => {
-    const entry = entryById.get(score.entryId);
-    const row = toUnsentScoreRow(
-      score,
-      entry,
-      entry?.classId ? (classNames.get(entry.classId) ?? null) : null
-    );
-    return { ...row, canAct: row.failedMutationIds.every(id => mine.has(id)) };
+    const classId = score.entry?.classId;
+    const row = toUnsentScoreRow(score, classId ? (classNames.get(classId) ?? null) : null);
+    const ids = [...row.retryIds, ...row.removeIds];
+    return { ...row, canAct: ids.length > 0 && ids.every(id => mine.has(id)) };
   });
 }
 
+interface ReadState {
+  rows: ScoresNotSentRow[];
+  loading: boolean;
+  readFailed: boolean;
+  key: string | undefined;
+}
+
 export function useScoresNotSent(showId: string | undefined): ScoresNotSentState {
-  const [state, setState] = useState<ScoresNotSentState & { key: string | undefined }>({
+  const [state, setState] = useState<ReadState>({
     rows: [],
     loading: true,
     readFailed: false,
     key: undefined,
   });
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt(n => n + 1), []);
 
   useEffect(() => {
     if (!showId) return;
@@ -89,11 +92,15 @@ export function useScoresNotSent(showId: string | undefined): ScoresNotSentState
           if (!cancelled) setState({ rows, loading: false, readFailed: false, key: showId });
         })
         .catch(() => {
-          // Keep the last rows; a failed read is never shown as "nothing waiting".
-          if (cancelled) return;
-          setState(prev =>
-            prev.key === showId ? prev : { rows: [], loading: false, readFailed: true, key: showId }
-          );
+          // Unknown, not empty: rows already shown stay, and the page says the read failed.
+          if (!cancelled) {
+            setState(prev => ({
+              rows: prev.key === showId ? prev.rows : [],
+              loading: false,
+              readFailed: true,
+              key: showId,
+            }));
+          }
         });
     };
     refresh();
@@ -106,8 +113,9 @@ export function useScoresNotSent(showId: string | undefined): ScoresNotSentState
       }
       clearInterval(interval);
     };
-  }, [showId]);
+  }, [showId, attempt]);
 
-  if (!showId) return { rows: [], loading: false, readFailed: false };
-  return state.key === showId ? state : { rows: [], loading: true, readFailed: false };
+  if (!showId) return { rows: [], loading: false, readFailed: false, retry };
+  if (state.key !== showId) return { rows: [], loading: true, readFailed: false, retry };
+  return { rows: state.rows, loading: state.loading, readFailed: state.readFailed, retry };
 }

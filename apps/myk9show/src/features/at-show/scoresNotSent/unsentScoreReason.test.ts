@@ -2,14 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { WAITING_REASON, unsentScoreReason } from './unsentScoreReason';
 
 const failed = (error: string, failureKind: 'authorization' | 'permanent' | 'max-retries') => ({
-  status: 'failed' as const,
-  error,
-  failureKind,
+  state: 'refused' as const,
+  mutation: { error, failureKind },
 });
 
 describe('unsentScoreReason', () => {
   it('says a waiting score will be sent on its own', () => {
-    expect(unsentScoreReason({ status: 'pending', error: 'statement timeout' })).toBe(
+    expect(unsentScoreReason({ state: 'waiting', mutation: { error: 'statement timeout' } })).toBe(
       WAITING_REASON
     );
   });

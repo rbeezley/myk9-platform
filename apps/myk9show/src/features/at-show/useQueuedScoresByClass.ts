@@ -40,7 +40,9 @@ export function countQueuedScoresByClass(
 }
 
 async function readQueuedScoresByClass(showId: string): Promise<Map<string, number>> {
-  const entryIds = new Set((await readDeviceUnsentWork()).scores.map(score => score.entryId));
+  const { scores } = await readDeviceUnsentWork();
+  // A refused version a newer score replaced is listed, not counted: nothing is left to send.
+  const entryIds = new Set(scores.filter(s => s.state !== 'superseded').map(s => s.entryId));
   if (entryIds.size === 0) return new Map();
   const entries = await replicatedEntriesTable.getEntriesByShow(showId);
   return countQueuedScoresByClass(

@@ -44,7 +44,7 @@ export function classifyMutationFailure({
     canRetry &&
     ((uplinkDown && isTransportError(error)) ||
       isGatewayTransientError(error) ||
-      isServerTransientError(error))
+      isServerTransientError(error, mutation))
   ) {
     const transportRetries = (mutation.transportRetries || 0) + 1;
     const pending: PendingMutation = {

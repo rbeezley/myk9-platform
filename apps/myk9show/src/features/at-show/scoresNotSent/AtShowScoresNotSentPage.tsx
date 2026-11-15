@@ -9,6 +9,7 @@
  */
 import { useNavigate, useParams } from 'react-router-dom';
 import { RingsideUpButton } from '@myk9/ui';
+import { Button } from '@/components/ui/button';
 import { useRingsideTrip } from '../menu/useRingsideTrip';
 import { atShowScoresNotSentPath } from './scoresNotSentPath';
 import { ScoresNotSentRowCard } from './ScoresNotSentRowCard';
@@ -21,8 +22,9 @@ export function AtShowScoresNotSentPage() {
     atShowScoresNotSentPath(showId ?? ''),
     `/at-show/${encodeURIComponent(showId ?? '')}`
   );
-  const { rows, loading, readFailed } = useScoresNotSent(showId);
-  const refused = rows.filter(row => row.refused).length;
+  const { rows, loading, readFailed, retry } = useScoresNotSent(showId);
+  const unsent = rows.filter(row => row.state !== 'superseded').length;
+  const refused = rows.filter(row => row.state === 'refused').length;
 
   return (
     <main className="ringside-root mx-auto max-w-2xl px-4 py-4">
@@ -38,27 +40,33 @@ export function AtShowScoresNotSentPage() {
           Reading the scores saved on this phone...
         </p>
       ) : readFailed ? (
-        <p role="status" className="py-12 text-center text-destructive">
-          We could not read the scores saved on this phone. Restart the app to try again.
-        </p>
+        // Unknown is not "all sent": say so, and offer the read again.
+        <div role="status" className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-destructive">
+            We could not read the scores on this phone, so we cannot say which are sent.
+          </p>
+          <Button type="button" variant="outline" className="min-h-11 px-4" onClick={retry}>
+            Try again
+          </Button>
+        </div>
       ) : rows.length === 0 ? (
         <p role="status" className="py-12 text-center text-muted-foreground">
           Every score is sent.
         </p>
       ) : (
-        <>
-          <p role="status" className="mt-1 text-sm text-muted-foreground">
-            {rows.length} {rows.length === 1 ? 'score is' : 'scores are'} saved on this phone and
-            not in myK9Show yet
-            {refused > 0 ? `, ${refused} of them refused` : ''}. Each one shows the score, so the
-            secretary can enter it at the desk.
-          </p>
-          <ul className="mt-4 flex flex-col gap-3">
-            {rows.map(row => (
-              <ScoresNotSentRowCard key={row.entryId} row={row} />
-            ))}
-          </ul>
-        </>
+        <p role="status" className="mt-1 text-sm text-muted-foreground">
+          {unsent} {unsent === 1 ? 'score is' : 'scores are'} saved on this phone and not in
+          myK9Show yet
+          {refused > 0 ? `, ${refused} of them refused` : ''}. Each one shows the score, so the
+          secretary can enter it at the desk.
+        </p>
+      )}
+      {!loading && rows.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-3">
+          {rows.map(row => (
+            <ScoresNotSentRowCard key={row.entryId} row={row} />
+          ))}
+        </ul>
       )}
     </main>
   );

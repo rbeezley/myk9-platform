@@ -5,9 +5,10 @@ import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { requeueFailedMutation } from './mutation-requeue';
 import {
-  echoServerFields,
+  isMutationEmpty,
   rebaseQueuedMutation,
   rewriteQueuedMutations,
+  stripQueuedFields,
 } from './mutation-queue-rewrite';
 import { evictCleanCacheRows, withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
@@ -348,14 +349,14 @@ export class MutationQueueStore {
   }
 
   /**
-   * MYK9-2010: the server won these fields of the row (a pull, another device's check-in), so this
-   * device's queued UPDATEs carry the server's value instead of the device's stale one. The write
-   * stays queued and uploads an echo; the row goes clean through the normal upload path.
+   * MYK9-2010: the server won these fields of the row (a check-in change another device made),
+   * so this device's queued UPDATEs stop carrying them; the upload would otherwise put the
+   * device's stale value back. A mutation left with nothing to send is removed.
    */
-  async echoServerFieldsInQueue(
+  async dropQueuedFieldsForRow(
     tableName: string,
     rowId: string,
-    values: Readonly<Record<string, unknown>>,
+    fields: readonly string[],
     authUserId: string
   ): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
@@ -369,7 +370,15 @@ export class MutationQueueStore {
           m.authUserId === authUserId
       )
       .map(m => m.id);
-    return rewriteQueuedMutations(db, ids, mutation => echoServerFields(mutation, values));
+    const emptied: string[] = [];
+    const changed = await rewriteQueuedMutations(db, ids, mutation => {
+      const stripped = stripQueuedFields(mutation, fields);
+      if (!stripped) return undefined;
+      if (isMutationEmpty(stripped)) emptied.push(stripped.id);
+      return stripped;
+    });
+    for (const id of emptied) await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, id);
+    return changed;
   }
 
   async clearMutationsForOwner(

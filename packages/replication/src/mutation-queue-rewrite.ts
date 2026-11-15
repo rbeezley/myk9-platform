@@ -51,28 +51,33 @@ export async function rewriteQueuedMutations(
   return written;
 }
 
-/**
- * `mutation` with each field it already carries rewritten to the server's value in `values`
- * (payload, RPC delta). Nothing is added or removed, so the write stays in the queue and uploads
- * an echo of what the server holds; undefined when it carried none of them (MYK9-2010).
- */
-export function echoServerFields(
+const KEYS_WITHOUT_INTENT: ReadonlySet<string> = new Set(['id', 'updated_at']);
+
+/** `mutation` without `fields` in its payload and RPC delta; undefined when it carried none. */
+export function stripQueuedFields(
   mutation: PendingMutation,
-  values: Readonly<Record<string, unknown>>
+  fields: readonly string[]
 ): PendingMutation | undefined {
-  const carried = (record: Record<string, unknown> | undefined) =>
-    record !== undefined && Object.keys(values).some(key => key in record);
-  if (!carried(mutation.data) && !carried(mutation.rpc?.fields)) return undefined;
-  const echoed = <V extends Record<string, unknown>>(record: V): V => {
-    const next: Record<string, unknown> = { ...record };
-    for (const [key, value] of Object.entries(values)) if (key in next) next[key] = value;
-    return next as V;
-  };
+  const drop = new Set(fields);
+  const carries = (record: Record<string, unknown> | undefined) =>
+    record !== undefined && Object.keys(record).some(key => drop.has(key));
+  if (!carries(mutation.data) && !carries(mutation.rpc?.fields)) return undefined;
+  const without = <V extends Record<string, unknown>>(record: V): V =>
+    Object.fromEntries(Object.entries(record).filter(([key]) => !drop.has(key))) as V;
   return {
     ...mutation,
-    data: echoed(mutation.data),
-    ...(mutation.rpc?.fields && { rpc: { ...mutation.rpc, fields: echoed(mutation.rpc.fields) } }),
+    data: without(mutation.data),
+    ...(mutation.explicitDataKeys && {
+      explicitDataKeys: mutation.explicitDataKeys.filter(key => !drop.has(key)),
+    }),
+    ...(mutation.rpc?.fields && { rpc: { ...mutation.rpc, fields: without(mutation.rpc.fields) } }),
   };
+}
+
+/** True when nothing but bookkeeping keys is left to send. */
+export function isMutationEmpty(mutation: PendingMutation): boolean {
+  const left = mutation.rpc?.fields ?? mutation.data;
+  return Object.keys(left).every(key => KEYS_WITHOUT_INTENT.has(key));
 }
 
 /**

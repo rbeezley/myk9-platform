@@ -92,14 +92,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
     remote: remoteLocal,
     remoteServerVersion,
     adoptRemoteFields: detection.adoptRemoteFields,
-    ...(detection.serverWonFields && {
-      echoQueuedFields: Object.fromEntries(
-        detection.serverWonFields.map(field => [
-          field,
-          (remoteLocal as Record<string, unknown>)[field],
-        ])
-      ),
-    }),
+    dropQueuedFields: detection.serverWonFields,
     detectedAtVersion: existing.version,
     mergedData: adapter.mergeDirtyRow
       ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)

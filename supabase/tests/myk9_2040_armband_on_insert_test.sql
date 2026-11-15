@@ -1,6 +1,6 @@
 -- MYK9-2040: an entry inserted already 'confirmed' (a secretary's mail-in) gets
--- an armband by the same rule as acceptance, and an entry that leaves
--- 'confirmed' loses its confirmation mark so a re-acceptance is sent again.
+-- an armband by the same rule as acceptance, and an entry re-accepted from a
+-- back-to-review status loses its confirmation mark so it is sent again.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 BEGIN;
@@ -115,7 +115,7 @@ BEGIN
 END;
 $$;
 
--- The confirmation went out, then the entry left 'confirmed'.
+-- The confirmation went out, then the entry was scratched (a day-of move).
 UPDATE public.entries
 SET confirmation_email_sent_at = now(), confirmation_email_status = 'sent'
 WHERE id = '00000000-0000-0000-0000-000002040008';
@@ -136,9 +136,44 @@ BEGIN
 END;
 $$;
 
+-- scratched is not back-to-review, so scratched -> confirmed keeps the mark.
 UPDATE public.entries SET entry_status = 'confirmed'
 WHERE id = '00000000-0000-0000-0000-000002040008';
+
+DO $$
+DECLARE
+  v_sent timestamptz;
+BEGIN
+  SELECT confirmation_email_sent_at INTO v_sent
+  FROM public.entries WHERE id = '00000000-0000-0000-0000-000002040008';
+  IF v_sent IS NULL THEN
+    RAISE EXCEPTION 'FAIL scratched -> confirmed: the mark must be kept';
+  END IF;
+  RAISE NOTICE 'PASS scratched -> confirmed: the mark is kept';
+END;
+$$;
+
+-- A declined entry keeps its mark, so the date-based sender cannot email it.
 UPDATE public.entries SET entry_status = 'not_accepted'
+WHERE id = '00000000-0000-0000-0000-000002040008';
+
+DO $$
+DECLARE
+  v_sent timestamptz;
+  v_status text;
+BEGIN
+  SELECT confirmation_email_sent_at, confirmation_email_status INTO v_sent, v_status
+  FROM public.entries WHERE id = '00000000-0000-0000-0000-000002040008';
+  IF v_sent IS NULL OR v_status IS DISTINCT FROM 'sent' THEN
+    RAISE EXCEPTION 'FAIL confirmed -> not_accepted: expected the mark kept, found % / %',
+      v_sent, v_status;
+  END IF;
+  RAISE NOTICE 'PASS confirmed -> not_accepted: the mark is kept';
+END;
+$$;
+
+-- Re-acceptance from a back-to-review status clears it: eligible, same armband.
+UPDATE public.entries SET entry_status = 'confirmed'
 WHERE id = '00000000-0000-0000-0000-000002040008';
 
 DO $$
@@ -151,34 +186,13 @@ BEGIN
   INTO v_sent, v_status, v_armband
   FROM public.entries WHERE id = '00000000-0000-0000-0000-000002040008';
   IF v_sent IS NOT NULL OR v_status IS DISTINCT FROM 'pending' THEN
-    RAISE EXCEPTION 'FAIL leave confirmed: expected sent_at NULL and status pending, found % / %',
+    RAISE EXCEPTION 'FAIL not_accepted -> confirmed: expected sent_at NULL and status pending, found % / %',
       v_sent, v_status;
   END IF;
   IF v_armband IS DISTINCT FROM '200' THEN
-    RAISE EXCEPTION 'FAIL leave confirmed: the armband must survive, found %', v_armband;
+    RAISE EXCEPTION 'FAIL not_accepted -> confirmed: expected the same armband 200, found %', v_armband;
   END IF;
-  RAISE NOTICE 'PASS not_accepted: the mark is cleared';
-END;
-$$;
-
--- Re-accept: eligible for a new confirmation, same armband.
-UPDATE public.entries SET entry_status = 'confirmed'
-WHERE id = '00000000-0000-0000-0000-000002040008';
-
-DO $$
-DECLARE
-  v_sent timestamptz;
-  v_armband text;
-BEGIN
-  SELECT confirmation_email_sent_at, armband INTO v_sent, v_armband
-  FROM public.entries WHERE id = '00000000-0000-0000-0000-000002040008';
-  IF v_sent IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL re-accept: expected confirmation_email_sent_at NULL, found %', v_sent;
-  END IF;
-  IF v_armband IS DISTINCT FROM '200' THEN
-    RAISE EXCEPTION 'FAIL re-accept: expected the same armband 200, found %', v_armband;
-  END IF;
-  RAISE NOTICE 'PASS re-accept: eligible for a new confirmation with the same armband';
+  RAISE NOTICE 'PASS not_accepted -> confirmed: eligible for a new confirmation, same armband';
 END;
 $$;
 

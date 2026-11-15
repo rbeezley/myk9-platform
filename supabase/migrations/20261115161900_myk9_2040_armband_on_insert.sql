@@ -12,10 +12,11 @@
 -- 2. Accept (confirmation sent) -> waitlist -> accept again left
 --    confirmation_email_sent_at set from the first time, so the confirmation
 --    sender skipped the entry. A new acceptance is a new confirmation: when an
---    entry moves from 'confirmed' back to a pre-acceptance status the mark is
---    cleared and the status reset to 'pending'. Day-of and terminal moves
---    keep it. This is done in the same BEFORE trigger pass, ahead of the
---    nested-trigger early return, so it holds however the status changed.
+--    entry moves from a pre-acceptance (back-to-review) status to 'confirmed'
+--    the mark is cleared and the status reset to 'pending'. Leaving 'confirmed'
+--    changes nothing, and neither do day-of or terminal round trips. This is
+--    done in the same BEFORE trigger pass, ahead of the nested-trigger early
+--    return, so it holds however the status changed.
 --
 -- 3. Backfill: confirmed, live entries with no armband. A no-op status touch is
 --    rejected: this function ignores an update whose OLD status is already
@@ -43,11 +44,14 @@ DECLARE
   v_armband text;
   v_next_num integer;
   v_start_num integer;
-  -- Moving from 'confirmed' back to one of these means the entry is under
-  -- review again, so a later acceptance is a new confirmation. Day-of and
-  -- terminal moves (checked-in .. completed, withdrawn, scratched, absent,
-  -- moved) are deliberately absent: a Pull then Put back, or Absent then Undo,
-  -- must not trigger a second full confirmation mid-show.
+  -- An entry that moves from one of these to 'confirmed' is accepted anew, so
+  -- it is a new confirmation. Day-of and terminal moves (checked-in ..
+  -- completed, withdrawn, scratched, absent, moved) are deliberately absent: a
+  -- Pull then Put back, or Absent then Undo, must not trigger a second full
+  -- confirmation mid-show. Clearing on RE-ACCEPTANCE, not on leaving, means a
+  -- declined entry (not_accepted) keeps its mark and the deployed date-based
+  -- sender, which filters on the email fields and not on status, can never
+  -- email it.
   v_back_to_review constant text[] := ARRAY[
     'no-status', 'draft', 'submitted', 'paid', 'pending-payment',
     'not_accepted', 'move-up-requested', 'promotion-expired'
@@ -55,8 +59,8 @@ DECLARE
 BEGIN
   -- Before the depth guard so a nested status change clears too.
   IF TG_OP = 'UPDATE'
-     AND OLD.entry_status = 'confirmed'
-     AND NEW.entry_status = ANY (v_back_to_review) THEN
+     AND OLD.entry_status = ANY (v_back_to_review)
+     AND NEW.entry_status = 'confirmed' THEN
     NEW.confirmation_email_sent_at := NULL;
     NEW.confirmation_email_status := 'pending';
   END IF;

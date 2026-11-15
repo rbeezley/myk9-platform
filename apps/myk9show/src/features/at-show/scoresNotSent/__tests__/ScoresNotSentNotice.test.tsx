@@ -87,6 +87,16 @@ describe('ScoresNotSentNotice (MYK9-2011)', () => {
     }
   });
 
+  it('leaves a replaced judge code to its own screen', async () => {
+    queue.failed = [
+      { ...refused('m1', 'e1'), error: 'Passcode has been regenerated; re-enter a new code' },
+    ];
+    render(<ScoresNotSentNotice />, { initialRoute: '/at-show/show-1' });
+    fail(queue.failed);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it('stays quiet for a failure that is not a score', async () => {
     render(<ScoresNotSentNotice />, { initialRoute: '/at-show/show-1' });
     fail([{ id: 'x', tableName: 'shows', operation: 'UPDATE', error: 'nope' }]);

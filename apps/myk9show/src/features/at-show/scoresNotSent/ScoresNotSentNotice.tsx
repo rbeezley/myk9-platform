@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import type { SyncFailedEventDetail } from '@/providers/replicationSyncFormatters';
 import { replicatedEntriesTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
+import { isPasscodeRegeneratedMessage } from '../ringsidePasscodeRevocation';
 import { isRingsideScoreMutation, scoresNotSentPath } from './scoresNotSentModel';
 import { readUnsentScoreRows, readUnsentScores, UNKNOWN_DOG_LABEL } from './useUnsentScores';
 
@@ -54,7 +55,10 @@ export function ScoresNotSentNotice() {
   useEffect(() => {
     const onSyncFailed = (event: Event) => {
       const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
-      if (!detail?.mutations?.some(isRingsideScoreMutation)) return;
+      const scores = detail?.mutations?.filter(isRingsideScoreMutation) ?? [];
+      // A replaced code has its own screen, and its scores send again under the new code
+      // (MYK9-2009), so it is not announced as a refusal.
+      if (scores.length === 0 || scores.every(m => isPasscodeRegeneratedMessage(m.error))) return;
       void announce(to => navigate(to)).catch(error =>
         logger.warn('[scores-not-sent] notice failed', 'replication', { error: String(error) })
       );

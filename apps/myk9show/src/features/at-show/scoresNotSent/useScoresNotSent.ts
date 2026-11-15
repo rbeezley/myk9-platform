@@ -12,6 +12,7 @@ import { UNSENT_WORK_REFRESH_EVENTS } from '@/hooks/useUnsentWork';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import { readDeviceUnsentWork, type UnsentWork } from '@/services/replication/unsentWork';
+import { isScoreForShow } from './scoresNotSentFilter';
 import { toUnsentScoreRow, type UnsentScoreRow } from './unsentScoreDetails';
 
 export interface ScoresNotSentRow extends UnsentScoreRow {
@@ -44,8 +45,7 @@ export async function buildScoresNotSentRows(
   showId: string,
   work: UnsentWork
 ): Promise<ScoresNotSentRow[]> {
-  // A score with no show stamp and no replica row still sits on this phone: list it here too.
-  const scores = work.scores.filter(s => s.showId === showId || s.showId === undefined);
+  const scores = work.scores.filter(s => isScoreForShow(s, showId));
   if (scores.length === 0) return [];
   const classIds = new Set(scores.flatMap(s => s.entry?.classId ?? []));
   const classNames = new Map<string, string>();

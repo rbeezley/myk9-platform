@@ -21,7 +21,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { getSignOutGuardMode, type SignOutWarningContext } from '@/components/layout/signOutGuard';
+import type { SignOutWarningContext } from '@/components/layout/signOutGuard';
+import { resolveSignOutWarning } from '@/components/layout/signOutWarning';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
@@ -116,17 +117,12 @@ export function AccountMenuContent({
   // and sign-in needs the auth server — so a signed-out device at an offline
   // venue is locked out of a show fully replicated on its own disk. Warn at
   // the click; documentation is not a guard.
-  const signOutGuardMode = getSignOutGuardMode({ isOffline, roles: getUserRoles() });
-  // `status` collapses to 'offline' regardless of the queue, so the pending
-  // mutation count must drive the unsynced-changes line on its own.
-  const hasUnsyncedChanges = isSaving || needsAttention || globalSync.queueSize > 0;
-
+  // MYK9-2013: unsent work warns too, read from the device at the click.
   const handleSignOutClick = () => {
-    if (signOutGuardMode === 'none') {
-      signOut();
-      return;
-    }
-    onGuardedSignOut({ mode: signOutGuardMode, hasUnsyncedChanges });
+    void resolveSignOutWarning({ isOffline, roles: getUserRoles() }).then(warning => {
+      if (warning) onGuardedSignOut(warning);
+      else signOut();
+    });
   };
 
   const handleClearCache = () =>

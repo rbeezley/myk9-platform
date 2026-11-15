@@ -45,6 +45,7 @@ import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { EntryListNotices } from './StaleReadNotice';
 import { SavedScoreLine } from './SavedScoreLine';
+import { MarkClassCompleteOffer } from './MarkClassCompleteOffer';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -391,7 +392,20 @@ export const AtShowEntryListPage: React.FC = () => {
             hideMaxTimeOption: !canManageClasses,
             hideSettingsOption: !canManageClasses || !hasSettingsLinks,
             // MYK9-2012: pinned inside the header's sticky block.
-            banner: <SavedScoreLine />,
+            // MYK9-2013: once every dog has a result, one tap marks the class complete.
+            banner: (
+              <>
+                <SavedScoreLine />
+                <MarkClassCompleteOffer
+                  classIds={[classId]}
+                  statusCounts={classInfo?.statusCounts}
+                  canManage={canManageClasses}
+                  replication={replication}
+                  refresh={() => refresh()}
+                  version={classInfo}
+                />
+              </>
+            ),
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
             // One menu (MYK9-1697): the class actions list inside it.
             menu: classActions => (

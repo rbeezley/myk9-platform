@@ -51,7 +51,8 @@ export function AtShowScoresNotSentPage() {
         </div>
       ) : rows.length === 0 ? (
         <p role="status" className="py-12 text-center text-muted-foreground">
-          Every score is sent.
+          {/* MYK9-2013: this list is one show's; the phone may still hold another show's. */}
+          Every score for this show is sent.
         </p>
       ) : (
         <p role="status" className="mt-1 text-sm text-muted-foreground">

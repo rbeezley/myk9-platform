@@ -32,6 +32,7 @@ import { useNow } from '@/hooks/useNow';
 import { useCollapsedTrials } from './useCollapsedTrials';
 import { useAtShowPickerClasses } from './useAtShowPickerClasses';
 import { useAtShowClassCards } from './useAtShowClassCards';
+import { RingDayDoneCard } from './RingDayDoneCard';
 import { useAtShowClassRefresh } from './useAtShowClassRefresh';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { syncAtShowData } from './atShowDataAdapter';
@@ -461,6 +462,8 @@ export const AtShowClassListPage: React.FC = () => {
           </Button>
         </section>
       )}
+
+      <RingDayDoneCard showId={showId} yourRing={yourRingClasses} />
 
       <AtShowClassListToolbar
         tab={tab}

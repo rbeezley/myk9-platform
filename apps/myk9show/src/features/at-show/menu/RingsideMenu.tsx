@@ -14,7 +14,8 @@ import { useQuery } from '@tanstack/react-query';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { AskQPanel } from '@/components/askq/AskQPanel';
 import { SignOutWarningDialog } from '@/components/layout/SignOutWarningDialog';
-import { getSignOutGuardMode, type SignOutWarningContext } from '@/components/layout/signOutGuard';
+import type { SignOutWarningContext } from '@/components/layout/signOutGuard';
+import { resolveSignOutWarning } from '@/components/layout/signOutWarning';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useOnlineStatus } from '@/lib/networkUtils';
@@ -114,22 +115,14 @@ export function RingsideMenu({
     setOpen(false);
   };
 
+  // MYK9-2013: a passcode judge with unsent scores is warned too (no staff role on that session).
   const guardedSignOut = () => {
-    const mode = getSignOutGuardMode({
+    void resolveSignOutWarning({
       isOffline: !isOnline || globalSync.status === 'offline',
       roles: getUserRoles(),
-    });
-    if (mode === 'none') {
-      signOut();
-      return;
-    }
-    setSignOutWarning({
-      mode,
-      hasUnsyncedChanges:
-        globalSync.status === 'pending' ||
-        globalSync.status === 'error' ||
-        globalSync.status === 'conflict' ||
-        globalSync.queueSize > 0,
+    }).then(warning => {
+      if (warning) setSignOutWarning(warning);
+      else signOut();
     });
   };
 

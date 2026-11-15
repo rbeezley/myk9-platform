@@ -217,6 +217,13 @@ function fillMissingTrialClasses(localTrials: unknown, remoteTrials: unknown): u
   });
 }
 
+const PREMIUM_PUBLISH_COLUMNS = [
+  'published_premium_path',
+  'published_premium_url',
+  'published_premium_at',
+  'published_premium_version',
+] as const;
+
 // Get show by ID with complete details (excluding soft-deleted)
 export const getShowById = async (id: string) => {
   try {
@@ -250,6 +257,13 @@ export const getShowById = async (id: string) => {
           const remote = await postgrestGetShowById(id);
           const remoteJudgeAssignments = getJoinedJudgeAssignments(remote.data);
           data.judge_assignments = remoteJudgeAssignments;
+          // MYK9-2041: the replicated show row carries no premium-publish columns (they are
+          // RPC-owned), so a signed-in visitor's public page would never offer the published
+          // premium. The remote row has them; copy them over.
+          const remoteRow = remote.data as Record<string, unknown> | null;
+          for (const column of PREMIUM_PUBLISH_COLUMNS) {
+            if (remoteRow && column in remoteRow) data[column] = remoteRow[column];
+          }
 
           // Classes replicate scoped BY TRIAL, and only for authenticated
           // sessions, while shows and trials arrive earlier. So a signed-in

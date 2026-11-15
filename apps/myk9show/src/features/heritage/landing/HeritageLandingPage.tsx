@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureHeritageFontsLoaded } from '../fonts';
 import { useHeritageLandingData } from './useHeritageLandingData';
@@ -119,6 +120,7 @@ export function HeritageLandingPage({
           timezone={data.timezone}
         />
         <WithdrawalPolicySection showId={show?.id} className="mx-auto max-w-4xl px-6 py-16" />
+        <PremiumDownloadSection show={show} className="mx-auto max-w-4xl px-6 py-16" />
 
         <RosterSection
           entryCount={data.entryCount}

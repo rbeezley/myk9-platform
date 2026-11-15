@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensurePosterFontsLoaded, POSTER_DISPLAY_FAMILY } from '../fonts';
 import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
@@ -144,10 +145,12 @@ export function PosterLandingPage({
           entryCloseDate={data.entryCloseDate}
           confirmationDate={data.confirmationDate}
           entryLimit={data.entryLimit}
+          fees={data.fees}
           trialsCount={data.trials.length}
           timezone={data.timezone}
         />
         <WithdrawalPolicySection showId={show?.id} className="po-section" />
+        <PremiumDownloadSection show={show} className="po-section" />
         <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
         <RosterSection
           entryCount={data.entryCount}

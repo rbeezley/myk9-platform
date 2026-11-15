@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureMagazineFontsLoaded } from '../fonts';
 import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
@@ -140,6 +141,7 @@ export function MagazineLandingPage({
           timezone={data.timezone}
         />
         <WithdrawalPolicySection showId={show?.id} className="mz-section" />
+        <PremiumDownloadSection show={show} className="mz-section" />
 
         <RosterSection
           entryCount={data.entryCount}

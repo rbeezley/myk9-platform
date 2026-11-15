@@ -42,7 +42,7 @@ FROM (VALUES
   ('00000000-0000-0000-0000-000000204603', 'myk9-2045-member@example.test')
 ) AS v(id, email);
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM public.people
@@ -53,7 +53,7 @@ BEGIN
     RAISE EXCEPTION 'FIXTURE handle_new_user did not adopt the seeded people by email';
   END IF;
 END;
-$;
+$$;
 
 INSERT INTO public.club_members (club_id, person_id, membership_status)
 VALUES ('00000000-0000-0000-0000-000000204501', '00000000-0000-0000-0000-000000204513', 'active');
@@ -242,11 +242,11 @@ BEGIN
 
   RAISE NOTICE 'PASS anon reads a published show''s officers through the RPC only';
 END;
-$;
+$$;
 
 -- The result has no email or person_id column, by structure.
 RESET ROLE;
-DO $
+DO $$
 DECLARE
   result text;
 BEGIN
@@ -256,13 +256,13 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS the RPC exposes no email or person_id';
 END;
-$;
+$$;
 
 -- A club admin sees their own draft show's officers; another club's admin does not.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000204601', true);
 
-DO $
+DO $$
 DECLARE
   n integer;
 BEGIN
@@ -280,7 +280,7 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS a club admin sees their own draft show officers only';
 END;
-$;
+$$;
 
 RESET ROLE;
 ROLLBACK;

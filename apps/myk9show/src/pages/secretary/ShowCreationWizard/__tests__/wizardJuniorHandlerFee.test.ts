@@ -6,6 +6,8 @@ import {
   type WizardShowData,
 } from '../showCreationWizardTransformers';
 import { seedJuniorHandlerFee, wizardJuniorHandlerFee } from '../wizardJuniorHandlerFee';
+import { getShowDetailsValidationIssues } from '../showCreationWizardValidation';
+import { SHOW_FIELD } from '../wizardFieldIds';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 
 const baseShow: WizardShowData = {
@@ -120,5 +122,53 @@ describe('junior handler fee through show creation', () => {
     const without = transformWizardDataToShow(baseShow, [], {}, [], 'unpublished', undefined, view);
     expect('juniorHandlerFee' in without).toBe(false);
     expect('juniorHandlerFee' in showToShowInput(without)).toBe(false);
+  });
+});
+
+describe('the junior fee cannot be above the lowest regular fee (MYK9-1975)', () => {
+  const message = (limit: string) =>
+    `The junior fee can't be more than ${limit}, the lowest class fee in this show.`;
+
+  it('blocks Next on the Details step, beside the junior fee', () => {
+    const issues = getShowDetailsValidationIssues({
+      ...baseShow,
+      officials: { secretary: ['p1'], chairman: ['p2'], steward: [] },
+      preEntryFee: 15,
+      juniorHandlerFee: 20,
+    });
+    expect(issues).toContainEqual({ field: SHOW_FIELD.juniorHandlerFee, message: message('$15') });
+  });
+
+  it('counts a day-of fee below the pre-entry fee', () => {
+    expect(() => build({ ...baseShow, dayOfShowFee: 12.5, juniorHandlerFee: 15 })).toThrow(
+      message('$12.50')
+    );
+  });
+
+  it('refuses in both write paths, so the step rail cannot bypass it', () => {
+    const over = { ...baseShow, preEntryFee: 10, juniorHandlerFee: 15 };
+    expect(() => build(over)).toThrow(message('$10'));
+    expect(() =>
+      transformWizardDataToShow(
+        over,
+        [],
+        {},
+        [],
+        'unpublished',
+        undefined,
+        createWizardTrialView([], [])
+      )
+    ).toThrow(message('$10'));
+  });
+
+  it('allows a junior fee equal to the lowest regular fee', () => {
+    const { rpcInput } = build({ ...baseShow, juniorHandlerFee: 30 });
+    expect(rpcInput.p_show.junior_handler_fee).toBe(30);
+  });
+
+  it('does not limit an ASCA draft, which writes no junior fee', () => {
+    expect(() =>
+      build({ ...baseShow, organization: 'ASCA', preEntryFee: 10, juniorHandlerFee: 15 })
+    ).not.toThrow();
   });
 });

@@ -64,6 +64,8 @@ const SupportTicketPage = lazyWithRetry(() => import('@/pages/SupportTicketPage'
 // Account (merged profile + preferences + settings)
 const AccountPage = lazyWithRetry(() => import('@/pages/AccountPage'));
 const RequestAccessPage = lazyWithRetry(() => import('@/pages/RequestAccessPage'));
+// INTENT: temporary mock show test page (MYK9-2022). Delete with its route when the first real show has run.
+const MockShowTestPage = lazyWithRetry(() => import('@/pages/MockShowTestPage'));
 
 // Exhibitor pages
 const BrowseShowsPage = lazyWithRetry(() => import('@/pages/BrowseShowsPage'));
@@ -370,6 +372,20 @@ export const PublicRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <AccountPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
+    {/* INTENT: temporary (MYK9-2022). The page sends anyone outside a test club back to /account. */}
+    <Route
+      path="/account/mock-show-test"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <MockShowTestPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

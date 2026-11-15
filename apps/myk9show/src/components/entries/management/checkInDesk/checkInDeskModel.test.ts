@@ -4,7 +4,13 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { buildCheckInDeskPeople, groupCheckInDeskDogs } from './checkInDeskModel';
 import type { PeopleRosterClassInfo } from './peopleRoster';
-import { statusBeforeLatestPull } from './deskStatus';
+import {
+  PUT_BACK_OFFLINE_REASON,
+  PUT_BACK_SCORED_REASON,
+  PUT_BACK_SETTLED_REASON,
+  deskPutBackReason,
+  statusBeforeLatestPull,
+} from './deskStatus';
 
 const NOW = new Date('2026-07-08T16:00:00.000Z');
 
@@ -98,7 +104,7 @@ describe('deskStatusEditable', () => {
   });
 });
 
-describe('deskCanUnpull (MYK9-1749)', () => {
+describe('deskCanUnpull (MYK9-1749, any day per MYK9-2038)', () => {
   const pulled = (overrides: Partial<EntryManagementEntry> = {}) => {
     const scratched = entry('e1', 'class-1', 'pulled', {
       entryStatus: EntryStatus.SCRATCHED,
@@ -108,7 +114,7 @@ describe('deskCanUnpull (MYK9-1749)', () => {
     return scratched;
   };
 
-  it('lets the desk put back a real Pull made today with no refund decided', () => {
+  it('lets the desk put back a real Pull with no refund decided', () => {
     const [row] = rowsOf([pulled()]);
     expect(row!.deskCanUnpull).toBe(true);
     expect(row!.deskStatusEditable).toBe(false);
@@ -129,15 +135,31 @@ describe('deskCanUnpull (MYK9-1749)', () => {
     expect(row!.statusLabel).toBe('Pulled · refund decided, see Entries');
   });
 
-  it('never offers it for a flag-only pull, a scored run or another day', () => {
+  it('never offers it for a flag-only pull or a scored run, and says why for a scored one', () => {
     expect(rowsOf([entry('e1', 'class-1', 'pulled')])[0]!.deskCanUnpull).toBe(false);
-    expect(rowsOf([pulled({ isScored: true })])[0]!.deskCanUnpull).toBe(false);
-    const tomorrow = buildCheckInDeskPeople(
-      [pulled()],
+    const scored = rowsOf([pulled({ isScored: true })])[0]!;
+    expect(scored.deskCanUnpull).toBe(false);
+    expect(scored.putBackReason).toBe(PUT_BACK_SCORED_REASON);
+  });
+
+  // Owner decision 2026-11-14 (MYK9-2038): Put back is not limited to the trial's day.
+  it.each([
+    ['a pre-show-day Pull', new Date('2026-07-01T16:00:00.000Z')],
+    ['a Pull the day after', new Date('2026-07-09T16:00:00.000Z')],
+  ])('offers Put back for %s', (_, day) => {
+    const row = buildCheckInDeskPeople([pulled()], CLASSES, day)[0]!.classRows[0]!;
+    expect(row.deskCanUnpull).toBe(true);
+    expect(row.putBackReason).toBeNull();
+  });
+
+  it('refuses a settled refund on any day, with the reason', () => {
+    const row = buildCheckInDeskPeople(
+      [pulled({ refundAmount: 25 })],
       CLASSES,
-      new Date('2026-07-09T16:00:00.000Z')
+      new Date('2026-07-01T16:00:00.000Z')
     )[0]!.classRows[0]!;
-    expect(tomorrow.deskCanUnpull).toBe(false);
+    expect(row.deskCanUnpull).toBe(false);
+    expect(row.putBackReason).toBe(PUT_BACK_SETTLED_REASON);
   });
 
   it('is not editable for a waitlisted entry', () => {
@@ -243,5 +265,20 @@ describe('another day of the show (MYK9-1765)', () => {
     const classes = [{ ...CLASSES[0]!, trialDate: '2026-12-07', timezone: 'Pacific/Auckland' }];
     const [person] = buildCheckInDeskPeople([entry('e1', 'class-1', 'checked-in')], classes, NOW);
     expect(person!.classRows[0]!.dayLabel).toBe('Mon Dec 7');
+  });
+});
+
+describe('deskPutBackReason (MYK9-2038)', () => {
+  it('names the connection a Put back needs when offline, and nothing when online', () => {
+    const offered = { deskCanUnpull: true, putBackReason: null };
+    expect(deskPutBackReason(offered, false)).toBe(PUT_BACK_OFFLINE_REASON);
+    expect(deskPutBackReason(offered, true)).toBeNull();
+  });
+
+  it("keeps the rule's own reason whether online or not, and says nothing for a non-Pull", () => {
+    const settled = { deskCanUnpull: false, putBackReason: PUT_BACK_SETTLED_REASON };
+    expect(deskPutBackReason(settled, true)).toBe(PUT_BACK_SETTLED_REASON);
+    expect(deskPutBackReason(settled, false)).toBe(PUT_BACK_SETTLED_REASON);
+    expect(deskPutBackReason({ deskCanUnpull: false, putBackReason: null }, false)).toBeNull();
   });
 });

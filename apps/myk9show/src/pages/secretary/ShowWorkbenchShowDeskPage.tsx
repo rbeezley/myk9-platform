@@ -42,10 +42,10 @@ import {
   EMPTY_ENTRIES,
   getShowDeskEntriesAvailability,
   tallyEntriesByClass,
+  useShowDeskEntryViews,
 } from './showDeskEntryAvailability';
 import { ShowDeskEntriesUnavailable } from './ShowDeskEntriesUnavailable';
 import { ShowDeskEntriesFailed } from './ShowDeskEntriesFailed';
-import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
 import { buildClassEntryBreakdowns } from '@/features/entry-operations/classEntryBreakdown';
@@ -104,7 +104,7 @@ function ShowWorkbenchShowDeskBody() {
     isError: showEntriesIsError,
     isEnabled: Boolean(showId),
   });
-  const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
+  const { showMapEntries, putBackEntries } = useShowDeskEntryViews(showEntries);
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
   // "May this viewer OPERATE this show?" — strictly narrower than "may they
   // manage it". Volunteers routes into a `ProtectedRoute(SECRETARY |
@@ -491,6 +491,7 @@ function ShowWorkbenchShowDeskBody() {
           tools={allShowDeskTools}
           entryBreakdownByClassId={entryBreakdownByClassId}
           onRefreshEntries={refreshAfterWrite}
+          putBackEntries={putBackEntries}
         />
       </Suspense>
     </TrialSecretaryAccessProvider>

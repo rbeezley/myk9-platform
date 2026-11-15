@@ -7,7 +7,8 @@ import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { StatusBadge } from '@/components/status';
 import type { CheckInDeskDog } from './checkInDeskModel';
 import { deskClassLine } from './deskClassLine';
-import { flaggedPullLabel, isFlaggedPull } from './deskStatus';
+import { deskPutBackReason, flaggedPullLabel, isFlaggedPull } from './deskStatus';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import {
   DESK_CHECK_IN_STATUSES,
   DESK_STATUS_LABELS,
@@ -54,6 +55,7 @@ export function CheckInDeskDogCard({
   clearingId,
   onClearFlag,
 }: CheckInDeskDogCardProps) {
+  const isOnline = useIsOnline();
   const [pickerId, setPickerId] = useState<string | null>(null);
   // The class as it is now, not as it was when the picker opened: if ringside has moved it on,
   // the picker closes rather than offer to write over the run.
@@ -92,6 +94,7 @@ export function CheckInDeskDogCard({
       </div>
       <ul className="mt-2 space-y-1 sm:pl-[3.25rem]">
         {dog.rows.map(row => {
+          const putBackReason = deskPutBackReason(row, isOnline);
           const badge = (
             <StatusBadge
               family="entry"
@@ -111,7 +114,7 @@ export function CheckInDeskDogCard({
               {row.deskStatusEditable || row.deskCanUnpull ? (
                 <button
                   type="button"
-                  disabled={busyIds.has(row.entryId)}
+                  disabled={busyIds.has(row.entryId) || (row.deskCanUnpull && !isOnline)}
                   aria-label={
                     row.deskCanUnpull
                       ? `Put ${dog.dogName} back in ${row.className}`
@@ -126,8 +129,10 @@ export function CheckInDeskDogCard({
               ) : (
                 badge
               )}
-              {row.lockedReason && (
-                <span className="basis-full text-xs text-muted-foreground">{row.lockedReason}</span>
+              {(putBackReason ?? row.lockedReason) && (
+                <span className="basis-full text-xs text-muted-foreground">
+                  {putBackReason ?? row.lockedReason}
+                </span>
               )}
               {isFlaggedPull(row) && (
                 <div className="flex basis-full flex-wrap items-center gap-2 pb-1">

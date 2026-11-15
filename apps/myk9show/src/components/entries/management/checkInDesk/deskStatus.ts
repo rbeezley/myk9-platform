@@ -68,24 +68,46 @@ export function statusBeforeLatestPull(
   return null;
 }
 
+/** Why a real Pull cannot be put back, in the words a secretary reads (MYK9-2038). */
+export const PUT_BACK_SETTLED_REASON =
+  'A refund was issued or decided, so this pull is not put back here. See Entries.';
+export const PUT_BACK_SCORED_REASON = 'This dog has a score, so it cannot be put back.';
+export const PUT_BACK_OFFLINE_REASON =
+  'Put back needs a connection: it reads the pull history online.';
+
 /**
- * A real Pull the desk may undo today (owner, MYK9-1749): pulled and scratched, the trial is
- * today, the run unscored, and no refund issued or decided.
+ * The one rule both desks read (owner, MYK9-2038, replacing MYK9-1749's today-only rule): a real
+ * Pull (pulled and scratched) is put back on ANY day, while the run is unscored and no refund has
+ * been issued or decided. `blockedReason` says why a real Pull is locked; it is null otherwise.
  */
 export function deskUnpullState(
   entry: EntryManagementEntry,
-  cls: EntryClass,
-  info: { trialDate?: string; timezone?: string | null } | undefined,
-  currentDate: Date | null | undefined
-): { canUnpull: boolean; settled: boolean } {
+  cls: EntryClass
+): { canUnpull: boolean; settled: boolean; blockedReason: string | null } {
   const realPull =
     (cls.checkInStatus ?? 'no-status') === 'pulled' && entry.entryStatus === EntryStatus.SCRATCHED;
-  if (!realPull || entry.isScored) return { canUnpull: false, settled: false };
-  const today =
-    !currentDate ||
-    (Boolean(info?.trialDate) && isTrialDateToday(info!.trialDate!, info!.timezone, currentDate));
+  if (!realPull) return { canUnpull: false, settled: false, blockedReason: null };
+  if (entry.isScored) {
+    return { canUnpull: false, settled: false, blockedReason: PUT_BACK_SCORED_REASON };
+  }
   const settled = pullRefundSettled(entry);
-  return { canUnpull: today && !settled, settled };
+  return {
+    canUnpull: !settled,
+    settled,
+    blockedReason: settled ? PUT_BACK_SETTLED_REASON : null,
+  };
+}
+
+/**
+ * What a desk row says about Put back: the rule's reason, or, for a Pull the rule allows, the
+ * connection it needs (put-back reads `entry_status_history` online). Null when it is offered.
+ */
+export function deskPutBackReason(
+  row: { deskCanUnpull: boolean; putBackReason?: string | null | undefined },
+  isOnline: boolean
+): string | null {
+  if (row.putBackReason) return row.putBackReason;
+  return row.deskCanUnpull && !isOnline ? PUT_BACK_OFFLINE_REASON : null;
 }
 
 /**

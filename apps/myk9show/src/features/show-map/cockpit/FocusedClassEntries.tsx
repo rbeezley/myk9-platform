@@ -53,6 +53,7 @@ import {
   runStatusDisplay,
   type SecretaryCockpitClassEntry,
 } from './cockpitClassEntries';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
@@ -164,6 +165,7 @@ export function ClassEntriesTable({
   className,
   canChangeCheckIn = false,
   onRefreshEntries,
+  putBackEntries,
   hidden = 0,
   unread = false,
   rowMenu,
@@ -196,12 +198,20 @@ export function ClassEntriesTable({
   canChangeCheckIn?: boolean;
   /** Re-reads the page's entries after a write, so the table speaks for the stored status. */
   onRefreshEntries?: EntriesRefresh;
+  /** The stored entries by id, so a real Pull can be put back from its row (MYK9-2038). */
+  putBackEntries?: ReadonlyMap<string, EntryManagementEntry>;
   /** Entries the data left out; said aloud so a capped list never reads as the whole class. */
   hidden?: number;
   /** The entries have not been read; an empty list then is not "no entries". */
   unread?: boolean;
 }) {
-  const checkIn = useClassCheckIn(entries, className, canChangeCheckIn, onRefreshEntries);
+  const checkIn = useClassCheckIn(
+    entries,
+    className,
+    canChangeCheckIn,
+    onRefreshEntries,
+    putBackEntries
+  );
   const markAbsent = useMarkEntryAbsent({
     classId: rowMenu?.classId ?? '',
     className,

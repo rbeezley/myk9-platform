@@ -33,6 +33,7 @@ import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
   type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 const NO_ENTRIES: ClassEntryBreakdown = { entered: 0, pending: 0 };
@@ -53,6 +54,7 @@ export function SecretaryCockpitFocusedClass({
   scoringControl,
   entryBreakdownByClassId,
   onRefreshEntries,
+  putBackEntries,
 }: {
   showId: string;
   focused: FocusedClassModel | null;
@@ -76,6 +78,8 @@ export function SecretaryCockpitFocusedClass({
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
   onRefreshEntries?: EntriesRefresh | undefined;
+  /** The stored entries by id, so a real Pull can be put back from its row (MYK9-2038). */
+  putBackEntries?: ReadonlyMap<string, EntryManagementEntry> | undefined;
 }) {
   // Which class's actual-start editor is open; the header's Actual timing field and the Class started step share it.
   const [editingStart, setEditingStart] = useState<string | null>(null);
@@ -168,6 +172,7 @@ export function SecretaryCockpitFocusedClass({
         className={focused.name}
         canChangeCheckIn={canManageShow}
         {...(onRefreshEntries && { onRefreshEntries })}
+        {...(putBackEntries && { putBackEntries })}
         hidden={focused.entriesHidden}
         unread={unread}
         // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).

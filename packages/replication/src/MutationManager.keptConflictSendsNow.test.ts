@@ -185,7 +185,7 @@ describe('a kept class-status change is sent at once (MYK9-1993)', () => {
     expect(await queued()).toEqual([]);
   });
 
-  it('a refused kept change, once discarded, leaves the phone on the server status', async () => {
+  it('a refused kept change stays on the phone until Discard, which restores the server status', async () => {
     fake.state.refuse = { code: '42501', message: 'Not authorized to update class c1' };
     await table.resolveReplicationConflict('c1', 'keep-local');
 
@@ -194,6 +194,9 @@ describe('a kept class-status change is sent at once (MYK9-1993)', () => {
     expect(fake.rpc).toHaveBeenCalledTimes(1);
     const failed = (await manager.getFailedMutations()).filter(m => m.rowId === 'c1');
     expect(failed).toHaveLength(1);
+    // Nothing is discarded for the judge: the phone keeps the kept value until Discard.
+    expect((await deviceRow()).data.classStatus).toBe('in_progress');
+
     await manager.discardFailedMutation(failed[0]!.id);
 
     expect(server).toEqual({ status: 'cancelled', version: 5 });
@@ -214,26 +217,5 @@ describe('a kept class-status change is sent at once (MYK9-1993)', () => {
     const [write] = await queued();
     expect(write?.nextRetryAt).toBeUndefined();
     expect(write?.serverVersion).toBe(5);
-  });
-});
-
-describe('discardRestoresServerCopy (MYK9-1993)', () => {
-  it('reports whether the table puts a discarded row back to the server copy', () => {
-    class Plain extends ReplicatedTable<ClassRow> {
-      async sync(): Promise<SyncResult> {
-        return {
-          tableName: 'x',
-          success: true,
-          operation: 'incremental-sync',
-          rowsAffected: 0,
-          duration: 0,
-        };
-      }
-      protected resolveConflict(_local: ClassRow, remote: ClassRow): ClassRow {
-        return remote;
-      }
-    }
-    expect(new ClassesTable('classes_flag').discardRestoresServerCopy()).toBe(true);
-    expect(new Plain('plain_flag').discardRestoresServerCopy()).toBe(false);
   });
 });

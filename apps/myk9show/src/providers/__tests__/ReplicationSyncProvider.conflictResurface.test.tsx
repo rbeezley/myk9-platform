@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
+import type { PendingMutation } from '@myk9/replication';
 import { Toaster, toast } from 'sonner';
 import { CONFLICT_TOAST_TITLE } from '@/lib/offlineCopy';
 import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
@@ -104,7 +105,6 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
     sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
     getConflictedRows: hoisted.conflictSpies.classes,
     resolveReplicationConflict: hoisted.resolveClassConflict,
-    discardRestoresServerCopy: () => true,
   },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
@@ -488,34 +488,43 @@ describe('ReplicationSyncProvider: answering a class-status conflict (MYK9-1993)
     expect(mutationManager.discardFailedMutation).not.toHaveBeenCalled();
   });
 
-  it('a refused kept write is discarded and the judge is told in plain words', async () => {
-    vi.mocked(mutationManager.getFailedMutations).mockResolvedValue([
-      {
-        id: 'm1',
-        authUserId: 'u1',
-        tableName: 'classes',
-        operation: 'UPDATE',
-        rowId: 'row-1',
-        data: { status: 'in_progress' },
-        timestamp: 0,
-        retries: 1,
-        status: 'failed',
-        error: 'Non-retryable error: Not authorized to update class row-1',
-        failureKind: 'authorization',
-        failedAt: Date.now() + 60_000,
-      },
-    ]);
+  it('a refused kept write gets the queue notice in plain words, and stays until Discard', async () => {
+    const refused: PendingMutation = {
+      id: 'm1',
+      authUserId: 'u1',
+      tableName: 'classes',
+      operation: 'UPDATE',
+      rowId: 'row-1',
+      data: { status: 'in_progress' },
+      timestamp: 0,
+      retries: 1,
+      status: 'failed',
+      error: 'Non-retryable error: Not authorized to update class row-1',
+      failureKind: 'authorization',
+    };
+    // As the real queue does when the upload pass is refused for good.
+    vi.mocked(mutationManager.sendRowNow).mockImplementation(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-failed', {
+          detail: { count: 1, mutations: [refused], message: '1 change could not be sent.' },
+        })
+      );
+      return [];
+    });
     await showClassConflict();
     await click('Keep my change');
 
-    expect(await screen.findByText('Your change could not be sent')).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /You don't have permission to change this class\. +This now shows the other change\./
-      )
+      await screen.findByText("We couldn't update this class. Try again or discard this change.")
     ).toBeInTheDocument();
+    expect(screen.getByText("You don't have permission to change this class.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    // Nothing is discarded for the judge: the kept value stays until they choose.
+    expect(mutationManager.discardFailedMutation).not.toHaveBeenCalled();
+
+    await click('Discard');
+
     expect(mutationManager.discardFailedMutation).toHaveBeenCalledWith('m1');
-    expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:m1');
   });
 
   it('Keep the other change drops the queued write before showing the server copy', async () => {

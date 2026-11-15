@@ -35,12 +35,7 @@ import {
 } from '@myk9/replication';
 import { toast } from 'sonner';
 import { SyncFailureReason } from './SyncFailureReason';
-import {
-  KEPT_CHANGE_NOT_SENT_TITLE,
-  KEPT_CHANGE_SHOWS_OTHER,
-  keepMyChange,
-  keepOtherChange,
-} from './conflictChoices';
+import { keepMyChange, keepOtherChange } from './conflictChoices';
 import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { features } from '@/config/features';
@@ -925,22 +920,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
               announceConflictSettled();
               return;
             }
+            // A refusal gets the queue's own "could not be sent" notice (handleSyncFailed).
             void keepMyChange(anyTable, mutationManager, detail.tableName, detail.rowId)
-              .then(outcome => {
-                if (outcome.kind !== 'refused') return;
-                // The queue's own "could not be sent" notice offers Try again for a write
-                // that is gone now; this one replaces it.
-                for (const id of outcome.mutationIds) toast.dismiss(`sync-failed:${id}`);
-                toast.error(KEPT_CHANGE_NOT_SENT_TITLE, {
-                  description: (
-                    <>
-                      {outcome.reason && <SyncFailureReason reason={outcome.reason} />}{' '}
-                      {KEPT_CHANGE_SHOWS_OTHER}
-                    </>
-                  ),
-                  duration: Infinity,
-                });
-              })
               .catch(err => logger.warn('Keep my change failed', 'replication', { err }))
               .finally(announceConflictSettled);
           },

@@ -1,0 +1,71 @@
+import { describe, expect, it } from 'vitest';
+import {
+  PRODUCTION_FLAG,
+  PRODUCTION_PROJECT_REF,
+  parseRestoreArgs,
+  targetConnection,
+} from './single-show-restore-guards';
+
+const SHOW = '00000000-0000-0000-0000-00000000000a';
+const base = ['--dir', './decrypted', '--show-id', SHOW];
+
+describe('single-show restore guards', () => {
+  it('defaults to a dry run with no target', () => {
+    const args = parseRestoreArgs(base);
+    expect(args.execute).toBe(false);
+    expect(args.targetRef).toBeUndefined();
+  });
+
+  it('refuses --execute without an explicit target', () => {
+    expect(() => parseRestoreArgs([...base, '--execute'])).toThrow(/explicit --target-ref/);
+  });
+
+  it('refuses the production ref without the flag, even for a dry run', () => {
+    expect(() => parseRestoreArgs([...base, '--target-ref', PRODUCTION_PROJECT_REF])).toThrow(
+      /refusing to target production/
+    );
+    expect(() =>
+      parseRestoreArgs([...base, '--execute', '--target-ref', PRODUCTION_PROJECT_REF])
+    ).toThrow(/refusing to target production/);
+  });
+
+  it('accepts production only with the documented flag', () => {
+    const args = parseRestoreArgs([
+      ...base,
+      '--execute',
+      '--target-ref',
+      PRODUCTION_PROJECT_REF,
+      PRODUCTION_FLAG,
+    ]);
+    expect(args.allowProduction).toBe(true);
+    expect(() =>
+      parseRestoreArgs([...base, '--target-ref', 'abcdefghij', PRODUCTION_FLAG])
+    ).toThrow(/only applies/);
+  });
+
+  it('rejects bad input', () => {
+    expect(() => parseRestoreArgs(['--dir', 'x', '--show-id', 'nope'])).toThrow(/show UUID/);
+    expect(() => parseRestoreArgs([...base, '--bogus'])).toThrow(/unknown option/);
+    expect(() => parseRestoreArgs([...base, '--dry-run', '--execute'])).toThrow(/mutually/);
+    expect(() => parseRestoreArgs(['--show-id', SHOW])).toThrow(/--dir/);
+  });
+
+  it('maps the target URL to libpq env and checks it names the ref', () => {
+    const args = parseRestoreArgs([...base, '--execute', '--target-ref', 'abcdefghijklmnopqrst']);
+    const url =
+      'postgresql://postgres.abcdefghijklmnopqrst:p%40ss@aws-0-us.pooler.supabase.com:5432/postgres';
+    const conn = targetConnection(url, args);
+    expect(conn.env.PGPASSWORD).toBe('p@ss');
+    expect(conn.env.PGSSLMODE).toBe('verify-full');
+    expect(() => targetConnection(undefined, args)).toThrow(/required/);
+    expect(() =>
+      targetConnection('postgresql://postgres.zzzzzzzzzzzzzzzzzzzz:x@h.supabase.com/postgres', args)
+    ).toThrow(/does not name project/);
+    expect(() =>
+      targetConnection(
+        `postgresql://postgres:x@db.${PRODUCTION_PROJECT_REF}.supabase.co/postgres`,
+        args
+      )
+    ).toThrow(/points at production/);
+  });
+});

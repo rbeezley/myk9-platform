@@ -51,10 +51,12 @@ export function describeConflictScore(row: EntryConflictRow): string {
   return parts.filter(Boolean).join(', ') || 'scored';
 }
 
+const UNKNOWN_STATUS_WORDS = 'another status';
+
 function checkInWords(status: unknown): string {
   if (typeof status !== 'string' || !status) return 'no status';
-  const label = classifyEntryCheckInStatus({ check_in_status: status })?.label;
-  return label ?? status.replace(/[-_]/g, ' ');
+  // Status words come from the shared classifier only; a value it does not know stays neutral.
+  return classifyEntryCheckInStatus({ check_in_status: status })?.label ?? UNKNOWN_STATUS_WORDS;
 }
 
 const STATUS_FIELDS = new Set(['check_in_status', 'checkInStatus', 'entry_status', 'entryStatus']);

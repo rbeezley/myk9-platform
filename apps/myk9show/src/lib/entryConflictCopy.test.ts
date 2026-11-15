@@ -45,8 +45,9 @@ describe('entryConflictCopy (MYK9-2010)', () => {
       ['entry_status']
     );
     expect(copy.title).toBe('#12 Rex was checked in two ways');
-    expect(copy.keepLocalLabel).toBe('Keep my status: scratched');
-    expect(copy.takeRemoteLabel).toBe('Keep the other status: withdrawn');
+    // The shared classifier names check-in statuses only; any other value stays neutral.
+    expect(copy.keepLocalLabel).toBe('Keep my status: another status');
+    expect(copy.takeRemoteLabel).toBe('Keep the other status: another status');
   });
 
   it('names the field that collided on an already scored dog, not the score', () => {
@@ -65,5 +66,15 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     );
     expect(copy.title).toBe('#12 Rex was scored two ways');
     expect(copy.description).toContain('Also changed on both: handler notes: this device a');
+  });
+
+  it('never reformats an unknown status value into words of its own', () => {
+    const copy = entryConflictCopy(
+      { ...dog, check_in_status: 'at-gate' },
+      { ...dog, check_in_status: 'not-a-real-status' },
+      ['check_in_status']
+    );
+    expect(copy.takeRemoteLabel).toBe('Keep the other status: another status');
+    expect(copy.description).not.toContain('not a real status');
   });
 });

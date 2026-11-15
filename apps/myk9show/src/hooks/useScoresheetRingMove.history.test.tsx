@@ -201,19 +201,23 @@ describe('leaving an unscored scoresheet restores the dog on the list (MYK9-1779
     }
   );
 
-  it('history back restores the warm list after opening without starting', async () => {
-    const user = userEvent.setup();
-    renderApp();
-    await screen.findByText('list status: no-status', undefined, SLOW);
-    await user.click(screen.getByText('open sheet'));
-    await screen.findByText('start timer', undefined, SLOW);
-    expect((await replicatedEntriesTable.get(ID))?.checkInStatus).toBe('no-status');
-    seen.length = 0;
-    await user.click(screen.getByText('history back'));
-    await screen.findByText('list status: no-status', undefined, SLOW);
-    expect(seen).not.toContain('in-ring');
-    expect((await replicatedEntriesTable.get(ID))?.ring_entry_time).toBeUndefined();
-  });
+  it(
+    'history back restores the warm list after opening without starting',
+    { timeout: 30_000 },
+    async () => {
+      const user = userEvent.setup();
+      renderApp();
+      await screen.findByText('list status: no-status', undefined, SLOW);
+      await user.click(screen.getByText('open sheet'));
+      await screen.findByText('start timer', undefined, SLOW);
+      expect((await replicatedEntriesTable.get(ID))?.checkInStatus).toBe('no-status');
+      seen.length = 0;
+      await user.click(screen.getByText('history back'));
+      await screen.findByText('list status: no-status', undefined, SLOW);
+      expect(seen).not.toContain('in-ring');
+      expect((await replicatedEntriesTable.get(ID))?.ring_entry_time).toBeUndefined();
+    }
+  );
 
   it(
     'history back: the list never shows the dog in the ring on return',

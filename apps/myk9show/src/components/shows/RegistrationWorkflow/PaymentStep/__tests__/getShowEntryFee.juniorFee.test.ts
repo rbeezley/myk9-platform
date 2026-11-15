@@ -26,7 +26,9 @@ describe('getShowEntryFee with the junior handler fee choice', () => {
   });
 
   it('is the normal fee when the show has no junior fee, even if chosen', () => {
-    expect(getShowEntryFee({ ...show, juniorHandlerFee: undefined }, undefined, true, true)).toBe(35);
+    expect(getShowEntryFee({ ...show, juniorHandlerFee: undefined }, undefined, true, true)).toBe(
+      35
+    );
   });
 
   it('treats a zero or malformed junior fee as no junior tier', () => {
@@ -54,6 +56,8 @@ describe('getShowEntryFee with the junior handler fee choice', () => {
   });
 
   it('accepts a formatted junior fee', () => {
-    expect(getShowEntryFee({ ...show, juniorHandlerFee: '$15.00' }, undefined, true, true)).toBe(15);
+    expect(getShowEntryFee({ ...show, juniorHandlerFee: '$15.00' }, undefined, true, true)).toBe(
+      15
+    );
   });
 });

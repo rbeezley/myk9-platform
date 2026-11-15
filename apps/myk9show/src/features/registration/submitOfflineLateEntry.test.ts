@@ -186,10 +186,7 @@ describe('submitOfflineLateEntry', () => {
         dayOfShowFee: '35',
         startDate: '2026-07-01',
       },
-      classes: [
-        { id: 'class-1' },
-        { id: 'class-2' },
-      ],
+      classes: [{ id: 'class-1' }, { id: 'class-2' }],
       classSelections: [
         {
           dogId: 'dog-1',

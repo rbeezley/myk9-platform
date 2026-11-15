@@ -340,10 +340,7 @@ describe('submitShowRegistration', () => {
         'dog-1|class-1': { handlerId: 'handler-1', handlerName: 'Pat Handler', isOwner: false },
         'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Lee Handler', isOwner: false },
       },
-      classes: [
-        { id: 'class-1' },
-        { id: 'class-2' },
-      ],
+      classes: [{ id: 'class-1' }, { id: 'class-2' }],
     });
     vi.mocked(params.deps.submitShowEntries!).mockResolvedValue({
       entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],

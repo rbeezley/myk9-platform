@@ -50,10 +50,7 @@ describe('registrationToCartItems', () => {
       {
         'dog-2|class-2': { handlerId: 'handler-2', handlerName: 'Riley Handler', isOwner: false },
       },
-      [
-        { id: 'class-1' },
-        { id: 'class-2' },
-      ],
+      [{ id: 'class-1' }, { id: 'class-2' }],
       {
         preEntryFee: '25',
         startDate: '2099-05-01',

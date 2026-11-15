@@ -292,7 +292,9 @@ describe('priceExistingEntryCents and the payment link', () => {
 
   it('prices an existing entry from its stored record', () => {
     expect(priceExistingEntryCents(show, entry(), null, NOW)).toBe(3000);
-    expect(priceExistingEntryCents(show, entry({ junior_fee_declared: true }), null, NOW)).toBe(1500);
+    expect(priceExistingEntryCents(show, entry({ junior_fee_declared: true }), null, NOW)).toBe(
+      1500
+    );
     expect(priceExistingEntryCents(show, entry({ junior_fee_override_by: 'p-1' }), null, NOW)).toBe(
       1500
     );
@@ -300,9 +302,9 @@ describe('priceExistingEntryCents and the payment link', () => {
 
   it('charges the normal fee when the show has no junior tier or the junior fee is above it', () => {
     const declared = entry({ junior_fee_declared: true });
-    expect(priceExistingEntryCents({ ...show, junior_handler_fee: null }, declared, null, NOW)).toBe(
-      3000
-    );
+    expect(
+      priceExistingEntryCents({ ...show, junior_handler_fee: null }, declared, null, NOW)
+    ).toBe(3000);
     expect(priceExistingEntryCents({ ...show, junior_handler_fee: 0 }, declared, null, NOW)).toBe(
       3000
     );

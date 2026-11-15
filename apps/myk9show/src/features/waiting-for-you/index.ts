@@ -8,5 +8,5 @@ export {
   type WaitlistSpotEntry,
   type WaitlistSpots,
 } from './waitlistSpots';
-// Expired offers are not counted here; that lives in MYK9-1988 (needs the server's offer issue time).
+export { findRunOutOffers, type RunOutOfferEntry } from './runOutOffers';
 export type { WaitingList } from './types';

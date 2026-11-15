@@ -2,6 +2,7 @@
  * MYK9-1001: the Waitlist tab tracks open offers (the Offered group) and can withdraw one.
  * MYK9-1002: the offer dialog states the window in hours and the deadline in the trial's zone,
  * and says what the exhibitor is and is not told.
+ * MYK9-1988: offers that ran out and were not offered again are listed, one line per offer.
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +15,9 @@ const h = vi.hoisted(() => {
   return {
     WaitlistOfferNotWithdrawnError,
     offers: [] as unknown[],
+    runOut: [] as unknown[],
     queue: [] as unknown[],
+    classCounts: { waitlist_count: 1, offered_count: 1, run_out_count: 0 },
     waiting: (over: Record<string, unknown> = {}) => ({
       id: 'w1',
       class_id: 'c1',
@@ -63,7 +66,7 @@ const h = vi.hoisted(() => {
 });
 
 vi.mock('@/services/database/waitlists', () => ({
-  getClassesWithWaitlistCounts: vi.fn().mockResolvedValue({
+  getClassesWithWaitlistCounts: vi.fn(async () => ({
     data: [
       {
         id: 'c1',
@@ -73,14 +76,13 @@ vi.mock('@/services/database/waitlists', () => ({
         trial_id: 't1',
         trial: { id: 't1', name: 'Trial 1', date: '2026-10-10', timezone: 'America/Chicago' },
         accepted_count: 1,
-        waitlist_count: 1,
-        offered_count: 1,
+        ...h.classCounts,
       },
     ],
     error: null,
-  }),
+  })),
   getWaitlistByClass: vi.fn(async () => ({ data: h.queue, error: null })),
-  getWaitlistOffersByClass: vi.fn(async () => ({ data: h.offers, error: null })),
+  getWaitlistOffersByClass: vi.fn(async () => ({ data: h.offers, runOut: h.runOut, error: null })),
   withdrawWaitlistOffer: h.withdraw,
   WaitlistOfferNotWithdrawnError: h.WaitlistOfferNotWithdrawnError,
   promoteWaitlistEntry: vi.fn(),
@@ -135,7 +137,9 @@ describe('WaitlistManagementPage offers', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-05T15:00:00Z'));
     h.offers = [h.offer()];
+    h.runOut = [];
     h.queue = [h.waiting()];
+    h.classCounts = { waitlist_count: 1, offered_count: 1, run_out_count: 0 };
     h.withdraw.mockReset();
     h.toastWarning.mockReset();
     h.toastSuccess.mockReset();
@@ -172,6 +176,58 @@ describe('WaitlistManagementPage offers', () => {
 
     expect(group.getByText(expected)).toBeInTheDocument();
     expect(group.getByText('Pay by Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
+  });
+
+  it('lists each offer that ran out and was not offered again, under its class (MYK9-1988)', async () => {
+    h.runOut = [
+      h.offer({
+        id: 'r1',
+        status: 'expired',
+        dog: { id: 'd1', name: 'Scout', call_name: 'Scout' },
+      }),
+      h.offer({
+        id: 'r2',
+        status: 'expired',
+        // Made a day later, with a one-day window.
+        offered_at: '2026-10-06T15:00:00Z',
+        offer_expires_at: '2026-10-07T15:00:00Z',
+        dog: { id: 'd2', name: 'Pip', call_name: 'Pip' },
+      }),
+    ];
+    render(<WaitlistManagementPage showId="show-1" />);
+    const notice = within(await screen.findByTestId('waitlist-run-out-offers'));
+
+    expect(
+      notice.getByText('2 offers have run out in Novice A (Trial 1 · Sat, Oct 10, 2026).')
+    ).toBeInTheDocument();
+    const lines = notice
+      .getAllByTestId('waitlist-run-out-offer')
+      .map(li => (li.textContent ?? '').replace(/\s/g, ' '));
+    expect(lines).toEqual([
+      'Scout · offered Mon, Oct 5, 10:00 AM CDT · ran out Wed, Oct 7, 10:00 AM CDT',
+      'Pip · offered Tue, Oct 6, 10:00 AM CDT · ran out Wed, Oct 7, 10:00 AM CDT',
+    ]);
+    // One line per offer the count counts.
+    expect(lines).toHaveLength(h.runOut.length);
+  });
+
+  it('reads a class whose only row is an offer that ran out', async () => {
+    h.classCounts = { waitlist_count: 0, offered_count: 0, run_out_count: 1 };
+    h.queue = [];
+    h.offers = [];
+    h.runOut = [h.offer({ id: 'r1', status: 'expired' })];
+    render(<WaitlistManagementPage showId="show-1" />);
+
+    const notice = within(await screen.findByTestId('waitlist-run-out-offers'));
+    expect(
+      notice.getByText('1 offer has run out in Novice A (Trial 1 · Sat, Oct 10, 2026).')
+    ).toBeInTheDocument();
+  });
+
+  it('shows no run-out list when no offer ran out', async () => {
+    render(<WaitlistManagementPage showId="show-1" />);
+    await offeredGroup();
+    expect(screen.queryByTestId('waitlist-run-out-offers')).not.toBeInTheDocument();
   });
 
   it('shows a paid offer as being confirmed, with nothing to withdraw', async () => {

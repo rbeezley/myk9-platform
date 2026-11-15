@@ -24,6 +24,8 @@ export const EXCLUDED_TESTS = {
     'apps/myk9show/src/components/cart/CartSummary.feeSplit.test.tsx': UI_REASON,
     'apps/myk9show/src/components/shows/RegistrationWorkflow/EntriesPanel/EntriesPanel.test.tsx':
       UI_REASON,
+    'apps/myk9show/src/components/shows/RegistrationWorkflow/EntriesPanel/EntriesPanel.payLabel.test.tsx':
+      UI_REASON,
     'apps/myk9show/src/features/payments/ClubFeeTransparencyNote.test.tsx': UI_REASON,
     'apps/myk9show/src/features/payments/PlatformFeeSplitLines.test.tsx': UI_REASON,
     'apps/myk9show/src/pages/__tests__/FeesPage.signedOut.test.tsx': UI_REASON,

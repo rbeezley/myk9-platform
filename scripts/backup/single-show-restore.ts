@@ -1,7 +1,7 @@
 // Single-show restore from a decrypted independent export (MYK9-110 drill 4).
 // Default is a dry run: it reads the decrypted export, prints the plan and row counts, and
 // touches no database. See docs/operations/independent-database-drills.md.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +18,7 @@ import {
 import {
   buildPgRestoreArgs,
   buildPsqlInvocation,
+  writePlanFile,
   DATA_ONLY_ARGS,
   SCHEMA_ONLY_ARGS,
 } from './single-show-restore-commands';
@@ -91,7 +92,7 @@ function main(): void {
   const plan = planFromExport(args);
   console.log(formatSummary(plan));
   if (args.out) {
-    writeFileSync(resolve(args.out), plan.sql, { mode: 0o600 });
+    writePlanFile(resolve(args.out), plan.sql);
     console.log(`SQL plan written to ${resolve(args.out)} (contains data; delete after use)`);
   }
   if (!args.execute) {

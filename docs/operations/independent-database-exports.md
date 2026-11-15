@@ -6,15 +6,13 @@ backups and from the item 1 recovery rehearsal. The activation checklist below i
 how the export was brought live; the recovery drills still owed are in
 [independent-database-drills.md](independent-database-drills.md).
 
-> **Status (corrected 2026-11-15).** The text that called the workflow disabled, the schedule
-> UTC-based, and activation pending was written before activation and is superseded. Evidence in
-> this repository: [nightly-backup-recovery.md](nightly-backup-recovery.md) records that scheduled
-> runs were firing 4 to 6 times a day between Oct 29 and Nov 2, which a disabled workflow cannot do
+> **Status (corrected 2026-11-15).** Evidence indicates the workflow is active and the schedule is
+> America/Chicago based; the text that called it disabled, UTC-based and activation pending was written
+> before activation. [nightly-backup-recovery.md](nightly-backup-recovery.md) records scheduled runs
+> firing 4 to 6 times a day between Oct 29 and Nov 2, which a disabled workflow cannot do
 > (MYK9-1642), and the owner selected America/Chicago and 30-day retention on 2026-09-08 (below).
-> The repository's git history is a single squashed commit, so per-change history is in the Linear
-> issue comments, not in `git log`. The repository variables themselves (`MYK9_EXPORTS_ENABLED`,
-> `MYK9_EXPORT_TIME_ZONE`) cannot be read from the repo; confirm with
-> `gh variable list | grep MYK9_EXPORT` before relying on them.
+> The repository variables themselves (`MYK9_EXPORTS_ENABLED`, `MYK9_EXPORT_TIME_ZONE`) cannot be read
+> from the repo; confirm with `gh variable list | grep MYK9_EXPORT` before relying on them.
 
 ## Scope and boundary
 
@@ -60,7 +58,9 @@ The workflow installs PostgreSQL client 18 and defaults `MYK9_EXPORT_PG_CLIENT_M
 any override must match the installed client. CI explicitly installs a PostgreSQL client and
 runs `pnpm qa:backups:test`, including a locale-independent native-client argument test.
 
-## Activation checklist
+## Activation checklist (historical record)
+
+_This section records how the export was brought live in September 2026. It is not a to-do list; the steps are done. Read it as history, in the past tense._
 
 Selected provider (owner approved 2026-09-07): **Cloudflare R2 Standard**, private bucket.
 Thirty-day retention was selected on 2026-09-08; the workflow follow-up applies it only after

@@ -1,9 +1,14 @@
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   DATA_ONLY_ARGS,
   SCHEMA_ONLY_ARGS,
   buildPgRestoreArgs,
   buildPsqlInvocation,
+  withoutPgVars,
+  writePlanFile,
 } from './single-show-restore-commands';
 import { parseRestoreArgs, targetConnection } from './single-show-restore-guards';
 
@@ -57,5 +62,52 @@ describe('single-show restore commands', () => {
       PGSSLMODE: 'verify-full',
       PGSSLROOTCERT: '/ca.crt',
     });
+  });
+
+  it('strips every inherited PG variable before the target env is applied', () => {
+    const inherited = {
+      PATH: '/bin',
+      HOME: '/h',
+      PGSERVICE: 'prod',
+      PGHOSTADDR: '10.0.0.1',
+      PGOPTIONS: '-c x=1',
+      PGPASSFILE: '/p',
+      pgsysconfdir: '/x',
+    };
+    expect(withoutPgVars(inherited)).toEqual({ PATH: '/bin', HOME: '/h' });
+    const args = parseRestoreArgs([
+      '--dir',
+      'x',
+      '--show-id',
+      SHOW,
+      '--execute',
+      '--target-ref',
+      'abcdefghijklmnopqrst',
+    ]);
+    const connection = targetConnection(
+      'postgresql://postgres.abcdefghijklmnopqrst:s@h.pooler.supabase.com:5432/postgres',
+      args
+    );
+    const env = buildPsqlInvocation(connection, inherited, '/ca.crt').env;
+    for (const key of ['PGSERVICE', 'PGHOSTADDR', 'PGOPTIONS', 'PGPASSFILE', 'pgsysconfdir'])
+      expect(env, key).not.toHaveProperty(key);
+    expect(env.PGHOST).toBe('h.pooler.supabase.com');
+  });
+
+  it('writes the plan owner-only, including over a file that already exists', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'myk9-plan-test-'));
+    try {
+      const file = join(dir, 'plan.sql');
+      writeFileSync(file, 'old');
+      chmodSync(file, 0o644);
+      writePlanFile(file, 'new plan');
+      expect(readFileSync(file, 'utf8')).toBe('new plan');
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      const fresh = join(dir, 'fresh.sql');
+      writePlanFile(fresh, 'x');
+      expect(statSync(fresh).mode & 0o777).toBe(0o600);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

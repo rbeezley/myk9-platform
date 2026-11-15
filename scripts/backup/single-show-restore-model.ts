@@ -1,6 +1,11 @@
 // Pure model for the single-show restore plan (MYK9-110, drill 4). No I/O: the CLI feeds it the
 // schema-only and data-only text of a decrypted export (`pg_restore -f -`), so everything here is
 // unit-testable with fixtures.
+import {
+  isMoneyTable,
+  unclassifiedMessage,
+  unclassifiedTables,
+} from './single-show-restore-tables';
 
 export interface ForeignKey {
   table: string; // schema.table
@@ -220,19 +225,13 @@ function preflightSql(ref: ExternalRef): string {
   ].join('\n');
 }
 
-// Stripe-ledger tables. Stripe is the record for money; restoring old rows can double-count, so
-// these are excluded unless the operator passes --include-money (owner decision 2026-11-15).
-// Matched on the table name; lunch orders are show data, not the ledger, so only `orders` itself
-// counts among the order tables.
-const MONEY = /stripe|payout|payment|refund|money|^public\.orders$/i;
-export const isMoneyTable = (table: string): boolean => MONEY.test(table);
-
 export interface PlanOptions {
   showId: string;
   sourceRef: string;
   exportCreatedAt: string;
   excludeTables?: string[];
   includeMoney?: boolean;
+  showDataTables?: ReadonlySet<string>; // tests only; defaults to SHOW_DATA_TABLES
 }
 
 export function buildPlan(
@@ -241,6 +240,12 @@ export function buildPlan(
   options: PlanOptions
 ): RestorePlan {
   const exclude = new Set(options.excludeTables ?? []);
+  const unclassified = unclassifiedTables(
+    selection.included.keys(),
+    exclude,
+    options.showDataTables
+  );
+  if (unclassified.length) throw new Error(unclassifiedMessage(unclassified));
   const warnings: string[] = [];
   for (const table of exclude) {
     if (!selection.included.has(table))

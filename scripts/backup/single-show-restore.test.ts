@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPlan,
-  isMoneyTable,
   cascadeClosure,
   decodeCopyField,
   formatSummary,
@@ -10,9 +9,12 @@ import {
   parseForeignKeys,
   selectShowRows,
 } from './single-show-restore-model';
+import { SHOW_DATA_TABLES, isMoneyTable } from './single-show-restore-tables';
 
 const SHOW = '00000000-0000-0000-0000-00000000000a';
 const OTHER = '00000000-0000-0000-0000-00000000000b';
+
+const KNOWN = new Set([...SHOW_DATA_TABLES, 'public.entry_notes']); // the fixture's own table
 
 const SCHEMA = `
 ALTER TABLE ONLY public.trials
@@ -120,6 +122,7 @@ describe('single-show restore model', () => {
     const plan = buildPlan(selection, keys, {
       showId: SHOW,
       sourceRef: 'src',
+      showDataTables: KNOWN,
       exportCreatedAt: '2026-11-15T00:00:00Z',
       includeMoney: true,
     });
@@ -144,6 +147,7 @@ describe('single-show restore model', () => {
     const plan = buildPlan(selection, keys, {
       showId: SHOW,
       sourceRef: 'src',
+      showDataTables: KNOWN,
       exportCreatedAt: 'x',
       excludeTables: ['public.show_payouts'],
     });
@@ -156,6 +160,7 @@ describe('single-show restore model', () => {
     const plan = buildPlan(selection, keys, {
       showId: SHOW,
       sourceRef: 'src',
+      showDataTables: KNOWN,
       exportCreatedAt: 'x',
     });
     expect(plan.sql).not.toContain('show_payouts');
@@ -171,6 +176,7 @@ describe('single-show restore model', () => {
     const plan = buildPlan(selection, keys, {
       showId: SHOW,
       sourceRef: 'src',
+      showDataTables: KNOWN,
       exportCreatedAt: 'x',
       includeMoney: true,
     });
@@ -187,6 +193,7 @@ describe('single-show restore model', () => {
     const plan = buildPlan(selection, keys, {
       showId: SHOW,
       sourceRef: 'src',
+      showDataTables: KNOWN,
       exportCreatedAt: 'x',
       includeMoney: true,
       excludeTables: ['public.show_payouts'],
@@ -195,20 +202,60 @@ describe('single-show restore model', () => {
     expect(plan.warnings).toEqual([]);
   });
 
-  it('classifies the Stripe-ledger tables as money and show data as not', () => {
+  it('classifies the Stripe-ledger and checkout tables as money and show data as not', () => {
     for (const t of [
-      'public.orders',
-      'public.show_payments',
-      'public.show_payouts',
-      'public.show_money_locks',
-      'public.refund_requests',
-      'public.refund_request_attempts',
-      'public.stripe_order_refunds',
-      'public.entry_payment_links',
-      'public.club_stripe_accounts',
+      'show_payments',
+      'show_payouts',
+      'show_money_locks',
+      'refund_requests',
+      'refund_request_attempts',
+      'stripe_order_refunds',
+      'stripe_orders',
+      'entry_payment_links',
+      'club_stripe_accounts',
+      'entry_carts',
+      'entry_cart_items',
+      'cart_spot_holds',
+      'cart_checkout_leases',
     ])
-      expect(isMoneyTable(t), t).toBe(true);
-    for (const t of ['public.entries', 'public.trial_lunch_orders', 'public.shows'])
-      expect(isMoneyTable(t), t).toBe(false);
+      expect(isMoneyTable(`public.${t}`), t).toBe(true);
+    for (const t of ['entries', 'trial_lunch_orders', 'promo_codes', 'shows', 'enrollments'])
+      expect(isMoneyTable(`public.${t}`), t).toBe(false);
+    for (const t of SHOW_DATA_TABLES) expect(isMoneyTable(t), t).toBe(false);
+  });
+
+  it('refuses a closure table that is neither money nor show data, naming it and the remedy', () => {
+    const { keys, selection } = select();
+    const options = { showId: SHOW, sourceRef: 'src', exportCreatedAt: 'x' };
+    expect(() => buildPlan(selection, keys, options)).toThrow(/public\.entry_notes is in/);
+    expect(() => buildPlan(selection, keys, options)).toThrow(/--exclude-table.*SHOW_DATA_TABLES/);
+    const plan = buildPlan(selection, keys, { ...options, excludeTables: ['public.entry_notes'] });
+    expect(plan.sql).not.toContain('entry_notes');
+  });
+
+  it('excludes the cart and checkout tables by default', () => {
+    const schema = `${SCHEMA}
+ALTER TABLE ONLY public.entry_carts
+    ADD CONSTRAINT entry_carts_show_id_fkey FOREIGN KEY (show_id) REFERENCES public.shows(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.cart_spot_holds
+    ADD CONSTRAINT cart_spot_holds_cart_id_fkey FOREIGN KEY (cart_id) REFERENCES public.entry_carts(id) ON DELETE CASCADE;
+`;
+    const data = `${DATA}COPY public.entry_carts (id, show_id) FROM stdin;
+k1\t${SHOW}
+\\.
+COPY public.cart_spot_holds (id, cart_id) FROM stdin;
+h1\tk1
+\\.
+`;
+    const keys = parseForeignKeys(schema);
+    const selection = selectShowRows(SHOW, keys, parseCopyData(data, cascadeClosure(keys)));
+    const options = { showId: SHOW, sourceRef: 'src', exportCreatedAt: 'x', showDataTables: KNOWN };
+    const plan = buildPlan(selection, keys, options);
+    expect(plan.sql).not.toContain('entry_carts');
+    expect(plan.sql).not.toContain('cart_spot_holds');
+    expect(plan.warnings.join(' ')).toContain('public.entry_carts');
+    const withMoney = buildPlan(selection, keys, { ...options, includeMoney: true });
+    expect(withMoney.sql).toContain('"public"."entry_carts"');
+    expect(withMoney.sql).toContain('"public"."cart_spot_holds"');
   });
 });

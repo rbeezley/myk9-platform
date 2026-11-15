@@ -17,6 +17,7 @@ export interface RestoreArgs {
   includeMoney: boolean;
 }
 
+const PROJECT_REF = /^[a-z0-9]{20}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALUE_OPTIONS = ['--dir', '--show-id', '--target-ref', '--out', '--exclude-table'] as const;
 const FLAG_OPTIONS = ['--dry-run', '--execute', '--include-money', PRODUCTION_FLAG] as const;
@@ -51,12 +52,15 @@ export function parseRestoreArgs(argv: string[]): RestoreArgs {
     dir,
     showId: showId.toLowerCase(),
     execute: flags.has('--execute'),
-    targetRef: values.get('--target-ref')?.[0],
+    targetRef: values.get('--target-ref')?.[0]?.toLowerCase(),
     allowProduction: flags.has(PRODUCTION_FLAG),
     out: values.get('--out')?.[0],
     excludeTables: values.get('--exclude-table') ?? [],
     includeMoney: flags.has('--include-money'),
   };
+  if (args.targetRef !== undefined && !PROJECT_REF.test(args.targetRef)) {
+    throw new Error('--target-ref must be a 20 character Supabase project ref (a-z, 0-9)');
+  }
   assertTargetAllowed(args);
   return args;
 }
@@ -99,8 +103,8 @@ export function targetConnection(url: string | undefined, args: RestoreArgs): Ta
   if (parsed.protocol !== 'postgresql:' && parsed.protocol !== 'postgres:') {
     throw new Error(`${TARGET_URL_ENV} must be a postgresql:// URL`);
   }
-  const host = parsed.hostname;
-  const user = decodeURIComponent(parsed.username);
+  const host = parsed.hostname.toLowerCase();
+  const user = decodeURIComponent(parsed.username).toLowerCase();
   const names = (ref: string): boolean => host.includes(ref) || user.endsWith(`.${ref}`);
   if (names(PRODUCTION_PROJECT_REF) && !args.allowProduction) {
     throw new Error(`${TARGET_URL_ENV} points at production; refusing without ${PRODUCTION_FLAG}`);
@@ -111,7 +115,7 @@ export function targetConnection(url: string | undefined, args: RestoreArgs): Ta
   const env: Record<string, string> = {
     PGHOST: host,
     PGPORT: parsed.port || '5432',
-    PGUSER: user,
+    PGUSER: decodeURIComponent(parsed.username),
     PGPASSWORD: decodeURIComponent(parsed.password),
     PGDATABASE: decodeURIComponent(parsed.pathname.replace(/^\//, '')) || 'postgres',
     PGSSLMODE: 'verify-full',

@@ -39,7 +39,7 @@ describe('single-show restore guards', () => {
     ]);
     expect(args.allowProduction).toBe(true);
     expect(() =>
-      parseRestoreArgs([...base, '--target-ref', 'abcdefghij', PRODUCTION_FLAG])
+      parseRestoreArgs([...base, '--target-ref', 'abcdefghijklmnopqrst', PRODUCTION_FLAG])
     ).toThrow(/only applies/);
   });
 
@@ -83,5 +83,32 @@ describe('single-show restore guards', () => {
       )
     ).toThrow(/points at production/);
     expect(() => targetConnection('mysql://x@h/db', args)).toThrow(/postgresql/);
+  });
+
+  it('compares refs case-insensitively', () => {
+    const upper = PRODUCTION_PROJECT_REF.toUpperCase();
+    expect(() => parseRestoreArgs([...base, '--target-ref', upper])).toThrow(
+      /refusing to target production/
+    );
+    const args = parseRestoreArgs([...base, '--execute', '--target-ref', 'ABCDEFGHIJKLMNOPQRST']);
+    expect(args.targetRef).toBe('abcdefghijklmnopqrst');
+    expect(() =>
+      targetConnection(`postgresql://postgres:x@DB.${upper}.supabase.co/postgres`, args)
+    ).toThrow(/points at production/);
+    const host = 'postgresql://postgres.ABCDEFGHIJKLMNOPQRST:x@pooler.supabase.com/postgres';
+    expect(targetConnection(host, args).env.PGUSER).toBe('postgres.ABCDEFGHIJKLMNOPQRST');
+  });
+
+  it('validates --target-ref as a 20 character project ref', () => {
+    for (const bad of [
+      'short',
+      'abcdefghijklmnopqrstu',
+      'abcdefghij_lmnopqrst',
+      'abcdefghijklmnopqrs!',
+    ])
+      expect(() => parseRestoreArgs([...base, '--target-ref', bad]), bad).toThrow(/20 character/);
+    expect(parseRestoreArgs([...base, '--target-ref', 'abcdefghijklmnopqrst']).targetRef).toBe(
+      'abcdefghijklmnopqrst'
+    );
   });
 });

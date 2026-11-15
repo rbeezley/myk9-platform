@@ -24,13 +24,16 @@ export type ConflictChoiceQueue = Pick<
 >;
 
 export const KEPT_CHANGE_NOT_SENT_TITLE = 'Your change could not be sent';
-const SHOWS_OTHER_CHANGE = 'This now shows the other change.';
+export const KEPT_CHANGE_SHOWS_OTHER = 'This now shows the other change.';
 
 export type KeepMyChangeOutcome =
   /** Sent, or still queued (offline, or a retry the queue owns). */
   | { kind: 'kept' }
-  /** The server refused it; the row shows the server's copy again. */
-  | { kind: 'refused'; mutationIds: string[]; description: string };
+  /**
+   * The server refused it; the row shows the server's copy again. `reason` is the
+   * formatSyncFailureReason line, shown through SyncFailureReason like every refusal.
+   */
+  | { kind: 'refused'; mutationIds: string[]; reason?: string };
 
 export async function keepMyChange(
   table: ConflictChoiceTable,
@@ -56,11 +59,10 @@ export async function keepMyChange(
     mutations: refused,
     message: '',
   });
-  const sentence = reason && !/[.!?…]$/.test(reason) ? `${reason}.` : reason;
   return {
     kind: 'refused',
     mutationIds: refused.map(mutation => mutation.id),
-    description: sentence ? `${sentence} ${SHOWS_OTHER_CHANGE}` : SHOWS_OTHER_CHANGE,
+    ...(reason && { reason: /[.!?…]$/.test(reason) ? reason : `${reason}.` }),
   };
 }
 

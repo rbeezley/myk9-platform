@@ -76,8 +76,7 @@ describe('Keep my change', () => {
     expect(await keepMyChange(table, queue, 'classes', 'c1')).toEqual({
       kind: 'refused',
       mutationIds: ['m1'],
-      description:
-        "You don't have permission to change this class. This now shows the other change.",
+      reason: "You don't have permission to change this class.",
     });
     expect(calls).toEqual(['resolve keep-local', 'send', 'discard failed m1']);
   });
@@ -89,9 +88,7 @@ describe('Keep my change', () => {
 
     const outcome = await keepMyChange(table, queue, 'classes', 'c1');
 
-    expect(outcome).toMatchObject({
-      description: 'Reason: Nothing to update. This now shows the other change.',
-    });
+    expect(outcome).toMatchObject({ kind: 'refused', reason: 'Reason: Nothing to update.' });
   });
 
   it('leaves older failures and other rows alone', async () => {

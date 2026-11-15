@@ -217,7 +217,12 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           navigate: path => ctx.navigate(path),
         },
       });
-      leavingForStripe = handoff === 'redirecting';
+      if (handoff.kind === 'reviewOnCart') {
+        // A global toast, shown over /cart, where the re-priced or reconciled
+        // entry now is (the wizard is already navigating away).
+        notifications.warning(handoff.message);
+      }
+      leavingForStripe = handoff.kind === 'redirecting';
       return leavingForStripe;
     }
 

@@ -67,7 +67,7 @@ describe('submitRegistrationCartCheckout opens Stripe (MYK9-1964)', () => {
       return { kind: 'redirecting' };
     });
 
-    await expect(submit(deps)).resolves.toBe('redirecting');
+    await expect(submit(deps)).resolves.toEqual({ kind: 'redirecting' });
     expect(order).toEqual(['addItem', 'startCheckout']);
     expect(deps.navigate).not.toHaveBeenCalled();
   });
@@ -89,6 +89,32 @@ describe('submitRegistrationCartCheckout opens Stripe (MYK9-1964)', () => {
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
+  it('a 409 leaves the healed cart alone and opens /cart to review it', async () => {
+    const deps = makeDeps();
+    const message =
+      'Entry fees were updated to current show pricing. Review your entry and try again.';
+    deps.startCheckout.mockResolvedValue({ kind: 'failed', message, status: 409 });
+
+    await expect(submit(deps)).resolves.toEqual({ kind: 'reviewOnCart', message });
+    expect(deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
+    // Only the fill's own clear: the server-healed row is not thrown away.
+    expect(deps.clearCart).toHaveBeenCalledTimes(1);
+    expect(deps.abandonCart).not.toHaveBeenCalled();
+  });
+
+  it('a 500 still empties the cart and keeps her on the Payment step', async () => {
+    const deps = makeDeps();
+    deps.startCheckout.mockResolvedValue({
+      kind: 'failed',
+      message: 'We could not open the payment page, so nothing was charged. Try again.',
+      status: 500,
+    });
+
+    await expect(submit(deps)).rejects.toThrow('We could not open the payment page');
+    expect(deps.clearCart).toHaveBeenCalledTimes(2);
+    expect(deps.navigate).not.toHaveBeenCalled();
+  });
+
   it('abandons the cart when the roll-back clear itself fails', async () => {
     const deps = makeDeps();
     deps.clearCart.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
@@ -105,7 +131,7 @@ describe('submitRegistrationCartCheckout opens Stripe (MYK9-1964)', () => {
       path: '/checkout/success?waitlist=1',
     });
 
-    await expect(submit(deps)).resolves.toBe('navigated');
+    await expect(submit(deps)).resolves.toEqual({ kind: 'navigated' });
     expect(deps.navigate).toHaveBeenCalledWith('/checkout/success?waitlist=1');
     expect(deps.clearCart).toHaveBeenCalledTimes(1);
   });

@@ -9,7 +9,7 @@ vi.mock('@/features/registration/submitShowRegistration', () => ({
   submitShowRegistration: submitShowRegistrationMock,
 }));
 vi.mock('@/features/registration/registrationCartCheckout', () => ({
-  submitRegistrationCartCheckout: vi.fn().mockResolvedValue(undefined),
+  submitRegistrationCartCheckout: vi.fn().mockResolvedValue({ kind: 'redirecting' }),
 }));
 vi.mock('@/features/registration/submitOfflineLateEntry', () => ({
   submitOfflineLateEntry: vi.fn(),

@@ -7,6 +7,7 @@ import {
   type CartCheckoutOutcome,
   type StartCartCheckoutInput,
 } from '@/features/payments/startCartCheckout';
+import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
 import { fetchCartCapacity } from '@/hooks/queries/useCartCapacity';
 import { CART_ERROR } from '@/pages/cartErrorCopy';
 import type { CartWithDetails, EnsureCartResult, NewCartItem } from '@/store/cartStore';
@@ -36,9 +37,15 @@ interface RegistrationCartCheckoutDeps {
 /** How the hand-off ended when it did not throw. */
 export type RegistrationCartCheckoutResult =
   /** Stripe's page is loading: the caller keeps its in-flight latch held. */
-  | 'redirecting'
+  | { kind: 'redirecting' }
   /** Every line went to a wait list; the caller has been navigated away. */
-  | 'navigated';
+  | { kind: 'navigated' }
+  /**
+   * stripe-checkout answered 409: the cart row on the server is now the one
+   * to review (fees re-priced and healed, a class closed, the cart changed).
+   * The caller has been sent to /cart, and `message` is the server's sentence.
+   */
+  | { kind: 'reviewOnCart'; message: string };
 
 interface RegistrationCartCheckoutParams {
   showId: string;
@@ -130,10 +137,22 @@ export async function submitRegistrationCartCheckout({
   // MYK9-1964: straight to Stripe, not through a second review of the same
   // lines on /cart. Cancelling on Stripe still lands on /cart.
   const outcome = await deps.startCheckout();
-  if (outcome.kind === 'redirecting') return 'redirecting';
+  if (outcome.kind === 'redirecting') return { kind: 'redirecting' };
   if (outcome.kind === 'waitlistOnly') {
     deps.navigate(outcome.path);
-    return 'navigated';
+    return { kind: 'navigated' };
+  }
+
+  // A 409 means the server's cart row is now what must be reviewed: on a fee
+  // drift stripe-checkout heals the stored line fees and totals before
+  // answering, and on a closed class the /cart load reconciles the lines and
+  // says why. Clearing here would throw the healed cart away, and a retry
+  // from the wizard would refill it at the stale fees and earn the same 409.
+  // So leave the cart exactly as the server left it and open /cart, which
+  // loads it fresh (the recovery /cart's own Pay runs on a 409).
+  if (outcome.status === 409) {
+    deps.navigate(buildScopedCartHref(showId));
+    return { kind: 'reviewOnCart', message: outcome.message };
   }
 
   // Checkout did not start. Empty the cart this call just filled, so nothing

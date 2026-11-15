@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { StepId } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import type {
@@ -11,7 +11,9 @@ import type {
 
 const navigateMock = vi.hoisted(() => vi.fn());
 const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
-const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const submitRegistrationCartCheckoutMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ kind: 'navigated' })
+);
 const deleteDraftMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const createRegistrationMock = vi.hoisted(() => vi.fn(() => ({ id: 'reg-1' })));
 const clearDraftDataMock = vi.hoisted(() => vi.fn());
@@ -446,7 +448,7 @@ describe('RegistrationWizardPage — card Pay opens Stripe (MYK9-1964)', () => {
   });
 
   it('starts one checkout for a double press, and stays busy while Stripe loads', async () => {
-    submitRegistrationCartCheckoutMock.mockResolvedValue('redirecting');
+    submitRegistrationCartCheckoutMock.mockResolvedValue({ kind: 'redirecting' });
     const { user, pay } = await walkToCardPayment();
     await user.click(pay);
     await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
@@ -454,6 +456,24 @@ describe('RegistrationWizardPage — card Pay opens Stripe (MYK9-1964)', () => {
     await waitFor(() => expect(pay).toBeDisabled());
     await user.click(pay);
     expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('frees Pay again when Back from Stripe restores the page from the cache', async () => {
+    submitRegistrationCartCheckoutMock.mockResolvedValue({ kind: 'redirecting' });
+    const { user, pay } = await walkToCardPayment();
+    await user.click(pay);
+    await waitFor(() => expect(pay).toBeDisabled());
+    // An ordinary page show is not a return from Stripe.
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: false }));
+    });
+    expect(pay).toBeDisabled();
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    });
+    await waitFor(() => expect(pay).not.toBeDisabled());
+    await user.click(pay);
+    await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(2));
   });
 
   it('a checkout that does not start leaves her on Payment, able to try again', async () => {

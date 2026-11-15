@@ -174,7 +174,7 @@ describe('wizard hand-off opens the submitted show cart (MYK9-1661)', () => {
     // amount is priced by stripe-checkout from the cart row, never sent.
     expect(createEntryCheckoutSessionMock).toHaveBeenCalledTimes(1);
     expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-a', { showId: SHOW_A });
-    expect(result).toBe('redirecting');
+    expect(result).toEqual({ kind: 'redirecting' });
     expect(navigate).not.toHaveBeenCalled();
 
     const cart = useCartStore.getState().cart;

@@ -13,6 +13,7 @@ const submitShowRegistrationMock = vi.hoisted(() => vi.fn());
 const submitRegistrationCartCheckoutMock = vi.hoisted(() => vi.fn());
 const submitOfflineLateEntryMock = vi.hoisted(() => vi.fn());
 const notificationErrorMock = vi.hoisted(() => vi.fn());
+const notificationWarningMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/features/registration/submitShowRegistration', () => ({
   submitShowRegistration: submitShowRegistrationMock,
@@ -29,6 +30,7 @@ vi.mock('@/features/registration/submitOfflineLateEntry', () => ({
 vi.mock('@/lib/notifications', () => ({
   notifications: {
     error: notificationErrorMock,
+    warning: notificationWarningMock,
   },
 }));
 
@@ -43,7 +45,7 @@ describe('submitPaymentStep', () => {
       armbandAssignments: [],
       armbandFailures: [],
     });
-    submitRegistrationCartCheckoutMock.mockResolvedValue(undefined);
+    submitRegistrationCartCheckoutMock.mockResolvedValue({ kind: 'redirecting' });
     submitOfflineLateEntryMock.mockResolvedValue({
       armbandAssignments: [{ dogId: 'dog-1', armband: '13' }],
       entryIds: ['entry-1'],
@@ -59,6 +61,25 @@ describe('submitPaymentStep', () => {
         },
       ],
     });
+  });
+
+  it('a 409 hand-off says what changed over /cart and releases Pay (MYK9-1964)', async () => {
+    const message =
+      'A class you picked has closed or filled since you added it. Review your entry and try again.';
+    submitRegistrationCartCheckoutMock.mockResolvedValue({ kind: 'reviewOnCart', message });
+    const { ctx } = makeContextAndOrder({ paymentMethod: 'credit_card' });
+
+    await expect(submitPaymentStep(ctx)).resolves.toBe(false);
+    expect(notificationWarningMock).toHaveBeenCalledWith(message);
+    expect(notificationErrorMock).not.toHaveBeenCalled();
+    expect(ctx.setIsSubmitting).toHaveBeenLastCalledWith(false);
+  });
+
+  it('holds Pay busy while Stripe loads (MYK9-1964)', async () => {
+    const { ctx } = makeContextAndOrder({ paymentMethod: 'credit_card' });
+
+    await expect(submitPaymentStep(ctx)).resolves.toBe(true);
+    expect(ctx.setIsSubmitting).not.toHaveBeenCalledWith(false);
   });
 
   it('leaves the wizard draft alone on the card path — the cart hand-off is not a filing', async () => {

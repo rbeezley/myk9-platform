@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
-import { buildClassName } from '../atShowClassListAdapter';
+import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 import {
   collectUnsentScores,
   SCORES_NOT_SENT_CHANGED_EVENT,
@@ -83,7 +83,16 @@ export async function readUnsentScoreRows(showId: string): Promise<UnsentScoreRo
     const classId = entry?.classId;
     if (classId && !classNames.has(classId)) {
       const cls = await replicatedClassesTable.getClassById(classId);
-      classNames.set(classId, cls ? buildClassName(cls) : undefined);
+      classNames.set(
+        classId,
+        cls
+          ? composeClassTitle({
+              element: cls.element ?? null,
+              level: cls.level ?? null,
+              section: cls.section ?? null,
+            })
+          : undefined
+      );
     }
     const dogLabel = [entry?.armband, entry?.dogCallName ?? entry?.dog_call_name]
       .filter(part => part !== undefined && part !== null && String(part).trim() !== '')

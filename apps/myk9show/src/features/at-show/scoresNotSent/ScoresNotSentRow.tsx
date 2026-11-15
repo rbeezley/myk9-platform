@@ -70,7 +70,7 @@ export function ScoresNotSentRow({ row, isOnline }: { row: UnsentScoreRow; isOnl
         open={confirming}
         onOpenChange={setConfirming}
         title={`Remove the score for ${row.dogLabel}?`}
-        description={`${score ? `${score}. ` : ''}This score has not reached the server. Removing it deletes it from this device, and the dog will need to be scored again.`}
+        description={`${score ? `${score}. ` : ''}This score has not reached myK9Show. Removing it deletes it from this device, and the dog will need to be scored again.`}
         confirmLabel="Remove score"
         cancelLabel="Keep it"
         destructive

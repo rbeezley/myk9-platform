@@ -29,7 +29,7 @@ vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { getClassById: vi.fn(async () => null) },
 }));
 
-const scoreRpc = { name: 'ringside_update_entry', fields: { is_scored: true } };
+const scoreRpc = { name: 'ringside_update_entry', args: {}, fields: { is_scored: true } };
 const refused = (id: string, rowId: string) => ({
   id,
   rowId,
@@ -97,8 +97,13 @@ describe('ScoresNotSentNotice (MYK9-2011)', () => {
 
 describe('withoutRingsideScoreFailures', () => {
   it('leaves every other failure for the generic toast', () => {
-    const show = { id: 's', tableName: 'shows', operation: 'UPDATE' } as const;
-    const scoreFailure = { id: 'm', tableName: 'entries', operation: 'UPDATE', rpc: scoreRpc };
+    const show = { id: 's', tableName: 'shows', operation: 'UPDATE' as const };
+    const scoreFailure = {
+      id: 'm',
+      tableName: 'entries',
+      operation: 'UPDATE' as const,
+      rpc: scoreRpc,
+    };
     expect(
       withoutRingsideScoreFailures({ count: 2, mutations: [show, scoreFailure], message: '' })
     ).toEqual({ count: 1, mutations: [show], message: '' });

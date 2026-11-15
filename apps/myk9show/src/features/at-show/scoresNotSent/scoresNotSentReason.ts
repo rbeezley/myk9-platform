@@ -66,5 +66,5 @@ export function describeRefusal(refusal: Refusal | undefined): string {
   if (refusal?.failureKind === 'max-retries') {
     return 'It did not go through after several tries.';
   }
-  return 'The server did not accept this score. Ask the secretary.';
+  return 'myK9Show did not accept this score. Ask the secretary.';
 }

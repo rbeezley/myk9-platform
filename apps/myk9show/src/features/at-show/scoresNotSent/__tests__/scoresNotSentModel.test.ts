@@ -126,7 +126,7 @@ describe('describeRefusal (MYK9-2011)', () => {
     const raw =
       'Non-retryable error: duplicate key value violates unique constraint "entries_pkey"';
     const said = describeRefusal({ error: raw, failureKind: 'permanent' });
-    expect(said).toBe('The server did not accept this score. Ask the secretary.');
+    expect(said).toBe('myK9Show did not accept this score. Ask the secretary.');
     expect(said).not.toMatch(/duplicate|constraint|entries_pkey/);
     expect(
       describeRefusal({ error: 'Not authorized to update entry e1', failureKind: 'authorization' })

@@ -4,9 +4,9 @@ import {
   isAuthorizationError,
   isGatewayTransientError,
   isRetryableError,
-  isServerTransientError,
   isTransportError,
 } from './mutation-utils';
+import { isServerTransientError } from './server-transient';
 import type { PendingMutation } from './types';
 
 export interface ClassifyMutationFailureOptions {

@@ -82,7 +82,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const scoring = useScoresheetScoring({
     rules: scoringRules,
-    qualifiedRules: {},
+    qualifiedRules: { keepUnstoredAreaBlank: true },
     ...scoringSource(entry),
   });
 

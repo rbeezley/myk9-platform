@@ -47,22 +47,44 @@ function shortTime(seconds: number): string {
 /**
  * One sentence per area, or null where the area is fine. A typed time that is not
  * a time yet is left to the unresolved-time check, which already refuses it.
+ *
+ * `mayStayBlank` is for a correction of a score whose area times were never all
+ * stored (Nationals, until MYK9-2068): an area it names may stay blank, and since
+ * the per-area limit cannot be judged without every area, the times that are there
+ * are checked against the class time as a total instead.
  */
 export function qualifiedTimeProblems(
   areas: Pick<AreaScore, 'time'>[],
-  rules: ResolvedClassRules
+  rules: ResolvedClassRules,
+  mayStayBlank?: (index: number) => boolean
 ): (string | null)[] {
-  return areas.map((area, index) => {
-    if (area.time.trim() === '') return 'Add a time to save a Qualified';
+  const incomplete =
+    !!mayStayBlank && areas.some((a, i) => a.time.trim() === '' && mayStayBlank(i));
+  const problems = areas.map((area, index) => {
+    if (area.time.trim() === '') {
+      return mayStayBlank?.(index) ? null : 'Add a time to save a Qualified';
+    }
     const parsed = parseDuration(area.time, 'search');
     if (!parsed.ok) return null;
     if (parsed.seconds <= 0) return 'Add a time to save a Qualified';
-    const limit = maxTimeForArea(rules, index);
+    const limit = incomplete ? 0 : maxTimeForArea(rules, index);
     if (limit > 0 && parsed.seconds > limit) {
       return `${shortTime(parsed.seconds)} is over the ${maxTimeLabel(limit)} limit. Fix the time, or choose NQ.`;
     }
     return null;
   });
+  if (incomplete && rules.maxTimeSeconds > 0) {
+    const total = areas.reduce((sum, a) => {
+      const parsed = parseDuration(a.time, 'search');
+      return parsed.ok ? sum + parsed.seconds : sum;
+    }, 0);
+    const first = problems.findIndex((p, i) => p === null && areas[i]!.time.trim() !== '');
+    if (total > rules.maxTimeSeconds && first >= 0) {
+      problems[first] =
+        `${shortTime(total)} in all is over the ${maxTimeLabel(rules.maxTimeSeconds)} class limit. Fix the time, or choose NQ.`;
+    }
+  }
+  return problems;
 }
 
 /** The sentence for a Qualified over the registry's fault limit, or null. */

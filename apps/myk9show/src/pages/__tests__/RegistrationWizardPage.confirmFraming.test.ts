@@ -6,8 +6,9 @@
  * So (UX walk remediation 4.A):
  *  - The last step must render honest forward exits (`ReceiptExits`), NOT a
  *    "Finish"/"Complete Registration" button that implies a submit still happens.
- *  - The Payment step's button must SAY it commits (`getPaymentSubmitLabel`),
- *    never a bare "Next" that hid the commit.
+ *  - The Payment step's button must SAY it commits (`getPaymentSubmitLabel`,
+ *    reached through `usePaymentSubmitLabel` since MYK9-1964 so card can name
+ *    the amount), never a bare "Next" that hid the commit.
  *
  * Pinned per the repo's fs.readFileSync source-text convention so a refactor
  * can't silently reinstate the pre-submit framing or the misleading last-step
@@ -28,6 +29,14 @@ describe('RegistrationWizardPage — commit-moment framing', () => {
   });
 
   it('labels the Payment step button as the honest, method-aware commit', () => {
-    expect(source).toContain('getPaymentSubmitLabel(registrationData.paymentMethod)');
+    expect(source).toContain('selectedPaymentMethod: registrationData.paymentMethod');
+    expect(source).toContain(
+      "nextLabel={currentStepId === 'payment' ? paymentSubmitLabel : 'Next'}"
+    );
+    const hook = readFileSync(
+      path.join(__dirname, '../RegistrationWizardPage/usePaymentSubmitLabel.ts'),
+      'utf8'
+    );
+    expect(hook).toContain('getPaymentSubmitLabel(');
   });
 });

@@ -35,6 +35,7 @@ import {
 } from '@myk9/replication';
 import { toast } from 'sonner';
 import { SyncFailureReason } from './SyncFailureReason';
+import { KEPT_CHANGE_NOT_SENT_TITLE, keepMyChange, keepOtherChange } from './conflictChoices';
 import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { features } from '@/config/features';
@@ -891,28 +892,37 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         action: {
           label: copy.takeRemoteLabel,
           onClick: () => {
-            // Replace local row with remote data (reads snapshot from IDB) AND
-            // discard the pending mutation that would re-upload the old local value.
-            if (anyTable) {
-              void anyTable
-                .resolveReplicationConflict(detail.rowId, 'take-remote')
-                .finally(announceConflictSettled);
-              void mutationManager.discardPendingMutationsForRow(detail.tableName, detail.rowId);
-            } else {
-              announceConflictSettled();
-            }
+            // Drop the queued write, then show the server's copy (conflictChoices.ts).
             toast.dismiss(conflictId);
+            if (!anyTable) return announceConflictSettled();
+            void keepOtherChange(anyTable, mutationManager, detail.tableName, detail.rowId)
+              .catch(err => {
+                // Nothing was released: ask again rather than leave the rows different.
+                logger.warn('Keep the other change failed', 'replication', { err });
+                window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
+              })
+              .finally(announceConflictSettled);
           },
         },
         cancel: {
           label: copy.keepLocalLabel,
           onClick: () => {
-            // Clear the conflict snapshot and let the table refresh queued
-            // mutation OCC state from the resolved row.
-            void (
-              anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local') ?? Promise.resolve()
-            ).finally(announceConflictSettled);
+            // MYK9-1993: send the kept write now, not at the next poll (conflictChoices.ts).
             toast.dismiss(conflictId);
+            if (!anyTable) return announceConflictSettled();
+            void keepMyChange(anyTable, mutationManager, detail.tableName, detail.rowId)
+              .then(outcome => {
+                if (outcome.kind !== 'refused') return;
+                // The queue's own "could not be sent" notice offers Try again for a write
+                // that is gone now; this one replaces it.
+                for (const id of outcome.mutationIds) toast.dismiss(`sync-failed:${id}`);
+                toast.error(KEPT_CHANGE_NOT_SENT_TITLE, {
+                  description: outcome.description,
+                  duration: Infinity,
+                });
+              })
+              .catch(err => logger.warn('Keep my change failed', 'replication', { err }))
+              .finally(announceConflictSettled);
           },
         },
       });

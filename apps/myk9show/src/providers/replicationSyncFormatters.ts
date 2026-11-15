@@ -148,8 +148,9 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
 export const SYNC_FAILURE_REASON_PREFIX = 'Reason: ';
 const REASON_MAX_LENGTH = 160;
 const NO_DETAIL_REASON = 'no details were given.';
+// "Not authorized to update class <id>" is how the ringside RPCs refuse (MYK9-1993).
 const PERMISSION_ERROR_PATTERN =
-  /row-level security|rls policy blocked|permission denied|\b42501\b/i;
+  /row-level security|rls policy blocked|permission denied|not authorized to|\b42501\b/i;
 /** What the queue prepends when it stores a failure (mutation-retry.ts); not the reason. */
 const QUEUE_PREFIX_PATTERN = /^(?:non-retryable error|max retries exceeded):\s*/i;
 

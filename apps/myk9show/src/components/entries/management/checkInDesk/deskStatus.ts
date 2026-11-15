@@ -72,8 +72,7 @@ export function statusBeforeLatestPull(
 export const PUT_BACK_SETTLED_REASON =
   'A refund was issued or decided, so this pull is not put back here. See Entries.';
 export const PUT_BACK_SCORED_REASON = 'This dog has a score, so it cannot be put back.';
-export const PUT_BACK_OFFLINE_REASON =
-  'Put back needs a connection: it reads the pull history online.';
+export const PUT_BACK_OFFLINE_REASON = 'Put back needs a connection.';
 
 /**
  * The one rule both desks read (owner, MYK9-2038, replacing MYK9-1749's today-only rule): a real

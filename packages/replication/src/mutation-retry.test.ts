@@ -30,19 +30,19 @@ describe('classifyMutationFailure', () => {
 
     const result = classifyMutationFailure({
       mutation: mutation({ retries: 0 }),
-      error: { message: 'statement timeout', code: '57014' },
+      error: { message: 'internal error', code: 'XX000' },
       maxRetries: 3,
       retryBackoffBase: 10,
       now: 1_000,
     });
 
-    expect(result.message).toBe('statement timeout');
+    expect(result.message).toBe('internal error');
     expect(result.canRetry).toBe(true);
     expect(result.permanentlyFailed).toBe(false);
     expect(result.mutation).toMatchObject({
       retries: 1,
       status: 'pending',
-      error: 'statement timeout',
+      error: 'internal error',
       nextRetryAt: 1_010,
     });
     expect(result.mutation.failedAt).toBeUndefined();
@@ -51,7 +51,7 @@ describe('classifyMutationFailure', () => {
   it('marks retryable errors as failed when max retries are reached', () => {
     const result = classifyMutationFailure({
       mutation: mutation({ retries: 2 }),
-      error: { message: 'statement timeout', code: '57014' },
+      error: { message: 'internal error', code: 'XX000' },
       maxRetries: 3,
       retryBackoffBase: 10,
       now: 2_000,
@@ -62,7 +62,7 @@ describe('classifyMutationFailure', () => {
     expect(result.mutation).toMatchObject({
       retries: 3,
       status: 'failed',
-      error: 'Max retries exceeded: statement timeout',
+      error: 'Max retries exceeded: internal error',
       failedAt: 2_000,
     });
     expect(result.mutation.nextRetryAt).toBeUndefined();
@@ -277,9 +277,9 @@ describe('classifyMutationFailure', () => {
     });
 
     it.each([
-      ['500', { message: 'internal', code: '', httpStatus: 500 }],
+      ['a coded 500', { message: 'internal', code: 'XX000', httpStatus: 500 }],
       ['429', { message: 'slow down', code: '429', httpStatus: 429 }],
-      ['a status-less ambiguous error', { message: 'statement timeout', code: '57014' }],
+      ['a status-less ambiguous error', { message: 'internal error', code: 'XX000' }],
     ])('still spends the budget on %s', (_n, error) => {
       const result = classifyMutationFailure({
         mutation: mutation(),
@@ -326,8 +326,8 @@ describe('classifyMutationFailure', () => {
     // Probe down, write path up: the probe only vouches for transport candidates. A write that
     // fails with any other error is classified by that error, never by the probe.
     it.each([
-      ['a 500', { message: 'internal', code: '', httpStatus: 500 }],
-      ['an ambiguous 57014', { message: 'statement timeout', code: '57014' }],
+      ['a coded 500', { message: 'internal', code: 'XX000', httpStatus: 500 }],
+      ['an ambiguous XX000', { message: 'internal error', code: 'XX000' }],
     ])('with the probe down, %s still spends the budget', (_n, error) => {
       const result = classifyMutationFailure({
         mutation: mutation({ retries: 2 }),
@@ -463,12 +463,12 @@ describe('classifyMutationFailure', () => {
       expect(result.mutation.status).toBe('failed');
     });
 
-    it('still parks an ambiguous non-transport error (57014) after maxRetries', () => {
+    it('still parks an ambiguous non-transport error (XX000) after maxRetries', () => {
       let current = mutation();
       for (let i = 0; i < 3; i += 1) {
         const result = classifyMutationFailure({
           mutation: current,
-          error: { code: '57014', message: 'canceling statement due to statement timeout' },
+          error: { code: 'XX000', message: 'internal error' },
           maxRetries: 3,
           retryBackoffBase: 10,
           now: i,
@@ -514,7 +514,7 @@ describe('classifyMutationFailure', () => {
     it('drops transportRetries once a failure spends the budget', () => {
       const result = classifyMutationFailure({
         mutation: mutation({ transportRetries: 7 }),
-        error: { message: 'statement timeout', code: '57014' },
+        error: { message: 'internal error', code: 'XX000' },
         maxRetries: 3,
         retryBackoffBase: 10,
         now: 0,
@@ -533,6 +533,62 @@ describe('classifyMutationFailure', () => {
       });
       expect(result.mutation).toMatchObject({ retries: 1 });
       expect(result.mutation.transportRetries).toBeUndefined();
+    });
+  });
+
+  describe('a temporary server answer keeps retrying and never parks (MYK9-2011)', () => {
+    it.each([
+      ['a statement timeout (57014)', { message: 'statement timeout', code: '57014' }, undefined],
+      ['a deadlock (40P01)', { message: 'deadlock detected', code: '40P01' }, undefined],
+      ['a plain 500', { message: 'internal', code: '', httpStatus: 500 }, undefined],
+      [
+        'P0002 on ringside_update_entry',
+        { message: 'Entry not found', code: 'P0002' },
+        'ringside_update_entry',
+      ],
+    ])('%s at the last retry stays pending and spends no budget', (_n, error, rpcName) => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      const result = classifyMutationFailure({
+        mutation: {
+          ...mutation({
+            retries: 2,
+            ...(rpcName && { rpc: { name: rpcName, fields: { is_scored: true } } }),
+          }),
+          transportRetries: 1,
+        },
+        error,
+        maxRetries: 3,
+        retryBackoffBase: 1_000,
+        now: 10_000,
+      });
+
+      expect(result.permanentlyFailed).toBe(false);
+      expect(result.mutation).toMatchObject({ status: 'pending', retries: 2, transportRetries: 2 });
+      expect(result.mutation.failureKind).toBeUndefined();
+      expect(result.mutation.nextRetryAt).toBe(12_000);
+    });
+
+    it('caps the backoff for a timeout that keeps coming back', () => {
+      const result = classifyMutationFailure({
+        mutation: { ...mutation(), transportRetries: 40 },
+        error: { message: 'statement timeout', code: '57014' },
+        maxRetries: 3,
+        retryBackoffBase: 1_000,
+        now: 0,
+      });
+      expect(result.mutation.status).toBe('pending');
+      expect(result.mutation.nextRetryAt).toBeLessThanOrEqual(MAX_BACKOFF_MS);
+    });
+
+    it('still parks P0002 on set_class_judge at once', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ rpc: { name: 'set_class_judge', args: {} } }),
+        error: { message: 'class not found', code: 'P0002' },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(true);
     });
   });
 });

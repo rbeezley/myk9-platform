@@ -6,6 +6,7 @@ import {
   isRetryableError,
   isTransportError,
 } from './mutation-utils';
+import { isServerTransientError } from './mutation-transient';
 import type { PendingMutation } from './types';
 
 export interface ClassifyMutationFailureOptions {
@@ -38,7 +39,13 @@ export function classifyMutationFailure({
   const canRetry = isRetryableError(error, mutation);
   // MYK9-1474: transport loss, confirmed by the connectivity probe, keeps retrying with capped backoff and spends no retry budget.
   // MYK9-1488: so does a gateway 502/503/504, by its own status and never by the probe (the gateway answered, so the probe says "up").
-  if (canRetry && ((uplinkDown && isTransportError(error)) || isGatewayTransientError(error))) {
+  // MYK9-2011: and a server answer that means "not this time" (see mutation-transient.ts).
+  if (
+    canRetry &&
+    ((uplinkDown && isTransportError(error)) ||
+      isGatewayTransientError(error) ||
+      isServerTransientError(error))
+  ) {
     const transportRetries = (mutation.transportRetries || 0) + 1;
     const pending: PendingMutation = {
       ...mutation,

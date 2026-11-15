@@ -12,10 +12,8 @@ import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTi
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
-  resolveWithdrawalPolicy,
-  describeWithdrawalPolicyText,
-  type ShowWithdrawalColumns,
-  type ClubWithdrawalColumns,
+  WITHDRAWAL_DISCLOSURE_SELECT,
+  withdrawalDisclosureForShowRow,
 } from '../_shared/withdrawalPolicy.ts';
 import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts';
 
@@ -367,6 +365,38 @@ Deno.serve(async req => {
       );
     }
 
+    // Resolve the show's policy text so the PAYER sees it on the Stripe page (custom_text):
+    // the show's text, else the club's, else the default, then the service-fee sentence
+    // (MYK9-1976). The same resolver the app uses, so the payer reads the terms the
+    // secretary sees. Done BEFORE any prior link is expired, because a policy too long for
+    // the page refuses the request: a payer reads the whole policy or the link is not made,
+    // never a cut one. A failed READ (incl. columns not yet migrated) still must not block
+    // link generation, so it's try/caught and the link goes out without custom_text.
+    let withdrawalPolicyText: string | undefined;
+    let withdrawalPolicyTooLong: string | null = null;
+    try {
+      const { data: policyRow } = await supabase
+        .from('shows')
+        .select(WITHDRAWAL_DISCLOSURE_SELECT)
+        .eq('id', show.id)
+        .single();
+      if (policyRow) {
+        const disclosure = withdrawalDisclosureForShowRow(
+          policyRow as unknown as Record<string, unknown>
+        );
+        if (disclosure.ok) withdrawalPolicyText = disclosure.message;
+        else withdrawalPolicyTooLong = disclosure.error;
+      }
+    } catch (err) {
+      console.log(
+        'Could not resolve withdrawal policy for custom_text — skipping disclosure:',
+        err
+      );
+    }
+    if (withdrawalPolicyTooLong) {
+      return corsResponse(corsHeaders, { error: withdrawalPolicyTooLong }, 400);
+    }
+
     // Re-request safety: expire any prior OPEN links covering these entries so
     // two live links can't both be paid (full handling in Task 3.5 Step 2).
     const { data: priorLinks, error: priorLinksError } = await supabase
@@ -472,36 +502,6 @@ Deno.serve(async req => {
         .from('entry_payment_links')
         .update({ status: 'expired', updated_at: nowIso })
         .eq('id', prior.id);
-    }
-
-    // Best-effort: resolve the show's effective withdrawal policy so the PAYER
-    // sees it on the Stripe page (custom_text) — the secretary dialog disclosure
-    // never reaches the mail-in/waitlist payer. A failure here (incl. columns
-    // not yet migrated) must not block link generation, so it's try/caught.
-    let withdrawalPolicyText: string | undefined;
-    try {
-      const { data: policyRow } = await supabase
-        .from('shows')
-        .select(
-          'withdrawal_cutoff_date, withdrawal_retention_type, withdrawal_retention_value, withdrawal_policy_notes, clubs(default_withdrawal_retention_type, default_withdrawal_retention_value, default_withdrawal_policy_notes)'
-        )
-        .eq('id', show.id)
-        .single();
-      if (policyRow) {
-        const rawClub = (policyRow as Record<string, unknown>).clubs;
-        const club = (Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null;
-        withdrawalPolicyText = describeWithdrawalPolicyText(
-          resolveWithdrawalPolicy(
-            policyRow as ShowWithdrawalColumns,
-            club as ClubWithdrawalColumns | null
-          )
-        );
-      }
-    } catch (err) {
-      console.log(
-        'Could not resolve withdrawal policy for custom_text — skipping disclosure:',
-        err
-      );
     }
 
     const sessionParams = buildEntryPaymentLinkSession({

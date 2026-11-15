@@ -145,11 +145,14 @@ describe('buildEntryPaymentLinkSession', () => {
     ).toBeUndefined();
   });
 
-  it('clamps custom_text to Stripe’s 1200-char limit', () => {
-    const s = buildEntryPaymentLinkSession({
-      ...base,
-      withdrawalPolicyText: 'x'.repeat(2000),
-    });
-    expect(s.custom_text?.submit.message.length).toBe(1200);
+  it('sends a 1200-character policy whole', () => {
+    const s = buildEntryPaymentLinkSession({ ...base, withdrawalPolicyText: 'x'.repeat(1200) });
+    expect(s.custom_text?.submit.message).toBe('x'.repeat(1200));
+  });
+
+  it('MYK9-1976: never cuts a longer policy; it refuses to build the session', () => {
+    expect(() =>
+      buildEntryPaymentLinkSession({ ...base, withdrawalPolicyText: 'x'.repeat(1201) })
+    ).toThrow(/Stripe allows 1200/);
   });
 });

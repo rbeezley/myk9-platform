@@ -3,6 +3,7 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
+import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureFieldGuideFontsLoaded, FIELD_GUIDE_DISPLAY_FAMILY } from '../fonts';
 import { useFieldGuideLandingData } from './useFieldGuideLandingData';
@@ -111,6 +112,7 @@ export function FieldGuideLandingPage({
           trialsCount={data.trials.length}
           timezone={data.timezone}
         />
+        <WithdrawalPolicySection showId={show?.id} className="fg-section" />
         <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
         <RosterSection
           entryCount={data.entryCount}

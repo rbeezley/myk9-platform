@@ -9,6 +9,7 @@ import { useCountdown } from '@/features/heritage/hooks/useCountdown';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
+import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
 import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { ensureHeadlineFontsLoaded } from '../fonts';
@@ -458,6 +459,7 @@ export function HeadlineLandingPage({
         />
         <Judges data={data} />
         <Particulars data={data} />
+        <WithdrawalPolicySection showId={show?.id} className="hd-section" />
         <Roster data={data} />
         <ScheduleAndPlan data={data} />
         <Officers data={data} />

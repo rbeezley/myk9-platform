@@ -1,17 +1,50 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { WithdrawalPolicyDisclosure } from '../WithdrawalPolicyDisclosure';
-import type { WithdrawalPolicy } from '../withdrawalPolicy';
 
-const mockHook = vi.hoisted(() => vi.fn());
-vi.mock('../useEffectiveWithdrawalPolicy', () => ({
-  useEffectiveWithdrawalPolicy: (showId: string | null | undefined) => mockHook(showId),
+const { mockFrom, mockSelect, mockSingle } = vi.hoisted(() => {
+  const mockSingle = vi.fn();
+  const mockEq = vi.fn(() => ({ single: mockSingle }));
+  const mockSelect = vi.fn((_columns?: string) => ({ eq: mockEq }));
+  const mockFrom = vi.fn((_table?: string) => ({ select: mockSelect }));
+  return { mockFrom, mockSelect, mockSingle };
+});
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: (table: string) => mockFrom(table),
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      onAuthStateChange: vi
+        .fn()
+        .mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+    },
+  },
 }));
 
-function hookState(
-  over: Partial<{ data: WithdrawalPolicy | null; isLoading: boolean; isError: boolean }>
-) {
-  return { data: null, isLoading: false, isError: false, ...over };
+function showRow(overrides: Record<string, unknown> = {}, club: Record<string, unknown> = {}) {
+  return {
+    withdrawal_cutoff_date: null,
+    withdrawal_retention_type: null,
+    withdrawal_retention_value: null,
+    withdrawal_policy_notes: null,
+    withdrawal_policy_text: null,
+    trials: [{ registry_id: 'AKC' }],
+    clubs: {
+      default_withdrawal_retention_type: null,
+      default_withdrawal_retention_value: null,
+      default_withdrawal_policy_notes: null,
+      default_withdrawal_policy_text: null,
+      ...club,
+    },
+    ...overrides,
+  };
+}
+
+async function policyText(): Promise<string> {
+  const block = await screen.findByTestId('withdrawal-policy-text');
+  return block.textContent ?? '';
 }
 
 describe('WithdrawalPolicyDisclosure', () => {
@@ -19,62 +52,124 @@ describe('WithdrawalPolicyDisclosure', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the described policy line for a resolved policy', () => {
-    mockHook.mockReturnValue(
-      hookState({
-        data: {
-          cutoffDate: '2026-06-01',
-          retentionType: 'flat',
-          retentionValue: 1000,
-          notes: null,
-        },
-      })
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
+
+  it('reads the show and club text columns and the show registry in the one show read', async () => {
+    mockSingle.mockResolvedValue({ data: showRow(), error: null });
+    render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    await policyText();
+    expect(mockFrom).toHaveBeenCalledWith('shows');
+    const columns = String(mockSelect.mock.calls[0]?.[0] ?? '');
+    expect(columns).toMatch(/\bwithdrawal_policy_text\b/);
+    expect(columns).toMatch(/\bdefault_withdrawal_policy_text\b/);
+    expect(columns).toMatch(/trials \( registry_id \)/);
+  });
+
+  it("prints the club's text when the show has none", async () => {
+    mockSingle.mockResolvedValue({
+      data: showRow({}, { default_withdrawal_policy_text: 'Heartland club policy.\nLine two.' }),
+      error: null,
+    });
+    render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    expect(await policyText()).toBe('Heartland club policy.\nLine two.');
+  });
+
+  it("prints the show's own text over the club's", async () => {
+    mockSingle.mockResolvedValue({
+      data: showRow(
+        { withdrawal_policy_text: 'This show only.' },
+        { default_withdrawal_policy_text: 'Club text.' }
+      ),
+      error: null,
+    });
+    render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    expect(await policyText()).toBe('This show only.');
+  });
+
+  it("prints the default for the show's registry when neither wrote one", async () => {
+    mockSingle.mockResolvedValue({
+      data: showRow({
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: 'flat',
+        withdrawal_retention_value: 1000,
+        trials: [{ registry_id: 'ASCA' }],
+      }),
+      error: null,
+    });
+    render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    const text = await policyText();
+    expect(text).toContain(
+      'Full refund of the entry fee until June 1, 2026; after that, $10.00 is kept.'
     );
-    render(<WithdrawalPolicyDisclosure showId="show-1" />);
-    expect(
-      screen.getByText(
-        /Full refund of the entry fee until June 1, 2026; after that, \$10\.00 is kept/
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Service fees are non-refundable\./)).toBeInTheDocument();
+    expect(text).toContain('the ASCA rules cover: judge change.');
+    expect(text).not.toContain('in season');
+    expect(text).toContain("Refunds for a pull are at the club's discretion.");
   });
 
-  it('renders the neutral "contact the club" line when no policy is set', () => {
-    mockHook.mockReturnValue(hookState({ data: null }));
-    render(<WithdrawalPolicyDisclosure showId="show-1" />);
-    expect(screen.getByText(/Refund policy: contact the club\./)).toBeInTheDocument();
+  it('shows typed markup as text, never as HTML', async () => {
+    mockSingle.mockResolvedValue({
+      data: showRow({ withdrawal_policy_text: 'Refunds & <b>credits</b>' }),
+      error: null,
+    });
+    const { container } = render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    expect(await policyText()).toBe('Refunds & credits');
+    expect(container.querySelector('b')).toBeNull();
   });
 
-  it('renders prose notes alongside the line', () => {
-    mockHook.mockReturnValue(
-      hookState({
-        data: {
-          cutoffDate: '2026-06-01',
-          retentionType: 'flat',
-          retentionValue: 1000,
-          notes: 'Email the secretary to withdraw.',
-        },
-      })
+  it('prints the service-fee sentence after a club text that leaves it out (Codex P2)', async () => {
+    mockSingle.mockResolvedValue({
+      data: showRow({}, { default_withdrawal_policy_text: 'Refunds at our discretion.' }),
+      error: null,
+    });
+    render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    expect(await policyText()).toBe('Refunds at our discretion.');
+    expect(screen.getByTestId('withdrawal-policy-service-fee')).toHaveTextContent(
+      'Service fees are non-refundable.'
     );
-    render(<WithdrawalPolicyDisclosure showId="show-1" />);
-    expect(screen.getByText('Email the secretary to withdraw.')).toBeInTheDocument();
   });
 
-  it('renders nothing while loading (no flash of the neutral line)', () => {
-    mockHook.mockReturnValue(hookState({ isLoading: true }));
+  it('with `unavailable`, says so when the read is paused offline (Codex P3)', async () => {
+    onlineManager.setOnline(false);
+    render(
+      <WithdrawalPolicyDisclosure
+        showId="show-1"
+        unavailable={{ offline: 'Offline line.', failed: 'Failed line.' }}
+      />
+    );
+    expect(await screen.findByTestId('withdrawal-policy-unavailable')).toHaveTextContent(
+      'Offline line.'
+    );
+    expect(mockSingle).not.toHaveBeenCalled();
+  });
+
+  it('with `unavailable`, says so when the read failed', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    render(
+      <WithdrawalPolicyDisclosure
+        showId="show-1"
+        unavailable={{ offline: 'Offline line.', failed: 'Failed line.' }}
+      />
+    );
+    expect(await screen.findByTestId('withdrawal-policy-unavailable')).toHaveTextContent(
+      'Failed line.'
+    );
+  });
+
+  it('renders nothing on error (e.g. columns not yet migrated)', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'column does not exist' } });
     const { container } = render(<WithdrawalPolicyDisclosure showId="show-1" />);
+    await waitFor(() => expect(mockSingle).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders nothing on error (e.g. columns not yet migrated)', () => {
-    mockHook.mockReturnValue(hookState({ isError: true }));
-    const { container } = render(<WithdrawalPolicyDisclosure showId="show-1" />);
+  it('renders nothing while loading and when no showId is provided', () => {
+    mockSingle.mockReturnValue(new Promise(() => {}));
+    const { container, unmount } = render(<WithdrawalPolicyDisclosure showId="show-1" />);
     expect(container).toBeEmptyDOMElement();
-  });
-
-  it('renders nothing when no showId is provided', () => {
-    mockHook.mockReturnValue(hookState({}));
-    const { container } = render(<WithdrawalPolicyDisclosure showId={null} />);
-    expect(container).toBeEmptyDOMElement();
+    unmount();
+    const none = render(<WithdrawalPolicyDisclosure showId={null} />);
+    expect(none.container).toBeEmptyDOMElement();
   });
 });

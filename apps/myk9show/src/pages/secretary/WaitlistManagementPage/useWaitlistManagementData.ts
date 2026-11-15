@@ -10,6 +10,8 @@ import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJud
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { readPaymentLinkServerMessage } from '@/components/entries/management/paymentLinkMessages';
+import { WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE } from '@/features/payments/withdrawalPolicyText';
 import {
   getClassesWithWaitlistCounts,
   getWaitlistByClass,
@@ -269,8 +271,13 @@ export function useWaitlistManagementData(showId: string) {
             { waitlistEntryId: actionDialog.entry.id, promotedEntryId },
             err as Error
           );
+          // MYK9-1976: a policy too long for the payment page is refused on purpose, and
+          // retrying from the entry list would be refused the same way; say what to change.
+          const serverMessage = await readPaymentLinkServerMessage(err);
           toast.warning(
-            'Spot offered, but the payment link could not be created. Request payment from the entry list.'
+            serverMessage === WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE
+              ? `Spot offered, but no payment link was made. ${WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE}`
+              : 'Spot offered, but the payment link could not be created. Request payment from the entry list.'
           );
         }
       }

@@ -21,6 +21,7 @@ import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawal
 import type { WithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import { formatCutoff } from '@/features/payments/formatWithdrawalPolicy';
 import { notesDescribeRefundTerms } from '@/features/payments/withdrawalPolicyTerms';
+import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 // Server validation is authoritative; these map its error codes to language a
@@ -66,7 +67,9 @@ const REFUND_UNCONFIRMED =
 export type RefundableEntry = Pick<
   EntryManagementEntry,
   'id' | 'totalFee' | 'dogName' | 'moneyRootEntryId'
->;
+> &
+  // MYK9-1976: the show, so the dialog can print the club's policy text beside the amount.
+  Partial<Pick<EntryManagementEntry, 'showId'>>;
 
 function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
@@ -307,6 +310,13 @@ export function RefundEntryDialog({
               {policyMessage}
             </p>
           )}
+
+          {/* The words the exhibitor read. The amount above follows the recorded fields. */}
+          <WithdrawalPolicyDisclosure
+            showId={entry?.showId}
+            heading="The club’s refund and withdrawal policy"
+            className="max-h-40 overflow-y-auto rounded-md border p-2"
+          />
 
           <RadioGroup
             value={mode}

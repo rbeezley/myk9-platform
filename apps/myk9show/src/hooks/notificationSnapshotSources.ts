@@ -12,8 +12,8 @@ export async function fetchClassRows(showIds: string[]): Promise<unknown[]> {
   const { data, error } = await supabase
     .from('classes')
     .select(
-      `id, name, status, is_scoring_finalized, results_released_at,
-         trial:trials!inner(show_id)`
+      `id, name, status, is_scoring_finalized, results_released_at, scores_on_paper,
+         trial:trials!inner(show_id, show:shows(uses_device_scoring))`
     )
     .in('trial.show_id', showIds);
   if (error) throw error;

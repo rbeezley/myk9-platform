@@ -1,0 +1,28 @@
+{
+  "_about": "MYK9-2005. One ranking, two implementations: the paper-scoring page's calculatePlacements (apps/myk9show/src/pages/scoring/__tests__/qualifiedRankingParity.test.ts) and the server's recalculate_class_placements (supabase/tests/myk9_2005_qualified_time_test.sql section D, which mirrors these cases by position). Change a case here and in both. No two Qualified dogs tie, so a coin flip never decides a placement. status is the result_status value; time is seconds, null for none.",
+  "cases": [
+    {
+      "name": "a Qualified with a time of zero or none is never ranked",
+      "entries": [
+        { "key": "a", "status": "qualified", "faults": 0, "time": 0 },
+        { "key": "b", "status": "qualified", "faults": 0, "time": 30 },
+        { "key": "c", "status": "qualified", "faults": 0, "time": 20 },
+        { "key": "d", "status": "qualified", "faults": 0, "time": null },
+        { "key": "e", "status": "qualified", "faults": 1, "time": 10 },
+        { "key": "f", "status": "not_qualified", "faults": 0, "time": 5 }
+      ],
+      "expected": { "a": null, "b": 2, "c": 1, "d": null, "e": 3, "f": null }
+    },
+    {
+      "name": "fewest faults first, then the fastest time",
+      "entries": [
+        { "key": "a", "status": "qualified", "faults": 1, "time": 12 },
+        { "key": "b", "status": "qualified", "faults": 0, "time": 90 },
+        { "key": "c", "status": "qualified", "faults": 1, "time": 11 },
+        { "key": "d", "status": "excused", "faults": 0, "time": 0 },
+        { "key": "e", "status": "absent", "faults": 0, "time": 0 }
+      ],
+      "expected": { "a": 3, "b": 1, "c": 2, "d": null, "e": null }
+    }
+  ]
+}

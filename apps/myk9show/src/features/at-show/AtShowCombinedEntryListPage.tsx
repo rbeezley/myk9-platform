@@ -66,6 +66,7 @@ import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
+import { useOwnEntryClaims } from './useOwnEntryClaims';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useEntryStatusAccess } from './useEntryStatusAccess';
 import { useSelfCheckinFor } from './selfCheckinByClass';
@@ -379,9 +380,17 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // Ownership annotations: the queue is computed over the merged localEntries the page renders,
   // with no place in line while the show's entries have not all arrived (MYK9-1809).
   const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
+  const claims = useOwnEntryClaims(showId, ownEntryIds, localEntries);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels, !entriesIncomplete),
-    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete]
+    () =>
+      buildEntryListOwnership(
+        localEntries,
+        ownEntryIds,
+        conflictLabels,
+        !entriesIncomplete,
+        claims
+      ),
+    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete, claims]
   );
 
   // ── Context ────────────────────────────────────────────────────────────

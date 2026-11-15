@@ -1,14 +1,10 @@
-import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  replicatedClassesTable,
-  replicatedEntriesTable,
-  replicatedTrialsTable,
-} from '@/services/replication';
+import { useMemo } from 'react';
 import { useNotificationStore } from '@/store/notificationStore';
-import { buildClassName } from './atShowClassListAdapter';
-import { detectMyRingConflicts, type RingConflictClass } from './ringConflicts';
+import { useOwnEntryClaims } from './useOwnEntryClaims';
+import { useShowRingRows } from './useShowRingRows';
+import { detectMyRingConflicts } from './ringConflicts';
 
+const NO_ENTRIES: readonly { id: string; classId?: string | undefined }[] = [];
 const EMPTY_CONFLICTS: ReadonlyMap<string, string> = new Map();
 
 /**
@@ -21,41 +17,9 @@ export function useMyRingConflicts(
   showId: string | undefined,
   ownEntryIds: ReadonlySet<string>
 ): ReadonlyMap<string, string> {
-  const queryClient = useQueryClient();
   const leadDogs = useNotificationStore(s => s.preferences.leadDogs);
-  const enabled = !!showId && ownEntryIds.size > 0;
-
-  const query = useQuery({
-    queryKey: ['at-show', 'ring-conflict-rows', showId],
-    queryFn: async () => {
-      const [entries, trials] = await Promise.all([
-        replicatedEntriesTable.getEntriesByShow(showId as string),
-        replicatedTrialsTable.getTrialsByShow(showId as string),
-      ]);
-      const classGroups = await Promise.all(
-        trials.map(trial => replicatedClassesTable.getClassesByTrial(trial.id))
-      );
-      const classes: RingConflictClass[] = classGroups.flat().map(cls => ({
-        classId: cls.id,
-        className: buildClassName(cls),
-        inProgress: cls.classStatus === 'in_progress',
-      }));
-      return { entries, classes };
-    },
-    enabled,
-    staleTime: 15_000,
-  });
-
-  useEffect(() => {
-    if (!enabled) return;
-    const invalidate = () =>
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'ring-conflict-rows', showId] });
-    const unsubscribes = [
-      replicatedEntriesTable.subscribe(invalidate),
-      replicatedClassesTable.subscribe(invalidate),
-    ];
-    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
-  }, [enabled, queryClient, showId]);
+  const query = useShowRingRows(showId, !!showId && ownEntryIds.size > 0);
+  const claims = useOwnEntryClaims(showId, ownEntryIds, query.data?.entries ?? NO_ENTRIES);
 
   return useMemo(() => {
     // A failed read leaves no badges, not a claim of no conflicts: the entry
@@ -66,6 +30,8 @@ export function useMyRingConflicts(
       classes: query.data.classes,
       ownEntryIds,
       leadDogs,
+      claims,
+      showUsesDeviceScoring: query.data.usesDeviceScoring,
     });
-  }, [query.data, ownEntryIds, leadDogs]);
+  }, [query.data, ownEntryIds, leadDogs, claims]);
 }

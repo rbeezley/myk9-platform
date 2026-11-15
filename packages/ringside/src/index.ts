@@ -159,6 +159,11 @@ export {
   findInRingEntry,
   formatPlaceInLine,
   formatRunQueueState,
+  PAPER_CLASS_NOTE,
+  parseClaimState,
+  resolveClaim,
+  stateForClaim,
+  runQueueStateNote,
   notRunningLabel,
   notRunningReasonOf,
   isInQueue,
@@ -168,7 +173,7 @@ export {
   placeInLine,
   runQueueStateOf,
 } from './pages/EntryList';
-export type { NotRunningReason, RunQueueEntry, RunQueueState } from './pages/EntryList';
+export type { ClaimState, NotRunningReason, RunQueueEntry, RunQueueState } from './pages/EntryList';
 
 // Gate ranking (MYK9-83): a dog at or called to the gate sorts ahead on the Pending tab.
 export { GATE_PRIORITY_STATUSES, gateRank, gateStatusOf } from './pages/EntryList';

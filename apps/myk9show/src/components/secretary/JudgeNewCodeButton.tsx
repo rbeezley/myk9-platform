@@ -87,7 +87,8 @@ export function JudgeNewCodeButton({
             <AlertDialogTitle>New code for {judgeName}?</AlertDialogTitle>
             <AlertDialogDescription>
               Their old code stops working. Give {judgeName} the new code. Every other code stays
-              the same.
+              the same. {judgeName} will be asked for the new code. Scores already on their phone
+              are kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

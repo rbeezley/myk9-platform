@@ -19,6 +19,10 @@ import { isClassClosedToChange } from '@/utils/changeClassTargets';
 import { reverseShowMapMoveUp } from './moveUpSupersession';
 import { destinationEntryStatusFor } from './moveUpRequestStatuses';
 import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
+import { EntryStatus } from '@/types/show-registration-types';
+import { canPullEntry } from '@/components/entries/management/checkInDesk/deskEditable';
+import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
+import { ShowDayRefusal } from './showDayErrorCopy';
 import { getTrialRegistry } from '@/features/registries';
 
 export interface ShowMapMoveUpInput {
@@ -130,6 +134,23 @@ export async function scratchShowMapEntry(
   // dog already pulled would write over its reason and hand back an Undo that "restores" the
   // pulled state. Stop before writing.
   if (previousEntryStatus === 'scratched') throw new AlreadyPulledError(entryId);
+  // A dog with a result is never pulled, and neither is an entry whose status is not one a Pull
+  // applies to (MYK9-1990). A status this code does not know is not refused on its own; the UI
+  // hides Pull for it.
+  if (currentEntry) {
+    const isScored = Boolean(currentEntry.isScored ?? currentEntry.is_scored);
+    if (isScored) {
+      throw new ShowDayRefusal(
+        "This entry already has a result, so it can't be pulled. To change what happened, edit the result on Results."
+      );
+    }
+    const knownStatus = Object.values(EntryStatus).includes(previousEntryStatus as EntryStatus);
+    if (knownStatus && !canPullEntry({ entryStatus: previousEntryStatus, isScored })) {
+      throw new ShowDayRefusal(
+        `This entry can't be pulled while it is ${getEntryStatusStateLabel(previousEntryStatus as EntryStatus).toLowerCase()}.`
+      );
+    }
+  }
 
   const trimmed = reason?.trim();
   await updateReplicatedDayOfScratch(entryId, trimmed || fallbackReason);

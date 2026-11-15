@@ -241,6 +241,7 @@ const launchCriticalSqlTests = [
   'myk9_1563_merge_user_preferences_test.sql',
   'myk9_1863_cancelled_class_writes_test.sql',
   'myk9_1950_per_judge_passcodes_test.sql',
+  'myk9_2005_qualified_time_test.sql',
   'golden_replay_trial_27835_test.sql',
 ];
 

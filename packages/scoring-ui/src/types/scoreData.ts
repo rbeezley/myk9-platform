@@ -45,6 +45,8 @@ export interface ScoresheetEntry {
   level?: string;
   section?: string;
   existingScore?: ScoreData;
+  /** The entry already has a saved score, even where the sheet cannot reopen it. */
+  hasSavedScore?: boolean;
 }
 
 /** Class info passed to scoresheets */

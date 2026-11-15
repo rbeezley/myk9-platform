@@ -9,6 +9,7 @@ import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { JuniorHandlerDeclarationControl } from './JuniorHandlerDeclaration';
 import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
+import { StaffPaymentChoices } from './StaffPaymentChoices';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
 
@@ -26,6 +27,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onAgreementChange,
   agreedToEntryAgreement = false,
   preTickAgreement = false,
+  staffWorkflow = false,
   showId,
   capacityReady = true,
   capacityError,
@@ -108,7 +110,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Payment Information</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Review your fees and select a payment method.
+          {staffWorkflow
+            ? 'Record how the exhibitor paid, or that they will pay at the show.'
+            : 'Review your fees and select a payment method.'}
         </p>
       </div>
 
@@ -179,18 +183,32 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         </Alert>
       )}
 
-      {/* Payment Method Selection */}
-      <PaymentMethodSelector
-        paymentMethod={effectivePaymentMethod}
-        onPaymentMethodChange={handlePaymentMethodSelect}
-        onPaymentDetailsChange={onPaymentDetailsChange}
-        getInitialDetails={getPaymentDetails}
-        acceptedMethods={acceptedMethods}
-        allowCardCheckout={cardCheckoutAvailable}
-        cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
-        juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
-        allowFreeEntry={canUseDeskPaymentActions}
-      />
+      {/* MYK9-2020: a secretary keying in someone's entry gets one set of
+          choices in her words (paid / not paid yet / free); the exhibitor's own
+          list below is unchanged. */}
+      {staffWorkflow ? (
+        <StaffPaymentChoices
+          paymentMethod={effectivePaymentMethod}
+          onPaymentMethodChange={handlePaymentMethodSelect}
+          onPaymentDetailsChange={onPaymentDetailsChange}
+          getInitialDetails={getPaymentDetails}
+          acceptedMethods={acceptedMethods}
+          juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
+          allowFreeEntry={canUseDeskPaymentActions}
+        />
+      ) : (
+        <PaymentMethodSelector
+          paymentMethod={effectivePaymentMethod}
+          onPaymentMethodChange={handlePaymentMethodSelect}
+          onPaymentDetailsChange={onPaymentDetailsChange}
+          getInitialDetails={getPaymentDetails}
+          acceptedMethods={acceptedMethods}
+          allowCardCheckout={cardCheckoutAvailable}
+          cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
+          juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
+          allowFreeEntry={canUseDeskPaymentActions}
+        />
+      )}
 
       {/* MYK9-879: card checkout only. Fee-bearing, so it waits for the resolved
           zone: the tier it is cheaper than is not known until then. */}
@@ -205,7 +223,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
       {/* Secretary desk actions. No money on it, so it needs no resolved zone;
           its paid and free shortcuts call the list's own handler (MYK9-1822). */}
-      {canUseDeskPaymentActions && (
+      {canUseDeskPaymentActions && !staffWorkflow && (
         <SecretaryPaymentManagement
           paymentMethod={effectivePaymentMethod}
           onPaymentMethodChange={handlePaymentMethodSelect}

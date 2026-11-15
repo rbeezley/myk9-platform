@@ -22,12 +22,15 @@ describe('resolveWizardTitles', () => {
     expect(titles).toEqual({
       workflowLabel: 'Add entry',
       sidebarTitle: 'Add entry',
-      workflowSubtitle: 'Enter a dog for any exhibitor, including yourself.',
+      workflowSubtitle: 'Find the dog or its owner, or add them, then choose classes and payment.',
     });
     // "Mail-in" was one reason among several (a phone call, a walk-up, fixing
     // an exhibitor's mistake) for the identical action. Naming it made the
     // rest look unsupported.
     expect(titles.sidebarTitle).not.toMatch(/mail-in/i);
+    // MYK9-2020: the sub-line is for the secretary at the desk, not an
+    // exhibitor ("including yourself").
+    expect(titles.workflowSubtitle).not.toMatch(/yourself/i);
   });
 
   it('keeps the late-entry modifier, because late entry is a different operation', () => {
@@ -39,7 +42,7 @@ describe('resolveWizardTitles', () => {
     expect(resolveWizardTitles({ isLateEntryMode: true, isInsideSidebar: true })).toEqual({
       workflowLabel: 'Late entry',
       sidebarTitle: 'Add late entry',
-      workflowSubtitle: 'Enter a dog for any exhibitor, including yourself.',
+      workflowSubtitle: 'Find the dog or its owner, or add them, then choose classes and payment.',
     });
   });
 

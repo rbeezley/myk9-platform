@@ -1,11 +1,11 @@
 import { Star, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Chip } from '@/components/base/Chip';
-import { formatRunQueueState } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
-import { withServerPlace } from '@/utils/showEntryRunQueue';
+import { isAwaitingServerPlace, withServerPlace } from '@/utils/showEntryRunQueue';
 import { isTrialDayAhead } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { useMyEntriesInClass, type MyClassEntry } from './useMyEntriesInClass';
@@ -14,6 +14,8 @@ interface ExhibitorClassCalloutProps {
   classId: string | undefined;
   /** Released results read directly (bypasses stale replication store). */
   releasedRows?: RawEntryRow[];
+  /** The class row this device holds says it is judged on paper (MYK9-1970). */
+  scoresOnPaper?: boolean;
   /** The class's trial day (YYYY-MM-DD) and the trial's own IANA zone. */
   trialDate?: string | undefined;
   trialTimezone?: string | undefined;
@@ -22,10 +24,11 @@ interface ExhibitorClassCalloutProps {
 export function ExhibitorClassCallout({
   classId,
   releasedRows,
+  scoresOnPaper = false,
   trialDate,
   trialTimezone,
 }: ExhibitorClassCalloutProps) {
-  const { myEntries, isAfterClass } = useMyEntriesInClass(classId, releasedRows);
+  const { myEntries, isAfterClass } = useMyEntriesInClass(classId, releasedRows, scoresOnPaper);
 
   if (myEntries.length === 0) return null;
 
@@ -90,6 +93,7 @@ function BeforeEntryRow({
       : entry.queue
     : withServerPlace(entry.queue, places.get(entry.entryId));
   const dogsAhead = queue?.kind === 'waiting' && queue.place > 1 ? queue.place - 1 : 0;
+  const paperNote = runQueueStateNote(queue);
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
@@ -113,6 +117,7 @@ function BeforeEntryRow({
             Armband <span className="font-mono font-semibold">#{entry.armband}</span>
           </p>
         )}
+        {paperNote && <p className="text-xs text-muted-foreground">{paperNote}</p>}
         {dogsAhead > 0 && (
           <p className="text-xs text-muted-foreground">
             {dogsAhead} {dogsAhead === 1 ? 'dog' : 'dogs'} ahead
@@ -198,5 +203,5 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
 }
 
 function isWaitingState(queue: MyClassEntry['queue']): boolean {
-  return queue?.kind === 'waiting' || queue?.kind === 'waiting-unknown';
+  return isAwaitingServerPlace(queue) || queue?.kind === 'waiting' || queue?.kind === 'stale';
 }

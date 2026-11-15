@@ -531,13 +531,17 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         </Alert>
       )}
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          New to this sport? Start with Novice or the entry-level class named by the show. Move to
-          higher levels only after earning the required qualifications.
-        </AlertDescription>
-      </Alert>
+      {/* Advice for an exhibitor choosing their own classes, not for a secretary
+          keying in a form that already names them (MYK9-2020). */}
+      {isOwnAddress && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            New to this sport? Start with Novice or the entry-level class named by the show. Move to
+            higher levels only after earning the required qualifications.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {availabilityClasses.some(cls => cls.isFull && cls.allowsWaitlist !== false) && (
         <WaitlistFreeNote />
@@ -674,6 +678,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                         classId: l.classId,
                                         availability: availabilityClasses,
                                         secretaryContact: show?.clubEmail,
+                                        forStaff: !isOwnAddress,
                                       }),
                                     }),
                                   };

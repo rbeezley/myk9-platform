@@ -1,5 +1,6 @@
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
+import { syncNoteBadgeProps } from './scoresNotSent/scoresNotSentPath';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 const retryButtonClass =
@@ -26,11 +27,7 @@ export function AtShowEntriesNotOnDeviceAction({
   return (
     <>
       {user?.is_anonymous === true ? null : (
-        <OfflineReadyBadge
-          showId={showId}
-          note={note.label}
-          noteNeedsAttention={note.needsAttention}
-        />
+        <OfflineReadyBadge showId={showId} {...syncNoteBadgeProps(showId, note)} />
       )}
       <button type="button" className={retryButtonClass} onClick={() => void refresh(true)}>
         Try again

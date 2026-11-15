@@ -64,6 +64,12 @@ export interface SecretaryCockpitClassEntry {
   place: number | null;
   /** The recorded result as the other screens abbreviate it (Q, NQ, ABS, ...), or null. */
   result: string | null;
+  /**
+   * MYK9-2010: a dog that is pulled or withdrawn and still holds a score (the judge saved it
+   * while the secretary was pulling the dog). Never written anywhere: the pair is the flag.
+   * Names what happened and the score, for the secretary to keep the pull or put the dog back.
+   */
+  scoredAfterRemoval?: string | null | undefined;
 }
 
 function accountingFields(display: ShowMapEntryDisplay): EntryAccountingFields {
@@ -106,6 +112,16 @@ function recordedResult(state: ClassEntryState, resultStatus: string | undefined
   const status = resultStatus?.trim().toLowerCase();
   if (state !== 'scored' || !status || status === 'pending') return null;
   return resultStatusLabel(status);
+}
+
+/** "Scored after being pulled: Qualified" for a pulled or withdrawn dog that holds a score. */
+function scoredAfterRemovalOf(state: ClassEntryState, display: ShowMapEntryDisplay): string | null {
+  if (!display.isScored || (state !== 'pulled' && state !== 'withdrawn')) return null;
+  const status = display.resultStatus?.trim().toLowerCase();
+  const score = status && status !== 'pending' ? resultStatusLabel(status) : null;
+  // Pulled: the plan's wording. Withdrawn: the fields do not say which came first.
+  const what = state === 'pulled' ? 'Scored after being pulled' : 'Withdrawn, and holds a score';
+  return score ? `${what}: ${score}` : what;
 }
 
 /** The run queue's view of a row; anything not runnable is folded to `pulled`, as the at-show
@@ -182,6 +198,7 @@ export function classEntriesForClass(
         counted,
         notCheckedIn: state === 'waiting' && counted && checkInOf(fields) === 'no-status',
         result: recordedResult(state, display.resultStatus),
+        scoredAfterRemoval: scoredAfterRemovalOf(state, display),
       },
     });
   }

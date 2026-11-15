@@ -28,6 +28,9 @@ describe('RegistrationWizardPage — commit-moment framing', () => {
   });
 
   it('labels the Payment step button as the honest, method-aware commit', () => {
-    expect(source).toContain('getPaymentSubmitLabel(registrationData.paymentMethod)');
+    // MYK9-1964: the card label also carries the amount ("Pay $X.XX"); the method still decides it.
+    expect(source).toContain(
+      'getPaymentSubmitLabel(registrationData.paymentMethod, payAmountDueCents)'
+    );
   });
 });

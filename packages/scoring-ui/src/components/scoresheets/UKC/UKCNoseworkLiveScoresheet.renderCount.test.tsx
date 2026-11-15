@@ -128,6 +128,10 @@ describe('UKCNoseworkLiveScoresheet render budget (MYK9-1364)', () => {
 
     // No Finish: the judge records Excused while both clocks still run.
     fireEvent.click(screen.getByTestId('result-EX'));
+    // UKC saves an Excused only with a reason the judge picked (MYK9-2008).
+    fireEvent.change(screen.getByTestId('ex-reason-select'), {
+      target: { value: 'Handler Request' },
+    });
     fireEvent.click(screen.getByTestId('submit-btn'));
     expect(screen.getByTestId('confirmation-dialog')).toHaveTextContent(/0:0[23]\.\d\d/);
     await act(async () => {

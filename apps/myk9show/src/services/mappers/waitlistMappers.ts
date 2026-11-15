@@ -67,7 +67,8 @@ export function mapClassWithWaitlistCount(
   trial: ReplicatedTrial | null,
   acceptedCount: number,
   waitlistCount: number,
-  offeredCount = 0
+  offeredCount = 0,
+  runOutCount = 0
 ): ClassWithWaitlistCount {
   return {
     id: cls.id,
@@ -86,5 +87,6 @@ export function mapClassWithWaitlistCount(
     accepted_count: acceptedCount,
     waitlist_count: waitlistCount,
     offered_count: offeredCount,
+    run_out_count: runOutCount,
   };
 }

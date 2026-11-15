@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { formatDuration, isUnresolvedDuration, parseDuration } from '@myk9/core';
 import { canonicalizeWebsiteUrl } from './websiteUrl';
+import { showFormJuniorFeeLimitError } from '@/features/_shared/juniorFeeLimit';
 
 export interface NormalizedWebsiteUrl {
   /** The trimmed input, or `https://`-prefixed when a bare domain normalized cleanly. */
@@ -205,6 +206,9 @@ export const showSchemas = {
       publishExperience: z.boolean().optional(),
       generatedPremium: z.custom<import('@/types/premium-types').GeneratedPremium>().optional(),
       inkSaver: z.boolean().optional(),
+      // Read only by the junior fee limit below (class fees, when the show was loaded with them).
+      trials: z.custom<import('@/types/show-types').Show['trials']>().optional(),
+      feesAsOpened: z.custom<import('@/features/_shared/juniorFeeLimit').ShowFormFees>().optional(),
     })
     .refine(
       data => {
@@ -245,6 +249,12 @@ export const showSchemas = {
     .refine(data => !data.publishExperience || Boolean(data.generatedPremium), {
       message: 'Wait for shared show content to finish before publishing to exhibitors',
       path: ['generatedPremium'],
+    })
+    // MYK9-1975: never above the lowest regular fee. Lowering a fee below the junior fee
+    // lands here too, on the junior fee, which is what she lowers to fix it.
+    .superRefine((data, ctx) => {
+      const message = showFormJuniorFeeLimitError(data);
+      if (message) ctx.addIssue({ code: 'custom', message, path: ['juniorHandlerFee'] });
     }),
 
   trial: z.object({

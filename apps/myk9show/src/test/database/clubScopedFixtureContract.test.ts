@@ -153,6 +153,7 @@ describe('seed-demo club scope fixtures', () => {
       'default_withdrawal_retention_type',
       'default_withdrawal_retention_value',
       'default_withdrawal_policy_notes',
+      'default_withdrawal_policy_text',
     ]) {
       expect(clubsBlock).toMatch(new RegExp(`${col}\\s*= DEFAULT`));
     }

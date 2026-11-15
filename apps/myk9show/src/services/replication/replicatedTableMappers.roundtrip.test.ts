@@ -648,5 +648,26 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
 
     expect(domain.joinedVia).toBe('online');
     expect(domain.status).toBe('offered');
+    expect(domain.refilledByOfferId).toBeUndefined();
+  });
+
+  it('waitlist entries: carries the offer that refilled an expired offer (MYK9-1988)', () => {
+    const domain = rowToWaitlistEntry({
+      id: 'waitlist-3',
+      class_id: 'class-1',
+      dog_id: 'dog-3',
+      exhibitor_id: 'exhibitor-3',
+      handler_id: null,
+      position: 2,
+      status: 'expired',
+      joined_via: 'online',
+      offered_at: '2026-06-04T09:00:00.000Z',
+      offer_expires_at: '2026-06-06T09:00:00.000Z',
+      refilled_by_offer_id: 'waitlist-2',
+      created_at: null,
+      updated_at: null,
+    });
+
+    expect(domain.refilledByOfferId).toBe('waitlist-2');
   });
 });

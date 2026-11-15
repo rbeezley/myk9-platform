@@ -35,6 +35,7 @@ import {
 } from '@myk9/replication';
 import { toast } from 'sonner';
 import { SyncFailureReason } from './SyncFailureReason';
+import { keepMyChange, keepOtherChange } from './conflictChoices';
 import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { features } from '@/config/features';
@@ -58,6 +59,7 @@ import { invalidateEnrichmentForUpload } from '@/services/replication/classJudge
 import { requestPersistentStorage } from '@/lib/persistentStorage';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
+import { withoutListedScores } from '@/features/at-show/scoresNotSent/scoresNotSentFilter';
 import {
   isPasscodeRegeneratedMessage,
   revokeRingsidePasscodeAccess,
@@ -78,6 +80,7 @@ import {
   CONFLICT_TOAST_DESCRIPTION,
   CONFLICT_TOAST_TITLE,
 } from '@/lib/offlineCopy';
+import { entryConflictCopy } from '@/lib/entryConflictCopy';
 import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
 import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCacheSync';
 import {
@@ -768,7 +771,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         return;
       }
 
-      for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
+      // MYK9-2011: refused scores live on the Scores not sent list (ScoresNotSentNotice).
+      const listed = withoutListedScores(detail);
+      if (listed.mutations.length === 0) return;
+      for (const failureDetail of splitPermanentScoreAuthorizationFailures(listed)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
         const isPermanentScoreAuthorizationFailure =
           hasPermanentScoreAuthorizationFailure(failureDetail);
@@ -866,37 +872,58 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const tableConfig = REPLICATED_TABLES.find(t => t.name === detail.tableName);
       const anyTable = tableConfig?.table as ReplicatedTable<{ id: string }> | undefined;
 
-      toast.warning(CONFLICT_TOAST_TITLE, {
+      // MYK9-2010: a dog's conflict names the dog and shows both scores on the notice and buttons.
+      const copy =
+        detail.tableName === 'entries'
+          ? entryConflictCopy(
+              (detail.localData ?? {}) as Record<string, unknown>,
+              (detail.remoteData ?? {}) as Record<string, unknown>,
+              detail.fields
+            )
+          : {
+              title: CONFLICT_TOAST_TITLE,
+              description: CONFLICT_TOAST_DESCRIPTION,
+              takeRemoteLabel: CONFLICT_TAKE_REMOTE_LABEL,
+              keepLocalLabel: CONFLICT_KEEP_LOCAL_LABEL,
+            };
+
+      toast.warning(copy.title, {
         id: conflictId,
         // INTENT: Conflict toasts persist until the user makes an explicit choice.
         // See docs/plan-show-presence.md §7 conflict-state lifecycle.
         duration: Infinity,
-        description: CONFLICT_TOAST_DESCRIPTION,
+        description: copy.description,
         action: {
-          label: CONFLICT_TAKE_REMOTE_LABEL,
+          label: copy.takeRemoteLabel,
           onClick: () => {
-            // Replace local row with remote data (reads snapshot from IDB) AND
-            // discard the pending mutation that would re-upload the old local value.
-            if (anyTable) {
-              void anyTable
-                .resolveReplicationConflict(detail.rowId, 'take-remote')
-                .finally(announceConflictSettled);
-              void mutationManager.discardPendingMutationsForRow(detail.tableName, detail.rowId);
-            } else {
-              announceConflictSettled();
-            }
+            // Drop the queued write, then show the server's copy (conflictChoices.ts).
             toast.dismiss(conflictId);
+            if (!anyTable) {
+              announceConflictSettled();
+              return;
+            }
+            void keepOtherChange(anyTable, mutationManager, detail.tableName, detail.rowId)
+              .catch(err => {
+                // Nothing was released: ask again rather than leave the rows different.
+                logger.warn('Keep the other change failed', 'replication', { err });
+                window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
+              })
+              .finally(announceConflictSettled);
           },
         },
         cancel: {
-          label: CONFLICT_KEEP_LOCAL_LABEL,
+          label: copy.keepLocalLabel,
           onClick: () => {
-            // Clear the conflict snapshot and let the table refresh queued
-            // mutation OCC state from the resolved row.
-            void (
-              anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local') ?? Promise.resolve()
-            ).finally(announceConflictSettled);
+            // MYK9-1993: send the kept write now, not at the next poll (conflictChoices.ts).
             toast.dismiss(conflictId);
+            if (!anyTable) {
+              announceConflictSettled();
+              return;
+            }
+            // A refusal gets the queue's own "could not be sent" notice (handleSyncFailed).
+            void keepMyChange(anyTable, mutationManager, detail.tableName, detail.rowId)
+              .catch(err => logger.warn('Keep my change failed', 'replication', { err }))
+              .finally(announceConflictSettled);
           },
         },
       });

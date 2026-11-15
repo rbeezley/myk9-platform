@@ -4,7 +4,8 @@
  * The Waitlist tab of Entry Management: already scoped to one show, so it lists every waiting dog
  * in that show grouped by class (join order), or just a judge-day's classes after "View Wait
  * List" on its card. Offer a spot / remove from the waitlist (MYK9-1004); open offers are tracked
- * and can be withdrawn in the Offered group (MYK9-1001).
+ * and can be withdrawn in the Offered group (MYK9-1001); offers that ran out and were not offered
+ * again are listed above it (MYK9-1988).
  */
 
 import React from 'react';
@@ -19,6 +20,7 @@ import { JudgeDayStatsCards } from './JudgeDayStatsCards';
 import { WaitlistTable } from './WaitlistTable';
 import { WaitlistActionDialog } from './WaitlistActionDialog';
 import { OfferedWaitlistTable } from './OfferedWaitlistTable';
+import { RunOutOffersNotice } from './RunOutOffersNotice';
 import { formatTrialLabel } from './trialLabel';
 import { waitListSettingsQueryOptions } from '@/components/shows/waitListSettingsQuery';
 import { resolveOfferWindowHours } from '@/lib/format/offerDeadline';
@@ -47,6 +49,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     waitlistEntries,
     groups,
     offers,
+    runOutOffers,
     isLoading,
     isProcessing,
     error,
@@ -203,6 +206,8 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
         filtered={searchTerm !== ''}
         onShowAll={() => setSearchTerm('')}
       />
+
+      <RunOutOffersNotice offers={runOutOffers} />
 
       {offers.length > 0 && (
         <OfferedWaitlistTable

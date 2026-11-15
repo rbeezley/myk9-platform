@@ -45,6 +45,7 @@ function makeDeps() {
     ensureCart: vi.fn().mockResolvedValue({ kind: 'ready', cart: { id: 'cart-1', items: [] } }),
     addItem: vi.fn().mockResolvedValue(true),
     abandonCart: vi.fn().mockResolvedValue(true),
+    startCheckout: vi.fn().mockResolvedValue({ kind: 'redirecting' }),
     navigate: vi.fn(),
   };
 }

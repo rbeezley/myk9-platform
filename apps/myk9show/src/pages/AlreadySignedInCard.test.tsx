@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, userEvent } from '@/test/utils/testUtils';
+import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { AlreadySignedInCard } from './AlreadySignedInCard';
 
@@ -17,6 +17,19 @@ vi.mock('@/hooks/useAuthContext', () => ({
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0, isOnline: true }),
 }));
+// MYK9-2013: the guard reads this device's unsent work at the click.
+const unsent = vi.hoisted(() => ({ scores: 0 }));
+vi.mock('@/services/replication/unsentWork', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/replication/unsentWork')>();
+  return {
+    ...actual,
+    readDeviceUnsentWork: async () => ({
+      ...actual.EMPTY_UNSENT_WORK,
+      unsentScoreCount: unsent.scores,
+      total: unsent.scores,
+    }),
+  };
+});
 vi.mock('@/hooks/useNetworkStatus', () => ({
   useNetworkStatus: () => ({ isOnline: mockOnline }),
 }));
@@ -26,6 +39,7 @@ describe('AlreadySignedInCard', () => {
     signOutMock.mockReset();
     mockRoles = [UserRole.EXHIBITOR];
     mockOnline = true;
+    unsent.scores = 0;
   });
 
   it('links to the role dashboard', () => {
@@ -44,7 +58,18 @@ describe('AlreadySignedInCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    expect(signOutMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('warns an online exhibitor about unsent scores and names the count', async () => {
+    unsent.scores = 2;
+    const user = userEvent.setup();
+    render(<AlreadySignedInCard />);
+
+    await user.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    expect(await screen.findByRole('alertdialog', { name: '2 scores not sent' })).toBeVisible();
+    expect(signOutMock).not.toHaveBeenCalled();
   });
 
   it('puts staff behind the MYK9-202 guard before signing out', async () => {

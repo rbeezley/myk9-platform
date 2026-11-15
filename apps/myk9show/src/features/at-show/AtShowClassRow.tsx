@@ -43,6 +43,8 @@ export interface AtShowClassRowProps {
    * shows the upload indicator and the Offline Scoring badge; zero shows neither.
    */
   queuedScoreCount?: number | undefined;
+  /** MYK9-2011: where the unsent-score count leads (the Scores not sent list). */
+  scoresNotSentHref?: string | undefined;
   /** The heart. Omitted, the card has no favorite control. */
   onToggleFavorite?: ((entry: ClassEntry) => void) | undefined;
   /** The info icon. Omitted, the card has none. */
@@ -110,6 +112,7 @@ export function AtShowClassRow({
   nextUp,
   entryCountsAvailable,
   queuedScoreCount = 0,
+  scoresNotSentHref,
   onToggleFavorite,
   onShowDetails,
   onOpenOptions,
@@ -233,6 +236,7 @@ export function AtShowClassRow({
           entry={entry}
           showProgress={entryCountsAvailable}
           queuedScoreCount={queuedScoreCount}
+          scoresNotSentHref={scoresNotSentHref}
           onToggleFavorite={onToggleFavorite}
           onShowDetails={onShowDetails}
           onOpenOptions={onOpenOptions}

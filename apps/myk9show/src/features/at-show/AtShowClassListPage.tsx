@@ -32,6 +32,7 @@ import { useNow } from '@/hooks/useNow';
 import { useCollapsedTrials } from './useCollapsedTrials';
 import { useAtShowPickerClasses } from './useAtShowPickerClasses';
 import { useAtShowClassCards } from './useAtShowClassCards';
+import { RingDayDoneCard } from './RingDayDoneCard';
 import { useAtShowClassRefresh } from './useAtShowClassRefresh';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { syncAtShowData } from './atShowDataAdapter';
@@ -64,6 +65,7 @@ import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
+import { syncNoteBadgeProps } from './scoresNotSent/scoresNotSentPath';
 import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
 import { deriveRingsideJudgePersonIdFromClaim } from '@/store/ringsideGrantStore';
 
@@ -84,11 +86,7 @@ function AtShowOfflineReadySlot({
   if (isExhibitorOnly) return null;
   return (
     <div className="mb-1 flex justify-center">
-      <OfflineReadyBadge
-        showId={showId}
-        note={note.label}
-        noteNeedsAttention={note.needsAttention}
-      />
+      <OfflineReadyBadge showId={showId} {...syncNoteBadgeProps(showId, note)} />
     </div>
   );
 }
@@ -464,6 +462,8 @@ export const AtShowClassListPage: React.FC = () => {
           </Button>
         </section>
       )}
+
+      <RingDayDoneCard showId={showId} yourRing={yourRingClasses} />
 
       <AtShowClassListToolbar
         tab={tab}

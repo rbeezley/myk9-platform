@@ -11,7 +11,13 @@ import {
 
 const { network, syncState } = vi.hoisted(() => ({
   network: { isOnline: true },
-  syncState: { status: 'synced', queueSize: 0 },
+  syncState: {
+    status: 'synced',
+    queueSize: 0,
+    unsentScoreCount: 0,
+    otherChangeCount: 0,
+    refusedCount: 0,
+  },
 }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => network.isOnline }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({ useGlobalSyncStatus: () => syncState }));
@@ -21,6 +27,9 @@ beforeEach(() => {
   network.isOnline = true;
   syncState.status = 'synced';
   syncState.queueSize = 0;
+  syncState.unsentScoreCount = 0;
+  syncState.otherChangeCount = 0;
+  syncState.refusedCount = 0;
 });
 
 // MYK9-115 Task 5. The client pauses score uploads when the server raises
@@ -179,6 +188,7 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
     network.isOnline = false;
     syncState.status = 'offline';
     syncState.queueSize = 2;
+    syncState.otherChangeCount = 2;
     renderReady();
 
     const button = screen.getByRole('button', { name: 'Offline' });
@@ -194,9 +204,21 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
     network.isOnline = false;
     syncState.status = 'offline';
     syncState.queueSize = 3;
+    syncState.otherChangeCount = 3;
     renderReady();
 
     expect(screen.getByText('Offline · 3 changes saved on this device')).toBeInTheDocument();
+  });
+
+  // MYK9-2011: one dog scored reads as one score, not the queue rows it wrote.
+  it('counts an unsent score as a score', () => {
+    network.isOnline = false;
+    syncState.status = 'offline';
+    syncState.queueSize = 1;
+    syncState.unsentScoreCount = 1;
+    renderReady();
+
+    expect(screen.getByText('Offline · 1 score not sent yet')).toBeInTheDocument();
   });
 });
 

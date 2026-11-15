@@ -25,6 +25,11 @@ export interface ReplicationConflictSnapshot<T = Record<string, unknown>> {
    *  precondition after the user chooses "Keep mine" so the next upload succeeds. */
   remoteServerVersion: number;
   detectedAt: number;
+  /**
+   * MYK9-2010: fields the table's compare policy already gave to the server (a pull). They stay
+   * the server's whichever side the person keeps for the fields that collided.
+   */
+  serverWonFields?: string[];
 }
 
 export interface ReplicationConflictEventDetail<

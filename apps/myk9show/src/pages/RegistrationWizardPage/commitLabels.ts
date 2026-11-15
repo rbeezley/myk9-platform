@@ -1,3 +1,4 @@
+import { formatCartCurrency } from '@/store/cartStore.helpers';
 import type { PaymentMethod } from '@/types/show-registration-types';
 
 /**
@@ -10,11 +11,21 @@ import type { PaymentMethod } from '@/types/show-registration-types';
  * ("pay cash at show" / "bring check to show") so an exhibitor knows they are
  * DONE here, not that money is owed online right now — the same confusion the "Finish
  * Payment" nag caused on cash entries (4.C).
+ *
+ * MYK9-1964: a card press opens Stripe directly, so with the amount due known
+ * the label names it ("Pay $32.10"), the same figure the step's total shows.
+ * `amountDueCents` is that total; null or zero (not yet known, nothing to pay)
+ * keeps the plain card label.
  */
-export function getPaymentSubmitLabel(paymentMethod: PaymentMethod | undefined): string {
+export function getPaymentSubmitLabel(
+  paymentMethod: PaymentMethod | undefined,
+  amountDueCents: number | null = null
+): string {
   switch (paymentMethod) {
     case 'credit_card':
-      return 'Submit & pay';
+      return amountDueCents !== null && amountDueCents > 0
+        ? `Pay ${formatCartCurrency(amountDueCents)}`
+        : 'Submit & pay';
     case 'cash':
       return 'Submit, pay cash at show';
     case 'check':

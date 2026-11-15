@@ -131,7 +131,9 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     );
   });
 
-  it('explains how to fix a permanent score authorization failure before retrying', () => {
+  // MYK9-2011 (owner decision 6): a refused score lives on the Scores not sent list, which names
+  // the dog and the score. The per-change toast named neither and offered a Discard that did not.
+  it('leaves a refused score to the Scores not sent list instead of a per-change toast', () => {
     renderProvider();
 
     act(() => {
@@ -158,20 +160,8 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
       );
     });
 
-    expect(toast.error).toHaveBeenCalledWith(
-      "Score not saved. You're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.",
-      expect.objectContaining({
-        duration: Infinity,
-        action: expect.objectContaining({ label: 'Try again after access is fixed' }),
-        cancel: expect.objectContaining({ label: 'Discard' }),
-      })
-    );
-    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
-    act(() => {
-      options.action!.onClick();
-    });
-    expect(retryFailedMutationMock).toHaveBeenCalledWith('score-mut-1');
-    expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:score-mut-1');
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(retryFailedMutationMock).not.toHaveBeenCalled();
   });
 
   it('keeps unrelated failures retryable when a batch also contains a score authorization failure', () => {

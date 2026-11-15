@@ -17,6 +17,7 @@ import { useWizardDraftRehydration } from './useWizardDraftRehydration';
 import { useWizardRegistrationOwner } from './useWizardRegistrationOwner';
 import { useEmptyEntryReturn } from './useEmptyEntryReturn';
 import { useEntryAgreementScope } from './useEntryAgreementScope';
+import { useReleaseSubmitOnPageRestore } from './useReleaseSubmitOnPageRestore';
 
 export function useRegistrationWizard() {
   const state = useRegistrationWizardState();
@@ -68,6 +69,9 @@ export function useRegistrationWizard() {
     handlers.handleDogSelectionChange(allDogIds);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
+
+  // Back from Stripe out of the back-forward cache frees Pay again (MYK9-1964).
+  useReleaseSubmitOnPageRestore(state.submittingRef, state.setIsSubmitting);
 
   const { setAgreedToEntryAgreement } = state;
   const untickEntryAgreement = useCallback(

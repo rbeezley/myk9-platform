@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { getWithdrawalPolicy } from '@/features/registries';
+import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import { registryResolutionKey, type ShowRegistryResolution } from './useShowRegistryId';
 
@@ -46,6 +47,16 @@ const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now. Pull is stil
  * lookup is in flight or has failed.
  */
 const PULL_REFUND_FALLBACK = "Refunds for a pull are at the club's discretion.";
+
+/**
+ * MYK9-1976: the club's policy text is an online-only read (it does not replicate, and the
+ * effective text needs the club's row too), so offline and uncached the chooser says so
+ * rather than dropping the policy without a word.
+ */
+const POLICY_TEXT_UNAVAILABLE = {
+  offline: 'The club’s refund policy can’t be shown offline. Withdraw and Pull work as described.',
+  failed: 'The club’s refund policy can’t be shown right now. Withdraw and Pull work as described.',
+};
 
 /** Withdraw / Pull read as two clear choices: bold label, full-width, 44px+ target. */
 const CHOICE_BUTTON_CLASS = 'w-full justify-start font-semibold';
@@ -70,6 +81,12 @@ export interface RemoveFromClassDialogProps {
    * value (MYK9-632 round 4).
    */
   registry: ShowRegistryResolution;
+  /**
+   * MYK9-1976: the show, so the chooser can print the club's own refund and withdrawal
+   * policy text under the two choices. Optional: without it (or offline, before the text
+   * has loaded) the chooser shows its own two sentences only.
+   */
+  showId?: string | null;
   isSaving: boolean;
   /**
    * Why Withdraw cannot be offered for this row right now (a paid entry, a
@@ -125,6 +142,7 @@ function RemoveFromClassBody({
   className,
   classWhen = null,
   registry,
+  showId = null,
   isSaving,
   withdrawDisabledReason = null,
   pullDisabledReason = null,
@@ -264,6 +282,14 @@ function RemoveFromClassBody({
               <p className="mt-2 text-sm text-muted-foreground">{pullDisabledReason}</p>
             )}
           </div>
+
+          <WithdrawalPolicyDisclosure
+            showId={showId}
+            heading="The club’s refund and withdrawal policy"
+            className="max-h-48 overflow-y-auto rounded-lg border p-3"
+            // Never silent: offline and uncached, the chooser says why the text is missing.
+            unavailable={POLICY_TEXT_UNAVAILABLE}
+          />
         </div>
       )}
 

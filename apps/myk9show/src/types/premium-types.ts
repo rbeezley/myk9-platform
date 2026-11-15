@@ -65,6 +65,27 @@ export interface PremiumSupplemental {
   additionalNotes: string | null;
 }
 
+/**
+ * MYK9-1976: the show's refund and withdrawal policy as generate-premium reads it, in the row
+ * shape `useEffectiveWithdrawalPolicy` selects (EFFECTIVE_WITHDRAWAL_SELECT): the show's
+ * policy columns and text, its trials' registry, its club's defaults and text. The premium
+ * resolves it with the app's own resolver, so it prints the text exhibitors read in the app.
+ */
+export interface PremiumWithdrawalRow {
+  withdrawal_cutoff_date?: string | null;
+  withdrawal_retention_type?: string | null;
+  withdrawal_retention_value?: number | null;
+  withdrawal_policy_notes?: string | null;
+  withdrawal_policy_text?: string | null;
+  trials?: Array<{ registry_id?: string | null }> | null;
+  clubs?: {
+    default_withdrawal_retention_type?: string | null;
+    default_withdrawal_retention_value?: number | null;
+    default_withdrawal_policy_notes?: string | null;
+    default_withdrawal_policy_text?: string | null;
+  } | null;
+}
+
 export interface GeneratedPremium {
   org: 'AKC' | 'UKC';
   style: PremiumStyle;
@@ -80,6 +101,8 @@ export interface GeneratedPremium {
     dayOfFee: number | null;
     acceptChecks: boolean;
     acceptCash: boolean;
+    /** Absent on premiums generated before MYK9-1976 part 2: those print no policy row. */
+    withdrawal?: PremiumWithdrawalRow | null;
   };
   club: { name: string | null; logoUrl: string | null };
   secretary: {

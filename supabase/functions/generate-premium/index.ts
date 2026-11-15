@@ -7,6 +7,11 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
+import {
+  buildPremiumWithdrawalRow,
+  PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
+  PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
+} from './withdrawalPolicyRow.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -78,9 +83,10 @@ handle<GeneratePremiumPayload>(
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, club_id,
-        clubs(name, logo_url),
+        ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
+        clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
-          id, name, date, planned_start_time, event_number, trial_type,
+          id, name, date, planned_start_time, event_number, trial_type, registry_id,
           judge_assignments(
             people(id, first_name, last_name)
           ),
@@ -311,6 +317,8 @@ handle<GeneratePremiumPayload>(
         dayOfFee: show.day_of_show_fee,
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
+        // MYK9-1976: raw policy columns; the app resolves the text exhibitors read.
+        withdrawal: buildPremiumWithdrawalRow(show as Record<string, unknown>),
       },
       club: {
         name: clubData?.name ?? null,

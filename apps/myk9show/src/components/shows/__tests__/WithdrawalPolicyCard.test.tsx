@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
-import { WithdrawalPolicyCard, inputToStored } from '../WithdrawalPolicyCard';
+import { WithdrawalPolicyCard } from '../WithdrawalPolicyCard';
+import { inputToStored } from '../withdrawalPolicyCardData';
 
 const { mockFrom, mockSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockSingle = vi.fn();

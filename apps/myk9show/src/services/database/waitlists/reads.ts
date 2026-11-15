@@ -7,7 +7,11 @@
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import {
+  replicatedWaitlistEntriesTable,
+  type ReplicatedWaitlistEntry,
+} from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { findRunOutOffers } from '@/features/waiting-for-you/runOutOffers';
 import { assertTableNotForeign } from '@/services/replication/scopeAccountStamp';
 import { assertShowEntriesNotForeign } from '@/services/replication/entriesShowSyncState';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
@@ -80,6 +84,8 @@ export interface ClassWithWaitlistCount {
   waitlist_count: number;
   /** Open offers (status 'offered'), so a class whose queue is empty still shows them. */
   offered_count?: number;
+  /** Offers that ran out and were not offered again (`findRunOutOffers`, MYK9-1988). */
+  run_out_count?: number;
 }
 
 /**
@@ -137,7 +143,9 @@ export const getWaitlistByClass = async (classId: string) => {
 };
 
 /**
- * Open offers (status 'offered') for a class, oldest offer first.
+ * Open offers (status 'offered') for a class, oldest offer first, and the offers that ran out
+ * whose spot nobody has been offered since (`runOut`, MYK9-1988: `findRunOutOffers`, the one rule
+ * the run-out count reads too), oldest offer first.
  * Replica only, like the queue: an offer made from this tab lands in the
  * replica through the same subscription that refreshes the queue.
  */
@@ -146,40 +154,39 @@ export const getWaitlistOffersByClass = async (classId: string) => {
 
   try {
     await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
-    const offered = filterOfferedWaitlistEntries(
-      await replicatedWaitlistEntriesTable.getByClass(classId)
-    );
-    if (offered.length === 0) return { data: [] as WaitlistOffer[], error: null };
+    const classRows = await replicatedWaitlistEntriesTable.getByClass(classId);
+    const offered = filterOfferedWaitlistEntries(classRows).sort(byOfferMade);
+    const runOutRows = findRunOutOffers(classRows).rows;
+    if (offered.length === 0 && runOutRows.length === 0) {
+      return { data: [] as WaitlistOffer[], runOut: [] as WaitlistOffer[], error: null };
+    }
 
     const cls = await replicatedClassesTable.getClassById(classId);
     const trial = cls?.trialId ? await replicatedTrialsTable.getTrialById(cls.trialId) : null;
-    const [dogs, promotedEntries] = await Promise.all([
-      Promise.all(offered.map(o => replicatedDogsTable.getDogById(o.dogId))),
-      Promise.all(
-        offered.map(o =>
-          o.promotedEntryId ? replicatedEntriesTable.getEntryById(o.promotedEntryId) : null
-        )
-      ),
+    const toOffer = async (offer: ReplicatedWaitlistEntry): Promise<WaitlistOffer> => {
+      const [dog, promotedEntry] = await Promise.all([
+        replicatedDogsTable.getDogById(offer.dogId),
+        offer.promotedEntryId ? replicatedEntriesTable.getEntryById(offer.promotedEntryId) : null,
+      ]);
+      const mapped = mapWaitlistEntry(offer, dog ?? null, cls);
+      return {
+        ...mapped,
+        // The same class name the queue cards show.
+        class:
+          mapped.class && cls ? { ...mapped.class, name: waitlistClassDisplayName(cls) } : null,
+        promoted_entry_paid: promotedEntry?.paymentStatus === 'paid',
+        trial_timezone: trial?.timezone ?? null,
+        trial_name: trial?.name ?? null,
+        trial_date: trial?.date ?? null,
+      };
+    };
+    const [data, runOut] = await Promise.all([
+      Promise.all(offered.map(toOffer)),
+      Promise.all(runOutRows.map(toOffer)),
     ]);
 
-    const data = offered
-      .map((offer, i): WaitlistOffer => {
-        const mapped = mapWaitlistEntry(offer, dogs[i] ?? null, cls);
-        return {
-          ...mapped,
-          // The same class name the queue cards show.
-          class:
-            mapped.class && cls ? { ...mapped.class, name: waitlistClassDisplayName(cls) } : null,
-          promoted_entry_paid: promotedEntries[i]?.paymentStatus === 'paid',
-          trial_timezone: trial?.timezone ?? null,
-          trial_name: trial?.name ?? null,
-          trial_date: trial?.date ?? null,
-        };
-      })
-      .sort((a, b) => (a.offered_at ?? '').localeCompare(b.offered_at ?? ''));
-
     logQuery('waitlist_entries', 'get_waitlist_offers_by_class', Date.now() - startTime);
-    return { data, error: null };
+    return { data, runOut, error: null };
   } catch (error) {
     const dbError = createDatabaseError(error, 'waitlist_entries', 'get_waitlist_offers_by_class');
     logQuery(
@@ -188,9 +195,13 @@ export const getWaitlistOffersByClass = async (classId: string) => {
       Date.now() - startTime,
       dbError.message
     );
-    return { data: [] as WaitlistOffer[], error: dbError };
+    return { data: [] as WaitlistOffer[], runOut: [] as WaitlistOffer[], error: dbError };
   }
 };
+
+function byOfferMade(a: ReplicatedWaitlistEntry, b: ReplicatedWaitlistEntry): number {
+  return (a.offeredAt ?? '').localeCompare(b.offeredAt ?? '');
+}
 
 /**
  * Get classes with waitlist counts for a show
@@ -238,7 +249,8 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
         trialsMap.get(cls.trialId ?? '') ?? null,
         acceptedCount,
         waitlistCount,
-        filterOfferedWaitlistEntries(classWaitlist).length
+        filterOfferedWaitlistEntries(classWaitlist).length,
+        findRunOutOffers(classWaitlist).count
       );
     });
 

@@ -262,3 +262,27 @@ describe('classEntriesForClass', () => {
     expect(hiddenEntryCount('nope', tree)).toBe(0);
   });
 });
+
+describe('a score on a dog pulled or withdrawn while the judge scored it (MYK9-2010)', () => {
+  const flag = (fields: Record<string, unknown>) =>
+    rowsFor([entryRow('e-1', fields)]).rows[0]?.scoredAfterRemoval ?? null;
+
+  it('flags a pulled dog that holds a score, with the score', () => {
+    expect(flag({ check_in_status: 'pulled', is_scored: true, result_status: 'qualified' })).toBe(
+      'Scored after being pulled: Q'
+    );
+  });
+
+  it('flags a withdrawn dog that holds a score', () => {
+    expect(flag({ entry_status: 'withdrawn', is_scored: true, result_status: 'qualified' })).toBe(
+      'Withdrawn, and holds a score: Q'
+    );
+  });
+
+  it('does not flag a pulled dog with no score, or a scored dog nobody pulled', () => {
+    expect(flag({ check_in_status: 'pulled' })).toBeNull();
+    expect(
+      flag({ check_in_status: 'completed', is_scored: true, result_status: 'qualified' })
+    ).toBe(null);
+  });
+});

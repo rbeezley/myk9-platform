@@ -221,3 +221,23 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     expect(screen.getAllByText('Not checked in')).toHaveLength(1);
   });
 });
+
+describe('the Check-in cell flags a score on a pulled dog (MYK9-2010)', () => {
+  it("shows what happened and the score on that dog's own row", () => {
+    const pulled = entry('e-3', 'Juno', {
+      checkIn: { value: 'pulled', label: 'Pulled', kind: 'neutral' },
+      checkInValue: 'pulled',
+      deskEditable: false,
+      state: 'pulled',
+      notCheckedIn: false,
+      place: null,
+      scoredAfterRemoval: 'Scored after being pulled: Qualified',
+    });
+    render(
+      <ClassEntriesTable entries={[pulled]} className="Container Novice A" canChangeCheckIn />
+    );
+    expect(screen.getByTestId('scored-after-removal')).toHaveTextContent(
+      'Scored after being pulled: Qualified'
+    );
+  });
+});

@@ -360,3 +360,47 @@ describe('detectDirtyRowConflict compare policy (MYK9-1104)', () => {
     expect(result).toEqual({ hasConflict: true, fields: ['classStatus'] });
   });
 });
+
+describe('detectDirtyRowConflict resolveCollision (MYK9-2010)', () => {
+  const base = { id: 'r', status: 'a', score: 1 };
+  const policy = {
+    resolveCollision: (field: string) => (field === 'status' ? ('server' as const) : undefined),
+  };
+
+  it('a server-won collision is no conflict, is adopted, and is named for the queue', () => {
+    const result = detectDirtyRowConflict({
+      base,
+      local: { ...base, status: 'b' },
+      remote: { ...base, status: 'c' },
+      comparePolicy: policy,
+    });
+    expect(result).toMatchObject({
+      hasConflict: false,
+      adoptRemoteFields: ['status'],
+      serverWonFields: ['status'],
+    });
+  });
+
+  it('a device-won collision needs neither adopting nor dropping', () => {
+    const result = detectDirtyRowConflict({
+      base,
+      local: { ...base, status: 'b' },
+      remote: { ...base, status: 'c' },
+      comparePolicy: { resolveCollision: () => 'device' },
+    });
+    expect(result).toEqual({ hasConflict: false, fields: [] });
+  });
+
+  it('an unresolved collision on another field still surfaces, with the settled field named', () => {
+    const result = detectDirtyRowConflict({
+      base,
+      local: { ...base, status: 'b', score: 2 },
+      remote: { ...base, status: 'c', score: 3 },
+      comparePolicy: policy,
+    });
+    expect(result.hasConflict).toBe(true);
+    expect(result.fields).toEqual(['score']);
+    // The settled field travels with the conflict, so keeping my side of the score keeps it.
+    expect(result.serverWonFields).toEqual(['status']);
+  });
+});

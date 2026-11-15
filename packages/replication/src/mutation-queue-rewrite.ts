@@ -51,6 +51,35 @@ export async function rewriteQueuedMutations(
   return written;
 }
 
+const KEYS_WITHOUT_INTENT: ReadonlySet<string> = new Set(['id', 'updated_at']);
+
+/** `mutation` without `fields` in its payload and RPC delta; undefined when it carried none. */
+export function stripQueuedFields(
+  mutation: PendingMutation,
+  fields: readonly string[]
+): PendingMutation | undefined {
+  const drop = new Set(fields);
+  const carries = (record: Record<string, unknown> | undefined) =>
+    record !== undefined && Object.keys(record).some(key => drop.has(key));
+  if (!carries(mutation.data) && !carries(mutation.rpc?.fields)) return undefined;
+  const without = <V extends Record<string, unknown>>(record: V): V =>
+    Object.fromEntries(Object.entries(record).filter(([key]) => !drop.has(key))) as V;
+  return {
+    ...mutation,
+    data: without(mutation.data),
+    ...(mutation.explicitDataKeys && {
+      explicitDataKeys: mutation.explicitDataKeys.filter(key => !drop.has(key)),
+    }),
+    ...(mutation.rpc?.fields && { rpc: { ...mutation.rpc, fields: without(mutation.rpc.fields) } }),
+  };
+}
+
+/** True when nothing but bookkeeping keys is left to send. */
+export function isMutationEmpty(mutation: PendingMutation): boolean {
+  const left = mutation.rpc?.fields ?? mutation.data;
+  return Object.keys(left).every(key => KEYS_WITHOUT_INTENT.has(key));
+}
+
 /**
  * Rebase one queued UPDATE onto a newer server token. The token only moves
  * forward. A full-row UPDATE is advanced only with a rebuilt payload (otherwise

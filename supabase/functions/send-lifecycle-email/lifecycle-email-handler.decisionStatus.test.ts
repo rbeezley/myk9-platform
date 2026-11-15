@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSendLifecycleEmailHandler } from './lifecycle-email-handler';
+import {
+  createSendLifecycleEmailHandler,
+  type LifecycleEmailSupabaseClient,
+} from './lifecycle-email-handler';
 import { baseTables, makeSupabase, readyJob } from './lifecycle-email-handler.testUtils';
 
 // MYK9-1974: the send re-reads the entry and sends a decision email only while the entry
@@ -27,7 +30,7 @@ function setup(tables: Record<string, Array<Record<string, unknown>>>) {
     fetch: fetch as unknown as typeof globalThis.fetch,
     resendApiKey: 'resend-key',
   });
-  const send = (supabase = fake.supabase) =>
+  const send = (supabase: LifecycleEmailSupabaseClient = fake.supabase) =>
     handler({
       body: { action: 'send', show_id: 'show-1', job_ids: ['job-1'] },
       user: { id: 'secretary-1' },
@@ -142,7 +145,7 @@ describe('send-lifecycle-email: the decision must still hold when it sends (MYK9
           select: () => query,
           in: () => Promise.resolve({ data: null, error: { message: 'connection reset' } }),
         };
-        return query as unknown as ReturnType<typeof supabase.from>;
+        return query as unknown as ReturnType<LifecycleEmailSupabaseClient['from']>;
       },
     };
 

@@ -5,6 +5,7 @@ import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { isAccountSession } from '@/hooks/guestServerRead';
 import { fetchShowClubOfficers } from '@/services/database/club-memberships/officers';
+import { fetchShowCommittee } from '@/services/database/club-memberships/committee';
 import { fetchShowConfirmedJudgeAssignments } from '@/services/database/_shared/judgeNamesByClass';
 import { fetchPublicEntryCountsByShow } from '@/services/database/_shared/entryCounts';
 import type { Show } from '@/types/show-types';
@@ -86,6 +87,15 @@ export function useLandingShowData(
   });
   const clubOfficers = officersQuery.data;
 
+  // MYK9-2064: the Event Committee, the show's own list else the club's. Same failure rule.
+  const committeeQuery = useQuery({
+    queryKey: ['public-show-committee', showId],
+    queryFn: () => fetchShowCommittee(showId),
+    enabled: !!showId,
+    staleTime: 60_000,
+  });
+  const committee = committeeQuery.data;
+
   return useMemo(
     () =>
       buildLandingData(
@@ -96,7 +106,8 @@ export function useLandingShowData(
         judgeAssignments,
         judgesState,
         secretary,
-        clubOfficers
+        clubOfficers,
+        committee
       ),
     [
       show,
@@ -107,6 +118,7 @@ export function useLandingShowData(
       judgesState,
       secretary,
       clubOfficers,
+      committee,
     ]
   );
 }

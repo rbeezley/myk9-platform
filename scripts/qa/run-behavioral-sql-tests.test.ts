@@ -84,6 +84,7 @@ const launchCriticalSqlTests = [
   'myk9_824_submit_entries_handler_owner_fallback_test.sql',
   'club_members_own_row_test.sql',
   'myk9_2045_club_officers_typed_name_test.sql',
+  'myk9_2064_event_committee_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'myk9_1008_show_requires_club_test.sql',
   'cross_club_policy_authorization_test.sql',

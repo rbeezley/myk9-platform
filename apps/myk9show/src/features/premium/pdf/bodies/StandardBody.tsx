@@ -141,6 +141,14 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </>
       )}
 
+      {f.committee.length > 0 && (
+        <>
+          {divider}
+          <Text style={s.sectionTitle}>Event Committee</Text>
+          <Text style={s.value}>{f.committee.join(', ')}</Text>
+        </>
+      )}
+
       {divider}
 
       <Text style={s.sectionTitle}>Trials &amp; Judges</Text>

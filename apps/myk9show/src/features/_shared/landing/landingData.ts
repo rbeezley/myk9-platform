@@ -8,6 +8,7 @@ import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
 import {
+  buildCommitteeFacts,
   buildOfficerFacts,
   buildScoutingStatementFact,
   pickSupplementalFacts,
@@ -73,6 +74,12 @@ export interface LandingAccommodation {
   type?: string;
 }
 
+/** One "Event Committee: A, B, C" line, so every style's existing officers list prints it. */
+function committeeAsOfficerFacts(names: ReadonlyArray<string> | null | undefined) {
+  const members = buildCommitteeFacts(names);
+  return members.length > 0 ? [{ title: 'Event Committee', name: members.join(', ') }] : [];
+}
+
 export interface LandingData<
   TTrial extends LandingTrial = LandingTrial,
   TJudge extends LandingJudge = LandingJudge,
@@ -119,7 +126,8 @@ export interface LandingData<
   scoutingStatement?: PremiumRegistryStatementFact | null;
   /**
    * MYK9-2045: the club's Officers list as "Title: Name" facts, the same the premium PDF
-   * prints. [] when the club lists none or the read has not finished.
+   * prints, then (MYK9-2064) one "Event Committee: A, B" line. [] when none is listed or the
+   * read has not finished.
    */
   clubOfficers?: PremiumOfficerFact[];
   journeySteps: LandingJourneyStep[];
@@ -219,7 +227,9 @@ export function buildLandingData(
   judgesState: LandingJudgesState = 'ready',
   /** undefined = not known yet (loading or failed); null = the read succeeded and none is listed. */
   secretary?: { name: string | null; email: string | null } | null,
-  clubOfficers?: ReadonlyArray<{ position: string; name: string }> | null
+  clubOfficers?: ReadonlyArray<{ position: string; name: string }> | null,
+  /** MYK9-2064: the Event Committee names (the show's own list, else the club's). */
+  committee?: ReadonlyArray<string> | null
 ): LandingData {
   const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
   // The same normalised template facts the premium PDF prints (features/premium/premiumFacts).
@@ -368,7 +378,7 @@ export function buildLandingData(
     licenseLanguage: registry.licenseLanguage,
     memberClubLanguage: registry.memberClubLanguage,
     scoutingStatement: buildScoutingStatementFact(registry.id),
-    clubOfficers: buildOfficerFacts(clubOfficers),
+    clubOfficers: [...buildOfficerFacts(clubOfficers), ...committeeAsOfficerFacts(committee)],
     journeySteps: buildJourneySteps(
       show?.entryOpenDate ?? null,
       entryCloseDate,

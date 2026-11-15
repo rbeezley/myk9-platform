@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { ShowCommitteeEditor } from '@/components/committee/ShowCommitteeEditor';
 import { OfficialPicker } from '@/components/shows/wizard/steps/OfficialPicker';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { useUserStore } from '@/store/userStore';
@@ -113,6 +114,8 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           onCreatePerson={handleCreatePerson}
         />
       </div>
+
+      <ShowCommitteeEditor showId={showId} people={people} />
 
       {pendingRole && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

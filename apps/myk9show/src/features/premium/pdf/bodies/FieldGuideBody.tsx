@@ -48,7 +48,9 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const blockStyle = { marginBottom: 14 };
 
   const hasOverview = Boolean(f.trialInformation.trim());
-  const hasOfficials = Boolean(chair || secretary.name || f.officers.length > 0);
+  const hasOfficials = Boolean(
+    chair || secretary.name || f.officers.length > 0 || f.committee.length > 0
+  );
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.length > 0;
   const hasEntry = Boolean(
@@ -147,6 +149,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>{o.name}</Text>
             </View>
           ))}
+          {f.committee.length > 0 && (
+            <View style={rowStyle}>
+              <Text style={labelStyle}>Event Committee</Text>
+              <Text style={valueStyle}>{f.committee.join(', ')}</Text>
+            </View>
+          )}
         </View>
       )}
 

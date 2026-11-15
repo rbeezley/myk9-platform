@@ -252,6 +252,33 @@ describe("premium PDF prints the club's officers (MYK9-2045)", () => {
   });
 });
 
+describe("premium PDF prints the show's Event Committee (MYK9-2064)", () => {
+  const COMMITTEE = ['Pat Chair', 'Sam Typed', 'Linda Linked', 'Olive Override', 'Gus Guest'];
+
+  describe.each<Org>(['AKC', 'UKC'])('%s', org => {
+    it.each(ALL_STYLES)('%s prints every committee name in order', style => {
+      const premium = fullPremium(org, style);
+      premium.committee = COMMITTEE;
+      const text = pdfText(org, premium);
+      expect(text).toContain('Event Committee');
+      for (const name of COMMITTEE) expect(text).toContain(name);
+      expect(text.indexOf('Pat Chair')).toBeLessThan(text.indexOf('Gus Guest'));
+    });
+
+    it.each(ALL_STYLES)('%s prints the committee on a show with nothing else filled in', style => {
+      const premium = sparsePremium(org, style);
+      premium.committee = COMMITTEE;
+      expect(pdfText(org, premium)).toContain('Sam Typed');
+    });
+
+    it.each(ALL_STYLES)('%s prints no committee heading or placeholder when empty', style => {
+      for (const premium of [fullPremium(org, style), sparsePremium(org, style)]) {
+        expect(pdfText(org, premium)).not.toContain('Event Committee');
+      }
+    });
+  });
+});
+
 const PUBLISHED_SHOW: Show = fromAny<Show, unknown>({
   id: 'show-1',
   name: 'Spring Scent Trial',

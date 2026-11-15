@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../services/database/supabaseClient';
 import type { GeneratedPremium } from '../../types/premium-types';
 import { fetchShowClubOfficers } from '@/services/database/club-memberships/officers';
+import { fetchShowCommittee } from '@/services/database/club-memberships/committee';
 import { classifyPremiumFunctionError } from './premiumPublishErrors';
 import { parseGeneratedPremium } from './premiumPublishSchema';
 
@@ -34,7 +35,15 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
         // read prints no officers rather than blocking the premium; the next generation retries.
         const officers = await fetchShowClubOfficers(showId);
         if (!officers) console.error('[premium-generation] officers read failed', { showId });
-        return officers ? { ...premium, officers } : premium;
+        // MYK9-2064: so does the Event Committee (the show's own list, else the club's), with
+        // the same failure rule.
+        const committee = await fetchShowCommittee(showId);
+        if (!committee) console.error('[premium-generation] committee read failed', { showId });
+        return {
+          ...premium,
+          ...(officers ? { officers } : {}),
+          ...(committee ? { committee } : {}),
+        };
       } catch (error) {
         console.error('[premium-generation] invalid response shape', { showId, error });
         throw error;

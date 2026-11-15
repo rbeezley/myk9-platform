@@ -23,6 +23,7 @@ import { ClubShowAccessRequests } from './ClubShowAccessRequests';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import { ClubRemovalDialogs } from './ClubRemovalDialogs';
+import { ClubCommitteeSection } from '@/components/committee/ClubCommitteeSection';
 import { useClubMembersManager } from './useClubMembersManager';
 import type { MemberStatusFilter } from './clubMemberListViews';
 
@@ -239,6 +240,9 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
                     onRemoveOfficer={handleRemoveOfficer}
                   />
                 )}
+
+                {/* MYK9-2064: the Event Committee the premium prints, below the Officers. */}
+                <ClubCommitteeSection clubId={clubId} people={people} />
               </TabsContent>
 
               {/* Show Access Tab */}

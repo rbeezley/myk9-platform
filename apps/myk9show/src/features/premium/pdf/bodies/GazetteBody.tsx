@@ -46,7 +46,7 @@ export function GazetteBody({ data, tokens }: Props) {
   };
   const denseStyle = { ...bodyTextStyle, fontSize: tokens.bodyFontSize - 1 };
 
-  const hasOfficials = Boolean(chair || f.officers.length > 0);
+  const hasOfficials = Boolean(chair || f.officers.length > 0 || f.committee.length > 0);
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.some(t => t.classLabels.length > 0);
   const hasFees = f.fees.hasAny;
@@ -84,6 +84,9 @@ export function GazetteBody({ data, tokens }: Props) {
                 {o.title}: {o.name}
               </Text>
             ))}
+            {f.committee.length > 0 && (
+              <Text style={bodyTextStyle}>Event Committee: {f.committee.join(', ')}</Text>
+            )}
           </View>
         )}
 

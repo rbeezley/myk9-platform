@@ -147,6 +147,21 @@ describe('useWaitlistManagementData — offer notification', () => {
     expect(sendWaitlistOfferMessage).not.toHaveBeenCalled();
   });
 
+  it('MYK9-1976: says what to change when the refund policy is too long for the payment page', async () => {
+    const tooLong =
+      'The refund policy is too long for the payment page. Shorten the policy notes or the policy text on the Withdrawal policy card, then try again.';
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('non-2xx'), {
+        context: { json: async () => ({ error: tooLong }) },
+      }),
+    });
+    await offer();
+    expect(toast.warning).toHaveBeenCalledWith(
+      `Spot offered, but no payment link was made. ${tooLong}`
+    );
+  });
+
   it('still messages, without a link, when payment link creation fails', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: null,

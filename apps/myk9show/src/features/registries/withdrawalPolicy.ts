@@ -83,7 +83,7 @@ export interface RegistryWithdrawalPolicy {
 
 const IN_SEASON_LABEL = 'Dog in season';
 const JUDGE_CHANGE_LABEL = 'Judge change';
-const PULL_REFUND_NOTE = "Refunds for a pull are at the club's discretion.";
+export const PULL_REFUND_NOTE = "Refunds for a pull are at the club's discretion.";
 
 /**
  * The ONE sentence the app is entitled to say about a withdrawal refund.
@@ -98,7 +98,8 @@ const PULL_REFUND_NOTE = "Refunds for a pull are at the club's discretion.";
  * promise the exhibitor could hold us to and the secretary would have to break.
  * See docs/INTENT.md for the rule and the open question.
  */
-const WITHDRAW_REFUND_NOTE = "Refund per the premium's rules; the show secretary confirms it.";
+export const WITHDRAW_REFUND_NOTE =
+  "Refund per the premium's rules; the show secretary confirms it.";
 
 const AKC_POLICY: RegistryWithdrawalPolicy = {
   registryId: 'AKC',

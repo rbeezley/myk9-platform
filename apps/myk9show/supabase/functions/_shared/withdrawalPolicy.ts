@@ -14,6 +14,15 @@
 //
 // See docs/plan-refund-policy-withdrawal.md (Phase 3, D3/D4/D8).
 
+import {
+  buildDefaultWithdrawalPolicyTextFromParts,
+  WITHDRAWAL_DISCLOSURE_MAX_LENGTH,
+  WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE,
+  buildWithdrawalDisclosure,
+  resolveWithdrawalPolicyTextFromParts,
+  withdrawalRegistryFromTrials,
+} from './withdrawalPolicyDisclosureText.ts';
+
 export interface WithdrawalPolicy {
   cutoffDate: string | null;
   retentionType: 'flat' | 'percent';
@@ -216,6 +225,53 @@ function formatRetained(policy: WithdrawalPolicy): string | null {
 }
 
 /** A single disclosure string (line + any prose) suitable for Stripe custom_text. */
+/**
+ * MYK9-1976: the refund sentence and the policy notes, apart, exactly as the app's
+ * describeWithdrawalPolicy (src/features/payments/formatWithdrawalPolicy.ts) returns them.
+ * The default policy text is built from these by withdrawalPolicyDisclosureText.ts, so the
+ * Stripe page's default matches the app's word for word; withdrawalPolicy.test.ts checks the
+ * two formatters agree.
+ */
+export function describeWithdrawalRefundParts(policy: WithdrawalPolicy | null): {
+  refundLine: string;
+  notes: string | null;
+} {
+  if (!isValidWithdrawalPolicy(policy)) {
+    return { refundLine: `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`, notes: null };
+  }
+  const notes = policy.notes?.trim() ? policy.notes.trim() : null;
+  if (!policy.cutoffDate) return { refundLine: SERVICE_FEE_SENTENCE, notes };
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return {
+      refundLine: `Withdrawal policy: contact the club for withdrawals after ${formatCutoff(
+        policy.cutoffDate
+      )}. ${SERVICE_FEE_SENTENCE}`,
+      notes,
+    };
+  }
+  if (notesDescribeRefundTerms(notes)) {
+    return {
+      refundLine: `Withdrawal policy: the refund terms after ${formatCutoff(
+        policy.cutoffDate
+      )} follow the additional instructions below. ${SERVICE_FEE_SENTENCE}`,
+      notes,
+    };
+  }
+  const retained = formatRetained(policy);
+  if (!retained) {
+    return { refundLine: `Full refund of the entry fee. ${SERVICE_FEE_SENTENCE}`, notes };
+  }
+  return {
+    refundLine: `Full refund of the entry fee until ${formatCutoff(
+      policy.cutoffDate
+    )}; after that, ${retained} is kept. ${SERVICE_FEE_SENTENCE}`,
+    notes,
+  };
+}
+
 export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): string {
   if (!isValidWithdrawalPolicy(policy)) {
     return `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`;
@@ -344,4 +400,37 @@ export function resolveWithdrawalRefundCents(
     requiresManual: entryFeeCents - retainedCents <= 0,
     reason: entryFeeCents - retainedCents <= 0 ? 'manual_review' : 'after_cutoff',
   };
+}
+
+/** The select the payment link reads the policy with: show, club and the show's registry. */
+export const WITHDRAWAL_DISCLOSURE_SELECT =
+  'withdrawal_cutoff_date, withdrawal_retention_type, withdrawal_retention_value, withdrawal_policy_notes, withdrawal_policy_text, trials(registry_id), clubs(default_withdrawal_retention_type, default_withdrawal_retention_value, default_withdrawal_policy_notes, default_withdrawal_policy_text)';
+
+/**
+ * MYK9-1976: the disclosure the payer reads on the Stripe page, from a row read with
+ * {@link WITHDRAWAL_DISCLOSURE_SELECT}: the show's text, else the club's, else the default
+ * (the same words the app prints), then the service-fee sentence. Never cut: when the whole
+ * message does not fit Stripe's cap the answer is a refusal with words for the secretary.
+ */
+export function withdrawalDisclosureForShowRow(
+  row: Record<string, unknown>
+): { ok: true; message: string } | { ok: false; error: string } {
+  const rawClub = row.clubs;
+  const club = ((Array.isArray(rawClub) ? rawClub[0] : rawClub) ?? null) as
+    (ClubWithdrawalColumns & { default_withdrawal_policy_text?: string | null }) | null;
+  const policy = resolveWithdrawalPolicy(row as ShowWithdrawalColumns, club);
+  const { refundLine, notes } = describeWithdrawalRefundParts(policy);
+  const { text } = resolveWithdrawalPolicyTextFromParts({
+    showText: row.withdrawal_policy_text as string | null | undefined,
+    clubText: club?.default_withdrawal_policy_text,
+    defaultText: buildDefaultWithdrawalPolicyTextFromParts({
+      refundLine,
+      notes,
+      registryId: withdrawalRegistryFromTrials(row.trials),
+    }),
+  });
+  const message = buildWithdrawalDisclosure(text);
+  return message.length <= WITHDRAWAL_DISCLOSURE_MAX_LENGTH
+    ? { ok: true, message }
+    : { ok: false, error: WITHDRAWAL_DISCLOSURE_TOO_LONG_MESSAGE };
 }

@@ -39,7 +39,9 @@ export type { RegistryCloseoutDuty, RegistryCloseoutDutyKind } from './closeoutD
 
 // MYK9-632: Withdraw vs Pull. Rulebook facts, per registry.
 export {
+  PULL_REFUND_NOTE,
   WITHDRAWAL_REASON_CODES,
+  WITHDRAW_REFUND_NOTE,
   getWithdrawalPolicy,
   getWithdrawalReason,
   isWithdrawalReasonCode,

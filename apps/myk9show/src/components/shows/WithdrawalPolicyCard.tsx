@@ -16,6 +16,11 @@
  *
  * Flat retention is entered in DOLLARS but stored in CENTS (the unit the refund
  * helper subtracts from entryFeeCents). Percent is a whole number 0–100.
+ *
+ * MYK9-1976: the card also holds the policy TEXT exhibitors read (the show's, else the
+ * club's, else a default built from these fields and the show's registry). The text is words
+ * only; the suggested refund still follows the structured fields, and the card says so when
+ * the two could disagree. Data and payload live in `withdrawalPolicyCardData.ts`.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -32,89 +37,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { supabase } from '@/lib/supabase';
 import type { RetentionType } from '@/features/payments/withdrawalPolicy';
-
-type Scope = 'club' | 'show';
-
-interface ColumnSet {
-  table: 'clubs' | 'shows';
-  /** Absent at club scope — see MYK9-454 in the header comment. */
-  cutoff?: string;
-  type: string;
-  value: string;
-  notes: string;
-}
-
-const COLUMNS: Record<Scope, ColumnSet> = {
-  club: {
-    table: 'clubs',
-    type: 'default_withdrawal_retention_type',
-    value: 'default_withdrawal_retention_value',
-    notes: 'default_withdrawal_policy_notes',
-  },
-  show: {
-    table: 'shows',
-    cutoff: 'withdrawal_cutoff_date',
-    type: 'withdrawal_retention_type',
-    value: 'withdrawal_retention_value',
-    notes: 'withdrawal_policy_notes',
-  },
-};
-
-interface FormState {
-  cutoffDate: string; // '' or 'YYYY-MM-DD'
-  retentionType: RetentionType;
-  /** Display units: dollars when flat, whole percent when percent. '' = none. */
-  retentionInput: string;
-  notes: string;
-}
-
-const EMPTY_FORM: FormState = {
-  cutoffDate: '',
-  retentionType: 'flat',
-  retentionInput: '',
-  notes: '',
-};
-
-interface PolicyRow {
-  cutoff: string | null;
-  type: string | null;
-  value: number | null;
-  notes: string | null;
-}
-
-function rowToForm(row: PolicyRow): FormState {
-  const retentionType: RetentionType = row.type === 'percent' ? 'percent' : 'flat';
-  let retentionInput = '';
-  if (row.value !== null && row.value !== undefined) {
-    retentionInput = retentionType === 'flat' ? (row.value / 100).toFixed(2) : String(row.value);
-  }
-  return {
-    cutoffDate: row.cutoff ?? '',
-    retentionType,
-    retentionInput,
-    notes: row.notes ?? '',
-  };
-}
-
-/**
- * Display input → stored integer (cents for flat, whole percent for percent).
- *
- * Exported for direct testing: `<input type="number">` will not carry a
- * non-finite literal through jsdom, so the component cannot exercise the
- * Number.isFinite guard end to end.
- */
-export function inputToStored(type: RetentionType, input: string): number | null {
-  const trimmed = input.trim();
-  if (trimmed === '') return null;
-  const parsed = Number(trimmed);
-  // NaN AND non-finite: <input type="number"> accepts '1e999', which becomes
-  // Infinity, serializes to JSON null, and lands as {type:'flat', value:null}
-  // — a row that reads as a DECLARED retention and so suppresses the club fee.
-  if (!Number.isFinite(parsed)) return null;
-  return type === 'flat' ? Math.round(parsed * 100) : Math.round(parsed);
-}
+import { describeWithdrawalPolicyTextConflict } from '@/features/payments/withdrawalPolicyText';
+import { WithdrawalPolicyTextField } from './WithdrawalPolicyTextField';
+import {
+  EMPTY_FORM,
+  buildPayload,
+  inheritedText,
+  loadPolicy,
+  policyFromForm,
+  savePolicy,
+  type FormState,
+  type Scope,
+} from './withdrawalPolicyCardData';
 
 interface WithdrawalPolicyCardProps {
   scope: Scope;
@@ -123,27 +58,9 @@ interface WithdrawalPolicyCardProps {
 
 export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardProps) {
   const queryClient = useQueryClient();
-  const cols = COLUMNS[scope];
-
   const { data, isLoading, isError } = useQuery({
     queryKey: ['withdrawal-policy', scope, entityId],
-    queryFn: async () => {
-      const { data: row, error } = await supabase
-        .from(cols.table)
-        .select([cols.cutoff, cols.type, cols.value, cols.notes].filter(Boolean).join(', '))
-        .eq('id', entityId)
-        .single();
-      if (error) throw error;
-      // A runtime (non-literal) select string defeats supabase-js's typed-row
-      // inference, so route the cast through unknown.
-      const r = row as unknown as Record<string, unknown>;
-      return rowToForm({
-        cutoff: cols.cutoff ? ((r[cols.cutoff] as string | null) ?? null) : null,
-        type: (r[cols.type] as string | null) ?? null,
-        value: (r[cols.value] as number | null) ?? null,
-        notes: (r[cols.notes] as string | null) ?? null,
-      });
-    },
+    queryFn: () => loadPolicy(scope, entityId),
   });
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -153,30 +70,21 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
   useEffect(() => {
     if (data && !isDirty.current) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm(data);
+      setForm(data.form);
     }
   }, [data]);
 
+  const inheritance = data?.inheritance ?? null;
+
   const mutation = useMutation({
-    mutationFn: async (next: FormState) => {
-      const storedValue = inputToStored(next.retentionType, next.retentionInput);
-      const payload: Record<string, unknown> = {
-        ...(cols.cutoff ? { [cols.cutoff]: next.cutoffDate || null } : {}),
-        // Retention type/value only mean something together; null them as a pair.
-        [cols.type]: storedValue === null ? null : next.retentionType,
-        [cols.value]: storedValue,
-        [cols.notes]: next.notes.trim() || null,
-      };
-      const { error } = await supabase
-        .from(cols.table)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .update(payload as any)
-        .eq('id', entityId);
-      if (error) throw error;
-    },
+    mutationFn: (next: FormState) =>
+      savePolicy(scope, entityId, buildPayload(scope, next, inheritance)),
     onSuccess: () => {
       isDirty.current = false;
-      queryClient.invalidateQueries({ queryKey: ['withdrawal-policy', scope, entityId] });
+      // Every reader of the policy: this card, the About summary, the checkout disclosure
+      // and the Pull or withdraw dialogs. A club save changes every show that inherits.
+      queryClient.invalidateQueries({ queryKey: ['withdrawal-policy'] });
+      queryClient.invalidateQueries({ queryKey: ['effective-withdrawal-policy'] });
     },
   });
 
@@ -186,6 +94,15 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
   }
 
   const isShow = scope === 'show';
+  const inherited = inheritedText(scope, form, inheritance);
+  const ownText = form.textCustom ? form.text : null;
+  // Only words the club wrote can disagree with the fields; the default is built from them.
+  const appliedWrittenText = ownText ?? (inherited.source === 'club' ? inherited.text : null);
+  const conflictNote = describeWithdrawalPolicyTextConflict(
+    appliedWrittenText,
+    policyFromForm(scope, form, inheritance),
+    inheritance?.entryFeeCents ?? null
+  );
   const retentionUnitLabel = form.retentionType === 'flat' ? 'Amount kept (USD)' : 'Percent kept';
 
   return (
@@ -274,6 +191,16 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
               ' Applies to shows that set no policy of their own; a show that sets one states its own notes.'}
           </p>
         </div>
+
+        <WithdrawalPolicyTextField
+          isShow={isShow}
+          ownText={ownText}
+          inherited={inherited}
+          conflictNote={conflictNote}
+          disabled={isLoading || isError || !data}
+          onChange={text => updateForm({ text, textCustom: true })}
+          onReset={() => updateForm({ text: '', textCustom: false })}
+        />
 
         {/*
           The form starts as EMPTY_FORM, so saving before the row arrives writes

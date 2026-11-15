@@ -159,6 +159,7 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
       className={target?.className ?? null}
       classWhen={target?.classWhen ?? null}
       registry={registry}
+      showId={target?.showId ?? null}
       isSaving={isSaving}
       withdrawDisabledReason={rowEligibility?.withdraw.reason ?? null}
       pullDisabledReason={rowEligibility?.pull.reason ?? null}

@@ -24,6 +24,7 @@ import { JudgeReviewPanelBody } from './JudgeReviewPanelBody';
 import type { ReviewEntryInfo } from './judgeReview';
 import { collateTrialPacket } from './collateTrialPacket';
 import { formatCoverDate } from './judgeCoverSheet';
+import { SavedCopySection } from './SavedCopySection';
 import { recordTrialPacketPrint, type TrialPacketPrintRecords } from './recordTrialPacketPrint';
 import { packetFileName, plural, savePacketPdf, usePacketFrame } from './usePacketFrame';
 import { useTrialPacketPdfs } from './useTrialPacketPdfs';
@@ -343,6 +344,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           )}
         </p>
       )}
+      {packet.trial.date && <SavedCopySection showId={showId} trialDate={packet.trial.date} />}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t bg-card px-4 py-3">
         <span className="text-sm text-muted-foreground">
           {emptyView

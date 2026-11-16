@@ -5,6 +5,7 @@ import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/typ
 import {
   buildDeliveredPacketRows,
   type DeliveredPacketRow,
+  type DeliveredPacketSnapshot,
   type PacketPrintConfirmation,
 } from './deliveredPacketRows';
 
@@ -38,19 +39,24 @@ interface PacketReadClient {
  * said "not printed", the button invited another press, and each press wrote
  * another `paperwork_prints` row.
  */
+/** The delivered-packets query, so a send can refresh the list it just added to. */
+export function deliveredPacketsKey(showId: string | undefined) {
+  return ['emergency-packet-delivered', showId] as const;
+}
+
 export function useDeliveredPackets(
   showId: string | undefined,
   packetData: Omit<EmergencyPacketInput, 'generatedAt'> | null,
   client: PacketReadClient = defaultSupabase as unknown as PacketReadClient
-): { rows: DeliveredPacketRow[]; isError: boolean } {
+): { rows: DeliveredPacketRow[]; copies: DeliveredPacketSnapshot[]; isError: boolean } {
   const prints = useShowPaperworkPrints(showId ?? '');
   const { data, isError } = useQuery({
-    queryKey: ['emergency-packet-delivered', showId],
+    queryKey: deliveredPacketsKey(showId),
     enabled: !!showId,
     queryFn: async () => {
       const snapshots = await client
         .from('trial_packet_snapshots')
-        .select('snapshot_id, trial_date, generated_at, page_count, created_at')
+        .select('snapshot_id, trial_date, generated_at, page_count, created_at, recipient_count')
         .eq('show_id', showId as string)
         .eq('delivery_status', 'sent')
         .order('created_at', { ascending: false });
@@ -61,11 +67,14 @@ export function useDeliveredPackets(
         generatedAt: row.generated_at as string,
         createdAt: (row.created_at as string) ?? (row.generated_at as string),
         pageCount: (row.page_count as number) ?? 0,
+        recipientCount: (row.recipient_count as number | null) ?? 0,
       }));
     },
   });
 
   return {
+    // Every copy that went out, newest first, for the per-day "Saved copy" list.
+    copies: data ?? [],
     rows: buildDeliveredPacketRows({
       snapshots: data ?? [],
       confirmations: (prints.data ?? []).map((record): PacketPrintConfirmation => ({

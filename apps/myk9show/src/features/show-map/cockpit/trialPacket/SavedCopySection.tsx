@@ -32,10 +32,11 @@ type SaveOutcome =
   | { kind: 'sent'; recipientCount: number }
   | { kind: 'nobody-emailed' }
   | { kind: 'stored-not-emailed' }
-  | { kind: 'offline' }
   | { kind: 'failed' };
 
-const OFFLINE_LINE = 'You are offline. Seeing sent copies and saving a copy need a connection.';
+const OFFLINE_UNREAD_LINE =
+  'You are offline. Seeing sent copies and saving a copy need a connection.';
+const OFFLINE_READ_LINE = 'You are offline. Saving a copy needs a connection.';
 
 /**
  * "Saved copy" for one trial day (MYK9-2101): the copies already sent, whether paper matching the
@@ -111,7 +112,7 @@ function SavedCopyBody({
         : null,
     [completeRows, show]
   );
-  const { rows, copies, listState } = useDeliveredPackets(showId, packetData);
+  const { rows, copies, listState, offline } = useDeliveredPackets(showId, packetData);
   const dayCopies = useMemo(
     () => copies.filter(copy => copy.trialDate === trialDate),
     [copies, trialDate]
@@ -142,21 +143,18 @@ function SavedCopyBody({
   const [saving, setSaving] = useState(false);
   const [marking, setMarking] = useState(false);
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null);
-  // A result from an earlier send is stale once the list can no longer be read: the list state's
-  // own line says what is true now. Adjusted during render, not in an effect.
-  const [outcomeListState, setOutcomeListState] = useState(listState);
-  if (outcomeListState !== listState) {
-    setOutcomeListState(listState);
-    if (listState !== 'ready' && outcome?.kind !== 'offline') setOutcome(null);
+  // A result from an earlier send is stale once the list state changes: the list state's own
+  // line says what is true now. Adjusted during render, not in an effect.
+  const listKey = `${listState}:${offline}`;
+  const [outcomeListKey, setOutcomeListKey] = useState(listKey);
+  if (outcomeListKey !== listKey) {
+    setOutcomeListKey(listKey);
+    setOutcome(null);
   }
   const [pending, setPending] = useState<PaperworkDescriptor | null>(null);
 
   const saveAndEmail = async () => {
-    if (!dayInput || !availability?.available) return;
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      setOutcome({ kind: 'offline' });
-      return;
-    }
+    if (offline || !dayInput || !availability?.available) return;
     setSaving(true);
     setOutcome(null);
     try {
@@ -207,7 +205,7 @@ function SavedCopyBody({
   // Why the send button is off, in plain words, beside it.
   // The list states already say why at the top of the section, so they are not repeated here.
   const blocked =
-    listState !== 'ready'
+    listState !== 'ready' || offline
       ? null
       : !packetData
         ? "Getting the show's data ready…"
@@ -220,7 +218,11 @@ function SavedCopyBody({
       {listState === 'pending' && (
         <p className="text-sm text-muted-foreground">Checking which copies were already sent…</p>
       )}
-      {listState === 'offline' && <p className="text-sm text-muted-foreground">{OFFLINE_LINE}</p>}
+      {offline && (
+        <p className="text-sm text-muted-foreground">
+          {listState === 'ready' ? OFFLINE_READ_LINE : OFFLINE_UNREAD_LINE}
+        </p>
+      )}
       {listState === 'error' && (
         <p role="alert" className="text-sm font-medium text-destructive">
           We could not check which copies were already sent. Saving stays off until we can, so the
@@ -235,7 +237,9 @@ function SavedCopyBody({
           type="button"
           size="touch"
           variant="outline"
-          disabled={listState !== 'ready' || !dayInput || !availability?.available || saving}
+          disabled={
+            listState !== 'ready' || offline || !dayInput || !availability?.available || saving
+          }
           onClick={() => void saveAndEmail()}
         >
           {saving ? (
@@ -268,11 +272,6 @@ function SavedCopyBody({
         <p role="alert" className="text-sm font-medium text-destructive">
           The copy was stored, but the email could not be sent. The stored copy is not listed and
           nobody received it. Trying again sends a fresh copy.
-        </p>
-      )}
-      {outcome?.kind === 'offline' && (
-        <p role="alert" className="text-sm font-medium text-destructive">
-          {OFFLINE_LINE}
         </p>
       )}
       {outcome?.kind === 'failed' && (

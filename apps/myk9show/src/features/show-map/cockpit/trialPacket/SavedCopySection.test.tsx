@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   rows: [] as unknown[],
   isError: false,
   listState: 'ready' as 'pending' | 'offline' | 'error' | 'ready',
+  offline: false,
   trialRows: [] as unknown[],
   classRows: [] as unknown[],
   markDeferred: null as null | (() => void),
@@ -56,6 +57,7 @@ vi.mock('@/pages/secretary/ReportsPage/useDeliveredPackets', async importOrigina
     copies: mocks.copies,
     isError: mocks.listState === 'error',
     listState: mocks.listState,
+    offline: mocks.offline,
   }),
 }));
 vi.mock('./buildSavedCopy', () => ({ buildSavedCopy: mocks.build }));
@@ -153,6 +155,7 @@ describe('SavedCopySection', () => {
     mocks.copies = [];
     mocks.rows = [];
     mocks.listState = 'ready';
+    mocks.offline = false;
     mocks.trialRows = [
       { id: 't-sat', timezone: 'America/Chicago', status: null },
       { id: 't-sun', timezone: null, status: null },
@@ -318,6 +321,7 @@ describe('SavedCopySection', () => {
 
   it('says it is offline, not "nothing sent", when the read is paused', async () => {
     mocks.listState = 'offline';
+    mocks.offline = true;
     await openSection();
     expect(screen.getAllByText(/You are offline\./).length).toBeGreaterThan(0);
     expect(screen.queryByText('No copy has been sent for this day yet.')).not.toBeInTheDocument();
@@ -331,11 +335,19 @@ describe('SavedCopySection', () => {
     expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
   });
 
-  it('does not build when the device is offline at the press', async () => {
+  it('keeps the read list and Mark printed offline, and only saving is off', async () => {
+    mocks.copies = COPIES;
+    mocks.rows = [latestRow({ printState: 'unconfirmed' })];
+    mocks.offline = true;
     const user = await openSection();
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    await user.click(screen.getByRole('button', { name: 'Save and email a copy' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('You are offline.');
+    expect(screen.getAllByText('You are offline. Saving a copy needs a connection.')).toHaveLength(
+      1
+    );
+    expect(screen.getByRole('list', { name: 'Copies already sent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mark printed' })).toBeEnabled();
+    const save = screen.getByRole('button', { name: 'Save and email a copy' });
+    expect(save).toBeDisabled();
+    await user.click(save);
     expect(mocks.build).not.toHaveBeenCalled();
     expect(mocks.deliver).not.toHaveBeenCalled();
   });

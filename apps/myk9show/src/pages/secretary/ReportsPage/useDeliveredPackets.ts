@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { supabase as defaultSupabase } from '@/lib/supabase';
 import { useShowPaperworkPrints } from '@/features/show-map/cockpit/useShowPaperworkPrints';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
@@ -27,6 +28,11 @@ interface PacketReadClient {
   from(table: string): { select(columns: string): PacketFilter };
 }
 
+/** The delivered-packets query, so a send can refresh the list it just added to. */
+export function deliveredPacketsKey(showId: string | undefined) {
+  return ['emergency-packet-delivered', showId] as const;
+}
+
 /**
  * The packets that already exist for this show, and whether the paper in the
  * box matches them.
@@ -39,15 +45,6 @@ interface PacketReadClient {
  * said "not printed", the button invited another press, and each press wrote
  * another `paperwork_prints` row.
  */
-/** The delivered-packets query, so a send can refresh the list it just added to. */
-function isBrowserOffline(): boolean {
-  return typeof navigator !== 'undefined' && navigator.onLine === false;
-}
-
-export function deliveredPacketsKey(showId: string | undefined) {
-  return ['emergency-packet-delivered', showId] as const;
-}
-
 export function useDeliveredPackets(
   showId: string | undefined,
   packetData: Omit<EmergencyPacketInput, 'generatedAt'> | null,
@@ -56,10 +53,16 @@ export function useDeliveredPackets(
   rows: DeliveredPacketRow[];
   copies: DeliveredPacketSnapshot[];
   isError: boolean;
-  /** Whether the sent-copies list has been read: an unread list is not "nothing was sent". */
+  /**
+   * Whether the sent-copies list can be shown: an unread list is not "nothing was sent". A list
+   * already read stays `ready` offline, so its Mark printed (a replicated write) keeps working.
+   */
   listState: 'pending' | 'offline' | 'error' | 'ready';
+  /** The device is offline, or the read is paused for want of a connection. */
+  offline: boolean;
 } {
   const prints = useShowPaperworkPrints(showId ?? '');
+  const online = useOnlineStatus();
   const { data, isError, fetchStatus } = useQuery({
     queryKey: deliveredPacketsKey(showId),
     enabled: !!showId,
@@ -82,6 +85,7 @@ export function useDeliveredPackets(
     },
   });
 
+  const offline = !online || (data === undefined && fetchStatus === 'paused');
   return {
     // Every copy that went out, newest first, for the per-day "Saved copy" list.
     copies: data ?? [],
@@ -100,15 +104,17 @@ export function useDeliveredPackets(
     // rendered every day as "not printed" with no warning. `syncFailed` is the
     // signal that actually reflects the server.
     isError: isError || prints.isError || prints.syncFailed,
-    // Offline first: the confirmations sync fails whenever the device is offline, so checking
-    // `syncFailed` first showed an offline secretary the alarming "could not check" error.
+    offline,
+    // Offline, the confirmations sync fails too, so a failure is only an error while online.
     listState:
-      (data === undefined && fetchStatus === 'paused') || isBrowserOffline()
-        ? 'offline'
-        : isError || prints.isError || prints.syncFailed
+      data === undefined
+        ? offline
+          ? 'offline'
+          : isError
+            ? 'error'
+            : 'pending'
+        : !offline && (isError || prints.isError || prints.syncFailed)
           ? 'error'
-          : data === undefined
-            ? 'pending'
-            : 'ready',
+          : 'ready',
   };
 }

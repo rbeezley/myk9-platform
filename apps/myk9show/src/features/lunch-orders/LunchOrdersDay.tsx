@@ -137,14 +137,16 @@ export function LunchOrdersDay({
         </ul>
       )}
 
+      {/* One layout at every window width: this form only renders in the 448px side panel,
+          where a window breakpoint once pushed "Add to list" past the edge (MYK9-2100). */}
       <form
-        className="grid grid-cols-1 gap-2 rounded-md border border-dashed p-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-md border border-dashed p-3"
         onSubmit={event => {
           event.preventDefault();
           void addPerson();
         }}
       >
-        <div className="space-y-1">
+        <div className="col-span-2 space-y-1">
           <Label htmlFor={`lunch-new-name-${trialId}`}>Add person</Label>
           <Input
             id={`lunch-new-name-${trialId}`}
@@ -154,7 +156,7 @@ export function LunchOrdersDay({
             onChange={event => setNewName(event.target.value)}
           />
         </div>
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Label id={`lunch-new-role-${trialId}`}>Role</Label>
           <Select value={newRole} onValueChange={value => setNewRole(value as LunchRole)}>
             <SelectTrigger aria-labelledby={`lunch-new-role-${trialId}`}>
@@ -173,7 +175,7 @@ export function LunchOrdersDay({
           Add to list
         </Button>
         {addError && (
-          <p className="text-xs text-destructive sm:col-span-3" role="alert">
+          <p className="col-span-full text-xs text-destructive" role="alert">
             Could not add that person. Check your connection and try again.
           </p>
         )}

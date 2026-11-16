@@ -109,7 +109,9 @@ export function LunchOrderRow({ item, trialId, onDirtyChange, onRemove }: LunchO
           )}
         </p>
       </div>
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {/* Stacked at every window width: the row lives in the 448px side panel, where side by
+          side cut off the dietary-note placeholder (MYK9-2100). */}
+      <div className="mt-2 grid grid-cols-1 gap-2">
         <Input
           aria-label={`Lunch order for ${item.name}`}
           placeholder="Lunch order"

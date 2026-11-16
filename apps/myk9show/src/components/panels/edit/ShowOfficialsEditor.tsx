@@ -27,19 +27,15 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   }, [people.length, loadPeople]);
 
   const handleAssign = async (role: UserRole, personId: string) => {
-    const currentHolders =
-      role === UserRole.CHAIRMAN
-        ? (officials?.chairmen ?? [])
-        : role === UserRole.SECRETARY
-          ? (officials?.secretaries ?? [])
-          : null;
+    const singleHolderRole =
+      role === UserRole.CHAIRMAN ? 'chairman' : role === UserRole.SECRETARY ? 'secretary' : null;
     const roleLabel = role === UserRole.CHAIRMAN ? 'Chair' : 'Secretary';
     const invalidate = () =>
       queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
 
     setPendingRole(role);
     try {
-      if (!currentHolders) {
+      if (!singleHolderRole) {
         // Stewards keep grant-only behavior: a steward row also grants ring access.
         const { error } = await supabase.rpc('grant_show_official', {
           p_person_id: personId,
@@ -55,9 +51,8 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
       try {
         const { stillListed, revokeError } = await replaceShowOfficial({
           showId,
-          role,
+          role: singleHolderRole,
           personId,
-          currentHolders,
         });
         if (stillListed.length === 0) {
           notifications.success('Official assigned');
@@ -79,12 +74,13 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
         await invalidate();
       }
     } catch (err) {
-      logger.warn('Failed to grant official role', 'officials-editor', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-      notifications.error(
-        `Failed to assign role: ${err instanceof Error ? err.message : String(err)}`
-      );
+      // A PostgrestError is a plain object, not an Error: read its message too.
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : String(err);
+      logger.warn('Failed to grant official role', 'officials-editor', { error: message });
+      notifications.error(`Failed to assign role: ${message}`);
     } finally {
       setPendingRole(null);
     }

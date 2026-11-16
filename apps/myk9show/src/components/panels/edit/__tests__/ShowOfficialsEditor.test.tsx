@@ -12,6 +12,9 @@ const harness = vi.hoisted(() => ({
     chairmen: [] as unknown[],
     stewards: [] as unknown[],
   },
+  // What the editor's cached query holds; null means "same as the server".
+  cached: null as null | undefined | Record<string, unknown[]>,
+  fetchError: null as Error | null,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: harness.rpc } }));
@@ -19,7 +22,14 @@ vi.mock('@/lib/notifications', () => ({
   notifications: { success: harness.success, error: harness.error },
 }));
 vi.mock('@/hooks/queries/useShowOfficials', () => ({
-  useShowOfficials: () => ({ data: harness.officials, isLoading: false }),
+  useShowOfficials: () => ({
+    data: harness.cached === null ? harness.officials : harness.cached,
+    isLoading: false,
+  }),
+  fetchShowOfficials: async () => {
+    if (harness.fetchError) throw harness.fetchError;
+    return harness.officials;
+  },
 }));
 vi.mock('@/store/userStore', () => ({
   useUserStore: () => ({
@@ -55,6 +65,8 @@ describe('ShowOfficialsEditor replace', () => {
     vi.clearAllMocks();
     harness.rpc.mockResolvedValue({ error: null });
     harness.officials = { secretaries: [], chairmen: [], stewards: [] };
+    harness.cached = null;
+    harness.fetchError = null;
   });
 
   it('assigning a second Chair revokes the first', async () => {
@@ -112,8 +124,57 @@ describe('ShowOfficialsEditor replace', () => {
     renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
     await userEvent.click(screen.getByText('pick Chair'));
 
-    await waitFor(() => expect(harness.error).toHaveBeenCalled());
+    await waitFor(() => expect(harness.error).toHaveBeenCalledWith('Failed to assign role: nope'));
     expect(harness.rpc).not.toHaveBeenCalledWith('revoke_show_official', expect.anything());
+    expect(harness.success).not.toHaveBeenCalled();
+  });
+
+  it('revokes the holder the server has even when the cached list is empty', async () => {
+    harness.officials.chairmen = [holder('old-1', 'Caleb', 'Morgan')];
+    harness.cached = undefined; // query failed or offline: the editor has no list
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    await userEvent.click(screen.getByText('pick Chair'));
+
+    await waitFor(() => expect(harness.success).toHaveBeenCalledWith('Official assigned'));
+    expect(harness.rpc).toHaveBeenCalledWith('revoke_show_official', {
+      p_person_id: 'old-1',
+      p_role_name: 'chairman',
+      p_show_id: SHOW,
+    });
+  });
+
+  it('grants nothing when the current officials cannot be read', async () => {
+    harness.fetchError = new Error('offline');
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    await userEvent.click(screen.getByText('pick Chair'));
+
+    await waitFor(() =>
+      expect(harness.error).toHaveBeenCalledWith('Failed to assign role: offline')
+    );
+    expect(harness.rpc).not.toHaveBeenCalled();
+    expect(harness.success).not.toHaveBeenCalled();
+  });
+
+  it('names only the holders whose revoke failed, in the plural', async () => {
+    harness.officials.chairmen = [
+      holder('old-1', 'Caleb', 'Morgan'),
+      holder('old-2', 'Liz', 'Beezley'),
+      holder('old-3', 'Pat', 'Kerr'),
+    ];
+    harness.rpc.mockImplementation(async (name: string, args: { p_person_id: string }) => {
+      if (name !== 'revoke_show_official') return { error: null };
+      if (args.p_person_id === 'old-2') return { error: null };
+      if (args.p_person_id === 'old-3') throw new Error('network');
+      return { error: { message: 'denied' } };
+    });
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    await userEvent.click(screen.getByText('pick Chair'));
+
+    await waitFor(() =>
+      expect(harness.error).toHaveBeenCalledWith(
+        'Alex Whitfield is now Chair, but Caleb Morgan, Pat Kerr are still listed. Try again.'
+      )
+    );
     expect(harness.success).not.toHaveBeenCalled();
   });
 

@@ -1,5 +1,7 @@
 import { supabase } from '@/services/database/supabaseClient';
-import type { ShowOfficial } from '@/hooks/queries/useShowOfficials';
+import { fetchShowOfficials, type ShowOfficial } from '@/hooks/queries/useShowOfficials';
+
+export type SingleHolderRole = 'chairman' | 'secretary';
 
 export interface ReplaceShowOfficialResult {
   /** Prior holders whose revoke failed: they are still listed. */
@@ -10,16 +12,24 @@ export interface ReplaceShowOfficialResult {
 
 /**
  * Makes `personId` the only holder of a single-holder role (chairman, secretary).
- * Grants first, so a failed grant leaves the current holders untouched; throws on
- * that failure. Then revokes every other current holder and reports who is left.
+ *
+ * The current holders are read fresh from the server, never from the editor's cached
+ * query: a cache that is empty (query failed, offline) or stale (another tab added a
+ * holder) would otherwise grant without revoking and report success while the old
+ * holder stays on the show. A failed read throws before anything is written.
+ *
+ * Grants first, so a failed grant leaves the current holders untouched (throws). Then
+ * revokes every other holder and reports who is left.
  */
 export async function replaceShowOfficial(params: {
   showId: string;
-  role: string;
+  role: SingleHolderRole;
   personId: string;
-  currentHolders: ShowOfficial[];
 }): Promise<ReplaceShowOfficialResult> {
-  const { showId, role, personId, currentHolders } = params;
+  const { showId, role, personId } = params;
+
+  const officials = await fetchShowOfficials(showId);
+  const currentHolders = role === 'chairman' ? officials.chairmen : officials.secretaries;
 
   if (currentHolders.length === 1 && currentHolders[0].personId === personId) {
     return { stillListed: [], revokeError: null };

@@ -71,6 +71,7 @@ const { supabaseSignOut, supabaseGetSession } = vi.hoisted(() => ({
   supabaseGetSession: vi.fn().mockResolvedValue({ data: { session: null } }),
 }));
 // MYK9-2013: the passcode escape is a guarded sign-out; it reads this device's unsent work.
+const sheetLookup = vi.hoisted(() => ({ missing: false }));
 const unsent = vi.hoisted(() => ({ scores: 0 }));
 vi.mock('@/services/replication/unsentWork', async importOriginal => {
   const actual = await importOriginal<typeof import('@/services/replication/unsentWork')>();
@@ -165,6 +166,7 @@ vi.mock('@/pages/scoring/types', () => ({
   mapSportType: () => ({ organization: 'AKC', sportType: 'SCENT_WORK' }),
   detectScoresheetType: () => ({ organization: 'AKC', sportType: 'SCENT_WORK' }),
   toRegistryKey: () => 'AKC_SCENT_WORK',
+  MISSING_TRIAL_TYPE_SPORT_TYPE: 'MISSING_TRIAL_TYPE',
   toScoresheetEntry: (e: unknown) => e,
   toScoresheetClassInfo: (c: unknown) => c,
 }));
@@ -218,7 +220,7 @@ vi.mock('@myk9/scoring-ui', () => ({
   ScoresheetActionBarRefContext: {
     Provider: ({ children }: { children: React.ReactNode }) => children,
   },
-  getScoresheetComponent: () => StubLiveScoresheet,
+  getScoresheetComponent: () => (sheetLookup.missing ? null : StubLiveScoresheet),
   // Like the real builder: no saved limit means no limit (0).
   buildResolvedClassRules: (cls: { timeLimitSeconds?: number }) => ({
     maxTimeSeconds: cls.timeLimitSeconds ?? 0,
@@ -308,6 +310,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
 describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sheetLookup.missing = false;
     vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('pending');
     vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue(null);
     // A test may capture the replica listener; every other test gets a no-op.
@@ -389,6 +392,17 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
+  });
+
+  it('says plainly when a class type has no scoresheet, with no raw sport names', async () => {
+    sheetLookup.missing = true;
+    renderPage();
+
+    expect(
+      await screen.findByText(/This class type does not have a scoresheet here yet/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/not yet implemented/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/SCENT_WORK/)).not.toBeInTheDocument();
   });
 
   it('returns to the combined A/B list when opened from it', async () => {

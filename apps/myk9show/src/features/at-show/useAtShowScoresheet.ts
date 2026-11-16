@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import { ScoreResultRefusedError } from '@/hooks/scoreResultRefusedError';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -46,8 +47,16 @@ import { CANCELLED_CLASS_MESSAGE, useIsClassCancelled } from './cancelledClassGu
 /** Shown while a cold sheet's show sync keeps failing; retried automatically. */
 export const NOT_LOADED_YET_MESSAGE =
   'We could not reach myK9Show to load this dog yet. Trying again…';
-/** Shown in place of the raw error when a score could not be queued; the cause is logged. */
-export const SCORE_NOT_SAVED_MESSAGE = 'Score not saved. Check your signal and press Save again.';
+/**
+ * Shown when a score could not be saved on this phone (full storage, entry missing from the
+ * cache, no queued write). The queue write is local, so it is never a signal problem; the cause
+ * is logged.
+ */
+export const SCORE_NOT_SAVED_MESSAGE =
+  'This score was not saved on this phone. Press Save again. If it happens again, tell the secretary.';
+/** Shown when the result itself was refused; saving again would be refused the same way. */
+export const SCORE_RESULT_REFUSED_MESSAGE =
+  'That result could not be saved. Choose the result again and save.';
 /** Shown when the class or dog behind the open sheet cannot be found. */
 export const SHEET_NOT_FOUND_MESSAGE =
   'We could not find this dog. Go back to the entry list and pick it again.';
@@ -328,7 +337,11 @@ export function useAtShowScoresheet({
         // Durable-queue failure: the score is NOT saved. Keep the judge on the
         // sheet with a visible error rather than navigating away.
         logger.error('At-show score submission failed:', 'at-show', {}, err as Error);
-        setSubmitError(SCORE_NOT_SAVED_MESSAGE);
+        setSubmitError(
+          err instanceof ScoreResultRefusedError
+            ? SCORE_RESULT_REFUSED_MESSAGE
+            : SCORE_NOT_SAVED_MESSAGE
+        );
       },
     });
 

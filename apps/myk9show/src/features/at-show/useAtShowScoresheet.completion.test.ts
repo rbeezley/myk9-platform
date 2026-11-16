@@ -1,6 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SCORE_NOT_SAVED_MESSAGE, useAtShowScoresheet } from './useAtShowScoresheet';
+import { ScoreResultRefusedError } from '@/hooks/scoreResultRefusedError';
+import {
+  SCORE_NOT_SAVED_MESSAGE,
+  SCORE_RESULT_REFUSED_MESSAGE,
+  useAtShowScoresheet,
+} from './useAtShowScoresheet';
 
 interface SubmitOptions {
   classId: string;
@@ -264,6 +269,19 @@ describe('useAtShowScoresheet completion wiring', () => {
     expect(mocks.transitionToInRing).toHaveBeenCalledWith('entry-1');
   });
 
+  it('tells the judge to choose the result again when the result was refused, never blaming signal', async () => {
+    mocks.submitScoreOptimistically.mockImplementation(async (options: SubmitOptions) => {
+      options.onError?.(new ScoreResultRefusedError('Mystery'));
+    });
+    const { result } = renderScoresheet(vi.fn());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await act(async () => {
+      await expect(result.current.submit({ resultText: 'Mystery' } as never)).rejects.toThrow();
+    });
+    expect(result.current.submitError).toBe(SCORE_RESULT_REFUSED_MESSAGE);
+    expect(result.current.submitError).not.toMatch(/signal|connection|online/i);
+  });
+
   it('does not record completion, transition, or navigate when score submission fails', async () => {
     const onScored = vi.fn();
     mocks.submitScoreOptimistically.mockImplementation(async (options: SubmitOptions) => {
@@ -279,6 +297,7 @@ describe('useAtShowScoresheet completion wiring', () => {
     });
 
     expect(result.current.submitError).toBe(SCORE_NOT_SAVED_MESSAGE);
+    expect(result.current.submitError).not.toMatch(/signal|connection|online/i);
     expect(mocks.recordCompletionIntentIfConfirmed).not.toHaveBeenCalled();
     expect(mocks.transitionToCompleted).not.toHaveBeenCalled();
     expect(onScored).not.toHaveBeenCalled();

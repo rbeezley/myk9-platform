@@ -1,46 +1,44 @@
-import { formatTimeLimitSeconds, formatTrialLabel, parseStoredClockTime } from '@myk9/core';
+import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 
 import { compareClassesByProgression } from '@/features/premium/pdf/bodies/classOrder';
 import { getTrialRegistry } from '@/features/registries';
-import { buildPages, type PageData } from '@/pages/secretary/ReportsPage/reportPreviewPages';
+import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { buildPages } from '@/pages/secretary/ReportsPage/reportPreviewPages';
 import { lifecycleFor } from '../buildSecretaryCockpitSnapshot';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
-import { selectPacketPages, toScoresheetModel } from '@/lib/reports/toScoresheetModel';
+import { toScoresheetModel } from '@/lib/reports/toScoresheetModel';
 import type { ReportDataSet } from '@/lib/reports/types';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import {
+  collateJudgePackets,
+  summarizeClassSheets,
+  type PacketJudge,
+  type PacketJudgeClass,
+} from '../../../../../../../supabase/functions/_shared/trialPacket/renderer/judgePacketCollation.ts';
 
-/** One class in a judge's packet. */
-export interface TrialPacketClass {
-  classId: string;
-  /** "Container Novice B", as the check-in sheet names it. */
-  label: string;
-  /** Minute of the day the class starts, or null when it has no scheduled time. */
-  startMinutes: number | null;
-  /** The class's own time limit, "3:00", or "" when none is set. */
-  maxTime: string;
-  dogCount: number;
-  /** Armbands in the order the dogs run: the order the scoresheet prints them. */
-  runOrder: string[];
-  checkInPages: number;
-  scoreSheetPages: number;
-  /** The one-class data the single-class print uses, so both outputs render the same pages. */
+// The grouping, order and totals live in the shared renderer (MYK9-2085), so the edge function
+// builds the same packet. This file maps the app's rows into that shape and back.
+export {
+  NO_JUDGE_KEY,
+  withJudgeTotals,
+} from '../../../../../../../supabase/functions/_shared/trialPacket/renderer/judgePacketCollation.ts';
+
+/** The one-class data the single-class print uses, so both outputs render the same pages. */
+interface PacketClassData {
   dataSet: ReportDataSet;
 }
 
+/** One class in a judge's packet. */
+export type TrialPacketClass = PacketJudgeClass<PacketClassData>;
+
 /** Everything one judge receives for one trial. */
-export interface TrialPacketJudge {
-  /** Stable key: the judge's name, or `no-judge` for the classes nobody is assigned. */
-  key: string;
-  /** Null for the "No judge assigned" packet. */
-  judgeName: string | null;
-  classes: TrialPacketClass[];
-  dogTotal: number;
-  sheetTotal: number;
-}
+export type TrialPacketJudge = PacketJudge<PacketClassData>;
 
 export interface CollatedTrialPacket {
   trial: DbTrial;
+  /** The trial's `YYYY-MM-DD` date, as the cover sheet reads it. */
+  trialDate: string | null | undefined;
   trialLabel: string;
   registryName: string;
   judges: TrialPacketJudge[];
@@ -48,51 +46,6 @@ export interface CollatedTrialPacket {
   emptyClassCount: number;
   /** Cancelled classes: the cockpit lists no paperwork for them, so none is printed or marked. */
   cancelledClassCount: number;
-}
-
-export const NO_JUDGE_KEY = 'no-judge';
-
-/** A judge's dog and sheet totals for the classes it holds. */
-export function withJudgeTotals(judge: TrialPacketJudge): TrialPacketJudge {
-  return {
-    ...judge,
-    dogTotal: judge.classes.reduce((sum, item) => sum + item.dogCount, 0),
-    // The cover sheet is one page of every judge's packet.
-    sheetTotal:
-      1 + judge.classes.reduce((sum, item) => sum + item.checkInPages + item.scoreSheetPages, 0),
-  };
-}
-
-function classLabel(classItem: DbClass): string {
-  const section = classItem.section && classItem.section !== '-' ? classItem.section : '';
-  return [classItem.element, classItem.level, section].filter(Boolean).join(' ') || '';
-}
-
-/**
- * The schedule's own order (secretaryCockpitClassLabel.compareCockpitClasses): scheduled time,
- * then the registry's element and level progression, then display order and name.
- */
-function compareSchedule(registryId: string) {
-  return (a: DbClass, b: DbClass): number => {
-    const aTime = parseStoredClockTime(a.start_time);
-    const bTime = parseStoredClockTime(b.start_time);
-    if (aTime !== bTime) return (aTime ?? Infinity) - (bTime ?? Infinity);
-    const progression = compareClassesByProgression(
-      { element: a.element ?? '', level: a.level ?? '', section: a.section ?? null },
-      { element: b.element ?? '', level: b.level ?? '', section: b.section ?? null },
-      registryId as Parameters<typeof compareClassesByProgression>[2]
-    );
-    if (progression !== 0) return progression;
-    return (
-      (a.display_order ?? Number.MAX_SAFE_INTEGER) - (b.display_order ?? Number.MAX_SAFE_INTEGER) ||
-      (a.name ?? '').localeCompare(b.name ?? '')
-    );
-  };
-}
-
-function judgeKeyOf(name: string): string {
-  const trimmed = name.trim();
-  return trimmed ? trimmed.toLowerCase() : NO_JUDGE_KEY;
 }
 
 /**
@@ -111,78 +64,78 @@ export function collateTrialPacket(input: {
   const trial = input.trials.find(item => item.id === input.trialId);
   if (!trial) return null;
   const registry = getTrialRegistry(trial);
-  const trialClasses = input.classes
-    .filter(classItem => classItem.trial_id === input.trialId)
-    .sort(compareSchedule(registry.id));
+  const trialClasses = input.classes.filter(classItem => classItem.trial_id === input.trialId);
+  // The cockpit's own predicate (classChecklist.ts: a cancelled class has no checklist items).
+  const live = trialClasses.filter(
+    classItem => lifecycleFor(classItem.status ?? undefined) !== 'cancelled'
+  );
+  const byId = new Map(live.map(classItem => [classItem.id, classItem]));
+  const mapped = buildEmergencyPacketData({
+    show: input.show,
+    trials: [trial],
+    classes: live,
+    entries: [],
+  });
+  const assignedJudges = input.show.assignedJudges ?? [];
 
-  const judges = new Map<string, TrialPacketJudge>();
-  let emptyClassCount = 0;
-  let cancelledClassCount = 0;
-  for (const classItem of trialClasses) {
-    // The cockpit's own predicate (classChecklist.ts: a cancelled class has no checklist items).
-    if (lifecycleFor(classItem.status ?? undefined) === 'cancelled') {
-      cancelledClassCount += 1;
-      continue;
+  const collated = collateJudgePackets<PacketClassData>(
+    {
+      ...mapped,
+      generatedAt: new Date().toISOString(),
+      // The packet names a class nobody judges by an empty name, not the "Judge unassigned" label.
+      classes: mapped.classes.map(classItem => ({
+        ...classItem,
+        judgeName: resolveClassJudgeName(byId.get(classItem.id), assignedJudges, ''),
+      })),
+    },
+    {
+      trialId: input.trialId,
+      // Named as the sheets' own footers name it: "Trial 1" when it has a number.
+      trialLabel: trial.trial_number
+        ? `Trial ${trial.trial_number}`
+        : formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
+      registryName: registry.name,
+      parseStartMinutes: parseStoredClockTime,
+      compareProgression: (a, b) => {
+        const left = byId.get(a.id);
+        const right = byId.get(b.id);
+        return compareClassesByProgression(
+          {
+            element: left?.element ?? '',
+            level: left?.level ?? '',
+            section: left?.section ?? null,
+          },
+          {
+            element: right?.element ?? '',
+            level: right?.level ?? '',
+            section: right?.section ?? null,
+          },
+          registry.id as Parameters<typeof compareClassesByProgression>[2]
+        );
+      },
+      sheetsFor: classItem => {
+        const row = byId.get(classItem.id);
+        if (!row) return null;
+        const pages = buildPages(
+          input.trialId,
+          row.id,
+          [trial],
+          [row] as DbClass[],
+          input.entries as DbEntry[]
+        );
+        if (!pages[0]) return null;
+        const dataSet: ReportDataSet = { show: input.show, pages };
+        return { ...summarizeClassSheets(toScoresheetModel(dataSet, 'run-order')), dataSet };
+      },
     }
-    const pages: PageData[] = buildPages(
-      input.trialId,
-      classItem.id,
-      [trial],
-      [classItem] as DbClass[],
-      input.entries as DbEntry[]
-    );
-    if (!pages[0]) {
-      emptyClassCount += 1;
-      continue;
-    }
-    const dataSet: ReportDataSet = { show: input.show, pages };
-    const model = toScoresheetModel(dataSet, 'run-order');
-    const checkIn = selectPacketPages(model, 'check-in');
-    const scoreSheets = selectPacketPages(model, 'score-recording');
-    // The dogs that run: the sheets leave off a moved-up source, a withdrawn or pulled dog
-    // (MYK9-2082), so the count comes from what prints, not from the class's raw entries.
-    const dogCount = scoreSheets.pages.reduce((sum, item) => sum + item.entries.length, 0);
-    if (dogCount === 0) {
-      emptyClassCount += 1;
-      continue;
-    }
-    const judgeName = resolveClassJudgeName(classItem, input.show.assignedJudges ?? [], '');
-    const key = judgeKeyOf(judgeName);
-    const packetClass: TrialPacketClass = {
-      classId: classItem.id,
-      label: classLabel(classItem) || (classItem.name ?? ''),
-      startMinutes: parseStoredClockTime(classItem.start_time),
-      maxTime: formatTimeLimitSeconds(classItem.time_limit_seconds),
-      dogCount,
-      runOrder: scoreSheets.pages.flatMap(item => item.entries.map(entry => entry.armband ?? '')),
-      checkInPages: checkIn.pages.length,
-      scoreSheetPages: scoreSheets.pages.length,
-      dataSet,
-    };
-    const existing = judges.get(key);
-    if (existing) existing.classes.push(packetClass);
-    else {
-      judges.set(key, {
-        key,
-        judgeName: key === NO_JUDGE_KEY ? null : judgeName.trim(),
-        classes: [packetClass],
-        dogTotal: 0,
-        sheetTotal: 0,
-      });
-    }
-  }
-  const ordered = [...judges.values()]
-    .map(withJudgeTotals)
-    .sort((a, b) => Number(a.key === NO_JUDGE_KEY) - Number(b.key === NO_JUDGE_KEY));
+  );
   return {
     trial,
-    // Named as the sheets' own footers name it: "Trial 1" when it has a number.
-    trialLabel: trial.trial_number
-      ? `Trial ${trial.trial_number}`
-      : formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
-    registryName: registry.name,
-    judges: ordered,
-    emptyClassCount,
-    cancelledClassCount,
+    trialDate: trial.date,
+    trialLabel: collated?.trialLabel ?? '',
+    registryName: collated?.registryName ?? registry.name,
+    judges: collated?.judges ?? [],
+    emptyClassCount: collated?.emptyClassCount ?? 0,
+    cancelledClassCount: trialClasses.length - live.length,
   };
 }

@@ -26,6 +26,7 @@ import {
 import {
   assembleJudgePacketPdf,
   mergePdfParts,
+  winAnsiSafe,
 } from '../../../../../supabase/functions/_shared/trialPacket/renderer/judgePacketPdf.ts';
 import { buildEmergencyTrialPacketPdf } from './buildEmergencyTrialPacketPdf';
 import type { EmergencyPacketClass, EmergencyPacketInput, PacketReportEntry } from './types';
@@ -242,6 +243,32 @@ describe('assembleJudgePacketPdf', () => {
       );
       expect(footer).toContain(`Packet page ${index + 1} of ${pages.length}`);
     });
+  });
+
+  it('still builds the packet for a judge whose name the standard font cannot encode', async () => {
+    const packet = collate();
+    const judge = { ...packet.judges[0]!, judgeName: 'Łukasz Wójcik-Nguyễn 李' };
+    const bytes = await assembleJudgePacketPdf({
+      pdfLib,
+      JsPdf: jsPDF,
+      packet: {
+        trialLabel: packet.trialLabel,
+        trialDate: '2026-12-07',
+        registryName: packet.registryName,
+      },
+      judge,
+      showName: 'Winter Trial',
+      classParts: judge.classes.flatMap(item => classParts(item.classId)),
+      printedAt: new Date('2026-12-06T18:00:00Z'),
+      timeZone: 'America/New_York',
+    });
+    const pages = await pageContentStreams(bytes);
+    expect(shownText(pages[0]!.at(-1) ?? '')).toContain('Lukasz Wójcik-Nguyen ?. Printed');
+  });
+
+  it('keeps WinAnsi text as it is and replaces only what the font cannot draw', () => {
+    expect(winAnsiSafe('Renée O’Brien – Zoë Šimić')).toBe('Renée O’Brien – Zoë Šimic');
+    expect(winAnsiSafe('Łódź 李')).toBe('Lódz ?');
   });
 
   it('merges parts in order into one document', async () => {

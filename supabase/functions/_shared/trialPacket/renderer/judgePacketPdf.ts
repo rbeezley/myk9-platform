@@ -90,6 +90,41 @@ export function formatPrintedAt(at: Date, timeZone: string): string {
     .replace(/\s/g, ' ');
 }
 
+/** The characters WinAnsi adds above Latin-1's printable range (0x80-0x9F). */
+const WIN_ANSI_EXTRAS = new Set('€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ');
+/** Letters that do not decompose into a base letter plus an accent. */
+const LETTER_FALLBACKS: Record<string, string> = {
+  Ł: 'L',
+  ł: 'l',
+  Đ: 'D',
+  đ: 'd',
+  ı: 'i',
+  Ħ: 'H',
+  ħ: 'h',
+};
+
+/**
+ * Text pdf-lib's standard Helvetica can encode. It throws on anything outside WinAnsi, and one
+ * judge named "Łukasz" would otherwise cost the whole packet: accents outside WinAnsi drop to the
+ * base letter, and anything still unencodable becomes "?".
+ */
+export function winAnsiSafe(text: string): string {
+  return Array.from(text, char => {
+    if (isWinAnsi(char)) return char;
+    const fallback = LETTER_FALLBACKS[char];
+    if (fallback) return fallback;
+    const base = char.normalize('NFD').replace(/\p{M}/gu, '');
+    return base && Array.from(base).every(isWinAnsi) ? base : '?';
+  }).join('');
+}
+
+function isWinAnsi(char: string): boolean {
+  const code = char.codePointAt(0) ?? 0;
+  return (
+    (code >= 0x20 && code <= 0x7e) || (code >= 0xa0 && code <= 0xff) || WIN_ANSI_EXTRAS.has(char)
+  );
+}
+
 /** The footer's two parts as the plan words them (docs/plan-print-packets.md, cover sheet). */
 export function packetFooterText(
   judgeName: string,
@@ -99,7 +134,9 @@ export function packetFooterText(
   pageCount: number
 ): { left: string; right: string } {
   return {
-    left: `${judgeName}. Printed ${formatPrintedAt(printedAt, timeZone)}. Later changes are in the app.`,
+    left: winAnsiSafe(
+      `${judgeName}. Printed ${formatPrintedAt(printedAt, timeZone)}. Later changes are in the app.`
+    ),
     right: `Packet page ${page} of ${pageCount}`,
   };
 }

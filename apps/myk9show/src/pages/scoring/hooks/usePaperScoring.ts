@@ -107,6 +107,9 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
       setIsSaving(true);
       try {
         await replicatedEntriesTable.updateEntry(entryId, {
+          // A paper score replaces a phone score whole (MYK9-2084): clear the
+          // area/element detail first so the paper's own fields below win.
+          ...SCORE_DETAIL_CLEAR_FIELDS,
           result_status: statusValue,
           resultStatus: statusValue,
           disqualification_reason: resultReason,

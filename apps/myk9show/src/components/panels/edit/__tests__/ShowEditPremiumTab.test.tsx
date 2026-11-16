@@ -9,6 +9,7 @@ const premiumEditorProps: Array<{
   initialPremium?: unknown;
 }> = [];
 let publishedExperienceContentMock: unknown = null;
+let officialsMock: unknown;
 
 vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs'));
 vi.mock('react-router-dom', () => ({
@@ -31,6 +32,10 @@ vi.mock('@/features/premium/PremiumContentEditor', () => ({
 }));
 vi.mock('@/features/experience/usePublishedExperienceContent', () => ({
   usePublishedExperienceContent: () => ({ data: publishedExperienceContentMock, isLoading: false }),
+}));
+
+vi.mock('@/hooks/queries/useShowOfficials', () => ({
+  useShowOfficials: () => ({ data: officialsMock }),
 }));
 
 import { ShowEditPremiumTab } from '../ShowEditPremiumTab';
@@ -59,6 +64,7 @@ describe('ShowEditPremiumTab', () => {
   beforeEach(() => {
     premiumEditorProps.length = 0;
     publishedExperienceContentMock = null;
+    officialsMock = undefined;
   });
 
   it('links the settings surface to the canonical show Preview editor', () => {
@@ -206,6 +212,53 @@ describe('ShowEditPremiumTab', () => {
         vetClinic: { name: 'Vet', address: '1 Main', phone: '555-0100' },
       },
       trials: [{ name: 'Trial 1', eventNumber: '2026123401' }],
+    });
+  });
+
+  it('lists the show officials as the preview secretary and chair (MYK9-2053)', () => {
+    officialsMock = {
+      secretaries: [
+        {
+          personId: 'p1',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          email: 'jane@test.com',
+          role: 'secretary',
+        },
+      ],
+      chairmen: [
+        { personId: 'p2', firstName: 'Bob', lastName: 'Jones', email: null, role: 'chairman' },
+      ],
+      stewards: [],
+    };
+    publishedExperienceContentMock = {
+      style: 'fieldGuide',
+      generatedAt: '2026-05-09T14:00:00.000Z',
+      narratives: { showHours: 'h', trialInformation: 't' },
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      outputs: {},
+    };
+    render(
+      <ShowEditPremiumTab
+        data={baseData}
+        clubId="c1"
+        showOrg="AKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+
+    expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
+      secretary: { name: 'Jane Smith', email: 'jane@test.com' },
+      officials: { chairman: { name: 'Bob Jones' } },
     });
   });
 

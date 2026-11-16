@@ -6,6 +6,7 @@ import {
   type GuardedRingsideRpcCall,
   type SharedStagingWriteLedgerEntry,
 } from '../helpers/sharedStagingWriteGuard';
+import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
 
 /**
  * Suite category: feature-audit.
@@ -64,6 +65,7 @@ test.describe('At-show judge scheduled audit replay', () => {
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 
+    await fillEveryAreaTime(page);
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();
@@ -110,6 +112,7 @@ test.describe('At-show judge scheduled audit replay', () => {
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 
+    await fillEveryAreaTime(page);
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();

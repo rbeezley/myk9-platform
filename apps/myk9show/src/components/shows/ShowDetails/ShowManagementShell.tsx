@@ -41,6 +41,10 @@ import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
+import {
+  applyOfficialsToPremium,
+  fetchOfficialsForPublish,
+} from '@/features/premium/premiumOfficials';
 import { showHeroParent } from './showHeroParent';
 import { carriedClassSearch } from './showTabClass';
 import { useClassSelectedOnLaptop } from './useClassSelectedOnLaptop';
@@ -401,10 +405,16 @@ function AuthorizedShowManagementShell({
                 // read failed; the published premium lists the server's judges,
                 // and only when this device agrees with them (MYK9-774).
                 const judges = await fetchShowJudgesForPublish(id);
-                const premium = applyShowFormDataToPremium(
-                  publishableShowData.generatedPremium,
-                  showData as Partial<ShowInput>,
-                  judges
+                // The secretary and chair come from show_officials, which the generated
+                // premium does not read (MYK9-2053); an unreadable read fails the publish.
+                const officials = await fetchOfficialsForPublish(id);
+                const premium = applyOfficialsToPremium(
+                  applyShowFormDataToPremium(
+                    publishableShowData.generatedPremium,
+                    showData as Partial<ShowInput>,
+                    judges
+                  ),
+                  officials
                 );
                 await runPremiumPublishOperation({
                   showId: id,

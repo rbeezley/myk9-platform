@@ -78,10 +78,11 @@ describe('AKCPremiumTemplate', () => {
     expect(screen.getByText(/Animal ER/)).toBeTruthy();
   });
 
-  it('renders REQUIRED placeholder when vet clinic is null', () => {
+  it('prints no placeholder and no vet section when the vet clinic is null', () => {
     const p = { ...premium, supplemental: { ...premium.supplemental, vetClinic: null } };
     render(<AKCPremiumTemplate premium={p} />);
-    expect(screen.getByText(/REQUIRED/)).toBeTruthy();
+    expect(screen.queryByText(/REQUIRED/)).toBeNull();
+    expect(screen.queryByText(/Veterinary Services/)).toBeNull();
   });
 
   it('renders show hours narrative', () => {

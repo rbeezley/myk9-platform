@@ -4,7 +4,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
-import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
+import {
+  pickPremiumOfficial,
+  PREMIUM_OFFICIALS_SELECT,
+  type PremiumOfficialRow,
+} from './showOfficialsRow.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
 import {
@@ -113,73 +117,23 @@ handle<GeneratePremiumPayload>(
       );
     }
 
-    // Step 7b: Resolve secretary from user_roles (migration 099 moved officials
-    // off shows.secretary/secretary_email into the user_roles + people tables).
-    const { data: secretaryRoleRow, error: secretaryRoleError } = await applyActiveRoleValidity(
-      userClient
-        .from('user_roles')
-        .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
-        .eq('show_id', show_id)
-        .eq('roles.name', 'secretary')
-    )
-      .limit(1)
-      .maybeSingle();
-    if (secretaryRoleError) {
-      throw new HttpError(500, 'Failed to resolve show secretary');
+    // Step 7b: The Trial Secretary and Trial Chair, from show_officials (MYK9-2056). The
+    // Personnel tab writes there; the show-scoped user_roles rows this used to read were retired
+    // by migration 20260830240000, so the premium printed no secretary and no chair.
+    const { data: officialRows, error: officialsError } = await userClient
+      .from('show_officials')
+      .select(PREMIUM_OFFICIALS_SELECT)
+      .eq('show_id', show_id)
+      .in('role', ['secretary', 'chairman']);
+    if (officialsError) {
+      throw new HttpError(500, 'Failed to resolve show officials');
     }
-    const secretaryPerson =
-      (
-        secretaryRoleRow as {
-          people?: {
-            first_name?: string;
-            last_name?: string;
-            email?: string;
-            phone?: string;
-          } | null;
-        } | null
-      )?.people ?? null;
-    const secretaryName = secretaryPerson
-      ? `${secretaryPerson.first_name ?? ''} ${secretaryPerson.last_name ?? ''}`.trim() || null
-      : null;
-    const secretaryEmail = secretaryPerson?.email ?? null;
-    const secretaryPhone = secretaryPerson?.phone ?? null;
-
-    // Resolve the show chairman the same way (user_roles → people). The chairman
-    // is often a non-login contact, so surface full contact info (name/email/phone)
-    // for the premium and official reports.
-    const { data: chairmanRoleRow, error: chairmanRoleError } = await applyActiveRoleValidity(
-      userClient
-        .from('user_roles')
-        .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
-        .eq('show_id', show_id)
-        .eq('roles.name', 'chairman')
-    )
-      .limit(1)
-      .maybeSingle();
-    if (chairmanRoleError) {
-      throw new HttpError(500, 'Failed to resolve show chairman');
-    }
-    const chairmanPerson =
-      (
-        chairmanRoleRow as {
-          people?: {
-            first_name?: string;
-            last_name?: string;
-            email?: string;
-            phone?: string;
-          } | null;
-        } | null
-      )?.people ?? null;
-    const chairmanName = chairmanPerson
-      ? `${chairmanPerson.first_name ?? ''} ${chairmanPerson.last_name ?? ''}`.trim() || null
-      : null;
-    const chairman = chairmanName
-      ? {
-          name: chairmanName,
-          email: chairmanPerson?.email ?? null,
-          phone: chairmanPerson?.phone ?? null,
-        }
-      : null;
+    const officials = (officialRows ?? []) as unknown as PremiumOfficialRow[];
+    const secretaryOfficial = pickPremiumOfficial(officials, 'secretary');
+    const secretaryName = secretaryOfficial?.name ?? null;
+    const secretaryEmail = secretaryOfficial?.email ?? null;
+    const secretaryPhone = secretaryOfficial?.phone ?? null;
+    const chairman = pickPremiumOfficial(officials, 'chairman');
 
     // Step 8: Template resolution — find best matching template for this show's trial type
     const { data: templates } = await userClient
@@ -324,8 +278,7 @@ handle<GeneratePremiumPayload>(
         name: clubData?.name ?? null,
         logoUrl: clubData?.logo_url ?? null,
       },
-      // Secretary now lives in user_roles + people (migration 099 dropped the
-      // shows.secretary / shows.secretary_email TEXT columns).
+      // From show_officials + people (Step 7b).
       secretary: {
         name: secretaryName,
         email: secretaryEmail,

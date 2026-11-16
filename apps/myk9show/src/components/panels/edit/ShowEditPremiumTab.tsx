@@ -1,4 +1,6 @@
 import { useCallback, useMemo } from 'react';
+import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
+import { applyOfficialsToPremium } from '@/features/premium/premiumOfficials';
 import { Link } from 'react-router-dom';
 import { FileText, Palette } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -49,10 +51,12 @@ export function ShowEditPremiumTab({
     },
     [handleValueChange]
   );
-  const initialPremium = useMemo(
-    () => buildLocalPremiumDraft(data, showOrg, publishedContent),
-    [data, publishedContent, showOrg]
-  );
+  // The preview lists the same secretary and chair the published premium will (MYK9-2053).
+  const { data: officials } = useShowOfficials(showId);
+  const initialPremium = useMemo(() => {
+    const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
+    return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
+  }, [data, publishedContent, showOrg, officials]);
 
   return (
     <TabsContent

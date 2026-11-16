@@ -3,6 +3,7 @@ import { supabase } from '../../services/database/supabaseClient';
 import type { GeneratedPremium } from '../../types/premium-types';
 import { fetchShowClubOfficers } from '@/services/database/club-memberships/officers';
 import { fetchShowCommittee } from '@/services/database/club-memberships/committee';
+import { applyOfficialsToPremium, fetchOfficialsForPublish } from './premiumOfficials';
 import { classifyPremiumFunctionError } from './premiumPublishErrors';
 import { parseGeneratedPremium } from './premiumPublishSchema';
 
@@ -39,8 +40,14 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
         // the same failure rule.
         const committee = await fetchShowCommittee(showId);
         if (!committee) console.error('[premium-generation] committee read failed', { showId });
+        // MYK9-2053: the secretary and chair live in show_officials; the function reads user_roles.
+        // An unreadable read fails the publish rather than printing a blank.
+        const withOfficials = applyOfficialsToPremium(
+          premium,
+          await fetchOfficialsForPublish(showId)
+        );
         return {
-          ...premium,
+          ...withOfficials,
           ...(officers ? { officers } : {}),
           ...(committee ? { committee } : {}),
         };

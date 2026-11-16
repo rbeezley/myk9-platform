@@ -37,6 +37,8 @@ export function useJudgeDayCapacity(showId: string | undefined) {
 
   return {
     judgeDays: query.data ?? [],
+    /** The server has answered at least once. `judgeDays` is `[]` before that, which is not "no judge-days". */
+    isKnown: query.data !== undefined,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     // Parked offline (a server read): no figures yet, which is not the same as no judge-days.

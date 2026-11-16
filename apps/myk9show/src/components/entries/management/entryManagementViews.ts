@@ -5,8 +5,9 @@
  * The four exception lists (Pulls, Move-ups, Registration number needed, Waitlist) are different
  * lists with different rows, so they are rows of the header Actions menu ("Entry lists") and each
  * opens as its own titled view. A count means "waiting for you" (MYK9-1949), the same number as
- * the Show Desk pill: Registration number needed is the held entries and Waitlist the spots to offer plus offers that
- * ran out, each read from its one calculation in `@/features/waiting-for-you`.
+ * the Show Desk pill: Registration number needed is the held entries; Waitlist is the offers that
+ * ran out, plus one for each class with a spot to offer when the show does not offer spots
+ * automatically. Each is read from its one calculation in `@/features/waiting-for-you`.
  */
 import type { ShowToolItem } from '@/features/actions/showToolActions';
 import {

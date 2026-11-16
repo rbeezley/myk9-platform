@@ -17,13 +17,23 @@ export interface ShowDeskWaitingInput {
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
-function runOutText(runOut: WaitlistWaiting['runOut']): string {
-  const total = runOut.reduce((sum, row) => sum + row.count, 0);
+/** `total` is the run-out offers' count, as the list gave it. */
+function runOutText(runOut: WaitlistWaiting['runOut'], total: number): string {
   const [first] = runOut;
   const offers = plural(total, '1 offer has', `${total} offers have`);
   return runOut.length === 1 && first
     ? `${offers} run out in ${first.className}`
     : `${offers} run out in ${runOut.length} classes`;
+}
+
+function openSpotText(openSpots: WaitlistWaiting['openSpots']): string {
+  const [first] = openSpots;
+  if (openSpots.length === 1 && first) {
+    return `A spot opened in ${first.className}${
+      first.nextDogName ? ` · next in line: ${first.nextDogName}` : ''
+    }`;
+  }
+  return `Spots opened in ${openSpots.length} classes`;
 }
 
 /** The held-entry and waitlist pills, each present only when something is waiting. */
@@ -51,8 +61,12 @@ export function buildWaitingSignals(
       id: 'waitlist-waiting',
       count: list.count,
       priority: 'medium',
-      // Phase 3 adds "A spot opened in X" here, with the Waitlist page showing the spot.
-      label: runOutText(list.runOut),
+      label: [
+        list.openSpots.length > 0 ? openSpotText(list.openSpots) : null,
+        list.runOut.length > 0 ? runOutText(list.runOut, list.count - list.openSpots.length) : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
       href: getEntryListHref(showId, 'waitlist'),
       destinationName: ENTRY_LIST_LABELS.waitlist,
       scope,

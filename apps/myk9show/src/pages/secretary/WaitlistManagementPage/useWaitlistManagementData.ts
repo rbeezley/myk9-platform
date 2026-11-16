@@ -22,7 +22,9 @@ import {
   WaitlistOfferNotWithdrawnError,
 } from '@/services/database/waitlists';
 import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
+import { findOpenWaitlistSpots, toSpotClass } from '@/features/waiting-for-you';
 import { WAITLIST_READ_TABLES } from '@/services/database/waitlists/replicaDependencies';
+import { toSpotEntry } from './spotEntry';
 import { useWaitlistOffers } from './useWaitlistOffers';
 import { withdrawOutcomeNotice } from './withdrawOutcomeNotice';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
@@ -66,6 +68,7 @@ export function useWaitlistManagementData(showId: string) {
   const isOffline = !useIsOnline();
   const {
     judgeDays,
+    isKnown: isCapacityKnown,
     isPaused: isCapacityUnavailable,
     error: capacityError,
   } = useJudgeDayCapacity(showId || undefined);
@@ -384,6 +387,21 @@ export function useWaitlistManagementData(showId: string) {
       }));
   }, [classes, waitlistEntries, searchTerm]);
 
+  // Where a spot is open and who is next in line: the one calculation the Show Desk pill reads
+  // too. The judge-day figures are the server's own answer; until they are loaded nothing is
+  // decided ("unknown"), never "a spot is open".
+  const spots = useMemo(
+    () =>
+      isLoading
+        ? null
+        : findOpenWaitlistSpots({
+            classes: classes.map(toSpotClass),
+            waitlist: [...waitlistEntries, ...offersRead.allOpenOffers].map(toSpotEntry),
+            judgeDays: isCapacityKnown ? judgeDays : null,
+          }),
+    [isLoading, classes, waitlistEntries, offersRead.allOpenOffers, isCapacityKnown, judgeDays]
+  );
+
   const viewJudgeDay = useCallback(
     (judgeId: string, showDate: string) => setJudgeDayKey({ showId, judgeId, showDate }),
     [showId]
@@ -399,6 +417,7 @@ export function useWaitlistManagementData(showId: string) {
     selectedJudgeDay,
     waitlistEntries,
     groups,
+    spots,
     offers: offersRead.offers,
     runOutOffers: offersRead.runOutOffers,
     isLoading,

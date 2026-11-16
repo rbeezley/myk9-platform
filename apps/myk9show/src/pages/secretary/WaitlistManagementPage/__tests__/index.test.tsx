@@ -104,6 +104,7 @@ const judgeDay = (over: Partial<JudgeDayCapacity>): JudgeDayCapacity => ({
 vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/queries/useJudgeDayCapacity')>()),
   useJudgeDayCapacity: () => ({
+    isKnown: true,
     judgeDays: [
       judgeDay({}),
       judgeDay({
@@ -117,6 +118,14 @@ vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
         classNames: ['Master'],
       }),
     ],
+  }),
+}));
+
+// The show offers spots by hand, so the page recommends who to offer.
+vi.mock('@/components/shows/waitListSettingsQuery', () => ({
+  waitListSettingsQueryOptions: (showId: string) => ({
+    queryKey: ['waitlist-settings', showId],
+    queryFn: async () => ({ config: { waitlistPaymentDeadlineHours: 24 }, autoOffer: false }),
   }),
 }));
 
@@ -221,7 +230,79 @@ describe('WaitlistManagementPage', () => {
     await waitFor(() => expect(screen.queryByText('Otherjudge')).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Show every class' }));
-    expect(await screen.findByText('Otherjudge')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Otherjudge')).toBeInTheDocument());
+  });
+
+  it("names the next dog when the judge's day has room, with one main button", async () => {
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Otherjudge');
+    const notices = await screen.findAllByTestId('waitlist-spot-notice');
+    expect(notices.map(n => n.textContent)).toContain(
+      '10 spots open. Next in line: Otherjudge (joined Mar 1)Offer spot to Otherjudge'
+    );
+    expect(screen.getAllByRole('button', { name: 'Offer spot to Otherjudge' })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /offer spot$/i })).not.toBeInTheDocument();
+  });
+
+  it("names the judge's day, and offers no spot, when a class has room but the day is full", async () => {
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Bella');
+    expect(
+      await screen.findByText("Novice A has room, but Judge One's Saturday is full.")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /offer spot to (bella|rexy|tera)/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^offer$/i })).not.toBeInTheDocument();
+  });
+
+  it('skips a dog that already has an open offer and names the following dog', async () => {
+    const { getWaitlistByClass, getWaitlistOffersByClass } =
+      await import('@/services/database/waitlists');
+    const original = vi.mocked(getWaitlistByClass).getMockImplementation()!;
+    vi.mocked(getWaitlistByClass).mockImplementation(async (classId: string) =>
+      classId === 'c3'
+        ? {
+            data: [
+              h.entry('w4', 'c3', 'Master', 1, 'Otherjudge'),
+              h.entry('w6', 'c3', 'Master', 2, 'Following'),
+            ],
+            error: null,
+          }
+        : original(classId)
+    );
+    // Otherjudge's dog (dog-w4) holds an open offer, so it is not the next to offer.
+    vi.mocked(getWaitlistOffersByClass).mockImplementation(
+      async (classId: string) =>
+        ({
+          data:
+            classId === 'c3'
+              ? [
+                  {
+                    ...h.entry('o1', 'c3', 'Master', 1, 'Otherjudge'),
+                    dog_id: 'dog-w4',
+                    status: 'offered',
+                  },
+                ]
+              : [],
+          error: null,
+        }) as never
+    );
+    try {
+      render(<WaitlistManagementPage showId="show-1" />);
+      expect(
+        await screen.findByRole('button', { name: 'Offer spot to Following' })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Offer spot to Otherjudge' })
+      ).not.toBeInTheDocument();
+    } finally {
+      vi.mocked(getWaitlistByClass).mockImplementation(original);
+      vi.mocked(getWaitlistOffersByClass).mockImplementation((async () => ({
+        data: [],
+        error: null,
+      })) as never);
+    }
   });
 
   it('narrows the queues through the shared ListFilterBar search', async () => {
@@ -401,7 +482,7 @@ describe('WaitlistManagementPage', () => {
     viewWaitList('Judge One');
     const showEvery = await screen.findByRole('button', { name: 'Show every class' });
 
-    const rowActions = await screen.findAllByRole('button', { name: /^(offer spot|remove)$/i });
+    const rowActions = await screen.findAllByRole('button', { name: /^(offer|remove)$/i });
     expect(rowActions.length).toBeGreaterThan(0);
     for (const button of [tryAgain, showEvery, ...rowActions]) {
       expect(button.className).toContain('h-11');

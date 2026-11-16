@@ -154,7 +154,13 @@ function ClassPrintPanelBody({
   const [mergedReady, setMergedReady] = useState(false);
   // What the armband preview is showing now: a picked armband or a filter changes which labels
   // print, so that, not the full-class confirmation, is what gets recorded (as in Reports).
-  const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
+  const [armbandDescriptor, setArmbandDescriptor] = useState<
+    PaperworkDescriptor | null | undefined
+  >(undefined);
+  // The labels choice left nothing (a dog with no label yet, or all already printed): the report
+  // above says why, and there is no paper to send.
+  const nothingToPrint =
+    !batch && items[0]?.reportId === 'armband-labels' && armbandDescriptor === null;
   const cannotMerge = batch ? unmergeableReportIds(items.map(item => item.reportId)) : [];
   const labelOf = (id: string) => items.find(item => item.reportId === id)?.label ?? id;
 
@@ -286,7 +292,11 @@ function ClassPrintPanelBody({
           size="touch"
           className="w-full sm:w-auto"
           disabled={
-            printing || items.length === 0 || cannotMerge.length > 0 || (batch && !mergedReady)
+            printing ||
+            items.length === 0 ||
+            cannotMerge.length > 0 ||
+            (batch && !mergedReady) ||
+            nothingToPrint
           }
           onClick={() => void printAll()}
         >

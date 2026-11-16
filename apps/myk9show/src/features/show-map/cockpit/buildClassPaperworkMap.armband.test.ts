@@ -155,3 +155,39 @@ describe('armband labels card state, per label (MYK9-2073)', () => {
     expect(cards(entries, [undone]).labels('class-a')?.state).toBe('unconfirmed');
   });
 });
+
+describe('armband labels card: one-dog prints (MYK9-2073)', () => {
+  const entries = [juni, hazel, moss];
+  const oneDog = (id: string, printedAt: string, printedByName: string) => {
+    const record = panelPrint(id, printedAt, [{ entry: juni, classId: 'class-a' }]);
+    return { ...record, printedByName, coverage: { ...record.coverage, oneDog: true } };
+  };
+  const classPrint = (printedByName: string) => ({
+    ...panelPrint('full', '2026-12-07T08:00:00Z', [
+      { entry: juni, classId: 'class-a' },
+      { entry: hazel, classId: 'class-a' },
+    ]),
+    printedByName,
+  });
+
+  it('is not confirmed when only one dog label was ever printed', () => {
+    const { labels } = cards(entries, [oneDog('one', '2026-12-07T09:00:00Z', 'B')]);
+    expect(labels('class-a')?.state).toBe('unconfirmed');
+  });
+
+  it('is stale when a late entry came after a real class print', () => {
+    const late = entryOf('e9', 'class-a', 'dog-9', '109', 'Late');
+    const { labels } = cards([...entries, late], [classPrint('A')]);
+    expect(labels('class-a')?.state).toBe('stale');
+  });
+
+  it('stays printed after a one-dog reprint, and names the class print', () => {
+    const { labels } = cards(entries, [
+      classPrint('A'),
+      oneDog('one', '2026-12-07T11:00:00Z', 'B'),
+    ]);
+    const card = labels('class-a');
+    expect(card?.state).toBe('current');
+    expect(card?.printedBy).toBe('A');
+  });
+});

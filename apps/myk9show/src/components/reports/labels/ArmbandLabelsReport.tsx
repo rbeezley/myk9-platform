@@ -106,38 +106,40 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
       : picked;
   }, [filteredCandidates, scope.showId, choice.addedOnly, labelChoice.printed]);
   const items = useMemo(() => prepareArmbandLabelItems(filtered), [filtered]);
-  const paperworkDescriptor = useMemo(
-    () =>
-      filtered.length === 0
-        ? null
-        : buildArmbandPaperworkDescriptor(
-            scope,
-            filtered.map(entry => ({
-              dogId: entry.dogId,
-              calendarDay: entry.calendarDay,
-              armband: entry.armband,
-              callName: entry.callName,
-              handlerName: entry.handler,
-              classIds: filteredCandidates
-                .filter(
-                  candidate =>
-                    (candidate.dogId || `armband:${candidate.armband}`) ===
-                      (entry.dogId || `armband:${entry.armband}`) &&
-                    candidate.calendarDay === entry.calendarDay
-                )
-                .map(candidate => candidate.classId),
-              trialIds: filteredCandidates
-                .filter(
-                  candidate =>
-                    (candidate.dogId || `armband:${candidate.armband}`) ===
-                      (entry.dogId || `armband:${entry.armband}`) &&
-                    candidate.calendarDay === entry.calendarDay
-                )
-                .map(candidate => candidate.trialId),
-            }))
-          ),
-    [filtered, filteredCandidates, scope]
-  );
+  const oneDogPrint = choice.dogKey !== null;
+  const paperworkDescriptor = useMemo(() => {
+    if (filtered.length === 0) return null;
+    const descriptor = buildArmbandPaperworkDescriptor(
+      scope,
+      filtered.map(entry => ({
+        dogId: entry.dogId,
+        calendarDay: entry.calendarDay,
+        armband: entry.armband,
+        callName: entry.callName,
+        handlerName: entry.handler,
+        classIds: filteredCandidates
+          .filter(
+            candidate =>
+              (candidate.dogId || `armband:${candidate.armband}`) ===
+                (entry.dogId || `armband:${entry.armband}`) &&
+              candidate.calendarDay === entry.calendarDay
+          )
+          .map(candidate => candidate.classId),
+        trialIds: filteredCandidates
+          .filter(
+            candidate =>
+              (candidate.dogId || `armband:${candidate.armband}`) ===
+                (entry.dogId || `armband:${entry.armband}`) &&
+              candidate.calendarDay === entry.calendarDay
+          )
+          .map(candidate => candidate.trialId),
+      }))
+    );
+    // A one-dog reprint is marked so it never speaks for the whole class card (MYK9-2073).
+    return oneDogPrint
+      ? { ...descriptor, coverage: { ...descriptor.coverage, oneDog: true } }
+      : descriptor;
+  }, [filtered, filteredCandidates, scope, oneDogPrint]);
   const pages = useMemo(() => buildLabelPages(template, items, skip), [template, items, skip]);
 
   const numberDigits = useMemo(

@@ -85,6 +85,9 @@ vi.mock('@/pages/secretary/ReportsPage/ReportPreviewBody', () => ({
       >
         pick armbands
       </button>
+      <button type="button" onClick={() => onArmbandDescriptorChange?.(null)}>
+        report no labels
+      </button>
     </>
   ),
 }));
@@ -259,6 +262,15 @@ describe('ClassPrintPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Print' }));
     await waitFor(() => expect(mocks.printIframeAndWait).toHaveBeenCalledOnce());
     expect(mocks.recordPaperworkPrinted).not.toHaveBeenCalled();
+  });
+
+  it('disables Print when the labels choice leaves nothing to print', async () => {
+    renderPanel([sheet('armband-labels', 'Armband labels')]);
+    expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'report no labels' }));
+    expect(screen.getByRole('button', { name: 'Print' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'pick armbands' }));
+    expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled();
   });
 
   it('prints armband labels while unrelated report queries are still loading', async () => {

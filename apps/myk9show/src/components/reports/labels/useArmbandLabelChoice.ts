@@ -75,9 +75,9 @@ export function useArmbandLabelChoice({
     note =
       'This dog has no label to print yet. A dog waiting on a registration number gets one once the number is added.';
   } else if (choice.dogKey !== null && candidates.length > 0) {
-    const days = new Set(candidates.map(entry => entry.calendarDay));
+    const dogDays = new Set(candidates.map(entry => entry.calendarDay));
     if (printed === null) note = 'Could not check when this label was printed on this device.';
-    else if (days.size > 1) note = 'Pick a day to see when this label was printed.';
+    else if (dogDays.size > 1) note = 'Pick a day to see when this label was printed.';
     else {
       const last = lastLabelPrintedAt(printed, candidates[0]!);
       note = last

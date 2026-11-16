@@ -7,6 +7,7 @@ import {
   readReplicationStoreCount,
   seedDisposableEntry,
 } from '../helpers/isolatedFixtures';
+import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
 
 /**
  * Suite category: regression (isolated only).
@@ -81,6 +82,7 @@ async function openScoresheet(page: Page, entryId: string) {
 }
 
 async function submitQualified(page: Page) {
+  await fillEveryAreaTime(page);
   await page.getByTestId('result-Q').click();
   await page.getByRole('button', { name: /^Save$/ }).click();
   await page.getByRole('button', { name: /Confirm & Submit/i }).click();

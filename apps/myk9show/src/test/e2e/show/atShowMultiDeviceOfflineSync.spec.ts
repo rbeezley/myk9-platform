@@ -10,6 +10,7 @@ import {
   isIsolatedSupabaseTarget,
   type GuardedRingsideRpcCall,
 } from '../helpers/sharedStagingWriteGuard';
+import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
 
 /**
  * Suite category: feature-audit.
@@ -154,6 +155,7 @@ test.describe('At-show multi-device offline conflict', () => {
 });
 
 async function scoreOffline(device: Page, result: 'Q' | 'NQ') {
+  if (result === 'Q') await fillEveryAreaTime(device);
   await device.getByTestId(`result-${result}`).click();
   await device.getByRole('button', { name: /^Save$/ }).click();
   await device.getByRole('button', { name: /Confirm & Submit/i }).click();

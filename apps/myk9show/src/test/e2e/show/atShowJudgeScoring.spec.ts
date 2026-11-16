@@ -11,6 +11,7 @@ import {
   installSharedStagingWriteGuard,
   type GuardedRingsideRpcCall,
 } from '../helpers/sharedStagingWriteGuard';
+import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
 
 /**
  * Suite category: feature-audit.
@@ -119,6 +120,7 @@ test.describe('At-show judge scoring authorization', () => {
     await expect.poll(() => readEntryReplica(page, entryId)).not.toBeNull();
 
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeDisabled();
+    await fillEveryAreaTime(page);
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
     await page.getByRole('button', { name: /Confirm & Submit/i }).evaluate(button => {
@@ -185,6 +187,7 @@ test.describe('At-show judge scoring authorization', () => {
     // mean something.
     await page.goto(scorePath);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
+    await fillEveryAreaTime(page);
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();
@@ -239,6 +242,7 @@ test.describe('At-show judge scoring authorization', () => {
 
     await signInAsJudge(page, scorePath);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
+    await fillEveryAreaTime(page);
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();

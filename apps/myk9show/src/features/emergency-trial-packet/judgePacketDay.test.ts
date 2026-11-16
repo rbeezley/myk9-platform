@@ -4,7 +4,7 @@
 // it runs here under node with jsPDF and pdf-lib passed in, the way the function passes them.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { jsPDF } from 'jspdf';
-import { parseStoredClockTime } from '@myk9/core';
+import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { compareClassesByProgression } from '@/features/premium/pdf/bodies/classOrder';
@@ -26,6 +26,7 @@ import {
 } from '../../../../../supabase/functions/_shared/trialPacket/renderer/judgePacketDay.ts';
 import {
   comparePacketClassProgression,
+  formatPacketTrialLabel,
   packetRegistryName,
   parsePacketClockTime,
 } from '../../../../../supabase/functions/_shared/trialPacket/renderer/packetClassOrder.ts';
@@ -145,6 +146,22 @@ describe('buildTrialDayPacketPdf', () => {
       'recovery',
     ]);
     expect(roles).not.toContain('other');
+  });
+
+  it('prints "Trial 1", never "Trial Trial 1", when the number is stored as "Trial 1" (MYK9-2110)', async () => {
+    const storedAsLabel: EmergencyPacketInput = {
+      ...DAY,
+      trials: DAY.trials.map(trial => ({ ...trial, trialNumber: trial.name })),
+    };
+    const { bytes } = await buildTrialDayPacketPdf({
+      input: storedAsLabel,
+      pdfLib,
+      JsPdf: jsPDF,
+      printedAt: PRINTED_AT,
+    });
+    const text = (await pageTexts(bytes)).join('\n');
+    expect(text).toContain('Trial 1');
+    expect(text).not.toMatch(/Trial\s+Trial/);
   });
 
   it('keeps the snapshot marker on the appended pages and leaves it off the judge packets', async () => {
@@ -329,6 +346,20 @@ describe('mirrors of app code, pinned to the original', () => {
     'noon',
     '2026-12-07T09:00:00Z',
   ];
+
+  it('labels a trial as @myk9/core does (MYK9-2110)', () => {
+    const trials = [
+      { name: 'Trial 4', trialNumber: 'Trial 4' },
+      { name: 'Trial 4', trialNumber: '4' },
+      { name: 'Saturday T 2', trialNumber: '2' },
+      { name: '', trialNumber: 'Trial 3' },
+      { name: '  ', trialNumber: '' },
+      { name: '', trialNumber: '' },
+    ];
+    for (const trial of trials) {
+      expect(formatPacketTrialLabel(trial)).toBe(formatTrialLabel(trial));
+    }
+  });
 
   it('reads a stored clock time as @myk9/core does', () => {
     for (const text of [...CLOCK_TEXTS, null, undefined]) {

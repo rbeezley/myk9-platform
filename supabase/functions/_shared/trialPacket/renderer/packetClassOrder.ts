@@ -78,6 +78,20 @@ function resolvePacketRegistryId(registryId: string | null | undefined): string 
   return id in LEVEL_ORDER ? id : 'AKC';
 }
 
+/**
+ * Mirror of `@myk9/core` `formatTrialLabel` (MYK9-704): the stored name, then the stored number,
+ * then "Trial". Never prefix "Trial ": `trial_number` is free text, often already "Trial 4", and
+ * prefixing it printed "Trial Trial 4" on the packet (MYK9-2110).
+ */
+export function formatPacketTrialLabel(trial: {
+  name?: string | null;
+  trialNumber?: string | null;
+}): string {
+  const present = (value: string | null | undefined) =>
+    value != null && value.trim() !== '' ? value : undefined;
+  return present(trial.name) ?? present(trial.trialNumber) ?? 'Trial';
+}
+
 /** The registry's full name, as the cover sheet states it. */
 export function packetRegistryName(registryId: string | null | undefined): string {
   return REGISTRY_NAMES[resolvePacketRegistryId(registryId)] ?? '';

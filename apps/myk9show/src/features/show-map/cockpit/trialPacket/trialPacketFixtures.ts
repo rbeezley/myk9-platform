@@ -17,7 +17,8 @@ export const TRIAL = {
   date: '2026-12-07',
   trial_number: 1,
   registry_id: 'AKC',
-  name: null,
+  // `trials.name` is NOT NULL and is the label every sheet prints (MYK9-704, MYK9-2110).
+  name: 'Trial 1',
 } as unknown as DbTrial;
 
 function judge(first: string, last: string) {

@@ -160,6 +160,24 @@ describe('judge cover sheet', () => {
     expect(cover.registryName).toBe('American Kennel Club');
   });
 
+  // MYK9-2110: `trial_number` is free text. Heartland stores "Trial 4", and prefixing it printed
+  // "Trial Trial 4". The label is the stored name, as the cockpit header shows it (MYK9-704).
+  it.each([
+    ['Trial 4', 'Trial 4', 'Trial 4'],
+    ['Trial 4', '4', 'Trial 4'],
+    ['Saturday T 2', '2', 'Saturday T 2'],
+  ])('labels a trial named %j and numbered %j as %j', (name, trialNumber, expected) => {
+    const trial = { ...TRIAL, name, trial_number: trialNumber };
+    const packet = collateTrialPacket({
+      show: SHOW,
+      trials: [trial],
+      classes: CLASSES,
+      entries: ENTRIES,
+      trialId: TRIAL.id,
+    });
+    expect(packet?.trialLabel).toBe(expected);
+  });
+
   it('names the packet for classes with no judge', () => {
     const packet = collate();
     const cover = buildJudgeCoverModel(packet, packet.judges[2]!, SHOW.name);

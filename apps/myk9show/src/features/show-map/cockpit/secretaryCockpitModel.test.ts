@@ -701,7 +701,7 @@ describe('the next trial note on the schedule (MYK9-2075)', () => {
       name: `Trial ${n}`,
       number: `Trial ${n}`,
       storedNumber: `Trial ${n}`,
-      displayOrder: n,
+      displayOrder: String(n),
       order: n,
     }));
     const snapshot = makeSnapshot({

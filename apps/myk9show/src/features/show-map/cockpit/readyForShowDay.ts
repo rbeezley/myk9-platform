@@ -13,7 +13,15 @@ import { resolveShowUses } from '@/features/show-workbench/showUses';
 
 import { parseCockpitDays } from './cockpitDayFilter';
 import { getShowHomeHref } from './cockpitRoutes';
-import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
+import {
+  earliestTrialDate,
+  firstTrialLineText,
+  firstTrialOfFirstDay,
+  rollUpFirstDayPaperwork,
+  type FirstDayPaperwork,
+} from './firstTrialPaperwork';
+
+export { rollUpFirstDayPaperwork, type FirstDayPaperwork };
 
 /**
  * The "Ready for show day" roll-up on the secretary Overview (MYK9-1145): one pass/fail line per
@@ -32,6 +40,8 @@ export interface ReadyLine {
   status: ReadyLineStatus;
   /** Plain-words reason; present on fail and unknown lines. */
   detail?: string;
+  /** The wording of a separate link under the detail; absent when the whole line is the link. */
+  linkLabel?: string;
   /** The existing page (or in-page anchor) that fixes a failing line. */
   href?: string;
 }
@@ -73,75 +83,6 @@ export function isReadyForShowDayWindow(input: {
   return days !== null && days >= 1 && days <= READY_WINDOW_DAYS;
 }
 
-/** The show's first day: the earliest trial date, or undefined when no trial has one. */
-function earliestTrialDate(trials: readonly { trialDate: string }[]): string | undefined {
-  const dates = trials.map(trial => trial.trialDate).filter(Boolean);
-  return dates.length === 0
-    ? undefined
-    : dates.reduce((earliest, date) => (date < earliest ? date : earliest));
-}
-
-/** The first trial of the show's first day: the one whose packet the checklist line opens. */
-function firstTrialOfFirstDay(
-  trials: readonly { id: string; trialDate: string }[]
-): string | undefined {
-  const firstDate = earliestTrialDate(trials);
-  return trials.find(trial => trial.trialDate === firstDate)?.id;
-}
-
-type PaperworkRows = ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
-
-/** The before-class print items of the per-class checklist (classChecklist.ts). */
-const PRE_SHOW_SHEETS: ReadonlySet<string> = new Set(['check-in-sheet', 'scoresheet']);
-const ARMBAND_LABELS = 'armband-labels';
-
-export interface FirstDayPaperwork {
-  status: ReadyLineStatus;
-  /** Sheets of the FIRST trial not printed or printed before the class changed. */
-  sheets: number;
-  /** Classes on the first DAY whose armband labels are not printed or changed since printing. */
-  labelClasses: number;
-}
-
-/**
- * Rolls the existing per-class paperwork map up to what the night before needs (MYK9-2075): the
- * first trial's check-in sheets and score sheets, and the first day's armband labels. Later trials
- * print after move-ups, so they are not measured. Unknown never counts as printed: while the class
- * rows or print history cannot be trusted the answer is `unknown`.
- */
-export function rollUpFirstDayPaperwork(input: {
-  trials: readonly { id: string; trialDate: string }[];
-  classes: readonly { id: string; trialId?: string | null }[];
-  byClassId: PaperworkRows;
-  available: boolean;
-}): FirstDayPaperwork {
-  const firstDate = earliestTrialDate(input.trials);
-  const firstTrialId = firstTrialOfFirstDay(input.trials);
-  if (!input.available || !firstDate || !firstTrialId) {
-    return { status: 'unknown', sheets: 0, labelClasses: 0 };
-  }
-  const firstDayTrials = new Set(
-    input.trials.filter(trial => trial.trialDate === firstDate).map(trial => trial.id)
-  );
-  let sheets = 0;
-  let labelClasses = 0;
-  let unknown = false;
-  for (const classItem of input.classes) {
-    if (!classItem.trialId || !firstDayTrials.has(classItem.trialId)) continue;
-    for (const row of input.byClassId.get(classItem.id) ?? []) {
-      const isSheet = PRE_SHOW_SHEETS.has(row.reportId) && classItem.trialId === firstTrialId;
-      if (!isSheet && row.reportId !== ARMBAND_LABELS) continue;
-      if (row.state === 'unknown') unknown = true;
-      else if (row.state !== 'current') {
-        if (isSheet) sheets += 1;
-        else labelClasses += 1;
-      }
-    }
-  }
-  if (sheets + labelClasses > 0) return { status: 'fail', sheets, labelClasses };
-  return { status: unknown ? 'unknown' : 'pass', sheets: 0, labelClasses: 0 };
-}
-
 function sumPending(byClassId: ReadonlyMap<string, ClassEntryBreakdown>): number {
   let total = 0;
   for (const { pending } of byClassId.values()) total += pending;
@@ -172,16 +113,6 @@ export interface ReadyForShowDayInput {
 function withPacket(href: string, trialId: string | undefined): string {
   if (!trialId) return href;
   return `${href}${href.includes('?') ? '&' : '?'}packet=${encodeURIComponent(trialId)}`;
-}
-
-function outstandingDetail({ sheets, labelClasses }: FirstDayPaperwork): string {
-  const parts = [
-    sheets > 0 ? `${sheets} sheet${sheets === 1 ? '' : 's'} for the first trial` : null,
-    labelClasses > 0
-      ? `armband labels for ${labelClasses} class${labelClasses === 1 ? '' : 'es'} on the first day`
-      : null,
-  ].filter(Boolean);
-  return `${parts.join(' and ')} to print`;
 }
 
 const CANT_CHECK = "Can't check right now";
@@ -243,17 +174,23 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
         : { id: 'entries', label: 'Entries reviewed', status: 'pass' };
 
   const paperworkBase = { id: 'paperwork', label: "First trial's paperwork printed" };
+  const paperworkText = firstTrialLineText(input.paperwork);
   const paperworkLine: ReadyLine =
     input.paperwork.status === 'pass'
-      ? { ...paperworkBase, status: 'pass' }
+      ? {
+          ...paperworkBase,
+          status: 'pass',
+          ...(paperworkText.detail ? { detail: paperworkText.detail } : {}),
+        }
       : input.paperwork.status === 'unknown'
         ? { ...paperworkBase, status: 'unknown', detail: CANT_CHECK }
         : {
             ...paperworkBase,
             status: 'fail',
-            detail: outstandingDetail(input.paperwork),
-            // Opens the before-trial packet for the first trial (MYK9-1924); the show home keeps
-            // the first day's schedule behind it, where a class reprints on its own.
+            ...(paperworkText.detail ? { detail: paperworkText.detail } : {}),
+            ...(paperworkText.linkLabel ? { linkLabel: paperworkText.linkLabel } : {}),
+            // Opens the before-trial packet for the first trial (MYK9-1924); the packet opens on
+            // what needs printing. The show home keeps the first day's schedule behind it.
             href: withPacket(
               getShowHomeHref({
                 showId,

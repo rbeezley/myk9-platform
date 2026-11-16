@@ -8,6 +8,7 @@ import {
   daysUntilShowStart,
   isReadyForShowDayWindow,
   rollUpFirstDayPaperwork,
+  type FirstDayPaperwork,
   type ReadyForShowDayInput,
 } from '../readyForShowDay';
 import type { SecretaryCockpitPaperwork } from '../secretaryCockpitTypes';
@@ -43,6 +44,21 @@ describe('isReadyForShowDayWindow', () => {
   });
 });
 
+function fp(overrides: Partial<FirstDayPaperwork> = {}): FirstDayPaperwork {
+  return {
+    status: 'fail',
+    kind: 'not-printed',
+    sheets: 1,
+    judgePackets: 1,
+    labelDogs: 0,
+    changedClassNames: [],
+    printedAt: null,
+    firstTrial: { id: 't1', dayNumber: 1, date: '2026-10-20', timeZone: NY },
+    laterTrials: [],
+    ...overrides,
+  };
+}
+
 function sheet(
   reportId: string,
   state: SecretaryCockpitPaperwork['state']
@@ -72,14 +88,14 @@ describe('rollUpFirstDayPaperwork', () => {
       c1: [sheet('check-in-sheet', 'current'), sheet('scoresheet', 'current')],
       c2: [sheet('check-in-sheet', 'unconfirmed')],
     });
-    expect(result).toEqual({ status: 'pass', sheets: 0, labelClasses: 0 });
+    expect(result).toMatchObject({ status: 'pass', kind: 'printed', sheets: 0, labelDogs: 0 });
   });
 
   it('fails on unconfirmed or stale first-day sheets and counts them', () => {
     const result = roll({
       c1: [sheet('check-in-sheet', 'unconfirmed'), sheet('scoresheet', 'stale')],
     });
-    expect(result).toEqual({ status: 'fail', sheets: 2, labelClasses: 0 });
+    expect(result).toMatchObject({ status: 'fail', sheets: 2, labelDogs: 0 });
   });
 
   it('measures sheets for the first trial only and labels for the whole first day', () => {
@@ -95,6 +111,10 @@ describe('rollUpFirstDayPaperwork', () => {
         { id: 'c1b', trialId: 't1b' },
         { id: 'c2', trialId: 't2' },
       ],
+      dogsByClassId: new Map([
+        ['c1b', 4],
+        ['c2', 9],
+      ]),
       byClassId: new Map([
         ['c1', [sheet('check-in-sheet', 'current'), sheet('armband-labels', 'current')]],
         // Trial 2 of the day prints after move-ups: its sheets are not measured, its labels are.
@@ -103,14 +123,7 @@ describe('rollUpFirstDayPaperwork', () => {
       ]),
       available: true,
     });
-    expect(result).toEqual({ status: 'fail', sheets: 0, labelClasses: 1 });
-  });
-
-  it('fails on first-trial sheets and first-day labels together, and says both', () => {
-    const detail = buildReadyForShowDay(
-      allGood({ paperwork: { status: 'fail', sheets: 1, labelClasses: 2 } })
-    ).lines.find(line => line.id === 'paperwork')?.detail;
-    expect(detail).toBe('1 sheet for the first trial and armband labels for 2 classes on the first day to print');
+    expect(result).toMatchObject({ status: 'fail', sheets: 0, labelDogs: 4 });
   });
 
   it('never counts unknown as printed', () => {
@@ -149,7 +162,7 @@ function allGood(overrides: Partial<ReadyForShowDayInput> = {}): ReadyForShowDay
       experienceIsPublished: true,
     },
     entryBreakdownByClassId: new Map([['c1', { entered: 5, pending: 0 }]]),
-    paperwork: { status: 'pass', sheets: 0, labelClasses: 0 },
+    paperwork: fp({ status: 'pass', sheets: 0, labelDogs: 0 }),
     printTrackingInUse: true,
     offline: { ready: true, missing: [], asOf: 1 },
     ...overrides,
@@ -204,7 +217,7 @@ describe('buildReadyForShowDay', () => {
       allGood({
         premiumInfo: null,
         entryBreakdownByClassId: undefined,
-        paperwork: { status: 'unknown', sheets: 0, labelClasses: 0 },
+        paperwork: fp({ status: 'unknown', sheets: 0, labelDogs: 0 }),
         offline: null,
       })
     );
@@ -236,12 +249,15 @@ describe('buildReadyForShowDay', () => {
   });
 
   it('links failing paperwork to the first day of the Overview', () => {
-    const result = buildReadyForShowDay(allGood({ paperwork: { status: 'fail', sheets: 3, labelClasses: 0 } }));
+    const result = buildReadyForShowDay(
+      allGood({ paperwork: fp({ status: 'fail', sheets: 3, labelDogs: 0 }) })
+    );
     const line = result.lines.find(candidate => candidate.id === 'paperwork');
     // The packet panel opens on the first trial of the first day (MYK9-1924).
     expect(line?.href).toBe('/shows/show-1?day=2026-10-20&packet=t1');
     expect(line?.label).toBe("First trial's paperwork printed");
-    expect(line?.detail).toBe('3 sheets for the first trial to print');
+    expect(line?.detail).toBe('Trial 1 on Tuesday: 1 judge packet to print.');
+    expect(line?.linkLabel).toBe('Print for Tuesday');
   });
 
   it('opens the packet of the first trial of the first day, not a later day', () => {
@@ -249,7 +265,7 @@ describe('buildReadyForShowDay', () => {
     const sameDay = { id: 't2', trialDate: '2026-10-20' } as SyncableTrial;
     const result = buildReadyForShowDay(
       allGood({
-        paperwork: { status: 'fail', sheets: 3, labelClasses: 0 },
+        paperwork: fp({ status: 'fail', sheets: 3, labelDogs: 0 }),
         setup: { show: show(), trials: [later, trial, sameDay], classes: [{ judgeName: 'Jane' }] },
       })
     );
@@ -258,7 +274,10 @@ describe('buildReadyForShowDay', () => {
 
   it('omits the paperwork line, rather than passing it, while print tracking is unused (MYK9-1620)', () => {
     const result = buildReadyForShowDay(
-      allGood({ paperwork: { status: 'fail', sheets: 3, labelClasses: 0 }, printTrackingInUse: false })
+      allGood({
+        paperwork: fp({ status: 'fail', sheets: 3, labelDogs: 0 }),
+        printTrackingInUse: false,
+      })
     );
     expect(result.lines.map(line => line.id)).not.toContain('paperwork');
     expect(result.allClear).toBe(true);
@@ -354,5 +373,115 @@ describe('buildReadyForShowDay', () => {
         expect(lineIds(result)).not.toContain('landing');
       }
     });
+  });
+});
+
+describe("the first trial's paperwork line, state by state (MYK9-2075)", () => {
+  const trials = [
+    { id: 't1', trialDate: '2026-10-20', trialNumber: 1 },
+    { id: 't2', trialDate: '2026-10-20', trialNumber: '2' },
+    { id: 't3', trialDate: '2026-10-21', trialNumber: '1', timezone: NY },
+  ];
+  const classes = [
+    { id: 'c1', trialId: 't1', element: 'Interior', level: 'Advanced', judgeName: 'Ann' },
+    { id: 'c2', trialId: 't1', element: 'Container', level: 'Novice', judgeName: 'Bo' },
+    { id: 'c3', trialId: 't2', element: 'Buried', level: 'Novice', judgeName: 'Ann' },
+  ];
+  const dogsByClassId = new Map([
+    ['c1', 6],
+    ['c2', 5],
+    ['c3', 4],
+  ]);
+  const lineFor = (rows: Record<string, SecretaryCockpitPaperwork[]>, available = true) => {
+    const paperwork = rollUpFirstDayPaperwork({
+      trials,
+      classes,
+      byClassId: new Map(Object.entries(rows)),
+      available,
+      dogsByClassId,
+    });
+    return buildReadyForShowDay(allGood({ paperwork })).lines.find(
+      candidate => candidate.id === 'paperwork'
+    );
+  };
+  const printed = (reportId: string, printedAt: string): SecretaryCockpitPaperwork => ({
+    reportId,
+    label: reportId,
+    state: 'current',
+    printedAt,
+  });
+
+  it('not printed: names the trial, the day, judge packets and dogs needing a label', () => {
+    const line = lineFor({
+      c1: [sheet('check-in-sheet', 'unconfirmed'), sheet('armband-labels', 'unconfirmed')],
+      c2: [sheet('scoresheet', 'unconfirmed'), sheet('armband-labels', 'current')],
+      c3: [sheet('armband-labels', 'unconfirmed')],
+    });
+    expect(line?.status).toBe('fail');
+    // Two judges on the first trial; labels count the dogs of classes with labels to print (6 + 4).
+    expect(line?.detail).toBe(
+      'Trial 1 on Tuesday: 2 judge packets and 10 armband labels to print.'
+    );
+    expect(line?.linkLabel).toBe('Print for Tuesday');
+    expect(line?.href).toContain('packet=t1');
+  });
+
+  it('changed since printing: names the classes and links to what changed', () => {
+    const line = lineFor({
+      c1: [sheet('check-in-sheet', 'stale'), sheet('scoresheet', 'current')],
+      c2: [sheet('check-in-sheet', 'current')],
+    });
+    expect(line?.status).toBe('fail');
+    expect(line?.detail).toBe("Interior Advanced changed after Tuesday's paperwork was printed.");
+    expect(line?.linkLabel).toBe('Print what changed');
+    expect(line?.href).toContain('packet=t1');
+  });
+
+  it('printed: says when in the show zone and which trials print after move-ups, with no link', () => {
+    const line = lineFor({
+      c1: [printed('check-in-sheet', '2026-10-19T22:15:00Z')],
+      c2: [printed('scoresheet', '2026-10-19T20:00:00Z')],
+    });
+    expect(line?.status).toBe('pass');
+    expect(line?.detail).toBe(
+      'Trial 1 printed Monday at 6:15 PM. Trial 2 prints on Tuesday; Trial 1 prints on Wednesday, after move-ups.'
+    );
+    expect(line?.href).toBeUndefined();
+    expect(line?.linkLabel).toBeUndefined();
+  });
+
+  it('printed: leaves out the second sentence when there are no later trials', () => {
+    const only = rollUpFirstDayPaperwork({
+      trials: [trials[0]!],
+      classes: [classes[0]!],
+      byClassId: new Map([['c1', [printed('check-in-sheet', '2026-10-19T22:15:00Z')]]]),
+      available: true,
+    });
+    const line = buildReadyForShowDay(allGood({ paperwork: only })).lines.find(
+      candidate => candidate.id === 'paperwork'
+    );
+    expect(line?.detail).toBe('Trial 1 printed Monday at 6:15 PM.');
+  });
+
+  it("can't check: says so, with no link and no guess", () => {
+    const line = lineFor({ c1: [sheet('check-in-sheet', 'unknown')] });
+    expect(line?.status).toBe('unknown');
+    expect(line?.detail).toBe("Can't check right now");
+    expect(line?.href).toBeUndefined();
+    expect(lineFor({ c1: [sheet('check-in-sheet', 'current')] }, false)?.detail).toBe(
+      "Can't check right now"
+    );
+  });
+
+  it('takes the first trial from the day order, not the array order', () => {
+    const reversed = rollUpFirstDayPaperwork({
+      trials: [trials[1]!, trials[0]!],
+      classes,
+      byClassId: new Map([['c3', [sheet('check-in-sheet', 'unconfirmed')]]]),
+      available: true,
+    });
+    // Trial 2 is listed first but is the second trial of the day: its sheets are not measured.
+    expect(reversed.status).toBe('pass');
+    expect(reversed.firstTrial?.id).toBe('t1');
   });
 });

@@ -8,11 +8,15 @@ import type { ElementTimerReturn } from '../../../types';
 export function savedElementTimeFor(
   elementTimer: Pick<ElementTimerReturn, 'getTimeMs' | 'isRunning' | 'formatTime'>,
   savedElementTime: string | undefined
-): { keepSaved: string | undefined; text: () => string } {
+): { keepSaved: string | undefined; text: () => string | undefined } {
   const clockUnused = elementTimer.getTimeMs() === 0 && !elementTimer.isRunning;
   const keepSaved = clockUnused && savedElementTime ? savedElementTime : undefined;
   return {
     keepSaved,
-    text: () => keepSaved ?? elementTimer.formatTime(elementTimer.getTimeMs()),
+    // A clock that never ran has no element time: undefined, not "0:00.00" (stored as null).
+    text: () => {
+      const ms = elementTimer.getTimeMs();
+      return keepSaved ?? (ms > 0 ? elementTimer.formatTime(ms) : undefined);
+    },
   };
 }

@@ -1182,4 +1182,51 @@ SELECT
 FROM public.view_authenticated_entry_results AS entries
 LEFT JOIN public.shows AS shows ON shows.id = entries.show_id;
 
+-- ---------------------------------------------------------------------------
+-- Results-verified fingerprint (MYK9-2068): a correction that changes only the
+-- element time or Area 5 time must un-verify the class. entry_results_line is
+-- copied from 20261008014300 (its latest definition) with the two columns after
+-- area4_time_seconds; class_results_fingerprint and the
+-- entries_clear_stale_results_verified triggers (no UPDATE OF list, they compare
+-- the line) pick it up unchanged. Every existing fingerprint moves once.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION private.entry_results_line(e public.entries)
+RETURNS text
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT CASE
+    WHEN e.deleted_at IS NOT NULL THEN NULL
+    WHEN NOT (
+      coalesce(e.is_scored, false)
+      OR coalesce(e.result_status, 'pending') <> 'pending'
+      OR coalesce(e.final_placement, 0) <> 0
+    ) THEN NULL
+    ELSE concat_ws('|',
+      e.id::text,
+      CASE WHEN coalesce(e.is_scored, false) THEN '1' ELSE '0' END,
+      private.results_fp_text(e.result_status),
+      private.results_fp_num(e.search_time_seconds),
+      private.results_fp_num(e.area1_time_seconds),
+      private.results_fp_num(e.area2_time_seconds),
+      private.results_fp_num(e.area3_time_seconds),
+      private.results_fp_num(e.area4_time_seconds),
+      private.results_fp_num(e.area5_time_seconds),
+      private.results_fp_num(e.element_time_seconds),
+      private.results_fp_num(e.total_correct_finds),
+      private.results_fp_num(e.total_incorrect_finds),
+      private.results_fp_num(e.total_faults),
+      private.results_fp_num(e.no_finish_count),
+      private.results_fp_num(e.total_score),
+      private.results_fp_num(e.points_earned),
+      private.results_fp_num(nullif(e.final_placement, 0)),
+      private.results_fp_text(e.disqualification_reason)
+    )
+  END;
+$$;
+
+COMMENT ON FUNCTION private.entry_results_line(public.entries) IS
+  'MYK9-1045: one entry''s scoring results as the canonical line the class results fingerprint hashes; NULL when the entry is soft-deleted or has no result. area5_time_seconds and element_time_seconds (MYK9-2068) follow area4_time_seconds. Mirrored by apps/myk9show/src/features/show-map/classResultsFingerprint.ts.';
+
 COMMIT;

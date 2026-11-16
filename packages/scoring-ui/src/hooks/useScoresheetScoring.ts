@@ -111,8 +111,8 @@ export interface ScoresheetScoringReturn {
   reset: () => void;
 }
 
-/** The entries table stores area1..area4 times only. */
-const STORED_AREA_COLUMNS = 4;
+/** The entries table stores area1..area5 times (area 5 since MYK9-2068). */
+const STORED_AREA_COLUMNS = 5;
 
 function secondsOf(time: string | undefined): number {
   const parsed = time ? parseDuration(time, 'search') : null;
@@ -120,8 +120,8 @@ function secondsOf(time: string | undefined): number {
 }
 
 /**
- * Only four area times are stored (MYK9-2006), so a reopened sheet cannot rebuild
- * a fifth area's time. Its total is the saved total moved by what the judge changed.
+ * Only five area times are stored, so a reopened sheet with more areas cannot rebuild
+ * the extra area's time. Its total is the saved total moved by what the judge changed.
  */
 function savedTotalPlusChanges(existingScore: ScoreData, areas: AreaScore[]): string {
   const change = areas.reduce(

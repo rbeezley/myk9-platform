@@ -234,7 +234,8 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const handleConfirmSubmit = async () => {
     // Pass element time as extra data when dual. The live clock, not `time`: Save
     // does not wait for Finish, so the element clock may still be running.
-    const extra = isDual ? { element: savedElement.text() } : undefined;
+    const elementText = savedElement.text();
+    const extra = isDual && elementText ? { element: elementText } : undefined;
     await scoring.handleSubmit(onSubmit, extra);
     setShowConfirmation(false);
   };

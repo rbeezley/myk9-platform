@@ -233,6 +233,27 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     );
   });
 
+  it('stores a null element time when the element clock never ran', async () => {
+    updateEntry.mockResolvedValue('mutation-791');
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(
+        baseOptions({
+          scoreData: {
+            resultText: 'Qualified',
+            searchTime: '0:45.00',
+            faultCount: 0,
+            element: '0:00.00',
+          },
+        })
+      );
+    });
+    expect(updateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ element_time_seconds: null })
+    );
+  });
+
   it('clears both columns on a score that has neither', async () => {
     updateEntry.mockResolvedValue('mutation-790');
     const { result } = renderHook(() => useOptimisticScoring());

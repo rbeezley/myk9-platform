@@ -389,6 +389,16 @@ describe('UKC Nosework element time (MYK9-2068)', () => {
     expect(toExistingScore(saved)?.element).toBe('0:09.10');
   });
 
+  it('a dog scored without starting the element clock stores a null element time', async () => {
+    const first = await runSheet('UKC_NOSEWORK', dual, blankRow, () => {
+      type('Recorded time', '0:04.35');
+      pick('Q');
+    });
+    expect(first.element).toBeUndefined();
+    const saved = await save(first);
+    expect(saved.element_time_seconds).toBeNull();
+  });
+
   it('saving a correction without running the element clock keeps the saved element time', async () => {
     const saved = await save(scored);
     const again = await runSheet('UKC_NOSEWORK', dual, saved, () => {});

@@ -251,7 +251,7 @@ $$;
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_expected constant text := '4d0d56e5b7bb8cdb47591069945876b6bd09bc638cec4c559f0d3669d9612e46';
+  v_expected constant text := 'bf9c1a5bb8da7beb6ba372433a313acc0963f5c0053a7e24d003d06b6a8ac280';
   v_status text;
 BEGIN
   SELECT status INTO v_status FROM public.classes WHERE id = '00000000-0000-0000-0000-000001045041';

@@ -307,7 +307,9 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           </div>
         )}
 
+        {/* One field per area: a shared one shows the last area's digits for a frame (MYK9-1835). */}
         <ManualTimeField
+          key={currentArea}
           label={`Area ${currentArea + 1}`}
           value={scoring.areas[currentArea]?.time ?? ''}
           onChange={value => scoring.handleAreaUpdate(currentArea, 'time', value)}

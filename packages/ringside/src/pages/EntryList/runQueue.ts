@@ -285,7 +285,9 @@ export function formatRunQueueState(state: RunQueueState): string {
     case 'done':
       return 'Done';
     case 'pulled':
-      return checkInStateLabel('pulled');
+      // Not on the shared check-in table: the queue cannot tell a day-of pull from a scratch
+      // before the show, so "at the show" could be false (MYK9-632).
+      return 'Pulled';
     case 'withdrawn':
       return 'Withdrawn';
     case 'absent':

@@ -19,8 +19,8 @@ describe('ownEntryQueueState precedence', () => {
     ['absent', 'pulled', 'Absent'],
     ['withdrawn', 'pulled', 'Withdrawn'],
     ['moved', 'in-ring', 'Moved'],
-    ['scratched', 'checked-in', 'Pulled at the show'],
-    ['confirmed', 'pulled', 'Pulled at the show'],
+    ['scratched', 'checked-in', 'Pulled'],
+    ['confirmed', 'pulled', 'Pulled'],
   ])('lifecycle %s with check-in %s reads %s', (status, checkIn, word) => {
     expect(wordFor(status, checkIn)).toBe(word);
   });

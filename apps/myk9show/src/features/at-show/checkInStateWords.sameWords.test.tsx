@@ -117,8 +117,36 @@ describe('one set of check-in words on the other My Shows surfaces (MYK9-2093)',
     expect(screen.getAllByText('In the ring').length).toBeGreaterThan(0);
   });
 
-  it('Where to be says the shared word for a queue that is pulled', () => {
+  it('Where to be says plain "Pulled" for a queue that is pulled', () => {
     render(<WhereToBe entries={[whereToBeEntry({ queue: { kind: 'pulled' } })]} showId="show-1" />);
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
+  });
+
+  it('Where to be adds "at the show" only for a day-of pull', () => {
+    render(
+      <WhereToBe
+        entries={[whereToBeEntry({ queue: { kind: 'pulled' }, checkInStatus: 'pulled' })]}
+        showId="show-1"
+      />
+    );
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
     expect(screen.getByText('Pulled at the show')).toBeInTheDocument();
+  });
+
+  it('Where to be never says "at the show" for a dog scratched before the show', () => {
+    render(
+      <WhereToBe
+        entries={[
+          whereToBeEntry({
+            entryStatus: 'scratched',
+            queue: { kind: 'pulled' },
+            checkInStatus: 'no-status',
+          }),
+        ]}
+        showId="show-1"
+      />
+    );
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
+    expect(screen.getByRole('link')).not.toHaveTextContent(/at the show/i);
   });
 });

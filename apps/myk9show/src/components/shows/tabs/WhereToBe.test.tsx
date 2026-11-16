@@ -254,7 +254,7 @@ describe('WhereToBe', () => {
     );
     expect(screen.getByText('In the ring')).toBeInTheDocument();
     expect(screen.getByText('Done')).toBeInTheDocument();
-    expect(screen.getByText('Pulled at the show')).toBeInTheDocument();
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
   });
 
   it('labels an unset order as not set yet without inferring it from armband', () => {

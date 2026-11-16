@@ -82,7 +82,7 @@ describe('ExhibitorClassCallout', () => {
     });
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.getByText('In the ring')).toBeInTheDocument();
-    expect(screen.getByText('Pulled at the show')).toBeInTheDocument();
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
   });
 
   it('labels a withdrawn dog Withdrawn, never Pulled', () => {

@@ -62,7 +62,7 @@ test.describe('Cross-role workflow smoke', () => {
     await signIn(page, TEST_USERS.JUDGE.email, TEST_USERS.JUDGE.password, '/judge/dashboard');
 
     await expect(page).toHaveURL(/\/judge\/dashboard/);
-    await expect(page.getByText('Manage your judging assignments')).toBeVisible({
+    await expect(page.getByText('Your judging assignments')).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByText("Today's Classes")).toBeVisible();

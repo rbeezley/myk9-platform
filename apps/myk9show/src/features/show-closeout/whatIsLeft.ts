@@ -22,7 +22,7 @@ import type { ShowIncidentSummary } from '@/features/show-workbench/showIncident
 import type { ResultsClassPhase } from '@/features/results-tab/resultsNextAction';
 import { matchesResultsStatusFilter } from '@/features/results-tab/resultsNextAction';
 import type { ResultsStatusFilterId } from '@/features/results-tab/resultsNextAction';
-import { coveredUntil, newestSubmissionAt } from './submissionTimes';
+import { coveredUntil, newestSubmissionAt, SENT_FILE_TEXT } from './submissionTimes';
 import { isCancelledStatus, needsCascade, normalizeCloseoutStatus } from './closeoutStatus';
 
 const SUBMITTED_STATUSES = new Set(['sent', 'submitted']);
@@ -380,11 +380,11 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     line.kind === 'results-submission' && line.sentFileCheck ? [line.sentFileCheck] : []
   );
   const sentFileConcern = sentFileChecks.includes('changed')
-    ? 'Scores changed after the results file was sent. Send it again before closing.'
+    ? `${SENT_FILE_TEXT.changed} Send it again before closing.`
     : sentFileChecks.includes('unknown')
-      ? 'Could not check whether scores changed after the results file was sent.'
+      ? SENT_FILE_TEXT.unknown
       : sentFileChecks.includes('checking')
-        ? 'Still checking whether scores changed after the results file was sent.'
+        ? SENT_FILE_TEXT.checking
         : null;
   const concernOf = (kind: WhatIsLeftLineKey): string[] => {
     const line = lines.find(candidate => candidate.kind === kind);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildFinishList } from '../finishList';
+import { oldestNewestSentAt, SENT_FILE_TEXT } from '../submissionTimes';
 import { calculateWhatIsLeft, type ScoreChangeRead } from '../whatIsLeft';
 
 const SENT_AT = '2026-11-14T19:40:00Z';
@@ -40,7 +41,7 @@ describe('the results file line after a score changes', () => {
     const item = listFor(read({ c2: AFTER }));
     expect(item).toMatchObject({
       state: 'open',
-      label: 'Scores changed since the results file was sent',
+      label: SENT_FILE_TEXT.changed,
       href: '/shows/show-1/results?step=submit',
     });
   });
@@ -63,13 +64,13 @@ describe('the results file line after a score changes', () => {
   it('says plainly when the history could not be read', () => {
     const item = listFor({ status: 'unreadable' });
     expect(item).toMatchObject({ state: 'done', label: 'Results file sent to AKC' });
-    expect(item?.note).toBe('We could not check for score changes since they were sent.');
+    expect(item?.note).toBe(SENT_FILE_TEXT.unknown);
   });
 
   it('does not tick the line while the history is still loading', () => {
     expect(listFor({ status: 'loading' })).toMatchObject({
       state: 'unknown',
-      note: 'Checking for score changes since the file was sent.',
+      note: SENT_FILE_TEXT.checking,
     });
   });
 
@@ -94,20 +95,16 @@ describe('the results file line after a score changes', () => {
 
     it('warns to send again when scores changed', () => {
       expect(concerns(read({ c2: AFTER }))).toContain(
-        'Scores changed after the results file was sent. Send it again before closing.'
+        `${SENT_FILE_TEXT.changed} Send it again before closing.`
       );
     });
 
     it('warns it could not check when the history is unreadable', () => {
-      expect(concerns({ status: 'unreadable' })).toContain(
-        'Could not check whether scores changed after the results file was sent.'
-      );
+      expect(concerns({ status: 'unreadable' })).toContain(SENT_FILE_TEXT.unknown);
     });
 
     it('quietly says it is still checking while the history loads', () => {
-      expect(concerns({ status: 'loading' })).toContain(
-        'Still checking whether scores changed after the results file was sent.'
-      );
+      expect(concerns({ status: 'loading' })).toContain(SENT_FILE_TEXT.checking);
     });
 
     it('adds nothing when the file is current or not looked at', () => {
@@ -122,5 +119,24 @@ describe('the results file line after a score changes', () => {
       { status: 'submitted', organization: 'AKC', submitted_at: SENT_AT },
     ]);
     expect(item).toMatchObject({ state: 'done', label: 'Results file sent to AKC' });
+  });
+});
+
+describe('one definition of "sent" bounds the history read', () => {
+  it('uses the oldest of each registry newest send, with the shared status spelling', () => {
+    expect(
+      oldestNewestSentAt([
+        { status: ' Sent ', organization: 'AKC', submitted_at: '2026-11-14T19:40:00Z' },
+        { status: 'sent', organization: 'AKC', submitted_at: '2026-11-14T18:00:00Z' },
+        { status: 'sent', organization: 'UKC', submitted_at: '2026-11-14T17:00:00Z' },
+        { status: 'submitted', organization: 'ASCA', submitted_at: '2026-11-14T10:00:00Z' },
+      ])
+    ).toBe('2026-11-14T17:00:00.000Z');
+  });
+
+  it('is null when nothing was sent by the app', () => {
+    expect(
+      oldestNewestSentAt([{ status: 'submitted', organization: 'AKC', submitted_at: SENT_AT }])
+    ).toBeNull();
   });
 });

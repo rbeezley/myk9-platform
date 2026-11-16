@@ -7,6 +7,7 @@
  */
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { getResultsStepHref, getFinishLineHref } from '@/features/results-tab/resultsTabRoutes';
+import { SENT_FILE_TEXT } from './submissionTimes';
 import type { WhatIsLeft, WhatIsLeftLine } from './whatIsLeft';
 
 export interface FinishListItem {
@@ -66,7 +67,7 @@ function itemFor(
           state: 'open',
           opensClassList: false,
           href: getResultsStepHref(showId, 'submit'),
-          label: 'Scores changed since the results file was sent',
+          label: SENT_FILE_TEXT.changed,
         };
       }
       // Not yet known is not a tick: while the history loads the line says so.
@@ -77,7 +78,7 @@ function itemFor(
           opensClassList: false,
           href: null,
           label: line.label,
-          note: 'Checking for score changes since the file was sent.',
+          note: SENT_FILE_TEXT.checking,
         };
       }
       return {
@@ -87,7 +88,7 @@ function itemFor(
         href: line.open === false ? null : getResultsStepHref(showId, 'submit'),
         label: line.open === false ? line.label : `Submit to ${line.registryId ?? 'the registry'}`,
         ...(line.open === false && line.sentFileCheck === 'unknown'
-          ? { note: 'We could not check for score changes since they were sent.' }
+          ? { note: SENT_FILE_TEXT.unknown }
           : {}),
       };
     }

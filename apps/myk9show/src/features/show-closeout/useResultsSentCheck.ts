@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { classHasUnsyncedScores } from '@/features/results-tab/useClassUnsyncedScores';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { getFileScoreChangesSince } from '@/services/database/entries/scoreAudit';
 import { replicatedEntriesTable } from '@/services/replication';
+import { oldestNewestSentAt } from './submissionTimes';
 import type { ScoreChangeRead, WhatIsLeftInput } from './whatIsLeft';
 
 /** A burst of replica notices (one per entry written) is one re-read. */
 export const SENT_CHECK_DEBOUNCE_MS = 2000;
+/** A steady stream of notices cannot postpone the re-check past this. */
+export const SENT_CHECK_MAX_WAIT_MS = 10_000;
 /** While an app-sent file exists, re-read this often even with no notice (a judge's device scored). */
 export const SENT_CHECK_REFETCH_MS = 60_000;
 
@@ -36,28 +39,28 @@ export function useResultsSentCheck(
   const queryClient = useQueryClient();
   const submissionsQuery = useResultSubmissions(showId);
   const submissions = submissionsQuery.data ?? null;
-  const since = useMemo(() => {
-    const newestByOrg = new Map<string, number>();
-    for (const row of submissions ?? []) {
-      if (row.status !== 'sent') continue;
-      const at = Date.parse(row.submitted_at);
-      const org = (row.organization ?? '').toUpperCase();
-      if (!Number.isNaN(at) && at > (newestByOrg.get(org) ?? -Infinity)) newestByOrg.set(org, at);
-    }
-    const oldest = Math.min(...newestByOrg.values());
-    return Number.isFinite(oldest) ? new Date(oldest).toISOString() : null;
-  }, [submissions]);
+  const since = useMemo(() => oldestNewestSentAt(submissions), [submissions]);
   const classKey = useMemo(() => (classes ?? []).map(cls => cls.id).join(','), [classes]);
   const ready = classes !== null;
   const enabled = since !== null && ready;
 
-  const [queue, setQueue] = useState<{ key: string; state: QueueState } | null>(null);
+  // `dirtyAt` is when the history last went out of date (a queued change just synced, or the
+  // replica reported a change): data read before it is not shown as the answer.
+  const [queue, setQueue] = useState<{ key: string; state: QueueState; dirtyAt: number } | null>(
+    null
+  );
+  const stateRef = useRef<QueueState | null>(null);
+  const dirtyRef = useRef(0);
   useEffect(() => {
     if (!enabled) return;
     const ids = classKey ? classKey.split(',') : [];
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    let maxWait: ReturnType<typeof setTimeout> | undefined;
     const recheck = async (fromNotice: boolean) => {
+      clearTimeout(debounce);
+      clearTimeout(maxWait);
+      debounce = maxWait = undefined;
       let state: QueueState;
       try {
         state = (await Promise.all(ids.map(id => classHasUnsyncedScores(id)))).some(Boolean);
@@ -65,26 +68,42 @@ export function useResultsSentCheck(
         state = 'error';
       }
       if (cancelled) return;
-      setQueue({ key: classKey, state });
+      const wasClear = stateRef.current === false;
+      const firstRead = stateRef.current === null;
+      stateRef.current = state;
+      // Taken now, not inside the state updater: that runs on the next render, after the re-read
+      // this triggers may already have landed, and fresh data would then look older than this.
+      if (state === false && (fromNotice || (!wasClear && !firstRead)))
+        dirtyRef.current = Date.now();
+      setQueue({ key: classKey, state, dirtyAt: dirtyRef.current });
       if (fromNotice && state === false) {
         void queryClient.invalidateQueries({ queryKey: ['results-sent-check', showId] });
       }
     };
+    stateRef.current = null;
     void recheck(false);
     const unsubscribe = replicatedEntriesTable.subscribe(
       () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => void recheck(true), SENT_CHECK_DEBOUNCE_MS);
+        clearTimeout(debounce);
+        debounce = setTimeout(() => void recheck(true), SENT_CHECK_DEBOUNCE_MS);
+        maxWait ??= setTimeout(() => void recheck(true), SENT_CHECK_MAX_WAIT_MS);
       },
       { emitCurrent: false }
     );
+    // A queue read that failed, or a change still waiting, is looked at again on the minute.
+    const interval = setInterval(() => {
+      if (stateRef.current !== false) void recheck(false);
+    }, SENT_CHECK_REFETCH_MS);
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      clearTimeout(debounce);
+      clearTimeout(maxWait);
+      clearInterval(interval);
       unsubscribe();
     };
   }, [classKey, enabled, queryClient, showId]);
-  const queueState = enabled && queue?.key === classKey ? queue.state : null;
+  const current = enabled && queue?.key === classKey ? queue : null;
+  const queueState = current?.state ?? null;
 
   const audits = useQuery({
     queryKey: ['results-sent-check', showId, since],
@@ -101,8 +120,18 @@ export function useResultsSentCheck(
       return { status: 'unreadable' };
     }
     if (audits.fetchStatus === 'paused' && !audits.data) return { status: 'unreadable' };
-    if (!audits.data) return { status: 'loading' };
+    if (!audits.data || audits.dataUpdatedAt < (current?.dirtyAt ?? 0))
+      return { status: 'loading' };
     return { status: 'read', latestByClass: audits.data };
-  }, [audits.data, audits.fetchStatus, audits.isError, queueState, ready, since]);
+  }, [
+    audits.data,
+    audits.dataUpdatedAt,
+    audits.fetchStatus,
+    audits.isError,
+    current,
+    queueState,
+    ready,
+    since,
+  ]);
   return useMemo(() => ({ submissions, scoreChanges }), [submissions, scoreChanges]);
 }

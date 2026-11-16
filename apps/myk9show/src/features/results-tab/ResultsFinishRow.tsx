@@ -8,6 +8,7 @@ import { buildFinishList } from '@/features/show-closeout/finishList';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { trialLabelOf, type ResultsClassRow } from './buildResultsClassRows';
 
@@ -27,7 +28,11 @@ interface ResultsFinishRowProps {
  * read); a line that opens the class list filters it to exactly the classes the line counted.
  */
 export function ResultsFinishRow({ showId, trials, rows, onOpenAfterShow }: ResultsFinishRowProps) {
-  const sent = useResultsSentCheck(showId, rows);
+  // Until the schedule is confirmed the rows may be partial: not loaded reads as "checking".
+  const scheduleReady = useTrialStore(
+    state => state.trialsHasConfirmedSnapshot && state.trialClassesHasConfirmedSnapshot
+  );
+  const sent = useResultsSentCheck(showId, scheduleReady ? rows : null);
   const items = useMemo(
     () => buildFinishList(showId, calculateResultsRowsLeft(rows, trials, sent)),
     [rows, sent, showId, trials]

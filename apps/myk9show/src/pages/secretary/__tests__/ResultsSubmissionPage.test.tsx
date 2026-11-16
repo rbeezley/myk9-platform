@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { Routes, Route } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
+import { SENT_FILE_TEXT } from '@/features/show-closeout/submissionTimes';
 import ResultsSubmissionPage from '../ResultsSubmissionPage';
 import {
   makeAKCSubmissionData,
@@ -498,8 +499,10 @@ describe('ResultsSubmissionPage', () => {
       mockScoreChanges.mockResolvedValue(new Map([['class-akc', '2026-05-10T13:00:00Z']]));
 
       renderPage();
-      expect(await screen.findByTestId('scores-changed-notice')).toHaveTextContent(
-        'Scores changed since this was sent. Send the corrected results.'
+      await waitFor(() =>
+        expect(screen.getByTestId('scores-changed-notice')).toHaveTextContent(
+          `${SENT_FILE_TEXT.changed} Send the corrected results.`
+        )
       );
       fireEvent.click(await screen.findByTestId('send-btn'));
 
@@ -507,6 +510,28 @@ describe('ResultsSubmissionPage', () => {
       expect(dialog).toHaveTextContent(/The first stays on record/i);
       expect(dialog).not.toHaveTextContent(/files a second time/i);
       expect(screen.getByTestId('send-confirm-btn')).toBeInTheDocument();
+    });
+
+    it('hides the notice while a send is in flight and after it succeeds', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
+      mockScoreChanges.mockResolvedValue(new Map([['class-akc', '2026-05-10T13:00:00Z']]));
+      let finish: (value: { data: unknown; error: null }) => void = () => {};
+      mockInvoke.mockReturnValue(new Promise(done => (finish = done)));
+
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByTestId('scores-changed-notice')).toHaveTextContent(
+          SENT_FILE_TEXT.changed
+        )
+      );
+      fireEvent.click(await screen.findByTestId('send-btn'));
+      fireEvent.click(await screen.findByTestId('send-confirm-btn'));
+      await waitFor(() => expect(screen.queryByTestId('scores-changed-notice')).toBeNull());
+
+      finish({ data: { success: true }, error: null });
+      await screen.findByText(/sent successfully/i);
+      expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
     });
 
     it('does not flag the AKC send for a change in UKC classes only', async () => {
@@ -517,7 +542,7 @@ describe('ResultsSubmissionPage', () => {
       renderPage();
       await waitFor(() => expect(mockScoreChanges).toHaveBeenCalled());
       await screen.findByTestId('send-btn');
-      expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
+      await waitFor(() => expect(screen.queryByTestId('scores-changed-notice')).toBeNull());
     });
 
     it('does not read as current while the schedule has not loaded', async () => {
@@ -537,8 +562,10 @@ describe('ResultsSubmissionPage', () => {
       mockUnsynced.mockResolvedValue(true);
 
       renderPage();
-      expect(await screen.findByTestId('scores-changed-notice')).toHaveTextContent(
-        'We could not check whether scores changed since this was sent.'
+      await waitFor(() =>
+        expect(screen.getByTestId('scores-changed-notice')).toHaveTextContent(
+          SENT_FILE_TEXT.unknown
+        )
       );
     });
 

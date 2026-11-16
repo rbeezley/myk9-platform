@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { formatEntryDateTime } from '@/lib/format/dates';
 import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
+import { SENT_FILE_TEXT } from '@/features/show-closeout/submissionTimes';
 import { calculateWhatIsLeft, type SentFileCheck } from '@/features/show-closeout/whatIsLeft';
 import { useShowDeskScheduleRead } from '../useShowDeskScheduleRead';
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
@@ -53,14 +54,22 @@ export function useSentFileCheckForSend(
   }, [classes, organization, scoreChanges, submissions, trials]);
 }
 
-/** Only a loud answer is shown; "checking" stays quiet. */
-export function ScoresChangedNotice({ check }: { check: SentFileCheck | undefined }) {
-  if (check !== 'changed' && check !== 'unknown') return null;
+/**
+ * One full-width line above the controls. Hidden while a send is in flight or just succeeded: the
+ * send records have not refetched yet, so the old answer would describe the file before it.
+ */
+export function ScoresChangedNotice({
+  check,
+  hidden,
+}: {
+  check: SentFileCheck | undefined;
+  hidden: boolean;
+}) {
+  if (hidden || check === undefined || check === 'current') return null;
   return (
     <p className="text-sm font-medium text-warning" data-testid="scores-changed-notice">
-      {check === 'changed'
-        ? 'Scores changed since this was sent. Send the corrected results.'
-        : 'We could not check whether scores changed since this was sent.'}
+      {SENT_FILE_TEXT[check]}
+      {check === 'changed' && ' Send the corrected results.'}
     </p>
   );
 }

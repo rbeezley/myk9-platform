@@ -382,6 +382,8 @@ export default function ResultsSubmissionPage() {
         </p>
       </div>
 
+      <ScoresChangedNotice check={scoresCheck} hidden={isSending || sendSuccess} />
+
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
@@ -411,7 +413,6 @@ export default function ResultsSubmissionPage() {
             from here" (email now / save a copy). After a divider, the lone
             "Mark as submitted" = "I already filed these elsewhere; just log
             it." The helper line below names the difference in words. */}
-        <ScoresChangedNotice check={scoresCheck} />
         <div className="flex flex-wrap items-center gap-2 pb-0.5">
           {activeFormatter?.submissionEmail && (
             <>

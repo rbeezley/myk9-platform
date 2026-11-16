@@ -86,6 +86,16 @@ describe('buildReportPaperworkDescriptor: one fingerprint whichever read path bu
       { resultStatus: 'qualified', finalPlacement: 1, searchTimeSeconds: '45.50', totalFaults: 0 },
     ],
     [
+      'a UKC element time',
+      {
+        resultStatus: 'qualified',
+        finalPlacement: 1,
+        searchTimeSeconds: 42.31,
+        element_time_seconds: '42.50',
+        totalFaults: 0,
+      },
+    ],
+    [
       'no results yet',
       { resultStatus: null, finalPlacement: null, searchTimeSeconds: null, totalFaults: null },
     ],
@@ -93,5 +103,24 @@ describe('buildReportPaperworkDescriptor: one fingerprint whichever read path bu
     const { reports, results } = fingerprintsThroughBothReadPaths(patch);
     expect(reports).toBeDefined();
     expect(results).toBe(reports);
+  });
+});
+
+describe('buildReportPaperworkDescriptor: element time (MYK9-2090)', () => {
+  const base = { resultStatus: 'qualified', finalPlacement: 1, searchTimeSeconds: 42.31 };
+
+  it('a correction to the element time alone changes the fingerprint', () => {
+    const a = fingerprintsThroughBothReadPaths({ ...base, element_time_seconds: 42.5 });
+    const b = fingerprintsThroughBothReadPaths({ ...base, element_time_seconds: 43.5 });
+    expect(a.results).not.toBe(b.results);
+    expect(a.reports).not.toBe(b.reports);
+  });
+
+  it('an entry without an element time hashes as it did before the field existed', () => {
+    const none = fingerprintsThroughBothReadPaths({ ...base, element_time_seconds: null });
+    const absent = fingerprintsThroughBothReadPaths(base);
+    expect(none.results).toBe(absent.results);
+    const withElement = fingerprintsThroughBothReadPaths({ ...base, element_time_seconds: 42.5 });
+    expect(withElement.results).not.toBe(absent.results);
   });
 });

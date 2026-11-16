@@ -79,6 +79,8 @@ export interface ResultPaperworkEntry {
   resultStatus: string | null;
   placement: number | null;
   searchTimeSeconds: number | null;
+  /** UKC element time (MYK9-2090); present only when recorded, so other registries hash as before. */
+  elementTimeSeconds?: number;
   totalFaults: number | null;
   trialId?: string | undefined;
 }

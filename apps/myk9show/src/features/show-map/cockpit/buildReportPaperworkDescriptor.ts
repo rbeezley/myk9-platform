@@ -105,17 +105,21 @@ export function buildReportPaperworkDescriptor(input: {
     return buildResultPaperworkDescriptor(
       input.reportId,
       input.scope,
-      selected.map(entry => ({
-        entryId: entry.id,
-        classId: entry.class_id ?? '',
-        dogId: entry.dog_id ?? '',
-        armband: entry.armband == null ? null : Number(entry.armband),
-        resultStatus: entry.result_status,
-        placement: numberOrNull(entry.final_placement),
-        searchTimeSeconds: numberOrNull(entry.search_time_seconds),
-        totalFaults: numberOrNull(entry.total_faults),
-        trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
-      })),
+      selected.map(entry => {
+        const elementTimeSeconds = numberOrNull(entry.element_time_seconds);
+        return {
+          entryId: entry.id,
+          classId: entry.class_id ?? '',
+          dogId: entry.dog_id ?? '',
+          armband: entry.armband == null ? null : Number(entry.armband),
+          resultStatus: entry.result_status,
+          placement: numberOrNull(entry.final_placement),
+          searchTimeSeconds: numberOrNull(entry.search_time_seconds),
+          ...(elementTimeSeconds !== null ? { elementTimeSeconds } : {}),
+          totalFaults: numberOrNull(entry.total_faults),
+          trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
+        };
+      }),
       classFacts
     );
   }

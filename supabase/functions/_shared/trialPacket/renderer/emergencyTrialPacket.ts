@@ -26,6 +26,7 @@ import {
   type EmergencyPacketTrial,
   type PacketReportEntry,
 } from './types.ts';
+import { formatPacketTrialLabel } from './packetClassOrder.ts';
 import { resolveScoresheetConfig } from './scoresheetConfig.ts';
 
 const CATALOG_ROWS_PER_PAGE = 24;
@@ -130,10 +131,6 @@ function classLabel(classItem: EmergencyPacketClass): string {
   return classItem.classNumber
     ? `${classItem.classNumber} · ${identity}`
     : identity || classItem.name;
-}
-
-function trialLabel(trial: EmergencyPacketTrial): string {
-  return trial.trialNumber ? `Trial ${trial.trialNumber}` : trial.name;
 }
 
 /**
@@ -392,7 +389,7 @@ export function buildEmergencyPacketModel(
     const context: EmergencyPacketPageContext = {
       showName: input.show.name,
       trialDate: trial.date,
-      trialLabel: trialLabel(trial),
+      trialLabel: formatPacketTrialLabel(trial),
     };
 
     chunks(trialEntries, CATALOG_ROWS_PER_PAGE).forEach((entries, index, pages) => {

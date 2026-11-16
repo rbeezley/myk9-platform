@@ -90,10 +90,9 @@ export function collateTrialPacket(input: {
     },
     {
       trialId: input.trialId,
-      // Named as the sheets' own footers name it: "Trial 1" when it has a number.
-      trialLabel: trial.trial_number
-        ? `Trial ${trial.trial_number}`
-        : formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
+      // The stored name, as the cockpit header and the sheets' footers show it (MYK9-704,
+      // MYK9-2110): never "Trial " + trial_number, which is free text and often "Trial 4".
+      trialLabel: formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
       registryName: registry.name,
       parseStartMinutes: parseStoredClockTime,
       compareProgression: (a, b) => {

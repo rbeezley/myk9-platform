@@ -9,6 +9,7 @@ import { collateJudgePackets, summarizeClassSheets } from './judgePacketCollatio
 import { assembleJudgePacketPdf, type PdfLibModule } from './judgePacketPdf.ts';
 import {
   comparePacketClassProgression,
+  formatPacketTrialLabel,
   packetRegistryName,
   parsePacketClockTime,
 } from './packetClassOrder.ts';
@@ -85,10 +86,6 @@ export function buildClassSheetParts(
   );
 }
 
-function trialLabelOf(trial: EmergencyPacketTrial): string {
-  return trial.trialNumber ? `Trial ${trial.trialNumber}` : trial.name || 'Trial';
-}
-
 /** A time zone `toLocaleString` accepts, else the default (a bad name would throw mid-packet). */
 function usableTimeZone(timeZone: string | undefined): string {
   if (!timeZone) return DEFAULT_TIME_ZONE;
@@ -142,7 +139,7 @@ export async function buildTrialDayPacketPdf(
   const parts: Uint8Array[] = [];
 
   for (const [index, trial] of model.trials.entries()) {
-    const trialLabel = trialLabelOf(trial);
+    const trialLabel = formatPacketTrialLabel(trial);
     const registryName = packetRegistryName(trial.registryId);
     const collated = collateJudgePackets<{ model: EmergencyPacketModel }>(input, {
       trialId: trial.id,

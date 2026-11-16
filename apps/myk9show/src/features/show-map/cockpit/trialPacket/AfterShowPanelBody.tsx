@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { formatTrialLabel } from '@myk9/core';
 
 import { Button } from '@/components/ui/button';
 import { getTrialRegistry } from '@/features/registries';
@@ -118,8 +119,7 @@ export function AfterShowPanelBody({ showId, trialId }: { showId: string; trialI
   if (!trial || !show)
     return <p className="p-4 text-sm text-muted-foreground">Getting the trial ready…</p>;
 
-  const trialName =
-    trial.name?.trim() || (trial.trial_number ? `Trial ${trial.trial_number}` : 'This trial');
+  const trialName = formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
   const keptLinks = ids.kept;
   const keepsNote = clubKeepsNote(registryId);
   const returnTo = `${location.pathname}${location.search}`;

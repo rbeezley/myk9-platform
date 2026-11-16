@@ -16,13 +16,6 @@ import {
 const CLUB = { kind: 'club', clubId: 'club-1' } as const;
 const SHOW = { kind: 'show', showId: 'show-1' } as const;
 
-/** The show's own rows read (select.eq.order.order), answering with `rows`. */
-function emptyShowRows(rows: unknown[] = []) {
-  const order2 = vi.fn().mockResolvedValue({ data: rows, error: null });
-  const order1 = vi.fn().mockReturnValue({ order: order2 });
-  return { select: () => ({ eq: () => ({ order: order1 }) }) };
-}
-
 describe('Event Committee service (MYK9-2064)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -110,41 +103,31 @@ describe('Event Committee service (MYK9-2064)', () => {
     expect(from).not.toHaveBeenCalled();
   });
 
-  it('copies the club list into the show as typed names, once each, in order', async () => {
-    rpc.mockResolvedValueOnce({
-      data: [{ name: 'Pat Chair' }, { name: 'sam typed' }, { name: 'Sam Typed' }],
-      error: null,
-    });
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    from.mockReturnValue({ insert, ...emptyShowRows() });
+  it('copies the club list into the show on the server', async () => {
+    rpc.mockResolvedValueOnce({ data: 3, error: null });
 
     await copyClubCommitteeToShow('show-1');
 
-    expect(rpc).toHaveBeenCalledWith('get_show_committee', { p_show_id: 'show-1' });
-    expect(from).toHaveBeenCalledWith('show_committee_members');
-    expect(insert).toHaveBeenCalledWith([
-      { show_id: 'show-1', person_id: null, display_name: 'Pat Chair', sort_order: 0 },
-      { show_id: 'show-1', person_id: null, display_name: 'sam typed', sort_order: 1 },
-    ]);
+    expect(rpc).toHaveBeenCalledWith('copy_club_committee_to_show', { p_show_id: 'show-1' });
+    expect(from).not.toHaveBeenCalled();
   });
 
-  it('refuses to copy when the show already has its own committee', async () => {
-    const insert = vi.fn();
-    const own = [
-      { id: 's-1', person_id: null, display_name: 'Olive', sort_order: 0, people: null },
-    ];
-    from.mockReturnValue({ insert, ...emptyShowRows(own) });
+  it('maps the already-has-its-own-list error to the user message', async () => {
+    rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: 'P0001', message: 'show already has its own committee' },
+    });
 
     await expect(copyClubCommitteeToShow('show-1')).rejects.toThrow(
       'This show already has its own committee.'
     );
-    expect(insert).not.toHaveBeenCalled();
   });
 
-  it('refuses to copy when the club list could not be read', async () => {
-    from.mockReturnValue(emptyShowRows());
-    rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' } });
-    await expect(copyClubCommitteeToShow('show-1')).rejects.toThrow();
+  it('rethrows any other copy failure unchanged', async () => {
+    const failure = { code: '42501', message: 'not allowed to manage this show' };
+    rpc.mockResolvedValueOnce({ data: null, error: failure });
+
+    await expect(copyClubCommitteeToShow('show-1')).rejects.toBe(failure);
   });
 
   it("clears only this show's own list", async () => {

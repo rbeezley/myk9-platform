@@ -5,6 +5,9 @@
 --   3. show list: the club's secretary and admin write; another club's admin and anon do not
 --   4. get_show_committee: anon reads a published show only; the show's own list replaces the
 --      club's; a soft-deleted club or show reads nothing; no email or person id
+--   5. copy_club_committee_to_show: a manager copies once, linked rows keep person_id, same-name
+--      linked members both survive, typed names and sort_order are kept, a second call is refused,
+--      a non-manager gets 42501, anon cannot execute it
 -- All fixtures roll back.
 
 BEGIN;
@@ -370,7 +373,7 @@ DECLARE
   result text;
 BEGIN
   result := pg_get_function_result('public.get_show_committee(uuid)'::regprocedure);
-  IF result <> 'TABLE("name" text, sort_order integer)' THEN
+  IF result <> 'TABLE(name text, sort_order integer)' THEN
     RAISE EXCEPTION 'FAIL get_show_committee returns %, expected only name and sort_order', result;
   END IF;
   RAISE NOTICE 'PASS the RPC exposes no email or person_id';
@@ -402,4 +405,112 @@ END;
 $$;
 
 RESET ROLE;
+
+-- 5. copy_club_committee_to_show. A plain member does not manage the show.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000206603', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.copy_club_committee_to_show('00000000-0000-0000-0000-000000206403');
+    RAISE EXCEPTION 'FAIL a non-manager copied the committee';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RAISE NOTICE 'PASS a non-manager gets 42501 from copy_club_committee_to_show';
+END;
+$$;
+
+-- The club's secretary manages Committee Club's show 206404 (draft, no own list yet).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000206604', true);
+
+DO $$
+DECLARE
+  copied integer;
+  n integer;
+  rows_text text;
+BEGIN
+  copied := public.copy_club_committee_to_show('00000000-0000-0000-0000-000000206404');
+  IF copied <> 2 THEN
+    RAISE EXCEPTION 'FAIL the manager copied % rows (expected 2: Linda and Sam)', copied;
+  END IF;
+  SELECT string_agg(
+           coalesce(m.person_id::text, m.display_name) || ':' || m.sort_order, ',' ORDER BY m.sort_order)
+    INTO rows_text
+  FROM public.show_committee_members m
+  WHERE m.show_id = '00000000-0000-0000-0000-000000206404';
+  IF rows_text IS DISTINCT FROM '00000000-0000-0000-0000-000000206414:1,Sam Typed:2' THEN
+    RAISE EXCEPTION 'FAIL the copy did not keep person_id, display_name and sort_order: %', rows_text;
+  END IF;
+
+  -- A second call is refused and changes nothing.
+  BEGIN
+    PERFORM public.copy_club_committee_to_show('00000000-0000-0000-0000-000000206404');
+    RAISE EXCEPTION 'FAIL a second copy was accepted';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'show already has its own committee' THEN RAISE; END IF;
+  END;
+  SELECT count(*) INTO n FROM public.show_committee_members
+  WHERE show_id = '00000000-0000-0000-0000-000000206404';
+  IF n <> 2 THEN RAISE EXCEPTION 'FAIL the second copy changed the row count to %', n; END IF;
+  RAISE NOTICE 'PASS a manager copies once; person_id, typed names and sort_order are kept';
+END;
+$$;
+
+-- Two linked members who share a name both survive, with their own person_id. Extra club rows,
+-- a new draft show of the same club, and a soft-deleted linked person (skipped, as
+-- get_show_committee skips it).
+RESET ROLE;
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES
+  ('00000000-0000-0000-0000-000000206431', 'Pat', 'Same', NULL),
+  ('00000000-0000-0000-0000-000000206432', 'Pat', 'Same', NULL);
+INSERT INTO public.club_committee_members (club_id, person_id, display_name, sort_order)
+VALUES
+  ('00000000-0000-0000-0000-000000206401', '00000000-0000-0000-0000-000000206431', NULL, 4),
+  ('00000000-0000-0000-0000-000000206401', NULL, 'Typed Copy', 7),
+  ('00000000-0000-0000-0000-000000206401', '00000000-0000-0000-0000-000000206432', NULL, 9);
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES ('00000000-0000-0000-0000-000000206422', 'Copy Show', 'Committee Club',
+        CURRENT_DATE + 60, CURRENT_DATE + 61, '00000000-0000-0000-0000-000000206401', 'draft');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000206604', true);
+
+DO $$
+DECLARE
+  copied integer;
+  n integer;
+BEGIN
+  copied := public.copy_club_committee_to_show('00000000-0000-0000-0000-000000206422');
+  IF copied <> 5 THEN
+    RAISE EXCEPTION 'FAIL the manager copied % rows (expected 5, the soft-deleted person skipped)', copied;
+  END IF;
+  SELECT count(*) INTO n FROM public.show_committee_members
+  WHERE show_id = '00000000-0000-0000-0000-000000206422'
+    AND person_id IN ('00000000-0000-0000-0000-000000206431', '00000000-0000-0000-0000-000000206432');
+  IF n <> 2 THEN
+    RAISE EXCEPTION 'FAIL two linked members with the same name did not both survive (% rows)', n;
+  END IF;
+  SELECT count(*) INTO n FROM public.show_committee_members
+  WHERE show_id = '00000000-0000-0000-0000-000000206422'
+    AND person_id IS NULL AND display_name = 'Typed Copy' AND sort_order = 7;
+  IF n <> 1 THEN RAISE EXCEPTION 'FAIL the typed name was not copied as typed (% rows)', n; END IF;
+  RAISE NOTICE 'PASS same-name linked members both survive the copy';
+END;
+$$;
+
+-- anon has no EXECUTE on the copy.
+RESET ROLE;
+DO $$
+BEGIN
+  IF has_function_privilege('anon', 'public.copy_club_committee_to_show(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL anon can execute copy_club_committee_to_show';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.copy_club_committee_to_show(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot execute copy_club_committee_to_show';
+  END IF;
+  RAISE NOTICE 'PASS anon has no EXECUTE on copy_club_committee_to_show';
+END;
+$$;
+
 ROLLBACK;

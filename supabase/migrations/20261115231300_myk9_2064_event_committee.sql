@@ -216,6 +216,58 @@ GRANT EXECUTE ON FUNCTION public.get_show_committee(uuid) TO service_role;
 COMMENT ON FUNCTION public.get_show_committee(uuid) IS
   'MYK9-2064: the Event Committee names for one show, for the premium list and the public landing page. The show''s own list when it has one, else the club''s. SECURITY DEFINER with the get_show_club_officers gate, so a signed-out caller reaches only published/upcoming/in_progress/completed shows. Name and order only: no email, no person id. Do not replace with an anon policy on the committee tables.';
 
+-- copy_club_committee_to_show: "Change for this show". One locked INSERT ... SELECT, so a second
+-- tab or a double click cannot copy twice, and linked members keep their person_id.
+CREATE OR REPLACE FUNCTION public.copy_club_committee_to_show(p_show_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_club_id uuid;
+  v_copied integer;
+BEGIN
+  IF NOT (SELECT public.can_manage_show(p_show_id)) THEN
+    RAISE EXCEPTION 'not allowed to manage this show' USING ERRCODE = '42501';
+  END IF;
+
+  -- Serialize concurrent copies for this show: the second waits, then sees the first's rows.
+  SELECT s.club_id INTO v_club_id
+  FROM public.shows s
+  JOIN public.clubs c ON c.id = s.club_id AND c.deleted_at IS NULL
+  WHERE s.id = p_show_id
+    AND s.deleted_at IS NULL
+  FOR UPDATE OF s;
+
+  IF v_club_id IS NULL THEN
+    RAISE EXCEPTION 'show or club not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.show_committee_members m WHERE m.show_id = p_show_id) THEN
+    RAISE EXCEPTION 'show already has its own committee' USING ERRCODE = 'P0001';
+  END IF;
+
+  -- Same rows get_show_committee would print: a linked person who is soft-deleted is skipped.
+  INSERT INTO public.show_committee_members (show_id, person_id, display_name, sort_order)
+  SELECT p_show_id, m.person_id, m.display_name, m.sort_order
+  FROM public.club_committee_members m
+  LEFT JOIN public.people pe ON pe.id = m.person_id
+  WHERE m.club_id = v_club_id
+    AND (m.person_id IS NULL OR pe.deleted_at IS NULL)
+  ORDER BY m.sort_order, m.created_at, m.id;
+
+  GET DIAGNOSTICS v_copied = ROW_COUNT;
+  RETURN v_copied;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.copy_club_committee_to_show(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.copy_club_committee_to_show(uuid) TO authenticated, service_role;
+
+COMMENT ON FUNCTION public.copy_club_committee_to_show(uuid) IS
+  'MYK9-2064: copies the club''s Event Committee into one show''s own list (keeps person_id for linked members, display_name for typed ones, and sort_order). can_manage_show gate; locks the show row; raises P0001 when the show already has its own list. Returns the number of rows copied.';
+
 -- hard_delete_show: manifest + show_committee_members_show_id_fkey.
 CREATE OR REPLACE FUNCTION public.hard_delete_show(p_show_id UUID)
 RETURNS void

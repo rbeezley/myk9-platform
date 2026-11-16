@@ -5,6 +5,9 @@
 import { supabase } from '../supabaseClient';
 import type { CommitteeMember, CommitteeScope, CommitteeTarget } from '@/types/committee-types';
 
+/** Shown when the show already has its own list (another tab, or a double click). */
+export const SHOW_HAS_OWN_COMMITTEE = 'This show already has its own committee.';
+
 interface DbCommitteeRow {
   id: string;
   person_id: string | null;
@@ -109,35 +112,15 @@ export async function moveCommitteeMember(
 }
 
 /**
- * "Change for this show": copies the club's list into the show's own rows, in one insert. A
- * secretary cannot read the club's table (club admin only), so this copies the names get_show_committee
- * returns while the show has no list of its own. Each copy is a typed name: the show's list
- * only prints names, and it never grants anything.
+ * "Change for this show": copies the club's list into the show's own rows on the server, in one
+ * locked insert (copy_club_committee_to_show). Linked members keep their person, typed names keep
+ * their name, and a show that already has its own list is refused (P0001).
  */
 export async function copyClubCommitteeToShow(showId: string): Promise<void> {
-  // Another tab may have started this show's own list already: never insert a second copy.
-  const existing = await getCommittee({ kind: 'show', showId });
-  if (existing.length > 0) throw new Error('This show already has its own committee.');
-  const names = await fetchShowCommittee(showId);
-  if (!names) throw new Error('Could not read the club committee');
-  const seen = new Set<string>();
-  const rows = names
-    .map(name => name.trim().slice(0, 120))
-    .filter(name => {
-      const key = name.toLowerCase();
-      if (!name || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .map((name, position) => ({
-      show_id: showId,
-      person_id: null,
-      display_name: name,
-      sort_order: position,
-    }));
-  if (rows.length === 0) return;
-  const { error } = await supabase.from('show_committee_members').insert(rows);
-  if (error) throw error;
+  const { error } = await supabase.rpc('copy_club_committee_to_show', { p_show_id: showId });
+  if (!error) return;
+  if (error.code === 'P0001') throw new Error(SHOW_HAS_OWN_COMMITTEE);
+  throw error;
 }
 
 /** "Use the club's committee": the show's own rows go, so the club's list applies again. */

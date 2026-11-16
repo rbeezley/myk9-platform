@@ -13628,6 +13628,7 @@ export type Database = {
           stripe_payment_intent_id: string
         }[]
       }
+      copy_club_committee_to_show: { Args: { p_show_id: string }; Returns: number }
       count_blocking_entries_by_dog: {
         Args: { p_dog_id: string }
         Returns: number

@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { WAITLIST_READ_TABLES } from '../replicaDependencies';
+import { WAITLIST_READ_TABLES } from '@/services/database/waitlists/replicaDependencies';
 
 describe('Waitlist tab replica dependencies', () => {
   it('lists exactly the replica tables the waitlist readers import', () => {

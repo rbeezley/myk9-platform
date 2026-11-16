@@ -18,7 +18,7 @@ export const judgeDayCapacityKey = (showId: string | undefined) =>
  * would then be refused. Nothing is recomputed in the browser. Online-only: offline the query
  * parks (`isPaused`), which the page reports as unavailable rather than as an empty list.
  */
-export function useJudgeDayCapacity(showId: string | undefined) {
+export function useJudgeDayCapacity(showId: string | undefined, enabled = true) {
   const query = useQuery({
     queryKey: judgeDayCapacityKey(showId),
     queryFn: async (): Promise<JudgeDayCapacity[]> => {
@@ -28,7 +28,7 @@ export function useJudgeDayCapacity(showId: string | undefined) {
       if (error) throw new Error(error.message);
       return judgeDayCapacityFromServer(data ?? []);
     },
-    enabled: !!showId,
+    enabled: !!showId && enabled,
     // Counts move without this page's help (automatic offers, other secretaries); re-read on
     // every mount rather than trusting a cached figure for the default five minutes.
     staleTime: 0,

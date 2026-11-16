@@ -22,7 +22,7 @@ import {
   WaitlistOfferNotWithdrawnError,
 } from '@/services/database/waitlists';
 import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
-import { WAITLIST_READ_TABLES } from './replicaDependencies';
+import { WAITLIST_READ_TABLES } from '@/services/database/waitlists/replicaDependencies';
 import { useWaitlistOffers } from './useWaitlistOffers';
 import { withdrawOutcomeNotice } from './withdrawOutcomeNotice';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';

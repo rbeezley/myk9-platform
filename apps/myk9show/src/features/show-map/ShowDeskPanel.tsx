@@ -11,6 +11,7 @@ import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { useMoveUpTargets } from './useMoveUpTargets';
 import { buildMoveUpClassLabeler, classIdsEnteredByDog } from './buildMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
+import { useShowDeskWaiting } from '@/features/waiting-for-you/useShowDeskWaiting';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
@@ -78,6 +79,11 @@ export default function ShowDeskPanel({
     isExecuting,
   } = executor;
 
+  const waiting = useShowDeskWaiting({
+    showId: show.id,
+    entries: canManageShow ? putBackEntries : undefined,
+    enabled: canManageShow,
+  });
   const pendingSignals = useMemo(
     () =>
       canManageShow
@@ -86,9 +92,10 @@ export default function ShowDeskPanel({
             tree,
             entries,
             currentDate: effectiveScopeNow,
+            waiting,
           })
         : [],
-    [canManageShow, effectiveScopeNow, entries, show.id, tree]
+    [canManageShow, effectiveScopeNow, entries, show.id, tree, waiting]
   );
   const returnTo = `${location.pathname}${location.search}`;
   const trialRefs = useMemo(

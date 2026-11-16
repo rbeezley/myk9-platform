@@ -229,6 +229,8 @@ export interface TrialScheduleGroupModel {
   nowMarkerIndex: number | null;
   /** Whether the group starts expanded. */
   defaultOpen: boolean;
+  /** An earlier trial that day finished and this trial's printed sheets have changed (MYK9-2075). */
+  reprintNote: boolean;
   summary: {
     classCount: number;
     inProgressCount: number;

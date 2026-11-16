@@ -93,6 +93,12 @@ export function CockpitTrialGroup({
       }
       actions={trialActions}
     >
+      {group.reprintNote && (
+        <p role="status" className="border-b bg-warning/10 px-4 py-2 text-sm">
+          An earlier trial has finished. This trial&apos;s paperwork may need printing again because
+          of move-ups.
+        </p>
+      )}
       {group.classes.map((classItem, classIndex) => {
         const focused = model.focusedClass?.id === classItem.id;
         return (

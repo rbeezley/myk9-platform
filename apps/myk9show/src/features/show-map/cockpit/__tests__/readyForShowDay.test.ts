@@ -67,19 +67,50 @@ describe('rollUpFirstDayPaperwork', () => {
       available,
     });
 
-  it('passes when first-day sheets are current, ignoring later days', () => {
+  it('passes when the first trial sheets are current, ignoring later days', () => {
     const result = roll({
       c1: [sheet('check-in-sheet', 'current'), sheet('scoresheet', 'current')],
       c2: [sheet('check-in-sheet', 'unconfirmed')],
     });
-    expect(result).toEqual({ status: 'pass', outstanding: 0 });
+    expect(result).toEqual({ status: 'pass', sheets: 0, labelClasses: 0 });
   });
 
   it('fails on unconfirmed or stale first-day sheets and counts them', () => {
     const result = roll({
       c1: [sheet('check-in-sheet', 'unconfirmed'), sheet('scoresheet', 'stale')],
     });
-    expect(result).toEqual({ status: 'fail', outstanding: 2 });
+    expect(result).toEqual({ status: 'fail', sheets: 2, labelClasses: 0 });
+  });
+
+  it('measures sheets for the first trial only and labels for the whole first day', () => {
+    const sameDay = [
+      { id: 't1', trialDate: '2026-10-20' },
+      { id: 't1b', trialDate: '2026-10-20' },
+      { id: 't2', trialDate: '2026-10-21' },
+    ];
+    const result = rollUpFirstDayPaperwork({
+      trials: sameDay,
+      classes: [
+        { id: 'c1', trialId: 't1' },
+        { id: 'c1b', trialId: 't1b' },
+        { id: 'c2', trialId: 't2' },
+      ],
+      byClassId: new Map([
+        ['c1', [sheet('check-in-sheet', 'current'), sheet('armband-labels', 'current')]],
+        // Trial 2 of the day prints after move-ups: its sheets are not measured, its labels are.
+        ['c1b', [sheet('check-in-sheet', 'unconfirmed'), sheet('armband-labels', 'stale')]],
+        ['c2', [sheet('armband-labels', 'unconfirmed')]],
+      ]),
+      available: true,
+    });
+    expect(result).toEqual({ status: 'fail', sheets: 0, labelClasses: 1 });
+  });
+
+  it('fails on first-trial sheets and first-day labels together, and says both', () => {
+    const detail = buildReadyForShowDay(
+      allGood({ paperwork: { status: 'fail', sheets: 1, labelClasses: 2 } })
+    ).lines.find(line => line.id === 'paperwork')?.detail;
+    expect(detail).toBe('1 sheet for the first trial and armband labels for 2 classes on the first day to print');
   });
 
   it('never counts unknown as printed', () => {
@@ -118,7 +149,7 @@ function allGood(overrides: Partial<ReadyForShowDayInput> = {}): ReadyForShowDay
       experienceIsPublished: true,
     },
     entryBreakdownByClassId: new Map([['c1', { entered: 5, pending: 0 }]]),
-    paperwork: { status: 'pass', outstanding: 0 },
+    paperwork: { status: 'pass', sheets: 0, labelClasses: 0 },
     printTrackingInUse: true,
     offline: { ready: true, missing: [], asOf: 1 },
     ...overrides,
@@ -173,7 +204,7 @@ describe('buildReadyForShowDay', () => {
       allGood({
         premiumInfo: null,
         entryBreakdownByClassId: undefined,
-        paperwork: { status: 'unknown', outstanding: 0 },
+        paperwork: { status: 'unknown', sheets: 0, labelClasses: 0 },
         offline: null,
       })
     );
@@ -205,11 +236,12 @@ describe('buildReadyForShowDay', () => {
   });
 
   it('links failing paperwork to the first day of the Overview', () => {
-    const result = buildReadyForShowDay(allGood({ paperwork: { status: 'fail', outstanding: 3 } }));
+    const result = buildReadyForShowDay(allGood({ paperwork: { status: 'fail', sheets: 3, labelClasses: 0 } }));
     const line = result.lines.find(candidate => candidate.id === 'paperwork');
     // The packet panel opens on the first trial of the first day (MYK9-1924).
     expect(line?.href).toBe('/shows/show-1?day=2026-10-20&packet=t1');
-    expect(line?.detail).toBe('3 sheets for the first day need printing');
+    expect(line?.label).toBe("First trial's paperwork printed");
+    expect(line?.detail).toBe('3 sheets for the first trial to print');
   });
 
   it('opens the packet of the first trial of the first day, not a later day', () => {
@@ -217,7 +249,7 @@ describe('buildReadyForShowDay', () => {
     const sameDay = { id: 't2', trialDate: '2026-10-20' } as SyncableTrial;
     const result = buildReadyForShowDay(
       allGood({
-        paperwork: { status: 'fail', outstanding: 3 },
+        paperwork: { status: 'fail', sheets: 3, labelClasses: 0 },
         setup: { show: show(), trials: [later, trial, sameDay], classes: [{ judgeName: 'Jane' }] },
       })
     );
@@ -226,7 +258,7 @@ describe('buildReadyForShowDay', () => {
 
   it('omits the paperwork line, rather than passing it, while print tracking is unused (MYK9-1620)', () => {
     const result = buildReadyForShowDay(
-      allGood({ paperwork: { status: 'fail', outstanding: 3 }, printTrackingInUse: false })
+      allGood({ paperwork: { status: 'fail', sheets: 3, labelClasses: 0 }, printTrackingInUse: false })
     );
     expect(result.lines.map(line => line.id)).not.toContain('paperwork');
     expect(result.allClear).toBe(true);

@@ -93,16 +93,21 @@ type PaperworkRows = ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
 
 /** The before-class print items of the per-class checklist (classChecklist.ts). */
 const PRE_SHOW_SHEETS: ReadonlySet<string> = new Set(['check-in-sheet', 'scoresheet']);
+const ARMBAND_LABELS = 'armband-labels';
 
 export interface FirstDayPaperwork {
   status: ReadyLineStatus;
-  /** Sheets not printed or printed before the class changed. */
-  outstanding: number;
+  /** Sheets of the FIRST trial not printed or printed before the class changed. */
+  sheets: number;
+  /** Classes on the first DAY whose armband labels are not printed or changed since printing. */
+  labelClasses: number;
 }
 
 /**
- * Rolls the existing per-class paperwork map up to the show's FIRST day. Unknown never counts as
- * printed: while the class rows or print history cannot be trusted the answer is `unknown`.
+ * Rolls the existing per-class paperwork map up to what the night before needs (MYK9-2075): the
+ * first trial's check-in sheets and score sheets, and the first day's armband labels. Later trials
+ * print after move-ups, so they are not measured. Unknown never counts as printed: while the class
+ * rows or print history cannot be trusted the answer is `unknown`.
  */
 export function rollUpFirstDayPaperwork(input: {
   trials: readonly { id: string; trialDate: string }[];
@@ -111,22 +116,30 @@ export function rollUpFirstDayPaperwork(input: {
   available: boolean;
 }): FirstDayPaperwork {
   const firstDate = earliestTrialDate(input.trials);
-  if (!input.available || !firstDate) return { status: 'unknown', outstanding: 0 };
+  const firstTrialId = firstTrialOfFirstDay(input.trials);
+  if (!input.available || !firstDate || !firstTrialId) {
+    return { status: 'unknown', sheets: 0, labelClasses: 0 };
+  }
   const firstDayTrials = new Set(
     input.trials.filter(trial => trial.trialDate === firstDate).map(trial => trial.id)
   );
-  let outstanding = 0;
+  let sheets = 0;
+  let labelClasses = 0;
   let unknown = false;
   for (const classItem of input.classes) {
     if (!classItem.trialId || !firstDayTrials.has(classItem.trialId)) continue;
     for (const row of input.byClassId.get(classItem.id) ?? []) {
-      if (!PRE_SHOW_SHEETS.has(row.reportId)) continue;
+      const isSheet = PRE_SHOW_SHEETS.has(row.reportId) && classItem.trialId === firstTrialId;
+      if (!isSheet && row.reportId !== ARMBAND_LABELS) continue;
       if (row.state === 'unknown') unknown = true;
-      else if (row.state !== 'current') outstanding += 1;
+      else if (row.state !== 'current') {
+        if (isSheet) sheets += 1;
+        else labelClasses += 1;
+      }
     }
   }
-  if (outstanding > 0) return { status: 'fail', outstanding };
-  return { status: unknown ? 'unknown' : 'pass', outstanding: 0 };
+  if (sheets + labelClasses > 0) return { status: 'fail', sheets, labelClasses };
+  return { status: unknown ? 'unknown' : 'pass', sheets: 0, labelClasses: 0 };
 }
 
 function sumPending(byClassId: ReadonlyMap<string, ClassEntryBreakdown>): number {
@@ -159,6 +172,16 @@ export interface ReadyForShowDayInput {
 function withPacket(href: string, trialId: string | undefined): string {
   if (!trialId) return href;
   return `${href}${href.includes('?') ? '&' : '?'}packet=${encodeURIComponent(trialId)}`;
+}
+
+function outstandingDetail({ sheets, labelClasses }: FirstDayPaperwork): string {
+  const parts = [
+    sheets > 0 ? `${sheets} sheet${sheets === 1 ? '' : 's'} for the first trial` : null,
+    labelClasses > 0
+      ? `armband labels for ${labelClasses} class${labelClasses === 1 ? '' : 'es'} on the first day`
+      : null,
+  ].filter(Boolean);
+  return `${parts.join(' and ')} to print`;
 }
 
 const CANT_CHECK = "Can't check right now";
@@ -219,7 +242,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
           }
         : { id: 'entries', label: 'Entries reviewed', status: 'pass' };
 
-  const paperworkBase = { id: 'paperwork', label: 'Check-in sheets and score sheets printed' };
+  const paperworkBase = { id: 'paperwork', label: "First trial's paperwork printed" };
   const paperworkLine: ReadyLine =
     input.paperwork.status === 'pass'
       ? { ...paperworkBase, status: 'pass' }
@@ -228,7 +251,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
         : {
             ...paperworkBase,
             status: 'fail',
-            detail: `${input.paperwork.outstanding} sheet${input.paperwork.outstanding === 1 ? '' : 's'} for the first day ${input.paperwork.outstanding === 1 ? 'needs' : 'need'} printing`,
+            detail: outstandingDetail(input.paperwork),
             // Opens the before-trial packet for the first trial (MYK9-1924); the show home keeps
             // the first day's schedule behind it, where a class reprints on its own.
             href: withPacket(

@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   voidPaperworkPrint: vi.fn(),
   refetch: vi.fn(),
   entries: [] as DbEntry[],
+  /** Every trial's classes, as the replica read returns them (the earlier-trial note). */
+  allClasses: undefined as unknown[] | undefined,
+  trials: undefined as unknown[] | undefined,
   /** Records the panel's own prints wrote: they land in the print history, as in the app. */
   landed: [] as Array<Record<string, unknown>>,
   prints: {} as { data?: unknown; isLoading: boolean; isError: boolean; syncFailed: boolean },
@@ -30,12 +33,15 @@ const TRIALS = [TRIAL];
 vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
     show: SHOW,
-    trials: TRIALS,
+    trials: mocks.trials ?? TRIALS,
     classes: CLASSES,
     entries: mocks.entries,
     dataState: 'ready',
     refetch: mocks.refetch,
   }),
+}));
+vi.mock('@/hooks/queries/useShowClassRows', () => ({
+  useShowClassRows: () => ({ data: mocks.allClasses }),
 }));
 // One array per change, as the query hook returns, so the packets are built once.
 let merged: { base: unknown; landed: number; data: unknown[] } | null = null;
@@ -79,6 +85,8 @@ describe('TrialPacketPanel', () => {
     mocks.prints = { data: [], isLoading: false, isError: false, syncFailed: false };
     mocks.printIframeAndWait.mockResolvedValue(true);
     mocks.landed = [];
+    mocks.allClasses = undefined;
+    mocks.trials = undefined;
     let next = 0;
     mocks.recordPaperworkPrinted.mockImplementation(
       async ({ descriptor }: { descriptor: ReturnType<typeof buildReportPaperworkDescriptor> }) => {
@@ -114,6 +122,38 @@ describe('TrialPacketPanel', () => {
     expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /No judge assigned/ })).toBeInTheDocument();
     expect(screen.getByText(/1 class has no dogs yet and is left out/)).toBeInTheDocument();
+  });
+
+  describe('a later trial printed before the earlier one has finished (MYK9-2075)', () => {
+    const FIRST = { ...TRIAL, id: 'trial-0', trial_number: 1 } as unknown as typeof TRIAL;
+    const SECOND = { ...TRIAL, trial_number: 2 } as unknown as typeof TRIAL;
+    const earlierClass = (status: string) => ({ id: 'e1', trial_id: 'trial-0', status });
+    const NOTE = "Trial 1 isn't finished. Move-ups may change these sheets.";
+
+    it('shows a plain note and keeps Print available', async () => {
+      mocks.trials = [FIRST, SECOND];
+      mocks.allClasses = [earlierClass('in_progress'), earlierClass('completed')];
+      renderPanel();
+      expect(await screen.findByText(NOTE)).toBeInTheDocument();
+      const print = screen.getByRole('button', { name: 'Print all 3 packets' });
+      await waitFor(() => expect(print).toBeEnabled(), BUILT);
+    });
+
+    it('shows nothing once the earlier trial is finished', async () => {
+      mocks.trials = [FIRST, SECOND];
+      mocks.allClasses = [earlierClass('completed'), earlierClass('completed')];
+      renderPanel();
+      await screen.findByText(/collated/);
+      expect(screen.queryByText(NOTE)).not.toBeInTheDocument();
+    });
+
+    it('shows nothing for the first trial of the day', async () => {
+      mocks.trials = [FIRST, { ...SECOND, id: 'trial-9' }];
+      mocks.allClasses = [{ id: 'l1', trial_id: 'trial-9', status: 'not_started' }];
+      renderPanel();
+      await screen.findByText(/collated/);
+      expect(screen.queryByText(/isn't finished/)).not.toBeInTheDocument();
+    });
   });
 
   it('marks every class in the trial printed once the print dialog closes, and Undo voids them', async () => {

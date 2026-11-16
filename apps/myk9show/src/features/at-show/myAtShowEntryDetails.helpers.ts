@@ -59,7 +59,7 @@ export interface AtShowClassSummary {
   /** The class's `class_order`, the secretary's own sequence, for ordering ties. */
   classOrder?: number | undefined;
   isRevisedStart?: boolean | undefined;
-  /** MYK9-1970: the class is judged on paper (from the class row this device holds). */
+  /** MYK9-1970: `classes.scores_on_paper` from the class row this device holds; absent follows the show. */
   scoresOnPaper?: boolean | undefined;
   /**
    * The class/trial/show self-check-in cascade already resolved by the
@@ -88,7 +88,7 @@ export function toAtShowClassSummary(
     ...(cls.start_time ? { startTime: cls.start_time } : {}),
     classOrder: cls.class_order,
     isRevisedStart: Boolean(cls.revised_expected_start),
-    ...(cls.scores_on_paper === true ? { scoresOnPaper: true } : {}),
+    ...(cls.scores_on_paper != null ? { scoresOnPaper: cls.scores_on_paper } : {}),
     resultsReleasedAt: cls.results_released_at ?? null,
     selfCheckinState,
   };

@@ -78,7 +78,7 @@ export function toClassEntry(
     // MYK9-1847: cancelled has no ringside status value, so it travels as its own fact.
     ...(isCancelledClassStatus(cls.classStatus) ? { is_cancelled: true } : {}),
     // MYK9-1970: the paper fact travels so a phone that holds the class shows the paper line offline.
-    ...(cls.scoresOnPaper === true ? { scores_on_paper: true } : {}),
+    ...(cls.scoresOnPaper != null ? { scores_on_paper: cls.scoresOnPaper } : {}),
     ...(cls.ringPhase === 'briefing' && cls.ringPhaseTime
       ? { briefing_time: cls.ringPhaseTime }
       : {}),

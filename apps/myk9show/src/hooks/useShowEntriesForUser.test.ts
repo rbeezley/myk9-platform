@@ -504,6 +504,30 @@ describe('useShowEntriesForUser', () => {
       expect(mineOf()?.queue).toEqual({ kind: 'paper' });
     });
 
+    it('reads a class that follows a show scored on paper as the paper line (MYK9-1970)', () => {
+      setMocks({
+        classes: [makeClass({ scoresOnPaper: null })],
+        shows: [{ id: SHOW_ID, clubId: 'club-1', usesDeviceScoring: false }],
+        entries: [makeEntry({ registrationData: reg('101', 31) })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'paper' });
+    });
+
+    it('lets a class own phone choice beat a show scored on paper, and keeps a phone show waiting', () => {
+      setMocks({
+        classes: [makeClass({ scoresOnPaper: false })],
+        shows: [{ id: SHOW_ID, clubId: 'club-1', usesDeviceScoring: false }],
+        entries: [makeEntry({ registrationData: reg('101', 31) })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'waiting-unknown' });
+      setMocks({
+        classes: [makeClass({ scoresOnPaper: null })],
+        shows: [{ id: SHOW_ID, clubId: 'club-1', usesDeviceScoring: true }],
+        entries: [makeEntry({ registrationData: reg('101', 31) })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'waiting-unknown' });
+    });
+
     it('does not call a lone owned dog next when its order is unset', () => {
       setMocks({ entries: [makeEntry({ registrationData: reg('101', 0) })] });
       expect(mineOf()?.queue).toBeNull();

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManagementShell';
@@ -488,6 +488,45 @@ describe('ShowManagementShell', () => {
     expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
     expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+  });
+
+  describe('with a class selected on a laptop (MYK9-1989)', () => {
+    const original = window.matchMedia;
+    const breadcrumbs = [
+      { label: 'Shows', href: '/shows' },
+      { label: 'Test Show', href: '/shows/show-1' },
+    ];
+    const setWide = (wide: boolean) => {
+      window.matchMedia = ((query: string) => ({
+        matches: wide && query === '(min-width: 1024px)',
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+        onchange: null,
+      })) as typeof window.matchMedia;
+    };
+    afterEach(() => {
+      window.matchMedia = original;
+    });
+
+    it('drops the breadcrumb row with a class selected on a laptop', () => {
+      setWide(true);
+      renderShell({ breadcrumbs }, '/shows/show-1?focus=class-1');
+      expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    });
+
+    it.each([
+      { name: 'no class is selected', wide: true, route: '/shows/show-1' },
+      { name: 'the window is narrower than lg', wide: false, route: '/shows/show-1?focus=class-1' },
+    ])('keeps the breadcrumb when $name', ({ wide, route }) => {
+      setWide(wide);
+      renderShell({ breadcrumbs }, route);
+      expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument();
+    });
   });
 
   it('lets the show header own the page h1 so the page header renders no second title', () => {

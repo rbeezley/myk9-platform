@@ -518,7 +518,7 @@ describe('SecretaryCockpitFocusedClass Check-in cell', () => {
     const row = screen.getByTestId('class-entry-row');
     expect(within(row).queryByRole('button', { name: /Change check-in/ })).toBeNull();
     expect(within(row).getAllByText('Not checked in')).toHaveLength(1);
-    expect(within(row).queryByText('Scored, so the status is locked')).toBeNull();
+    expect(within(row).queryByLabelText('Scored, so the status is locked')).toBeNull();
   });
 });
 

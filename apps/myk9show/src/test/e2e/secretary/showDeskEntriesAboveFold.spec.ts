@@ -4,25 +4,28 @@ import { signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 
 /**
- * MYK9-1989: on a laptop, Show Desk with a class selected leaves room for the class's entries.
- * The owner, on a MacBook: the headers stacked above the entries filled about three quarters of the
- * window, and scrolling showed one entry at a time. The pinned class header is compact from `lg`
- * (name and controls on one line, values on the next, settings behind Class settings), the folded
- * Shows button sits in the show header instead of on its own row, and the entries come before the
- * counts and the checklist while the header is pinned.
+ * MYK9-1989: on a laptop, Show Desk with a class selected leaves room for the class's entries,
+ * measured as the secretary meets it: the class opened and NOT scrolled. The owner, on a MacBook:
+ * the headers stacked above the entries filled about three quarters of the window. From lg the
+ * class header is always compact (name and controls on one line, values on the next, settings
+ * behind Class settings), the breadcrumb row folds away, "Needs attention" folds into the rail, the class panel starts beside the
+ * schedule heading, and a locked check-in is a lock icon, so every row is one line tall.
  *
- * Measured as the secretary works: the class picked, the show page scrolled so the class's panel
- * rides pinned under the show header and tabs. Then the first entry row's top is in the upper half
- * of a 1280x800 window and at least six whole rows are on screen (none under the panel's edge or the
- * pinned header), at 1280x800 and 1440x900.
+ * Without scrolling, the first entry row's top is in the upper half of a 1280x800 and a 1440x900
+ * window and at least six whole rows are on screen (none under the panel's edge or the header).
+ * The class name stays in view while the entries scroll. Phone and tablet keep the full card.
  *
- * Read-only. Seeded target only: it needs the demo seed's Heartland show and its 66-entry
- * Exterior Excellent class, so it skips unless MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true (the
- * isolated target), and the shared-staging write guard stays installed as a second net.
+ * Read-only. Seeded target only: it needs the demo seed's Heartland show with the load fixture's
+ * entries in Exterior Excellent, and Container Novice A's three scored rows. It skips unless
+ * MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true (the isolated target), and the shared-staging write
+ * guard stays installed as a second net.
  */
 
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000033';
 const CLASS_NAME = 'Exterior Excellent';
+// Three scored rows (Willow, Scout, Cooper) in the demo seed: their check-in is locked.
+const SCORED_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000031';
+const SCORED_CLASS_NAME = 'Container Novice A';
 
 test.skip(
   process.env.MYK9_PLAYWRIGHT_REGRESSION_ENABLED !== 'true',
@@ -32,33 +35,20 @@ test.skip(
 // A cold dev server compiles the show page on first load.
 test.setTimeout(120_000);
 
-async function openClass(page: Page, viewport: { width: number; height: number }) {
+async function openClass(
+  page: Page,
+  viewport: { width: number; height: number },
+  classId = CLASS_ID,
+  className = CLASS_NAME
+) {
   await installSharedStagingWriteGuard(page);
   await page.setViewportSize(viewport);
   await signInAsSecretary(page, '/');
-  await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}?focus=${CLASS_ID}`);
-  await expect(page.getByRole('heading', { level: 2, name: CLASS_NAME })).toBeVisible({
+  await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}?focus=${classId}`);
+  await expect(page.getByRole('heading', { level: 2, name: className })).toBeVisible({
     timeout: 60_000,
   });
   await expect(page.getByTestId('class-entry-row').first()).toBeAttached({ timeout: 60_000 });
-}
-
-/** Scroll the show page's own scroller (the pane, or the window) to its end, instantly. */
-async function scrollShowPageToEnd(page: Page) {
-  return page.evaluate(() => {
-    const grid = document.querySelector('[data-cockpit-layout]');
-    let scrolled = 0;
-    for (let el = grid?.parentElement ?? null; el; el = el.parentElement) {
-      const overflowY = getComputedStyle(el).overflowY;
-      const scroller =
-        el === document.documentElement || overflowY === 'auto' || overflowY === 'scroll';
-      if (scroller && el.scrollHeight > el.clientHeight) {
-        el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
-        scrolled = Math.max(scrolled, el.scrollTop);
-      }
-    }
-    return scrolled;
-  });
 }
 
 /** Whole entry rows on screen: inside the window and every clipping box, and not covered. */
@@ -91,7 +81,7 @@ for (const viewport of [
   { width: 1280, height: 800 },
   { width: 1440, height: 900 },
 ]) {
-  test(`${viewport.width}x${viewport.height}: six entry rows show under the pinned class header (MYK9-1989)`, async ({
+  test(`${viewport.width}x${viewport.height}: six entry rows show on load, no scrolling (MYK9-1989)`, async ({
     page,
   }) => {
     await openClass(page, viewport);
@@ -99,9 +89,7 @@ for (const viewport of [
       'data-cockpit-layout',
       'split'
     );
-    // Positive control: the show page really scrolls, so the panel below is the pinned one.
-    expect(await scrollShowPageToEnd(page)).toBeGreaterThan(100);
-
+    // No scrolling: the page is where it loaded.
     const firstRow = page.getByTestId('class-entry-row').first();
     await expect(firstRow).toBeInViewport();
     const box = await firstRow.boundingBox();
@@ -123,10 +111,43 @@ for (const viewport of [
   });
 }
 
-test('390x844: the phone keeps the full class card, unpinned (MYK9-1989)', async ({ page }) => {
-  await openClass(page, { width: 390, height: 844 });
-  const header = page.getByTestId('focused-class-header');
-  await expect(header).toHaveCSS('position', 'static');
-  await expect(header).not.toHaveAttribute('data-compact', 'true');
-  await expect(page.getByText('Expected start', { exact: true })).toBeAttached();
+test('1280x800: the class name stays in view while the entries scroll (MYK9-1989)', async ({
+  page,
+}) => {
+  await openClass(page, { width: 1280, height: 800 });
+  const heading = page.getByRole('heading', { level: 2, name: CLASS_NAME });
+  await page.getByTestId('class-entry-row').last().scrollIntoViewIfNeeded();
+  await expect(page.getByTestId('class-entry-row').last()).toBeInViewport();
+  await expect(heading).toBeInViewport();
 });
+
+test('1280x800: a locked check-in is a lock icon, so a scored row is one line tall (MYK9-1989)', async ({
+  page,
+}) => {
+  await openClass(page, { width: 1280, height: 800 }, SCORED_CLASS_ID, SCORED_CLASS_NAME);
+  const rows = page.getByTestId('class-entry-row');
+  await expect(rows.first()).toBeAttached();
+  // From lg the lock icon shows and the words are sr-only, so they take no line under the control.
+  await expect(rows.first().getByTestId('locked-reason-icon')).toBeVisible();
+  await expect(rows.first().getByText(/status is locked/)).toHaveCSS('position', 'absolute');
+  const heights = await rows.evaluateAll(list =>
+    list.map(row => row.getBoundingClientRect().height)
+  );
+  expect(heights.length).toBeGreaterThan(0);
+  for (const height of heights) expect(height).toBeLessThan(70);
+});
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 768, height: 1024 },
+]) {
+  test(`${viewport.width}x${viewport.height}: keeps the full class card, unpinned (MYK9-1989)`, async ({
+    page,
+  }) => {
+    await openClass(page, viewport);
+    const header = page.getByTestId('focused-class-header');
+    await expect(header).toHaveCSS('position', 'static');
+    await expect(header).not.toHaveAttribute('data-compact', 'true');
+    await expect(page.getByText('Expected start', { exact: true })).toBeAttached();
+  });
+}

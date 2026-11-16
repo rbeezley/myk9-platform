@@ -36,7 +36,7 @@ const items: SecretaryCockpitAttention[] = [
   },
 ];
 
-function renderStrip(onCommand = vi.fn()) {
+function renderStrip(onCommand = vi.fn(), foldedForClass = false) {
   return {
     onCommand,
     ...render(
@@ -46,6 +46,7 @@ function renderStrip(onCommand = vi.fn()) {
         overflowCount={0}
         classNameById={new Map([['class-1', 'Container Novice A']])}
         onCommand={onCommand}
+        foldedForClass={foldedForClass}
       />
     ),
   };
@@ -54,6 +55,43 @@ function renderStrip(onCommand = vi.fn()) {
 describe('CockpitAttentionStrip', () => {
   beforeEach(() => {
     phone.value = false;
+  });
+
+  it('folds to its count line beside a lifted class panel, and opens on request (MYK9-1989)', async () => {
+    const { user } = renderStrip(vi.fn(), true);
+    const toggle = screen.getByRole('button', { name: /needs attention · 3/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Closeout unreadable')).not.toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(screen.getByText('Closeout unreadable')).toBeInTheDocument();
+  });
+
+  it('keeps the choice the cockpit holds, so moving the strip does not refold it', () => {
+    render(
+      <CockpitAttentionStrip
+        items={items}
+        all={items}
+        overflowCount={0}
+        classNameById={new Map()}
+        onCommand={vi.fn()}
+        foldedForClass
+        openChoice
+        onOpenChoiceChange={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /needs attention · 3/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
+  it('stays open on a laptop when no class panel is lifted', () => {
+    renderStrip(vi.fn(), false);
+    expect(screen.getByRole('button', { name: /needs attention · 3/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
   });
 
   it('names the class on its pill and links to where the fix happens', () => {

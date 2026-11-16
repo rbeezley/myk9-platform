@@ -176,12 +176,18 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
   });
 
-  it('renders a locked row as the same control, disabled, with the reason visible', () => {
+  it('renders a locked row as the same control, disabled, with the reason as text that folds to a lock icon from lg (MYK9-1989)', () => {
     renderTable(true);
     const locked = screen.getByRole('button', { name: 'Check-in for Piper: Checked in, locked' });
     expect(locked).toBeDisabled();
     expect(screen.getByText('Checked in')).toBeInTheDocument();
-    expect(screen.getByText('Scored, so the status is locked')).toBeInTheDocument();
+    // Phones and tablets read the words on the row; from lg they are sr-only beside a lock icon
+    // (no tab stop, hidden from screen readers), so the row stays one line tall.
+    expect(screen.getByText('Scored, so the status is locked')).toHaveClass('lg:sr-only');
+    const icon = screen.getByTestId('locked-reason-icon');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(icon).not.toHaveAttribute('tabindex');
+    expect(icon).toHaveClass('hidden', 'lg:inline-flex');
   });
 
   it('never leaves a locked dog with no status blank', () => {
@@ -199,6 +205,7 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     );
     expect(screen.getByRole('button', { name: /Check-in for Rune/ })).toBeDisabled();
     expect(screen.getByText('No status')).toBeInTheDocument();
+    expect(screen.getByText('Pulled, so the status is locked')).toBeInTheDocument();
     expect(container.querySelectorAll('td')[4]?.textContent).not.toBe('');
   });
 
@@ -208,6 +215,7 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     expect(screen.getByText('Checked in')).toBeInTheDocument();
     expect(screen.getByText('No status')).toBeInTheDocument();
     expect(screen.queryByText('Scored, so the status is locked')).toBeNull();
+    expect(screen.queryByTestId('locked-reason-icon')).toBeNull();
   });
 
   it('renders the armband in the shared tile', () => {

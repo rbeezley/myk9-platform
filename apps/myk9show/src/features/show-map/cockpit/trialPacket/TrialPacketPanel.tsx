@@ -7,7 +7,6 @@ import { SlideOverPanel } from '@/components/panels';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
-import { useShowStore } from '@/store/showStore';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { resolvePrintReadiness } from '@/pages/secretary/ReportsPage/reportReadinessCopy';
 import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
@@ -99,13 +98,6 @@ export function TrialPacketPanel(props: TrialPacketPanelProps) {
 function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string }) {
   const { user } = useAuthContext();
   const { show: currentShow } = useFastShowDetails(showId);
-  // The "Paper fallback packet" switch shows or hides the Saved copy section (MYK9-2109). The live
-  // replica value is read first so a flip shows at once; unknown (still loading) keeps the section.
-  const usesPaperPacket = useShowStore(
-    state =>
-      state.shows.find(candidate => candidate.id === showId)?.usesPaperPacket ??
-      currentShow?.usesPaperPacket
-  );
   const { show, trials, classes, entries, dataState, refetch } = useReportData({
     show: currentShow,
     trialId,
@@ -352,9 +344,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           )}
         </p>
       )}
-      {packet.trial.date && usesPaperPacket !== false && (
-        <SavedCopySection showId={showId} trialDate={packet.trial.date} />
-      )}
+      {packet.trial.date && <SavedCopySection showId={showId} trialDate={packet.trial.date} />}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t bg-card px-4 py-3">
         <span className="text-sm text-muted-foreground">
           {emptyView

@@ -74,11 +74,6 @@ vi.mock('../paperworkPrintActions', () => ({
 }));
 
 import { TrialPacketPanel } from './TrialPacketPanel';
-import { useShowStore } from '@/store/showStore';
-
-vi.mock('./SavedCopySection', () => ({
-  SavedCopySection: () => <div data-testid="saved-copy-section" />,
-}));
 
 // Building the packets (jsPDF and pdf-lib) takes a moment under test load.
 const BUILT = { timeout: 15000 };
@@ -125,24 +120,6 @@ describe('TrialPacketPanel', () => {
       if (row) row.voidedAt = new Date().toISOString();
     });
   });
-
-  // MYK9-2109: the "Paper fallback packet" switch shows or hides the Saved copy section.
-  it.each([
-    [false, 0],
-    [true, 1],
-    [undefined, 1],
-  ] as const)(
-    'with the paper packet switch %s, shows the Saved copy section %s time(s)',
-    async (uses, count) => {
-      useShowStore.setState({
-        shows: [{ id: 'show-1', usesPaperPacket: uses }] as never,
-      });
-      renderPanel();
-      await screen.findByText(/Trial 1 · Mon, Dec 7/);
-      expect(screen.queryAllByTestId('saved-copy-section')).toHaveLength(count);
-      useShowStore.setState({ shows: [] });
-    }
-  );
 
   it('opens on the trial, collated by judge, with every packet and its sheet count', async () => {
     renderPanel();

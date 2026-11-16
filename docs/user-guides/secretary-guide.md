@@ -43,7 +43,7 @@ The **Actions** button in the top bar changes with the page you are on. On **Sho
 |                                                                                        | **Tasks and notes**: show-specific reminders                 |
 |                                                                                        | **Incident log**: record incidents while fresh               |
 
-> **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes** and **Volunteers** from this menu, and **Paper fallback packet** hides the **Saved copy** section of the before-trial packet. Nothing is deleted, and switching one back on brings it back with its data. A new show starts with **Self check-in** and **Access codes** showing, and **Volunteers** and **Paper fallback packet** hidden until you switch them on. See card 3.
+> **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes** and **Volunteers** from this menu. Nothing is deleted, and switching one back on brings the row back with its data. A new show starts with **Self check-in** and **Access codes** showing, and **Volunteers** hidden until you switch it on. See card 3.
 
 ### Reading the schedule
 
@@ -88,7 +88,7 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 - **Show details:** **Actions → Edit show** (the **Actions** button sits in the top bar, left of the bell), or **Edit show** on the **About** tab. The edit panel opens over the page you are on, with tabs **Basic Info**, **Officials**, **Judges**, **Fees**, **Venue & policies** and **Premium**.
 - **Venue & policies:** each card or switch on this tab saves on its own, so the panel's **Save Changes** is not needed for it. The switches save the moment you flip them. The pin, WiFi and policy cards each have their own button (**Save pin**, **Save**, **Save policy**). It holds, in order:
-  - **This show uses…** switches for the optional tools: **Exhibitor self check-in**, **Judges score on devices**, **Paper fallback packet**, **Volunteer tracking**, **Public landing page**, and **We publish our own premium list**. A club that never uses a tool can turn it off. A new show has self check-in and judges scoring on devices on, and the paper packet, volunteer tracking, public landing page and own premium list off, so switch on the packet or volunteers if you want those rows. The first four hide their row in the Show Desk **Actions** menu. **Public landing page** shows or hides the Landing page card and its reminder. **We publish our own premium list** stops the premium list reminder. Nothing is deleted when you turn a tool off. **Exhibitor self check-in** needs a connection to change. In the week before the show, **Ready for show day** (see Getting ready for show day) may offer one quiet suggestion for a tool that is off, such as "Want judges to score on their phones?", with a **Turn it on** link to this tab. The X beside it hides that suggestion on that device.
+  - **This show uses…** switches for the optional tools: **Exhibitor self check-in**, **Judges score on devices**, **Paper fallback packet**, **Volunteer tracking**, **Public landing page**, and **We publish our own premium list**. A club that never uses a tool can turn it off. A new show has self check-in and judges scoring on devices on, and the paper packet, volunteer tracking, public landing page and own premium list off, so switch on volunteer tracking if you want that row. **Exhibitor self check-in**, **Judges score on devices** and **Volunteer tracking** hide their row in the Show Desk **Actions** menu. **Public landing page** shows or hides the Landing page card and its reminder. **We publish our own premium list** stops the premium list reminder. Nothing is deleted when you turn a tool off. **Exhibitor self check-in** needs a connection to change. In the week before the show, **Ready for show day** (see Getting ready for show day) may offer one quiet suggestion for a tool that is off, such as "Want judges to score on their phones?", with a **Turn it on** link to this tab. The X beside it hides that suggestion on that device.
   - **Venue Map Pin**, **Venue WiFi** (network name and password, printed on the armband labels) and the **Withdrawal Refund Policy** for this show (**Save policy**). **About** shows the address, Wi-Fi and withdrawal policy read only.
 
   ![Edit show on the Venue & policies tab, with the This show uses switches](../screenshots/S-25.png)
@@ -330,7 +330,7 @@ All under **Show Desk → Actions**:
 - **Tasks and notes**: reminders for this show.
 - **Paper fallback**: the before-trial packet has a **Saved copy** section. It saves a trial day's packet as a PDF, emails it to the show's managers, lists the copies sent and marks one printed, in case devices or signal fail on the day.
 
-Volunteers and the Saved copy section only show while their **This show uses…** switch is on (card 3; **Volunteer tracking** and **Paper fallback packet**). Both start off on a new show.
+Volunteers only shows here while its **This show uses…** switch is on (card 3; **Volunteer tracking**). It starts off on a new show.
 
 ---
 

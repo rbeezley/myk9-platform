@@ -6,13 +6,12 @@ The emergency trial packet is the paper fallback for running a show when the lap
 
 The packet is generated and emailed automatically the night before each trial day. To make one by hand, or to see which copies were sent:
 
-1. Turn on **Paper fallback packet** in **Edit show → Venue & policies → This show uses…**. A new show starts with it off.
-2. Open the trial's before-trial packet from the show map and choose **Show saved copies**.
-3. Choose **Save and email a copy**. It builds the day's packet the same way the nightly job does and emails a link to the show's secretary and club administrators.
-4. Open the emailed private link from a device that does not depend on the show laptop.
-5. Print the complete packet. Confirm every trial, class, and entry is present.
-6. Put the packet in the physical trial box with pens, blank paper, the registry rulebook, and required official forms.
-7. In **Saved copy**, choose **Mark printed** only after the paper is physically in hand.
+1. Open the trial's before-trial packet from the show map and choose **Show saved copies**.
+2. Choose **Save and email a copy**. It builds the day's packet the same way the nightly job does and emails a link to the show's secretary and club administrators.
+3. Open the emailed private link from a device that does not depend on the show laptop.
+4. Print the complete packet. Confirm every trial, class, and entry is present.
+5. Put the packet in the physical trial box with pens, blank paper, the registry rulebook, and required official forms.
+6. In **Saved copy**, choose **Mark printed** only after the paper is physically in hand.
 
 Email delivery is not readiness. A packet that exists only on the show laptop or in its browser cannot recover a dead device.
 

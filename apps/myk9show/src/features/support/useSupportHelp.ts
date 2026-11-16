@@ -1,16 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { UserRole } from '@/types/auth-types';
 import type { UserWithRoles } from '@/types/auth-types';
 import { productVersion, buildReference } from '@/config/appVersion';
-import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqService';
 import { buildDiagnosticBundle } from './supportDiagnostics';
-import {
-  routeSupportDeflection,
-  type SupportDeflectionRoute,
-  type SupportEscalationEvent,
-} from './supportDeflection';
+import type { SupportDeflectionRoute } from './supportDeflection';
 import {
   createSupportTicket,
   type CreatedSupportTicket,
@@ -18,22 +13,11 @@ import {
 } from './supportTickets';
 import { extractSupportRouteContext, shouldPrioritizeSupportTicket } from './supportContext';
 
-export type SupportHelpStatus =
-  | 'idle'
-  | 'streaming'
-  | 'answered'
-  | 'escalating'
-  | 'submitting'
-  | 'created'
-  | 'error'
-  | 'rate-limited';
+export type SupportHelpStatus = 'idle' | 'escalating' | 'submitting' | 'created';
 
 export interface SupportHelpState {
   status: SupportHelpStatus;
   question: string;
-  answer: string;
-  toolsUsed: string[];
-  sources: Record<string, unknown[]>;
   route: SupportDeflectionRoute | null;
   ticket: CreatedSupportTicket | null;
   error: string | null;
@@ -42,9 +26,6 @@ export interface SupportHelpState {
 const INITIAL_STATE: SupportHelpState = {
   status: 'idle',
   question: '',
-  answer: '',
-  toolsUsed: [],
-  sources: {},
   route: null,
   ticket: null,
   error: null,
@@ -58,110 +39,11 @@ const GENERIC_ESCALATION_MESSAGE = "I couldn't answer that confidently.";
 
 export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles | null) {
   const [state, setState] = useState<SupportHelpState>(INITIAL_STATE);
-  const abortRef = useRef<AbortController | null>(null);
   const location = useLocation();
   const roles = useMemo(() => userWithRoles?.roles ?? [], [userWithRoles?.roles]);
   const routeContext = useMemo(
     () => extractSupportRouteContext(location.pathname, location.search),
     [location.pathname, location.search]
-  );
-
-  const askForHelp = useCallback(
-    async (question: string) => {
-      const trimmed = question.trim();
-      if (!trimmed) return;
-
-      abortRef.current?.abort();
-
-      if (!user) {
-        setState({
-          ...INITIAL_STATE,
-          status: 'escalating',
-          question: trimmed,
-          route: {
-            kind: 'escalate',
-            reason: 'low_confidence',
-            message: 'Sign in to create a support ticket.',
-            question: trimmed,
-          },
-        });
-        return;
-      }
-
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      setState({
-        ...INITIAL_STATE,
-        status: 'streaming',
-        question: trimmed,
-      });
-
-      let answer = '';
-      let toolsUsed: string[] = [];
-      let sources: Record<string, unknown[]> = {};
-      let escalation: SupportEscalationEvent | null = null;
-
-      try {
-        const request = routeContext.showId
-          ? { message: trimmed, showId: routeContext.showId, supportMode: true }
-          : { message: trimmed, supportMode: true };
-        const stream = await sendAskQQuery(request, controller.signal);
-
-        await parseSSEStream(stream, (event, data) => {
-          if (controller.signal.aborted) return;
-          if (event === 'token') {
-            answer += String(data);
-            setState(prev => ({ ...prev, answer }));
-          } else if (event === 'tools_used') {
-            toolsUsed = data as string[];
-          } else if (event === 'sources') {
-            sources = data as Record<string, unknown[]>;
-          } else if (event === 'support_escalation') {
-            escalation = data as SupportEscalationEvent;
-          }
-        });
-
-        const route = routeSupportDeflection({
-          question: trimmed,
-          answer,
-          toolsUsed,
-          sources,
-          showId: routeContext.showId,
-          escalation,
-        });
-        setState(prev => ({
-          ...prev,
-          status: route.kind === 'answer' ? 'answered' : 'escalating',
-          answer: route.kind === 'answer' ? route.answer : '',
-          toolsUsed,
-          sources,
-          route,
-        }));
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        if (error instanceof RateLimitError) {
-          setState(prev => ({
-            ...prev,
-            status: 'escalating',
-            route: {
-              kind: 'escalate',
-              reason: 'low_confidence',
-              message: GENERIC_ESCALATION_MESSAGE,
-              question: trimmed,
-            },
-            error: null,
-          }));
-        } else {
-          setState(prev => ({
-            ...prev,
-            status: 'error',
-            error: error instanceof Error ? error.message : 'Could not reach support.',
-          }));
-        }
-      }
-    },
-    [routeContext.showId, user]
   );
 
   /**
@@ -231,13 +113,11 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
   );
 
   const reset = useCallback(() => {
-    abortRef.current?.abort();
     setState(INITIAL_STATE);
   }, []);
 
   return {
     state,
-    askForHelp,
     startEscalation,
     createTicket,
     reset,

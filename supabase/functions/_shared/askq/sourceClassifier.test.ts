@@ -77,10 +77,12 @@ describe('classifyQuestionSources', () => {
     expect(await classify(replying('no idea'))).toEqual({
       sources: ['show_data', 'guides', 'rulebook'],
       needsShow: false,
+      fallback: true,
     });
     expect(await classify(replying('no idea'), false)).toEqual({
       sources: ['guides', 'rulebook'],
       needsShow: false,
+      fallback: true,
     });
   });
 
@@ -92,10 +94,12 @@ describe('classifyQuestionSources', () => {
     expect(await classify(failing)).toEqual({
       sources: applicableSources(true),
       needsShow: false,
+      fallback: true,
     });
     expect(await classify(failing, false)).toEqual({
       sources: ['guides', 'rulebook'],
       needsShow: false,
+      fallback: true,
     });
     spy.mockRestore();
   });

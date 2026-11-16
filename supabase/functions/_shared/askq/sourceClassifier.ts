@@ -64,6 +64,8 @@ export interface ClassifiedSources {
   sources: AskQSource[];
   /** The classifier chose show_data but there is no verified show to read it from. */
   needsShow: boolean;
+  /** True when the classifier failed or returned no verdict, so every applicable source was chosen. */
+  fallback?: boolean;
 }
 
 /**
@@ -87,7 +89,7 @@ export async function classifyQuestionSources(input: ClassifyInput): Promise<Cla
     );
     const text = reply.content.find(block => block.type === 'text')?.text ?? '';
     const parsed = parseClassifierReply(text);
-    if (parsed === null) return { sources: applicable, needsShow: false };
+    if (parsed === null) return { sources: applicable, needsShow: false, fallback: true };
     if (parsed.length === 0) return { sources: ['guides'], needsShow: false };
     return {
       sources: parsed.filter(source => applicable.includes(source)),
@@ -95,6 +97,6 @@ export async function classifyQuestionSources(input: ClassifyInput): Promise<Cla
     };
   } catch (error) {
     console.error('AskQ classifier failed, using every source:', (error as Error).message);
-    return { sources: applicable, needsShow: false };
+    return { sources: applicable, needsShow: false, fallback: true };
   }
 }

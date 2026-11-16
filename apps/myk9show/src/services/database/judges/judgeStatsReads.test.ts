@@ -62,6 +62,21 @@ describe('judge stats ignore deleted shows and classes', () => {
     expect(result.map(a => a.id).sort()).toEqual(['live', 'live-class']);
   });
 
+  it('upcoming labels each class-level row with its element, level and section', async () => {
+    rowsHolder.rows = [
+      row('c-a', {
+        class_id: 'c1',
+        classes: { deleted_at: null, element: 'Interior', level: 'Novice', section: 'A' },
+      }),
+      row('show-level', {}),
+    ];
+    const result = await getJudgeUpcomingAssignments('p1');
+    expect(result.map(a => [a.id, a.class_label])).toEqual([
+      ['c-a', 'Interior Novice A'],
+      ['show-level', null],
+    ]);
+  });
+
   it('upcoming never keeps a row with no readable end date', async () => {
     rowsHolder.rows = [row('no-end', { shows: { name: 'X', end_date: null, deleted_at: null } })];
     expect(await getJudgeUpcomingAssignments('p1')).toEqual([]);

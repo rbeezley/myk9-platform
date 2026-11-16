@@ -43,6 +43,26 @@ describe('JudgeStatsPage', () => {
     expect(mockQualifications).toHaveBeenCalledWith('person-123');
   });
 
+  it('names the class on each upcoming row so one show is not listed repeatedly', () => {
+    const base = {
+      show_name: 'Heartland Scent Work Classic',
+      show_start_date: '2026-12-07T00:00:00Z',
+      status: 'confirmed',
+    };
+    mockUpcoming.mockReturnValue({
+      data: [
+        { ...base, id: 'a1', class_label: 'Interior Novice A' },
+        { ...base, id: 'a2', class_label: 'Container Advanced' },
+      ],
+      isLoading: false,
+    });
+
+    render(<JudgeStatsPage />, { initialRoute: '/judge/stats' });
+
+    expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+    expect(screen.getByText('Container Advanced')).toBeInTheDocument();
+  });
+
   describe('upcoming assignment date (MYK9-1174)', () => {
     const originalTimezone = process.env.TZ;
     afterEach(() => {

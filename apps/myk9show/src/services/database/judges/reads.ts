@@ -9,6 +9,7 @@
  */
 
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
+import { formatClassLabel } from '@/lib/utils';
 import { showDateRangeStatus } from '@/utils/date-format';
 import { formatDateLocal } from '@/utils/dateLocal';
 import {
@@ -459,6 +460,8 @@ export interface JudgeAssignmentRow {
   show_start_date: string;
   show_end_date: string;
   show_organization: string;
+  /** Element, level and section of the assigned class; null for a show-level assignment. */
+  class_label?: string | null;
 }
 
 export interface RosterSummary {
@@ -674,7 +677,7 @@ export async function getJudgeStats(
 export async function getJudgeUpcomingAssignments(personId: string): Promise<JudgeAssignmentRow[]> {
   const { data, error } = await assignmentsTable()
     .select(
-      `${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization, deleted_at), classes!judge_assignments_class_id_fkey(deleted_at)`
+      `${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization, deleted_at), classes!judge_assignments_class_id_fkey(deleted_at, element, level, section)`
     )
     .eq('person_id', personId)
     .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES])
@@ -692,11 +695,19 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
       .filter(hasLiveShowAndClass)
       .map(row => {
         const show = row.shows as Record<string, unknown> | null;
+        const cls = row.classes as {
+          element?: string | null;
+          level?: string | null;
+          section?: string | null;
+        } | null;
         return {
           id: row.id as string,
           show_id: row.show_id as string,
           trial_id: row.trial_id as string | null,
           class_id: row.class_id as string | null,
+          class_label: cls
+            ? formatClassLabel(cls.element ?? null, cls.level ?? null, '', cls.section) || null
+            : null,
           status: row.status as string,
           fee: null,
           invited_at: row.invited_at as string | null,

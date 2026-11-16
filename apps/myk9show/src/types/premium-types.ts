@@ -119,6 +119,11 @@ export interface GeneratedPremium {
    * generated before it, which prints no officers.
    */
   officers?: Array<{ position: string; name: string }>;
+  /**
+   * MYK9-2064: the show's Event Committee names (the show's own list, else the club's). Absent on
+   * a premium generated before it, which prints no committee.
+   */
+  committee?: string[];
   trials: Array<{
     name: string;
     date: string;

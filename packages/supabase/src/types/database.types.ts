@@ -1463,6 +1463,51 @@ export type Database = {
           },
         ]
       }
+      club_committee_members: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          club_id: string
+          person_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          club_id: string
+          person_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          club_id?: string
+          person_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_committee_members_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_committee_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_members: {
         Row: {
           club_id: string
@@ -7081,6 +7126,51 @@ export type Database = {
             columns: ["show_id"]
             isOneToOne: true
             referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      show_committee_members: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          show_id: string
+          person_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          show_id: string
+          person_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          show_id?: string
+          person_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
             referencedColumns: ["id"]
           },
         ]
@@ -13538,6 +13628,7 @@ export type Database = {
           stripe_payment_intent_id: string
         }[]
       }
+      copy_club_committee_to_show: { Args: { p_show_id: string }; Returns: number }
       count_blocking_entries_by_dog: {
         Args: { p_dog_id: string }
         Returns: number
@@ -14552,6 +14643,13 @@ export type Database = {
         Returns: {
           name: string
           position: string
+        }[]
+      }
+      get_show_committee: {
+        Args: { p_show_id: string }
+        Returns: {
+          name: string
+          sort_order: number
         }[]
       }
       get_show_judges: {

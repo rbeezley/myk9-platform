@@ -67,6 +67,13 @@ vi.mock('@/services/database/club-memberships', () => ({
   setClubShowManagerAccess: vi.fn(),
 }));
 
+vi.mock('@/services/database/club-memberships/committee', () => ({
+  getCommittee: vi.fn(() => Promise.resolve([])),
+  addCommitteeMember: vi.fn(),
+  removeCommitteeMember: vi.fn(),
+  moveCommitteeMember: vi.fn(),
+}));
+
 vi.mock('@/services/database/clubs', () => ({
   countUpcomingClubShows: vi.fn(() => Promise.resolve(0)),
 }));
@@ -98,6 +105,16 @@ describe('ClubMembersManager Officers section', () => {
     ).toBeInTheDocument();
     expect(await screen.findByText('Sam Typed')).toBeInTheDocument();
     expect(screen.getByText('Club secretary')).toBeInTheDocument();
+  });
+
+  it('shows the Event Committee under the Officers list on the same tab (MYK9-2064)', async () => {
+    const user = userEvent.setup();
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
+
+    await user.click(await screen.findByRole('tab', { name: /officers/i }));
+
+    expect(await screen.findByRole('heading', { name: 'Event Committee' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add committee member' })).toBeInTheDocument();
   });
 
   it('saves a typed name with no account and the chosen position', async () => {

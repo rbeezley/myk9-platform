@@ -81,6 +81,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_824_submit_entries_handler_owner_fallback_test.sql"
   "$TEST_DIR/club_members_own_row_test.sql"
   "$TEST_DIR/myk9_2045_club_officers_typed_name_test.sql"
+  "$TEST_DIR/myk9_2064_event_committee_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/entry_requires_dog_registration_test.sql"
   "$TEST_DIR/emergency_packet_handler_identity_test.sql"

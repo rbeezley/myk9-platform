@@ -43,7 +43,7 @@ export function PosterBody({ data, tokens }: Props) {
   };
   const sectionGap = { marginBottom: 22 };
 
-  const hasOfficials = Boolean(chair || f.officers.length > 0);
+  const hasOfficials = Boolean(chair || f.officers.length > 0 || f.committee.length > 0);
   const hasAccommodations = f.accommodations.length > 0;
 
   return (
@@ -124,6 +124,9 @@ export function PosterBody({ data, tokens }: Props) {
               {o.title}: {o.name}
             </Text>
           ))}
+          {f.committee.length > 0 && (
+            <Text style={bodyStyle}>Event Committee: {f.committee.join(', ')}</Text>
+          )}
         </View>
       )}
 

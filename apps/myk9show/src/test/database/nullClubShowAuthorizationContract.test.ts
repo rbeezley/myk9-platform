@@ -82,6 +82,8 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   'get_show_judges -> is_club_admin',
   // MYK9-2045: reads s.club_id from shows (NOT NULL since MYK9-1008), as get_show_judges does.
   'get_show_club_officers -> is_club_admin',
+  // MYK9-2064: reads s.club_id from shows (NOT NULL since MYK9-1008), as get_show_club_officers does.
+  'get_show_committee -> is_club_admin',
 ];
 
 describe('club-scoped authorization helpers are never handed a bare club_id column', () => {
@@ -211,6 +213,11 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'club_members_insert -> is_club_admin',
   'club_members_select -> is_club_admin',
   'club_members_update -> is_club_admin',
+  // SAFE: club_id is `uuid NOT NULL` (20261115231300_myk9_2064_event_committee.sql).
+  'club_committee_members_delete -> is_club_admin',
+  'club_committee_members_insert -> is_club_admin',
+  'club_committee_members_select -> is_club_admin',
+  'club_committee_members_update -> is_club_admin',
   'club_officers_delete -> is_club_admin',
   'club_officers_insert -> is_club_admin',
   'club_officers_select -> is_club_admin',
@@ -293,6 +300,7 @@ const NOT_NULL_CLUB_ID_TABLES: readonly string[] = [
   // 20261004181900 (MYK9-1008); pinned by the "shows.club_id stays NOT NULL"
   // case below, which reads the migration set rather than trusting this line.
   'shows',
+  'club_committee_members',
   'club_members',
   'club_officers',
   'club_premium_templates',

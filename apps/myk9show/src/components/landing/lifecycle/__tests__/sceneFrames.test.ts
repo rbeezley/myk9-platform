@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   firstFrameOfLine,
@@ -69,6 +71,30 @@ describe('line to frame mapping', () => {
   it('falls back to frame 0 for a line that owns nothing', () => {
     expect(firstFrameOfLine(frames, 9)).toBe(0);
     expect(lastFrameOfLine(frames, 9)).toBe(0);
+  });
+});
+
+// docs/INTENT.md, "Readable font sizes": 16px for anything read as content, 14px the floor.
+describe('timelineScene.css type sizes', () => {
+  const css = readFileSync(resolve(__dirname, '../timelineScene.css'), 'utf8');
+  const sizeOf = (selector: string) => {
+    const rule = css.split('}').find(block => block.trim().startsWith(`${selector} {`));
+    return Number(/font-size:\s*([\d.]+)rem/.exec(rule ?? '')?.[1]);
+  };
+
+  it('never sets text below the 14px floor', () => {
+    const sizes = [...css.matchAll(/font-size:\s*([^;]+);/g)].map(m => m[1]!.trim());
+    expect(sizes.length).toBeGreaterThan(0);
+    for (const size of sizes) {
+      expect(size, size).toMatch(/^[\d.]+rem$/);
+      expect(parseFloat(size), size).toBeGreaterThanOrEqual(0.875);
+    }
+  });
+
+  it('sets the lines and the buttons at 16px or more', () => {
+    for (const selector of ['.tl-scene-head', '.tl-scene-text', '.tl-scene-btn']) {
+      expect(sizeOf(selector), selector).toBeGreaterThanOrEqual(1);
+    }
   });
 });
 

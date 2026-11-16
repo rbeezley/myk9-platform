@@ -2,13 +2,8 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { buildEntryListTools } from '@/components/entries/management/entryManagementViews';
-import {
-  findHeldEntries,
-  findOpenWaitlistSpots,
-  findRunOutOffers,
-  type WaitlistSpotClass,
-  type WaitlistSpotEntry,
-} from '@/features/waiting-for-you';
+import { findHeldEntries, findRunOutOffers } from '@/features/waiting-for-you';
+import type { RunOutOfferEntry } from '@/features/waiting-for-you';
 import { summarizeWaitlistWaiting } from '@/features/waiting-for-you/waitlistWaiting';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -56,35 +51,23 @@ function entry(
 
 const entries = [entry('running', {}, true), entry('running-2', {}, true)];
 
-const cls = (over: Partial<WaitlistSpotClass> = {}): WaitlistSpotClass => ({
-  id: 'c1',
-  name: 'Container Novice A',
-  maxEntries: null,
-  seatHoldingCount: 5,
-  ...over,
-});
-const wl = (id: string, over: Partial<WaitlistSpotEntry & { offeredAt: string }> = {}) => ({
+const wl = (id: string, over: Partial<RunOutOfferEntry> = {}): RunOutOfferEntry => ({
   id,
-  classId: 'c1',
-  dogId: `dog-${id}`,
-  status: 'waiting',
-  position: 1,
+  classId: 'c2',
+  status: 'expired',
+  offeredAt: '2026-11-01',
   ...over,
 });
 
-function waitlistWaiting(opts: { judgeDays: 'known' | 'unknown'; runOut?: boolean }) {
-  const rows = [
-    wl('w1'),
-    ...(opts.runOut
-      ? [wl('x1', { classId: 'c2', status: 'expired', dogId: 'd-x', offeredAt: '2026-11-01' })]
-      : []),
-  ] as (WaitlistSpotEntry & { offeredAt?: string })[];
+/** Two offers ran out in Interior Advanced; one more was refilled, one dog is simply waiting. */
+const waitlistRows: RunOutOfferEntry[] = [
+  wl('x1'),
+  wl('x2', { offeredAt: '2026-11-02' }),
+  wl('x3', { refilledByOfferId: 'x9' }),
+  wl('w1', { classId: 'c1', status: 'waiting', offeredAt: undefined }),
+];
+function waitlistWaiting(rows: RunOutOfferEntry[] = waitlistRows) {
   return summarizeWaitlistWaiting({
-    spots: findOpenWaitlistSpots({
-      classes: [cls(), cls({ id: 'c2', name: 'Interior Advanced' })],
-      waitlist: rows,
-      judgeDays: opts.judgeDays === 'known' ? [] : null,
-    }),
     runOut: findRunOutOffers(rows),
     classNameById: new Map([
       ['c1', 'Container Novice A'],
@@ -116,42 +99,45 @@ describe('Show Desk waiting pills (MYK9-1949)', () => {
     const pill = byId(signalsFor({ heldEntries: held.count }), 'entries-held');
     expect(held.count).toBe(2);
     expect(pill?.count).toBe(held.rows.length);
-    expect(pill?.label).toBe('2 entries held for a registration number.');
+    expect(pill?.label).toBe('2 entries held for a registration number');
     expect(pill?.href).toContain('exception=registration-needed');
   });
 
-  it('Waitlist pill names the class with a spot and the class with a run-out offer', () => {
-    const waiting = waitlistWaiting({ judgeDays: 'known', runOut: true });
+  it('Waitlist pill is the run-out offers, equal to the run-out list rows, and names no spot', () => {
+    const waiting = waitlistWaiting();
     const pill = byId(signalsFor({ waitlist: waiting }), 'waitlist-waiting');
-    expect(pill?.label).toBe(
-      'A spot opened in Container Novice A · 1 offer has run out in Interior Advanced'
-    );
+    expect(pill?.count).toBe(findRunOutOffers(waitlistRows).rows.length);
     expect(pill?.count).toBe(2);
+    expect(pill?.label).toBe('2 offers have run out in Interior Advanced');
+    expect(pill?.label).not.toMatch(/spot/i);
     expect(pill?.href).toContain('exception=waitlist');
   });
 
-  it('never shows a spot while the judge-day figures are unknown, but still shows a run-out offer', () => {
-    const waiting = waitlistWaiting({ judgeDays: 'unknown', runOut: true });
-    const pill = byId(signalsFor({ waitlist: waiting }), 'waitlist-waiting');
-    expect(pill?.label).toBe('1 offer has run out in Interior Advanced');
-    expect(pill?.count).toBe(1);
-    expect(
-      byId(signalsFor({ waitlist: waitlistWaiting({ judgeDays: 'unknown' }) }), 'waitlist-waiting')
-    ).toBeUndefined();
+  it('says how many classes when offers ran out in several', () => {
+    const waiting = waitlistWaiting([wl('x1'), wl('y1', { classId: 'c1' })]);
+    expect(byId(signalsFor({ waitlist: waiting }), 'waitlist-waiting')?.label).toBe(
+      '2 offers have run out in 2 classes'
+    );
+  });
+
+  it('shows no waitlist pill when no offer has run out', () => {
+    const waiting = waitlistWaiting([wl('w1', { classId: 'c1', status: 'waiting' })]);
+    expect(waiting.count).toBe(0);
+    expect(byId(signalsFor({ waitlist: waiting }), 'waitlist-waiting')).toBeUndefined();
   });
 
   it('shows no pill at zero and none while a count is not known', () => {
     expect(
       signalsFor({
         heldEntries: 0,
-        waitlist: { count: 0, spotClasses: [], runOut: [] },
+        waitlist: { count: 0, runOut: [] },
       })
     ).toEqual([]);
     expect(signalsFor({})).toEqual([]);
   });
 
   it('the Actions menu carries the same counts as the pills, the Pulls count as the page passes it, and none at zero', () => {
-    const waiting = waitlistWaiting({ judgeDays: 'known', runOut: true });
+    const waiting = waitlistWaiting();
     const tools = buildEntryListTools('show-1', {
       pulls: 4,
       moveUps: undefined,
@@ -175,7 +161,7 @@ describe('Show Desk waiting pills (MYK9-1949)', () => {
   it('renders each pill in the Needs attention strip as a link to its list', () => {
     const pendingSignals = signalsFor({
       heldEntries: 2,
-      waitlist: waitlistWaiting({ judgeDays: 'known' }),
+      waitlist: waitlistWaiting(),
     });
     const snapshot = buildSecretaryCockpitSnapshot({
       showId: 'show-1',
@@ -199,11 +185,13 @@ describe('Show Desk waiting pills (MYK9-1949)', () => {
     expect(screen.getByRole('button', { name: /needs attention · 2/i })).toBeInTheDocument();
     expect(
       screen.getByRole('link', {
-        name: '2 entries held for a registration number., opens Registration number needed',
+        name: '2 entries held for a registration number, opens Registration number needed',
       })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'A spot opened in Container Novice A, opens Waitlist' })
+      screen.getByRole('link', {
+        name: '2 offers have run out in Interior Advanced, opens Waitlist',
+      })
     ).toHaveAttribute('href', expect.stringContaining('exception=waitlist'));
   });
 });

@@ -3,7 +3,6 @@ import {
   getEntryListHref,
 } from '@/components/entries/management/entryManagementViews';
 import type { WaitlistWaiting } from '@/features/waiting-for-you/waitlistWaiting';
-import type { ClassSpotState } from '@/features/waiting-for-you/waitlistSpots';
 import type { ShowDeskPendingSignal, ShowDeskPendingSignalScope } from './showDeskPendingSignals';
 
 /**
@@ -17,17 +16,6 @@ export interface ShowDeskWaitingInput {
 }
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
-
-/**
- * The spot half of the waitlist pill. This is the place the next dog in line joins the sentence
- * later ("... · next in line: Scout"): `row.nextInLine` already carries it.
- */
-function spotText(rows: readonly ClassSpotState[]): string {
-  const [first] = rows;
-  return rows.length === 1 && first
-    ? `A spot opened in ${first.className}`
-    : `Spots opened in ${rows.length} classes`;
-}
 
 function runOutText(runOut: WaitlistWaiting['runOut']): string {
   const total = runOut.reduce((sum, row) => sum + row.count, 0);
@@ -51,7 +39,7 @@ export function buildWaitingSignals(
       id: 'entries-held',
       count: held,
       priority: 'medium',
-      label: `${held} ${plural(held, 'entry', 'entries')} held for a registration number.`,
+      label: `${held} ${plural(held, 'entry', 'entries')} held for a registration number`,
       href: getEntryListHref(showId, 'registration-needed'),
       destinationName: ENTRY_LIST_LABELS['registration-needed'],
       scope,
@@ -59,15 +47,12 @@ export function buildWaitingSignals(
   }
   const list = waiting.waitlist;
   if (list && list.count > 0) {
-    const parts = [
-      ...(list.spotClasses.length > 0 ? [spotText(list.spotClasses)] : []),
-      ...(list.runOut.length > 0 ? [runOutText(list.runOut)] : []),
-    ];
     signals.push({
       id: 'waitlist-waiting',
       count: list.count,
       priority: 'medium',
-      label: parts.join(' · '),
+      // Phase 3 adds "A spot opened in X" here, with the Waitlist page showing the spot.
+      label: runOutText(list.runOut),
       href: getEntryListHref(showId, 'waitlist'),
       destinationName: ENTRY_LIST_LABELS.waitlist,
       scope,

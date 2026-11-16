@@ -1,4 +1,3 @@
-import type { ClassSpotState, WaitlistSpots } from './waitlistSpots';
 import type { RunOutOfferEntry } from './runOutOffers';
 import type { WaitingList } from './types';
 
@@ -10,28 +9,20 @@ export interface RunOutInClass {
 }
 
 /**
- * What the Waitlist list has waiting for a person: classes with a spot to offer, and offers that
- * ran out. `count` is the one number the Show Desk pill and the Actions menu row both show.
+ * What the Waitlist list has waiting for a person: offers that ran out (the Waitlist page's
+ * run-out notice). `count` is the one number the Show Desk pill and the Actions menu row show.
+ * Phase 3 adds the classes with a spot to offer, beside `runOut`, with the page change.
  */
 export interface WaitlistWaiting {
   count: number;
-  /** Classes with a spot open and a dog waiting. Empty while the judge-day figures are unknown. */
-  spotClasses: ClassSpotState[];
   runOut: RunOutInClass[];
 }
 
-/**
- * Joins `findOpenWaitlistSpots` and `findRunOutOffers` into the waitlist's "waiting for you".
- * A spot is never counted while `spots.unknown` is set: that is "not known", and showing it as
- * a spot (or as none) would both be a guess. Run-out offers come from the replica alone, so
- * they still count.
- */
+/** Groups `findRunOutOffers`' rows by class; `count` is its count, so it equals the list's rows. */
 export function summarizeWaitlistWaiting(input: {
-  spots: WaitlistSpots;
   runOut: WaitingList<RunOutOfferEntry>;
   classNameById: ReadonlyMap<string, string>;
 }): WaitlistWaiting {
-  const spotClasses = input.spots.unknown ? [] : input.spots.rows;
   const byClass = new Map<string, RunOutInClass>();
   for (const offer of input.runOut.rows) {
     const found = byClass.get(offer.classId);
@@ -44,6 +35,5 @@ export function summarizeWaitlistWaiting(input: {
       });
     }
   }
-  const runOut = [...byClass.values()];
-  return { count: spotClasses.length + input.runOut.count, spotClasses, runOut };
+  return { count: input.runOut.count, runOut: [...byClass.values()] };
 }

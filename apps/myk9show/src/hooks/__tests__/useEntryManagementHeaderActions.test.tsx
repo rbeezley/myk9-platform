@@ -12,7 +12,7 @@ vi.mock('@/services/database/day-of-operations', () => ({
 }));
 
 vi.mock('@/features/waiting-for-you/useWaitlistWaiting', () => ({
-  useWaitlistWaiting: () => ({ count: 0, spotClasses: [], runOut: [] }),
+  useWaitlistWaiting: () => ({ count: 0, runOut: [] }),
 }));
 
 const counts = { pulls: 0, moveUps: 0, registrationNeeded: 0 };

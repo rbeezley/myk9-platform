@@ -4,14 +4,13 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWaitlistWaiting } from '../useWaitlistWaiting';
 
-const mocks = vi.hoisted(() => ({
-  readShowWaitlist: vi.fn(),
-  rpc: vi.fn(),
+const mocks = vi.hoisted(() => ({ getClasses: vi.fn() }));
+vi.mock('@/services/database/waitlists', () => ({
+  getClassesWithWaitlistCounts: mocks.getClasses,
 }));
-vi.mock('@/services/database/waitlists/waitingRead', () => ({
-  readShowWaitlist: mocks.readShowWaitlist,
+vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
+  replicatedWaitlistEntriesTable: { getByClass: vi.fn().mockResolvedValue([]) },
 }));
-vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: mocks.rpc } }));
 vi.mock('@/services/database/waitlists/replicaDependencies', () => ({
   WAITLIST_READ_TABLES: [],
 }));
@@ -26,26 +25,20 @@ function mount(manages: boolean) {
 
 describe('useWaitlistWaiting gate', () => {
   beforeEach(() => {
-    mocks.readShowWaitlist.mockReset().mockResolvedValue({ classes: [], waitlist: [] });
-    mocks.rpc.mockReset().mockResolvedValue({ data: [], error: null });
+    mocks.getClasses.mockReset().mockResolvedValue({ data: [], error: null });
   });
 
-  it('makes no waitlist read and no judge-day RPC for a viewer who cannot manage the show', async () => {
+  it('makes no waitlist read for a viewer who cannot manage the show', async () => {
     const { result } = mount(false);
     // Give any query a turn to start before asserting it never did.
     await new Promise(resolve => setTimeout(resolve, 50));
-    expect(mocks.readShowWaitlist).not.toHaveBeenCalled();
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.getClasses).not.toHaveBeenCalled();
     expect(result.current).toBeNull();
   });
 
-  it('reads both for a viewer who manages the show', async () => {
-    mount(true);
-    await waitFor(() => expect(mocks.readShowWaitlist).toHaveBeenCalledWith('show-1'));
-    await waitFor(() =>
-      expect(mocks.rpc).toHaveBeenCalledWith('get_show_judge_day_capacity_for_manager', {
-        p_show_id: 'show-1',
-      })
-    );
+  it('reads the show for a viewer who manages it, and a zero is a read answer', async () => {
+    const { result } = mount(true);
+    await waitFor(() => expect(mocks.getClasses).toHaveBeenCalledWith('show-1'));
+    await waitFor(() => expect(result.current).toEqual({ count: 0, runOut: [] }));
   });
 });

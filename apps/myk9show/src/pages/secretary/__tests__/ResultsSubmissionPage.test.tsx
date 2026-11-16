@@ -552,7 +552,11 @@ describe('ResultsSubmissionPage', () => {
 
       // The records refetch with the new send, and a judge corrects a score after it.
       mockHistoryData.rows = [
-        makeHistoryRow({ organization: 'AKC', status: 'sent', submitted_at: '2026-05-11T10:00:00Z' }),
+        makeHistoryRow({
+          organization: 'AKC',
+          status: 'sent',
+          submitted_at: '2026-05-11T10:00:00Z',
+        }),
       ];
       mockHistoryData.updatedAt = 2;
       mockScoreChanges.mockResolvedValue(new Map([['class-akc', '2026-05-11T11:00:00Z']]));

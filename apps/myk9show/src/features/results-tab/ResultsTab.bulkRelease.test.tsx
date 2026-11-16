@@ -60,9 +60,10 @@ const releaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutateAsync: releaseMutate, isPending: false }),
 }));
+const verifyAsync = vi.hoisted(() => vi.fn());
 vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
   useResultsVerifiedMutations: () => ({
-    verifyAsync: vi.fn().mockResolvedValue(undefined),
+    verifyAsync,
     undo: vi.fn(),
     isPending: false,
     refreshClass: vi.fn(),
@@ -97,6 +98,8 @@ beforeEach(() => {
   vi.mocked(toast.error).mockClear();
   vi.mocked(toast.success).mockClear();
   releaseMutate.mockReset();
+  verifyAsync.mockReset();
+  verifyAsync.mockResolvedValue(undefined);
   releaseMutate.mockImplementation(async (input: { classIds: string[] }) => ({
     released: failIds.set.has(input.classIds[0]!) ? [] : input.classIds,
     failed: [],
@@ -220,6 +223,24 @@ describe('Release checked classes', () => {
     expect(toast.error).toHaveBeenCalledWith(
       'Stopped after 1 of 2 classes. Release the rest again.'
     );
+  });
+
+  it('checks the scores she confirmed, not ones that changed after she confirmed', async () => {
+    const user = userEvent.setup();
+    const { rerender } = mount();
+    await user.click(screen.getByRole('checkbox', { name: /Vehicle Novice/ }));
+    await user.click(screen.getByRole('button', { name: 'Release 1 class' }));
+    const dialog = await screen.findByRole('dialog');
+
+    // A judge's correction syncs while the dialog is open.
+    rows.list = rows.list.map(row =>
+      row.id === 'c5' ? ({ ...row, resultsCanonical: 'changed' } as ResultsClassRow) : row
+    );
+    rerender(routes);
+    await user.click(within(dialog).getByRole('button', { name: 'Release 1 class' }));
+
+    await waitFor(() => expect(verifyAsync).toHaveBeenCalledTimes(1));
+    expect(verifyAsync.mock.calls[0]![0]).toMatchObject({ classId: 'c5', canonical: 'x' });
   });
 
   it('does not release again a class someone released while the dialog was open', async () => {

@@ -127,11 +127,15 @@ export function useBulkRelease({
             stopped = true;
             break;
           }
-          const row = liveRowsRef.current.find(live => live.id === snapshot.id) ?? snapshot;
-          if (row.releasedAt) {
-            done.add(row.id);
+          // Released elsewhere since she confirmed: count it, do not release it again. Only that is
+          // read from the live list; the class released is the one she confirmed, so scores that
+          // changed since then fail safely (the server read and MK015) instead of going out unseen.
+          const live = liveRowsRef.current.find(current => current.id === snapshot.id);
+          if (live?.releasedAt) {
+            done.add(snapshot.id);
             continue;
           }
+          const row = snapshot;
           try {
             const verifyBlocked = await verifyBlockedFor(row);
             const outcome = await releaseClassRow(row, releaseDeps(verifyBlocked, null, true));

@@ -223,6 +223,7 @@ export function mapDbEntryToReportEntry(
     is_scored: boolean | null;
     result_status: string | null;
     search_time_seconds: number | null;
+    element_time_seconds?: number | null | undefined;
     total_faults: number | null;
     final_placement: number | null;
   },
@@ -244,6 +245,9 @@ export function mapDbEntryToReportEntry(
     isScored: dbEntry.is_scored ?? false,
     resultText: dbEntry.result_status,
     searchTimeSeconds: dbEntry.search_time_seconds,
+    ...(dbEntry.element_time_seconds != null
+      ? { elementTimeSeconds: dbEntry.element_time_seconds }
+      : {}),
     totalFaults: dbEntry.total_faults,
     finalPlacement: dbEntry.final_placement,
   };

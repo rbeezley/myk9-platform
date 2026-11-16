@@ -13,7 +13,13 @@ export const CLASS_RESULTS_EXPORT_HEADERS = [
   'Check-in',
 ] as const;
 
-export function classResultsExportRows(rows: readonly ScoringRow[]): (string | number | null)[][] {
+/** MYK9-2089: where the UKC element time sits in the export, right after Search Time. */
+const ELEMENT_TIME_HEADER = 'Element Time';
+
+export function classResultsExportRows(
+  rows: readonly ScoringRow[],
+  includeElementTime = false
+): (string | number | null)[][] {
   return rows.map(row => [
     row.armband,
     row.dogName,
@@ -21,6 +27,7 @@ export function classResultsExportRows(rows: readonly ScoringRow[]): (string | n
     row.placement,
     row.qualification,
     row.searchTime,
+    ...(includeElementTime ? [row.elementTime ?? ''] : []),
     row.faults,
     row.checkInStatus,
   ]);
@@ -44,17 +51,31 @@ export function guestResultsOmit(state: GuestColumnState): string[] {
   const omit: string[] = [];
   if (!state.showPlacement) omit.push('Placement');
   if (!state.showQualification) omit.push('Qualification');
-  if (!state.showTime) omit.push('Search Time');
+  if (!state.showTime) omit.push('Search Time', ELEMENT_TIME_HEADER);
   if (!state.showFaults) omit.push('Faults');
   if (!state.checkInColumnShown) omit.push('Check-in');
   return omit;
 }
 
-export function exportClassResults(rows: readonly ScoringRow[], omit: readonly string[] = []) {
-  const { headers, rows: cells } = dropExportColumns(
-    CLASS_RESULTS_EXPORT_HEADERS,
-    classResultsExportRows(rows),
+/** The class has a UKC element time on at least one run, so the table shows the column. */
+export function classHasElementTime(rows: readonly ScoringRow[]): boolean {
+  return rows.some(row => !!row.elementTime);
+}
+
+export function exportClassResults(
+  rows: readonly ScoringRow[],
+  omit: readonly string[] = [],
+  includeElementTime = false
+) {
+  const headers = includeElementTime
+    ? CLASS_RESULTS_EXPORT_HEADERS.flatMap(h =>
+        h === 'Search Time' ? [h, ELEMENT_TIME_HEADER] : [h]
+      )
+    : CLASS_RESULTS_EXPORT_HEADERS;
+  const { headers: keptHeaders, rows: cells } = dropExportColumns(
+    headers,
+    classResultsExportRows(rows, includeElementTime),
     omit
   );
-  exportRowsCsv('class-results', headers, cells);
+  exportRowsCsv('class-results', keptHeaders, cells);
 }

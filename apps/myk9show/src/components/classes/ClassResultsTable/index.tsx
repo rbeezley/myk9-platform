@@ -28,7 +28,7 @@ import { matchesAny } from '@myk9/core';
 import { useClassResults } from './useClassResults';
 import { useResultColumns } from './columns';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
-import { exportClassResults, guestResultsOmit } from './classResultsExport';
+import { classHasElementTime, exportClassResults, guestResultsOmit } from './classResultsExport';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { EntryCardGrid } from './EntryCardGrid';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -193,11 +193,14 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     return result;
   }, [entries, scoringTab, isEntryScored, searchQuery]);
 
+  const showElementTime = useMemo(() => classHasElementTime(rows), [rows]);
+
   const columns = useResultColumns({
     canEdit,
     isStaff,
     visibility,
     scoringTab,
+    showElementTime,
     showDeleteColumn,
     entryMap,
     onFieldChange,
@@ -211,7 +214,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   usePageExportAction({
     id: 'class-results',
     enabled: effectiveViewMode === 'table' && filteredRows.length > 0,
-    run: () => exportClassResults(filteredRows),
+    run: () => exportClassResults(filteredRows, [], showElementTime),
   });
 
   const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
@@ -313,7 +316,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                     guestResultsOmit({
                       ...visibility,
                       checkInColumnShown: scoringTab !== 'completed',
-                    })
+                    }),
+                    showElementTime
                   )
                 }
               />

@@ -34,6 +34,8 @@ export interface RawEntryRow {
   result_status: string | null;
   is_scored: boolean | null;
   search_time_seconds: number | null;
+  /** MYK9-2068: UKC element time; absent on reads that do not carry it. */
+  element_time_seconds?: number | null | undefined;
   total_faults: number | null;
   final_placement: number | null;
   judge_notes: string | null;

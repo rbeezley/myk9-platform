@@ -64,7 +64,7 @@ export interface CheckInPaperworkEntry {
    * unchanged, and a withdrawal does the same, so without it the class would read as printed
    * after either (MYK9-2074).
    */
-  entryStatus: string | null;
+  entryStatus?: string | null | undefined;
 }
 
 export interface ScoreSheetPaperworkEntry extends CheckInPaperworkEntry {

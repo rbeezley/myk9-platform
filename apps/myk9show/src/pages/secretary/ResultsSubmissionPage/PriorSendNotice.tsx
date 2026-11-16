@@ -81,11 +81,12 @@ export function ScoresChangedNotice({
  */
 export function PriorSendNotice({
   prior,
-  scoresChanged,
+  check,
 }: {
   prior: ResultSubmissionRow;
-  scoresChanged: boolean;
+  check: SentFileCheck | undefined;
 }) {
+  const scoresChanged = check === 'changed';
   const how = prior.status === 'sent' ? 'sent' : 'recorded as submitted';
   const when = formatEntryDateTime(prior.submitted_at);
   return (

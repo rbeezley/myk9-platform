@@ -438,10 +438,7 @@ export default function ResultsSubmissionPage() {
                           decision, so nothing stood between two clicks and two
                           filings with the same registry. */}
                       {priorSubmission && (
-                        <PriorSendNotice
-                          prior={priorSubmission}
-                          scoresChanged={scoresCheck === 'changed'}
-                        />
+                        <PriorSendNotice prior={priorSubmission} check={scoresCheck} />
                       )}
                       {historyUnavailable && (
                         <span className="mb-2 block font-medium text-warning">

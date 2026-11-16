@@ -84,6 +84,12 @@ interface StubOptions {
   auditInsertFails?: boolean;
   /** How many times stamping the claim complete fails before succeeding. */
   completeFailures?: number;
+  /** `trials.timezone` by trial id. */
+  timezones?: Record<string, string>;
+  /** `judge_assignments` rows for the show. */
+  assignments?: Array<Record<string, unknown>>;
+  trialsError?: unknown;
+  assignmentsError?: unknown;
   /** Days where a packet lands between our claim and our send. */
   lateArrivalDates?: string[];
 }
@@ -292,6 +298,21 @@ function makeStub(options: StubOptions = {}) {
           error: null,
         });
       }
+      if (table === 'trials') {
+        return thenable({
+          data: Object.entries(options.timezones ?? {}).map(([id, timezone]) => ({
+            id,
+            timezone,
+          })),
+          error: options.trialsError ?? null,
+        });
+      }
+      if (table === 'judge_assignments') {
+        return thenable({
+          data: options.assignments ?? [],
+          error: options.assignmentsError ?? null,
+        });
+      }
       if (table === 'club_members') return thenable({ data: [], error: null });
       if (table === 'trial_packet_generation_claims') return claimQuery();
       if (table === 'trial_packet_snapshots') return thenable('delivered-lookup');
@@ -325,7 +346,12 @@ let snapshotCounter = 0;
 function makeDeps(overrides: Partial<PacketGenerationDeps> = {}): PacketGenerationDeps {
   snapshotCounter = 0;
   return {
-    renderPdf: model => new Uint8Array(model.pages.length * 10),
+    // The page count is the renderer's own report of the PDF, not the model's page count.
+    renderPdf: input =>
+      Promise.resolve({
+        bytes: new Uint8Array(input.trials.length * 10),
+        pageCount: 7 + input.trials.length,
+      }),
     newSnapshotId: () => `snapshot-${(snapshotCounter += 1)}`,
     getEnv: () => 'resend-key',
     now: () => new Date('2026-09-18T02:00:00.000Z'),
@@ -387,6 +413,69 @@ describe('generateTrialPackets', () => {
     expect(inserts.every(row => row.generated_source === 'automated')).toBe(true);
     expect(inserts.every(row => row.generated_by === null)).toBe(true);
     expect(inserts.map(row => row.trial_date)).toEqual(['2026-09-19', '2026-09-20']);
+  });
+
+  it('records the page count the renderer reports, and renders one trial day at a time', async () => {
+    const { supabase, inserts } = makeStub();
+    const renderPdf = vi.fn((input: EmergencyPacketInput) =>
+      Promise.resolve({ bytes: new Uint8Array(5), pageCount: input.trials.length === 2 ? 31 : 12 })
+    );
+
+    const summary = await generateTrialPackets(
+      supabase,
+      { showId: SHOW_ID },
+      makeDeps({ renderPdf })
+    );
+
+    expect(renderPdf.mock.calls.map(([input]) => input.trials.map(trial => trial.id))).toEqual([
+      ['t1', 't2'],
+      ['t3'],
+    ]);
+    expect(summary.generated.map(packet => packet.pageCount)).toEqual([31, 12]);
+    expect(inserts.map(row => row.page_count)).toEqual([31, 12]);
+  });
+
+  it('gives the renderer each trial’s time zone and the roster judge for a class the RPC left blank', async () => {
+    const input = packetInput();
+    input.classes[0]!.judgeName = '';
+    input.classes[1]!.judgeName = 'Kept Judge';
+    const { supabase } = makeStub({
+      rpcData: input,
+      timezones: { t1: 'America/Los_Angeles', t3: 'America/Chicago' },
+      assignments: [
+        { class_id: 'c1', person: { first_name: 'Rae', last_name: 'Roster' } },
+        { class_id: 'c2', person: { first_name: 'Ignored', last_name: 'Judge' } },
+        { class_id: null, person: { first_name: 'Show', last_name: 'Level' } },
+      ],
+    });
+    const renderPdf = vi.fn((day: EmergencyPacketInput) =>
+      Promise.resolve({ bytes: new Uint8Array(5), pageCount: 3 + day.trials.length })
+    );
+
+    await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps({ renderPdf }));
+
+    const [saturday, sunday] = renderPdf.mock.calls.map(([day]) => day);
+    expect(saturday?.trials.map(trial => [trial.id, trial.timezone])).toEqual([
+      ['t1', 'America/Los_Angeles'],
+      ['t2', undefined],
+    ]);
+    expect(sunday?.trials.map(trial => trial.timezone)).toEqual(['America/Chicago']);
+    expect(saturday?.classes.map(classItem => classItem.judgeName)).toEqual([
+      'Rae Roster',
+      'Kept Judge',
+    ]);
+  });
+
+  it('fails the request when the time zones or the roster cannot be read', async () => {
+    for (const failure of [
+      { trialsError: { message: 'x' } },
+      { assignmentsError: { message: 'x' } },
+    ]) {
+      const { supabase } = makeStub(failure);
+      await expect(
+        generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps())
+      ).rejects.toBeInstanceOf(HttpError);
+    }
   });
 
   it('asks the source for one day when one day was requested', async () => {

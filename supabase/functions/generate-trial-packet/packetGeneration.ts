@@ -9,13 +9,14 @@ import {
   type PacketDeliveryResult,
 } from '../_shared/trialPacket/deliverStoredPacket.ts';
 import {
-  buildEmergencyPacketModel,
   buildEmergencyPacketStoragePath,
   emergencyPacketAvailability,
   splitPacketInputByTrialDay,
 } from '../_shared/trialPacket/renderer/emergencyTrialPacket.ts';
+import type { RenderedPacket } from '../_shared/trialPacket/renderer/judgePacketDay.ts';
 import type { EmergencyPacketInput } from '../_shared/trialPacket/renderer/types.ts';
 import { shouldReclaimStalePacketClaim } from './packetClaim.ts';
+import { withPacketLookups } from './packetLookups.ts';
 
 /**
  * The automated half of MYK9-228: build the packet nobody remembered to build.
@@ -86,7 +87,8 @@ export interface GeneratePacketSummary {
 }
 
 export interface PacketGenerationDeps extends DeliverStoredPacketDeps {
-  renderPdf: (model: ReturnType<typeof buildEmergencyPacketModel>) => Uint8Array;
+  /** One trial day's input in; the PDF and its real page count out. */
+  renderPdf: (input: EmergencyPacketInput) => Promise<RenderedPacket>;
   /** Injected so tests do not pay the retry delay. */
   sleep?: (ms: number) => Promise<void>;
   newSnapshotId?: () => string;
@@ -163,7 +165,7 @@ export async function generateTrialPackets(
     p_trial_date: request.trialDate ?? null,
   });
   if (error) throw new HttpError(500, 'Failed to load the packet source data.');
-  const input = assertPacketInput(data);
+  const input = await withPacketLookups(supabase, request.showId, assertPacketInput(data));
 
   const generatedAt = now().toISOString();
   const summary: GeneratePacketSummary = {
@@ -278,13 +280,14 @@ export async function generateTrialPackets(
       continue;
     }
 
-    const model = buildEmergencyPacketModel(day.input);
     let result: PacketDeliveryResult;
     let snapshotId: string;
     let byteSize: number;
+    let pageCount: number;
     let uploadedPath: string | null = null;
     try {
-      const bytes = deps.renderPdf(model);
+      const { bytes, pageCount: renderedPages } = await deps.renderPdf(day.input);
+      pageCount = renderedPages;
       snapshotId = newSnapshotId();
       byteSize = bytes.byteLength;
       const storagePath = buildEmergencyPacketStoragePath(request.showId, snapshotId);
@@ -306,7 +309,7 @@ export async function generateTrialPackets(
           storagePath,
           generatedAt,
           sha256: await digest(bytes),
-          pageCount: model.pages.length,
+          pageCount,
           byteSize,
           trialDate: day.trialDate,
           generatedBy: null,
@@ -410,7 +413,7 @@ export async function generateTrialPackets(
     summary.generated.push({
       trialDate: day.trialDate,
       snapshotId,
-      pageCount: model.pages.length,
+      pageCount,
       byteSize,
       recipientCount: result.recipientCount,
     });

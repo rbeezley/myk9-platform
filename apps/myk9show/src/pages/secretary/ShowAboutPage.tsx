@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
+import { PremiumRequirementsNotice } from '@/features/premium/PremiumRequirementsNotice';
+import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
 import {
   LANDING_CARD_ANCHOR,
   PREMIUM_CARD_ANCHOR,
@@ -37,13 +39,22 @@ import { useShowManagementOutlet } from '@/components/shows/ShowDetails/showMana
  * land here and scroll to the right card. The trade-off: off About there is no publish shortcut.
  */
 export default function ShowAboutPage() {
-  const { show, canManageShow, judges, managerEntryCount } = useShowManagementOutlet();
+  const { show, canManageShow, judges, managerEntryCount, trials, classes } =
+    useShowManagementOutlet();
   const { hash, key } = useLocation();
   const anchor = publishAnchorFromHash(hash);
   // MYK9-1686: no public landing page, no Landing page card. Premium stays; a link to the hidden
   // card's anchor falls back to it.
   const liveShow = useShowWithLiveUses(show);
-  const { usesLandingPage } = resolveShowUses(liveShow);
+  const { usesLandingPage, publishesOwnPremium } = resolveShowUses(liveShow);
+  // MYK9-2053: a club that publishes its own premium has no generated one to check.
+  const requirements = usePremiumRequirements(
+    show,
+    trials,
+    classes,
+    judges,
+    canManageShow && !publishesOwnPremium
+  );
   const scrollTarget =
     anchor === LANDING_CARD_ANCHOR && !usesLandingPage ? PREMIUM_CARD_ANCHOR : anchor;
 
@@ -61,6 +72,9 @@ export default function ShowAboutPage() {
         // `scroll-mt-20` only: `target:` styles never fire on a router `<Link>` (MYK9-630 round 5).
         className="grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
       >
+        <div className="sm:col-span-2 empty:hidden">
+          <PremiumRequirementsNotice items={requirements.items} />
+        </div>
         <PremiumDownloadCard showId={show.id} showStaleBadge={true} canManageShow={canManageShow} />
         {usesLandingPage && <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />}
       </div>

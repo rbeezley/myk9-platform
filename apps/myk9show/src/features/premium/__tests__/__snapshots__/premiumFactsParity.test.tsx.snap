@@ -212,24 +212,16 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > banner prints the same facts with ink saver on 1`] = `
@@ -1118,24 +1110,16 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > headline prints the same facts with ink saver on 1`] = `
@@ -1465,18 +1449,12 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 §
 Trial Secretary
-Name
-[REQUIRED — add before submitting]
 §
 Trials & Judges
 §
@@ -1484,10 +1462,7 @@ Show Hours
 
 §
 Trial Information
-
-§
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > heritage prints the same facts with ink saver on 1`] = `
@@ -1821,24 +1796,16 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > magazine prints the same facts with ink saver on 1`] = `
@@ -2150,24 +2117,16 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > monogram prints the same facts with ink saver on 1`] = `
@@ -2414,24 +2373,16 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
 Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > poster prints the same facts with ink saver on 1`] = `

@@ -179,6 +179,27 @@ describe('premium PDF facts parity (8 styles)', () => {
   });
 });
 
+describe('premium PDF prints no placeholder for an empty fact (MYK9-2053)', () => {
+  it.each(ALL_STYLES)('%s prints no "[REQUIRED" text and no dangling labels when empty', style => {
+    for (const org of ['AKC', 'UKC'] as const) {
+      const text = pdfText(org, sparsePremium(org, style));
+      expect(text).not.toMatch(/REQUIRED/);
+      expect(text).not.toMatch(/Openss*·s*Closes/);
+      expect(text).not.toMatch(/Veterinary Services|On-Call Vet/);
+    }
+  });
+
+  it.each(ALL_STYLES)('%s still prints the entry dates it has', style => {
+    const premium = fullPremium('AKC', style);
+    const text = pdfText('AKC', {
+      ...premium,
+      show: { ...premium.show, entryCloseDate: null },
+    });
+    expect(text).toMatch(/Apr(il)? 1, 2026/);
+    expect(text).not.toMatch(/Closess*$|Closess*·|Entry Closes/m);
+  });
+});
+
 describe('premium PDF prints the refund and withdrawal policy whole (MYK9-1976)', () => {
   const LONG_TEXT = `${'The club keeps a five dollar office fee after the cutoff. '.repeat(19)}Last line.`;
 

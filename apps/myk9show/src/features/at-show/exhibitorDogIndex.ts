@@ -8,6 +8,7 @@
 import { formatTrialDate } from '@myk9/core';
 import { parseClaimState } from '@myk9/ringside/run-queue';
 import type { StaffDog, StaffDogClassEntry } from './staffDogIndex';
+import { isBeforeTrialDay } from './placeInLineDayGate';
 
 /** One row of the server function, exactly its approved columns. */
 export interface ShowDogLimitedRow {
@@ -31,7 +32,10 @@ export interface ShowDogLimitedRow {
 }
 
 /** Group the per-class rows into one dog per armband (armbands are unique per show). */
-export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog[] {
+export function buildExhibitorDogs(
+  rows: readonly ShowDogLimitedRow[],
+  now = new Date()
+): StaffDog[] {
   const byArmband = new Map<number, StaffDog>();
   for (const row of rows) {
     let dog = byArmband.get(row.armband);
@@ -65,7 +69,8 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
       faultCount: null,
       placement: null,
       resultsReleased: false,
-      runPosition: row.run_position ?? null,
+      // MYK9-2092: no place in line before the trial day.
+      runPosition: isBeforeTrialDay(row.trial_date, now) ? null : (row.run_position ?? null),
       runClaimState: parseClaimState(row.run_claim_state),
     };
     dog.entries.push(entry);

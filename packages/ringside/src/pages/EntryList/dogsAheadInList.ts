@@ -30,7 +30,7 @@ import {
 export type DogsAheadResult =
   | { kind: 'in-ring' }
   | { kind: 'waiting'; dogsAhead: number }
-  | { kind: 'paper'; place: number }
+  | { kind: 'paper'; place?: number | undefined }
   | { kind: 'stale' }
   | null;
 
@@ -38,7 +38,15 @@ export function computeDogsAheadInList(
   entries: Entry[],
   entryId: string,
   /** The server's claim state for this entry (MYK9-1969); `live` or absent counts as before. */
-  claim?: ClaimState | null
+  claim?: ClaimState | null,
+  /**
+   * MYK9-2092: the server's place (1-based) for this entry, when the host asks the server
+   * (`get_my_entry_queue_places`). Once the host does, a place is never counted on the phone:
+   * the server's number is the answer, and no number from it means no number shown.
+   */
+  serverPlace?: number | null,
+  /** True when the host supplies server places, so a missing one is "unknown", not "count it". */
+  serverPlacesGiven = false
 ): DogsAheadResult {
   const target = entries.find(entry => entry.id === entryId);
   if (!target || !isInQueue(target)) return null;
@@ -47,6 +55,12 @@ export function computeDogsAheadInList(
   // Waiting queue only — the in-ring dog is excluded (see INTENT above).
   const position = pendingByRunOrder(entries).findIndex(entry => entry.id === entryId);
   if (position === -1) return null;
+  if (serverPlacesGiven) {
+    const place = serverPlace != null && serverPlace >= 1 ? serverPlace : undefined;
+    if (claim === 'paper') return { kind: 'paper', place };
+    if (claim === 'live' && place !== undefined) return { kind: 'waiting', dogsAhead: place - 1 };
+    return { kind: 'stale' };
+  }
   // MYK9-1970: a paper class never gets a count of dogs ahead, only its place in the running order.
   if (claim === 'paper') return { kind: 'paper', place: position + 1 };
   if (claim === 'stale') return { kind: 'stale' };
@@ -88,7 +102,12 @@ export function buildEntryListOwnership(
    */
   entriesComplete = true,
   /** The claim state per own entry: the server's answer, or `paper` from the class it is in. */
-  claimByEntryId?: ReadonlyMap<string, ClaimState>
+  claimByEntryId?: ReadonlyMap<string, ClaimState>,
+  /**
+   * MYK9-2092: the server's place per own entry. When given, it is the only source of a place
+   * in line on this list; the phone's own count is not used for an own dog.
+   */
+  serverPlaceByEntryId?: ReadonlyMap<string, number>
 ): EntryListOwnership | undefined {
   if (ownEntryIds.size === 0) return undefined;
   const dogsAheadByEntryId = new Map<string, DogsAheadResult>();
@@ -101,7 +120,9 @@ export function buildEntryListOwnership(
             entries,
             entry.id,
             // A supplied map decides every own entry: no claim in it is never a live count.
-            claimByEntryId ? (claimByEntryId.get(entry.id) ?? 'stale') : undefined
+            claimByEntryId ? (claimByEntryId.get(entry.id) ?? 'stale') : undefined,
+            serverPlaceByEntryId?.get(entry.id),
+            serverPlaceByEntryId !== undefined
           )
         : null
     );

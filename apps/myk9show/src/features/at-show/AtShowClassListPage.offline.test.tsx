@@ -51,7 +51,7 @@ vi.mock('@/services/database/judges', () => ({
 const authState = vi.hoisted(() => ({
   hasRole: (_role: unknown): boolean => false,
   userWithRoles: null as UserWithRoles | null,
-  user: null as { is_anonymous?: boolean } | null,
+  user: null as { is_anonymous?: boolean; app_metadata?: unknown } | null,
 }));
 
 // The picker resolves the ringside role (for Class Options gating) the way the
@@ -262,6 +262,38 @@ describe('AtShowClassListPage offline truthfulness', () => {
       renderPage(judgeSyncedStatus);
 
       expect(await screen.findByText(/No classes assigned yet/)).toBeInTheDocument();
+    });
+
+    it('offers a signed-in judge the way back to the judge dashboard (MYK9-2018)', async () => {
+      signInAsIdentifiedJudge();
+      seedPrimedDevice();
+      judgeAssignmentData.getActive.mockResolvedValue([]);
+
+      renderPage(judgeSyncedStatus);
+
+      expect(await screen.findByText(/No classes assigned yet/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Back to Judge Dashboard' })).toBeInTheDocument();
+    });
+
+    it('offers a passcode session no way back to a dashboard it cannot open (MYK9-2018)', async () => {
+      authState.user = {
+        is_anonymous: true,
+        app_metadata: {
+          kind: 'ringside_passcode',
+          show_id: 'show-1',
+          ringside_role: 'judge',
+          ringside_person_id: 'judge-1',
+        },
+      } as never;
+      seedPrimedDevice();
+      judgeAssignmentData.getActive.mockResolvedValue([]);
+
+      renderPage(judgeSyncedStatus);
+
+      expect(await screen.findByText(/No classes assigned yet/)).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Back to Judge Dashboard' })
+      ).not.toBeInTheDocument();
     });
   });
 

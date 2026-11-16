@@ -8,6 +8,14 @@ describe('MaxTimeNotSetNotice', () => {
     expect(screen.getByRole('note')).toHaveTextContent(/won.t stop on its own/i);
   });
 
+  it('speaks to the judge as "you", not about the judge', () => {
+    render(<MaxTimeNotSetNotice maxTimeSeconds={0} registryKey="AKC_SCENT_WORK" />);
+    expect(screen.getByRole('note')).not.toHaveTextContent(/the judge/i);
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'Set it on the entry list: menu, Set Max Time.'
+    );
+  });
+
   it('stays silent when the class has a max time', () => {
     render(<MaxTimeNotSetNotice maxTimeSeconds={180} registryKey="AKC_SCENT_WORK" />);
     expect(screen.queryByRole('note')).not.toBeInTheDocument();

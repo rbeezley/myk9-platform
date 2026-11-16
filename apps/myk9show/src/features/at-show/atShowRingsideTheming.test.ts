@@ -20,9 +20,7 @@ const classRow = read('AtShowClassRow.tsx');
 const classFooter = read('AtShowClassCardFooter.tsx');
 
 describe('At-Show ringside — calm offline + tokenized status', () => {
-  it('renders the offline state in a calm neutral tone, not alarm-orange', () => {
-    expect(scoresheet).toContain('badgeClass(');
-    expect(scoresheet).toContain("'neutral'");
+  it('keeps alarm-orange out of the scoresheet (offline is the header icon alone, MYK9-2018)', () => {
     expect(scoresheet).not.toContain('bg-orange-100');
     expect(scoresheet).not.toContain('text-orange-800');
   });

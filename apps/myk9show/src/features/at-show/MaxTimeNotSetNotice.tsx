@@ -39,8 +39,8 @@ export function MaxTimeNotSetNotice({
     >
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <span>
-        No max time is set for this class, so the timer won&apos;t stop on its own. The judge sets
-        it on the entry list: menu, Set Max Time.
+        No max time is set for this class, so the timer won&apos;t stop on its own. Set it on the
+        entry list: menu, Set Max Time.
       </span>
     </div>
   );

@@ -41,6 +41,7 @@ import { startingReasonFor } from '../../../utils/resultReasons';
 import type { LiveScoresheetProps, ResolvedClassRules, StopwatchReturn } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
 import { scoringSource, timerPersist } from '../../../utils/timerPersist';
+import { savedElementTimeFor } from './savedElementTime';
 
 const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
@@ -228,20 +229,12 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     setShowConfirmation(true);
   };
 
-  // Correcting a saved score reopens with the element clock at zero: unless the
-  // judge ran it again, keep the saved element time rather than writing 0:00.00.
-  const savedElementTime = entry.existingScore?.element;
-  const elementClockUnused = elementTimer.getTimeMs() === 0 && !elementTimer.isRunning;
-  const keepSavedElementTime = Boolean(savedElementTime) && elementClockUnused;
-  const elementTimeText = () =>
-    keepSavedElementTime && savedElementTime
-      ? savedElementTime
-      : elementTimer.formatTime(elementTimer.getTimeMs());
+  const savedElement = savedElementTimeFor(elementTimer, entry.existingScore?.element);
 
   const handleConfirmSubmit = async () => {
     // Pass element time as extra data when dual. The live clock, not `time`: Save
     // does not wait for Finish, so the element clock may still be running.
-    const extra = isDual ? { element: elementTimeText() } : undefined;
+    const extra = isDual ? { element: savedElement.text() } : undefined;
     await scoring.handleSubmit(onSubmit, extra);
     setShowConfirmation(false);
   };
@@ -476,11 +469,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               ? [
                   {
                     label: 'Element Time',
-                    value: keepSavedElementTime ? (
-                      savedElementTime
-                    ) : (
-                      <StopwatchTime stopwatch={elementTimer} />
-                    ),
+                    value: savedElement.keepSaved ?? <StopwatchTime stopwatch={elementTimer} />,
                     mono: true,
                   },
                 ]

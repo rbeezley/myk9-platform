@@ -105,20 +105,28 @@ const LETTER_FALLBACKS: Record<string, string> = {
 
 /**
  * Text pdf-lib's standard Helvetica can encode. It throws on anything outside WinAnsi, and one
- * judge named "Łukasz" would otherwise cost the whole packet: accents outside WinAnsi drop to the
- * base letter, and anything still unencodable becomes "?".
+ * judge named "Łukasz" would otherwise cost the whole packet.
+ *
+ * The name is composed first (NFC), so "e" plus a separate accent is one letter "é", then read one
+ * letter-with-its-accents at a time: a letter WinAnsi has stays, one it lacks drops its accents to
+ * the base letter, a stray accent with no letter is dropped, and anything else becomes "?".
  */
 export function winAnsiSafe(text: string): string {
-  return Array.from(text, char => {
-    if (isWinAnsi(char)) return char;
-    const fallback = LETTER_FALLBACKS[char];
-    if (fallback) return fallback;
-    const base = char.normalize('NFD').replace(/\p{M}/gu, '');
-    return base && Array.from(base).every(isWinAnsi) ? base : '?';
-  }).join('');
+  const letters = text.normalize('NFC').match(/\P{M}\p{M}*|\p{M}+/gu) ?? [];
+  return letters
+    .map(letter => {
+      if (isWinAnsi(letter)) return letter;
+      const base = letter.normalize('NFD').replace(/\p{M}/gu, '');
+      if (base === '') return '';
+      if (isWinAnsi(base)) return base;
+      return LETTER_FALLBACKS[base] ?? '?';
+    })
+    .join('');
 }
 
+/** One character WinAnsi can encode (a letter carrying an accent it lacks is two, so not one). */
 function isWinAnsi(char: string): boolean {
+  if (Array.from(char).length !== 1) return false;
   const code = char.codePointAt(0) ?? 0;
   return (
     (code >= 0x20 && code <= 0x7e) || (code >= 0xa0 && code <= 0xff) || WIN_ANSI_EXTRAS.has(char)

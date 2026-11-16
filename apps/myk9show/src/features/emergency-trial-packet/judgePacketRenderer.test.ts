@@ -271,6 +271,15 @@ describe('assembleJudgePacketPdf', () => {
     expect(winAnsiSafe('Łódź 李')).toBe('Lódz ?');
   });
 
+  it('reads a decomposed accent as the letter it belongs to', () => {
+    // "Renée" with the accent stored as its own character, as imported text can carry it.
+    expect(winAnsiSafe('Rene\u0301e')).toBe('Renée');
+    // An accent WinAnsi has no composed letter for drops to the base letter.
+    expect(winAnsiSafe('Nguye\u0302\u0303n')).toBe('Nguyen');
+    // An accent with no letter before it is dropped, not printed as "?".
+    expect(winAnsiSafe('\u0301Pat')).toBe('Pat');
+  });
+
   it('merges parts in order into one document', async () => {
     const [a, b] = [classParts('late'), classParts('early')];
     const merged = await mergePdfParts(pdfLib, [...a, ...b]);

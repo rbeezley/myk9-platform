@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   entries: [] as DbEntry[],
   /** Every trial's classes, as the replica read returns them (the earlier-trial note). */
   allClasses: undefined as unknown[] | undefined,
+  /** The show's entry rows, as the replica read returns them (class counts for the note). */
+  showEntries: [] as unknown[],
   trials: undefined as unknown[] | undefined,
   /** Records the panel's own prints wrote: they land in the print history, as in the app. */
   landed: [] as Array<Record<string, unknown>>,
@@ -39,6 +41,10 @@ vi.mock('@/hooks/queries/useReportData', () => ({
     dataState: 'ready',
     refetch: mocks.refetch,
   }),
+}));
+vi.mock('@/services/database/entries', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/entries')>()),
+  getEntriesByShowFromReplication: async () => ({ data: mocks.showEntries, error: null }),
 }));
 vi.mock('@/hooks/queries/useShowClassRows', () => ({
   useShowClassRows: () => ({ data: mocks.allClasses }),
@@ -86,6 +92,7 @@ describe('TrialPacketPanel', () => {
     mocks.printIframeAndWait.mockResolvedValue(true);
     mocks.landed = [];
     mocks.allClasses = undefined;
+    mocks.showEntries = [];
     mocks.trials = undefined;
     let next = 0;
     mocks.recordPaperworkPrinted.mockImplementation(
@@ -133,6 +140,7 @@ describe('TrialPacketPanel', () => {
     it('shows a plain note and keeps Print available', async () => {
       mocks.trials = [FIRST, SECOND];
       mocks.allClasses = [earlierClass('in_progress'), earlierClass('completed')];
+      mocks.showEntries = [{ class_id: 'e1', entry_status: 'confirmed' }];
       renderPanel();
       expect(await screen.findByText(NOTE)).toBeInTheDocument();
       const print = screen.getByRole('button', { name: 'Print all 3 packets' });
@@ -145,6 +153,15 @@ describe('TrialPacketPanel', () => {
       renderPanel();
       await screen.findByText(/collated/);
       expect(screen.queryByText(NOTE)).not.toBeInTheDocument();
+    });
+
+    it('shows nothing when the earlier trial only has a class with no dogs left to run', async () => {
+      mocks.trials = [FIRST, SECOND];
+      mocks.allClasses = [earlierClass('in_progress'), earlierClass('completed')];
+      mocks.showEntries = [];
+      renderPanel();
+      await screen.findByText(/collated/);
+      await waitFor(() => expect(screen.queryByText(NOTE)).not.toBeInTheDocument());
     });
 
     it('shows nothing for the first trial of the day', async () => {

@@ -112,11 +112,6 @@ function ReadyForShowDayContent({
         trials,
         classes,
         byClassId: paperwork.byClassId,
-        dogsByClassId: entryBreakdownByClassId
-          ? new Map(
-              [...entryBreakdownByClassId].map(([id, count]) => [id, count.entered + count.pending])
-            )
-          : undefined,
         // The paperwork map is built from the entries: with them unread it is empty, not printed.
         available: paperwork.available && entryBreakdownByClassId !== undefined,
       }),

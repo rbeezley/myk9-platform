@@ -1,49 +1,67 @@
-import { deriveTrialStatusKey } from '@myk9/core';
+import { CLASS_STATUS } from '@myk9/core';
 
 import { classifyClassStatus } from '@/features/show-map/showMapStatus';
-import { computeDayTrialNumber } from '@/pages/secretary/ReportsPage/dayTrialNumber';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 
-/** Trial status keys that still hold move-ups open: nothing finished, or only some of it. */
-const UNFINISHED = new Set(['not-started', 'in-progress']);
+import {
+  classRunState,
+  dayNumberOf,
+  isTrialFinished,
+  trialLabelOf,
+  type OrderableTrial,
+} from '../trialStanding';
 
-function isUnfinished(trial: DbTrial, classes: readonly DbClass[]): boolean {
-  const own = classes.filter(cls => cls.trial_id === trial.id);
-  const key = deriveTrialStatusKey({
-    trialStatus: trial.status,
-    classCount: own.length,
-    completedCount: own.filter(
-      cls => classifyClassStatus(cls.status ?? undefined)?.kind === 'complete'
-    ).length,
-    hasStarted: own.some(cls => classifyClassStatus(cls.status ?? undefined)?.kind === 'active'),
-  });
-  return UNFINISHED.has(key);
-}
+const orderable = (trial: DbTrial): OrderableTrial => ({
+  id: trial.id,
+  date: trial.date,
+  number: trial.trial_number,
+  plannedStartTime: trial.planned_start_time,
+  displayOrder: trial.display_order,
+  name: trial.name,
+});
 
 /**
  * The earliest trial on the SAME calendar day, before this one, that has not finished (MYK9-2075).
- * "Finished" is the trial status the Show Desk already shows (`deriveTrialStatusKey`): every class
- * complete. A cancelled trial or one with no classes cannot move dogs, so it never counts. Returns
- * the earlier trial's number within the day, or null: no earlier trial, all finished, or the day
- * order is ambiguous (never guess a name for the note).
+ * Order and "finished" are the shared rules in `trialStanding`: a cancelled or confirmed-empty class
+ * holds nothing open, and a trial with nothing left to run is finished. `entryCountByClassId` is the
+ * show's entry counts; without it no class is called empty. A cancelled trial never counts. Returns
+ * the earlier trial's label ("Trial 1"), or null: no earlier trial, all finished, or this trial's
+ * place in the day is a tie (never guess a name for the note).
  */
 export function findUnfinishedEarlierTrial(input: {
   trialId: string;
   trials: readonly DbTrial[];
   classes: readonly DbClass[];
-}): { dayNumber: number } | null {
-  const trial = input.trials.find(item => item.id === input.trialId);
+  entryCountByClassId?: ReadonlyMap<string, number> | undefined;
+}): { label: string } | null {
+  const all = input.trials.map(orderable);
+  const trial = all.find(item => item.id === input.trialId);
   if (!trial) return null;
-  const thisNumber = computeDayTrialNumber(trial, [...input.trials]);
+  const thisNumber = dayNumberOf(trial, all);
   if (thisNumber === undefined) return null;
-  const earlier = input.trials
+  const earlier = all
     .filter(item => item.id !== trial.id && item.date === trial.date)
-    .map(item => ({ item, dayNumber: computeDayTrialNumber(item, [...input.trials]) }))
-    .filter(
-      (row): row is { item: DbTrial; dayNumber: number } =>
-        row.dayNumber !== undefined && row.dayNumber < thisNumber
-    )
-    .sort((left, right) => left.dayNumber - right.dayNumber);
-  const open = earlier.find(row => isUnfinished(row.item, input.classes));
-  return open ? { dayNumber: open.dayNumber } : null;
+    .map(item => ({ item, number: dayNumberOf(item, all) }))
+    .filter((row): row is { item: OrderableTrial; number: number } => {
+      return row.number !== undefined && row.number < thisNumber;
+    })
+    .sort((left, right) => left.number - right.number);
+  const unfinished = earlier.find(({ item }) => {
+    const row = input.trials.find(candidate => candidate.id === item.id);
+    if (row?.status === 'cancelled') return false;
+    const states = input.classes
+      .filter(cls => cls.trial_id === item.id)
+      .map(cls => {
+        const status = classifyClassStatus(cls.status ?? undefined);
+        return classRunState({
+          complete: status?.kind === 'complete',
+          cancelled: status?.value === CLASS_STATUS.CANCELLED,
+          entryCount: input.entryCountByClassId
+            ? (input.entryCountByClassId.get(cls.id) ?? 0)
+            : null,
+        });
+      });
+    return !isTrialFinished(states);
+  });
+  return unfinished ? { label: trialLabelOf(unfinished.item, all) } : null;
 }

@@ -1,7 +1,7 @@
 import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
 import { buildAttentionCountByClass } from './secretaryCockpitAttention';
-import { needsReprintAfterEarlierTrial } from './trialReprintNote';
+import { nextTrialPaperworkNote } from './trialReprintNote';
 import {
   filterFactsOf,
   hasActiveCockpitFilters,
@@ -365,7 +365,8 @@ function buildTrialGroups(
           trial.date === openDay ||
           trial.id === anchorId ||
           allClasses.some(cls => cls.id === focusedClassId || cls.id === anchorId),
-        reprintNote: needsReprintAfterEarlierTrial({
+        nextTrialNote: nextTrialPaperworkNote({
+          showId: snapshot.showId,
           trial,
           trials: snapshot.trials,
           classes: snapshot.classes,

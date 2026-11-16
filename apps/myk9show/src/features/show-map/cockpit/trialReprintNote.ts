@@ -1,40 +1,79 @@
-import type { SecretaryCockpitClass, SecretaryCockpitTrial } from './secretaryCockpitTypes';
+import { formatWeekdayLong } from '@/lib/format/dates';
+
+import { getTrialPacketHref } from './cockpitRoutes';
+import type {
+  NextTrialNote,
+  SecretaryCockpitClass,
+  SecretaryCockpitTrial,
+} from './secretaryCockpitTypes';
+import {
+  classRunState,
+  orderTrials,
+  trialFinishedByRunning,
+  trialLabelOf,
+  type OrderableTrial,
+} from './trialStanding';
 
 /** The sheets a trial prints before its classes run (classChecklist.ts). */
 const PRE_SHOW_SHEETS: ReadonlySet<string> = new Set(['check-in-sheet', 'scoresheet']);
 
-/** Nothing left to run: every class that is not cancelled is complete. Unknown is not finished. */
-function isTrialFinished(classes: readonly SecretaryCockpitClass[]): boolean {
-  const running = classes.filter(cls => cls.lifecycle !== 'cancelled');
-  return running.length > 0 && running.every(cls => cls.lifecycle === 'complete');
+const orderable = (trial: SecretaryCockpitTrial): OrderableTrial => ({
+  id: trial.id,
+  date: trial.date,
+  number: trial.number,
+  plannedStartTime: trial.plannedStartTime,
+  displayOrder: trial.displayOrder,
+  name: trial.name,
+});
+
+function trialStates(trialId: string, classes: readonly SecretaryCockpitClass[]) {
+  return classes
+    .filter(cls => cls.trialId === trialId)
+    .map(cls =>
+      classRunState({
+        complete: cls.lifecycle === 'complete',
+        cancelled: cls.lifecycle === 'cancelled',
+        entryCount: cls.entryCount,
+        runListCount: cls.runListCount,
+      })
+    );
 }
 
 /**
- * MYK9-2075: the card of a trial whose earlier same-day trial has finished says its paperwork may
- * need printing again. It reuses the per-class "Changed since printing" state (MYK9-2074) rather
- * than comparing timestamps: a move-up changes the class's entries, which flips a printed sheet
- * stale. So the note shows only when the earlier trial is finished AND a sheet of this trial was
- * printed and has since changed. A trial never printed has nothing to print again.
+ * Decision 6 of the print plan (MYK9-2075): when a trial finishes, the trial after it says so and
+ * offers its paperwork, because move-ups settled only now. "After it" is the shared show order
+ * (`orderTrials`), so it may be the next day's first trial; then the note names that day's armband
+ * labels too. It shows while this trial's check-in or score sheets are not current (never printed,
+ * or changed since printing) and goes away once they are. A sheet that cannot be checked shows
+ * nothing: no guess either way.
  */
-export function needsReprintAfterEarlierTrial(input: {
+export function nextTrialPaperworkNote(input: {
+  showId: string;
   trial: SecretaryCockpitTrial;
   trials: readonly SecretaryCockpitTrial[];
   classes: readonly SecretaryCockpitClass[];
-}): boolean {
-  const earlierTrials = input.trials.filter(
-    other =>
-      other.id !== input.trial.id &&
-      other.date === input.trial.date &&
-      other.order < input.trial.order
-  );
-  if (earlierTrials.length === 0) return false;
-  const finishedBefore = earlierTrials.every(other =>
-    isTrialFinished(input.classes.filter(cls => cls.trialId === other.id))
-  );
-  if (!finishedBefore) return false;
-  return input.classes.some(
-    cls =>
-      cls.trialId === input.trial.id &&
-      cls.paperwork.some(row => PRE_SHOW_SHEETS.has(row.reportId) && row.state === 'stale')
-  );
+}): NextTrialNote | null {
+  const ordered = orderTrials(input.trials, orderable);
+  const previous = ordered[ordered.findIndex(item => item.id === input.trial.id) - 1];
+  if (!previous || ordered.every(item => item.id !== input.trial.id)) return null;
+  if (!trialFinishedByRunning(trialStates(previous.id, input.classes))) return null;
+
+  const sheets = input.classes
+    .filter(cls => cls.trialId === input.trial.id)
+    .flatMap(cls => cls.paperwork)
+    .filter(row => PRE_SHOW_SHEETS.has(row.reportId));
+  if (sheets.length === 0 || sheets.some(row => row.state === 'unknown')) return null;
+  if (sheets.every(row => row.state === 'current')) return null;
+
+  const all = ordered.map(orderable);
+  const finished = trialLabelOf(orderable(previous), all);
+  const next = trialLabelOf(orderable(input.trial), all);
+  const newDay = previous.date !== input.trial.date ? formatWeekdayLong(input.trial.date) : '';
+  return {
+    text: `${finished} is finished. ${next}'s paperwork is ready to print.${
+      newDay ? ` ${newDay}'s armband labels are ready too.` : ''
+    }`,
+    linkLabel: `Print ${next}'s paperwork`,
+    href: getTrialPacketHref(input.showId, input.trial),
+  };
 }

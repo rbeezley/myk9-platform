@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { needsReprintAfterEarlierTrial } from './trialReprintNote';
+import { nextTrialPaperworkNote } from './trialReprintNote';
 import type {
   PaperworkState,
   SecretaryCockpitClass,
@@ -8,16 +8,17 @@ import type {
 } from './secretaryCockpitTypes';
 
 const trials: SecretaryCockpitTrial[] = [
-  { id: 't1', date: '2026-12-07', number: 'Trial 1', order: 0 },
-  { id: 't2', date: '2026-12-07', number: 'Trial 2', order: 1 },
-  { id: 't3', date: '2026-12-08', number: 'Trial 3', order: 2 },
+  { id: 't1', date: '2026-12-07', number: '1', order: 1 },
+  { id: 't2', date: '2026-12-07', number: '2', order: 2 },
+  { id: 't3', date: '2026-12-08', number: '1', order: 3 },
 ];
 
 function cls(
   id: string,
   trialId: string,
   lifecycle: SecretaryCockpitClass['lifecycle'],
-  sheet?: PaperworkState
+  sheet?: PaperworkState,
+  counts: Partial<Pick<SecretaryCockpitClass, 'entryCount' | 'runListCount'>> = {}
 ): SecretaryCockpitClass {
   return {
     id,
@@ -29,57 +30,103 @@ function cls(
     actions: [],
     entryRows: [],
     paperwork: sheet ? [{ reportId: 'check-in-sheet', label: 'Check-in sheet', state: sheet }] : [],
+    ...counts,
   };
 }
 
-const needs = (trialId: string, classes: SecretaryCockpitClass[]) =>
-  needsReprintAfterEarlierTrial({
-    trial: trials.find(item => item.id === trialId)!,
-    trials,
+const note = (
+  trialId: string,
+  classes: SecretaryCockpitClass[],
+  all: SecretaryCockpitTrial[] = trials
+) =>
+  nextTrialPaperworkNote({
+    showId: 'show-1',
+    trial: all.find(item => item.id === trialId)!,
+    trials: all,
     classes,
   });
 
-describe('needsReprintAfterEarlierTrial', () => {
-  it('shows when the earlier trial finished and this trial printed sheets have changed', () => {
-    expect(needs('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'stale')])).toBe(
-      true
-    );
+describe('nextTrialPaperworkNote (decision 6)', () => {
+  it('says the trial finished and offers the next trial paperwork, with the packet link', () => {
+    const result = note('t2', [
+      cls('a', 't1', 'complete'),
+      cls('b', 't2', 'not-started', 'unconfirmed'),
+    ]);
+    expect(result).toEqual({
+      text: "Trial 1 is finished. Trial 2's paperwork is ready to print.",
+      linkLabel: "Print Trial 2's paperwork",
+      href: '/shows/show-1?day=2026-12-07&packet=t2',
+    });
   });
 
-  it('stays quiet while the earlier trial is still running', () => {
+  it('covers a trial printed and since changed, and goes quiet once it is current', () => {
+    const done = cls('a', 't1', 'complete');
+    expect(note('t2', [done, cls('b', 't2', 'not-started', 'stale')])).not.toBeNull();
+    expect(note('t2', [done, cls('b', 't2', 'not-started', 'current')])).toBeNull();
+  });
+
+  it('names the next day armband labels when the next trial starts a new day', () => {
+    const result = note('t3', [
+      cls('b', 't2', 'complete'),
+      cls('d', 't3', 'not-started', 'unconfirmed'),
+    ]);
+    expect(result?.text).toBe(
+      "Trial 2 is finished. Trial 1's paperwork is ready to print. Tuesday's armband labels are ready too."
+    );
+    expect(result?.href).toBe('/shows/show-1?day=2026-12-08&packet=t3');
+  });
+
+  it('stays quiet while the trial before is running, or when a sheet cannot be checked', () => {
     expect(
-      needs('t2', [
+      note('t2', [
         cls('a', 't1', 'complete'),
         cls('a2', 't1', 'in-progress'),
         cls('b', 't2', 'not-started', 'stale'),
       ])
-    ).toBe(false);
+    ).toBeNull();
+    expect(
+      note('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'unknown')])
+    ).toBeNull();
+    expect(note('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started')])).toBeNull();
   });
 
-  it('stays quiet when nothing printed has changed, or nothing was printed', () => {
+  it('does not let a cancelled or confirmed-empty class hold the trial open', () => {
+    const rest = [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'stale')];
+    expect(note('t2', [...rest, cls('x', 't1', 'cancelled')])).not.toBeNull();
     expect(
-      needs('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'current')])
-    ).toBe(false);
-    expect(
-      needs('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'unconfirmed')])
-    ).toBe(false);
-  });
-
-  it('ignores cancelled classes in the earlier trial but not a trial with none to run', () => {
-    expect(
-      needs('t2', [
-        cls('a', 't1', 'complete'),
-        cls('a2', 't1', 'cancelled'),
-        cls('b', 't2', 'not-started', 'stale'),
+      note('t2', [
+        ...rest,
+        cls('y', 't1', 'not-started', undefined, { entryCount: 0, runListCount: 0 }),
       ])
-    ).toBe(true);
-    expect(needs('t2', [cls('b', 't2', 'not-started', 'stale')])).toBe(false);
+    ).not.toBeNull();
+    // An unread count is not empty.
+    expect(
+      note('t2', [...rest, cls('z', 't1', 'not-started', undefined, { entryCount: null })])
+    ).toBeNull();
   });
 
-  it('has no note for the first trial of a day or an earlier day', () => {
-    expect(needs('t1', [cls('a', 't1', 'not-started', 'stale')])).toBe(false);
-    expect(needs('t3', [cls('a', 't1', 'complete'), cls('c', 't3', 'not-started', 'stale')])).toBe(
-      false
+  it('needs a class that ran: a trial with no classes to run has not "finished"', () => {
+    expect(
+      note('t2', [cls('x', 't1', 'cancelled'), cls('b', 't2', 'not-started', 'stale')])
+    ).toBeNull();
+  });
+
+  it('has no note for the first trial, and never names a guessed number on a tie', () => {
+    expect(note('t1', [cls('a', 't1', 'not-started', 'stale')])).toBeNull();
+    const tied: SecretaryCockpitTrial[] = [
+      { id: 'u1', date: '2026-12-07', number: 'A', name: 'Morning', order: 1 },
+      { id: 'u2', date: '2026-12-07', number: 'A', name: 'Afternoon', order: 1 },
+      { id: 'u3', date: '2026-12-08', number: '1', order: 2 },
+    ];
+    const result = note(
+      'u3',
+      [
+        cls('a', 'u1', 'complete'),
+        cls('b', 'u2', 'complete'),
+        cls('c', 'u3', 'not-started', 'stale'),
+      ],
+      tied
     );
+    expect(result?.text).not.toMatch(/Trial 1 is finished/);
   });
 });

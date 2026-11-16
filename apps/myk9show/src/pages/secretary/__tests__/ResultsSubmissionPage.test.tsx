@@ -99,6 +99,7 @@ vi.mock('@/services/replication', () => ({
 }));
 
 const mockSchedule = vi.hoisted(() => ({
+  hasConfirmedSnapshot: true,
   trials: [
     { id: 't-akc', showId: 'show-1', registryId: 'AKC' },
     { id: 't-ukc', showId: 'show-1', registryId: 'UKC' },
@@ -140,6 +141,7 @@ function renderPage() {
 describe('ResultsSubmissionPage', () => {
   beforeEach(() => {
     mockHistoryData.rows = [];
+    mockSchedule.hasConfirmedSnapshot = true;
     mockUnsynced.mockReset();
     mockUnsynced.mockResolvedValue(false);
     mockScoreChanges.mockReset();
@@ -516,6 +518,17 @@ describe('ResultsSubmissionPage', () => {
       await waitFor(() => expect(mockScoreChanges).toHaveBeenCalled());
       await screen.findByTestId('send-btn');
       expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
+    });
+
+    it('does not read as current while the schedule has not loaded', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
+      mockSchedule.hasConfirmedSnapshot = false;
+
+      renderPage();
+      await screen.findByTestId('send-btn');
+      expect(mockScoreChanges).not.toHaveBeenCalled();
+      expect(mockUnsynced).not.toHaveBeenCalled();
     });
 
     it('says it could not check while a score change waits in the queue', async () => {

@@ -33,7 +33,10 @@ export function useSentFileCheckForSend(
       ),
     };
   }, [schedule.trialClasses, schedule.trials, showId]);
-  const { submissions, scoreChanges } = useResultsSentCheck(showId ?? '', classes);
+  const { submissions, scoreChanges } = useResultsSentCheck(
+    showId ?? '',
+    schedule.hasConfirmedSnapshot ? classes : null
+  );
   return useMemo(() => {
     if (!organization) return undefined;
     const left = calculateWhatIsLeft({

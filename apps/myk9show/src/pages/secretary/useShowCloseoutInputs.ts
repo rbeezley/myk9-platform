@@ -81,7 +81,10 @@ export function useShowCloseoutInputs(showId: string | undefined) {
   // The same read the Finish the show list makes, so the two cannot disagree (MYK9-2078).
   // `submissions` is `null` when not read (loading, failed or paused offline): the readiness check
   // lists that as its own concern rather than reading it as "none".
-  const { submissions, scoreChanges } = useResultsSentCheck(showId ?? '', classes);
+  const { submissions, scoreChanges } = useResultsSentCheck(
+    showId ?? '',
+    schedule.hasConfirmedSnapshot ? classes : null
+  );
   const incidentsData = incidentsQuery.data;
   const incidents = useMemo(
     () => (incidentsData ? summarizeShowIncidents(incidentsData) : null),

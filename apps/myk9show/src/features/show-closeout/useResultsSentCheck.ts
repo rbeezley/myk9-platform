@@ -26,10 +26,12 @@ type QueueState = boolean | 'error';
  * the app sent exists. `unreadable` covers a failed or offline read, and a score change still
  * waiting in this device's queue (or a queue that cannot be read): the history cannot describe
  * it, so the screens say they cannot tell instead of ticking a file that may be out of date.
+ * `classes` is `null` while the show's schedule has not loaded: with no classes to look at the file
+ * would read as current, so that is `loading`, never an all-clear.
  */
 export function useResultsSentCheck(
   showId: string,
-  classes: readonly { id: string }[]
+  classes: readonly { id: string }[] | null
 ): Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges'> {
   const queryClient = useQueryClient();
   const submissionsQuery = useResultSubmissions(showId);
@@ -45,8 +47,9 @@ export function useResultsSentCheck(
     const oldest = Math.min(...newestByOrg.values());
     return Number.isFinite(oldest) ? new Date(oldest).toISOString() : null;
   }, [submissions]);
-  const classKey = useMemo(() => classes.map(cls => cls.id).join(','), [classes]);
-  const enabled = since !== null;
+  const classKey = useMemo(() => (classes ?? []).map(cls => cls.id).join(','), [classes]);
+  const ready = classes !== null;
+  const enabled = since !== null && ready;
 
   const [queue, setQueue] = useState<{ key: string; state: QueueState } | null>(null);
   useEffect(() => {
@@ -92,13 +95,14 @@ export function useResultsSentCheck(
     retry: false,
   });
   const scoreChanges = useMemo<ScoreChangeRead | undefined>(() => {
-    if (!enabled) return undefined;
+    if (since === null) return undefined;
+    if (!ready) return { status: 'loading' };
     if (queueState === true || queueState === 'error' || audits.isError) {
       return { status: 'unreadable' };
     }
     if (audits.fetchStatus === 'paused' && !audits.data) return { status: 'unreadable' };
     if (!audits.data) return { status: 'loading' };
     return { status: 'read', latestByClass: audits.data };
-  }, [audits.data, audits.fetchStatus, audits.isError, enabled, queueState]);
+  }, [audits.data, audits.fetchStatus, audits.isError, queueState, ready, since]);
   return useMemo(() => ({ submissions, scoreChanges }), [submissions, scoreChanges]);
 }

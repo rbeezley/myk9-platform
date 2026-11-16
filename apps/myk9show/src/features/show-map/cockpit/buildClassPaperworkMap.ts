@@ -5,6 +5,7 @@ import {
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
+import { isHeldEntry } from '@/features/dogs/identity';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { buildPrintedLabelIndex, labelPrintStatus } from '@/lib/labels/armbandPrintIndex';
 
@@ -162,7 +163,7 @@ export function buildClassPaperworkMap(input: {
 /**
  * The dog-day labels of this class with no current print (MYK9-2075): never printed, or printed and
  * since changed. Judged per label by the 2073 print index, so a late entry is one label, not a
- * class. A dog still pending acceptance, deleted, or without an armband number has no label.
+ * class. A dog still pending acceptance, held, deleted, or without an armband number has no label.
  */
 function labelsToPrint(
   index: ReturnType<typeof buildPrintedLabelIndex>,
@@ -170,8 +171,13 @@ function labelsToPrint(
   entries: readonly DbEntry[],
   calendarDay: string
 ): { notPrinted: readonly string[]; changed: readonly string[] } {
+  // A held entry (awaiting a registration number) gets no label from the print
+  // (useArmbandLabelData), so counting it would leave the line unprinted forever.
   const labelled = entries.filter(
-    entry => !entry.deleted_at && !isPendingEntryStatus(entry.entry_status)
+    entry =>
+      !entry.deleted_at &&
+      !isPendingEntryStatus(entry.entry_status) &&
+      !isHeldEntry(entry as Parameters<typeof isHeldEntry>[0])
   );
   const subjects =
     buildArmbandDescriptor(scope, labelled, calendarDay)?.coverage.subjectFingerprints ?? {};

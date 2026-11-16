@@ -117,6 +117,15 @@ describe('the first-day label count, from the real paperwork map', () => {
     expect(paperwork.labelDoorClassId).toBe('c');
   });
 
+  it('leaves out a dog held for a registration number, which the label print never prints', () => {
+    const held = {
+      ...entry('e8', 'b', 'held-dog', '105'),
+      awaiting_registration_number: true,
+    } as unknown as DbEntry;
+    const { paperwork } = line([...entries, held], []);
+    expect(paperwork.labelsNotPrinted).toBe(3);
+  });
+
   it('is unknown, with no guess, when the print history cannot be read', () => {
     const { paperwork, text } = line(entries, [], true);
     expect(paperwork.status).toBe('unknown');

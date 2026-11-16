@@ -54,13 +54,13 @@ Not included, and why:
 
 One reusable component, `TimelineScene`, driven by data in `lifecycleStories.ts`.
 
-- **Devices:** a desktop frame (5:3) and a phone frame (9:16). For the club audience the desktop leads; for exhibitors the phone leads. The other device dims while it is not the subject.
-- **Frames:** each scene is a short list of frames. A frame names, per device, which capture to show, the region to zoom to and an optional ring, all in the capture's own pixels. A numbered line owns one or more frames.
+- **Devices:** a desktop frame (5:3) and a phone frame (9:16). For the club audience the desktop leads; for exhibitors the phone leads. The other device dims while it is not the subject. A scene may have one device: the ring scene shows the judge's alone, larger (owner, 2026-11-16).
+- **Frames:** each scene is a short list of frames, and each numbered line is a short heading plus one plain sentence (owner, 2026-11-16). A frame names, per device, which capture to show, the region to zoom to and an optional ring, all in the capture's own pixels. A numbered line owns one or more frames.
 - **Camera:** every capture of one device shares the same camera values, so cross-fades between two states of the same screen line up exactly.
 - **Regions are measured, not typed by eye.** The capture script writes each highlighted element's bounding box to JSON beside the images.
 - **Controls:** Pause / Play, and each numbered line is a button that jumps to its first frame.
 - **Progress:** each line's number sits in a circle. The current line's circle draws itself as its part plays, and a finished line fills in with a tick (owner's choice, 2026-11-12, over a progress bar above the line).
-- **Two modes, built together.** _Autoplay_ is the landing page's: the scene plays itself and loops. _Step-through_ is for the guides and the demo deck (see "After this plan"): nothing moves until the reader presses Next or Back, and the current step stays on screen while they do it. Same frames, same camera, same data shape.
+- **Two modes, built together.** _Autoplay_ is the landing page's: the scene plays itself and loops. _Step-through_ is for the guides and the demo deck (see "After this plan"): nothing moves until the reader presses Next or Back, and the current step stays on screen while they do it. One press of Next moves one numbered line: its frames play through, then it waits. Back replays the previous line (owner, 2026-11-16). Same frames, same camera, same data shape.
 - **No app dependencies.** The component takes data and images and nothing else: no auth, no replication, no router. The guides site (`apps/docs`) is a separate project and must be able to use it.
 - **Plays only while in view**, and stops when the tab is hidden.
 - **Reduced motion:** the finished frame is shown and nothing moves. Pressing a line shows that line's last frame.
@@ -84,18 +84,18 @@ Six full scenes would make a very long page. Three steps sell the product and ge
 
 The exhibitor's phone and the secretary's screen share one scene. The words live in `SCENE_LINES.entries` (`lifecycleStories.ts`); each line's code evidence is in the "Timeline scenes" section of [`qa/landing-lifecycle-evidence.md`](qa/landing-lifecycle-evidence.md).
 
-1. The exhibitor presses "Enter this show", picks a dog, then picks classes. A class that is full says so before they can enter it.
-2. They press "Pay" with the amount on it and finish at the secure card checkout. Entries paid by check or cash end on a Receipt instead.
-3. My Entries shows the dog as "Pending review", with "The show secretary is reviewing this entry."
-4. On the secretary's Entry Forms list the form reads "Needs review", with its payment state beside it and "Review" as the next action.
-5. Review opens the form. Under "To finish this form" she presses "Accept", and the exhibitor's chip changes to "Accepted".
+1. **An exhibitor enters online.** They pick a dog and their classes. A full class says so before they can enter it.
+2. **They pay as they enter.** By card at the secure checkout, or by check or cash if you offer it.
+3. **They can see where it stands.** Their entry reads Pending review until you decide.
+4. **The form arrives in your list.** It is marked Needs review, with the payment shown beside it.
+5. **You open it and accept.** One button. Their entry changes to Accepted and they get an email.
 
 Changed from the 2026-11-12 wording:
 
 - The wizard is no longer "four steps" for every payer. Card goes straight to Stripe from the Payment step ("Pay $X.XX", MYK9-1964), so only check and cash reach the Receipt step. The exhibitor's wizard still has no Handlers step (the secretary's does); a handler question appears inline only when one owner enters two dogs in one class (MYK9-2021).
 - "Full: join waitlist" cannot be quoted: `BANNED_COPY` forbids the word. Line 1 says a full class "says so".
 - "The panel reads 'All set.'" is true only when nothing else is open. A form with an unpaid fee or a dog with no armband still lists those items. Stage a form with both done.
-- **"Accepting sends no email" is no longer true.** On a published show that has not finished, Accept emails the exhibitor by itself after a few quiet minutes; on other shows the secretary sees a preview first. No line speaks to email.
+- **"Accepting sends no email" is no longer true.** On a published show that has not finished, Accept emails the exhibitor by itself after a few quiet minutes; on other shows the secretary sees a preview first. Line 5 now says so in words (owner, 2026-11-16): no email capture and no sixth step. Stage the scene on a published show that has not finished.
 
 Facts the copy must respect:
 
@@ -111,13 +111,13 @@ Do not capture the desk scene until the page fixes are finished. Its lines are w
 
 ### The "Show day, at the ring" scene (re-verified in code 2026-11-15)
 
-The judge's tablet leads. Words in `SCENE_LINES['showday-ring']`.
+One device: the judge's, shown larger, with no dimmed desk beside it (owner, 2026-11-16). The desk scene that follows shows the scores arriving. Words in `SCENE_LINES['showday-ring']`.
 
-1. Ringside lists the judge's classes under "Your ring", each with how many dogs are scored.
-2. The signal drops. The header reads "Offline · scores saved on this device", and the run order stays.
-3. The judge presses "Start", then "Stop", then picks Qualified, NQ, Absent, Excused or DQ. A Qualified run shows Faults.
-4. "Save" opens "Score Confirmation", the read-back of the result and time. "Confirm & Submit" returns to the entry list with a "Saved:" line, marked "on this device, not sent yet".
-5. When the signal returns the score sends itself and "Scores sent" appears.
+1. **The judge opens the ring's classes.** Each class shows how many dogs are scored.
+2. **The signal drops.** The header says scores are saved on this device, and the run order stays.
+3. **The judge times and scores the run.** Start, Stop, then Qualified, NQ, Absent, Excused or DQ.
+4. **The score is read back before it saves.** The judge confirms, and the list of dogs shows it saved on this device.
+5. **The signal returns.** The score sends itself, and the tablet says Scores sent.
 
 Changed from the 2026-11-12 wording (the judge's flow changed on 2026-11-14, MYK9-2012, MYK9-1991, MYK9-2011):
 
@@ -139,11 +139,11 @@ Facts the copy must respect:
 
 The secretary's screen leads. The second device is the judge's tablet for lines 1 to 3. For line 4 there is no second device: the paper score sheet is the other half of the picture, so that frame needs a different treatment (a printed Score Sheet beside the screen). Words in `SCENE_LINES['showday-desk']`.
 
-1. Show Desk opens on "Today's schedule". Each class row says where it stands, like "Not started · 3 of 5 not checked in".
-2. From Actions, the "Check-in desk" finds an exhibitor by name, dog or armband, with a "Check in" button per dog.
-3. Once a class is running its row reads "Running · 2 of 6 scored · Willow in ring" as scores arrive.
-4. No tablets? "Open paper scoring" lists the dogs in run order. Pick the result, type the Search Time, press "Save & Next", until the heading reads "6 of 6 scored".
-5. Setting Status to "Complete" asks first if paper scores are missing, then "Continue on Results" opens the next step.
+1. **Your day is on one page.** Each class says where it stands, like 3 of 5 not checked in.
+2. **Check in at the desk.** Find an exhibitor by name, dog or armband and check in each dog.
+3. **Watch the classes run.** A running class shows how many dogs are scored and who is in the ring.
+4. **No tablets? Type in the paper scores.** The dogs are listed in run order. Pick the result, type the time, save and move on.
+5. **Mark the class complete.** It asks first if paper scores are missing, then takes you to Results.
 
 Changed from the 2026-11-12 wording:
 
@@ -160,20 +160,18 @@ Facts the copy must respect:
 
 ### The "Results" scene (verified in code 2026-11-15)
 
-The secretary's screen leads; the exhibitor's phone is the second device for line 5. Words in `SCENE_LINES.results`.
+The secretary's screen leads; the exhibitor's phone is the second device for line 4. Four lines: releasing several classes at once is left out of the scene (owner, 2026-11-16) and can go in the guide and the demo deck. Words in `SCENE_LINES.results`.
 
-1. A finished class appears on the Results tab with its status and a next action, "Check scores" until the scores are checked.
-2. Opening it shows the placement table, worked out from the scores, and "Not released".
-3. She presses "Release results". The class reads "Released" and the scores are visible to exhibitors.
-4. Finishing many classes: tick them and press "Release 3 classes", then confirm that the scores match the judges' paper sheets.
-5. On the exhibitor's phone, My Entries shows "New result" on the dog's class. Opening it shows the result card.
+1. **A finished class is waiting for you.** The Results tab lists it with what to do next: check the scores.
+2. **The placements are worked out.** Open the class to see them, ranked from the scores.
+3. **You release the results.** One press. The class reads Released and exhibitors can see their scores.
+4. **The exhibitor sees it on their phone.** My Entries shows New result on the dog's class, and it opens the result card.
 
 Facts the copy must respect:
 
 - Release works online only, and the check it saves needs the class marked Complete first.
 - "New result" appears only for a Qualified result in a released class. Stage the dog as Qualified.
 - What an exhibitor sees still follows the show's visibility settings. The club story's existing "the moment you release it" is not claimed by any scene line; revisit it in Phase 2.
-- Bulk release (line 4) merged on 2026-11-15 (MYK9-2072), the same day as this check. Re-read it before capturing.
 
 ## Capturing the screens
 
@@ -192,7 +190,7 @@ Each phase ends with its own checks passing. One pull request per phase.
 - The owner's four decisions are recorded under "Decisions".
 - The Entries open, Show day (ring and desk) and Results flows are re-verified against `main` @ `5aa15d760`, and each scene's numbered lines are written above and in `SCENE_LINES` (`lifecycleStories.ts`). Nothing renders them yet; the live timeline is unchanged.
 - Every line has a KEEP row in the evidence doc.
-- **Tests:** `lifecycleStories.test.ts` covers the new lines (five per scene, none repeated) and runs them through `BANNED_COPY`.
+- **Tests:** `lifecycleStories.test.ts` covers the new lines (a heading and a sentence each, five per scene and four for Results, none repeated) and runs them through `BANNED_COPY`.
 - The frame shape (capture, region, ring per line) is not added yet: it needs the captures, so it arrives with Phase 1.
 
 ### Phase 1: the scene component and the Entries open scene
@@ -262,19 +260,37 @@ Limits to know:
 - The ticket queue is exhibitor-facing. Questions from secretaries and judges arrive by email or in person and are not in it; those are counted by hand until there is a place for them.
 - Until the component and capture script exist, a scene takes about an hour to stage and measure. Answer in words or one marked-up screenshot meanwhile.
 
+## Decisions (owner, 2026-11-16)
+
+Walked one at a time and recorded on MYK9-1894.
+
+1. **Fee wording:** 7%, as charged. See decision 1 of 2026-11-12 below for the confirmed line.
+2. **Line format:** a short heading plus one plain sentence, written to the secretary ("your list", "you open it and accept"). The capture shows the app's labels, so the words do not quote them.
+3. **Acceptance email:** said in words on the last Entries line.
+4. **Results scene:** four lines; releasing several classes at once is left out.
+5. **Ring scene:** one device, the judge's, shown larger.
+6. **"More than 200 clubs":** kept, recounted before the page ships, "About 200" if the recount is under.
+7. **Step-through:** one press of Next moves one numbered line.
+
+Still open: the lines are written to the club, the default audience. When Phase 1 puts the Entries scene in both stories, decide whether the exhibitor audience reads the same words or its own ("you" is the secretary in every line today).
+
 ## Decisions (owner, 2026-11-12)
 
 All four were open when this plan was written. They are settled.
 
 1. **Pricing: state it plainly, numbers included.** Pricing was already decided and built: the cart charges the exhibitor "Service fee (7% + $0.30, $2.50 minimum)" on top of the entry fee when paying online, and the club pays nothing ([`goals/business-model-assessment.md`](goals/business-model-assessment.md) § 5). The platform pays card processing out of that fee (about 2.9% + 30¢ of the whole charge, up to 3.5% on some cards), which leaves roughly half ([`operations/unit-economics.md`](operations/unit-economics.md)). The owner does not want the page to read as if myK9Show keeps 7%. Wording to start from:
 
-   > Free for clubs, and the club keeps the full entry fee. Exhibitors pay a service fee when they enter online: 7% + $0.30 ($2.50 minimum). About half of it covers card processing; the rest keeps myK9Show running.
+   > ~~Free for clubs, and the club keeps the full entry fee. Exhibitors pay a service fee when they enter online: 7% + $0.30 ($2.50 minimum). About half of it covers card processing; the rest keeps myK9Show running.~~
 
-   Say "about half", never a fixed "3%": the card rate varies and applies to the total, not the entry fee alone.
+   **Superseded on 2026-11-16.** The fee charged today is 7% with no flat part and no minimum (`platform_settings`: 7.00% / 0¢ / 0¢), and "about half covers card processing" was not accurate. The owner chose to state the fee as it is charged. Wording, confirmed by the owner:
+
+   > Free for clubs, and the club keeps the full entry fee. Exhibitors pay a 7% service fee when they enter online. It covers card processing and keeps myK9Show running.
+
+   If the fee settings change, this line changes with them; the pricing work adds a check that the stated figure matches `platform_settings`.
 
 2. **Trust bar: four claims, plus one number.** The claims: scent-sport software since 2013; AKC, UKC and ASCA scent work; scores at the ring with no signal; from the team behind mySWT, myNWT and myK9Q. The number: **"More than 200 clubs run their trials on mySWT and myNWT."** No testimonials, club names or logos.
 
-   Where the number comes from: the owner's WooCommerce licence-key export of 2026-10-25 (413 active keys), counted on 2026-11-12. Leaving out free demos and keys expired since the export, 280 paid mySWT or myNWT subscriptions are held by 211 customers (mySWT 247 keys, 185 customers; myNWT 33 keys, 32 customers). The customer on a key is a person, not a club, and 27 of them hold two or more keys of the same product, which the file cannot split into second clubs, early renewals and second computers. So the customer count is the floor and the claim is "more than 200", the owner's choice. The export holds names and emails: it stays out of the repo, and the count is redone from a fresh export before the page ships.
+   Where the number comes from: the owner's WooCommerce licence-key export of 2026-10-25 (413 active keys), counted on 2026-11-12. Leaving out free demos and keys expired since the export, 280 paid mySWT or myNWT subscriptions are held by 211 customers (mySWT 247 keys, 185 customers; myNWT 33 keys, 32 customers). The customer on a key is a person, not a club, and 27 of them hold two or more keys of the same product, which the file cannot split into second clubs, early renewals and second computers. So the customer count is the floor and the claim is "more than 200", the owner's choice. The export holds names and emails: it stays out of the repo, and the count is redone from a fresh export before the page ships. If the recount is under 200 the line becomes "About 200 clubs…" (owner, 2026-11-16).
 
 3. **FAQ: all six questions.**
    - Ready to answer: Does it work with no signal? (Scoring at the ring does and sends itself later; entries, payments and sign-in need a connection, and the answer says so.) Which registries and sports? What does it cost?

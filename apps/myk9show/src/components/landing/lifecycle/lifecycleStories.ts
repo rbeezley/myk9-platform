@@ -118,78 +118,95 @@ const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
 ];
 
 // Scene lines for the animated timeline (docs/plan-landing-animated-timeline.md, MYK9-1894).
-// Each line has a KEEP row in docs/qa/landing-lifecycle-evidence.md. The app's own labels are
-// quoted exactly, so a label in double quotes must stay in step with the app.
+// A line is a short heading plus one plain sentence, written to the club: "you" is the show
+// secretary (owner, 2026-11-16). Every claim has a KEEP row in
+// docs/qa/landing-lifecycle-evidence.md. The words describe the screen; the capture shows it.
 export type SceneId = 'entries' | 'showday-ring' | 'showday-desk' | 'results';
-export type SceneLine = { text: string };
+export type SceneLine = { head: string; text: string };
 
 export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
   entries: [
     {
-      text: 'The exhibitor presses "Enter this show", picks a dog, then picks classes. A class that is full says so before they can enter it.',
+      head: 'An exhibitor enters online',
+      text: 'They pick a dog and their classes. A full class says so before they can enter it.',
     },
     {
-      text: 'They press "Pay" with the amount on it and finish at the secure card checkout. Entries paid by check or cash end on a Receipt instead.',
+      head: 'They pay as they enter',
+      text: 'By card at the secure checkout, or by check or cash if you offer it.',
     },
     {
-      text: 'My Entries shows the dog as "Pending review", with "The show secretary is reviewing this entry."',
+      head: 'They can see where it stands',
+      text: 'Their entry reads Pending review until you decide.',
     },
     {
-      text: 'On the secretary’s Entry Forms list the form reads "Needs review", with its payment state beside it and "Review" as the next action.',
+      head: 'The form arrives in your list',
+      text: 'It is marked Needs review, with the payment shown beside it.',
     },
     {
-      text: 'Review opens the form. Under "To finish this form" she presses "Accept", and the exhibitor’s chip changes to "Accepted".',
+      head: 'You open it and accept',
+      text: 'One button. Their entry changes to Accepted and they get an email.',
     },
   ],
   'showday-ring': [
     {
-      text: 'Ringside lists the judge’s classes under "Your ring", each with how many dogs are scored.',
+      head: 'The judge opens the ring’s classes',
+      text: 'Each class shows how many dogs are scored.',
     },
     {
-      text: 'The signal drops. The header reads "Offline · scores saved on this device", and the run order stays.',
+      head: 'The signal drops',
+      text: 'The header says scores are saved on this device, and the run order stays.',
     },
     {
-      text: 'The judge presses "Start", then "Stop", then picks Qualified, NQ, Absent, Excused or DQ. A Qualified run shows Faults.',
+      head: 'The judge times and scores the run',
+      text: 'Start, Stop, then Qualified, NQ, Absent, Excused or DQ.',
     },
     {
-      text: '"Save" opens "Score Confirmation", the read-back of the result and time. "Confirm & Submit" returns to the entry list with a "Saved:" line, marked "on this device, not sent yet".',
+      head: 'The score is read back before it saves',
+      text: 'The judge confirms, and the list of dogs shows it saved on this device.',
     },
     {
-      text: 'When the signal returns the score sends itself and "Scores sent" appears.',
+      head: 'The signal returns',
+      text: 'The score sends itself, and the tablet says Scores sent.',
     },
   ],
   'showday-desk': [
     {
-      text: 'Show Desk opens on "Today’s schedule". Each class row says where it stands, like "Not started · 3 of 5 not checked in".',
+      head: 'Your day is on one page',
+      text: 'Each class says where it stands, like 3 of 5 not checked in.',
     },
     {
-      text: 'From Actions, the "Check-in desk" finds an exhibitor by name, dog or armband, with a "Check in" button per dog.',
+      head: 'Check in at the desk',
+      text: 'Find an exhibitor by name, dog or armband and check in each dog.',
     },
     {
-      text: 'Once a class is running its row reads "Running · 2 of 6 scored · Willow in ring" as scores arrive.',
+      head: 'Watch the classes run',
+      text: 'A running class shows how many dogs are scored and who is in the ring.',
     },
     {
-      text: 'No tablets? "Open paper scoring" lists the dogs in run order. Pick the result, type the Search Time, press "Save & Next", until the heading reads "6 of 6 scored".',
+      head: 'No tablets? Type in the paper scores',
+      text: 'The dogs are listed in run order. Pick the result, type the time, save and move on.',
     },
     {
-      text: 'Setting Status to "Complete" asks first if paper scores are missing, then "Continue on Results" opens the next step.',
+      head: 'Mark the class complete',
+      text: 'It asks first if paper scores are missing, then takes you to Results.',
     },
   ],
   results: [
     {
-      text: 'A finished class appears on the Results tab with its status and a next action, "Check scores" until the scores are checked.',
+      head: 'A finished class is waiting for you',
+      text: 'The Results tab lists it with what to do next: check the scores.',
     },
     {
-      text: 'Opening it shows the placement table, worked out from the scores, and "Not released".',
+      head: 'The placements are worked out',
+      text: 'Open the class to see them, ranked from the scores.',
     },
     {
-      text: 'She presses "Release results". The class reads "Released" and the scores are visible to exhibitors.',
+      head: 'You release the results',
+      text: 'One press. The class reads Released and exhibitors can see their scores.',
     },
     {
-      text: 'Finishing many classes: tick them and press "Release 3 classes", then confirm that the scores match the judges’ paper sheets.',
-    },
-    {
-      text: 'On the exhibitor’s phone, My Entries shows "New result" on the dog’s class. Opening it shows the result card.',
+      head: 'The exhibitor sees it on their phone',
+      text: 'My Entries shows New result on the dog’s class, and it opens the result card.',
     },
   ],
 };

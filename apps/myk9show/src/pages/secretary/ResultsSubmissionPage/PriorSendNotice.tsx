@@ -16,20 +16,26 @@ import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentChec
  * in another registry's classes never flags this one, and a queued offline score reads as
  * "unknown". After a corrected send lands the record moves and the answer clears on its own.
  *
- * From the moment a send starts until the send records refetch after it, the old answer would
+ * From the moment each send starts until the send records refetch after it, the old answer would
  * describe the file before it: no answer until then, then the live answer again (a later change
- * shows). The mark is taken at the start, so a refetch that lands before the send settles counts.
+ * shows). The mark is re-taken at the start of every send, so a second send on the same page waits
+ * too, and a send that fails clears it.
  */
 export function useSentFileCheckForSend(
   showId: string | undefined,
   formatter: { organization: string } | undefined,
-  sendStarted: boolean
+  isSending: boolean,
+  sendSucceeded: boolean
 ): SentFileCheck | undefined {
   const organization = formatter?.organization;
   const records = useResultSubmissions(showId ?? '');
   const [sentMark, setSentMark] = useState<number | null>(null);
-  if (sendStarted && sentMark === null) setSentMark(records.dataUpdatedAt);
-  if (!sendStarted && sentMark !== null) setSentMark(null);
+  const [wasSending, setWasSending] = useState(false);
+  if (isSending !== wasSending) {
+    setWasSending(isSending);
+    if (isSending) setSentMark(records.dataUpdatedAt);
+  }
+  if (!isSending && !sendSucceeded && sentMark !== null) setSentMark(null);
   const waitingForRecords = sentMark !== null && records.dataUpdatedAt <= sentMark;
   const schedule = useShowDeskScheduleRead();
   const { trials, classes } = useMemo(() => {

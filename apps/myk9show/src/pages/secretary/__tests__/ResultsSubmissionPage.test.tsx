@@ -570,6 +570,16 @@ describe('ResultsSubmissionPage', () => {
           SENT_FILE_TEXT.changed
         )
       );
+
+      // A second send from the same page hides the stale answer again until its records land.
+      let finish: (value: { data: unknown; error: null }) => void = () => {};
+      mockInvoke.mockReturnValue(new Promise(done => (finish = done)));
+      fireEvent.click(await screen.findByTestId('send-btn'));
+      fireEvent.click(await screen.findByTestId('send-confirm-btn'));
+      await waitFor(() => expect(screen.queryByTestId('scores-changed-notice')).toBeNull());
+      finish({ data: { success: true }, error: null });
+      await screen.findByText(/sent successfully/i);
+      expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
     });
 
     it('does not flag the AKC send for a change in UKC classes only', async () => {

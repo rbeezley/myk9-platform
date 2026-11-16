@@ -121,7 +121,7 @@ export default function ResultsSubmissionPage() {
   const activeFormatter =
     activeSubmissionOption?.mode === 'electronic' ? activeSubmissionOption.formatter : undefined;
   const selectedOrgLabel = activeSubmissionOption?.label;
-  const scoresCheck = useSentFileCheckForSend(showId, activeFormatter, isSending || sendSuccess);
+  const scoresCheck = useSentFileCheckForSend(showId, activeFormatter, isSending, sendSuccess);
 
   const isAKCScentWork =
     activeSubmissionOption?.organization === 'AKC' &&

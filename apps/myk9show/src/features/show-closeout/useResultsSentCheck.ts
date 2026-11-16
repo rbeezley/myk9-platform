@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { classHasUnsyncedScores } from '@/features/results-tab/useClassUnsyncedScores';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -7,61 +7,31 @@ import { getFileScoreChangesSince } from '@/services/database/entries/scoreAudit
 import { replicatedEntriesTable } from '@/services/replication';
 import type { ScoreChangeRead, WhatIsLeftInput } from './whatIsLeft';
 
-export interface SentCheckClass {
-  id: string;
-  /** Dogs scored, `null` when not read. Part of the key, so a new score re-reads the history. */
-  scoredCount?: number | null | undefined;
-}
+/** A burst of replica notices (one per entry written) is one re-read. */
+export const SENT_CHECK_DEBOUNCE_MS = 2000;
+/** While an app-sent file exists, re-read this often even with no notice (a judge's device scored). */
+export const SENT_CHECK_REFETCH_MS = 60_000;
 
-/** Whether any of these classes holds a score change the server has not seen; `null` until read. */
-function useAnyUnsyncedScores(classIds: readonly string[], enabled: boolean): boolean | null {
-  const [state, setState] = useState<{ key: string; unsynced: boolean } | null>(null);
-  const [notices, setNotices] = useState(0);
-  const key = classIds.join(',');
-  useEffect(
-    () =>
-      enabled
-        ? replicatedEntriesTable.subscribe(() => setNotices(count => count + 1), {
-            emitCurrent: false,
-          })
-        : undefined,
-    [enabled]
-  );
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const flags = await Promise.all(classIds.map(id => classHasUnsyncedScores(id)));
-        if (!cancelled) setState({ key, unsynced: flags.some(Boolean) });
-      } catch {
-        if (!cancelled) setState(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // `classIds` is carried by `key`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, key, notices]);
-  return enabled && state?.key === key ? state.unsynced : null;
-}
+/** `true` = a score change waits in this device's queue; `'error'` = the queue could not be read. */
+type QueueState = boolean | 'error';
 
 /**
- * What the Finish the show list and the close step need to say whether the results file still
- * matches the scores (MYK9-2078): the send records, and the newest change to a score the file
- * carries, from the score history. One hook and one query key, so both screens share one read.
+ * What the Finish the show list, the close step and the send step need to say whether the results
+ * file still matches the scores (MYK9-2078): the send records, and the newest change to a score
+ * the file carries, from the score history.
  *
- * The history is the online-only admin audit read, taken only once a file the app sent exists, and
- * only for changes after the oldest such send. It re-reads when a class's scored count changes or
- * a score change finishes syncing. `unreadable` covers a failed or offline read AND a score
- * change still waiting in this device's queue: the history cannot describe it, so the screens say
- * they cannot tell instead of ticking a file that may be out of date.
+ * Fresh by events, not by key: the query key is only the show and the oldest send time, and the
+ * history is re-read whenever the replicated entries table reports a change (debounced) and every
+ * minute while a sent file exists. It is the online-only admin audit read, taken only once a file
+ * the app sent exists. `unreadable` covers a failed or offline read, and a score change still
+ * waiting in this device's queue (or a queue that cannot be read): the history cannot describe
+ * it, so the screens say they cannot tell instead of ticking a file that may be out of date.
  */
 export function useResultsSentCheck(
   showId: string,
-  classes: readonly SentCheckClass[]
+  classes: readonly { id: string }[]
 ): Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges'> {
+  const queryClient = useQueryClient();
   const submissionsQuery = useResultSubmissions(showId);
   const submissions = submissionsQuery.data ?? null;
   const since = useMemo(() => {
@@ -75,26 +45,60 @@ export function useResultsSentCheck(
     const oldest = Math.min(...newestByOrg.values());
     return Number.isFinite(oldest) ? new Date(oldest).toISOString() : null;
   }, [submissions]);
-  const classIds = useMemo(() => classes.map(cls => cls.id), [classes]);
-  const signature = useMemo(
-    () => classes.map(cls => `${cls.id}:${cls.scoredCount ?? '?'}`).join(','),
-    [classes]
-  );
-  const unsynced = useAnyUnsyncedScores(classIds, since !== null);
+  const classKey = useMemo(() => classes.map(cls => cls.id).join(','), [classes]);
+  const enabled = since !== null;
+
+  const [queue, setQueue] = useState<{ key: string; state: QueueState } | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const ids = classKey ? classKey.split(',') : [];
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const recheck = async (fromNotice: boolean) => {
+      let state: QueueState;
+      try {
+        state = (await Promise.all(ids.map(id => classHasUnsyncedScores(id)))).some(Boolean);
+      } catch {
+        state = 'error';
+      }
+      if (cancelled) return;
+      setQueue({ key: classKey, state });
+      if (fromNotice && state === false) {
+        void queryClient.invalidateQueries({ queryKey: ['results-sent-check', showId] });
+      }
+    };
+    void recheck(false);
+    const unsubscribe = replicatedEntriesTable.subscribe(
+      () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => void recheck(true), SENT_CHECK_DEBOUNCE_MS);
+      },
+      { emitCurrent: false }
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [classKey, enabled, queryClient, showId]);
+  const queueState = enabled && queue?.key === classKey ? queue.state : null;
+
   const audits = useQuery({
-    queryKey: ['results-sent-check', showId, since, signature, unsynced],
+    queryKey: ['results-sent-check', showId, since],
     queryFn: () => getFileScoreChangesSince(showId, since ?? ''),
-    enabled: since !== null && unsynced === false,
-    staleTime: 30_000,
+    enabled: enabled && queueState === false,
+    staleTime: 0,
+    refetchInterval: SENT_CHECK_REFETCH_MS,
     retry: false,
-    placeholderData: keepPreviousData,
   });
   const scoreChanges = useMemo<ScoreChangeRead | undefined>(() => {
-    if (since === null) return undefined;
-    if (unsynced === true || audits.isError) return { status: 'unreadable' };
+    if (!enabled) return undefined;
+    if (queueState === true || queueState === 'error' || audits.isError) {
+      return { status: 'unreadable' };
+    }
     if (audits.fetchStatus === 'paused' && !audits.data) return { status: 'unreadable' };
     if (!audits.data) return { status: 'loading' };
     return { status: 'read', latestByClass: audits.data };
-  }, [audits.data, audits.fetchStatus, audits.isError, since, unsynced]);
+  }, [audits.data, audits.fetchStatus, audits.isError, enabled, queueState]);
   return useMemo(() => ({ submissions, scoreChanges }), [submissions, scoreChanges]);
 }

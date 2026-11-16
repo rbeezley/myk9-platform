@@ -65,8 +65,8 @@ function itemFor(
           key: line.key,
           state: 'open',
           opensClassList: false,
-          href: `${getResultsStepHref(showId, 'submit')}&reason=changed`,
-          label: 'Results changed since they were sent',
+          href: getResultsStepHref(showId, 'submit'),
+          label: 'Scores changed since the results file was sent',
         };
       }
       // Not yet known is not a tick: while the history loads the line says so.

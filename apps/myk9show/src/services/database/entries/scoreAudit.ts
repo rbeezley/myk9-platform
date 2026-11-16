@@ -181,6 +181,7 @@ export async function getFileScoreChangesSince(
         .eq('show_id', showId)
         .gt('changed_at', sinceIso)
         .order('changed_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(from, from + AUDIT_PAGE - 1);
       if (error) throw createDatabaseError(error, 'entry_score_audit', 'get_file_score_changes');
       const page = (data ?? []) as Pick<AuditRow, 'class_id' | 'changed_at' | 'changes'>[];

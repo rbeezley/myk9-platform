@@ -1,16 +1,34 @@
 import { formatEntryDateTime } from '@/lib/format/dates';
 import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
+import { scoresChangedSinceSend } from '@/features/show-closeout/submissionTimes';
+import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 
-/** Why the secretary is sending again: the Finish the show line says scores changed (MYK9-2078). */
-export const SCORES_CHANGED_REASON = 'changed';
+/**
+ * Whether a score the file carries changed after the last send (or recorded filing) to this
+ * registry (MYK9-2078). The same shared check the Finish the show list and the close step read, so
+ * after a corrected send lands the record moves and the notice goes away on its own.
+ */
+export function useScoresChangedSinceSend(
+  showId: string | undefined,
+  organization: string | undefined
+): boolean {
+  const { submissions, scoreChanges } = useResultsSentCheck(showId ?? '', []);
+  return scoresChangedSinceSend(submissions, scoreChanges, organization);
+}
 
-export const SCORES_CHANGED_NOTICE =
-  'Scores changed since this was sent. Send the corrected results.';
+export function ScoresChangedNotice({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <p className="text-sm font-medium text-warning" data-testid="scores-changed-notice">
+      Scores changed since this was sent. Send the corrected results.
+    </p>
+  );
+}
 
 /**
  * The line in the send confirmation about an earlier record. A plain resend warns that it files a
- * second time; one she reached from "Results changed since they were sent" is deliberate, so it
- * says the earlier record stays and this one is added.
+ * second time; one made because scores changed is deliberate, so it says the earlier record stays
+ * and this one is added.
  */
 export function PriorSendNotice({
   prior,

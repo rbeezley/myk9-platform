@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildFinishList } from '../finishList';
+import { scoresChangedSinceSend } from '../submissionTimes';
 import { calculateWhatIsLeft, type ScoreChangeRead } from '../whatIsLeft';
 
 const SENT_AT = '2026-11-14T19:40:00Z';
@@ -40,8 +41,8 @@ describe('the results file line after a score changes', () => {
     const item = listFor(read({ c2: AFTER }));
     expect(item).toMatchObject({
       state: 'open',
-      label: 'Results changed since they were sent',
-      href: '/shows/show-1/results?step=submit&reason=changed',
+      label: 'Scores changed since the results file was sent',
+      href: '/shows/show-1/results?step=submit',
     });
   });
 
@@ -86,9 +87,7 @@ describe('the results file line after a score changes', () => {
   });
 
   it('links the changed line to the send with the reason', () => {
-    expect(listFor(read({ c2: AFTER }))?.href).toBe(
-      '/shows/show-1/results?step=submit&reason=changed'
-    );
+    expect(listFor(read({ c2: AFTER }))?.href).toBe('/shows/show-1/results?step=submit');
   });
 
   describe('the close step reads the same answer', () => {
@@ -106,8 +105,14 @@ describe('the results file line after a score changes', () => {
       );
     });
 
-    it('adds nothing when the file is current, loading or not looked at', () => {
-      for (const state of [read({ c1: BEFORE }), { status: 'loading' } as const, undefined]) {
+    it('quietly says it is still checking while the history loads', () => {
+      expect(concerns({ status: 'loading' })).toContain(
+        'Still checking whether scores changed after the results file was sent.'
+      );
+    });
+
+    it('adds nothing when the file is current or not looked at', () => {
+      for (const state of [read({ c1: BEFORE }), undefined]) {
         expect(concerns(state).join(' ')).not.toMatch(/results file was sent/);
       }
     });
@@ -118,5 +123,22 @@ describe('the results file line after a score changes', () => {
       { status: 'submitted', organization: 'AKC', submitted_at: SENT_AT },
     ]);
     expect(item).toMatchObject({ state: 'done', label: 'Results file sent to AKC' });
+  });
+});
+
+describe('the send step asks the same question for one registry', () => {
+  const sent = [{ status: 'sent', organization: 'AKC', submitted_at: SENT_AT }];
+
+  it('is true after a change, false before it, and false once a newer send lands', () => {
+    expect(scoresChangedSinceSend(sent, read({ c1: AFTER }), 'AKC')).toBe(true);
+    expect(scoresChangedSinceSend(sent, read({ c1: BEFORE }), 'AKC')).toBe(false);
+    const resent = [...sent, { ...sent[0]!, submitted_at: '2026-11-14T21:00:00Z' }];
+    expect(scoresChangedSinceSend(resent, read({ c1: AFTER }), 'AKC')).toBe(false);
+  });
+
+  it('is false for a registry with no send, while loading, or when unreadable', () => {
+    expect(scoresChangedSinceSend(sent, read({ c1: AFTER }), 'UKC')).toBe(false);
+    expect(scoresChangedSinceSend(sent, { status: 'loading' }, 'AKC')).toBe(false);
+    expect(scoresChangedSinceSend(sent, { status: 'unreadable' }, 'AKC')).toBe(false);
   });
 });

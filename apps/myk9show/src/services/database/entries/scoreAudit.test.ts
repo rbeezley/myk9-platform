@@ -88,20 +88,23 @@ describe('getEntryScoreAudit', () => {
 describe('getFileScoreChangesSince', () => {
   const page = (rows: Array<{ class_id: string; changed_at: string; changes: unknown }>) => {
     const range = vi.fn(() => Promise.resolve({ data: rows, error: null }));
-    const orderFn = vi.fn(() => ({ range }));
+    const orderFn = vi.fn(() => ({ order: orderFn2 }));
+    const orderFn2 = vi.fn(() => ({ range }));
     const gt = vi.fn(() => ({ order: orderFn }));
     eq.mockReturnValue({ gt });
     select.mockImplementation(() => ({ eq }));
-    return { gt, orderFn };
+    return { gt, orderFn, orderFn2 };
   };
 
   it('reads only class, time and changes for the show, after the send, newest first', async () => {
-    const { gt, orderFn } = page([]);
+    const { gt, orderFn, orderFn2 } = page([]);
     await getFileScoreChangesSince('show-1', '2026-11-14T19:40:00Z');
     expect(select).toHaveBeenCalledWith('class_id, changed_at, changes');
     expect(eq).toHaveBeenCalledWith('show_id', 'show-1');
     expect(gt).toHaveBeenCalledWith('changed_at', '2026-11-14T19:40:00Z');
     expect(orderFn).toHaveBeenCalledWith('changed_at', { ascending: false });
+    // A tiebreak, so a page boundary inside one timestamp cannot skip or repeat a row.
+    expect(orderFn2).toHaveBeenCalledWith('id', { ascending: false });
   });
 
   it('keeps the newest change per class among columns the file carries', async () => {

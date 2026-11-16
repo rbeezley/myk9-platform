@@ -22,6 +22,7 @@ import type { ShowIncidentSummary } from '@/features/show-workbench/showIncident
 import type { ResultsClassPhase } from '@/features/results-tab/resultsNextAction';
 import { matchesResultsStatusFilter } from '@/features/results-tab/resultsNextAction';
 import type { ResultsStatusFilterId } from '@/features/results-tab/resultsNextAction';
+import { coveredUntil, newestSubmissionAt } from './submissionTimes';
 import { isCancelledStatus, needsCascade, normalizeCloseoutStatus } from './closeoutStatus';
 
 const SUBMITTED_STATUSES = new Set(['sent', 'submitted']);
@@ -231,19 +232,6 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
       row => !row.organization || row.organization.toUpperCase() === registryId
     ) ?? false;
 
-  // The newest file the app itself emailed for a registry (`sent`), and the newest the secretary
-  // filed elsewhere and recorded (`submitted`); either covers a score change before it.
-  const newestAt = (registryId: RegistryId, status: 'sent' | 'submitted'): number | null => {
-    let newest: number | null = null;
-    for (const row of input.submissions ?? []) {
-      if (normalizeCloseoutStatus(row.status) !== status) continue;
-      if (row.organization && row.organization.toUpperCase() !== registryId) continue;
-      const at = row.submitted_at ? Date.parse(row.submitted_at) : Number.NaN;
-      if (!Number.isNaN(at) && (newest === null || at > newest)) newest = at;
-    }
-    return newest;
-  };
-
   const registryByTrial = new Map<string, RegistryId>();
   const registryIds: RegistryId[] = [];
   for (const trial of input.trials) {
@@ -317,11 +305,14 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
           registryId,
         });
       } else {
-        const sentAt = duty.recordedBy === 'app' ? newestAt(registryId, 'sent') : null;
+        const sentAt =
+          duty.recordedBy === 'app'
+            ? newestSubmissionAt(input.submissions, registryId, 'sent')
+            : null;
         const read = input.scoreChanges;
         let sentFileCheck: SentFileCheck | undefined;
         if (sentAt !== null && read !== undefined) {
-          const coveredAt = Math.max(sentAt, newestAt(registryId, 'submitted') ?? sentAt);
+          const coveredAt = coveredUntil(input.submissions, registryId) ?? sentAt;
           if (read.status !== 'read')
             sentFileCheck = read.status === 'loading' ? 'checking' : 'unknown';
           else {
@@ -392,7 +383,9 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     ? 'Scores changed after the results file was sent. Send it again before closing.'
     : sentFileChecks.includes('unknown')
       ? 'Could not check whether scores changed after the results file was sent.'
-      : null;
+      : sentFileChecks.includes('checking')
+        ? 'Still checking whether scores changed after the results file was sent.'
+        : null;
   const concernOf = (kind: WhatIsLeftLineKey): string[] => {
     const line = lines.find(candidate => candidate.kind === kind);
     return line?.closeConcern && line.open !== false ? [line.closeConcern] : [];

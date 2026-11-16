@@ -90,6 +90,14 @@ vi.mock('@/hooks/mutations/useResultSubmission', () => ({
   }),
 }));
 
+const mockScoreChanges = vi.hoisted(() => vi.fn(async () => new Map<string, string>()));
+vi.mock('@/services/database/entries/scoreAudit', () => ({
+  getFileScoreChangesSince: mockScoreChanges,
+}));
+vi.mock('@/services/replication', () => ({
+  replicatedEntriesTable: { subscribe: () => () => {} },
+}));
+
 const mockInvoke = vi.hoisted(() => vi.fn());
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -103,12 +111,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-function renderPage(route = '/shows/show-1/submit-results') {
+function renderPage() {
   return render(
     <Routes>
       <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
     </Routes>,
-    { initialRoute: route }
+    { initialRoute: '/shows/show-1/submit-results' }
   );
 }
 
@@ -119,6 +127,8 @@ function renderPage(route = '/shows/show-1/submit-results') {
 describe('ResultsSubmissionPage', () => {
   beforeEach(() => {
     mockHistoryData.rows = [];
+    mockScoreChanges.mockReset();
+    mockScoreChanges.mockResolvedValue(new Map());
     mockAKCData.data = null;
     mockAKCData.isLoading = false;
     mockAKCData.isError = false;
@@ -465,11 +475,12 @@ describe('ResultsSubmissionPage', () => {
       expect(dialog).toHaveTextContent(/sending again files a second time/i);
     });
 
-    it('reached from the "changed" line, says scores changed and words the confirm as a deliberate resend', async () => {
+    it('says scores changed, from the shared check, and words the confirm as a deliberate resend', async () => {
       mockAKCData.data = makeAKCSubmissionData();
       mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
+      mockScoreChanges.mockResolvedValue(new Map([['class-1', '2026-05-10T13:00:00Z']]));
 
-      renderPage('/shows/show-1/submit-results?reason=changed');
+      renderPage();
       expect(await screen.findByTestId('scores-changed-notice')).toHaveTextContent(
         'Scores changed since this was sent. Send the corrected results.'
       );
@@ -479,6 +490,22 @@ describe('ResultsSubmissionPage', () => {
       expect(dialog).toHaveTextContent(/The first stays on record/i);
       expect(dialog).not.toHaveTextContent(/files a second time/i);
       expect(screen.getByTestId('send-confirm-btn')).toBeInTheDocument();
+    });
+
+    it('shows no notice, and the plain warning, once the corrected send is on record', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [
+        makeHistoryRow({ id: 'sub-2', status: 'sent', submitted_at: '2026-05-10T14:00:00Z' }),
+        makeHistoryRow({ id: 'sub-1', status: 'sent', submitted_at: '2026-05-10T12:00:00Z' }),
+      ];
+      mockScoreChanges.mockResolvedValue(new Map([['class-1', '2026-05-10T13:00:00Z']]));
+
+      renderPage();
+      fireEvent.click(await screen.findByTestId('send-btn'));
+
+      const dialog = await screen.findByTestId('send-confirm-dialog');
+      expect(dialog).toHaveTextContent(/sending again files a second time/i);
+      expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
     });
 
     it('warns when the history could not be read at all', async () => {

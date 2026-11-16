@@ -57,11 +57,7 @@ vi.mock('../ClassPrintPanel', () => ({
     ) : null,
 }));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => isOnline.value }));
-vi.mock('@/features/at-show/clearEntryScore', () => ({
-  clearEntryScore,
-  entryScoreStamp: (row: { scoring_completed_at?: string | null }) =>
-    row.scoring_completed_at ?? null,
-}));
+vi.mock('@/features/at-show/clearEntryScore', () => ({ clearEntryScore }));
 vi.mock('@/lib/undoToast', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/undoToast')>()),
   showUndoToast,
@@ -282,23 +278,18 @@ describe('Mark absent: one tap, says what happened, Undo (MYK9-1940)', () => {
     );
   });
 
-  it('Undo clears the result with the same write as Reset score, then refreshes', async () => {
-    getStored.mockResolvedValue({
-      entry_status: 'accepted',
-      is_scored: false,
-      scoring_completed_at: '2026-11-15T10:00:00.000Z',
-    });
+  it('Undo clears the result with the same write as Reset score, holding the stamp it wrote', async () => {
     const onRefreshEntries = vi.fn();
     const { user } = await openMenu(table(row('waiting'), { onRefreshEntries }));
     await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
     await waitFor(() => expect(showUndoToast).toHaveBeenCalled());
+    const written = submitScoreOptimistically.mock.calls[0]?.[0].completedAt as string;
+    expect(Date.parse(written)).not.toBeNaN();
     onRefreshEntries.mockClear();
 
     showUndoToast.mock.calls[0]?.[0].onUndo();
 
-    await waitFor(() =>
-      expect(clearEntryScore).toHaveBeenCalledWith('e-110', '2026-11-15T10:00:00.000Z')
-    );
+    await waitFor(() => expect(clearEntryScore).toHaveBeenCalledWith('e-110', written));
     await waitFor(() => expect(onRefreshEntries).toHaveBeenCalled());
   });
 

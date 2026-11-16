@@ -10,7 +10,7 @@ import { supabase } from '@/services/database/supabaseClient';
 
 const h = vi.hoisted(() => ({
   table: null as unknown as ReplicatedEntriesTable,
-  stamp: '',
+  afterWrite: null as (() => Promise<void>) | null,
   undo: null as (() => void) | null,
   toastError: vi.fn(),
 }));
@@ -39,15 +39,16 @@ vi.mock('@/lib/undoToast', () => ({
 }));
 vi.mock('@/hooks/useOptimisticScoring', () => ({
   useOptimisticScoring: () => ({
-    submitScoreOptimistically: async ({ entryId, onSuccess }: never) => {
+    submitScoreOptimistically: async ({ entryId, onSuccess, completedAt }: never) => {
       await h.table.updateEntry(entryId, {
         resultStatus: 'absent',
         result_status: 'absent',
         isScored: true,
         is_scored: true,
-        scoringCompletedAt: h.stamp,
-        scoring_completed_at: h.stamp,
+        scoringCompletedAt: completedAt,
+        scoring_completed_at: completedAt,
       });
+      await h.afterWrite?.();
       (onSuccess as () => void)();
     },
   }),
@@ -77,8 +78,7 @@ function mockReadBack(data: unknown) {
   vi.mocked(supabase.from).mockReturnValue(node as never);
 }
 
-async function markAbsent(stamp: string) {
-  h.stamp = stamp;
+async function markAbsent() {
   const { result } = renderHook(() =>
     useMarkEntryAbsent({ classId: 'class-1', className: 'Novice A' })
   );
@@ -100,6 +100,7 @@ describe('Mark absent Undo (MYK9-2037)', () => {
     h.table = new ReplicatedEntriesTable();
     await h.table.clearCache();
     h.undo = null;
+    h.afterWrite = null;
     h.toastError.mockReset();
     mockReadBack(ROW);
     // Seed the replica from the server row, as a synced show would have it.
@@ -112,7 +113,7 @@ describe('Mark absent Undo (MYK9-2037)', () => {
   });
 
   it('restores the entry to unscored and pending when nothing changed', async () => {
-    await markAbsent('2026-11-15T10:00:00.000Z');
+    await markAbsent();
     expect((await h.table.getEntryById('entry-1'))?.resultStatus).toBe('absent');
 
     await pressUndo();
@@ -126,10 +127,12 @@ describe('Mark absent Undo (MYK9-2037)', () => {
   });
 
   it('still undoes after a sync rewrites the timestamp in the server format', async () => {
-    await markAbsent('2026-11-15T10:00:00.000Z');
+    await markAbsent();
+    const written = (await h.table.getEntryById('entry-1'))?.scoring_completed_at as string;
+    const serverFormat = written.replace('Z', '+00:00');
     await h.table.updateEntry('entry-1', {
-      scoringCompletedAt: '2026-11-15T10:00:00+00:00',
-      scoring_completed_at: '2026-11-15T10:00:00+00:00',
+      scoringCompletedAt: serverFormat,
+      scoring_completed_at: serverFormat,
     });
 
     await pressUndo();
@@ -139,7 +142,7 @@ describe('Mark absent Undo (MYK9-2037)', () => {
   });
 
   it('keeps a real score recorded after the Absent and says why', async () => {
-    await markAbsent('2026-11-15T10:00:00.000Z');
+    await markAbsent();
     await h.table.updateEntry('entry-1', {
       resultStatus: 'qualified',
       result_status: 'qualified',
@@ -161,7 +164,7 @@ describe('Mark absent Undo (MYK9-2037)', () => {
   });
 
   it('keeps a later Absent, so an earlier toast cannot clear it', async () => {
-    await markAbsent('2026-11-15T10:00:00.000Z');
+    await markAbsent();
     const firstUndo = h.undo;
     await h.table.updateEntry('entry-1', {
       resultStatus: 'absent',
@@ -176,5 +179,37 @@ describe('Mark absent Undo (MYK9-2037)', () => {
     const stored = await h.table.getEntryById('entry-1');
     expect(stored?.resultStatus).toBe('absent');
     expect(h.toastError).toHaveBeenCalledWith(REFUSAL);
+  });
+  it('keeps a score that lands right after the Absent write, before the toast is built', async () => {
+    h.afterWrite = async () => {
+      await h.table.updateEntry('entry-1', {
+        resultStatus: 'qualified',
+        result_status: 'qualified',
+        isScored: true,
+        is_scored: true,
+        searchTimeSeconds: 77,
+        search_time_seconds: 77,
+        scoringCompletedAt: '2099-01-01T00:00:00.000Z',
+        scoring_completed_at: '2099-01-01T00:00:00.000Z',
+      });
+    };
+    await markAbsent();
+
+    await pressUndo();
+
+    const stored = await h.table.getEntryById('entry-1');
+    expect(stored?.resultStatus).toBe('qualified');
+    expect(stored?.searchTimeSeconds).toBe(77);
+    expect(h.toastError).toHaveBeenCalledWith(REFUSAL);
+  });
+
+  it('undoes normally with the stamp the hook minted for its own write', async () => {
+    await markAbsent();
+    expect((await h.table.getEntryById('entry-1'))?.resultStatus).toBe('absent');
+
+    await pressUndo();
+
+    expect((await h.table.getEntryById('entry-1'))?.resultStatus).toBe('pending');
+    expect(h.toastError).not.toHaveBeenCalled();
   });
 });

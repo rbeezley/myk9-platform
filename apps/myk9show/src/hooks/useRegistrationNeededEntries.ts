@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { findEntriesAwaitingRegistrationNumber } from '@/components/entries/management/registrationNeeded';
+import { findHeldEntries } from '@/features/waiting-for-you';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 /**
@@ -32,8 +32,7 @@ export function useRegistrationNeededEntries(
   );
 
   const rows = useMemo(
-    () =>
-      trials && dogsReady ? findEntriesAwaitingRegistrationNumber({ entries, trials, dogs }) : [],
+    () => (trials && dogsReady ? findHeldEntries({ entries, trials, dogs }).rows : []),
     [dogs, dogsReady, entries, trials]
   );
   const isReady = Boolean(trials) && dogsReady;

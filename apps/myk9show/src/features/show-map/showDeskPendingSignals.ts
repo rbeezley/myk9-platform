@@ -13,6 +13,7 @@ import { getEntryManagementHref } from '@/features/entry-operations/entryAttenti
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import { ENTRY_LIST_LABELS } from '@/components/entries/management/entryManagementViews';
 import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
+import { buildWaitingSignals, type ShowDeskWaitingInput } from './showDeskWaitingSignals';
 
 /**
  * The subset of a raw entry row `countEntriesWaitingCheckIn` needs to look up
@@ -28,7 +29,9 @@ export type ShowDeskPendingSignalId =
   | 'entries-waiting-checkin'
   | 'entries-payment-due'
   | 'classes-needing-signature'
-  | 'results-pending-closeout';
+  | 'results-pending-closeout'
+  | 'entries-held'
+  | 'waitlist-waiting';
 
 export type ShowDeskPendingSignalPriority = 'highest' | 'high' | 'medium';
 
@@ -70,6 +73,8 @@ export interface ComputeShowDeskPendingSignalsInput {
   /** "Today" reference for the check-in signal. `null`/omitted skips the
    *  date gate (matches `checkInEligibility`'s own no-currentDate behavior). */
   currentDate?: Date | null | undefined;
+  /** The lists with something waiting for her (MYK9-1949); omitted, no such pill. */
+  waiting?: ShowDeskWaitingInput | undefined;
 }
 
 const PRIORITY_ORDER: Record<ShowDeskPendingSignalPriority, number> = {
@@ -147,6 +152,7 @@ export function computeShowDeskPendingSignals({
   tree,
   entries,
   currentDate,
+  waiting,
 }: ComputeShowDeskPendingSignalsInput): ShowDeskPendingSignal[] {
   const signals: ShowDeskPendingSignal[] = [];
   const scope: ShowDeskPendingSignalScope = { kind: 'show', showId };
@@ -231,6 +237,8 @@ export function computeShowDeskPendingSignals({
       scope,
     });
   }
+
+  if (waiting) signals.push(...buildWaitingSignals(showId, waiting, scope));
 
   return signals.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
 }

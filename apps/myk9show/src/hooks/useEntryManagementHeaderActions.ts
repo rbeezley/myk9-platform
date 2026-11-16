@@ -12,12 +12,14 @@ import {
   sumEntryListCounts,
   type EntryListCounts,
 } from '@/components/entries/management/entryManagementViews';
+import { useWaitlistWaiting } from '@/features/waiting-for-you/useWaitlistWaiting';
 
 interface UseEntryManagementHeaderActionsOptions {
   showId: string | undefined;
   /** The viewer manages this show (resolved), the gate the header applies to every tool row. */
   canManage: boolean;
-  counts: EntryListCounts;
+  /** The Waitlist count is read here (it is its own read); the page passes the rest. */
+  counts: Omit<EntryListCounts, 'waitlist'>;
   /** Set when the viewer manages the show but is not its trial secretary. */
   secretaryOnlyReason: string | undefined;
   /**
@@ -57,6 +59,7 @@ export function useEntryManagementHeaderActions({
   onExport,
 }: UseEntryManagementHeaderActionsOptions): void {
   const { pulls, moveUps, registrationNeeded } = counts;
+  const waitlist = useWaitlistWaiting(showId, canManage)?.count;
   // No capacity read at all when the viewer could not act on the answer. While it loads the row
   // stays enabled: a disabled flash is worse than a wizard that says the class is full.
   const capacity = useQuery({
@@ -75,7 +78,7 @@ export function useEntryManagementHeaderActions({
   const tools = useMemo<ShowToolItem[]>(() => {
     if (!showId) return [];
     return [
-      ...buildEntryListTools(showId, { pulls, moveUps, registrationNeeded }),
+      ...buildEntryListTools(showId, { pulls, moveUps, registrationNeeded, waitlist }),
       {
         // Late entry is a mode of the secretary flow, not a second way to add an entry
         // (MYK9-954 -> MYK9-1242), so it keeps the flow's own access reason.
@@ -86,12 +89,12 @@ export function useEntryManagementHeaderActions({
         ...(lateEntryReason !== undefined && { disabledReason: lateEntryReason }),
       },
     ];
-  }, [showId, pulls, moveUps, registrationNeeded, lateEntryReason]);
+  }, [showId, pulls, moveUps, registrationNeeded, waitlist, lateEntryReason]);
 
   useShowDeskToolsRegistration(
     tools,
     {
-      count: sumEntryListCounts({ pulls, moveUps, registrationNeeded }),
+      count: sumEntryListCounts({ pulls, moveUps, registrationNeeded, waitlist }),
       tone: 'routine',
       incomplete: false,
     },

@@ -3,7 +3,7 @@ import { buildEntryListTools, getEntryListHref, sumEntryListCounts } from '../en
 import { normalizeEntryManagementCockpitParams } from '../entryManagementCockpitParams';
 
 describe('buildEntryListTools', () => {
-  const counts = { pulls: 4, moveUps: 5, registrationNeeded: 2 };
+  const counts = { pulls: 4, moveUps: 5, registrationNeeded: 2, waitlist: 3 };
 
   it('lists Pulls, Move-ups, Registration number needed, Waitlist and Check-in desk in the Entry lists group', () => {
     const tools = buildEntryListTools('show-1', counts);
@@ -16,9 +16,9 @@ describe('buildEntryListTools', () => {
     ]);
   });
 
-  it('badges a list with a non-zero count, and leaves Waitlist uncounted', () => {
+  it('badges a list with a non-zero count, Waitlist included', () => {
     const tools = buildEntryListTools('show-1', counts);
-    expect(tools.map(tool => tool.attentionLabel)).toEqual(['4', '5', '2', undefined, undefined]);
+    expect(tools.map(tool => tool.attentionLabel)).toEqual(['4', '5', '2', '3', undefined]);
   });
 
   it('shows no badge for a zero or an unknown count rather than a confident 0', () => {
@@ -26,6 +26,7 @@ describe('buildEntryListTools', () => {
       pulls: 0,
       moveUps: undefined,
       registrationNeeded: undefined,
+      waitlist: undefined,
     });
     expect(tools.some(tool => 'attentionLabel' in tool)).toBe(false);
   });
@@ -58,9 +59,14 @@ describe('buildEntryListTools', () => {
   });
 
   it('sums only the counts that are known', () => {
-    expect(sumEntryListCounts(counts)).toBe(11);
+    expect(sumEntryListCounts(counts)).toBe(14);
     expect(
-      sumEntryListCounts({ pulls: 1, moveUps: undefined, registrationNeeded: undefined })
+      sumEntryListCounts({
+        pulls: 1,
+        moveUps: undefined,
+        registrationNeeded: undefined,
+        waitlist: undefined,
+      })
     ).toBe(1);
   });
 });

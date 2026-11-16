@@ -21,6 +21,8 @@ class OfflineCheckError extends Error {
   }
 }
 
+const VERIFY_FALLBACK = 'The check could not be saved. Try again.';
+
 const messageFor = (error: unknown, fallback: string) =>
   error instanceof OfflineCheckError
     ? error.message
@@ -62,6 +64,8 @@ export function useResultsVerifiedMutations() {
       showId: string;
       canonical: string;
       at: string;
+      /** Bulk release names a failed class itself, so no toast per class. */
+      quiet?: boolean;
     }) => {
       requireOnline();
       return recordResultsVerified({
@@ -71,11 +75,11 @@ export function useResultsVerifiedMutations() {
       });
     },
     onSuccess: (_data, claim) => {
-      toast.success('Scores checked');
+      if (!claim.quiet) toast.success('Scores checked');
       refreshClass(claim.trialId);
     },
     onError: (error, claim) => {
-      toast.error(messageFor(error, 'The check could not be saved. Try again.'));
+      if (!claim.quiet) toast.error(messageFor(error, VERIFY_FALLBACK));
       // The server says the scores moved: this device's copy of them is stale (the app-wide sync
       // has no entries scope of its own), so pull the show's entries again, or the next tick would
       // resend the same stale fingerprint forever.
@@ -103,17 +107,31 @@ export function useResultsVerifiedMutations() {
 
   return {
     /** Saves the check for exactly the results text the caller ticked (see recordResultsVerified). */
-    verifyAsync: ({
-      classId,
-      trialId,
-      showId,
-      canonical,
-    }: {
-      classId: string;
-      trialId: string;
-      showId: string;
-      canonical: string;
-    }) => verify.mutateAsync({ classId, trialId, showId, canonical, at: new Date().toISOString() }),
+    verifyAsync: async (
+      {
+        classId,
+        trialId,
+        showId,
+        canonical,
+      }: { classId: string; trialId: string; showId: string; canonical: string },
+      options?: { quiet?: boolean }
+    ) => {
+      const quiet = options?.quiet === true;
+      try {
+        return await verify.mutateAsync({
+          classId,
+          trialId,
+          showId,
+          canonical,
+          at: new Date().toISOString(),
+          quiet,
+        });
+      } catch (error) {
+        // Quiet callers show the reason themselves: hand it over as the message the toast would have had.
+        if (quiet) throw new Error(messageFor(error, VERIFY_FALLBACK));
+        throw error;
+      }
+    },
     undo: undo.mutate,
     isPending: verify.isPending || undo.isPending,
     /** Pulls the class row again (the Release check found the server disagrees with the replica). */

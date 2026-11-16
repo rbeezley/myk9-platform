@@ -57,7 +57,7 @@ vi.mock('./ResultsTabToolbar', () => ({ ResultsTabToolbar: () => null }));
 vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null }));
 const releaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
-  useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
+  useReleaseResults: () => ({ mutateAsync: releaseMutate, isPending: false }),
 }));
 const undo = vi.hoisted(() => vi.fn());
 vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
@@ -96,6 +96,7 @@ vi.mock('sonner', () => ({
 
 beforeEach(() => {
   releaseMutate.mockReset();
+  releaseMutate.mockResolvedValue({ released: ['c1'], failed: [] });
   undo.mockReset();
   toastError.mockReset();
   captured.props = null;

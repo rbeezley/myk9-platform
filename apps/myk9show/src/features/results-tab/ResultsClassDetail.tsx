@@ -27,6 +27,7 @@ import { HideResultsButton, hideBlockedReason } from './HideResultsButton';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import { ResultsStatusChip } from './ResultsClassList';
 import { getFixScoreHref } from './resultsTabRoutes';
+import { OFFLINE_RELEASE_REASON } from './releaseClassRow';
 
 const THEN_LABEL: Record<string, string> = {
   'results-sheet': 'Results sheet',
@@ -125,7 +126,7 @@ function PrimaryWork({
     const blocked = !row.statusCompleted
       ? null
       : !online
-        ? 'Connect to release from here'
+        ? OFFLINE_RELEASE_REASON
         : row.resultsCanonical === null
           ? 'Restart the app before these scores can be released'
           : (verifyBlockedReason ?? releaseBlockedReason);

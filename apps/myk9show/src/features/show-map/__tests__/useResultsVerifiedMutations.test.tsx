@@ -197,4 +197,29 @@ describe('paper check mutations (online only)', () => {
       )
     );
   });
+
+  it('quiet: no toast on success, and a failure rejects with the same reason the toast would give', async () => {
+    recordResultsVerified.mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
+    const claim = { classId: 'c1', trialId: 't1', showId: 's1', canonical: 'TEXT' };
+
+    await act(() => result.current.verifyAsync(claim, { quiet: true }));
+    expect(toast.success).not.toHaveBeenCalled();
+
+    recordResultsVerified.mockRejectedValueOnce({ code: 'MK015', message: 'changed' });
+    let thrown: unknown;
+    await act(async () => {
+      thrown = await result.current.verifyAsync(claim, { quiet: true }).catch(error => error);
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message.length).toBeGreaterThan(0);
+
+    // The same failure, not quiet, toasts that exact message.
+    recordResultsVerified.mockRejectedValueOnce({ code: 'MK015', message: 'changed' });
+    await act(async () => {
+      await result.current.verifyAsync(claim).catch(() => undefined);
+    });
+    expect(toast.error).toHaveBeenCalledWith((thrown as Error).message);
+  });
 });

@@ -6,6 +6,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { judgeDaysIfCurrent } from '@/hooks/queries/judgeDaysIfCurrent';
 import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase';
@@ -66,12 +67,10 @@ export function useWaitlistManagementData(showId: string) {
   // Offer and Remove are server calls (an RPC, a DELETE): offline they are disabled up front
   // (MYK9-1005) instead of failing with "Please try again" after the click.
   const isOffline = !useIsOnline();
-  const {
-    judgeDays,
-    isKnown: isCapacityKnown,
-    isPaused: isCapacityUnavailable,
-    error: capacityError,
-  } = useJudgeDayCapacity(showId || undefined);
+  const capacity = useJudgeDayCapacity(showId || undefined);
+  const { judgeDays, isPaused: isCapacityUnavailable, error: capacityError } = capacity;
+  // Figures for deciding a spot: current ones only (the cards may still show the last known).
+  const currentJudgeDays = judgeDaysIfCurrent(capacity, !isOffline);
 
   const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -397,9 +396,9 @@ export function useWaitlistManagementData(showId: string) {
         : findOpenWaitlistSpots({
             classes: classes.map(toSpotClass),
             waitlist: [...waitlistEntries, ...offersRead.allOpenOffers].map(toSpotEntry),
-            judgeDays: isCapacityKnown ? judgeDays : null,
+            judgeDays: currentJudgeDays,
           }),
-    [isLoading, classes, waitlistEntries, offersRead.allOpenOffers, isCapacityKnown, judgeDays]
+    [isLoading, classes, waitlistEntries, offersRead.allOpenOffers, currentJudgeDays]
   );
 
   const viewJudgeDay = useCallback(

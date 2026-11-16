@@ -301,7 +301,7 @@ describe('WaitlistManagementPage offers', () => {
     render(<WaitlistManagementPage showId="show-1" />);
     await screen.findByText('Bella');
 
-    fireEvent.click(screen.getByRole('button', { name: /^Offer$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Offer spot to Bella$/ }));
     const dialog = await screen.findByRole('alertdialog');
 
     // Intl puts a narrow no-break space before AM/PM; read it as the plain space a person sees.
@@ -459,7 +459,7 @@ describe('WaitlistManagementPage offers', () => {
     render(<WaitlistManagementPage showId="show-1" />);
     await screen.findByText('Bella');
 
-    fireEvent.click(screen.getByRole('button', { name: /^Offer$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Offer spot to Bella$/ }));
     const dialog = await screen.findByRole('alertdialog');
     const text = () => (dialog.textContent ?? '').replace(/\s+/g, ' ');
 

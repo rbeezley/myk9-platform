@@ -16,6 +16,9 @@ const state = vi.hoisted(() => ({
   holdC3: null as null | { resolve: () => void },
   failNextRead: false,
   replicaListeners: [] as Array<() => void>,
+  // Cached judge-day figures that are no longer current, and a settings read that never answers.
+  capacityOver: {} as { isPaused?: boolean; error?: string },
+  settingsPending: false,
 }));
 
 const h = vi.hoisted(() => ({
@@ -104,6 +107,7 @@ const judgeDay = (over: Partial<JudgeDayCapacity>): JudgeDayCapacity => ({
 vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/queries/useJudgeDayCapacity')>()),
   useJudgeDayCapacity: () => ({
+    ...state.capacityOver,
     isKnown: true,
     judgeDays: [
       judgeDay({}),
@@ -125,7 +129,10 @@ vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
 vi.mock('@/components/shows/waitListSettingsQuery', () => ({
   waitListSettingsQueryOptions: (showId: string) => ({
     queryKey: ['waitlist-settings', showId],
-    queryFn: async () => ({ config: { waitlistPaymentDeadlineHours: 24 }, autoOffer: false }),
+    queryFn: () =>
+      state.settingsPending
+        ? new Promise<never>(() => undefined)
+        : Promise.resolve({ config: { waitlistPaymentDeadlineHours: 24 }, autoOffer: false }),
   }),
 }));
 
@@ -166,6 +173,8 @@ describe('WaitlistManagementPage', () => {
     state.holdC3 = null;
     state.failNextRead = false;
     state.replicaListeners = [];
+    state.capacityOver = {};
+    state.settingsPending = false;
   });
 
   it('shows every waiting dog in the show, grouped by class, before any judge-day is chosen', async () => {
@@ -253,7 +262,29 @@ describe('WaitlistManagementPage', () => {
     expect(
       screen.queryByRole('button', { name: /offer spot to (bella|rexy|tera)/i })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^offer$/i })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['offline (the query is parked)', { isPaused: true }],
+    ['a failed re-read', { error: 'rpc down' }],
+  ])(
+    'recommends no dog and offers nothing from cached judge-day figures after %s',
+    async (_name, over) => {
+      state.capacityOver = over;
+      render(<WaitlistManagementPage showId="show-1" />);
+      await screen.findByText('Otherjudge');
+      expect(screen.queryByText(/Next in line/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^offer spot to /i })).not.toBeInTheDocument();
+    }
+  );
+
+  it('recommends no dog and shows no Offer while the automatic-offer setting is unread', async () => {
+    state.settingsPending = true;
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Otherjudge');
+    expect(screen.getAllByTestId('waitlist-spot-notice').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Next in line/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^offer spot to /i })).not.toBeInTheDocument();
   });
 
   it('skips a dog that already has an open offer and names the following dog', async () => {
@@ -290,12 +321,8 @@ describe('WaitlistManagementPage', () => {
     );
     try {
       render(<WaitlistManagementPage showId="show-1" />);
-      expect(
-        await screen.findByRole('button', { name: 'Offer spot to Following' })
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: 'Offer spot to Otherjudge' })
-      ).not.toBeInTheDocument();
+      expect(await screen.findByText(/Next in line: Following/)).toBeInTheDocument();
+      expect(screen.queryByText(/Next in line: Otherjudge/)).not.toBeInTheDocument();
     } finally {
       vi.mocked(getWaitlistByClass).mockImplementation(original);
       vi.mocked(getWaitlistOffersByClass).mockImplementation((async () => ({
@@ -315,7 +342,7 @@ describe('WaitlistManagementPage', () => {
 
     await waitFor(() => expect(screen.queryByText('Bella')).not.toBeInTheDocument());
     expect(screen.getByText('Tera')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 4 dogs.');
+    expect(screen.getByText(/Showing 1 of 4 dogs./)).toBeInTheDocument();
   });
 
   // MYK9-999: the settings are reachable from the Waitlist tab, scoped to the tab's show.

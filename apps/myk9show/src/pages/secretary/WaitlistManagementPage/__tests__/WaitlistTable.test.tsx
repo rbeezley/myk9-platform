@@ -145,6 +145,7 @@ describe('WaitlistTable', () => {
       const { user } = render(
         <WaitlistTable
           {...defaultProps}
+          autoOffer={false}
           spot={spotFor(mockClassWithSpots, openDay)}
           nextEntry={mockEntries[0]!}
           onSetActionDialog={onSetActionDialog}
@@ -154,7 +155,10 @@ describe('WaitlistTable', () => {
         '2 spots open. Next in line: Rexy (joined Mar 1)'
       );
       const main = screen.getByRole('button', { name: 'Offer spot to Rexy' });
-      expect(screen.getAllByRole('button', { name: 'Offer' })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: /^Offer spot to / })).toHaveLength(2);
+      expect(screen.getByRole('button', { name: 'Offer spot to Bella' })).toHaveTextContent(
+        /^Offer$/
+      );
       expect(screen.queryByRole('button', { name: /offer spot$/i })).not.toBeInTheDocument();
       await user.click(main);
       expect(onSetActionDialog).toHaveBeenCalledWith({
@@ -175,7 +179,9 @@ describe('WaitlistTable', () => {
       );
       expect(screen.getByTestId('waitlist-spot-notice')).toHaveTextContent('2 spots open');
       expect(screen.getByTestId('waitlist-spot-notice')).not.toHaveTextContent('Next in line');
-      expect(screen.getAllByRole('button', { name: 'Offer' })).toHaveLength(mockEntries.length);
+      expect(screen.getAllByRole('button', { name: /^Offer spot to / })).toHaveLength(
+        mockEntries.length
+      );
     });
 
     it('disables the offers offline', () => {
@@ -183,12 +189,41 @@ describe('WaitlistTable', () => {
         <WaitlistTable
           {...defaultProps}
           offline
+          autoOffer={false}
           spot={spotFor(mockClassWithSpots, openDay)}
           nextEntry={mockEntries[0]!}
         />
       );
       expect(screen.getByRole('button', { name: 'Offer spot to Rexy' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'Offer' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Offer spot to Bella' })).toBeDisabled();
+    });
+
+    it('recommends no one and offers nothing while the automatic-offer setting is unread', () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          autoOffer={null}
+          spot={spotFor(mockClassWithSpots, openDay)}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByTestId('waitlist-spot-notice')).not.toHaveTextContent('Next in line');
+      expect(screen.queryByRole('button', { name: /^offer/i })).not.toBeInTheDocument();
+    });
+
+    it('says plainly that the device is offline when spots cannot be checked', () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          offline
+          autoOffer={false}
+          spot={spotFor(mockClassWithSpots, null)}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByRole('status')).toHaveTextContent(
+        "You're offline, so open spots can't be checked against the judge's day. Offers need a connection."
+      );
     });
 
     it('one open spot with one open offer leaves nothing to offer and no offer button', () => {

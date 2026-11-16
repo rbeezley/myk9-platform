@@ -11,8 +11,8 @@ interface SpotOpenNoticeProps {
   spot: ClassSpotState;
   /** The row behind `spot.nextInLine`, from the class's whole queue (a search never hides it). */
   nextEntry: WaitlistEntry | null;
-  /** The show offers open spots itself, so the page does not recommend a dog. */
-  autoOffer: boolean;
+  /** The show's automatic-offer setting: only an explicit false recommends a dog. */
+  autoOffer: boolean | null;
   offline: boolean;
   onOffer: (entry: WaitlistEntry) => void;
 }
@@ -39,23 +39,28 @@ export function SpotOpenNotice({
     const joined = nextEntry?.created_at ? ` (joined ${formatMonthDay(nextEntry.created_at)})` : '';
     text = [
       held > 0 ? `${open} · ${offered}` : open,
-      !autoOffer && nextEntry ? ` Next in line: ${waitlistDogName(nextEntry)}${joined}` : '',
+      autoOffer === false && nextEntry
+        ? ` Next in line: ${waitlistDogName(nextEntry)}${joined}`
+        : '',
     ]
       .filter(Boolean)
       .join('.');
   } else if (spot.reason === 'offers-cover-spots') {
     text = `${held} ${plural(held, 'spot', 'spots')} open · ${offered} · none left to offer`;
   } else if (spot.reason === 'judge-day-unknown') {
-    text = "Open spots are checked against the judge's day, which could not be read just now.";
+    text = offline
+      ? "You're offline, so open spots can't be checked against the judge's day. Offers need a connection."
+      : "Open spots are checked against the judge's day, which could not be read just now.";
   } else {
     text = spot.explanation;
   }
   if (!text) return null;
 
-  const showMain = spot.reason === 'open' && !autoOffer && nextEntry;
+  const showMain = spot.reason === 'open' && autoOffer === false && nextEntry;
   return (
     <div
       className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm"
+      role="status"
       data-testid="waitlist-spot-notice"
       data-reason={spot.reason}
     >

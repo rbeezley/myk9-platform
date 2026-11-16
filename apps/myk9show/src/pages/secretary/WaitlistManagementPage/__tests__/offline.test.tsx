@@ -140,7 +140,7 @@ describe('WaitlistManagementPage offline', () => {
     render(<WaitlistManagementPage showId="show-1" />);
 
     await screen.findByText('Bella');
-    expect(await screen.findByRole('button', { name: 'Offer' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Offer spot to Bella' })).toBeEnabled();
     expect(screen.getByRole('button', { name: /Remove/ })).toBeEnabled();
     expect(screen.queryByTestId('waitlist-online-only')).not.toBeInTheDocument();
   });

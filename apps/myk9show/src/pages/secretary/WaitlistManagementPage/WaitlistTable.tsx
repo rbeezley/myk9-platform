@@ -11,6 +11,7 @@ import type { WaitlistEntry, ClassWithWaitlistCount, ActionDialogState } from '.
 import { formatEntryDate, formatEntryDateTime } from '@/lib/format/dates';
 import type { ClassSpotState } from '@/features/waiting-for-you';
 import { SpotOpenNotice } from './SpotOpenNotice';
+import { waitlistDogName } from './spotEntry';
 
 interface WaitlistTableProps {
   entries: WaitlistEntry[];
@@ -21,8 +22,11 @@ interface WaitlistTableProps {
   offline?: boolean;
   /** Whether a spot is open in this class (`findOpenWaitlistSpots`); absent while it is not decided. */
   spot?: ClassSpotState | undefined;
-  /** The show offers open spots itself, so no dog is recommended. */
-  autoOffer?: boolean;
+  /**
+   * The show's "Offer open spots automatically" setting: false recommends a dog, true offers no
+   * recommendation, null (not read yet) shows no offer at all.
+   */
+  autoOffer?: boolean | null;
   /** The row behind `spot.nextInLine`, from the class's whole queue. */
   nextEntry?: WaitlistEntry | null;
   onSetActionDialog: (state: ActionDialogState) => void;
@@ -33,10 +37,11 @@ function buildColumns(
   onRemove: (entry: WaitlistEntry) => void,
   offline: boolean,
   spot: ClassSpotState | undefined,
-  recommended: WaitlistEntry | null
+  recommended: WaitlistEntry | null,
+  settingKnown: boolean
 ): ColumnDef<WaitlistEntry, unknown>[] {
   // Offer only where a spot is open: both the class's limit and the judge's day have room.
-  const hasAvailableSpots = spot?.reason === 'open';
+  const hasAvailableSpots = spot?.reason === 'open' && settingKnown;
 
   return [
     {
@@ -57,9 +62,7 @@ function buildColumns(
         <div className="flex items-center gap-2">
           <Dog className="h-4 w-4 text-muted-foreground shrink-0" />
           <div>
-            <span className="font-medium">
-              {row.original.dog?.call_name || row.original.dog?.name || 'Unknown Dog'}
-            </span>
+            <span className="font-medium">{waitlistDogName(row.original)}</span>
             {row.original.dog?.name && row.original.dog.name !== row.original.dog.call_name && (
               <span className="text-muted-foreground ml-1">({row.original.dog.name})</span>
             )}
@@ -87,7 +90,12 @@ function buildColumns(
           )}
           {/* The recommended dog's one main button is in the notice above the list. */}
           {hasAvailableSpots && row.original.id !== recommended?.id && (
-            <Button variant="outline" disabled={offline} onClick={() => onOfferSpot(row.original)}>
+            <Button
+              variant="outline"
+              disabled={offline}
+              aria-label={`Offer spot to ${waitlistDogName(row.original)}`}
+              onClick={() => onOfferSpot(row.original)}
+            >
               <ArrowUpCircle className="h-4 w-4 mr-1" />
               Offer
             </Button>
@@ -117,7 +125,7 @@ export function WaitlistTable({
   searchActive,
   offline = false,
   spot,
-  autoOffer = false,
+  autoOffer = null,
   nextEntry = null,
   onSetActionDialog,
 }: WaitlistTableProps) {
@@ -137,10 +145,11 @@ export function WaitlistTable({
 
   // The recommended dog has its button in the notice; with automatic offering on, none is
   // recommended and every row keeps its own quiet "Offer".
-  const recommended = spot?.reason === 'open' && !autoOffer ? nextEntry : null;
+  const recommended = spot?.reason === 'open' && autoOffer === false ? nextEntry : null;
   const columns = useMemo(
-    () => buildColumns(handleOfferSpot, handleRemove, offline, spot, recommended),
-    [handleOfferSpot, handleRemove, offline, spot, recommended]
+    () =>
+      buildColumns(handleOfferSpot, handleRemove, offline, spot, recommended, autoOffer !== null),
+    [handleOfferSpot, handleRemove, offline, spot, recommended, autoOffer]
   );
 
   return (

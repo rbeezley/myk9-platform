@@ -81,7 +81,8 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     ? formatTrialLabel({ name: dialogOffer.trial_name, date: dialogOffer.trial_date })
     : formatTrialLabel(dialogClass?.trial);
 
-  const autoOffer = waitListSettings?.autoOffer === true;
+  // Unread (loading or failed) is its own state: no recommendation and no offer until it is known.
+  const autoOffer = waitListSettings ? waitListSettings.autoOffer : null;
   const spotByClass = new Map(spots?.classes.map(spot => [spot.classId, spot]));
   const entryById = new Map(waitlistEntries.map(entry => [entry.id, entry]));
 

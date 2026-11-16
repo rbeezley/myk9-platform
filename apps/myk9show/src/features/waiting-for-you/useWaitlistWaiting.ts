@@ -5,6 +5,7 @@ import { replicatedWaitlistEntriesTable } from '@/services/replication/Replicate
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { WAITLIST_READ_TABLES } from '@/services/database/waitlists/replicaDependencies';
 import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { judgeDaysIfCurrent } from '@/hooks/queries/judgeDaysIfCurrent';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { waitListSettingsQueryOptions } from '@/components/shows/waitListSettingsQuery';
 import { findRunOutOffers } from './runOutOffers';
@@ -78,16 +79,8 @@ export function useWaitlistWaiting(
     return () => unsubscribes.forEach(unsubscribe => unsubscribe());
   }, [manages, queryClient, showId]);
 
-  // A cached answer is not used while offline, parked or failed: a spot is only claimed from
-  // figures read successfully in this online session.
-  const isOnline = useIsOnline();
-  const judgeDaysCurrent =
-    judgeDayRead.isKnown &&
-    !judgeDayRead.isPaused &&
-    !judgeDayRead.error &&
-    isOnline &&
-    (typeof navigator === 'undefined' || navigator.onLine !== false);
-  const judgeDays = judgeDaysCurrent ? judgeDayRead.judgeDays : null;
+  // A cached answer is not used while offline, parked or failed (the page asks the same way).
+  const judgeDays = judgeDaysIfCurrent(judgeDayRead, useIsOnline());
   const spots = useMemo(
     () =>
       enabled && read.data

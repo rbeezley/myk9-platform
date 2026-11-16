@@ -10,6 +10,15 @@ A packet appearing in Storage every night is worth nothing on a laptop that will
 
 A packet confirmation is show-scoped with a null `trial_id` — the artifact is a trial DAY, and a day may hold several trials, so no `scope_kind` in `paperwork_prints_scope_shape` can express it. The day lives in `coverage.trialDate`, which phase 5a made first-class precisely so this question is answerable.
 
+### Two ways a day counts as printed (MYK9-2086)
+
+1. **The emergency day row**: a non-voided `emergency-trial-packet` confirmation with this `coverage.trialDate` and the current `snapshotId`. A confirmation for a superseded snapshot does not count.
+2. **The before-trial packet's per-class prints**: that packet writes one `check-in-sheet` and one `scoresheet` row per class, never a day row. The day counts when every class that day (non-deleted, not cancelled, with at least one entry) holds a **current** print of both sheets. "Current" is the app's own rule: the fingerprint is rebuilt from today's classes and entries with the shared `_shared/paperwork` code, and the latest non-voided print covering the class must match it. An entry change, a missing sheet, a voided print or a stale print leaves the day uncovered. A day with no printable class falls back to rule 1 alone.
+
+The rows are shaped exactly as the app's replica hands them to the print descriptors (`classPrintRows.ts`, pinned against the app's real mappers by a parity test), and entries and prints are read in ordered `.range()` pages so a big show day is not cut at PostgREST's 1000-row cap. The app's class row carries no `judge_name` or `num_hides`, so neither is read: a judge or hide change does not stale a print in the app either.
+
+Any read failure (including a failed later page) while checking rule 2 counts as "not printed": a failed read must never silence the reminder.
+
 ## Calling it
 
 Server-to-server only, sharing `PACKET_CRON_SECRET` with `generate-trial-packet` — same feature, same trust boundary, one fewer secret to rotate.

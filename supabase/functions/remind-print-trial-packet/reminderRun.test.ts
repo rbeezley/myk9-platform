@@ -145,6 +145,8 @@ function makeStub(options: StubOptions = {}) {
         return thenable({ data: hasPacket ? { snapshot_id: 'snap-1' } : null, error: null });
       }
       if (table === 'paperwork_prints') return thenable({ data: confirmations, error: null });
+      // The per-class packet-print check (MYK9-2086): an empty day, so the day row alone decides.
+      if (table === 'trials') return thenable({ data: [], error: null });
       if (table === 'user_roles') {
         return thenable({
           data: recipients.map((r, i) => ({

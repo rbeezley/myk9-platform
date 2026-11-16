@@ -1,5 +1,6 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
+import { loadClassPrintsCoverDay } from './classPrintCoverage.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import {
   loadPacketShow,
@@ -104,12 +105,21 @@ export async function runPrintReminder(
     .is('voided_at', null);
   if (confirmationsError) throw new HttpError(500, 'Failed to read print confirmations.');
 
-  const decision = decidePrintReminder({
+  const decisionInput = {
     hasDeliveredPacket: Boolean(packet),
     confirmations: (confirmations ?? []) as PrintConfirmationRow[],
     trialDate: request.trialDate,
     ...(packet?.snapshot_id ? { currentSnapshotId: packet.snapshot_id as string } : {}),
-  });
+  };
+  let decision = decidePrintReminder(decisionInput);
+  // The before-trial packet writes per-class check-in-sheet and scoresheet prints, never the day
+  // row above (MYK9-2086). Only asked when the day row did not already settle it.
+  if (
+    decision.remind &&
+    (await loadClassPrintsCoverDay(supabase, request.showId, request.trialDate))
+  ) {
+    decision = decidePrintReminder({ ...decisionInput, classPrintsCoverDay: true });
+  }
   if (!decision.remind) return { sent: false, reason: decision.reason };
 
   // Claim the (show, day, kind) triple. Two sends of the SAME reminder is the

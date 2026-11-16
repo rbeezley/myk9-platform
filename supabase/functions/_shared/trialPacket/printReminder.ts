@@ -14,6 +14,10 @@
  * stayed wide open.
  */
 
+import { buildSheetDescriptorFromRows } from '../paperwork/rowDescriptors.ts';
+import type { PaperworkClassRow, PaperworkEntryRow } from '../paperwork/rowDescriptors.ts';
+import { sheetPrintIsCurrent, type SheetPrintRow } from '../paperwork/printState.ts';
+
 export const EMERGENCY_PACKET_REPORT_ID = 'emergency-trial-packet';
 
 /**
@@ -97,6 +101,54 @@ export function packetDayIsPrinted(
   });
 }
 
+/** The two sheets a before-trial packet prints for each class (the app's PACKET_REPORT_IDS). */
+const CLASS_SHEET_REPORT_IDS = ['check-in-sheet', 'scoresheet'] as const;
+
+export interface DayClassPrintInput {
+  showId: string;
+  /** The day's non-cancelled, non-deleted classes. */
+  classes: readonly PaperworkClassRow[];
+  /** Their entries. */
+  entries: readonly PaperworkEntryRow[];
+  /** Non-voided check-in-sheet and scoresheet prints for the show. */
+  prints: readonly SheetPrintRow[];
+}
+
+/**
+ * Whether the before-trial packet's own prints cover the day (MYK9-2086 part B).
+ *
+ * `recordTrialPacketPrint` writes one check-in-sheet and one scoresheet row per class, so the
+ * day is printed only when EVERY class that has entries holds a current print of BOTH, judged by
+ * the app's own fingerprint code and print-state rule. A class without entries has nothing to
+ * print (the app writes no row for it) and is skipped. A day with no printable class is NOT
+ * covered here: that is today's behaviour, the emergency day row alone decides.
+ */
+export function classPrintsCoverDay(input: DayClassPrintInput): boolean {
+  let printable = 0;
+  for (const classItem of input.classes) {
+    if (!classItem.trial_id) return false;
+    const scope = {
+      kind: 'class' as const,
+      showId: input.showId,
+      trialId: classItem.trial_id,
+      classId: classItem.id,
+    };
+    for (const reportId of CLASS_SHEET_REPORT_IDS) {
+      const descriptor = buildSheetDescriptorFromRows({
+        reportId,
+        scope,
+        classes: input.classes,
+        entries: input.entries,
+      });
+      // The same entries feed both sheets, so a class empty for one is empty for both.
+      if (!descriptor) break;
+      if (!sheetPrintIsCurrent(input.prints, descriptor)) return false;
+      if (reportId === CLASS_SHEET_REPORT_IDS[0]) printable += 1;
+    }
+  }
+  return printable > 0;
+}
+
 export type ReminderDecision =
   { remind: true } | { remind: false; reason: 'no-packet' | 'already-printed' };
 
@@ -110,9 +162,14 @@ export function decidePrintReminder(input: {
   confirmations: readonly PrintConfirmationRow[];
   trialDate: string;
   currentSnapshotId?: string;
+  /** Current before-trial packet prints cover every class that day. A failed read is `false`. */
+  classPrintsCoverDay?: boolean;
 }): ReminderDecision {
   if (!input.hasDeliveredPacket) return { remind: false, reason: 'no-packet' };
-  if (packetDayIsPrinted(input.confirmations, input.trialDate, input.currentSnapshotId)) {
+  if (
+    input.classPrintsCoverDay ||
+    packetDayIsPrinted(input.confirmations, input.trialDate, input.currentSnapshotId)
+  ) {
     return { remind: false, reason: 'already-printed' };
   }
   return { remind: true };

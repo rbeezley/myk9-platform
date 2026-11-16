@@ -24,9 +24,9 @@ describe('buildJudgeStrip', () => {
     expect(buildJudgeStrip([])).toEqual([]);
   });
 
-  it('returns one entry for a single judge with an element', () => {
+  it("returns the judge's name alone for a single judge", () => {
     const trials = [trialWithJudges([{ name: 'Alice', element: 'Container' }])];
-    expect(buildJudgeStrip(trials)).toEqual(['Alice · Container']);
+    expect(buildJudgeStrip(trials)).toEqual(['Alice']);
   });
 
   it('returns 4 entries with no overflow marker when exactly at the cap', () => {

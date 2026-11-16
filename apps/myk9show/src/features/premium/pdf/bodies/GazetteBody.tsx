@@ -4,6 +4,7 @@
 // long judges section) makes column-equalization brittle. Tall sections spill
 // naturally to the next column. Sections use wrap={false} so individual
 // classifieds don't split mid-row.
+import { judgeBlockText } from './judgeLine';
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import type { StyleTokens } from '../pdfStyles';
@@ -98,8 +99,7 @@ export function GazetteBody({ data, tokens }: Props) {
             {trials.flatMap((trial, ti) =>
               trial.judges.map((j, ji) => (
                 <Text key={`${ti}-${ji}`} style={denseStyle}>
-                  {j.name}
-                  {j.elements.length > 0 ? ` — ${j.elements.join(', ')}` : ''}
+                  {judgeBlockText(j)}
                 </Text>
               ))
             )}

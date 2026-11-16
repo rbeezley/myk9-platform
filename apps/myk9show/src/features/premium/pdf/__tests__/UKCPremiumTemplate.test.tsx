@@ -34,7 +34,7 @@ const premium: GeneratedPremium = {
       startTime: '8:00 AM',
       eventNumber: 'UKC-2026-101',
       type: 'Scent Work',
-      judges: [{ name: 'Carol Judge', elements: ['Container', 'Interior'] }],
+      judges: [{ name: 'Carol Judge', classes: ['Container', 'Interior'] }],
       classes: [{ element: 'Container', level: 'Novice', section: null }],
     },
   ],

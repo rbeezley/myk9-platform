@@ -34,7 +34,7 @@ const premium: GeneratedPremium = {
       startTime: '9:00 AM',
       eventNumber: 'AKC-2026-001',
       type: 'Scent Work',
-      judges: [{ name: 'Alice Judge', elements: [] }],
+      judges: [{ name: 'Alice Judge', classes: [] }],
       classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
     },
   ],

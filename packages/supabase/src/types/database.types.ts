@@ -14787,10 +14787,12 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: {
           assignment_id: string
+          city: string
           class_id: string
           first_name: string
           last_name: string
           person_id: string
+          state: string
           status: string
           trial_id: string
         }[]

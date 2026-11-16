@@ -5,6 +5,7 @@ import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import type { ConfirmedJudgeAssignment } from '@/services/database/_shared/judgeNamesByClass';
 import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
+import { formatJudgeResidence } from '@/utils/formatJudgeResidence';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
 import {
@@ -282,9 +283,18 @@ export function buildLandingData(
   // MYK9-985: a judge is one person however many trials they sit, so confirmed assignments
   // collapse by person id; the legacy `trial.judge` string (never populated today) collapses
   // by name.
-  const judgeMap = new Map<string, { name: string; assigned: Map<string, LandingTrial> }>();
-  const addJudge = (key: string, name: string, trial: LandingTrial | undefined) => {
-    const entry = judgeMap.get(key) ?? { name, assigned: new Map<string, LandingTrial>() };
+  const judgeMap = new Map<
+    string,
+    { name: string; city: string | null; assigned: Map<string, LandingTrial> }
+  >();
+  const addJudge = (
+    key: string,
+    name: string,
+    trial: LandingTrial | undefined,
+    city: string | null = null
+  ) => {
+    const entry = judgeMap.get(key) ?? { name, city, assigned: new Map<string, LandingTrial>() };
+    if (!entry.city && city) entry.city = city;
     if (trial) entry.assigned.set(trial.id, trial);
     judgeMap.set(key, entry);
   };
@@ -316,17 +326,20 @@ export function buildLandingData(
     addJudge(
       `person:${assignment.personId}`,
       name,
-      assignment.trialId ? trialsById.get(assignment.trialId) : undefined
+      assignment.trialId ? trialsById.get(assignment.trialId) : undefined,
+      formatJudgeResidence(assignment.city, assignment.state)
     );
   }
-  const judges = Array.from(judgeMap.values()).map<LandingJudge>(({ name, assigned }, index) => ({
-    id: `judge-${index}`,
-    name,
-    city: null,
-    trials: judgeTrialLabels([...assigned.values()]),
-    trialNumbers: [...assigned.values()].map(trial => trial.trialNumber),
-    elements: [],
-  }));
+  const judges = Array.from(judgeMap.values()).map<LandingJudge>(
+    ({ name, city, assigned }, index) => ({
+      id: `judge-${index}`,
+      name,
+      city,
+      trials: judgeTrialLabels([...assigned.values()]),
+      trialNumbers: [...assigned.values()].map(trial => trial.trialNumber),
+      elements: [],
+    })
+  );
 
   const entryLimit = allTrials.reduce<number | null>((maximum, trial) => {
     const value = trial.maxTotalEntries ?? null;

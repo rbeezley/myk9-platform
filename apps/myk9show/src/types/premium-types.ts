@@ -130,7 +130,12 @@ export interface GeneratedPremium {
     startTime: string | null;
     eventNumber: string | null;
     type: string;
-    judges: Array<{ name: string; elements: string[] }>;
+    /**
+     * MYK9-2067: `residence` is "City, ST" and `classes` are "Element Level Section" labels (empty
+     * for a judge on every class). Both are absent on a premium generated before it, which also
+     * carried `elements`; nothing reads `elements` any more.
+     */
+    judges: Array<{ name: string; residence?: string | null; classes?: string[] }>;
     classes: Array<{ element: string; level: string; section: string | null }>;
   }>;
   supplemental: PremiumSupplemental;

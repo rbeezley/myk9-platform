@@ -83,7 +83,15 @@ const generatedPremiumSchema = z.object({
       startTime: nullableText,
       eventNumber: nullableText,
       type: z.string(),
-      judges: z.array(z.object({ name: z.string(), elements: z.array(z.string()) })),
+      // MYK9-2067: rows published before residence and classes existed carry neither (they
+      // carried `elements`, which is dropped on parse), so both default.
+      judges: z.array(
+        z.object({
+          name: z.string(),
+          residence: nullableText.default(null),
+          classes: z.array(z.string()).default([]),
+        })
+      ),
       classes: z.array(z.object({ element: z.string(), level: z.string(), section: nullableText })),
     })
   ),

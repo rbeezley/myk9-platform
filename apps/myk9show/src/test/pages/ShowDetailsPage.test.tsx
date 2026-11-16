@@ -210,7 +210,8 @@ vi.mock('@/services/database/judges', () => ({
       judgeId: 'judge-1',
       judgeName: 'Fresh Judge',
       assignedDate: '2026-01-01',
-      assignedClasses: ['Container', 'Interior'],
+      classLabels: ['Container Novice'],
+      residence: 'Springfield, IL',
     },
   ]),
 }));
@@ -408,7 +409,7 @@ function makeGeneratedPremium(style: 'heritage' = 'heritage') {
         startTime: null,
         eventNumber: '20260001',
         type: 'Scent Work',
-        judges: [{ name: 'Stale Judge', elements: ['Exterior'] }],
+        judges: [{ name: 'Stale Judge', classes: ['Exterior'] }],
         classes: [],
       },
     ],
@@ -1256,7 +1257,9 @@ describe('ShowDetailsPage', () => {
       }),
       trials: expect.arrayContaining([
         expect.objectContaining({
-          judges: [{ name: 'Fresh Judge', elements: ['Container', 'Interior'] }],
+          judges: [
+            { name: 'Fresh Judge', residence: 'Springfield, IL', classes: ['Container Novice'] },
+          ],
         }),
       ]),
     });

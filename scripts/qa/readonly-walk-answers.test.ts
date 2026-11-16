@@ -4,14 +4,21 @@ import { formatWalkLog, type WalkLog } from './readonly-walk';
 import { answerLocally } from './readonly-walk-answers';
 
 const API = 'https://x.supabase.co';
-type Real = (url: string) => { ok: boolean; body: unknown };
+type Real = (url: string) => { ok: boolean; body: unknown; status?: number; notJson?: boolean };
 
 /** A context whose only reads are the fake `real`, and a way to fire one refused write. */
 async function setup(real: Real, tables = ['entry_carts']) {
   let handler: ((route: Route) => Promise<void>) | undefined;
-  const get = vi.fn(async (url: string) => {
+  const get = vi.fn(async (url: string, _options?: unknown) => {
     const answer = real(url);
-    return { ok: () => answer.ok, json: async () => answer.body };
+    return {
+      ok: () => answer.ok,
+      status: () => answer.status ?? (answer.ok ? 200 : 500),
+      json: async () => {
+        if (answer.notJson) throw new Error('not json');
+        return answer.body;
+      },
+    };
   });
   const context = {
     route: async (_pattern: RegExp, fn: (route: Route) => Promise<void>) => {
@@ -74,8 +81,8 @@ describe('answerLocally', () => {
         page: 'http://localhost:5173/cart',
         method: 'POST',
         table: 'entry_carts',
-        kind: 'synthesized',
-        gaps: [],
+        kind: 'built from the body',
+        gaps: ['conflict not checked'],
       },
     ]);
   });
@@ -90,7 +97,11 @@ describe('answerLocally', () => {
     const { fulfill } = await fire('PATCH', path, { status: 'paid' }, REP);
     expect(get).toHaveBeenCalledWith(`${API}${path}`, expect.anything());
     expect(answered(fulfill).json).toEqual([{ id: 'c1', status: 'paid', show: { name: 'Fall' } }]);
-    expect(log.simulated[0]).toMatchObject({ method: 'PATCH', kind: 'exact' });
+    expect(log.simulated[0]).toMatchObject({
+      method: 'PATCH',
+      kind: 'overlaid on a real read',
+      gaps: ['embed show may be stale'],
+    });
   });
 
   it('re-reads an embed when the body changes the column it joins through', async () => {
@@ -108,7 +119,7 @@ describe('answerLocally', () => {
     expect(answered(fulfill).json).toEqual([
       { id: 'c1', show_id: 's2', show: { id: 's2', name: 'Spring' } },
     ]);
-    expect(log.simulated[0]).toMatchObject({ kind: 'synthesized', gaps: [] });
+    expect(log.simulated[0]).toMatchObject({ kind: 'overlaid on a real read', gaps: [] });
   });
 
   it('nulls the embed and names a gap when the new embed cannot be read', async () => {
@@ -124,7 +135,10 @@ describe('answerLocally', () => {
       REP
     );
     expect(answered(fulfill).json[0].show).toBeNull();
-    expect(log.simulated[0]).toMatchObject({ kind: 'synthesized with gaps', gaps: ['embed show'] });
+    expect(log.simulated[0]).toMatchObject({
+      kind: 'overlaid on a real read',
+      gaps: ['embed show'],
+    });
   });
 
   it('answers a PATCH that matches no row with an empty list, or 406 for a single object', async () => {
@@ -196,7 +210,77 @@ describe('answerLocally', () => {
     const { fire, log } = await setup(() => ({ ok: false, body: {} }));
     const { fulfill } = await fire('PATCH', '/rest/v1/entry_carts?id=eq.c1', {}, REP);
     expect(fulfill.mock.calls[0]?.[0]).toHaveProperty('response');
-    expect(log.simulated).toEqual([]);
+    expect(log.simulated[0]).toMatchObject({ kind: 'read failed', status: 500, gaps: [] });
+  });
+
+  it('answers 502 JSON and records a failure when a 200 is not JSON', async () => {
+    const { fire, log } = await setup(() => ({ ok: true, body: null, notJson: true }));
+    const { fulfill } = await fire('PATCH', '/rest/v1/entry_carts?id=eq.c1', {}, REP);
+    expect(answered(fulfill).status).toBe(502);
+    expect(log.simulated[0]).toMatchObject({ kind: 'read failed', status: 200 });
+  });
+
+  it('forwards content-profile as accept-profile on the replayed GET', async () => {
+    const { fire, get } = await setup(() => ({ ok: true, body: [{ id: 'c1' }] }));
+    await fire('PATCH', '/rest/v1/entry_carts?id=eq.c1', {}, { ...REP, 'content-profile': 'app' });
+    expect(get).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ headers: expect.objectContaining({ 'accept-profile': 'app' }) })
+    );
+  });
+
+  it('says an embed may be stale on a PATCH when no body column ties to it', async () => {
+    const { fire, log } = await setup(() => ({
+      ok: true,
+      body: [{ id: 'c1', status: 'draft', club: { name: 'Old' } }],
+    }));
+    await fire(
+      'PATCH',
+      '/rest/v1/entry_carts?id=eq.c1&select=*,club:clubs(*)',
+      { status: 'paid' },
+      REP
+    );
+    expect(log.simulated[0]).toMatchObject({ gaps: ['embed club may be stale'] });
+    await fire('PATCH', '/rest/v1/entry_carts?id=eq.c1&select=*,club:clubs(*)', {}, REP);
+    expect(log.simulated[1]?.gaps).toEqual([]);
+  });
+
+  it('marks a spread embed as a gap on insert and as possibly stale on PATCH', async () => {
+    const { fire, log } = await setup(() => ({ ok: true, body: [{ id: 'c1' }] }));
+    await fire('POST', '/rest/v1/entry_carts?select=*,...shows(name)', { show_id: 's' }, REP);
+    expect(log.simulated[0]?.gaps).toContain('embed shows (spread)');
+    await fire(
+      'PATCH',
+      '/rest/v1/entry_carts?id=eq.c1&select=*,...shows(name)',
+      { status: 'x' },
+      REP
+    );
+    expect(log.simulated[1]?.gaps).toEqual(['embed shows may be stale']);
+  });
+
+  it('records an inner embed that resolves to null on insert', async () => {
+    const { fire, log } = await setup(() => ({ ok: true, body: [] }));
+    await fire(
+      'POST',
+      '/rest/v1/entry_carts?select=id,show:shows!inner(*)',
+      { show_id: null },
+      REP
+    );
+    expect(log.simulated[0]?.gaps).toContain('embed show (inner) is null');
+  });
+
+  it('notes the conflict was not checked when an upsert body lacks the conflict column', async () => {
+    const { fire, log } = await setup(() => ({ ok: true, body: [] }));
+    await fire(
+      'POST',
+      '/rest/v1/entry_carts?on_conflict=show_id',
+      { status: 'x' },
+      { prefer: 'resolution=merge-duplicates,return=representation' }
+    );
+    expect(log.simulated[0]).toMatchObject({
+      kind: 'built from the body',
+      gaps: ['conflict not checked'],
+    });
   });
 
   it('records a gap when an embed cannot be read', async () => {
@@ -210,7 +294,10 @@ describe('answerLocally', () => {
       REP
     );
     expect(answered(fulfill).status).toBe(201);
-    expect(log.simulated[0]).toMatchObject({ kind: 'synthesized with gaps', gaps: ['embed show'] });
+    expect(log.simulated[0]).toMatchObject({
+      kind: 'built from the body',
+      gaps: ['conflict not checked', 'embed show'],
+    });
   });
 });
 
@@ -224,21 +311,21 @@ describe('formatWalkLog: Simulated', () => {
           page: 'http://localhost:5173/cart',
           method: 'POST',
           table: 'entry_carts',
-          kind: 'synthesized',
+          kind: 'built from the body',
           gaps: [],
         },
         {
           page: 'http://localhost:5173/cart',
           method: 'POST',
           table: 'entry_carts',
-          kind: 'synthesized',
+          kind: 'built from the body',
           gaps: [],
         },
       ],
     });
     expect(text).toContain('Simulated (answered in the browser, never sent): 2');
     expect(
-      text.match(/http:\/\/localhost:5173\/cart {2}POST entry_carts: synthesized/g)
+      text.match(/http:\/\/localhost:5173\/cart {2}POST entry_carts: built from the body/g)
     ).toHaveLength(1);
   });
   it('says none when nothing was simulated', () => {

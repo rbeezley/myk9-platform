@@ -4,7 +4,6 @@ import {
   contentRange,
   describeSimulated,
   embedForeignKey,
-  kindOf,
   overlayBody,
   parseSelect,
   readHeaders,
@@ -15,7 +14,7 @@ import {
 } from './readonly-walk-local';
 
 const NOW = '2026-11-14T12:00:00.000Z';
-const defaults = { id: 'local-1', now: NOW };
+const defaults = { id: 'local-1', now: NOW, table: 'entry_carts' };
 
 describe('parseSelect', () => {
   it('reads columns, aliases and embeds at the top level only', () => {
@@ -24,8 +23,24 @@ describe('parseSelect', () => {
     ).toEqual([
       { kind: 'column', name: 'id', column: 'id' },
       { kind: 'column', name: 'label', column: 'name' },
-      { kind: 'embed', name: 'show', table: 'shows', hint: null, inner: '*,club:clubs(name)' },
-      { kind: 'embed', name: 'items', table: 'entry_cart_items', hint: 'fk', inner: 'id' },
+      {
+        kind: 'embed',
+        name: 'show',
+        table: 'shows',
+        hint: null,
+        inner: '*,club:clubs(name)',
+        spread: false,
+        required: false,
+      },
+      {
+        kind: 'embed',
+        name: 'items',
+        table: 'entry_cart_items',
+        hint: 'fk',
+        inner: 'id',
+        spread: false,
+        required: false,
+      },
     ]);
   });
   it('treats no select as every column', () => {
@@ -55,12 +70,24 @@ describe('embedForeignKey', () => {
   const embed = (select: string) =>
     parseSelect(select)[0] as Extract<ReturnType<typeof parseSelect>[0], { kind: 'embed' }>;
   it('finds the key by alias, by table, or by the hint', () => {
-    expect(embedForeignKey(embed('show:shows(*)'), { show_id: 1 })).toBe('show_id');
-    expect(embedForeignKey(embed('shows(*)'), { show_id: 1 })).toBe('show_id');
+    expect(embedForeignKey(embed('show:shows(*)'), { show_id: 1 }, 'entry_carts')).toBe('show_id');
+    expect(embedForeignKey(embed('shows(*)'), { show_id: 1 }, 'entry_carts')).toBe('show_id');
     expect(
-      embedForeignKey(embed('host:clubs!entry_carts_host_club_id_fkey(*)'), { host_club_id: 1 })
+      embedForeignKey(
+        embed('host:clubs!entry_carts_host_club_id_fkey(*)'),
+        { host_club_id: 1 },
+        'entry_carts'
+      )
     ).toBe('host_club_id');
-    expect(embedForeignKey(embed('entry_cart_items(*)'), { show_id: 1 })).toBeNull();
+    expect(embedForeignKey(embed('entry_cart_items(*)'), { show_id: 1 }, 'entry_carts')).toBeNull();
+    expect(
+      embedForeignKey(
+        embed('owner:people!dogs_owner_person_fkey(*)'),
+        { id: 'x', owner_person_id: 'p' },
+        'dogs'
+      )
+    ).toBe('owner_person_id');
+    expect(embedForeignKey(embed('owner:people!id(*)'), { id: 'x' }, 'dogs')).toBeNull();
   });
 });
 
@@ -148,17 +175,14 @@ describe('small PostgREST shapes', () => {
     expect(singleRowError(0).code).toBe('PGRST116');
   });
   it('describes a simulated write with its gaps', () => {
-    expect(kindOf([], false)).toBe('exact');
-    expect(kindOf([], true)).toBe('synthesized');
-    expect(kindOf(['embed show'], true)).toBe('synthesized with gaps');
     expect(
       describeSimulated({
         page: 'http://x/cart',
         method: 'POST',
         table: 'entry_carts',
-        kind: 'synthesized with gaps',
+        kind: 'built from the body',
         gaps: ['embed show'],
       })
-    ).toBe('http://x/cart  POST entry_carts: synthesized with gaps (could not read: embed show)');
+    ).toBe('http://x/cart  POST entry_carts: built from the body (gaps: embed show)');
   });
 });

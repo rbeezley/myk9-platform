@@ -42,8 +42,9 @@ The walk runs against the shared database. Nothing may change there.
   save is answered in the browser and never sent: the answer is a real read of the same table with
   the request's own filters and `select`, with the body laid over it, or a row built from the body
   with its embeds read by foreign key. Every such answer is listed under "Simulated" by
-  `formatWalkLog`. Mark every finding on a screen reached through one as "simulated", and say
-  "with gaps" where the list does.
+  `formatWalkLog`. Mark every finding on a screen reached through one as "simulated", and carry
+  over any "gaps" the list names. No simulated answer is exact: triggers and defaults are not
+  reproduced.
 - Any other write during the walk is refused. Record "stopped at a write" for that step and move
   on to what can still be read.
 - Before opening a ringside scoresheet or tapping a score, call `cutOffBackend` and close the

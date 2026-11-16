@@ -17,7 +17,6 @@ import type { WalkLog } from './readonly-walk';
 import {
   conflictQuery,
   contentRange,
-  kindOf,
   overlayBody,
   parseSelect,
   refreshEmbeds,
@@ -66,14 +65,22 @@ export async function answerLocally(
     }
 
     /** A real GET. Null when it failed; the caller then answers with that failure. */
-    const state: { failure: APIResponse | null } = { failure: null };
+    const state: { failure: { status: number; response: APIResponse | null } | null } = {
+      failure: null,
+    };
     const read = async (target: URL, strict = true): Promise<Row[] | null> => {
       const real = await context.request.get(target.toString(), { headers: readHeaders(headers) });
-      if (!real.ok()) {
-        if (strict) state.failure = real;
-        return null;
+      let rows: Row[] | null = null;
+      if (real.ok()) {
+        try {
+          rows = asRows(await real.json());
+        } catch {
+          // a 2xx that is not JSON is a failed read
+        }
       }
-      return asRows(await real.json());
+      if (!rows && strict)
+        state.failure = { status: real.status(), response: real.ok() ? null : real };
+      return rows;
     };
 
     const send = async (status: number, rows: Row[]) => {
@@ -109,17 +116,24 @@ export async function answerLocally(
     const readEmbed = async (embedTable: string, query: URLSearchParams) =>
       read(new URL(`${url.origin}/rest/v1/${embedTable}?${query}`), false);
     const overlay = async (row: Row, body: Row): Promise<Row> => {
-      const refreshed = await refreshEmbeds(overlayBody(row, body, items), body, items, readEmbed);
-      if (refreshed.changed) synthesized = true;
+      const refreshed = await refreshEmbeds(
+        overlayBody(row, body, items),
+        body,
+        items,
+        table,
+        readEmbed
+      );
       gaps.push(...refreshed.gaps);
       return refreshed.row;
     };
 
     if (method === 'POST') {
       const resolution = resolutionOf(prefer);
+      if (!resolution) gaps.push('conflict not checked');
       const onConflict = url.searchParams.get('on_conflict')?.split(',') ?? [];
       for (const body of incoming) {
         const query = resolution ? conflictQuery(body, onConflict, select) : null;
+        if (resolution && !query) gaps.push('conflict not checked');
         const found = query ? await read(new URL(`${url.origin}${url.pathname}?${query}`)) : [];
         if (!found) break;
         if (found.length > 0) {
@@ -131,7 +145,7 @@ export async function answerLocally(
         const made = await synthesizeRow(
           body,
           items,
-          { id: makeId(), now: new Date().toISOString() },
+          { id: makeId(), now: new Date().toISOString(), table },
           readEmbed
         );
         result.push(made.row);
@@ -146,10 +160,19 @@ export async function answerLocally(
     }
 
     if (state.failure) {
-      await route.fulfill({ response: state.failure });
+      const { status, response } = state.failure;
+      log.simulated.push({ page, method, table, kind: 'read failed', gaps: [], status });
+      if (response) await route.fulfill({ response });
+      else
+        await route.fulfill({
+          status: 502,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'walk: the real read did not return JSON' }),
+        });
       return;
     }
-    log.simulated.push({ page, method, table, kind: kindOf(gaps, synthesized), gaps });
+    const kind = synthesized ? 'built from the body' : 'overlaid on a real read';
+    log.simulated.push({ page, method, table, kind, gaps: [...new Set(gaps)] });
     if (minimal) await route.fulfill({ status: method === 'POST' ? 201 : 204, body: '' });
     else await send(method === 'POST' ? 201 : 200, result);
   });

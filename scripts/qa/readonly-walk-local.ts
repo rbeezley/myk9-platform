@@ -9,25 +9,43 @@
  * upsert that matches nothing) has no row to read, so its row is built from
  * the body, and each embed in its `select` is read with a GET by the foreign
  * key in the body. What cannot be read is a gap, and the walk report says so.
+ *
+ * No answer is ever exact: the database also runs triggers, defaults, generated
+ * columns and casts that a laid-over body does not reproduce.
+ *
+ * Known limits: Content-Range carries a count only when one was asked for and
+ * is not reproduced for a single-object request answered with return=minimal.
  */
 export type Row = Record<string, unknown>;
 
-/** How exact a locally answered write is. */
-export type SimulationKind = 'exact' | 'synthesized' | 'synthesized with gaps';
+/** How a locally answered write was produced. None is ever exact: see the file header. */
+export type SimulationKind = 'overlaid on a real read' | 'built from the body' | 'read failed';
 
 export type Simulated = {
   page: string;
   method: string;
   table: string;
   kind: SimulationKind;
-  /** What could not be read, when `kind` is `synthesized with gaps`. */
+  /** What could not be read or checked. Empty means none known, not exact. */
   gaps: string[];
+  /** Status of the real read that failed, when `kind` is `read failed`. */
+  status?: number;
 };
 
 export type SelectItem =
   | { kind: 'all' }
   | { kind: 'column'; name: string; column: string }
-  | { kind: 'embed'; name: string; table: string; hint: string | null; inner: string };
+  | {
+      kind: 'embed';
+      name: string;
+      table: string;
+      hint: string | null;
+      inner: string;
+      /** `...table(cols)`: the columns are spread into the parent row. */
+      spread: boolean;
+      /** `table!inner(...)`: the parent row only exists when the embed does. */
+      required: boolean;
+    };
 
 /** Split on commas that are not inside parentheses. */
 function splitTopLevel(text: string): string[] {
@@ -49,8 +67,10 @@ function splitTopLevel(text: string): string[] {
 /** The top-level items of a PostgREST `select`. No `select` means every column. */
 export function parseSelect(select: string | null): SelectItem[] {
   if (!select) return [{ kind: 'all' }];
-  return splitTopLevel(select).map((raw): SelectItem => {
-    if (raw === '*') return { kind: 'all' };
+  return splitTopLevel(select).map((text): SelectItem => {
+    if (text === '*') return { kind: 'all' };
+    const spread = text.startsWith('...');
+    const raw = spread ? text.slice(3) : text;
     const open = raw.indexOf('(');
     const head = open < 0 ? raw : raw.slice(0, open);
     const colon = head.indexOf(':');
@@ -65,6 +85,8 @@ export function parseSelect(select: string | null): SelectItem[] {
       table,
       hint: hint === 'inner' || hint === 'left' ? null : hint,
       inner: raw.slice(open + 1, raw.lastIndexOf(')')),
+      spread,
+      required: hint === 'inner',
     };
   });
 }
@@ -87,16 +109,25 @@ const singular = (table: string): string =>
 /** The body column that points at the embedded table, or `null` when none can be named. */
 export function embedForeignKey(
   item: Extract<SelectItem, { kind: 'embed' }>,
-  body: Row
+  body: Row,
+  sourceTable: string
 ): string | null {
-  const keys = Object.keys(body);
+  const keys = Object.keys(body).filter(key => key !== 'id');
+  // A hint is a column name or a constraint name `<table>_<column>_fkey`, the
+  // column with or without its `_id`. Matched whole, never as a substring.
+  const hinted = keys.filter(
+    key =>
+      item.hint === key ||
+      item.hint === `${sourceTable}_${key}_fkey` ||
+      item.hint === `${sourceTable}_${key.replace(/_id$/, '')}_fkey`
+  );
   const named = [
+    ...hinted,
     `${item.name}_id`,
     `${singular(item.name)}_id`,
     `${singular(item.table)}_id`,
-    ...keys.filter(key => item.hint?.includes(key)),
   ];
-  return named.find(key => key in body) ?? null;
+  return named.find(key => key !== 'id' && key in body) ?? null;
 }
 
 export type Embedded = { value: unknown; gap: string | null };
@@ -113,7 +144,7 @@ export const embedQuery = (inner: string, id: string): URLSearchParams =>
 export async function synthesizeRow(
   body: Row,
   items: readonly SelectItem[],
-  defaults: { id: string; now: string },
+  defaults: { id: string; now: string; table: string },
   readEmbed: (table: string, query: URLSearchParams) => Promise<Row[] | null>
 ): Promise<{ row: Row; gaps: string[] }> {
   const known: Row = {
@@ -129,18 +160,24 @@ export async function synthesizeRow(
     else if (item.kind === 'column') {
       row[item.name] = item.column in known ? known[item.column] : null;
       if (!(item.column in known)) gaps.push(`column ${item.column}`);
+    } else if (item.spread) {
+      gaps.push(`embed ${item.name} (spread)`);
     } else {
-      const fk = embedForeignKey(item, known);
+      const fk = embedForeignKey(item, known, defaults.table);
       const id = fk === null ? null : known[fk];
       if (fk === null) gaps.push(`embed ${item.name}`);
-      else if (id === null || id === undefined) row[item.name] = null;
-      else {
+      else if (id === null || id === undefined) {
+        row[item.name] = null;
+        if (item.required) gaps.push(`embed ${item.name} (inner) is null`);
+      } else {
         const found = await readEmbed(item.table, embedQuery(item.inner, String(id)));
         if (found && found.length === 1) row[item.name] = found[0];
         else {
           row[item.name] = null;
           gaps.push(`embed ${item.name}`);
         }
+        if (item.required && row[item.name] === null && !gaps.includes(`embed ${item.name}`))
+          gaps.push(`embed ${item.name} (inner) is null`);
       }
     }
   }
@@ -148,24 +185,28 @@ export async function synthesizeRow(
 }
 
 /**
- * After the body is laid over a real row, re-read every embed joined through a
- * column the body changed: the real GET returned the OLD embedded row.
- * `changed` is true when any embed was re-read, so the answer is no longer exact.
+ * After the body is laid over a real row, every embed is the OLD one unless it
+ * is re-read. An embed joined through a column the body changed is re-read by
+ * the new id. One that cannot be tied to a body column is `may be stale` when
+ * the body changes anything.
  */
 export async function refreshEmbeds(
   row: Row,
   body: Row,
   items: readonly SelectItem[],
+  sourceTable: string,
   readEmbed: (table: string, query: URLSearchParams) => Promise<Row[] | null>
-): Promise<{ row: Row; gaps: string[]; changed: boolean }> {
+): Promise<{ row: Row; gaps: string[] }> {
   const next = { ...row };
   const gaps: string[] = [];
-  let changed = false;
+  const changes = Object.keys(body).length > 0;
   for (const item of items) {
     if (item.kind !== 'embed') continue;
-    const fk = embedForeignKey(item, body);
-    if (fk === null) continue;
-    changed = true;
+    const fk = item.spread ? null : embedForeignKey(item, body, sourceTable);
+    if (fk === null) {
+      if (changes) gaps.push(`embed ${item.name} may be stale`);
+      continue;
+    }
     const id = body[fk];
     if (id === null || id === undefined) {
       next[item.name] = null;
@@ -175,7 +216,7 @@ export async function refreshEmbeds(
     next[item.name] = found && found.length === 1 ? found[0] : null;
     if (!found || found.length !== 1) gaps.push(`embed ${item.name}`);
   }
-  return { row: next, gaps, changed };
+  return { row: next, gaps };
 }
 
 /** The query that finds the rows an upsert of `row` would conflict with, or `null` if none can. */
@@ -200,6 +241,9 @@ export function readHeaders(headers: Record<string, string>): Record<string, str
     const value = headers[name];
     if (value !== undefined) out[name] = value;
   }
+  // A write names its schema in Content-Profile; the read of the same table names it in Accept-Profile.
+  if (out['accept-profile'] === undefined && headers['content-profile'] !== undefined)
+    out['accept-profile'] = headers['content-profile'];
   out.accept = 'application/json';
   return out;
 }
@@ -227,10 +271,8 @@ export const singleRowError = (count: number) => ({
   message: 'JSON object requested, multiple (or no) rows returned',
 });
 
-export const kindOf = (gaps: readonly string[], synthesized: boolean): SimulationKind =>
-  gaps.length > 0 ? 'synthesized with gaps' : synthesized ? 'synthesized' : 'exact';
-
 /** One line of the report's Simulated list. */
 export const describeSimulated = (entry: Simulated): string =>
   `${entry.page}  ${entry.method} ${entry.table}: ${entry.kind}` +
-  (entry.gaps.length ? ` (could not read: ${entry.gaps.join(', ')})` : '');
+  (entry.status === undefined ? '' : ` (status ${entry.status})`) +
+  (entry.gaps.length ? ` (gaps: ${entry.gaps.join(', ')})` : '');

@@ -94,7 +94,6 @@ export const planDetails: Record<
       'Training journal',
       'Pedigree management',
       'Performance statistics',
-      'Priority support',
     ],
     color: 'amber',
   },

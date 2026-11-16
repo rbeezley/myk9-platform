@@ -51,7 +51,6 @@ const tiers = [
       'Training journal',
       'Pedigree management',
       'Performance statistics',
-      'Priority support',
     ],
     buttonText: 'Subscribe Now',
     buttonVariant: 'solid',

@@ -117,6 +117,7 @@ export function SecretaryCockpitFocusedClass({
         actions: new Map(focused.entryRows.map(row => [row.nodeId, row.actions])),
         showId,
         classId: focused.id,
+        trialId: sourceClass.trialId,
         classLifecycle: focused.lifecycle.value,
         onCommand,
       }

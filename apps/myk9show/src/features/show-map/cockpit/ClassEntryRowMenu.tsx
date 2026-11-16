@@ -45,6 +45,8 @@ function ItemLabel({ label, reason }: { label: string; reason: string | undefine
  *   offline they are disabled with the reason beside them, before she taps (MYK9-1940).
  * - Mark absent: a dog that can still run, and only for someone who may operate the show (the
  *   trial secretary gate Score this class uses). `onMarkAbsent` writes the result at once and offers Undo.
+ * - Print armband label: the one print panel, opened on this dog, for a lost label or a late entry.
+ *   Only a dog that has an armband has a label.
  * - Open dog details / Open person details (the entry's handler): links to the existing records;
  *   the person link only for the roles `/people/:id` admits.
  * Pull is not here: it lives in the Check-in cell's picker.
@@ -55,6 +57,7 @@ export function ClassEntryRowMenu({
   onCommand,
   editEntryHref,
   onMarkAbsent,
+  onPrintLabel,
   classLifecycle,
 }: {
   entry: SecretaryCockpitClassEntry;
@@ -62,6 +65,8 @@ export function ClassEntryRowMenu({
   onCommand: (commandId: string) => void;
   editEntryHref: string;
   onMarkAbsent: (entry: SecretaryCockpitClassEntry) => void;
+  /** Opens the print panel on this dog's armband label (MYK9-2073). */
+  onPrintLabel: (entry: SecretaryCockpitClassEntry) => void;
   /** The class's lifecycle: Mark absent is offered only while it is open for scoring. */
   classLifecycle: CockpitLifecycle | null;
 }) {
@@ -116,6 +121,11 @@ export function ClassEntryRowMenu({
         {showMarkAbsent && (
           <DropdownMenuItem className="min-h-11" onClick={() => onMarkAbsent(entry)}>
             Mark absent
+          </DropdownMenuItem>
+        )}
+        {armband && (
+          <DropdownMenuItem className="min-h-11" onClick={() => onPrintLabel(entry)}>
+            Print armband label
           </DropdownMenuItem>
         )}
         {showOpenLinks && <DropdownMenuSeparator />}

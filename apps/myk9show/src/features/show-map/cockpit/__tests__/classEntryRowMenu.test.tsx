@@ -42,6 +42,20 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: { get: getStored },
 }));
 vi.mock('@/utils/checkInTransitions', () => ({ transitionToCompleted }));
+vi.mock('../ClassPrintPanel', () => ({
+  ClassPrintPanel: (props: {
+    open: boolean;
+    classId: string;
+    trialId: string;
+    presetEntryId?: string;
+    items: readonly { reportId: string }[];
+  }) =>
+    props.open ? (
+      <div data-testid="print-panel">
+        {`${props.items.map(item => item.reportId).join(',')}|${props.trialId}|${props.classId}|${props.presetEntryId}`}
+      </div>
+    ) : null,
+}));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => isOnline.value }));
 vi.mock('@/features/at-show/clearEntryScore', () => ({
   clearEntryScore,
@@ -99,6 +113,7 @@ function table(
         actions: new Map([[entry.nodeId, [changeClass]]]),
         showId: 'show-1',
         classId: 'class-1',
+        trialId: 'trial-1',
         classLifecycle,
         onCommand: vi.fn(),
       }}
@@ -134,6 +149,7 @@ describe('the per-dog menu (MYK9-1873)', () => {
       'Change class',
       'Change handler',
       'Mark absent',
+      'Print armband label',
       'Open dog details',
       'Open person details',
     ]);
@@ -191,6 +207,7 @@ describe('the per-dog menu (MYK9-1873)', () => {
     expect(await names()).toEqual([
       'Change class',
       'Change handler',
+      'Print armband label',
       'Open dog details',
       'Open person details',
     ]);
@@ -205,7 +222,27 @@ describe('the per-dog menu (MYK9-1873)', () => {
 
   it('omits the open links when the entry carries no dog or person id', async () => {
     await openMenu(table(row('waiting', { dogHref: undefined, handlerHref: undefined })));
-    expect(await names()).toEqual(['Change class', 'Change handler', 'Mark absent']);
+    expect(await names()).toEqual([
+      'Change class',
+      'Change handler',
+      'Mark absent',
+      'Print armband label',
+    ]);
+  });
+
+  it("opens the one print panel on the dog's armband label", async () => {
+    const { user } = await openMenu(table(row('waiting')));
+    expect(screen.queryByTestId('print-panel')).toBeNull();
+    await user.click(screen.getByRole('menuitem', { name: 'Print armband label' }));
+    expect(screen.getByTestId('print-panel')).toHaveTextContent(
+      'armband-labels|trial-1|class-1|e-110'
+    );
+  });
+
+  it('offers no label for a dog without an armband', async () => {
+    const { user } = render(table(row('waiting', { armband: undefined })));
+    await user.click(screen.getByRole('button', { name: 'Actions for Hazel' }));
+    expect(await names()).not.toContain('Print armband label');
   });
 
   it('shows no menu without rowMenu (a viewer who cannot manage the show)', () => {
@@ -369,6 +406,7 @@ describe('offline: Change class and Change handler say why before she taps (MYK9
           actions: new Map([[entry.nodeId, [changeClass]]]),
           showId: 'show-1',
           classId: 'class-1',
+          trialId: 'trial-1',
           classLifecycle: 'in-progress',
           onCommand,
         }}

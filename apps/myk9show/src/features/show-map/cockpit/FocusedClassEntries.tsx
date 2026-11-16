@@ -12,6 +12,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { useState } from 'react';
 import { findInRingEntry, pendingByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
 
 import { cn } from '@/lib/utils';
@@ -34,8 +35,10 @@ import { ClassEntryRowMenu } from './ClassEntryRowMenu';
 import { entryEditHref } from './entryRowLinks';
 import { useMarkEntryAbsent } from './useMarkEntryAbsent';
 import { dayOfDogLabel } from '../dayOfMessages';
+import { ClassPrintPanel } from './ClassPrintPanel';
 import type {
   CockpitLifecycle,
+  SecretaryCockpitPaperwork,
   SecretaryCockpitEntryAction,
   SecretaryCockpitRunOrderControls,
 } from './secretaryCockpitTypes';
@@ -65,6 +68,9 @@ const CONTROL_CELL = 'w-11 px-0 py-1';
 /** "#110 Hazel": how a dog is named in the grip, the announcements and the Undo summary. */
 const dogLabel = dayOfDogLabel;
 const NO_ACTIONS: readonly SecretaryCockpitEntryAction[] = [];
+const LABEL_ITEMS: readonly SecretaryCockpitPaperwork[] = [
+  { reportId: 'armband-labels', label: 'Armband labels', state: 'unknown' },
+];
 
 const TILE = 'rounded-lg border bg-muted/30 px-4 py-3';
 
@@ -187,6 +193,8 @@ export function ClassEntriesTable({
         /** The show and class ids: Edit entry's link and Mark absent's write are keyed on them. */
         showId: string;
         classId: string;
+        /** The class's trial: the print panel's scope. */
+        trialId: string;
         classLifecycle: CockpitLifecycle | null;
         onCommand: (commandId: string) => void;
       }
@@ -212,6 +220,7 @@ export function ClassEntriesTable({
     onRefreshEntries,
     putBackEntries
   );
+  const [labelEntryId, setLabelEntryId] = useState<string | null>(null);
   const markAbsent = useMarkEntryAbsent({
     classId: rowMenu?.classId ?? '',
     className,
@@ -320,6 +329,7 @@ export function ClassEntriesTable({
                     entry={entry}
                     editEntryHref={entryEditHref(rowMenu.showId, entry.entryId)}
                     onMarkAbsent={markAbsent.request}
+                    onPrintLabel={entry => setLabelEntryId(entry.entryId)}
                     classLifecycle={rowMenu.classLifecycle}
                     actions={rowMenu.actions.get(entry.nodeId) ?? NO_ACTIONS}
                     onCommand={rowMenu.onCommand}
@@ -385,6 +395,19 @@ export function ClassEntriesTable({
       )}
       {hiddenNote}
       {checkIn.dialogs}
+      {rowMenu && (
+        // The one print panel, opened on this dog's armband label (MYK9-2073).
+        <ClassPrintPanel
+          open={labelEntryId !== null}
+          showId={rowMenu.showId}
+          trialId={rowMenu.trialId}
+          classId={rowMenu.classId}
+          classLabel={className}
+          items={LABEL_ITEMS}
+          presetEntryId={labelEntryId ?? undefined}
+          onClose={() => setLabelEntryId(null)}
+        />
+      )}
     </>
   );
 }

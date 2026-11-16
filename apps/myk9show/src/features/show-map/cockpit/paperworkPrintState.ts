@@ -1,3 +1,6 @@
+import { armbandLabelFacts, armbandLabelSubjectKey } from '@/lib/labels/armbandSubjectKey';
+import { compactFingerprint } from '@/lib/reports/paperworkFingerprint';
+import { deriveArmbandPrintState } from './armbandPrintState';
 import type { ReportScope } from '@/lib/reports/types';
 
 export interface PaperworkSubject {
@@ -88,28 +91,6 @@ export interface PaperworkClassFacts {
   classId: string;
   trialId: string;
   facts: Record<string, unknown>;
-}
-
-function stableStringify(value: unknown): string {
-  if (value === undefined) return 'undefined';
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  return `{${Object.keys(value as Record<string, unknown>)
-    .sort()
-    .map(
-      key => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`
-    )
-    .join(',')}}`;
-}
-
-function compactFingerprint(value: unknown): string {
-  const source = stableStringify(value);
-  let hash = 14695981039346656037n;
-  for (let index = 0; index < source.length; index += 1) {
-    hash ^= BigInt(source.charCodeAt(index));
-    hash = BigInt.asUintN(64, hash * 1099511628211n);
-  }
-  return `fnv1a64:${hash.toString(16).padStart(16, '0')}`;
 }
 
 function buildDescriptor(
@@ -215,8 +196,10 @@ export function buildArmbandPaperworkDescriptor(
     'armband-labels',
     scope,
     dogs.map(dog => ({
-      key: `dog-day:${dog.dogId || `armband:${dog.armband}`}:${dog.calendarDay}`,
-      facts: dog,
+      key: armbandLabelSubjectKey(dog),
+      // The label's own content, never the classes the dog is in (MYK9-2073): a day print and a
+      // one-dog print must read the same as the class print they cover.
+      facts: armbandLabelFacts(dog),
       classIds: dog.classIds,
       trialIds: dog.trialIds,
     }))
@@ -354,6 +337,7 @@ export function derivePaperworkPrintState(
   record: PaperworkPrintEvidence | null;
   staleSubjectKeys: readonly string[];
 } {
+  if (current.reportId === 'armband-labels') return deriveArmbandPrintState(records, current);
   const currentSubjects = current.coverage.subjectFingerprints;
   const candidates = records
     .filter(record => record.reportId === current.reportId && !record.voidedAt)

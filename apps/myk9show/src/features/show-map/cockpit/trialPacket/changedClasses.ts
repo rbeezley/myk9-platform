@@ -20,8 +20,6 @@ export type PacketPrintStatus =
       needIds: ReadonlySet<string>;
       /** Classes in the packet. */
       total: number;
-      /** Classes that were printed, then changed, and now have no dogs to print. */
-      changedEmptyCount: number;
     };
 
 const isPacketReport = (reportId: string) =>
@@ -64,24 +62,12 @@ export function packetPrintStatus(input: {
       else if (states.some(state => state !== 'current')) unprintedIds.add(classId);
     }
   }
-  const printedBefore = new Set(
-    input.records
-      .filter(
-        record =>
-          !record.voidedAt &&
-          record.classId &&
-          isPacketReport(record.reportId) &&
-          record.scopeKind === 'class'
-      )
-      .map(record => record.classId as string)
-  );
   return {
     kind: 'known',
     changedIds,
     unprintedIds,
     needIds: new Set([...changedIds, ...unprintedIds]),
     total,
-    changedEmptyCount: input.packet.emptyClassIds.filter(id => printedBefore.has(id)).length,
   };
 }
 

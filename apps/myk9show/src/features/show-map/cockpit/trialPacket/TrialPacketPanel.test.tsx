@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   voidPaperworkPrint: vi.fn(),
   refetch: vi.fn(),
   entries: [] as DbEntry[],
+  /** Records the panel's own prints wrote: they land in the print history, as in the app. */
+  landed: [] as Array<Record<string, unknown>>,
   prints: {} as { data?: unknown; isLoading: boolean; isError: boolean; syncFailed: boolean },
 }));
 
@@ -35,7 +37,22 @@ vi.mock('@/hooks/queries/useReportData', () => ({
     refetch: mocks.refetch,
   }),
 }));
-vi.mock('../useShowPaperworkPrints', () => ({ useShowPaperworkPrints: () => mocks.prints }));
+// One array per change, as the query hook returns, so the packets are built once.
+let merged: { base: unknown; landed: number; data: unknown[] } | null = null;
+vi.mock('../useShowPaperworkPrints', () => ({
+  useShowPaperworkPrints: () => {
+    const base = mocks.prints.data;
+    if (base === undefined) return mocks.prints;
+    if (!merged || merged.base !== base || merged.landed !== mocks.landed.length) {
+      merged = {
+        base,
+        landed: mocks.landed.length,
+        data: [...(base as unknown[]), ...mocks.landed],
+      };
+    }
+    return { ...mocks.prints, data: merged.data };
+  },
+}));
 vi.mock('@/pages/secretary/ReportsPage/reportPreviewUtils', () => ({
   printIframeAndWait: mocks.printIframeAndWait,
 }));
@@ -52,7 +69,7 @@ const BUILT = { timeout: 15000 };
 function renderPanel() {
   URL.createObjectURL = vi.fn(() => 'blob:packet');
   URL.revokeObjectURL = vi.fn();
-  render(<TrialPacketPanel open showId="show-1" trialId="trial-1" onClose={vi.fn()} />);
+  return render(<TrialPacketPanel open showId="show-1" trialId="trial-1" onClose={vi.fn()} />);
 }
 
 describe('TrialPacketPanel', () => {
@@ -61,8 +78,32 @@ describe('TrialPacketPanel', () => {
     mocks.entries = ENTRIES;
     mocks.prints = { data: [], isLoading: false, isError: false, syncFailed: false };
     mocks.printIframeAndWait.mockResolvedValue(true);
+    mocks.landed = [];
     let next = 0;
-    mocks.recordPaperworkPrinted.mockImplementation(async () => ({ id: `record-${++next}` }));
+    mocks.recordPaperworkPrinted.mockImplementation(
+      async ({ descriptor }: { descriptor: ReturnType<typeof buildReportPaperworkDescriptor> }) => {
+        const scope = descriptor!.scope as { trialId: string; classId: string };
+        const id = `record-${++next}`;
+        mocks.landed.push({
+          id,
+          showId: 'show-1',
+          trialId: scope.trialId,
+          classId: scope.classId,
+          scopeKind: 'class',
+          reportId: descriptor!.reportId,
+          coverage: descriptor!.coverage,
+          fingerprint: descriptor!.fingerprint,
+          printedBy: 'u1',
+          printedByName: 'Jannie',
+          printedAt: new Date(Date.UTC(2030, 0, 1) + next * 1000).toISOString(),
+        });
+        return { id };
+      }
+    );
+    mocks.voidPaperworkPrint.mockImplementation(async ({ recordId }: { recordId: string }) => {
+      const row = mocks.landed.find(item => item.id === recordId);
+      if (row) row.voidedAt = new Date().toISOString();
+    });
   });
 
   it('opens on the trial, collated by judge, with every packet and its sheet count', async () => {
@@ -236,7 +277,23 @@ describe('TrialPacketPanel', () => {
       expect(screen.queryByRole('button', { name: /Pat Donovan/ })).not.toBeInTheDocument();
     });
 
-    it('keeps the printed classes on screen after printing, and does not say All', async () => {
+    it('after a first-ever print stays on every class, with the marked line and Undo', async () => {
+      const user = userEvent.setup();
+      renderPanel();
+      const print = await screen.findByRole('button', { name: 'Print all 3 packets' });
+      await waitFor(() => expect(print).toBeEnabled(), BUILT);
+      await user.click(print);
+      expect(await screen.findByText('All 4 classes marked as printed with Trial 1')).toBeVisible();
+      // The records have landed: every class now reads printed, and the view did not move.
+      expect(mocks.landed.length).toBe(8);
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeVisible();
+      expect(screen.getByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
+      expect(screen.queryByText('Everything in this trial is printed and unchanged.')).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Undo' }));
+      await waitFor(() => expect(mocks.voidPaperworkPrint).toHaveBeenCalledTimes(8));
+    });
+
+    it('keeps the printed classes on screen after a narrowed print, with the marked line', async () => {
       const user = userEvent.setup();
       mocks.prints = {
         data: printedRecords(),
@@ -250,15 +307,46 @@ describe('TrialPacketPanel', () => {
       await waitFor(() => expect(print).toBeEnabled(), BUILT);
       await user.click(print);
       expect(await screen.findByText('1 class marked as printed with Trial 1')).toBeVisible();
-      // The record now matches the entries, as it does once the print is written.
+      expect(mocks.landed.length).toBe(2);
+      expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
+      expect(screen.getByText(/Only the 1 class that needed printing/)).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeVisible();
+      expect(screen.queryByText('Everything in this trial is printed and unchanged.')).toBeNull();
+    });
+
+    it('shows a class that starts needing printing while the panel is open', async () => {
       mocks.prints = {
-        data: printedRecords(undefined, mocks.entries),
+        data: printedRecords(),
         isLoading: false,
         isError: false,
         syncFailed: false,
       };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      const view = renderPanel();
+      expect(await screen.findByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Pat Donovan/ })).toBeNull();
+      mocks.entries = [...mocks.entries, entryRow('e10', 'c-container', 104, 4)];
+      view.rerender(<TrialPacketPanel open showId="show-1" trialId="trial-1" onClose={vi.fn()} />);
+      expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
-      expect(screen.getByText(/Only the 1 class that needed printing/)).toBeVisible();
+    });
+
+    it('opens on the empty view and still shows Undo after printing every class instead', async () => {
+      const user = userEvent.setup();
+      mocks.prints = {
+        data: printedRecords(),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      renderPanel();
+      await user.click(await screen.findByRole('button', { name: 'Print every class instead' }));
+      const print = await screen.findByRole('button', { name: 'Print all 3 packets' });
+      await waitFor(() => expect(print).toBeEnabled(), BUILT);
+      await user.click(print);
+      expect(await screen.findByText('All 4 classes marked as printed with Trial 1')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeVisible();
+      expect(screen.getByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
     });
 
     it('says a picked judge has nothing to print in the narrowed view', async () => {
@@ -275,32 +363,6 @@ describe('TrialPacketPanel', () => {
       await user.click(await screen.findByRole('button', { name: /Pat Donovan/ }));
       await user.click(screen.getByRole('button', { name: 'Show only what needs printing' }));
       expect(await screen.findByText('Pat Donovan has nothing that needs printing.')).toBeVisible();
-    });
-
-    it('says a class that changed and now has no dogs has nothing to reprint', async () => {
-      const emptyPrint = {
-        id: 'p-empty',
-        showId: 'show-1',
-        trialId: 'trial-1',
-        classId: 'c-empty',
-        scopeKind: 'class',
-        reportId: 'check-in-sheet',
-        coverage: {},
-        fingerprint: 'x',
-        printedBy: 'u1',
-        printedByName: 'Jannie',
-        printedAt: '2026-12-07T08:00:00Z',
-      } as ReplicatedPaperworkPrint;
-      mocks.prints = {
-        data: [...printedRecords(), emptyPrint],
-        isLoading: false,
-        isError: false,
-        syncFailed: false,
-      };
-      renderPanel();
-      expect(
-        await screen.findByText(/1 class changed since printing and now has no dogs/)
-      ).toBeVisible();
     });
 
     it('says nothing about checking while the print history is still loading', async () => {

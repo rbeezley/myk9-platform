@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
@@ -14,22 +14,31 @@ export interface ChangedPacket {
   onlyNeed: boolean;
   /** "Only what needs printing" with nothing in it: everything is printed and unchanged. */
   emptyView: boolean;
-  /** The classes the narrowed view holds, once printing has pinned them. */
-  pinned: boolean;
-  /** Some classes are fine or changed, so "only what needs printing" says something. */
-  narrowable: boolean;
-  /** How many classes the narrowed view holds, split by why. */
+  /** Classes that need printing right now, split by why. */
   changedCount: number;
   unprintedCount: number;
+  /** Classes the narrowed view holds, which includes ones printed since the panel opened. */
+  shownCount: number;
   chooseOnlyNeed: (only: boolean) => void;
-  /** Keeps the classes just printed on screen, so they do not vanish from the view they came from. */
-  pinShown: () => void;
+}
+
+interface Decision {
+  /** The mode the panel opened on. Only her clicks change the mode after this. */
+  mode: 'need' | 'all';
+  /** The classes that needed printing at that moment. */
+  baseIds: ReadonlySet<string>;
 }
 
 /**
- * The trial panel's "only what needs printing" view (MYK9-2074). It opens narrowed when some
- * classes changed since printing or were never printed while others are fine, and on every class
- * when nothing was ever printed, or when the print history cannot be read.
+ * The trial panel's "only what needs printing" view (MYK9-2074). The opening mode is decided ONCE,
+ * when the print history first settles, and never re-derived: a print, a sync or a new record
+ * must not swap the view out from under the "marked as printed" line (round 3).
+ *
+ * - Some but not all classes need printing, or none do: opens on "need" (none is the empty view).
+ * - Nothing was ever printed, every class changed, or the history is unknown: opens on "all".
+ *
+ * In "need" the shown classes are those that needed printing when it opened plus any that need it
+ * now, so a class she just printed stays on screen and a newly changed one appears.
  */
 export function useChangedPacket(input: {
   showId: string;
@@ -56,35 +65,38 @@ export function useChangedPacket(input: {
     [fullPacket, showId, classes, entries, prints.data, prints.isLoading, recordsFailed]
   );
   const known = status?.kind === 'known' ? status : null;
+  const [decision, setDecision] = useState<Decision | null>(null);
   const [choice, setChoice] = useState<boolean | null>(null);
-  const [pinnedIds, setPinnedIds] = useState<ReadonlySet<string> | null>(null);
 
-  // Narrowing says something only when some classes are fine or some changed; when nothing was
-  // ever printed it is the same packet, so the view stays on every class without a note.
-  const narrowable = Boolean(
-    known && (known.changedIds.size > 0 || known.needIds.size < known.total)
+  // Decided once, as soon as the history is known or known to be unreadable (render-phase update,
+  // guarded so it runs a single time).
+  if (decision === null && status && status.kind !== 'loading') {
+    setDecision(
+      status.kind === 'known' && status.needIds.size < status.total
+        ? { mode: 'need', baseIds: status.needIds }
+        : { mode: 'all', baseIds: new Set() }
+    );
+  }
+
+  const onlyNeed = choice ?? decision?.mode === 'need';
+  const shownIds = useMemo(
+    () => new Set([...(decision?.baseIds ?? []), ...(known?.needIds ?? [])]),
+    [decision, known]
   );
-  const onlyNeed = (narrowable || pinnedIds !== null) && (choice ?? true);
-  const shownIds = pinnedIds ?? known?.needIds ?? null;
   const packet = useMemo(
-    () =>
-      fullPacket && onlyNeed && shownIds ? onlyPacketClasses(fullPacket, shownIds) : fullPacket,
+    () => (fullPacket && onlyNeed ? onlyPacketClasses(fullPacket, shownIds) : fullPacket),
     [fullPacket, onlyNeed, shownIds]
   );
-  const pinShown = useCallback(() => {
-    if (onlyNeed && shownIds && !pinnedIds) setPinnedIds(shownIds);
-  }, [onlyNeed, shownIds, pinnedIds]);
+  const narrowed = onlyNeed && known !== null;
 
   return {
     status,
     packet,
-    onlyNeed,
-    emptyView: onlyNeed && Boolean(fullPacket) && packet?.judges.length === 0,
-    pinned: pinnedIds !== null,
-    narrowable,
+    onlyNeed: narrowed,
+    emptyView: narrowed && Boolean(fullPacket) && packet?.judges.length === 0,
     changedCount: known?.changedIds.size ?? 0,
     unprintedCount: known?.unprintedIds.size ?? 0,
+    shownCount: narrowed ? shownIds.size : 0,
     chooseOnlyNeed: setChoice,
-    pinShown,
   };
 }

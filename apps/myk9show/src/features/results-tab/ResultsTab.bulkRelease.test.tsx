@@ -7,6 +7,8 @@ import { Route, Routes } from 'react-router-dom';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { toast } from 'sonner';
+
 import { render } from '@/test/utils/testUtils';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import ResultsTab from './ResultsTab';
@@ -92,6 +94,8 @@ vi.mock('sonner', () => ({
 }));
 
 beforeEach(() => {
+  vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.success).mockClear();
   releaseMutate.mockReset();
   releaseMutate.mockImplementation(async (input: { classIds: string[] }) => ({
     released: failIds.set.has(input.classIds[0]!) ? [] : input.classIds,
@@ -107,13 +111,12 @@ beforeEach(() => {
   ];
 });
 
-const mount = () =>
-  render(
-    <Routes>
-      <Route path="/shows/:id/results" element={<ResultsTab />} />
-    </Routes>,
-    { initialRoute: '/shows/show-1/results?status=all' }
-  );
+const routes = (
+  <Routes>
+    <Route path="/shows/:id/results" element={<ResultsTab />} />
+  </Routes>
+);
+const mount = () => render(routes, { initialRoute: '/shows/show-1/results?status=all' });
 
 describe('Release checked classes', () => {
   it('puts a tick box only on classes the single-class Release would release, and no select all', () => {
@@ -214,5 +217,28 @@ describe('Release checked classes', () => {
     await new Promise(resolve => setTimeout(resolve, 20));
 
     expect(releaseMutate).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(
+      'Stopped after 1 of 2 classes. Release the rest again.'
+    );
+  });
+
+  it('does not release again a class someone released while the dialog was open', async () => {
+    const user = userEvent.setup();
+    const { rerender } = mount();
+    await user.click(screen.getByRole('checkbox', { name: /Containers Novice/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Exterior Novice/ }));
+    await user.click(screen.getByRole('button', { name: 'Release 2 classes' }));
+    const dialog = await screen.findByRole('dialog');
+
+    rows.list = rows.list.map(row =>
+      row.id === 'c1' ? ({ ...row, releasedAt: '2026-11-16T00:00:00Z' } as ResultsClassRow) : row
+    );
+    rerender(routes);
+    await user.click(within(dialog).getByRole('button', { name: 'Release 2 classes' }));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(releaseMutate.mock.calls.map(call => call[0])).toEqual([
+      { classIds: ['c3'], showId: 'show-1' },
+    ]);
   });
 });

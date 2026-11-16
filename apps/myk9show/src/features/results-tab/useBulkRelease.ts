@@ -85,6 +85,12 @@ export function useBulkRelease({
     };
   }, []);
 
+  // The list as it is now: a class released elsewhere while the dialog was open is not released again.
+  const liveRowsRef = useRef(rows);
+  useEffect(() => {
+    liveRowsRef.current = rows;
+  }, [rows]);
+
   const tickedRows = useMemo(
     () => rows.filter(row => checked.has(row.id) && getReleaseTick(row, isOnline).kind === 'tick'),
     [rows, checked, isOnline]
@@ -114,9 +120,18 @@ export function useBulkRelease({
     void (async () => {
       const failed: BulkReleaseFailure[] = [];
       const done = new Set<string>();
+      let stopped = false;
       try {
-        for (const row of batch) {
-          if (!mountedRef.current) break;
+        for (const snapshot of batch) {
+          if (!mountedRef.current) {
+            stopped = true;
+            break;
+          }
+          const row = liveRowsRef.current.find(live => live.id === snapshot.id) ?? snapshot;
+          if (row.releasedAt) {
+            done.add(row.id);
+            continue;
+          }
           try {
             const verifyBlocked = await verifyBlockedFor(row);
             const outcome = await releaseClassRow(row, releaseDeps(verifyBlocked, null, true));
@@ -134,7 +149,12 @@ export function useBulkRelease({
           }
         }
       } finally {
-        if (mountedRef.current) {
+        if (stopped) {
+          // The tab was left mid-run: the toast is global, so it still reaches her.
+          toast.error(
+            `Stopped after ${done.size} of ${batch.length} classes. Release the rest again.`
+          );
+        } else if (mountedRef.current) {
           setChecked(previous => new Set([...previous].filter(id => !done.has(id))));
           setReleasedCount(done.size);
           setRunning(false);

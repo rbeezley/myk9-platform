@@ -9,6 +9,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { createUser } from '@/services/database/users';
 import { UserRole } from '@/types/auth-types';
 import { notifications } from '@/lib/notifications';
+import { replaceShowOfficial } from './replaceShowOfficial';
 import { logger } from '@/services/LoggingService';
 
 interface ShowOfficialsEditorProps {
@@ -26,23 +27,60 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   }, [people.length, loadPeople]);
 
   const handleAssign = async (role: UserRole, personId: string) => {
+    const singleHolderRole =
+      role === UserRole.CHAIRMAN ? 'chairman' : role === UserRole.SECRETARY ? 'secretary' : null;
+    const roleLabel = role === UserRole.CHAIRMAN ? 'Chair' : 'Secretary';
+    const invalidate = () =>
+      queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
+
     setPendingRole(role);
     try {
-      const { error } = await supabase.rpc('grant_show_official', {
-        p_person_id: personId,
-        p_role_name: role,
-        p_show_id: showId,
-      });
-      if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
-      notifications.success('Official assigned');
+      if (!singleHolderRole) {
+        // Stewards keep grant-only behavior: a steward row also grants ring access.
+        const { error } = await supabase.rpc('grant_show_official', {
+          p_person_id: personId,
+          p_role_name: role,
+          p_show_id: showId,
+        });
+        if (error) throw error;
+        await invalidate();
+        notifications.success('Official assigned');
+        return;
+      }
+
+      try {
+        const { stillListed, revokeError } = await replaceShowOfficial({
+          showId,
+          role: singleHolderRole,
+          personId,
+        });
+        if (stillListed.length === 0) {
+          notifications.success('Official assigned');
+          return;
+        }
+        const newPerson = people.find(person => person.id === personId);
+        const newName = newPerson
+          ? `${newPerson.firstName} ${newPerson.lastName}`.trim()
+          : 'The new person';
+        const names = stillListed.map(h => `${h.firstName} ${h.lastName}`.trim()).join(', ');
+        logger.warn('Failed to revoke previous official', 'officials-editor', {
+          error: revokeError,
+        });
+        notifications.error(
+          `${newName} is now ${roleLabel}, but ${names} ${stillListed.length === 1 ? 'is' : 'are'} still listed. Try again.`
+        );
+      } finally {
+        // Refetch on every outcome so a half-finished replace shows the true state.
+        await invalidate();
+      }
     } catch (err) {
-      logger.warn('Failed to grant official role', 'officials-editor', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-      notifications.error(
-        `Failed to assign role: ${err instanceof Error ? err.message : String(err)}`
-      );
+      // A PostgrestError is a plain object, not an Error: read its message too.
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : String(err);
+      logger.warn('Failed to grant official role', 'officials-editor', { error: message });
+      notifications.error(`Failed to assign role: ${message}`);
     } finally {
       setPendingRole(null);
     }
@@ -80,7 +118,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Assignments save automatically the moment you pick a person — you don&apos;t need to click
-        Save Changes for officials. To replace someone already assigned, contact a site admin.
+        Save Changes for officials. Picking a new Chair or Secretary replaces the current one.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

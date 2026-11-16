@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import PricingPage from '../PricingPage';
+import { planDetails } from '@/components/subscription/featureUtils';
 import { createCheckoutSession } from '@/lib/stripe';
 
 // Mutable holder so individual tests can toggle the annual price's existence.
@@ -251,5 +252,16 @@ describe('PricingPage unresolved entitlement', () => {
     render(<PricingPage />);
 
     expect(screen.getByRole('button', { name: /subscribe now/i })).toBeInTheDocument();
+  });
+});
+
+// MYK9-2098: no support code reads the subscription tier, so the plan must not promise it.
+describe('Premium benefits', () => {
+  it('promises no support priority, on the page or in the plan details', () => {
+    render(<PricingPage />);
+
+    expect(screen.queryByText(/priority support/i)).not.toBeInTheDocument();
+    expect(planDetails.premium.features.join(' ')).not.toMatch(/priority support/i);
+    expect(planDetails.premium.features).toContain('Title tracking engine');
   });
 });

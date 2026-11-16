@@ -83,10 +83,9 @@ export function canProceedToGate(status: CheckInStatus): boolean {
   return status === 'checked-in' || status === 'come-to-gate';
 }
 
-// Exhibitor-facing plain-language labels, distinct from the staff-grade
-// grammar labels. Shared by CheckInStatusDialog and any
-// other exhibitor-facing surface (e.g. the at-show "Your dogs today" view)
-// that needs to badge a status in the same first-person voice.
+// Exhibitor-facing first-person CHOICES in the check-in dialog (buttons, not state names; the
+// words that name a state are CHECK_IN_STATE_WORDS in @myk9/ui, MYK9-2093). Distinct from the staff-grade
+// grammar labels. Read by CheckInStatusDialog only.
 export const EXHIBITOR_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
   'no-status': 'I am not there yet',
   'checked-in': 'I am here',

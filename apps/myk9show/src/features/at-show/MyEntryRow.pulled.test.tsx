@@ -71,7 +71,7 @@ describe('MyEntryRow — a pulled entry that was scored first', () => {
     const detail = renderRow(overrides);
     const row = screen.getByTestId('at-show-my-entry-e1');
 
-    expect(row).toHaveTextContent(/won't be running this class/i);
+    expect(row).toHaveTextContent(/pulled at the show/i);
     expect(row).not.toHaveTextContent(/preliminary/i);
     expect(row).not.toHaveTextContent('58');
     expect(row.textContent).not.toMatch(/\bQ\b/);

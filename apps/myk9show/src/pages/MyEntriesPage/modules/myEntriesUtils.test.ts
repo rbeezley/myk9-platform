@@ -39,7 +39,7 @@ describe('getEntryStatusBadge — preserved status kind', () => {
   );
 
   it.each([
-    ['in_ring', 'In Ring'],
+    ['in_ring', 'In the ring'],
     ['absent', 'Absent'],
     ['unknown', 'Status unavailable'],
   ] as const)('does not call a %s entry pending', (statusKind, label) => {

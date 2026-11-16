@@ -79,10 +79,10 @@ export function generateCSPPolicy(environment: string): string {
   } else {
     // Production - more restrictive
     baseDirectives.push(
-      "script-src 'self' https://challenges.cloudflare.com https://cdn.jsdelivr.net",
+      "script-src 'self' https://challenges.cloudflare.com https://cdn.jsdelivr.net 'wasm-unsafe-eval'",
       "style-src 'self' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' https://challenges.cloudflare.com https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://*.ingest.us.sentry.io"
+      "connect-src 'self' https://challenges.cloudflare.com data: https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://*.ingest.us.sentry.io"
     );
   }
 

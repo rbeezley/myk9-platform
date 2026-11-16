@@ -81,7 +81,7 @@ describe('ExhibitorClassCallout', () => {
       isAfterClass: false,
     });
     render(<ExhibitorClassCallout classId="c1" />);
-    expect(screen.getByText('In ring')).toBeInTheDocument();
+    expect(screen.getByText('In the ring')).toBeInTheDocument();
     expect(screen.getByText('Pulled')).toBeInTheDocument();
   });
 
@@ -89,7 +89,7 @@ describe('ExhibitorClassCallout', () => {
     mockHook({ myEntries: [makeEntry({ queue: { kind: 'withdrawn' } })], isAfterClass: false });
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.getByText('Withdrawn')).toBeInTheDocument();
-    expect(screen.queryByText('Pulled')).not.toBeInTheDocument();
+    expect(screen.queryByText(/pulled/i)).not.toBeInTheDocument();
   });
 
   it('renders "Your results" region after class', () => {

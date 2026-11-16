@@ -9,27 +9,36 @@ function toPremiumJudge(judge: ShowJudgeAssignment, classes: string[]): PremiumJ
   return { name: judge.judgeName, residence: judge.residence ?? null, classes };
 }
 
+const entryKey = (entry: { trialName: string; trialDate: string }) =>
+  premiumTrialKey(entry.trialName, entry.trialDate);
+
 /**
  * The judges one premium trial lists. A judge with a show-level assignment judges every class, so
  * is listed with no class line. Any other judge is listed only where they have classes, with those
- * classes only (MYK9-2067): trials of one weekend repeat the same class labels. When no trial of
- * the premium matches any judge's trial (an old premium, a renamed trial), every judge is listed on
- * every trial with their classes by label, so judges never vanish; premiumFacts then keeps only the
- * labels the trial runs.
+ * classes only (MYK9-2067): trials of one weekend repeat the same class labels.
+ *
+ * Premium trials carry no id, so they match by name and date, and a trial renamed or re-dated after
+ * the premium was generated matches nothing. Such a trial lists the judges whose trials match no
+ * premium trial (with their classes by label), so a judge never vanishes; premiumFacts then keeps
+ * only the labels the trial runs.
  */
 function judgesForTrial(
   judges: ShowJudgeAssignment[],
   trial: { name: string; date: string },
-  matchesAnyTrial: boolean
+  premiumKeys: ReadonlySet<string>
 ): PremiumJudge[] {
   const key = premiumTrialKey(trial.name, trial.date);
+  const trialMatched = judges.some(judge =>
+    (judge.classLabelsByTrial ?? []).some(entry => entryKey(entry) === key)
+  );
   return judges.flatMap(judge => {
     if (judge.hasShowLevelAssignment) return [toPremiumJudge(judge, [])];
-    if (!matchesAnyTrial) return [toPremiumJudge(judge, judge.classLabels ?? [])];
-    const here = (judge.classLabelsByTrial ?? []).find(
-      entry => premiumTrialKey(entry.trialName, entry.trialDate) === key
-    );
-    return here ? [toPremiumJudge(judge, here.labels)] : [];
+    const entries = judge.classLabelsByTrial ?? [];
+    const here = entries.find(entry => entryKey(entry) === key);
+    if (here) return [toPremiumJudge(judge, here.labels)];
+    const unplaced =
+      entries.length === 0 || entries.some(entry => !premiumKeys.has(entryKey(entry)));
+    return !trialMatched && unplaced ? [toPremiumJudge(judge, judge.classLabels ?? [])] : [];
   });
 }
 
@@ -48,11 +57,6 @@ export function applyShowFormDataToPremium(
   const preEntryFee = parseOptionalCurrency(formData.preEntryFee);
   const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
   const premiumKeys = new Set(premium.trials.map(t => premiumTrialKey(t.name, t.date)));
-  const matchesAnyTrial = judges.some(judge =>
-    (judge.classLabelsByTrial ?? []).some(entry =>
-      premiumKeys.has(premiumTrialKey(entry.trialName, entry.trialDate))
-    )
-  );
 
   return {
     ...premium,
@@ -72,7 +76,7 @@ export function applyShowFormDataToPremium(
     },
     trials: premium.trials.map(trial => ({
       ...trial,
-      judges: judgesForTrial(judges, trial, matchesAnyTrial),
+      judges: judgesForTrial(judges, trial, premiumKeys),
     })),
   };
 }

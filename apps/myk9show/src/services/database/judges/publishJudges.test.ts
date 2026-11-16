@@ -240,6 +240,36 @@ describe('fetchShowJudgesForPublish', () => {
       ]);
     });
 
+    it('gives no class for a deleted class or a class in a deleted trial', async () => {
+      server.range.mockResolvedValue({
+        data: [
+          withPlace('j1', { city: null, state: null }, {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            deleted_at: '2026-05-01T00:00:00Z',
+            trial: { name: 'Trial 1', date: '2026-05-01', deleted_at: null },
+          } as never),
+          withPlace('j2', { city: null, state: null }, {
+            element: 'Interior',
+            level: 'Novice',
+            section: null,
+            deleted_at: null,
+            trial: { name: 'Trial 2', date: '2026-05-02', deleted_at: '2026-05-01T00:00:00Z' },
+          } as never),
+        ],
+        error: null,
+      });
+      device.read.mockRejectedValue(new Error('IDB timeout'));
+
+      const judges = await fetchShowJudgesForPublish('show-1');
+
+      expect(judges).toEqual([
+        expect.objectContaining({ judgeId: 'j1', classLabels: [], classLabelsByTrial: [] }),
+        expect.objectContaining({ judgeId: 'j2', classLabels: [], classLabelsByTrial: [] }),
+      ]);
+    });
+
     it('carries City, ST and each distinct class label, and no residence without a city', async () => {
       const novice = { element: 'Container', level: 'Novice', section: 'A' };
       server.range.mockResolvedValue({

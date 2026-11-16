@@ -115,6 +115,26 @@ describe('applyShowFormDataToPremium judges (MYK9-2067)', () => {
       expect(result[1]).toEqual([{ name: 'Show Wide', residence: null, classes: [] }]);
     });
 
+    it('a trial renamed after the premium was generated still lists its judges', () => {
+      const result = sync([
+        judge({
+          judgeId: 'a',
+          judgeName: 'Judge A',
+          classLabels: [novice],
+          classLabelsByTrial: inTrial('Trial 1', '2026-05-01'),
+        }),
+        judge({
+          judgeId: 'b',
+          judgeName: 'Judge B',
+          classLabels: [novice],
+          classLabelsByTrial: inTrial('Trial Two', '2026-05-02'),
+        }),
+      ]);
+
+      expect(result[0]).toEqual([{ name: 'Judge A', residence: null, classes: [novice] }]);
+      expect(result[1]).toEqual([{ name: 'Judge B', residence: null, classes: [novice] }]);
+    });
+
     it('falls back to every judge on every trial when no trial matches, so judges never vanish', () => {
       const result = sync([
         judge({

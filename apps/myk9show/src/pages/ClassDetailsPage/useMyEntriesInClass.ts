@@ -7,6 +7,7 @@ import { compareStoredRunOrderNullLast, ownEntryQueueState } from '@/utils/showE
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
+import { deriveResultReleaseDisplay } from '@/features/result-card/resultReleaseDisplay';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 export interface MyClassEntry {
@@ -24,6 +25,8 @@ export interface MyClassEntry {
     time?: string;
     placement?: number;
     faults?: number;
+    /** MYK9-2094: true until the class is released; the row labels it "preliminary". */
+    isPreliminary: boolean;
   };
 }
 
@@ -43,7 +46,9 @@ export function useMyEntriesInClass(
    */
   releasedRows?: RawEntryRow[],
   /** The class row this device holds says it is judged on paper (MYK9-1970). */
-  scoresOnPaper = false
+  scoresOnPaper = false,
+  /** The class's `results_released_at`; unset means the store's results are unreleased. */
+  resultsReleasedAt?: string | null
 ): UseMyEntriesInClassResult {
   const { userWithRoles } = useAuthContext();
   const allEntries = useEntryStore(s => s.entries);
@@ -70,6 +75,7 @@ export function useMyEntriesInClass(
       const time = dbSecondsToInputFormat(r.search_time_seconds);
       return {
         qualified: r.result_status === 'qualified',
+        isPreliminary: false,
         ...(time ? { time } : {}),
         ...(r.final_placement != null ? { placement: r.final_placement } : {}),
         ...(r.total_faults != null ? { faults: r.total_faults } : {}),
@@ -110,6 +116,11 @@ export function useMyEntriesInClass(
       }
 
       const hasResult = !!compData;
+      const release = deriveResultReleaseDisplay({
+        resultsReleasedAt,
+        resultStatus: compData?.qualified ? 'qualified' : null,
+        finalPlacement: compData?.placement ? parseInt(compData.placement, 10) : null,
+      });
 
       myEntries.push({
         entryId: entry.id,
@@ -123,8 +134,10 @@ export function useMyEntriesInClass(
           ? {
               result: {
                 qualified: compData.qualified ?? false,
+                isPreliminary: release.isPreliminary,
                 ...(compData.time != null ? { time: compData.time } : {}),
-                ...(compData.placement ? { placement: parseInt(compData.placement, 10) } : {}),
+                // MYK9-263: an unreleased class withholds the placement.
+                ...(release.placement != null ? { placement: release.placement } : {}),
                 ...(compData.faults != null ? { faults: compData.faults } : {}),
               },
             }
@@ -164,5 +177,5 @@ export function useMyEntriesInClass(
     const isAfterClass = myEntries.some(e => e.hasResult);
 
     return { myEntries, isAfterClass };
-  }, [classId, databaseUserId, allEntries, dogs, releasedRows, scoresOnPaper]);
+  }, [classId, databaseUserId, allEntries, dogs, releasedRows, scoresOnPaper, resultsReleasedAt]);
 }

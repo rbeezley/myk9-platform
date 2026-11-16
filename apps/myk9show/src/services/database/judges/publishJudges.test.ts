@@ -182,6 +182,94 @@ describe('fetchShowJudgesForPublish', () => {
     expect(server.range).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 
+  // MYK9-2067: the premium prints each judge's city and state and the classes they judge.
+  describe('residence and class labels', () => {
+    const withPlace = (
+      personId: string,
+      place: { city: string | null; state: string | null },
+      assigned: { element: string | null; level: string | null; section: string | null } | null
+    ) => ({
+      ...row(personId, 'Pat'),
+      judge: { id: personId, first_name: 'Pat', last_name: 'Judge', ...place },
+      assigned_class: assigned,
+    });
+
+    it("asks for the judge's city and state and the class label parts", async () => {
+      await fetchShowJudgesForPublish('show-1');
+
+      expect(server.select).toHaveBeenCalledWith(
+        expect.stringContaining('first_name, last_name, city, state')
+      );
+      expect(server.select).toHaveBeenCalledWith(
+        expect.stringContaining('element, level, section')
+      );
+    });
+
+    it("keys each judge's class labels by the trial the class belongs to", async () => {
+      const inTrial = (name: string, date: string) => ({
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        trial: { name, date },
+      });
+      server.range.mockResolvedValue({
+        data: [
+          withPlace('j1', { city: null, state: null }, inTrial('Trial 1', '2026-05-01')),
+          withPlace('j2', { city: null, state: null }, inTrial('Trial 2', '2026-05-02')),
+        ],
+        error: null,
+      });
+      device.read.mockRejectedValue(new Error('IDB timeout'));
+
+      const judges = await fetchShowJudgesForPublish('show-1');
+
+      expect(server.select).toHaveBeenCalledWith(expect.stringContaining('trial:trials'));
+      expect(judges).toEqual([
+        expect.objectContaining({
+          judgeId: 'j1',
+          classLabelsByTrial: [
+            { trialName: 'Trial 1', trialDate: '2026-05-01', labels: ['Container Novice A'] },
+          ],
+        }),
+        expect.objectContaining({
+          judgeId: 'j2',
+          classLabelsByTrial: [
+            { trialName: 'Trial 2', trialDate: '2026-05-02', labels: ['Container Novice A'] },
+          ],
+        }),
+      ]);
+    });
+
+    it('carries City, ST and each distinct class label, and no residence without a city', async () => {
+      const novice = { element: 'Container', level: 'Novice', section: 'A' };
+      server.range.mockResolvedValue({
+        data: [
+          withPlace('j1', { city: 'Springfield', state: 'IL' }, novice),
+          withPlace('j1', { city: 'Springfield', state: 'IL' }, novice),
+          withPlace(
+            'j1',
+            { city: 'Springfield', state: 'IL' },
+            { element: 'Interior', level: 'Advanced', section: null }
+          ),
+          withPlace('j2', { city: null, state: 'TX' }, null),
+        ],
+        error: null,
+      });
+      device.read.mockRejectedValue(new Error('IDB timeout'));
+
+      const judges = await fetchShowJudgesForPublish('show-1');
+
+      expect(judges).toEqual([
+        expect.objectContaining({
+          judgeId: 'j1',
+          residence: 'Springfield, IL',
+          classLabels: ['Container Novice A', 'Interior Advanced'],
+        }),
+        expect.objectContaining({ judgeId: 'j2', residence: null, classLabels: [] }),
+      ]);
+    });
+  });
+
   it("groups a judge's class rows into one judge", async () => {
     server.range.mockResolvedValue({
       data: [row('j1', 'Pat', 'c1'), row('j1', 'Pat', 'c2')],

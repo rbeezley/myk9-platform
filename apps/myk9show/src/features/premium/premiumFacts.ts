@@ -10,6 +10,7 @@
  * Deliberately free of `@react-pdf/renderer` and font side effects: the public landing pages
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
+import { formatPremiumClassLabel } from './premiumClassLabel';
 import {
   OFFICER_POSITION_LABELS,
   OFFICER_POSITION_ORDER,
@@ -284,7 +285,7 @@ export interface PremiumTrialFacts {
   date: string;
   startTime: string | null;
   eventNumber: string | null;
-  judges: Array<{ name: string; elements: string[] }>;
+  judges: Array<{ name: string; residence: string | null; classes: string[] }>;
   /** "Element Level Section" in the registry's progression order. */
   classLabels: string[];
 }
@@ -396,16 +397,22 @@ export function buildPremiumFacts(
       : null,
     officers: buildOfficerFacts(data.officers),
     committee: buildCommitteeFacts(data.committee),
-    trials: (data.trials ?? []).map(trial => ({
-      name: trial.name,
-      date: formatPremiumDate(trial.date),
-      startTime: trial.startTime,
-      eventNumber: trial.eventNumber,
-      judges: (trial.judges ?? []).map(j => ({ name: j.name, elements: j.elements ?? [] })),
-      classLabels: [...(trial.classes ?? [])]
-        .sort(comparator)
-        .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`),
-    })),
+    trials: (data.trials ?? []).map(trial => {
+      const classLabels = [...(trial.classes ?? [])].sort(comparator).map(formatPremiumClassLabel);
+      return {
+        name: trial.name,
+        date: formatPremiumDate(trial.date),
+        startTime: trial.startTime,
+        eventNumber: trial.eventNumber,
+        judges: (trial.judges ?? []).map(j => ({
+          name: j.name,
+          residence: j.residence?.trim() || null,
+          // Only the classes this trial runs, in its own progression order.
+          classes: [...new Set(classLabels.filter(label => (j.classes ?? []).includes(label)))],
+        })),
+        classLabels,
+      };
+    }),
     vetClinic: supplemental.vetClinic
       ? { ...supplemental.vetClinic, phone: formatPhone(supplemental.vetClinic.phone) }
       : null,

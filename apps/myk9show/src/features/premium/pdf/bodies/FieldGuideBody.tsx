@@ -1,6 +1,7 @@
 // Numbered §00–§07 sections, each rendering its data as dense rows. Sections
 // hide entirely when their data is empty. No multi-column at the body level —
 // long sections flow vertically and react-pdf paginates.
+import { judgeBlockText } from './judgeLine';
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import type { StyleTokens } from '../pdfStyles';
@@ -165,10 +166,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
             trial.judges.map((j, ji) => (
               <View key={`${ti}-${ji}`} style={rowStyle}>
                 <Text style={labelStyle}>{trial.name}</Text>
-                <Text style={valueStyle}>
-                  {j.name}
-                  {j.elements.length > 0 ? ` · ${j.elements.join(', ')}` : ''}
-                </Text>
+                <Text style={valueStyle}>{judgeBlockText(j)}</Text>
               </View>
             ))
           )}

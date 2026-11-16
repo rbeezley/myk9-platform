@@ -1,4 +1,5 @@
 import { Page, Text, View } from '@react-pdf/renderer';
+import { judgeHeading } from './judgeLine';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import type { StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
@@ -153,7 +154,11 @@ export function PosterBody({ data, tokens }: Props) {
               <Text style={{ ...bodyStyle, marginBottom: 4 }}>
                 Judged by{' '}
                 {trial.judges
-                  .map(j => `${j.name}${j.elements.length ? ` (${j.elements.join(', ')})` : ''}`)
+                  .map(j =>
+                    j.classes.length
+                      ? `${judgeHeading(j)} (${j.classes.join(', ')})`
+                      : judgeHeading(j)
+                  )
                   .join(' & ')}
               </Text>
             )}

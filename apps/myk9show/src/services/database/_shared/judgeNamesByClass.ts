@@ -12,6 +12,9 @@ type ShowJudgeRows = NonNullable<
   Awaited<ReturnType<typeof supabase.rpc<'get_show_judges'>>>['data']
 >;
 
+/** The columns `get_shows_judges` also returns; it carries no city or state. */
+type ShowJudgeNameRows = Array<Omit<ShowJudgeRows[number], 'city' | 'state'>>;
+
 async function callGetShowJudges(showId: string): Promise<ShowJudgeRows | null> {
   try {
     const result = await supabase.rpc('get_show_judges', { p_show_id: showId });
@@ -32,6 +35,9 @@ export interface ConfirmedJudgeAssignment {
   trialId: string | null;
   /** Class-level assignments (`set_class_judge`) write `class_id` with a null `trial_id`. */
   classId: string | null;
+  /** The judge's city and state of residence (MYK9-2067); null when `people` has none. */
+  city?: string | null;
+  state?: string | null;
 }
 
 /**
@@ -52,6 +58,8 @@ export async function fetchShowConfirmedJudgeAssignments(
       lastName: row.last_name ?? null,
       trialId: row.trial_id ?? null,
       classId: row.class_id ?? null,
+      city: row.city ?? null,
+      state: row.state ?? null,
     }));
 }
 
@@ -117,7 +125,7 @@ export async function fetchShowsJudgeNameParts(
           );
           return;
         }
-        const rowsByShow = new Map<string, ShowJudgeRows>(batch.map(id => [id, []]));
+        const rowsByShow = new Map<string, ShowJudgeNameRows>(batch.map(id => [id, []]));
         for (const row of data ?? []) rowsByShow.get(row.show_id)?.push(row);
         for (const [showId, rows] of rowsByShow) byShow.set(showId, confirmedJudgeByClass(rows));
       } catch (error) {
@@ -131,7 +139,7 @@ export async function fetchShowsJudgeNameParts(
   return byShow;
 }
 
-function confirmedJudgeByClass(data: ShowJudgeRows): Map<string, JudgeNameParts> {
+function confirmedJudgeByClass(data: ShowJudgeNameRows): Map<string, JudgeNameParts> {
   const byClass = new Map<string, JudgeNameParts>();
   // `judge_assignments_one_confirmed_judge_per_class` allows one confirmed row per class, so each
   // class gets that row's id AND name together.

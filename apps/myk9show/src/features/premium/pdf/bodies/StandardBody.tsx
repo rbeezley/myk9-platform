@@ -1,4 +1,5 @@
 // Shared body for both AKC and UKC. The 'org' prop is the seam for future org-specific divergence; today both orgs render identically.
+import { judgeBlockText } from './judgeLine';
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { buildStyles, resolveTokens } from '../pdfStyles';
@@ -171,10 +172,7 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           {trial.judges.map((j, ji) => (
             <View key={ji} style={s.row}>
               <Text style={s.label}>{ji === 0 ? 'Judge' : ''}</Text>
-              <Text style={s.value}>
-                {j.name}
-                {j.elements.length > 0 ? ` (${j.elements.join(', ')})` : ''}
-              </Text>
+              <Text style={s.value}>{judgeBlockText(j)}</Text>
             </View>
           ))}
           {trial.classLabels.length > 0 && (

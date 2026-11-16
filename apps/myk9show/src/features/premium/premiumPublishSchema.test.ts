@@ -83,4 +83,45 @@ describe('premium publication schemas', () => {
     expect(parsePersistedPremiumAttempt({ ...attempt, schemaVersion: 1 })).toBeNull();
     expect(parsePersistedPremiumAttempt({ ...attempt, fingerprint: '' })).toBeNull();
   });
+
+  it('accepts a judge published before residence and classes existed and defaults both (MYK9-2067)', () => {
+    const parsed = parseGeneratedPremium({
+      ...premium,
+      trials: [
+        {
+          name: 'Sat',
+          date: '2026-05-01',
+          startTime: null,
+          eventNumber: null,
+          type: 'Scent Work',
+          judges: [{ name: 'Old Judge', elements: ['Container'] }],
+          classes: [],
+        },
+      ],
+    });
+    expect(parsed.trials[0]?.judges).toEqual([{ name: 'Old Judge', residence: null, classes: [] }]);
+  });
+
+  it("keeps a judge's residence and classes", () => {
+    const judge = {
+      name: 'Jane Smith',
+      residence: 'Springfield, IL',
+      classes: ['Container Novice'],
+    };
+    const parsed = parseGeneratedPremium({
+      ...premium,
+      trials: [
+        {
+          name: 'Sat',
+          date: '2026-05-01',
+          startTime: null,
+          eventNumber: null,
+          type: 'Scent Work',
+          judges: [judge],
+          classes: [],
+        },
+      ],
+    });
+    expect(parsed.trials[0]?.judges).toEqual([judge]);
+  });
 });

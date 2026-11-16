@@ -40,7 +40,7 @@ function makePremium(org: Org): GeneratedPremium {
         startTime: '9:00 AM',
         eventNumber: `${org}-2026-001`,
         type: 'Scent Work',
-        judges: [{ name: 'Alice Judge', elements: ['Container'] }],
+        judges: [{ name: 'Alice Judge', classes: ['Container'] }],
         classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
       },
     ],

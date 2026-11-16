@@ -30,7 +30,7 @@ const fullData: GeneratedPremium = {
       startTime: null,
       eventNumber: null,
       type: 'Scent Work',
-      judges: [{ name: 'Alice', elements: [] }],
+      judges: [{ name: 'Alice', classes: [] }],
       classes: [
         { element: 'Container', level: 'Novice', section: null },
         { element: 'Interior', level: 'Advanced', section: null },
@@ -42,7 +42,7 @@ const fullData: GeneratedPremium = {
       startTime: null,
       eventNumber: null,
       type: 'Scent Work',
-      judges: [{ name: 'Bob', elements: [] }],
+      judges: [{ name: 'Bob', classes: [] }],
       classes: [{ element: 'Buried', level: 'Master', section: null }],
     },
   ],

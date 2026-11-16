@@ -74,8 +74,8 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
         eventNumber: `${org}-2026-001`,
         type: 'Scent Work',
         judges: [
-          { name: 'Alice Judge', elements: ['Container', 'Interior'] },
-          { name: 'Carl Judge', elements: [] },
+          { name: 'Alice Judge', residence: 'Springfield, IL', classes: ['Container Novice A'] },
+          { name: 'Carl Judge', residence: null, classes: [] },
         ],
         classes: [
           { element: 'Interior', level: 'Advanced', section: null },
@@ -89,7 +89,7 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
         startTime: null,
         eventNumber: null,
         type: 'Scent Work',
-        judges: [{ name: 'Alice Judge', elements: ['Vehicle'] }],
+        judges: [{ name: 'Alice Judge', classes: ['Vehicle Master'] }],
         classes: [{ element: 'Vehicle', level: 'Master', section: null }],
       },
     ],

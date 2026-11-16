@@ -7,6 +7,8 @@ import { unsentPickClassIds } from '@/services/replication/classJudgePick';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
+import { formatJudgeResidence } from '@/utils/formatJudgeResidence';
+import { formatPremiumClassLabel, premiumTrialKey } from '@/features/premium/premiumClassLabel';
 import { readJudgeAssignmentsOrThrow } from './assignmentReads';
 
 interface ServerJudgeRow {
@@ -15,7 +17,19 @@ interface ServerJudgeRow {
   class_id: string | null;
   invited_at: string | null;
   confirmed_at: string | null;
-  judge: { id: string; first_name: string | null; last_name: string | null } | null;
+  judge: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    city: string | null;
+    state: string | null;
+  } | null;
+  assigned_class: {
+    element: string | null;
+    level: string | null;
+    section: string | null;
+    trial: { name: string; date: string } | null;
+  } | null;
 }
 
 /** One assignment as `judge|class`, so a class moved between judges counts as a change. */
@@ -23,6 +37,53 @@ const assignmentKey = (personId: string, classId: string | null | undefined) =>
   `${personId}|${classId ?? ''}`;
 
 const SERVER_PAGE_SIZE = 1000;
+
+/**
+ * Each judge's class-level labels, all together and per trial (matched to a premium trial by
+ * name and date, since premium trials carry no id), each label once, in the order read.
+ */
+function collectClassLabels(
+  rows: ServerJudgeRow[]
+): Map<string, { all: string[]; byTrial: NonNullable<ShowJudgeAssignment['classLabelsByTrial']> }> {
+  const byPerson = new Map<
+    string,
+    {
+      all: Set<string>;
+      byTrial: Map<string, { trialName: string; trialDate: string; labels: Set<string> }>;
+    }
+  >();
+  for (const row of rows) {
+    const cls = row.assigned_class;
+    if (!cls?.element || !cls.level) continue;
+    const label = formatPremiumClassLabel({
+      element: cls.element,
+      level: cls.level,
+      section: cls.section,
+    });
+    const entry = byPerson.get(row.person_id) ?? { all: new Set<string>(), byTrial: new Map() };
+    entry.all.add(label);
+    if (cls.trial) {
+      const key = premiumTrialKey(cls.trial.name, cls.trial.date);
+      const here = entry.byTrial.get(key) ?? {
+        trialName: cls.trial.name,
+        trialDate: cls.trial.date,
+        labels: new Set<string>(),
+      };
+      here.labels.add(label);
+      entry.byTrial.set(key, here);
+    }
+    byPerson.set(row.person_id, entry);
+  }
+  return new Map(
+    [...byPerson].map(([personId, entry]) => [
+      personId,
+      {
+        all: [...entry.all],
+        byTrial: [...entry.byTrial.values()].map(t => ({ ...t, labels: [...t.labels] })),
+      },
+    ])
+  );
+}
 
 async function readServerJudges(
   showId: string
@@ -35,7 +96,10 @@ async function readServerJudges(
       .from('judge_assignments')
       .select(
         `id, person_id, show_id, class_id, invited_at, confirmed_at,
-         judge:people!judge_assignments_person_id_fkey(id, first_name, last_name)`
+         judge:people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state),
+         assigned_class:classes!judge_assignments_class_id_fkey(
+           element, level, section, trial:trials!classes_trial_id_fkey(name, date)
+         )`
       )
       .eq('show_id', showId)
       .order('id', { ascending: true })
@@ -66,8 +130,20 @@ async function readServerJudges(
         ]
       : []
   );
+  const residenceByPerson = new Map<string, string | null>();
+  for (const row of rows) {
+    if (row.judge) {
+      residenceByPerson.set(row.person_id, formatJudgeResidence(row.judge.city, row.judge.state));
+    }
+  }
+  const classLabels = collectClassLabels(rows);
   return {
-    judges: buildAssignedJudges(assignments, showId, people),
+    judges: buildAssignedJudges(assignments, showId, people).map(judge => ({
+      ...judge,
+      residence: residenceByPerson.get(judge.judgeId) ?? null,
+      classLabels: classLabels.get(judge.judgeId)?.all ?? [],
+      classLabelsByTrial: classLabels.get(judge.judgeId)?.byTrial ?? [],
+    })),
     keys: new Set(rows.map(row => assignmentKey(row.person_id, row.class_id))),
   };
 }

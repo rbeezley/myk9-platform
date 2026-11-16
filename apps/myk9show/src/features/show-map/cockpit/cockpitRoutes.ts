@@ -204,6 +204,21 @@ export function getShowHomeHref({
 }
 
 /**
+ * MYK9-2075: the show home on a trial's day with that trial's before-trial packet panel open. The
+ * packet opens on what still needs printing. The checklist line and the next trial's card share it.
+ */
+export function getTrialPacketHref(
+  showId: string,
+  trial: { id: string; date?: string | null | undefined }
+): string {
+  const home = getShowHomeHref({
+    showId,
+    state: { statuses: [], selectedDays: parseCockpitDays(trial.date) },
+  });
+  return `${home}${home.includes('?') ? '&' : '?'}packet=${encodeURIComponent(trial.id)}`;
+}
+
+/**
  * MYK9-1320: the workbench for ONE trial. `day` set to the trial's date opens every trial on that
  * day, and `anchor` scrolls to this trial's header. A trial with no date keeps the All days view,
  * where the anchor still finds its header.

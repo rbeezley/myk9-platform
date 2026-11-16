@@ -16,6 +16,7 @@ import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRo
 
 import { voidPaperworkPrint } from '../paperworkPrintActions';
 import { ChangedSinceNote } from './ChangedSinceNote';
+import { EarlierTrialNote } from './EarlierTrialNote';
 import { useChangedPacket } from './useChangedPacket';
 import { AfterShowPanelBody } from './AfterShowPanelBody';
 import { JudgeRecordPanelBody } from './JudgeRecordPanelBody';
@@ -260,6 +261,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           {packet.cancelledClassCount === 1 ? 'is' : 'are'} left out.
         </p>
       )}
+      <EarlierTrialNote showId={showId} trialId={trialId} trials={(trials ?? []) as DbTrial[]} />
       <ChangedSinceNote view={view} />
       {nothingForJudge && (
         <p role="status" className="rounded-md border bg-muted/40 px-3 py-2 text-sm">

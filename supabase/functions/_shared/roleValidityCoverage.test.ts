@@ -10,7 +10,6 @@ const ROLE_VALIDITY_PATHS = [
   '../send-targeted-message/targeted-message-handler.ts',
   '../push-trigger-chat-message/recipients.ts',
   '../push-trigger-support-message/recipients.ts',
-  '../generate-premium/index.ts',
   '../send-email/authz.ts',
   '../send-access-request-emails/records.ts',
   '../send-results/authz.ts',

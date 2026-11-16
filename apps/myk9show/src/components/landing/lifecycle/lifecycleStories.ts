@@ -117,6 +117,83 @@ const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
   { x: 5, y: 87, w: 90, h: 12.5, caption: 'Each dog’s classes for the day' },
 ];
 
+// Scene lines for the animated timeline (docs/plan-landing-animated-timeline.md, MYK9-1894).
+// Each line has a KEEP row in docs/qa/landing-lifecycle-evidence.md. The app's own labels are
+// quoted exactly, so a label in double quotes must stay in step with the app.
+export type SceneId = 'entries' | 'showday-ring' | 'showday-desk' | 'results';
+export type SceneLine = { text: string };
+
+export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
+  entries: [
+    {
+      text: 'The exhibitor presses "Enter this show", picks a dog, then picks classes. A class that is full says so before they can enter it.',
+    },
+    {
+      text: 'They press "Pay" with the amount on it and finish at the secure card checkout. Entries paid by check or cash end on a Receipt instead.',
+    },
+    {
+      text: 'My Entries shows the dog as "Pending review", with "The show secretary is reviewing this entry."',
+    },
+    {
+      text: 'On the secretary’s Entry Forms list the form reads "Needs review", with its payment state beside it and "Review" as the next action.',
+    },
+    {
+      text: 'Review opens the form. Under "To finish this form" she presses "Accept", and the exhibitor’s chip changes to "Accepted".',
+    },
+  ],
+  'showday-ring': [
+    {
+      text: 'Ringside lists the judge’s classes under "Your ring", each with how many dogs are scored.',
+    },
+    {
+      text: 'The signal drops. The header reads "Offline · scores saved on this device", and the run order stays.',
+    },
+    {
+      text: 'The judge presses "Start", then "Stop", then picks Qualified, NQ, Absent, Excused or DQ. A Qualified run shows Faults.',
+    },
+    {
+      text: '"Save" opens "Score Confirmation", the read-back of the result and time. "Confirm & Submit" returns to the entry list with a "Saved:" line, marked "on this device, not sent yet".',
+    },
+    {
+      text: 'When the signal returns the score sends itself and "Scores sent" appears.',
+    },
+  ],
+  'showday-desk': [
+    {
+      text: 'Show Desk opens on "Today’s schedule". Each class row says where it stands, like "Not started · 3 of 5 not checked in".',
+    },
+    {
+      text: 'From Actions, the "Check-in desk" finds an exhibitor by name, dog or armband, with a "Check in" button per dog.',
+    },
+    {
+      text: 'Once a class is running its row reads "Running · 2 of 6 scored · Willow in ring" as scores arrive.',
+    },
+    {
+      text: 'No tablets? "Open paper scoring" lists the dogs in run order. Pick the result, type the Search Time, press "Save & Next", until the heading reads "6 of 6 scored".',
+    },
+    {
+      text: 'Setting Status to "Complete" asks first if paper scores are missing, then "Continue on Results" opens the next step.',
+    },
+  ],
+  results: [
+    {
+      text: 'A finished class appears on the Results tab with its status and a next action, "Check scores" until the scores are checked.',
+    },
+    {
+      text: 'Opening it shows the placement table, worked out from the scores, and "Not released".',
+    },
+    {
+      text: 'She presses "Release results". The class reads "Released" and the scores are visible to exhibitors.',
+    },
+    {
+      text: 'Finishing many classes: tick them and press "Release 3 classes", then confirm that the scores match the judges’ paper sheets.',
+    },
+    {
+      text: 'On the exhibitor’s phone, My Entries shows "New result" on the dog’s class. Opening it shows the result card.',
+    },
+  ],
+};
+
 export const STORIES: Record<Audience, readonly StoryStep[]> = {
   club: [
     {

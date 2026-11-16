@@ -80,64 +80,100 @@ Six full scenes would make a very long page. Three steps sell the product and ge
 | Results         | Scene     | Secretary releases; exhibitor's phone shows the placement                |
 | After           | Still     | Dog's record                                                             |
 
-### The real "Entries open" flow (verified in code 2026-11-12)
+### The "Entries open" scene (re-verified in code 2026-11-15)
 
-1. The exhibitor presses "Enter this show" and gets a four-step wizard: Dogs, Classes, Payment, Receipt. A full class is marked "Full" or "Full: join waitlist" before they can enter it (`evaluate_entry_capacity`).
-2. After submitting, My Entries shows the dog with "Pending review" and "The show secretary is reviewing this entry."
-3. The secretary's Entry Forms list shows the form with "Needs review" and the payment state beside it, and "Review" as the next action.
-4. "Review" opens the form panel. Under "To finish this form" the secretary presses "Accept". The panel reads "All set." and the exhibitor's chip changes to "Accepted".
+The exhibitor's phone and the secretary's screen share one scene. The words live in `SCENE_LINES.entries` (`lifecycleStories.ts`); each line's code evidence is in the "Timeline scenes" section of [`qa/landing-lifecycle-evidence.md`](qa/landing-lifecycle-evidence.md).
+
+1. The exhibitor presses "Enter this show", picks a dog, then picks classes. A class that is full says so before they can enter it.
+2. They press "Pay" with the amount on it and finish at the secure card checkout. Entries paid by check or cash end on a Receipt instead.
+3. My Entries shows the dog as "Pending review", with "The show secretary is reviewing this entry."
+4. On the secretary's Entry Forms list the form reads "Needs review", with its payment state beside it and "Review" as the next action.
+5. Review opens the form. Under "To finish this form" she presses "Accept", and the exhibitor's chip changes to "Accepted".
+
+Changed from the 2026-11-12 wording:
+
+- The wizard is no longer "four steps" for every payer. Card goes straight to Stripe from the Payment step ("Pay $X.XX", MYK9-1964), so only check and cash reach the Receipt step. The exhibitor's wizard still has no Handlers step (the secretary's does); a handler question appears inline only when one owner enters two dogs in one class (MYK9-2021).
+- "Full: join waitlist" cannot be quoted: `BANNED_COPY` forbids the word. Line 1 says a full class "says so".
+- "The panel reads 'All set.'" is true only when nothing else is open. A form with an unpaid fee or a dog with no armband still lists those items. Stage a form with both done.
+- **"Accepting sends no email" is no longer true.** On a published show that has not finished, Accept emails the exhibitor by itself after a few quiet minutes; on other shows the secretary sees a preview first. No line speaks to email.
 
 Facts the copy must respect:
 
 - Paying does not accept an entry, and an unpaid entry can be accepted.
 - The secretary's list shows no class-limit figure. The limit is enforced when the exhibitor enters.
-- Accepting sends no email. The secretary sends the decision email by hand.
-- Armbands are not assigned by an online entry or by Accept.
+- Armbands are not assigned by an online entry; a staff member assigns them.
 
 ### Show day has two scenes (owner, 2026-11-12)
 
 The judge is a key role and works almost entirely in Ringside, and the secretary has her own show-day screens, including typing results in from paper when tablets are not used. Show day therefore carries two scenes, one after the other, inside the one step. It does not add a third audience to the switch: judges do not choose the software.
 
-Do not capture the desk scene until the page fixes are finished. Its lines are written now so the flow is checked; the screens are among those most likely to change.
+Do not capture the desk scene until the page fixes are finished. Its lines are written and checked now; the screens are among those most likely to change.
 
-### The real "Show day, at the ring" flow (verified in code and prototyped 2026-11-12)
+### The "Show day, at the ring" scene (re-verified in code 2026-11-15)
 
-The judge's tablet leads; the exhibitor's phone is the second device.
+The judge's tablet leads. Words in `SCENE_LINES['showday-ring']`.
 
-1. **The judge opens their ring.** Ringside's class list has a "Your ring" section with the judge's classes in order and how many dogs are left.
-2. **The signal drops. The run order stays.** The entry list shows "Offline · scores saved on this device" and the dogs still to run.
-3. **Time the run, mark the result.** The scoresheet has Start, then Stop, then Qualified, NQ, Absent, Excused or DQ. Faults appear for a Qualified run.
-4. **Read it back, then submit.** "Score Confirmation" lists the result and time, with "Confirm & Submit". The tablet then says "Saved on this device. It will send when you're back online."
-5. **It sends itself when the signal returns.** The exhibitor's My Entries row shows "New result".
+1. Ringside lists the judge's classes under "Your ring", each with how many dogs are scored.
+2. The signal drops. The header reads "Offline · scores saved on this device", and the run order stays.
+3. The judge presses "Start", then "Stop", then picks Qualified, NQ, Absent, Excused or DQ. A Qualified run shows Faults.
+4. "Save" opens "Score Confirmation", the read-back of the result and time. "Confirm & Submit" returns to the entry list with a "Saved:" line, marked "on this device, not sent yet".
+5. When the signal returns the score sends itself and "Scores sent" appears.
+
+Changed from the 2026-11-12 wording (the judge's flow changed on 2026-11-14, MYK9-2012, MYK9-1991, MYK9-2011):
+
+- Line 1 said "how many dogs are left". The card shows a scored count; "remaining" only appears on a live class.
+- Line 2's wording holds only before the first score is saved offline. After it the header reads "Offline · 1 score not sent yet", so the frame comes before any score.
+- Line 4 said the tablet says "Saved on this device. It will send when you're back online." That is gone: after Save the judge is back on the entry list with the "Saved:" line and a "Correct" button.
+- **Line 5 (the exhibitor's My Entries row shows "New result") was wrong and is replaced.** "New result" appears only after the club releases a Qualified result, so it belongs to the Results scene. The ring scene has no second device after line 1; the exhibitor phone is the second device in the Results scene. If a phone frame is wanted here, the only honest one is the dog's "In ring" chip after Start, and it needs the tablet online, so it does not fit an offline scene.
+- The "Time" and "Resume" pills on the class cards, the Saved screen and the next-dog chips are gone. The app never picks the next dog.
 
 Facts the copy must respect:
 
 - Scoring is not gated on the date. The exhibitor's "Show day is here" banner is, and by the server's clock, so it cannot be staged by changing a browser clock.
-- While the tablet is offline the exhibitor's phone does not change. "In ring" and the result both arrive only after the tablet reconnects.
-- There is no auto-advance after a score. The judge chooses "Back to Entries" or a dog at the gate.
-- The reconnect ("Score saved", the "Scores sent" toast, "Synced") was not captured, because capturing it would send a real score.
-- Capture at 834px wide or wider until MYK9-1899 is fixed: at 768px the entry-list header breaks.
+- While the tablet is offline the exhibitor's phone does not change.
+- There is no auto-advance after a score. The judge chooses a dog from the list.
+- The reconnect ("Scores sent") was not captured, because capturing it would send a real score.
+- Per-judge access codes now scope each code to that judge's classes (MYK9-1950). Sign-in is not a line in this scene.
 
-### The real "Show day, at the desk" flow (verified in code 2026-11-12, not captured)
+### The "Show day, at the desk" scene (re-verified in code 2026-11-15, not captured)
 
-The secretary's screen leads. The second device is the judge's tablet for lines 1 to 3. For line 4 there is no second device: the paper score sheet is the other half of the picture, so that frame needs a different treatment (a printed Score Sheet beside the screen).
+The secretary's screen leads. The second device is the judge's tablet for lines 1 to 3. For line 4 there is no second device: the paper score sheet is the other half of the picture, so that frame needs a different treatment (a printed Score Sheet beside the screen). Words in `SCENE_LINES['showday-desk']`.
 
-1. **Your day is one list.** Show Desk opens on "Today's schedule". Each class row says where it stands, for example "Not started · 3 of 5 not checked in".
-2. **Check dogs in as they arrive.** The Check-in desk searches by name, dog or armband, with a "Check in" button per dog.
-3. **Watch a class run.** Once a class is "In progress" its row reads "Running · 2 of 6 scored · Willow in ring" as the tablets send their scores.
-4. **No tablets? Type the scores in from paper.** "Open paper scoring" lists the class in run order. For each dog the secretary picks the result, types the search time and presses "Save & Next", until the heading reads "6 of 6 scored".
-5. **Complete the class and move on.** Setting Status to "Complete" warns if paper scores are still missing, then offers "Continue on Results".
+1. Show Desk opens on "Today's schedule". Each class row says where it stands, like "Not started · 3 of 5 not checked in".
+2. From Actions, the "Check-in desk" finds an exhibitor by name, dog or armband, with a "Check in" button per dog.
+3. Once a class is running its row reads "Running · 2 of 6 scored · Willow in ring" as scores arrive.
+4. No tablets? "Open paper scoring" lists the dogs in run order. Pick the result, type the Search Time, press "Save & Next", until the heading reads "6 of 6 scored".
+5. Setting Status to "Complete" asks first if paper scores are missing, then "Continue on Results" opens the next step.
+
+Changed from the 2026-11-12 wording:
+
+- The Check-in desk is a tool in the header Actions menu that opens Entry Forms' Check-in desk, not a Show Desk panel. Its search box reads "Search name, dog, armband".
+- Line 4's result buttons are Q, NQ, ABS, EX and DQ (the paper page's own labels), and the time field is "Search Time".
+- The heading reads "Show schedule" on a day that is not today, so the scene must be staged on a trial day.
 
 Facts the copy must respect:
 
-- Show Desk updates when a tablet syncs, not continuously, and it does not show that a tablet still holds unsent scores.
-- A dog that checked itself in looks the same at the desk as one the staff checked in.
-- Paper scoring saves one dog at a time with "Save" or "Save & Next". There is no "Save all" and Enter does not save.
-- Paper scoring writes to the device first, so it works offline once the show is on that device.
-- Typing "12345" or "1:23.45" both mean 1 minute 23.45 seconds.
-- The "Ready for show day" checklist is hidden on show day itself. It belongs to the Before show day step.
+- Show Desk updates when a tablet syncs, not continuously. Not re-verified in code on 2026-11-15; no line claims otherwise.
+- Paper scoring saves one dog at a time with "Save" or "Save & Next", and writes to the device first. Not re-verified, so not used: that Enter does not save, that "12345" means 1:23.45, and that a self check-in looks the same as a staff one.
+- The "Ready for show day" checklist belongs to the Before show day step.
 - Checking, releasing and the judge's initials happen on the Results tab. They belong to the Results step, not here.
-- The evidence doc has no row for paper scoring. Every line above needs a KEEP row before it ships, and the doc's show-day rows are out of date (it quotes "Check the scores against the paper", which is no longer in the code, and a `/secretary/results-control` route that is now a redirect).
+
+### The "Results" scene (verified in code 2026-11-15)
+
+The secretary's screen leads; the exhibitor's phone is the second device for line 5. Words in `SCENE_LINES.results`.
+
+1. A finished class appears on the Results tab with its status and a next action, "Check scores" until the scores are checked.
+2. Opening it shows the placement table, worked out from the scores, and "Not released".
+3. She presses "Release results". The class reads "Released" and the scores are visible to exhibitors.
+4. Finishing many classes: tick them and press "Release 3 classes", then confirm that the scores match the judges' paper sheets.
+5. On the exhibitor's phone, My Entries shows "New result" on the dog's class. Opening it shows the result card.
+
+Facts the copy must respect:
+
+- Release works online only, and the check it saves needs the class marked Complete first.
+- "New result" appears only for a Qualified result in a released class. Stage the dog as Qualified.
+- What an exhibitor sees still follows the show's visibility settings. The club story's existing "the moment you release it" is not claimed by any scene line; revisit it in Phase 2.
+- Bulk release (line 4) merged on 2026-11-15 (MYK9-2072), the same day as this check. Re-read it before capturing.
 
 ## Capturing the screens
 
@@ -151,12 +187,13 @@ Facts the copy must respect:
 
 Each phase ends with its own checks passing. One pull request per phase.
 
-### Phase 0: decisions and inventory
+### Phase 0: decisions and inventory (done 2026-11-15)
 
 - The owner's four decisions are recorded under "Decisions".
-- Re-verify the Show day and Results flows in code the way Entries open was verified, and write each scene's numbered lines.
-- Add or update KEEP rows in the evidence doc for every line.
-- **Tests:** `lifecycleStories.test.ts` updated for the new data shape and still enforcing `BANNED_COPY`.
+- The Entries open, Show day (ring and desk) and Results flows are re-verified against `main` @ `5aa15d760`, and each scene's numbered lines are written above and in `SCENE_LINES` (`lifecycleStories.ts`). Nothing renders them yet; the live timeline is unchanged.
+- Every line has a KEEP row in the evidence doc.
+- **Tests:** `lifecycleStories.test.ts` covers the new lines (five per scene, none repeated) and runs them through `BANNED_COPY`.
+- The frame shape (capture, region, ring per line) is not added yet: it needs the captures, so it arrives with Phase 1.
 
 ### Phase 1: the scene component and the Entries open scene
 
@@ -248,6 +285,8 @@ All four were open when this plan was written. They are settled.
 ## Found while verifying the flow
 
 Product-screen observations, outside this plan's scope. Filed 2026-11-12 at the owner's request.
+
+Status on 2026-11-15, from `git log` on main: MYK9-1898, MYK9-1899, MYK9-1905, MYK9-1906 and MYK9-1907 have fix commits (#3851, #3820, #3836). MYK9-1896 is no longer visible in the code: the checkout success page says "confirmed" only when every entry is accepted. The issue states of MYK9-1895 and MYK9-1897 were not read; only the code was.
 
 - MYK9-1897: My Entries tells an exhibitor "the secretary will review it once it is paid", but payment does not gate review. Owner decision.
 - MYK9-1895: My Entries tells a check payer to mail the check; the wizard says to bring it to the show.

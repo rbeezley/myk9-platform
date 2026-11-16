@@ -8,6 +8,7 @@ import {
   DEFAULT_AUDIENCE,
   MEANWHILE_LABEL,
   PEAK_LEAD,
+  SCENE_LINES,
   STORIES,
   STORY_HEADING,
   type Audience,
@@ -87,8 +88,27 @@ describe('STORIES', () => {
       ...Object.values(STORY_HEADING),
       ...Object.values(MEANWHILE_LABEL),
     ];
-    const all = [...labels, ...AUDIENCES.flatMap(a => STORIES[a].flatMap(copyOf))];
+    const sceneCopy = Object.values(SCENE_LINES).flatMap(lines => lines.map(line => line.text));
+    const all = [...labels, ...sceneCopy, ...AUDIENCES.flatMap(a => STORIES[a].flatMap(copyOf))];
     for (const text of all) for (const re of BANNED_COPY) expect(text).not.toMatch(re);
+  });
+
+  it('writes five numbered lines for each of the four scenes, none empty or repeated', () => {
+    expect(Object.keys(SCENE_LINES).sort()).toEqual([
+      'entries',
+      'results',
+      'showday-desk',
+      'showday-ring',
+    ]);
+    const seen = new Set<string>();
+    for (const [scene, lines] of Object.entries(SCENE_LINES)) {
+      expect(lines, scene).toHaveLength(5);
+      for (const { text } of lines) {
+        expect(text.trim().length, scene).toBeGreaterThan(20);
+        expect(seen.has(text), text).toBe(false);
+        seen.add(text);
+      }
+    }
   });
 
   it('ships a real share image and light hero variants', () => {

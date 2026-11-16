@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
-import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
+import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -34,15 +34,11 @@ export function useShowCloseoutInputs(showId: string | undefined) {
   const { show, isLoading: showLoading } = useFastShowDetails(showId);
   const schedule = useShowDeskScheduleRead();
   const entriesQuery = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
-  const submissionsQuery = useResultSubmissions(showId ?? '');
   const incidentsQuery = useQuery({
     queryKey: showIncidentCloseoutQueryKey(showId ?? ''),
     queryFn: () => listShowIncidentCloseout(showId ?? ''),
     enabled: Boolean(showId),
   });
-  // `null` = not read (loading, failed or paused offline). The readiness check
-  // lists that as its own concern rather than reading it as "none".
-  const submissions = submissionsQuery.data ?? null;
 
   const showEntries = entriesQuery.data ?? EMPTY_ENTRIES;
   // No cast: SecretaryEntry must carry every field the closeout card reads.
@@ -73,6 +69,7 @@ export function useShowCloseoutInputs(showId: string | undefined) {
       showTrials.flatMap(trial =>
         (schedule.trialClasses[trial.id] ?? []).map(cls => ({
           id: cls.id,
+          trialId: trial.id,
           status: cls.status || CLASS_STATUS.SCHEDULED,
           entryCount: entriesKnown ? (entryTallies.get(cls.id)?.total ?? 0) : null,
           scoredCount: entriesKnown ? (entryTallies.get(cls.id)?.scored ?? 0) : null,
@@ -81,6 +78,10 @@ export function useShowCloseoutInputs(showId: string | undefined) {
       ),
     [entriesKnown, entryTallies, schedule.trialClasses, showTrials]
   );
+  // The same read the Finish the show list makes, so the two cannot disagree (MYK9-2078).
+  // `submissions` is `null` when not read (loading, failed or paused offline): the readiness check
+  // lists that as its own concern rather than reading it as "none".
+  const { submissions, scoreChanges } = useResultsSentCheck(showId ?? '', classes);
   const incidentsData = incidentsQuery.data;
   const incidents = useMemo(
     () => (incidentsData ? summarizeShowIncidents(incidentsData) : null),
@@ -101,6 +102,7 @@ export function useShowCloseoutInputs(showId: string | undefined) {
     classes,
     incidents,
     submissions,
+    scoreChanges,
     deskWindow,
   };
 }

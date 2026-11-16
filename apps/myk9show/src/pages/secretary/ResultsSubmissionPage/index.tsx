@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { formatEntryDateTime } from '@/lib/format/dates';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 import { CloseTheShowLink } from './CloseTheShowLink';
+import { PriorSendNotice, SCORES_CHANGED_NOTICE, SCORES_CHANGED_REASON } from './PriorSendNotice';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { supabase } from '@/services/database/supabaseClient';
 import {
@@ -55,6 +56,8 @@ export default function ResultsSubmissionPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show } = useFastShowDetails(showId);
+  const [searchParams] = useSearchParams();
+  const scoresChanged = searchParams.get('reason') === SCORES_CHANGED_REASON;
 
   const formatters = useMemo(() => listFormatters(), []);
   const submissionOptions = useMemo(() => buildRegistrySubmissionOptions(formatters), [formatters]);
@@ -409,6 +412,11 @@ export default function ResultsSubmissionPage() {
             from here" (email now / save a copy). After a divider, the lone
             "Mark as submitted" = "I already filed these elsewhere; just log
             it." The helper line below names the difference in words. */}
+        {scoresChanged && (
+          <p className="text-sm font-medium text-warning" data-testid="scores-changed-notice">
+            {SCORES_CHANGED_NOTICE}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2 pb-0.5">
           {activeFormatter?.submissionEmail && (
             <>
@@ -434,13 +442,7 @@ export default function ResultsSubmissionPage() {
                           decision, so nothing stood between two clicks and two
                           filings with the same registry. */}
                       {priorSubmission && (
-                        <span className="mb-2 block font-medium text-warning">
-                          These results were already{' '}
-                          {priorSubmission.status === 'sent' ? 'sent' : 'recorded as submitted'} to{' '}
-                          {priorSubmission.organization} on{' '}
-                          {formatEntryDateTime(priorSubmission.submitted_at)}. Sending again files a
-                          second time.
-                        </span>
+                        <PriorSendNotice prior={priorSubmission} scoresChanged={scoresChanged} />
                       )}
                       {historyUnavailable && (
                         <span className="mb-2 block font-medium text-warning">

@@ -60,13 +60,24 @@ function itemFor(
     case 'results-submission': {
       // The app's own send is the only line that can go stale: a score changed after it (MYK9-2078).
       // Its action is the existing send, so the first record stays and a second is made.
-      if (line.open === false && line.changedSinceSent === true) {
+      if (line.open === false && line.sentFileCheck === 'changed') {
         return {
           key: line.key,
           state: 'open',
           opensClassList: false,
-          href: getResultsStepHref(showId, 'submit'),
+          href: `${getResultsStepHref(showId, 'submit')}&reason=changed`,
           label: 'Results changed since they were sent',
+        };
+      }
+      // Not yet known is not a tick: while the history loads the line says so.
+      if (line.open === false && line.sentFileCheck === 'checking') {
+        return {
+          key: line.key,
+          state: 'unknown',
+          opensClassList: false,
+          href: null,
+          label: line.label,
+          note: 'Checking for score changes since the file was sent.',
         };
       }
       return {
@@ -75,7 +86,7 @@ function itemFor(
         opensClassList: false,
         href: line.open === false ? null : getResultsStepHref(showId, 'submit'),
         label: line.open === false ? line.label : `Submit to ${line.registryId ?? 'the registry'}`,
-        ...(line.open === false && line.changedSinceSent === null
+        ...(line.open === false && line.sentFileCheck === 'unknown'
           ? { note: 'We could not check for score changes since they were sent.' }
           : {}),
       };

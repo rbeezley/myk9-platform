@@ -3,12 +3,12 @@ import { ArrowRight, CheckCircle2, Printer } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 import { buildFinishList } from '@/features/show-closeout/finishList';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SyncableTrial } from '@/store/trial-store-types';
-import { useResultsSentCheck } from './useResultsSentCheck';
 import { trialLabelOf, type ResultsClassRow } from './buildResultsClassRows';
 
 interface ResultsFinishRowProps {

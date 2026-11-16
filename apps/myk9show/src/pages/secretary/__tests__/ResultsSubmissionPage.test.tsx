@@ -103,12 +103,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-function renderPage() {
+function renderPage(route = '/shows/show-1/submit-results') {
   return render(
     <Routes>
       <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
     </Routes>,
-    { initialRoute: '/shows/show-1/submit-results' }
+    { initialRoute: route }
   );
 }
 
@@ -463,6 +463,22 @@ describe('ResultsSubmissionPage', () => {
       const dialog = await screen.findByTestId('send-confirm-dialog');
       expect(dialog).toHaveTextContent(/already sent/i);
       expect(dialog).toHaveTextContent(/sending again files a second time/i);
+    });
+
+    it('reached from the "changed" line, says scores changed and words the confirm as a deliberate resend', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
+
+      renderPage('/shows/show-1/submit-results?reason=changed');
+      expect(await screen.findByTestId('scores-changed-notice')).toHaveTextContent(
+        'Scores changed since this was sent. Send the corrected results.'
+      );
+      fireEvent.click(await screen.findByTestId('send-btn'));
+
+      const dialog = await screen.findByTestId('send-confirm-dialog');
+      expect(dialog).toHaveTextContent(/The first stays on record/i);
+      expect(dialog).not.toHaveTextContent(/files a second time/i);
+      expect(screen.getByTestId('send-confirm-btn')).toBeInTheDocument();
     });
 
     it('warns when the history could not be read at all', async () => {

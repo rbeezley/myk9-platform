@@ -68,13 +68,21 @@ export interface WhatIsLeftInput {
         submitted_at?: string | null | undefined;
       }[]
     | null;
-  /**
-   * Newest score change (`entry_score_audit.changed_at`) per class id. `null` = the score history
-   * could not be read; `undefined` = this caller does not look. Only the app-sent results file
-   * reads it (MYK9-2078).
-   */
-  latestScoreChangeByClass?: ReadonlyMap<string, string> | null | undefined;
+  /** What the score history says since the results file went. `undefined` = this caller does not look. */
+  scoreChanges?: ScoreChangeRead | undefined;
 }
+
+/**
+ * Newest change to a score the results file carries (`entry_score_audit.changed_at`), per class
+ * id (MYK9-2078). `loading` and `unreadable` are their own states: neither may read as "no change".
+ */
+export type ScoreChangeRead =
+  | { status: 'loading' }
+  | { status: 'unreadable' }
+  | { status: 'read'; latestByClass: ReadonlyMap<string, string> };
+
+/** Whether the app-sent results file still matches the scores. */
+export type SentFileCheck = 'current' | 'changed' | 'unknown' | 'checking';
 
 export type WhatIsLeftLineKey =
   | 'unknown-counts'
@@ -101,12 +109,8 @@ export interface WhatIsLeftLine {
   registryId?: RegistryId;
   /** The sentence the close step shows for the line while it is open or unknown. */
   closeConcern?: string;
-  /**
-   * An app-sent results file only: a score changed after the newest send (`true`), none did
-   * (`false`), or the score history could not be read so it cannot be told (`null`). Absent when
-   * nothing was sent or the caller does not look.
-   */
-  changedSinceSent?: boolean | null;
+  /** An app-sent results file only; absent when nothing was sent or the caller does not look. */
+  sentFileCheck?: SentFileCheck;
 }
 
 export interface WhatIsLeft {
@@ -227,11 +231,12 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
       row => !row.organization || row.organization.toUpperCase() === registryId
     ) ?? false;
 
-  // The newest file the app itself emailed for a registry (`sent`, never a secretary's own mark).
-  const newestSentAt = (registryId: RegistryId): number | null => {
+  // The newest file the app itself emailed for a registry (`sent`), and the newest the secretary
+  // filed elsewhere and recorded (`submitted`); either covers a score change before it.
+  const newestAt = (registryId: RegistryId, status: 'sent' | 'submitted'): number | null => {
     let newest: number | null = null;
     for (const row of input.submissions ?? []) {
-      if (normalizeCloseoutStatus(row.status) !== 'sent') continue;
+      if (normalizeCloseoutStatus(row.status) !== status) continue;
       if (row.organization && row.organization.toUpperCase() !== registryId) continue;
       const at = row.submitted_at ? Date.parse(row.submitted_at) : Number.NaN;
       if (!Number.isNaN(at) && (newest === null || at > newest)) newest = at;
@@ -312,27 +317,30 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
           registryId,
         });
       } else {
-        const sentAt = duty.recordedBy === 'app' ? newestSentAt(registryId) : null;
-        const changes = input.latestScoreChangeByClass;
-        let changedSinceSent: boolean | null | undefined;
-        if (sentAt !== null && changes !== undefined) {
-          if (changes === null) changedSinceSent = null;
+        const sentAt = duty.recordedBy === 'app' ? newestAt(registryId, 'sent') : null;
+        const read = input.scoreChanges;
+        let sentFileCheck: SentFileCheck | undefined;
+        if (sentAt !== null && read !== undefined) {
+          const coveredAt = Math.max(sentAt, newestAt(registryId, 'submitted') ?? sentAt);
+          if (read.status !== 'read')
+            sentFileCheck = read.status === 'loading' ? 'checking' : 'unknown';
           else {
-            changedSinceSent = false;
+            sentFileCheck = 'current';
             for (const cls of classes) {
               const belongs =
                 cls.trialId === undefined
                   ? registryIds.length === 1
                   : registryByTrial.get(cls.trialId) === registryId;
-              const changedAt = changes.get(cls.id);
-              if (belongs && changedAt && Date.parse(changedAt) > sentAt) changedSinceSent = true;
+              const changedAt = read.latestByClass.get(cls.id);
+              if (belongs && changedAt && Date.parse(changedAt) > coveredAt)
+                sentFileCheck = 'changed';
             }
           }
         }
         lines.push({
           key: duty.key,
           kind: 'results-submission',
-          ...(changedSinceSent === undefined ? {} : { changedSinceSent }),
+          ...(sentFileCheck === undefined ? {} : { sentFileCheck }),
           label: duty.label,
           count: null,
           classIds: [],
@@ -376,6 +384,15 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
       : hasSubmittedResults
         ? null
         : 'No result submission has been recorded for this show.';
+  // A file the app sent that the scores have moved past, or that could not be checked: close warns.
+  const sentFileChecks = lines.flatMap(line =>
+    line.kind === 'results-submission' && line.sentFileCheck ? [line.sentFileCheck] : []
+  );
+  const sentFileConcern = sentFileChecks.includes('changed')
+    ? 'Scores changed after the results file was sent. Send it again before closing.'
+    : sentFileChecks.includes('unknown')
+      ? 'Could not check whether scores changed after the results file was sent.'
+      : null;
   const concernOf = (kind: WhatIsLeftLineKey): string[] => {
     const line = lines.find(candidate => candidate.kind === kind);
     return line?.closeConcern && line.open !== false ? [line.closeConcern] : [];
@@ -385,6 +402,7 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     ...concernOf('unscored'),
     ...concernOf('pending-review'),
     ...(submissionConcern ? [submissionConcern] : []),
+    ...(sentFileConcern ? [sentFileConcern] : []),
     ...concernOf('refund-review'),
     ...concernOf('incidents'),
   ];

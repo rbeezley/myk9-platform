@@ -69,6 +69,7 @@ export default function ShowCloseStep() {
         entries={inputs.entries}
         incidents={inputs.incidents}
         submissions={inputs.submissions}
+        scoreChanges={inputs.scoreChanges}
       />
     </div>
   );

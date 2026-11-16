@@ -13,7 +13,7 @@ vi.mock('../supabaseClient', () => ({
   createDatabaseError,
 }));
 
-import { getEntryScoreAudit, parseScoreAuditChanges } from './scoreAudit';
+import { getEntryScoreAudit, getFileScoreChangesSince, parseScoreAuditChanges } from './scoreAudit';
 
 const auditRow = {
   id: 'a1',
@@ -66,7 +66,6 @@ describe('getEntryScoreAudit', () => {
     expect(items).toEqual([
       {
         id: 'a1',
-        classId: 'class-1',
         changedAt: '2026-11-07T16:05:00+00:00',
         clientSavedAt: null,
         actorName: 'Jo Judge',
@@ -83,5 +82,55 @@ describe('getEntryScoreAudit', () => {
     order.mockReturnValue({ order: secondOrder });
 
     await expect(getEntryScoreAudit('entry-1')).rejects.toThrow('boom');
+  });
+});
+
+describe('getFileScoreChangesSince', () => {
+  const page = (rows: Array<{ class_id: string; changed_at: string; changes: unknown }>) => {
+    const range = vi.fn(() => Promise.resolve({ data: rows, error: null }));
+    const orderFn = vi.fn(() => ({ range }));
+    const gt = vi.fn(() => ({ order: orderFn }));
+    eq.mockReturnValue({ gt });
+    select.mockImplementation(() => ({ eq }));
+    return { gt, orderFn };
+  };
+
+  it('reads only class, time and changes for the show, after the send, newest first', async () => {
+    const { gt, orderFn } = page([]);
+    await getFileScoreChangesSince('show-1', '2026-11-14T19:40:00Z');
+    expect(select).toHaveBeenCalledWith('class_id, changed_at, changes');
+    expect(eq).toHaveBeenCalledWith('show_id', 'show-1');
+    expect(gt).toHaveBeenCalledWith('changed_at', '2026-11-14T19:40:00Z');
+    expect(orderFn).toHaveBeenCalledWith('changed_at', { ascending: false });
+  });
+
+  it('keeps the newest change per class among columns the file carries', async () => {
+    page([
+      { class_id: 'c1', changed_at: '2026-11-14T22:00:00Z', changes: { result_status: {} } },
+      { class_id: 'c1', changed_at: '2026-11-14T21:00:00Z', changes: { final_placement: {} } },
+      { class_id: 'c2', changed_at: '2026-11-14T20:00:00Z', changes: { search_time_seconds: {} } },
+    ]);
+    const latest = await getFileScoreChangesSince('show-1', '2026-11-14T19:40:00Z');
+    expect(Object.fromEntries(latest)).toEqual({
+      c1: '2026-11-14T22:00:00Z',
+      c2: '2026-11-14T20:00:00Z',
+    });
+  });
+
+  it('ignores a change that touches only notes, signatures or video review', async () => {
+    page([
+      {
+        class_id: 'c1',
+        changed_at: '2026-11-14T22:00:00Z',
+        changes: {
+          judge_notes: {},
+          judge_signature: {},
+          has_video_review: {},
+          video_review_notes: {},
+        },
+      },
+      { class_id: 'c1', changed_at: '2026-11-14T21:00:00Z', changes: { scoring_started_at: {} } },
+    ]);
+    expect((await getFileScoreChangesSince('show-1', '2026-11-14T19:40:00Z')).size).toBe(0);
   });
 });

@@ -93,6 +93,40 @@ describe('answerLocally', () => {
     expect(log.simulated[0]).toMatchObject({ method: 'PATCH', kind: 'exact' });
   });
 
+  it('re-reads an embed when the body changes the column it joins through', async () => {
+    const { fire, get, log } = await setup(url =>
+      url.includes('/shows?')
+        ? { ok: true, body: [{ id: 's2', name: 'Spring' }] }
+        : { ok: true, body: [{ id: 'c1', show_id: 's1', show: { id: 's1', name: 'Fall' } }] }
+    );
+    const path = '/rest/v1/entry_carts?id=eq.c1&select=*%2Cshow%3Ashows%28*%29';
+    const { fulfill } = await fire('PATCH', path, { show_id: 's2' }, REP);
+    expect(get).toHaveBeenCalledWith(
+      `${API}/rest/v1/shows?select=*&id=eq.s2&limit=1`,
+      expect.anything()
+    );
+    expect(answered(fulfill).json).toEqual([
+      { id: 'c1', show_id: 's2', show: { id: 's2', name: 'Spring' } },
+    ]);
+    expect(log.simulated[0]).toMatchObject({ kind: 'synthesized', gaps: [] });
+  });
+
+  it('nulls the embed and names a gap when the new embed cannot be read', async () => {
+    const { fire, log } = await setup(url =>
+      url.includes('/shows?')
+        ? { ok: false, body: {} }
+        : { ok: true, body: [{ id: 'c1', show_id: 's1', show: { name: 'Fall' } }] }
+    );
+    const { fulfill } = await fire(
+      'PATCH',
+      '/rest/v1/entry_carts?id=eq.c1&select=*,show:shows(*)',
+      { show_id: 's2' },
+      REP
+    );
+    expect(answered(fulfill).json[0].show).toBeNull();
+    expect(log.simulated[0]).toMatchObject({ kind: 'synthesized with gaps', gaps: ['embed show'] });
+  });
+
   it('answers a PATCH that matches no row with an empty list, or 406 for a single object', async () => {
     const { fire } = await setup(() => ({ ok: true, body: [] }));
     const list = await fire(

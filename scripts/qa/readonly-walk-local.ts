@@ -147,6 +147,37 @@ export async function synthesizeRow(
   return { row, gaps };
 }
 
+/**
+ * After the body is laid over a real row, re-read every embed joined through a
+ * column the body changed: the real GET returned the OLD embedded row.
+ * `changed` is true when any embed was re-read, so the answer is no longer exact.
+ */
+export async function refreshEmbeds(
+  row: Row,
+  body: Row,
+  items: readonly SelectItem[],
+  readEmbed: (table: string, query: URLSearchParams) => Promise<Row[] | null>
+): Promise<{ row: Row; gaps: string[]; changed: boolean }> {
+  const next = { ...row };
+  const gaps: string[] = [];
+  let changed = false;
+  for (const item of items) {
+    if (item.kind !== 'embed') continue;
+    const fk = embedForeignKey(item, body);
+    if (fk === null) continue;
+    changed = true;
+    const id = body[fk];
+    if (id === null || id === undefined) {
+      next[item.name] = null;
+      continue;
+    }
+    const found = await readEmbed(item.table, embedQuery(item.inner, String(id)));
+    next[item.name] = found && found.length === 1 ? found[0] : null;
+    if (!found || found.length !== 1) gaps.push(`embed ${item.name}`);
+  }
+  return { row: next, gaps, changed };
+}
+
 /** The query that finds the rows an upsert of `row` would conflict with, or `null` if none can. */
 export function conflictQuery(
   row: Row,

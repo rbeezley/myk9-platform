@@ -20,6 +20,7 @@ import {
   kindOf,
   overlayBody,
   parseSelect,
+  refreshEmbeds,
   readHeaders,
   resolutionOf,
   singleRowError,
@@ -104,6 +105,15 @@ export async function answerLocally(
     const gaps: string[] = [];
     let synthesized = false;
     let result: Row[] = [];
+    // An embed that failed to read is a gap, not a reason to refuse the save.
+    const readEmbed = async (embedTable: string, query: URLSearchParams) =>
+      read(new URL(`${url.origin}/rest/v1/${embedTable}?${query}`), false);
+    const overlay = async (row: Row, body: Row): Promise<Row> => {
+      const refreshed = await refreshEmbeds(overlayBody(row, body, items), body, items, readEmbed);
+      if (refreshed.changed) synthesized = true;
+      gaps.push(...refreshed.gaps);
+      return refreshed.row;
+    };
 
     if (method === 'POST') {
       const resolution = resolutionOf(prefer);
@@ -114,7 +124,7 @@ export async function answerLocally(
         if (!found) break;
         if (found.length > 0) {
           if (resolution === 'merge-duplicates')
-            result.push(...found.map(row => overlayBody(row, body, items)));
+            for (const row of found) result.push(await overlay(row, body));
           continue;
         }
         synthesized = true;
@@ -122,9 +132,7 @@ export async function answerLocally(
           body,
           items,
           { id: makeId(), now: new Date().toISOString() },
-          // An embed that failed to read is a gap, not a reason to refuse the save.
-          async (embedTable, query) =>
-            read(new URL(`${url.origin}/rest/v1/${embedTable}?${query}`), false)
+          readEmbed
         );
         result.push(made.row);
         gaps.push(...made.gaps);
@@ -132,8 +140,8 @@ export async function answerLocally(
     } else {
       const rows = await read(url);
       if (rows) {
-        result =
-          method === 'DELETE' ? rows : rows.map(row => overlayBody(row, incoming[0] ?? {}, items));
+        if (method === 'DELETE') result = rows;
+        else for (const row of rows) result.push(await overlay(row, incoming[0] ?? {}));
       }
     }
 

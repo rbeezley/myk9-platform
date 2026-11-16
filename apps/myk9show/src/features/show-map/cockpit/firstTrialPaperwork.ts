@@ -1,4 +1,5 @@
 import { getTrialTimezone } from '@/features/registries';
+import { formatTime, formatWeekdayLong } from '@/lib/format/dates';
 import { computeDayTrialNumber } from '@/pages/secretary/ReportsPage/dayTrialNumber';
 import type { DbTrial } from '@/types/database-mappings';
 
@@ -202,23 +203,17 @@ export function rollUpFirstDayPaperwork(input: {
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
-/** "Monday" for a `YYYY-MM-DD` trial date: a calendar date has no zone to shift. */
+/** "Monday" for a `YYYY-MM-DD` trial date (calendar-safe: the trial's own day). */
 export function dayName(date: string): string {
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(
-    new Date(`${date.slice(0, 10)}T12:00:00Z`)
-  );
+  return formatWeekdayLong(date);
 }
 
 /** "Sunday at 6:15 PM" in the show's own zone. */
 function printedMoment(iso: string, timeZone: string): string {
-  const at = new Date(iso);
-  const day = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone }).format(at);
-  const time = new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone,
-  }).format(at);
-  return `${day} at ${time}`;
+  const day = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone }).format(
+    Date.parse(iso)
+  );
+  return `${day} at ${formatTime(iso, timeZone)}`;
 }
 
 function laterTrialsSentence(later: FirstDayPaperwork['laterTrials']): string {

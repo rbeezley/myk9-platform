@@ -133,6 +133,7 @@ describe('formatWalkLog', () => {
     const text = formatWalkLog({
       refused: ['POST /rest/v1/entries (write)', 'POST /rest/v1/entries (write)'],
       readRpcs: new Set(['get_user_roles', 'can_accept_online_entry_payment']),
+      simulated: [],
     });
     expect(text).toContain('refused 2 request(s), 1 distinct:');
     expect(text.match(/POST \/rest\/v1\/entries/g)).toHaveLength(1);
@@ -140,7 +141,7 @@ describe('formatWalkLog', () => {
   });
 
   it('says so when no read RPC was used', () => {
-    const text = formatWalkLog({ refused: [], readRpcs: new Set() });
+    const text = formatWalkLog({ refused: [], readRpcs: new Set(), simulated: [] });
     expect(text).toContain('refused 0 request(s), 0 distinct:');
     expect(text).toContain('read RPCs allowed: none');
   });

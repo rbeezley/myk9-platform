@@ -38,26 +38,32 @@ The walk runs against the shared database. Nothing may change there.
   that looks like a read is not evidence. When a screen needs an RPC the guard refused, read
   that function's latest `CREATE OR REPLACE FUNCTION`; if it is STABLE or IMMUTABLE, pass it in
   `readRpcs` for this walk and say so in the report. Never add one on its name.
-- A write during the walk is refused, never answered. The walk records "stopped at a write" for
-  that step and moves on to what it can still read. A mode that answers drafts in the browser is
-  future work: MYK9-2003.
+- When a screen saves a draft before it will continue, use `answerLocally` for those tables. The
+  save is answered in the browser and never sent: the answer is a real read of the same table with
+  the request's own filters and `select`, with the body laid over it, or a row built from the body
+  with its embeds read by foreign key. Every such answer is listed under "Simulated" by
+  `formatWalkLog`. Mark every finding on a screen reached through one as "simulated", and say
+  "with gaps" where the list does.
+- Any other write during the walk is refused. Record "stopped at a write" for that step and move
+  on to what can still be read.
 - Before opening a ringside scoresheet or tapping a score, call `cutOffBackend` and close the
   context without reconnecting.
 - Resolve accounts and passwords as `role-journey-ux-audit` § Preflight says. Never print them.
 - Print `formatWalkLog` at the end and read it. A refused request the walk did not expect is a
   screen that writes on open: report it.
 - Stop where the next step needs a real write. Say so. Do not work round it.
-- Afterwards, prove nothing changed with one read-only query: no new rows in the tables the walk
-  touched, and the walked show's newest `entries.updated_at` is older than the walk.
+- Afterwards, prove nothing changed with one read-only query: no new rows in the tables answered
+  locally, and the walked show's newest `entries.updated_at` is older than the walk.
 
 ```ts
 import { chromium } from '@playwright/test';
-import { formatWalkLog, installReadOnlyGuard } from '../../scripts/qa/readonly-walk';
+import { answerLocally, formatWalkLog, installReadOnlyGuard } from '../../scripts/qa/readonly-walk';
 
 const appOrigin = 'http://localhost:5173';
 const browser = await chromium.launch({ channel: process.env.WALK_BROWSER_CHANNEL });
 const context = await browser.newContext({ viewport: { width: 400, height: 860 } });
 const log = await installReadOnlyGuard(context, { appOrigin });
+await answerLocally(context, ['entry_carts', 'entry_cart_items'], log);
 const page = await context.newPage();
 // sign in, then for each step: goto, wait, print the visible text, fields and controls
 console.log(formatWalkLog(log));

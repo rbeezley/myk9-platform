@@ -1,7 +1,9 @@
 import { FAQ_ITEMS, withFee } from './landingFacts';
 import { useLandingFeeLabel } from './useLandingFeeLabel';
 
-// Six questions a club board asks, every answer on the page: nothing to open, nothing hidden.
+// Six questions a club board asks. Each opens in place (native <details>, so it works with no
+// script and from the keyboard): the page has a length budget on a phone
+// (landing-lifecycle.spec.ts, "page length is 8 to 14 screens"), and six open answers broke it.
 export function FaqSection() {
   const feeLabel = useLandingFeeLabel();
   return (
@@ -10,16 +12,16 @@ export function FaqSection() {
         <h2 id="faq-title" className="l-h2">
           Questions clubs ask
         </h2>
-        <dl className="lc-faq-list">
+        <div className="lc-faq-list">
           {FAQ_ITEMS.map(item => (
-            <div className="lc-faq-item" key={item.q}>
-              <dt>{item.q}</dt>
+            <details className="lc-faq-item" key={item.q}>
+              <summary>{item.q}</summary>
               {item.a.map(paragraph => (
-                <dd key={paragraph}>{withFee(paragraph, feeLabel)}</dd>
+                <p key={paragraph}>{withFee(paragraph, feeLabel)}</p>
               ))}
-            </div>
+            </details>
           ))}
-        </dl>
+        </div>
       </div>
     </section>
   );

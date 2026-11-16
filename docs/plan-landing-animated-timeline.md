@@ -207,7 +207,7 @@ Each phase ends with its own checks passing. One pull request per phase.
 
 ### Phase 3: hero, trust bar, pricing, FAQ (trust bar, pricing and FAQ built 2026-11-16)
 
-Built ahead of the scenes because none of it needs a capture. What changed from the bullets below: the pricing section prints the live rate (the same read as `/fees`) and links to `/fees` for the split, so no figure is written in the copy; the FAQ shows every answer with nothing to open; "trying it first" is answered plainly (the practice scoresheet and a free draft show, no demo mode). Still to do in this phase: the hero LCP check, and the club recount before the trust bar ships.
+Built ahead of the scenes because none of it needs a capture. What changed from the bullets below: the pricing section prints the live rate (the same read as `/fees`) and links to `/fees` for the split, so no figure is written in the copy; each FAQ question opens in place (six open answers broke the phone page-length budget in `landing-lifecycle.spec.ts`); "trying it first" is answered plainly (the practice scoresheet and a free draft show, no demo mode). Still to do in this phase: the hero LCP check, and the club recount before the trust bar ships.
 
 - Hero keeps the photograph; no scene and no motion there. Check mobile LCP against [`plan-landing-hero-lcp-prerender.md`](plan-landing-hero-lcp-prerender.md) before and after, since the page below it gets heavier.
 - Trust bar: the four claims in "Decisions", plus the club count when its source is found. Fold in or replace `TrustSection`; do not keep both.

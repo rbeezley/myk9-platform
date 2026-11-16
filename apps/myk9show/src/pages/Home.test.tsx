@@ -161,7 +161,7 @@ describe('Home', () => {
       '/fees'
     );
     const faq = screen.getByRole('region', { name: 'Questions clubs ask' });
-    expect(within(faq).getAllByRole('term')).toHaveLength(6);
+    expect(faq.querySelectorAll('details > summary')).toHaveLength(6);
   });
 
   it('keeps the trust bar under the hero with its four facts and the about anchor', () => {

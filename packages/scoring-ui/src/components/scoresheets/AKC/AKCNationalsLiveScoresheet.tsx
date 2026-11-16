@@ -471,7 +471,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             ...(finishCallErrors > 0
               ? [
                   {
-                    label: 'Finish Call Errors',
+                    label: `Finish Call Errors (-${NATIONALS_SCORING.FINISH_CALL_ERROR_PENALTY} each)`,
                     value: finishCallErrors,
                     className: 'text-amber-500',
                   },
@@ -487,6 +487,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             areas={scoring.areas}
             correctAlerts={correctAlerts}
             incorrectAlerts={incorrectAlerts}
+            finishCallErrors={finishCallErrors}
           />
         </ScoreConfirmationDialog>
       )}

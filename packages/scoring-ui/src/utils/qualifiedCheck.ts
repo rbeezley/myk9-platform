@@ -51,7 +51,9 @@ function shortTime(seconds: number): string {
  * `mayStayBlank` is for a correction of a score whose area times were never all
  * stored (Nationals, until MYK9-2068): an area it names may stay blank, and since
  * the per-area limit cannot be judged without every area, the times that are there
- * are checked against the class time as a total instead.
+ * are checked against the class time as a total instead. That drops the per-area limit for
+ * EVERY area of such a correction, stored ones included (1:10 in a 1:00 area passes if the
+ * total fits); a fresh score is always checked per area. Tightened by MYK9-2068.
  */
 export function qualifiedTimeProblems(
   areas: Pick<AreaScore, 'time'>[],

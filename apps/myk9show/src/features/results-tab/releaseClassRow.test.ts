@@ -29,7 +29,8 @@ describe('the tickable rule is the single-class Release rule', () => {
 
   it('has no Release for any other phase or an already released class', () => {
     for (const phase of [
-      'scoring',
+      'in-ring',
+      'not-started',
       'needs-coin-flip',
       'released',
       'needs-initials',

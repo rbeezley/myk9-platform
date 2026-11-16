@@ -104,7 +104,7 @@ beforeEach(() => {
     makeRow('c1', 'Containers Novice', 'ready-to-release'),
     makeRow('c2', 'Interior Novice', 'ready-to-release', 'Trial 2'),
     makeRow('c3', 'Exterior Novice', 'ready-to-release'),
-    makeRow('c4', 'Buried Novice', 'scoring'),
+    makeRow('c4', 'Buried Novice', 'in-ring'),
     makeRow('c5', 'Vehicle Novice', 'needs-checking'),
   ];
 });

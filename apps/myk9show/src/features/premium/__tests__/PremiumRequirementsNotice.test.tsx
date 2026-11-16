@@ -5,13 +5,14 @@ import { PremiumRequirementsNotice } from '../PremiumRequirementsNotice';
 
 describe('PremiumRequirementsNotice (MYK9-2053)', () => {
   it('renders nothing when nothing is missing', () => {
-    const { container } = render(<PremiumRequirementsNotice items={[]} />);
+    const { container } = render(<PremiumRequirementsNotice items={[]} registry="AKC" />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('lists each fact with a link to its field, and none for a fact with no home', () => {
     render(
       <PremiumRequirementsNotice
+        registry="AKC"
         items={[
           {
             id: 'venue',
@@ -33,5 +34,17 @@ describe('PremiumRequirementsNotice (MYK9-2053)', () => {
     const links = screen.getAllByRole('link');
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute('href', '/shows/s1?edit=true');
+  });
+
+  it('names the registry in the heading', () => {
+    render(
+      <PremiumRequirementsNotice
+        registry="AKC"
+        items={[
+          { id: 'venue', key: 'venue', message: 'AKC requires the show location.', href: null },
+        ]}
+      />
+    );
+    expect(screen.getByText('Before you publish, AKC still needs:')).toBeInTheDocument();
   });
 });

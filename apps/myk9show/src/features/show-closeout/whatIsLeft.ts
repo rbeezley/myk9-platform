@@ -61,8 +61,19 @@ export interface WhatIsLeftInput {
   incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
   /** `null` when result submissions could not be read. */
   submissions:
-    | readonly { status?: string | null | undefined; organization?: string | null | undefined }[]
+    | readonly {
+        status?: string | null | undefined;
+        organization?: string | null | undefined;
+        /** `result_submissions.submitted_at`: when the file went. */
+        submitted_at?: string | null | undefined;
+      }[]
     | null;
+  /**
+   * Newest score change (`entry_score_audit.changed_at`) per class id. `null` = the score history
+   * could not be read; `undefined` = this caller does not look. Only the app-sent results file
+   * reads it (MYK9-2078).
+   */
+  latestScoreChangeByClass?: ReadonlyMap<string, string> | null | undefined;
 }
 
 export type WhatIsLeftLineKey =
@@ -90,6 +101,12 @@ export interface WhatIsLeftLine {
   registryId?: RegistryId;
   /** The sentence the close step shows for the line while it is open or unknown. */
   closeConcern?: string;
+  /**
+   * An app-sent results file only: a score changed after the newest send (`true`), none did
+   * (`false`), or the score history could not be read so it cannot be told (`null`). Absent when
+   * nothing was sent or the caller does not look.
+   */
+  changedSinceSent?: boolean | null;
 }
 
 export interface WhatIsLeft {
@@ -210,6 +227,18 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
       row => !row.organization || row.organization.toUpperCase() === registryId
     ) ?? false;
 
+  // The newest file the app itself emailed for a registry (`sent`, never a secretary's own mark).
+  const newestSentAt = (registryId: RegistryId): number | null => {
+    let newest: number | null = null;
+    for (const row of input.submissions ?? []) {
+      if (normalizeCloseoutStatus(row.status) !== 'sent') continue;
+      if (row.organization && row.organization.toUpperCase() !== registryId) continue;
+      const at = row.submitted_at ? Date.parse(row.submitted_at) : Number.NaN;
+      if (!Number.isNaN(at) && (newest === null || at > newest)) newest = at;
+    }
+    return newest;
+  };
+
   const registryByTrial = new Map<string, RegistryId>();
   const registryIds: RegistryId[] = [];
   for (const trial of input.trials) {
@@ -283,9 +312,27 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
           registryId,
         });
       } else {
+        const sentAt = duty.recordedBy === 'app' ? newestSentAt(registryId) : null;
+        const changes = input.latestScoreChangeByClass;
+        let changedSinceSent: boolean | null | undefined;
+        if (sentAt !== null && changes !== undefined) {
+          if (changes === null) changedSinceSent = null;
+          else {
+            changedSinceSent = false;
+            for (const cls of classes) {
+              const belongs =
+                cls.trialId === undefined
+                  ? registryIds.length === 1
+                  : registryByTrial.get(cls.trialId) === registryId;
+              const changedAt = changes.get(cls.id);
+              if (belongs && changedAt && Date.parse(changedAt) > sentAt) changedSinceSent = true;
+            }
+          }
+        }
         lines.push({
           key: duty.key,
           kind: 'results-submission',
+          ...(changedSinceSent === undefined ? {} : { changedSinceSent }),
           label: duty.label,
           count: null,
           classIds: [],

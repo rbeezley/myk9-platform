@@ -18,6 +18,7 @@ export interface ScoreAuditChange {
 
 export interface EntryScoreAuditItem {
   id: string;
+  classId: string;
   changedAt: string;
   /** Device save time (offline queue); null when the client did not send one. */
   clientSavedAt: string | null;
@@ -51,6 +52,7 @@ export function mapEntryScoreAuditRow(
 ): EntryScoreAuditItem {
   return {
     id: row.id,
+    classId: row.class_id,
     changedAt: row.changed_at,
     clientSavedAt: row.client_saved_at,
     actorName: row.actor_display_name,

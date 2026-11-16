@@ -66,6 +66,7 @@ describe('getEntryScoreAudit', () => {
     expect(items).toEqual([
       {
         id: 'a1',
+        classId: 'class-1',
         changedAt: '2026-11-07T16:05:00+00:00',
         clientSavedAt: null,
         actorName: 'Jo Judge',

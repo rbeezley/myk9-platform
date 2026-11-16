@@ -14,6 +14,7 @@ function audit(
 ): EntryScoreAuditItem {
   return {
     id,
+    classId: 'class-1',
     changedAt,
     clientSavedAt: null,
     actorName: null,

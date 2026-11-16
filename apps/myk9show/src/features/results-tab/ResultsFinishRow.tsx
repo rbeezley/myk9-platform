@@ -8,6 +8,7 @@ import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SyncableTrial } from '@/store/trial-store-types';
+import { useResultsSentCheck } from './useResultsSentCheck';
 import { trialLabelOf, type ResultsClassRow } from './buildResultsClassRows';
 
 interface ResultsFinishRowProps {
@@ -26,9 +27,10 @@ interface ResultsFinishRowProps {
  * read); a line that opens the class list filters it to exactly the classes the line counted.
  */
 export function ResultsFinishRow({ showId, trials, rows, onOpenAfterShow }: ResultsFinishRowProps) {
+  const sent = useResultsSentCheck(showId, rows);
   const items = useMemo(
-    () => buildFinishList(showId, calculateResultsRowsLeft(rows, trials)),
-    [rows, showId, trials]
+    () => buildFinishList(showId, calculateResultsRowsLeft(rows, trials, sent)),
+    [rows, sent, showId, trials]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();
@@ -55,7 +57,12 @@ export function ResultsFinishRow({ showId, trials, rows, onOpenAfterShow }: Resu
               {item.state === 'done' && (
                 <CheckCircle2 className="h-4 w-4 text-primary" aria-label="Done" />
               )}
-              {item.label}
+              <span>
+                {item.label}
+                {item.note && (
+                  <span className="block text-xs text-muted-foreground">{item.note}</span>
+                )}
+              </span>
             </span>
           );
           return (

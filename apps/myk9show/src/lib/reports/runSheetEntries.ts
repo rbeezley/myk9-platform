@@ -8,8 +8,7 @@ import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/ent
  * grids use (`isSupersededMoveUpEntry` + `isRemovedStatus`), plus `check_in_status = 'pulled'`, and
  * it matches what the `emergency_packet_input` RPC already filters server side.
  *
- * Pending entries stay on the sheet (as they do on the RPC and the entry forms), and `absent` is a
- * show-day outcome that still prints.
+ * Pending entries stay on the sheet (as they do on the RPC and the entry forms).
  */
 export function isEntryOnRunSheet(entry: {
   entryStatus?: string | null | undefined;
@@ -17,5 +16,9 @@ export function isEntryOnRunSheet(entry: {
 }): boolean {
   if (entry.checkInStatus === 'pulled') return false;
   if (isSupersededMoveUpEntry({ entryStatus: entry.entryStatus ?? null })) return false;
-  return !isRemovedStatus(getEntryStatusKind(entry.entryStatus));
+  const kind = getEntryStatusKind(entry.entryStatus);
+  // `absent` is not a "removed" kind (it renders through normal results elsewhere), but the
+  // packet RPC drops it from the run sheet (supabase/migrations/20261014214300_myk9_1162_held_entries.sql),
+  // so the Reports sheets drop it too: one truth for who is on the run sheet.
+  return !isRemovedStatus(kind) && kind !== 'absent';
 }

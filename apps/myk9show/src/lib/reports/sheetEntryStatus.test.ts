@@ -61,7 +61,7 @@ function entry(
 }
 
 // 1 normal, 2 moved-up source, 3 withdrawn, 4 pulled (scratched + pulled),
-// 5 pending, 6 not accepted, 7 declined-by-secretary alias (rejected).
+// 5 pending, 6 not accepted, 7 absent (the packet RPC drops it too).
 const noviceEntries = [
   entry(1, novice.id, 'confirmed'),
   entry(2, novice.id, 'moved'),
@@ -69,6 +69,7 @@ const noviceEntries = [
   entry(4, novice.id, 'scratched', 'pulled'),
   entry(5, novice.id, 'pending'),
   entry(6, novice.id, 'not_accepted'),
+  entry(7, novice.id, 'absent'),
 ];
 // The move-up target: the same dog (armband 2) in the next level up.
 const advancedEntries = [entry(2, advanced.id, 'confirmed')];

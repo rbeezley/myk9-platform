@@ -236,6 +236,7 @@ vi.mock('./atShowVoiceAnnouncement', () => ({
 }));
 
 import { AtShowScoresheetPage } from './AtShowScoresheetPage';
+import { SHEET_NOT_FOUND_MESSAGE } from './useAtShowScoresheet';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
@@ -384,7 +385,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       tablesStatus: { classes: 'syncing', entries: 'idle', dogs: 'idle', trials: 'idle' },
     });
 
-    expect(await screen.findByText('Class not found')).toBeInTheDocument();
+    expect(await screen.findByText(SHEET_NOT_FOUND_MESSAGE)).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
@@ -501,7 +502,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     // remounts — sync on it first, same reasoning as the test above.
     await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
-    expect(await screen.findByText('Class not found')).toBeInTheDocument();
+    expect(await screen.findByText(SHEET_NOT_FOUND_MESSAGE)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Live scoresheet for #105')).not.toBeInTheDocument();

@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { useUnsentWork } from '@/hooks/useUnsentWork';
 import { useOnlineStatus } from '@/lib/networkUtils';
+import { formatTime } from '@/utils/dateFormat';
 import { badgeClass } from './atShowChrome.helpers';
 import { OfflineSyncNoteView, SyncIndicator as SyncIndicatorView } from './atShowSyncChrome';
 import { scoresNotSentHref } from '../scoresNotSent/scoresNotSentPath';
@@ -124,6 +125,11 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
       <span className={cn(!ready && 'max-sm:sr-only')}>
         {ready ? 'Offline ready' : 'Preparing offline copy…'}
       </span>
+      {/* When this device last finished downloading the show, so a judge can tell how fresh the
+          list is. Quiet: the chip is already hidden on phones once ready. */}
+      {ready && status?.lastSyncAt && (
+        <span className="opacity-80">Updated {formatTime(status.lastSyncAt)}</span>
+      )}
     </span>
   );
 };

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAtShowScoresheet } from './useAtShowScoresheet';
+import { SCORE_NOT_SAVED_MESSAGE, useAtShowScoresheet } from './useAtShowScoresheet';
 
 interface SubmitOptions {
   classId: string;
@@ -278,7 +278,7 @@ describe('useAtShowScoresheet completion wiring', () => {
       );
     });
 
-    expect(result.current.submitError).toContain('offline queue unavailable');
+    expect(result.current.submitError).toBe(SCORE_NOT_SAVED_MESSAGE);
     expect(mocks.recordCompletionIntentIfConfirmed).not.toHaveBeenCalled();
     expect(mocks.transitionToCompleted).not.toHaveBeenCalled();
     expect(onScored).not.toHaveBeenCalled();

@@ -164,6 +164,22 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
       </ReplicationSyncTestProvider>
     );
 
+  it('ready and online says when the show data was last downloaded', () => {
+    renderReady();
+    expect(screen.getByText(/^Updated \d{1,2}:\d{2} (AM|PM)$/)).toBeInTheDocument();
+  });
+
+  it('shows no Updated time while still preparing', () => {
+    render(
+      <ReplicationSyncTestProvider
+        value={{ status: { lastSyncAt: null, tablesStatus: {} } } as never}
+      >
+        <CompactOfflineIndicator />
+      </ReplicationSyncTestProvider>
+    );
+    expect(screen.queryByText(/^Updated/)).toBeNull();
+  });
+
   it('ready and online keeps the chip hidden on phones (unchanged)', () => {
     renderReady();
     expect(screen.getByText('Offline ready').parentElement?.className).toContain('max-sm:hidden');

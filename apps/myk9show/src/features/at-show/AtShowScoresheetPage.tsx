@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Loader2, AlertCircle, WifiOff, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
+import { Loader2, AlertCircle, ShieldAlert, Volume2, VolumeX } from 'lucide-react';
 import { RingsideUpButton } from '@myk9/ui';
 import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGuard';
 import { useScoresheetDirty } from '@/components/navigation/useScoresheetDirty';
@@ -47,7 +47,6 @@ import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { AtShowScoresheetIdentityUnavailable } from './AtShowScoresheetIdentityUnavailable';
 import { AtShowScoresheetUnassigned } from './AtShowScoresheetUnassigned';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
-import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
@@ -222,7 +221,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     submit,
     startRun,
     isSyncing,
-    hasSyncError,
     submitError,
     clearSubmitError,
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
@@ -326,7 +324,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
             <MissingTrialTypeNotice trialId={trialId} showId={showId} />
           ) : (
             <p className="text-muted-foreground">
-              The scoresheet for {organization} {sportType} is not yet implemented.
+              This class type does not have a scoresheet here yet. Ask the secretary for help.
             </p>
           )}
           <RingsideUpButton label="Entries" onClick={onBack} />
@@ -349,30 +347,16 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       )}
       <ScoresheetLeaveGuard isDirty={sheetDirty} dirtyRef={dirtyRef} />
       {submitError && <ScoreSubmitErrorBanner message={submitError} onDismiss={clearSubmitError} />}
-      {(isSyncing || hasSyncError) && (
+      {isSyncing && (
         <div
           role="status"
           aria-live="polite"
           className="fixed top-0 left-0 right-0 z-50 px-4 py-2 text-center text-sm"
         >
-          {isSyncing && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-info/10 text-info rounded-full">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Sending score...
-            </div>
-          )}
-          {hasSyncError && !isSyncing && (
-            // Offline is normal, not broken (PRODUCT.md): a calm neutral tone,
-            // not alarm-orange. The token carries both light and dark values.
-            <div
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 ${badgeClass(
-                'neutral'
-              )}`}
-            >
-              <WifiOff className="h-4 w-4" />
-              Offline, score saved locally
-            </div>
-          )}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-info/10 text-info rounded-full">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Sending score...
+          </div>
         </div>
       )}
       {/* `LiveScoresheet` is a stable registry lookup (getScoresheetComponent by

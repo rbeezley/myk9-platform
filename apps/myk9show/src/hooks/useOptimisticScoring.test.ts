@@ -165,6 +165,40 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(result.current.hasError).toBe(true);
   });
 
+  // MYK9-2037: Show Desk's Absent Undo holds the stamp it passes in, so the write must store
+  // exactly that value in both spellings, never a fresh now().
+  it('stores a caller-supplied completedAt verbatim in both spellings', async () => {
+    updateEntry.mockResolvedValue('mutation-2037');
+    const completedAt = '2026-11-16T12:34:56.789Z';
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically({ ...baseOptions(), completedAt });
+    });
+
+    expect(updateEntry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        scoringCompletedAt: completedAt,
+        scoring_completed_at: completedAt,
+      })
+    );
+  });
+
+  it('stamps one valid instant in both spellings when no completedAt is given', async () => {
+    updateEntry.mockResolvedValue('mutation-2037-default');
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(baseOptions());
+    });
+
+    const payload = updateEntry.mock.calls[0][1] as Record<string, unknown>;
+    expect(typeof payload.scoring_completed_at).toBe('string');
+    expect(Number.isNaN(Date.parse(payload.scoring_completed_at as string))).toBe(false);
+    expect(payload.scoringCompletedAt).toBe(payload.scoring_completed_at);
+  });
+
   // Audit M3: full multi-area detail must reach the whitelisted ringside columns,
   // not just the 5 summary fields. Assertion-first — pins the exact column names
   // and values the write carries.

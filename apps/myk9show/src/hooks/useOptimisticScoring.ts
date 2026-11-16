@@ -107,6 +107,7 @@ export function useOptimisticScoring() {
   const submitScoreOptimistically = useCallback(
     async (options: OptimisticScoringOptions) => {
       const { entryId, scoreData, armband, onSuccess, onError } = options;
+      // One instant for both spellings: Show Desk's Absent Undo compares this stamp (MYK9-2037).
       const completedAt = options.completedAt ?? new Date().toISOString();
       // Clear any prior fail-closed error before this attempt.
       setSubmitError(null);
@@ -170,7 +171,6 @@ export function useOptimisticScoring() {
         // and updateEntry merges over the cached row). Write the reason when present.
         detailFields.disqualification_reason = scoreData.nonQualifyingReason ?? null;
 
-        // One instant for both spellings: Show Desk's Absent Undo compares this stamp (MYK9-2037).
         const mutationId = await replicatedEntriesTable.updateEntry(String(entryId), {
           // Write both camelCase and snake_case so toSupabaseRow() picks up the values
           resultStatus: resultStatus,

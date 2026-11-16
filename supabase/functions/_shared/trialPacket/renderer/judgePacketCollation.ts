@@ -45,7 +45,14 @@ export interface PacketJudge<T = object> {
   sheetTotal: number;
 }
 
-export const NO_JUDGE_KEY = 'no-judge';
+/** The packet key for classes with no judge. Not a secret: compared through `isNoJudgePacket`. */
+const NO_JUDGE = 'no-judge';
+export const NO_JUDGE_KEY = NO_JUDGE;
+
+/** Is this the no-judge packet? */
+export function isNoJudgePacket(value: string): boolean {
+  return value === NO_JUDGE;
+}
 
 /** A judge's dog and sheet totals for the classes it holds. */
 export function withJudgeTotals<T>(judge: PacketJudge<T>): PacketJudge<T> {
@@ -164,7 +171,7 @@ export function collateJudgePackets<T = object>(
     else {
       judges.set(key, {
         key,
-        judgeName: key === NO_JUDGE_KEY ? null : classItem.judgeName.trim(),
+        judgeName: isNoJudgePacket(key) ? null : classItem.judgeName.trim(),
         classes: [packetClass],
         dogTotal: 0,
         sheetTotal: 0,
@@ -177,7 +184,7 @@ export function collateJudgePackets<T = object>(
     registryName: options.registryName,
     judges: [...judges.values()]
       .map(withJudgeTotals)
-      .sort((a, b) => Number(a.key === NO_JUDGE_KEY) - Number(b.key === NO_JUDGE_KEY)),
+      .sort((a, b) => Number(isNoJudgePacket(a.key)) - Number(isNoJudgePacket(b.key))),
     emptyClassCount,
   };
 }

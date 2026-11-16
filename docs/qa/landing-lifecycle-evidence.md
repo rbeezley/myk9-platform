@@ -36,7 +36,7 @@ Every product claim on the rebuilt landing page needs a KEEP row here with the c
 
 Captured 2026-10-13 from the dev server on this branch (`main` @ `864a03e76`) with seeded `@myk9t.com` accounts on the Heartland Scent Work Classic seed show (`dededede-0000-0000-0000-000000000010`).
 
-**Every capture blocked writes.** Each request to Supabase that was not a GET, a read-only `get_*` RPC or the sign-in token exchange was aborted. Opening a judge scoresheet alone calls `ringside_update_entry`, so a hand capture would have changed the shared demo fixtures.
+**Every capture blocked writes.** Each request to Supabase that was not a GET, a read-only `get_*` RPC or the sign-in token exchange was aborted. Pressing Start on a judge scoresheet calls `ringside_update_entry` (it writes `in-ring`; opening the sheet no longer does, MYK9-1779), so a hand capture would have changed the shared demo fixtures.
 
 **The guide copies are not used.** `apps/docs/public/screenshots/*.png` is not tracked (it exists only in the main checkout), and several guide shots no longer match the app. The landing page ships the fresh captures below, which Task 2 copies into `apps/myk9show/public/landing/stages/`.
 

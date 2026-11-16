@@ -106,7 +106,9 @@ export function isClassRunComplete(cls: ShowMapClassInput, entries: ShowMapEntry
  * and no entry is expected to run or waiting on acceptance. An unknown count is never "empty".
  * Such a class is never completed by the server, so it must not hold its judge's day open.
  */
-export function isClassConfirmedEmpty(cls: ShowMapClassInput): boolean {
+export function isClassConfirmedEmpty(
+  cls: Pick<ShowMapClassInput, 'entryCount' | 'runListCount'>
+): boolean {
   if (typeof cls.entryCount !== 'number' || cls.entryCount !== 0) return false;
   return cls.runListCount === undefined || cls.runListCount === 0;
 }

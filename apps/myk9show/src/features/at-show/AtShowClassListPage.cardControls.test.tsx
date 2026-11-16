@@ -148,24 +148,41 @@ beforeEach(() => {
 });
 
 describe('tabs, search and sort', () => {
-  it('defaults to Pending and counts every tab', async () => {
+  it('defaults to To do and counts every tab', async () => {
     renderPage();
-    const pending = await screen.findByRole('tab', { name: /Pending/ });
+    const pending = await screen.findByRole('tab', { name: /^To do/ });
     expect(pending).toHaveAttribute('aria-selected', 'true');
     expect(pending).toHaveTextContent('3');
     expect(screen.getByRole('tab', { name: /Running/ })).toHaveTextContent('1');
     expect(screen.getByRole('tab', { name: /Favorites/ })).toHaveTextContent('0');
-    expect(screen.getByRole('tab', { name: /Done/ })).toHaveTextContent('1');
+    expect(screen.getByRole('tab', { name: /^Completed/ })).toHaveTextContent('1');
     expect(cardNames()).not.toContain('Exterior Master');
   });
 
   it('filters the list by tab', async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: /Done/ }));
+    fireEvent.click(await screen.findByRole('tab', { name: /^Completed/ }));
     expect(cardNames()).toEqual(['Exterior Master']);
 
     fireEvent.click(screen.getByRole('tab', { name: /Running/ }));
     expect(cardNames()).toEqual(['Container Novice A & B']);
+  });
+
+  it('words the empty tab plainly, without the tab name in brackets', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('tab', { name: /^Completed/ }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search classes' }), {
+      target: { value: 'nothing matches this' },
+    });
+    expect(screen.queryByText('No completed classes yet.')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('No classes match. Try another tab, or clear the search.')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /^Favorites/ }));
+    expect(
+      screen.getByText('No classes match. Try another tab, or clear the search.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\(Favorites\)/)).not.toBeInTheDocument();
   });
 
   it('searches class name, level, judge and section', async () => {

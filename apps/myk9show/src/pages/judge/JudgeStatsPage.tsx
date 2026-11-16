@@ -194,6 +194,9 @@ const JudgeStatsPage: React.FC = () => {
                   >
                     <div>
                       <p className="font-medium text-sm">{assignment.show_name}</p>
+                      {assignment.class_label && (
+                        <p className="text-xs font-medium">{assignment.class_label}</p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {assignment.show_start_date
                           ? formatShortCalendarDate(assignment.show_start_date)

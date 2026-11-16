@@ -149,3 +149,60 @@ export async function getClassScoreAudits(
     throw dbError;
   }
 }
+
+/**
+ * The score columns the AKC results file is built from (`AKCScentWorkFormatter` and
+ * `akcEntryOutcome`): the result, the search time and the placement. A change to any other audited
+ * column (judge notes, signatures, video review, fault counts) leaves the sent file true.
+ */
+export const AKC_FILE_SCORE_FIELDS: ReadonlySet<string> = new Set([
+  'result_status',
+  'search_time_seconds',
+  'final_placement',
+  'is_scored',
+]);
+
+/**
+ * The newest change to a score the results file carries, per class, among changes after `sinceIso`
+ * (MYK9-2078). One show-wide read of `class_id, changed_at, changes` only, newest first, so a show
+ * of any size stays light. Same online-only admin read as the score history: it throws offline.
+ */
+export async function getFileScoreChangesSince(
+  showId: string,
+  sinceIso: string
+): Promise<Map<string, string>> {
+  const latest = new Map<string, string>();
+  const startTime = Date.now();
+  try {
+    for (let from = 0; ; from += AUDIT_PAGE) {
+      const { data, error } = await supabase
+        .from('entry_score_audit')
+        .select('class_id, changed_at, changes')
+        .eq('show_id', showId)
+        .gt('changed_at', sinceIso)
+        .order('changed_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, from + AUDIT_PAGE - 1);
+      if (error) throw createDatabaseError(error, 'entry_score_audit', 'get_file_score_changes');
+      const page = (data ?? []) as Pick<AuditRow, 'class_id' | 'changed_at' | 'changes'>[];
+      for (const row of page) {
+        if (latest.has(row.class_id)) continue;
+        if (parseScoreAuditChanges(row.changes).some(c => AKC_FILE_SCORE_FIELDS.has(c.field))) {
+          latest.set(row.class_id, row.changed_at);
+        }
+      }
+      if (page.length < AUDIT_PAGE) break;
+    }
+    logQuery('entry_score_audit', 'get_file_score_changes', Date.now() - startTime);
+    return latest;
+  } catch (error) {
+    const dbError = createDatabaseError(error, 'entry_score_audit', 'get_file_score_changes');
+    logQuery(
+      'entry_score_audit',
+      'get_file_score_changes',
+      Date.now() - startTime,
+      dbError.message
+    );
+    throw dbError;
+  }
+}

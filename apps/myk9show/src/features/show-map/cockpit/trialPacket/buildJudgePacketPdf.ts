@@ -1,11 +1,12 @@
+import { jsPDF } from 'jspdf';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+
 import { getTrialTimezone } from '@/features/registries';
 import { getReportById } from '@/lib/reports/reportRegistry';
 
-import { mergeReportPdfs } from '../mergeReportPdfs';
+import { assembleJudgePacketPdf } from '../../../../../../../supabase/functions/_shared/trialPacket/renderer/judgePacketPdf.ts';
 import type { CollatedTrialPacket, TrialPacketJudge } from './collateTrialPacket';
-import { stampPacketFooter } from './packetFooter';
 import { PACKET_REPORT_IDS } from './packetReports';
-import { buildJudgeCoverModel, renderJudgeCoverPdf } from './judgeCoverSheet';
 
 /** One class's sheets: the very output the single-class print builds for that class. */
 export function buildClassSheetParts(
@@ -20,18 +21,20 @@ export function buildClassSheetParts(
 }
 
 /** The cover sheet, then each class's sheets, as one PDF with the packet footer on every page. */
-export async function buildJudgePacketPdf(
+export function buildJudgePacketPdf(
   packet: CollatedTrialPacket,
   judge: TrialPacketJudge,
   showName: string,
   printedAt: Date = new Date()
 ): Promise<Uint8Array> {
-  const cover = renderJudgeCoverPdf(buildJudgeCoverModel(packet, judge, showName));
-  const merged = await mergeReportPdfs([cover, ...judge.classes.flatMap(buildClassSheetParts)]);
-  return stampPacketFooter(
-    merged,
-    judge.judgeName ?? 'No judge assigned',
+  return assembleJudgePacketPdf({
+    pdfLib: { PDFDocument, StandardFonts, rgb },
+    JsPdf: jsPDF,
+    packet,
+    judge,
+    showName,
+    classParts: judge.classes.flatMap(buildClassSheetParts),
     printedAt,
-    getTrialTimezone(packet.trial)
-  );
+    timeZone: getTrialTimezone(packet.trial),
+  });
 }

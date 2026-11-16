@@ -86,7 +86,6 @@ const ClassStatusForm: React.FC<ClassStatusDialogProps> = ({
   onStatusChange,
   classData,
   currentStatus,
-  onMarkAbsent,
 }) => {
   const [picked, setPicked] = useState<StatusOption | null>(null);
   const [time, setTime] = useState('');
@@ -181,11 +180,6 @@ const ClassStatusForm: React.FC<ClassStatusDialogProps> = ({
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
-      )}
-      {onMarkAbsent && (
-        <Button variant="outline" disabled={saving} onClick={() => void onMarkAbsent()}>
-          Mark Unscored Absent
-        </Button>
       )}
     </ClassDialogShell>
   );

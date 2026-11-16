@@ -23,6 +23,7 @@ import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import { mapCatalogEntryFields } from '@/lib/reports/catalogFields';
 import { computeDayTrialNumber } from './dayTrialNumber';
 import { resolveHandlerJunior } from './reportHandlerJunior';
+import { isEntryOnRunSheet } from '@/lib/reports/runSheetEntries';
 import { isReportEntryHeld, omitHeldEntries } from './reportHeldEntries';
 
 export function mapReportEntries(
@@ -113,6 +114,7 @@ function mapReportEntry(
       is_scored: e.is_scored,
       result_status: e.result_status,
       search_time_seconds: e.search_time_seconds,
+      element_time_seconds: e.element_time_seconds,
       total_faults: e.total_faults,
       final_placement: e.final_placement,
     },
@@ -388,8 +390,11 @@ export function buildEmergencyPacketData(input: {
       };
     }),
     // MYK9-1162: the packet and Reports scoresheets never list an entry that is
-    // still awaiting a registration number.
-    entries: mappedEntries.filter(entry => !entry.awaitingRegistrationNumber),
+    // still awaiting a registration number. MYK9-2082: nor one that will not run in its class
+    // (the source of a move-up, withdrawn, declined, scratched or pulled).
+    entries: mappedEntries.filter(
+      entry => !entry.awaitingRegistrationNumber && isEntryOnRunSheet(entry)
+    ),
   };
 }
 

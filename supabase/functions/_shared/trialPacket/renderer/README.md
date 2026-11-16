@@ -16,3 +16,7 @@ They are imported by Deno, so they carry **no `@/` aliases, no app imports, and 
 ## Tests
 
 The suite stays in the app, where it already runs: `apps/myk9show/src/features/emergency-trial-packet/*.test.ts`.
+
+## The judge packet (MYK9-2085)
+
+`judgePacketCollation.ts` (grouping, schedule order, totals), `judgeCoverSheet.ts` (cover model and drawing) and `judgePacketPdf.ts` (merge, footer, assembly) build the before-trial packet one judge at a time, from an `EmergencyPacketInput`. jsPDF and pdf-lib are passed in, never imported: Deno loads `npm:pdf-lib` and the browser its own bundle, and the structural types in `judgePacketPdf.ts` stand in for both. What needs app data (registry element order, reading a stored clock time, cancelled classes, the class sheets themselves) comes in as plain values or functions. `judgePacketRenderer.test.ts` in the app runs this code under node.

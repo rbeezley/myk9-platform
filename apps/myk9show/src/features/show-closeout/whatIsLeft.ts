@@ -22,6 +22,7 @@ import type { ShowIncidentSummary } from '@/features/show-workbench/showIncident
 import type { ResultsClassPhase } from '@/features/results-tab/resultsNextAction';
 import { matchesResultsStatusFilter } from '@/features/results-tab/resultsNextAction';
 import type { ResultsStatusFilterId } from '@/features/results-tab/resultsNextAction';
+import { coveredUntil, newestSubmissionAt, SENT_FILE_TEXT } from './submissionTimes';
 import { isCancelledStatus, needsCascade, normalizeCloseoutStatus } from './closeoutStatus';
 
 const SUBMITTED_STATUSES = new Set(['sent', 'submitted']);
@@ -61,9 +62,28 @@ export interface WhatIsLeftInput {
   incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
   /** `null` when result submissions could not be read. */
   submissions:
-    | readonly { status?: string | null | undefined; organization?: string | null | undefined }[]
+    | readonly {
+        status?: string | null | undefined;
+        organization?: string | null | undefined;
+        /** `result_submissions.submitted_at`: when the file went. */
+        submitted_at?: string | null | undefined;
+      }[]
     | null;
+  /** What the score history says since the results file went. `undefined` = this caller does not look. */
+  scoreChanges?: ScoreChangeRead | undefined;
 }
+
+/**
+ * Newest change to a score the results file carries (`entry_score_audit.changed_at`), per class
+ * id (MYK9-2078). `loading` and `unreadable` are their own states: neither may read as "no change".
+ */
+export type ScoreChangeRead =
+  | { status: 'loading' }
+  | { status: 'unreadable' }
+  | { status: 'read'; latestByClass: ReadonlyMap<string, string> };
+
+/** Whether the app-sent results file still matches the scores. */
+export type SentFileCheck = 'current' | 'changed' | 'unknown' | 'checking';
 
 export type WhatIsLeftLineKey =
   | 'unknown-counts'
@@ -90,6 +110,8 @@ export interface WhatIsLeftLine {
   registryId?: RegistryId;
   /** The sentence the close step shows for the line while it is open or unknown. */
   closeConcern?: string;
+  /** An app-sent results file only; absent when nothing was sent or the caller does not look. */
+  sentFileCheck?: SentFileCheck;
 }
 
 export interface WhatIsLeft {
@@ -283,9 +305,33 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
           registryId,
         });
       } else {
+        const sentAt =
+          duty.recordedBy === 'app'
+            ? newestSubmissionAt(input.submissions, registryId, 'sent')
+            : null;
+        const read = input.scoreChanges;
+        let sentFileCheck: SentFileCheck | undefined;
+        if (sentAt !== null && read !== undefined) {
+          const coveredAt = coveredUntil(input.submissions, registryId) ?? sentAt;
+          if (read.status !== 'read')
+            sentFileCheck = read.status === 'loading' ? 'checking' : 'unknown';
+          else {
+            sentFileCheck = 'current';
+            for (const cls of classes) {
+              const belongs =
+                cls.trialId === undefined
+                  ? registryIds.length === 1
+                  : registryByTrial.get(cls.trialId) === registryId;
+              const changedAt = read.latestByClass.get(cls.id);
+              if (belongs && changedAt && Date.parse(changedAt) > coveredAt)
+                sentFileCheck = 'changed';
+            }
+          }
+        }
         lines.push({
           key: duty.key,
           kind: 'results-submission',
+          ...(sentFileCheck === undefined ? {} : { sentFileCheck }),
           label: duty.label,
           count: null,
           classIds: [],
@@ -329,6 +375,17 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
       : hasSubmittedResults
         ? null
         : 'No result submission has been recorded for this show.';
+  // A file the app sent that the scores have moved past, or that could not be checked: close warns.
+  const sentFileChecks = lines.flatMap(line =>
+    line.kind === 'results-submission' && line.sentFileCheck ? [line.sentFileCheck] : []
+  );
+  const sentFileConcern = sentFileChecks.includes('changed')
+    ? `${SENT_FILE_TEXT.changed} Send it again before closing.`
+    : sentFileChecks.includes('unknown')
+      ? SENT_FILE_TEXT.unknown
+      : sentFileChecks.includes('checking')
+        ? SENT_FILE_TEXT.checking
+        : null;
   const concernOf = (kind: WhatIsLeftLineKey): string[] => {
     const line = lines.find(candidate => candidate.kind === kind);
     return line?.closeConcern && line.open !== false ? [line.closeConcern] : [];
@@ -338,6 +395,7 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     ...concernOf('unscored'),
     ...concernOf('pending-review'),
     ...(submissionConcern ? [submissionConcern] : []),
+    ...(sentFileConcern ? [sentFileConcern] : []),
     ...concernOf('refund-review'),
     ...concernOf('incidents'),
   ];

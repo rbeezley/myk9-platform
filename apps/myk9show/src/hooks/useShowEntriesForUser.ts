@@ -15,7 +15,7 @@ import {
   isRunnableScheduleStatus,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
-import { dogsAheadInClass, ownEntryQueueState } from '@/utils/showEntryRunQueue';
+import { dogsAheadInClass, ownEntryQueueStateInClass } from '@/utils/showEntryRunQueue';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
@@ -264,6 +264,7 @@ export function useShowEntriesForUser(
   const databaseUserId = userWithRoles?.databaseUserId;
   const currentShow = shows.find(show => show.id === showId);
   const showClubId = currentShow?.clubId;
+  const showUsesDevice = currentShow?.usesDeviceScoring;
   const clubAdminCanSeeShow =
     hasRole(UserRole.CLUB_ADMIN) &&
     hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, showClubId);
@@ -396,7 +397,7 @@ export function useShowEntriesForUser(
       // conflict label and the "your turn" push all report.
       const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
       // Own rows only (see ownEntryQueueState): state, never a counted place.
-      const queue = ownEntryQueueState(entry, cls?.scoresOnPaper === true);
+      const queue = ownEntryQueueStateInClass(entry, cls?.scoresOnPaper, showUsesDevice);
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
@@ -490,6 +491,7 @@ export function useShowEntriesForUser(
     classes,
     dogs,
     currentShow?.assignedJudges,
+    showUsesDevice,
     isLoading,
     error,
     canonicalSource,

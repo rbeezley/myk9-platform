@@ -116,8 +116,9 @@ For every major route and requested viewport:
 
 Exercise required CRUD without approval only against an isolated local Supabase fixture or through
 an established non-persisting interception: `scripts/qa/readonly-walk.ts` (`installReadOnlyGuard`
-refuses every write, so a step that needs one is recorded as stopped at a write; `cutOffBackend`
-before any scoring tap; a local-answers mode is MYK9-2003). Every write to hosted/shared Supabase—including seeded
+refuses every write, `answerLocally` answers a draft save in the browser and lists it under
+"Simulated", so mark findings on those screens as simulated; `cutOffBackend` before any scoring
+tap). Every write to hosted/shared Supabase—including seeded
 or disposable rows—requires explicit approval. Never delete shared fixtures or mutate real
 permissions, ownership, payouts, payment accounts, production data, or other consequential state
 without explicit approval. Use read-only verification or mark the path blocked when approval is

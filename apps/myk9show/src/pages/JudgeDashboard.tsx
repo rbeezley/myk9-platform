@@ -244,9 +244,7 @@ const JudgeDashboard: React.FC = () => {
               firstName={firstName}
               className="text-2xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
             />
-            <p className="text-muted-foreground text-lg font-medium">
-              Manage your judging assignments
-            </p>
+            <p className="text-muted-foreground text-lg font-medium">Your judging assignments</p>
           </div>
           {/* INTENT: judge — "invisible technology". One tap from the landing page
               to the ring: this deep-links into ringside for today's active show. */}
@@ -357,7 +355,7 @@ const JudgeDashboard: React.FC = () => {
                     ? 'No data yet'
                     : entryCountsStatus === 'partial'
                       ? 'Partial data'
-                      : 'On schedule'}
+                      : 'Entries scored'}
                 </span>
               </div>
             </CardContent>

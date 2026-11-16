@@ -65,16 +65,16 @@ export function FocusedClassHeader({
     >
       {compact ? (
         <>
-          <div className="flex flex-wrap items-center gap-x-2">
-            <div className="flex min-w-0 flex-1 basis-48 items-baseline gap-x-3">
-              {/* The name keeps its width; the eyebrow is what gives way. */}
-              <h2
-                className="max-w-full shrink-0 truncate text-lg font-semibold tracking-tight"
-                title={title}
-              >
+          {/* Row 1: the name and the actions never wrap under; the name truncates (full name in its title). */}
+          <div className="flex flex-nowrap items-center gap-x-2">
+            <div className="flex min-w-0 flex-1 items-baseline gap-x-3">
+              <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight" title={title}>
                 {title}
               </h2>
-              <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+              <span
+                title={eyebrow}
+                className="min-w-0 shrink-[3] truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary"
+              >
                 {eyebrow}
               </span>
             </div>
@@ -83,6 +83,7 @@ export function FocusedClassHeader({
               {menu}
             </div>
           </div>
+          {/* Row 2: the values. */}
           {summary}
         </>
       ) : (

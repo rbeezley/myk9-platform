@@ -12,6 +12,8 @@ export const SCORE_DETAIL_CLEAR_FIELDS: Partial<ReplicatedEntry> = {
   area2_time_seconds: null,
   area3_time_seconds: null,
   area4_time_seconds: null,
+  area5_time_seconds: null,
+  element_time_seconds: null,
   total_correct_finds: null,
   total_incorrect_finds: null,
   no_finish_count: null,

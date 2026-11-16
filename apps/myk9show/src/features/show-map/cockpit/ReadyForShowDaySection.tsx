@@ -57,7 +57,17 @@ function LineRow({ line }: { line: ReadyLine }) {
     <li className="flex items-start gap-3 text-sm">
       <LineIcon status={line.status} />
       <div>
-        {line.status === 'fail' && line.href ? (
+        {line.status === 'fail' && line.href && line.linkLabel ? (
+          <>
+            {text}
+            <Link
+              to={line.href}
+              className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+            >
+              {line.linkLabel}
+            </Link>
+          </>
+        ) : line.status === 'fail' && line.href ? (
           <Link to={line.href} className="underline-offset-4 hover:underline">
             {text}
           </Link>

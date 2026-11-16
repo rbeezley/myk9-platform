@@ -121,10 +121,8 @@ describe('ClassStatusDialog (MYK9-1513)', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('keeps Mark Unscored Absent', () => {
-    const onMarkAbsent = vi.fn(() => Promise.resolve());
-    renderDialog({ onMarkAbsent });
-    fireEvent.click(screen.getByRole('button', { name: 'Mark Unscored Absent' }));
-    expect(onMarkAbsent).toHaveBeenCalled();
+  it('offers no Mark Unscored Absent control, even when the host passes a handler', () => {
+    renderDialog({ onMarkAbsent: vi.fn(() => Promise.resolve()) });
+    expect(screen.queryByRole('button', { name: 'Mark Unscored Absent' })).not.toBeInTheDocument();
   });
 });

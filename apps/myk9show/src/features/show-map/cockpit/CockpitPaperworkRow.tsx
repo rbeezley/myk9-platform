@@ -122,7 +122,7 @@ export function CockpitPaperworkRow({
                 : printStateUnknown
                   ? 'Print history unavailable'
                   : 'Not confirmed printed'}
-              {stale ? ' · Class data changed after printing' : ''}
+              {stale ? ' · Changed since printing' : ''}
               {canUndo && (
                 <>
                   {' · '}

@@ -25,8 +25,8 @@ assignments. A fresh reachability audit found no nav item, menu, dashboard,
 role-home redirect, or deep link reaching it — only a typed URL. The route,
 `JudgeCheckInInterface`, the gate-steward mock screen, and the disconnected
 `OfflineCheckInInterface` subsystem it opened were deleted; `/judge/check-in`
-now redirects to the real, replication-backed ringside surface at
-`/at-show`. `/judge/dashboard` and `/judge/stats` are unaffected and remain
+now redirects to `/` (`HomeRedirect`, which sends each signed-in role to its
+own home); no single role page admits judges, stewards and site admins. `/judge/dashboard` and `/judge/stats` are unaffected and remain
 owned per the 2026-07-10 decision.
 
 ## What exists for fall

@@ -230,12 +230,13 @@ begin
   perform pg_temp.fail_if(v_seen is distinct from 'staff',
     'the inner view returned ' || coalesce(v_seen, 'NULL'));
 
-  -- The view's last column, and security_invoker still false (CREATE OR REPLACE resets it).
-  perform pg_temp.fail_if((
-    select a.attname from pg_attribute a
+  -- The view carries the column (later migrations append after it, e.g. MYK9-2068), and
+  -- security_invoker is still false (CREATE OR REPLACE resets it).
+  perform pg_temp.fail_if(not exists (
+    select 1 from pg_attribute a
      where a.attrelid = 'public.view_authenticated_entry_results_replication'::regclass
-       and a.attnum > 0 and not a.attisdropped order by a.attnum desc limit 1
-  ) is distinct from 'check_in_pulled_by', 'check_in_pulled_by is not the replication view''s last column');
+       and a.attname = 'check_in_pulled_by' and a.attnum > 0 and not a.attisdropped
+  ), 'the replication view does not carry check_in_pulled_by');
   -- reloptions folded: a missing option reads as the default (invoker = false), but the rebuilt
   -- views must say security_invoker=false or at least never true.
   for v_view in select unnest(array[

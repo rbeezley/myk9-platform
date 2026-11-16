@@ -43,6 +43,7 @@ import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
 import { showHeroParent } from './showHeroParent';
 import { carriedClassSearch } from './showTabClass';
+import { useClassSelectedOnLaptop } from './useClassSelectedOnLaptop';
 import type { HeroViewer } from '@/components/common/heroParentLink';
 
 const ShowHomeCockpit = lazy(() =>
@@ -213,6 +214,7 @@ function AuthorizedShowManagementShell({
     SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ?? 'overview';
   const location = useLocation();
   const { hash, search } = location;
+  const classSelectedOnLaptop = useClassSelectedOnLaptop();
   const goToTab = (id: string) => {
     const tab = SHOW_TABS.find(item => item.id === id);
     if (!tab) return;
@@ -229,6 +231,7 @@ function AuthorizedShowManagementShell({
 
   const headerControls = <ShowHeaderControls show={show} />;
   const isShowDesk = !activeManagementSection;
+  const hideBreadcrumb = isShowDesk && classSelectedOnLaptop;
   // Every `#setup-publish*` link (readiness signals, the status-line nudge) means the publish
   // cards, and those live on About (MYK9-1683). Replace, like a tab click, so Back leaves the show.
   const publishAnchor = publishAnchorFromHash(hash);
@@ -249,7 +252,11 @@ function AuthorizedShowManagementShell({
     <>
       <PageShell>
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} omitTitle />
+          {/* Folded with a class selected on a laptop (MYK9-1989): the Shows button and the nav
+              rail's Home cover it, and the class's entries need the row's height. */}
+          {!hideBreadcrumb && (
+            <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} omitTitle />
+          )}
 
           <ShowHeader
             name={show.name || 'Untitled Show'}

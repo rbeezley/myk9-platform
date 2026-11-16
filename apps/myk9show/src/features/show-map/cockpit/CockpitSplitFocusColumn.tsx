@@ -17,6 +17,7 @@ export function CockpitSplitFocusColumn({
   pinned,
   focusedId,
   showPrompt,
+  lifted = false,
 }: {
   /** The focused class's panel, or null when there is none the schedule shows. */
   panel: ReactNode;
@@ -24,6 +25,11 @@ export function CockpitSplitFocusColumn({
   focusedId: string | undefined;
   /** False beside an empty schedule or while selecting, where "pick a class" is wrong. */
   showPrompt: boolean;
+  /**
+   * The panel starts beside the schedule heading and spans both rows, not under the heading
+   * (MYK9-1989): the heading and Filter took ~150px of a laptop's height above the entries.
+   */
+  lifted?: boolean;
 }) {
   // The panel scrolls itself and is not remounted per class, so a newly focused class would open
   // at the previous class's scroll position, its controls under the pinned header.
@@ -48,7 +54,10 @@ export function CockpitSplitFocusColumn({
   return (
     <div
       ref={panelRef}
-      className={cn('col-start-2 row-start-2', pinned && FOCUSED_CLASS_PANEL_CLASS)}
+      className={cn(
+        lifted ? 'col-start-2 row-span-2 row-start-1' : 'col-start-2 row-start-2',
+        pinned && FOCUSED_CLASS_PANEL_CLASS
+      )}
       data-testid="cockpit-split-focus"
     >
       {panel}
@@ -88,6 +97,7 @@ export function CockpitFocusOutlet({
   split,
   focus,
   pinned,
+  lifted = false,
   scheduleEmpty,
   selecting,
   children,
@@ -95,6 +105,7 @@ export function CockpitFocusOutlet({
   split: boolean;
   focus: { shows: boolean; listed: boolean; id: string | undefined };
   pinned: boolean;
+  lifted?: boolean;
   scheduleEmpty: boolean;
   selecting: boolean;
   children: ReactNode;
@@ -105,6 +116,7 @@ export function CockpitFocusOutlet({
         panel={focus.shows ? children : null}
         pinned={pinned}
         focusedId={focus.id}
+        lifted={lifted}
         // Nothing to pick beside an empty schedule, and a click ticks while selecting.
         showPrompt={!scheduleEmpty && !selecting}
       />

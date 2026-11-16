@@ -102,6 +102,7 @@ describe('withholdScoredResultColumns', () => {
       final_placement: 1,
       result_status: 'qualified',
       search_time_seconds: 42.5,
+      element_time_seconds: 30.25,
       total_faults: 0,
       total_score: 100,
       result_text: 'Q',

@@ -32,6 +32,7 @@ export const WITHHELD_SCORED_COLUMNS = [
   'final_placement',
   'result_status',
   'search_time_seconds',
+  'element_time_seconds',
   'total_faults',
   'total_score',
   'result_text',

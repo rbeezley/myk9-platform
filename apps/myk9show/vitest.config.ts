@@ -104,6 +104,7 @@ export default defineConfig({
       // Trial-packet delivery moved out of the function directory so the
       // automated generator shares it; the glob above no longer reaches it.
       '../../supabase/functions/_shared/trialPacket/*.test.ts',
+      '../../supabase/functions/_shared/paperwork/*.test.ts',
       '../../supabase/functions/generate-trial-packet/*.test.ts',
       '../../supabase/functions/remind-print-trial-packet/*.test.ts',
       '../../supabase/functions/send-access-request-emails/*.test.ts',

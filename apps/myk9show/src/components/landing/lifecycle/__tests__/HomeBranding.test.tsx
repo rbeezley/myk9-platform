@@ -5,6 +5,9 @@ import Home from '@/pages/Home';
 vi.mock('@/features/show-today/ShowTodayBanner', () => ({
   ShowTodayBanner: () => null,
 }));
+vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
+  usePlatformFeeRatesQuery: () => ({ rates: null, state: 'loading' }),
+}));
 
 describe('Home branding copy', () => {
   it('mentions the ringside lineage once, in the trust section', () => {

@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 // MYK9-1285: with the last timeline step at the top of the screen, the next section's heading
-// ("Built by the team behind mySWT and myNWT") is on screen too, so the page does not read as ending.
+// ("What it costs", since MYK9-1894 moved the trust bar under the hero) is on screen too, so the page
+// does not read as ending.
 const VIEWPORTS = [
   { name: 'laptop', width: 1280, height: 900 },
   { name: 'phone', width: 375, height: 812 },
@@ -13,10 +14,12 @@ const AUDIENCES = [
 
 for (const vp of VIEWPORTS) {
   for (const audience of AUDIENCES) {
-    test(`${vp.name}: ${audience.name} reaches the trust heading from step 6`, async ({ page }) => {
+    test(`${vp.name}: ${audience.name} reaches the pricing heading from step 6`, async ({
+      page,
+    }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto('/');
-      await expect(page.locator('#trust-title')).toBeAttached({ timeout: 30000 });
+      await expect(page.locator('#pricing-title')).toBeAttached({ timeout: 30000 });
       if (audience.button) await page.getByRole('button', { name: audience.button }).click();
 
       // Lazy images above keep shifting layout, so re-read the target while settling on it.
@@ -33,7 +36,7 @@ for (const vp of VIEWPORTS) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         return {
           stepTop: last.getBoundingClientRect().top,
-          titleBottom: document.getElementById('trust-title')!.getBoundingClientRect().bottom,
+          titleBottom: document.getElementById('pricing-title')!.getBoundingClientRect().bottom,
           innerHeight: window.innerHeight,
         };
       });

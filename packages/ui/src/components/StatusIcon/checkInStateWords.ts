@@ -24,9 +24,10 @@ export const CHECK_IN_STATE_WORDS = {
 
 export type CheckInStateWordKey = keyof typeof CHECK_IN_STATE_WORDS;
 
-/** The inline word for a check-in state, or `undefined` when it has none here. */
+/** The inline word for a check-in state, or `undefined` when it has none here (including no state at all; pass `'no-status'` explicitly for the default). */
 export function checkInStateWord(state: string | null | undefined): string | undefined {
-  return (CHECK_IN_STATE_WORDS as Record<string, string | undefined>)[state ?? 'no-status'];
+  if (state == null) return undefined;
+  return (CHECK_IN_STATE_WORDS as Record<string, string | undefined>)[state];
 }
 
 /** The same word with a capital first letter, for a badge that stands alone. */

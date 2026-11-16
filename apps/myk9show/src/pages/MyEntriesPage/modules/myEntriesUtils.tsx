@@ -15,6 +15,7 @@ import {
   isPastShowEntry,
   isSettledWithoutScore,
 } from './myEntriesStats.helpers';
+import { checkInStateLabel } from '@myk9/ui';
 import type { EntryClass } from './my-entries-types';
 import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
 
@@ -254,7 +255,7 @@ export function getContextualStatusMessage(
       };
     }
     if (partiallyScored.entryStatusKind === 'in_ring') {
-      return { message: 'In ring', className: 'text-info' };
+      return { message: checkInStateLabel('in-ring') ?? 'In the ring', className: 'text-info' };
     }
     return {
       message: `${remainingClasses} ${plural} still to run`,
@@ -270,7 +271,7 @@ export function getContextualStatusMessage(
   }
 
   if (entry.entryStatusKind === 'in_ring') {
-    return { message: 'In ring', className: 'text-info' };
+    return { message: checkInStateLabel('in-ring') ?? 'In the ring', className: 'text-info' };
   }
   if (entry.entryStatusKind === 'absent') {
     return { message: 'Absent', className: 'text-muted-foreground' };

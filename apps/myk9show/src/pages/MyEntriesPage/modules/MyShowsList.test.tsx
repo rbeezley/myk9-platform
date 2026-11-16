@@ -103,7 +103,7 @@ describe('MyShowsList — a multi-order show renders once, dog-first', () => {
   it('rolls the dog chip up from its classes', () => {
     renderList();
 
-    expect(within(dogCard('Juni')).getByText('In ring')).toBeInTheDocument();
+    expect(within(dogCard('Juni')).getByText('In the ring')).toBeInTheDocument();
     expect(within(dogCard('Ranger')).getByText('Conflict')).toBeInTheDocument();
   });
 

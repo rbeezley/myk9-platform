@@ -26,6 +26,7 @@ import {
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import { getEntryStatusBadgeLabel, getStatusBadgeValue } from './myEntriesUtils';
 import { getPartiallyScoredState, isSettledWithoutScore } from './myEntriesStats.helpers';
+import { checkInStateLabel } from '@myk9/ui';
 import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
 import {
   isLiveByLifecycle,
@@ -33,6 +34,15 @@ import {
   settledLifecycleKind,
   type SettledLifecycleKind,
 } from './myShowLifecycle';
+
+/** The shared check-in state words (MYK9-2093) the dog chip names a check-in state with. */
+const CHECK_IN_LABEL = {
+  pulled: checkInStateLabel('pulled') ?? 'Pulled at the show',
+  conflict: checkInStateLabel('conflict') ?? 'Conflict',
+  'in-ring': checkInStateLabel('in-ring') ?? 'In the ring',
+  'at-gate': checkInStateLabel('at-gate') ?? 'At gate',
+  'checked-in': checkInStateLabel('checked-in') ?? 'Checked in',
+};
 
 /* ------------------------------------------------------------------ rows -- */
 
@@ -241,26 +251,26 @@ export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState
   // at the dog level while its live class was still pending (MYK9-582 round 1).
   const live = liveClasses(dog.classes);
   if (live.some(cls => cls.checkInStatus === 'pulled')) {
-    return { kind: 'pulled', label: 'Pulled', status: 'pulled' };
+    return { kind: 'pulled', label: CHECK_IN_LABEL.pulled, status: 'pulled' };
   }
   if (live.some(cls => cls.checkInStatus === 'conflict')) {
-    return { kind: 'conflict', label: 'Conflict', status: 'conflict' };
+    return { kind: 'conflict', label: CHECK_IN_LABEL.conflict, status: 'conflict' };
   }
   if (live.some(cls => cls.checkInStatus === 'in-ring')) {
-    return { kind: 'in_ring', label: 'In ring', status: 'in_ring' };
+    return { kind: 'in_ring', label: CHECK_IN_LABEL['in-ring'], status: 'in_ring' };
   }
   if (live.some(cls => cls.checkInStatus === 'at-gate')) {
-    return { kind: 'at_gate', label: 'At gate', status: 'at_gate' };
+    return { kind: 'at_gate', label: CHECK_IN_LABEL['at-gate'], status: 'at_gate' };
   }
   // Same fallback ordering as the row: the collapsed `in_ring` kind only
   // speaks for a class whose own check-in column said nothing.
   if (live.some(cls => cls.entryStatusKind === 'in_ring' && !cls.checkInStatus)) {
-    return { kind: 'in_ring', label: 'In ring', status: 'in_ring' };
+    return { kind: 'in_ring', label: CHECK_IN_LABEL['in-ring'], status: 'in_ring' };
   }
 
   const bearing = checkInBearingClasses(dog);
   if (bearing.length > 0 && bearing.every(cls => cls.checkInStatus === 'checked-in')) {
-    return { kind: 'checked_in', label: 'Checked in', status: 'checked_in' };
+    return { kind: 'checked_in', label: CHECK_IN_LABEL['checked-in'], status: 'checked_in' };
   }
 
   if (getPartiallyScoredState(dog)) {

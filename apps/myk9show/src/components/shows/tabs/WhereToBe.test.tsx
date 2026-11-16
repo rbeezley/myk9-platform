@@ -3,7 +3,6 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { WhereToBe } from './WhereToBe';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
-import { getStatusDescriptor } from '@/components/status';
 
 function makeEntry(overrides: Partial<EnrichedShowEntry> = {}): EnrichedShowEntry {
   return {
@@ -238,7 +237,7 @@ describe('WhereToBe', () => {
       />
     );
     expect(screen.getByText('Waiting')).toBeInTheDocument();
-    expect(screen.getByText('Checked-in')).toBeInTheDocument();
+    expect(screen.getByText('Checked in')).toBeInTheDocument();
     expect(screen.queryByText(/run position|\bup\b/i)).not.toBeInTheDocument();
   });
 
@@ -512,9 +511,7 @@ describe('WhereToBe', () => {
       );
       expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
       // The real check-in state still shows; the place-in-line claim is still withheld.
-      expect(
-        screen.getByText(getStatusDescriptor('entry', 'checked-in').label)
-      ).toBeInTheDocument();
+      expect(screen.getByText('Checked in')).toBeInTheDocument();
       expect(screen.queryByText(/next up/i)).not.toBeInTheDocument();
     });
 

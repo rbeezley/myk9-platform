@@ -118,7 +118,7 @@ function makeStub(options: StubOptions = {}) {
   function thenable(result: unknown) {
     let byId = false;
     const query: Record<string, unknown> = {};
-    for (const method of ['select', 'is', 'or', 'in', 'order', 'limit']) {
+    for (const method of ['select', 'is', 'or', 'in', 'not', 'order', 'limit']) {
       query[method] = () => query;
     }
     query.eq = (column: string, value: unknown) => {
@@ -177,7 +177,7 @@ function makeStub(options: StubOptions = {}) {
     let matched: Record<string, unknown> = {};
     let casClaimedAt: string | null = null;
     let requireIncomplete = false;
-    for (const method of ['select', 'is', 'or', 'in', 'order', 'limit']) {
+    for (const method of ['select', 'is', 'or', 'in', 'not', 'order', 'limit']) {
       q[method] = (...args: unknown[]) => {
         if (method === 'is' && args[0] === 'completed_at' && args[1] === null) {
           requireIncomplete = true;
@@ -466,16 +466,25 @@ describe('generateTrialPackets', () => {
     ]);
   });
 
-  it('fails the request when the time zones or the roster cannot be read', async () => {
+  it('still prints every day when the time zones or the roster cannot be read', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     for (const failure of [
       { trialsError: { message: 'x' } },
       { assignmentsError: { message: 'x' } },
     ]) {
       const { supabase } = makeStub(failure);
-      await expect(
-        generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps())
-      ).rejects.toBeInstanceOf(HttpError);
+      const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+      expect(summary.generated.map(packet => packet.trialDate)).toEqual([
+        '2026-09-19',
+        '2026-09-20',
+      ]);
+      expect(summary.failed).toEqual([]);
     }
+    const lookupLogs = consoleError.mock.calls.filter(([message]) =>
+      String(message).includes('printing without them')
+    );
+    expect(lookupLogs).toHaveLength(2);
+    consoleError.mockRestore();
   });
 
   it('asks the source for one day when one day was requested', async () => {

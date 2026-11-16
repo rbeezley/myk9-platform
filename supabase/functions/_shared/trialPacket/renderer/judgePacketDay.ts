@@ -6,7 +6,7 @@ import {
 import { buildEmergencyPacketModel } from './emergencyTrialPacket.ts';
 import type { CoverPdfConstructor } from './judgeCoverSheet.ts';
 import { collateJudgePackets, summarizeClassSheets } from './judgePacketCollation.ts';
-import { assembleJudgePacketPdf, mergePdfParts, type PdfLibModule } from './judgePacketPdf.ts';
+import { assembleJudgePacketPdf, type PdfLibModule } from './judgePacketPdf.ts';
 import {
   comparePacketClassProgression,
   packetRegistryName,
@@ -175,10 +175,18 @@ export async function buildTrialDayPacketPdf(
   const recovery = groups[model.trials.length];
   if (recovery) parts.push(renderPageGroup(model, recovery, JsPdf));
 
-  const bytes = await mergePdfParts(pdfLib, parts);
+  // Merged here rather than through `mergePdfParts`, so the page count comes from the document
+  // already in hand instead of parsing the finished PDF a second time.
+  const merged = await pdfLib.PDFDocument.create();
+  for (const part of parts) {
+    const source = await pdfLib.PDFDocument.load(part);
+    const pages = await merged.copyPages(source as never, source.getPageIndices());
+    for (const page of pages) merged.addPage(page as never);
+  }
+  const pageCount = merged.getPageIndices().length;
+  const bytes = await merged.save();
   if (bytes.byteLength > MAX_EMERGENCY_PACKET_BYTES) {
     throw new Error('Emergency packet is too large to upload. Narrow the show data and try again.');
   }
-  const merged = await pdfLib.PDFDocument.load(bytes);
-  return { bytes, pageCount: merged.getPageIndices().length };
+  return { bytes, pageCount };
 }

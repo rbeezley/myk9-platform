@@ -18,7 +18,12 @@ export const SceneDevice = memo(function SceneDevice({
 }) {
   const style = shotStyle(data.space, view.camera);
   const frame = (
-    <div className="tl-scene-frame" data-kind={kind}>
+    <div
+      className="tl-scene-frame"
+      data-kind={kind}
+      // The camera fills the frame, so the frame takes the camera's shape (a tablet is 3:4).
+      style={{ aspectRatio: `${view.camera.w} / ${view.camera.h}` }}
+    >
       {Object.entries(data.shots).map(([key, shot]) => {
         const on = key === view.shot;
         return (

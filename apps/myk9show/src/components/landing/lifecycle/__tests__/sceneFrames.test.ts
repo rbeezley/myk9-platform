@@ -4,6 +4,7 @@ import {
   lastFrameOfLine,
   lineProgress,
   ringStyle,
+  sceneDevices,
   shotStyle,
 } from '../sceneFrames';
 import { STAND_IN_ENTRIES_SCENE } from './sceneStandIn';
@@ -68,6 +69,15 @@ describe('line to frame mapping', () => {
   it('falls back to frame 0 for a line that owns nothing', () => {
     expect(firstFrameOfLine(frames, 9)).toBe(0);
     expect(lastFrameOfLine(frames, 9)).toBe(0);
+  });
+});
+
+describe('sceneDevices', () => {
+  it('lists the devices a scene has, desk first', () => {
+    const { desk, phone, ...rest } = STAND_IN_ENTRIES_SCENE;
+    expect(sceneDevices(STAND_IN_ENTRIES_SCENE)).toEqual(['desk', 'phone']);
+    expect(sceneDevices({ ...rest, phone })).toEqual(['phone']);
+    expect(sceneDevices({ ...rest, desk })).toEqual(['desk']);
   });
 });
 

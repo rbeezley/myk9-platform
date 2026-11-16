@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { TimelineScene } from '../TimelineScene';
 import { SCENE_LINES } from '../lifecycleStories';
+import type { TimelineSceneData } from '../sceneFrames';
 import { STAND_IN_ENTRIES_SCENE as scene } from './sceneStandIn';
 
 let onScreen: ((e: Partial<IntersectionObserverEntry>[]) => void) | null = null;
@@ -53,7 +54,7 @@ describe('TimelineScene', () => {
   it('is complete at rest: the first frame shows both devices and every real line', () => {
     render(<TimelineScene scene={scene} lead="desk" />);
     expect(lines().map(b => b.textContent)).toEqual(
-      SCENE_LINES.entries.map((l, i) => `${i + 1}\u2713${l.text}`)
+      SCENE_LINES.entries.map((l, i) => `${i + 1}\u2713${l.head}${l.text}`)
     );
     expect(currentLine()).toBe(0);
     expect(shotOn('desk')).toBe('before');
@@ -231,7 +232,7 @@ describe('TimelineScene', () => {
       expect(screen.getByRole('status')).toHaveTextContent('Step 1 of 5');
     });
 
-    it('moves one frame with Next and back with Back, and stops at the ends', () => {
+    it('moves one numbered line with Next and Back, and stops at the ends', () => {
       render(<TimelineScene scene={scene} lead="desk" mode="step" />);
       show();
       const next = screen.getByRole('button', { name: 'Next' });
@@ -247,8 +248,27 @@ describe('TimelineScene', () => {
       expect(currentLine()).toBe(0);
       for (let i = 0; i < 10; i++) fireEvent.click(next);
       expect(currentLine()).toBe(4);
-      expect(shotOn('desk')).toBe('accepted');
       expect(next).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.getByRole('status')).toHaveTextContent('Step 5 of 5');
+    });
+
+    it('plays a line with several frames through to its end, then waits', () => {
+      render(<TimelineScene scene={scene} lead="desk" mode="step" />);
+      show();
+      fireEvent.click(lines()[3]!);
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      // Line 5 owns two frames: the form under review, then accepted.
+      expect(currentLine()).toBe(4);
+      expect(shotOn('desk')).toBe('review');
+      advance(3400);
+      expect(shotOn('desk')).toBe('accepted');
+      advance(120000);
+      expect(currentLine()).toBe(4);
+      expect(shotOn('desk')).toBe('accepted');
+      // Back replays the line before from its start.
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      expect(currentLine()).toBe(3);
+      expect(shotOn('desk')).toBe('review');
     });
 
     it('jumps to a pressed line and stays there', () => {
@@ -259,12 +279,43 @@ describe('TimelineScene', () => {
       expect(currentLine()).toBe(2);
     });
 
-    it('keeps the reduced-motion reader stepping from the first frame', () => {
+    it("shows the reduced-motion reader each line's finished frame, with no play-through", () => {
       setReducedMotion(true);
       render(<TimelineScene scene={scene} lead="desk" mode="step" />);
+      show();
       expect(currentLine()).toBe(0);
       fireEvent.click(screen.getByRole('button', { name: 'Next' }));
       expect(currentLine()).toBe(1);
+      fireEvent.click(lines()[3]!);
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      expect(currentLine()).toBe(4);
+      expect(shotOn('desk')).toBe('accepted');
+    });
+  });
+
+  describe('one device', () => {
+    const solo: TimelineSceneData = {
+      id: scene.id,
+      lines: scene.lines,
+      frames: scene.frames,
+      phone: scene.phone,
+    };
+
+    it('shows the one device alone and never dims it', () => {
+      render(<TimelineScene scene={solo} lead="phone" />);
+      expect(document.querySelector('.tl-scene')).toHaveAttribute('data-solo', 'true');
+      const devices = document.querySelectorAll('.tl-scene-device');
+      expect(devices).toHaveLength(1);
+      expect(devices[0]).toHaveAttribute('data-kind', 'phone');
+      // Line 4's frame is about the desk, which this scene does not have.
+      fireEvent.click(lines()[3]!);
+      expect(devices[0]).toHaveAttribute('data-dim', 'false');
+      expect(screen.getAllByRole('img')).toHaveLength(1);
+    });
+
+    it('does not mark a two-device scene as solo', () => {
+      render(<TimelineScene scene={scene} lead="desk" />);
+      expect(document.querySelector('.tl-scene')).not.toHaveAttribute('data-solo');
     });
   });
 

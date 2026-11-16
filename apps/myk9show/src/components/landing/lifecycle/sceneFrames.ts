@@ -34,21 +34,30 @@ export type DeviceView = {
 export type SceneFrame = {
   /** Index into the scene's lines. A line owns one or more frames, in order. */
   line: number;
-  /** How long the frame plays in autoplay. Step-through ignores it. */
+  /** How long the frame plays before the next one. */
   ms: number;
   /** The device this frame is about; the other dims. */
   subject: DeviceId | 'both';
-  desk: DeviceView;
-  phone: DeviceView;
+  /** One view per device the scene has. */
+  desk?: DeviceView;
+  phone?: DeviceView;
 };
 
 export type TimelineSceneData = {
   id: SceneId;
   lines: readonly SceneLine[];
   frames: readonly SceneFrame[];
-  desk: SceneDeviceData;
-  phone: SceneDeviceData;
+  /** Two devices side by side, or one shown larger (the judge alone at the ring). */
+  desk?: SceneDeviceData;
+  phone?: SceneDeviceData;
 };
+
+const DEVICE_ORDER: readonly DeviceId[] = ['desk', 'phone'];
+
+/** The devices a scene has, desk first. */
+export function sceneDevices(scene: TimelineSceneData): readonly DeviceId[] {
+  return DEVICE_ORDER.filter(kind => scene[kind] !== undefined);
+}
 
 export type SceneMode = 'autoplay' | 'step';
 
@@ -85,7 +94,7 @@ export function lastFrameOfLine(frames: readonly SceneFrame[], line: number): nu
 
 /**
  * How far through its line a line is, 0 to 1. Lines before the current one are complete.
- * Autoplay measures time; step-through measures frames, since nothing is timed there.
+ * Autoplay measures time; step-through counts the frames reached.
  */
 export function lineProgress(
   frames: readonly SceneFrame[],

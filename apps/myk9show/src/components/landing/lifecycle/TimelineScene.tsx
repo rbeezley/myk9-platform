@@ -3,16 +3,18 @@ import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
 import { SceneDevice } from './SceneDevice';
 import { SceneLines } from './SceneLines';
 import { initialSceneState, reduceScene } from './sceneState';
+import { sceneDevices } from './sceneFrames';
 import type { SceneAction, SceneState } from './sceneState';
 import type { DeviceId, SceneMode, TimelineSceneData } from './sceneFrames';
 import './timelineScene.css';
 
 const TICK_MS = 100;
 
-// One scene: the secretary's screen and the exhibitor's phone side by side, real captures that
-// zoom to the part each numbered line is about, with a ring on the control in question.
-// Autoplay plays itself (only while on screen and the tab is visible) and loops; step-through
-// moves only when the reader presses Next or Back. Takes data as props: no auth, router,
+// One scene: the secretary's screen and the exhibitor's phone side by side (or one device
+// alone, shown larger), real captures that zoom to the part each numbered line is about, with a
+// ring on the control in question. Autoplay plays itself (only while on screen and the tab is
+// visible) and loops; step-through moves only when the reader presses Next or Back, one numbered
+// line per press. Takes data as props: no auth, router,
 // replication or app state. Its one app import is the shared reduced-motion hook.
 // Motion here shows what the other audience is doing at the same moment. Pause, jump and
 // reduced motion keep it WCAG 2.2.2 safe, and nothing hijacks scroll (docs/plan-landing-animated-timeline.md).
@@ -65,7 +67,7 @@ export function TimelineScene({
     return () => io.disconnect();
   }, []);
 
-  const running = state.playing && inView && pageVisible && mode === 'autoplay' && !reducedMotion;
+  const running = state.playing && inView && pageVisible && !reducedMotion;
   useEffect(() => {
     if (!running) return;
     const t = window.setInterval(() => dispatch({ type: 'tick', ms: TICK_MS }), TICK_MS);
@@ -77,8 +79,10 @@ export function TimelineScene({
   const f = frames[frame]!;
   const line = f.line;
   const stepping = mode === 'step';
-  const atStart = frame === 0;
-  const atEnd = frame === frames.length - 1;
+  const atStart = line === 0;
+  const atEnd = line === frames[frames.length - 1]!.line;
+  const devices = sceneDevices(scene);
+  const solo = devices.length === 1;
   const paused = !state.playing && !stepping && !reducedMotion;
 
   return (
@@ -87,6 +91,7 @@ export function TimelineScene({
       className="tl-scene"
       data-lead={lead}
       data-mode={mode}
+      data-solo={solo ? 'true' : undefined}
       aria-label="Walkthrough"
     >
       <div className="tl-scene-grid">
@@ -136,13 +141,13 @@ export function TimelineScene({
           </div>
         </div>
         <div className="tl-scene-stage">
-          <SceneDevice kind="desk" data={scene.desk} view={f.desk} dimmed={f.subject === 'phone'} />
-          <SceneDevice
-            kind="phone"
-            data={scene.phone}
-            view={f.phone}
-            dimmed={f.subject === 'desk'}
-          />
+          {devices.map(kind => {
+            const data = scene[kind];
+            const view = f[kind];
+            if (!data || !view) return null;
+            const dimmed = !solo && f.subject !== 'both' && f.subject !== kind;
+            return <SceneDevice key={kind} kind={kind} data={data} view={view} dimmed={dimmed} />;
+          })}
         </div>
       </div>
     </section>

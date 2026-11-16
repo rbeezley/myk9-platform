@@ -2,7 +2,7 @@ import { lineProgress } from './sceneFrames';
 import type { SceneFrame } from './sceneFrames';
 import type { SceneLine } from './lifecycleStories';
 
-// The numbered lines: each is a button that jumps to its first frame. The number sits in a
+// The numbered lines, a heading and a sentence each: each is a button that jumps to its line. The number sits in a
 // circle; the current line's circle draws itself as its part plays, and a finished line fills in
 // with a tick.
 export function SceneLines({
@@ -50,7 +50,10 @@ export function SceneLines({
                 <b>{i + 1}</b>
                 <i className="tl-scene-tick">&#10003;</i>
               </span>
-              <span className="tl-scene-text">{line.text}</span>
+              <span className="tl-scene-copy">
+                <span className="tl-scene-head">{line.head}</span>
+                <span className="tl-scene-text">{line.text}</span>
+              </span>
             </button>
           </li>
         );

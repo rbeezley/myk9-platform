@@ -654,3 +654,25 @@ describe('readTrialRegistryId', () => {
     expect(readTrialRegistryId({ ...trial, registry_id: '   ' } as DbTrial)).toBe('AKC');
   });
 });
+
+describe('MYK9-2089: the UKC element time reaches the report entry', () => {
+  const classProps = (entries: DbEntry[]) =>
+    buildClassReportProps({
+      show,
+      trials: [trial],
+      classes: [classData],
+      entries,
+      scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-1' },
+      sortOrder: 'armband',
+    });
+
+  it('carries element_time_seconds as elementTimeSeconds', () => {
+    const props = classProps([{ ...entry, element_time_seconds: 42.5 } as DbEntry]);
+    expect(props?.entries[0]?.elementTimeSeconds).toBe(42.5);
+  });
+
+  it('omits it when the run has none', () => {
+    const props = classProps([entry]);
+    expect(props?.entries[0]).not.toHaveProperty('elementTimeSeconds');
+  });
+});

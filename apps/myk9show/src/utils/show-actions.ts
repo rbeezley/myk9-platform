@@ -84,18 +84,11 @@ export function getTabQuickActions(
     case 'assignments':
       // No "Schedule Overview" or "My Reports" buttons.
       //
-      // Both logged and did nothing. The obvious repair — point them at
-      // /judge/dashboard and /judge/stats — is wrong: those routes are
-      // reachable ONLY from test specs, and the judge dashboard is withheld on
-      // purpose. docs/INTENT.md uses it as its worked example of the intent
-      // convention: "Judges redirect to /exhibitor/dashboard (not
-      // /judge/dashboard) because the judge dashboard isn't ready for
-      // production yet. When it is, update this AND the judge onboarding flow."
-      //
-      // Wiring these buttons would have given an unfinished dashboard its first
-      // production entry point and silently overridden that decision. They come
-      // back when the judge surface does, alongside the onboarding change the
-      // INTENT already asks for.
+      // Both logged and did nothing. Pointing them at /judge/dashboard and
+      // /judge/stats is not the fix either: the judge dashboard is live (a judge
+      // signs in to it via the JUDGE role home in hooks/roleUtils.ts), so a
+      // header button here would be a second door to a page the judge already
+      // lands on. Neither button is wanted, so neither is wired.
       //
       // Nor should this tab gain a "go to my ring" action instead. A judge does
       // not arrive here on the way to work: `buildUnifiedSidebarConfig` gives

@@ -35,13 +35,30 @@ test('Nationals judge walk: no placement chips, a saved Q persists, and the lead
   await expect(page.getByText(/placement \(optional\)/i)).toHaveCount(0);
   await screenshot(page, info, 'nationals-sheet-no-placement-chips');
 
-  // Three correct alerts and one incorrect: 3 x 10 - 5 = 25 points; area 1 took 20 seconds.
+  // Three correct alerts and one incorrect: 3 x 10 - 5 = 25 points. A Nationals Q needs every
+  // one of its 5 areas timed (MYK9-2016, MYK9-2019): 4 seconds each, 20 seconds in all.
   for (let i = 0; i < 3; i++) await page.getByTestId('correct-inc').click();
   await page.getByTestId('incorrect-inc').click();
   await expect(page.getByTestId('total-points')).toHaveText('25');
-  await page.getByRole('textbox', { name: 'Area 1 time' }).fill('00:20.00');
+  for (let area = 1; area <= 5; area++) {
+    await page.getByTestId(`area-tab-${area}`).click();
+    await page.getByRole('textbox', { name: `Area ${area} time` }).fill('00:04.00');
+  }
+  // Every area kept its time (the tabs share one field), so a refused Save names the area.
+  for (let area = 1; area <= 5; area++) {
+    await page.getByTestId(`area-tab-${area}`).click();
+    await expect(page.getByRole('textbox', { name: `Area ${area} time` })).toHaveValue('0:04.00');
+  }
   await page.getByTestId('result-Q').click();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // If Save stays off, the sheet says why in an alert; surface it instead of a bare timeout.
+  const saveButton = page.getByRole('button', { name: 'Save', exact: true });
+  try {
+    await expect(saveButton).toBeEnabled({ timeout: 10_000 });
+  } catch {
+    const alerts = await page.getByRole('alert').allTextContents();
+    throw new Error(`Save is off after timing all 5 areas; alerts: ${JSON.stringify(alerts)}`);
+  }
+  await saveButton.click();
   await page.getByRole('button', { name: /Confirm & Submit/i }).click();
 
   // The result, the points and the server's own placement all land in the database.

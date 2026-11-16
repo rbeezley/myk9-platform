@@ -1,5 +1,5 @@
 import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
-import type { DbTrial } from '@/types/database-mappings';
+import type { DbClass, DbTrial } from '@/types/database-mappings';
 
 import { findUnfinishedEarlierTrial } from './earlierTrialUnfinished';
 
@@ -23,7 +23,7 @@ export function EarlierTrialNote({
     trialIds: trials.map(trial => trial.id),
   });
   const earlier = allClasses.data
-    ? findUnfinishedEarlierTrial({ trialId, trials, classes: allClasses.data })
+    ? findUnfinishedEarlierTrial({ trialId, trials, classes: allClasses.data as DbClass[] })
     : null;
   if (!earlier) return null;
   return (

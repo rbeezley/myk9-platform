@@ -125,8 +125,8 @@ describe('TrialPacketPanel', () => {
   });
 
   describe('a later trial printed before the earlier one has finished (MYK9-2075)', () => {
-    const FIRST = { ...TRIAL, id: 'trial-0', trial_number: 1 } as unknown as typeof TRIAL;
-    const SECOND = { ...TRIAL, trial_number: 2 } as unknown as typeof TRIAL;
+    const FIRST = { ...TRIAL, id: 'trial-0', trial_number: '1' } as unknown as typeof TRIAL;
+    const SECOND = { ...TRIAL, trial_number: '2' } as unknown as typeof TRIAL;
     const earlierClass = (status: string) => ({ id: 'e1', trial_id: 'trial-0', status });
     const NOTE = "Trial 1 isn't finished. Move-ups may change these sheets.";
 
@@ -148,7 +148,10 @@ describe('TrialPacketPanel', () => {
     });
 
     it('shows nothing for the first trial of the day', async () => {
-      mocks.trials = [FIRST, { ...SECOND, id: 'trial-9' }];
+      mocks.trials = [
+        { ...TRIAL, trial_number: '1' },
+        { ...SECOND, id: 'trial-9' },
+      ];
       mocks.allClasses = [{ id: 'l1', trial_id: 'trial-9', status: 'not_started' }];
       renderPanel();
       await screen.findByText(/collated/);

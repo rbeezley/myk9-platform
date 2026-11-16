@@ -34,6 +34,35 @@ const asRows = (value: unknown): Row[] => (Array.isArray(value) ? value : [value
 
 const WRITES = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
+/** The page that sent the request, for the Simulated list. */
+function pageOf(request: ReturnType<Route['request']>): string {
+  try {
+    return request.frame().page().url();
+  } catch {
+    return 'unknown page'; // a request with no frame is recorded without a page
+  }
+}
+
+/** The request body as rows; a body that is not JSON is answered as an empty row. */
+function bodyRows(request: ReturnType<Route['request']>): Row[] {
+  try {
+    return asRows(JSON.parse(request.postData() ?? '{}'));
+  } catch {
+    return asRows({});
+  }
+}
+
+/** Answer the page with the real read's failure, or a 502 when the read was not JSON. */
+async function fulfilFailure(route: Route, response: APIResponse | null): Promise<void> {
+  if (response) await route.fulfill({ response });
+  else
+    await route.fulfill({
+      status: 502,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'walk: the real read did not return JSON' }),
+    });
+}
+
 export async function answerLocally(
   context: BrowserContext,
   tables: readonly string[],
@@ -57,12 +86,7 @@ export async function answerLocally(
     const wantsObject = (headers['accept'] ?? '').includes('vnd.pgrst.object');
     const items = parseSelect(url.searchParams.get('select'));
     const select = url.searchParams.get('select');
-    let page = 'unknown page';
-    try {
-      page = request.frame().page().url();
-    } catch {
-      // a request with no frame is recorded without a page
-    }
+    const page = pageOf(request);
 
     /** A real GET. Null when it failed; the caller then answers with that failure. */
     const state: { failure: { status: number; response: APIResponse | null } | null } = {
@@ -101,13 +125,7 @@ export async function answerLocally(
       });
     };
 
-    let parsed: unknown = {};
-    try {
-      parsed = JSON.parse(request.postData() ?? '{}');
-    } catch {
-      // a body that is not JSON is answered as an empty row
-    }
-    const incoming = asRows(parsed);
+    const incoming = bodyRows(request);
     const minimal = !prefer.includes('return=representation');
     const gaps: string[] = [];
     let synthesized = false;
@@ -162,13 +180,7 @@ export async function answerLocally(
     if (state.failure) {
       const { status, response } = state.failure;
       log.simulated.push({ page, method, table, kind: 'read failed', gaps: [], status });
-      if (response) await route.fulfill({ response });
-      else
-        await route.fulfill({
-          status: 502,
-          contentType: 'application/json',
-          body: JSON.stringify({ message: 'walk: the real read did not return JSON' }),
-        });
+      await fulfilFailure(route, response);
       return;
     }
     const kind = synthesized ? 'built from the body' : 'overlaid on a real read';

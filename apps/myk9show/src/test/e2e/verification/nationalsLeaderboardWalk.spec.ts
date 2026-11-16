@@ -35,11 +35,15 @@ test('Nationals judge walk: no placement chips, a saved Q persists, and the lead
   await expect(page.getByText(/placement \(optional\)/i)).toHaveCount(0);
   await screenshot(page, info, 'nationals-sheet-no-placement-chips');
 
-  // Three correct alerts and one incorrect: 3 x 10 - 5 = 25 points; area 1 took 20 seconds.
+  // Three correct alerts and one incorrect: 3 x 10 - 5 = 25 points. A Nationals Q needs every
+  // one of its 5 areas timed (MYK9-2016, MYK9-2019): 4 seconds each, 20 seconds in all.
   for (let i = 0; i < 3; i++) await page.getByTestId('correct-inc').click();
   await page.getByTestId('incorrect-inc').click();
   await expect(page.getByTestId('total-points')).toHaveText('25');
-  await page.getByRole('textbox', { name: 'Area 1 time' }).fill('00:20.00');
+  for (let area = 1; area <= 5; area++) {
+    await page.getByTestId(`area-tab-${area}`).click();
+    await page.getByRole('textbox', { name: `Area ${area} time` }).fill('00:04.00');
+  }
   await page.getByTestId('result-Q').click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('button', { name: /Confirm & Submit/i }).click();

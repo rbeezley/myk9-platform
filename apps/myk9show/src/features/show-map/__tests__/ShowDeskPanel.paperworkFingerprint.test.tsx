@@ -261,7 +261,7 @@ describe('Overview and Reports agree on what has been printed', () => {
     await waitFor(() =>
       expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0)
     );
-    expect(screen.queryByText(/Class data changed after printing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Changed since printing/)).not.toBeInTheDocument();
   });
 
   it('reads a print confirmed on Overview as current for the Reports descriptor', async () => {
@@ -322,7 +322,7 @@ describe('Overview paperwork follows the replicated class rows and never claims 
     await waitFor(() =>
       expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0)
     );
-    expect(screen.queryByText(/Class data changed after printing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Changed since printing/)).not.toBeInTheDocument();
 
     const changed = [{ ...reportsClassRows[0]!, time_limit_seconds: 240 }] as unknown as DbClass[];
     mocks.getClassesByTrialId.mockResolvedValue({ data: changed, error: null });
@@ -330,7 +330,7 @@ describe('Overview paperwork follows the replicated class rows and never claims 
     act(() => mocks.classListeners.forEach(listener => listener()));
 
     expect(
-      (await screen.findAllByText(/Class data changed after printing/)).length
+      (await screen.findAllByText(/Changed since printing/)).length
     ).toBeGreaterThan(0);
   });
 
@@ -381,7 +381,7 @@ describe('Overview paperwork follows the replicated class rows and never claims 
     renderOverview(queryClient);
 
     expect(
-      (await screen.findAllByText(/Class data changed after printing/)).length
+      (await screen.findAllByText(/Changed since printing/)).length
     ).toBeGreaterThan(0);
     expect(screen.queryByText(/^Printed .* by Jannie/)).not.toBeInTheDocument();
   });

@@ -15,6 +15,8 @@ import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 
 import { voidPaperworkPrint } from '../paperworkPrintActions';
+import { useShowPaperworkPrints } from '../useShowPaperworkPrints';
+import { changedPacketClasses, onlyPacketClasses } from './changedClasses';
 import { AfterShowPanelBody } from './AfterShowPanelBody';
 import { JudgeRecordPanelBody } from './JudgeRecordPanelBody';
 import { JudgeReviewPanelBody } from './JudgeReviewPanelBody';
@@ -91,6 +93,45 @@ export function TrialPacketPanel(props: TrialPacketPanelProps) {
   );
 }
 
+/** The line above the packets: which classes they hold, and the way back to all of them. */
+function ChangedSinceNote(props: {
+  changed: ReturnType<typeof changedPacketClasses> | null;
+  changedCount: number;
+  onlyChanged: boolean;
+  onChoose: (onlyChanged: boolean) => void;
+}) {
+  const { changed, changedCount, onlyChanged, onChoose } = props;
+  if (changed?.kind === 'unknown') {
+    return (
+      <p role="status" className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+        Could not check which classes changed since printing, so every class is shown.
+      </p>
+    );
+  }
+  if (changedCount === 0) return null;
+  const toggle = (
+    <Button
+      type="button"
+      variant="link"
+      className="min-h-11 px-1"
+      onClick={() => onChoose(!onlyChanged)}
+    >
+      {onlyChanged ? 'Show all classes' : 'Show only what changed'}
+    </Button>
+  );
+  return (
+    <p
+      role="status"
+      className="flex flex-wrap items-center rounded-md border bg-muted/40 px-3 py-1 text-sm"
+    >
+      {onlyChanged
+        ? `Only the ${plural(changedCount, 'class', 'classes')} that changed since printing.`
+        : `${plural(changedCount, 'class', 'classes')} changed since printing.`}
+      {toggle}
+    </p>
+  );
+}
+
 function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string }) {
   const { user } = useAuthContext();
   const { show: currentShow } = useFastShowDetails(showId);
@@ -107,7 +148,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const packet = useMemo(
+  const fullPacket = useMemo(
     () =>
       readiness.state === 'ready' && show
         ? collateTrialPacket({
@@ -120,9 +161,39 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         : null,
     [readiness.state, show, trials, classes, entries, trialId]
   );
+  // "Only what changed": judged from the same replicated print records the class cards read, so it
+  // works offline. When the history cannot be read, nothing is narrowed and the panel says so.
+  const prints = useShowPaperworkPrints(showId);
+  const changed = useMemo(
+    () =>
+      fullPacket
+        ? changedPacketClasses({
+            showId,
+            packet: fullPacket,
+            classes: (classes ?? []) as DbClass[],
+            entries: (entries ?? []) as DbEntry[],
+            records: prints.data,
+            recordsUnavailable: prints.isError || prints.syncFailed,
+          })
+        : null,
+    [fullPacket, showId, classes, entries, prints.data, prints.isError, prints.syncFailed]
+  );
+  const changedCount = changed?.kind === 'known' ? changed.classIds.size : 0;
+  // Until she chooses, the panel opens on only what changed when something did.
+  const [chosenOnlyChanged, setChosenOnlyChanged] = useState<boolean | null>(null);
+  const onlyChanged = changedCount > 0 && (chosenOnlyChanged ?? true);
+  const packet = useMemo(
+    () =>
+      fullPacket && changed?.kind === 'known' && onlyChanged
+        ? onlyPacketClasses(fullPacket, changed.classIds)
+        : fullPacket,
+    [fullPacket, changed, onlyChanged]
+  );
   const [attempt, setAttempt] = useState(0);
   const pdfs = useTrialPacketPdfs(packet, show?.name ?? '', attempt);
-  const [selected, setSelected] = useState<string>(ALL);
+  const [pickedJudge, setSelected] = useState<string>(ALL);
+  // A judge with nothing left to print under "only what changed" falls back to every packet.
+  const selected = packet?.judges.some(item => item.key === pickedJudge) ? pickedJudge : ALL;
   const [printing, setPrinting] = useState(false);
   const [printed, setPrinted] = useState<(TrialPacketPrintRecords & { label: string }) | null>(
     null
@@ -241,6 +312,12 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           {packet.cancelledClassCount === 1 ? 'is' : 'are'} left out.
         </p>
       )}
+      <ChangedSinceNote
+        changed={changed}
+        changedCount={changedCount}
+        onlyChanged={onlyChanged && changed?.kind === 'known'}
+        onChoose={setChosenOnlyChanged}
+      />
       <p className="text-sm text-muted-foreground">
         Each packet holds a cover sheet, then for each class the check-in sheet and the scoresheets.
       </p>

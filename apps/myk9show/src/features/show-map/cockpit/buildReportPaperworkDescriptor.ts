@@ -33,6 +33,11 @@ function numberOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** See `CheckInPaperworkEntry.entryStatus`: only a moved-up source carries it. */
+function movedFact(entry: DbEntry): { entryStatus?: 'moved' } {
+  return entry.entry_status === 'moved' ? { entryStatus: 'moved' } : {};
+}
+
 export function buildReportPaperworkDescriptor(input: {
   reportId: string;
   scope: ReportScope;
@@ -75,6 +80,7 @@ export function buildReportPaperworkDescriptor(input: {
         armband: entry.armband == null ? null : Number(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
+        ...movedFact(entry),
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
       }))
     );
@@ -90,6 +96,7 @@ export function buildReportPaperworkDescriptor(input: {
         armband: entry.armband == null ? null : Number(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
+        ...movedFact(entry),
         section: classById.get(entry.class_id ?? '')?.section ?? null,
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
       })),

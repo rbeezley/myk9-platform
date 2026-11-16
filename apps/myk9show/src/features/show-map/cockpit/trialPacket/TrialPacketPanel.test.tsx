@@ -4,13 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 
 import { buildReportPaperworkDescriptor } from '../buildReportPaperworkDescriptor';
-import { CLASSES, ENTRIES, SHOW, TRIAL } from './trialPacketFixtures';
+import type { DbEntry } from '@/types/database-mappings';
+import type { ReplicatedPaperworkPrint } from '@/services/replication';
+
+import { CLASSES, ENTRIES, SHOW, TRIAL, entryRow } from './trialPacketFixtures';
 
 const mocks = vi.hoisted(() => ({
   printIframeAndWait: vi.fn(),
   recordPaperworkPrinted: vi.fn(),
   voidPaperworkPrint: vi.fn(),
   refetch: vi.fn(),
+  entries: [] as DbEntry[],
+  prints: {} as { data?: unknown; isError: boolean; syncFailed: boolean },
 }));
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
@@ -25,11 +30,12 @@ vi.mock('@/hooks/queries/useReportData', () => ({
     show: SHOW,
     trials: TRIALS,
     classes: CLASSES,
-    entries: ENTRIES,
+    entries: mocks.entries,
     dataState: 'ready',
     refetch: mocks.refetch,
   }),
 }));
+vi.mock('../useShowPaperworkPrints', () => ({ useShowPaperworkPrints: () => mocks.prints }));
 vi.mock('@/pages/secretary/ReportsPage/reportPreviewUtils', () => ({
   printIframeAndWait: mocks.printIframeAndWait,
 }));
@@ -52,6 +58,8 @@ function renderPanel() {
 describe('TrialPacketPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.entries = ENTRIES;
+    mocks.prints = { data: [], isError: false, syncFailed: false };
     mocks.printIframeAndWait.mockResolvedValue(true);
     let next = 0;
     mocks.recordPaperworkPrinted.mockImplementation(async () => ({ id: `record-${++next}` }));
@@ -108,5 +116,79 @@ describe('TrialPacketPanel', () => {
     await waitFor(() => expect(save).toBeEnabled(), BUILT);
     await user.click(save);
     expect(mocks.recordPaperworkPrinted).not.toHaveBeenCalled();
+  });
+
+  describe('only what changed (MYK9-2074)', () => {
+    /** Every class printed at the entries as they stood, as a trial print writes them. */
+    function printedRecords(): ReplicatedPaperworkPrint[] {
+      return CLASSES.flatMap(cls =>
+        (['check-in-sheet', 'scoresheet'] as const).flatMap(reportId => {
+          const descriptor = buildReportPaperworkDescriptor({
+            reportId,
+            scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: cls.id },
+            classes: CLASSES,
+            entries: ENTRIES,
+          });
+          if (!descriptor) return [];
+          return [
+            {
+              id: `${reportId}-${cls.id}`,
+              showId: 'show-1',
+              trialId: 'trial-1',
+              classId: cls.id,
+              scopeKind: 'class',
+              reportId,
+              coverage: descriptor.coverage,
+              fingerprint: descriptor.fingerprint,
+              printedBy: 'u1',
+              printedByName: 'Jannie',
+              printedAt: '2026-12-07T08:00:00Z',
+            } as ReplicatedPaperworkPrint,
+          ];
+        })
+      );
+    }
+
+    it('opens on only the class a late entry changed, with a way back to all, and Print still works', async () => {
+      const user = userEvent.setup();
+      mocks.prints = { data: printedRecords(), isError: false, syncFailed: false };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      renderPanel();
+      expect(await screen.findByText(/Only the 1 class that changed since printing/)).toBeVisible();
+      expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Pat Donovan/ })).not.toBeInTheDocument();
+      const print = screen.getByRole('button', { name: /Print/ });
+      await waitFor(() => expect(print).toBeEnabled(), BUILT);
+      await user.click(screen.getByRole('button', { name: 'Show all classes' }));
+      expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
+      expect(screen.getByText(/1 class changed since printing/)).toBeVisible();
+    });
+
+    it('prints and marks only the changed class when it stays on only what changed', async () => {
+      const user = userEvent.setup();
+      mocks.prints = { data: printedRecords(), isError: false, syncFailed: false };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      renderPanel();
+      const print = await screen.findByRole('button', { name: 'Print all 1 packet' });
+      await waitFor(() => expect(print).toBeEnabled(), BUILT);
+      await user.click(print);
+      await screen.findByText('All 1 class marked as printed with Trial 1');
+      expect(mocks.recordPaperworkPrinted).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens on every class when nothing changed since printing', async () => {
+      mocks.prints = { data: printedRecords(), isError: false, syncFailed: false };
+      renderPanel();
+      expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
+      expect(screen.queryByText(/changed since printing/)).not.toBeInTheDocument();
+    });
+
+    it('says it could not check, and shows every class, when the print history is unavailable', async () => {
+      mocks.prints = { data: printedRecords(), isError: false, syncFailed: true };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      renderPanel();
+      expect(await screen.findByText(/Could not check which classes changed/)).toBeVisible();
+      expect(screen.getByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
+    });
   });
 });

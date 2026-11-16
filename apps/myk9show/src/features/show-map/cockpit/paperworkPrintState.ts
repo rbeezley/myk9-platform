@@ -59,6 +59,12 @@ export interface CheckInPaperworkEntry {
   runOrder: number | null;
   checkInStatus: string | null;
   trialId?: string | undefined;
+  /**
+   * Set only to 'moved': a move-up leaves the source entry in its class with every other fact
+   * unchanged, so without it the class the dog left would read as printed (MYK9-2074). Absent
+   * for every other entry, so no other fingerprint changes.
+   */
+  entryStatus?: 'moved' | undefined;
 }
 
 export interface ScoreSheetPaperworkEntry extends CheckInPaperworkEntry {

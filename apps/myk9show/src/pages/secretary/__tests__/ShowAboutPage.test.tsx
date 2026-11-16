@@ -21,6 +21,10 @@ vi.mock('@/features/payments/useEffectiveWithdrawalPolicy', () => ({
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
   PremiumDownloadCard: () => <div id="setup-publish-premium" data-testid="premium-card" />,
 }));
+// The checklist has its own test (ShowAboutPage.premiumRequirements.test.tsx).
+vi.mock('@/features/premium/usePremiumRequirements', () => ({
+  usePremiumRequirements: () => ({ items: [], registry: 'AKC' }),
+}));
 vi.mock('@/features/premium/LandingPageCard', () => ({
   LandingPageCard: () => <div id="setup-publish-landing" data-testid="landing-card" />,
 }));

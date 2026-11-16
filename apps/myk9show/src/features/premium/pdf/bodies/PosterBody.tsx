@@ -3,7 +3,7 @@ import { judgeHeading } from './judgeLine';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import type { StyleTokens } from '../pdfStyles';
 import { PdfFooter } from '../PdfFooter';
-import { buildPremiumFacts, REQUIRED_PLACEHOLDER as REQUIRED } from '../../premiumFacts';
+import { buildPremiumFacts } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
@@ -43,6 +43,23 @@ export function PosterBody({ data, tokens }: Props) {
     marginBottom: 18,
   };
   const sectionGap = { marginBottom: 22 };
+
+  // An empty fact prints nothing: no placeholder, no dangling "Opens · Closes" (MYK9-2053).
+  const entryWindowText = [
+    f.entry.opens && `Opens ${f.entry.opens}`,
+    f.entry.closes && `Closes ${f.entry.closes}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const secretaryText = [
+    secretary.name,
+    secretary.email && `\n${secretary.email}`,
+    secretary.phone && ` · ${secretary.phone}`,
+    secretary.mailingAddress && `\n${secretary.mailingAddress}`,
+  ]
+    .filter(Boolean)
+    .join('')
+    .replace(/^\s*(· )?/, '');
 
   const hasOfficials = Boolean(chair || f.officers.length > 0 || f.committee.length > 0);
   const hasAccommodations = f.accommodations.length > 0;
@@ -84,7 +101,7 @@ export function PosterBody({ data, tokens }: Props) {
         <Text style={bodyStyle}>
           Pre-entry ${f.fees.preEntry ?? '—'} · Day-of ${f.fees.dayOf ?? '—'} ·{' '}
           {f.fees.paymentMethods.join(', ') || 'Payment methods TBD'}.{'\n'}
-          Opens {f.entry.opens ?? REQUIRED} · Closes {f.entry.closes ?? REQUIRED}.
+          {entryWindowText ? `${entryWindowText}.` : ''}
         </Text>
       </View>
 
@@ -102,15 +119,12 @@ export function PosterBody({ data, tokens }: Props) {
         </View>
       )}
 
-      <View style={sectionGap}>
-        <Text style={labelStyle}>Trial Secretary</Text>
-        <Text style={bodyStyle}>
-          {secretary.name ?? REQUIRED}
-          {secretary.email ? `\n${secretary.email}` : ''}
-          {secretary.phone ? ` · ${secretary.phone}` : ''}
-          {secretary.mailingAddress ? `\n${secretary.mailingAddress}` : ''}
-        </Text>
-      </View>
+      {secretaryText && (
+        <View style={sectionGap}>
+          <Text style={labelStyle}>Trial Secretary</Text>
+          <Text style={bodyStyle}>{secretaryText}</Text>
+        </View>
+      )}
 
       {hasOfficials && (
         <View style={sectionGap}>
@@ -179,9 +193,9 @@ export function PosterBody({ data, tokens }: Props) {
         <Text style={bodyStyle}>{f.trialInformation}</Text>
       </View>
 
-      <View style={sectionGap}>
-        <Text style={labelStyle}>On-Call Vet</Text>
-        {f.vetClinic ? (
+      {f.vetClinic && (
+        <View style={sectionGap}>
+          <Text style={labelStyle}>On-Call Vet</Text>
           <Text style={bodyStyle}>
             {f.vetClinic.name}
             {'\n'}
@@ -189,10 +203,8 @@ export function PosterBody({ data, tokens }: Props) {
             {'\n'}
             {f.vetClinic.phone}
           </Text>
-        ) : (
-          <Text style={{ ...bodyStyle, color: '#cc0000' }}>{REQUIRED}</Text>
-        )}
-      </View>
+        </View>
+      )}
 
       {hasAccommodations && (
         <View style={sectionGap}>

@@ -80,6 +80,36 @@ describe('Poster style — full-data render', () => {
   });
 });
 
+describe('Poster style — empty facts print nothing (MYK9-2053)', () => {
+  it.each(ORGS)('%s prints no placeholder, no dangling labels and no empty sections', org => {
+    const full = makePremium(org);
+    const premium: GeneratedPremium = {
+      ...full,
+      show: { ...full.show, entryOpenDate: null, entryCloseDate: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      supplemental: { ...full.supplemental, vetClinic: null },
+    };
+    const { container } = renderTemplate(org, premium);
+    // Still the poster body, not the minimum-data fallback.
+    expect(screen.getAllByText(/About the Trial/).length).toBeGreaterThan(0);
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/REQUIRED/);
+    expect(text).not.toMatch(/Opens|Closes/);
+    expect(text).not.toMatch(/Trial Secretary|On-Call Vet/);
+  });
+
+  it.each(ORGS)('%s prints only the entry date it has', org => {
+    const full = makePremium(org);
+    const { container } = renderTemplate(org, {
+      ...full,
+      show: { ...full.show, entryCloseDate: null },
+    });
+    const text = container.textContent ?? '';
+    expect(text).toMatch(/Opens .*2026./);
+    expect(text).not.toMatch(/Closes/);
+  });
+});
+
 describe('Poster style — minimum-data fallback', () => {
   it.each(ORGS)(
     'falls back to StandardBody when judges + fees + trials are all empty (%s)',

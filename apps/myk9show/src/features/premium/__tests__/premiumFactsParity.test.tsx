@@ -179,6 +179,37 @@ describe('premium PDF facts parity (8 styles)', () => {
   });
 });
 
+const DANGLING_ENTRY_LABELS = /Opens\s*·\s*Closes|Closes\s*$|Closes\s*·|Entry Closes/m;
+
+describe('premium PDF prints no placeholder for an empty fact (MYK9-2053)', () => {
+  it('the dangling-label pattern matches a string that has the dangling label', () => {
+    expect('Opens · Closes.').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Opens Apr 1 · Closes').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Entry Closes\nMay 15').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Opens April 1, 2026.').not.toMatch(DANGLING_ENTRY_LABELS);
+  });
+
+  it.each(ALL_STYLES)('%s prints no "[REQUIRED" text and no dangling labels when empty', style => {
+    for (const org of ['AKC', 'UKC'] as const) {
+      const text = pdfText(org, sparsePremium(org, style));
+      expect(text).not.toMatch(/REQUIRED/);
+      expect(text).not.toMatch(DANGLING_ENTRY_LABELS);
+      expect(text).not.toMatch(/Trial Secretary/);
+      expect(text).not.toMatch(/Veterinary Services|On-Call Vet/);
+    }
+  });
+
+  it.each(ALL_STYLES)('%s still prints the entry dates it has', style => {
+    const premium = fullPremium('AKC', style);
+    const text = pdfText('AKC', {
+      ...premium,
+      show: { ...premium.show, entryCloseDate: null },
+    });
+    expect(text).toMatch(/Apr(il)? 1, 2026/);
+    expect(text).not.toMatch(DANGLING_ENTRY_LABELS);
+  });
+});
+
 describe('premium PDF prints the refund and withdrawal policy whole (MYK9-1976)', () => {
   const LONG_TEXT = `${'The club keeps a five dollar office fee after the cutoff. '.repeat(19)}Last line.`;
 

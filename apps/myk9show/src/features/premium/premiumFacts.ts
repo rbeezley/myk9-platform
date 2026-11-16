@@ -23,9 +23,6 @@ import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
 
-/** Placeholder a style prints where a fact the secretary must supply is still empty. */
-export const REQUIRED_PLACEHOLDER = '[REQUIRED — add before submitting]';
-
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
 export type PremiumFactId =

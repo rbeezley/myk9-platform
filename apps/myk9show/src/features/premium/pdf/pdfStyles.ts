@@ -88,7 +88,6 @@ export function buildStyles(style: PremiumStyle, opts?: BuildStylesOptions) {
       color: t.textColor,
     },
     value: { flex: 1 },
-    required: { color: '#cc0000' },
     body: { marginBottom: 4 },
 
     // ─── Pull-quote / display data ─────────────────────────────────────────

@@ -120,6 +120,24 @@ describe('AskQPanel', () => {
       expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue('Anything?');
     });
 
+    it('still offers Send this to a person after an answer that did not help', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+      vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
+        onEvent('token', 'Check the class list on Show Desk.');
+        onEvent('meta', { remaining: 9, limit: 10, responseTimeMs: 1, queryLogId: 'log-1' });
+        onEvent('done', {});
+      });
+      const { user } = await askOnShowPage('My entry is missing');
+
+      expect(await screen.findByText(/Check the class list on Show Desk/)).toBeInTheDocument();
+      expect(screen.getByText('Still need help?')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Send this to a person' }));
+      expect(screen.getByRole('textbox', { name: 'Support request' })).toHaveValue(
+        'My entry is missing'
+      );
+      expect(screen.queryByRole('button', { name: 'Send this to a person' })).toBeNull();
+    });
+
     it('says plainly it could not be sent offline, keeps the note and sends nothing', async () => {
       vi.mocked(askqService.sendAskQQuery).mockRejectedValue(new Error('down'));
       const { user } = await askOnShowPage('Judge is missing');

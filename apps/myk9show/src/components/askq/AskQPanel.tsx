@@ -224,6 +224,13 @@ export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
             <>
               <AskQSources sources={askq.sources} />
               <AskQFeedback queryLogId={askq.queryLogId} />
+              {/* An answer that did not help still has a way to a person. */}
+              {!ticketStepActive && (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <span>Still need help?</span>
+                  <AskQSendToPerson onSend={sendToPerson} />
+                </div>
+              )}
             </>
           )}
         </>

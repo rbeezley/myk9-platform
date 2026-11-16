@@ -33,11 +33,6 @@ function numberOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** See `CheckInPaperworkEntry.entryStatus`: only a moved-up source carries it. */
-function movedFact(entry: DbEntry): { entryStatus?: 'moved' } {
-  return entry.entry_status === 'moved' ? { entryStatus: 'moved' } : {};
-}
-
 export function buildReportPaperworkDescriptor(input: {
   reportId: string;
   scope: ReportScope;
@@ -61,7 +56,9 @@ export function buildReportPaperworkDescriptor(input: {
         element: classItem.element,
         level: classItem.level,
         section: classItem.section,
-        status: row.status,
+        // The check-in sheet and scoresheets do not print the class's own status, so starting or
+        // finishing a class must not read as a change (MYK9-2074). The results sheet keeps it.
+        ...(input.reportId === 'scoresheet' ? {} : { status: row.status }),
         judgeName: row.judge_name,
         timeLimitSeconds: classItem.time_limit_seconds,
         areaCount: classItem.num_areas,
@@ -80,7 +77,7 @@ export function buildReportPaperworkDescriptor(input: {
         armband: entry.armband == null ? null : Number(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
-        ...movedFact(entry),
+        entryStatus: entry.entry_status ?? null,
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
       }))
     );
@@ -96,7 +93,7 @@ export function buildReportPaperworkDescriptor(input: {
         armband: entry.armband == null ? null : Number(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
-        ...movedFact(entry),
+        entryStatus: entry.entry_status ?? null,
         section: classById.get(entry.class_id ?? '')?.section ?? null,
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
       })),

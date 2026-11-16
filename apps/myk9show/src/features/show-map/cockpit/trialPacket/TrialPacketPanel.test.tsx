@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   voidPaperworkPrint: vi.fn(),
   refetch: vi.fn(),
   entries: [] as DbEntry[],
-  prints: {} as { data?: unknown; isError: boolean; syncFailed: boolean },
+  prints: {} as { data?: unknown; isLoading: boolean; isError: boolean; syncFailed: boolean },
 }));
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
@@ -59,7 +59,7 @@ describe('TrialPacketPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.entries = ENTRIES;
-    mocks.prints = { data: [], isError: false, syncFailed: false };
+    mocks.prints = { data: [], isLoading: false, isError: false, syncFailed: false };
     mocks.printIframeAndWait.mockResolvedValue(true);
     let next = 0;
     mocks.recordPaperworkPrinted.mockImplementation(async () => ({ id: `record-${++next}` }));
@@ -120,14 +120,17 @@ describe('TrialPacketPanel', () => {
 
   describe('only what changed (MYK9-2074)', () => {
     /** Every class printed at the entries as they stood, as a trial print writes them. */
-    function printedRecords(): ReplicatedPaperworkPrint[] {
-      return CLASSES.flatMap(cls =>
+    function printedRecords(
+      only?: readonly string[],
+      at: readonly DbEntry[] = ENTRIES
+    ): ReplicatedPaperworkPrint[] {
+      return CLASSES.filter(cls => !only || only.includes(cls.id)).flatMap(cls =>
         (['check-in-sheet', 'scoresheet'] as const).flatMap(reportId => {
           const descriptor = buildReportPaperworkDescriptor({
             reportId,
             scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: cls.id },
             classes: CLASSES,
-            entries: ENTRIES,
+            entries: at,
           });
           if (!descriptor) return [];
           return [
@@ -151,7 +154,12 @@ describe('TrialPacketPanel', () => {
 
     it('opens on only the class a late entry changed, with a way back to all, and Print still works', async () => {
       const user = userEvent.setup();
-      mocks.prints = { data: printedRecords(), isError: false, syncFailed: false };
+      mocks.prints = {
+        data: printedRecords(),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
       mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
       renderPanel();
       expect(await screen.findByText(/Only the 1 class that changed since printing/)).toBeVisible();
@@ -161,30 +169,149 @@ describe('TrialPacketPanel', () => {
       await waitFor(() => expect(print).toBeEnabled(), BUILT);
       await user.click(screen.getByRole('button', { name: 'Show all classes' }));
       expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
-      expect(screen.getByText(/1 class changed since printing/)).toBeVisible();
+      expect(screen.getByText(/1 class needs printing: 1 changed since printing/)).toBeVisible();
     });
 
     it('prints and marks only the changed class when it stays on only what changed', async () => {
       const user = userEvent.setup();
-      mocks.prints = { data: printedRecords(), isError: false, syncFailed: false };
+      mocks.prints = {
+        data: printedRecords(),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
       mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
       renderPanel();
       const print = await screen.findByRole('button', { name: 'Print all 1 packet' });
       await waitFor(() => expect(print).toBeEnabled(), BUILT);
       await user.click(print);
-      await screen.findByText('All 1 class marked as printed with Trial 1');
+      await screen.findByText('1 class marked as printed with Trial 1');
       expect(mocks.recordPaperworkPrinted).toHaveBeenCalledTimes(2);
     });
 
-    it('opens on every class when nothing changed since printing', async () => {
-      mocks.prints = { data: printedRecords(), isError: false, syncFailed: false };
+    it('opens on the empty view when everything is printed and unchanged, and Print every class instead undoes it', async () => {
+      const user = userEvent.setup();
+      mocks.prints = {
+        data: printedRecords(),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      renderPanel();
+      expect(
+        await screen.findByText('Everything in this trial is printed and unchanged.')
+      ).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Print' })).toBeDisabled();
+      await user.click(screen.getByRole('button', { name: 'Print every class instead' }));
+      expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
+      await waitFor(
+        () => expect(screen.getByRole('button', { name: 'Print all 3 packets' })).toBeEnabled(),
+        BUILT
+      );
+    });
+
+    it('opens on every class, with no note, when nothing was ever printed', async () => {
       renderPanel();
       expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
-      expect(screen.queryByText(/changed since printing/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/need printing|changed since printing|not printed yet/)).toBeNull();
+      expect(screen.queryByText(/Could not check/)).toBeNull();
+    });
+
+    it('names both the changed and the never printed classes', async () => {
+      mocks.prints = {
+        data: printedRecords(['c-container', 'c-exterior', 'c-interior']),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      renderPanel();
+      expect(
+        await screen.findByText(
+          'Only the 2 classes that need printing: 1 changed since printing, 1 not printed yet.'
+        )
+      ).toBeVisible();
+      expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /No judge assigned/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Pat Donovan/ })).not.toBeInTheDocument();
+    });
+
+    it('keeps the printed classes on screen after printing, and does not say All', async () => {
+      const user = userEvent.setup();
+      mocks.prints = {
+        data: printedRecords(),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      renderPanel();
+      const print = await screen.findByRole('button', { name: 'Print all 1 packet' });
+      await waitFor(() => expect(print).toBeEnabled(), BUILT);
+      await user.click(print);
+      expect(await screen.findByText('1 class marked as printed with Trial 1')).toBeVisible();
+      // The record now matches the entries, as it does once the print is written.
+      mocks.prints = {
+        data: printedRecords(undefined, mocks.entries),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
+      expect(screen.getByText(/Only the 1 class that needed printing/)).toBeVisible();
+    });
+
+    it('says a picked judge has nothing to print in the narrowed view', async () => {
+      const user = userEvent.setup();
+      mocks.prints = {
+        data: printedRecords(),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      renderPanel();
+      await user.click(await screen.findByRole('button', { name: 'Show all classes' }));
+      await user.click(await screen.findByRole('button', { name: /Pat Donovan/ }));
+      await user.click(screen.getByRole('button', { name: 'Show only what needs printing' }));
+      expect(await screen.findByText('Pat Donovan has nothing that needs printing.')).toBeVisible();
+    });
+
+    it('says a class that changed and now has no dogs has nothing to reprint', async () => {
+      const emptyPrint = {
+        id: 'p-empty',
+        showId: 'show-1',
+        trialId: 'trial-1',
+        classId: 'c-empty',
+        scopeKind: 'class',
+        reportId: 'check-in-sheet',
+        coverage: {},
+        fingerprint: 'x',
+        printedBy: 'u1',
+        printedByName: 'Jannie',
+        printedAt: '2026-12-07T08:00:00Z',
+      } as ReplicatedPaperworkPrint;
+      mocks.prints = {
+        data: [...printedRecords(), emptyPrint],
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      renderPanel();
+      expect(
+        await screen.findByText(/1 class changed since printing and now has no dogs/)
+      ).toBeVisible();
+    });
+
+    it('says nothing about checking while the print history is still loading', async () => {
+      mocks.prints = { data: undefined, isLoading: true, isError: false, syncFailed: false };
+      renderPanel();
+      expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
+      expect(screen.queryByText(/Could not check/)).toBeNull();
     });
 
     it('says it could not check, and shows every class, when the print history is unavailable', async () => {
-      mocks.prints = { data: printedRecords(), isError: false, syncFailed: true };
+      mocks.prints = { data: printedRecords(), isLoading: false, isError: false, syncFailed: true };
       mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
       renderPanel();
       expect(await screen.findByText(/Could not check which classes changed/)).toBeVisible();

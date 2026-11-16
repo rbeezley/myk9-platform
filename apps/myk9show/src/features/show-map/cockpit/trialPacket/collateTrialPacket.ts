@@ -46,6 +46,8 @@ export interface CollatedTrialPacket {
   judges: TrialPacketJudge[];
   /** Classes with no dogs entered: nothing to judge, so no sheets are printed for them. */
   emptyClassCount: number;
+  /** The same classes by id, so a note can say which of them were printed before. */
+  emptyClassIds: string[];
   /** Cancelled classes: the cockpit lists no paperwork for them, so none is printed or marked. */
   cancelledClassCount: number;
 }
@@ -116,7 +118,7 @@ export function collateTrialPacket(input: {
     .sort(compareSchedule(registry.id));
 
   const judges = new Map<string, TrialPacketJudge>();
-  let emptyClassCount = 0;
+  const emptyClassIds: string[] = [];
   let cancelledClassCount = 0;
   for (const classItem of trialClasses) {
     // The cockpit's own predicate (classChecklist.ts: a cancelled class has no checklist items).
@@ -133,7 +135,7 @@ export function collateTrialPacket(input: {
     );
     const page = pages[0];
     if (!page || page.entries.length === 0) {
-      emptyClassCount += 1;
+      emptyClassIds.push(classItem.id);
       continue;
     }
     const dataSet: ReportDataSet = { show: input.show, pages };
@@ -176,7 +178,8 @@ export function collateTrialPacket(input: {
       : formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
     registryName: registry.name,
     judges: ordered,
-    emptyClassCount,
+    emptyClassCount: emptyClassIds.length,
+    emptyClassIds,
     cancelledClassCount,
   };
 }

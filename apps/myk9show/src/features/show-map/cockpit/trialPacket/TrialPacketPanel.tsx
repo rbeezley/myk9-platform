@@ -15,8 +15,8 @@ import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 
 import { voidPaperworkPrint } from '../paperworkPrintActions';
-import { useShowPaperworkPrints } from '../useShowPaperworkPrints';
-import { changedPacketClasses, onlyPacketClasses } from './changedClasses';
+import { ChangedEmptyNote, ChangedSinceNote } from './ChangedSinceNote';
+import { useChangedPacket } from './useChangedPacket';
 import { AfterShowPanelBody } from './AfterShowPanelBody';
 import { JudgeRecordPanelBody } from './JudgeRecordPanelBody';
 import { JudgeReviewPanelBody } from './JudgeReviewPanelBody';
@@ -93,45 +93,6 @@ export function TrialPacketPanel(props: TrialPacketPanelProps) {
   );
 }
 
-/** The line above the packets: which classes they hold, and the way back to all of them. */
-function ChangedSinceNote(props: {
-  changed: ReturnType<typeof changedPacketClasses> | null;
-  changedCount: number;
-  onlyChanged: boolean;
-  onChoose: (onlyChanged: boolean) => void;
-}) {
-  const { changed, changedCount, onlyChanged, onChoose } = props;
-  if (changed?.kind === 'unknown') {
-    return (
-      <p role="status" className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-        Could not check which classes changed since printing, so every class is shown.
-      </p>
-    );
-  }
-  if (changedCount === 0) return null;
-  const toggle = (
-    <Button
-      type="button"
-      variant="link"
-      className="min-h-11 px-1"
-      onClick={() => onChoose(!onlyChanged)}
-    >
-      {onlyChanged ? 'Show all classes' : 'Show only what changed'}
-    </Button>
-  );
-  return (
-    <p
-      role="status"
-      className="flex flex-wrap items-center rounded-md border bg-muted/40 px-3 py-1 text-sm"
-    >
-      {onlyChanged
-        ? `Only the ${plural(changedCount, 'class', 'classes')} that changed since printing.`
-        : `${plural(changedCount, 'class', 'classes')} changed since printing.`}
-      {toggle}
-    </p>
-  );
-}
-
 function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string }) {
   const { user } = useAuthContext();
   const { show: currentShow } = useFastShowDetails(showId);
@@ -161,39 +122,24 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         : null,
     [readiness.state, show, trials, classes, entries, trialId]
   );
-  // "Only what changed": judged from the same replicated print records the class cards read, so it
-  // works offline. When the history cannot be read, nothing is narrowed and the panel says so.
-  const prints = useShowPaperworkPrints(showId);
-  const changed = useMemo(
-    () =>
-      fullPacket
-        ? changedPacketClasses({
-            showId,
-            packet: fullPacket,
-            classes: (classes ?? []) as DbClass[],
-            entries: (entries ?? []) as DbEntry[],
-            records: prints.data,
-            recordsUnavailable: prints.isError || prints.syncFailed,
-          })
-        : null,
-    [fullPacket, showId, classes, entries, prints.data, prints.isError, prints.syncFailed]
-  );
-  const changedCount = changed?.kind === 'known' ? changed.classIds.size : 0;
-  // Until she chooses, the panel opens on only what changed when something did.
-  const [chosenOnlyChanged, setChosenOnlyChanged] = useState<boolean | null>(null);
-  const onlyChanged = changedCount > 0 && (chosenOnlyChanged ?? true);
-  const packet = useMemo(
-    () =>
-      fullPacket && changed?.kind === 'known' && onlyChanged
-        ? onlyPacketClasses(fullPacket, changed.classIds)
-        : fullPacket,
-    [fullPacket, changed, onlyChanged]
-  );
+  // "Only what needs printing": judged from the same replicated print records the class cards read,
+  // so it works offline.
+  const view = useChangedPacket({
+    showId,
+    fullPacket,
+    classes: (classes ?? []) as DbClass[],
+    entries: (entries ?? []) as DbEntry[],
+  });
+  const { packet, onlyNeed, emptyView, status } = view;
   const [attempt, setAttempt] = useState(0);
   const pdfs = useTrialPacketPdfs(packet, show?.name ?? '', attempt);
   const [pickedJudge, setSelected] = useState<string>(ALL);
-  // A judge with nothing left to print under "only what changed" falls back to every packet.
   const selected = packet?.judges.some(item => item.key === pickedJudge) ? pickedJudge : ALL;
+  // A judge with nothing left to print in the narrowed view is named, never silently swapped.
+  const nothingForJudge =
+    pickedJudge !== ALL && selected === ALL && onlyNeed && !emptyView
+      ? (fullPacket?.judges.find(item => item.key === pickedJudge) ?? null)
+      : null;
   const [printing, setPrinting] = useState(false);
   const [printed, setPrinted] = useState<(TrialPacketPrintRecords & { label: string }) | null>(
     null
@@ -222,6 +168,8 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         return;
       }
       if (!user) return;
+      // The classes just printed stay on screen under their "marked as printed" line.
+      view.pinShown();
       const result = await recordTrialPacketPrint({
         showId,
         trialId,
@@ -239,7 +187,9 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         ...result,
         label: subject
           ? `${plural(result.classCount, 'class', 'classes')} marked as printed (${subject})`
-          : `All ${plural(result.classCount, 'class', 'classes')} marked as printed with ${packet.trialLabel}`,
+          : onlyNeed
+            ? `${plural(result.classCount, 'class', 'classes')} marked as printed with ${packet.trialLabel}`
+            : `All ${plural(result.classCount, 'class', 'classes')} marked as printed with ${packet.trialLabel}`,
       });
     } finally {
       setPrinting(false);
@@ -283,6 +233,21 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     );
   }
   if (!packet) return <p className="p-4 text-sm text-muted-foreground">Getting the trial ready…</p>;
+  if (emptyView) {
+    return (
+      <div className="flex flex-col gap-4 p-4">
+        <ChangedSinceNote view={view} />
+        <ChangedEmptyNote status={status} />
+        <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t bg-card px-4 py-3">
+          <span className="text-sm text-muted-foreground">Nothing to print.</span>
+          <Button type="button" size="touch" disabled>
+            <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
+            Print
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (packet.judges.length === 0) {
     return (
       <p className="p-4 text-sm">
@@ -312,12 +277,13 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           {packet.cancelledClassCount === 1 ? 'is' : 'are'} left out.
         </p>
       )}
-      <ChangedSinceNote
-        changed={changed}
-        changedCount={changedCount}
-        onlyChanged={onlyChanged && changed?.kind === 'known'}
-        onChoose={setChosenOnlyChanged}
-      />
+      <ChangedSinceNote view={view} />
+      <ChangedEmptyNote status={status} />
+      {nothingForJudge && (
+        <p role="status" className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+          {nothingForJudge.judgeName ?? 'No judge assigned'} has nothing that needs printing.
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
         Each packet holds a cover sheet, then for each class the check-in sheet and the scoresheets.
       </p>

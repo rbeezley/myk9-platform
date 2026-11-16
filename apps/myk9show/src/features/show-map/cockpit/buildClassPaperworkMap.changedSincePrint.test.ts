@@ -9,7 +9,14 @@ import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor
 // MYK9-2074: after a print, a move-up (in and out), a late entry or a pull flips exactly the
 // classes it touched to stale, for a class printed alone and for a class printed in a trial packet.
 const classes = [
-  { id: 'class-a', trial_id: 'trial-1', element: 'Container', level: 'Novice', section: 'A' },
+  {
+    id: 'class-a',
+    trial_id: 'trial-1',
+    element: 'Container',
+    level: 'Novice',
+    section: 'A',
+    status: 'upcoming',
+  },
   { id: 'class-b', trial_id: 'trial-1', element: 'Container', level: 'Advanced', section: 'A' },
   { id: 'class-c', trial_id: 'trial-1', element: 'Interior', level: 'Novice', section: 'A' },
 ] as unknown as DbClass[];
@@ -61,10 +68,14 @@ function printRecords(
   );
 }
 
-function stateOf(entries: readonly DbEntry[], records: ReplicatedPaperworkPrint[]) {
+function stateOf(
+  entries: readonly DbEntry[],
+  records: ReplicatedPaperworkPrint[],
+  currentClasses: readonly DbClass[] = classes
+) {
   const map = buildClassPaperworkMap({
     showId: 'show-1',
-    classes,
+    classes: currentClasses,
     trials: [{ id: 'trial-1', trialDate: '2026-12-07' }],
     entries,
     records,
@@ -110,5 +121,25 @@ describe('classes read changed only when their paperwork changed (MYK9-2074)', (
       'class-a',
       'class-b',
     ]);
+  });
+
+  it('flips the class a dog was withdrawn from, and no other', () => {
+    const withdrawn = { ...hazel, entry_status: 'withdrawn' } as DbEntry;
+    expect(changed(stateOf([juni, withdrawn, moss, pip], records))).toEqual(['class-a']);
+  });
+
+  it('keeps printed sheets current when the class starts', () => {
+    const started = classes.map(item =>
+      item.id === 'class-a' ? ({ ...item, status: 'in_progress' } as unknown as DbClass) : item
+    );
+    const states = stateOf(before, records, started);
+    expect(changed(states)).toEqual([]);
+    expect(states['class-a']).toEqual(['current', 'current']);
+  });
+
+  it('reads never printed classes as not printed, not changed', () => {
+    const states = stateOf(before, []);
+    expect(changed(states)).toEqual([]);
+    expect(states['class-a']).toEqual(['unconfirmed', 'unconfirmed']);
   });
 });

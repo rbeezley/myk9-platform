@@ -32,6 +32,8 @@ export interface DeliveredPacketSnapshot {
    */
   createdAt: string;
   pageCount: number;
+  /** Officials the email reached; absent on fixtures that predate the column read. */
+  recipientCount?: number;
 }
 
 export interface PacketPrintConfirmation {

@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { supabase as defaultSupabase } from '@/lib/supabase';
 import { useShowPaperworkPrints } from '@/features/show-map/cockpit/useShowPaperworkPrints';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
 import {
   buildDeliveredPacketRows,
   type DeliveredPacketRow,
+  type DeliveredPacketSnapshot,
   type PacketPrintConfirmation,
 } from './deliveredPacketRows';
 
@@ -26,6 +28,11 @@ interface PacketReadClient {
   from(table: string): { select(columns: string): PacketFilter };
 }
 
+/** The delivered-packets query, so a send can refresh the list it just added to. */
+export function deliveredPacketsKey(showId: string | undefined) {
+  return ['emergency-packet-delivered', showId] as const;
+}
+
 /**
  * The packets that already exist for this show, and whether the paper in the
  * box matches them.
@@ -42,15 +49,27 @@ export function useDeliveredPackets(
   showId: string | undefined,
   packetData: Omit<EmergencyPacketInput, 'generatedAt'> | null,
   client: PacketReadClient = defaultSupabase as unknown as PacketReadClient
-): { rows: DeliveredPacketRow[]; isError: boolean } {
+): {
+  rows: DeliveredPacketRow[];
+  copies: DeliveredPacketSnapshot[];
+  isError: boolean;
+  /**
+   * Whether the sent-copies list can be shown: an unread list is not "nothing was sent". A list
+   * already read stays `ready` offline, so its Mark printed (a replicated write) keeps working.
+   */
+  listState: 'pending' | 'offline' | 'error' | 'ready';
+  /** The device is offline, or the read is paused for want of a connection. */
+  offline: boolean;
+} {
   const prints = useShowPaperworkPrints(showId ?? '');
-  const { data, isError } = useQuery({
-    queryKey: ['emergency-packet-delivered', showId],
+  const online = useOnlineStatus();
+  const { data, isError, fetchStatus } = useQuery({
+    queryKey: deliveredPacketsKey(showId),
     enabled: !!showId,
     queryFn: async () => {
       const snapshots = await client
         .from('trial_packet_snapshots')
-        .select('snapshot_id, trial_date, generated_at, page_count, created_at')
+        .select('snapshot_id, trial_date, generated_at, page_count, created_at, recipient_count')
         .eq('show_id', showId as string)
         .eq('delivery_status', 'sent')
         .order('created_at', { ascending: false });
@@ -61,11 +80,15 @@ export function useDeliveredPackets(
         generatedAt: row.generated_at as string,
         createdAt: (row.created_at as string) ?? (row.generated_at as string),
         pageCount: (row.page_count as number) ?? 0,
+        recipientCount: (row.recipient_count as number | null) ?? 0,
       }));
     },
   });
 
+  const offline = !online || (data === undefined && fetchStatus === 'paused');
   return {
+    // Every copy that went out, newest first, for the per-day "Saved copy" list.
+    copies: data ?? [],
     rows: buildDeliveredPacketRows({
       snapshots: data ?? [],
       confirmations: (prints.data ?? []).map((record): PacketPrintConfirmation => ({
@@ -81,5 +104,17 @@ export function useDeliveredPackets(
     // rendered every day as "not printed" with no warning. `syncFailed` is the
     // signal that actually reflects the server.
     isError: isError || prints.isError || prints.syncFailed,
+    offline,
+    // Offline, the confirmations sync fails too, so a failure is only an error while online.
+    listState:
+      data === undefined
+        ? offline
+          ? 'offline'
+          : isError
+            ? 'error'
+            : 'pending'
+        : !offline && (isError || prints.isError || prints.syncFailed)
+          ? 'error'
+          : 'ready',
   };
 }

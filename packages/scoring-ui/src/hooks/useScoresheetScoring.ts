@@ -41,7 +41,18 @@ export interface ScoresheetScoringConfig {
    * under the limit in every area, and no more faults than `faultLimit`. Absent,
    * a Qualified saves as before (Obedience, Rally, Fast CAT).
    */
-  qualifiedRules?: { faultLimit?: FaultLimit | undefined } | undefined;
+  qualifiedRules?:
+    | {
+        faultLimit?: FaultLimit | undefined;
+        /**
+         * Nationals: only four area times are stored (MYK9-2006), so a reopened
+         * score may have an area the saved score never had a time for. That area
+         * may stay blank; every time that is there is still checked. A fresh score
+         * stays strict. Until MYK9-2068 stores every area.
+         */
+        keepUnstoredAreaBlank?: boolean | undefined;
+      }
+    | undefined;
   /** UKC and ASCA (MYK9-2008): an Excused saves only with a reason the judge chose. */
   excusedReasonRequired?: boolean;
 }
@@ -247,8 +258,17 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   // The sheet never changes the result: it names the problem and Save stays off.
   const checkQualified = qualifiedRules !== undefined && qualifying === 'Q';
   const qualifiedTimeProblemList = useMemo(
-    () => (checkQualified ? qualifiedTimeProblems(areas, rules) : areas.map(() => null)),
-    [checkQualified, areas, rules]
+    () =>
+      checkQualified
+        ? qualifiedTimeProblems(
+            areas,
+            rules,
+            qualifiedRules?.keepUnstoredAreaBlank && secondsOf(existingScore?.searchTime) > 0
+              ? index => !existingScore?.areaTimes?.[index]
+              : undefined
+          )
+        : areas.map(() => null),
+    [checkQualified, areas, rules, qualifiedRules?.keepUnstoredAreaBlank, existingScore]
   );
   const qualifiedFaultProblemText = checkQualified
     ? qualifiedFaultProblem(faultCount, qualifiedRules?.faultLimit)

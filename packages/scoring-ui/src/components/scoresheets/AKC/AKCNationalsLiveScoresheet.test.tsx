@@ -59,6 +59,15 @@ const defaultProps = {
   onBack: vi.fn(),
 };
 
+/** A Qualified needs a time in every area (MYK9-2019); 0:30 fits the 1:00 area limit. */
+function fillAreaTimes() {
+  for (let i = 1; i <= 5; i++) {
+    fireEvent.click(screen.getByTestId(`area-tab-${i}`));
+    fireEvent.change(screen.getByLabelText(`Area ${i} time`), { target: { value: '0:30.00' } });
+  }
+  fireEvent.click(screen.getByTestId('area-tab-1'));
+}
+
 describe('AKCNationalsLiveScoresheet', () => {
   it('renders entry info', () => {
     render(<AKCNationalsLiveScoresheet {...defaultProps} />);
@@ -114,6 +123,7 @@ describe('AKCNationalsLiveScoresheet', () => {
     fireEvent.click(screen.getByTestId('correct-inc'));
     fireEvent.click(screen.getByTestId('correct-inc'));
 
+    fillAreaTimes();
     // Select Q result
     fireEvent.click(screen.getByTestId('result-Q'));
 
@@ -143,6 +153,7 @@ describe('AKCNationalsLiveScoresheet', () => {
     fireEvent.click(screen.getByTestId('correct-inc'));
     fireEvent.click(screen.getByTestId('correct-inc'));
     fireEvent.click(screen.getByTestId('incorrect-inc'));
+    fillAreaTimes();
     fireEvent.click(screen.getByTestId('result-Q'));
     fireEvent.click(screen.getByTestId('submit-btn'));
 

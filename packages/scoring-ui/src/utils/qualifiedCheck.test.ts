@@ -72,3 +72,36 @@ describe('qualifiedFaultProblem', () => {
     expect(qualifiedFaultProblem(9, undefined)).toBeNull();
   });
 });
+
+describe('qualifiedTimeProblems on a correction with unstored areas (MYK9-2006)', () => {
+  const unstored = (i: number) => i >= 3;
+  const five = {
+    ...rules,
+    areaCount: 5,
+    maxTimeSeconds: 300,
+    areaMaxTimeSeconds: [60, 60, 60, 60, 60],
+  };
+
+  it('lets an unstored area stay blank, and a fresh score still needs it', () => {
+    const t = times('0:30.00', '0:30.00', '0:30.00', '0:30.00', '');
+    expect(qualifiedTimeProblems(t, five, unstored)).toEqual([null, null, null, null, null]);
+    expect(qualifiedTimeProblems(t, five)[4]).toBe('Add a time to save a Qualified');
+  });
+
+  it('still asks for a time in an area that was stored', () => {
+    const t = times('', '0:30.00', '0:30.00', '0:30.00', '');
+    expect(qualifiedTimeProblems(t, five, unstored)[0]).toBe('Add a time to save a Qualified');
+  });
+
+  it('checks the times that are there against the class time as a total', () => {
+    expect(qualifiedTimeProblems(times('1:10.00', '', '', '', ''), five, () => true)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
+    const over = qualifiedTimeProblems(times('3:00.00', '2:30.00', '', '', ''), five, () => true);
+    expect(over[0]).toContain('is over the 5:00 class limit');
+  });
+});

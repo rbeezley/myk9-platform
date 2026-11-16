@@ -132,6 +132,14 @@ interface SheetCase {
   expectedAfterFaultFix: Partial<ScoreData>;
 }
 
+/** Areas 2 to 5 of the Nationals case; Area 1 is typed first. */
+const NATIONALS_FRESH_TIMES: [number, string][] = [
+  [2, '1:10.29'],
+  [3, '0:10.00'],
+  [4, '0:20.00'],
+  [5, '0:30.00'],
+];
+
 const cases: SheetCase[] = [
   {
     name: 'AKC',
@@ -182,10 +190,14 @@ const cases: SheetCase[] = [
     key: 'AKC_SCENT_WORK_NATIONAL',
     rules: twoAreas,
     timeLabels: ['Area 1 time'],
+    // MYK9-2016: every Nationals class opens with 5 areas, and a fresh Qualified needs a
+    // time in each. MYK9-1835: the finish call error costs 5, so 2 x 10 - 5 - 5 = 10 points.
     first: () => {
       type('Area 1 time', '0:04.35');
-      fireEvent.click(screen.getByTestId('area-tab-2'));
-      type('Area 2 time', '1:10.29');
+      NATIONALS_FRESH_TIMES.forEach(([area, time]) => {
+        fireEvent.click(screen.getByTestId(`area-tab-${area}`));
+        type(`Area ${area} time`, time);
+      });
       fireEvent.click(screen.getByTestId('correct-inc'));
       fireEvent.click(screen.getByTestId('correct-inc'));
       fireEvent.click(screen.getByTestId('incorrect-inc'));
@@ -194,20 +206,21 @@ const cases: SheetCase[] = [
     },
     expected: {
       resultText: 'Q',
-      areaTimes: ['0:04.35', '1:10.29'],
+      // Only Areas 1 to 4 are stored (MYK9-2006); Area 5 lives in the total until MYK9-2068.
+      areaTimes: ['0:04.35', ...NATIONALS_FRESH_TIMES.slice(0, 3).map(([, time]) => time), ''],
       correctCount: 2,
       incorrectCount: 1,
       finishCallErrors: 1,
-      points: 15,
+      points: 10,
     },
     // The only change: Area 1's time.
     correctFaults: () => type('Area 1 time', '0:05.00'),
     expectedAfterFaultFix: {
-      areaTimes: ['0:05.00', '1:10.29'],
+      areaTimes: ['0:05.00', ...NATIONALS_FRESH_TIMES.slice(0, 3).map(([, time]) => time), ''],
       correctCount: 2,
       incorrectCount: 1,
       finishCallErrors: 1,
-      points: 15,
+      points: 10,
     },
   },
 ];

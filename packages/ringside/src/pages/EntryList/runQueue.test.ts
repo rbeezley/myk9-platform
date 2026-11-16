@@ -232,7 +232,7 @@ describe('place in line (MYK9-992)', () => {
     ]);
     expect(formatRunQueueState({ kind: 'waiting', place: 2 })).toBe('2nd up');
     expect(formatRunQueueState({ kind: 'waiting-unknown' })).toBe('Waiting');
-    expect(formatRunQueueState({ kind: 'in-ring' })).toBe('In ring');
+    expect(formatRunQueueState({ kind: 'in-ring' })).toBe('In the ring');
     expect(formatRunQueueState({ kind: 'done' })).toBe('Done');
     expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
   });

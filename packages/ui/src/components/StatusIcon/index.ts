@@ -16,3 +16,9 @@ export {
   type StatusFamily,
   type StatusShape,
 } from './statusIconGrammar';
+export {
+  CHECK_IN_STATE_WORDS,
+  checkInStateLabel,
+  checkInStateWord,
+  type CheckInStateWordKey,
+} from './checkInStateWords';

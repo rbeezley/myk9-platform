@@ -23,7 +23,7 @@ import {
   Target,
   TriangleAlert,
 } from 'lucide-react';
-import { cn, getStatusDescriptor } from '@myk9/ui';
+import { checkInStateLabel, cn, getStatusDescriptor, type CheckInStateWordKey } from '@myk9/ui';
 
 interface CheckInPresentation {
   Icon: LucideIcon;
@@ -31,30 +31,33 @@ interface CheckInPresentation {
   colorClass: string;
 }
 
+/** The shared check-in state word (MYK9-2093), so Ringside and My Shows name a state alike. */
+const word = (state: CheckInStateWordKey): string => checkInStateLabel(state);
+
 const PRESENTATION: Record<string, CheckInPresentation> = {
   'no-status': {
     Icon: CircleDashed,
-    label: 'Not checked in',
+    label: word('no-status'),
     colorClass: 'text-muted-foreground',
   },
   'checked-in': {
     Icon: CircleCheck,
-    label: 'Checked in',
+    label: word('checked-in'),
     colorClass: 'text-success',
   },
-  'at-gate': { Icon: Fence, label: 'At gate', colorClass: 'text-warning' },
+  'at-gate': { Icon: Fence, label: word('at-gate'), colorClass: 'text-warning' },
   'come-to-gate': {
     Icon: BellRing,
-    label: 'Come to gate',
+    label: word('come-to-gate'),
     colorClass: 'text-warning',
   },
   conflict: {
     Icon: TriangleAlert,
-    label: 'Conflict',
+    label: word('conflict'),
     colorClass: 'text-destructive',
   },
-  pulled: { Icon: Ban, label: 'Pulled', colorClass: 'text-muted-foreground' },
-  'in-ring': { Icon: Target, label: 'In ring', colorClass: 'text-info' },
+  pulled: { Icon: Ban, label: word('pulled'), colorClass: 'text-muted-foreground' },
+  'in-ring': { Icon: Target, label: word('in-ring'), colorClass: 'text-info' },
   completed: { Icon: Flag, label: 'Completed', colorClass: 'text-success' },
 };
 

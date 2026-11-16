@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./check-in-words": {
+      "types": "./dist/check-in-words.d.ts",
+      "import": "./dist/check-in-words.js"
+    },
     "./styles": {
       "import": "./dist/styles/index.css"
     },

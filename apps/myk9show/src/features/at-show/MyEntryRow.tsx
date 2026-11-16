@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Info } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
-import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
+import { checkInStateLabel } from '@myk9/ui';
 import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
 import {
   deriveAtShowNextAction,
@@ -15,14 +15,12 @@ import {
 import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { formatPlaceUpdatedAt, formatRingConflictNotice } from './myEntriesTodayCopy';
 
-// Plain-language override where one exists (no-status/checked-in/conflict/
-// pulled); falls back to the staff-grade label — same fallback order
-// CheckInStatusDialog uses — so a status without a plain override (at-gate,
-// come-to-gate, in-ring, completed) still reads correctly instead of always
-// showing "not checked in".
+// The shared check-in state word (MYK9-2093), the one My Shows and Ringside show; a state
+// without one (completed) falls back to the staff-grade label. The dialog's first-person
+// choices ("I am here") are buttons, not state names, and are not used here.
 function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
   return (
-    EXHIBITOR_STATUS_LABELS[detail.checkInStatus] ??
+    checkInStateLabel(detail.checkInStatus) ??
     getStatusDescriptor('entry', detail.checkInStatus).label
   );
 }

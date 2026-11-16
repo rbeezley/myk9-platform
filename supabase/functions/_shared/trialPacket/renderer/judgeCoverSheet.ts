@@ -32,7 +32,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 /**
  * "9:05 AM": a local mirror of `@myk9/core`'s `formatClockTime`, which this module cannot import.
- * `judgeCoverSheet.test.ts` in the app pins the two together.
+ * `judgePacketRenderer.test.ts` in the app pins the two together, minute by minute.
  */
 export function formatPacketClockTime(minutesSinceMidnight: number): string {
   const hours = Math.floor(minutesSinceMidnight / 60);

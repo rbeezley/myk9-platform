@@ -1,5 +1,31 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`judge packet pages > keeps the edges too: cancelled, ties, no start, midnight and noon, no time limit, judge spelling 1`] = `
+{
+  "cancelled": 1,
+  "empty": 0,
+  "record": {
+    "pat  donovan": [
+      " | pat  DONOVAN Winter Trial  ·  Trial 1  ·  Mon, Dec 7  ·  American Kennel Club Class Start Dogs Max time Container Advanced B 12:00 PM 1 3:00 Total 1 This packet holds 2 sheets, class by class in the order above. For each class: the check-in sheet first. Hand it to your gate steward. Then one scoresheet for each dog, in the order the dogs run. Scores entered at the ring are the working copy. These sheets are the paper record. |  | pat  DONOVAN. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 1 of 3",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Container Advanced B Page 1 of 1 Check-in & Running Order Trial 1 · 2026-12-07 · Container Advanced B · Judge: pat  DONOVAN Max time 3:00 Gate Order Armband Call Name Breed Handler 1 503 Dog 503 Beagle Jamie Walker |  | pat  DONOVAN. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 2 of 3",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Container Advanced B Page 1 of 1 AKC Scent Work Scoresheet Trial 1 · 2026-12-07 · Container Advanced B · Armband 503 · Judge: pat  DONOVAN Max time 3:00 #503  Dog 503 Beagle Jamie Walker Q ABS Handler Error Safety Concern Mild Disruption NQ Incorrect Call Max Time Point to Hide Harsh Correction Significant Disruption EX Eliminated in Area Handler Request Out of Control Overly Stressed Other MM SS TT |  | pat  DONOVAN. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 3 of 3",
+    ],
+    "pat donovan": [
+      " | Pat Donovan Winter Trial  ·  Trial 1  ·  Mon, Dec 7  ·  American Kennel Club Class Start Dogs Max time Container Advanced A 12:00 PM 1 3:00 Total 1 This packet holds 2 sheets, class by class in the order above. For each class: the check-in sheet first. Hand it to your gate steward. Then one scoresheet for each dog, in the order the dogs run. Scores entered at the ring are the working copy. These sheets are the paper record. |  | Pat Donovan. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 1 of 3",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Container Advanced A Page 1 of 1 Check-in & Running Order Trial 1 · 2026-12-07 · Container Advanced A · Judge: Pat Donovan Max time 3:00 Gate Order Armband Call Name Breed Handler 1 502 Dog 502 Beagle Jamie Walker |  | Pat Donovan. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 2 of 3",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Container Advanced A Page 1 of 1 AKC Scent Work Scoresheet Trial 1 · 2026-12-07 · Container Advanced A · Armband 502 · Judge: Pat Donovan Max time 3:00 #502  Dog 502 Beagle Jamie Walker Q ABS Handler Error Safety Concern Mild Disruption NQ Incorrect Call Max Time Point to Hide Harsh Correction Significant Disruption EX Eliminated in Area Handler Request Out of Control Overly Stressed Other MM SS TT |  | Pat Donovan. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 3 of 3",
+    ],
+    "sam lee": [
+      " | Sam Lee Winter Trial  ·  Trial 1  ·  Mon, Dec 7  ·  American Kennel Club Class Start Dogs Max time Exterior Advanced 12:00 AM 1 Buried Advanced 1 Total 2 This packet holds 4 sheets, class by class in the order above. For each class: the check-in sheet first. Hand it to your gate steward. Then one scoresheet for each dog, in the order the dogs run. Scores entered at the ring are the working copy. These sheets are the paper record. |  | Sam Lee. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 1 of 5",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Exterior Advanced Page 1 of 1 Check-in & Running Order Trial 1 · 2026-12-07 · Exterior Advanced · Judge: Sam Lee Gate Order Armband Call Name Breed Handler 504 Dog 504 Beagle Jamie Walker |  | Sam Lee. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 2 of 5",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Exterior Advanced Page 1 of 1 AKC Scent Work Scoresheet Trial 1 · 2026-12-07 · Exterior Advanced · Armband 504 · Judge: Sam Lee #504  Dog 504 Beagle Jamie Walker Q ABS Handler Error Safety Concern Mild Disruption NQ Incorrect Call Max Time Point to Hide Harsh Correction Significant Disruption EX Eliminated in Area Handler Request Out of Control Overly Stressed Other MM SS TT |  | Sam Lee. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 3 of 5",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Buried Advanced Page 1 of 1 Check-in & Running Order Trial 1 · 2026-12-07 · Buried Advanced · Judge: Sam Lee Gate Order Armband Call Name Breed Handler 1 505 Dog 505 Beagle Jamie Walker |  | Sam Lee. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 4 of 5",
+      " | Generated <stamp> Winter Trial · 2026-12-07 · Buried Advanced Page 1 of 1 AKC Scent Work Scoresheet Trial 1 · 2026-12-07 · Buried Advanced · Armband 505 · Judge: Sam Lee #505  Dog 505 Beagle Jamie Walker Q ABS Handler Error Safety Concern Mild Disruption NQ Incorrect Call Max Time Point to Hide Harsh Correction Significant Disruption EX Eliminated in Area Handler Request Out of Control Overly Stressed Other MM SS TT |  | Sam Lee. Printed Dec 6, 1:00 PM. Later changes are in the app. Packet page 5 of 5",
+    ],
+  },
+}
+`;
+
 exports[`judge packet pages > keeps the page order and the text on every page, for every judge 1`] = `
 {
   "no-judge": [

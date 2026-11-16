@@ -112,6 +112,13 @@ export interface DayClassPrintInput {
   entries: readonly PaperworkEntryRow[];
   /** Non-voided check-in-sheet and scoresheet prints for the show. */
   prints: readonly SheetPrintRow[];
+  /**
+   * Ids of the entries that sit on the run sheet: the packet's own list (`emergency_packet_input`),
+   * which leaves off a withdrawn, scratched, pulled, moved-up or absent dog and one awaiting a
+   * registration number. A class with none of them prints nothing and needs no print. Every entry
+   * still feeds the fingerprint, because the app fingerprints the raw entries.
+   */
+  printableEntryIds: ReadonlySet<string>;
 }
 
 /**
@@ -120,13 +127,20 @@ export interface DayClassPrintInput {
  * `recordTrialPacketPrint` writes one check-in-sheet and one scoresheet row per class, so the
  * day is printed only when EVERY class that has entries holds a current print of BOTH, judged by
  * the app's own fingerprint code and print-state rule. A class without entries has nothing to
- * print (the app writes no row for it) and is skipped. A day with no printable class is NOT
+ * print (the app writes no row for it) and is skipped; so is a class whose every entry is off the run sheet (`summarizeClassSheets` dogCount 0). A day with no printable class is NOT
  * covered here: that is today's behaviour, the emergency day row alone decides.
  */
 export function classPrintsCoverDay(input: DayClassPrintInput): boolean {
   let printable = 0;
   for (const classItem of input.classes) {
     if (!classItem.trial_id) return false;
+    if (
+      !input.entries.some(
+        entry => entry.class_id === classItem.id && input.printableEntryIds.has(entry.id)
+      )
+    ) {
+      continue;
+    }
     const scope = {
       kind: 'class' as const,
       showId: input.showId,

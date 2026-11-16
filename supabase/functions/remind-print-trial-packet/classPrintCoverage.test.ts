@@ -66,7 +66,14 @@ const fullPrints = () => [
 const cover = (
   prints: SheetPrintRow[],
   over: Partial<Parameters<typeof classPrintsCoverDay>[0]> = {}
-) => classPrintsCoverDay({ showId: SHOW_ID, ...rows, prints, ...over });
+) =>
+  classPrintsCoverDay({
+    showId: SHOW_ID,
+    ...rows,
+    prints,
+    printableEntryIds: new Set((over.entries ?? rows.entries).map(item => item.id)),
+    ...over,
+  });
 
 describe('classPrintsCoverDay', () => {
   it('is covered when every class holds a current check-in sheet and scoresheet print', () => {
@@ -168,7 +175,14 @@ function stubClient(results: Record<string, Result>) {
       Promise.resolve(result).then(res, rej);
     return q;
   });
-  return { from } as unknown as Parameters<typeof loadClassPrintsCoverDay>[0];
+  // The packet's run-sheet list: every entry unless a test says otherwise.
+  const rpc = vi.fn(async () => {
+    const override = results.rpc;
+    if (override) return override;
+    const all = (results.entries?.data ?? []) as { id: string }[];
+    return { data: { entries: all.map(item => ({ id: item.id })) }, error: null };
+  });
+  return { from, rpc } as unknown as Parameters<typeof loadClassPrintsCoverDay>[0];
 }
 
 const dayData = (prints: SheetPrintRow[]): Record<string, Result> => ({
@@ -198,6 +212,17 @@ describe('loadClassPrintsCoverDay', () => {
     expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
   });
 
+  it.each(['canceled', 'Cancelled ', ' CANCELLED'])(
+    'treats the status %j as cancelled, for a class and for a trial',
+    async status => {
+      const data = dayData(fullPrints().slice(0, 2));
+      data.classes = { data: [classA, { ...classB, status }], error: null };
+      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(true);
+      data.trials = { data: [{ id: TRIAL_ID, status }], error: null };
+      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+    }
+  );
+
   it.each(['trials', 'classes', 'entries', 'paperwork_prints'])(
     'a read error on %s means not covered',
     async table => {
@@ -206,6 +231,64 @@ describe('loadClassPrintsCoverDay', () => {
       expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
     }
   );
+});
+
+describe('classes whose dogs are all off the run sheet', () => {
+  const withdrawnOnly = { ...classA, id: 'class-w' };
+  const day = {
+    classes: [classA, classB, withdrawnOnly],
+    entries: [
+      ...entries,
+      { ...entry('w1', 'class-w'), entry_status: 'withdrawn' },
+      { ...entry('w2', 'class-w'), check_in_status: 'pulled' },
+    ],
+  };
+  const onSheet = new Set(['e1', 'e2']);
+  const prints = () => {
+    const covered = { classes: day.classes, entries: day.entries };
+    return [
+      printRow('check-in-sheet', classA, covered),
+      printRow('scoresheet', classA, covered),
+      printRow('check-in-sheet', classB, covered),
+      printRow('scoresheet', classB, covered),
+    ];
+  };
+
+  it('skips a class whose entries are all withdrawn or pulled', () => {
+    expect(
+      classPrintsCoverDay({ showId: SHOW_ID, ...day, prints: prints(), printableEntryIds: onSheet })
+    ).toBe(true);
+  });
+
+  it('still needs a print for a class with one live dog beside withdrawn ones', () => {
+    const mixed = new Set([...onSheet, 'w1x']);
+    const entriesWithLive = [...day.entries, { ...entry('w1x', 'class-w') }];
+    expect(
+      classPrintsCoverDay({
+        showId: SHOW_ID,
+        classes: day.classes,
+        entries: entriesWithLive,
+        prints: prints(),
+        printableEntryIds: mixed,
+      })
+    ).toBe(false);
+  });
+
+  it('reads the run sheet from the packet, so the loader skips the same class', async () => {
+    const data = dayData(prints());
+    data.classes = { data: day.classes, error: null };
+    data.entries = { data: day.entries, error: null };
+    data.rpc = { data: { entries: [{ id: 'e1' }, { id: 'e2' }] }, error: null };
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(true);
+  });
+
+  it('is not covered when the packet list cannot be read', async () => {
+    const data = dayData(fullPrints());
+    data.rpc = { data: null, error: { message: 'boom' } };
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+    data.rpc = { data: null, error: null };
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+  });
 });
 
 describe('loadClassPrintsCoverDay paging', () => {
@@ -257,6 +340,10 @@ describe('runPrintReminder with the before-trial packet', () => {
   function runClient(prints: SheetPrintRow[], emergencyRows: unknown[] = []) {
     const base = dayData(prints);
     const client = {
+      rpc: async () => ({
+        data: { entries: entries.map(item => ({ id: item.id })) },
+        error: null,
+      }),
       from(table: string) {
         const filters: Record<string, unknown> = {};
         const result: () => Result =

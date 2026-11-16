@@ -1,3 +1,4 @@
+import { lifecycleFor } from '../../../../../../supabase/functions/_shared/paperwork/lifecycle.ts';
 import { getTrialTimezone, resolveConfiguredRegistryId } from '@/features/registries';
 
 import { getAttentionActions, getDirectActionsForNode } from '../showMapActions';
@@ -13,7 +14,6 @@ import { getCockpitClassDetailsHref, withReturnTo } from './cockpitRoutes';
 import type {
   CockpitAttentionKind,
   CockpitCloseoutState,
-  CockpitLifecycle,
   SecretaryCockpitAction,
   SecretaryCockpitAttention,
   SecretaryCockpitPaperwork,
@@ -38,26 +38,8 @@ export interface BuildSecretaryCockpitSnapshotInput {
   hasPrintRecords?: boolean;
 }
 
-export function lifecycleFor(status: string | undefined): CockpitLifecycle | null {
-  switch ((status ?? '').trim().toLowerCase().replace(/\s+/g, '_')) {
-    case 'setup':
-    case 'scheduled':
-    case 'upcoming':
-    case 'not_started':
-      return 'not-started';
-    case 'in_progress':
-    case 'active':
-      return 'in-progress';
-    case 'complete':
-    case 'completed':
-      return 'complete';
-    case 'cancelled':
-    case 'canceled':
-      return 'cancelled';
-    default:
-      return null;
-  }
-}
+// The status normaliser lives in the shared module so the print reminder cancels the same classes.
+export { lifecycleFor };
 
 function closeoutFor(value: string | undefined): CockpitCloseoutState {
   if (value === SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY) return 'closed';

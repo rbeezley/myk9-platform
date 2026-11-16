@@ -1,5 +1,6 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
+import { isCancelledStatus } from '../_shared/paperwork/lifecycle.ts';
 import type { SheetPrintRow } from '../_shared/paperwork/printState.ts';
 import { classPrintsCoverDay } from '../_shared/trialPacket/printReminder.ts';
 import {
@@ -51,7 +52,7 @@ export async function loadClassPrintsCoverDay(
       .is('deleted_at', null);
     if (trialsError) return false;
     const trialIds = ((trials ?? []) as { id: string; status: string | null }[])
-      .filter(trial => trial.status !== 'cancelled')
+      .filter(trial => !isCancelledStatus(trial.status))
       .map(trial => trial.id);
     if (trialIds.length === 0) return false;
 
@@ -62,7 +63,7 @@ export async function loadClassPrintsCoverDay(
       .is('deleted_at', null);
     if (classesError) return false;
     const classes = ((classRows ?? []) as unknown as Record<string, unknown>[])
-      .filter(classItem => classItem.status !== 'cancelled')
+      .filter(classItem => !isCancelledStatus(classItem.status as string | null))
       .map(toFingerprintClassRow);
     if (classes.length === 0) return false;
     const classIds = classes.map(classItem => classItem.id);
@@ -90,11 +91,26 @@ export async function loadClassPrintsCoverDay(
     );
     if (!prints) return false;
 
+    // Who is on the run sheet is the packet's own rule, held in one place in SQL
+    // (`emergency_packet_input`: withdrawn, scratched, moved, absent, pulled, awaiting a
+    // registration number). Asking it beats a second copy of that rule that could drift.
+    const { data: packetInput, error: packetError } = await supabase.rpc('emergency_packet_input', {
+      p_show_id: showId,
+      p_trial_date: trialDate,
+    });
+    if (packetError) return false;
+    const packetEntries = (packetInput as { entries?: unknown } | null)?.entries;
+    if (!Array.isArray(packetEntries)) return false;
+    const printableEntryIds = new Set(
+      (packetEntries as { id?: unknown }[]).map(entry => String(entry.id))
+    );
+
     return classPrintsCoverDay({
       showId,
       classes,
       entries: entryRows.map(toFingerprintEntryRow),
       prints,
+      printableEntryIds,
     });
   } catch {
     return false;

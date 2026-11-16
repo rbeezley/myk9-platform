@@ -19,6 +19,7 @@ import { useScoringStore, type QualifyingResult } from '@/store/scoringStore';
 import { logger } from '@/services/LoggingService';
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
 import { parseDuration } from '@myk9/core';
+import { ScoreResultRefusedError } from './scoreResultRefusedError';
 
 export interface ScoreSubmissionData {
   entryId: string | number;
@@ -121,9 +122,7 @@ export function useOptimisticScoring() {
         // ('pending', is_scored false) behind a "saved" message (MYK9-1806).
         // Refuse it through the same fail-closed path as a queue failure.
         if (optimisticResult.trim() !== '' && resultStatus === 'pending') {
-          throw new Error(
-            `"${optimisticResult}" is not a result that can be saved. Choose the result again and save.`
-          );
+          throw new ScoreResultRefusedError(optimisticResult);
         }
         const searchTimeSeconds = scoreData.searchTime
           ? convertTimeToSeconds(scoreData.searchTime)

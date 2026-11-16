@@ -12,6 +12,7 @@
  * fired anyway.
  */
 
+import { ScoreResultRefusedError } from './scoreResultRefusedError';
 import { renderHook, act } from '@testing-library/react';
 import { useOptimisticScoring } from './useOptimisticScoring';
 
@@ -34,7 +35,8 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 vi.mock('@/utils/scoringMappings', () => ({
-  mapQualificationToResultStatus: (r: string) => (r === 'Qualified' ? 'qualified' : 'nq'),
+  mapQualificationToResultStatus: (r: string) =>
+    r === 'Qualified' ? 'qualified' : r === 'Mystery' ? 'pending' : 'nq',
 }));
 
 function baseOptions(overrides: Record<string, unknown> = {}) {
@@ -56,6 +58,23 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     addScoreToSession.mockReset();
     // Force the online branch so the no-op serverUpdate resolves to success.
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  });
+
+  it('refuses a result it cannot map with a typed error, and a queue failure is not that type', async () => {
+    const refused = baseOptions({ scoreData: { resultText: 'Mystery', faultCount: 0 } });
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(refused);
+    });
+    expect(refused.onError.mock.calls[0][0]).toBeInstanceOf(ScoreResultRefusedError);
+    expect(updateEntry).not.toHaveBeenCalled();
+
+    updateEntry.mockRejectedValue(new Error('Mutation queue is full (1000)'));
+    const full = baseOptions();
+    await act(async () => {
+      await result.current.submitScoreOptimistically(full);
+    });
+    expect(full.onError.mock.calls[0][0]).not.toBeInstanceOf(ScoreResultRefusedError);
   });
 
   it('does NOT call onSuccess when the queue write throws (e.g. queue overflow)', async () => {

@@ -329,9 +329,7 @@ describe('Overview paperwork follows the replicated class rows and never claims 
     expect(mocks.classListeners.size).toBeGreaterThan(0);
     act(() => mocks.classListeners.forEach(listener => listener()));
 
-    expect(
-      (await screen.findAllByText(/Changed since printing/)).length
-    ).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Changed since printing/)).length).toBeGreaterThan(0);
   });
 
   it('stops claiming current and stops recording when a refetch fails over cached rows', async () => {
@@ -380,9 +378,7 @@ describe('Overview paperwork follows the replicated class rows and never claims 
     mocks.getClassesByTrialId.mockResolvedValue({ data: changed, error: null });
     renderOverview(queryClient);
 
-    expect(
-      (await screen.findAllByText(/Changed since printing/)).length
-    ).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Changed since printing/)).length).toBeGreaterThan(0);
     expect(screen.queryByText(/^Printed .* by Jannie/)).not.toBeInTheDocument();
   });
 

@@ -314,6 +314,7 @@ const ClassDetailsPage: React.FC = () => {
           <ExhibitorClassCallout
             classId={classId}
             releasedRows={releasedResults.rawEntries}
+            resultsReleasedAt={currentClass?.results_released_at}
             scoresOnPaper={isClassScoredOnPaper(
               currentClass?.scoresOnPaper,
               parentShow?.usesDeviceScoring

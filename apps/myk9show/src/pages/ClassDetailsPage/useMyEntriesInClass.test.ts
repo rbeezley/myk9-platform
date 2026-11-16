@@ -113,11 +113,44 @@ describe('useMyEntriesInClass', () => {
       recordedAt: '',
     };
     setMocks({ entries: [makeEntry({ competitionData: compData, status: 'completed' })] });
-    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    const { result } = renderHook(() =>
+      useMyEntriesInClass(CLASS_ID, undefined, false, '2026-11-01T00:00:00Z')
+    );
     expect(result.current.isAfterClass).toBe(true);
     expect(result.current.myEntries[0].hasResult).toBe(true);
     expect(result.current.myEntries[0].result?.qualified).toBe(true);
     expect(result.current.myEntries[0].result?.time).toBe('00:38.2');
+    expect(result.current.myEntries[0].result?.placement).toBe(1);
+  });
+
+  // MYK9-2094: an unreleased result reads preliminary and withholds the place.
+  it('marks a store result preliminary and withholds placement until released', () => {
+    const compData = {
+      qualified: true,
+      time: '00:38.2',
+      placement: '1',
+      recordedBy: 'j',
+      recordedAt: '',
+    };
+    setMocks({ entries: [makeEntry({ competitionData: compData, status: 'completed' })] });
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(result.current.myEntries[0].result?.isPreliminary).toBe(true);
+    expect(result.current.myEntries[0].result?.placement).toBeUndefined();
+  });
+
+  it('does not mark a store result preliminary once the class is released', () => {
+    const compData = {
+      qualified: true,
+      time: '00:38.2',
+      placement: '1',
+      recordedBy: 'j',
+      recordedAt: '',
+    };
+    setMocks({ entries: [makeEntry({ competitionData: compData, status: 'completed' })] });
+    const { result } = renderHook(() =>
+      useMyEntriesInClass(CLASS_ID, undefined, false, '2026-11-01T00:00:00Z')
+    );
+    expect(result.current.myEntries[0].result?.isPreliminary).toBe(false);
     expect(result.current.myEntries[0].result?.placement).toBe(1);
   });
 

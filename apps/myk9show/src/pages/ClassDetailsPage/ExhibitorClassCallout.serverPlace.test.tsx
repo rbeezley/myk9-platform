@@ -133,7 +133,7 @@ describe('ExhibitorClassCallout with a server place in line', () => {
       screen.getByText('This class is scored on paper. Listen for your number at the ring.')
     ).toBeInTheDocument();
     expect(rpc).not.toHaveBeenCalled();
-    expect(useMyEntriesInClass).toHaveBeenCalledWith('c1', undefined, true);
+    expect(useMyEntriesInClass).toHaveBeenCalledWith('c1', undefined, true, undefined);
   });
 
   it('says the order may be out of date for a stale claim (MYK9-1970)', async () => {

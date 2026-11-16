@@ -444,5 +444,33 @@ describe('TrialPacketPanel', () => {
       expect(await screen.findByText(/Could not check which classes changed/)).toBeVisible();
       expect(screen.getByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
     });
+
+    it('shows every class when the history becomes unavailable after opening narrowed, and narrows again when it returns', async () => {
+      mocks.prints = {
+        data: printedRecords(),
+        isLoading: false,
+        isError: false,
+        syncFailed: false,
+      };
+      mocks.entries = [...ENTRIES, entryRow('e9', 'c-exterior', 202, 2)];
+      const { rerender } = renderPanel();
+      expect(await screen.findByText(/Only the 1 class that changed since printing/)).toBeVisible();
+      expect(screen.queryByRole('button', { name: /Pat Donovan/ })).not.toBeInTheDocument();
+
+      // The history goes unavailable: the note says every class is shown, and the packet holds them.
+      mocks.prints = { ...mocks.prints, syncFailed: true };
+      rerender(<TrialPacketPanel open showId="show-1" trialId="trial-1" onClose={vi.fn()} />);
+      expect(await screen.findByText(/Could not check which classes changed/)).toBeVisible();
+      expect(await screen.findByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
+
+      // It comes back: the view she opened on returns.
+      mocks.prints = { ...mocks.prints, syncFailed: false };
+      rerender(<TrialPacketPanel open showId="show-1" trialId="trial-1" onClose={vi.fn()} />);
+      expect(await screen.findByText(/Only the 1 class that changed since printing/)).toBeVisible();
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: /Pat Donovan/ })).not.toBeInTheDocument()
+      );
+    });
   });
 });

@@ -83,11 +83,13 @@ export function useChangedPacket(input: {
     () => new Set([...(decision?.baseIds ?? []), ...(known?.needIds ?? [])]),
     [decision, known]
   );
-  const packet = useMemo(
-    () => (fullPacket && onlyNeed ? onlyPacketClasses(fullPacket, shownIds) : fullPacket),
-    [fullPacket, onlyNeed, shownIds]
-  );
+  // Narrow only while the history is known: when it goes unavailable the packet holds every class,
+  // as the note says, and the opening decision comes back when the history does.
   const narrowed = onlyNeed && known !== null;
+  const packet = useMemo(
+    () => (fullPacket && narrowed ? onlyPacketClasses(fullPacket, shownIds) : fullPacket),
+    [fullPacket, narrowed, shownIds]
+  );
 
   return {
     status,

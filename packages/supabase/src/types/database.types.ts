@@ -2471,6 +2471,8 @@ export type Database = {
           area3_incorrect: number | null
           area3_time_seconds: number | null
           area4_time_seconds: number | null
+          area5_time_seconds: number | null
+          element_time_seconds: number | null
           armband: string | null
           bonus_points: number | null
           capacity_override: boolean
@@ -2582,6 +2584,8 @@ export type Database = {
           area3_incorrect?: number | null
           area3_time_seconds?: number | null
           area4_time_seconds?: number | null
+          area5_time_seconds?: number | null
+          element_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
@@ -2693,6 +2697,8 @@ export type Database = {
           area3_incorrect?: number | null
           area3_time_seconds?: number | null
           area4_time_seconds?: number | null
+          area5_time_seconds?: number | null
+          element_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
@@ -11951,6 +11957,8 @@ export type Database = {
           area3_incorrect: number | null
           area3_time_seconds: number | null
           area4_time_seconds: number | null
+          area5_time_seconds: number | null
+          element_time_seconds: number | null
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null
@@ -12273,6 +12281,8 @@ export type Database = {
           area3_incorrect: number | null
           area3_time_seconds: number | null
           area4_time_seconds: number | null
+          area5_time_seconds: number | null
+          element_time_seconds: number | null
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null

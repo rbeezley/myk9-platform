@@ -41,6 +41,7 @@ import { startingReasonFor } from '../../../utils/resultReasons';
 import type { LiveScoresheetProps, ResolvedClassRules, StopwatchReturn } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
 import { scoringSource, timerPersist } from '../../../utils/timerPersist';
+import { savedElementTimeFor } from './savedElementTime';
 
 const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
@@ -228,12 +229,13 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     setShowConfirmation(true);
   };
 
+  const savedElement = savedElementTimeFor(elementTimer, entry.existingScore?.element);
+
   const handleConfirmSubmit = async () => {
     // Pass element time as extra data when dual. The live clock, not `time`: Save
     // does not wait for Finish, so the element clock may still be running.
-    const extra = isDual
-      ? { element: elementTimer.formatTime(elementTimer.getTimeMs()) }
-      : undefined;
+    const elementText = savedElement.text();
+    const extra = isDual && elementText ? { element: elementText } : undefined;
     await scoring.handleSubmit(onSubmit, extra);
     setShowConfirmation(false);
   };
@@ -468,7 +470,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               ? [
                   {
                     label: 'Element Time',
-                    value: <StopwatchTime stopwatch={elementTimer} />,
+                    value: savedElement.keepSaved ?? <StopwatchTime stopwatch={elementTimer} />,
                     mono: true,
                   },
                 ]

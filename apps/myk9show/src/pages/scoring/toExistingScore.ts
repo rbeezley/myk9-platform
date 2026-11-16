@@ -30,6 +30,7 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
     entry.area2_time_seconds,
     entry.area3_time_seconds,
     entry.area4_time_seconds,
+    entry.area5_time_seconds,
   ];
   // A row scored before the per-area columns existed only has the total; show
   // it in Area 1 rather than hiding the saved time.
@@ -55,6 +56,9 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
     incorrectCount: entry.total_incorrect_finds ?? 0,
     faultCount: entry.total_faults ?? entry.totalFaults ?? 0,
     finishCallErrors: entry.no_finish_count ?? 0,
+    ...(entry.element_time_seconds
+      ? { element: dbSecondsToInputFormat(entry.element_time_seconds) }
+      : {}),
     points: entry.points_earned ?? 0,
     ...(entry.disqualification_reason
       ? { nonQualifyingReason: entry.disqualification_reason }
@@ -69,7 +73,7 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
  * The rest hold extra inputs in local state that start at zero (Rally deductions,
  * FastCAT result, Obedience result), so a time-only correction would overwrite
  * real saved data. They keep opening blank until each is hydrated. The Nosework
- * element time is never stored, so there is nothing of it to lose.
+ * element time is stored (MYK9-2068) and read back through `element`.
  */
 const PREFILL_SHEETS: ReadonlySet<ScoresheetSportType> = new Set([
   'AKC_SCENT_WORK',

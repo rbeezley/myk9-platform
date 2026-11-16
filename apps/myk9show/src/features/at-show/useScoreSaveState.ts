@@ -16,6 +16,8 @@ const SCORE_DETAIL_KEYS = [
   'area2_time_seconds',
   'area3_time_seconds',
   'area4_time_seconds',
+  'area5_time_seconds',
+  'element_time_seconds',
   'total_correct_finds',
   'total_incorrect_finds',
   'no_finish_count',

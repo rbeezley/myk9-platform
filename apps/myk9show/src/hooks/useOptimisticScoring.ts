@@ -146,6 +146,11 @@ export function useOptimisticScoring() {
         detailFields.area2_time_seconds = areaSeconds[1] ?? null;
         detailFields.area3_time_seconds = areaSeconds[2] ?? null;
         detailFields.area4_time_seconds = areaSeconds[3] ?? null;
+        // Nationals' fifth area (MYK9-2068); null for every sheet with fewer areas.
+        detailFields.area5_time_seconds = areaSeconds[4] ?? null;
+        // UKC Nosework's element time (dual-timer classes only); null clears a stale one.
+        const elementSeconds = scoreData.element ? convertTimeToSeconds(scoreData.element) : 0;
+        detailFields.element_time_seconds = elementSeconds > 0 ? elementSeconds : null;
         if (scoreData.correctCount !== undefined)
           detailFields.total_correct_finds = scoreData.correctCount;
         if (scoreData.incorrectCount !== undefined)

@@ -45,7 +45,10 @@ const SavedScoreLineBody: React.FC<{ saved: SavedScore }> = ({ saved }) => {
   const { state, sawQueued } = useScoreSaveState(saved.entryId);
   useScoresSentToast(state, sawQueued);
 
-  const parts = [saved.dogLabel, saved.resultLabel, saved.timeLabel].filter(Boolean).join(' · ');
+  const elementTime = saved.elementLabel ? `Element ${saved.elementLabel}` : null;
+  const parts = [saved.dogLabel, saved.resultLabel, saved.timeLabel, elementTime]
+    .filter(Boolean)
+    .join(' · ');
   const failed = state === 'failed';
   const note =
     state === 'acknowledged'

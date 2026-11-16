@@ -25,6 +25,8 @@ export interface SavedScore {
   resultLabel: string;
   /** "0:04.35", or null when the result carries no time (an excused dog, say). */
   timeLabel: string | null;
+  /** "0:09.10": the UKC element time, when the sheet recorded one (MYK9-2068). */
+  elementLabel?: string | null;
   /** The entry list the judge returns to (path only). */
   listPath: string;
   /** The scoresheet route that reopens this dog with what was saved. */
@@ -61,7 +63,7 @@ export interface SavedScoreInput {
   entryId: string;
   armband: number | string | null | undefined;
   callName: string;
-  scoreData: Pick<ScoreData, 'resultText' | 'searchTime'>;
+  scoreData: Pick<ScoreData, 'resultText' | 'searchTime'> & Partial<Pick<ScoreData, 'element'>>;
 }
 
 export function toSavedScore(
@@ -77,6 +79,9 @@ export function toSavedScore(
     dogLabel: dogLabel || 'This dog',
     resultLabel: RESULT_LABELS[scoreData.resultText] ?? scoreData.resultText,
     timeLabel: describeSavedTime(scoreData.searchTime),
+    ...(describeSavedTime(scoreData.element)
+      ? { elementLabel: describeSavedTime(scoreData.element) }
+      : {}),
     ...routes,
   };
 }
@@ -96,7 +101,18 @@ export const useSavedScoreStore = create<SavedScoreState>()(set => ({
   clearScroll: () =>
     set(state => {
       if (!state.saved) return state;
-      const { entryId, dogLabel, resultLabel, timeLabel, listPath, scoreRoute } = state.saved;
-      return { saved: { entryId, dogLabel, resultLabel, timeLabel, listPath, scoreRoute } };
+      const { entryId, dogLabel, resultLabel, timeLabel, elementLabel, listPath, scoreRoute } =
+        state.saved;
+      return {
+        saved: {
+          entryId,
+          dogLabel,
+          resultLabel,
+          timeLabel,
+          ...(elementLabel ? { elementLabel } : {}),
+          listPath,
+          scoreRoute,
+        },
+      };
     }),
 }));

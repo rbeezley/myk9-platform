@@ -205,6 +205,67 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(payload.points_earned).toBe(95);
   });
 
+  // MYK9-2068: Nationals' fifth area and UKC's element time have columns of their own.
+  it('writes Area 5 and the UKC element time to their own columns', async () => {
+    updateEntry.mockResolvedValue('mutation-789');
+    const opts = baseOptions({
+      scoreData: {
+        resultText: 'Qualified',
+        searchTime: '2:30.00',
+        faultCount: 0,
+        areaTimes: ['0:10.00', '0:20.00', '0:30.00', '0:40.00', '0:50.00'],
+        element: '3:05.50',
+        correctCount: 0,
+        incorrectCount: 0,
+        finishCallErrors: 0,
+        points: 0,
+      },
+    });
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(updateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ area5_time_seconds: 50, element_time_seconds: 185.5 })
+    );
+  });
+
+  it('stores a null element time when the element clock never ran', async () => {
+    updateEntry.mockResolvedValue('mutation-791');
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(
+        baseOptions({
+          scoreData: {
+            resultText: 'Qualified',
+            searchTime: '0:45.00',
+            faultCount: 0,
+            element: '0:00.00',
+          },
+        })
+      );
+    });
+    expect(updateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ element_time_seconds: null })
+    );
+  });
+
+  it('clears both columns on a score that has neither', async () => {
+    updateEntry.mockResolvedValue('mutation-790');
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(baseOptions());
+    });
+    expect(updateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ area5_time_seconds: null, element_time_seconds: null })
+    );
+  });
+
   // Rescore correcting nonzero detail down to 0 must WRITE 0, not omit it (which
   // would leave the cached nonzero value to re-upload stale). audit/Codex P2.
   it('writes an explicit 0 detail value on a rescore (does not drop it)', async () => {

@@ -3,6 +3,8 @@
 Owner: Richard Beezley. [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110).
 This complements [independent exports](independent-database-exports.md) and
 [daily physical-backup recovery](nightly-backup-recovery.md).
+The four recovery drills still owed (fresh project, Storage, failover, single show) are
+prepared in [independent-database-drills.md](independent-database-drills.md).
 
 ## What was actually tested
 

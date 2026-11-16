@@ -26,7 +26,7 @@ import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
  *      so the server genuinely rejects it (40001) and the app parks the row as
  *      a conflict instead of overwriting A's score. B's user sees the
  *      "This was changed somewhere else at the same time" notice (ReplicationSyncProvider).
- *   3. B's user resolves it with "Keep the other change". B's queue drains to 0 and both
+ *   3. B's user resolves it with "Keep the other score". B's queue drains to 0 and both
  *      devices hold the same final result (A's).
  *
  * The write guard (`installSharedStagingWriteGuard`) still protects shared
@@ -50,7 +50,8 @@ const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
-const CONFLICT_TITLE = 'This was changed somewhere else at the same time';
+// A score-against-score conflict names the dog and says it was scored two ways (MYK9-2010).
+const CONFLICT_TITLE = /was scored two ways/;
 
 test.describe('At-show multi-device offline conflict', () => {
   let seed: DisposableEntry | null = null;
@@ -137,7 +138,7 @@ test.describe('At-show multi-device offline conflict', () => {
       // Parked, not dropped: B's queue still holds its writes until the user chooses.
       expect(await readPendingMutationCount(deviceB)).toBeGreaterThan(0);
 
-      await deviceB.getByRole('button', { name: 'Keep the other change' }).click();
+      await deviceB.getByRole('button', { name: /^Keep the other score/ }).click();
       await expect(deviceB.getByText(CONFLICT_TITLE)).toHaveCount(0);
       await expect.poll(() => readPendingMutationCount(deviceB), { timeout: 30_000 }).toBe(0);
       await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 10_000 }).toBe(0);

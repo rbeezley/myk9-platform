@@ -168,7 +168,7 @@
   opacity: 0.45;
 }
 .tl-scene-who {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -263,6 +263,10 @@
   .tl-scene[data-lead='phone'] .tl-scene-stage {
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
+  }
+  /* Centring stops a grid item stretching, and the desk frame has no width of its own. */
+  .tl-scene-device[data-kind='desk'] {
+    width: 100%;
   }
   .tl-scene-device[data-kind='phone'] {
     width: min(14.5rem, 100%);

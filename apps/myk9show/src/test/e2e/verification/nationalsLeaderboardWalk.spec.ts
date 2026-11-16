@@ -44,8 +44,21 @@ test('Nationals judge walk: no placement chips, a saved Q persists, and the lead
     await page.getByTestId(`area-tab-${area}`).click();
     await page.getByRole('textbox', { name: `Area ${area} time` }).fill('00:04.00');
   }
+  // Every area kept its time (the tabs share one field), so a refused Save names the area.
+  for (let area = 1; area <= 5; area++) {
+    await page.getByTestId(`area-tab-${area}`).click();
+    await expect(page.getByRole('textbox', { name: `Area ${area} time` })).toHaveValue('0:04.00');
+  }
   await page.getByTestId('result-Q').click();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // If Save stays off, the sheet says why in an alert; surface it instead of a bare timeout.
+  const saveButton = page.getByRole('button', { name: 'Save', exact: true });
+  try {
+    await expect(saveButton).toBeEnabled({ timeout: 10_000 });
+  } catch {
+    const alerts = await page.getByRole('alert').allTextContents();
+    throw new Error(`Save is off after timing all 5 areas; alerts: ${JSON.stringify(alerts)}`);
+  }
+  await saveButton.click();
   await page.getByRole('button', { name: /Confirm & Submit/i }).click();
 
   // The result, the points and the server's own placement all land in the database.

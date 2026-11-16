@@ -60,9 +60,9 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
   });
 
   it.each([
-    ['at-gate', 'At Gate'],
-    ['come-to-gate', 'Come to Gate'],
-    ['in-ring', 'In Ring'],
+    ['at-gate', 'At gate'],
+    ['come-to-gate', 'Come to gate'],
+    ['in-ring', 'In the ring'],
     ['completed', 'Completed'],
   ] as const)('shows "%s" as "%s", not a misleading "not checked in"', async (status, label) => {
     const { container } = render(
@@ -97,7 +97,7 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
       />
     );
 
-    expect(await screen.findByText('I have a conflict — tell the secretary')).toBeInTheDocument();
+    expect(await screen.findByText('Conflict')).toBeInTheDocument();
   });
 });
 
@@ -217,7 +217,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     });
   });
 
-  it('flips the badge to "I am here" and hides the Check in button immediately on tap', async () => {
+  it('flips the badge to "Checked in" and hides the Check in button immediately on tap', async () => {
     mockMutateAsync.mockResolvedValue(undefined);
     render(
       <AtShowMyEntriesToday
@@ -232,11 +232,11 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
       />
     );
 
-    expect(screen.getByText('I am not there yet')).toBeInTheDocument();
+    expect(screen.getByText('Not checked in')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Check in/ }));
 
     await waitFor(() => {
-      expect(screen.getByText('I am here')).toBeInTheDocument();
+      expect(screen.getByText('Checked in')).toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: /Check in/ })).not.toBeInTheDocument();
   });
@@ -259,7 +259,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     fireEvent.click(screen.getByRole('button', { name: /Check in/ }));
 
     await waitFor(() => {
-      expect(screen.getByText('I am not there yet')).toBeInTheDocument();
+      expect(screen.getByText('Not checked in')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: /Check in/ })).toBeInTheDocument();
   });
@@ -281,12 +281,12 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Check in/ }));
     await waitFor(() => {
-      expect(screen.getByText('I am here')).toBeInTheDocument();
+      expect(screen.getByText('Checked in')).toBeInTheDocument();
     });
 
     // A fresh fetch lands (dataUpdatedAt changed) showing the secretary
     // reverted the exhibitor back to not-checked-in — the stale optimistic
-    // "I am here" must not linger.
+    // "Checked in" must not linger.
     rerender(
       <AtShowMyEntriesToday
         showId="show-1"
@@ -301,7 +301,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('I am not there yet')).toBeInTheDocument();
+      expect(screen.getByText('Not checked in')).toBeInTheDocument();
     });
   });
 });

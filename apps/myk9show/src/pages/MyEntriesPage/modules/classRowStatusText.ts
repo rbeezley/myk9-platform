@@ -6,6 +6,7 @@
  * @module MyEntriesPage/modules/classRowStatusText
  */
 
+import { CHECK_IN_STATE_WORDS } from '@myk9/ui';
 import { resultStatusLabel } from '@/components/common/resultStatusLabel';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass } from './groupEntriesByShow';
@@ -14,13 +15,15 @@ import { deriveClassRowState, type ClassRowKind } from './myShowDogState';
 /**
  * Copy and colour per state, chosen from the status vocabulary the rest of the
  * app already uses (`ENTRY_STATUS_DESCRIPTORS`) rather than a second palette.
+ * The check-in state words come from CHECK_IN_STATE_WORDS in `@myk9/ui`, the same
+ * table Ringside and "Your dogs today" read (MYK9-2093).
  * `undefined` means the row renders something other than a plain word.
  */
 export const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: string }>> = {
-  'in-ring': { text: 'in the ring', status: 'in-ring' },
-  'at-gate': { text: 'at gate', status: 'at-gate' },
-  'come-to-gate': { text: 'come to gate', status: 'come-to-gate' },
-  conflict: { text: 'conflict', status: 'conflict' },
+  'in-ring': { text: CHECK_IN_STATE_WORDS['in-ring'], status: 'in-ring' },
+  'at-gate': { text: CHECK_IN_STATE_WORDS['at-gate'], status: 'at-gate' },
+  'come-to-gate': { text: CHECK_IN_STATE_WORDS['come-to-gate'], status: 'come-to-gate' },
+  conflict: { text: CHECK_IN_STATE_WORDS.conflict, status: 'conflict' },
   // MYK9-632 resolves the MYK9-582 deviation recorded here. The owner's ruling
   // is that scratch and pull are the SAME act, so both rows say "pulled" — but
   // they are that act at different MOMENTS (day-of at the gate vs. before the
@@ -28,13 +31,13 @@ export const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: s
   // `text-muted-foreground`), so a bare capitalisation difference would leave
   // nothing for a screen reader to announce. The day-of row therefore says WHEN
   // rather than taking a second word for the same act.
-  pulled: { text: 'pulled at the show', status: 'pulled' },
+  pulled: { text: CHECK_IN_STATE_WORDS.pulled, status: 'pulled' },
   withdrawn: { text: 'withdrawn', status: 'withdrawn' },
   scratched: { text: 'pulled', status: 'scratched' },
   // A move-up's source row went somewhere; it was not pulled.
   moved: { text: 'moved', status: 'moved' },
   'not-accepted': { text: 'not accepted', status: 'not_accepted' },
-  'checked-in': { text: 'checked in', status: 'checked-in' },
+  'checked-in': { text: CHECK_IN_STATE_WORDS['checked-in'], status: 'checked-in' },
 };
 
 /** Literal row copy for the kinds that are not a plain state word. */

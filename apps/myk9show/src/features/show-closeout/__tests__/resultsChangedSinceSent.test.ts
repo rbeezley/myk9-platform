@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildFinishList } from '../finishList';
-import { scoresChangedSinceSend } from '../submissionTimes';
 import { calculateWhatIsLeft, type ScoreChangeRead } from '../whatIsLeft';
 
 const SENT_AT = '2026-11-14T19:40:00Z';
@@ -123,22 +122,5 @@ describe('the results file line after a score changes', () => {
       { status: 'submitted', organization: 'AKC', submitted_at: SENT_AT },
     ]);
     expect(item).toMatchObject({ state: 'done', label: 'Results file sent to AKC' });
-  });
-});
-
-describe('the send step asks the same question for one registry', () => {
-  const sent = [{ status: 'sent', organization: 'AKC', submitted_at: SENT_AT }];
-
-  it('is true after a change, false before it, and false once a newer send lands', () => {
-    expect(scoresChangedSinceSend(sent, read({ c1: AFTER }), 'AKC')).toBe(true);
-    expect(scoresChangedSinceSend(sent, read({ c1: BEFORE }), 'AKC')).toBe(false);
-    const resent = [...sent, { ...sent[0]!, submitted_at: '2026-11-14T21:00:00Z' }];
-    expect(scoresChangedSinceSend(resent, read({ c1: AFTER }), 'AKC')).toBe(false);
-  });
-
-  it('is false for a registry with no send, while loading, or when unreadable', () => {
-    expect(scoresChangedSinceSend(sent, read({ c1: AFTER }), 'UKC')).toBe(false);
-    expect(scoresChangedSinceSend(sent, { status: 'loading' }, 'AKC')).toBe(false);
-    expect(scoresChangedSinceSend(sent, { status: 'unreadable' }, 'AKC')).toBe(false);
   });
 });

@@ -1,26 +1,63 @@
+import { useMemo } from 'react';
 import { formatEntryDateTime } from '@/lib/format/dates';
 import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
-import { scoresChangedSinceSend } from '@/features/show-closeout/submissionTimes';
+import { calculateWhatIsLeft, type SentFileCheck } from '@/features/show-closeout/whatIsLeft';
+import { useShowDeskScheduleRead } from '../useShowDeskScheduleRead';
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 
 /**
- * Whether a score the file carries changed after the last send (or recorded filing) to this
- * registry (MYK9-2078). The same shared check the Finish the show list and the close step read, so
- * after a corrected send lands the record moves and the notice goes away on its own.
+ * Whether the file the app sent to this registry still matches the scores (MYK9-2078). It is the
+ * Finish the show list's own answer for that registry: the same schedule classes (with their
+ * trial, so the registry mapping works), the same shared check, the same calculation. So a change
+ * in another registry's classes never flags this one, and a queued offline score reads as
+ * "unknown". After a corrected send lands the record moves and the answer clears on its own.
  */
-export function useScoresChangedSinceSend(
+export function useSentFileCheckForSend(
   showId: string | undefined,
   organization: string | undefined
-): boolean {
-  const { submissions, scoreChanges } = useResultsSentCheck(showId ?? '', []);
-  return scoresChangedSinceSend(submissions, scoreChanges, organization);
+): SentFileCheck | undefined {
+  const schedule = useShowDeskScheduleRead();
+  const { trials, classes } = useMemo(() => {
+    const showTrials = schedule.trials
+      .filter(trial => trial.showId === showId)
+      .map(trial => ({ id: trial.id, registryId: trial.registryId }));
+    return {
+      trials: showTrials,
+      classes: showTrials.flatMap(trial =>
+        (schedule.trialClasses[trial.id] ?? []).map(cls => ({
+          id: cls.id,
+          trialId: trial.id,
+          expectedCount: null,
+          scoredCount: null,
+        }))
+      ),
+    };
+  }, [schedule.trialClasses, schedule.trials, showId]);
+  const { submissions, scoreChanges } = useResultsSentCheck(showId ?? '', classes);
+  return useMemo(() => {
+    if (!organization) return undefined;
+    const left = calculateWhatIsLeft({
+      classes,
+      trials,
+      entries: [],
+      incidents: null,
+      submissions,
+      scoreChanges,
+    });
+    return left.lines.find(
+      line => line.kind === 'results-submission' && line.registryId === organization.toUpperCase()
+    )?.sentFileCheck;
+  }, [classes, organization, scoreChanges, submissions, trials]);
 }
 
-export function ScoresChangedNotice({ show }: { show: boolean }) {
-  if (!show) return null;
+/** Only a loud answer is shown; "checking" stays quiet. */
+export function ScoresChangedNotice({ check }: { check: SentFileCheck | undefined }) {
+  if (check !== 'changed' && check !== 'unknown') return null;
   return (
     <p className="text-sm font-medium text-warning" data-testid="scores-changed-notice">
-      Scores changed since this was sent. Send the corrected results.
+      {check === 'changed'
+        ? 'Scores changed since this was sent. Send the corrected results.'
+        : 'We could not check whether scores changed since this was sent.'}
     </p>
   );
 }

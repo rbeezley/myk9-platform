@@ -98,6 +98,19 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { subscribe: () => () => {} },
 }));
 
+const mockSchedule = vi.hoisted(() => ({
+  trials: [
+    { id: 't-akc', showId: 'show-1', registryId: 'AKC' },
+    { id: 't-ukc', showId: 'show-1', registryId: 'UKC' },
+  ],
+  trialClasses: { 't-akc': [{ id: 'class-akc' }], 't-ukc': [{ id: 'class-ukc' }] },
+}));
+vi.mock('../useShowDeskScheduleRead', () => ({ useShowDeskScheduleRead: () => mockSchedule }));
+const mockUnsynced = vi.hoisted(() => vi.fn(async () => false));
+vi.mock('@/features/results-tab/useClassUnsyncedScores', () => ({
+  classHasUnsyncedScores: mockUnsynced,
+}));
+
 const mockInvoke = vi.hoisted(() => vi.fn());
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -127,6 +140,8 @@ function renderPage() {
 describe('ResultsSubmissionPage', () => {
   beforeEach(() => {
     mockHistoryData.rows = [];
+    mockUnsynced.mockReset();
+    mockUnsynced.mockResolvedValue(false);
     mockScoreChanges.mockReset();
     mockScoreChanges.mockResolvedValue(new Map());
     mockAKCData.data = null;
@@ -478,7 +493,7 @@ describe('ResultsSubmissionPage', () => {
     it('says scores changed, from the shared check, and words the confirm as a deliberate resend', async () => {
       mockAKCData.data = makeAKCSubmissionData();
       mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
-      mockScoreChanges.mockResolvedValue(new Map([['class-1', '2026-05-10T13:00:00Z']]));
+      mockScoreChanges.mockResolvedValue(new Map([['class-akc', '2026-05-10T13:00:00Z']]));
 
       renderPage();
       expect(await screen.findByTestId('scores-changed-notice')).toHaveTextContent(
@@ -492,13 +507,35 @@ describe('ResultsSubmissionPage', () => {
       expect(screen.getByTestId('send-confirm-btn')).toBeInTheDocument();
     });
 
+    it('does not flag the AKC send for a change in UKC classes only', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
+      mockScoreChanges.mockResolvedValue(new Map([['class-ukc', '2026-05-10T13:00:00Z']]));
+
+      renderPage();
+      await waitFor(() => expect(mockScoreChanges).toHaveBeenCalled());
+      await screen.findByTestId('send-btn');
+      expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
+    });
+
+    it('says it could not check while a score change waits in the queue', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
+      mockUnsynced.mockResolvedValue(true);
+
+      renderPage();
+      expect(await screen.findByTestId('scores-changed-notice')).toHaveTextContent(
+        'We could not check whether scores changed since this was sent.'
+      );
+    });
+
     it('shows no notice, and the plain warning, once the corrected send is on record', async () => {
       mockAKCData.data = makeAKCSubmissionData();
       mockHistoryData.rows = [
         makeHistoryRow({ id: 'sub-2', status: 'sent', submitted_at: '2026-05-10T14:00:00Z' }),
         makeHistoryRow({ id: 'sub-1', status: 'sent', submitted_at: '2026-05-10T12:00:00Z' }),
       ];
-      mockScoreChanges.mockResolvedValue(new Map([['class-1', '2026-05-10T13:00:00Z']]));
+      mockScoreChanges.mockResolvedValue(new Map([['class-akc', '2026-05-10T13:00:00Z']]));
 
       renderPage();
       fireEvent.click(await screen.findByTestId('send-btn'));

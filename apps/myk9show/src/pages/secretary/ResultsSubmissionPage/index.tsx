@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 import { CloseTheShowLink } from './CloseTheShowLink';
-import { PriorSendNotice, ScoresChangedNotice, useScoresChangedSinceSend } from './PriorSendNotice';
+import { PriorSendNotice, ScoresChangedNotice, useSentFileCheckForSend } from './PriorSendNotice';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { supabase } from '@/services/database/supabaseClient';
 import {
@@ -121,7 +121,7 @@ export default function ResultsSubmissionPage() {
   const activeFormatter =
     activeSubmissionOption?.mode === 'electronic' ? activeSubmissionOption.formatter : undefined;
   const selectedOrgLabel = activeSubmissionOption?.label;
-  const scoresChanged = useScoresChangedSinceSend(showId, activeFormatter?.organization);
+  const scoresCheck = useSentFileCheckForSend(showId, activeFormatter?.organization);
 
   const isAKCScentWork =
     activeSubmissionOption?.organization === 'AKC' &&
@@ -411,7 +411,7 @@ export default function ResultsSubmissionPage() {
             from here" (email now / save a copy). After a divider, the lone
             "Mark as submitted" = "I already filed these elsewhere; just log
             it." The helper line below names the difference in words. */}
-        <ScoresChangedNotice show={scoresChanged} />
+        <ScoresChangedNotice check={scoresCheck} />
         <div className="flex flex-wrap items-center gap-2 pb-0.5">
           {activeFormatter?.submissionEmail && (
             <>
@@ -437,7 +437,10 @@ export default function ResultsSubmissionPage() {
                           decision, so nothing stood between two clicks and two
                           filings with the same registry. */}
                       {priorSubmission && (
-                        <PriorSendNotice prior={priorSubmission} scoresChanged={scoresChanged} />
+                        <PriorSendNotice
+                          prior={priorSubmission}
+                          scoresChanged={scoresCheck === 'changed'}
+                        />
                       )}
                       {historyUnavailable && (
                         <span className="mb-2 block font-medium text-warning">

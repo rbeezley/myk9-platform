@@ -1,5 +1,5 @@
 import { normalizeCloseoutStatus } from './closeoutStatus';
-import type { ScoreChangeRead, WhatIsLeftInput } from './whatIsLeft';
+import type { WhatIsLeftInput } from './whatIsLeft';
 
 type Submissions = NonNullable<WhatIsLeftInput['submissions']>;
 
@@ -28,16 +28,4 @@ export function coveredUntil(submissions: Submissions | null | undefined, regist
   const sentAt = newestSubmissionAt(submissions, registryId, 'sent');
   if (sentAt === null) return null;
   return Math.max(sentAt, newestSubmissionAt(submissions, registryId, 'submitted') ?? sentAt);
-}
-
-/** The send step's question: did a score the file carries change after the last send of it? */
-export function scoresChangedSinceSend(
-  submissions: Submissions | null | undefined,
-  scoreChanges: ScoreChangeRead | undefined,
-  registryId: string | undefined
-): boolean {
-  if (!registryId || scoreChanges?.status !== 'read') return false;
-  const covered = coveredUntil(submissions, registryId);
-  if (covered === null) return false;
-  return [...scoreChanges.latestByClass.values()].some(at => Date.parse(at) > covered);
 }

@@ -42,6 +42,8 @@ export const RINGSIDE_RPC_COLUMNS: ReadonlySet<string> = new Set([
   'area2_time_seconds',
   'area3_time_seconds',
   'area4_time_seconds',
+  'area5_time_seconds',
+  'element_time_seconds',
   'total_correct_finds',
   'total_incorrect_finds',
   'total_faults',

@@ -45,6 +45,8 @@ const RUN_STARTED_NUMERIC_COLUMNS = [
   'area2_time_seconds',
   'area3_time_seconds',
   'area4_time_seconds',
+  'area5_time_seconds',
+  'element_time_seconds',
   'total_faults',
   'total_correct_finds',
   'total_score',

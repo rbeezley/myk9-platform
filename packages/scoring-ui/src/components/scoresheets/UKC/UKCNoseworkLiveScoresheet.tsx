@@ -228,12 +228,20 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     setShowConfirmation(true);
   };
 
+  // Correcting a saved score reopens with the element clock at zero: unless the
+  // judge ran it again, keep the saved element time rather than writing 0:00.00.
+  const savedElementTime = entry.existingScore?.element;
+  const elementClockUnused = elementTimer.getTimeMs() === 0 && !elementTimer.isRunning;
+  const keepSavedElementTime = Boolean(savedElementTime) && elementClockUnused;
+  const elementTimeText = () =>
+    keepSavedElementTime && savedElementTime
+      ? savedElementTime
+      : elementTimer.formatTime(elementTimer.getTimeMs());
+
   const handleConfirmSubmit = async () => {
     // Pass element time as extra data when dual. The live clock, not `time`: Save
     // does not wait for Finish, so the element clock may still be running.
-    const extra = isDual
-      ? { element: elementTimer.formatTime(elementTimer.getTimeMs()) }
-      : undefined;
+    const extra = isDual ? { element: elementTimeText() } : undefined;
     await scoring.handleSubmit(onSubmit, extra);
     setShowConfirmation(false);
   };
@@ -468,7 +476,11 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               ? [
                   {
                     label: 'Element Time',
-                    value: <StopwatchTime stopwatch={elementTimer} />,
+                    value: keepSavedElementTime ? (
+                      savedElementTime
+                    ) : (
+                      <StopwatchTime stopwatch={elementTimer} />
+                    ),
                     mono: true,
                   },
                 ]

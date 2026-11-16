@@ -13,6 +13,7 @@ import {
 } from '@myk9/scoring-ui';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import { toExistingScore } from './toExistingScore';
 import {
   toOptimisticScorePayload,
   toScoresheetEntry,
@@ -206,8 +207,8 @@ const cases: SheetCase[] = [
     },
     expected: {
       resultText: 'Q',
-      // Only Areas 1 to 4 are stored (MYK9-2006); Area 5 lives in the total until MYK9-2068.
-      areaTimes: ['0:04.35', ...NATIONALS_FRESH_TIMES.slice(0, 3).map(([, time]) => time), ''],
+      // All five areas come back, Area 5 from its own column (MYK9-2068).
+      areaTimes: ['0:04.35', ...NATIONALS_FRESH_TIMES.map(([, time]) => time)],
       correctCount: 2,
       incorrectCount: 1,
       finishCallErrors: 1,
@@ -216,7 +217,7 @@ const cases: SheetCase[] = [
     // The only change: Area 1's time.
     correctFaults: () => type('Area 1 time', '0:05.00'),
     expectedAfterFaultFix: {
-      areaTimes: ['0:05.00', ...NATIONALS_FRESH_TIMES.slice(0, 3).map(([, time]) => time), ''],
+      areaTimes: ['0:05.00', ...NATIONALS_FRESH_TIMES.map(([, time]) => time)],
       correctCount: 2,
       incorrectCount: 1,
       finishCallErrors: 1,
@@ -323,11 +324,15 @@ describe('AKC Nationals with five areas (MYK9-2006)', () => {
     const saved = { ...(await save(first)) };
     // 4:04.35 minus nothing: all five times are in the stored total.
     expect(saved.search_time_seconds).toBeCloseTo(104.35, 2);
+    // Area 5 has its own column (MYK9-2068), not only a share of the total.
+    expect(saved.area5_time_seconds).toBeCloseTo(40, 2);
 
     const again = await runSheet('AKC_SCENT_WORK_NATIONAL', fiveAreas, saved, () => {});
+    expect(again.areaTimes[4]).toBe('0:40.00');
     const savedAgain = await save(again);
     expect(savedAgain.search_time_seconds).toBeCloseTo(104.35, 2);
     for (const col of [
+      'area5_time_seconds',
       'area1_time_seconds',
       'area2_time_seconds',
       'area3_time_seconds',
@@ -355,5 +360,40 @@ describe('AKC Nationals with five areas (MYK9-2006)', () => {
     const savedFixed = await save(fixed);
     expect(savedFixed.search_time_seconds).toBeCloseTo(107.35, 2);
     expect(savedFixed.area2_time_seconds).toBeCloseTo(13, 2);
+    expect(savedFixed.area5_time_seconds).toBeCloseTo(40, 2);
+  });
+});
+
+describe('UKC Nosework element time (MYK9-2068)', () => {
+  const dual: ResolvedClassRules = { ...oneArea, timerMode: 'dual', maxTimeSeconds: 300 };
+  const scored: ScoreData = {
+    resultText: 'Q',
+    searchTime: '0:04.35',
+    areas: { 'area 1': '0:04.35 NOT FOUND INCORRECT' },
+    areaTimes: ['0:04.35'],
+    correctCount: 0,
+    incorrectCount: 0,
+    faultCount: 0,
+    finishCallErrors: 0,
+    points: 0,
+    element: '0:09.10',
+  };
+
+  beforeEach(() => {
+    device.row = { ...blankRow };
+  });
+
+  it('stores the element time and Correct this score reads it back', async () => {
+    const saved = await save(scored);
+    expect(saved.element_time_seconds).toBeCloseTo(9.1, 2);
+    expect(toExistingScore(saved)?.element).toBe('0:09.10');
+  });
+
+  it('saving a correction without running the element clock keeps the saved element time', async () => {
+    const saved = await save(scored);
+    const again = await runSheet('UKC_NOSEWORK', dual, saved, () => {});
+    expect(again.element).toBe('0:09.10');
+    const savedAgain = await save(again);
+    expect(savedAgain.element_time_seconds).toBeCloseTo(9.1, 2);
   });
 });

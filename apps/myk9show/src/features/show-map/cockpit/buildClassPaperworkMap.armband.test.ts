@@ -173,6 +173,7 @@ describe('armband labels card: one-dog prints (MYK9-2073)', () => {
   it('is not confirmed when only one dog label was ever printed', () => {
     const { labels } = cards(entries, [oneDog('one', '2026-12-07T09:00:00Z', 'B')]);
     expect(labels('class-a')?.state).toBe('unconfirmed');
+    expect(labels('class-a')?.printedBy ?? null).toBeNull();
   });
 
   it('is stale when a late entry came after a real class print', () => {

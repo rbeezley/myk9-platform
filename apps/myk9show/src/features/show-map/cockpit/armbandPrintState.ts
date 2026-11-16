@@ -47,7 +47,8 @@ export function deriveArmbandPrintState(
     changed || (unprinted && fullPrint) ? 'stale' : unprinted ? 'unconfirmed' : 'current';
   return {
     state,
-    record: fullPrint ?? newestFirst[0] ?? null,
+    // Not confirmed means no "printed by" line: one dog's label does not speak for the class.
+    record: state === 'unconfirmed' ? null : (fullPrint ?? newestFirst[0] ?? null),
     staleSubjectKeys: staleSubjectKeys.sort(),
   };
 }

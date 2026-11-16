@@ -136,9 +136,24 @@ export function SecretaryCockpit({
   // MYK9-1727: a class the secretary clicked stays open when her own work moves it out of the
   // filter. Tracked here, not from the URL: the URL also records the automatic default.
   const [clickedClassId, setClickedClassId] = useState<string>();
+  const [attentionOpenChoice, setAttentionOpenChoice] = useState<boolean | null>(null);
   const { shows: panelShows, listed: focusedClassIsVisible } = focusedPanelShows(
     model,
     clickedClassId
+  );
+  // Pinned beside the rail, the panel starts at the schedule heading, not under it (MYK9-1989).
+  const panelLifted =
+    pinMode === 'panel' && panelShows && model.focusedClass !== null && !selecting;
+  const attentionStrip = model.attention.items.length > 0 && (
+    <CockpitAttentionStrip
+      openChoice={attentionOpenChoice}
+      onOpenChoiceChange={setAttentionOpenChoice}
+      items={model.attention.items}
+      all={model.attention.all}
+      overflowCount={model.attention.overflowCount}
+      classNameById={new Map(model.daySchedule.map(cls => [cls.id, cls.name]))}
+      onCommand={onCommand}
+    />
   );
   const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
@@ -263,16 +278,9 @@ export function SecretaryCockpit({
 
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
-      {/* Needs attention first (MYK9-1727); the Filter sits under the schedule heading it narrows. */}
-      {model.attention.items.length > 0 && (
-        <CockpitAttentionStrip
-          items={model.attention.items}
-          all={model.attention.all}
-          overflowCount={model.attention.overflowCount}
-          classNameById={new Map(model.daySchedule.map(cls => [cls.id, cls.name]))}
-          onCommand={onCommand}
-        />
-      )}
+      {/* Needs attention first (MYK9-1727); the Filter sits under the schedule heading it narrows.
+          With the class panel lifted it rides the rail above the heading instead (MYK9-1989). */}
+      {!panelLifted && attentionStrip}
 
       {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
 
@@ -287,7 +295,11 @@ export function SecretaryCockpit({
         // (MYK9-1322); split already uses minmax(0, …) (cockpitSplit.ts).
         className={cn(
           'grid items-start',
-          isSplit ? 'grid-rows-[auto_auto] gap-5' : 'grid-cols-[minmax(0,1fr)] gap-4'
+          // Lifted, the panel spans both rows; a flexible second row takes its extra height, so
+          // no gap opens under the heading above a short schedule (MYK9-1989).
+          isSplit
+            ? cn(panelLifted ? 'grid-rows-[auto_minmax(0,1fr)]' : 'grid-rows-[auto_auto]', 'gap-5')
+            : 'grid-cols-[minmax(0,1fr)] gap-4'
         )}
         style={
           isSplit
@@ -306,6 +318,8 @@ export function SecretaryCockpit({
         <SecretaryCockpitSchedule
           showId={snapshot.showId}
           split={isSplit}
+          panelLifted={panelLifted}
+          aboveHeading={panelLifted ? attentionStrip : undefined}
           entryBreakdownByClassId={entryBreakdownByClassId}
           renderTrialActions={canManageShow ? renderTrialActions : undefined}
           model={model}
@@ -342,6 +356,7 @@ export function SecretaryCockpit({
           split={isSplit}
           focus={{ shows: panelShows, listed: focusedClassIsVisible, id: focusedId }}
           pinned={pinMode === 'panel'}
+          lifted={panelLifted}
           scheduleEmpty={model.trialGroups.length === 0}
           selecting={selecting}
         >

@@ -219,4 +219,42 @@ describe('the class editor survives the split/stack switch', () => {
       expect(screen.getByRole('complementary').innerHTML).not.toContain('scroll-mt-');
     }
   });
+
+  // MYK9-1989: with the class panel lifted, the strip rides the rail above the heading, so the
+  // panel starts level with it; stacked it stays above the grid, as before.
+  it.each([
+    { name: 'split and pinned', width: COCKPIT_SPLIT_MIN_WIDTH, inRail: true },
+    { name: 'stacked', width: COCKPIT_SPLIT_MIN_WIDTH - 1, inRail: false },
+  ])(
+    'places the Needs attention strip in the schedule rail when $name: $inRail',
+    ({ width, inRail }) => {
+      cockpit.width = width;
+      const flagged = {
+        ...snapshot,
+        classes: [
+          {
+            ...snapshot.classes[0]!,
+            attention: [
+              {
+                id: 'a-1',
+                classId: 'class-1',
+                kind: 'blocker' as const,
+                label: 'Score sheets not printed',
+                reason: 'Starts 10:45',
+                destination: null,
+              },
+            ],
+          },
+        ],
+      };
+      render(<SecretaryCockpit snapshot={flagged} canManageShow onCommand={vi.fn()} />, {
+        initialRoute: '/shows/show-1?focus=class-1',
+      });
+      const strip = screen.getByRole('region', { name: /needs attention/i });
+      const scheduleHeading = screen.getByRole('heading', { name: /schedule/i });
+      const section = scheduleHeading.closest('section');
+      expect(section?.contains(strip)).toBe(inRail);
+      expect(screen.getAllByRole('region', { name: /needs attention/i })).toHaveLength(1);
+    }
+  );
 });

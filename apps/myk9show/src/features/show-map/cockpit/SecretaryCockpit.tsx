@@ -146,7 +146,6 @@ export function SecretaryCockpit({
     pinMode === 'panel' && panelShows && model.focusedClass !== null && !selecting;
   const attentionStrip = model.attention.items.length > 0 && (
     <CockpitAttentionStrip
-      foldedForClass={panelLifted}
       openChoice={attentionOpenChoice}
       onOpenChoiceChange={setAttentionOpenChoice}
       items={model.attention.items}
@@ -296,7 +295,11 @@ export function SecretaryCockpit({
         // (MYK9-1322); split already uses minmax(0, …) (cockpitSplit.ts).
         className={cn(
           'grid items-start',
-          isSplit ? 'grid-rows-[auto_auto] gap-5' : 'grid-cols-[minmax(0,1fr)] gap-4'
+          // Lifted, the panel spans both rows; a flexible second row takes its extra height, so
+          // no gap opens under the heading above a short schedule (MYK9-1989).
+          isSplit
+            ? cn(panelLifted ? 'grid-rows-[auto_minmax(0,1fr)]' : 'grid-rows-[auto_auto]', 'gap-5')
+            : 'grid-cols-[minmax(0,1fr)] gap-4'
         )}
         style={
           isSplit

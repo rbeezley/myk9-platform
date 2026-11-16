@@ -36,7 +36,7 @@ const items: SecretaryCockpitAttention[] = [
   },
 ];
 
-function renderStrip(onCommand = vi.fn(), foldedForClass = false) {
+function renderStrip(onCommand = vi.fn()) {
   return {
     onCommand,
     ...render(
@@ -46,7 +46,6 @@ function renderStrip(onCommand = vi.fn(), foldedForClass = false) {
         overflowCount={0}
         classNameById={new Map([['class-1', 'Container Novice A']])}
         onCommand={onCommand}
-        foldedForClass={foldedForClass}
       />
     ),
   };
@@ -57,17 +56,7 @@ describe('CockpitAttentionStrip', () => {
     phone.value = false;
   });
 
-  it('folds to its count line beside a lifted class panel, and opens on request (MYK9-1989)', async () => {
-    const { user } = renderStrip(vi.fn(), true);
-    const toggle = screen.getByRole('button', { name: /needs attention · 3/i });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Closeout unreadable')).not.toBeInTheDocument();
-
-    await user.click(toggle);
-    expect(screen.getByText('Closeout unreadable')).toBeInTheDocument();
-  });
-
-  it('keeps the choice the cockpit holds, so moving the strip does not refold it', () => {
+  it('keeps the choice the cockpit holds, so moving the strip into the rail keeps it (MYK9-1989)', () => {
     render(
       <CockpitAttentionStrip
         items={items}
@@ -75,19 +64,18 @@ describe('CockpitAttentionStrip', () => {
         overflowCount={0}
         classNameById={new Map()}
         onCommand={vi.fn()}
-        foldedForClass
-        openChoice
+        openChoice={false}
         onOpenChoiceChange={vi.fn()}
       />
     );
     expect(screen.getByRole('button', { name: /needs attention · 3/i })).toHaveAttribute(
       'aria-expanded',
-      'true'
+      'false'
     );
   });
 
-  it('stays open on a laptop when no class panel is lifted', () => {
-    renderStrip(vi.fn(), false);
+  it('starts open on a laptop', () => {
+    renderStrip(vi.fn());
     expect(screen.getByRole('button', { name: /needs attention · 3/i })).toHaveAttribute(
       'aria-expanded',
       'true'

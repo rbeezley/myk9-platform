@@ -8,7 +8,7 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
  * measured as the secretary meets it: the class opened and NOT scrolled. The owner, on a MacBook:
  * the headers stacked above the entries filled about three quarters of the window. From lg the
  * class header is always compact (name and controls on one line, values on the next, settings
- * behind Class settings), the breadcrumb row folds away, "Needs attention" folds into the rail, the class panel starts beside the
+ * behind Class settings), the breadcrumb row folds away, "Needs attention" moves into the rail, the class panel starts beside the
  * schedule heading, and a locked check-in is a lock icon, so every row is one line tall.
  *
  * Without scrolling, the first entry row's top is in the upper half of a 1280x800 and a 1440x900

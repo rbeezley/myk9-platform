@@ -33,7 +33,6 @@ export function CockpitAttentionStrip({
   overflowCount,
   classNameById,
   onCommand,
-  foldedForClass = false,
   openChoice: openChoiceProp,
   onOpenChoiceChange,
 }: {
@@ -42,8 +41,6 @@ export function CockpitAttentionStrip({
   overflowCount: number;
   classNameById: ReadonlyMap<string, string>;
   onCommand: (commandId: string) => void;
-  /** The focused class's panel is lifted beside the rail (MYK9-1989): start folded, count showing. */
-  foldedForClass?: boolean;
   /**
    * The user's open/closed choice, held by the cockpit so it survives the strip moving between the
    * rail and the full-width slot (each is a different tree position, so local state would reset).
@@ -56,16 +53,13 @@ export function CockpitAttentionStrip({
   const [localChoice, setLocalChoice] = useState<boolean | null>(null);
   const openChoice = openChoiceProp === undefined ? localChoice : openChoiceProp;
   const setOpenChoice = onOpenChoiceChange ?? setLocalChoice;
-  // A class selected on a laptop folds the pills behind the heading (MYK9-1989): the count stays
-  // and the toggle opens them, so the class's entries get the height.
-  const open = openChoice ?? (!isPhone && !foldedForClass);
+  const open = openChoice ?? !isPhone;
   const visible = showAll ? all : items;
 
   return (
     <section
       aria-labelledby="cockpit-attention-title"
-      className="flex flex-wrap items-center gap-2.5 rounded-xl border bg-card px-4 py-3 data-[folded=true]:py-0"
-      data-folded={foldedForClass && !open ? 'true' : undefined}
+      className="flex flex-wrap items-center gap-2.5 rounded-xl border bg-card px-4 py-3"
     >
       <h2 id="cockpit-attention-title" className="mr-2 text-sm font-semibold">
         <button

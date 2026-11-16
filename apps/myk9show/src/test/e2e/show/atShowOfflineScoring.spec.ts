@@ -11,6 +11,7 @@ import {
   readReplicationStoreCount,
   seedDisposableEntry,
 } from '../helpers/isolatedFixtures';
+import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
 
 /**
  * Suite category: feature-audit.
@@ -60,6 +61,7 @@ test.describe('At-show offline scoring', () => {
       await context.setOffline(true);
       await page.evaluate(() => window.dispatchEvent(new Event('offline')));
 
+      await fillEveryAreaTime(page);
       await page.getByTestId('result-Q').click();
       const saveButton = page.getByRole('button', { name: /^Save$/ });
       await expect(saveButton).toBeEnabled();

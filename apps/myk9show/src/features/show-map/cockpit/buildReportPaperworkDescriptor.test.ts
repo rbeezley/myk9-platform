@@ -123,4 +123,31 @@ describe('buildReportPaperworkDescriptor: element time (MYK9-2090)', () => {
     const withElement = fingerprintsThroughBothReadPaths({ ...base, element_time_seconds: 42.5 });
     expect(withElement.results).not.toBe(absent.results);
   });
+
+  it('result labels, which do not print the element time, ignore it', () => {
+    const labelFingerprint = (elementTime: number | null) =>
+      buildReportPaperworkDescriptor({
+        reportId: 'result-labels',
+        scope: SCOPE,
+        classes: [CLASS],
+        entries: [
+          mapReplicatedEntryToDbRow(
+            {
+              id: 'entry-1',
+              classId: 'class-1',
+              dogId: 'dog-1',
+              showId: 'show-1',
+              armband: '200',
+              isScored: true,
+              ...base,
+              element_time_seconds: elementTime,
+            } as unknown as ReplicatedEntry,
+            { dog: null }
+          ) as unknown as DbEntry,
+        ],
+      })?.fingerprint;
+    expect(labelFingerprint(42.5)).toBeDefined();
+    expect(labelFingerprint(42.5)).toBe(labelFingerprint(43.5));
+    expect(labelFingerprint(42.5)).toBe(labelFingerprint(null));
+  });
 });

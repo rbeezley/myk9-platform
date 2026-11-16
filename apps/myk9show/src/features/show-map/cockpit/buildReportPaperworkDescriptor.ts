@@ -106,7 +106,9 @@ export function buildReportPaperworkDescriptor(input: {
       input.reportId,
       input.scope,
       selected.map(entry => {
-        const elementTimeSeconds = numberOrNull(entry.element_time_seconds);
+        // Only the results sheet prints the element time; labels do not, so they ignore it.
+        const elementTimeSeconds =
+          input.reportId === 'results-sheet' ? numberOrNull(entry.element_time_seconds) : null;
         return {
           entryId: entry.id,
           classId: entry.class_id ?? '',

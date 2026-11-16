@@ -311,9 +311,7 @@ describe('SavedCopySection', () => {
   it('shows a checking line and keeps the button off while the sent copies are being read', async () => {
     mocks.listState = 'pending';
     await openSection();
-    expect(screen.getAllByText('Checking which copies were already sent…').length).toBeGreaterThan(
-      0
-    );
+    expect(screen.getAllByText('Checking which copies were already sent…')).toHaveLength(1);
     expect(screen.queryByText('No copy has been sent for this day yet.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
   });

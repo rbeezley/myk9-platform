@@ -40,6 +40,10 @@ interface PacketReadClient {
  * another `paperwork_prints` row.
  */
 /** The delivered-packets query, so a send can refresh the list it just added to. */
+function isBrowserOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 export function deliveredPacketsKey(showId: string | undefined) {
   return ['emergency-packet-delivered', showId] as const;
 }
@@ -96,13 +100,15 @@ export function useDeliveredPackets(
     // rendered every day as "not printed" with no warning. `syncFailed` is the
     // signal that actually reflects the server.
     isError: isError || prints.isError || prints.syncFailed,
+    // Offline first: the confirmations sync fails whenever the device is offline, so checking
+    // `syncFailed` first showed an offline secretary the alarming "could not check" error.
     listState:
-      isError || prints.isError || prints.syncFailed
-        ? 'error'
-        : data === undefined
-          ? fetchStatus === 'paused'
-            ? 'offline'
-            : 'pending'
-          : 'ready',
+      (data === undefined && fetchStatus === 'paused') || isBrowserOffline()
+        ? 'offline'
+        : isError || prints.isError || prints.syncFailed
+          ? 'error'
+          : data === undefined
+            ? 'pending'
+            : 'ready',
   };
 }

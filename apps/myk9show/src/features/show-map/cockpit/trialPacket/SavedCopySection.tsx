@@ -142,6 +142,13 @@ function SavedCopyBody({
   const [saving, setSaving] = useState(false);
   const [marking, setMarking] = useState(false);
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null);
+  // A result from an earlier send is stale once the list can no longer be read: the list state's
+  // own line says what is true now. Adjusted during render, not in an effect.
+  const [outcomeListState, setOutcomeListState] = useState(listState);
+  if (outcomeListState !== listState) {
+    setOutcomeListState(listState);
+    if (listState !== 'ready' && outcome?.kind !== 'offline') setOutcome(null);
+  }
   const [pending, setPending] = useState<PaperworkDescriptor | null>(null);
 
   const saveAndEmail = async () => {
@@ -198,18 +205,15 @@ function SavedCopyBody({
   };
 
   // Why the send button is off, in plain words, beside it.
+  // The list states already say why at the top of the section, so they are not repeated here.
   const blocked =
-    listState === 'offline'
-      ? OFFLINE_LINE
-      : listState === 'pending'
-        ? 'Checking which copies were already sent…'
-        : listState === 'error'
-          ? 'Saving is off until we can check which copies were already sent.'
-          : !packetData
-            ? "Getting the show's data ready…"
-            : availability && !availability.available
-              ? availability.reason
-              : null;
+    listState !== 'ready'
+      ? null
+      : !packetData
+        ? "Getting the show's data ready…"
+        : availability && !availability.available
+          ? availability.reason
+          : null;
 
   return (
     <>
@@ -219,8 +223,8 @@ function SavedCopyBody({
       {listState === 'offline' && <p className="text-sm text-muted-foreground">{OFFLINE_LINE}</p>}
       {listState === 'error' && (
         <p role="alert" className="text-sm font-medium text-destructive">
-          We could not check which copies were already sent. Check the connection before sending
-          another, or the show&apos;s officials may get a duplicate.
+          We could not check which copies were already sent. Saving stays off until we can, so the
+          show&apos;s officials do not get a duplicate.
         </p>
       )}
       {listState === 'ready' && (

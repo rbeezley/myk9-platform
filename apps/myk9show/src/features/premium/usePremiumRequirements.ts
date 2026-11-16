@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { COMMITTEE_QUERY_KEY } from '@/components/committee/useCommittee';
-import { getTrialRegistry } from '@/features/registries';
+import {
+  getTrialRegistry,
+  resolveConfiguredRegistryId,
+  type RegistryId,
+} from '@/features/registries';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { fetchShowCommittee } from '@/services/database/club-memberships/committee';
-import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
-import type { Trial } from '@/components/trials/types/trial.types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
 import type { PremiumFactId } from './premiumFacts';
@@ -14,10 +16,25 @@ import {
   type PremiumRequirementItem,
 } from './premiumRequirements';
 
+/** The trial fields the checks read; the replicated trial and the domain Trial both fit. */
+interface RequirementTrial {
+  id: string;
+  name?: string | undefined;
+  eventNumber?: string | undefined;
+  registryId?: string | null | undefined;
+}
+
+/** The class fields the checks read; Show Desk class rows and the About tab's both fit. */
+interface RequirementClass {
+  id: string;
+  trialId: string;
+  name: string;
+}
+
 interface PremiumRequirementInputs {
   show: Show;
-  trials: ReadonlyArray<Trial>;
-  classes: ReadonlyArray<ClassInfo>;
+  trials: ReadonlyArray<RequirementTrial>;
+  classes: ReadonlyArray<RequirementClass>;
   judges: ReadonlyArray<ShowJudgeAssignment>;
   secretaryName: string | null;
   chairName: string | null;
@@ -48,12 +65,17 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
       const trialClasses = input.classes.filter(cls => cls.trialId === trial.id);
       const classIds = new Set(trialClasses.map(cls => cls.id));
       return {
+        id: trial.id,
         name: trial.name ?? '',
         eventNumber: trial.eventNumber ?? null,
         classLabels: trialClasses.map(cls => cls.name),
-        // The premium lists a trial's judges from its own assignments: a judge counts for the
-        // trial when assigned to one of its classes.
-        judges: input.judges.filter(j => j.assignedClasses?.some(id => classIds.has(id))),
+        // As the premium lists them (judgesForTrial): a judge assigned to one of the trial's
+        // classes, or on the show roster with no class assignment yet, who counts for every trial.
+        judges: input.judges.filter(j =>
+          j.assignedClasses?.length
+            ? j.assignedClasses.some(id => classIds.has(id))
+            : j.hasShowLevelAssignment === true
+        ),
       };
     }),
   };
@@ -63,7 +85,7 @@ export interface PremiumRequirements {
   /** Required facts still empty. [] until every source has answered. */
   items: PremiumRequirementItem[];
   /** The registry the premium is checked against. */
-  registry: string;
+  registry: RegistryId | null;
 }
 
 const personName = (p: { firstName: string; lastName: string } | undefined) =>
@@ -72,8 +94,8 @@ const personName = (p: { firstName: string; lastName: string } | undefined) =>
 /** The checklist for the About page: the show's own data plus officials and the committee. */
 export function usePremiumRequirements(
   show: Show,
-  trials: ReadonlyArray<Trial>,
-  classes: ReadonlyArray<ClassInfo>,
+  trials: ReadonlyArray<RequirementTrial>,
+  classes: ReadonlyArray<RequirementClass>,
   judges: ReadonlyArray<ShowJudgeAssignment>,
   enabled: boolean
 ): PremiumRequirements {
@@ -89,8 +111,15 @@ export function usePremiumRequirements(
     enabled,
   });
 
-  const registry = getTrialRegistry(trials[0]).id;
-  if (!enabled) return { items: [], registry };
+  // The trial's registry, else the show's own organization. A registry the app has no rules for
+  // (so no AKC default) has nothing to require.
+  const registry: RegistryId | null = trials[0]
+    ? getTrialRegistry(trials[0]).id
+    : resolveConfiguredRegistryId(show.organization);
+  // Hold the list until the officials and committee answer, so it does not grow under the reader.
+  if (!enabled || !registry || officials.isLoading || committee.isLoading) {
+    return { items: [], registry };
+  }
 
   // A source that has not answered is left out, never reported as empty.
   const unavailable = new Set<PremiumFactId>();

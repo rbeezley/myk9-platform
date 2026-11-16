@@ -28,6 +28,8 @@ export interface PremiumRequirementFacts {
   committee: PremiumFacts['committee'];
   trials: Array<
     Pick<PremiumFacts['trials'][number], 'name' | 'eventNumber' | 'classLabels'> & {
+      /** The trial's id when known; it scopes the link to that trial. */
+      id?: string;
       judges: ReadonlyArray<unknown>;
     }
   >;
@@ -66,8 +68,9 @@ interface Check {
   missing: (
     facts: PremiumRequirementFacts,
     registry: RegistryId,
-    minimum: number | undefined
-  ) => string | null | Array<{ message: string; key: string }>;
+    minimum: number | undefined,
+    targets: PremiumRequirementTargets
+  ) => string | null | Array<{ message: string; key: string; href?: string }>;
   href: (t: PremiumRequirementTargets) => string | null;
 }
 
@@ -116,7 +119,7 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
           ? [
               {
                 key: `eventNumber:${i}`,
-                message: `${r} requires an event number for ${trialLabel(t, i)}. Add it on the trial.`,
+                message: `${r} requires an event number for ${trialLabel(t, i)}. Open Trials and choose Edit on that trial.`,
               },
             ]
           : []
@@ -136,19 +139,24 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
     href: t => getSelectClassesHref(t.showId),
   },
   judges: {
-    missing: (f, r) =>
-      f.trials.length === 0
-        ? `${r} requires the judges. Add them in Edit show.`
-        : f.trials.flatMap((t, i) =>
-            t.judges.length === 0
-              ? [
-                  {
-                    key: `judges:${i}`,
-                    message: `${r} requires a judge for ${trialLabel(t, i)}. Assign one in Judges.`,
-                  },
-                ]
-              : []
-          ),
+    // A trial with no classes yet is the classes item's to report. A judge on the show roster
+    // (a show-level assignment) counts for every trial, as the premium lists them.
+    missing: (f, r, _min, t) =>
+      f.trials.flatMap((trial, i) =>
+        trial.classLabels.length > 0 && trial.judges.length === 0
+          ? [
+              {
+                key: `judges:${i}`,
+                message: `${r} requires a judge for ${trialLabel(trial, i)}. Assign one to its classes in Select classes.`,
+                href: getSelectClassesHref(
+                  t.showId,
+                  undefined,
+                  trial.id ? { trialId: trial.id } : {}
+                ),
+              },
+            ]
+          : []
+      ),
     href: editShow('judges'),
   },
   secretary: {
@@ -197,12 +205,12 @@ export function missingPremiumFacts(
   for (const def of PREMIUM_FACT_CATALOG) {
     const check = CHECKS[def.id];
     if (!check || !isRequired(def, registry) || unavailable.has(def.id)) continue;
-    const result = check.missing(facts, registry, def.minimumBy?.[registry]);
+    const result = check.missing(facts, registry, def.minimumBy?.[registry], targets);
     const href = check.href(targets);
     if (typeof result === 'string') items.push({ id: def.id, key: def.id, message: result, href });
     else
       for (const r of result ?? [])
-        items.push({ id: def.id, key: r.key, message: r.message, href });
+        items.push({ id: def.id, key: r.key, message: r.message, href: r.href ?? href });
   }
   return items;
 }

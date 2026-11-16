@@ -73,7 +73,7 @@ export default function ShowAboutPage() {
         className="grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
       >
         <div className="sm:col-span-2 empty:hidden">
-          <PremiumRequirementsNotice items={requirements.items} />
+          <PremiumRequirementsNotice items={requirements.items} registry={requirements.registry} />
         </div>
         <PremiumDownloadCard showId={show.id} showStaleBadge={true} canManageShow={canManageShow} />
         {usesLandingPage && <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />}

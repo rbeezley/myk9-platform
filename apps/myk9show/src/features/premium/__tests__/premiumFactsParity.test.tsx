@@ -179,12 +179,22 @@ describe('premium PDF facts parity (8 styles)', () => {
   });
 });
 
+const DANGLING_ENTRY_LABELS = /Opens\s*·\s*Closes|Closes\s*$|Closes\s*·|Entry Closes/m;
+
 describe('premium PDF prints no placeholder for an empty fact (MYK9-2053)', () => {
+  it('the dangling-label pattern matches a string that has the dangling label', () => {
+    expect('Opens · Closes.').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Opens Apr 1 · Closes').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Entry Closes\nMay 15').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Opens April 1, 2026.').not.toMatch(DANGLING_ENTRY_LABELS);
+  });
+
   it.each(ALL_STYLES)('%s prints no "[REQUIRED" text and no dangling labels when empty', style => {
     for (const org of ['AKC', 'UKC'] as const) {
       const text = pdfText(org, sparsePremium(org, style));
       expect(text).not.toMatch(/REQUIRED/);
-      expect(text).not.toMatch(/Openss*·s*Closes/);
+      expect(text).not.toMatch(DANGLING_ENTRY_LABELS);
+      expect(text).not.toMatch(/Trial Secretary/);
       expect(text).not.toMatch(/Veterinary Services|On-Call Vet/);
     }
   });
@@ -196,7 +206,7 @@ describe('premium PDF prints no placeholder for an empty fact (MYK9-2053)', () =
       show: { ...premium.show, entryCloseDate: null },
     });
     expect(text).toMatch(/Apr(il)? 1, 2026/);
-    expect(text).not.toMatch(/Closess*$|Closess*·|Entry Closes/m);
+    expect(text).not.toMatch(DANGLING_ENTRY_LABELS);
   });
 });
 

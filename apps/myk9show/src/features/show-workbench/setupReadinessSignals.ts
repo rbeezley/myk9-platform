@@ -18,6 +18,7 @@ export type SetupReadinessSignalId =
   | 'judges-missing'
   | 'show-not-visible'
   | 'exhibitor-materials-unpublished'
+  | 'premium-facts-missing'
   | 'landing-content-unpublished';
 
 export interface SetupReadinessSignal {
@@ -64,6 +65,11 @@ export interface SetupReadinessInput {
    * replicated show row doesn't carry published_premium_url/at, so without
    * this override a published premium would always read as unpublished.
    */
+  /**
+   * How many facts the registry requires in the premium list are still empty (MYK9-2053,
+   * usePremiumRequirements). Unset or 0 means none, or not known: no signal either way.
+   */
+  premiumMissingFacts?: number;
   premiumInfo?: PremiumPublishStateInput & { experienceIsPublished?: boolean | null };
 }
 
@@ -145,6 +151,15 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
     signals.push({
       id: 'exhibitor-materials-unpublished',
       label: 'Premium not published yet',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
+    });
+  }
+  // MYK9-2053: facts the registry requires that the premium would print empty. Listed in full on
+  // the About page's premium card, which is where this lands.
+  if (!publishesOwnPremium && (input.premiumMissingFacts ?? 0) > 0) {
+    signals.push({
+      id: 'premium-facts-missing',
+      label: 'Premium list is missing required facts',
       href: `#${PREMIUM_CARD_ANCHOR}`,
     });
   }

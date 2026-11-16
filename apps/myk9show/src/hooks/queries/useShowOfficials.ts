@@ -27,7 +27,7 @@ interface ShowOfficialRow {
   role: string;
 }
 
-async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
+export async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
   const { data, error } = await supabase.rpc('get_show_officials', { p_show_id: showId });
 
   if (error) throw error;

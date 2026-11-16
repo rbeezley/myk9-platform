@@ -25,6 +25,10 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
   const divider = <SectionDivider style={data.style} tokens={t} />;
   const f = buildPremiumFacts(data, org);
   const { secretary, chair, trials } = f;
+  // An empty secretary prints no heading either (MYK9-2053).
+  const hasSecretary = Boolean(
+    secretary.name || secretary.email || secretary.phone || secretary.mailingAddress
+  );
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -84,32 +88,36 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </View>
       )}
 
-      {divider}
+      {hasSecretary && (
+        <>
+          {divider}
 
-      <Text style={s.sectionTitle}>Trial Secretary</Text>
-      {secretary.name && (
-        <View style={s.row}>
-          <Text style={s.label}>Name</Text>
-          <Text style={s.value}>{secretary.name}</Text>
-        </View>
-      )}
-      {secretary.email && (
-        <View style={s.row}>
-          <Text style={s.label}>Email</Text>
-          <Text style={s.value}>{secretary.email}</Text>
-        </View>
-      )}
-      {secretary.phone && (
-        <View style={s.row}>
-          <Text style={s.label}>Phone</Text>
-          <Text style={s.value}>{secretary.phone}</Text>
-        </View>
-      )}
-      {secretary.mailingAddress && (
-        <View style={s.row}>
-          <Text style={s.label}>Address</Text>
-          <Text style={s.value}>{secretary.mailingAddress}</Text>
-        </View>
+          <Text style={s.sectionTitle}>Trial Secretary</Text>
+          {secretary.name && (
+            <View style={s.row}>
+              <Text style={s.label}>Name</Text>
+              <Text style={s.value}>{secretary.name}</Text>
+            </View>
+          )}
+          {secretary.email && (
+            <View style={s.row}>
+              <Text style={s.label}>Email</Text>
+              <Text style={s.value}>{secretary.email}</Text>
+            </View>
+          )}
+          {secretary.phone && (
+            <View style={s.row}>
+              <Text style={s.label}>Phone</Text>
+              <Text style={s.value}>{secretary.phone}</Text>
+            </View>
+          )}
+          {secretary.mailingAddress && (
+            <View style={s.row}>
+              <Text style={s.label}>Address</Text>
+              <Text style={s.value}>{secretary.mailingAddress}</Text>
+            </View>
+          )}
+        </>
       )}
 
       {chair && (

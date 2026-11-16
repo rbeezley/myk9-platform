@@ -6,6 +6,9 @@ import { getTrialTimezone } from '@/features/registries';
 import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePromptWindow';
 import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineReadiness';
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
+import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
+import { buildJudgesFromClasses } from '@/components/shows/overview/overviewJudges';
+import { resolveShowUses } from '@/features/show-workbench/showUses';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { ShowMapClassInput, ShowMapTrialInput } from '../showMapTypes';
 import { useShowWithLiveUses } from '@/features/show-workbench/useShowWithLiveUses';
@@ -90,6 +93,15 @@ function ReadyForShowDayContent({
 }: Omit<ReadyForShowDaySectionProps, 'now'> & { offlinePromptOpen: boolean }) {
   const show = useShowWithLiveUses(routeShow);
   const publishInfo = usePublishInfo(show.id, true);
+  // MYK9-2053: the same count the About page's premium card lists. The Show Desk class rows carry
+  // each class's judge, so the roster is rebuilt from them.
+  const premiumMissingFacts = usePremiumRequirements(
+    show,
+    trials,
+    classes,
+    buildJudgesFromClasses(classes.map(cls => ({ id: cls.id, judgeName: cls.judgeName ?? null }))),
+    !resolveShowUses(show).publishesOwnPremium
+  ).items.length;
   const { readiness } = useOfflineReadiness(show.id);
 
   const result = useMemo(() => {
@@ -98,7 +110,7 @@ function ReadyForShowDayContent({
     const info =
       publishInfo.fetchStatus === 'paused' || publishInfo.isError ? undefined : publishInfo.data;
     return buildReadyForShowDay({
-      setup: { show, trials, classes },
+      setup: { show, trials, classes, premiumMissingFacts },
       premiumInfo: info
         ? {
             publishedPremiumUrl: info.publishedLocator || info.publishedPath,
@@ -126,6 +138,7 @@ function ReadyForShowDayContent({
     paperwork.available,
     paperwork.byClassId,
     printTrackingInUse,
+    premiumMissingFacts,
     publishInfo.data,
     publishInfo.fetchStatus,
     publishInfo.isError,

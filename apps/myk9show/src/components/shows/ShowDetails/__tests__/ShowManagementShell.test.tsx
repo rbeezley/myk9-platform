@@ -13,17 +13,24 @@ import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
 import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 
+const NO_OFFICIALS = { secretaries: [], chairmen: [], stewards: [] };
+
 const saveHarness = vi.hoisted(() => ({
   updateShow: vi.fn(),
   runPublish: vi.fn(),
   persistJudges: vi.fn(),
   publishJudges: vi.fn(),
+  officials: vi.fn(),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
   premiumPublishDraftKey: () => 'draft-key',
   runPremiumPublishOperation: saveHarness.runPublish,
+}));
+vi.mock('@/features/premium/premiumOfficials', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/premium/premiumOfficials')>()),
+  fetchOfficialsForPublish: (...args: unknown[]) => saveHarness.officials(...args),
 }));
 vi.mock('@/services/database/judges', () => ({
   saveShowJudgeChanges: saveHarness.persistJudges,
@@ -828,6 +835,7 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
     saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     // Reservation fails (e.g. the RPC is not deployed yet), so the operation
     // rejects before it would ever call createPremium.
     saveHarness.runPublish.mockReset().mockRejectedValue(new Error('function not found'));
@@ -942,5 +950,64 @@ describe('Save & Publish lists the server judges on the premium', () => {
     expect(published?.trials.map(trial => trial.judges.map(judge => judge.name))).toEqual([
       ['Pat Judge'],
     ]);
+  });
+
+  it('publishes the show officials as the premium secretary and chair (MYK9-2053)', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue({
+      secretaries: [
+        {
+          personId: 'p1',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          email: 'jane@test.com',
+          role: 'secretary',
+        },
+      ],
+      chairmen: [
+        { personId: 'p2', firstName: 'Bob', lastName: 'Jones', email: null, role: 'chairman' },
+      ],
+      stewards: [],
+    });
+    let published: ReturnType<typeof generatedPremium> | undefined;
+    saveHarness.runPublish
+      .mockReset()
+      .mockImplementation(async (op: { createPremium: () => Promise<typeof published> }) => {
+        published = await op.createPremium();
+      });
+    saveHarness.payload = {
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: generatedPremium(),
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(published).toBeDefined());
+    expect(saveHarness.officials).toHaveBeenCalledWith('show-1');
+    expect(published?.secretary).toMatchObject({ name: 'Jane Smith', email: 'jane@test.com' });
+    expect(published?.officials.chairman).toMatchObject({ name: 'Bob Jones' });
+  });
+
+  it('does not publish a blank when the officials cannot be read', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockRejectedValue(new Error('boom'));
+    saveHarness.runPublish.mockReset();
+    saveHarness.payload = {
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: generatedPremium(),
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(saveHarness.officials).toHaveBeenCalled());
+    expect(saveHarness.runPublish).not.toHaveBeenCalled();
   });
 });

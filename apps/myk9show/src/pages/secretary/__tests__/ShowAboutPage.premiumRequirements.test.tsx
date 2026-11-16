@@ -133,10 +133,14 @@ describe('ShowAboutPage premium requirements (MYK9-2053)', () => {
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
 
     expect(
-      await screen.findByText('AKC requires a judge for Sunday. Assign one in Judges.')
+      await screen.findByText(
+        'AKC requires a judge for Sunday. Assign one to its classes in Select classes.'
+      )
     ).toBeInTheDocument();
     expect(
-      screen.getByText('AKC requires a judge for Monday. Assign one in Judges.')
+      screen.getByText(
+        'AKC requires a judge for Monday. Assign one to its classes in Select classes.'
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText(/requires a judge for Saturday/)).toBeNull();
     expect(screen.getByText(/requires an event number for Sunday/)).toBeInTheDocument();

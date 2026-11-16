@@ -68,6 +68,38 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toEqual([]);
   });
 
+  describe('premium-facts-missing (MYK9-2053)', () => {
+    const base = { show: show(), trials: [trial()], classes: [cls()], judges: ['j1'] };
+
+    it('links to the premium card when required facts are empty', () => {
+      const signals = computeSetupReadinessSignals({ ...base, premiumMissingFacts: 2 });
+      expect(signals).toEqual([
+        {
+          id: 'premium-facts-missing',
+          label: 'Premium list is missing required facts',
+          href: '#setup-publish-premium',
+        },
+      ]);
+    });
+
+    it.each([0, undefined])('says nothing when the count is %s', count => {
+      const signals = computeSetupReadinessSignals({
+        ...base,
+        ...(count === undefined ? {} : { premiumMissingFacts: count }),
+      });
+      expect(signals).toEqual([]);
+    });
+
+    it('says nothing for a club that publishes its own premium', () => {
+      const signals = computeSetupReadinessSignals({
+        ...base,
+        show: show({ publishesOwnPremium: true }),
+        premiumMissingFacts: 3,
+      });
+      expect(signals.map(s => s.id)).not.toContain('premium-facts-missing');
+    });
+  });
+
   it('emits show-details-missing when a required show field is blank', () => {
     const signals = computeSetupReadinessSignals({
       show: show({ location: '' }),

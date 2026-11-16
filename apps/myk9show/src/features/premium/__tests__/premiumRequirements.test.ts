@@ -57,7 +57,7 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
       {
         trials: [{ name: 'Saturday Trial', eventNumber: 'AKC-1', classLabels: ['x'], judges: [] }],
       },
-      '/shows/show-1?edit=true&editTab=judges',
+      '/shows/show-1?select=classes',
     ],
     [
       'classes',
@@ -90,8 +90,8 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
       expect(items[0]).toMatchObject({
         id: 'judges',
         key: 'judges:1',
-        message: 'AKC requires a judge for Sunday. Assign one in Judges.',
-        href: '/shows/show-1?edit=true&editTab=judges',
+        message: 'AKC requires a judge for Sunday. Assign one to its classes in Select classes.',
+        href: '/shows/show-1?select=classes',
       });
     });
 
@@ -109,9 +109,41 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
         targets
       );
       expect(items.map(i => [i.key, i.message])).toEqual([
-        ['eventNumber:1', 'AKC requires an event number for Sunday. Add it on the trial.'],
-        ['eventNumber:2', 'AKC requires an event number for Monday. Add it on the trial.'],
+        [
+          'eventNumber:1',
+          'AKC requires an event number for Sunday. Open Trials and choose Edit on that trial.',
+        ],
+        [
+          'eventNumber:2',
+          'AKC requires an event number for Monday. Open Trials and choose Edit on that trial.',
+        ],
       ]);
+    });
+
+    it('leaves a trial with no classes yet to the classes item, with no judge item of its own', () => {
+      const items = missingPremiumFacts(
+        {
+          ...completeFacts(),
+          trials: [{ ...trial('Sunday', { judges: [] }), classLabels: [] }],
+        },
+        'AKC',
+        targets
+      );
+      expect(items.map(i => i.id)).toEqual(['classes']);
+    });
+
+    it('scopes the judge link to the trial when its id is known', () => {
+      const [item] = missingPremiumFacts(
+        { ...completeFacts(), trials: [{ ...trial('Sunday', { judges: [] }), id: 't2' }] },
+        'AKC',
+        targets
+      );
+      expect(item!.href).toBe('/shows/show-1?select=classes&trialId=t2');
+    });
+
+    it('with no trials reports only the classes, not judges or event numbers per trial', () => {
+      const items = missingPremiumFacts({ ...completeFacts(), trials: [] }, 'AKC', targets);
+      expect(items.map(i => i.id)).toEqual(['classes']);
     });
 
     it('names an unnamed trial by its position and keeps every key unique', () => {
@@ -124,9 +156,9 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
         targets
       );
       expect(items.map(i => i.message)).toEqual([
-        'AKC requires an event number for Trial 1. Add it on the trial.',
-        'AKC requires a judge for Trial 1. Assign one in Judges.',
-        'AKC requires a judge for Trial 2. Assign one in Judges.',
+        'AKC requires an event number for Trial 1. Open Trials and choose Edit on that trial.',
+        'AKC requires a judge for Trial 1. Assign one to its classes in Select classes.',
+        'AKC requires a judge for Trial 2. Assign one to its classes in Select classes.',
       ]);
       expect(new Set(items.map(i => i.key)).size).toBe(items.length);
     });

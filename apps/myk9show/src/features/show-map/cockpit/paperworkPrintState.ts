@@ -1,3 +1,4 @@
+import { armbandLabelSubjectKey } from '@/lib/labels/armbandSubjectKey';
 import type { ReportScope } from '@/lib/reports/types';
 
 export interface PaperworkSubject {
@@ -215,7 +216,7 @@ export function buildArmbandPaperworkDescriptor(
     'armband-labels',
     scope,
     dogs.map(dog => ({
-      key: `dog-day:${dog.dogId || `armband:${dog.armband}`}:${dog.calendarDay}`,
+      key: armbandLabelSubjectKey(dog),
       facts: dog,
       classIds: dog.classIds,
       trialIds: dog.trialIds,

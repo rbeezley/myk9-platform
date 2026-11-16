@@ -20,6 +20,7 @@ import { ArmbandLabelCell } from './ArmbandLabelCell';
 import { LabelPreviewSheet } from './LabelPreviewSheet';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { LabelCalibrationPanel } from './LabelCalibrationPanel';
+import { LabelSheetStartPicker } from './LabelSheetStartPicker';
 import { ArmbandLabelChoiceControls } from './ArmbandLabelChoiceControls';
 import { useArmbandLabelChoice } from './useArmbandLabelChoice';
 import { generatePasscodesFromShowId } from '@myk9/core';
@@ -395,29 +396,13 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
           </div>
         </div>
 
-        {/* Skip + Summary */}
-        <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
-          <label
-            htmlFor="armband-skip"
-            className="flex items-center gap-2 min-h-[44px] cursor-pointer"
-          >
-            <span>Labels to skip on first page:</span>
-            <Input
-              id="armband-skip"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={template.labelsPerSheet - 1}
-              value={skip}
-              onChange={e =>
-                setPrefs(p => ({
-                  ...p,
-                  skip: Math.max(0, Number(e.target.value)),
-                }))
-              }
-              className="w-16 h-11"
-            />
-          </label>
+        {/* Where on the sheet + Summary */}
+        <div className="flex flex-col gap-2 text-sm">
+          <LabelSheetStartPicker
+            template={template}
+            skip={skip}
+            onSkipChange={next => setPrefs(p => ({ ...p, skip: next }))}
+          />
           <span className="text-xs text-muted-foreground">
             {items.length} label{items.length !== 1 ? 's' : ''} on {pages.length} page
             {pages.length !== 1 ? 's' : ''}

@@ -10,6 +10,7 @@
  */
 import type { ReportScope } from '@/lib/reports/types';
 import type { ArmbandLabelEntry } from './armbandLabelTypes';
+import { armbandDogKey, armbandLabelSubjectKey } from './armbandSubjectKey';
 
 export interface ArmbandLabelChoice {
   /** `YYYY-MM-DD`; null keeps the scope the panel opened on. */
@@ -32,12 +33,10 @@ export interface ArmbandPrintRecordLike {
   voidedAt?: string | undefined;
 }
 
-export const dogKeyOf = (entry: Pick<ArmbandLabelEntry, 'dogId' | 'armband'>): string =>
-  entry.dogId || `armband:${entry.armband}`;
+export const dogKeyOf = armbandDogKey;
 
 /** The subject key `buildArmbandPaperworkDescriptor` writes for this dog on this day. */
-export const labelKeyOf = (entry: ArmbandLabelEntry): string =>
-  `dog-day:${dogKeyOf(entry)}:${entry.calendarDay}`;
+export const labelKeyOf = (entry: ArmbandLabelEntry): string => armbandLabelSubjectKey(entry);
 
 /** The entries the panel's day and dog choice (or, with no day, its scope) leaves in play. */
 export function entriesForChoice(
@@ -102,6 +101,8 @@ export function listLabelDays(entries: readonly ArmbandLabelEntry[]): string[] {
 export interface ArmbandLabelDog {
   dogKey: string;
   label: string;
+  callName: string;
+  armband: number;
 }
 
 /** One option per dog, by armband. */
@@ -113,7 +114,22 @@ export function listLabelDogs(entries: readonly ArmbandLabelEntry[]): ArmbandLab
     .map(entry => ({
       dogKey: dogKeyOf(entry),
       label: `#${entry.armband} ${entry.callName}`.trim(),
+      callName: entry.callName,
+      armband: entry.armband,
     }));
+}
+
+/** "Monday, Dec 7" for a `YYYY-MM-DD` label day. */
+export function formatLabelDay(day: string): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  return Number.isNaN(date.getTime())
+    ? day
+    : date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
 }
 
 /** The choice a dog's row opens on: that dog, on that entry's day. */

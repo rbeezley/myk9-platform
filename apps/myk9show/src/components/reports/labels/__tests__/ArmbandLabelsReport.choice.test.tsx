@@ -112,6 +112,9 @@ describe('ArmbandLabelsReport day, dog and added-since choices (MYK9-2073)', () 
     expect(screen.getByRole('combobox', { name: 'Dog' })).toHaveValue('dog-1');
     expect(screen.getByText('1 label on 1 page')).toBeInTheDocument();
     expect(screen.getByText(/last printed/i)).toBeInTheDocument();
+    expect(screen.getByText('Juni #101').parentElement).toHaveTextContent(
+      'For Juni #101, for Monday, Dec 7.'
+    );
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Dog' }), '');
     expect(screen.getByText('3 labels on 1 page')).toBeInTheDocument();

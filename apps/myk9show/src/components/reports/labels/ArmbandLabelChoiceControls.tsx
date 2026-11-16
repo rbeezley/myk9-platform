@@ -1,6 +1,10 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatJudgeDayDate } from '@/features/show-map/judgeDay';
-import type { ArmbandLabelChoice, ArmbandLabelDog } from '@/lib/labels/armbandLabelChoice';
+import {
+  formatLabelDay,
+  type ArmbandLabelChoice,
+  type ArmbandLabelDog,
+} from '@/lib/labels/armbandLabelChoice';
 import type { ReportScope } from '@/lib/reports/types';
 import { SetupEyebrow } from './LabelModeChrome';
 
@@ -31,9 +35,32 @@ export function ArmbandLabelChoiceControls({
   /** Says what the choice did, e.g. when the label was last printed. */
   note: string | null;
 }) {
+  const oneDog = dogs.find(dog => dog.dogKey === choice.dogKey);
   return (
     <div>
       <SetupEyebrow className="mb-2">Which labels</SetupEyebrow>
+      {oneDog && (
+        <p className="mb-1 text-base">
+          For{' '}
+          <strong>
+            {oneDog.callName} #{oneDog.armband}
+          </strong>
+          {choice.day && (
+            <>
+              , for <strong>{formatLabelDay(choice.day)}</strong>
+            </>
+          )}
+          .
+        </p>
+      )}
+      {oneDog && note && (
+        <p role="status" className="mb-2 text-sm text-muted-foreground">
+          {note}
+        </p>
+      )}
+      {oneDog && (
+        <p className="mb-1 text-xs text-muted-foreground">Change the day or dog to print more.</p>
+      )}
       <div className="flex flex-col gap-1">
         <label className="flex flex-col gap-1 text-sm">
           <span>Day</span>
@@ -76,7 +103,7 @@ export function ArmbandLabelChoiceControls({
           />
           <span>Only labels added since the last print</span>
         </label>
-        {note && (
+        {!oneDog && note && (
           <p role="status" className="text-xs text-muted-foreground">
             {note}
           </p>

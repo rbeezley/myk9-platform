@@ -25,8 +25,8 @@ const orderable = (trial: DbTrial): OrderableTrial => ({
  * Order and "finished" are the shared rules in `trialStanding`: a cancelled or confirmed-empty class
  * holds nothing open, and a trial with nothing left to run is finished. `entryCountByClassId` is the
  * show's entry counts; without it no class is called empty. A cancelled trial never counts. Returns
- * the earlier trial's label ("Trial 1"), or null: no earlier trial, all finished, or this trial's
- * place in the day is a tie (never guess a name for the note).
+ * the earlier trial's label (its stored name, as the cockpit header shows it), or null: no earlier trial, all finished, or this trial's
+ * place in the day is a tie (which trial is "earlier" would be a guess).
  */
 export function findUnfinishedEarlierTrial(input: {
   trialId: string;
@@ -63,5 +63,5 @@ export function findUnfinishedEarlierTrial(input: {
       });
     return !isTrialFinished(states);
   });
-  return unfinished ? { label: trialLabelOf(unfinished.item, all) } : null;
+  return unfinished ? { label: trialLabelOf(unfinished.item) } : null;
 }

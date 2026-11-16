@@ -60,7 +60,7 @@ export interface FirstDayPaperwork {
   /** The line measured at least one sheet or label row. */
   measured: boolean;
   firstTrial: { id: string; label: string; date: string; timeZone: string } | null;
-  laterTrials: readonly { label: string; number: number | null; date: string }[];
+  laterTrials: readonly { label: string; date: string }[];
 }
 
 const EMPTY: FirstDayPaperwork = {
@@ -161,19 +161,16 @@ export function rollUpFirstDayPaperwork(input: {
   }
   // A dog whose label is both new in one class and changed in another counts once, as new.
   for (const key of labelsNotPrinted) labelsChanged.delete(key);
-  const all = sorted.map(readOrderable);
   const firstTrial = {
     id: first.id,
-    label: trialLabelOf(readOrderable(first), all),
+    label: trialLabelOf(readOrderable(first)),
     date: first.trialDate,
     timeZone: getTrialTimezone({ id: first.id, timezone: first.timezone ?? null }),
   };
   const laterTrials = sorted
     .filter(trial => trial.id !== first.id)
     .map(trial => {
-      const label = trialLabelOf(readOrderable(trial), all);
-      const match = /^Trial (\d+)$/.exec(label);
-      return { label, number: match ? Number(match[1]) : null, date: trial.trialDate };
+      return { label: trialLabelOf(readOrderable(trial)), date: trial.trialDate };
     });
   const base = {
     sheets: sheetsNotPrinted + sheetsChanged,

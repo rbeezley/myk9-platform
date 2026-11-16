@@ -8,9 +8,9 @@ import type {
 } from './secretaryCockpitTypes';
 
 const trials: SecretaryCockpitTrial[] = [
-  { id: 't1', date: '2026-12-07', number: '1', storedNumber: '1', order: 1 },
-  { id: 't2', date: '2026-12-07', number: '2', storedNumber: '2', order: 2 },
-  { id: 't3', date: '2026-12-08', number: '1', storedNumber: '1', order: 3 },
+  { id: 't1', date: '2026-12-07', number: '1', storedNumber: '1', name: 'Trial 1', order: 1 },
+  { id: 't2', date: '2026-12-07', number: '2', storedNumber: '2', name: 'Trial 2', order: 2 },
+  { id: 't3', date: '2026-12-08', number: '1', storedNumber: '1', name: 'Trial 3', order: 3 },
 ];
 
 function cls(
@@ -80,7 +80,7 @@ describe('nextTrialPaperworkNote (decision 6)', () => {
     });
     const result = note('t3', [cls('b', 't2', 'complete'), labels(['dog-1:2026-12-08'])]);
     expect(result?.text).toBe(
-      "Trial 2 is finished. Trial 1's paperwork is ready to print. Tuesday's armband labels are ready too."
+      "Trial 2 is finished. Trial 3's paperwork is ready to print. Tuesday's armband labels are ready too."
     );
     expect(result?.href).toBe('/shows/show-1?day=2026-12-08&packet=t3');
     expect(result?.labels).toEqual({
@@ -89,7 +89,7 @@ describe('nextTrialPaperworkNote (decision 6)', () => {
     });
 
     const printed = note('t3', [cls('b', 't2', 'complete'), labels([])]);
-    expect(printed?.text).toBe("Trial 2 is finished. Trial 1's paperwork is ready to print.");
+    expect(printed?.text).toBe("Trial 2 is finished. Trial 3's paperwork is ready to print.");
     expect(printed?.labels).toBeUndefined();
   });
 
@@ -116,7 +116,7 @@ describe('nextTrialPaperworkNote (decision 6)', () => {
     ).toBeNull();
   });
 
-  it('reads the stored trial number, not a made-up one, and says nothing on a tie', () => {
+  it('says nothing on a tie in the day order, even though the label would be readable', () => {
     const blank: SecretaryCockpitTrial[] = [
       { id: 't1', date: '2026-12-07', number: '1', storedNumber: null, order: 1 },
       { id: 't2', date: '2026-12-07', number: '2', storedNumber: null, order: 2 },
@@ -124,6 +124,24 @@ describe('nextTrialPaperworkNote (decision 6)', () => {
     expect(
       note('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'unconfirmed')], blank)
     ).toBeNull();
+  });
+
+  it("names a Heartland-shaped show's trials as the header does, numbered across the show", () => {
+    const heartland: SecretaryCockpitTrial[] = [1, 2, 3, 4].map(n => ({
+      id: `h${n}`,
+      date: n === 1 ? '2026-12-07' : '2026-12-08',
+      number: String(n),
+      storedNumber: String(n),
+      name: `Trial ${n}`,
+      order: n,
+    }));
+    const result = note(
+      'h2',
+      [cls('a', 'h1', 'complete'), cls('b', 'h2', 'not-started', 'unconfirmed')],
+      heartland
+    );
+    expect(result?.text).toBe("Trial 1 is finished. Trial 2's paperwork is ready to print.");
+    expect(result?.linkLabel).toBe("Print Trial 2's paperwork");
   });
 
   it('stays quiet while the trial before is running, or when a sheet cannot be checked', () => {

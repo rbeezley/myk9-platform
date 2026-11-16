@@ -18,12 +18,11 @@ function laterTrialsSentence(later: FirstDayPaperwork['laterTrials']): string {
   const byDay = new Map<string, FirstDayPaperwork['laterTrials'][number][]>();
   for (const trial of later) byDay.set(trial.date, [...(byDay.get(trial.date) ?? []), trial]);
   const phrases = [...byDay].map(([date, trials]) => {
-    const numbers = trials.map(trial => trial.number);
-    const names = numbers.every((number): number is number => number !== null)
-      ? numbers.length === 1
-        ? `Trial ${numbers[0]}`
-        : `Trials ${numbers.slice(0, -1).join(', ')} and ${numbers[numbers.length - 1]}`
-      : trials.map(trial => trial.label).join(' and ');
+    const labels = trials.map(trial => trial.label);
+    const names =
+      labels.length > 1
+        ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+        : (labels[0] ?? '');
     const day = formatWeekdayLong(date);
     return `${names} ${trials.length === 1 ? 'prints' : 'print'}${day ? ` on ${day}` : ''}`;
   });

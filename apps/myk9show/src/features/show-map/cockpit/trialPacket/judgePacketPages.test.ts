@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildJudgePacketPdf } from './buildJudgePacketPdf';
 import { collateTrialPacket } from './collateTrialPacket';
@@ -11,6 +11,14 @@ import { CLASSES, ENTRIES, SHOW, TRIAL } from './trialPacketFixtures';
  * this is the page-for-page record that the browser's output did not change.
  */
 describe('judge packet pages', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-12-06T18:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('keeps the page order and the text on every page, for every judge', async () => {
     const packet = collateTrialPacket({
       show: SHOW,
@@ -26,7 +34,14 @@ describe('judge packet pages', () => {
       const pages = await pageContentStreams(
         await buildJudgePacketPdf(packet, judge, SHOW.name, printedAt)
       );
-      record[judge.key] = pages.map(streams => streams.map(shownText).join(' | '));
+      record[judge.key] = pages.map(streams =>
+        // The sheets' own "Generated" stamp prints in the machine's zone; the packet footer is
+        // the trial's, so only the sheet stamp is masked.
+        streams
+          .map(shownText)
+          .join(' | ')
+          .replace(/Generated .*? (?=Winter Trial)/, 'Generated <stamp> ')
+      );
     }
     expect(record).toMatchSnapshot();
   });

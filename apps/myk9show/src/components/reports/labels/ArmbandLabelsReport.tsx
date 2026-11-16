@@ -61,13 +61,14 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   // Derive from prefs — single source of truth
   const templateId = prefs.templateId ?? DEFAULT_TEMPLATE_ID;
   const config = prefs.contentConfig;
-  const skip = prefs.skip;
   const pitchAdjustment = prefs.pitchAdjustment;
   const offsetTop = prefs.offsetTop;
   const offsetLeft = prefs.offsetLeft;
 
   const { entries: allEntries, wifiNetwork, wifiPassword, isLoading } = useArmbandLabelData(showId);
   const template = LABEL_TEMPLATES[templateId];
+  // A skip saved for a bigger sheet never runs past this one (MYK9-2073).
+  const skip = Math.min(Math.max(0, prefs.skip), template.labelsPerSheet - 1);
   const passcodes = useMemo(() => (showId ? generatePasscodesFromShowId(showId) : null), [showId]);
 
   const parsedArmbands = parseArmbandSelection(armbandText);
@@ -99,7 +100,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
       kind: 'show',
       showId: scope.showId,
     });
-    return choice.addedOnly ? withoutPrintedLabels(picked, labelChoice.printed) : picked;
+    // Unknown history (printed === null) includes every label rather than guess.
+    return choice.addedOnly && labelChoice.printed
+      ? withoutPrintedLabels(picked, labelChoice.printed)
+      : picked;
   }, [filteredCandidates, scope.showId, choice.addedOnly, labelChoice.printed]);
   const items = useMemo(() => prepareArmbandLabelItems(filtered), [filtered]);
   const paperworkDescriptor = useMemo(

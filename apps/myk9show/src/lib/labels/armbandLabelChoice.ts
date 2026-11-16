@@ -4,13 +4,22 @@
  * - A day: every trial on that calendar date, one label per dog (a dog in two trials that day is
  *   one label, as `selectArmbandLabelEntries` already guarantees for a dog-day).
  * - One dog: that dog's label for the chosen day (a lost label or a late entry).
- * - Only labels added since the last print: drops every dog-day already in a recorded, not undone,
- *   armband label print. The print record already lists its dog-days
- *   (`coverage.subjectFingerprints`, keyed by `buildArmbandPaperworkDescriptor`), so no new storage.
+ * - Only labels added since the last print: drops each label whose newest non-undone print holds
+ *   the same label content (`armbandPrintIndex`). The print record already lists its dog-days
+ *   and their fingerprints (`coverage.subjectFingerprints`), so no new storage.
  */
 import type { ReportScope } from '@/lib/reports/types';
 import type { ArmbandLabelEntry } from './armbandLabelTypes';
-import { armbandDogKey, armbandLabelSubjectKey } from './armbandSubjectKey';
+import {
+  labelPrintStatus,
+  type ArmbandPrintRecordLike,
+  type PrintedLabelIndex,
+} from './armbandPrintIndex';
+import {
+  armbandDogKey,
+  armbandLabelFingerprint,
+  armbandLabelSubjectKey,
+} from './armbandSubjectKey';
 
 export interface ArmbandLabelChoice {
   /** `YYYY-MM-DD`; null keeps the scope the panel opened on. */
@@ -25,13 +34,6 @@ export const DEFAULT_LABEL_CHOICE: ArmbandLabelChoice = {
   dogKey: null,
   addedOnly: false,
 };
-
-export interface ArmbandPrintRecordLike {
-  reportId: string;
-  coverage: Record<string, unknown>;
-  printedAt: string;
-  voidedAt?: string | undefined;
-}
 
 export const dogKeyOf = armbandDogKey;
 
@@ -56,44 +58,35 @@ export function entriesForChoice(
   });
 }
 
-function printedSubjects(record: ArmbandPrintRecordLike): string[] {
-  const fingerprints = record.coverage.subjectFingerprints;
-  return fingerprints && typeof fingerprints === 'object' ? Object.keys(fingerprints) : [];
-}
+/** The fingerprint this label would print under now: the same function the print record used. */
+export const labelFingerprintOf = (entry: ArmbandLabelEntry): string =>
+  armbandLabelFingerprint({ ...entry, handlerName: entry.handler });
 
-/** Every dog-day in a label print that was not undone. */
-export function printedLabelKeys(records: readonly ArmbandPrintRecordLike[]): Set<string> {
-  const keys = new Set<string>();
-  for (const record of records) {
-    if (record.reportId !== 'armband-labels' || record.voidedAt) continue;
-    for (const key of printedSubjects(record)) keys.add(key);
-  }
-  return keys;
-}
-
-/** When this dog-day's label last printed, or null when it has not. */
-export function lastLabelPrintedAt(
-  records: readonly ArmbandPrintRecordLike[],
-  key: string
-): string | null {
-  let latest: string | null = null;
-  for (const record of records) {
-    if (record.reportId !== 'armband-labels' || record.voidedAt) continue;
-    if (!printedSubjects(record).includes(key)) continue;
-    if (latest === null || record.printedAt > latest) latest = record.printedAt;
-  }
-  return latest;
-}
-
-/** The labels still to print: those whose dog-day is not in an earlier print. */
+/**
+ * The labels still to print: a label is left out only when the newest print holding its dog-day
+ * has the same content as the label would print now. A corrected label (renumbered, new handler
+ * or call name) prints again.
+ */
 export function withoutPrintedLabels(
   entries: readonly ArmbandLabelEntry[],
-  printed: ReadonlySet<string>
+  index: PrintedLabelIndex<ArmbandPrintRecordLike>
 ): ArmbandLabelEntry[] {
-  return entries.filter(entry => !printed.has(labelKeyOf(entry)));
+  return entries.filter(
+    entry => labelPrintStatus(index, labelKeyOf(entry), labelFingerprintOf(entry)) !== 'printed'
+  );
 }
 
-/** The show's label days, earliest first. */
+/** When this label, in its current form, last printed; null when it has not. */
+export function lastLabelPrintedAt(
+  index: PrintedLabelIndex<ArmbandPrintRecordLike>,
+  entry: ArmbandLabelEntry
+): string | null {
+  const key = labelKeyOf(entry);
+  return labelPrintStatus(index, key, labelFingerprintOf(entry)) === 'printed'
+    ? (index.get(key)?.record.printedAt ?? null)
+    : null;
+}
+
 export function listLabelDays(entries: readonly ArmbandLabelEntry[]): string[] {
   return [...new Set(entries.map(entry => entry.calendarDay).filter(Boolean))].sort();
 }

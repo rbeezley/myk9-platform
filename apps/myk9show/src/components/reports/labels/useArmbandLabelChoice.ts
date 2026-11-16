@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { buildPrintedLabelIndex } from '@/lib/labels/armbandPrintIndex';
 import { useShowPaperworkPrints } from '@/features/show-map/cockpit/useShowPaperworkPrints';
 import { formatJudgeDayDate } from '@/features/show-map/judgeDay';
 import {
@@ -7,11 +8,9 @@ import {
   choiceForEntry,
   dogKeyOf,
   entriesForChoice,
-  labelKeyOf,
   lastLabelPrintedAt,
   listLabelDays,
   listLabelDogs,
-  printedLabelKeys,
   type ArmbandLabelChoice,
 } from '@/lib/labels/armbandLabelChoice';
 import type { ArmbandLabelEntry } from '@/lib/labels/armbandLabelTypes';
@@ -41,9 +40,17 @@ export function useArmbandLabelChoice({
 }) {
   const [picked, setPicked] = useState<ArmbandLabelChoice | null>(null);
   const preset = useMemo(() => choiceForEntry(entries, presetEntryId), [entries, presetEntryId]);
+  // A row's dog that has no label (held for a registration number, not read yet) never widens to
+  // the class: it prints nothing until something else is chosen.
+  const presetUnresolved = presetEntryId !== undefined && preset === null && picked === null;
   const choice = picked ?? preset ?? DEFAULT_LABEL_CHOICE;
-  const { data: records } = useShowPaperworkPrints(showId ?? '');
-  const printed = useMemo(() => printedLabelKeys(records ?? []), [records]);
+  const prints = useShowPaperworkPrints(showId ?? '');
+  // Unknown history is never read as "nothing printed" or "all printed" (MYK9-228).
+  const historyKnown = !prints.isPending && !prints.isError && !prints.syncFailed;
+  const printed = useMemo(
+    () => (historyKnown ? buildPrintedLabelIndex(prints.data ?? []) : null),
+    [historyKnown, prints.data]
+  );
 
   const days = useMemo(() => listLabelDays(entries), [entries]);
   // Dogs on offer: everyone the day (or scope) holds, whichever dog is chosen now.
@@ -52,8 +59,8 @@ export function useArmbandLabelChoice({
     [entries, scope, choice.day]
   );
   const candidates = useMemo(
-    () => entriesForChoice(entries, scope, choice),
-    [entries, scope, choice]
+    () => (presetUnresolved ? [] : entriesForChoice(entries, scope, choice)),
+    [entries, scope, choice, presetUnresolved]
   );
 
   const setChoice = (next: ArmbandLabelChoice) => {
@@ -64,19 +71,31 @@ export function useArmbandLabelChoice({
   };
 
   let note: string | null = null;
-  if (choice.dogKey !== null && candidates.length > 0) {
-    const last = lastLabelPrintedAt(records ?? [], labelKeyOf(candidates[0]!));
-    note = last
-      ? `This label was last printed ${formatPrintedAt(last)}.`
-      : 'This label has not been printed yet.';
+  if (presetUnresolved) {
+    note =
+      'This dog has no label to print yet. A dog waiting on a registration number gets one once the number is added.';
+  } else if (choice.dogKey !== null && candidates.length > 0) {
+    const days = new Set(candidates.map(entry => entry.calendarDay));
+    if (printed === null) note = 'Could not check when this label was printed on this device.';
+    else if (days.size > 1) note = 'Pick a day to see when this label was printed.';
+    else {
+      const last = lastLabelPrintedAt(printed, candidates[0]!);
+      note = last
+        ? `This label was last printed ${formatPrintedAt(last)}.`
+        : 'This label has not been printed yet.';
+    }
   } else if (choice.addedOnly && candidates.length > 0) {
-    const anyPrinted = candidates.some(entry => printed.has(labelKeyOf(entry)));
-    note = anyPrinted
-      ? choice.day
-        ? `Labels already printed for ${formatJudgeDayDate(choice.day)} are left out.`
-        : 'Labels already printed are left out.'
-      : 'No labels have been printed for this choice yet, so all of them are included.';
+    if (printed === null) {
+      note = 'Could not check what was printed on this device, so every label is included.';
+    } else {
+      const anyPrinted = candidates.some(entry => lastLabelPrintedAt(printed, entry) !== null);
+      note = anyPrinted
+        ? choice.day
+          ? `Labels already printed for ${formatJudgeDayDate(choice.day)} are left out.`
+          : 'Labels already printed are left out.'
+        : 'No labels have been printed for this choice yet, so all of them are included.';
+    }
   }
 
-  return { choice, setChoice, days, dogs, candidates, printed, note };
+  return { choice, setChoice, days, dogs, candidates, printed, note, presetUnresolved };
 }

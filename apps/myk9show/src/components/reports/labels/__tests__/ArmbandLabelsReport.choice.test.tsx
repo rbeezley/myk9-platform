@@ -25,7 +25,12 @@ function entry(id: string, over: Partial<ArmbandLabelEntry>): ArmbandLabelEntry 
   };
 }
 
-const mocks = vi.hoisted(() => ({ entries: [] as unknown[], records: [] as unknown[] }));
+const mocks = vi.hoisted(() => ({
+  entries: [] as unknown[],
+  records: [] as unknown[],
+  syncFailed: false,
+  skip: 0,
+}));
 mocks.entries = [
   entry('e1', {}),
   entry('e2', { trialId: 'trial-2', classId: 'class-2' }),
@@ -42,14 +47,14 @@ mocks.records = [
         calendarDay: '2026-12-07',
         armband: 101,
         callName: 'Juni',
-        handlerName: 'J',
+        handlerName: 'Jane',
       },
       {
         dogId: 'dog-2',
         calendarDay: '2026-12-07',
         armband: 102,
         callName: 'Hazel',
-        handlerName: 'J',
+        handlerName: 'Jane',
       },
     ]).coverage,
   },
@@ -64,7 +69,12 @@ vi.mock('@/hooks/queries/useArmbandLabelData', () => ({
   }),
 }));
 vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
-  useShowPaperworkPrints: () => ({ data: mocks.records }),
+  useShowPaperworkPrints: () => ({
+    data: mocks.records,
+    isPending: false,
+    isError: false,
+    syncFailed: mocks.syncFailed,
+  }),
 }));
 vi.mock('@/hooks/useLabelPreferences', () => ({
   useLabelPreferences: () => [
@@ -79,7 +89,7 @@ vi.mock('@/hooks/useLabelPreferences', () => ({
         showAccessCode: false,
         venueWifi: false,
       },
-      skip: 0,
+      skip: mocks.skip,
       pitchAdjustment: 0,
       offsetTop: 0,
       offsetLeft: 0,
@@ -118,5 +128,55 @@ describe('ArmbandLabelsReport day, dog and added-since choices (MYK9-2073)', () 
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'Dog' }), '');
     expect(screen.getByText('3 labels on 1 page')).toBeInTheDocument();
+  });
+
+  it('includes every label and says so when the print history cannot be checked', async () => {
+    const user = userEvent.setup();
+    mocks.syncFailed = true;
+    try {
+      render(<ArmbandLabelsReport showId="show-1" scope={trialScope} />);
+      await user.click(screen.getByRole('checkbox', { name: /added since the last print/i }));
+      expect(screen.getByText('3 labels on 1 page')).toBeInTheDocument();
+      expect(screen.getByText(/could not check what was printed/i)).toBeInTheDocument();
+    } finally {
+      mocks.syncFailed = false;
+    }
+  });
+
+  it('prints a corrected label again under "added since"', async () => {
+    const user = userEvent.setup();
+    const original = mocks.entries;
+    mocks.entries = [
+      { ...(original[0] as object), armband: 150 },
+      ...(original.slice(1) as object[]),
+    ];
+    try {
+      render(<ArmbandLabelsReport showId="show-1" scope={trialScope} />);
+      await user.click(screen.getByRole('checkbox', { name: /added since the last print/i }));
+      // The renumbered Juni and the late Moss; Hazel's printed label is unchanged.
+      expect(screen.getByText('2 labels on 1 page')).toBeInTheDocument();
+    } finally {
+      mocks.entries = original;
+    }
+  });
+
+  it('never falls back to the whole class for a row whose dog has no label', () => {
+    render(<ArmbandLabelsReport showId="show-1" scope={trialScope} presetEntryId="held-entry" />);
+    expect(screen.getByText(/This dog has no label to print yet/)).toBeInTheDocument();
+    expect(screen.getByText('0 labels on 0 pages')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Day' })).toBeEnabled();
+  });
+
+  it('keeps the start label inside the sheet when a saved skip is too big', () => {
+    mocks.skip = 40;
+    try {
+      render(<ArmbandLabelsReport showId="show-1" scope={trialScope} />);
+      expect(screen.getByRole('button', { name: 'Start at label 14' })).toHaveAttribute(
+        'aria-current',
+        'true'
+      );
+    } finally {
+      mocks.skip = 0;
+    }
   });
 });

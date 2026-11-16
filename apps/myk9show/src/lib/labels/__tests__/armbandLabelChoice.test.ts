@@ -8,10 +8,9 @@ import {
   lastLabelPrintedAt,
   listLabelDays,
   listLabelDogs,
-  printedLabelKeys,
   withoutPrintedLabels,
-  type ArmbandPrintRecordLike,
 } from '../armbandLabelChoice';
+import { buildPrintedLabelIndex, type ArmbandPrintRecordLike } from '../armbandPrintIndex';
 import type { ArmbandLabelEntry } from '../armbandLabelTypes';
 
 const SHOW = { kind: 'show' as const, showId: 'show-1' };
@@ -85,6 +84,8 @@ describe('armband labels by day (MYK9-2073)', () => {
 });
 
 describe('labels added since the last print (MYK9-2073)', () => {
+  const indexOf = (records: ArmbandPrintRecordLike[]) => buildPrintedLabelIndex(records);
+
   it('prints only the dogs whose label was not in that day last print', () => {
     const mondayPrint = printRecord([juniMonTrial1, hazelMon]);
     const lateEntry = entry('e5', { dogId: 'dog-3', armband: 103, callName: 'Moss' });
@@ -92,33 +93,47 @@ describe('labels added since the last print (MYK9-2073)', () => {
       entriesForChoice([...ALL, lateEntry], SHOW, { day: '2026-12-07', dogKey: null }),
       SHOW
     );
-    const added = withoutPrintedLabels(monday, printedLabelKeys([mondayPrint]));
+    const added = withoutPrintedLabels(monday, indexOf([mondayPrint]));
     expect(added.map(item => item.callName)).toEqual(['Moss']);
     // Tuesday's label for Juni was never printed: Monday's print does not cover it.
+    expect(withoutPrintedLabels([juniTue], indexOf([mondayPrint])).map(item => item.id)).toEqual([
+      'e3',
+    ]);
+  });
+
+  it('prints a label again when it changed after printing', () => {
+    const mondayPrint = printRecord([juniMonTrial1, hazelMon]);
+    const renumbered = { ...juniMonTrial1, armband: 150 };
+    const renamed = { ...hazelMon, handler: 'New Handler' };
     expect(
-      withoutPrintedLabels([juniTue], printedLabelKeys([mondayPrint])).map(item => item.id)
-    ).toEqual(['e3']);
+      withoutPrintedLabels([renumbered, renamed], indexOf([mondayPrint])).map(item => item.id)
+    ).toEqual(['e1', 'e4']);
+  });
+
+  it('does not reprint a dog because it moved to another class', () => {
+    const mondayPrint = printRecord([juniMonTrial1]);
+    expect(withoutPrintedLabels([juniMonTrial2], indexOf([mondayPrint]))).toHaveLength(0);
   });
 
   it('counts a print the secretary undid as not printed', () => {
     const undone = printRecord([juniMonTrial1], { voidedAt: '2026-12-07T09:00:00.000Z' });
-    expect(withoutPrintedLabels([juniMonTrial1], printedLabelKeys([undone]))).toHaveLength(1);
+    expect(withoutPrintedLabels([juniMonTrial1], indexOf([undone]))).toHaveLength(1);
   });
 
   it('ignores prints of other sheets', () => {
     const other = { ...printRecord([juniMonTrial1]), reportId: 'check-in-sheet' };
-    expect(printedLabelKeys([other]).size).toBe(0);
+    expect(indexOf([other]).size).toBe(0);
   });
 
-  it('says when a dog label last printed', () => {
+  it('says when a label last printed in its current form', () => {
     const records = [
       printRecord([juniMonTrial1]),
       printRecord([juniMonTrial1], { printedAt: '2026-12-07T10:00:00.000Z' }),
     ];
-    expect(lastLabelPrintedAt(records, 'dog-day:dog-1:2026-12-07')).toBe(
-      '2026-12-07T10:00:00.000Z'
-    );
-    expect(lastLabelPrintedAt(records, 'dog-day:dog-2:2026-12-07')).toBeNull();
+    expect(lastLabelPrintedAt(indexOf(records), juniMonTrial1)).toBe('2026-12-07T10:00:00.000Z');
+    expect(lastLabelPrintedAt(indexOf(records), hazelMon)).toBeNull();
+    // A renumbered label is not the one that printed.
+    expect(lastLabelPrintedAt(indexOf(records), { ...juniMonTrial1, armband: 150 })).toBeNull();
   });
 });
 

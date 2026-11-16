@@ -284,6 +284,25 @@ describe('buildReadyForShowDay', () => {
     expect(result.lines.map(line => line.status)).toEqual(Array(7).fill('pass'));
   });
 
+  it('fails the premium line, linking the premium card, when required facts are empty (MYK9-2053)', () => {
+    const result = buildReadyForShowDay(
+      allGood({
+        setup: {
+          show: show(),
+          trials: [trial],
+          classes: [{ judgeName: 'Jane Smith' }],
+          premiumMissingFacts: 2,
+        },
+      })
+    );
+    const line = result.lines.find(l => l.id === 'premium');
+    expect(line).toMatchObject({
+      status: 'fail',
+      detail: 'Premium list is missing required facts',
+      href: '#setup-publish-premium',
+    });
+  });
+
   it('fails each setup check with a link to its fix', () => {
     const result = buildReadyForShowDay(
       allGood({

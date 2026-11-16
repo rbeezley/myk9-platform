@@ -145,6 +145,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
     : [
         publishLine('premium', 'Premium published and current', [
           'exhibitor-materials-unpublished',
+          'premium-facts-missing',
           'landing-content-unpublished',
         ]),
       ];

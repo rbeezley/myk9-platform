@@ -15,6 +15,18 @@ const offline = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock('@/features/premium/usePublishInfo', () => ({
   usePublishInfo: () => publishInfo.current,
 }));
+const premiumMissing = vi.hoisted(() => ({ count: 0 }));
+vi.mock('@/features/premium/usePremiumRequirements', () => ({
+  usePremiumRequirements: () => ({
+    items: Array.from({ length: premiumMissing.count }, (_, i) => ({
+      id: 'venue',
+      key: `venue:${i}`,
+      message: 'x',
+      href: null,
+    })),
+    registry: 'AKC',
+  }),
+}));
 const settings = vi.hoisted(() => ({ selfCheckinEnabled: true as boolean | undefined }));
 vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
   useShowSettings: () => ({ data: { selfCheckinEnabled: settings.selfCheckinEnabled } }),
@@ -84,12 +96,22 @@ describe('ReadyForShowDaySection', () => {
       },
     };
     offline.current = { ready: true, missing: [], asOf: 1 };
+    premiumMissing.count = 0;
   });
 
   it('collapses to one calm line when every check passes', () => {
     renderSection('2026-10-19T16:00:00Z');
     expect(screen.getByText('Everything is handled.')).toBeInTheDocument();
     expect(screen.queryByText('Ready for show day')).not.toBeInTheDocument();
+  });
+
+  it('fails the premium line, linking the premium card, while required facts are empty (MYK9-2053)', () => {
+    premiumMissing.count = 2;
+    renderSection('2026-10-19T16:00:00Z');
+    expect(screen.queryByText('Everything is handled.')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Premium list is missing required facts/ })
+    ).toHaveAttribute('href', expect.stringContaining('#setup-publish-premium'));
   });
 
   it('renders nothing outside the window', () => {

@@ -113,4 +113,56 @@ describe('useGeneratePremium', () => {
       expect.objectContaining({ showId: 'show-1' })
     );
   });
+
+  describe('the secretary and chair come from show_officials (MYK9-2053)', () => {
+    const officialsRows = [
+      {
+        user_id: 'p1',
+        first_name: 'Jane',
+        last_name: 'Smith',
+        email: 'jane@test.com',
+        role: 'secretary',
+      },
+      {
+        user_id: 'p2',
+        first_name: 'Bob',
+        last_name: 'Jones',
+        email: 'bob@test.com',
+        role: 'chairman',
+      },
+    ];
+
+    it('puts the officials into the generated premium', async () => {
+      invokeMock.mockResolvedValue({ data: generatedPremium(), error: null });
+      rpcMock.mockImplementation((name: string) =>
+        Promise.resolve({ data: name === 'get_show_officials' ? officialsRows : [], error: null })
+      );
+      const { result } = renderHook(() => useGeneratePremium(), { wrapper });
+
+      const premium = await result.current.generate('show-1');
+
+      expect(rpcMock).toHaveBeenCalledWith('get_show_officials', { p_show_id: 'show-1' });
+      expect(premium.secretary).toMatchObject({ name: 'Jane Smith', email: 'jane@test.com' });
+      expect(premium.officials.chairman).toMatchObject({
+        name: 'Bob Jones',
+        email: 'bob@test.com',
+      });
+    });
+
+    it('fails the publish when the officials cannot be read, never publishing a blank', async () => {
+      invokeMock.mockResolvedValue({ data: generatedPremium(), error: null });
+      rpcMock.mockImplementation((name: string) =>
+        Promise.resolve(
+          name === 'get_show_officials'
+            ? { data: null, error: { message: 'boom' } }
+            : { data: [], error: null }
+        )
+      );
+      const { result } = renderHook(() => useGeneratePremium(), { wrapper });
+
+      await expect(result.current.generate('show-1')).rejects.toMatchObject({
+        name: 'PremiumPublishError',
+      });
+    });
+  });
 });

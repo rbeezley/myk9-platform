@@ -43,7 +43,9 @@ describe('applyShowFormDataToPremium judges (MYK9-2067)', () => {
     ]);
   });
 
-  it('publishes no class line for a judge with a show-level assignment', () => {
+  // The show wizard writes a show-level roster row and keeps it beside the class picks, so the
+  // roster row must not hide the judge's classes (Codex on #4021).
+  it("keeps a roster judge's class assignments", () => {
     expect(
       judgesAfterSync([
         judge({
@@ -52,7 +54,13 @@ describe('applyShowFormDataToPremium judges (MYK9-2067)', () => {
           classLabels: ['Container Novice A'],
         }),
       ])
-    ).toEqual([{ name: 'Jane Smith', residence: 'Austin, TX', classes: [] }]);
+    ).toEqual([{ name: 'Jane Smith', residence: 'Austin, TX', classes: ['Container Novice A'] }]);
+  });
+
+  it('lists a roster judge with no class yet with no class line', () => {
+    expect(judgesAfterSync([judge({ hasShowLevelAssignment: true })])).toEqual([
+      { name: 'Jane Smith', residence: null, classes: [] },
+    ]);
   });
 
   describe('a weekend of trials that repeat the same class labels', () => {
@@ -97,7 +105,7 @@ describe('applyShowFormDataToPremium judges (MYK9-2067)', () => {
       expect(result[1]).toEqual([{ name: 'Judge B', residence: null, classes: [novice] }]);
     });
 
-    it('lists a show-level judge on every trial with no class line', () => {
+    it('lists a roster judge with no class on every trial with no class line', () => {
       const result = sync([
         judge({
           judgeId: 'a',
@@ -113,6 +121,21 @@ describe('applyShowFormDataToPremium judges (MYK9-2067)', () => {
         { name: 'Show Wide', residence: null, classes: [] },
       ]);
       expect(result[1]).toEqual([{ name: 'Show Wide', residence: null, classes: [] }]);
+    });
+
+    it('lists a roster judge with classes only under the trial of those classes', () => {
+      const result = sync([
+        judge({
+          judgeId: 'a',
+          judgeName: 'Judge A',
+          hasShowLevelAssignment: true,
+          classLabels: [novice],
+          classLabelsByTrial: inTrial('Trial 1', '2026-05-01'),
+        }),
+      ]);
+
+      expect(result[0]).toEqual([{ name: 'Judge A', residence: null, classes: [novice] }]);
+      expect(result[1]).toEqual([]);
     });
 
     it('a trial renamed after the premium was generated still lists its judges', () => {

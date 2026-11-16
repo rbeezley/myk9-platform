@@ -255,6 +255,9 @@ export function toSecretaryEntry(
     search_time_seconds: numberFrom(
       replicatedField(entry, 'searchTimeSeconds', 'search_time_seconds')
     ),
+    element_time_seconds: numberFrom(
+      replicatedField(entry, 'elementTimeSeconds', 'element_time_seconds')
+    ),
     total_faults: numberFrom(replicatedField(entry, 'totalFaults', 'total_faults')),
     final_placement: numberFrom(replicatedField(entry, 'finalPlacement', 'final_placement')),
     points_earned: numberFrom(replicatedField(entry, 'pointsEarned', 'points_earned')),

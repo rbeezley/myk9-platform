@@ -10,6 +10,8 @@ export interface RunSheetResult {
   outcome: RunOutcome;
   qualified: boolean;
   timeStr: string;
+  /** UKC Nosework element time, formatted like timeStr; empty when the run has none. */
+  elementTimeStr: string;
   faults: number;
   placement: number | null;
   judgeNotes: string;

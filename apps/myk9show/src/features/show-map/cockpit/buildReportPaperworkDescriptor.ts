@@ -105,17 +105,23 @@ export function buildReportPaperworkDescriptor(input: {
     return buildResultPaperworkDescriptor(
       input.reportId,
       input.scope,
-      selected.map(entry => ({
-        entryId: entry.id,
-        classId: entry.class_id ?? '',
-        dogId: entry.dog_id ?? '',
-        armband: entry.armband == null ? null : Number(entry.armband),
-        resultStatus: entry.result_status,
-        placement: numberOrNull(entry.final_placement),
-        searchTimeSeconds: numberOrNull(entry.search_time_seconds),
-        totalFaults: numberOrNull(entry.total_faults),
-        trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
-      })),
+      selected.map(entry => {
+        // Only the results sheet prints the element time; labels do not, so they ignore it.
+        const elementTimeSeconds =
+          input.reportId === 'results-sheet' ? numberOrNull(entry.element_time_seconds) : null;
+        return {
+          entryId: entry.id,
+          classId: entry.class_id ?? '',
+          dogId: entry.dog_id ?? '',
+          armband: entry.armband == null ? null : Number(entry.armband),
+          resultStatus: entry.result_status,
+          placement: numberOrNull(entry.final_placement),
+          searchTimeSeconds: numberOrNull(entry.search_time_seconds),
+          ...(elementTimeSeconds !== null ? { elementTimeSeconds } : {}),
+          totalFaults: numberOrNull(entry.total_faults),
+          trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
+        };
+      }),
       classFacts
     );
   }

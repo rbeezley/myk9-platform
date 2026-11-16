@@ -34,6 +34,8 @@ export interface RawEntryRow {
   result_status: string | null;
   is_scored: boolean | null;
   search_time_seconds: number | null;
+  /** MYK9-2090: UKC Nosework element time. Optional: only the staff projection carries it. */
+  element_time_seconds?: number | null | undefined;
   total_faults: number | null;
   final_placement: number | null;
   judge_notes: string | null;

@@ -114,3 +114,20 @@ describe('secretaryEntryToRawRow -> buildRunSheetEntries (MYK9-1162)', () => {
     expect(buildRunSheetEntries(rows).map(entry => entry.id)).toEqual([SOURCE_ID]);
   });
 });
+
+describe('element time through the staff projection (MYK9-2090)', () => {
+  it.each([
+    [42.5, '0:42.50'],
+    [null, ''],
+  ])('secretary element_time_seconds %s reaches the run sheet as %j', (seconds, expected) => {
+    const rows = [
+      secretaryEntry({
+        is_scored: true,
+        result_status: 'qualified',
+        element_time_seconds: seconds,
+      }),
+    ].map(secretaryEntryToRawRow);
+    const [entry] = buildRunSheetEntries(rows);
+    expect(entry.result!.elementTimeStr).toBe(expected);
+  });
+});

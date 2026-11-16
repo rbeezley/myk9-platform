@@ -71,8 +71,6 @@ function rawToEntry(
       outcome,
       qualified: outcome === 'qualified',
       timeStr: row.search_time_seconds != null ? formatSearchTime(row.search_time_seconds) : '',
-      elementTimeStr:
-        row.element_time_seconds != null ? formatSearchTime(row.element_time_seconds) : '',
       faults: row.total_faults ?? 0,
       placement: row.final_placement && row.final_placement > 0 ? row.final_placement : null,
       judgeNotes: row.judge_notes ?? '',

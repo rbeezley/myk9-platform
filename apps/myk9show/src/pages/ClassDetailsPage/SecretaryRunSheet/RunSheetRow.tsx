@@ -102,11 +102,6 @@ export function RunSheetRow({
                   {result.timeStr}
                 </span>
               )}
-              {result.elementTimeStr && RAN_OUTCOMES.includes(result.outcome) && (
-                <span className="font-mono text-sm text-muted-foreground">
-                  Element {result.elementTimeStr}
-                </span>
-              )}
               {result.placement && <PlacementPill placement={result.placement} size="sm" />}
             </>
           )}

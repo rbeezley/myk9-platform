@@ -10,8 +10,6 @@ export interface RunSheetResult {
   outcome: RunOutcome;
   qualified: boolean;
   timeStr: string;
-  /** MYK9-2089: UKC element time, '' when the run has none. */
-  elementTimeStr: string;
   faults: number;
   placement: number | null;
   judgeNotes: string;

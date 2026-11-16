@@ -114,6 +114,7 @@ function mapReportEntry(
       is_scored: e.is_scored,
       result_status: e.result_status,
       search_time_seconds: e.search_time_seconds,
+      element_time_seconds: e.element_time_seconds,
       total_faults: e.total_faults,
       final_placement: e.final_placement,
     },

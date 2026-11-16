@@ -62,4 +62,17 @@ describe('mapReplicatedEntryToDbRow', () => {
       dog_breed: 'Beagle',
     });
   });
+
+  it('carries the UKC element time from the replicated row (MYK9-2089)', () => {
+    const replicated = rowToEntry({
+      id: 'entry-element',
+      class_id: 'class-1',
+      show_id: 'show-1',
+      dog_id: 'dog-1',
+      element_time_seconds: 42.5,
+      updated_at: '2026-06-01T12:01:00.000Z',
+    } as Parameters<typeof rowToEntry>[0]);
+
+    expect(mapReplicatedEntryToDbRow(replicated)).toMatchObject({ element_time_seconds: 42.5 });
+  });
 });

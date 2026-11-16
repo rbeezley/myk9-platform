@@ -60,6 +60,8 @@ export const mapReplicatedEntryToDbRow = (
       registration_id: 'registrationId',
       result_status: 'resultStatus',
       search_time_seconds: 'searchTimeSeconds',
+      // MYK9-2089: the UKC element time, printed on the results sheet report.
+      element_time_seconds: 'element_time_seconds',
       total_faults: 'totalFaults',
       final_placement: 'finalPlacement',
       disqualification_reason: 'disqualification_reason',

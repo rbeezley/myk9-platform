@@ -64,46 +64,61 @@ describe('one set of check-in words', () => {
   );
 });
 
-describe('one set of check-in words on the other My Shows surfaces (MYK9-2093)', () => {
-  const stateKeys = ['in-ring', 'pulled'] as const;
+function whereToBeEntry(overrides: Partial<EnrichedShowEntry>): EnrichedShowEntry {
+  return {
+    entryId: 'e1',
+    classId: 'c1',
+    trialId: 't1',
+    dogId: 'd1',
+    dogName: 'Maggie',
+    armband: '101',
+    queue: { kind: 'waiting-unknown' },
+    element: 'Container',
+    level: 'Novice',
+    section: 'A',
+    classTitle: 'Container Novice A',
+    trialDate: '2026-05-10',
+    dayLabel: 'Sunday, May 10',
+    trialName: 'Trial 1',
+    startTime: '9:00 AM',
+    judgeName: 'Smith',
+    dogsAhead: 0,
+    entryStatus: 'confirmed',
+    paymentStatus: 'paid',
+    hasResult: false,
+    ...overrides,
+  };
+}
 
-  it.each(stateKeys)('the dog-card chip says the shared word for %s', state => {
-    const dog = { classes: [{ checkInStatus: state }] } as unknown as MyShowDog;
-    const chip = deriveDogChip(dog, { isPastShow: false, isShowCancelled: false });
-    expect(chip.label).toBe(checkInStateLabel(state));
+describe('one set of check-in words on the other My Shows surfaces (MYK9-2093)', () => {
+  it.each(['in-ring', 'pulled', 'at-gate', 'conflict', 'checked-in'] as const)(
+    'the dog-card chip says the shared word for %s',
+    state => {
+      const dog = { classes: [{ checkInStatus: state }] } as unknown as MyShowDog;
+      const chip = deriveDogChip(dog, { isPastShow: false, isShowCancelled: false });
+      expect(chip.label).toBe(checkInStateLabel(state));
+    }
+  );
+
+  it.each(['in-ring', 'pulled'] as const)('Where to be says the shared word for %s', state => {
+    render(<WhereToBe entries={[whereToBeEntry({ checkInStatus: state })]} showId="show-1" />);
+    expect(screen.getByText(checkInStateLabel(state))).toBeInTheDocument();
   });
 
-  it.each(stateKeys)('Where to be says the shared word for %s', state => {
+  it('Where to be never spells in-ring two ways in one row', () => {
     render(
       <WhereToBe
-        entries={[
-          {
-            entryId: 'e1',
-            classId: 'c1',
-            trialId: 't1',
-            dogId: 'd1',
-            dogName: 'Maggie',
-            armband: '101',
-            queue: { kind: 'waiting-unknown' },
-            element: 'Container',
-            level: 'Novice',
-            section: 'A',
-            classTitle: 'Container Novice A',
-            trialDate: '2026-05-10',
-            dayLabel: 'Sunday, May 10',
-            trialName: 'Trial 1',
-            startTime: '9:00 AM',
-            judgeName: 'Smith',
-            dogsAhead: 0,
-            entryStatus: 'confirmed',
-            paymentStatus: 'paid',
-            hasResult: false,
-            checkInStatus: state,
-          } as EnrichedShowEntry,
-        ]}
+        entries={[whereToBeEntry({ queue: { kind: 'in-ring' }, checkInStatus: 'in-ring' })]}
         showId="show-1"
       />
     );
-    expect(screen.getByText(checkInStateLabel(state) as string)).toBeInTheDocument();
+    const row = screen.getByRole('link');
+    expect(row).not.toHaveTextContent(/in ring/i);
+    expect(screen.getAllByText('In the ring').length).toBeGreaterThan(0);
+  });
+
+  it('Where to be says the shared word for a queue that is pulled', () => {
+    render(<WhereToBe entries={[whereToBeEntry({ queue: { kind: 'pulled' } })]} showId="show-1" />);
+    expect(screen.getByText('Pulled at the show')).toBeInTheDocument();
   });
 });

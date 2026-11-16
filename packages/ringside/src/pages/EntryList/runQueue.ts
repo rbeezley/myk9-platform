@@ -17,7 +17,7 @@
  * ReplicatedEntry normalizer.
  */
 
-import { checkInStateLabel } from '@myk9/ui';
+import { checkInStateLabel } from '@myk9/ui/check-in-words';
 import { ordinal } from './ordinal';
 
 /**

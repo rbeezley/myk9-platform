@@ -232,9 +232,9 @@ describe('place in line (MYK9-992)', () => {
     ]);
     expect(formatRunQueueState({ kind: 'waiting', place: 2 })).toBe('2nd up');
     expect(formatRunQueueState({ kind: 'waiting-unknown' })).toBe('Waiting');
-    expect(formatRunQueueState({ kind: 'in-ring' })).toBe('In ring');
+    expect(formatRunQueueState({ kind: 'in-ring' })).toBe('In the ring');
     expect(formatRunQueueState({ kind: 'done' })).toBe('Done');
-    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
+    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled at the show');
   });
 
   it('words a paper class and a stale order once (MYK9-1970)', () => {
@@ -298,7 +298,7 @@ describe('withdrawn state', () => {
     const rows = [entry({ id: 'w', armband: 1, status: 'withdrawn' })];
     expect(runQueueStateOf(rows, 'w')).toEqual({ kind: 'withdrawn' });
     expect(formatRunQueueState({ kind: 'withdrawn' })).toBe('Withdrawn');
-    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
+    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled at the show');
   });
 });
 
@@ -383,18 +383,18 @@ describe('a dog that is not running reads its own word (MYK9-1940)', () => {
   it('moved, absent and pulled each read their own word', () => {
     expect(word('m')).toBe('Moved');
     expect(word('a')).toBe('Absent');
-    expect(word('p')).toBe('Pulled');
+    expect(word('p')).toBe('Pulled at the show');
   });
 
   it('keeps scratched as Pulled and withdrawn as Withdrawn', () => {
-    expect(word('s')).toBe('Pulled');
+    expect(word('s')).toBe('Pulled at the show');
     expect(word('w')).toBe('Withdrawn');
   });
 
   it('notRunningLabel gives the same words for the judge list', () => {
     expect(
       ['moved', 'absent', 'pulled', 'withdrawn'].map(r => notRunningLabel(r as never))
-    ).toEqual(['Moved', 'Absent', 'Pulled', 'Withdrawn']);
+    ).toEqual(['Moved', 'Absent', 'Pulled at the show', 'Withdrawn']);
   });
 
   it('a moved dog names the class it went to when the screen knows it', () => {

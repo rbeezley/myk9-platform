@@ -12,8 +12,9 @@ function isUnfinished(trial: DbTrial, classes: readonly DbClass[]): boolean {
   const key = deriveTrialStatusKey({
     trialStatus: trial.status,
     classCount: own.length,
-    completedCount: own.filter(cls => classifyClassStatus(cls.status ?? undefined)?.kind === 'complete')
-      .length,
+    completedCount: own.filter(
+      cls => classifyClassStatus(cls.status ?? undefined)?.kind === 'complete'
+    ).length,
     hasStarted: own.some(cls => classifyClassStatus(cls.status ?? undefined)?.kind === 'active'),
   });
   return UNFINISHED.has(key);

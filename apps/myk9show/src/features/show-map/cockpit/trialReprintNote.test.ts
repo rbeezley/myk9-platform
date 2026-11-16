@@ -57,9 +57,9 @@ describe('needsReprintAfterEarlierTrial', () => {
   });
 
   it('stays quiet when nothing printed has changed, or nothing was printed', () => {
-    expect(needs('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'current')])).toBe(
-      false
-    );
+    expect(
+      needs('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'current')])
+    ).toBe(false);
     expect(
       needs('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'unconfirmed')])
     ).toBe(false);

@@ -23,7 +23,9 @@ export function needsReprintAfterEarlierTrial(input: {
 }): boolean {
   const earlierTrials = input.trials.filter(
     other =>
-      other.id !== input.trial.id && other.date === input.trial.date && other.order < input.trial.order
+      other.id !== input.trial.id &&
+      other.date === input.trial.date &&
+      other.order < input.trial.order
   );
   if (earlierTrials.length === 0) return false;
   const finishedBefore = earlierTrials.every(other =>

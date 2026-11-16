@@ -39,6 +39,6 @@ describe('useWaitlistWaiting gate', () => {
   it('reads the show for a viewer who manages it, and a zero is a read answer', async () => {
     const { result } = mount(true);
     await waitFor(() => expect(mocks.getClasses).toHaveBeenCalledWith('show-1'));
-    await waitFor(() => expect(result.current).toEqual({ count: 0, runOut: [] }));
+    await waitFor(() => expect(result.current).toEqual({ count: 0, runOut: [], openSpots: [] }));
   });
 });

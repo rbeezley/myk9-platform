@@ -130,7 +130,7 @@ describe('Show Desk waiting pills (MYK9-1949)', () => {
     expect(
       signalsFor({
         heldEntries: 0,
-        waitlist: { count: 0, runOut: [] },
+        waitlist: { count: 0, runOut: [], openSpots: [] },
       })
     ).toEqual([]);
     expect(signalsFor({})).toEqual([]);

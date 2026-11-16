@@ -16,6 +16,9 @@ const state = vi.hoisted(() => ({
   holdC3: null as null | { resolve: () => void },
   failNextRead: false,
   replicaListeners: [] as Array<() => void>,
+  // Cached judge-day figures that are no longer current, and a settings read that never answers.
+  capacityOver: {} as { isPaused?: boolean; error?: string },
+  settingsPending: false,
 }));
 
 const h = vi.hoisted(() => ({
@@ -104,6 +107,8 @@ const judgeDay = (over: Partial<JudgeDayCapacity>): JudgeDayCapacity => ({
 vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/queries/useJudgeDayCapacity')>()),
   useJudgeDayCapacity: () => ({
+    ...state.capacityOver,
+    isKnown: true,
     judgeDays: [
       judgeDay({}),
       judgeDay({
@@ -117,6 +122,17 @@ vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
         classNames: ['Master'],
       }),
     ],
+  }),
+}));
+
+// The show offers spots by hand, so the page recommends who to offer.
+vi.mock('@/components/shows/waitListSettingsQuery', () => ({
+  waitListSettingsQueryOptions: (showId: string) => ({
+    queryKey: ['waitlist-settings', showId],
+    queryFn: () =>
+      state.settingsPending
+        ? new Promise<never>(() => undefined)
+        : Promise.resolve({ config: { waitlistPaymentDeadlineHours: 24 }, autoOffer: false }),
   }),
 }));
 
@@ -157,6 +173,8 @@ describe('WaitlistManagementPage', () => {
     state.holdC3 = null;
     state.failNextRead = false;
     state.replicaListeners = [];
+    state.capacityOver = {};
+    state.settingsPending = false;
   });
 
   it('shows every waiting dog in the show, grouped by class, before any judge-day is chosen', async () => {
@@ -221,7 +239,97 @@ describe('WaitlistManagementPage', () => {
     await waitFor(() => expect(screen.queryByText('Otherjudge')).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Show every class' }));
-    expect(await screen.findByText('Otherjudge')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Otherjudge')).toBeInTheDocument());
+  });
+
+  it("names the next dog when the judge's day has room, with one main button", async () => {
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Otherjudge');
+    const notices = await screen.findAllByTestId('waitlist-spot-notice');
+    expect(notices.map(n => n.textContent)).toContain(
+      '10 spots open. Next in line: Otherjudge (joined Mar 1)Offer spot to Otherjudge'
+    );
+    expect(screen.getAllByRole('button', { name: 'Offer spot to Otherjudge' })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /offer spot$/i })).not.toBeInTheDocument();
+  });
+
+  it("names the judge's day, and offers no spot, when a class has room but the day is full", async () => {
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Bella');
+    expect(
+      await screen.findByText("Novice A has room, but Judge One's Saturday is full.")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /offer spot to (bella|rexy|tera)/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['offline (the query is parked)', { isPaused: true }],
+    ['a failed re-read', { error: 'rpc down' }],
+  ])(
+    'recommends no dog and offers nothing from cached judge-day figures after %s',
+    async (_name, over) => {
+      state.capacityOver = over;
+      render(<WaitlistManagementPage showId="show-1" />);
+      await screen.findByText('Otherjudge');
+      expect(screen.queryByText(/Next in line/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^offer spot to /i })).not.toBeInTheDocument();
+    }
+  );
+
+  it('recommends no dog and shows no Offer while the automatic-offer setting is unread', async () => {
+    state.settingsPending = true;
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Otherjudge');
+    expect(screen.getAllByTestId('waitlist-spot-notice').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Next in line/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^offer spot to /i })).not.toBeInTheDocument();
+  });
+
+  it('skips a dog that already has an open offer and names the following dog', async () => {
+    const { getWaitlistByClass, getWaitlistOffersByClass } =
+      await import('@/services/database/waitlists');
+    const original = vi.mocked(getWaitlistByClass).getMockImplementation()!;
+    vi.mocked(getWaitlistByClass).mockImplementation(async (classId: string) =>
+      classId === 'c3'
+        ? {
+            data: [
+              h.entry('w4', 'c3', 'Master', 1, 'Otherjudge'),
+              h.entry('w6', 'c3', 'Master', 2, 'Following'),
+            ],
+            error: null,
+          }
+        : original(classId)
+    );
+    // Otherjudge's dog (dog-w4) holds an open offer, so it is not the next to offer.
+    vi.mocked(getWaitlistOffersByClass).mockImplementation(
+      async (classId: string) =>
+        ({
+          data:
+            classId === 'c3'
+              ? [
+                  {
+                    ...h.entry('o1', 'c3', 'Master', 1, 'Otherjudge'),
+                    dog_id: 'dog-w4',
+                    status: 'offered',
+                  },
+                ]
+              : [],
+          error: null,
+        }) as never
+    );
+    try {
+      render(<WaitlistManagementPage showId="show-1" />);
+      expect(await screen.findByText(/Next in line: Following/)).toBeInTheDocument();
+      expect(screen.queryByText(/Next in line: Otherjudge/)).not.toBeInTheDocument();
+    } finally {
+      vi.mocked(getWaitlistByClass).mockImplementation(original);
+      vi.mocked(getWaitlistOffersByClass).mockImplementation((async () => ({
+        data: [],
+        error: null,
+      })) as never);
+    }
   });
 
   it('narrows the queues through the shared ListFilterBar search', async () => {
@@ -234,7 +342,7 @@ describe('WaitlistManagementPage', () => {
 
     await waitFor(() => expect(screen.queryByText('Bella')).not.toBeInTheDocument());
     expect(screen.getByText('Tera')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 4 dogs.');
+    expect(screen.getByText(/Showing 1 of 4 dogs./)).toBeInTheDocument();
   });
 
   // MYK9-999: the settings are reachable from the Waitlist tab, scoped to the tab's show.
@@ -401,7 +509,7 @@ describe('WaitlistManagementPage', () => {
     viewWaitList('Judge One');
     const showEvery = await screen.findByRole('button', { name: 'Show every class' });
 
-    const rowActions = await screen.findAllByRole('button', { name: /^(offer spot|remove)$/i });
+    const rowActions = await screen.findAllByRole('button', { name: /^(offer|remove)$/i });
     expect(rowActions.length).toBeGreaterThan(0);
     for (const button of [tryAgain, showEvery, ...rowActions]) {
       expect(button.className).toContain('h-11');

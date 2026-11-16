@@ -10,6 +10,46 @@ import { render } from '@/test/utils/testUtils';
 import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import WaitlistManagementPage from '../index';
 
+// The online case needs the server's judge-day answer: an open spot is decided against it.
+vi.mock('@/services/database/supabaseClient', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/database/supabaseClient')>();
+  const chain = () => {
+    const c: Record<string, unknown> = {
+      select: () => c,
+      eq: () => c,
+      single: () => c,
+      then: (resolve: (v: unknown) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(resolve),
+    };
+    return c;
+  };
+  const rpc = () =>
+    Promise.resolve({
+      data: [
+        {
+          judge_id: 'j1',
+          judge_full_name: 'Judge One',
+          show_date: '2026-10-10',
+          class_ids: ['c1'],
+          class_names: ['Novice A'],
+          day_capacity: 10,
+          day_taken: 3,
+          day_mail_in_reserved: 0,
+          day_remaining: 7,
+          waitlist_count: 1,
+        },
+      ],
+      error: null,
+    });
+  return {
+    ...actual,
+    supabase: new Proxy(actual.supabase, {
+      get: (target, key, receiver) =>
+        key === 'from' ? chain : key === 'rpc' ? rpc : Reflect.get(target, key, receiver),
+    }),
+  };
+});
+
 vi.mock('@/services/database/waitlists', () => ({
   getClassesWithWaitlistCounts: vi.fn().mockResolvedValue({
     data: [
@@ -77,7 +117,7 @@ describe('WaitlistManagementPage offline', () => {
     expect(screen.queryByText(/spots? available/)).not.toBeInTheDocument();
   });
 
-  it('disables Offer Spot and Remove, saying they are online only, when the app is offline', async () => {
+  it('offers no spot (the judge-day answer is online-only), disables Remove, and says so, when the app is offline', async () => {
     render(
       <NetworkStatusTestProvider
         value={{
@@ -90,17 +130,17 @@ describe('WaitlistManagementPage offline', () => {
     );
 
     await screen.findByText('Bella');
-    expect(screen.getByRole('button', { name: /Offer Spot/ })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^Offer/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Remove/ })).toBeDisabled();
     expect(screen.getByTestId('waitlist-online-only')).toHaveTextContent('Online only');
   });
 
-  it('leaves Offer Spot and Remove enabled when online', async () => {
+  it('leaves Offer and Remove enabled when online', async () => {
     onlineManager.setOnline(true);
     render(<WaitlistManagementPage showId="show-1" />);
 
     await screen.findByText('Bella');
-    expect(screen.getByRole('button', { name: /Offer Spot/ })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Offer spot to Bella' })).toBeEnabled();
     expect(screen.getByRole('button', { name: /Remove/ })).toBeEnabled();
     expect(screen.queryByTestId('waitlist-online-only')).not.toBeInTheDocument();
   });

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Dog, Send, Undo2 } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatOfferDeadline } from '@/lib/format/offerDeadline';
+import { waitlistDogName } from './spotEntry';
 import { formatTrialLabel } from './trialLabel';
 import type { ActionDialogState, WaitlistOffer } from './types';
 
@@ -47,9 +48,7 @@ function buildColumns(
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <Dog className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="font-medium">
-            {row.original.dog?.call_name || row.original.dog?.name || 'Unknown Dog'}
-          </span>
+          <span className="font-medium">{waitlistDogName(row.original)}</span>
         </div>
       ),
     },

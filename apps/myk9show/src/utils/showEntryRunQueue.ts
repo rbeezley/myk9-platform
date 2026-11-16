@@ -26,6 +26,7 @@ import {
   isInRingEntry,
   notRunningReasonOf,
   pendingByRunOrder,
+  resolveClaim,
   runQueueStateOf,
   stateForClaim,
   type RunQueueEntry,
@@ -129,6 +130,28 @@ export function ownEntryQueueState(entry: ShowEntry, onPaper = false): RunQueueS
   // MYK9-1970: the class row this device already holds says it is judged on paper, so the paper
   // line shows offline too; the place is added when the server answers.
   return onPaper ? { kind: 'paper' } : { kind: 'waiting-unknown' };
+}
+
+/**
+ * The ONE "is this class scored on paper?" for the exhibitor surfaces (MYK9-1970): the class's own
+ * setting, else the show's device-scoring switch off (the server's `coalesce(scores_on_paper, NOT
+ * uses_device_scoring)`). Both come from the replicated tables, so it holds offline. Fails closed
+ * to paper only on a known answer: an unknown class and show is not paper (today's behaviour).
+ */
+export function isClassScoredOnPaper(
+  classOnPaper: boolean | null | undefined,
+  showUsesDeviceScoring: boolean | null | undefined
+): boolean {
+  return resolveClaim({ classOnPaper, showUsesDeviceScoring }) === 'paper';
+}
+
+/** `ownEntryQueueState` for a class, paper by the class's own setting or else the show's switch. */
+export function ownEntryQueueStateInClass(
+  entry: ShowEntry,
+  classOnPaper: boolean | null | undefined,
+  showUsesDeviceScoring: boolean | null | undefined
+): RunQueueState | null {
+  return ownEntryQueueState(entry, isClassScoredOnPaper(classOnPaper, showUsesDeviceScoring));
 }
 
 /** True for a state that may take the server's place: waiting with an order, or a paper class. */

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ShowEntry } from '@/store/entry-store-types';
-import { isAwaitingServerPlace, ownEntryQueueState } from './showEntryRunQueue';
+import {
+  isAwaitingServerPlace,
+  isClassScoredOnPaper,
+  ownEntryQueueState,
+} from './showEntryRunQueue';
 
 function entry(overrides: Partial<ShowEntry> = {}, runOrder = 5): ShowEntry {
   return {
@@ -53,5 +57,16 @@ describe('ownEntryQueueState on a paper class (MYK9-1970)', () => {
     expect(isAwaitingServerPlace({ kind: 'waiting-unknown' })).toBe(true);
     expect(isAwaitingServerPlace({ kind: 'in-ring' })).toBe(false);
     expect(isAwaitingServerPlace(null)).toBe(false);
+  });
+});
+
+describe('isClassScoredOnPaper, the one rule for every exhibitor surface (MYK9-1970)', () => {
+  it('uses the class own setting first, then the show switch, and fails closed to not paper when unknown', () => {
+    expect(isClassScoredOnPaper(true, true)).toBe(true);
+    expect(isClassScoredOnPaper(false, false)).toBe(false);
+    expect(isClassScoredOnPaper(null, false)).toBe(true);
+    expect(isClassScoredOnPaper(undefined, false)).toBe(true);
+    expect(isClassScoredOnPaper(null, true)).toBe(false);
+    expect(isClassScoredOnPaper(null, undefined)).toBe(false);
   });
 });

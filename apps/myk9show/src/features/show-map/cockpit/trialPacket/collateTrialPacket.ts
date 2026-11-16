@@ -52,6 +52,17 @@ export interface CollatedTrialPacket {
 
 export const NO_JUDGE_KEY = 'no-judge';
 
+/** A judge's dog and sheet totals for the classes it holds. */
+export function withJudgeTotals(judge: TrialPacketJudge): TrialPacketJudge {
+  return {
+    ...judge,
+    dogTotal: judge.classes.reduce((sum, item) => sum + item.dogCount, 0),
+    // The cover sheet is one page of every judge's packet.
+    sheetTotal:
+      1 + judge.classes.reduce((sum, item) => sum + item.checkInPages + item.scoreSheetPages, 0),
+  };
+}
+
 function classLabel(classItem: DbClass): string {
   const section = classItem.section && classItem.section !== '-' ? classItem.section : '';
   return [classItem.element, classItem.level, section].filter(Boolean).join(' ') || '';
@@ -155,13 +166,7 @@ export function collateTrialPacket(input: {
     }
   }
   const ordered = [...judges.values()]
-    .map(judge => ({
-      ...judge,
-      // The cover sheet is one page of every judge's packet.
-      dogTotal: judge.classes.reduce((sum, item) => sum + item.dogCount, 0),
-      sheetTotal:
-        1 + judge.classes.reduce((sum, item) => sum + item.checkInPages + item.scoreSheetPages, 0),
-    }))
+    .map(withJudgeTotals)
     .sort((a, b) => Number(a.key === NO_JUDGE_KEY) - Number(b.key === NO_JUDGE_KEY));
   return {
     trial,

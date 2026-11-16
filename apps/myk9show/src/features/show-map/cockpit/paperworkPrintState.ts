@@ -59,6 +59,12 @@ export interface CheckInPaperworkEntry {
   runOrder: number | null;
   checkInStatus: string | null;
   trialId?: string | undefined;
+  /**
+   * `entries.entry_status`. A move-up leaves the source entry in its class with every other fact
+   * unchanged, and a withdrawal does the same, so without it the class would read as printed
+   * after either (MYK9-2074).
+   */
+  entryStatus?: string | null | undefined;
 }
 
 export interface ScoreSheetPaperworkEntry extends CheckInPaperworkEntry {

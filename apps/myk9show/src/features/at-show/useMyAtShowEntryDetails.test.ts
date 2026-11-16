@@ -96,7 +96,7 @@ describe('useMyAtShowEntryDetails — reconciles via table subscription, not a s
           {
             className: 'Container Novice',
             ...(scoresOnPaper === undefined ? {} : { scoresOnPaper }),
-          },
+          } as AtShowClassSummary,
         ],
       ]);
     const detail = async (

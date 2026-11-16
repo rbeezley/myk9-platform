@@ -115,7 +115,12 @@ interface SetMocksOptions {
   entries?: Array<ReturnType<typeof makeEntry>>;
   classes?: Array<ReturnType<typeof makeClass>>;
   dogs?: Array<ReturnType<typeof makeDog>>;
-  shows?: Array<{ id: string; clubId: string; assignedJudges?: Show['assignedJudges'] }>;
+  shows?: Array<{
+    id: string;
+    clubId: string;
+    assignedJudges?: Show['assignedJudges'];
+    usesDeviceScoring?: Show['usesDeviceScoring'];
+  }>;
   userId?: string;
   isAdmin?: boolean;
   isSecretary?: boolean;

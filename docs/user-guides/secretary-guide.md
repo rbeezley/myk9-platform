@@ -40,10 +40,10 @@ The **Actions** button in the top bar changes with the page you are on. On **Sho
 | **Check-in desk**: look up exhibitors, armbands and check-in status, and check dogs in | **Volunteers**: helper assignments and gaps                  |
 | **Self check-in**: turn exhibitor self check-in on by show, trial or class             | **Lunch orders**: plan lunch for everyone working each day   |
 | **Access codes**: judge and ringside codes                                             | **Judge supplies**: what each judge is handed, once per show |
-| **Emergency trial packet**: the printed paper fallback                                 | **Tasks and notes**: show-specific reminders                 |
+|                                                                                        | **Tasks and notes**: show-specific reminders                 |
 |                                                                                        | **Incident log**: record incidents while fresh               |
 
-> **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes**, **Emergency trial packet** and **Volunteers** from this menu. Nothing is deleted, and switching one back on brings the row back with its data. A new show starts with **Self check-in** and **Access codes** showing, and **Emergency trial packet** and **Volunteers** hidden until you switch them on. See card 3.
+> **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes** and **Volunteers** from this menu, and **Paper fallback packet** hides the **Saved copy** section of the before-trial packet. Nothing is deleted, and switching one back on brings it back with its data. A new show starts with **Self check-in** and **Access codes** showing, and **Volunteers** and **Paper fallback packet** hidden until you switch them on. See card 3.
 
 ### Reading the schedule
 
@@ -328,9 +328,9 @@ All under **Show Desk → Actions**:
 - **Judge supplies**: every judge at the show, once, with the trials they judge. Open a judge to set what they are handed. The list applies to every trial that judge is on, so a judge on two trials is set up once. **Reports → Judge Supply Checklists** prints them.
 - **Hospitality plan**: **Reports → Hospitality plan** prints the headcount by role for each show day, with the lunch orders and dietary notes. Print it before the show, once volunteers and lunch orders are in, and hand it to whoever runs hospitality.
 - **Tasks and notes**: reminders for this show.
-- **Emergency trial packet**: prepare or confirm the printed paper fallback, in case devices or signal fail on the day.
+- **Paper fallback**: the before-trial packet has a **Saved copy** section. It saves a trial day's packet as a PDF, emails it to the show's managers, lists the copies sent and marks one printed, in case devices or signal fail on the day.
 
-Volunteers and the Emergency trial packet only show here while their **This show uses…** switch is on (card 3). Both start off on a new show.
+Volunteers and the Saved copy section only show while their **This show uses…** switch is on (card 3; **Volunteer tracking** and **Paper fallback packet**). Both start off on a new show.
 
 ---
 

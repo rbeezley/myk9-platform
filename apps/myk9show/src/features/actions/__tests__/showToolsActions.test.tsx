@@ -106,7 +106,6 @@ describe('show tool icons (MYK9-1727)', () => {
     const tools: ShowToolItem[] = [
       ...TOOLS,
       { id: 'check-in-desk', group: 'show-day', title: 'Check-in desk' },
-      { id: 'emergency-trial-packet', group: 'show-day', title: 'Emergency trial packet' },
       { id: 'message-exhibitors', group: 'show-day', title: 'Message exhibitors' },
       { id: 'lunch-orders', group: 'show-logistics', title: 'Lunch orders' },
       { id: 'tasks-notes', group: 'show-logistics', title: 'Tasks and notes' },

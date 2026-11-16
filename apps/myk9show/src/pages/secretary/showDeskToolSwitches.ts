@@ -10,8 +10,6 @@ export interface ShowDeskToolSwitches {
   selfCheckin: boolean | undefined;
   /** shows.uses_device_scoring */
   deviceScoring: boolean | undefined;
-  /** shows.uses_paper_packet */
-  paperPacket: boolean | undefined;
   /** shows.uses_volunteers */
   volunteers: boolean | undefined;
 }
@@ -20,7 +18,6 @@ export function hiddenShowDeskToolIds(switches: ShowDeskToolSwitches): ReadonlyS
   const hidden = new Set<string>();
   if (switches.selfCheckin === false) hidden.add('self-checkin');
   if (switches.deviceScoring === false) hidden.add('access-codes');
-  if (switches.paperPacket === false) hidden.add('emergency-trial-packet');
   if (switches.volunteers === false) hidden.add('volunteers');
   return hidden;
 }

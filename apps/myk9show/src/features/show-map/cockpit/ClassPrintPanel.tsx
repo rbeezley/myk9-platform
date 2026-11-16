@@ -42,6 +42,7 @@ export function ClassPrintPanel({
   classId,
   classLabel,
   items,
+  presetEntryId,
   onClose,
 }: {
   open: boolean;
@@ -50,6 +51,8 @@ export function ClassPrintPanel({
   classId: string;
   classLabel: string;
   items: readonly SecretaryCockpitPaperwork[];
+  /** Armband labels open on this entry's dog and day: a dog's row's "Print armband label". */
+  presetEntryId?: string | undefined;
   onClose: () => void;
 }) {
   // The panel opens from the focused-class card, which is `position: sticky` and so its own
@@ -71,6 +74,7 @@ export function ClassPrintPanel({
           trialId={trialId}
           classId={classId}
           items={items}
+          presetEntryId={presetEntryId}
           onDone={onClose}
         />
       )}
@@ -84,12 +88,14 @@ function ClassPrintPanelBody({
   trialId,
   classId,
   items,
+  presetEntryId,
   onDone,
 }: {
   showId: string;
   trialId: string;
   classId: string;
   items: readonly SecretaryCockpitPaperwork[];
+  presetEntryId: string | undefined;
   onDone: () => void;
 }) {
   const { user } = useAuthContext();
@@ -269,6 +275,7 @@ function ClassPrintPanelBody({
                 onRetry={() => refetch()}
                 iframeRef={frames.get(item.reportId)!}
                 onArmbandDescriptorChange={setArmbandDescriptor}
+                armbandPresetEntryId={presetEntryId}
               />
             </div>
           </section>

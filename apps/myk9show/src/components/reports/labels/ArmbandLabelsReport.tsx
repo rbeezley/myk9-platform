@@ -9,6 +9,7 @@ import {
   filterEntries,
   selectArmbandLabelEntries,
 } from '@/lib/labels/armbandLabelData';
+import { withoutPrintedLabels } from '@/lib/labels/armbandLabelChoice';
 import type { LabelContentConfig, LabelFilterConfig } from '@/lib/labels/armbandLabelTypes';
 import type { ReportScope } from '@/lib/reports/types';
 import {
@@ -19,6 +20,8 @@ import { ArmbandLabelCell } from './ArmbandLabelCell';
 import { LabelPreviewSheet } from './LabelPreviewSheet';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { LabelCalibrationPanel } from './LabelCalibrationPanel';
+import { ArmbandLabelChoiceControls } from './ArmbandLabelChoiceControls';
+import { useArmbandLabelChoice } from './useArmbandLabelChoice';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
@@ -35,6 +38,8 @@ interface ArmbandLabelsReportProps {
   scope: ReportScope;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
   onDescriptorChange?: ((descriptor: PaperworkDescriptor | null) => void) | undefined;
+  /** A dog's row opens the panel on that entry's dog and day (MYK9-2073). */
+  presetEntryId?: string | undefined;
 }
 
 export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
@@ -42,6 +47,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   scope,
   iframeRef: externalIframeRef,
   onDescriptorChange,
+  presetEntryId,
 }) => {
   const [prefs, setPrefs] = useLabelPreferences();
   const [filter, setFilter] = useState<LabelFilterConfig>({
@@ -76,22 +82,24 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     ? `${TAP_ROW} cursor-not-allowed text-muted-foreground`
     : TAP_ROW;
 
+  const labelChoice = useArmbandLabelChoice({
+    showId,
+    scope,
+    entries: allEntries,
+    presetEntryId,
+  });
+  const { choice } = labelChoice;
   const filteredCandidates = useMemo(
-    () =>
-      filterEntries(
-        allEntries.filter(entry => {
-          if (scope.kind === 'class') return entry.classId === scope.classId;
-          if (scope.kind === 'trial') return entry.trialId === scope.trialId;
-          return true;
-        }),
-        filterConfig
-      ),
-    [allEntries, filterConfig, scope]
+    () => filterEntries(labelChoice.candidates, filterConfig),
+    [labelChoice.candidates, filterConfig]
   );
-  const filtered = useMemo(
-    () => selectArmbandLabelEntries(filteredCandidates, { kind: 'show', showId: scope.showId }),
-    [filteredCandidates, scope.showId]
-  );
+  const filtered = useMemo(() => {
+    const picked = selectArmbandLabelEntries(filteredCandidates, {
+      kind: 'show',
+      showId: scope.showId,
+    });
+    return choice.addedOnly ? withoutPrintedLabels(picked, labelChoice.printed) : picked;
+  }, [filteredCandidates, scope.showId, choice.addedOnly, labelChoice.printed]);
   const items = useMemo(() => prepareArmbandLabelItems(filtered), [filtered]);
   const paperworkDescriptor = useMemo(
     () =>
@@ -221,6 +229,15 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   return (
     <div className="w-full max-w-[8.5in] mx-auto">
       <LabelSetupSection>
+        <ArmbandLabelChoiceControls
+          scope={scope}
+          choice={choice}
+          onChange={labelChoice.setChoice}
+          days={labelChoice.days}
+          dogs={labelChoice.dogs}
+          note={labelChoice.note}
+        />
+
         {/* Label Size */}
         <div>
           <SetupEyebrow className="mb-2">Label Size</SetupEyebrow>
@@ -426,11 +443,13 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
         >
           {allEntries.length === 0
             ? 'No entries with armbands assigned for this show'
-            : selectionInvalid !== null
-              ? 'Fix the armband numbers above to see labels'
-              : showSpecific && armbandText.trim()
-                ? `No entry found with armband ${armbandText.trim()}`
-                : 'No entries match the selected filters'}
+            : choice.addedOnly && filteredCandidates.length > 0
+              ? 'Every label here was already printed. Nothing has been added since the last print.'
+              : selectionInvalid !== null
+                ? 'Fix the armband numbers above to see labels'
+                : showSpecific && armbandText.trim()
+                  ? `No entry found with armband ${armbandText.trim()}`
+                  : 'No entries match the selected filters'}
         </div>
       )}
 

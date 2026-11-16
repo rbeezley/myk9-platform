@@ -11,6 +11,10 @@ vi.mock('@/services/replication', () => ({
   replicatedPaperworkPrintsTable: { confirmPrinted: vi.fn(), voidPrint: vi.fn() },
 }));
 
+vi.mock('./useShowPaperworkPrints', () => ({
+  useShowPaperworkPrints: () => ({ data: [] }),
+}));
+
 const sourceClass = fromPartial<SecretaryCockpitClass>({
   id: 'c1',
   trialId: 't1',

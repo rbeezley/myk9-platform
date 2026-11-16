@@ -589,6 +589,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
       'Move up a level',
       'Change handler',
       'Mark absent',
+      'Print armband label',
     ]);
     await user.keyboard('{Escape}');
 
@@ -597,6 +598,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
       'Change class',
       'Change handler',
       'Mark absent',
+      'Print armband label',
     ]);
   });
 
@@ -606,6 +608,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change handler',
       'Mark absent',
+      'Print armband label',
     ]);
   });
 

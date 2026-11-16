@@ -21,6 +21,18 @@ const submissionsState = vi.hoisted(() => ({
   },
 }));
 
+const scoreChangesMock = vi.hoisted(() => vi.fn(async () => new Map<string, string>()));
+
+vi.mock('@/services/database/entries/scoreAudit', () => ({
+  getFileScoreChangesSince: scoreChangesMock,
+}));
+vi.mock('@/features/results-tab/useClassUnsyncedScores', () => ({
+  classHasUnsyncedScores: async () => false,
+}));
+vi.mock('@/services/replication', () => ({
+  replicatedEntriesTable: { subscribe: () => () => {} },
+}));
+
 const incidentsMock = vi.hoisted(() => vi.fn(async (): Promise<unknown[]> => []));
 
 const trialStoreState = vi.hoisted(() => ({
@@ -80,6 +92,7 @@ vi.mock('@/features/show-workbench/CloseOutShowAction', () => ({
     classes: unknown[];
     submissions: unknown[] | null;
     incidents: unknown;
+    scoreChanges?: { status: string };
   }) => (
     <pre data-testid="close-action">
       {JSON.stringify({
@@ -88,6 +101,7 @@ vi.mock('@/features/show-workbench/CloseOutShowAction', () => ({
         classes: props.classes,
         submissions: props.submissions,
         incidents: props.incidents,
+        scoreChanges: props.scoreChanges?.status,
       })}
     </pre>
   ),
@@ -114,6 +128,7 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
       isError: false,
       refetch: vi.fn(),
     };
+    scoreChangesMock.mockClear();
     incidentsMock.mockReset();
     incidentsMock.mockResolvedValue([]);
   });
@@ -135,8 +150,22 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
       show: { id: 'show-1', status: 'active' },
       trials: [{ id: 'trial-1', status: 'active' }],
       classes: [
-        { id: 'class-1', status: 'completed', entryCount: 2, scoredCount: 1, pendingCount: 1 },
-        { id: 'class-2', status: 'Scheduled', entryCount: 0, scoredCount: 0, pendingCount: 0 },
+        {
+          id: 'class-1',
+          status: 'completed',
+          trialId: 'trial-1',
+          entryCount: 2,
+          scoredCount: 1,
+          pendingCount: 1,
+        },
+        {
+          id: 'class-2',
+          trialId: 'trial-1',
+          status: 'Scheduled',
+          entryCount: 0,
+          scoredCount: 0,
+          pendingCount: 0,
+        },
       ],
       submissions: [{ status: 'sent', trial_id: 'trial-1' }],
       incidents: expect.objectContaining({ reportableCount: 0, urgentCount: 0 }),
@@ -153,6 +182,7 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
     expect(closeActionProps().classes).toEqual([
       {
         id: 'class-1',
+        trialId: 'trial-1',
         status: 'completed',
         entryCount: null,
         scoredCount: null,
@@ -160,12 +190,40 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
       },
       {
         id: 'class-2',
+        trialId: 'trial-1',
         status: 'Scheduled',
         entryCount: null,
         scoredCount: null,
         pendingCount: null,
       },
     ]);
+  });
+
+  it('reads the score history for a file the app sent, the same read as the Finish list', async () => {
+    submissionsState.value = {
+      data: [{ status: 'sent', organization: 'AKC', submitted_at: '2026-11-14T19:40:00Z' }],
+      isError: false,
+      refetch: vi.fn(),
+    };
+    scoreChangesMock.mockResolvedValue(new Map([['class-1', '2026-11-14T20:15:00Z']]));
+
+    renderStep();
+
+    await waitFor(() => expect(closeActionProps().scoreChanges).toBe('read'));
+    expect(scoreChangesMock).toHaveBeenCalledWith('show-1', '2026-11-14T19:40:00.000Z');
+  });
+
+  it('passes the history as unreadable when it cannot be read', async () => {
+    submissionsState.value = {
+      data: [{ status: 'sent', organization: 'AKC', submitted_at: '2026-11-14T19:40:00Z' }],
+      isError: false,
+      refetch: vi.fn(),
+    };
+    scoreChangesMock.mockRejectedValue(new Error('offline'));
+
+    renderStep();
+
+    await waitFor(() => expect(closeActionProps().scoreChanges).toBe('unreadable'));
   });
 
   it('pauses the closeout when the entries read failed', () => {

@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 import { CloseTheShowLink } from './CloseTheShowLink';
+import { PriorSendNotice, ScoresChangedNotice, useSentFileCheckForSend } from './PriorSendNotice';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { supabase } from '@/services/database/supabaseClient';
 import {
@@ -120,6 +121,7 @@ export default function ResultsSubmissionPage() {
   const activeFormatter =
     activeSubmissionOption?.mode === 'electronic' ? activeSubmissionOption.formatter : undefined;
   const selectedOrgLabel = activeSubmissionOption?.label;
+  const scoresCheck = useSentFileCheckForSend(showId, activeFormatter, isSending, sendSuccess);
 
   const isAKCScentWork =
     activeSubmissionOption?.organization === 'AKC' &&
@@ -380,6 +382,8 @@ export default function ResultsSubmissionPage() {
         </p>
       </div>
 
+      <ScoresChangedNotice check={scoresCheck} />
+
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1">
@@ -434,13 +438,7 @@ export default function ResultsSubmissionPage() {
                           decision, so nothing stood between two clicks and two
                           filings with the same registry. */}
                       {priorSubmission && (
-                        <span className="mb-2 block font-medium text-warning">
-                          These results were already{' '}
-                          {priorSubmission.status === 'sent' ? 'sent' : 'recorded as submitted'} to{' '}
-                          {priorSubmission.organization} on{' '}
-                          {formatEntryDateTime(priorSubmission.submitted_at)}. Sending again files a
-                          second time.
-                        </span>
+                        <PriorSendNotice prior={priorSubmission} check={scoresCheck} />
                       )}
                       {historyUnavailable && (
                         <span className="mb-2 block font-medium text-warning">

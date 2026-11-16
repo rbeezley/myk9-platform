@@ -1,5 +1,5 @@
 import { isCompletedStatus, needsCascade } from '@/features/show-closeout/closeoutStatus';
-import { calculateWhatIsLeft } from '@/features/show-closeout/whatIsLeft';
+import { calculateWhatIsLeft, type ScoreChangeRead } from '@/features/show-closeout/whatIsLeft';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
 
@@ -17,6 +17,8 @@ export interface CloseoutTrialSummary {
 
 export interface CloseoutClassSummary {
   id: string;
+  /** Names the class's registry through its trial. */
+  trialId?: string | undefined;
   status?: string | null;
   entryCount?: number | null;
   scoredCount?: number | null;
@@ -25,8 +27,10 @@ export interface CloseoutClassSummary {
 }
 
 export interface ResultSubmissionSummary {
-  status?: string | null;
-  trial_id?: string | null;
+  status?: string | null | undefined;
+  trial_id?: string | null | undefined;
+  organization?: string | null | undefined;
+  submitted_at?: string | null | undefined;
 }
 
 export interface CloseoutReadinessInput {
@@ -37,7 +41,9 @@ export interface CloseoutReadinessInput {
   /** `null` when the incident log could not be read. */
   incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
   /** `null` when result submissions could not be read. */
-  submissions: ResultSubmissionSummary[] | null;
+  submissions: readonly ResultSubmissionSummary[] | null;
+  /** What the score history says since the results file went (MYK9-2078). Absent: not checked. */
+  scoreChanges?: ScoreChangeRead | undefined;
 }
 
 export interface CloseoutReadiness {
@@ -61,6 +67,7 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
   const left = calculateWhatIsLeft({
     classes: input.classes.map(cls => ({
       id: cls.id,
+      trialId: cls.trialId,
       status: cls.status,
       expectedCount: cls.entryCount == null ? null : Number(cls.entryCount),
       scoredCount: cls.scoredCount == null ? null : Number(cls.scoredCount),
@@ -70,6 +77,7 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     entries: input.entries,
     incidents: input.incidents,
     submissions: input.submissions,
+    scoreChanges: input.scoreChanges,
   });
   return { concerns: [...left.concerns], hasConcerns: left.concerns.length > 0 };
 }

@@ -27,6 +27,7 @@ import {
   type CloseoutTrialSummary,
   type ResultSubmissionSummary,
 } from './showCloseOutShow';
+import type { ScoreChangeRead } from '@/features/show-closeout/whatIsLeft';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
 
@@ -36,7 +37,8 @@ interface CloseOutShowActionProps {
   classes: CloseoutClassSummary[];
   entries: ShowDayReconciliationEntry[];
   incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
-  submissions: ResultSubmissionSummary[] | null;
+  submissions: readonly ResultSubmissionSummary[] | null;
+  scoreChanges?: ScoreChangeRead | undefined;
 }
 
 export function CloseOutShowAction({
@@ -46,14 +48,16 @@ export function CloseOutShowAction({
   entries,
   incidents,
   submissions,
+  scoreChanges,
 }: CloseOutShowActionProps) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const readiness = useMemo(
-    () => buildCloseoutReadiness({ classes, trials, entries, incidents, submissions }),
-    [classes, entries, incidents, submissions, trials]
+    () =>
+      buildCloseoutReadiness({ classes, trials, entries, incidents, submissions, scoreChanges }),
+    [classes, entries, incidents, scoreChanges, submissions, trials]
   );
   const targets = useMemo(
     () => selectCloseoutCascadeTargets({ show, trials, classes }),

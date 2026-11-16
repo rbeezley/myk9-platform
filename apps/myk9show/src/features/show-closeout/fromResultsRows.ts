@@ -3,6 +3,7 @@ import {
   calculateWhatIsLeft,
   type WhatIsLeft,
   type WhatIsLeftClass,
+  type WhatIsLeftInput,
   type WhatIsLeftTrial,
 } from './whatIsLeft';
 
@@ -23,18 +24,21 @@ export function resultsRowToLeftClass(row: ResultsClassRow): WhatIsLeftClass {
 
 /**
  * What the Results tab's rows leave to do. The tab carries no entries, incidents or submissions,
- * so only the class lines are answered here; the rest report unknown rather than nothing. Pass the
+ * so only the class lines are answered here; the rest report unknown rather than nothing, unless
+ * the caller passes the send records (and the score history) it has read. Pass the
  * show's trials to get each registry's own lines.
  */
 export function calculateResultsRowsLeft(
   rows: readonly ResultsClassRow[],
-  trials: readonly WhatIsLeftTrial[] = []
+  trials: readonly WhatIsLeftTrial[] = [],
+  sent: Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges'> = { submissions: null }
 ): WhatIsLeft {
   return calculateWhatIsLeft({
     classes: rows.map(resultsRowToLeftClass),
     trials,
     entries: [],
     incidents: null,
-    submissions: null,
+    submissions: sent.submissions,
+    scoreChanges: sent.scoreChanges,
   });
 }

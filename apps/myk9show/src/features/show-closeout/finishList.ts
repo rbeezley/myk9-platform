@@ -7,6 +7,7 @@
  */
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { getResultsStepHref, getFinishLineHref } from '@/features/results-tab/resultsTabRoutes';
+import { SENT_FILE_TEXT } from './submissionTimes';
 import type { WhatIsLeft, WhatIsLeftLine } from './whatIsLeft';
 
 export interface FinishListItem {
@@ -16,6 +17,8 @@ export interface FinishListItem {
   label: string;
   /** `null` for a done line: a tick is plain text, not a link to a place with nothing left to do. */
   href: string | null;
+  /** A plain sentence under the line, when the screen could not check something about it. */
+  note?: string;
   /** The line opens the Results class list filtered to the classes it counted (`?left=<key>`). */
   opensClassList: boolean;
 }
@@ -55,14 +58,40 @@ function itemFor(
         label: line.open ? wording.pendingSignalLabel(count) : line.label,
       };
     }
-    case 'results-submission':
+    case 'results-submission': {
+      // The app's own send is the only line that can go stale: a score changed after it (MYK9-2078).
+      // Its action is the existing send, so the first record stays and a second is made.
+      if (line.open === false && line.sentFileCheck === 'changed') {
+        return {
+          key: line.key,
+          state: 'open',
+          opensClassList: false,
+          href: getResultsStepHref(showId, 'submit'),
+          label: SENT_FILE_TEXT.changed,
+        };
+      }
+      // Not yet known is not a tick: while the history loads the line says so.
+      if (line.open === false && line.sentFileCheck === 'checking') {
+        return {
+          key: line.key,
+          state: 'unknown',
+          opensClassList: false,
+          href: null,
+          label: line.label,
+          note: SENT_FILE_TEXT.checking,
+        };
+      }
       return {
         key: line.key,
         state,
         opensClassList: false,
         href: line.open === false ? null : getResultsStepHref(showId, 'submit'),
         label: line.open === false ? line.label : `Submit to ${line.registryId ?? 'the registry'}`,
+        ...(line.open === false && line.sentFileCheck === 'unknown'
+          ? { note: SENT_FILE_TEXT.unknown }
+          : {}),
       };
+    }
     default:
       return null;
   }

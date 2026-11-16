@@ -131,8 +131,7 @@ export function collateTrialPacket(input: {
       [classItem] as DbClass[],
       input.entries as DbEntry[]
     );
-    const page = pages[0];
-    if (!page || page.entries.length === 0) {
+    if (!pages[0]) {
       emptyClassCount += 1;
       continue;
     }
@@ -140,6 +139,13 @@ export function collateTrialPacket(input: {
     const model = toScoresheetModel(dataSet, 'run-order');
     const checkIn = selectPacketPages(model, 'check-in');
     const scoreSheets = selectPacketPages(model, 'score-recording');
+    // The dogs that run: the sheets leave off a moved-up source, a withdrawn or pulled dog
+    // (MYK9-2082), so the count comes from what prints, not from the class's raw entries.
+    const dogCount = scoreSheets.pages.reduce((sum, item) => sum + item.entries.length, 0);
+    if (dogCount === 0) {
+      emptyClassCount += 1;
+      continue;
+    }
     const judgeName = resolveClassJudgeName(classItem, input.show.assignedJudges ?? [], '');
     const key = judgeKeyOf(judgeName);
     const packetClass: TrialPacketClass = {
@@ -147,7 +153,7 @@ export function collateTrialPacket(input: {
       label: classLabel(classItem) || (classItem.name ?? ''),
       startMinutes: parseStoredClockTime(classItem.start_time),
       maxTime: formatTimeLimitSeconds(classItem.time_limit_seconds),
-      dogCount: page.entries.length,
+      dogCount,
       runOrder: scoreSheets.pages.flatMap(item => item.entries.map(entry => entry.armband ?? '')),
       checkInPages: checkIn.pages.length,
       scoreSheetPages: scoreSheets.pages.length,

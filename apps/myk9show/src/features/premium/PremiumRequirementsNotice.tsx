@@ -31,7 +31,7 @@ export function PremiumRequirementsNotice({ items, registry }: PremiumRequiremen
             {item.href && (
               <Link
                 to={item.href}
-                aria-label={`Fix: ${item.message}`}
+                aria-label={`Fix it: ${item.message}`}
                 className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Fix it

@@ -102,14 +102,13 @@ describe('ShowAboutPage premium requirements (MYK9-2053)', () => {
     expect(screen.queryByText(/requires the name of the club/)).toBeNull();
 
     expect(
-      screen.getByRole('link', { name: /Fix: AKC requires the show's location/ })
+      screen.getByRole('link', { name: /Fix it: AKC requires the show's location/ })
     ).toHaveAttribute('href', '/shows/show-1?edit=true');
-    expect(screen.getByRole('link', { name: /Fix: AKC requires the Trial Chair/ })).toHaveAttribute(
-      'href',
-      '/shows/show-1?edit=true&editTab=personnel'
-    );
     expect(
-      screen.getByRole('link', { name: /Fix: AKC requires at least 5 Event Committee/ })
+      screen.getByRole('link', { name: /Fix it: AKC requires the Trial Chair/ })
+    ).toHaveAttribute('href', '/shows/show-1?edit=true&editTab=personnel');
+    expect(
+      screen.getByRole('link', { name: /Fix it: AKC requires at least 5 Event Committee/ })
     ).toHaveAttribute('href', '/clubs/club-1?tab=members');
 
     // Warns, never blocks.

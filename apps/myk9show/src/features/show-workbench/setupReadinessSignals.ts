@@ -139,6 +139,16 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   // the source clears the Ready line and the Show Desk chip together.
   const { usesLandingPage, publishesOwnPremium } = resolveShowUses(input.show);
   const premiumState = classifyPremiumPublishState(input.premiumInfo ?? input.show);
+  // MYK9-2053: facts the registry requires that the premium would print empty. Listed in full on
+  // the About page's premium card, which is where this lands. First,
+  // so the secretary fixes the gaps before publishing rather than after.
+  if (!publishesOwnPremium && (input.premiumMissingFacts ?? 0) > 0) {
+    signals.push({
+      id: 'premium-facts-missing',
+      label: 'Premium list is missing required facts',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
+    });
+  }
   if (publishesOwnPremium) {
     // no premium nudge
   } else if (premiumState === 'published-stale') {
@@ -151,15 +161,6 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
     signals.push({
       id: 'exhibitor-materials-unpublished',
       label: 'Premium not published yet',
-      href: `#${PREMIUM_CARD_ANCHOR}`,
-    });
-  }
-  // MYK9-2053: facts the registry requires that the premium would print empty. Listed in full on
-  // the About page's premium card, which is where this lands.
-  if (!publishesOwnPremium && (input.premiumMissingFacts ?? 0) > 0) {
-    signals.push({
-      id: 'premium-facts-missing',
-      label: 'Premium list is missing required facts',
       href: `#${PREMIUM_CARD_ANCHOR}`,
     });
   }

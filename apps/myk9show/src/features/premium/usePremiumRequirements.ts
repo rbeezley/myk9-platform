@@ -96,7 +96,8 @@ export function usePremiumRequirements(
   show: Show,
   trials: ReadonlyArray<RequirementTrial>,
   classes: ReadonlyArray<RequirementClass>,
-  judges: ReadonlyArray<ShowJudgeAssignment>,
+  /** The show's judge roster, or null where the caller does not hold it (judges are not checked). */
+  judges: ReadonlyArray<ShowJudgeAssignment> | null,
   enabled: boolean
 ): PremiumRequirements {
   const officials = useShowOfficials(enabled ? show.id : undefined);
@@ -128,12 +129,13 @@ export function usePremiumRequirements(
     unavailable.add('chair');
   }
   if (!committee.data) unavailable.add('committee');
+  if (!judges) unavailable.add('judges');
 
   const facts = requirementFactsFromShow({
     show,
     trials,
     classes,
-    judges,
+    judges: judges ?? [],
     secretaryName: personName(officials.data?.secretaries[0]),
     chairName: personName(officials.data?.chairmen[0]),
     committee: committee.data ?? [],

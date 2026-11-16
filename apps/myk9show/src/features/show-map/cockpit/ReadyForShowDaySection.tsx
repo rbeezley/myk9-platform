@@ -7,7 +7,6 @@ import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePro
 import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineReadiness';
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
-import { buildJudgesFromClasses } from '@/components/shows/overview/overviewJudges';
 import { resolveShowUses } from '@/features/show-workbench/showUses';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { ShowMapClassInput, ShowMapTrialInput } from '../showMapTypes';
@@ -93,13 +92,14 @@ function ReadyForShowDayContent({
 }: Omit<ReadyForShowDaySectionProps, 'now'> & { offlinePromptOpen: boolean }) {
   const show = useShowWithLiveUses(routeShow);
   const publishInfo = usePublishInfo(show.id, true);
-  // MYK9-2053: the same count the About page's premium card lists. The Show Desk class rows carry
-  // each class's judge, so the roster is rebuilt from them.
+  // MYK9-2053: the About page's premium list, counted. Show Desk holds no judge roster (its class
+  // rows only name each class's judge), so judges are left to the About page and to the
+  // judges-missing readiness line rather than miscounted here.
   const premiumMissingFacts = usePremiumRequirements(
     show,
     trials,
     classes,
-    buildJudgesFromClasses(classes.map(cls => ({ id: cls.id, judgeName: cls.judgeName ?? null }))),
+    null,
     !resolveShowUses(show).publishesOwnPremium
   ).items.length;
   const { readiness } = useOfflineReadiness(show.id);

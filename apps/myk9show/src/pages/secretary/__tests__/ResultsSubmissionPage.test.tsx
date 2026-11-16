@@ -20,6 +20,7 @@ import type { AKCSubmissionData } from '@myk9/secretary';
 const mockHistoryData = vi.hoisted(() => ({
   rows: [] as SubmissionHistoryRow[],
   isLoading: false,
+  updatedAt: 1,
 }));
 
 const mockAKCData = vi.hoisted(() => ({
@@ -88,6 +89,7 @@ vi.mock('@/hooks/mutations/useResultSubmission', () => ({
   useResultSubmissions: () => ({
     data: mockHistoryData.rows,
     isLoading: mockHistoryData.isLoading,
+    dataUpdatedAt: mockHistoryData.updatedAt,
   }),
 }));
 
@@ -142,6 +144,7 @@ function renderPage() {
 describe('ResultsSubmissionPage', () => {
   beforeEach(() => {
     mockHistoryData.rows = [];
+    mockHistoryData.updatedAt = 1;
     mockSchedule.hasConfirmedSnapshot = true;
     mockUnsynced.mockReset();
     mockUnsynced.mockResolvedValue(false);
@@ -532,6 +535,37 @@ describe('ResultsSubmissionPage', () => {
       finish({ data: { success: true }, error: null });
       await screen.findByText(/sent successfully/i);
       expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
+    });
+
+    it('shows a change made after the send once the send records have refetched', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
+      mockScoreChanges.mockResolvedValue(new Map([['class-akc', '2026-05-10T13:00:00Z']]));
+      mockInvoke.mockResolvedValue({ data: { success: true }, error: null });
+
+      const view = renderPage();
+      await screen.findByTestId('scores-changed-notice');
+      fireEvent.click(await screen.findByTestId('send-btn'));
+      fireEvent.click(await screen.findByTestId('send-confirm-btn'));
+      await screen.findByText(/sent successfully/i);
+      expect(screen.queryByTestId('scores-changed-notice')).toBeNull();
+
+      // The records refetch with the new send, and a judge corrects a score after it.
+      mockHistoryData.rows = [
+        makeHistoryRow({ organization: 'AKC', status: 'sent', submitted_at: '2026-05-11T10:00:00Z' }),
+      ];
+      mockHistoryData.updatedAt = 2;
+      mockScoreChanges.mockResolvedValue(new Map([['class-akc', '2026-05-11T11:00:00Z']]));
+      view.rerender(
+        <Routes>
+          <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+        </Routes>
+      );
+      await waitFor(() =>
+        expect(screen.getByTestId('scores-changed-notice')).toHaveTextContent(
+          SENT_FILE_TEXT.changed
+        )
+      );
     });
 
     it('does not flag the AKC send for a change in UKC classes only', async () => {

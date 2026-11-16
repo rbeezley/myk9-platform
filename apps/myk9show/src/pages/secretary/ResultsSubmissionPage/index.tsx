@@ -121,7 +121,7 @@ export default function ResultsSubmissionPage() {
   const activeFormatter =
     activeSubmissionOption?.mode === 'electronic' ? activeSubmissionOption.formatter : undefined;
   const selectedOrgLabel = activeSubmissionOption?.label;
-  const scoresCheck = useSentFileCheckForSend(showId, activeFormatter?.organization);
+  const scoresCheck = useSentFileCheckForSend(showId, activeFormatter, isSending || sendSuccess);
 
   const isAKCScentWork =
     activeSubmissionOption?.organization === 'AKC' &&
@@ -382,7 +382,7 @@ export default function ResultsSubmissionPage() {
         </p>
       </div>
 
-      <ScoresChangedNotice check={scoresCheck} hidden={isSending || sendSuccess} />
+      <ScoresChangedNotice check={scoresCheck} />
 
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4">

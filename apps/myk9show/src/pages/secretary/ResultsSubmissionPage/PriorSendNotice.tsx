@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { formatEntryDateTime } from '@/lib/format/dates';
-import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
+import {
+  useResultSubmissions,
+  type ResultSubmissionRow,
+} from '@/hooks/mutations/useResultSubmission';
 import { SENT_FILE_TEXT } from '@/features/show-closeout/submissionTimes';
 import { calculateWhatIsLeft, type SentFileCheck } from '@/features/show-closeout/whatIsLeft';
 import { useShowDeskScheduleRead } from '../useShowDeskScheduleRead';
@@ -12,11 +15,22 @@ import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentChec
  * trial, so the registry mapping works), the same shared check, the same calculation. So a change
  * in another registry's classes never flags this one, and a queued offline score reads as
  * "unknown". After a corrected send lands the record moves and the answer clears on its own.
+ *
+ * From the moment a send starts until the send records refetch after it, the old answer would
+ * describe the file before it: no answer until then, then the live answer again (a later change
+ * shows). The mark is taken at the start, so a refetch that lands before the send settles counts.
  */
 export function useSentFileCheckForSend(
   showId: string | undefined,
-  organization: string | undefined
+  formatter: { organization: string } | undefined,
+  sendStarted: boolean
 ): SentFileCheck | undefined {
+  const organization = formatter?.organization;
+  const records = useResultSubmissions(showId ?? '');
+  const [sentMark, setSentMark] = useState<number | null>(null);
+  if (sendStarted && sentMark === null) setSentMark(records.dataUpdatedAt);
+  if (!sendStarted && sentMark !== null) setSentMark(null);
+  const waitingForRecords = sentMark !== null && records.dataUpdatedAt <= sentMark;
   const schedule = useShowDeskScheduleRead();
   const { trials, classes } = useMemo(() => {
     const showTrials = schedule.trials
@@ -39,7 +53,7 @@ export function useSentFileCheckForSend(
     schedule.hasConfirmedSnapshot ? classes : null
   );
   return useMemo(() => {
-    if (!organization) return undefined;
+    if (!organization || waitingForRecords) return undefined;
     const left = calculateWhatIsLeft({
       classes,
       trials,
@@ -51,21 +65,15 @@ export function useSentFileCheckForSend(
     return left.lines.find(
       line => line.kind === 'results-submission' && line.registryId === organization.toUpperCase()
     )?.sentFileCheck;
-  }, [classes, organization, scoreChanges, submissions, trials]);
+  }, [classes, organization, scoreChanges, submissions, trials, waitingForRecords]);
 }
 
 /**
- * One full-width line above the controls. Hidden while a send is in flight or just succeeded: the
- * send records have not refetched yet, so the old answer would describe the file before it.
+ * One full-width line above the controls. During and right after a send the check has no answer
+ * (`useSentFileCheckForSend`), so the notice is not shown then.
  */
-export function ScoresChangedNotice({
-  check,
-  hidden,
-}: {
-  check: SentFileCheck | undefined;
-  hidden: boolean;
-}) {
-  if (hidden || check === undefined || check === 'current') return null;
+export function ScoresChangedNotice({ check }: { check: SentFileCheck | undefined }) {
+  if (check === undefined || check === 'current') return null;
   return (
     <p className="text-sm font-medium text-warning" data-testid="scores-changed-notice">
       {SENT_FILE_TEXT[check]}

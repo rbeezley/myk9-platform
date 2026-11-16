@@ -16,7 +16,7 @@ export const SENT_CHECK_MAX_WAIT_MS = 10_000;
 export const SENT_CHECK_REFETCH_MS = 60_000;
 
 /** `true` = a score change waits in this device's queue; `'error'` = the queue could not be read. */
-type QueueState = boolean | 'error';
+export type QueueState = boolean | 'error';
 
 /**
  * What the Finish the show list, the close step and the send step need to say whether the results
@@ -81,6 +81,8 @@ export function useResultsSentCheck(
       }
     };
     stateRef.current = null;
+    // A cached map from before this mount (or before this class set) is not the answer either.
+    dirtyRef.current = Date.now();
     void recheck(false);
     const unsubscribe = replicatedEntriesTable.subscribe(
       () => {
@@ -113,25 +115,56 @@ export function useResultsSentCheck(
     refetchInterval: SENT_CHECK_REFETCH_MS,
     retry: false,
   });
-  const scoreChanges = useMemo<ScoreChangeRead | undefined>(() => {
-    if (since === null) return undefined;
-    if (!ready) return { status: 'loading' };
-    if (queueState === true || queueState === 'error' || audits.isError) {
-      return { status: 'unreadable' };
-    }
-    if (audits.fetchStatus === 'paused' && !audits.data) return { status: 'unreadable' };
-    if (!audits.data || audits.dataUpdatedAt < (current?.dirtyAt ?? 0))
-      return { status: 'loading' };
-    return { status: 'read', latestByClass: audits.data };
-  }, [
-    audits.data,
-    audits.dataUpdatedAt,
-    audits.fetchStatus,
-    audits.isError,
-    current,
-    queueState,
-    ready,
-    since,
-  ]);
+  const scoreChanges = useMemo<ScoreChangeRead | undefined>(
+    () =>
+      sentCheckAnswer({
+        since,
+        ready,
+        queueState,
+        freshAfter: current?.dirtyAt ?? null,
+        isError: audits.isError,
+        fetchStatus: audits.fetchStatus,
+        data: audits.data,
+        dataUpdatedAt: audits.dataUpdatedAt,
+      }),
+    [
+      audits.data,
+      audits.dataUpdatedAt,
+      audits.fetchStatus,
+      audits.isError,
+      current,
+      queueState,
+      ready,
+      since,
+    ]
+  );
   return useMemo(() => ({ submissions, scoreChanges }), [submissions, scoreChanges]);
+}
+
+/**
+ * The one freshness rule (MYK9-2078). History read before `freshAfter` (this mount, or the last
+ * change that synced) is not shown as the answer: online it is "checking" until the re-read lands,
+ * offline (the re-read is paused) it is "could not check". Unknown never reads as current.
+ */
+export function sentCheckAnswer(input: {
+  since: string | null;
+  ready: boolean;
+  queueState: QueueState | null;
+  freshAfter: number | null;
+  isError: boolean;
+  fetchStatus: 'fetching' | 'paused' | 'idle';
+  data: ReadonlyMap<string, string> | undefined;
+  dataUpdatedAt: number;
+}): ScoreChangeRead | undefined {
+  if (input.since === null) return undefined;
+  if (!input.ready || input.queueState === null) return { status: 'loading' };
+  if (input.queueState !== false || input.isError) return { status: 'unreadable' };
+  if (
+    input.data !== undefined &&
+    input.freshAfter !== null &&
+    input.dataUpdatedAt >= input.freshAfter
+  ) {
+    return { status: 'read', latestByClass: input.data };
+  }
+  return input.fetchStatus === 'paused' ? { status: 'unreadable' } : { status: 'loading' };
 }

@@ -271,6 +271,7 @@ export function buildSecretaryCockpitSnapshot({
       order: Number.parseInt(trial.order || '', 10) || index + 1,
       plannedStartTime: trial.plannedStartTime ?? null,
       displayOrder: trial.order ?? null,
+      storedNumber: trial.trialNumber ?? null,
     })),
     classes: builtClasses,
     administrativeAttention: administrativeAttention(pendingSignals, returnTo),

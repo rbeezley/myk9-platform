@@ -8,9 +8,9 @@ import type {
 } from './secretaryCockpitTypes';
 
 const trials: SecretaryCockpitTrial[] = [
-  { id: 't1', date: '2026-12-07', number: '1', order: 1 },
-  { id: 't2', date: '2026-12-07', number: '2', order: 2 },
-  { id: 't3', date: '2026-12-08', number: '1', order: 3 },
+  { id: 't1', date: '2026-12-07', number: '1', storedNumber: '1', order: 1 },
+  { id: 't2', date: '2026-12-07', number: '2', storedNumber: '2', order: 2 },
+  { id: 't3', date: '2026-12-08', number: '1', storedNumber: '1', order: 3 },
 ];
 
 function cls(
@@ -65,15 +65,65 @@ describe('nextTrialPaperworkNote (decision 6)', () => {
     expect(note('t2', [done, cls('b', 't2', 'not-started', 'current')])).toBeNull();
   });
 
-  it('names the next day armband labels when the next trial starts a new day', () => {
-    const result = note('t3', [
-      cls('b', 't2', 'complete'),
-      cls('d', 't3', 'not-started', 'unconfirmed'),
-    ]);
+  it('names the next day armband labels, with their own door, only while some need printing', () => {
+    const labels = (notPrinted: string[]): SecretaryCockpitClass => ({
+      ...cls('d', 't3', 'not-started', 'unconfirmed'),
+      paperwork: [
+        { reportId: 'check-in-sheet', label: 'Check-in sheet', state: 'unconfirmed' },
+        {
+          reportId: 'armband-labels',
+          label: 'Armband labels',
+          state: notPrinted.length ? 'unconfirmed' : 'current',
+          labelsToPrint: { notPrinted, changed: [] },
+        },
+      ],
+    });
+    const result = note('t3', [cls('b', 't2', 'complete'), labels(['dog-1:2026-12-08'])]);
     expect(result?.text).toBe(
       "Trial 2 is finished. Trial 1's paperwork is ready to print. Tuesday's armband labels are ready too."
     );
     expect(result?.href).toBe('/shows/show-1?day=2026-12-08&packet=t3');
+    expect(result?.labels).toEqual({
+      linkLabel: "Print Tuesday's labels",
+      href: '/shows/show-1?day=2026-12-08&focus=d',
+    });
+
+    const printed = note('t3', [cls('b', 't2', 'complete'), labels([])]);
+    expect(printed?.text).toBe("Trial 2 is finished. Trial 1's paperwork is ready to print.");
+    expect(printed?.labels).toBeUndefined();
+  });
+
+  it('goes away once this trial has started, printed or not', () => {
+    const done = cls('a', 't1', 'complete');
+    expect(
+      note('t2', [
+        done,
+        cls('b', 't2', 'in-progress', 'unconfirmed'),
+        cls('c', 't2', 'not-started'),
+      ])
+    ).toBeNull();
+    expect(note('t2', [done, cls('b', 't2', 'complete', 'unconfirmed')])).toBeNull();
+  });
+
+  it('does not let a cancelled class with entries keep the note open', () => {
+    const done = cls('a', 't1', 'complete');
+    expect(
+      note('t2', [
+        done,
+        cls('b', 't2', 'cancelled', 'unconfirmed'),
+        cls('c', 't2', 'not-started', 'current'),
+      ])
+    ).toBeNull();
+  });
+
+  it('reads the stored trial number, not a made-up one, and says nothing on a tie', () => {
+    const blank: SecretaryCockpitTrial[] = [
+      { id: 't1', date: '2026-12-07', number: '1', storedNumber: null, order: 1 },
+      { id: 't2', date: '2026-12-07', number: '2', storedNumber: null, order: 2 },
+    ];
+    expect(
+      note('t2', [cls('a', 't1', 'complete'), cls('b', 't2', 'not-started', 'unconfirmed')], blank)
+    ).toBeNull();
   });
 
   it('stays quiet while the trial before is running, or when a sheet cannot be checked', () => {
@@ -111,7 +161,7 @@ describe('nextTrialPaperworkNote (decision 6)', () => {
     ).toBeNull();
   });
 
-  it('has no note for the first trial, and never names a guessed number on a tie', () => {
+  it('has no note for the first trial, and says nothing when the order before it is a tie', () => {
     expect(note('t1', [cls('a', 't1', 'not-started', 'stale')])).toBeNull();
     const tied: SecretaryCockpitTrial[] = [
       { id: 'u1', date: '2026-12-07', number: 'A', name: 'Morning', order: 1 },
@@ -127,6 +177,6 @@ describe('nextTrialPaperworkNote (decision 6)', () => {
       ],
       tied
     );
-    expect(result?.text).not.toMatch(/Trial 1 is finished/);
+    expect(result).toBeNull();
   });
 });

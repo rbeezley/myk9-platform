@@ -486,7 +486,7 @@ describe("the first trial's paperwork line, state by state (MYK9-2075)", () => {
     const line = lineOf(
       fp({ sheets: 0, judgePackets: 0, labelsNotPrinted: 4, labelDoorClassId: 'c9' })
     );
-    expect(line?.detail).toBe('Armband labels for Tuesday: 4 armband labels to print.');
+    expect(line?.detail).toBe('Tuesday: 4 armband labels to print.');
     expect(line?.linkLabel).toBe('Print labels for Tuesday');
     expect(line?.href).toBe('/shows/show-1?day=2026-10-20&focus=c9');
   });

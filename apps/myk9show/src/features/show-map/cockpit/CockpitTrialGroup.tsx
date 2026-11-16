@@ -106,6 +106,14 @@ export function CockpitTrialGroup({
           >
             {group.nextTrialNote.linkLabel}
           </Link>
+          {group.nextTrialNote.labels && (
+            <Link
+              to={group.nextTrialNote.labels.href}
+              className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+            >
+              {group.nextTrialNote.labels.linkLabel}
+            </Link>
+          )}
         </p>
       )}
       {group.classes.map((classItem, classIndex) => {

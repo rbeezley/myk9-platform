@@ -75,7 +75,12 @@ function labelPrint(printedAt: string, dogs: { dogId: string; armband: number }[
   } as unknown as ReplicatedPaperworkPrint;
 }
 
-function line(entries: DbEntry[], records: ReplicatedPaperworkPrint[], recordsUnavailable = false) {
+function line(
+  entries: DbEntry[],
+  records: ReplicatedPaperworkPrint[],
+  recordsUnavailable = false,
+  rollUpClasses: typeof classes = classes
+) {
   const byClassId = buildClassPaperworkMap({
     showId: 'show-1',
     classes: classRows,
@@ -85,7 +90,12 @@ function line(entries: DbEntry[], records: ReplicatedPaperworkPrint[], recordsUn
     recordsUnavailable,
     returnTo: '/x',
   });
-  const paperwork = rollUpFirstDayPaperwork({ trials, classes, byClassId, available: true });
+  const paperwork = rollUpFirstDayPaperwork({
+    trials,
+    classes: rollUpClasses,
+    byClassId,
+    available: true,
+  });
   return { paperwork, text: firstTrialLineText(paperwork) };
 }
 
@@ -124,6 +134,14 @@ describe('the first-day label count, from the real paperwork map', () => {
     } as unknown as DbEntry;
     const { paperwork } = line([...entries, held], []);
     expect(paperwork.labelsNotPrinted).toBe(3);
+  });
+
+  it('does not measure a cancelled class, so its dogs and sheets never hold the line open', () => {
+    const cancelledC = classes.map(item =>
+      item.id === 'c' ? { ...item, status: 'cancelled' } : item
+    );
+    const { paperwork } = line(entries, [], false, cancelledC);
+    expect(paperwork.labelsNotPrinted).toBe(2);
   });
 
   it('is unknown, with no guess, when the print history cannot be read', () => {

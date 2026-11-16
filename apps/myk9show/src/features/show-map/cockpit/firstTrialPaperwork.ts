@@ -28,6 +28,8 @@ export interface PaperworkClass {
   element?: string | null | undefined;
   level?: string | null | undefined;
   judgeName?: string | null | undefined;
+  /** The class status as stored: a cancelled class never prints, so it is not measured. */
+  status?: string | null | undefined;
 }
 
 export type PaperworkRows = ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
@@ -123,6 +125,7 @@ export function rollUpFirstDayPaperwork(input: {
   let labelDoorClassId: string | null = null;
   for (const classItem of input.classes) {
     if (!classItem.trialId || !firstDayTrials.has(classItem.trialId)) continue;
+    if (/^cancel+ed$/.test(classItem.status?.trim().toLowerCase() ?? '')) continue;
     for (const row of input.byClassId.get(classItem.id) ?? []) {
       const isSheet = PRE_SHOW_SHEETS.has(row.reportId) && classItem.trialId === first.id;
       if (!isSheet && row.reportId !== ARMBAND_LABELS) continue;

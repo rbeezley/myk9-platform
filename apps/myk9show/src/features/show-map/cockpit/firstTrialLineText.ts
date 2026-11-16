@@ -82,7 +82,7 @@ export function firstTrialLineText(paperwork: FirstDayPaperwork): FirstTrialLine
     const head =
       paperwork.sheets > 0
         ? `${firstTrial.label}${day ? ` on ${day}` : ''}: ${parts.join(' and ')} to print.`
-        : `Armband labels${day ? ` for ${day}` : ''}: ${parts.join(' and ')} to print.`;
+        : `${day ? `${day}: ` : ''}${parts.join(' and ')} to print.`;
     const changed = changedPhrase(paperwork);
     return {
       detail: changed ? `${head} Changed since printing: ${changed}.` : head,

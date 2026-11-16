@@ -676,8 +676,8 @@ describe('the next trial note on the schedule (MYK9-2075)', () => {
   it('reaches the trial group model, with the packet link, from the real snapshot shape', () => {
     const snapshot = makeSnapshot({
       trials: [
-        { id: 'trial-1', date: '2026-07-20', number: '1', order: 1 },
-        { id: 'trial-2', date: '2026-07-20', number: '2', order: 2 },
+        { id: 'trial-1', date: '2026-07-20', number: '1', storedNumber: '1', order: 1 },
+        { id: 'trial-2', date: '2026-07-20', number: '2', storedNumber: '2', order: 2 },
       ],
       classes: [
         makeClass({ id: 'a', trialId: 'trial-1', name: 'Done', lifecycle: 'complete' }),

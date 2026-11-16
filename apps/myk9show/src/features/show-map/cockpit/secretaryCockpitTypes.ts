@@ -76,6 +76,8 @@ export interface SecretaryCockpitTrial {
   plannedStartTime?: string | null;
   /** The trials.display_order column as stored (no fallback), for the shared trial order. */
   displayOrder?: string | null;
+  /** The trials.trial_number column as stored (no fallback), for the shared trial order. */
+  storedNumber?: string | null;
 }
 
 /**
@@ -233,6 +235,8 @@ export interface NextTrialNote {
   text: string;
   linkLabel: string;
   href: string;
+  /** The new day's armband labels, when some still need printing: they print from a class. */
+  labels?: { linkLabel: string; href: string } | undefined;
 }
 
 export interface TrialScheduleGroupModel {

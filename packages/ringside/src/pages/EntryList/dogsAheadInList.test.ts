@@ -182,4 +182,33 @@ describe('a paper or stale claim never becomes a countdown (MYK9-1970)', () => {
       dogsAhead: 2,
     });
   });
+
+  describe("with the server's places supplied (MYK9-2092)", () => {
+    it('paper with no server place uses the replica position', () => {
+      expect(computeDogsAheadInList(entries, 'c', 'paper', undefined, true)).toEqual({
+        kind: 'paper',
+        place: 3,
+      });
+    });
+
+    it("paper with a server place uses the server's", () => {
+      expect(computeDogsAheadInList(entries, 'c', 'paper', 5, true)).toEqual({
+        kind: 'paper',
+        place: 5,
+      });
+    });
+
+    it('live with no server place is stale, never a phone count', () => {
+      expect(computeDogsAheadInList(entries, 'c', 'live', undefined, true)).toEqual({
+        kind: 'stale',
+      });
+    });
+
+    it('live with a server place is that place minus one dogs ahead', () => {
+      expect(computeDogsAheadInList(entries, 'c', 'live', 4, true)).toEqual({
+        kind: 'waiting',
+        dogsAhead: 3,
+      });
+    });
+  });
 });

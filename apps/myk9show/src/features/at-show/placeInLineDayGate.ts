@@ -11,3 +11,16 @@ export function isBeforeTrialDay(trialDate: string | null | undefined, now = new
   if (!trialDate) return false;
   return isTrialDayAhead(parseLocalDateString(trialDate.slice(0, 10)), undefined, now);
 }
+
+/**
+ * The `entriesComplete` argument of `buildEntryListOwnership` for an own-dog pill: false while
+ * entries are still arriving (MYK9-1809) and before the trial day, and then no own-dog pill of
+ * any kind shows (not only the place).
+ */
+export function ownPillAllowed(
+  entriesIncomplete: boolean,
+  trialDate: string | null | undefined,
+  now = new Date()
+): boolean {
+  return !entriesIncomplete && !isBeforeTrialDay(trialDate, now);
+}

@@ -57,7 +57,9 @@ export function computeDogsAheadInList(
   if (position === -1) return null;
   if (serverPlacesGiven) {
     const place = serverPlace != null && serverPlace >= 1 ? serverPlace : undefined;
-    if (claim === 'paper') return { kind: 'paper', place };
+    // A running-order position is not a live count: with no server place (offline), the
+    // replica's position stands, as before MYK9-2092 (MYK9-1970).
+    if (claim === 'paper') return { kind: 'paper', place: place ?? position + 1 };
     if (claim === 'live' && place !== undefined) return { kind: 'waiting', dogsAhead: place - 1 };
     return { kind: 'stale' };
   }

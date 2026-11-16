@@ -69,7 +69,7 @@ export function buildExhibitorDogs(
       faultCount: null,
       placement: null,
       resultsReleased: false,
-      // MYK9-2092: no place in line before the trial day.
+      // MYK9-2092: no place in line before the trial day (the dog page shows the place as a line of text).
       runPosition: isBeforeTrialDay(row.trial_date, now) ? null : (row.run_position ?? null),
       runClaimState: parseClaimState(row.run_claim_state),
     };

@@ -10,6 +10,7 @@ import type { ShowEntry } from '@/store/entry-store-types';
 import { ownEntryQueueState, withServerPlace } from '@/utils/showEntryRunQueue';
 import { transformEntry } from './atShowDataAdapter';
 import { buildExhibitorDogs } from './exhibitorDogIndex';
+import { isBeforeTrialDay, ownPillAllowed } from './placeInLineDayGate';
 import { pendingReplicatedByRunOrder } from './replicatedRunQueue';
 
 /**
@@ -72,7 +73,7 @@ function listPlace(result: DogsAheadResult): number | null {
 }
 
 describe('one place in line for one dog (MYK9-2092)', () => {
-  it('the server rule, run over the fresh class, puts Me third', () => {
+  it('the replica queue helper, run over the fresh class, also puts Me third (the SQL rule itself is pinned by serverQueuePlaceParity)', () => {
     const queue = pendingReplicatedByRunOrder(freshRows.map(r => rowToEntry(r)));
     expect(queue.findIndex(e => e.id === ME) + 1).toBe(SERVER_PLACE);
   });
@@ -144,5 +145,28 @@ describe('one place in line for one dog (MYK9-2092)', () => {
     expect(night!.entries[0]!.runPosition).toBeNull();
     const [today] = buildExhibitorDogs([{ ...base, trial_date: '2026-11-16' }], noon);
     expect(today!.entries[0]!.runPosition).toBe(SERVER_PLACE);
+  });
+
+  it('the list shows no own-dog pill before the trial day', () => {
+    const entries = freshRows.map(r => transformEntry(rowToEntry(r), null));
+    const build = (trialDate: string) =>
+      buildEntryListOwnership(
+        entries,
+        new Set([ME]),
+        undefined,
+        ownPillAllowed(false, trialDate, new Date('2026-11-16T18:00:00Z')),
+        new Map([[ME, 'live' as const]]),
+        new Map([[ME, SERVER_PLACE]])
+      )?.dogsAheadByEntryId.get(ME);
+    expect(build('2026-11-17')).toBeNull();
+    expect(listPlace(build('2026-11-16') ?? null)).toBe(SERVER_PLACE);
+  });
+
+  it('isBeforeTrialDay: today and no date are not before, tomorrow is', () => {
+    const noon = new Date('2026-11-16T18:00:00Z');
+    expect(isBeforeTrialDay('2026-11-16', noon)).toBe(false);
+    expect(isBeforeTrialDay('2026-11-17', noon)).toBe(true);
+    expect(isBeforeTrialDay(null, noon)).toBe(false);
+    expect(isBeforeTrialDay(undefined, noon)).toBe(false);
   });
 });

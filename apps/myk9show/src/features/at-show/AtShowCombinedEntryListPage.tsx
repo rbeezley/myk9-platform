@@ -68,7 +68,7 @@ import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useOwnEntryClaims } from './useOwnEntryClaims';
-import { isBeforeTrialDay } from './placeInLineDayGate';
+import { ownPillAllowed } from './placeInLineDayGate';
 import { useOwnEntryServerPlaces } from './useOwnEntryServerPlaces';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useEntryStatusAccess } from './useEntryStatusAccess';
@@ -391,8 +391,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
         localEntries,
         ownEntryIds,
         conflictLabels,
-        // MYK9-2092: no place in line before the trial day.
-        !entriesIncomplete && !isBeforeTrialDay(classInfo?.trialDate),
+        // MYK9-2092: before the trial day the whole own-dog pill is hidden, not only the place.
+        ownPillAllowed(entriesIncomplete, classInfo?.trialDate),
         claims,
         serverPlaces
       ),

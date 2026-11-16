@@ -16,33 +16,34 @@ const FOOTER_BASELINE = 12;
 
 /**
  * The slice of pdf-lib the packet uses; the real module satisfies it structurally. Font and
- * color are type parameters because pdf-lib's own types for them are not ours to name here.
+ * color options are `never` because pdf-lib's own types for them are not ours to name here:
+ * `never` accepts the real module, and the caller's values are cast where they are used.
  */
 export interface PdfLibFont {
   widthOfTextAtSize(text: string, size: number): number;
 }
-export interface PdfLibPage<Font, Color> {
+export interface PdfLibPage {
   getSize(): { width: number };
   drawText(
     text: string,
-    options: { size: number; font: Font; color: Color; x: number; y: number }
+    options: { size: number; font: never; color: never; x: number; y: number }
   ): unknown;
 }
-export interface PdfLibDocument<Font, Color> {
+export interface PdfLibDocument {
   addPage(page: never): unknown;
   copyPages(source: never, indices: number[]): Promise<unknown[]>;
-  embedFont(font: never): Promise<Font>;
+  embedFont(font: never): Promise<PdfLibFont>;
   getPageIndices(): number[];
-  getPages(): PdfLibPage<Font, Color>[];
+  getPages(): PdfLibPage[];
   save(): Promise<Uint8Array>;
 }
-export interface PdfLibModule<Font extends PdfLibFont = PdfLibFont, Color = unknown> {
+export interface PdfLibModule {
   PDFDocument: {
-    create(): Promise<PdfLibDocument<Font, Color>>;
-    load(bytes: Uint8Array): Promise<PdfLibDocument<Font, Color>>;
+    create(): Promise<PdfLibDocument>;
+    load(bytes: Uint8Array): Promise<PdfLibDocument>;
   };
   StandardFonts: { Helvetica: unknown };
-  rgb(red: number, green: number, blue: number): Color;
+  rgb(red: number, green: number, blue: number): unknown;
 }
 
 /** What merging needs of a pdf-lib document. */
@@ -104,8 +105,8 @@ export function packetFooterText(
 }
 
 /** Stamps the footer on every page of one judge's packet: the cover and every class page. */
-export async function stampJudgePacketFooter<Font extends PdfLibFont, Color>(
-  pdfLib: PdfLibModule<Font, Color>,
+export async function stampJudgePacketFooter(
+  pdfLib: PdfLibModule,
   pdf: Uint8Array,
   judgeName: string,
   printedAt: Date,
@@ -123,7 +124,11 @@ export async function stampJudgePacketFooter<Font extends PdfLibFont, Color>(
       pages.length
     );
     const { width } = page.getSize();
-    const options = { size: FOOTER_SIZE, font, color: pdfLib.rgb(0.35, 0.35, 0.35) };
+    const options = {
+      size: FOOTER_SIZE,
+      font: font as never,
+      color: pdfLib.rgb(0.35, 0.35, 0.35) as never,
+    };
     page.drawText(left, { ...options, x: 36, y: FOOTER_BASELINE });
     page.drawText(right, {
       ...options,
@@ -134,8 +139,8 @@ export async function stampJudgePacketFooter<Font extends PdfLibFont, Color>(
   return doc.save();
 }
 
-export interface AssembleJudgePacketOptions<Font extends PdfLibFont, Color> {
-  pdfLib: PdfLibModule<Font, Color>;
+export interface AssembleJudgePacketOptions {
+  pdfLib: PdfLibModule;
   JsPdf: CoverPdfConstructor;
   packet: { trialLabel: string; trialDate: string | null | undefined; registryName: string };
   judge: PacketJudge;
@@ -148,8 +153,8 @@ export interface AssembleJudgePacketOptions<Font extends PdfLibFont, Color> {
 }
 
 /** The cover sheet, then each class's sheets, as one PDF with the packet footer on every page. */
-export async function assembleJudgePacketPdf<Font extends PdfLibFont, Color>(
-  options: AssembleJudgePacketOptions<Font, Color>
+export async function assembleJudgePacketPdf(
+  options: AssembleJudgePacketOptions
 ): Promise<Uint8Array> {
   const cover = drawJudgeCoverPdf(
     buildJudgeCoverModel(options.packet, options.judge, options.showName),

@@ -41,8 +41,8 @@ export function SavedCopyList({
             <span className="text-muted-foreground">
               {' · '}
               {plural(copy.pageCount, 'page', 'pages')}
-              {' · '}
-              received by {plural(copy.recipientCount ?? 0, 'official', 'officials')}
+              {(copy.recipientCount ?? 0) > 0 &&
+                ` · received by ${plural(copy.recipientCount ?? 0, 'official', 'officials')}`}
             </span>
             {isLatest && latest && <PrintedState row={latest} onMarkPrinted={onMarkPrinted} />}
             {!isLatest && <p className="text-muted-foreground">A newer copy replaced this one.</p>}
@@ -76,6 +76,11 @@ function PrintedState({
           ? 'The paper that was printed is from an older copy.'
           : 'Not marked printed.'}
       </span>
+      {!descriptor && (
+        <span className="text-muted-foreground">
+          Mark printed appears once the show&apos;s data has loaded.
+        </span>
+      )}
       {descriptor && (
         <Button
           type="button"

@@ -48,9 +48,15 @@ export function useDeliveredPackets(
   showId: string | undefined,
   packetData: Omit<EmergencyPacketInput, 'generatedAt'> | null,
   client: PacketReadClient = defaultSupabase as unknown as PacketReadClient
-): { rows: DeliveredPacketRow[]; copies: DeliveredPacketSnapshot[]; isError: boolean } {
+): {
+  rows: DeliveredPacketRow[];
+  copies: DeliveredPacketSnapshot[];
+  isError: boolean;
+  /** Whether the sent-copies list has been read: an unread list is not "nothing was sent". */
+  listState: 'pending' | 'offline' | 'error' | 'ready';
+} {
   const prints = useShowPaperworkPrints(showId ?? '');
-  const { data, isError } = useQuery({
+  const { data, isError, fetchStatus } = useQuery({
     queryKey: deliveredPacketsKey(showId),
     enabled: !!showId,
     queryFn: async () => {
@@ -90,5 +96,13 @@ export function useDeliveredPackets(
     // rendered every day as "not printed" with no warning. `syncFailed` is the
     // signal that actually reflects the server.
     isError: isError || prints.isError || prints.syncFailed,
+    listState:
+      isError || prints.isError || prints.syncFailed
+        ? 'error'
+        : data === undefined
+          ? fetchStatus === 'paused'
+            ? 'offline'
+            : 'pending'
+          : 'ready',
   };
 }

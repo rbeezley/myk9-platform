@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   copies: [] as unknown[],
   rows: [] as unknown[],
   isError: false,
+  listState: 'ready' as 'pending' | 'offline' | 'error' | 'ready',
+  trialRows: [] as unknown[],
+  classRows: [] as unknown[],
+  markDeferred: null as null | (() => void),
   build: vi.fn(),
   deliver: vi.fn(),
   record: vi.fn(),
@@ -37,11 +41,8 @@ vi.mock('@/hooks/queries/useReportData', () => ({
 }));
 vi.mock('@/features/emergency-trial-packet/completePacketRows', () => ({
   completePacketRows: () => ({
-    trials: [
-      { id: 't-sat', timezone: 'America/Chicago' },
-      { id: 't-sun', timezone: null },
-    ],
-    classes: [],
+    trials: mocks.trialRows,
+    classes: mocks.classRows,
     entries: [],
   }),
 }));
@@ -50,7 +51,12 @@ vi.mock('@/pages/secretary/ReportsPage/reportDataMapping', () => ({
 }));
 vi.mock('@/pages/secretary/ReportsPage/useDeliveredPackets', async importOriginal => ({
   ...(await importOriginal<typeof import('@/pages/secretary/ReportsPage/useDeliveredPackets')>()),
-  useDeliveredPackets: () => ({ rows: mocks.rows, copies: mocks.copies, isError: mocks.isError }),
+  useDeliveredPackets: () => ({
+    rows: mocks.rows,
+    copies: mocks.copies,
+    isError: mocks.listState === 'error',
+    listState: mocks.listState,
+  }),
 }));
 vi.mock('./buildSavedCopy', () => ({ buildSavedCopy: mocks.build }));
 vi.mock('@/features/emergency-trial-packet/deliverEmergencyTrialPacket', async importOriginal => ({
@@ -74,7 +80,10 @@ function packetData() {
       { id: 'c-sun', trialId: 't-sun', judgeName: 'TBD' },
       { id: 'c-sat', trialId: 't-sat', judgeName: 'Pat Donovan' },
     ],
-    entries: [],
+    entries: [
+      { id: 'e-sun', classId: 'c-sun', trialId: 't-sun' },
+      { id: 'e-sat', classId: 'c-sat', trialId: 't-sat' },
+    ],
   };
 }
 
@@ -143,7 +152,16 @@ describe('SavedCopySection', () => {
     mocks.packetData = packetData();
     mocks.copies = [];
     mocks.rows = [];
-    mocks.isError = false;
+    mocks.listState = 'ready';
+    mocks.trialRows = [
+      { id: 't-sat', timezone: 'America/Chicago', status: null },
+      { id: 't-sun', timezone: null, status: null },
+    ];
+    mocks.classRows = [
+      { id: 'c-sun', trial_id: 't-sun', status: null },
+      { id: 'c-sat', trial_id: 't-sat', status: null },
+    ];
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     mocks.build.mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), pageCount: 7 });
     mocks.deliver.mockResolvedValue({ recipientCount: 4, snapshotId: 's', pageCount: 7 });
     mocks.record.mockResolvedValue(undefined);
@@ -222,7 +240,7 @@ describe('SavedCopySection', () => {
     const user = await openSection();
     await user.click(screen.getByRole('button', { name: 'Save and email a copy' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The copy was stored, but the email could not be sent. Try again.'
+      /stored, but the email could not be sent\. The stored copy is not listed .*fresh copy\./
     );
   });
 
@@ -234,16 +252,159 @@ describe('SavedCopySection', () => {
     expect(mocks.deliver).not.toHaveBeenCalled();
   });
 
-  it('sends nothing for a day the show has no trial on', async () => {
-    const user = await openSection('2027-01-01');
+  it("gives a day the show has no trial on a disabled button and the old panel's reason", async () => {
+    await openSection('2027-01-01');
+    expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
+    expect(
+      screen.getByText('Add a trial before preparing the emergency packet.')
+    ).toBeInTheDocument();
+  });
+
+  it('disables the button when the day has no entries to print', async () => {
+    mocks.packetData = { ...(packetData() as object), entries: [] };
+    await openSection();
+    expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
+    expect(
+      screen.getByText('No entries are ready for an emergency packet yet.')
+    ).toBeInTheDocument();
+  });
+
+  it('leaves a cancelled class and its entries out of the built copy', async () => {
+    mocks.packetData = {
+      ...(packetData() as { classes: unknown[]; entries: unknown[] }),
+      classes: [
+        { id: 'c-sun', trialId: 't-sun', judgeName: 'Pat' },
+        { id: 'c-sun-2', trialId: 't-sun', judgeName: 'Sam' },
+      ],
+      entries: [
+        { id: 'e1', classId: 'c-sun', trialId: 't-sun' },
+        { id: 'e2', classId: 'c-sun-2', trialId: 't-sun' },
+      ],
+    };
+    mocks.classRows = [
+      { id: 'c-sun', trial_id: 't-sun', status: null },
+      { id: 'c-sun-2', trial_id: 't-sun', status: 'cancelled' },
+    ];
+    const user = await openSection();
     await user.click(screen.getByRole('button', { name: 'Save and email a copy' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('The copy could not be saved.');
+    await waitFor(() => expect(mocks.build).toHaveBeenCalled());
+    const built = mocks.build.mock.calls[0]![0] as {
+      classes: Array<{ id: string }>;
+      entries: Array<{ id: string }>;
+    };
+    expect(built.classes.map(item => item.id)).toEqual(['c-sun']);
+    expect(built.entries.map(item => item.id)).toEqual(['e1']);
+  });
+
+  it('gives a day whose only trial is cancelled no copy to send', async () => {
+    mocks.trialRows = [
+      { id: 't-sat', timezone: null, status: null },
+      { id: 't-sun', timezone: null, status: 'cancelled' },
+    ];
+    await openSection();
+    expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
+    expect(
+      screen.getByText('Add a trial before preparing the emergency packet.')
+    ).toBeInTheDocument();
+  });
+
+  it('shows a checking line and keeps the button off while the sent copies are being read', async () => {
+    mocks.listState = 'pending';
+    await openSection();
+    expect(screen.getAllByText('Checking which copies were already sent…').length).toBeGreaterThan(
+      0
+    );
+    expect(screen.queryByText('No copy has been sent for this day yet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
+  });
+
+  it('says it is offline, not "nothing sent", when the read is paused', async () => {
+    mocks.listState = 'offline';
+    await openSection();
+    expect(screen.getAllByText(/You are offline\./).length).toBeGreaterThan(0);
+    expect(screen.queryByText('No copy has been sent for this day yet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
+  });
+
+  it('does not show the empty line and keeps the button off when the read failed', async () => {
+    mocks.listState = 'error';
+    await openSection();
+    expect(screen.queryByText('No copy has been sent for this day yet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save and email a copy' })).toBeDisabled();
+  });
+
+  it('does not build when the device is offline at the press', async () => {
+    const user = await openSection();
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    await user.click(screen.getByRole('button', { name: 'Save and email a copy' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('You are offline.');
     expect(mocks.build).not.toHaveBeenCalled();
     expect(mocks.deliver).not.toHaveBeenCalled();
   });
 
+  it('has one toggle that flips aria-expanded and unmounts the body when closed', async () => {
+    const user = userEvent.setup();
+    render(<SavedCopySection showId="show-1" trialDate={DAY} />);
+    const toggle = screen.getByRole('button', { name: 'Show saved copies' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
+    const hide = screen.getByRole('button', { name: 'Hide saved copies' });
+    expect(hide).toBe(toggle);
+    expect(hide).toHaveAttribute('aria-expanded', 'true');
+    const controls = hide.getAttribute('aria-controls');
+    expect(controls).toBeTruthy();
+    expect(document.getElementById(controls as string)).toContainElement(
+      screen.getByRole('button', { name: 'Save and email a copy' })
+    );
+    await user.click(hide);
+    expect(screen.queryByRole('button', { name: 'Save and email a copy' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show saved copies' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('hides the officials count when it is 0 and names a send that reached nobody', async () => {
+    mocks.copies = [{ ...COPIES[0]!, recipientCount: 0 }];
+    mocks.rows = [latestRow({})];
+    mocks.deliver.mockResolvedValue({ recipientCount: 0, snapshotId: 's', pageCount: 7 });
+    const user = await openSection();
+    expect(screen.getByRole('list', { name: 'Copies already sent' })).not.toHaveTextContent(
+      'received by'
+    );
+    await user.click(screen.getByRole('button', { name: 'Save and email a copy' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Stored, but no show official has an email on file, so nobody was emailed.'
+    );
+  });
+
+  it('holds the confirm dialog busy while the print record is being written', async () => {
+    let finish: () => void = () => {};
+    mocks.record.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));
+    mocks.copies = COPIES;
+    mocks.rows = [latestRow({})];
+    const user = await openSection();
+    await user.click(screen.getByRole('button', { name: 'Mark printed' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Mark printed' }));
+    expect(await within(dialog).findByRole('button', { name: 'Saving…' })).toBeDisabled();
+    expect(mocks.record).toHaveBeenCalledTimes(1);
+    finish();
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  it('explains the missing Mark printed button beside the newest copy while data loads', async () => {
+    mocks.copies = COPIES;
+    mocks.rows = [latestRow({ descriptor: null })];
+    await openSection();
+    expect(screen.queryByRole('button', { name: 'Mark printed' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Mark printed appears once the show's data has loaded/)
+    ).toBeInTheDocument();
+  });
+
   it('warns when the list of sent copies could not be read', async () => {
-    mocks.isError = true;
+    mocks.listState = 'error';
     await openSection();
     expect(screen.getByRole('alert')).toHaveTextContent('could not check which copies');
   });

@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArchiveRestore, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { completePacketRows } from '@/features/emergency-trial-packet/completePacketRows';
+import { emergencyPacketAvailability } from '@/features/emergency-trial-packet/emergencyTrialPacket';
 import {
   deliverEmergencyTrialPacket,
   EmergencyPacketDeliveryError,
@@ -28,7 +29,13 @@ import { SavedCopyList } from './SavedCopyList';
 import { plural } from './usePacketFrame';
 
 type SaveOutcome =
-  { kind: 'sent'; recipientCount: number } | { kind: 'stored-not-emailed' } | { kind: 'failed' };
+  | { kind: 'sent'; recipientCount: number }
+  | { kind: 'nobody-emailed' }
+  | { kind: 'stored-not-emailed' }
+  | { kind: 'offline' }
+  | { kind: 'failed' };
+
+const OFFLINE_LINE = 'You are offline. Seeing sent copies and saving a copy need a connection.';
 
 /**
  * "Saved copy" for one trial day (MYK9-2101): the copies already sent, whether paper matching the
@@ -39,6 +46,7 @@ export function SavedCopySection({ showId, trialDate }: { showId: string; trialD
   // The section reads the whole show's entries and re-reads them on every scoring change, so it
   // loads only once the secretary opens it, not every time the packet panel opens.
   const [open, setOpen] = useState(false);
+  const bodyId = useId();
   const dayLabel = formatWeekdayMonthDay(trialDate);
   return (
     <section aria-labelledby="saved-copy-heading" className="flex flex-col gap-3 border-t pt-4">
@@ -46,23 +54,23 @@ export function SavedCopySection({ showId, trialDate }: { showId: string; trialD
         Saved copy
       </h3>
       <p className="text-sm text-muted-foreground">
-        A copy of {dayLabel}&apos;s packet kept for the show team. It matches the packet sent each
-        night, page for page.
+        A copy of {dayLabel}&apos;s packet kept for the show team. Built the same way as the packet
+        sent each night.
       </p>
-      {open ? (
-        <SavedCopyBody showId={showId} trialDate={trialDate} dayLabel={dayLabel} />
-      ) : (
-        <Button
-          type="button"
-          size="touch"
-          variant="outline"
-          className="self-start"
-          aria-expanded={false}
-          onClick={() => setOpen(true)}
-        >
-          Show saved copies
-        </Button>
-      )}
+      <Button
+        type="button"
+        size="touch"
+        variant="outline"
+        className="self-start"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={() => setOpen(value => !value)}
+      >
+        {open ? 'Hide saved copies' : 'Show saved copies'}
+      </Button>
+      <div id={bodyId} className="flex flex-col gap-3">
+        {open && <SavedCopyBody showId={showId} trialDate={trialDate} dayLabel={dayLabel} />}
+      </div>
     </section>
   );
 }
@@ -103,34 +111,50 @@ function SavedCopyBody({
         : null,
     [completeRows, show]
   );
-  const { rows, copies, isError } = useDeliveredPackets(showId, packetData);
+  const { rows, copies, listState } = useDeliveredPackets(showId, packetData);
   const dayCopies = useMemo(
     () => copies.filter(copy => copy.trialDate === trialDate),
     [copies, trialDate]
   );
   const latest = rows.find(row => row.trialDate === trialDate) ?? null;
 
+  // The day's own input, cancelled trials and classes left out as the nightly job leaves them.
+  const dayInput = useMemo(
+    () =>
+      packetData && completeRows
+        ? buildSavedCopyDayInput({
+            packetData,
+            trials: completeRows.trials,
+            classes: completeRows.classes,
+            trialDate,
+            generatedAt: '',
+          })
+        : null,
+    [packetData, completeRows, trialDate]
+  );
+  const availability = useMemo(
+    () =>
+      packetData
+        ? emergencyPacketAvailability(dayInput ?? { trials: [], classes: [], entries: [] })
+        : null,
+    [packetData, dayInput]
+  );
   const [saving, setSaving] = useState(false);
+  const [marking, setMarking] = useState(false);
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null);
   const [pending, setPending] = useState<PaperworkDescriptor | null>(null);
 
   const saveAndEmail = async () => {
-    if (!packetData || !completeRows) return;
+    if (!dayInput || !availability?.available) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setOutcome({ kind: 'offline' });
+      return;
+    }
     setSaving(true);
     setOutcome(null);
     try {
       const generatedAt = new Date().toISOString();
-      const input = buildSavedCopyDayInput({
-        packetData,
-        trials: completeRows.trials,
-        trialDate,
-        generatedAt,
-      });
-      if (!input) {
-        setOutcome({ kind: 'failed' });
-        return;
-      }
-      const { bytes, pageCount } = await buildSavedCopy(input);
+      const { bytes, pageCount } = await buildSavedCopy({ ...dayInput, generatedAt });
       const delivery = await deliverEmergencyTrialPacket({
         showId,
         snapshotId: crypto.randomUUID(),
@@ -139,7 +163,11 @@ function SavedCopyBody({
         pageCount,
         trialDate,
       });
-      setOutcome({ kind: 'sent', recipientCount: delivery.recipientCount });
+      setOutcome(
+        delivery.recipientCount > 0
+          ? { kind: 'sent', recipientCount: delivery.recipientCount }
+          : { kind: 'nobody-emailed' }
+      );
       void queryClient.invalidateQueries({ queryKey: deliveredPacketsKey(showId) });
     } catch (error) {
       setOutcome({
@@ -151,7 +179,8 @@ function SavedCopyBody({
   };
 
   const confirmPrinted = async (descriptor: PaperworkDescriptor) => {
-    if (!user) return;
+    if (!user || marking) return;
+    setMarking(true);
     try {
       await recordPaperworkPrinted({
         descriptor,
@@ -163,24 +192,46 @@ function SavedCopyBody({
       setPending(null);
     } catch {
       toast.error('Could not save that. Nothing was recorded, so try marking it printed again.');
+    } finally {
+      setMarking(false);
     }
   };
 
+  // Why the send button is off, in plain words, beside it.
+  const blocked =
+    listState === 'offline'
+      ? OFFLINE_LINE
+      : listState === 'pending'
+        ? 'Checking which copies were already sent…'
+        : listState === 'error'
+          ? 'Saving is off until we can check which copies were already sent.'
+          : !packetData
+            ? "Getting the show's data ready…"
+            : availability && !availability.available
+              ? availability.reason
+              : null;
+
   return (
     <>
-      {isError && (
+      {listState === 'pending' && (
+        <p className="text-sm text-muted-foreground">Checking which copies were already sent…</p>
+      )}
+      {listState === 'offline' && <p className="text-sm text-muted-foreground">{OFFLINE_LINE}</p>}
+      {listState === 'error' && (
         <p role="alert" className="text-sm font-medium text-destructive">
           We could not check which copies were already sent. Check the connection before sending
           another, or the show&apos;s officials may get a duplicate.
         </p>
       )}
-      <SavedCopyList copies={dayCopies} latest={latest} onMarkPrinted={setPending} />
+      {listState === 'ready' && (
+        <SavedCopyList copies={dayCopies} latest={latest} onMarkPrinted={setPending} />
+      )}
       <div className="flex flex-col items-start gap-2">
         <Button
           type="button"
           size="touch"
           variant="outline"
-          disabled={!packetData || saving}
+          disabled={listState !== 'ready' || !dayInput || !availability?.available || saving}
           onClick={() => void saveAndEmail()}
         >
           {saving ? (
@@ -190,13 +241,12 @@ function SavedCopyBody({
           )}
           {saving ? 'Saving the copy…' : 'Save and email a copy'}
         </Button>
+        {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
         <p className="text-xs text-muted-foreground">
           Builds {dayLabel}&apos;s packet, stores it, and emails a link to the show&apos;s
-          officials. Nothing is sent until you press the button.
+          officials: the secretary and the club administrators. Nothing is sent until you press the
+          button.
         </p>
-        {!packetData && (
-          <p className="text-xs text-muted-foreground">Getting the show&apos;s data ready…</p>
-        )}
       </div>
       {outcome?.kind === 'sent' && (
         <p role="status" className="flex items-center gap-2 text-sm text-success">
@@ -205,9 +255,20 @@ function SavedCopyBody({
           {plural(outcome.recipientCount, 'show official', 'show officials')}.
         </p>
       )}
+      {outcome?.kind === 'nobody-emailed' && (
+        <p role="alert" className="text-sm font-medium text-destructive">
+          Stored, but no show official has an email on file, so nobody was emailed.
+        </p>
+      )}
       {outcome?.kind === 'stored-not-emailed' && (
         <p role="alert" className="text-sm font-medium text-destructive">
-          The copy was stored, but the email could not be sent. Try again.
+          The copy was stored, but the email could not be sent. The stored copy is not listed and
+          nobody received it. Trying again sends a fresh copy.
+        </p>
+      )}
+      {outcome?.kind === 'offline' && (
+        <p role="alert" className="text-sm font-medium text-destructive">
+          {OFFLINE_LINE}
         </p>
       )}
       {outcome?.kind === 'failed' && (
@@ -218,7 +279,7 @@ function SavedCopyBody({
       <PaperworkPrintConfirmationDialog
         open={pending !== null}
         reportLabel="trial packet"
-        isSaving={false}
+        isSaving={marking}
         onConfirm={() => {
           if (pending) void confirmPrinted(pending);
         }}

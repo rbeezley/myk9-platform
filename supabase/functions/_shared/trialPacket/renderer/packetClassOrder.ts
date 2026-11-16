@@ -85,10 +85,10 @@ function resolvePacketRegistryId(registryId: string | null | undefined): string 
  */
 export function formatPacketTrialLabel(trial: {
   name?: string | null;
-  trialNumber?: string | null;
+  trialNumber?: string | number | null;
 }): string {
-  const present = (value: string | null | undefined) =>
-    value != null && value.trim() !== '' ? value : undefined;
+  const present = (value: string | number | null | undefined) =>
+    value != null && String(value).trim() !== '' ? String(value) : undefined;
   return present(trial.name) ?? present(trial.trialNumber) ?? 'Trial';
 }
 

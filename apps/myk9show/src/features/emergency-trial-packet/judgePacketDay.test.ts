@@ -355,6 +355,8 @@ describe('mirrors of app code, pinned to the original', () => {
       { name: '', trialNumber: 'Trial 3' },
       { name: '  ', trialNumber: '' },
       { name: '', trialNumber: '' },
+      { name: null, trialNumber: 1 },
+      { name: '', trialNumber: 0 },
     ];
     for (const trial of trials) {
       expect(formatPacketTrialLabel(trial)).toBe(formatTrialLabel(trial));

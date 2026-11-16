@@ -1,5 +1,6 @@
 import { armbandSortKey, compareArmbands, formatPacketArmband } from './armband.ts';
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
+import { formatPacketTrialLabel } from './packetClassOrder.ts';
 import { resolveScoresheetConfig, type ScoresheetRegistryConfig } from './scoresheetConfig.ts';
 import type { EmergencyPacketEntry, EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
 
@@ -318,7 +319,7 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   // Name the trials inside, so a secretary holding two evenings' stacks can
   // tell them apart without leafing through. A day can hold several trials,
   // and they can run under different sanctioning bodies.
-  const trialNames = model.trials.map(trial => trial.name || trial.trialNumber).filter(Boolean);
+  const trialNames = model.trials.map(formatPacketTrialLabel);
   if (trialNames.length > 0) {
     doc.text('Trials in this packet:', LEFT, 244);
     doc.setFont('helvetica', 'normal');

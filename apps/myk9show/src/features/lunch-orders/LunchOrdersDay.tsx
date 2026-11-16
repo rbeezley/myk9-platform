@@ -97,9 +97,7 @@ export function LunchOrdersDay({
   const rosterLoading = judges.isLoading || officials.isLoading || volunteers.isLoading;
 
   return (
-    // Sized by the panel it sits in, not the window: Lunch orders opens in a narrow side
-    // panel on a wide screen, where a window breakpoint pushed "Add to list" off the edge.
-    <div className="space-y-3 [container-type:inline-size]">
+    <div className="space-y-3">
       {rosterFailed && (
         <p className="text-sm text-destructive" role="alert">
           Some people could not be loaded, so this list may be missing names.{' '}
@@ -139,14 +137,16 @@ export function LunchOrdersDay({
         </ul>
       )}
 
+      {/* One layout at every window width: this form only renders in the 448px side panel,
+          where a window breakpoint once pushed "Add to list" past the edge (MYK9-2100). */}
       <form
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-md border border-dashed p-3 [@container(min-width:36rem)]:grid-cols-[minmax(0,1fr)_12rem_auto]"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-md border border-dashed p-3"
         onSubmit={event => {
           event.preventDefault();
           void addPerson();
         }}
       >
-        <div className="col-span-2 space-y-1 [@container(min-width:36rem)]:col-span-1">
+        <div className="col-span-2 space-y-1">
           <Label htmlFor={`lunch-new-name-${trialId}`}>Add person</Label>
           <Input
             id={`lunch-new-name-${trialId}`}

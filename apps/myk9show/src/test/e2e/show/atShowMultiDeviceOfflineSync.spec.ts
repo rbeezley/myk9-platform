@@ -25,7 +25,7 @@ import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
  *   2. Device B reconnects second. Its queued write carries a stale OCC token,
  *      so the server genuinely rejects it (40001) and the app parks the row as
  *      a conflict instead of overwriting A's score. B's user sees the
- *      "This was changed somewhere else at the same time" notice (ReplicationSyncProvider).
+ *      "<dog> was scored two ways" notice (ReplicationSyncProvider, entryConflictCopy).
  *   3. B's user resolves it with "Keep the other score". B's queue drains to 0 and both
  *      devices hold the same final result (A's).
  *
@@ -73,7 +73,7 @@ test.describe('At-show multi-device offline conflict', () => {
     if (current) await cleanupDisposableEntry(current);
   });
 
-  test('second device to reconnect gets a conflict notice, and Keep the other change settles both devices on the first score', async ({
+  test('second device to reconnect gets a conflict notice, and Keep the other score settles both devices on the first score', async ({
     browser,
   }) => {
     test.skip(

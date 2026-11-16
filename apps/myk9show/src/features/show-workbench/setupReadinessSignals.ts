@@ -65,12 +65,12 @@ export interface SetupReadinessInput {
    * replicated show row doesn't carry published_premium_url/at, so without
    * this override a published premium would always read as unpublished.
    */
+  premiumInfo?: PremiumPublishStateInput & { experienceIsPublished?: boolean | null };
   /**
    * How many facts the registry requires in the premium list are still empty (MYK9-2053,
    * usePremiumRequirements). Unset or 0 means none, or not known: no signal either way.
    */
   premiumMissingFacts?: number;
-  premiumInfo?: PremiumPublishStateInput & { experienceIsPublished?: boolean | null };
 }
 
 function hasText(value: string | null | undefined): boolean {

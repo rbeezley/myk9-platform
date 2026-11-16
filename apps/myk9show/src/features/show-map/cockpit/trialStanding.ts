@@ -1,3 +1,5 @@
+import { formatTrialLabel } from '@myk9/core';
+
 import { computeDayTrialNumber } from '@/pages/secretary/ReportsPage/dayTrialNumber';
 import type { DbTrial } from '@/types/database-mappings';
 
@@ -66,11 +68,12 @@ export function orderTrials<T>(items: readonly T[], read: (item: T) => Orderable
     .map(row => row.item);
 }
 
-/** "Trial 2", or the trial's own name when its place in the day is a tie; never a guessed number. */
-export function trialLabelOf(trial: OrderableTrial, all: readonly OrderableTrial[]): string {
-  const number = dayNumberOf(trial, all);
-  if (number !== undefined) return `Trial ${number}`;
-  return trial.name?.trim() || 'Another trial that day';
+/**
+ * The trial's label, exactly as the cockpit header names it (`formatTrialIdentity`, MYK9-704): the
+ * stored name, else the stored trial_number. Never a day-computed number; that is for ordering only.
+ */
+export function trialLabelOf(trial: OrderableTrial): string {
+  return formatTrialLabel({ name: trial.name, trialNumber: trial.number });
 }
 
 export type ClassRunState = 'complete' | 'cancelled' | 'empty' | 'open';

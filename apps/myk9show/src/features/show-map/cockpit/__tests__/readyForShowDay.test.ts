@@ -522,14 +522,14 @@ describe("the first trial's paperwork line, state by state (MYK9-2075)", () => {
         sheets: 0,
         printedAt: '2026-10-19T22:15:00Z',
         laterTrials: [
-          { label: 'Trial 2', number: 2, date: '2026-10-21' },
-          { label: 'Trial 3', number: 3, date: '2026-10-21' },
+          { label: 'Trial 2', date: '2026-10-21' },
+          { label: 'Trial 3', date: '2026-10-21' },
         ],
       })
     );
     expect(line?.status).toBe('pass');
     expect(line?.detail).toBe(
-      'Trial 1 printed Monday at 6:15 PM. Trials 2 and 3 print on Wednesday, after move-ups.'
+      'Trial 1 printed Monday at 6:15 PM. Trial 2 and Trial 3 print on Wednesday, after move-ups.'
     );
     expect(line?.href).toBeUndefined();
     expect(line?.linkLabel).toBeUndefined();

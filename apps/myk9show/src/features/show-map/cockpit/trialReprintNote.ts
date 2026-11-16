@@ -78,8 +78,8 @@ export function nextTrialPaperworkNote(input: {
   if (sheets.length === 0 || sheets.some(row => row.state === 'unknown')) return null;
   if (sheets.every(row => row.state === 'current')) return null;
 
-  const finished = trialLabelOf(orderable(previous), all);
-  const next = trialLabelOf(orderable(input.trial), all);
+  const finished = trialLabelOf(orderable(previous));
+  const next = trialLabelOf(orderable(input.trial));
   const labels = previous.date !== input.trial.date ? dayLabelsDoor(input) : null;
   return {
     text: `${finished} is finished. ${next}'s paperwork is ready to print.${

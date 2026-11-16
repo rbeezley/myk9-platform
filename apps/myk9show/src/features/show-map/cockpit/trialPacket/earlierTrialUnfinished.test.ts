@@ -5,7 +5,7 @@ import type { DbClass, DbTrial } from '@/types/database-mappings';
 import { findUnfinishedEarlierTrial } from './earlierTrialUnfinished';
 
 const trial = (id: string, date: string, number: number | string, status = 'not_started') =>
-  ({ id, date, trial_number: number, status }) as unknown as DbTrial;
+  ({ id, date, trial_number: number, name: `Trial ${number}`, status }) as unknown as DbTrial;
 const cls = (id: string, trialId: string, status: string) =>
   ({ id, trial_id: trialId, status }) as unknown as DbClass;
 
@@ -32,6 +32,18 @@ describe('findUnfinishedEarlierTrial', () => {
       label: 'Trial 1',
     });
     expect(find('t2', [cls('a', 't1', 'not_started')])).toEqual({ label: 'Trial 1' });
+  });
+
+  it('names the trial as the cockpit header does, from the stored name, never a day number', () => {
+    // Heartland's shape: names run across the show, so Dec 8's first trial is "Trial 2".
+    const heartland = [
+      trial('h1', '2026-12-07', 1),
+      trial('h2', '2026-12-08', 2),
+      trial('h3', '2026-12-08', 3),
+    ];
+    expect(find('h3', [cls('a', 'h2', 'in_progress')], { trials: heartland })).toEqual({
+      label: 'Trial 2',
+    });
   });
 
   it('is null once every class is complete, for the first trial of a day, and across days', () => {

@@ -909,6 +909,9 @@ describe('Save & Publish lists the server judges on the premium', () => {
     const saved: unknown[] = [];
     saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    // Publish now awaits the officials (MYK9-2053); reset it so a sibling test's rejection
+    // cannot leak in under shuffle and refuse this publish.
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     saveHarness.publishJudges
       .mockReset()
       .mockResolvedValue([

@@ -88,25 +88,31 @@ describe('STORIES', () => {
       ...Object.values(STORY_HEADING),
       ...Object.values(MEANWHILE_LABEL),
     ];
-    const sceneCopy = Object.values(SCENE_LINES).flatMap(lines => lines.map(line => line.text));
+    const sceneCopy = Object.values(SCENE_LINES).flatMap(lines =>
+      lines.flatMap(line => [line.head, line.text])
+    );
     const all = [...labels, ...sceneCopy, ...AUDIENCES.flatMap(a => STORIES[a].flatMap(copyOf))];
     for (const text of all) for (const re of BANNED_COPY) expect(text).not.toMatch(re);
   });
 
-  it('writes five numbered lines for each of the four scenes, none empty or repeated', () => {
-    expect(Object.keys(SCENE_LINES).sort()).toEqual([
-      'entries',
-      'results',
-      'showday-desk',
-      'showday-ring',
-    ]);
+  it('writes a heading and a sentence for every line of the four scenes, none repeated', () => {
+    expect(Object.fromEntries(Object.entries(SCENE_LINES).map(([k, v]) => [k, v.length]))).toEqual({
+      entries: 5,
+      'showday-ring': 5,
+      'showday-desk': 5,
+      results: 4,
+    });
     const seen = new Set<string>();
     for (const [scene, lines] of Object.entries(SCENE_LINES)) {
-      expect(lines, scene).toHaveLength(5);
-      for (const { text } of lines) {
+      for (const { head, text } of lines) {
+        expect(head.trim().length, scene).toBeGreaterThan(10);
+        // A heading is read at a glance while the scene plays.
+        expect(head.length, head).toBeLessThanOrEqual(40);
         expect(text.trim().length, scene).toBeGreaterThan(20);
-        expect(seen.has(text), text).toBe(false);
-        seen.add(text);
+        for (const copy of [head, text]) {
+          expect(seen.has(copy), copy).toBe(false);
+          seen.add(copy);
+        }
       }
     }
   });

@@ -6,7 +6,7 @@
  */
 import { compareArmbands } from './armband.ts';
 
-function formatPacketSeconds(seconds?: number | null): string {
+export function formatPacketSeconds(seconds?: number | null): string {
   if (!seconds || seconds === 0) return '';
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;

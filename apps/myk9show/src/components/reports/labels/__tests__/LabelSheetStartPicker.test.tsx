@@ -25,7 +25,7 @@ describe('LabelSheetStartPicker (MYK9-2073)', () => {
     );
     expect(container.querySelectorAll('[data-used="true"]')).toHaveLength(4);
     expect(screen.getByRole('button', { name: 'Start at label 5' })).toHaveAttribute(
-      'aria-pressed',
+      'aria-current',
       'true'
     );
   });

@@ -30,7 +30,7 @@ export function LabelSheetStartPicker({
             key={cell.position}
             type="button"
             aria-label={`Start at label ${cell.position}`}
-            aria-pressed={cell.position === skip + 1}
+            aria-current={cell.position === skip + 1 ? 'true' : undefined}
             data-used={cell.used ? 'true' : 'false'}
             onClick={() => onSkipChange(skipForStartPosition(cell.position))}
             className={cn(

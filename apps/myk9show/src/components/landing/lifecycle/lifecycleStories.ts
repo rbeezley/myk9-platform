@@ -117,6 +117,100 @@ const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
   { x: 5, y: 87, w: 90, h: 12.5, caption: 'Each dog’s classes for the day' },
 ];
 
+// Scene lines for the animated timeline (docs/plan-landing-animated-timeline.md, MYK9-1894).
+// A line is a short heading plus one plain sentence, written to the club: "you" is the show
+// secretary (owner, 2026-11-16). Every claim has a KEEP row in
+// docs/qa/landing-lifecycle-evidence.md. The words describe the screen; the capture shows it.
+export type SceneId = 'entries' | 'showday-ring' | 'showday-desk' | 'results';
+export type SceneLine = { head: string; text: string };
+
+export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
+  entries: [
+    {
+      head: 'An exhibitor enters online',
+      text: 'They pick a dog and their classes. A full class says so before they can enter it.',
+    },
+    {
+      head: 'They pay as they enter',
+      text: 'By card at the secure checkout, or by check or cash if you offer it.',
+    },
+    {
+      head: 'They can see where it stands',
+      text: 'Their entry reads Pending review until you decide.',
+    },
+    {
+      head: 'The form arrives in your list',
+      text: 'It is marked Needs review, with the payment shown beside it.',
+    },
+    {
+      head: 'You open it and accept',
+      text: 'One button. Their entry changes to Accepted and they get an email.',
+    },
+  ],
+  'showday-ring': [
+    {
+      head: 'The judge opens the ring’s classes',
+      text: 'Each class shows how many dogs are scored.',
+    },
+    {
+      head: 'The signal drops',
+      text: 'The header says scores are saved on this device, and the run order stays.',
+    },
+    {
+      head: 'The judge times and scores the run',
+      text: 'Start, Stop, then Qualified, NQ, Absent, Excused or DQ.',
+    },
+    {
+      head: 'The score is read back before it saves',
+      text: 'The judge confirms, and the list of dogs shows it saved on this device.',
+    },
+    {
+      head: 'The signal returns',
+      text: 'The score sends itself, and the tablet says Scores sent.',
+    },
+  ],
+  'showday-desk': [
+    {
+      head: 'Your day is on one page',
+      text: 'Each class says where it stands, like 3 of 5 not checked in.',
+    },
+    {
+      head: 'Check in at the desk',
+      text: 'Find an exhibitor by name, dog or armband and check in each dog.',
+    },
+    {
+      head: 'Watch the classes run',
+      text: 'A running class shows how many dogs are scored and who is in the ring.',
+    },
+    {
+      head: 'No tablets? Type in the paper scores',
+      text: 'The dogs are listed in run order. Pick the result, type the time, save and move on.',
+    },
+    {
+      head: 'Mark the class complete',
+      text: 'It asks first if paper scores are missing, then takes you to Results.',
+    },
+  ],
+  results: [
+    {
+      head: 'A finished class is waiting for you',
+      text: 'The Results tab lists it with what to do next: check the scores.',
+    },
+    {
+      head: 'The placements are worked out',
+      text: 'Open the class to see them, ranked from the scores.',
+    },
+    {
+      head: 'You release the results',
+      text: 'One press. The class reads Released and exhibitors can see their scores.',
+    },
+    {
+      head: 'The exhibitor sees it on their phone',
+      text: 'My Entries shows New result on the dog’s class, and it opens the result card.',
+    },
+  ],
+};
+
 export const STORIES: Record<Audience, readonly StoryStep[]> = {
   club: [
     {

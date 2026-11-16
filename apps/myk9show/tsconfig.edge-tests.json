@@ -46,6 +46,7 @@
     "../../supabase/functions/calendar-feed/*.test.ts",
     "../../supabase/functions/deliver-trial-packet/*.test.ts",
     "../../supabase/functions/_shared/trialPacket/*.test.ts",
+    "../../supabase/functions/_shared/paperwork/*.test.ts",
     "../../supabase/functions/generate-trial-packet/*.test.ts",
     "../../supabase/functions/remind-print-trial-packet/*.test.ts",
     "../../supabase/functions/send-access-request-emails/*.test.ts",

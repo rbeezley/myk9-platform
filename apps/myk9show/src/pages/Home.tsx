@@ -4,6 +4,8 @@ import {
   LandingHero,
   LifecycleTimeline,
   TrustSection,
+  PricingSection,
+  FaqSection,
   LandingClose,
   LandingFooter,
 } from '@/components/landing/lifecycle';
@@ -38,8 +40,10 @@ const Home: React.FC = () => {
       <LandingHeader signedIn={signedIn} audience={ctas} />
       <ShowTodayBanner />
       <LandingHero showSignUp={!signedIn} />
-      <LifecycleTimeline audience={audience} onAudienceChange={setAudience} />
       <TrustSection />
+      <LifecycleTimeline audience={audience} onAudienceChange={setAudience} />
+      <PricingSection />
+      <FaqSection />
       <LandingClose audience={ctas} />
       <LandingFooter />
     </div>

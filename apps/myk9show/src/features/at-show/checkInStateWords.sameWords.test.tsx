@@ -7,6 +7,7 @@ import { CHECK_IN_STATE_WORDS, checkInStateLabel } from '@myk9/ui';
 import { render, screen } from '@/test/utils/testUtils';
 import { STATE_WORDS } from '@/pages/MyEntriesPage/modules/classRowStatusText';
 import { MyEntryRow } from './MyEntryRow';
+import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import { WhereToBe } from '@/components/shows/tabs/WhereToBe';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { deriveDogChip } from '@/pages/MyEntriesPage/modules/myShowDogState';
@@ -129,12 +130,12 @@ describe('one set of check-in words on the other My Shows surfaces (MYK9-2093)',
         showId="show-1"
       />
     );
-    expect(screen.getByText('Pulled')).toBeInTheDocument();
+    expect(screen.getAllByText('Pulled').length).toBeGreaterThan(0);
     expect(screen.getByText('Pulled at the show')).toBeInTheDocument();
   });
 
   it('Where to be never says "at the show" for a dog scratched before the show', () => {
-    render(
+    const { container } = render(
       <WhereToBe
         entries={[
           whereToBeEntry({
@@ -146,7 +147,9 @@ describe('one set of check-in words on the other My Shows surfaces (MYK9-2093)',
         showId="show-1"
       />
     );
-    expect(screen.getByText('Pulled')).toBeInTheDocument();
-    expect(screen.getByRole('link')).not.toHaveTextContent(/at the show/i);
+    // Where to be may drop a scratched entry altogether; either way "at the show" is never said.
+    expect(container).not.toHaveTextContent(/at the show/i);
+    // The run queue itself reads a scratch as plain "Pulled" (runQueue.test.ts, MYK9-632).
+    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
   });
 });

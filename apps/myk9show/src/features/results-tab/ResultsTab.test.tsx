@@ -1037,7 +1037,7 @@ describe('ResultsTab Release asks the server', () => {
     await waitFor(() => expect(refreshClass).toHaveBeenCalledWith('trial-1'));
     expect(releaseMutate).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith(
-      'This class needs checking again — the scores changed.'
+      'The scores changed, so this class needs checking again.'
     );
   });
 

@@ -143,7 +143,7 @@ export async function releaseClassRow(
   }
   if (!verifiedAt) {
     deps.verification.refreshClass(row.trialId);
-    return { kind: 'failed', message: 'This class needs checking again — the scores changed.' };
+    return { kind: 'failed', message: 'The scores changed, so this class needs checking again.' };
   }
   return new Promise<ReleaseOutcome>(resolve => {
     deps.release.mutate(

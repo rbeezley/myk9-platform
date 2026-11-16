@@ -24,7 +24,11 @@ import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { BulkReleaseBar } from './BulkReleaseBar';
 import { useBulkRelease } from './useBulkRelease';
-import { releaseClassRow, type ReleaseClassRowDeps } from './releaseClassRow';
+import {
+  OFFLINE_RELEASE_REASON,
+  releaseClassRow,
+  type ReleaseClassRowDeps,
+} from './releaseClassRow';
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { openClassListLine } from '@/features/show-closeout/finishList';
 import { ResultsPackets } from './ResultsPackets';
@@ -181,7 +185,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
   // Release on this tab asks the SERVER whether the class is checked, so it needs a connection and
   // no score change of the class still waiting to sync (the answer would describe older results).
   const releaseBlockedReason = !isOnline
-    ? 'Connect to release from here'
+    ? OFFLINE_RELEASE_REASON
     : unsyncedScores !== false
       ? 'Waiting for score changes to be sent'
       : null;

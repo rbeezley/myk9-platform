@@ -103,11 +103,13 @@ export function useBulkRelease({
             const verifyBlocked = await verifyBlockedFor(row);
             const outcome = await releaseClassRow(row, releaseDeps(verifyBlocked, null));
             if (outcome.kind === 'released') done.add(row.id);
-            else if (outcome.kind === 'failed') failed.push({ row, message: outcome.message });
             else
               failed.push({
                 row,
-                message: outcome.reason ?? 'It is not ready to release.',
+                message:
+                  outcome.kind === 'failed'
+                    ? outcome.message
+                    : (outcome.reason ?? 'It is not ready to release.'),
               });
           } catch {
             failed.push({ row, message: 'Could not release the results. Try again.' });

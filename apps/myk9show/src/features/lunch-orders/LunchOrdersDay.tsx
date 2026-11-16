@@ -97,7 +97,9 @@ export function LunchOrdersDay({
   const rosterLoading = judges.isLoading || officials.isLoading || volunteers.isLoading;
 
   return (
-    <div className="space-y-3">
+    // Sized by the panel it sits in, not the window: Lunch orders opens in a narrow side
+    // panel on a wide screen, where a window breakpoint pushed "Add to list" off the edge.
+    <div className="space-y-3 [container-type:inline-size]">
       {rosterFailed && (
         <p className="text-sm text-destructive" role="alert">
           Some people could not be loaded, so this list may be missing names.{' '}
@@ -138,13 +140,13 @@ export function LunchOrdersDay({
       )}
 
       <form
-        className="grid grid-cols-1 gap-2 rounded-md border border-dashed p-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-md border border-dashed p-3 [@container(min-width:36rem)]:grid-cols-[minmax(0,1fr)_12rem_auto]"
         onSubmit={event => {
           event.preventDefault();
           void addPerson();
         }}
       >
-        <div className="space-y-1">
+        <div className="col-span-2 space-y-1 [@container(min-width:36rem)]:col-span-1">
           <Label htmlFor={`lunch-new-name-${trialId}`}>Add person</Label>
           <Input
             id={`lunch-new-name-${trialId}`}
@@ -154,7 +156,7 @@ export function LunchOrdersDay({
             onChange={event => setNewName(event.target.value)}
           />
         </div>
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Label id={`lunch-new-role-${trialId}`}>Role</Label>
           <Select value={newRole} onValueChange={value => setNewRole(value as LunchRole)}>
             <SelectTrigger aria-labelledby={`lunch-new-role-${trialId}`}>
@@ -173,7 +175,7 @@ export function LunchOrdersDay({
           Add to list
         </Button>
         {addError && (
-          <p className="text-xs text-destructive sm:col-span-3" role="alert">
+          <p className="col-span-full text-xs text-destructive" role="alert">
             Could not add that person. Check your connection and try again.
           </p>
         )}

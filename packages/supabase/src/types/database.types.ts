@@ -2472,7 +2472,6 @@ export type Database = {
           area3_time_seconds: number | null
           area4_time_seconds: number | null
           area5_time_seconds: number | null
-          element_time_seconds: number | null
           armband: string | null
           bonus_points: number | null
           capacity_override: boolean
@@ -2495,6 +2494,7 @@ export type Database = {
           discount_amount: number | null
           disqualification_reason: string | null
           dog_id: string | null
+          element_time_seconds: number | null
           entry_fee: number | null
           entry_source: string
           entry_status: string | null
@@ -2585,7 +2585,6 @@ export type Database = {
           area3_time_seconds?: number | null
           area4_time_seconds?: number | null
           area5_time_seconds?: number | null
-          element_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
@@ -2608,6 +2607,7 @@ export type Database = {
           discount_amount?: number | null
           disqualification_reason?: string | null
           dog_id?: string | null
+          element_time_seconds?: number | null
           entry_fee?: number | null
           entry_source?: string
           entry_status?: string | null
@@ -2698,7 +2698,6 @@ export type Database = {
           area3_time_seconds?: number | null
           area4_time_seconds?: number | null
           area5_time_seconds?: number | null
-          element_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
@@ -2721,6 +2720,7 @@ export type Database = {
           discount_amount?: number | null
           disqualification_reason?: string | null
           dog_id?: string | null
+          element_time_seconds?: number | null
           entry_fee?: number | null
           entry_source?: string
           entry_status?: string | null
@@ -11958,7 +11958,6 @@ export type Database = {
           area3_time_seconds: number | null
           area4_time_seconds: number | null
           area5_time_seconds: number | null
-          element_time_seconds: number | null
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null
@@ -11985,6 +11984,7 @@ export type Database = {
           dog_id: string | null
           dog_image_url: string | null
           dog_name: string | null
+          element_time_seconds: number | null
           entry_fee: number | null
           entry_source: string | null
           entry_status: string | null
@@ -12282,7 +12282,6 @@ export type Database = {
           area3_time_seconds: number | null
           area4_time_seconds: number | null
           area5_time_seconds: number | null
-          element_time_seconds: number | null
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null
@@ -12309,6 +12308,7 @@ export type Database = {
           dog_id: string | null
           dog_image_url: string | null
           dog_name: string | null
+          element_time_seconds: number | null
           entry_fee: number | null
           entry_source: string | null
           entry_status: string | null

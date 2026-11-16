@@ -41,23 +41,20 @@ export type ReleaseOutcome =
 export interface ReleaseClassRowDeps {
   showId: string;
   verification: {
-    verifyAsync: (input: {
-      classId: string;
-      trialId: string;
-      showId: string;
-      canonical: string;
-    }) => Promise<unknown>;
+    verifyAsync: (
+      input: { classId: string; trialId: string; showId: string; canonical: string },
+      options?: { quiet?: boolean }
+    ) => Promise<unknown>;
     refreshClass: (trialId: string) => void;
   };
   release: {
-    mutate: (
-      input: { classIds: string[]; showId: string },
-      options: {
-        onSuccess: (result: { released: string[] }) => void;
-        onError: () => void;
-      }
-    ) => void;
+    mutateAsync: (input: { classIds: string[]; showId: string }) => Promise<{ released: string[] }>;
   };
+  /**
+   * Bulk release: the verify mutation stays quiet (no toast per class) and its reason comes back in
+   * the failed outcome, where the dialog names the class.
+   */
+  quietVerify?: boolean;
   /** True once the check was taken back (Undo) since the click that started this release. */
   checkChanged: () => boolean;
   /** Why the class cannot be checked on this device right now (class row syncing), or null. */
@@ -102,15 +99,23 @@ export async function releaseClassRow(
   if (verifyFirst) {
     if (row.resultsCanonical === null) return { kind: 'skipped', reason: null };
     try {
-      await deps.verification.verifyAsync({
+      const claim = {
         classId: row.id,
         trialId: row.trialId,
         showId: deps.showId,
         canonical: row.resultsCanonical,
-      });
-    } catch {
-      // The mutation already told the user why (MK015 included) and refetched the entries.
-      return { kind: 'failed', message: 'The scores could not be checked.', toasted: true };
+      };
+      if (deps.quietVerify) await deps.verification.verifyAsync(claim, { quiet: true });
+      else await deps.verification.verifyAsync(claim);
+    } catch (error) {
+      // The mutation already refetched the entries. Unless quiet, it also told the user why (MK015
+      // included); quiet, the reason rides in the outcome.
+      return deps.quietVerify
+        ? {
+            kind: 'failed',
+            message: error instanceof Error ? error.message : 'The scores could not be checked.',
+          }
+        : { kind: 'failed', message: 'The scores could not be checked.', toasted: true };
     }
     checked = true;
     // Already released: the check was all this class was missing.
@@ -145,16 +150,13 @@ export async function releaseClassRow(
     deps.verification.refreshClass(row.trialId);
     return { kind: 'failed', message: 'The scores changed, so this class needs checking again.' };
   }
-  return new Promise<ReleaseOutcome>(resolve => {
-    deps.release.mutate(
-      { classIds: [row.id], showId: deps.showId },
-      {
-        onSuccess: ({ released }) =>
-          resolve(
-            released.length > 0 ? { kind: 'released', announce: true } : refuse(RETRY_RELEASE)
-          ),
-        onError: () => resolve(refuse(RETRY_RELEASE)),
-      }
-    );
-  });
+  try {
+    const { released } = await deps.release.mutateAsync({
+      classIds: [row.id],
+      showId: deps.showId,
+    });
+    return released.length > 0 ? { kind: 'released', announce: true } : refuse(RETRY_RELEASE);
+  } catch {
+    return refuse(RETRY_RELEASE);
+  }
 }

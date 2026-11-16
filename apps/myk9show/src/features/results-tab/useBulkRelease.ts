@@ -4,7 +4,7 @@
  * `releaseClassRow`, the function the single-class Release button calls, one after another. A class
  * that does not release is named and stays ticked; the others stay released.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -19,6 +19,10 @@ export interface BulkReleaseFailure {
 export interface BulkRelease {
   /** The ticked classes, in list order: only classes still listed and still releasable. */
   tickedRows: readonly ResultsClassRow[];
+  /** The classes the open dialog lists, counts and runs: fixed when it opened, so it never shrinks mid-run. */
+  dialogRows: readonly ResultsClassRow[];
+  /** Something is running (this bulk run or another release), so Confirm cannot start. */
+  busy: boolean;
   ticks: {
     isChecked: (id: string) => boolean;
     onToggle: (id: string, checked: boolean) => void;
@@ -60,13 +64,26 @@ export function useBulkRelease({
   busy: boolean;
   /** Holds the single-class buttons while the run goes. */
   setBusy: (busy: boolean) => void;
-  releaseDeps: (verifyBlocked: string | null, releaseBlocked: string | null) => ReleaseClassRowDeps;
+  releaseDeps: (
+    verifyBlocked: string | null,
+    releaseBlocked: string | null,
+    quietVerify?: boolean
+  ) => ReleaseClassRowDeps;
 }): BulkRelease {
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [failures, setFailures] = useState<readonly BulkReleaseFailure[] | null>(null);
   const [releasedCount, setReleasedCount] = useState(0);
+  const [dialogRows, setDialogRows] = useState<readonly ResultsClassRow[]>([]);
+  // Leaving the tab mid-run: finish the class in flight, start no other, set no state.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const tickedRows = useMemo(
     () => rows.filter(row => checked.has(row.id) && getReleaseTick(row, isOnline).kind === 'tick'),
@@ -89,8 +106,8 @@ export function useBulkRelease({
   }, [running]);
 
   const confirm = useCallback(() => {
-    if (running || busy || tickedRows.length === 0) return;
-    const batch = tickedRows;
+    if (running || busy || dialogRows.length === 0) return;
+    const batch = dialogRows;
     setRunning(true);
     setBusy(true);
     setFailures(null);
@@ -99,9 +116,10 @@ export function useBulkRelease({
       const done = new Set<string>();
       try {
         for (const row of batch) {
+          if (!mountedRef.current) break;
           try {
             const verifyBlocked = await verifyBlockedFor(row);
-            const outcome = await releaseClassRow(row, releaseDeps(verifyBlocked, null));
+            const outcome = await releaseClassRow(row, releaseDeps(verifyBlocked, null, true));
             if (outcome.kind === 'released') done.add(row.id);
             else
               failed.push({
@@ -116,24 +134,28 @@ export function useBulkRelease({
           }
         }
       } finally {
-        setChecked(previous => new Set([...previous].filter(id => !done.has(id))));
-        setReleasedCount(done.size);
-        setRunning(false);
-        setBusy(false);
-        if (failed.length === 0) {
-          setDialogOpen(false);
-          toast.success(
-            done.size === 1 ? 'Results released' : `Results released for ${done.size} classes`
-          );
-        } else {
-          setFailures(failed);
+        if (mountedRef.current) {
+          setChecked(previous => new Set([...previous].filter(id => !done.has(id))));
+          setReleasedCount(done.size);
+          setRunning(false);
+          setBusy(false);
+          if (failed.length === 0) {
+            setDialogOpen(false);
+            toast.success(
+              done.size === 1 ? 'Results released' : `Results released for ${done.size} classes`
+            );
+          } else {
+            setFailures(failed);
+          }
         }
       }
     })();
-  }, [busy, releaseDeps, running, setBusy, tickedRows]);
+  }, [busy, dialogRows, releaseDeps, running, setBusy]);
 
   return {
     tickedRows,
+    dialogRows,
+    busy,
     ticks: {
       isChecked: id => checked.has(id),
       onToggle,
@@ -143,6 +165,7 @@ export function useBulkRelease({
     dialogOpen,
     openDialog: () => {
       setFailures(null);
+      setDialogRows(tickedRows);
       setDialogOpen(true);
     },
     closeDialog,

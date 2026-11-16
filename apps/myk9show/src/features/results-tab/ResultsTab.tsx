@@ -198,13 +198,15 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
   // The deps one release needs; `checkChanged` is fixed at the moment the release starts.
   const releaseDeps = (
     verifyBlocked: string | null,
-    releaseBlocked: string | null
+    releaseBlocked: string | null,
+    quietVerify = false
   ): ReleaseClassRowDeps => {
     const generationAtClick = checkGeneration.current;
     return {
       showId,
       verification,
       release,
+      quietVerify,
       checkChanged: () => checkGeneration.current !== generationAtClick,
       verifyBlockedReason: verifyBlocked,
       releaseBlockedReason: releaseBlocked,

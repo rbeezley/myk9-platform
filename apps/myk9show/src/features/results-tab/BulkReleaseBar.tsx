@@ -20,6 +20,7 @@ const classLabel = (row: ResultsClassRow) => [row.name, row.trialLabel].filter(B
 export function BulkReleaseBar({ bulk }: { bulk: BulkRelease }) {
   const count = bulk.tickedRows.length;
   const { failures } = bulk;
+  const dialogCount = bulk.dialogRows.length;
   return (
     <>
       {count > 0 && (
@@ -68,7 +69,7 @@ export function BulkReleaseBar({ bulk }: { bulk: BulkRelease }) {
             <>
               <DialogHeader>
                 <DialogTitle>
-                  {count === 1 ? 'Release 1 class?' : `Release ${count} classes?`}
+                  {dialogCount === 1 ? 'Release 1 class?' : `Release ${dialogCount} classes?`}
                 </DialogTitle>
                 <DialogDescription>
                   You are confirming the scores match the judge&apos;s paper sheets. Releasing makes
@@ -76,7 +77,7 @@ export function BulkReleaseBar({ bulk }: { bulk: BulkRelease }) {
                 </DialogDescription>
               </DialogHeader>
               <ul className="list-disc space-y-1 pl-5 text-sm" aria-label="Classes to release">
-                {bulk.tickedRows.map(row => (
+                {bulk.dialogRows.map(row => (
                   <li key={row.id}>{classLabel(row)}</li>
                 ))}
               </ul>
@@ -93,14 +94,14 @@ export function BulkReleaseBar({ bulk }: { bulk: BulkRelease }) {
                 <Button
                   type="button"
                   className="min-h-11"
-                  disabled={bulk.running || count === 0}
+                  disabled={bulk.running || bulk.busy || dialogCount === 0}
                   onClick={bulk.confirm}
                 >
                   {bulk.running
                     ? 'Releasing…'
-                    : count === 1
+                    : dialogCount === 1
                       ? 'Release 1 class'
-                      : `Release ${count} classes`}
+                      : `Release ${dialogCount} classes`}
                 </Button>
               </DialogFooter>
             </>

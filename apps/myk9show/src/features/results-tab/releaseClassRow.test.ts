@@ -1,7 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ResultsClassRow } from './buildResultsClassRows';
-import { canReleaseRow, getReleaseTick, OFFLINE_RELEASE_REASON } from './releaseClassRow';
+import {
+  canReleaseRow,
+  getReleaseTick,
+  OFFLINE_RELEASE_REASON,
+  releaseClassRow,
+  type ReleaseClassRowDeps,
+} from './releaseClassRow';
+
+vi.mock('@/features/show-map/resultsVerifiedMutations', () => ({
+  readServerResultsVerifiedAt: async () => '2026-10-10T15:45:00Z',
+}));
+vi.mock('./useClassUnsyncedScores', () => ({ classHasUnsyncedScores: async () => false }));
 
 const row = (over: Partial<ResultsClassRow>): ResultsClassRow =>
   ({
@@ -49,5 +60,48 @@ describe('the tickable rule is the single-class Release rule', () => {
       reason: OFFLINE_RELEASE_REASON,
     });
     expect(getReleaseTick(row({ phase: 'done' }), true)).toEqual({ kind: 'none' });
+  });
+});
+
+const depsWith = (over: Partial<ReleaseClassRowDeps>): ReleaseClassRowDeps => ({
+  showId: 's1',
+  verification: { verifyAsync: vi.fn().mockResolvedValue(undefined), refreshClass: vi.fn() },
+  release: { mutateAsync: vi.fn().mockResolvedValue({ released: ['c1'] }) },
+  checkChanged: () => false,
+  verifyBlockedReason: null,
+  releaseBlockedReason: null,
+  ...over,
+});
+
+describe('releaseClassRow outcomes', () => {
+  it('a rejected release write is a failed outcome with the retry message', async () => {
+    const outcome = await releaseClassRow(
+      row({}),
+      depsWith({ release: { mutateAsync: vi.fn().mockRejectedValue(new Error('boom')) } })
+    );
+    expect(outcome).toEqual({
+      kind: 'failed',
+      message: 'Could not release the results. Try Release again.',
+    });
+  });
+
+  it('a quiet verify failure carries its reason in the outcome; not quiet leaves it to the toast', async () => {
+    const verifyAsync = vi
+      .fn()
+      .mockRejectedValue(new Error('The scores changed. Check them again.'));
+    const quiet = await releaseClassRow(
+      row({ phase: 'needs-checking' }),
+      depsWith({ verification: { verifyAsync, refreshClass: vi.fn() }, quietVerify: true })
+    );
+    expect(verifyAsync).toHaveBeenCalledWith(expect.objectContaining({ classId: 'c1' }), {
+      quiet: true,
+    });
+    expect(quiet).toEqual({ kind: 'failed', message: 'The scores changed. Check them again.' });
+
+    const loud = await releaseClassRow(
+      row({ phase: 'needs-checking' }),
+      depsWith({ verification: { verifyAsync, refreshClass: vi.fn() } })
+    );
+    expect(loud).toMatchObject({ kind: 'failed', toasted: true });
   });
 });

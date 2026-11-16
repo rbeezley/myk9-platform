@@ -56,7 +56,7 @@ vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null 
 vi.mock('./ResultsPackets', () => ({ ResultsPackets: () => null }));
 const releaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
-  useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
+  useReleaseResults: () => ({ mutateAsync: releaseMutate, isPending: false }),
 }));
 vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
   useResultsVerifiedMutations: () => ({
@@ -93,12 +93,10 @@ vi.mock('sonner', () => ({
 
 beforeEach(() => {
   releaseMutate.mockReset();
-  releaseMutate.mockImplementation(
-    (
-      input: { classIds: string[] },
-      options: { onSuccess: (result: { released: string[] }) => void }
-    ) => options.onSuccess({ released: failIds.set.has(input.classIds[0]!) ? [] : input.classIds })
-  );
+  releaseMutate.mockImplementation(async (input: { classIds: string[] }) => ({
+    released: failIds.set.has(input.classIds[0]!) ? [] : input.classIds,
+    failed: [],
+  }));
   failIds.set = new Set();
   rows.list = [
     makeRow('c1', 'Containers Novice', 'ready-to-release'),
@@ -186,5 +184,35 @@ describe('Release checked classes', () => {
     expect(screen.getByRole('button', { name: 'Release 1 class' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Interior Novice/ })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: /Containers Novice/ })).not.toBeChecked();
+  });
+
+  it('keeps the dialog list fixed while it runs, and stops after the class in flight when the tab is left', async () => {
+    const gate: { open: (value: { released: string[]; failed: string[] }) => void } = {
+      open: () => undefined,
+    };
+    releaseMutate.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          gate.open = resolve;
+        })
+    );
+    const user = userEvent.setup();
+    const { unmount } = mount();
+    await user.click(screen.getByRole('checkbox', { name: /Containers Novice/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Interior Novice/ }));
+    await user.click(screen.getByRole('button', { name: 'Release 2 classes' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Release 2 classes' }));
+    await waitFor(() => expect(releaseMutate).toHaveBeenCalledTimes(1));
+
+    // Mid-run the list and count in the dialog still name both classes.
+    expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(dialog).getByRole('button', { name: 'Releasing…' })).toBeDisabled();
+
+    unmount();
+    gate.open({ released: ['c1'], failed: [] });
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    expect(releaseMutate).toHaveBeenCalledTimes(1);
   });
 });

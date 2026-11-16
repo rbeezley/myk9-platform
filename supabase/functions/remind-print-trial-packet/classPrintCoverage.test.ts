@@ -11,6 +11,8 @@ import { runPrintReminder } from './reminderRun.ts';
 const SHOW_ID = 'a0000000-0000-4000-8000-000000000001';
 const TRIAL_ID = 'b0000000-0000-4000-8000-000000000001';
 const DAY = '2026-10-04';
+// The fixture prints are made at 2026-10-03T12:00Z; this snapshot is older than them.
+const SNAPSHOT_AT = '2026-10-03T08:00:00.000Z';
 
 const classA: PaperworkClassRow = {
   id: 'class-a',
@@ -72,6 +74,7 @@ const cover = (
     ...rows,
     prints,
     printableEntryIds: new Set((over.entries ?? rows.entries).map(item => item.id)),
+    printedNotBefore: null,
     ...over,
   });
 
@@ -194,22 +197,22 @@ const dayData = (prints: SheetPrintRow[]): Record<string, Result> => ({
 
 describe('loadClassPrintsCoverDay', () => {
   it('reads the day and says covered for current prints', async () => {
-    expect(await loadClassPrintsCoverDay(stubClient(dayData(fullPrints())), SHOW_ID, DAY)).toBe(
-      true
-    );
+    expect(
+      await loadClassPrintsCoverDay(stubClient(dayData(fullPrints())), SHOW_ID, DAY, null)
+    ).toBe(true);
   });
 
   it('says not covered when one class is unprinted', async () => {
     const client = stubClient(dayData(fullPrints().slice(0, 2)));
-    expect(await loadClassPrintsCoverDay(client, SHOW_ID, DAY)).toBe(false);
+    expect(await loadClassPrintsCoverDay(client, SHOW_ID, DAY, null)).toBe(false);
   });
 
   it('ignores cancelled trials and cancelled classes', async () => {
     const data = dayData(fullPrints().slice(0, 2));
     data.classes = { data: [classA, { ...classB, status: 'cancelled' }], error: null };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(true);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(true);
     data.trials = { data: [{ id: TRIAL_ID, status: 'cancelled' }], error: null };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(false);
   });
 
   it.each(['canceled', 'Cancelled ', ' CANCELLED'])(
@@ -217,9 +220,9 @@ describe('loadClassPrintsCoverDay', () => {
     async status => {
       const data = dayData(fullPrints().slice(0, 2));
       data.classes = { data: [classA, { ...classB, status }], error: null };
-      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(true);
+      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(true);
       data.trials = { data: [{ id: TRIAL_ID, status }], error: null };
-      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(false);
     }
   );
 
@@ -228,9 +231,39 @@ describe('loadClassPrintsCoverDay', () => {
     async table => {
       const data = dayData(fullPrints());
       data[table] = { data: null, error: { message: 'boom' } };
-      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+      expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(false);
     }
   );
+});
+
+describe('a regenerated packet re-opens the reminder', () => {
+  it('counts current prints made after the newest snapshot', () => {
+    expect(cover(fullPrints(), { printedNotBefore: '2026-10-03T11:59:59.000Z' })).toBe(true);
+    expect(cover(fullPrints(), { printedNotBefore: '2026-10-03T12:00:00.000Z' })).toBe(true);
+  });
+
+  it('does not count current prints made before a newer snapshot', () => {
+    expect(cover(fullPrints(), { printedNotBefore: '2026-10-03T12:00:01.000Z' })).toBe(false);
+  });
+
+  it('keeps the class prints as they are when the day has no snapshot', () => {
+    expect(cover(fullPrints(), { printedNotBefore: null })).toBe(true);
+  });
+
+  it('is not covered when the snapshot time cannot be read', () => {
+    expect(cover(fullPrints(), { printedNotBefore: '' })).toBe(false);
+    expect(cover(fullPrints(), { printedNotBefore: 'not a time' })).toBe(false);
+  });
+
+  it('judges the loader the same way', async () => {
+    const client = () => stubClient(dayData(fullPrints()));
+    expect(await loadClassPrintsCoverDay(client(), SHOW_ID, DAY, '2026-10-03T11:00:00.000Z')).toBe(
+      true
+    );
+    expect(await loadClassPrintsCoverDay(client(), SHOW_ID, DAY, '2026-10-03T13:00:00.000Z')).toBe(
+      false
+    );
+  });
 });
 
 describe('classes whose dogs are all off the run sheet', () => {
@@ -256,7 +289,13 @@ describe('classes whose dogs are all off the run sheet', () => {
 
   it('skips a class whose entries are all withdrawn or pulled', () => {
     expect(
-      classPrintsCoverDay({ showId: SHOW_ID, ...day, prints: prints(), printableEntryIds: onSheet })
+      classPrintsCoverDay({
+        showId: SHOW_ID,
+        ...day,
+        prints: prints(),
+        printableEntryIds: onSheet,
+        printedNotBefore: null,
+      })
     ).toBe(true);
   });
 
@@ -270,6 +309,7 @@ describe('classes whose dogs are all off the run sheet', () => {
         entries: entriesWithLive,
         prints: prints(),
         printableEntryIds: mixed,
+        printedNotBefore: null,
       })
     ).toBe(false);
   });
@@ -279,15 +319,15 @@ describe('classes whose dogs are all off the run sheet', () => {
     data.classes = { data: day.classes, error: null };
     data.entries = { data: day.entries, error: null };
     data.rpc = { data: { entries: [{ id: 'e1' }, { id: 'e2' }] }, error: null };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(true);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(true);
   });
 
   it('is not covered when the packet list cannot be read', async () => {
     const data = dayData(fullPrints());
     data.rpc = { data: null, error: { message: 'boom' } };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(false);
     data.rpc = { data: null, error: null };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(false);
   });
 });
 
@@ -308,7 +348,7 @@ describe('loadClassPrintsCoverDay paging', () => {
     ];
     const data = dayData(prints);
     data.entries = { data: manyEntries, error: null };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(true);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(true);
 
     // 1000 older prints ahead of the four that matter: only a second page finds them.
     const filler = Array.from({ length: 1000 }, () => ({
@@ -316,20 +356,20 @@ describe('loadClassPrintsCoverDay paging', () => {
       coverage: {},
     }));
     data.paperwork_prints = { data: [...filler, ...prints], error: null };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(true);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(true);
   });
 
   it('is not covered when a later page of entries fails', async () => {
     const data = dayData(fullPrints());
     data.entries = { data: manyEntries, error: null, failFromRow: 1000 };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(false);
   });
 
   it('is not covered when a later page of prints fails', async () => {
     const filler = Array.from({ length: 1000 }, () => printRow('scoresheet', classA, rows));
     const data = dayData([...filler, ...fullPrints()]);
     data.paperwork_prints = { data: [...filler, ...fullPrints()], error: null, failFromRow: 1000 };
-    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY)).toBe(false);
+    expect(await loadClassPrintsCoverDay(stubClient(data), SHOW_ID, DAY, null)).toBe(false);
   });
 });
 
@@ -337,7 +377,11 @@ describe('runPrintReminder with the before-trial packet', () => {
   const request = { showId: SHOW_ID, trialDate: DAY, kind: 'evening-before' as const };
   const deps = { getEnv: () => 'k', now: () => new Date('2026-10-04T01:00:00.000Z') };
 
-  function runClient(prints: SheetPrintRow[], emergencyRows: unknown[] = []) {
+  function runClient(
+    prints: SheetPrintRow[],
+    emergencyRows: unknown[] = [],
+    snapshotAt: string = SNAPSHOT_AT
+  ) {
     const base = dayData(prints);
     const client = {
       rpc: async () => ({
@@ -353,7 +397,7 @@ describe('runPrintReminder with the before-trial packet', () => {
                 error: null,
               })
             : table === 'trial_packet_snapshots'
-              ? () => ({ data: { snapshot_id: 'snap-1' }, error: null })
+              ? () => ({ data: { snapshot_id: 'snap-1', created_at: snapshotAt }, error: null })
               : table === 'paperwork_prints'
                 ? () =>
                     filters.report_id === 'emergency-trial-packet'
@@ -374,6 +418,13 @@ describe('runPrintReminder with the before-trial packet', () => {
     };
     return client as unknown as Parameters<typeof runPrintReminder>[0];
   }
+
+  it('end to end: a packet regenerated after the prints sends the reminder', async () => {
+    // Past the prints, so the day is uncovered and the run goes on to claim the slot, which this
+    // minimal stub cannot do: reaching the claim is the proof the reminder was not suppressed.
+    const newer = runClient(fullPrints(), [], '2026-10-03T13:00:00.000Z');
+    await expect(runPrintReminder(newer, request, deps)).rejects.toThrow();
+  });
 
   it('does not remind when every class was printed through the packet', async () => {
     expect(await runPrintReminder(runClient(fullPrints()), request, deps)).toEqual({

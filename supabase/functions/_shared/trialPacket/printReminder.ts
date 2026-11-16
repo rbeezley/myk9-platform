@@ -119,6 +119,14 @@ export interface DayClassPrintInput {
    * still feeds the fingerprint, because the app fingerprints the raw entries.
    */
   printableEntryIds: ReadonlySet<string>;
+  /**
+   * When the newest sent packet snapshot was created (the server's clock), or null when the day
+   * has none. A print counts only if it is at or after this: the class sheets' fingerprints do
+   * not carry the judge, dog names, handlers or registration numbers the packet prints, so
+   * without the cutoff a regenerated packet could never re-open the reminder, which the old
+   * day-row rule guaranteed (MYK9-2103 widens the fingerprints). Unreadable means not covered.
+   */
+  printedNotBefore: string | null;
 }
 
 /**
@@ -131,6 +139,13 @@ export interface DayClassPrintInput {
  * covered here: that is today's behaviour, the emergency day row alone decides.
  */
 export function classPrintsCoverDay(input: DayClassPrintInput): boolean {
+  let prints = input.prints;
+  if (input.printedNotBefore !== null) {
+    const cutoff = Date.parse(input.printedNotBefore);
+    if (Number.isNaN(cutoff)) return false;
+    // An unreadable print time cannot prove it came after the packet.
+    prints = prints.filter(row => Date.parse(row.printed_at) >= cutoff);
+  }
   let printable = 0;
   for (const classItem of input.classes) {
     if (!classItem.trial_id) return false;
@@ -156,7 +171,7 @@ export function classPrintsCoverDay(input: DayClassPrintInput): boolean {
       });
       // The same entries feed both sheets, so a class empty for one is empty for both.
       if (!descriptor) break;
-      if (!sheetPrintIsCurrent(input.prints, descriptor)) return false;
+      if (!sheetPrintIsCurrent(prints, descriptor)) return false;
       if (reportId === CLASS_SHEET_REPORT_IDS[0]) printable += 1;
     }
   }

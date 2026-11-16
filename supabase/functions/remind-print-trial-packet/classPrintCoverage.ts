@@ -41,7 +41,9 @@ async function readAllPages<T>(
 export async function loadClassPrintsCoverDay(
   supabase: SupabaseClient,
   showId: string,
-  trialDate: string
+  trialDate: string,
+  /** The newest sent snapshot's server `created_at`, or null when the day has none. */
+  printedNotBefore: string | null
 ): Promise<boolean> {
   try {
     const { data: trials, error: trialsError } = await supabase
@@ -111,6 +113,7 @@ export async function loadClassPrintsCoverDay(
       entries: entryRows.map(toFingerprintEntryRow),
       prints,
       printableEntryIds,
+      printedNotBefore,
     });
   } catch {
     return false;

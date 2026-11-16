@@ -81,7 +81,7 @@ export async function runPrintReminder(
   // how a channel stops being read. Ask for the packet first.
   const { data: packet, error: packetError } = await supabase
     .from('trial_packet_snapshots')
-    .select('snapshot_id')
+    .select('snapshot_id, created_at')
     .eq('show_id', request.showId)
     .eq('trial_date', request.trialDate)
     .eq('delivery_status', 'sent')
@@ -116,7 +116,15 @@ export async function runPrintReminder(
   // row above (MYK9-2086). Only asked when the day row did not already settle it.
   if (
     decision.remind &&
-    (await loadClassPrintsCoverDay(supabase, request.showId, request.trialDate))
+    (await loadClassPrintsCoverDay(
+      supabase,
+      request.showId,
+      request.trialDate,
+      // The same server-clock column the packet is ordered by above (the browser mints
+      // `generated_at`). A print made before the newest snapshot is paper the regeneration may
+      // have outdated; an unreadable time becomes an invalid string, which reads as not covered.
+      packet ? String(packet.created_at ?? '') : null
+    ))
   ) {
     decision = decidePrintReminder({ ...decisionInput, classPrintsCoverDay: true });
   }

@@ -35,7 +35,8 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 vi.mock('@/utils/scoringMappings', () => ({
-  mapQualificationToResultStatus: (r: string) => (r === 'Qualified' ? 'qualified' : 'nq'),
+  mapQualificationToResultStatus: (r: string) =>
+    r === 'Qualified' ? 'qualified' : r === 'Mystery' ? 'pending' : 'nq',
 }));
 
 function baseOptions(overrides: Record<string, unknown> = {}) {

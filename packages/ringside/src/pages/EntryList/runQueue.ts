@@ -17,6 +17,7 @@
  * ReplicatedEntry normalizer.
  */
 
+import { checkInStateLabel } from '@myk9/ui';
 import { ordinal } from './ordinal';
 
 /**
@@ -280,11 +281,11 @@ export function formatRunQueueState(state: RunQueueState): string {
     case 'stale':
       return 'Order may be out of date';
     case 'in-ring':
-      return 'In ring';
+      return checkInStateLabel('in-ring');
     case 'done':
       return 'Done';
     case 'pulled':
-      return 'Pulled';
+      return checkInStateLabel('pulled');
     case 'withdrawn':
       return 'Withdrawn';
     case 'absent':

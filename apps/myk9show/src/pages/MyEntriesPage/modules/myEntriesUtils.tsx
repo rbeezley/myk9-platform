@@ -85,7 +85,7 @@ export function getEntryStatusBadgeLabel(
   if (options.isShowCancelled) contextualLabel = 'Cancelled';
   switch (statusKind === 'completed' ? EntryStatus.COMPLETED : status) {
     case EntryStatus.PENDING:
-      if (statusKind === 'in_ring') contextualLabel = 'In Ring';
+      if (statusKind === 'in_ring') contextualLabel = checkInStateLabel('in-ring');
       else if (statusKind === 'absent') contextualLabel = 'Absent';
       else if (statusKind === 'unknown') contextualLabel = 'Status unavailable';
       else if (options.isPastShow) contextualLabel = 'Review incomplete';
@@ -255,7 +255,7 @@ export function getContextualStatusMessage(
       };
     }
     if (partiallyScored.entryStatusKind === 'in_ring') {
-      return { message: checkInStateLabel('in-ring') ?? 'In the ring', className: 'text-info' };
+      return { message: checkInStateLabel('in-ring'), className: 'text-info' };
     }
     return {
       message: `${remainingClasses} ${plural} still to run`,
@@ -271,7 +271,7 @@ export function getContextualStatusMessage(
   }
 
   if (entry.entryStatusKind === 'in_ring') {
-    return { message: checkInStateLabel('in-ring') ?? 'In the ring', className: 'text-info' };
+    return { message: checkInStateLabel('in-ring'), className: 'text-info' };
   }
   if (entry.entryStatusKind === 'absent') {
     return { message: 'Absent', className: 'text-muted-foreground' };

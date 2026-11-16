@@ -23,7 +23,7 @@ import {
   Target,
   TriangleAlert,
 } from 'lucide-react';
-import { checkInStateLabel, cn, getStatusDescriptor } from '@myk9/ui';
+import { checkInStateLabel, cn, getStatusDescriptor, type CheckInStateWordKey } from '@myk9/ui';
 
 interface CheckInPresentation {
   Icon: LucideIcon;
@@ -32,7 +32,7 @@ interface CheckInPresentation {
 }
 
 /** The shared check-in state word (MYK9-2093), so Ringside and My Shows name a state alike. */
-const word = (state: string): string => checkInStateLabel(state) ?? state;
+const word = (state: CheckInStateWordKey): string => checkInStateLabel(state);
 
 const PRESENTATION: Record<string, CheckInPresentation> = {
   'no-status': {

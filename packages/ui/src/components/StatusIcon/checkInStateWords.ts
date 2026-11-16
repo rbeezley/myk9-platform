@@ -30,7 +30,12 @@ export function checkInStateWord(state: string | null | undefined): string | und
   return (CHECK_IN_STATE_WORDS as Record<string, string | undefined>)[state];
 }
 
-/** The same word with a capital first letter, for a badge that stands alone. */
+/**
+ * The same word with a capital first letter, for a badge that stands alone. A
+ * known state key always has a word; any other string may not.
+ */
+export function checkInStateLabel(state: CheckInStateWordKey): string;
+export function checkInStateLabel(state: string | null | undefined): string | undefined;
 export function checkInStateLabel(state: string | null | undefined): string | undefined {
   const word = checkInStateWord(state);
   return word ? word.charAt(0).toUpperCase() + word.slice(1) : undefined;

@@ -37,11 +37,11 @@ import {
 
 /** The shared check-in state words (MYK9-2093) the dog chip names a check-in state with. */
 const CHECK_IN_LABEL = {
-  pulled: checkInStateLabel('pulled') ?? 'Pulled at the show',
-  conflict: checkInStateLabel('conflict') ?? 'Conflict',
-  'in-ring': checkInStateLabel('in-ring') ?? 'In the ring',
-  'at-gate': checkInStateLabel('at-gate') ?? 'At gate',
-  'checked-in': checkInStateLabel('checked-in') ?? 'Checked in',
+  pulled: checkInStateLabel('pulled'),
+  conflict: checkInStateLabel('conflict'),
+  'in-ring': checkInStateLabel('in-ring'),
+  'at-gate': checkInStateLabel('at-gate'),
+  'checked-in': checkInStateLabel('checked-in'),
 };
 
 /* ------------------------------------------------------------------ rows -- */

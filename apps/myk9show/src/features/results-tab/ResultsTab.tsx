@@ -10,7 +10,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { getTrialTimezone } from '@/features/registries';
 import { useJudgeSignOffMutations } from '@/features/show-map/useJudgeSignOffMutations';
-import { readServerResultsVerifiedAt } from '@/features/show-map/resultsVerifiedMutations';
 import { useResultsVerifiedMutations } from '@/features/show-map/useResultsVerifiedMutations';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
@@ -23,6 +22,9 @@ import { NationalsLeaderboardLink, NationalsLeaderboardView } from './NationalsL
 import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
+import { BulkReleaseBar } from './BulkReleaseBar';
+import { useBulkRelease } from './useBulkRelease';
+import { releaseClassRow, type ReleaseClassRowDeps } from './releaseClassRow';
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { openClassListLine } from '@/features/show-closeout/finishList';
 import { ResultsPackets } from './ResultsPackets';
@@ -41,7 +43,7 @@ import {
   type ResultsTabViewState,
 } from './resultsTabRoutes';
 import { classRowSyncBlockedReason, useClassRowSyncState } from './useClassRowSyncState';
-import { classHasUnsyncedScores, useClassUnsyncedScores } from './useClassUnsyncedScores';
+import { useClassUnsyncedScores } from './useClassUnsyncedScores';
 import { useResultsTabData } from './useResultsTabData';
 
 function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
@@ -189,95 +191,46 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
     [rows, selected, showId]
   );
 
-  const handleRelease = async (row: ResultsClassRow) => {
-    // One tap (MYK9-1264): from Needs checking the tap first saves the check for the results the
-    // secretary is looking at (the server refuses it if they moved: MK015), then releases through
-    // the same preflight as a class that was already checked. The replica's phase is not awaited
-    // between the two: the server's own answer below is what decides.
-    const verifyFirst = row.phase === 'needs-checking';
-    if (verifyFirst) {
-      if (!row.statusCompleted || row.resultsCanonical === null || verifyBlockedReason !== null) {
-        return;
-      }
-    } else if (row.phase !== 'ready-to-release') {
-      return;
-    }
-    if (releaseBlockedReason !== null || unrelease.isPending) return;
+  // The deps one release needs; `checkChanged` is fixed at the moment the release starts.
+  const releaseDeps = (
+    verifyBlocked: string | null,
+    releaseBlocked: string | null
+  ): ReleaseClassRowDeps => {
     const generationAtClick = checkGeneration.current;
+    return {
+      showId,
+      verification,
+      release,
+      checkChanged: () => checkGeneration.current !== generationAtClick,
+      verifyBlockedReason: verifyBlocked,
+      releaseBlockedReason: releaseBlocked,
+    };
+  };
+
+  const handleRelease = async (row: ResultsClassRow) => {
+    if (unrelease.isPending) return;
     // Held for the WHOLE verify and preflight, so Undo and the button stay disabled until the
     // release is queued or the preflight gives up.
     setReleaseChecking(true);
-    let checked = !verifyFirst;
-    // After the check is saved, a refusal must not read as if nothing happened.
-    const refuse = (message: string) =>
-      toast.error(
-        checked && verifyFirst
-          ? `${message.replace(/\.$/, '')}. The scores are checked, not released yet.`
-          : message
-      );
     try {
-      if (verifyFirst) {
-        if (row.resultsCanonical === null) return;
-        try {
-          await verification.verifyAsync({
-            classId: row.id,
-            trialId: row.trialId,
-            showId,
-            canonical: row.resultsCanonical,
-          });
-        } catch {
-          // The mutation already told the user why (MK015 included) and refetched the entries.
-          return;
-        }
-        checked = true;
-        // Already released: the check was all this class was missing.
-        if (row.releasedAt) return;
-      }
-      // Release in this tab waits for the check (the server does not, by design). The replica's
-      // copy of the check is only a hint: the click is decided by a fresh read on the server.
-      let verifiedAt: string | null;
-      try {
-        verifiedAt = await readServerResultsVerifiedAt(row.id);
-      } catch {
-        refuse('Could not check this class. Try again.');
-        return;
-      }
-      // A correction can land while the server was being asked: the answer then describes older
-      // results. Look again, directly, before anything is queued.
-      try {
-        if (await classHasUnsyncedScores(row.id)) {
-          refuse('Waiting for score changes to be sent');
-          return;
-        }
-      } catch {
-        refuse('Could not check this class. Try again.');
-        return;
-      }
-      // The check was taken back (Undo) at any point since the click: the read is stale. Compared
-      // after the LAST await, immediately before anything is queued.
-      if (checkGeneration.current !== generationAtClick) {
-        toast.error('The check was just changed. Check the class and try again.');
-        return;
-      }
-      if (!verifiedAt) {
-        toast.error('This class needs checking again — the scores changed.');
-        verification.refreshClass(row.trialId);
-        return;
-      }
-      release.mutate(
-        { classIds: [row.id], showId },
-        {
-          onSuccess: ({ released }) =>
-            released.length > 0
-              ? toast.success('Results released')
-              : refuse('Could not release the results. Try Release again.'),
-          onError: () => refuse('Could not release the results. Try Release again.'),
-        }
+      const outcome = await releaseClassRow(
+        row,
+        releaseDeps(verifyBlockedReason, releaseBlockedReason)
       );
+      if (outcome.kind === 'released' && outcome.announce) toast.success('Results released');
+      else if (outcome.kind === 'failed' && !outcome.toasted) toast.error(outcome.message);
     } finally {
       setReleaseChecking(false);
     }
   };
+
+  const bulk = useBulkRelease({
+    rows: visibleRows,
+    isOnline,
+    busy: release.isPending || releaseChecking || verification.isPending || unrelease.isPending,
+    setBusy: setReleaseChecking,
+    releaseDeps,
+  });
 
   const handleHide = (row: ResultsClassRow) => {
     // The button is disabled in these states; this keeps a stale click from racing a release.
@@ -337,7 +290,15 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
 
   const list =
     visibleRows.length > 0 ? (
-      <ResultsClassList showId={showId} rows={visibleRows} selectedId={selected?.id ?? null} />
+      <>
+        <BulkReleaseBar bulk={bulk} />
+        <ResultsClassList
+          showId={showId}
+          rows={visibleRows}
+          selectedId={selected?.id ?? null}
+          ticks={bulk.ticks}
+        />
+      </>
     ) : (
       <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
         {rows.length === 0 ? (

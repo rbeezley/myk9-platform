@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { LIST_NAVIGATION_STATE } from '@/components/layout/listNavigation';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { RESULTS_PHASE_LABEL, type ResultsClassPhase } from './resultsNextAction';
+import type { BulkRelease } from './useBulkRelease';
 import { getOverviewFocusHref, getResultsClassHref } from './resultsTabRoutes';
 
 const PHASE_CHIP_CLASS: Partial<Record<ResultsClassPhase, string>> = {
@@ -41,10 +43,13 @@ export function ResultsClassList({
   showId,
   rows,
   selectedId,
+  ticks,
 }: {
   showId: string;
   rows: readonly ResultsClassRow[];
   selectedId: string | null;
+  /** Tick boxes for releasing classes together (MYK9-2072); omitted, the list has none. */
+  ticks?: BulkRelease['ticks'];
 }) {
   const { search } = useLocation();
   return (
@@ -55,6 +60,7 @@ export function ResultsClassList({
           row.nextAction.kind === 'overview'
             ? getOverviewFocusHref(showId, row.id)
             : getResultsClassHref(showId, row.id, search);
+        const tick = ticks?.tickFor(row) ?? { kind: 'none' as const };
         const hasAction = row.nextAction.kind !== 'none';
         return (
           <li
@@ -64,17 +70,32 @@ export function ResultsClassList({
               selected && 'bg-primary/10'
             )}
           >
-            <Link
-              to={getResultsClassHref(showId, row.id, search)}
-              state={LIST_NAVIGATION_STATE}
-              aria-current={selected ? 'page' : undefined}
-              className="flex min-h-11 min-w-0 flex-col justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="truncate text-sm font-medium">{row.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {[row.trialLabel, row.judgeName].filter(Boolean).join(' · ')}
-              </span>
-            </Link>
+            <div className="flex min-w-0 items-center gap-1">
+              {tick.kind !== 'none' && ticks && (
+                <span
+                  className="flex min-h-11 min-w-11 shrink-0 items-center justify-center"
+                  title={tick.kind === 'disabled' ? tick.reason : undefined}
+                >
+                  <Checkbox
+                    aria-label={`Release ${row.name}, ${row.trialLabel}`}
+                    checked={ticks.isChecked(row.id)}
+                    disabled={tick.kind === 'disabled' || ticks.disabled}
+                    onChange={next => ticks.onToggle(row.id, next)}
+                  />
+                </span>
+              )}
+              <Link
+                to={getResultsClassHref(showId, row.id, search)}
+                state={LIST_NAVIGATION_STATE}
+                aria-current={selected ? 'page' : undefined}
+                className="flex min-h-11 min-w-0 flex-1 flex-col justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="truncate text-sm font-medium">{row.name}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {[row.trialLabel, row.judgeName].filter(Boolean).join(' · ')}
+                </span>
+              </Link>
+            </div>
             {hasAction ? (
               <Link
                 to={nextHref}

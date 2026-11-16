@@ -8,7 +8,6 @@ import { DogInfoTooltip } from './DogInfoTooltip';
 import { QualificationCell } from './QualificationCell';
 import { StatusBadge } from './StatusBadge';
 import { PlacementCell } from './PlacementCell';
-import { PendingCell } from './PendingCell';
 import { SearchTimeCell } from './SearchTimeCell';
 import { FaultsCell } from './FaultsCell';
 import type { ScoringRow, ScoringEdit } from './types';
@@ -26,8 +25,6 @@ interface UseResultColumnsParams {
     showFaults: boolean;
   };
   scoringTab: ScoringStatusTab;
-  /** MYK9-2089: the class has a UKC element time on some run. */
-  showElementTime: boolean;
   showDeleteColumn: boolean;
   entryMap: Map<string, ScentWorkEntry>;
   onFieldChange: (entryId: string, field: keyof ScoringEdit, value: string) => void;
@@ -49,7 +46,6 @@ export function useResultColumns(params: UseResultColumnsParams): ColumnDef<Scor
     isStaff,
     visibility,
     scoringTab,
-    showElementTime,
     showDeleteColumn,
     entryMap,
     onFieldChange,
@@ -140,25 +136,6 @@ export function useResultColumns(params: UseResultColumnsParams): ColumnDef<Scor
         ),
       },
     ];
-
-    // Element time: read-only, UKC only, and present only when a run in the class has one.
-    if (showElementTime) {
-      const searchIndex = cols.findIndex(col => col.id === 'searchTime');
-      cols.splice(searchIndex + 1, 0, {
-        id: 'elementTime',
-        accessorKey: 'elementTime',
-        header: 'Element Time',
-        cell: ({ row }) => (
-          <div className="text-center">
-            {isStaff || visibility.showTime ? (
-              <span className="text-sm font-mono">{row.original.elementTime || '--'}</span>
-            ) : (
-              <PendingCell />
-            )}
-          </div>
-        ),
-      });
-    }
 
     // Check-in column — hidden on Completed tab (always "Completed" there)
     if (scoringTab !== 'completed') {
@@ -252,7 +229,6 @@ export function useResultColumns(params: UseResultColumnsParams): ColumnDef<Scor
     onDeleteEntry,
     onFieldChange,
     scoringTab,
-    showElementTime,
     showDeleteColumn,
     visibility,
     onCheckInClick,

@@ -46,8 +46,6 @@ export interface ScoringRow {
   qualification: QualificationStatus | '';
   qualificationReason: string;
   searchTime: string;
-  /** MYK9-2089: UKC element time, display only (paper entry stays search time). absent or '' when none. */
-  elementTime?: string | undefined;
   faults: string;
   notes: string;
   placement: number | null;

@@ -305,4 +305,21 @@ describe('buildRunSheetEntries entries awaiting a registration number (MYK9-1162
     ];
     expect(buildRunSheetEntries(rows).map(e => e.id)).toEqual(['registered', 'released']);
   });
+
+  it('formats the element time like the search time, and leaves it empty when null (MYK9-2089)', () => {
+    const [withElement] = buildRunSheetEntries([
+      makeRow({
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 61.23,
+        element_time_seconds: 42.5,
+      }),
+    ]);
+    expect(withElement!.result!.elementTimeStr).toBe('0:42.50');
+
+    const [without] = buildRunSheetEntries([
+      makeRow({ is_scored: true, result_status: 'qualified', search_time_seconds: 61.23 }),
+    ]);
+    expect(without!.result!.elementTimeStr).toBe('');
+  });
 });

@@ -65,7 +65,6 @@ export function useClassResults({
         edit?.searchTime ??
         submitted?.searchTime ??
         dbSecondsToInputFormat(raw?.search_time_seconds);
-      const elementTime = dbSecondsToInputFormat(raw?.element_time_seconds);
       // MYK9-969: a private result's faults arrive NULL because they are
       // withheld, not because they are zero — never show a fabricated 0.
       const faults =
@@ -98,7 +97,6 @@ export function useClassResults({
         qualification,
         qualificationReason,
         searchTime,
-        elementTime,
         faults,
         notes,
         placement:

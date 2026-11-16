@@ -29,8 +29,6 @@ export interface ClassResultsFingerprintEntry {
   area2_time_seconds?: NumericValue;
   area3_time_seconds?: NumericValue;
   area4_time_seconds?: NumericValue;
-  area5_time_seconds?: NumericValue;
-  element_time_seconds?: NumericValue;
   total_correct_finds?: NumericValue;
   total_incorrect_finds?: NumericValue;
   total_faults?: NumericValue;
@@ -82,8 +80,6 @@ export function entryResultsLine(entry: ClassResultsFingerprintEntry): string | 
     numberField(entry.area2_time_seconds),
     numberField(entry.area3_time_seconds),
     numberField(entry.area4_time_seconds),
-    numberField(entry.area5_time_seconds),
-    numberField(entry.element_time_seconds),
     numberField(entry.total_correct_finds),
     numberField(entry.total_incorrect_finds),
     numberField(entry.total_faults),

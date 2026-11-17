@@ -27,6 +27,18 @@ describe('MYK9-2115 email_log_contents migration', () => {
     expect(sql).toContain("SET search_path = ''");
     expect(sql).toContain('public.can_manage_show_lifecycle_email(v_show_id)');
     expect(sql).toContain("USING ERRCODE = '42501'");
+  });
+
+  it('returns no row for an unknown id and raises 42501 for another show's email', () => {
+    const body = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.get_show_email_content'));
+    const notFound = body.indexOf('IF NOT COALESCE(v_found, false) THEN');
+    const notAllowed = body.indexOf('NOT public.can_manage_show_lifecycle_email(v_show_id)');
+    expect(notFound).toBeGreaterThan(-1);
+    // Unknown id: an early RETURN with no row, before the permission check.
+    expect(body.slice(notFound, notAllowed)).toMatch(/RETURN;/);
+    expect(body.slice(notFound, notAllowed)).not.toContain('RAISE EXCEPTION');
+    // Existing row the caller cannot manage: 42501.
+    expect(body.slice(notAllowed)).toContain("USING ERRCODE = '42501'");
     expect(sql).toContain(
       'REVOKE ALL ON FUNCTION public.get_show_email_content(uuid) FROM PUBLIC, anon'
     );

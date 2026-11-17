@@ -26,16 +26,24 @@ SET search_path = ''
 AS $$
 DECLARE
   v_show_id uuid;
+  v_found boolean;
 BEGIN
   IF p_email_log_id IS NULL THEN
     RAISE EXCEPTION 'email_log_id is required' USING ERRCODE = '22023';
   END IF;
 
-  SELECT log.show_id INTO v_show_id
+  SELECT log.show_id, true INTO v_show_id, v_found
   FROM public.email_log AS log
   WHERE log.id = p_email_log_id;
 
-  -- Same answer for "no such email" and "not yours": no probing for ids.
+  -- No such email_log row (for example the id of a failed lifecycle attempt that never reached
+  -- email_log): no row back, which the app reads as "a copy was not kept". Ids are random UUIDs
+  -- and an empty answer says nothing about any show, so this is not a probe.
+  IF NOT COALESCE(v_found, false) THEN
+    RETURN;
+  END IF;
+
+  -- The row exists but is not this caller's (or has no show): not authorized.
   IF v_show_id IS NULL OR NOT public.can_manage_show_lifecycle_email(v_show_id) THEN
     RAISE EXCEPTION 'not authorized to read show email history' USING ERRCODE = '42501';
   END IF;

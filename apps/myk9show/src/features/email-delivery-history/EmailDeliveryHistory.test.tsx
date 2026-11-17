@@ -100,6 +100,23 @@ describe('EmailDeliveryHistory', () => {
     );
   });
 
+  it('reads an attempt id with no email_log row as "not kept"', async () => {
+    mockFetch.mockResolvedValue({
+      rows: [{ ...row, id: 'attempt-only', source_kind: 'lifecycle', related_id: 'job-1' }],
+      nextCursor: null,
+    });
+    mockFetchContent.mockResolvedValue(null);
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(mockFetchContent).toHaveBeenCalledWith(
+      expect.objectContaining({ emailLogId: 'attempt-only' })
+    );
+    expect(await screen.findByText(/A copy of this email was not kept\./)).toBeInTheDocument();
+    expect(screen.queryByText(/don’t have access/)).not.toBeInTheDocument();
+  });
+
   it('says so, with a retry, when the device is offline and the read is paused', async () => {
     mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
     mockFetchContent.mockResolvedValue({ subject: 'S', html: '<p>x</p>' });

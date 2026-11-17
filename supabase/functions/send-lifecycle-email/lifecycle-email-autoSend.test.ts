@@ -117,6 +117,11 @@ describe('drainAutoEmailJobs', () => {
     expect(fixture.tables.email_log).toEqual([
       expect.objectContaining({ status: 'failed', show_id: 'show-1', related_id: 'job-1' }),
     ]);
+    // Delivery history lists an attempt without a log row on its own: only the first two do.
+    const logId = fixture.tables.email_log[0].id;
+    expect(
+      fixture.tables.show_lifecycle_email_attempts.map(attempt => attempt.email_log_id)
+    ).toEqual([null, null, logId]);
 
     // A failed job is never claimed again.
     expect(await drain(fixture, fetch)).toMatchObject({ claimed: 0 });

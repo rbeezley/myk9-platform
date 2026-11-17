@@ -177,12 +177,13 @@ async function processClaimedJob(args: {
   const delivery = await deliverViaResend(args.deps, row, { ...text, secretaryNote: '' });
 
   if (!delivery.ok) {
-    await insertAttempt(ctx, null, null, 'failed', delivery.error);
     if (failedBefore + 1 >= AUTO_SEND_MAX_FAILED_ATTEMPTS) {
+      // The last refusal is one Delivery history line: the log row, with the attempt tied to it.
       const emailLogId = await insertEmailLog(ctx, null, 'failed', delivery.error, {
         ...text,
         secretaryNote: '',
       });
+      await insertAttempt(ctx, emailLogId ?? null, null, 'failed', delivery.error);
       await finishJob(args, {
         status: 'failed',
         emailLogId: emailLogId ?? null,
@@ -190,6 +191,7 @@ async function processClaimedJob(args: {
       });
       return 'failed';
     }
+    await insertAttempt(ctx, null, null, 'failed', delivery.error);
     await releaseLease(args);
     return 'retry';
   }

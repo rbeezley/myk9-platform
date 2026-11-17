@@ -68,6 +68,8 @@ export interface LifecycleEmailJobRow {
   entry_id: string | null;
   /** Set on a correction email; its step type is the original decision's, not the new status. */
   correction_for_job_id?: string | null;
+  /** MYK9-2124: sent only by the automatic drain. */
+  auto_send?: boolean | null;
 }
 
 export interface EmailLogRow {
@@ -140,7 +142,7 @@ export async function fetchJobs(
   const { data, error } = (await supabase
     .from('show_lifecycle_email_jobs')
     .select(
-      'id, show_id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, rendered_subject, rendered_body, rendered_secretary_note, email_log_id, idempotency_key, entry_id, correction_for_job_id'
+      'id, show_id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, rendered_subject, rendered_body, rendered_secretary_note, email_log_id, idempotency_key, entry_id, correction_for_job_id, auto_send'
     )
     .eq('show_id', showId)
     .in('id', jobIds)) as QueryResult<LifecycleEmailJobRow[]>;

@@ -6,25 +6,28 @@
 -- independent proof (MYK9-880) and this table supplied none. The scope then
 -- stayed foreign and the UI read "Print status unknown".
 --
--- The question here is not "do these ids still exist" (the waitlist proof,
--- MYK9-1000, runs SECURITY DEFINER over RLS because it must tell "deleted"
--- from "I can't see it"). Here the held rows belong to ANOTHER account, so they
--- exist and this caller was never meant to see them; what the sync needs to
--- know is whether THIS caller's read of the show holds anything. So this is
--- SECURITY INVOKER: it counts through the same paperwork_prints_select policy
--- (can_manage_show OR is_show_secretary) the sync's own fetch reads through,
--- and answers 0 exactly when that fetch returns nothing. A DEFINER version
--- would count rows the caller cannot read and never prove the scope empty.
+-- Why SECURITY DEFINER with an explicit access check. An RLS-scoped count
+-- (SECURITY INVOKER) reads through the same paperwork_prints_select policy as
+-- the sync's fetch, so a secretary who lost access to the show reads 0 of 0 and
+-- 0 of 0 exactly like a show that is really empty. The proof would then stamp
+-- the scope as theirs while their old cached rows stay, showing stale print
+-- confirmations. So the function re-applies the policy's own access check
+-- (can_manage_show OR is_show_secretary) itself:
+--   * a caller who passes it gets the count of ALL prints for the show, which
+--     is what RLS would show them anyway, so 0 means the show is really empty;
+--   * a caller who does not pass it gets NULL: "can't tell", never "empty".
+-- It reveals nothing a caller without access could use: they get NULL, the
+-- same for a show with prints and a show without.
 --
--- It reveals nothing beyond what the caller can already select. Signed-in
--- sessions only; a call with no auth.uid() is refused with 42501, which the
--- client reads as "can't tell" and keeps the replica.
+-- Signed-in sessions only. A call with no auth.uid() is refused with 42501;
+-- the client reads that, NULL, an error or any non-zero count as unproven and
+-- stamps nothing.
 
 CREATE OR REPLACE FUNCTION public.count_paperwork_prints(p_show_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
 STABLE
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -36,6 +39,14 @@ BEGIN
 
   IF p_show_id IS NULL THEN
     RAISE EXCEPTION 'p_show_id is required' USING ERRCODE = '22004';
+  END IF;
+
+  -- The paperwork_prints_select policy's own predicate.
+  IF NOT (
+    (SELECT public.can_manage_show(p_show_id))
+    OR (SELECT public.is_show_secretary(p_show_id))
+  ) THEN
+    RETURN NULL;
   END IF;
 
   SELECT count(*)::integer INTO v_count

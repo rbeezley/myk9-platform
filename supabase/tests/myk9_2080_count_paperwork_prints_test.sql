@@ -1,12 +1,13 @@
 -- MYK9-2080 (migration 20261117051700): count_paperwork_prints(uuid) is the
--- paperwork-print replica's empty-scope proof. It counts through the caller's
--- RLS, so it reads zero exactly when the sync's own fetch returns nothing.
+-- paperwork-print replica's empty-scope proof. SECURITY DEFINER with the select
+-- policy's access check written in: a caller with access gets the true count, a
+-- caller without it gets NULL ("can't tell"), never 0.
 --
---   A1  SECURITY INVOKER, search_path '', STABLE; EXECUTE for authenticated and
+--   A1  SECURITY DEFINER, search_path '', STABLE; EXECUTE for authenticated and
 --       service_role, not anon or PUBLIC.
---   V1  A secretary of the show's club reads and counts the print.
---   V2  An outsider reads none and counts zero (a different account's row is
---       never counted for them, which is what lets their empty fetch be proven).
+--   V1  A secretary of the show's club counts the print.
+--   V2  An outsider reads none through RLS and gets NULL, not 0.
+--   V3  A secretary of an empty show gets 0.
 --   G1  No signed-in user is refused with 42501; a NULL show id with 22004.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
@@ -61,7 +62,7 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT p.prosecdef || ' ' || array_to_string(p.proconfig, ',') || ' ' || p.provolatile::text
        FROM pg_proc p WHERE p.oid = v_fn::regprocedure),
-    'false search_path="" s', 'A1 SECURITY INVOKER, empty search_path, STABLE');
+    'true search_path="" s', 'A1 SECURITY DEFINER, empty search_path, STABLE');
 
   PERFORM pg_temp.expect_eq(
     has_function_privilege('anon', v_fn, 'EXECUTE') || ' '
@@ -111,6 +112,10 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, status, 
 VALUES (pg_temp.fid('101'), 'MYK9-2080 Show', 'AKC',
         current_date + 30, current_date + 30, 'draft', pg_temp.fid('001'));
 
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
+VALUES (pg_temp.fid('102'), 'MYK9-2080 Empty Show', 'AKC',
+        current_date + 31, current_date + 31, 'draft', pg_temp.fid('001'));
+
 INSERT INTO public.paperwork_prints (
   id, show_id, scope_kind, report_id, coverage, fingerprint,
   printed_by, printed_by_name, printed_at
@@ -132,8 +137,13 @@ BEGIN
     (SELECT count(*)::text FROM public.paperwork_prints WHERE show_id = pg_temp.fid('101')),
     '0', 'V2 outsider reads no print through RLS');
   PERFORM pg_temp.expect_eq(
-    public.count_paperwork_prints(pg_temp.fid('101'))::text, '0',
-    'V2 outsider counts zero, matching their empty fetch');
+    coalesce(public.count_paperwork_prints(pg_temp.fid('101'))::text, 'NULL'), 'NULL',
+    'V2 outsider gets NULL (unproven), not zero');
+
+  PERFORM pg_temp.act_as('021');
+  PERFORM pg_temp.expect_eq(
+    public.count_paperwork_prints(pg_temp.fid('102'))::text, '0',
+    'V3 secretary of an empty show gets zero');
 
   PERFORM pg_temp.expect_sqlstate(
     'SELECT public.count_paperwork_prints(NULL::uuid)', '22004', 'G1 NULL show refused');

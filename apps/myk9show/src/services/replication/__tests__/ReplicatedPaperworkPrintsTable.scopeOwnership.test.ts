@@ -89,6 +89,14 @@ describe('ReplicatedPaperworkPrintsTable scope ownership', () => {
     expect(await getScopeOwnership(table, 'show-1')).toBe('foreign');
   });
 
+  it('leaves the scope foreign when the server cannot tell (NULL: no access to the show)', async () => {
+    server.rpc.mockResolvedValue({ data: null, error: null });
+
+    await table.sync('show-1');
+
+    expect(await getScopeOwnership(table, 'show-1')).toBe('foreign');
+  });
+
   it('leaves the scope foreign when the caller still has rows the fetch did not return', async () => {
     server.rpc.mockResolvedValue({ data: 2, error: null });
 

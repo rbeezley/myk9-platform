@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { Tabs } from '@/components/ui/tabs';
 import { ShowEditBasicInfoTab } from '../ShowEditBasicInfoTab';
@@ -207,5 +208,55 @@ describe('ShowEditBasicInfoTab — unauthorized club hint (MYK9-1387)', () => {
     mockAuth('loading');
     renderTab('draft');
     expect(screen.getByText(/publish from the status badge on the show page/i)).toBeInTheDocument();
+  });
+});
+
+// MYK9-2114: one optional note per show, written to shows.confirmation_message.
+describe('ShowEditBasicInfoTab note to exhibitors (MYK9-2114)', () => {
+  it('shows the note box with the shown-where line and passes typing to the form', async () => {
+    const onChange = vi.fn();
+    const handleInputChange = vi.fn(() => onChange);
+    render(
+      <Tabs value="basic">
+        <ShowEditBasicInfoTab
+          data={{ ...baseFormData('draft'), confirmationMessage: '' }}
+          initialStatus="draft"
+          availableShowTypes={['AKC']}
+          clubs={[{ id: 'club-1', name: 'Test Club' }]}
+          handleInputChange={handleInputChange}
+          handleSelectChange={() => vi.fn()}
+          handleDateChange={() => vi.fn()}
+        />
+      </Tabs>
+    );
+
+    const box = screen.getByRole('textbox', { name: /note to exhibitors/i });
+    expect(
+      screen.getByText(
+        "Printed in each exhibitor's confirmation email and in the reminder two days before the show."
+      )
+    ).toBeInTheDocument();
+    await userEvent.type(box, 'P');
+    expect(handleInputChange).toHaveBeenCalledWith('confirmationMessage');
+    expect(onChange).toHaveBeenCalled();
+  });
+
+  it('shows the saved note', () => {
+    render(
+      <Tabs value="basic">
+        <ShowEditBasicInfoTab
+          data={{ ...baseFormData('draft'), confirmationMessage: 'Park in the north lot.' }}
+          initialStatus="draft"
+          availableShowTypes={['AKC']}
+          clubs={[{ id: 'club-1', name: 'Test Club' }]}
+          handleInputChange={() => vi.fn()}
+          handleSelectChange={() => vi.fn()}
+          handleDateChange={() => vi.fn()}
+        />
+      </Tabs>
+    );
+    expect(screen.getByRole('textbox', { name: /note to exhibitors/i })).toHaveValue(
+      'Park in the north lot.'
+    );
   });
 });

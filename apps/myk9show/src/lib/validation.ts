@@ -3,6 +3,9 @@ import { formatDuration, isUnresolvedDuration, parseDuration } from '@myk9/core'
 import { canonicalizeWebsiteUrl } from './websiteUrl';
 import { showFormJuniorFeeLimitError } from '@/features/_shared/juniorFeeLimit';
 
+/** Longest note to exhibitors (shows.confirmation_message); the edit form box and its schema share it. */
+export const NOTE_TO_EXHIBITORS_MAX_LENGTH = 1000;
+
 export interface NormalizedWebsiteUrl {
   /** The trimmed input, or `https://`-prefixed when a bare domain normalized cleanly. */
   value: string;
@@ -203,6 +206,7 @@ export const showSchemas = {
       acceptCheckPayments: z.boolean().optional(),
       acceptCashPayments: z.boolean().optional(),
       style: z.string().default('monogram'),
+      confirmationMessage: z.string().max(NOTE_TO_EXHIBITORS_MAX_LENGTH).optional(),
       publishExperience: z.boolean().optional(),
       generatedPremium: z.custom<import('@/types/premium-types').GeneratedPremium>().optional(),
       inkSaver: z.boolean().optional(),

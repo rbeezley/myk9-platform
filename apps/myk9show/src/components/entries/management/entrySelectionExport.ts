@@ -25,7 +25,7 @@ export const SELECTED_ENTRIES_EXPORT_HEADERS = [
   'Payment Status',
   'Total Fee',
   'Paid Amount',
-  'Confirmation #',
+  'Confirmation number',
   'Classes',
 ] as const;
 

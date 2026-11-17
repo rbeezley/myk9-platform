@@ -3,7 +3,7 @@ import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import { savedMessage } from './panelSaveErrors';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
-import { showToFormData, formDataToShowSaveData } from './ShowEditPanel.helpers';
+import { showToFormData, changedShowSaveData, hasShowChanges } from './ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
@@ -69,6 +69,10 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   // Convert show data to form data
   const initialFormData = useMemo(() => showToFormData(initialShowData), [initialShowData]);
 
+  // MYK9-2081: what the form held when it opened. The save sends only the fields that differ
+  // from it, so a switch another device flipped since is never written back.
+  const [openedFormData] = useState(() => showToFormData(initialShowData));
+
   // Handle save. MYK9-579 round 5: publishing now happens ONLY through the
   // status pill (ShowStatusPill.tsx), which already runs the Stripe-payouts
   // gate and surfaces enforce_show_publish_gate()'s DB-side refusal. The
@@ -78,12 +82,13 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   // its own.
   const handleSave = useCallback(
     async (formData: ShowEditFormData) => {
-      const showData = formDataToShowSaveData(formData);
+      // Nothing changed: nothing to save; the panel just closes.
+      if (!hasShowChanges(openedFormData, formData)) return;
       if (onSave) {
-        await onSave(showData);
+        await onSave(changedShowSaveData(openedFormData, formData));
       }
     },
-    [onSave]
+    [onSave, openedFormData]
   );
 
   return (

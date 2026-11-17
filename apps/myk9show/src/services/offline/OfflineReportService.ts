@@ -542,7 +542,7 @@ class OfflineReportService {
     const officials = await getShowOfficials(show.id).catch(() => null);
     const formatName = (o: { firstName: string; lastName: string }) =>
       `${o.firstName} ${o.lastName}`.trim();
-    const secretaryNames = officials?.secretaries.map(formatName).join(', ') || 'N/A';
+    const secretaryNames = officials?.secretaries.map(formatName).join(', ') || 'Not recorded';
 
     doc.setFontSize(12);
     doc.text('SHOW INFORMATION', 20, yPosition);

@@ -132,7 +132,7 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
         <div className="text-sm">
           {row.original.created_at
             ? formatDistanceToNow(new Date(row.original.created_at), { addSuffix: true })
-            : 'N/A'}
+            : 'Not recorded'}
         </div>
         <div className="text-sm text-muted-foreground">
           {row.original.created_at ? new Date(row.original.created_at).toLocaleTimeString() : ''}

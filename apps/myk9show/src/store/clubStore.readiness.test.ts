@@ -253,4 +253,56 @@ describe('clubStore.ensureClubsReady', () => {
       expect(seen).toContain('loading');
     });
   });
+  describe('every path settles (MYK9-2104)', () => {
+    it('settles as unavailable when sync throws before returning a promise', async () => {
+      replication.sync.mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const result = await useClubStore.getState().ensureClubsReady();
+
+      expect(result.status).toBe('unavailable');
+      expect(useClubStore.getState().clubReadiness).toBe('unavailable');
+    });
+
+    it('settles as unavailable when sync rejects', async () => {
+      replication.sync.mockRejectedValue(new Error('network'));
+
+      await useClubStore.getState().ensureClubsReady();
+
+      expect(useClubStore.getState().clubReadiness).toBe('unavailable');
+    });
+
+    it('settles as unavailable when the local club read never returns', async () => {
+      vi.useFakeTimers();
+      try {
+        replication.getAllClubs.mockImplementation(() => new Promise(() => undefined));
+
+        const pending = useClubStore.getState().ensureClubsReady();
+        expect(useClubStore.getState().clubReadiness).toBe('loading');
+        await vi.advanceTimersByTimeAsync(16_000);
+        const result = await pending;
+
+        expect(result.status).toBe('unavailable');
+        expect(useClubStore.getState().clubReadiness).toBe('unavailable');
+        expect(replication.sync).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('settles as unavailable when sync never returns, and a retry can recover', async () => {
+      vi.useFakeTimers();
+      try {
+        replication.sync.mockImplementation(() => new Promise(() => undefined));
+
+        const pending = useClubStore.getState().ensureClubsReady();
+        await vi.advanceTimersByTimeAsync(16_000);
+        await pending;
+        expect(useClubStore.getState().clubReadiness).toBe('unavailable');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });

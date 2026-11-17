@@ -49,6 +49,8 @@ export interface ReplicatedShow extends ShowCloseRecord {
   logoUrl?: string | undefined;
   coverImageUrl?: string | undefined;
   accentColor?: string | undefined;
+  /** shows.confirmation_message: the secretary's note to exhibitors (MYK9-2114). null clears it. */
+  confirmationMessage?: string | null | undefined;
   style?: string | undefined;
   experienceIsPublished?: boolean | undefined;
   experiencePublishedAt?: string | null | undefined;

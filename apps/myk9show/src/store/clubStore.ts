@@ -226,7 +226,17 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     if (!hasUsableData) {
       set({ clubReadiness: 'loading' });
     }
-    await get().loadClubs();
+    // MYK9-2104: every path below must END in a settled status. 'loading' is set
+    // above with no timer behind it, so a local read that never returns (a
+    // blocked IndexedDB) or a sync call that throws before a promise exists
+    // used to strand every club-context page on "Checking your club access".
+    try {
+      await withTimeout(get().loadClubs(), DEFAULT_TIMEOUT_MS, 'Saved club read');
+    } catch {
+      logger.warn('Saved club read unavailable', 'clubs');
+      set({ clubReadiness: 'unavailable' });
+      return { status: 'unavailable', clubs: get().clubs };
+    }
 
     const cachedClubs = get().clubs;
     if (!isOnline()) {
@@ -243,8 +253,10 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     }
 
     if (!clubSyncInFlight) {
-      clubSyncInFlight = replicatedClubsTable
-        .sync()
+      // Promise.resolve().then wraps a synchronous throw from sync() as a
+      // rejection, so the .catch below always settles the session.
+      clubSyncInFlight = Promise.resolve()
+        .then(() => replicatedClubsTable.sync())
         .then(async result => {
           if (result.success) {
             await get().loadClubs();

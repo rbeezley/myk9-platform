@@ -62,6 +62,9 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     logoUrl: replicated.logoUrl || '',
     coverImageUrl: replicated.coverImageUrl || '',
     accentColor: replicated.accentColor || '',
+    ...(replicated.confirmationMessage
+      ? { confirmationMessage: replicated.confirmationMessage }
+      : {}),
     assignedJudges: [], // Populated by judge_assignments subscription
     stats: [], // Local-only: calculated
     acceptCheckPayments: replicated.acceptCheckPayments,
@@ -193,6 +196,8 @@ export interface ShowInput {
   clubAddress: string;
   clubEmail: string;
   startingArmbandNumber?: number | undefined;
+  /** Note to exhibitors (shows.confirmation_message). */
+  confirmationMessage?: string | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
@@ -430,12 +435,18 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if ('coverImageUrl' in updates)
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
       if ('accentColor' in updates) replicatedUpdates.accentColor = updates.accentColor as string;
+      if (updates.confirmationMessage !== undefined)
+        replicatedUpdates.confirmationMessage = updates.confirmationMessage.trim() || null;
       // Style is persisted only by Preview's narrow RPC command. Generic show
       // edits must not carry a stale style snapshot into a full-row mutation.
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
       Object.assign(replicatedUpdates, pickShowUsesUpdates(updates));
 
-      const showMutationId = await replicatedShowsTable.updateShow(id, replicatedUpdates);
+      // MYK9-2081: an edit that changed only the judge list has no show column to write.
+      const showMutationId =
+        Object.keys(replicatedUpdates).length > 0
+          ? await replicatedShowsTable.updateShow(id, replicatedUpdates)
+          : null;
 
       // Registry is show-wide and stored denormalized on each trial (write-path Phase 1).
       // On an organization change, give the editing client immediate LOCAL consistency for
@@ -487,6 +498,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if ('coverImageUrl' in updates)
         definedUpdates.coverImageUrl = updates.coverImageUrl as string;
       if ('accentColor' in updates) definedUpdates.accentColor = updates.accentColor as string;
+      if (updates.confirmationMessage !== undefined)
+        definedUpdates.confirmationMessage = updates.confirmationMessage.trim();
       if (updates.assignedJudges !== undefined)
         definedUpdates.assignedJudges = updates.assignedJudges;
       // Style is owned by Preview's update_show_style RPC; a generic settings

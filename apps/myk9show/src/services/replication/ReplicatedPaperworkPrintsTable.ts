@@ -13,6 +13,7 @@ import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import type { ReportScope } from '@/lib/reports/types';
 
+import { verifyPaperworkPrintsEmpty } from './paperworkPrintsScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 
 type PaperworkPrintScopeKind = ReportScope['kind'];
@@ -176,6 +177,9 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
       },
       getRemoteUpdatedAt: row => parseUpdatedAtMs(row.updated_at),
       filterLocalRows: rows => rows.filter(row => row.showId === showId),
+      // A zero-row full sync over another account's rows is stamped only when
+      // this caller's own read of the show is proven empty (MYK9-880, MYK9-2080).
+      verifyScopeEmpty: () => verifyPaperworkPrintsEmpty(showId),
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 

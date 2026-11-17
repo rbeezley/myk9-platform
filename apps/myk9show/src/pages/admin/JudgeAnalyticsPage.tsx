@@ -118,7 +118,7 @@ const JudgeAnalyticsPage: React.FC = () => {
       'Acceptance Rate':
         row.confirmed_count + row.declined_count > 0
           ? `${Math.round((row.confirmed_count / (row.confirmed_count + row.declined_count)) * 100)}%`
-          : 'N/A',
+          : 'Not recorded',
       'Total Fees': `$${row.total_fees.toFixed(2)}`,
     }));
     exportToCSV(exportData, `judge-utilization-${new Date().toISOString().split('T')[0]}`);
@@ -273,7 +273,7 @@ const JudgeAnalyticsPage: React.FC = () => {
                               {rate}%
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">N/A</span>
+                            <span className="text-muted-foreground">Not recorded</span>
                           )}
                         </td>
                         <td className="py-3 px-3">${row.total_fees.toFixed(2)}</td>

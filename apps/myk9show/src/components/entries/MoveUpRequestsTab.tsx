@@ -47,21 +47,11 @@ import {
   lateRequestNote,
   minutesBeforeStart,
 } from '@/features/show-map/classChangeLateness';
-import { formatTrialLabel } from './management/entryFormTrialSummary';
+import { requestTrialLabels, trialFactsById, type TrialFacts } from './classChangeTrialLabels';
 import { MOVE_UP_COPY } from '@/hooks/entryManagementErrorCopy';
 import { ClassChangeRequestCard } from './ClassChangeRequestCard';
 import { ClassChangeDeclineDialog } from './ClassChangeDeclineDialog';
 import { MoveUpApproveDialog } from './MoveUpApproveDialog';
-
-function trialLabelsById(trials: ReadonlyArray<Record<string, unknown>>): Record<string, string> {
-  const text = (value: unknown) => (typeof value === 'string' ? value : null);
-  return Object.fromEntries(
-    trials.map(trial => [
-      String(trial.id),
-      formatTrialLabel(text(trial.date), text(trial.trial_number)),
-    ])
-  );
-}
 
 interface MoveUpRequest {
   id: string;
@@ -138,8 +128,8 @@ async function readListData(showId: string): Promise<ListData> {
 export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, onRefresh }) => {
   const [requests, setRequests] = useState<MoveUpRequest[]>([]);
   const [classes, setClasses] = useState<ClassWithCapacity[]>([]);
-  /** trial id to "Mon, Nov 9 · Trial 1", so a request says which trial its class is in. */
-  const [trialLabels, setTrialLabels] = useState<Record<string, string>>({});
+  /** trial id to its day and number, so a request says which trial each class is in. */
+  const [trialFacts, setTrialFacts] = useState<Record<string, TrialFacts>>({});
   // A show's trials always share one registry (scoping §7) — resolved once per
   // load so getAvailableMoveUpTargets recognizes UKC/ASCA-only levels.
   const [registryId, setRegistryId] = useState<RegistryId>('AKC');
@@ -171,7 +161,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     if (data.classes) setClasses(data.classes);
     if (data.trials) {
       setRegistryId(getTrialRegistry(data.trials[0]).id);
-      setTrialLabels(trialLabelsById(data.trials));
+      setTrialFacts(trialFactsById(data.trials));
       setTrialStarts(
         Object.fromEntries(
           data.trials.map(row => {
@@ -426,6 +416,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
               : undefined;
             // Lateness is measured against the trial the dog is asking to move into.
             const startTrial = trialStarts[targetClass?.trial_id ?? trialId];
+            const trialLabels = requestTrialLabels(trialFacts, trialId, targetClass?.trial_id);
             const lateNote = lateRequestNote(
               minutesBeforeStart(stored?.requestedAt, trialStartInstant(startTrial))
             );
@@ -442,7 +433,8 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                   armband: request.armband,
                   handler: request.handler,
                   fromClass: `${request.class?.class_number ? `#${request.class.class_number} ` : ''}${request.class?.name ?? ''}`,
-                  trialLabel: trialLabels[trialId] ?? null,
+                  trialLabel: trialLabels.fromTrial,
+                  requestedTrialLabel: trialLabels.requestedTrial,
                   requestedClass: stored?.targetClassId
                     ? (requestedNames[stored.targetClassId] ?? null)
                     : null,

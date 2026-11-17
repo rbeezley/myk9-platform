@@ -304,4 +304,69 @@ describe('MoveUpRequestsTab', () => {
       expect(screen.queryByText(/of \d+ entered/)).not.toBeInTheDocument();
     });
   });
+
+  describe('the trial of the class asked for (MYK9-2129)', () => {
+    const trial = (id: string, date: string, number: string) => ({
+      id,
+      date,
+      trial_number: number,
+    });
+    const classIn = (trialId: string) => ({
+      id: 'class-adv',
+      name: 'Open C',
+      class_number: '3',
+      max_entries: 12,
+      trial_id: trialId,
+      accepted_count: 4,
+      available_spots: 8,
+      element: null,
+      level: null,
+      section: null,
+    });
+    it('names the other trial next to the class asked for, with its entered count', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [
+          trial('trial-1', '2026-11-16', 'Trial 1'),
+          trial('trial-4', '2026-11-16', 'Trial 4'),
+        ],
+        error: null,
+      });
+      mocks.capacity.mockResolvedValue({ data: [classIn('trial-4')], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^in Trial 4 · 4 of 12 entered$/
+      );
+      expect(
+        await screen.findByText('From Mon, Nov 16 · Trial 1 · Finished this level')
+      ).toBeInTheDocument();
+    });
+
+    it('adds the day when the other trial is on another day', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [trial('trial-1', '2026-11-16', 'Trial 1'), trial('trial-4', '2026-11-17', '4')],
+        error: null,
+      });
+      mocks.capacity.mockResolvedValue({ data: [classIn('trial-4')], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^in Tue, Nov 17 · Trial 4 · 4 of 12 entered$/
+      );
+    });
+
+    it('adds no trial and no "From" when the class asked for is in the same trial', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [trial('trial-1', '2026-11-16', 'Trial 1')],
+        error: null,
+      });
+      mocks.capacity.mockResolvedValue({ data: [classIn('trial-1')], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^4 of 12 entered$/
+      );
+      expect(
+        await screen.findByText('Mon, Nov 16 · Trial 1 · Finished this level')
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/^From /)).not.toBeInTheDocument();
+    });
+  });
 });

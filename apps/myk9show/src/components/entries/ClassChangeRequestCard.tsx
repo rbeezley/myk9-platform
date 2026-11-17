@@ -20,9 +20,12 @@ export interface ClassChangeRequestView {
   armband: string | null;
   handler: string | null;
   fromClass: string;
+  /** The trial the dog is in now. */
   trialLabel: string | null;
   /** The class asked for; null for a request with no stored target. */
   requestedClass: string | null;
+  /** The class asked for's trial, only when it is another trial (MYK9-2129). */
+  requestedTrialLabel: string | null;
   /** The reason in plain words, when one is stored. */
   reasonLabel: string | null;
   /** When the exhibitor asked; the row's creation time for a legacy request. */
@@ -80,9 +83,28 @@ export const ClassChangeRequestCard: React.FC<ClassChangeRequestCardProps> = ({
             ) : (
               <span className="italic text-muted-foreground">Chosen at accept</span>
             )}
+            {/* The requested class's trial and count sit next to its name, not the current trial. */}
+            {(request.requestedTrialLabel || request.enteredNote) && (
+              <span
+                className="text-sm text-muted-foreground"
+                data-testid="class-change-target-facts"
+              >
+                {[
+                  request.requestedTrialLabel && `in ${request.requestedTrialLabel}`,
+                  request.enteredNote,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            )}
           </div>
           <div className="text-sm text-muted-foreground">
-            {[request.trialLabel, request.reasonLabel, request.enteredNote]
+            {[
+              request.requestedTrialLabel && request.trialLabel
+                ? `From ${request.trialLabel}`
+                : request.trialLabel,
+              request.reasonLabel,
+            ]
               .filter(Boolean)
               .join(' · ')}
           </div>

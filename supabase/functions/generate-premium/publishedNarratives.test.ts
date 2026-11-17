@@ -75,3 +75,17 @@ describe('completeNarratives', () => {
     });
   });
 });
+
+describe('completeNarratives with a placeholder answer', () => {
+  it('treats a legacy placeholder from the model as blank and keeps the published text', () => {
+    expect(
+      completeNarratives(
+        { showHours: 'Show hours to be announced.', trialInformation: 'New info.' },
+        { showHours: 'Published hours.', trialInformation: 'Published info.' }
+      )
+    ).toEqual({
+      narratives: { showHours: 'Published hours.', trialInformation: 'New info.' },
+      incomplete: true,
+    });
+  });
+});

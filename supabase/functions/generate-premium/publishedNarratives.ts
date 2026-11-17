@@ -43,10 +43,15 @@ export function completeNarratives(
   generated: PremiumNarratives,
   published: PremiumNarratives
 ): { narratives: PremiumNarratives; incomplete: boolean } {
-  const showHours = generated.showHours.trim() ? generated.showHours : published.showHours;
-  const trialInformation = generated.trialInformation.trim()
-    ? generated.trialInformation
-    : published.trialInformation;
-  const incomplete = !generated.showHours.trim() || !generated.trialInformation.trim();
-  return { narratives: { showHours, trialInformation }, incomplete };
+  // A legacy placeholder in the model's answer counts as blank, so the published text wins.
+  const showHours = cleanNarrative(generated.showHours);
+  const trialInformation = cleanNarrative(generated.trialInformation);
+  const incomplete = !showHours.trim() || !trialInformation.trim();
+  return {
+    narratives: {
+      showHours: showHours.trim() ? showHours : published.showHours,
+      trialInformation: trialInformation.trim() ? trialInformation : published.trialInformation,
+    },
+    incomplete,
+  };
 }

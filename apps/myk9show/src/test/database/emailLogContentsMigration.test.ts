@@ -11,10 +11,12 @@ const sql = readFileSync(
 );
 
 describe('MYK9-2115 email_log_contents migration', () => {
-  it('keeps the table service-role only: RLS on, no policies, anon and authenticated revoked', () => {
+  it('keeps the table service-role only: RLS forced, a deny-all policy, anon and authenticated revoked', () => {
     expect(sql).toContain('REFERENCES public.email_log(id) ON DELETE CASCADE');
     expect(sql).toContain('ALTER TABLE public.email_log_contents ENABLE ROW LEVEL SECURITY');
-    expect(sql).not.toMatch(/CREATE POLICY/i);
+    expect(sql).toContain('ALTER TABLE public.email_log_contents FORCE ROW LEVEL SECURITY');
+    expect(sql.match(/CREATE POLICY/gi)).toHaveLength(1);
+    expect(sql).toMatch(/TO anon, authenticated\s+USING \(false\)\s+WITH CHECK \(false\)/);
     expect(sql).toContain(
       'REVOKE ALL ON public.email_log_contents FROM PUBLIC, anon, authenticated'
     );

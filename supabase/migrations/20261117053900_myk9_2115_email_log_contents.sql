@@ -13,10 +13,20 @@ CREATE TABLE public.email_log_contents (
 );
 
 ALTER TABLE public.email_log_contents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.email_log_contents FORCE ROW LEVEL SECURITY;
 
 -- Default privileges grant anon full CRUD on every new public table: revoke explicitly.
 REVOKE ALL ON public.email_log_contents FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.email_log_contents TO service_role;
+
+-- Deny-all disposition: no API role reads or writes a stored copy directly. The senders write
+-- through service_role (BYPASSRLS); readers go through get_show_email_content (SECURITY DEFINER).
+CREATE POLICY email_log_contents_deny_all
+  ON public.email_log_contents
+  FOR ALL
+  TO anon, authenticated
+  USING (false)
+  WITH CHECK (false);
 
 CREATE OR REPLACE FUNCTION public.get_show_email_content(p_email_log_id uuid)
 RETURNS TABLE (subject text, html text)

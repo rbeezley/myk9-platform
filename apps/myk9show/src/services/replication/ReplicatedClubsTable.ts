@@ -166,10 +166,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   }
 
   /**
-   * Sync clubs from Supabase.
-   * Note: clubs have no license_key scope — all clubs are visible.
-   */
-  /**
    * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
    * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
    */
@@ -293,9 +289,12 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       }
       try {
         // MYK9-1302: the count and id read run when due, not after every pass.
-        const removed = shouldRunIdScan(idScanKey(this.getTableName()), { result })
-          ? await this.reconcileVisibility(new SyncCacheWriter(this, options?.signal))
-          : 0;
+        // A new sign-in re-pulled rows another principal could see; scan now so a
+        // different account never reads them before the cadence comes due (MYK9-2153).
+        const removed =
+          principalChanged || shouldRunIdScan(idScanKey(this.getTableName()), { result })
+            ? await this.reconcileVisibility(new SyncCacheWriter(this, options?.signal))
+            : 0;
         if (removed > 0) {
           logger.log(`[${this.getTableName()}] reconcileVisibility removed ${removed} stale rows`);
           this._forceFullSyncNext = true;
@@ -378,12 +377,30 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * @returns the club, or null when the server returned nothing for this caller.
    */
   async fetchClubById(clubId: string): Promise<ReplicatedClub | null> {
+    // Device-wide replica: nothing may land after the account switched.
+    const startedAs = await this.currentPrincipalId();
     const rows = await this.getRowRefetchAdapter().fetchRowsById([clubId]);
+    if ((await this.currentPrincipalId()) !== startedAs) {
+      throw new Error('The signed-in account changed during the club read; nothing was saved.');
+    }
     const row = rows.find(r => String(r.id) === clubId);
     if (!row) return null;
     const club = rowToClub(row);
-    await this.batchSet([club]);
+    // The server version is the OCC precondition for a later edit.
+    const version = (row as Record<string, unknown>).version;
+    await this.batchSet(
+      [club],
+      typeof version === 'number' ? new Map([[clubId, version]]) : undefined
+    );
     return club;
+  }
+
+  /** The non-anonymous user id, or null for signed out or anonymous. */
+  private async currentPrincipalId(): Promise<string | null> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session?.user && session.user.is_anonymous !== true ? session.user.id : null;
   }
 
   /**

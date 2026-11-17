@@ -42,6 +42,7 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
   );
   const readiness = useClubStore(state => state.clubReadiness);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
+  const lookup = useClubStore(state => state.requestedClubLookup);
 
   // INTENT: same owner decision as the guest directory (MYK9-747; see the
   // INTENT in useBrowseClubsData). The clubs replica is shared across sign-in
@@ -83,6 +84,11 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
     else if (guestRead.kind === 'error') status = 'unavailable';
     else if (guestRead.kind === 'loading') status = 'loading';
     else status = guestRead.data ? 'ready' : 'not-found';
+  } else if (!club && id && lookup?.clubId === id && lookup.status === 'pending') {
+    // The club is still being looked up: never say "not found" before the answer.
+    status = 'loading';
+  } else if (!club && id && lookup?.clubId === id && lookup.status === 'failed') {
+    status = 'unavailable';
   } else if (readiness === 'loading' && !club) {
     status = 'loading';
   } else if ((readiness === 'unavailable' || readiness === 'offline') && !club) {

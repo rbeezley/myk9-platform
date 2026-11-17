@@ -49,7 +49,12 @@ describe('useClubDetailData for a club awaiting authorization (MYK9-2153)', () =
       return pendingRow;
     });
     getPublicClubById.mockResolvedValue(null);
-    useClubStore.setState({ clubs: [], clubReadiness: 'loading', error: null });
+    useClubStore.setState({
+      clubs: [],
+      clubReadiness: 'loading',
+      requestedClubLookup: null,
+      error: null,
+    });
     resetClubReadinessForTests();
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
     auth.value = { user: { id: 'admin-1', is_anonymous: false }, loading: false };
@@ -70,6 +75,38 @@ describe('useClubDetailData for a club awaiting authorization (MYK9-2153)', () =
     const { result } = renderHook(() => useClubDetailData('club-pending'), { wrapper });
 
     await waitFor(() => expect(result.current.status).toBe('not-found'));
+  });
+
+  it('shows loading, never not-found, while the by-id lookup is pending', async () => {
+    let finish: (value: typeof pendingRow) => void = () => {};
+    replication.fetchClubById.mockImplementation(
+      () => new Promise<typeof pendingRow>(resolve => (finish = resolve))
+    );
+    // A fresh session whose replica lacks the club: readiness alone says 'fresh'.
+    await useClubStore.getState().ensureClubsReady();
+    useClubStore.setState({ clubReadiness: 'fresh' });
+
+    const { result } = renderHook(() => useClubDetailData('club-pending'), { wrapper });
+
+    await waitFor(() => expect(replication.fetchClubById).toHaveBeenCalled());
+    expect(result.current.status).toBe('loading');
+    localRows = [pendingRow];
+    finish(pendingRow);
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+  });
+
+  it('shows unavailable, which can retry, when the by-id lookup fails', async () => {
+    replication.fetchClubById.mockRejectedValue(new Error('network'));
+
+    const { result } = renderHook(() => useClubDetailData('club-pending'), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe('unavailable'));
+    replication.fetchClubById.mockImplementation(async () => {
+      localRows = [pendingRow];
+      return pendingRow;
+    });
+    result.current.retry();
+    await waitFor(() => expect(result.current.status).toBe('ready'));
   });
 
   it('a guest still gets the server answer (not-found), never the by-id replica fetch', async () => {

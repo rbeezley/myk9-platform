@@ -28,8 +28,8 @@ async function fetchRequestedClubIfMissing(
   requestedClubId: string,
   clubs: Club[],
   reload: () => Promise<void>
-): Promise<void> {
-  if (clubs.some(club => club.id === requestedClubId)) return;
+): Promise<boolean> {
+  if (clubs.some(club => club.id === requestedClubId)) return true;
   try {
     // Bounded like the sync above: a hung request must not hold readiness at 'loading'.
     const fetched = await withTimeout(
@@ -38,8 +38,10 @@ async function fetchRequestedClubIfMissing(
       'Requested club read'
     );
     if (fetched) await reload();
+    return true;
   } catch {
     logger.warn('Requested club fetch unavailable', 'clubs');
+    return false;
   }
 }
 
@@ -135,6 +137,12 @@ export interface ClubStoreState {
   isSyncing: boolean;
   error: string | null;
   clubReadiness: ClubReadinessStatus;
+  /**
+   * The lookup for the club a page asked for (MYK9-2153). 'pending' until the
+   * sync and by-id read settle, 'failed' when either timed out or errored,
+   * 'settled' once the answer is in (a missing club is then truly not found).
+   */
+  requestedClubLookup: { clubId: string; status: 'pending' | 'failed' | 'settled' } | null;
 
   // Actions
   loadClubs: () => Promise<void>;
@@ -156,6 +164,7 @@ export interface ClubStoreState {
 
 export const useClubStore = create<ClubStoreState>()((set, get) => ({
   clubs: [],
+  requestedClubLookup: null,
   selectedClubId: '',
   selectedClubUserId: null,
   isLoading: false,
@@ -269,6 +278,12 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
 
     const requestedClubIsMissing =
       requestedClubId !== undefined && !cachedClubs.some(club => club.id === requestedClubId);
+    if (requestedClubIsMissing) {
+      set({ requestedClubLookup: { clubId: requestedClubId, status: 'pending' } });
+    }
+    const settleLookup = (status: 'failed' | 'settled') => {
+      if (requestedClubIsMissing) set({ requestedClubLookup: { clubId: requestedClubId, status } });
+    };
     if (!force && clubSessionIsFresh && !requestedClubIsMissing) {
       set({ clubReadiness: 'fresh' });
       return { status: 'fresh', clubs: cachedClubs };
@@ -301,9 +316,11 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
 
     try {
       const result = await withTimeout(clubSyncInFlight, DEFAULT_TIMEOUT_MS, 'Club data refresh');
+      let lookupOk = result.success;
       if (result.success && requestedClubId !== undefined) {
-        await fetchRequestedClubIfMissing(requestedClubId, get().clubs, get().loadClubs);
+        lookupOk = await fetchRequestedClubIfMissing(requestedClubId, get().clubs, get().loadClubs);
       }
+      settleLookup(lookupOk ? 'settled' : 'failed');
       const clubs = get().clubs;
       if (result.success) {
         set({ clubReadiness: 'fresh' });
@@ -318,6 +335,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       logger.warn('Club data refresh unavailable', 'clubs', {
         hasCachedClubs: clubs.length > 0,
       });
+      settleLookup('failed');
       set({ clubReadiness: 'unavailable' });
       return { status: 'unavailable', clubs };
     }

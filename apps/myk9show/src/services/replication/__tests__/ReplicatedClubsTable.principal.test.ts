@@ -56,6 +56,7 @@ function mockServer(
 function clubRow(id: string) {
   return {
     id,
+    version: 7,
     name: `Club ${id}`,
     email: null,
     phone: null,
@@ -169,6 +170,39 @@ describe('ReplicatedClubsTable synced principal (MYK9-2153)', () => {
     expect(await table.get('club-old')).not.toBeNull();
   });
 
+  it('scans visibility in the same sync when a new sign-in forced the full pull', async () => {
+    signedInAs('demo-1');
+    mockServer();
+    await table.sync();
+
+    const idScan = await import('../idScanCadence');
+    const due = vi.spyOn(idScan, 'shouldRunIdScan').mockReturnValue(false);
+    const reconcile = vi.spyOn(table, 'reconcileVisibility');
+
+    signedInAs('admin-1');
+    mockServer();
+    await table.sync();
+    expect(reconcile).toHaveBeenCalledTimes(1);
+
+    // Same principal, scan not due: no scan.
+    mockServer();
+    await table.sync();
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    due.mockRestore();
+  });
+
+  it('never scans for a new anonymous principal', async () => {
+    signedInAs('demo-1');
+    mockServer();
+    await table.sync();
+    const reconcile = vi.spyOn(table, 'reconcileVisibility');
+
+    signedInAs('anon-device', true);
+    mockServer();
+    await table.sync();
+    expect(reconcile).not.toHaveBeenCalled();
+  });
+
   describe('fetchClubById', () => {
     it('writes the club the server returns into the replica', async () => {
       mockServer([], [clubRow('club-pending')]);
@@ -178,6 +212,26 @@ describe('ReplicatedClubsTable synced principal (MYK9-2153)', () => {
       expect(club?.name).toBe('Club club-pending');
       expect(club?.authorizedAt).toBeNull();
       expect((await table.get('club-pending'))?.name).toBe('Club club-pending');
+    });
+
+    it('keeps the fetched row version so a later edit carries its OCC precondition', async () => {
+      mockServer([], [clubRow('club-pending')]);
+
+      await table.fetchClubById('club-pending');
+
+      const stored = await table.getReplicatedRow('club-pending');
+      expect(stored?.serverVersion).toBe(7);
+    });
+
+    it('writes nothing when the account changed while the read was in flight', async () => {
+      signedInAs('admin-1');
+      mockServer([], [clubRow('club-pending')]);
+      supabaseMock.auth.getSession
+        .mockResolvedValueOnce({ data: { session: { user: { id: 'admin-1' } } } })
+        .mockResolvedValueOnce({ data: { session: { user: { id: 'other-2' } } } });
+
+      await expect(table.fetchClubById('club-pending')).rejects.toThrow(/account changed/);
+      expect(await table.get('club-pending')).toBeNull();
     });
 
     it('returns null and writes nothing when the server returns no row', async () => {

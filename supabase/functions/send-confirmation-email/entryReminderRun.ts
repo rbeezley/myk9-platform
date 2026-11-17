@@ -32,6 +32,8 @@ export interface ReminderLogRow {
   resend_message_id: string | null;
   status: 'sent' | 'failed';
   error_message: string | null;
+  /** What was sent (MYK9-2115): kept beside the log row so the secretary can read it. */
+  content?: { subject: string; html: string };
 }
 
 export interface EntryReminderDeps {
@@ -162,6 +164,7 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
     const claimedEntries = group.entries.filter(entry => claimed.includes(entry.id));
 
     let result: ConfirmationSendResult;
+    let content: ReminderLogRow['content'];
     try {
       const data = buildConfirmationEmailData({
         show,
@@ -172,10 +175,13 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
         siteUrl: deps.siteUrl,
         includeStartTimes: true,
       });
+      const subject = reminderSubject(show.name);
+      const html = withReminderStrip(deps.render(data, show), data.showTitle, data.dateRange);
+      content = { subject, html };
       result = await deps.send({
         to: resolved.email,
-        subject: reminderSubject(show.name),
-        html: withReminderStrip(deps.render(data, show), data.showTitle, data.dateRange),
+        subject,
+        html,
         idempotencyKey: await reminderIdempotencyKey(group.key, claimed),
       });
     } catch {
@@ -201,6 +207,7 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
       resend_message_id: result.ok ? result.messageId : null,
       status: result.ok ? 'sent' : 'failed',
       error_message: result.ok ? null : result.error,
+      ...(content ? { content } : {}),
     });
   }
 

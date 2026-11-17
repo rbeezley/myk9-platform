@@ -21,6 +21,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { storeEmailContent } from '../_shared/emailLogContent.ts';
 import {
   JUDGE_ASSIGNMENT_NAME_SELECT,
   judgeNamesByClass,
@@ -308,11 +309,14 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       const result = (await res.json()) as { id: string };
       return { ok: true, messageId: result.id };
     },
-    log: async row => {
-      const { error } = await supabase
+    log: async ({ content, ...row }) => {
+      const { data, error } = await supabase
         .from('email_log')
-        .insert({ ...row, status_updated_at: new Date().toISOString() });
+        .insert({ ...row, status_updated_at: new Date().toISOString() })
+        .select('id')
+        .single();
       requireEmailLogWrite(error, 'send-confirmation-email');
+      if (content) await storeEmailContent(supabase, data?.id, content.subject, content.html);
     },
   };
 }

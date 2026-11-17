@@ -1,6 +1,7 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { storeEmailContent, type EmailContentClient } from '../_shared/emailLogContent.ts';
 
 /** Types and database/provider helpers shared by the generic send and the number-needed step. */
 export interface SendLifecycleEmailPayload {
@@ -208,7 +209,8 @@ export async function insertEmailLog(
   args: { supabase: LifecycleEmailSupabaseClient; job: LifecycleEmailJobRow },
   resendMessageId: string | null,
   status: string,
-  errorMessage: string | null
+  errorMessage: string | null,
+  text?: EmailText
 ): Promise<string | undefined> {
   const { data, error } = (await args.supabase
     .from('email_log')
@@ -224,6 +226,15 @@ export async function insertEmailLog(
     .select('id')
     .single()) as QueryResult<EmailLogRow>;
   requireEmailLogWrite(error, 'send-lifecycle-email');
+  // MYK9-2115: keep what was sent (or would have been) for the show's delivery history.
+  if (text) {
+    await storeEmailContent(
+      args.supabase as unknown as EmailContentClient,
+      data?.id,
+      text.subject,
+      renderHtmlEmail(text.subject, text.body, text.secretaryNote)
+    );
+  }
   return data?.id;
 }
 
@@ -244,7 +255,7 @@ export async function insertAttempt(
   });
 }
 
-function renderHtmlEmail(subject: string, body: string, secretaryNote: string): string {
+export function renderHtmlEmail(subject: string, body: string, secretaryNote: string): string {
   const note = secretaryNote
     ? `<div style="background:#eff6ff;border-left:4px solid #3b82f6;border-radius:6px;padding:16px;margin-top:16px;"><p style="margin:0 0 4px;font-weight:600;color:#1e40af;">From the show secretary</p>${paragraphs(secretaryNote)}</div>`
     : '';

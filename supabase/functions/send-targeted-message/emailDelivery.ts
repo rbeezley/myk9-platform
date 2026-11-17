@@ -1,4 +1,5 @@
 import { RESEND_BATCH_EMAILS_URL, sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { storeEmailContents, type EmailContentClient } from '../_shared/emailLogContent.ts';
 import type { EmailAudience, EmailRecipient } from './targeting.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -186,17 +187,76 @@ export function createShowMessageEmailSender(deps: {
   };
 }
 
+interface LoggedRow {
+  id: string;
+  recipient_email: string | null;
+}
+
+/** The rows the insert returned, or null when they are not the shape we asked for. */
+function loggedRows(value: unknown): LoggedRow[] | null {
+  if (!Array.isArray(value)) return null;
+  const rows: LoggedRow[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) return null;
+    const { id, recipient_email: email } = item as Record<string, unknown>;
+    if (typeof id !== 'string') return null;
+    if (email !== null && typeof email !== 'string') return null;
+    rows.push({ id, recipient_email: email });
+  }
+  return rows;
+}
+
 // Delivery history is best-effort after the mail has gone out: failing the request
 // here would invite a retry that emails everyone twice.
+// MYK9-2115: `copyFor` rebuilds what one recipient was sent, so the secretary can read it.
 export async function writeEmailLog(
-  supabase: { from(table: string): { insert(rows: unknown): PromiseLike<{ error: unknown }> } },
-  rows: EmailLogRow[]
+  supabase: {
+    from(table: string): {
+      insert(rows: unknown): {
+        select(columns: string): PromiseLike<{ data: unknown; error: unknown }>;
+      };
+    };
+  },
+  rows: EmailLogRow[],
+  copyFor?: (recipientEmail: string) => { subject: string; html: string }
 ): Promise<boolean> {
   if (rows.length === 0) return true;
-  const { error } = await supabase.from('email_log').insert(rows);
+  const { data: returned, error } = await supabase
+    .from('email_log')
+    .insert(rows)
+    .select('id, recipient_email');
   if (error) {
     console.error('send-targeted-message: failed to record email delivery history');
     return false;
+  }
+  const data = loggedRows(returned);
+  if (copyFor && data) {
+    // Pair each copy to its email_log row by recipient, never by position. A recipient that
+    // appears twice, or has no returned row, is skipped (and logged) rather than risk a mismatch.
+    const idsByEmail = new Map<string, string[]>();
+    for (const logged of data) {
+      if (!logged.recipient_email) continue;
+      idsByEmail.set(logged.recipient_email, [
+        ...(idsByEmail.get(logged.recipient_email) ?? []),
+        logged.id,
+      ]);
+    }
+    const sentCount = new Map<string, number>();
+    for (const row of rows) {
+      sentCount.set(row.recipient_email, (sentCount.get(row.recipient_email) ?? 0) + 1);
+    }
+    const items: Array<{ emailLogId: string; subject: string; html: string }> = [];
+    for (const [email, count] of sentCount) {
+      const ids = idsByEmail.get(email);
+      if (count !== 1 || !ids || ids.length !== 1) {
+        console.error('send-targeted-message: skipped keeping a copy of an email', {
+          reason: count !== 1 ? 'duplicate_recipient' : 'no_matching_log_row',
+        });
+        continue;
+      }
+      items.push({ emailLogId: ids[0]!, ...copyFor(email) });
+    }
+    await storeEmailContents(supabase as unknown as EmailContentClient, items);
   }
   return true;
 }

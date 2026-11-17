@@ -12,7 +12,7 @@ export interface EmailDeliveryHistoryPage {
 
 interface RpcResult<T> {
   data: T | null;
-  error: { message?: string } | null;
+  error: { message?: string; code?: string } | null;
 }
 
 export interface EmailDeliverySupabaseClient {
@@ -45,4 +45,25 @@ export async function fetchShowEmailDeliveryHistory(args: {
     nextCursor:
       rows.length > limit && lastRow ? { createdAt: lastRow.attempted_at, id: lastRow.id } : null,
   };
+}
+
+export interface ShowEmailContent {
+  subject: string;
+  html: string;
+}
+
+/** The text of one sent email, or null when no copy was kept (MYK9-2115). */
+export async function fetchShowEmailContent(args: {
+  supabase: EmailDeliverySupabaseClient;
+  emailLogId: string;
+}): Promise<ShowEmailContent | null> {
+  const result = await args.supabase.rpc<ShowEmailContent[]>('get_show_email_content', {
+    p_email_log_id: args.emailLogId,
+  });
+  if (result.error) {
+    throw Object.assign(new Error(result.error.message ?? 'This email is unavailable'), {
+      code: result.error.code,
+    });
+  }
+  return result.data?.[0] ?? null;
 }

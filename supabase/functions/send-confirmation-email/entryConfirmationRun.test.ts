@@ -277,6 +277,7 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
         resend_message_id: 'msg-1',
         status: 'sent',
         error_message: null,
+        content: { subject: sends[0]!.subject, html: sends[0]!.html },
       },
     ]);
   });
@@ -464,6 +465,7 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
     await runEntryConfirmations(noEmail.deps, 'new');
     expect(noEmail.sends).toHaveLength(0);
     expect(noEmail.logs[0]).toMatchObject({ error_message: 'missing_recipient' });
+    expect(noEmail.logs[0]).not.toHaveProperty('content');
   });
 
   it('emails nobody on a show whose acceptance email is switched off, and leaves its entries unclaimed (Codex P2)', async () => {

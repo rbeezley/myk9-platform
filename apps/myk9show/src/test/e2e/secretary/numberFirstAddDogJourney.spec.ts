@@ -72,7 +72,7 @@ async function openAddDogFromDogsPage(page: Page) {
   await chooseAction(page, 'Add Dog');
 }
 
-test.describe('Number-first Add Dog: a held entry is listed, kept off the class's entries, released by its number', () => {
+test.describe('Number-first Add Dog: a held entry is listed, kept off Show Desk entries, released by its number', () => {
   installBrowserDiagnostics(test);
   test.skip(
     !DATA_REQUIRED,
@@ -213,7 +213,7 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the class'
       await expect(row()).toContainText(/AKC number missing/);
     });
 
-    await test.step('5. the held dog is not in the class's entries on Show Desk', async () => {
+    await test.step('5. the held dog is not in the Show Desk entries', async () => {
       await page.goto(showDeskClassUrl, { waitUntil: 'domcontentloaded' });
       const sheet = classEntries();
       // Positive control on the same page and load: a seeded entry in this class does render.
@@ -251,7 +251,7 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the class'
       await expect(row()).toHaveCount(0, { timeout: 30_000 });
     });
 
-    await test.step('7. the released entry is in the class's entries on Show Desk', async () => {
+    await test.step('7. the released entry is in the Show Desk entries', async () => {
       // The server's held verdict clears once the registration syncs; each load re-reads it.
       await expect(async () => {
         await page.goto(showDeskClassUrl, { waitUntil: 'domcontentloaded' });

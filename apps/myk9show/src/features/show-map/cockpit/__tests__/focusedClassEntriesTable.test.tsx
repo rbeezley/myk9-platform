@@ -166,6 +166,28 @@ describe('the focused class entries table (MYK9-1782)', () => {
     classes: [{ ...snapshot.classes[0]!, ...overrides }],
   });
 
+  it("shows a scored dog's time, faults and placement in its Result cell", () => {
+    const scored = {
+      ...entries[0]!,
+      runFacts: { ran: true, faults: 1, timeStr: '1:01.23', elementTimeStr: '', placement: 2 },
+    };
+    render(
+      <SecretaryCockpit
+        snapshot={withClass({ entries: [scored, ...entries.slice(1)] })}
+        canManageShow
+        onCommand={vi.fn()}
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+    const cell = within(screen.getAllByTestId('class-entry-row')[0]!).getByTestId(
+      'class-entry-result'
+    );
+    expect(cell).toHaveTextContent('Q');
+    expect(cell).toHaveTextContent('1 fault');
+    expect(cell).toHaveTextContent('1:01.23');
+    expect(cell).toHaveTextContent('2nd');
+  });
+
   it('does not count or call a class empty while its entries are unread', () => {
     render(
       <SecretaryCockpit snapshot={withClass({ entries: [] })} canManageShow onCommand={vi.fn()} />,

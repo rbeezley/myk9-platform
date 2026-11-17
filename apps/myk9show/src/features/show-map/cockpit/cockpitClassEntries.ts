@@ -14,6 +14,11 @@ import {
   isRunnableEntry,
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
+import {
+  formatStoredRunTime,
+  isRanResultStatus,
+  storedPlacement,
+} from '@/features/_shared/runResultFacts';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { deskStatusEditableFor } from '@/components/entries/management/checkInDesk/deskEditable';
 import { deskLockedReason } from '@/components/entries/management/checkInDesk/deskStatus';
@@ -26,6 +31,18 @@ import type { ShowMapDisplayStatus, ShowMapEntryDisplay, ShowMapTree } from '../
 
 /** Where a dog stands in its class, from the shared entry-accounting and run-queue rules. */
 export type ClassEntryState = 'waiting' | 'in-ring' | 'scored' | 'pulled' | 'withdrawn' | 'absent';
+
+/** The stored run facts of a scored dog, formatted by the run sheet's helpers. */
+export interface ClassEntryRunFacts {
+  /** Faults and times mean something only for a dog that ran (Q or NQ). */
+  ran: boolean;
+  faults: number;
+  timeStr: string;
+  /** Empty when the class has no element time. */
+  elementTimeStr: string;
+  /** The server-calculated placement, or null while the class is not fully scored. */
+  placement: number | null;
+}
 
 /**
  * One dog in a class, as the Show Desk entries table and the schedule row's phrase read it. Which
@@ -64,6 +81,8 @@ export interface SecretaryCockpitClassEntry {
   place: number | null;
   /** The recorded result as the other screens abbreviate it (Q, NQ, ABS, ...), or null. */
   result: string | null;
+  /** The scored dog's time, faults, element time and placement; null for any other dog. */
+  runFacts?: ClassEntryRunFacts | null | undefined;
   /**
    * MYK9-2010: a dog that is pulled or withdrawn and still holds a score (the judge saved it
    * while the secretary was pulling the dog). Never written anywhere: the pair is the flag.
@@ -112,6 +131,21 @@ function recordedResult(state: ClassEntryState, resultStatus: string | undefined
   const status = resultStatus?.trim().toLowerCase();
   if (state !== 'scored' || !status || status === 'pending') return null;
   return resultStatusLabel(status);
+}
+
+/** The run sheet's facts for a dog that is scored in this class, read from the same entry row. */
+function runFactsOf(
+  state: ClassEntryState,
+  display: ShowMapEntryDisplay
+): ClassEntryRunFacts | null {
+  if (state !== 'scored') return null;
+  return {
+    ran: isRanResultStatus(display.resultStatus),
+    faults: display.totalFaults ?? 0,
+    timeStr: formatStoredRunTime(display.searchTimeSeconds),
+    elementTimeStr: formatStoredRunTime(display.elementTimeSeconds),
+    placement: storedPlacement(display.finalPlacement),
+  };
 }
 
 /** "Scored after being pulled: Qualified" for a pulled or withdrawn dog that holds a score. */
@@ -198,6 +232,7 @@ export function classEntriesForClass(
         counted,
         notCheckedIn: state === 'waiting' && counted && checkInOf(fields) === 'no-status',
         result: recordedResult(state, display.resultStatus),
+        runFacts: runFactsOf(state, display),
         scoredAfterRemoval: scoredAfterRemovalOf(state, display),
       },
     });

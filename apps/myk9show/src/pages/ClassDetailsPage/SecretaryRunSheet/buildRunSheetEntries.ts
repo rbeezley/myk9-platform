@@ -2,9 +2,9 @@ import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { isOnClassRunList } from '@/features/_shared/entryAccounting';
 import { isHeldEntry } from '@/features/dogs/identity';
+import { formatStoredRunTime, storedPlacement } from '@/features/_shared/runResultFacts';
 import type { Dog } from '@/types/dog-types';
 import type { RunOutcome, RunSheetEntry, RunSheetResult } from './types';
-import { formatSearchTime } from './types';
 
 function normalizeOrganization(value: string | null | undefined): string {
   return (value ?? '').trim().toUpperCase();
@@ -70,11 +70,10 @@ function rawToEntry(
     result = {
       outcome,
       qualified: outcome === 'qualified',
-      timeStr: row.search_time_seconds != null ? formatSearchTime(row.search_time_seconds) : '',
-      elementTimeStr:
-        row.element_time_seconds != null ? formatSearchTime(row.element_time_seconds) : '',
+      timeStr: formatStoredRunTime(row.search_time_seconds),
+      elementTimeStr: formatStoredRunTime(row.element_time_seconds),
       faults: row.total_faults ?? 0,
-      placement: row.final_placement && row.final_placement > 0 ? row.final_placement : null,
+      placement: storedPlacement(row.final_placement),
       judgeNotes: row.judge_notes ?? '',
     };
   }

@@ -6,6 +6,7 @@ import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PlacementPill } from '@/components/base/PlacementPill';
+import { formatRunFaults } from '@/features/_shared/runResultFacts';
 import type { RunOutcome, RunSheetEntry } from './types';
 
 interface RunSheetRowProps {
@@ -94,7 +95,7 @@ export function RunSheetRow({
               </Chip>
               {RAN_OUTCOMES.includes(result.outcome) && (
                 <span className="text-sm text-muted-foreground">
-                  {result.faults} {result.faults === 1 ? 'fault' : 'faults'}
+                  {formatRunFaults(result.faults)}
                 </span>
               )}
               {result.timeStr && RAN_OUTCOMES.includes(result.outcome) && (

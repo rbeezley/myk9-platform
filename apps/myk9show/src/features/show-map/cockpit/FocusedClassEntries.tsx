@@ -29,6 +29,7 @@ import {
 import { StatusPill } from './StatusPill';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { NEXT_UP_PREVIEW_LIMIT } from '@/features/at-show/atShowNextUpPreview';
+import { ClassEntryResultCell } from './ClassEntryResultCell';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
 import { ClassEntryRowMenu } from './ClassEntryRowMenu';
@@ -322,7 +323,9 @@ export function ClassEntriesTable({
               <TableCell className={CELL}>
                 <StatusPill label={run.label} kind={run.kind} outlined={run.outlined ?? false} />
               </TableCell>
-              <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
+              <TableCell className={CELL}>
+                <ClassEntryResultCell entry={entry} />
+              </TableCell>
               <TableCell className="px-0 py-1">
                 {rowMenu && (
                   <ClassEntryRowMenu

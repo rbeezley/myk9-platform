@@ -561,4 +561,92 @@ describe('PremiumContentEditor', () => {
     await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText(/Claude timed out/i)).toBeNull());
   });
+
+  it('blanks legacy placeholder narratives in saved content on load', async () => {
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={{
+          org: 'AKC' as const,
+          style: 'magazine' as const,
+          templateId: null,
+          show: {
+            name: 'Test Show',
+            startDate: '2026-05-01',
+            endDate: '2026-05-02',
+            venue: 'Test Venue',
+            entryOpenDate: null,
+            entryCloseDate: null,
+            preEntryFee: 0,
+            dayOfFee: 0,
+            acceptChecks: false,
+            acceptCash: false,
+          },
+          club: { name: 'Test Club', logoUrl: null },
+          secretary: { name: null, email: null, phone: null, mailingAddress: null },
+          officials: { chairman: null },
+          trials: [],
+          supplemental: {
+            vetClinic: null,
+            accommodations: [],
+            coverImageUrl: null,
+            hospitalityNotes: null,
+            awardsDescription: null,
+            additionalNotes: null,
+          },
+          narratives: {
+            showHours: 'Show hours to be announced.',
+            trialInformation: 'Trial information to be announced.',
+          },
+        }}
+      />
+    );
+
+    await screen.findByText('Show Hours');
+    expect(screen.queryByDisplayValue(/to be announced/i)).toBeNull();
+  });
+
+  it('blanks legacy placeholder narratives in a generation result', async () => {
+    generateMock.mockResolvedValueOnce({
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: {
+        showHours: 'Show hours to be announced.',
+        trialInformation: 'Trial information to be announced.',
+      },
+    });
+
+    render(<PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active />);
+
+    await screen.findByText(/Narrative generation did not return text/i);
+    expect(screen.queryByDisplayValue(/to be announced/i)).toBeNull();
+  });
 });

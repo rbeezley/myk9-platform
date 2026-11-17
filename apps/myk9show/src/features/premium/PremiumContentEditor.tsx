@@ -14,6 +14,7 @@ import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplate
 import { uploadShowCover } from '../../services/imageUploadService';
 import { computePremiumDiff } from './logPremiumGeneration';
 import { fileToDataUrl, resolvePdfCoverImageSrc } from './coverImageDataUrl';
+import { narrativeGenerationFailed, stripPlaceholderNarratives } from './premiumNarratives';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 const GENERATION_TIMEOUT_MS = 20_000;
@@ -72,8 +73,8 @@ export function PremiumContentEditor({
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(
     () => initialPremium?.supplemental ?? null
   );
-  const [narratives, setNarratives] = useState<GeneratedPremium['narratives'] | null>(
-    () => initialPremium?.narratives ?? null
+  const [narratives, setNarratives] = useState<GeneratedPremium['narratives'] | null>(() =>
+    initialPremium ? stripPlaceholderNarratives(initialPremium.narratives) : null
   );
   const [hasNarrativeError, setHasNarrativeError] = useState(false);
   const [inkSaver, setInkSaver] = useState(false);
@@ -117,13 +118,11 @@ export function PremiumContentEditor({
     setAutoGenerateAttemptedFor(showId);
     try {
       const result = await withGenerationTimeout(generate(showId));
-      setOriginal(result);
-      setSupplemental(result.supplemental);
-      setNarratives(result.narratives);
-      setHasNarrativeError(
-        result.narratives.showHours === 'Show hours to be announced.' ||
-          result.narratives.trialInformation === 'Trial information to be announced.'
-      );
+      const cleaned = { ...result, narratives: stripPlaceholderNarratives(result.narratives) };
+      setOriginal(cleaned);
+      setSupplemental(cleaned.supplemental);
+      setNarratives(cleaned.narratives);
+      setHasNarrativeError(narrativeGenerationFailed(cleaned));
     } catch (err) {
       setGenerationError(
         err instanceof Error ? err.message : 'We could not generate that content.'
@@ -137,7 +136,7 @@ export function PremiumContentEditor({
     if (!active || original || !initialPremium) return;
     setOriginal(initialPremium);
     setSupplemental(initialPremium.supplemental);
-    setNarratives(initialPremium.narratives);
+    setNarratives(stripPlaceholderNarratives(initialPremium.narratives));
     setGenerationError(null);
     setIsGenerating(false);
   }, [active, initialPremium, original]);
@@ -350,10 +349,9 @@ export function PremiumContentEditor({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription className="space-y-3">
                   <p>
-                    Narrative generation returned fallback copy
                     {original.narrativeGenerationError
-                      ? `: ${original.narrativeGenerationError}`
-                      : '. You can retry or edit the fields below before downloading.'}
+                      ? `Couldn't refresh the narratives (${original.narrativeGenerationError}). Check the text below, or try again.`
+                      : 'Narrative generation did not return text. You can retry or edit the fields below before downloading.'}
                   </p>
                   <Button
                     type="button"

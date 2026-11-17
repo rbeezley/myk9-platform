@@ -52,6 +52,7 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     logoUrl: row.logo_url ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
     accentColor: row.accent_color ?? undefined,
+    confirmationMessage: row.confirmation_message ?? undefined,
     style: ((row as Record<string, unknown>).style as string | undefined) ?? undefined,
     experienceIsPublished:
       (publishedFields.experience_is_published as boolean | null | undefined) ?? undefined,

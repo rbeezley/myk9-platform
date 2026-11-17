@@ -121,6 +121,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       logo_url: show.logoUrl ?? null,
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,
+      // Omitted when this copy never held it, so an unrelated edit cannot blank the note.
+      ...(show.confirmationMessage !== undefined
+        ? { confirmation_message: show.confirmationMessage }
+        : {}),
       style: show.style ?? null,
       experience_is_published: show.experienceIsPublished ?? false,
       experience_published_at: show.experiencePublishedAt ?? null,

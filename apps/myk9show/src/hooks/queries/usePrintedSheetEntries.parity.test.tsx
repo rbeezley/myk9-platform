@@ -11,7 +11,7 @@ import { act, screen, waitFor } from '@testing-library/react';
 import { fromAny } from '@total-typescript/shoehorn';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedDogRegistrationsTable, replicatedEntriesTable } from '@/services/replication';
 
 import { render } from '@/test/utils/testUtils';
 import {
@@ -441,6 +441,32 @@ describe('printed-sheet rows: a replica notice marks the rows as about to change
     }
     render(<PendingProbe />);
     await waitFor(() => expect(screen.getByText('loaded quiet')).toBeInTheDocument());
+
+    act(() => listeners.forEach(listener => listener()));
+    expect(screen.getByText('loaded pending')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('loaded quiet')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
+  });
+
+  it('a dog registration change marks the rows as about to be re-read', async () => {
+    mocks.rows = fixtures;
+    mocks.trials = trials;
+    mocks.classes = classes;
+    mocks.armbands = [];
+    mocks.registrations = new Map();
+    const listeners: Array<() => void> = [];
+    vi.spyOn(replicatedDogRegistrationsTable, 'subscribe').mockImplementation(listener => {
+      listeners.push(listener as () => void);
+      return () => undefined;
+    });
+    function PendingProbe() {
+      const { data, noticePending } = usePrintedSheetEntries('show-1');
+      return <div>{`${data ? 'loaded' : 'loading'} ${noticePending ? 'pending' : 'quiet'}`}</div>;
+    }
+    render(<PendingProbe />);
+    await waitFor(() => expect(screen.getByText('loaded quiet')).toBeInTheDocument());
+    expect(listeners.length).toBeGreaterThan(0);
 
     act(() => listeners.forEach(listener => listener()));
     expect(screen.getByText('loaded pending')).toBeInTheDocument();

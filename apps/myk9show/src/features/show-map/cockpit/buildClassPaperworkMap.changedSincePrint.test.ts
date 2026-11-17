@@ -133,6 +133,18 @@ describe('classes read changed only when their paperwork changed (MYK9-2074)', (
     ]);
   });
 
+  it('reads a class stale when every dog in it was withdrawn after printing', () => {
+    const gone = [juni, hazel].map(item => ({ ...item, entry_status: 'withdrawn' }) as DbEntry);
+    const states = stateOf([...gone, moss, pip], records);
+    expect(states['class-a']).toEqual(['stale', 'stale']);
+    expect(changed(states)).toEqual(['class-a']);
+  });
+
+  it('offers no sheet for a class with no printable dogs and no print', () => {
+    const gone = [juni, hazel].map(item => ({ ...item, entry_status: 'withdrawn' }) as DbEntry);
+    expect(stateOf([...gone, moss, pip], [])['class-a']).toEqual([undefined, undefined]);
+  });
+
   it('flips the class a dog was withdrawn from, and no other', () => {
     const withdrawn = { ...hazel, entry_status: 'withdrawn' } as DbEntry;
     expect(changed(stateOf([juni, withdrawn, moss, pip], records))).toEqual(['class-a']);

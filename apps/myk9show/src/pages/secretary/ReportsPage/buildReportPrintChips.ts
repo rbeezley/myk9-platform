@@ -79,6 +79,7 @@ export function buildReportPrintChips(input: {
       classes: input.classes,
       entries: input.entries,
       assignedJudges: input.assignedJudges,
+      keepEmptySheet: true,
       printedSheets: {
         trials: input.trials,
         classes: input.classes as unknown as DbClass[],

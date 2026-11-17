@@ -4,6 +4,7 @@ import { getTrialsByShow } from '@/services/database/trials';
 import {
   replicatedArmbandsTable,
   replicatedClassesTable,
+  replicatedDogRegistrationsTable,
   replicatedDogsTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
@@ -52,6 +53,7 @@ export function usePrintedSheetEntries(showId: string) {
       replicatedClassesTable,
       replicatedEntriesTable,
       replicatedDogsTable,
+      replicatedDogRegistrationsTable,
       replicatedArmbandsTable,
     ],
     []

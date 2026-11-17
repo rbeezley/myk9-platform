@@ -12,7 +12,11 @@ import { buildPrintedLabelIndex, labelPrintStatus } from '@/lib/labels/armbandPr
 
 import { getCockpitReportHref } from './cockpitRoutes';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
-import { isPrintedSheetReportId, type PrintedSheetRows } from './printedSheetDescriptor';
+import {
+  hasPrintedEntries,
+  isPrintedSheetReportId,
+  type PrintedSheetRows,
+} from './printedSheetDescriptor';
 import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
@@ -61,6 +65,12 @@ export function buildClassPaperworkMap(input: {
    * the verdict still shows, from the rows in hand, but no print may be confirmed against them.
    */
   printedSheetsSettled?: boolean;
+  /**
+   * The registrations read was incomplete while online (the server read failed or was partial), so
+   * the scoresheet's registration numbers are unknown: no scoresheet confirmation. Offline the
+   * device copy is what prints, so it stays false there.
+   */
+  registrationsUnknown?: boolean;
   returnTo: string;
   /** `show.assignedJudges`; undefined means the show details are not available. */
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
@@ -85,10 +95,12 @@ export function buildClassPaperworkMap(input: {
               entries: input.entries,
               assignedJudges: input.assignedJudges,
               printedSheets: input.printedSheets,
+              keepEmptySheet: true,
             });
       const withhold =
         Boolean(input.withholdConfirmation) ||
-        (printedSheet && input.printedSheetsSettled === false);
+        (printedSheet && input.printedSheetsSettled === false) ||
+        (report.id === 'scoresheet' && input.registrationsUnknown === true);
       const history = input.records
         .filter(record => record.reportId === report.id)
         .filter(
@@ -166,6 +178,11 @@ export function buildClassPaperworkMap(input: {
       }
       if (!descriptor) return [];
       const derived = derivePaperworkPrintState(input.records, descriptor);
+      // A class with nothing left to print has no sheet to offer, unless one was printed: then the
+      // recorded paper lists dogs that are gone and the row must say it changed (MYK9-2103).
+      if (printedSheet && !derived.record && !hasPrintedEntries(descriptor)) {
+        return [];
+      }
       return [
         {
           reportId: report.id,

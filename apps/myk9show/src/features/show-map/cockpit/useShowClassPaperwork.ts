@@ -25,6 +25,7 @@ import { useMemo } from 'react';
 
 import type { ReadStatus } from '@/features/_shared/combineReads';
 import { readinessOf, resolveReportReadiness } from '@/hooks/queries/reportReadiness';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
 import { usePrintedSheetEntries } from '@/hooks/queries/usePrintedSheetEntries';
@@ -73,6 +74,10 @@ export function useShowClassPaperwork(input: {
     // details load; stamping that would record a sheet nobody prints.
     assignedJudges !== undefined &&
     !printedSheetEntries.noticePending;
+  // Online, an incomplete registrations read means the server read failed or was partial. Offline
+  // it is the device copy, which is also what prints, so confirming from it matches the paper.
+  const isOnline = useOnlineStatus();
+  const registrationsUnknown = isOnline && printedData?.registrationsReadComplete === false;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
   // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
@@ -106,6 +111,7 @@ export function useShowClassPaperwork(input: {
       withholdConfirmation: !classesAvailable,
       printedSheets,
       printedSheetsSettled,
+      registrationsUnknown,
       returnTo,
       assignedJudges,
     });
@@ -119,6 +125,7 @@ export function useShowClassPaperwork(input: {
     prints.data,
     printedSheets,
     printedSheetsSettled,
+    registrationsUnknown,
     returnTo,
     showId,
     trials,

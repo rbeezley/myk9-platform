@@ -21,7 +21,7 @@ import { buildDescriptor, type PaperworkDescriptor, type PaperworkScope } from '
  * - One subject per printed entry (`entry:<id>`): the row's text plus where it sits on the sheet.
  *   An entry the renderer leaves out (withdrawn, pulled, held) has no subject, so it dropping off
  *   reads as a change.
- * - One subject per class that prints at least one entry (`class:<id>`): the class header, from
+ * - One subject per class in scope under a trial (`class:<id>`): the class header, from
  *   the same `printedClassHeader` the renderer calls.
  *
  * No app-alias imports: a Deno edge function can compute the same fingerprint the app stores.
@@ -64,7 +64,11 @@ export function printedEntryFacts(
   };
 }
 
-/** Null when the scope prints no entry, or the report is not one of the two paper sheets. */
+/**
+ * Null when the scope holds no class that prints, or the report is not one of the two paper sheets.
+ * A class whose last printed entry left still has its class subject (and no entry subjects), so a
+ * recorded print compares against it and reads changed: the paper lists dogs that are gone.
+ */
 export function buildSheetDescriptorFromPrinted(input: {
   reportId: string;
   scope: PaperworkScope;
@@ -97,9 +101,7 @@ export function buildSheetDescriptorFromPrinted(input: {
     rowByClass.set(classItem.id, rowIndex + 1);
     return [{ entry, classItem, rowIndex }];
   });
-  if (printed.length === 0) return null;
-
-  const classIdsWithRows = new Set(printed.map(item => item.classItem.id));
+  if (printedClasses.length === 0) return null;
   return buildDescriptor(input.reportId, scope, [
     ...printed.map(({ entry, classItem, rowIndex }) => ({
       key: `entry:${entry.id}`,
@@ -110,7 +112,7 @@ export function buildSheetDescriptorFromPrinted(input: {
     ...printedClasses
       .flatMap(classItem => {
         const trial = trialById.get(classItem.trialId);
-        return trial && classIdsWithRows.has(classItem.id) ? [{ classItem, trial }] : [];
+        return trial ? [{ classItem, trial }] : [];
       })
       .map(({ classItem, trial }) => ({
         key: `class:${classItem.id}`,

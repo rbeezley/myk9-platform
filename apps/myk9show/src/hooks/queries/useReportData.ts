@@ -7,6 +7,7 @@ import type { Show } from '@/types/show-types';
 import {
   replicatedArmbandsTable,
   replicatedClassesTable,
+  replicatedDogRegistrationsTable,
   replicatedDogsTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
@@ -72,6 +73,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
             replicatedClassesTable,
             replicatedEntriesTable,
             replicatedDogsTable,
+            replicatedDogRegistrationsTable,
             replicatedArmbandsTable,
           ]
         : [],

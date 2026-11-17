@@ -12,9 +12,11 @@ import { useShowClassPaperwork } from './useShowClassPaperwork';
 // assignedJudges hashes the unresolved judge, and once they load it matches the printed fingerprint.
 const mocks = vi.hoisted(() => ({
   show: null as unknown,
+  online: true,
   printed: { settled: true, hasData: true, registrationsComplete: true },
 }));
 
+vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({ show: mocks.show }),
 }));
@@ -124,6 +126,7 @@ function checkInStates() {
 describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
   beforeEach(() => {
     mocks.show = null;
+    mocks.online = true;
     mocks.printed = { settled: true, hasData: true, registrationsComplete: true };
   });
 
@@ -158,8 +161,17 @@ describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
     expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
   });
 
-  it('offers confirmation from the device rows even when the registrations read is incomplete (offline)', () => {
+  it('withholds only the scoresheet confirmation when online with an incomplete registrations read', () => {
     mocks.show = { id: 'show-1', assignedJudges };
+    mocks.printed = { settled: true, hasData: true, registrationsComplete: false };
+    expect(rowOf('scoresheet')?.state).toBeDefined();
+    expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
+    expect(rowOf('check-in-sheet')?.confirmation?.fingerprint).toBeDefined();
+  });
+
+  it('offers confirmation from the device rows when offline, incomplete or not', () => {
+    mocks.show = { id: 'show-1', assignedJudges };
+    mocks.online = false;
     mocks.printed = { settled: true, hasData: true, registrationsComplete: false };
     expect(rowOf('scoresheet')?.confirmation?.fingerprint).toBeDefined();
     expect(rowOf('check-in-sheet')?.confirmation?.fingerprint).toBeDefined();

@@ -74,7 +74,10 @@ export const ClassChangeRequestCard: React.FC<ClassChangeRequestCardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2" data-testid="class-change-line">
+          <div
+            className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+            data-testid="class-change-line"
+          >
             <Trophy className="h-4 w-4 text-muted-foreground" aria-hidden />
             <span className="font-medium">{request.fromClass}</span>
             <ArrowRight className="h-4 w-4 text-blue-500" aria-hidden />

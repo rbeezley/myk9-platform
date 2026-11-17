@@ -66,7 +66,7 @@ vi.mock('@/services/show-day/requestManagement', () => ({
 vi.mock('@/services/database/entries/classChangeRequests', async importActual => ({
   ...(await importActual<typeof import('@/services/database/entries/classChangeRequests')>()),
   getClassChangeRequestDetails: mocks.details,
-  getClassNamesByIds: mocks.names,
+  getRequestedClassesByIds: mocks.names,
 }));
 vi.mock('@/features/show-map/showMapActionMutations', () => ({ undoShowMapMoveUp: mocks.undo }));
 vi.mock('@/lib/undoToast', () => ({ showUndoToast: mocks.showUndoToast }));
@@ -88,7 +88,7 @@ beforeEach(() => {
     },
     'req-2': { entryId: 'req-2', targetClassId: null, reason: null, requestedAt: null },
   });
-  mocks.names.mockResolvedValue({ 'class-adv': 'Open C' });
+  mocks.names.mockResolvedValue({ 'class-adv': { name: 'Open C', trialId: null } });
   mocks.accept.mockResolvedValue({
     data: { originalEntryId: 'req-1', newEntryId: 'new-1', targetClassName: 'Open C' },
     error: null,
@@ -339,6 +339,22 @@ describe('MoveUpRequestsTab', () => {
       expect(
         await screen.findByText('From Mon, Nov 16 · Trial 1 · Finished this level')
       ).toBeInTheDocument();
+    });
+
+    it('still names the other trial when the capacity read fails', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [
+          trial('trial-1', '2026-11-16', 'Trial 1'),
+          trial('trial-4', '2026-11-16', 'Trial 4'),
+        ],
+        error: null,
+      });
+      mocks.names.mockResolvedValue({ 'class-adv': { name: 'Open C', trialId: 'trial-4' } });
+      mocks.capacity.mockResolvedValue({ data: null, error: new Error('not synced') });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^in Trial 4$/
+      );
     });
 
     it('adds the day when the other trial is on another day', async () => {

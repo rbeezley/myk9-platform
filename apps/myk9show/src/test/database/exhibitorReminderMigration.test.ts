@@ -23,9 +23,9 @@ describe('MYK9-2113 exhibitor reminder migrations', () => {
     expect(columnsAndCron).toContain("conname = 'entries_reminder_email_status_check'");
   });
 
-  it('schedules the hourly job with the reminder scope and the existing Vault secrets', () => {
+  it('schedules the ten-minute job with the reminder scope and the existing Vault secrets', () => {
     expect(columnsAndCron).toContain("'exhibitor-reminder-emails'");
-    expect(columnsAndCron).toContain("'41 * * * *'");
+    expect(columnsAndCron).toContain("'3,13,23,33,43,53 * * * *'");
     expect(columnsAndCron).toContain(`body := '{"scope":"reminder"}'::jsonb`);
     for (const secret of [
       'heritage_confirmation_email_url',

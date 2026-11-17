@@ -2,7 +2,7 @@
 //
 // One email per exhibitor per show, two days before the show's first day in the show's own time
 // zone, to every exhibitor with a live entry. The secretary sets no date and presses nothing.
-// The cron job calls hourly; a show is due only on its reminder day, and only between
+// The cron job calls every ten minutes; a show is due only on its reminder day, and only between
 // REMINDER_FIRST_HOUR and REMINDER_LAST_HOUR local, so it arrives in the morning and a failed
 // send is retried a few times that morning. A reminder missed that day is never sent late.
 //
@@ -12,6 +12,7 @@
 
 import {
   dateInZone,
+  type ConfirmationGroup,
   showTakesConfirmations,
   showTimeZone,
   type ConfirmationShow,
@@ -28,7 +29,10 @@ export const REMINDER_LAST_HOUR = 11;
  * idempotency key is the same for the same entries, so a send that did go out is not repeated.
  */
 export const REMINDER_CLAIM_STALE_MS = 30 * 60 * 1000;
-/** Exhibitors emailed per run; the rest wait for the next hourly run that morning. */
+/**
+ * Exhibitors emailed per run; the rest wait for the next run that morning. Six runs an hour over
+ * the four-hour window is 24 runs, so 2,400 exhibitors can be reached before the window closes.
+ */
 export const REMINDER_MAX_EMAILS_PER_RUN = 100;
 
 /** "YYYY-MM-DD" plus whole days, in calendar terms (no time zone involved). */
@@ -77,6 +81,35 @@ export async function reminderIdempotencyKey(
   const digest = await crypto.subtle.digest('SHA-256', data);
   const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
   return `show-reminder:${hex.slice(0, 48)}`;
+}
+
+/**
+ * The order a run takes its groups in, so a group that keeps failing never starves one never
+ * tried: 0 never attempted (every entry 'pending' and unstamped), 1 a crashed run's stale claim
+ * (stamped, still 'pending'), 2 a retry after a failure ('failed', including a missing address,
+ * which is marked failed after its first try). Inside a rank, the oldest change first (a failed
+ * attempt bumps updated_at, so retries rotate), then the group key for a stable order.
+ */
+export function reminderGroupRank(group: ConfirmationGroup): 0 | 1 | 2 {
+  if (group.entries.some(entry => entry.reminder_email_status === 'failed')) return 2;
+  if (group.entries.some(entry => entry.reminder_email_sent_at)) return 1;
+  return 0;
+}
+
+export function orderReminderGroups(groups: ConfirmationGroup[]): ConfirmationGroup[] {
+  const oldest = (group: ConfirmationGroup) =>
+    group.entries.reduce(
+      (min, entry) => ((entry.updated_at ?? '') < min ? (entry.updated_at ?? '') : min),
+      '\uffff'
+    );
+  return [...groups].sort((a, b) => {
+    const rank = reminderGroupRank(a) - reminderGroupRank(b);
+    if (rank !== 0) return rank;
+    const ageA = oldest(a);
+    const ageB = oldest(b);
+    if (ageA !== ageB) return ageA < ageB ? -1 : 1;
+    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+  });
 }
 
 function esc(s: string): string {

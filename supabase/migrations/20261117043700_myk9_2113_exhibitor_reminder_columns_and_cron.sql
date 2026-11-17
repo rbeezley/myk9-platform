@@ -8,15 +8,16 @@
 -- Two columns record it the way entries.confirmation_email_sent_at / _status (192) record the
 -- full confirmation: reminder_email_sent_at is the claim stamped before the send (so two runs never
 -- both send, and a crash never double-sends); reminder_email_status is 'sent' once it went and
--- 'failed' after a failed attempt, which an hourly run in the same morning window retries.
+-- 'failed' after a failed attempt, which a later run in the same morning window retries.
 --
 -- Grants: none added. Both columns are written and read only by the edge function (service_role,
 -- which holds table-level privileges). authenticated reads entries through column-level grants
 -- and anon has none, so leaving these two ungranted keeps them out of both roles' reach.
 --
 -- The job reads the same three Vault secrets as 'heritage-confirmation-emails'
--- (20260525160000_heritage_cron_vault.sql). It runs hourly at minute 41, offset from the other
--- jobs' minutes; the function itself decides which shows are due this hour.
+-- (20260525160000_heritage_cron_vault.sql). It runs every ten minutes at minutes 3, 13, 23, 33, 43 and 53 (part 1's
+-- job uses 7, 22, 37 and 52); the function itself decides which shows are due, in the four-hour
+-- morning window that is 24 runs of up to 100 exhibitors.
 
 BEGIN;
 
@@ -43,7 +44,7 @@ REVOKE ALL (reminder_email_sent_at, reminder_email_status)
 COMMENT ON COLUMN public.entries.reminder_email_sent_at IS
   'MYK9-2113: stamped when the show reminder email is claimed for this entry, before it is sent. The send function skips a stamped entry, so overlapping runs never send twice. Cleared when the send fails. A stamp that is 30 minutes old on a pending entry is a crashed run: the next run may claim it again.';
 COMMENT ON COLUMN public.entries.reminder_email_status IS
-  'MYK9-2113: pending (never tried), sent, failed (tried and released; the next hourly run on the reminder morning retries), or covered (accepted after the exhibitor''s reminder for this show went out, so it is never sent a second one).';
+  'MYK9-2113: pending (never tried), sent, failed (tried and released; a later run on the reminder morning retries), or covered (accepted after the exhibitor''s reminder for this show went out, so it is never sent a second one).';
 
 SELECT cron.unschedule('exhibitor-reminder-emails')
 WHERE EXISTS (
@@ -55,7 +56,7 @@ WHERE EXISTS (
 SELECT
   cron.schedule(
     'exhibitor-reminder-emails',
-    '41 * * * *',
+    '3,13,23,33,43,53 * * * *',
     $$
     do $exhibitor_reminder_cron$
     declare

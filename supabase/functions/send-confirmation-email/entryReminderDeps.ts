@@ -17,7 +17,7 @@ const claimable = (staleBeforeIso: string) =>
   `reminder_email_sent_at.is.null,and(reminder_email_status.eq.pending,reminder_email_sent_at.lt.${staleBeforeIso})`;
 
 const REMINDER_ENTRY_SELECT =
-  'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, reminder_email_status, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
+  'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, reminder_email_status, reminder_email_sent_at, updated_at, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
 
 export function reminderDeps(
   supabase: Client,

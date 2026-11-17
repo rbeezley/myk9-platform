@@ -24,6 +24,7 @@ const REMINDER_MORNING = new Date('2026-12-03T15:30:00Z');
 interface StoredEntry extends ConfirmationEntry {
   entry_status: string;
   deleted_at: string | null;
+  updated_at: string;
   reminder_email_sent_at: string | null;
   reminder_email_status: 'pending' | 'sent' | 'failed' | 'covered';
 }
@@ -77,6 +78,7 @@ function entry(overrides: Partial<StoredEntry> = {}): StoredEntry {
     class: { name: 'Novice Interior', level: 'Novice', element: 'Interior' },
     entry_status: 'confirmed',
     deleted_at: null,
+    updated_at: '2026-12-01T00:00:00Z',
     reminder_email_sent_at: null,
     reminder_email_status: 'pending',
     ...overrides,
@@ -89,6 +91,7 @@ function makeDeps(args: {
   entries: StoredEntry[];
   people?: Record<string, ConfirmationRecipient | null>;
   sendResult?: () => ConfirmationSendResult;
+  maxEmailsPerRun?: number;
 }) {
   const people = args.people ?? {
     'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: 'Lovelace' },
@@ -99,6 +102,7 @@ function makeDeps(args: {
   let messageSeq = 0;
   const deps: EntryReminderDeps = {
     now: () => args.now ?? REMINDER_MORNING,
+    maxEmailsPerRun: args.maxEmailsPerRun,
     siteUrl: 'https://myk9show.com',
     loadShows: async () => args.shows,
     loadEntries: async (showIds, staleBeforeIso) =>
@@ -156,6 +160,7 @@ function makeDeps(args: {
     },
     markFailed: async ids => {
       for (const row of args.entries.filter(item => ids.includes(item.id))) {
+        row.updated_at = REMINDER_MORNING.toISOString();
         row.reminder_email_sent_at = null;
         row.reminder_email_status = 'failed';
       }
@@ -337,6 +342,68 @@ describe('runEntryReminders (MYK9-2113)', () => {
     await runEntryReminders(second.deps);
     expect(second.sends).toHaveLength(1);
     expect(stale.reminder_email_status).toBe('sent');
+  });
+
+  it('drains 150 due exhibitors across two runs, none left behind', async () => {
+    const people: Record<string, ConfirmationRecipient> = {};
+    const entries = Array.from({ length: 150 }, (_, i) => {
+      people[`reg-${i}`] = { email: `e${i}@example.com`, firstName: 'E', lastName: `${i}` };
+      return entry({ registration_id: `reg-${i}`, handler_id: `p-${i}`, dog_id: `dog-${i}` });
+    });
+    const { deps, sends } = makeDeps({ shows: [show()], entries, people });
+    expect(await runEntryReminders(deps)).toMatchObject({ sent: 100, deferred: 50 });
+    expect(await runEntryReminders(deps)).toMatchObject({ sent: 50, deferred: 0 });
+    expect(new Set(sends.map(email => email.to)).size).toBe(150);
+  });
+
+  it('never lets a failed group block one never attempted, even at a cap of one', async () => {
+    const entries = [
+      entry({
+        registration_id: 'reg-ada',
+        reminder_email_status: 'failed',
+        updated_at: '2026-12-03T14:00:00Z',
+      }),
+      entry({ registration_id: 'reg-bo', handler_id: 'person-bo', dog_id: 'dog-bo' }),
+    ];
+    const { deps, sends } = makeDeps({ shows: [show()], entries, maxEmailsPerRun: 1 });
+    await runEntryReminders(deps);
+    expect(sends.map(email => email.to)).toEqual(['bo@example.com']);
+    await runEntryReminders(deps);
+    expect(sends.map(email => email.to)).toEqual(['bo@example.com', 'ada@example.com']);
+  });
+
+  it('sorts a no-address group last, logs it once, and retries it behind the others', async () => {
+    const people: Record<string, ConfirmationRecipient> = {
+      'reg-ada': { email: null, firstName: 'Ada', lastName: 'Lovelace' },
+      'reg-bo': { email: 'bo@example.com', firstName: 'Bo', lastName: 'Peep' },
+      'reg-cy': { email: 'cy@example.com', firstName: 'Cy', lastName: 'Young' },
+    };
+    const entries = [
+      entry({ registration_id: 'reg-ada', dog_id: 'dog-ada' }),
+      entry({ registration_id: 'reg-bo', handler_id: 'person-bo', dog_id: 'dog-bo' }),
+      entry({ registration_id: 'reg-cy', handler_id: 'person-cy', dog_id: 'dog-cy' }),
+    ];
+    const { deps, sends, logs } = makeDeps({
+      shows: [show()],
+      entries,
+      people,
+      maxEmailsPerRun: 1,
+    });
+    for (let run = 0; run < 4; run++) await runEntryReminders(deps);
+    expect(sends.map(email => email.to)).toEqual(['bo@example.com', 'cy@example.com']);
+    expect(logs.filter(row => row.error_message === 'missing_recipient')).toHaveLength(1);
+  });
+
+  it('logs a send that keeps failing once, not on every run', async () => {
+    const { deps, logs } = makeDeps({
+      shows: [show()],
+      entries: [entry()],
+      sendResult: () => ({ ok: false, error: 'provider_http_500' }),
+    });
+    await runEntryReminders(deps);
+    await runEntryReminders(deps);
+    await runEntryReminders(deps);
+    expect(logs).toHaveLength(1);
   });
 
   it('never sends again an entry that already had its reminder', async () => {

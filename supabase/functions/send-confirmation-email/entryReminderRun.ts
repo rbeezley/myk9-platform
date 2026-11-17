@@ -1,4 +1,4 @@
-// One hourly run of the show reminder (MYK9-2113). Deno-free: index.ts injects the database and
+// One ten-minute run of the show reminder (MYK9-2113). Deno-free: index.ts injects the database and
 // Resend; entryReminderRun.test.ts drives it against an in-memory store. The rules (which show is
 // due, the subject, the key) are in entryReminders.ts; the reads that also serve the full
 // confirmation (shows, recipients, judges, send, log) are shared with it through the same deps.
@@ -16,6 +16,7 @@ import type { HeritageEmailData } from './heritage-email.ts';
 import {
   REMINDER_CLAIM_STALE_MS,
   REMINDER_MAX_EMAILS_PER_RUN,
+  orderReminderGroups,
   reminderIdempotencyKey,
   reminderSubject,
   showReminderIsDue,
@@ -35,6 +36,8 @@ export interface ReminderLogRow {
 
 export interface EntryReminderDeps {
   now(): Date;
+  /** Exhibitors emailed per run; REMINDER_MAX_EMAILS_PER_RUN when absent. */
+  maxEmailsPerRun?: number;
   siteUrl: string | null | undefined;
   /** Published, not deleted shows whose last day is not long past, with their trials. */
   loadShows(): Promise<ConfirmationShow[]>;
@@ -59,7 +62,7 @@ export interface EntryReminderDeps {
   /** Stamps the entries still claimable and still live; returns the ids it stamped. */
   claim(entryIds: string[], nowIso: string, staleBeforeIso: string): Promise<string[]>;
   markSent(entryIds: string[]): Promise<void>;
-  /** Releases a claim after a failed send: unstamped, 'failed', so the next hourly run retries. */
+  /** Releases a claim after a failed send: unstamped, 'failed', so a later run retries. */
   markFailed(entryIds: string[]): Promise<void>;
   render(data: HeritageEmailData, show: ConfirmationShow): string;
   send(email: {
@@ -103,8 +106,9 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
   for (const group of owed.filter(group => reminded.has(group.key))) {
     await deps.markCovered(group.entries.map(entry => entry.id));
   }
-  const groups = owed.filter(group => !reminded.has(group.key));
-  const batch = groups.slice(0, REMINDER_MAX_EMAILS_PER_RUN);
+  // Never-attempted groups first, then stale claims, then failed retries (entryReminders.ts).
+  const groups = orderReminderGroups(owed.filter(group => !reminded.has(group.key)));
+  const batch = groups.slice(0, deps.maxEmailsPerRun ?? REMINDER_MAX_EMAILS_PER_RUN);
   if (batch.length === 0) return NOTHING;
 
   const unique = (ids: Array<string | null>) => [
@@ -133,7 +137,7 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
 
     if (!resolved?.email) {
       // Nothing to send to. Logged once (the first time), then 'failed' so it is not logged
-      // again every hour; she still gets the reminder if an address appears that morning.
+      // again every run; she still gets the reminder if an address appears that morning.
       const firstTime = group.entries.some(entry => entry.reminder_email_status !== 'failed');
       await deps.markFailed(entryIds);
       failed++;
@@ -151,6 +155,8 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
       continue;
     }
 
+    // Read before the claim and the marks change the entries' status.
+    const alreadyFailed = group.entries.every(entry => entry.reminder_email_status === 'failed');
     const claimed = await deps.claim(entryIds, now.toISOString(), staleBeforeIso);
     if (claimed.length === 0) continue;
     const claimedEntries = group.entries.filter(entry => claimed.includes(entry.id));
@@ -182,6 +188,10 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
     } else {
       await deps.markFailed(claimed);
       failed++;
+    }
+    // A send that keeps failing is logged on its first failure only, not on every run.
+    if (!result.ok && alreadyFailed) {
+      continue;
     }
     await deps.log({
       recipient_email: resolved.email,

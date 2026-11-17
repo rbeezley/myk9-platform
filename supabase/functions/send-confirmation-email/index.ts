@@ -11,7 +11,7 @@
 //                                 confirmations.
 //   entry-confirmation-emails     every 15 minutes, body {"scope":"new"}: sends confirmations
 //                                 never tried (migration 20261115065613).
-//   exhibitor-reminder-emails     hourly, body {"scope":"reminder"}: the reminder two days before
+//   exhibitor-reminder-emails     every 10 minutes, body {"scope":"reminder"}: the reminder two days before
 //                                 a show's first day (MYK9-2113, entryReminderRun.ts); sends
 //                                 nothing else and runs no receipt retry.
 //

@@ -89,6 +89,9 @@ export interface ConfirmationEntry {
   confirmation_email_status?: string | null;
   /** 'pending' never tried, 'failed' tried before (MYK9-2113: the reminder's own mark). */
   reminder_email_status?: string | null;
+  /** The reminder's claim stamp and the row's last change (a failed attempt bumps updated_at). */
+  reminder_email_sent_at?: string | null;
+  updated_at?: string | null;
   dog: {
     name: string | null;
     call_name: string | null;

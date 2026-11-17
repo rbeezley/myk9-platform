@@ -4,7 +4,7 @@ The emergency trial packet is the paper fallback for running a show when the lap
 
 ## Before the show
 
-The packet is generated and emailed automatically the night before each trial day. To make one by hand, or to see which copies were sent:
+The packet is generated and emailed automatically the night before each trial day, and the print reminder follows, while the show's **Paper fallback packet** switch is on (Edit show → Venue & policies; on for every show unless a secretary turns it off). With the switch off there is no nightly packet, no reminder and no **Saved copy** section, so turn it back on first. With the switch on, to make one by hand, or to see which copies were sent:
 
 1. Open the trial's before-trial packet from the show map and choose **Show saved copies**.
 2. Choose **Save and email a copy**. It builds the day's packet the same way the nightly job does and emails a link to the show's secretary and club administrators.

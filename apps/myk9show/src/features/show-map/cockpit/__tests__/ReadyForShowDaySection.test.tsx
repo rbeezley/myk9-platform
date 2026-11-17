@@ -226,7 +226,8 @@ describe('ReadyForShowDaySection', () => {
       renderSection(NIGHT_BEFORE, { show: suggestionShow({}) });
       expect(screen.getByText('Everything is handled.')).toBeInTheDocument();
       expect(screen.getAllByRole('button', { name: 'Dismiss suggestion' })).toHaveLength(1);
-      expect(screen.getByText(/printed backup packet/)).toBeInTheDocument();
+      // The paper packet starts on (MYK9-2112), so the first switch left off is volunteers.
+      expect(screen.getByText(/volunteer helpers/)).toBeInTheDocument();
     });
 
     it('dismisses, and stays gone after a re-render and a remount', async () => {

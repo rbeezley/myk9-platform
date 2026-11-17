@@ -334,7 +334,13 @@ handle<ConfirmationEmailPayload>(
     // those cannot send it twice and a reminder failure cannot hold up a confirmation.
     if (body?.scope === 'reminder') {
       const deps = confirmationDeps(supabase, RESEND_API_KEY);
-      return await runEntryReminders(reminderDeps(supabase, deps));
+      const result = await runEntryReminders(reminderDeps(supabase, deps));
+      // A cap-deferred or failed reminder is otherwise invisible: say so in the function logs.
+      console.log('Exhibitor reminder run', result);
+      if (result.deferred > 0) {
+        console.warn('Exhibitor reminders deferred to the next run', { deferred: result.deferred });
+      }
+      return result;
     }
 
     const scope = body?.scope === 'new' ? 'new' : 'all';

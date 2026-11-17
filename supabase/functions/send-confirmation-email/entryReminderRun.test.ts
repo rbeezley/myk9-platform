@@ -25,7 +25,7 @@ interface StoredEntry extends ConfirmationEntry {
   entry_status: string;
   deleted_at: string | null;
   reminder_email_sent_at: string | null;
-  reminder_email_status: 'pending' | 'sent' | 'failed';
+  reminder_email_status: 'pending' | 'sent' | 'failed' | 'covered';
 }
 
 function show(overrides: Partial<ConfirmationShow> = {}): ConfirmationShow {
@@ -101,15 +101,26 @@ function makeDeps(args: {
     now: () => args.now ?? REMINDER_MORNING,
     siteUrl: 'https://myk9show.com',
     loadShows: async () => args.shows,
-    loadEntries: async showIds =>
+    loadEntries: async (showIds, staleBeforeIso) =>
       args.entries.filter(
         row =>
           showIds.includes(row.show_id) &&
           row.entry_status === 'confirmed' &&
           row.deleted_at === null &&
-          row.reminder_email_sent_at === null &&
-          row.reminder_email_status !== 'sent'
+          ['pending', 'failed'].includes(row.reminder_email_status) &&
+          (row.reminder_email_sent_at === null ||
+            (row.reminder_email_status === 'pending' &&
+              row.reminder_email_sent_at < staleBeforeIso))
       ),
+    loadSentEntries: async showIds =>
+      args.entries.filter(
+        row => showIds.includes(row.show_id) && row.reminder_email_status === 'sent'
+      ),
+    markCovered: async ids => {
+      for (const row of args.entries.filter(item => ids.includes(item.id))) {
+        row.reminder_email_status = 'covered';
+      }
+    },
     loadRecipients: async ({ registrationIds }) => ({
       byRegistration: new Map(
         registrationIds.flatMap(id => (id in people ? [[id, people[id]!] as const] : []))
@@ -120,12 +131,15 @@ function makeDeps(args: {
     }),
     loadJudges: async classIds =>
       new Map(classIds.flatMap(id => (id === 'class-1' ? [[id, 'Dana Whitlock'] as const] : []))),
-    claim: async (ids, nowIso) => {
+    claim: async (ids, nowIso, staleBeforeIso) => {
       const claimed: string[] = [];
       for (const row of args.entries) {
         if (
           ids.includes(row.id) &&
-          row.reminder_email_sent_at === null &&
+          ['pending', 'failed'].includes(row.reminder_email_status) &&
+          (row.reminder_email_sent_at === null ||
+            (row.reminder_email_status === 'pending' &&
+              row.reminder_email_sent_at < staleBeforeIso)) &&
           row.entry_status === 'confirmed' &&
           row.deleted_at === null
         ) {
@@ -285,6 +299,44 @@ describe('runEntryReminders (MYK9-2113)', () => {
     await runEntryReminders(deps);
     expect(sends).toHaveLength(1);
     expect(sends[0]!.html).not.toContain('777');
+  });
+
+  it('sends nothing more to an exhibitor accepted late after her reminder went, and marks it covered', async () => {
+    const entries = [entry({ armband: '101' }), entry({ armband: '102' })];
+    const { deps, sends } = makeDeps({ shows: [show()], entries });
+    await runEntryReminders(deps);
+    expect(sends).toHaveLength(1);
+
+    const late = entry({ armband: '103' });
+    entries.push(late);
+    const next = await runEntryReminders(deps);
+
+    expect(sends).toHaveLength(1);
+    expect(next.sent).toBe(0);
+    expect(late.reminder_email_status).toBe('covered');
+    expect(late.reminder_email_sent_at).toBeNull();
+    // A covered entry is never looked at again.
+    await runEntryReminders(deps);
+    expect(sends).toHaveLength(1);
+  });
+
+  it('retries a claim a crashed run left pending for over 30 minutes, and not a fresh one', async () => {
+    const fresh = entry({
+      reminder_email_sent_at: '2026-12-03T15:10:00Z',
+      reminder_email_status: 'pending',
+    });
+    const first = makeDeps({ shows: [show()], entries: [fresh] });
+    await runEntryReminders(first.deps);
+    expect(first.sends).toHaveLength(0);
+
+    const stale = entry({
+      reminder_email_sent_at: '2026-12-03T14:41:00Z',
+      reminder_email_status: 'pending',
+    });
+    const second = makeDeps({ shows: [show()], entries: [stale] });
+    await runEntryReminders(second.deps);
+    expect(second.sends).toHaveLength(1);
+    expect(stale.reminder_email_status).toBe('sent');
   });
 
   it('never sends again an entry that already had its reminder', async () => {

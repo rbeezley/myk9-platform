@@ -14,6 +14,7 @@ import {
 import type { ConfirmationSendResult } from './entryConfirmationRun.ts';
 import type { HeritageEmailData } from './heritage-email.ts';
 import {
+  REMINDER_CLAIM_STALE_MS,
   REMINDER_MAX_EMAILS_PER_RUN,
   reminderIdempotencyKey,
   reminderSubject,
@@ -38,12 +39,16 @@ export interface EntryReminderDeps {
   /** Published, not deleted shows whose last day is not long past, with their trials. */
   loadShows(): Promise<ConfirmationShow[]>;
   /**
-   * Every live entry of these shows that has not had its reminder: accepted ('confirmed'), not
-   * deleted (a pulled or withdrawn entry has another status), reminder_email_sent_at null and
-   * reminder_email_status 'pending' or 'failed'. Paged past PostgREST's row cap; a failed
-   * read throws.
+   * Every live entry of these shows still owed a reminder: accepted ('confirmed'), not deleted
+   * (a pulled or withdrawn entry has another status), reminder_email_status 'pending' or
+   * 'failed', and either unstamped or stamped before `staleBeforeIso` while 'pending' (a crashed
+   * run's claim). Paged past PostgREST's row cap; a failed read throws.
    */
-  loadEntries(showIds: string[]): Promise<ConfirmationEntry[]>;
+  loadEntries(showIds: string[], staleBeforeIso: string): Promise<ConfirmationEntry[]>;
+  /** The entries of these shows whose reminder went (reminder_email_status 'sent'). */
+  loadSentEntries(showIds: string[]): Promise<ConfirmationEntry[]>;
+  /** Marks entries 'covered': accepted after her reminder for the show went, so never sent one. */
+  markCovered(entryIds: string[]): Promise<void>;
   loadRecipients(args: { registrationIds: string[]; handlerIds: string[] }): Promise<{
     byRegistration: Map<string, ConfirmationRecipient | null>;
     byHandler: Map<string, ConfirmationRecipient>;
@@ -51,8 +56,8 @@ export interface EntryReminderDeps {
     handlersRead: boolean;
   }>;
   loadJudges(classIds: string[]): Promise<Map<string, string>>;
-  /** Stamps the entries still unclaimed and still live; returns the ids it stamped. */
-  claim(entryIds: string[], nowIso: string): Promise<string[]>;
+  /** Stamps the entries still claimable and still live; returns the ids it stamped. */
+  claim(entryIds: string[], nowIso: string, staleBeforeIso: string): Promise<string[]>;
   markSent(entryIds: string[]): Promise<void>;
   /** Releases a claim after a failed send: unstamped, 'failed', so the next hourly run retries. */
   markFailed(entryIds: string[]): Promise<void>;
@@ -83,10 +88,22 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
   if (shows.length === 0) return NOTHING;
   const showById = new Map(shows.map(show => [show.id, show]));
 
-  const entries = (await deps.loadEntries(shows.map(show => show.id))).filter(entry =>
+  const showIds = shows.map(show => show.id);
+  const staleBeforeIso = new Date(now.getTime() - REMINDER_CLAIM_STALE_MS).toISOString();
+  const entries = (await deps.loadEntries(showIds, staleBeforeIso)).filter(entry =>
     showById.has(entry.show_id)
   );
-  const groups = groupConfirmationsByExhibitor(entries);
+  // One reminder per exhibitor per show: an exhibitor whose reminder already went this morning
+  // is not emailed again for an entry accepted after it. Those entries are marked 'covered' so
+  // no later run looks at them.
+  const reminded = new Set(
+    groupConfirmationsByExhibitor(await deps.loadSentEntries(showIds)).map(group => group.key)
+  );
+  const owed = groupConfirmationsByExhibitor(entries);
+  for (const group of owed.filter(group => reminded.has(group.key))) {
+    await deps.markCovered(group.entries.map(entry => entry.id));
+  }
+  const groups = owed.filter(group => !reminded.has(group.key));
   const batch = groups.slice(0, REMINDER_MAX_EMAILS_PER_RUN);
   if (batch.length === 0) return NOTHING;
 
@@ -134,7 +151,7 @@ export async function runEntryReminders(deps: EntryReminderDeps): Promise<EntryR
       continue;
     }
 
-    const claimed = await deps.claim(entryIds, now.toISOString());
+    const claimed = await deps.claim(entryIds, now.toISOString(), staleBeforeIso);
     if (claimed.length === 0) continue;
     const claimedEntries = group.entries.filter(entry => claimed.includes(entry.id));
 

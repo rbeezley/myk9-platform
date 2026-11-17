@@ -5,6 +5,10 @@
 // The cron job calls hourly; a show is due only on its reminder day, and only between
 // REMINDER_FIRST_HOUR and REMINDER_LAST_HOUR local, so it arrives in the morning and a failed
 // send is retried a few times that morning. A reminder missed that day is never sent late.
+//
+// Decided (owner review, MYK9-2113): a live entry with no armband still gets a reminder, with a
+// dash for the armband; and the reminder does not follow the "accepted email" switch, because it
+// is its own email and the plan gives the secretary no switch for it.
 
 import {
   dateInZone,
@@ -18,6 +22,12 @@ export const REMINDER_DAYS_BEFORE = 2;
 /** The local hours (inclusive) in which a due show's reminder may go: 08:00 to 11:59. */
 export const REMINDER_FIRST_HOUR = 8;
 export const REMINDER_LAST_HOUR = 11;
+/**
+ * A claim (reminder_email_sent_at set, status still 'pending') this old belongs to a run that
+ * crashed between the claim and its mark, so the next run may claim it again. Resend's
+ * idempotency key is the same for the same entries, so a send that did go out is not repeated.
+ */
+export const REMINDER_CLAIM_STALE_MS = 30 * 60 * 1000;
 /** Exhibitors emailed per run; the rest wait for the next hourly run that morning. */
 export const REMINDER_MAX_EMAILS_PER_RUN = 100;
 

@@ -24,14 +24,26 @@ ALTER TABLE public.entries
   ADD COLUMN IF NOT EXISTS reminder_email_sent_at timestamptz,
   ADD COLUMN IF NOT EXISTS reminder_email_status text NOT NULL DEFAULT 'pending';
 
-ALTER TABLE public.entries
-  ADD CONSTRAINT entries_reminder_email_status_check
-  CHECK (reminder_email_status IN ('pending', 'sent', 'failed'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'entries_reminder_email_status_check'
+      AND conrelid = 'public.entries'::regclass
+  ) THEN
+    ALTER TABLE public.entries
+      ADD CONSTRAINT entries_reminder_email_status_check
+      CHECK (reminder_email_status IN ('pending', 'sent', 'failed', 'covered'));
+  END IF;
+END $$;
+
+REVOKE ALL (reminder_email_sent_at, reminder_email_status)
+  ON public.entries FROM anon, authenticated;
 
 COMMENT ON COLUMN public.entries.reminder_email_sent_at IS
-  'MYK9-2113: stamped when the show reminder email is claimed for this entry, before it is sent. The send function skips a stamped entry, so overlapping runs never send twice. Cleared when the send fails.';
+  'MYK9-2113: stamped when the show reminder email is claimed for this entry, before it is sent. The send function skips a stamped entry, so overlapping runs never send twice. Cleared when the send fails. A stamp that is 30 minutes old on a pending entry is a crashed run: the next run may claim it again.';
 COMMENT ON COLUMN public.entries.reminder_email_status IS
-  'MYK9-2113: pending (never tried), sent, or failed (tried and released; the next hourly run on the reminder morning retries).';
+  'MYK9-2113: pending (never tried), sent, failed (tried and released; the next hourly run on the reminder morning retries), or covered (accepted after the exhibitor''s reminder for this show went out, so it is never sent a second one).';
 
 SELECT cron.unschedule('exhibitor-reminder-emails')
 WHERE EXISTS (

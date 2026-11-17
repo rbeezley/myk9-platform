@@ -16,10 +16,11 @@ describe('MYK9-2113 exhibitor reminder migrations', () => {
   it('adds the claim and status columns without granting them to anon or authenticated', () => {
     expect(columnsAndCron).toContain('ADD COLUMN IF NOT EXISTS reminder_email_sent_at timestamptz');
     expect(columnsAndCron).toContain("reminder_email_status text NOT NULL DEFAULT 'pending'");
-    expect(columnsAndCron).toContain(
-      "CHECK (reminder_email_status IN ('pending', 'sent', 'failed'))"
-    );
     expect(columnsAndCron).not.toMatch(/\bGRANT\b/i);
+    expect(columnsAndCron).toContain('REVOKE ALL (reminder_email_sent_at, reminder_email_status)');
+    expect(columnsAndCron).toContain('ON public.entries FROM anon, authenticated');
+    expect(columnsAndCron).toContain("'pending', 'sent', 'failed', 'covered'");
+    expect(columnsAndCron).toContain("conname = 'entries_reminder_email_status_check'");
   });
 
   it('schedules the hourly job with the reminder scope and the existing Vault secrets', () => {

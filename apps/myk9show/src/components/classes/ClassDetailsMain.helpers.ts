@@ -1,6 +1,4 @@
 import { ClassData, EntryData } from './types/classTypes';
-import { Show } from '@/types/show-types';
-import type { ClassStat } from './ClassDetailsMain.types';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import { getDogBreedLabel, type Dog } from '@/types/dog-types';
 import { msToDisplay } from '@/lib/timeUtils';
@@ -66,86 +64,6 @@ export function formatClassTitle(classData: ClassData): string {
   if (shouldShowLevel(classData)) parts.push(classData.level!);
   if (shouldShowSection(classData)) parts.push(classData.section!);
   return parts.join(' ');
-}
-
-/**
- * Check if a show is a Scent Work show based on organization name.
- */
-export function isScentWorkShow(parentShow?: Show): boolean {
-  return (
-    parentShow?.organization?.toLowerCase().includes('scent work') ||
-    parentShow?.organization?.toLowerCase().includes('scentwork') ||
-    parentShow?.organization?.toLowerCase().includes('nosework') ||
-    false
-  );
-}
-
-/**
- * Build class statistics from entries.
- */
-export function buildClassStats(classEntries: EntryData[], isScentWork: boolean): ClassStat[] {
-  const totalEntries = classEntries.length;
-  const qualified = classEntries.filter(entry => entry.status === 'Qualified').length;
-  const notQualified = classEntries.filter(entry => entry.status === 'Not Qualified').length;
-  const excused = classEntries.filter(entry => entry.status === 'Excused').length;
-  const disqualified = classEntries.filter(entry => entry.status === 'Disqualified').length;
-  const withdrawn = classEntries.filter(entry => entry.status === 'Withdrawn').length;
-  const absent = classEntries.filter(entry => entry.status === 'Absent').length;
-
-  const completedEntries = classEntries.filter(
-    entry =>
-      entry.time ||
-      entry.score ||
-      ['Qualified', 'Not Qualified', 'Excused', 'Disqualified', 'Withdrawn', 'Absent'].includes(
-        entry.status
-      )
-  ).length;
-  const pendingEntries = totalEntries - completedEntries;
-
-  const stats: ClassStat[] = [
-    {
-      title: 'Total Entries',
-      value: totalEntries.toString(),
-      trend: '',
-      detail1: `${completedEntries} completed`,
-      detail2: `${pendingEntries} pending`,
-      progress: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0,
-      type: 'entries',
-    },
-    {
-      title: 'Qualified Rate',
-      value: `${totalEntries > 0 ? Math.round((qualified / totalEntries) * 100) : 0}%`,
-      trend: '',
-      detail1: `${qualified} Qualified`,
-      detail2: `${notQualified} NQ`,
-      detail3:
-        excused + disqualified + withdrawn + absent > 0
-          ? `${excused + disqualified + withdrawn + absent} Other`
-          : undefined,
-      progress: totalEntries > 0 ? Math.round((qualified / totalEntries) * 100) : 0,
-      type: 'classes',
-    },
-  ];
-
-  if (!isScentWork) {
-    const avgScore =
-      classEntries.length > 0
-        ? classEntries.reduce((sum, entry) => sum + (parseFloat(entry.score) || 0), 0) /
-          classEntries.length
-        : 0;
-
-    stats.push({
-      title: 'Avg Score',
-      value: avgScore > 0 ? avgScore.toFixed(1) : '0',
-      trend: '',
-      detail1: 'Out of 100 points',
-      detail2: 'Class average',
-      progress: avgScore > 0 ? Math.round(avgScore) : 0,
-      type: 'trials',
-    });
-  }
-
-  return stats;
 }
 
 /**

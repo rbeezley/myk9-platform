@@ -60,8 +60,8 @@ vi.mock('@/components/classes/ClassCompactHeader', () => ({
 }));
 
 vi.mock('@/components/classes/ClassDetailsMain', () => ({
-  default: ({ readOnly }: { readOnly?: boolean }) => (
-    <div data-testid="class-details-main" data-read-only={String(Boolean(readOnly))} />
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="class-details-main" data-prop-names={Object.keys(props).sort().join(',')} />
   ),
 }));
 
@@ -164,16 +164,11 @@ describe('ClassDetailsPage detail-page header (MYK9-930)', () => {
     mockUseClassDetailsDialogs.mockReturnValue({
       editClassPanelOpen: false,
       deleteDialogOpen: false,
-      deleteEntryDialogOpen: false,
-      entryToDelete: null,
       openEditClassPanel: vi.fn(),
       openDeleteDialog: vi.fn(),
       closeDeleteDialog: vi.fn(),
       closeEditClassPanel: vi.fn(),
-      closeDeleteEntryDialog: vi.fn(),
       setDeleteDialogOpen: vi.fn(),
-      setDeleteEntryDialogOpen: vi.fn(),
-      openDeleteEntryDialog: vi.fn(),
     });
     mockUseClassDetailsData.mockReturnValue({
       classId: 'class-1',
@@ -269,13 +264,8 @@ describe('ClassDetailsPage header actions', () => {
     });
     mockUseClassDetailsDialogs.mockReturnValue({
       editClassPanelOpen: false,
-      deleteEntryDialogOpen: false,
-      entryToDelete: null,
       openEditClassPanel,
       closeEditClassPanel: vi.fn(),
-      closeDeleteEntryDialog: vi.fn(),
-      setDeleteEntryDialogOpen: vi.fn(),
-      openDeleteEntryDialog: vi.fn(),
     });
     mockUseClassDetailsData.mockReturnValue({
       classId: 'class-1',
@@ -469,7 +459,7 @@ describe('ClassDetailsPage header actions', () => {
 
   // MYK9-2119: a class is run on Show Desk. Staff open the exhibitor's class page, read-only, with
   // a link to the class on Show Desk; the run sheet is gone.
-  it('shows operational staff the read-only class page and a link to the class on Show Desk', () => {
+  it('shows operational staff the class page and a link to the class on Show Desk', () => {
     mockUseClassDetailsData.mockReturnValue({
       ...mockUseClassDetailsData(),
       parentTrial: {
@@ -482,7 +472,11 @@ describe('ClassDetailsPage header actions', () => {
 
     renderClassDetailsPage();
 
-    expect(screen.getByTestId('class-details-main')).toHaveAttribute('data-read-only', 'true');
+    // The page hands the body data only: no add, delete or edit handler, for any viewer.
+    expect(screen.getByTestId('class-details-main')).toHaveAttribute(
+      'data-prop-names',
+      'classData,classEntries,parentShow,rawEntries'
+    );
     expect(screen.queryByTestId('secretary-run-sheet')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open on Show Desk' })).toHaveAttribute(
       'href',
@@ -490,7 +484,7 @@ describe('ClassDetailsPage header actions', () => {
     );
   });
 
-  it('shows the class page for a signed-in exhibitor with no Show Desk link and editable by no one', () => {
+  it('shows the class page for a signed-in exhibitor with no Show Desk link', () => {
     mockManageScope({
       status: 'resolved',
       canManage: false,
@@ -500,7 +494,11 @@ describe('ClassDetailsPage header actions', () => {
 
     renderClassDetailsPage();
 
-    expect(screen.getByTestId('class-details-main')).toHaveAttribute('data-read-only', 'false');
+    // The page hands the body data only: no add, delete or edit handler, for any viewer.
+    expect(screen.getByTestId('class-details-main')).toHaveAttribute(
+      'data-prop-names',
+      'classData,classEntries,parentShow,rawEntries'
+    );
     expect(screen.queryByRole('link', { name: 'Open on Show Desk' })).not.toBeInTheDocument();
   });
 });

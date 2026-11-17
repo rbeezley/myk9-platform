@@ -29,8 +29,7 @@ import {
   GuestClassUnavailableState,
   LoadingClassState,
 } from './ClassStates';
-import { resolveEntryToRemove } from './resolveEntryToRemove';
-import { DeleteObjectDialog, classDeleteDetail, entryDeleteDetail } from '@/features/delete';
+import { classDeleteDetail } from '@/features/delete';
 import { getTrialTimezone } from '@/features/registries';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { ClassReadinessStrip } from './ClassReadinessStrip';
@@ -61,7 +60,6 @@ const ClassDetailsPage: React.FC = () => {
     trialClasses,
     guestClassState,
     retryGuestClassRead,
-    localRawEntries,
     dbRawEntries,
     staffShowRawEntries,
     classEntries,
@@ -70,7 +68,6 @@ const ClassDetailsPage: React.FC = () => {
     parentTrial,
     parentShow,
     manageScope,
-    dogs,
     updateClass,
   } = useClassDetailsData();
 
@@ -123,21 +120,10 @@ const ClassDetailsPage: React.FC = () => {
     });
   };
 
-  const handleDeleteEntry = (entryId: string) => {
-    dialogs.openDeleteEntryDialog(entryId);
-  };
-
   const classTitle = currentClass ? formatClassTitle(currentClass) || undefined : undefined;
   const parentTrialLabel = parentTrial
     ? formatTrialLabel({ name: parentTrial.name, trialNumber: parentTrial.trialNumber })
     : undefined;
-  const entryToRemove = resolveEntryToRemove(dialogs.entryToDelete, {
-    localRawEntries,
-    dbRawEntries,
-    classEntries,
-    dogs,
-  });
-  const entryToRemoveName = entryToRemove?.dogName ?? 'this dog';
 
   // Rejects on failure so ClassEditPanel stays open with the user's edits.
   const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
@@ -329,13 +315,6 @@ const ClassDetailsPage: React.FC = () => {
           classEntries={exhibitorClassEntries}
           rawEntries={exhibitorRawEntries}
           parentShow={parentShow}
-          onAddEntry={() => {
-            if (parentShow?.id) {
-              navigate(`/shows/${parentShow.id}/register`);
-            }
-          }}
-          onDeleteEntry={handleDeleteEntry}
-          readOnly={isStaff}
         />
       </PageShell>
 
@@ -390,28 +369,6 @@ const ClassDetailsPage: React.FC = () => {
               }}
             />
           </>
-        )}
-
-        {dialogs.deleteEntryDialogOpen && entryToRemove && (
-          <DeleteObjectDialog
-            open
-            onOpenChange={open => {
-              if (!open) dialogs.closeDeleteEntryDialog();
-            }}
-            kind="entry"
-            targets={[
-              {
-                id: entryToRemove.id,
-                name: entryToRemoveName,
-                detail: entryDeleteDetail({
-                  callName: entryToRemoveName,
-                  handlerName: entryToRemove.handlerName,
-                  className: classTitle,
-                }),
-                context: { showId: parentShow?.id, trialId, classId },
-              },
-            ]}
-          />
         )}
 
         <ClassRequirementsPanel

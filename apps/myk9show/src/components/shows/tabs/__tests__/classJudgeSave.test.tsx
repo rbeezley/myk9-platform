@@ -82,7 +82,6 @@ vi.mock('@/pages/ClassDetailsPage/useClassDetailsDialogs', () => ({
     editClassPanelOpen: true,
     closeEditClassPanel: mocks.close,
     openEditClassPanel: vi.fn(),
-    deleteEntryDialogOpen: false,
   }),
 }));
 vi.mock('@/pages/ClassDetailsPage/useMyEntriesInClass', () => ({

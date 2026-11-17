@@ -36,3 +36,13 @@ describe('results deadline', () => {
     expect(describeResultsDeadline('ASCA', '2026-12-05')).toBe('Due to ASCA by Sat, Dec 5');
   });
 });
+
+describe('results deadline coverage', () => {
+  it('covers scent work and unnamed disciplines only', async () => {
+    const { resultsDeadlineCoversTrialType } = await import('@/features/registries');
+    expect(resultsDeadlineCoversTrialType('Scent Work')).toBe(true);
+    expect(resultsDeadlineCoversTrialType('Nosework')).toBe(true);
+    expect(resultsDeadlineCoversTrialType(null)).toBe(true);
+    expect(resultsDeadlineCoversTrialType('Agility')).toBe(false);
+  });
+});

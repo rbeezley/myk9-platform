@@ -39,6 +39,7 @@ export {
   getCloseoutDuties,
   describeResultsDeadline,
   lastTrialDay,
+  resultsDeadlineCoversTrialType,
   resultsDeadlineFor,
 } from './closeoutDuties';
 export type { RegistryCloseoutDuty, RegistryCloseoutDutyKind } from './closeoutDuties';

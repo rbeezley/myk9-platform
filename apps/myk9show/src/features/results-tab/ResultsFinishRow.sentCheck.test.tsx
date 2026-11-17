@@ -190,4 +190,20 @@ describe('ResultsFinishRow results deadline', () => {
     expect(await done.findByText(FILE_LINE)).toBeInTheDocument();
     expect(done.queryByText(/Due at AKC/)).not.toBeInTheDocument();
   });
+
+  it('keeps the deadline on the resend line when a score changed after the AKC file went', async () => {
+    mocks.submissions.mockReturnValue([SENT]);
+    mocks.getChanges.mockResolvedValue(changes('2026-11-14T20:15:00Z'));
+    render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={openTrials}
+        rows={ROWS}
+        entries={[]}
+        entriesTrusted
+      />
+    );
+    await screen.findByRole('link', { name: new RegExp(CHANGED_LINE) });
+    expect(screen.getByText('Due at AKC by Tue, Nov 24')).toBeInTheDocument();
+  });
 });

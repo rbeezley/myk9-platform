@@ -302,3 +302,19 @@ describe('calculateWhatIsLeft: a show with more than one registry', () => {
     expect(line(left, 'akc-judge-initials')?.classIds).toEqual(['no-trial']);
   });
 });
+
+describe('results deadline on a mixed-discipline show', () => {
+  const deadlineOf = (
+    trials: { id: string; registryId: string; trialDate: string; trialType: string }[]
+  ) =>
+    calc([leftClass({ id: 'c1', trialId: 't1' })], { trials, submissions: [] }).lines.find(
+      line => line.kind === 'results-submission'
+    )?.deadline;
+
+  it('ignores a later non-scent trial and omits the date when no trial qualifies', () => {
+    const scent = { id: 't1', registryId: 'AKC', trialDate: '2026-11-17', trialType: 'Scent Work' };
+    const agility = { id: 't2', registryId: 'AKC', trialDate: '2026-11-19', trialType: 'Agility' };
+    expect(deadlineOf([scent, agility])).toBe('2026-11-24');
+    expect(deadlineOf([agility])).toBeUndefined();
+  });
+});

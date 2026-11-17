@@ -27,6 +27,7 @@ export {
   describeResultsDeadline,
   formatDeadlineDay,
   lastTrialDay,
+  resultsDeadlineCoversTrialType,
   resultsDeadlineFor,
 } from '../../../../../supabase/functions/_shared/showCloseout/resultsDeadline';
 export type { ResultsDeadlineRule };

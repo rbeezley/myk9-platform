@@ -27,6 +27,18 @@ export const RESULTS_DEADLINE_RULES: Readonly<Record<string, ResultsDeadlineRule
   UKC: null,
 };
 
+/**
+ * Whether the verified rule covers a trial. Both sources are Scent Work / Scent Detection rules,
+ * so a trial that names another discipline (Agility, Rally, ...) is not counted, and a later one
+ * must not push the scent-results date back. A trial that names no discipline is counted: this
+ * app's trials are scent work unless they say otherwise.
+ */
+export function resultsDeadlineCoversTrialType(trialType: string | null | undefined): boolean {
+  const text = trialType?.trim();
+  if (!text) return true;
+  return /scent|nose\s*work/i.test(text);
+}
+
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**

@@ -77,10 +77,15 @@ function itemFor(
       // The app's own send is the only line that can go stale: a score changed after it (MYK9-2078).
       // Its action is the existing send, so the first record stays and a second is made.
       if (line.open === false && line.sentFileCheck === 'changed') {
+        // A resend is still owed by the same date, so the line keeps it.
+        const resendDeadline = line.registryId
+          ? describeResultsDeadline(line.registryId, line.deadline)
+          : null;
         return {
           key: line.key,
           state: 'open',
           opensClassList: false,
+          ...(resendDeadline ? { deadlineText: resendDeadline } : {}),
           href: getResultsStepHref(showId, 'submit'),
           label: SENT_FILE_TEXT.changed,
         };

@@ -18,6 +18,7 @@ import {
   getTrialRegistry,
   getTrialTimezone,
   lastTrialDay,
+  resultsDeadlineCoversTrialType,
   resultsDeadlineFor,
   type RegistryId,
 } from '@/features/registries';
@@ -62,6 +63,8 @@ export interface WhatIsLeftTrial {
   /** The trial's day (`trials.date`). Absent = the deadline cannot be worked out. */
   trialDate?: string | null | undefined;
   timezone?: string | null | undefined;
+  /** The discipline (`trials.trial_type`); the deadline rules cover scent work only. */
+  trialType?: string | null | undefined;
 }
 
 export interface WhatIsLeftInput {
@@ -369,7 +372,11 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
               registryId,
               lastTrialDay(
                 input.trials
-                  .filter(trial => getTrialRegistry(trial).id === registryId)
+                  .filter(
+                    trial =>
+                      getTrialRegistry(trial).id === registryId &&
+                      resultsDeadlineCoversTrialType(trial.trialType)
+                  )
                   .map(trial => ({ date: trial.trialDate, timeZone: getTrialTimezone(trial) }))
               )
             )

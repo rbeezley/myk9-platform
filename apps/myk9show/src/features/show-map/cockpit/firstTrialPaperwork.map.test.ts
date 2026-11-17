@@ -82,6 +82,7 @@ function line(
   rollUpClasses: typeof classes = classes
 ) {
   const byClassId = buildClassPaperworkMap({
+    assignedJudges: [],
     showId: 'show-1',
     classes: classRows,
     trials,

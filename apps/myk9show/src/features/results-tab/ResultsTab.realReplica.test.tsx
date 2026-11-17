@@ -64,6 +64,10 @@ vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
     syncFailed: false,
   }),
 }));
+// The show details have loaded with no extra judge assignments (MYK9-2116).
+vi.mock('@/hooks/useFastShowDetails', () => ({
+  useFastShowDetails: () => ({ show: { id: 'show-1', assignedJudges: [] } }),
+}));
 vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null }));
 
 // Every wait here follows a real IndexedDB write, then a debounced table notice, then an async
@@ -309,6 +313,7 @@ describe('Results tab on the real replicated class rows', () => {
       const entries = ((await getEntriesForShow('show-1')).data ?? []) as never[];
       prints.data = (['results-sheet', 'result-labels'] as const).map(reportId => {
         const descriptor = buildReportPaperworkDescriptor({
+          assignedJudges: [],
           reportId,
           scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-released' },
           classes,

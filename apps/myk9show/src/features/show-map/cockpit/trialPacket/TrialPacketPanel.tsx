@@ -140,6 +140,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     fullPacket,
     classes: (classes ?? []) as DbClass[],
     entries: (entries ?? []) as DbEntry[],
+    assignedJudges: show?.assignedJudges,
   });
   const { packet, onlyNeed, emptyView } = view;
   const [attempt, setAttempt] = useState(0);
@@ -185,6 +186,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         classIds: printedJudges.flatMap(item => item.classes.map(cls => cls.classId)),
         classes: (classes ?? []) as DbClass[],
         entries: (entries ?? []) as DbEntry[],
+        assignedJudges: show?.assignedJudges,
         user,
       });
       if (result.failedClassIds.length > 0) {

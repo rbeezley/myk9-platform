@@ -14,19 +14,19 @@
  * @module MyEntriesPage/modules/MyShowClassRow
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/common/ResultBadge';
-import { PlacementPill } from '@/components/base/PlacementPill';
 import { getStatusDescriptor } from '@/components/status/statusIconGrammar';
 import {
   buildResultCardModel,
   buildResultCardVisibility,
-  deriveResultReleaseDisplay,
+  formatOwnResultLine,
   type ResultCardModel,
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from '@myk9/core';
+import { ClassRequirementsDialog } from '@/features/at-show/slots/RequirementsDialog';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { canLeaveClass } from './leaveClassRow';
 import { canChangeClass } from './changeClassRow';
@@ -36,6 +36,27 @@ import { CLASS_ROW_TEXT, classRowDisplay } from './classRowStatusText';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass } from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
+
+/**
+ * Kinds of a class the dog has yet to run: the running order means something for these only. A
+ * posted order (`runOrder` set) is the secretary's published number, shown as a plain fact. It
+ * is not a place in line: that needs the day's progress and stays in Ringside (MYK9-2138).
+ */
+const RUN_ORDER_KINDS: ReadonlySet<ClassRowKind> = new Set<ClassRowKind>([
+  'not-yet-eligible',
+  'opens-later',
+  'check-in-available',
+  'closed-today',
+  'checked-in',
+  'at-gate',
+  'come-to-gate',
+]);
+
+function runOrderText(kind: ClassRowKind, runOrder: number | undefined): string | null {
+  return RUN_ORDER_KINDS.has(kind) && runOrder != null && runOrder > 0
+    ? `Running order ${runOrder}`
+    : null;
+}
 
 /** States that carry a "change" link into the existing check-in dialog. */
 const CHANGEABLE: ReadonlySet<ClassRowKind> = new Set<ClassRowKind>([
@@ -111,6 +132,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   onClassChanged,
   onResultRevealClick,
 }) => {
+  const [requirementsOpen, setRequirementsOpen] = useState(false);
   const state = classRowDisplay(cls, checkInContext);
   const word = state.word;
 
@@ -122,7 +144,11 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   ].filter((part): part is string => Boolean(part));
   // Judge and time sit on their own line: both are optional and the judge's
   // name can be long, while the date stays on one line (never "TBD").
-  const detail = [judgeName ? `Judge ${judgeName}` : null, formatStartTime(cls.startTime ?? null)]
+  const detail = [
+    judgeName ? `Judge ${judgeName}` : null,
+    formatStartTime(cls.startTime ?? null),
+    runOrderText(state.kind, cls.runOrder),
+  ]
     .filter((part): part is string => Boolean(part))
     .join(' · ');
 
@@ -232,6 +258,24 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           canChange={canChange}
           onChanged={onClassChanged}
         />
+        {/* MYK9-2137: the same read-only Requirements view Ringside's class card opens. */}
+        {cls.classId && !cls.unresolved && (
+          <>
+            {/* First child of the row means nothing precedes it: no dangling dot. */}
+            <span aria-hidden="true" className="text-muted-foreground first:hidden">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={() => setRequirementsOpen(true)}
+              aria-label={`Requirements for ${cls.name}`}
+              aria-haspopup="dialog"
+              className={LINK_CLASS}
+            >
+              requirements
+            </button>
+          </>
+        )}
         {canLeave && (
           <>
             <span aria-hidden="true" className="text-muted-foreground">
@@ -257,6 +301,22 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           </>
         )}
       </span>
+      {requirementsOpen && cls.classId && (
+        <ClassRequirementsDialog
+          isOpen
+          onClose={() => setRequirementsOpen(false)}
+          showEntryCount={false}
+          perAreaFromClass
+          {...(cls.trialTimezone ? { timeZone: cls.trialTimezone } : {})}
+          classData={{
+            id: cls.classId,
+            element: '',
+            level: '',
+            class_name: cls.name,
+            entry_count: 0,
+          }}
+        />
+      )}
     </div>
   );
 
@@ -290,24 +350,24 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       );
     }
 
-    const release = deriveResultReleaseDisplay({
-      resultsReleasedAt: cls.resultsReleasedAt,
+    // One sentence, shared with Ringside: "Qualified, 0:52.40, 2nd of 14". A placement is
+    // claimed only after release; before it the line carries "preliminary" and none.
+    const resultLine = formatOwnResultLine({
       resultStatus: cls.resultStatus,
+      searchTimeSeconds: cls.searchTimeSeconds,
       finalPlacement: cls.finalPlacement,
+      resultsReleasedAt: cls.resultsReleasedAt,
+      ranCount: cls.classScoredCount,
     });
 
     return (
       <>
-        {cls.resultStatus && <ResultBadge resultStatus={cls.resultStatus} />}
-        {release.placement != null ? (
-          <PlacementPill placement={release.placement} size="sm" />
-        ) : null}
-        {release.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
-        {cls.searchTimeSeconds != null && (
-          <span className="tabular-nums text-muted-foreground">
-            {cls.searchTimeSeconds.toFixed(1)}s
+        {resultLine && (
+          <span className="font-medium tabular-nums" data-testid="own-result-line">
+            {resultLine.text}
           </span>
         )}
+        {resultLine?.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
         {cls.totalFaults != null && cls.totalFaults > 0 && (
           <span className="font-medium text-warning">{cls.totalFaults}F</span>
         )}

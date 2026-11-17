@@ -15,7 +15,7 @@ const classes: PaperworkClassRow[] = [
     level: 'Novice',
     section: 'A',
     status: 'in_progress',
-    judge_name: 'Judge One',
+    judgeName: 'Judge One',
     time_limit_seconds: '180.5',
     num_areas: 1,
     num_hides: 2,
@@ -60,9 +60,48 @@ describe('compactFingerprint', () => {
 });
 
 describe('buildSheetDescriptorFromRows', () => {
-  it('keys the check-in sheet by entry and ignores the class', () => {
+  it('keys the check-in sheet by entry and by class', () => {
     const d = buildSheetDescriptorFromRows({ reportId: 'check-in-sheet', scope, classes, entries });
-    expect(Object.keys(d?.coverage.subjectFingerprints ?? {})).toEqual(['entry:e1', 'entry:e2']);
+    expect(Object.keys(d?.coverage.subjectFingerprints ?? {})).toEqual([
+      'class:class-1',
+      'entry:e1',
+      'entry:e2',
+    ]);
+  });
+
+  describe('class judge and hides (MYK9-2116)', () => {
+    const fingerprintOf = (reportId: string, patch: Partial<PaperworkClassRow>) =>
+      buildSheetDescriptorFromRows({
+        reportId,
+        scope,
+        classes: [{ ...classes[0]!, ...patch }, classes[1]!],
+        entries,
+      })?.fingerprint;
+
+    it.each(['check-in-sheet', 'scoresheet'])('a judge change moves the %s fingerprint', id => {
+      expect(fingerprintOf(id, { judgeName: 'Judge Two' })).not.toBe(fingerprintOf(id, {}));
+    });
+
+    it.each(['check-in-sheet', 'scoresheet'])('undefined and null judge hash the same (%s)', id => {
+      expect(fingerprintOf(id, { judgeName: undefined })).toBe(
+        fingerprintOf(id, { judgeName: null })
+      );
+    });
+
+    it('hides moves the scoresheet and never the check-in sheet', () => {
+      expect(fingerprintOf('scoresheet', { num_hides: 3 })).not.toBe(
+        fingerprintOf('scoresheet', {})
+      );
+      expect(fingerprintOf('check-in-sheet', { num_hides: 3 })).toBe(
+        fingerprintOf('check-in-sheet', {})
+      );
+    });
+
+    it('undefined and null hides hash the same on the scoresheet', () => {
+      expect(fingerprintOf('scoresheet', { num_hides: undefined })).toBe(
+        fingerprintOf('scoresheet', { num_hides: null })
+      );
+    });
   });
 
   it('adds class subjects to the scoresheet, without the class status', () => {
@@ -101,7 +140,10 @@ describe('buildSheetDescriptorFromRows', () => {
       classes,
       entries,
     });
-    expect(Object.keys(d?.coverage.subjectFingerprints ?? {})).toEqual(['entry:e3']);
+    expect(Object.keys(d?.coverage.subjectFingerprints ?? {})).toEqual([
+      'class:class-2',
+      'entry:e3',
+    ]);
     expect(
       buildSheetDescriptorFromRows({ reportId: 'check-in-sheet', scope, classes, entries: [] })
     ).toBeNull();

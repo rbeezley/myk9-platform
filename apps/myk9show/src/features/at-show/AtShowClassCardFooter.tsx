@@ -1,4 +1,4 @@
-import { CloudUpload, Heart, Info, MoreHorizontal } from 'lucide-react';
+import { ClipboardList, CloudUpload, Heart, Info, MoreHorizontal } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { ClassEntry } from '@myk9/ringside';
@@ -26,6 +26,8 @@ interface AtShowClassCardFooterProps {
   onShowDetails?:
     ((entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void) | undefined;
   onOpenOptions?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
+  /** MYK9-2137: the read-only Requirements view, for roles without Class Options. */
+  onOpenRequirements?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
 }
 
 export function AtShowClassCardFooter({
@@ -37,6 +39,7 @@ export function AtShowClassCardFooter({
   onToggleFavorite,
   onShowDetails,
   onOpenOptions,
+  onOpenRequirements,
 }: AtShowClassCardFooterProps) {
   const hasProgress = showProgress && entry.entry_count > 0;
 
@@ -103,6 +106,17 @@ export function AtShowClassCardFooter({
                 aria-hidden
                 className={cn(entry.is_favorite && 'fill-primary text-primary')}
               />
+            </button>
+          )}
+          {onOpenRequirements && (
+            <button
+              type="button"
+              aria-label={`Requirements for ${entry.class_name}`}
+              aria-haspopup="dialog"
+              className={ICON_BUTTON}
+              onClick={event => onOpenRequirements(entry, event.currentTarget)}
+            >
+              <ClipboardList size={20} aria-hidden />
             </button>
           )}
           {onOpenOptions && (

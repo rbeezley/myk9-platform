@@ -109,18 +109,23 @@ export function buildDescriptor(
 
 export function buildCheckInPaperworkDescriptor(
   scope: PaperworkScope,
-  entries: readonly CheckInPaperworkEntry[]
+  entries: readonly CheckInPaperworkEntry[],
+  classes: readonly PaperworkClassFacts[] = []
 ): PaperworkDescriptor {
-  return buildDescriptor(
-    'check-in-sheet',
-    scope,
-    entries.map(entry => ({
+  return buildDescriptor('check-in-sheet', scope, [
+    ...entries.map(entry => ({
       key: `entry:${entry.entryId}`,
       facts: entry,
       classIds: [entry.classId],
       trialIds: entry.trialId ? [entry.trialId] : [],
-    }))
-  );
+    })),
+    ...classes.map(classItem => ({
+      key: `class:${classItem.classId}`,
+      facts: classItem.facts,
+      classIds: [classItem.classId],
+      trialIds: [classItem.trialId],
+    })),
+  ]);
 }
 
 export function buildScoreSheetPaperworkDescriptor(

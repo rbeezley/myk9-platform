@@ -20,6 +20,7 @@ import { useMemo } from 'react';
 
 import type { ReadStatus } from '@/features/_shared/combineReads';
 import { readinessOf, resolveReportReadiness } from '@/hooks/queries/reportReadiness';
+import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
@@ -36,6 +37,10 @@ export function useShowClassPaperwork(input: {
 }) {
   const { showId, trials, classes = [], entries, returnTo } = input;
   const prints = useShowPaperworkPrints(showId);
+  // The judge the sheet prints falls back to the show's assignments, so the fingerprint does too.
+  // Undefined while the show details are unavailable (a cold offline open): the fingerprint then
+  // hashes the unresolved judge and corrects itself once they load (MYK9-2116).
+  const assignedJudges = useFastShowDetails(showId).show?.assignedJudges;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
   // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
@@ -68,8 +73,10 @@ export function useShowClassPaperwork(input: {
       recordsUnavailable: !available,
       withholdConfirmation: !classesAvailable,
       returnTo,
+      assignedJudges,
     });
   }, [
+    assignedJudges,
     available,
     classFacts.data,
     classes,

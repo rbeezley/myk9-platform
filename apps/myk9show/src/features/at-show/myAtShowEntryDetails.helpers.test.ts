@@ -123,6 +123,58 @@ describe('buildMyAtShowEntryDetails', () => {
     ).toMatchObject({ resultStatus: 'qualified', resultTimeSeconds: 58, isPreliminary: true });
   });
 
+  it('says where a released own result placed, of the dogs that ran', () => {
+    const placed = new Map<string, OwnShowResult>([
+      [
+        'scored-1',
+        {
+          isScored: true,
+          resultStatus: 'qualified',
+          searchTimeSeconds: 52.4,
+          totalFaults: 0,
+          finalPlacement: 2,
+          resultsReleasedAt: '2026-10-06T15:00:00Z',
+          classScoredCount: 14,
+        },
+      ],
+    ]);
+    expect(
+      buildMyAtShowEntryDetails(
+        [ownScored],
+        new Set(['scored-1']),
+        classAt('2026-10-06T15:00:00Z'),
+        noTrials,
+        placed
+      )[0]?.resultLine
+    ).toBe('Qualified, 0:52.40, 2nd of 14');
+  });
+
+  it('makes no placement claim for an unreleased own result', () => {
+    const unreleased = new Map<string, OwnShowResult>([
+      [
+        'scored-1',
+        {
+          isScored: true,
+          resultStatus: 'qualified',
+          searchTimeSeconds: 52.4,
+          totalFaults: 0,
+          finalPlacement: 2,
+          resultsReleasedAt: null,
+          classScoredCount: 14,
+        },
+      ],
+    ]);
+    expect(
+      buildMyAtShowEntryDetails(
+        [ownScored],
+        new Set(['scored-1']),
+        classAt(null),
+        noTrials,
+        unreleased
+      )[0]
+    ).toMatchObject({ resultLine: 'Qualified, 0:52.40', isPreliminary: true });
+  });
+
   it("trusts the own read's unreleased state over a stale class release time", () => {
     expect(
       buildMyAtShowEntryDetails(

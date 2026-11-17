@@ -5,6 +5,7 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication';
 import { reportDebug } from '@/utils/standardizedErrorHandler';
+import { syncReplicatedShowDates } from './deriveShowDatesFromTrials';
 
 import type {
   SyncableTrial,
@@ -82,6 +83,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
       };
 
       const savedReplicated = await replicatedTrialsTable.createTrial(replicatedTrial);
+      await syncReplicatedShowDates(trialData.showId);
 
       const newTrial: SyncableTrial = {
         ...replicatedToTrial(savedReplicated),
@@ -152,6 +154,13 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
           ...replicatedUpdates,
           _version: (currentReplicated._version || 0) + 1,
         });
+        // MYK9-2131: a moved day, or a trial moved to another show, changes show dates.
+        if (updates.trialDate !== undefined || updates.showId !== undefined) {
+          await syncReplicatedShowDates(updates.showId ?? currentReplicated.showId);
+          if (updates.showId !== undefined && updates.showId !== currentReplicated.showId) {
+            await syncReplicatedShowDates(currentReplicated.showId);
+          }
+        }
       }
 
       // Create updated trial with incremented version

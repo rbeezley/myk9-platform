@@ -60,6 +60,7 @@ describe('useMyShowResults (MYK9-1026)', () => {
       totalFaults: 2,
       finalPlacement: null,
       resultsReleasedAt: null,
+      classScoredCount: null,
       serverConfirmed: true,
     });
     expect(result.current.has('e2')).toBe(false);

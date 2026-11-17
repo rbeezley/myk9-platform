@@ -1,152 +1,74 @@
 import React, { useState, useMemo } from 'react';
-import { type ColumnDef } from '@tanstack/react-table';
-import { Save, AlertCircle, ClipboardList, Plus, ListOrdered } from 'lucide-react';
-import { useRunOrderDrag } from './useRunOrderDrag';
-import { DragHandleCell } from './SortableRow';
-import { DndTableView } from './DndTableView';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { DataTable } from '@/components/ui/data-table';
-import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
-import { RunOrderDialog } from '../RunOrderDialog';
-import { useRunOrderPreset } from './useRunOrderPreset';
 import {
   GuestExportButton,
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
-  ListViewToggle,
   type ListView,
 } from '@/components/list-toolkit';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, ScoringRow } from './types';
-import type { CheckInStatus } from '@myk9/core';
 import { matchesAny } from '@myk9/core';
-import { useClassResults } from './useClassResults';
+import { buildResultRows } from './resultRows';
 import { useResultColumns } from './columns';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
 import { exportClassResults, guestResultsOmit } from './classResultsExport';
-import { useViewPreference } from '@/hooks/useViewPreference';
-import { EntryCardGrid } from './EntryCardGrid';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
-const DRAG_HANDLE_COL: ColumnDef<ScoringRow, unknown> = {
-  id: 'dragHandle',
-  header: '',
-  enableSorting: false,
-  cell: () => <DragHandleCell />,
-};
-
+/**
+ * The class page's one list: the class's entries and, once released, their results. Read-only for
+ * everyone. A class is checked in, scored, run and edited on Show Desk (MYK9-2136), so this table
+ * has no check-in, edit, add, delete, run-order or score control.
+ */
 export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   entries,
   rawEntries,
-  classConfig,
-  userPermissions,
-  onDeleteEntry,
-  onAddEntry,
   className,
   classId,
   showId,
   trialId,
-  onOpenRequirements,
   classStatus,
   resultsReleasedAt,
 }) => {
-  const {
-    rows,
-    isSubmitting,
-    submitError,
-    editCount,
-    canSubmit,
-    onFieldChange,
-    clearEntry,
-    handleKeyDown,
-    handleSubmit,
-    isEntryScored,
-  } = useClassResults({
-    entries,
-    rawEntries: rawEntries ?? [],
-    classConfig,
-    userPermissions,
-    classId: classId ?? '',
-  });
+  const rows = useMemo(() => buildResultRows(entries, rawEntries ?? []), [entries, rawEntries]);
 
   const { isExhibitor, isSecretary, isJudge } = useAuthContext();
   const isStaff = isSecretary || isJudge || !isExhibitor;
-  const checkInMutation = useCheckInMutation({
-    writer: isStaff ? 'replicated' : 'self-checkin-rpc',
-  });
 
   const classState = useMemo(
     () => deriveClassState(classStatus, resultsReleasedAt ?? null),
     [classStatus, resultsReleasedAt]
   );
-
   const visibility = useVisibleResultFields(showId, trialId, classId, classState);
-
-  const [statusPickerEntry, setStatusPickerEntry] = useState<{
-    entryId: string;
-    armband: string;
-    dogName: string;
-    handlerName: string;
-    currentStatus: CheckInStatus;
-  } | null>(null);
-
-  const [runOrderDialogOpen, setRunOrderDialogOpen] = useState(false);
-  const { applyPreset } = useRunOrderPreset(classId, rawEntries ?? []);
-
-  function handleStatusChange(entryId: string, newStatus: CheckInStatus) {
-    checkInMutation.mutate({ entryId, newStatus, classId });
-  }
 
   const entryMap = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
 
-  const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
-  const canEdit = userPermissions.canEditEntries;
-
-  const isClosed = classStatus === 'closed';
-
-  const [viewMode, setViewMode] = useViewPreference('class-results', 'table');
-  // Guard: card view requires classId for scoring navigation
-  const effectiveViewMode = classId ? viewMode : 'table';
-
-  // Scoring status tab filtering (Pending / Completed / All).
-  // Read-only viewers (exhibitors/guests) on a results-released class have no
-  // pending entries to score, so default them to "All" — otherwise the default
+  // Nothing is left to score here, so a released class opens on "All"; otherwise the default
   // "Pending" tab renders empty and the released results look missing.
-  const readOnlyReleased = !canEdit && !!resultsReleasedAt;
-  const [scoringTab, setScoringTab] = useState<ScoringStatusTab>(
-    readOnlyReleased ? 'all' : 'pending'
-  );
-  // If results are released while a read-only viewer already has the page open,
-  // flip them off the (now-empty) "Pending" tab. Adjust-state-during-render
-  // pattern (not an effect — the repo lints against setState-in-effect).
-  const [wasReadOnlyReleased, setWasReadOnlyReleased] = useState(readOnlyReleased);
-  if (readOnlyReleased !== wasReadOnlyReleased) {
-    setWasReadOnlyReleased(readOnlyReleased);
-    if (readOnlyReleased) setScoringTab('all');
+  const released = !!resultsReleasedAt;
+  const [scoringTab, setScoringTab] = useState<ScoringStatusTab>(released ? 'all' : 'pending');
+  // If results are released while the page is already open, flip off the (now-empty) "Pending"
+  // tab. Adjust-state-during-render pattern (the repo lints against setState-in-effect).
+  const [wasReleased, setWasReleased] = useState(released);
+  if (released !== wasReleased) {
+    setWasReleased(released);
+    if (released) setScoringTab('all');
   }
   const [searchQuery, setSearchQuery] = useState('');
 
-  const scoredEntryIds = useMemo(
-    () => new Set(rows.filter(r => r.isScored).map(r => r.entryId)),
-    [rows]
-  );
-
   const tabCounts = useMemo(() => {
-    const completed = scoredEntryIds.size;
+    const completed = rows.filter(r => r.isScored).length;
     return { pending: rows.length - completed, completed };
-  }, [rows, scoredEntryIds]);
+  }, [rows]);
 
-  // "All" intentionally carries no count — unchanged from the prior
-  // PrimaryTabs behavior it replaces (list-toolkit rollout, MYK9-811).
+  // "All" intentionally carries no count (list-toolkit rollout, MYK9-811).
   const scoringViews: ListView[] = useMemo(
     () => [
       { id: 'pending', label: 'Pending', count: tabCounts.pending },
@@ -166,78 +88,18 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     return result;
   }, [rows, scoringTab, searchQuery]);
 
-  const showDragHandles = canEdit && !isClosed && scoringTab !== 'completed' && !searchQuery;
-
-  const { orderedIds, sensors, onDragEnd } = useRunOrderDrag({
-    rawEntries: rawEntries ?? [],
-  });
-
-  const dndOrderedRows = useMemo(() => {
-    const rowById = new Map(filteredRows.map(r => [r.entryId, r]));
-    return orderedIds.map(id => rowById.get(id)).filter((r): r is ScoringRow => r !== undefined);
-  }, [orderedIds, filteredRows]);
-
-  /** Source entries filtered by the active scoring tab + search (for card view). */
-  const filteredEntries = useMemo(() => {
-    let result = entries;
-    if (scoringTab === 'completed') result = result.filter(e => isEntryScored(e.id));
-    else if (scoringTab === 'pending') result = result.filter(e => !isEntryScored(e.id));
-    if (searchQuery) {
-      result = result.filter(e =>
-        matchesAny(
-          [e.displayInfo.dogName, e.displayInfo.handlerName, e.displayInfo.armband],
-          searchQuery
-        )
-      );
-    }
-    return result;
-  }, [entries, scoringTab, isEntryScored, searchQuery]);
-
-  const columns = useResultColumns({
-    canEdit,
-    isStaff,
-    visibility,
-    scoringTab,
-    showDeleteColumn,
-    entryMap,
-    onFieldChange,
-    handleKeyDown,
-    clearEntry,
-    onDeleteEntry,
-    onCheckInClick: setStatusPickerEntry,
-  });
+  const columns = useResultColumns({ isStaff, visibility, entryMap });
 
   // The whole-list export the table's own button used to be (owner decision 4: header Actions menu).
   usePageExportAction({
     id: 'class-results',
-    enabled: effectiveViewMode === 'table' && filteredRows.length > 0,
+    enabled: filteredRows.length > 0,
     run: () => exportClassResults(filteredRows),
   });
-
-  const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
-    () => (showDragHandles ? [DRAG_HANDLE_COL, ...columns] : columns),
-    [showDragHandles, columns]
-  );
 
   return (
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
-        {submitError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        )}
-
-        {!userPermissions.canEditEntries && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              You have read-only access. Contact the show secretary to edit results.
-            </AlertDescription>
-          </Alert>
-        )}
-
         <div className="myk9-show-info-card">
           <div className="myk9-show-info-header">
             <div className="flex items-center gap-2">
@@ -245,32 +107,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               <Badge variant="secondary" className="text-xs">
                 {entries.length}
               </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              {classId && <ListViewToggle active={effectiveViewMode} onChange={setViewMode} />}
-              {canEdit && !isClosed && (
-                <Button variant="outline" size="sm" onClick={() => setRunOrderDialogOpen(true)}>
-                  <ListOrdered className="h-4 w-4" />
-                  <span>Set Run Order</span>
-                </Button>
-              )}
-              {onOpenRequirements && (
-                <Button variant="outline" size="sm" onClick={onOpenRequirements}>
-                  <ClipboardList className="h-4 w-4" />
-                  <span>Requirements</span>
-                </Button>
-              )}
-
-              {onAddEntry && userPermissions.canEditEntries && (
-                <Button
-                  onClick={onAddEntry}
-                  className="myk9-action-button myk9-action-button-primary"
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Entry
-                </Button>
-              )}
             </div>
           </div>
 
@@ -298,102 +134,23 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               }}
             >
               {/* Signed-out visitors have no header Actions menu (MYK9-993). Only released
-                  results, only in table view (as the header export), and only the columns the
-                  table shows them. */}
+                  results, and only the columns the table shows them. */}
               <GuestExportButton
-                enabled={
-                  effectiveViewMode === 'table' &&
-                  !!resultsReleasedAt &&
-                  !visibility.isLoading &&
-                  filteredRows.length > 0
-                }
-                onExport={() =>
-                  exportClassResults(
-                    filteredRows,
-                    guestResultsOmit({
-                      ...visibility,
-                      checkInColumnShown: scoringTab !== 'completed',
-                    })
-                  )
-                }
+                enabled={!!resultsReleasedAt && !visibility.isLoading && filteredRows.length > 0}
+                onExport={() => exportClassResults(filteredRows, guestResultsOmit(visibility))}
               />
             </ListResultLine>
           </div>
 
-          {effectiveViewMode === 'cards' ? (
-            <EntryCardGrid
-              entries={filteredEntries}
-              classId={classId!}
-              onStatusClick={entry =>
-                setStatusPickerEntry({
-                  entryId: entry.entryId,
-                  armband: entry.armband,
-                  dogName: entry.dogName,
-                  handlerName: entry.handlerName,
-                  currentStatus: entry.status,
-                })
-              }
-            />
-          ) : (
-            <>
-              {showDragHandles ? (
-                <DndTableView
-                  columns={dragColumns}
-                  orderedRows={dndOrderedRows}
-                  sensors={sensors}
-                  onDragEnd={onDragEnd}
-                />
-              ) : (
-                <DataTable<ScoringRow>
-                  tableId="classResults"
-                  columns={columns}
-                  data={filteredRows}
-                  getRowId={row => row.entryId}
-                  pageSize={9999}
-                />
-              )}
-
-              {userPermissions.canEditEntries && (
-                <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
-                  <div className="text-sm text-muted-foreground">
-                    Press Enter or Tab to move between fields &bull; Placements calculated on submit
-                  </div>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!canSubmit}
-                    className="myk9-action-button myk9-action-button-primary"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>
-                      {isSubmitting
-                        ? 'Submitting...'
-                        : `Submit ${editCount} Result${editCount !== 1 ? 's' : ''}`}
-                    </span>
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+          <DataTable<ScoringRow>
+            tableId="classResults"
+            columns={columns}
+            data={filteredRows}
+            getRowId={row => row.entryId}
+            pageSize={9999}
+          />
         </div>
       </div>
-
-      <StatusPickerDialog
-        open={statusPickerEntry !== null}
-        onOpenChange={open => {
-          if (!open) setStatusPickerEntry(null);
-        }}
-        entry={statusPickerEntry ?? { entryId: '', armband: '', dogName: '', handlerName: '' }}
-        currentStatus={statusPickerEntry?.currentStatus ?? 'no-status'}
-        onStatusChange={handleStatusChange}
-        isStaff={isStaff}
-        disabled={!isStaff && !visibility.selfCheckinEnabled}
-      />
-      <RunOrderDialog
-        open={runOrderDialogOpen}
-        onOpenChange={setRunOrderDialogOpen}
-        entries={rawEntries ?? []}
-        onApply={applyPreset}
-      />
     </TooltipProvider>
   );
 };
@@ -402,7 +159,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProps, nextProps) => {
   if (prevProps.rawEntries !== nextProps.rawEntries) return false;
   if (prevProps.entries !== nextProps.entries) return false;
-  if (prevProps.userPermissions !== nextProps.userPermissions) return false;
   if (prevProps.classId !== nextProps.classId) return false;
   if (prevProps.classStatus !== nextProps.classStatus) return false;
   if (prevProps.resultsReleasedAt !== nextProps.resultsReleasedAt) return false;

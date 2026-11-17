@@ -114,6 +114,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         initialStatus={initialShowData?.status}
+        onClose={onClose}
       />
     </EditPanelWrapper>
   );

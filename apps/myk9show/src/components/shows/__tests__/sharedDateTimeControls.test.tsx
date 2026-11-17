@@ -66,7 +66,7 @@ describe('show dates: create and edit render the same control', () => {
     expect(screen.getByTestId('show-entry-period-field')).toBeInTheDocument();
   });
 
-  it('Edit Show renders the very same two controls, not four date-time pickers', () => {
+  it('Edit Show keeps the entry-period range control and shows the show dates as text', () => {
     render(
       <Tabs value="basic">
         <ShowEditBasicInfoTab
@@ -79,10 +79,10 @@ describe('show dates: create and edit render the same control', () => {
         />
       </Tabs>
     );
-    const dates = screen.getByTestId('show-dates-field');
     const entry = screen.getByTestId('show-entry-period-field');
-    expect(within(dates).getByRole('button', { name: /show dates/i })).toBeInTheDocument();
     expect(within(entry).getByRole('button', { name: /entry period/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('show-dates-field')).not.toBeInTheDocument();
+    expect(screen.getByTestId('show-dates-text')).toBeInTheDocument();
     expect(screen.queryByText('Entry Open Date')).not.toBeInTheDocument();
   });
 
@@ -99,11 +99,11 @@ describe('show dates: create and edit render the same control', () => {
         />
       </Tabs>
     );
-    const dates = screen.getByTestId('show-dates-field');
-    expect(within(dates).getByRole('button', { name: /show dates/i })).not.toHaveTextContent(
+    const entry = screen.getByTestId('show-entry-period-field');
+    expect(within(entry).getByRole('button', { name: /entry period/i })).not.toHaveTextContent(
       /\d:\d\d (AM|PM)/
     );
-    await user.click(within(dates).getByRole('button', { name: /show dates/i }));
+    await user.click(within(entry).getByRole('button', { name: /entry period/i }));
     expect(screen.queryByText(/start time/i)).not.toBeInTheDocument();
   });
 });

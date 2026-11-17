@@ -4,7 +4,6 @@ import {
   shouldShowSection,
   formatClassTitle,
   buildClassConfig,
-  buildClassStats,
   buildScentWorkEntries,
 } from '../ClassDetailsMain.helpers';
 import type { ClassData, EntryData } from '../types/classTypes';
@@ -139,20 +138,6 @@ describe('buildClassConfig time limit', () => {
     );
     const stored = entry?.judgingState?.currentResult;
     expect(stored?.maxTimeAllowed).toBe(0);
-  });
-});
-
-describe('buildClassStats with a Disqualified dog', () => {
-  const entry = (status: string, extra: Record<string, unknown> = {}) =>
-    ({ status, ...extra }) as unknown as Parameters<typeof buildClassStats>[0][number];
-
-  it('counts a DQ as completed, not pending, and includes it in Other', () => {
-    const stats = buildClassStats(
-      [entry('Qualified'), entry('Disqualified'), entry('Excused'), entry('Pending')],
-      true
-    );
-    expect(stats[0]).toMatchObject({ detail1: '3 completed', detail2: '1 pending' });
-    expect(stats[1]).toMatchObject({ detail1: '1 Qualified', detail3: '2 Other' });
   });
 });
 

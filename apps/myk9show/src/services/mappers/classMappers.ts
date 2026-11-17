@@ -527,6 +527,9 @@ export const mapReplicatedClassToDbRow = (
     results_verified_at: cls.resultsVerifiedAt ?? null,
     results_verified_by: cls.resultsVerifiedBy ?? null,
     results_verified_fingerprint: null,
+    // MYK9-2116: false means the judge fields are "unknown", not "no judge" (see ReplicatedClass).
+    // Paperwork withholds a verdict for such a class rather than flap once the judge loads.
+    ...(cls.judgeResolved !== undefined ? { judge_resolved: cls.judgeResolved } : {}),
     ring_phase: cls.ringPhase ?? null,
     ring_phase_time: cls.ringPhaseTime ?? null,
     scores_on_paper: cls.scoresOnPaper ?? null,

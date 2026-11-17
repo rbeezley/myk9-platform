@@ -27,6 +27,7 @@ describe('buildClassPaperworkMap', () => {
       classId: 'class-1',
     };
     const descriptor = buildReportPaperworkDescriptor({
+      assignedJudges: [],
       reportId: 'check-in-sheet',
       scope,
       classes,
@@ -34,6 +35,7 @@ describe('buildClassPaperworkMap', () => {
     });
     expect(descriptor).not.toBeNull();
     const map = buildClassPaperworkMap({
+      assignedJudges: [],
       showId: 'show-1',
       classes,
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
@@ -69,6 +71,7 @@ describe('buildClassPaperworkMap', () => {
 
   it('suppresses every print action for a zero-entry Class', () => {
     const map = buildClassPaperworkMap({
+      assignedJudges: [],
       showId: 'show-1',
       classes,
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
@@ -109,6 +112,7 @@ describe('buildClassPaperworkMap', () => {
       },
     ] as unknown as DbEntry[];
     const map = buildClassPaperworkMap({
+      assignedJudges: [],
       showId: 'show-1',
       classes,
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
@@ -168,6 +172,7 @@ describe('buildClassPaperworkMap', () => {
     };
 
     const current = buildClassPaperworkMap({
+      assignedJudges: [],
       showId: 'show-1',
       classes,
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
@@ -181,6 +186,7 @@ describe('buildClassPaperworkMap', () => {
     });
 
     const stale = buildClassPaperworkMap({
+      assignedJudges: [],
       showId: 'show-1',
       classes,
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
@@ -201,6 +207,7 @@ describe('buildClassPaperworkMap', () => {
       classId: 'class-1',
     };
     const scheduled = buildReportPaperworkDescriptor({
+      assignedJudges: [],
       reportId: 'result-labels',
       scope,
       classes: [
@@ -209,6 +216,7 @@ describe('buildClassPaperworkMap', () => {
       entries,
     });
     const completed = buildReportPaperworkDescriptor({
+      assignedJudges: [],
       reportId: 'result-labels',
       scope,
       classes: [

@@ -75,6 +75,7 @@ const USER_ENTRIES_SELECT_BASE = `
         name,
         class_number,
         start_time,
+        scored_count,
         trial:trial_id (
           id,
           name,

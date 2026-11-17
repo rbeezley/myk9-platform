@@ -170,7 +170,8 @@ async function processClaimedJob(args: {
 
   // Only refusals since the job last became due count: a retry or a new edit starts afresh.
   const failedBefore = attempts.filter(
-    attempt => attempt.status === 'failed' && attempt.attempted_at >= job.due_at
+    attempt =>
+      attempt.status === 'failed' && Date.parse(attempt.attempted_at) >= Date.parse(job.due_at)
   ).length;
   if (failedBefore >= AUTO_SEND_MAX_FAILED_ATTEMPTS) {
     await finishJob(args, { status: 'failed' });

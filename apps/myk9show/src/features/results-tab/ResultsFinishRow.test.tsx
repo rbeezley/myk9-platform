@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { render } from '@/test/utils/testUtils';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -47,8 +48,12 @@ const SHOW_ROWS = [
   row('empty', 'no-dogs'),
 ];
 
-function renderList(rows: ResultsClassRow[], trials: SyncableTrial[]) {
-  render(<ResultsFinishRow showId="show-1" trials={trials} rows={rows} />);
+function renderList(
+  rows: ResultsClassRow[],
+  trials: SyncableTrial[],
+  entries: SecretaryEntry[] = []
+) {
+  render(<ResultsFinishRow showId="show-1" trials={trials} rows={rows} entries={entries} />);
   return within(screen.getByRole('region', { name: 'Finish the show' }));
 }
 
@@ -159,6 +164,7 @@ describe('ResultsFinishRow', () => {
         showId="show-1"
         trials={[first, second]}
         rows={SHOW_ROWS}
+        entries={[]}
         onOpenAfterShow={onOpen}
       />
     );
@@ -175,10 +181,50 @@ describe('ResultsFinishRow', () => {
         showId="show-1"
         trials={[trialFor('AKC')]}
         rows={SHOW_ROWS}
+        entries={[]}
         onOpenAfterShow={vi.fn()}
       />
     );
 
     expect(screen.getByRole('button', { name: 'After-show packet' })).toBeInTheDocument();
+  });
+
+  it('lists entries left as "I\'ll decide at the show" and drops the line once none is left (MYK9-2031)', () => {
+    const entries = [
+      fromAny<SecretaryEntry, unknown>({
+        id: 'e1',
+        class_id: 'open-1',
+        entry_status: 'confirmed',
+        handler_to_decide: true,
+      }),
+      fromAny<SecretaryEntry, unknown>({
+        id: 'e2',
+        class_id: 'open-2',
+        entry_status: 'confirmed',
+        handler_to_decide: true,
+      }),
+      fromAny<SecretaryEntry, unknown>({
+        id: 'e3',
+        class_id: 'open-2',
+        entry_status: 'confirmed',
+        handler_to_decide: false,
+      }),
+    ];
+    const { unmount } = render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        entries={entries}
+      />
+    );
+    const link = screen.getByRole('link', {
+      name: '2 entries still say "I\'ll decide at the show" for the handler',
+    });
+    expect(link).toHaveAttribute('href', '/shows/show-1/entries?class=open-1%2Copen-2');
+    unmount();
+
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')], []);
+    expect(list.queryByText(/I'll decide at the show/)).not.toBeInTheDocument();
   });
 });

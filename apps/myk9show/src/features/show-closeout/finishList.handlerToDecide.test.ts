@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildFinishList } from './finishList';
+import type { WhatIsLeftInput } from './whatIsLeft';
 import { calculateResultsRowsLeft } from './fromResultsRows';
 import { readHandlerToDecide } from './handlerToDecide';
 
 // MYK9-2031: the Finish the show list names entries still left as "I'll decide at the show",
 // before the results-submission line, and drops the line once none is left.
-function keys(handlerToDecide: Parameters<typeof calculateResultsRowsLeft>[2]['handlerToDecide']) {
+function keys(handlerToDecide: WhatIsLeftInput['handlerToDecide']) {
   return buildFinishList(
     'show-1',
     calculateResultsRowsLeft([], [{ id: 't1', registry_id: 'AKC' }], {

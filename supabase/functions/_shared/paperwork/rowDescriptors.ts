@@ -14,7 +14,12 @@ export interface PaperworkClassRow {
   level?: unknown;
   section?: string | null | undefined;
   status?: unknown;
-  judge_name?: unknown;
+  /**
+   * The class's confirmed judge, resolved by the caller the way the app shows it. `classes.judge_name`
+   * was dropped (MYK9-479), so no `classes` row carries it: absent and null hash the same, and a
+   * caller that cannot resolve a judge yet must not build a verdict (MYK9-2116).
+   */
+  judgeName?: string | null | undefined;
   time_limit_seconds?: unknown;
   num_areas?: unknown;
   num_hides?: unknown;
@@ -68,11 +73,19 @@ export function buildPaperworkClassFacts(
         section: classItem.section,
         // The check-in sheet and scoresheets do not print the class's own status, so starting or
         // finishing a class must not read as a change (MYK9-2074). The results sheet keeps it.
-        ...(reportId === 'scoresheet' ? {} : { status: classItem.status }),
-        judgeName: classItem.judge_name,
-        timeLimitSeconds: classItem.time_limit_seconds,
-        areaCount: classItem.num_areas,
-        hides: classItem.num_hides,
+        ...(reportId === 'scoresheet' || reportId === 'check-in-sheet'
+          ? {}
+          : { status: classItem.status }),
+        // Optional facts hash as null when absent, so undefined and null never differ.
+        judgeName: classItem.judgeName ?? null,
+        ...(reportId === 'check-in-sheet'
+          ? {}
+          : {
+              timeLimitSeconds: classItem.time_limit_seconds,
+              areaCount: classItem.num_areas,
+            }),
+        // Only the scoresheet prints Hides.
+        ...(reportId === 'scoresheet' ? { hides: classItem.num_hides ?? null } : {}),
       },
     }));
 }
@@ -104,7 +117,8 @@ export function buildSheetDescriptorFromRows(input: {
   if (input.reportId === 'check-in-sheet') {
     return buildCheckInPaperworkDescriptor(
       input.scope,
-      selected.map(entry => ({ ...baseEntry(entry), trialId: trialIdOf(entry) }))
+      selected.map(entry => ({ ...baseEntry(entry), trialId: trialIdOf(entry) })),
+      buildPaperworkClassFacts(input.reportId, selected, classById)
     );
   }
   if (input.reportId === 'scoresheet') {

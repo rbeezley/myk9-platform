@@ -307,6 +307,7 @@ describe('report card copy', () => {
       handler_person: { first_name: 'Sarah', last_name: 'Johnson' },
     };
     const map = buildClassPaperworkMap({
+      assignedJudges: [],
       showId: 'show-1',
       classes: [classRow] as never,
       trials: [{ id: 'trial-1', trialDate: '2026-04-12' }],

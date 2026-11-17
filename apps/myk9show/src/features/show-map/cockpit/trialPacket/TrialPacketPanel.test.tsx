@@ -213,6 +213,7 @@ describe('TrialPacketPanel', () => {
     expect(await screen.findByText('All 4 classes marked as printed with Trial 1')).toBeVisible();
     for (const classId of ['c-interior', 'c-container', 'c-exterior', 'c-buried']) {
       const expected = buildReportPaperworkDescriptor({
+        assignedJudges: [],
         reportId: 'scoresheet',
         scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId },
         classes: CLASSES,
@@ -256,6 +257,7 @@ describe('TrialPacketPanel', () => {
       return CLASSES.filter(cls => !only || only.includes(cls.id)).flatMap(cls =>
         (['check-in-sheet', 'scoresheet'] as const).flatMap(reportId => {
           const descriptor = buildReportPaperworkDescriptor({
+            assignedJudges: [],
             reportId,
             scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: cls.id },
             classes: CLASSES,

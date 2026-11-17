@@ -2,6 +2,7 @@ import {
   projectHandlerIdentity,
   type HandlerPersonLike,
 } from '@/features/registries/handlerIdentity';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
@@ -48,6 +49,8 @@ export function buildClassPaperworkMap(input: {
    */
   withholdConfirmation?: boolean;
   returnTo: string;
+  /** `show.assignedJudges`; undefined means the show details are not available. */
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]> {
   const result = new Map<string, SecretaryCockpitPaperwork[]>();
   const printedLabels = buildPrintedLabelIndex(input.records);
@@ -66,6 +69,7 @@ export function buildClassPaperworkMap(input: {
               scope,
               classes: input.classes,
               entries: input.entries,
+              assignedJudges: input.assignedJudges,
             });
       const history = input.records
         .filter(record => record.reportId === report.id)

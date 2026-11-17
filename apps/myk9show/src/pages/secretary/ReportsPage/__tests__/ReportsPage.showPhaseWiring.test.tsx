@@ -359,6 +359,7 @@ describe('ReportsPage shows the report phases as visible sections', () => {
     /** The page's own rows, fingerprinted the way the page fingerprints them. */
     function checkInEvidence(mutate?: (record: Record<string, unknown>) => void) {
       const descriptor = buildReportPaperworkDescriptor({
+        assignedJudges: [],
         reportId: 'check-in-sheet',
         scope: { kind: 'show', showId: 'show-1' },
         classes: seenRows.classes as never,

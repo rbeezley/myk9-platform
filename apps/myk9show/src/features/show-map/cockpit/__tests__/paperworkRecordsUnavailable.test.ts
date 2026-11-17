@@ -31,6 +31,7 @@ const ENTRIES = [{ id: 'entry-1', class_id: 'class-1', armband: '12' }] as unkno
 
 function build(recordsUnavailable: boolean) {
   return buildClassPaperworkMap({
+    assignedJudges: [],
     showId: 'show-1',
     classes: CLASSES,
     trials: [{ id: 'trial-1', trialDate: '2026-08-28' }],

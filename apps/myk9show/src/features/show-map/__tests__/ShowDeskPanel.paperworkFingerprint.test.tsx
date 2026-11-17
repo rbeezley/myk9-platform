@@ -88,7 +88,7 @@ vi.mock('@/lib/undoToast', () => ({ showUndoToast: vi.fn() }));
 // The print panel's preview frames are Reports' own and are not under test here; what is under
 // test is that the record the panel writes carries the descriptor Reports builds.
 vi.mock('@/hooks/useFastShowDetails', () => ({
-  useFastShowDetails: () => ({ show: { id: 'show-1', trials: [] } }),
+  useFastShowDetails: () => ({ show: { id: 'show-1', trials: [], assignedJudges: [] } }),
 }));
 vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
@@ -189,6 +189,7 @@ const scope = {
 
 function reportsDescriptor() {
   const descriptor = buildReportPaperworkDescriptor({
+    assignedJudges: [],
     reportId: 'scoresheet',
     scope,
     classes: reportsClassRows,
@@ -214,6 +215,7 @@ function renderOverview(queryClient = createTestQueryClient()) {
 
 function printRecordFor(rows: DbClass[]): ReplicatedPaperworkPrint {
   const descriptor = buildReportPaperworkDescriptor({
+    assignedJudges: [],
     reportId: 'scoresheet',
     scope,
     classes: rows,

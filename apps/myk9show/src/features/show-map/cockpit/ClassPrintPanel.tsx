@@ -136,6 +136,7 @@ function ClassPrintPanelBody({
       entries: (entries ?? []) as unknown as Parameters<
         typeof buildReportPaperworkDescriptor
       >[0]['entries'],
+      assignedJudges: show?.assignedJudges,
     });
   // A freshly opened panel never prints cached rows: the class's report data is re-read on open
   // (a run-order change does not invalidate the cached `['reports', ...]` entries).

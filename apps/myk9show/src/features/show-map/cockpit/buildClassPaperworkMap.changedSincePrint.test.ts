@@ -50,7 +50,13 @@ function printRecords(
   return classIds.flatMap(classId =>
     REPORT_IDS.map(reportId => {
       const scope = { kind: 'class' as const, showId: 'show-1', trialId: 'trial-1', classId };
-      const descriptor = buildReportPaperworkDescriptor({ reportId, scope, classes, entries })!;
+      const descriptor = buildReportPaperworkDescriptor({
+        assignedJudges: [],
+        reportId,
+        scope,
+        classes,
+        entries,
+      })!;
       return {
         id: `${reportId}-${classId}`,
         showId: 'show-1',
@@ -74,6 +80,7 @@ function stateOf(
   currentClasses: readonly DbClass[] = classes
 ) {
   const map = buildClassPaperworkMap({
+    assignedJudges: [],
     showId: 'show-1',
     classes: currentClasses,
     trials: [{ id: 'trial-1', trialDate: '2026-12-07' }],

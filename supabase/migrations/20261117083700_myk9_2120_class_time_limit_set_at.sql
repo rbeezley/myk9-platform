@@ -18,8 +18,9 @@
 -- Grants: classes is read through a column allowlist, so the latest authenticated list
 -- (20261114205300, with scores_on_paper) is restated with the new column added; the contract
 -- test reads the LATEST such grant. anon is unchanged: it is not given the column, as with
--- ring_phase (MYK9-1513) and scores_on_paper (staff-facing). No UPDATE is granted on it;
--- only the trigger writes it (a trigger assignment needs no column privilege).
+-- ring_phase (MYK9-1513) and scores_on_paper (staff-facing). authenticated's table-level
+-- INSERT/UPDATE technically reaches the column, so the trigger owns it: it overwrites NEW on
+-- INSERT and pins it to OLD on any UPDATE that leaves the limits alone.
 
 BEGIN;
 

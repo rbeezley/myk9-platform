@@ -824,9 +824,10 @@ export const searchAllDogs = async (
     const [whole, ...words] = embeds;
     if (!whole) return { data: [], error: null, hitLimit: false };
 
-    // Typed as plain `string`: the aliases are built at run time, which the
-    // typed select parser cannot read.
-    const select: string = `
+    let dogQuery = supabase
+      .from('dogs')
+      .select(
+        `
         *,
         owner:people!dogs_owner_id_fkey(
           id,
@@ -837,10 +838,8 @@ export const searchAllDogs = async (
         ),
         registrations:dog_registrations(*),
         ${searchEmbedSelect(embeds)}
-      `;
-    let dogQuery = supabase
-      .from('dogs')
-      .select(select)
+      `
+      )
       .or(dogSearchFilter(whole, words))
       .is('deleted_at', null);
     for (const embed of embeds) {

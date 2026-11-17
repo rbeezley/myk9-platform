@@ -1,25 +1,18 @@
 import { useMemo, useRef } from 'react';
-import { onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import { useShowClassRows } from './useShowClassRows';
-import {
-  getEntriesByClass,
-  getEntriesByShowFromReplication,
-  getEntriesByTrial,
-} from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
-import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
-import type { ReportDbEntry } from '@/lib/reports/types';
-import { getHandlerPeopleHydrationRevision } from '@/services/database/entries/handlerHydration';
 import {
+  replicatedArmbandsTable,
   replicatedClassesTable,
   replicatedDogsTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
 } from '@/services/replication';
 import { useHandlerPeopleRevisionChange, useReplicaNotices } from './useReplicaNotices';
-import { hydrateReportEntries, type HydratedReportEntries } from './reportEntryHydration';
+import { readReportEntries } from './readReportEntries';
 import { readinessOf, resolveReportReadiness, type ReportDataState } from './reportReadiness';
 
 export type { ReportDataState } from './reportReadiness';
@@ -79,6 +72,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
             replicatedClassesTable,
             replicatedEntriesTable,
             replicatedDogsTable,
+            replicatedArmbandsTable,
           ]
         : [],
     [showId]
@@ -151,44 +145,10 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
 
   const entriesQuery = useQuery({
     queryKey: reportQueryKey,
-    queryFn: async () => {
-      const readEntries = async (): Promise<HydratedReportEntries> => {
-        if (classId !== 'all') {
-          const { data, error } = await getEntriesByClass(classId);
-          if (error) throw error;
-          return hydrateReportEntries((data ?? []) as ReportDbEntry[]);
-        }
-        // Staff reports use the same replication-backed scoped reads as class
-        // reports. The exhibitor show read resolves release visibility online and
-        // must mask raw cached scores when that optional request is unavailable.
-        // Retain the bounded refresh that show reports used before selecting
-        // scoped reads, so an online partial cache still has a chance to fill.
-        // Skipped when a replica notice asked for this read (see the
-        // subscription) and offline, where it can only fail -- or stall for its
-        // full deadline -- while Print waits on this read.
-        if (!replicaNoticed && onlineManager.isOnline()) await refreshShowEntriesForRead(showId);
-        if (trialId === 'all') {
-          const { data, error } = await getEntriesByShowFromReplication(showId);
-          if (error) throw error;
-          return hydrateReportEntries((data ?? []) as ReportDbEntry[]);
-        }
-        const { data, error } = await getEntriesByTrial(trialId);
-        if (error) throw error;
-        return hydrateReportEntries((data ?? []) as ReportDbEntry[]);
-      };
-
+    queryFn: () => {
       const replicaNoticed = replicaNoticedRef.current;
       replicaNoticedRef.current = false;
-      let revision = getHandlerPeopleHydrationRevision();
-      let data = await readEntries();
-      // React Query can ignore invalidation while the first fetch has no cached
-      // data yet. If people completed during that fetch, replay the scoped read
-      // now; the authoritative person rows are already persisted locally.
-      while (getHandlerPeopleHydrationRevision() > revision) {
-        revision = getHandlerPeopleHydrationRevision();
-        data = await readEntries();
-      }
-      return data;
+      return readReportEntries({ showId, trialId, classId, replicaNoticed });
     },
     enabled:
       selectedTrialIsInShow &&

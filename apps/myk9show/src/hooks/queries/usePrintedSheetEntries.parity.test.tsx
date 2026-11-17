@@ -11,6 +11,8 @@ import { screen, waitFor } from '@testing-library/react';
 import { fromAny } from '@total-typescript/shoehorn';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { replicatedEntriesTable } from '@/services/replication';
+
 import { render } from '@/test/utils/testUtils';
 import {
   buildEmergencyPacketData,
@@ -34,7 +36,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
-  replicatedArmbandsTable: { getByShow: async () => mocks.armbands },
+  replicatedArmbandsTable: {
+    getByShow: async () => mocks.armbands,
+    subscribe: () => () => undefined,
+  },
 }));
 vi.mock('@/services/database/entries', async () => {
   const { backfillMissingArmbands: backfill } =
@@ -231,5 +236,51 @@ describe('printed-sheet rows: class card and Reports build the same packet input
       expect(cardForClass).toEqual(reports.entries);
       expect(cardForClass.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('printed-sheet rows: an entry that arrives after the first hydration', () => {
+  it('a new entry for an already-hydrated dog carries its registration number, as in Reports', async () => {
+    mocks.rows = fixtures;
+    mocks.trials = trials;
+    mocks.classes = classes;
+    mocks.armbands = [];
+    mocks.registrations = new Map([
+      [
+        'dog-1',
+        [
+          { organization: 'AKC (American Kennel Club)', registration_number: 'AKC-1' },
+          { organization: 'UKC', registration_number: 'UKC-1' },
+        ],
+      ],
+    ]);
+    const listeners: Array<() => void> = [];
+    vi.spyOn(replicatedEntriesTable, 'subscribe').mockImplementation(listener => {
+      listeners.push(listener as () => void);
+      return () => undefined;
+    });
+
+    let card: PrintedSheetData | undefined;
+    render(<Probe onData={found => (card = found)} />);
+    await waitFor(() => expect(card?.entries.length).toBe(fixtures.length));
+
+    // A move-up: dog-1 (already hydrated) is entered in a second class.
+    mocks.rows = [...fixtures, row({ id: 'move-up', class_id: 'class-ukc' })];
+    listeners.forEach(listener => listener());
+    await waitFor(() => expect(card?.entries.some(entry => entry.id === 'move-up')).toBe(true), {
+      timeout: 3000,
+    });
+
+    const showRows = (await getEntriesByShowFromReplication('show-1')).data as ReportDbEntry[];
+    const reportsRows = (await hydrateReportEntries(showRows)).entries;
+    const reports = buildEmergencyPacketData({ show, trials, classes, entries: reportsRows });
+    const cardEntries = buildPacketEntries(
+      card!.entries,
+      card!.trials,
+      card!.classes,
+      show.assignedJudges ?? []
+    );
+    expect(cardEntries).toEqual(reports.entries);
+    expect(cardEntries.find(entry => entry.id === 'move-up')?.registrationNumber).toBe('UKC-1');
   });
 });

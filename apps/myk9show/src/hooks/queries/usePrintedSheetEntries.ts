@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getEntriesByShowFromReplication } from '@/services/database/entries';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import {
-  replicatedDogRegistrationsTable,
+  replicatedArmbandsTable,
+  replicatedClassesTable,
   replicatedDogsTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
@@ -11,7 +11,7 @@ import {
 import { cacheStrategies, queryKeys } from '@/lib/queryClient';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
-import { hydrateReportEntries, overlayReportHydration } from './reportEntryHydration';
+import { readReportEntries } from './readReportEntries';
 import { useHandlerPeopleRevisionChange, useReplicaNotices } from './useReplicaNotices';
 import { useShowClassRows } from './useShowClassRows';
 
@@ -33,62 +33,54 @@ export interface PrintedSheetData {
  * them, so the class card's "changed since printing" fingerprint and the PDF are built from one
  * set of rows (MYK9-2103).
  *
- * Two reads, because they change at different rates:
- * - the replica rows (entries, trials), re-read on entries, dogs and trials notices;
- * - the hydration (`hydrateReportEntries`, the function Reports runs: junior profile, catalog
- *   profile, registrations, which can hit the network), keyed by the sorted dog and handler ids
- *   and re-run only on dogs and dog-registrations notices, so a score never refetches it.
- * Rows show unhydrated until the hydration lands (no "not loaded" gate: a brief wrong answer
- * corrects itself). Notices are debounced and never cancel a fetch already in flight.
- * `networkMode: 'always'` so a cold offline load still reads the device copy.
+ * One query, and its function is Reports' own (`readReportEntries`: replica read, then
+ * `hydrateReportEntries`, with the handler-people replay), invalidated by the same notices
+ * (entries, dogs, trials, classes, armbands) and the same handler-people revision as
+ * `useReportData`. The only difference is a debounce on replica notices, so a burst (one score
+ * writes several tables) while Show Desk is open becomes one re-read. Parity holds by
+ * construction, not by cache keys. The read never runs the network refresh (Show Desk's own sync
+ * keeps the replica current), and `networkMode: 'always'` lets a cold offline load read the
+ * device copy.
  */
 export function usePrintedSheetEntries(showId: string) {
   const queryClient = useQueryClient();
-  // Stable arrays, built on first render (not at import) so a test that mocks the replication
+  // Stable array, built on first render (not at import) so a test that mocks the replication
   // module without these tables fails only if it renders this hook.
-  const rowNoticeSources = useMemo(
-    () => [replicatedEntriesTable, replicatedDogsTable, replicatedTrialsTable],
-    []
-  );
-  const hydrationNoticeSources = useMemo(
-    () => [replicatedDogsTable, replicatedDogRegistrationsTable],
+  const noticeSources = useMemo(
+    () => [
+      replicatedTrialsTable,
+      replicatedClassesTable,
+      replicatedEntriesTable,
+      replicatedDogsTable,
+      replicatedArmbandsTable,
+    ],
     []
   );
   const enabled = Boolean(showId);
-  const rowsKey = queryKeys.printedSheetEntries(showId);
-  const hydrationKey = queryKeys.printedSheetHydration(showId);
+  const entriesKey = queryKeys.printedSheetEntries(showId);
 
   useReplicaNotices(
     enabled,
-    rowNoticeSources,
+    noticeSources,
     () => {
-      void queryClient.invalidateQueries({ queryKey: rowsKey }, { cancelRefetch: false });
-      void queryClient.invalidateQueries(
-        { queryKey: queryKeys.showTrials(showId) },
-        { cancelRefetch: false }
-      );
+      for (const queryKey of [
+        queryKeys.showTrials(showId),
+        queryKeys.showClasses(showId),
+        entriesKey,
+      ]) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
     },
-    NOTICE_DEBOUNCE_MS
-  );
-  useReplicaNotices(
-    enabled,
-    hydrationNoticeSources,
-    () => void queryClient.invalidateQueries({ queryKey: hydrationKey }, { cancelRefetch: false }),
     NOTICE_DEBOUNCE_MS
   );
   useHandlerPeopleRevisionChange(() => {
-    if (!enabled) return;
-    void queryClient.invalidateQueries({ queryKey: rowsKey }, { cancelRefetch: false });
-    void queryClient.invalidateQueries({ queryKey: hydrationKey }, { cancelRefetch: false });
+    if (enabled) void queryClient.invalidateQueries({ queryKey: entriesKey });
   });
 
-  const rowsQuery = useQuery({
-    queryKey: rowsKey,
-    queryFn: async () => {
-      const { data, error } = await getEntriesByShowFromReplication(showId);
-      if (error) throw error;
-      return (data ?? []) as ReportDbEntry[];
-    },
+  const entriesQuery = useQuery({
+    queryKey: entriesKey,
+    queryFn: () =>
+      readReportEntries({ showId, trialId: 'all', classId: 'all', replicaNoticed: true }),
     enabled,
     ...READ_OPTIONS,
   });
@@ -114,42 +106,20 @@ export function usePrintedSheetEntries(showId: string) {
     enabled: trialsQuery.isSuccess,
   });
 
-  const rows = rowsQuery.data;
-  const idsKey = useMemo(() => {
-    if (!rows) return '';
-    const dogs = new Set<string>();
-    const handlers = new Set<string>();
-    for (const row of rows) {
-      if (row.dog_id) dogs.add(row.dog_id);
-      const handlerId = (row as { handler_id?: string | null }).handler_id;
-      if (handlerId) handlers.add(handlerId);
-    }
-    return `${[...dogs].sort().join(',')}|${[...handlers].sort().join(',')}`;
-  }, [rows]);
-
-  const hydrationQuery = useQuery({
-    queryKey: [...hydrationKey, idsKey],
-    queryFn: () => hydrateReportEntries(rows ?? []),
-    enabled: enabled && rows !== undefined,
-    placeholderData: keepPreviousData,
-    ...READ_OPTIONS,
-  });
-
+  const read = entriesQuery.data;
   const data = useMemo<PrintedSheetData | undefined>(() => {
-    if (!rows || !trialsQuery.data || !classesQuery.data) return undefined;
+    if (!read || !trialsQuery.data || !classesQuery.data) return undefined;
     return {
-      entries: hydrationQuery.data
-        ? overlayReportHydration(rows, hydrationQuery.data.entries)
-        : rows,
+      entries: read.entries,
       trials: trialsQuery.data as unknown as DbTrial[],
       classes: classesQuery.data as unknown as DbClass[],
-      registrationsReadComplete: hydrationQuery.data?.registrationsReadComplete ?? true,
+      registrationsReadComplete: read.registrationsReadComplete,
     };
-  }, [classesQuery.data, hydrationQuery.data, rows, trialsQuery.data]);
+  }, [classesQuery.data, read, trialsQuery.data]);
 
   return {
     data,
-    isError: rowsQuery.isError || trialsQuery.isError || classesQuery.isError,
-    isFetching: rowsQuery.isFetching || hydrationQuery.isFetching,
+    isError: entriesQuery.isError || trialsQuery.isError || classesQuery.isError,
+    isFetching: entriesQuery.isFetching,
   };
 }

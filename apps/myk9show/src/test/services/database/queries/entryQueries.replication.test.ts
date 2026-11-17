@@ -551,9 +551,12 @@ describe('entryQueries (replication)', () => {
         name: 'getEntriesByShowFromReplication',
         read: () => getEntriesByShowFromReplication('show-1'),
       },
+      { name: 'getEntriesByTrial', read: () => getEntriesByTrial('trial-1') },
     ])('$name fills a blank armband', async ({ read }) => {
       const entries = [makeEntry({ armband: undefined })];
-      setupListMocks(entries);
+      const classes = [makeClass({ id: 'class-1', trialId: 'trial-1' })];
+      setupListMocks(entries, [makeDog()], classes);
+      mockClassesTable.getClassesByTrial.mockResolvedValue(classes);
 
       const result = await read();
 

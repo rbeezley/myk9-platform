@@ -898,7 +898,14 @@ export const getEntriesByTrial = async (trialId: string) => {
           ...registrationJoin(entry, enrollmentsMap),
         })
       );
-      return { data, error: null, locallyDeletedIds, scopeUnsynced, unsavedLocalWrites };
+      // MYK9-2103: the same armband backfill as the show and class reads.
+      return {
+        data: await backfillMissingArmbands(data),
+        error: null,
+        locallyDeletedIds,
+        scopeUnsynced,
+        unsavedLocalWrites,
+      };
     },
     postgrest: () => withServerHeldFlags(postgrestGetEntriesByTrial(trialId)),
     table: 'entries',

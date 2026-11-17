@@ -79,33 +79,3 @@ export async function hydrateReportEntries(
 
   return { entries: withRegistrations, registrationsReadComplete, catalogProfilesReadComplete };
 }
-
-/**
- * Lays what `hydrateReportEntries` added (registrations, birth date, owner, handler profile) over
- * freshly read rows, so a fast-changing replica read can be hydrated by a slower, separately
- * cached read keyed by the dogs and handlers, not by every score.
- */
-export function overlayReportHydration(
-  rows: readonly ReportDbEntry[],
-  hydrated: readonly ReportDbEntry[]
-): ReportDbEntry[] {
-  const byId = new Map(hydrated.map(entry => [entry.id, entry] as const));
-  return rows.map(row => {
-    const source = row.id ? byId.get(row.id) : undefined;
-    if (!source) return row;
-    const sourceDog = source.dog;
-    const dog = row.dog_id
-      ? {
-          ...(row.dog ?? { id: row.dog_id }),
-          ...(sourceDog?.registrations !== undefined && { registrations: sourceDog.registrations }),
-          ...(sourceDog?.date_of_birth !== undefined && { date_of_birth: sourceDog.date_of_birth }),
-          ...(sourceDog?.owner !== undefined && { owner: sourceDog.owner }),
-        }
-      : row.dog;
-    return {
-      ...row,
-      ...(row.dog_id && { dog }),
-      ...(source.handler_person !== undefined && { handler_person: source.handler_person }),
-    };
-  });
-}

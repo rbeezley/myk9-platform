@@ -99,3 +99,32 @@ describe('mapReplicatedClassToDbRow — trial-day timing', () => {
     expect(row.num_areas).toBe(3);
   });
 });
+
+/** MYK9-2108: the Reports scoresheet prints Hides and Distractions from these two columns. */
+describe('mapReplicatedClassToDbRow — hides and distractions (MYK9-2108)', () => {
+  type ReplicatedClass = Parameters<typeof mapReplicatedClassToDbRow>[0];
+
+  it('carries the replica hide and distraction counts into the row', () => {
+    const row = mapReplicatedClassToDbRow({
+      id: 'c1',
+      trialId: 't1',
+      name: 'Buried Master',
+      hideCount: 4,
+      distractionCount: 2,
+    } as ReplicatedClass);
+
+    expect(row.num_hides).toBe(4);
+    expect(row.distraction_count).toBe(2);
+  });
+
+  it('maps a class without them to null', () => {
+    const row = mapReplicatedClassToDbRow({
+      id: 'c1',
+      trialId: 't1',
+      name: 'Buried Master',
+    } as ReplicatedClass);
+
+    expect(row.num_hides).toBeNull();
+    expect(row.distraction_count).toBeNull();
+  });
+});

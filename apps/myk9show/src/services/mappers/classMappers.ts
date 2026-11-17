@@ -509,6 +509,10 @@ export const mapReplicatedClassToDbRow = (
       class_order: 'classOrder',
       display_order: 'displayOrder',
     }),
+    // MYK9-2108: the Reports scoresheet prints Hides and Distractions from these; omitting them
+    // dropped both lines on every replica-backed print. Read-only: callers never write this row back.
+    num_hides: cls.hideCount ?? null,
+    distraction_count: cls.distractionCount ?? null,
     is_completed: cls.isCompleted ?? false,
     is_scoring_finalized: cls.isScoringFinalized ?? false,
     is_results_reviewed: cls.isResultsReviewed ?? false,

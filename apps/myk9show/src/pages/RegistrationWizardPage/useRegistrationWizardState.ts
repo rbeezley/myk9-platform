@@ -56,6 +56,7 @@ import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
+import { useClearFormMoneyOnOwnerChange } from './useClearFormMoneyOnOwnerChange';
 import { useDeskFormHeldCents } from '@/components/shows/RegistrationWorkflow/PaymentStep/useDeskFormHeldCents';
 import type { DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { resolveWizardTitles } from './wizardTitles';
@@ -310,6 +311,12 @@ export function useRegistrationWizardState() {
   const ownerResolution: SelectedDogsOwnerResult = useMemo(
     () => selectedDogsOwner(dogs, registrationData.selectedDogs),
     [dogs, registrationData.selectedDogs]
+  );
+  // MYK9-2149: the form's-money choice belongs to this exhibitor's form only.
+  useClearFormMoneyOnOwnerChange(
+    ownerResolution.ok ? ownerResolution.ownerId : undefined,
+    registrationData.paymentMethod,
+    () => setRegistrationData(prev => ({ ...prev, paymentMethod: undefined }))
   );
 
   const [classSelections, setClassSelections] = useState<ClassSelectionData[]>([]);

@@ -21,13 +21,12 @@ vi.mock('@/lib/notifications', () => ({
 import { submitPaymentStep } from './submitPaymentStep';
 import { makeContextAndOrder } from './submitPaymentStep.testHelpers';
 
-function deskContext(heldBeforeSubmit: boolean) {
+function deskContext(heldBeforeSubmit: boolean, usedFormMoney = false) {
   const setDeskFormOutcome = vi.fn();
-  // Whatever the secretary chose: the notice follows only what the form held before submit.
   const { ctx } = makeContextAndOrder({
     currentWorkflowMode: 'secretary_new',
-    paymentMethod: 'secretary_paid',
-    paymentDetails: { receivedMethod: 'cash' },
+    paymentMethod: usedFormMoney ? 'form_money' : 'secretary_paid',
+    paymentDetails: usedFormMoney ? {} : { receivedMethod: 'cash' },
     deskFormHeldBeforeSubmit: heldBeforeSubmit,
     setDeskFormOutcome,
   });
@@ -91,6 +90,33 @@ describe('submitPaymentStep reads what the form still owes (MYK9-2149)', () => {
 
     expect(fetchDeskFormDueCentsMock).not.toHaveBeenCalled();
     expect(setDeskFormOutcome).toHaveBeenCalledWith(null);
+  });
+
+  // Codex P2: the SUBMITTED choice triggers the notice, whatever the form held before or the
+  // read finds after (here the step had no confirmed read before submit).
+  it.each([
+    [2000, 2000],
+    [0, 0],
+    [-500, 0],
+  ])(
+    'after using the form money, tells the balance (due %i cents -> owed %i)',
+    async (due, owed) => {
+      fetchDeskFormDueCentsMock.mockResolvedValue(due);
+      const { ctx, setDeskFormOutcome } = deskContext(false, true);
+
+      await submitPaymentStep(ctx);
+
+      expect(setDeskFormOutcome).toHaveBeenCalledWith({ formId: 'form-1', owedCents: owed });
+    }
+  );
+
+  it('after using the form money, says it could not check when the read fails', async () => {
+    fetchDeskFormDueCentsMock.mockRejectedValue(new Error('offline'));
+    const { ctx, setDeskFormOutcome } = deskContext(false, true);
+
+    await submitPaymentStep(ctx);
+
+    expect(setDeskFormOutcome).toHaveBeenCalledWith({ formId: 'form-1', owedCents: null });
   });
 
   it('carries no outcome when the form held no money before submit', async () => {

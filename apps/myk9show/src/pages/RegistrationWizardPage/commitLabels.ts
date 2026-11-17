@@ -35,6 +35,7 @@ export function getPaymentSubmitLabel(
     case 'secretary_paid':
     case 'group_payment':
     case 'waived':
+    case 'form_money':
       return 'Submit entry';
     default:
       return 'Submit entry';

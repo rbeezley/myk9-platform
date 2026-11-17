@@ -12,22 +12,15 @@ import { UserRole } from '@/types/auth-types';
 import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
 import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PaymentOptionCard } from './PaymentOptionCard';
-import { usePaymentDetailsFields, type PaymentDetailsFields } from './usePaymentDetailsFields';
+import { usePaymentDetailsFields } from './usePaymentDetailsFields';
 import type { PaymentMethodSelectorProps } from './types';
 
 /** One secretary choice: a payment method, and for money in hand how it came. */
 type StaffChoice =
-  | 'check_received'
-  | 'cash_received'
-  | 'group_payment'
-  | 'check'
-  | 'cash'
-  | 'waived'
-  | 'use_form_money';
+  'check_received' | 'cash_received' | 'group_payment' | 'check' | 'cash' | 'waived' | 'form_money';
 
 const CHOICE_METHOD: Record<StaffChoice, PaymentMethod> = {
-  // MYK9-2149: carried as secretary_paid in the wizard; submitted with no method at all.
-  use_form_money: 'secretary_paid',
+  form_money: 'form_money',
   check_received: 'secretary_paid',
   cash_received: 'secretary_paid',
   group_payment: 'group_payment',
@@ -106,11 +99,11 @@ type StaffPaymentChoicesProps = Pick<
  * The exhibitor's own list (`PaymentMethodSelector`) is untouched.
  *
  * MYK9-2149 (inform only): when a confirmed read says the exhibitor's form already holds
- * money, one more choice is offered, "Use the money already on this form (take nothing now)".
- * The secretary picks it herself: it is never preselected, and no later read selects, clears
- * or hides it once chosen. It submits with no payment and no method, so the server settles
- * what the form's money covers; anything still owed is recorded on the entry form after.
- * Every other choice is unchanged and records what it always has.
+ * money, one more choice is offered, "Use the money already on this form (take nothing now)",
+ * carried as its own method (`form_money`), never as money received. The secretary picks it
+ * herself: it is never preselected, and no later read selects, clears or hides it once chosen
+ * (the page clears it only when the exhibitor, and so the form, changes). It submits with no
+ * payment and no method, so the server settles what the form's money covers.
  */
 export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   paymentMethod,
@@ -123,30 +116,20 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   formHeldCents = null,
 }) => {
   const { fields, update } = usePaymentDetailsFields(getInitialDetails, onPaymentDetailsChange);
-  const useFormMoneySelected = paymentMethod === 'secretary_paid' && fields.useFormMoney;
   // Offered on a confirmed read; once chosen it stays, whatever a later read says.
-  const offerFormMoney = formHeldCents !== null || useFormMoneySelected;
+  const offerFormMoney = formHeldCents !== null || paymentMethod === 'form_money';
   const showCheck = acceptedMethods?.check ?? true;
   const showCash = acceptedMethods?.cash ?? true;
 
   const isSelected = (choice: StaffChoice) => {
-    if (choice === 'use_form_money') return useFormMoneySelected;
     const received = CHOICE_RECEIVED[choice];
     if (received) return paymentMethod === 'secretary_paid' && fields.receivedMethod === received;
     return paymentMethod === CHOICE_METHOD[choice];
   };
 
   const handleSelect = (choice: StaffChoice) => {
-    // One patch, so the form-money flag and a received method change together.
-    const patch: Partial<PaymentDetailsFields> = {};
-    if (choice === 'use_form_money') {
-      Object.assign(patch, { useFormMoney: true, receivedMethod: undefined });
-    } else if (fields.useFormMoney) {
-      patch.useFormMoney = false;
-    }
     const received = CHOICE_RECEIVED[choice];
-    if (received && received !== fields.receivedMethod) patch.receivedMethod = received;
-    if (Object.keys(patch).length > 0) update(patch);
+    if (received && received !== fields.receivedMethod) update({ receivedMethod: received });
     onPaymentMethodChange(CHOICE_METHOD[choice]);
   };
 
@@ -222,7 +205,7 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
         {offerFormMoney && (
           <ChoiceGroup id="staff-payment-form-money" title="Money already on this form">
             {card(
-              'use_form_money',
+              'form_money',
               Wallet,
               'Use the money already on this form (take nothing now)',
               'Nothing is taken or recorded now. The money on this form pays what it can.'
@@ -231,13 +214,11 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
         )}
         <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
           <ChoiceGroup id="staff-payment-paid" title="Paid with the entry">
-            {paymentMethod === 'secretary_paid' &&
-              !fields.receivedMethod &&
-              !fields.useFormMoney && (
-                <p role="status" className="text-sm text-muted-foreground">
-                  Choose whether a check or cash came with this entry.
-                </p>
-              )}
+            {paymentMethod === 'secretary_paid' && !fields.receivedMethod && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Choose whether a check or cash came with this entry.
+              </p>
+            )}
             {card(
               'check_received',
               FileCheck,

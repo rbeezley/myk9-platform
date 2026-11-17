@@ -149,6 +149,10 @@ export async function submitOfflineLateEntry({
   if (paymentMethod === 'credit_card') {
     throw new Error('Offline late entries cannot use card checkout');
   }
+  // MYK9-2149: the form's money is an online desk choice (it needs the server's read).
+  if (paymentMethod === 'form_money') {
+    throw new Error('Offline late entries cannot use the money already on a form');
+  }
 
   // ONE rule, shared with the fee tier and restated by `submit_show_entries`
   // (MYK9-642). This used to be a hardcoded `true`: the dialog is normally used

@@ -21,7 +21,7 @@ export function paymentDetailsForMethod(
   if (!details) return {};
   switch (paymentMethod) {
     case 'secretary_paid': {
-      if (details.useFormMoney || !details.receivedMethod) return {};
+      if (!details.receivedMethod) return {};
       const picked: PaymentDetails = {};
       if (details.paymentReference !== undefined)
         picked.paymentReference = details.paymentReference;

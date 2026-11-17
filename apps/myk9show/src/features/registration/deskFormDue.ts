@@ -41,7 +41,7 @@ export interface DeskFormOutcome {
 /** The after-submit sentence for a form that held money. */
 export function deskFormOutcomeLabel(owedCents: number | null): string {
   if (owedCents === null) {
-    return 'We could not read what is still owed on this form. Open the entry form to check.';
+    return 'Could not check what is owed on this form. Open the entry form to check.';
   }
   if (owedCents > 0) {
     return `Still owed on this form: ${formatCartCurrency(owedCents)}. Record it on the entry form when you take it.`;

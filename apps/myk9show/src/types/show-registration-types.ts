@@ -27,7 +27,18 @@ export enum PaymentStatus {
 
 // Payment method options (exhibitor + secretary/admin options)
 export type PaymentMethod =
-  'credit_card' | 'check' | 'cash' | 'secretary_paid' | 'group_payment' | 'waived';
+  | 'credit_card'
+  | 'check'
+  | 'cash'
+  | 'secretary_paid'
+  | 'group_payment'
+  | 'waived'
+  /**
+   * MYK9-2149: wizard-side only. "Use the money already on this form (take nothing now)":
+   * no money changed hands, so it is never "received" or "paid" on screen, and submission
+   * sends no payment and no method (the server settles what the form's money covers).
+   */
+  | 'form_money';
 
 /** Supplemental payment metadata collected in the PaymentStep wizard. */
 export interface PaymentDetails {
@@ -50,12 +61,6 @@ export interface PaymentDetails {
    * server re-checks who is asking.
    */
   chargeJuniorFee?: boolean;
-  /**
-   * MYK9-2149: the secretary chose "Use the money already on this form (take
-   * nothing now)". Nothing changed hands: submission sends no payment and no
-   * method, and the server settles what the form's money covers.
-   */
-  useFormMoney?: boolean;
 }
 
 // Registration context for role-based workflows

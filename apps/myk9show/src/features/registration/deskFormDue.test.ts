@@ -49,6 +49,8 @@ describe('deskFormDue (MYK9-2149)', () => {
     );
     expect(deskFormOutcomeLabel(0)).toBe('Nothing is owed on this form now.');
     expect(deskFormOutcomeLabel(-1000)).toBe('Nothing is owed on this form now.');
-    expect(deskFormOutcomeLabel(null)).toMatch(/could not read what is still owed/);
+    expect(deskFormOutcomeLabel(null)).toBe(
+      'Could not check what is owed on this form. Open the entry form to check.'
+    );
   });
 });

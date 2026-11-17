@@ -98,16 +98,15 @@ describe('the money already on the form (MYK9-2149, inform only)', () => {
 
     await user.click(screen.getByRole('button', { name: USE_FORM_MONEY }));
 
-    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ useFormMoney: true, receivedMethod: undefined })
-    );
-    expect(onPaymentMethodChange).toHaveBeenLastCalledWith('secretary_paid');
+    // Its own method, never money received.
+    expect(onPaymentMethodChange).toHaveBeenLastCalledWith('form_money');
+    expect(onPaymentMethodChange).not.toHaveBeenCalledWith('secretary_paid');
   });
 
   it('a later read does not change, clear or hide what she chose', () => {
-    const { rerender } = render(step(4000, 'secretary_paid', { useFormMoney: true }));
+    const { rerender } = render(step(4000, 'form_money'));
 
-    rerender(step(null, 'secretary_paid', { useFormMoney: true }));
+    rerender(step(null, 'form_money'));
 
     expect(screen.queryByText(BANNER)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: USE_FORM_MONEY })).toHaveAttribute(
@@ -119,12 +118,12 @@ describe('the money already on the form (MYK9-2149, inform only)', () => {
   });
 
   it('cash received still works as always beside it, and drops the form-money choice', async () => {
-    const { user } = render(step(4000, 'secretary_paid', { useFormMoney: true }));
+    const { user } = render(step(4000, 'form_money'));
 
     await user.click(screen.getByRole('button', { name: /^Cash received/ }));
 
     expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ receivedMethod: 'cash', useFormMoney: false })
+      expect.objectContaining({ receivedMethod: 'cash' })
     );
     expect(onPaymentMethodChange).toHaveBeenLastCalledWith('secretary_paid');
   });

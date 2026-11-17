@@ -137,7 +137,9 @@ async function readDeskFormOutcome(
   ctx: SubmitPaymentStepContext,
   formId: string
 ): Promise<DeskFormOutcome | null> {
-  if (ctx.deskFormHeldBeforeSubmit !== true) return null;
+  // The form held money before submit, or the secretary used it: either way she is told the
+  // balance, whatever this read finds.
+  if (ctx.deskFormHeldBeforeSubmit !== true && ctx.paymentMethod !== 'form_money') return null;
   if (!ctx.ownerResolution.ok) return { formId, owedCents: null };
   try {
     const due = await fetchDeskFormDueCents(ctx.showId, ctx.ownerResolution.ownerId);

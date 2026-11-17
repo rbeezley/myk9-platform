@@ -149,7 +149,7 @@ export async function submitShowRegistration({
   // hands, so no payment and no method are sent (cash or check would be stamped on a
   // settled entry as "Paid by cash" or "Paid by check"): the server settles what the
   // form's money covers, and anything still owed is recorded on the entry form after.
-  const useFormMoney = paymentMethod === 'secretary_paid' && paymentDetails?.useFormMoney === true;
+  const useFormMoney = paymentMethod === 'form_money';
   // MYK9-677: money a secretary says was already received is recorded as cash
   // or check (entries, enrollment and ledger alike), so it must name one
   // before anything is written.

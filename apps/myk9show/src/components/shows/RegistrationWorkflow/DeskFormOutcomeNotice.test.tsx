@@ -37,7 +37,9 @@ describe('DeskFormOutcomeNotice (MYK9-2149)', () => {
       <DeskFormOutcomeNotice showId="show-1" outcome={{ formId: 'form-1', owedCents: null }} />
     );
 
-    expect(screen.getByRole('status')).toHaveTextContent(/could not read what is still owed/);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /Could not check what is owed on this form/
+    );
     expect(screen.getByRole('link', { name: 'Open the entry form' })).toBeInTheDocument();
   });
 });

@@ -10,8 +10,6 @@ export interface PaymentDetailsFields {
   paymentNotes: string;
   receivedMethod: PaymentDetails['receivedMethod'];
   chargeJuniorFee: boolean;
-  /** MYK9-2149: see `PaymentDetails.useFormMoney`. */
-  useFormMoney: boolean;
 }
 
 /**
@@ -39,14 +37,13 @@ export function usePaymentDetailsFields(
       paymentNotes: initial?.paymentNotes ?? '',
       receivedMethod: initial?.receivedMethod,
       chargeJuniorFee: initial?.chargeJuniorFee === true,
-      useFormMoney: initial?.useFormMoney === true,
     };
   });
 
   const update = (patch: Partial<PaymentDetailsFields>) => {
     setFields(previous => ({ ...previous, ...patch }));
     if (!onPaymentDetailsChange) return;
-    const { receivedMethod, chargeJuniorFee, useFormMoney } = fields;
+    const { receivedMethod, chargeJuniorFee } = fields;
     onPaymentDetailsChange({
       checkNumber: fields.checkNumber,
       paymentDate: fields.paymentDate,
@@ -55,7 +52,6 @@ export function usePaymentDetailsFields(
       paymentNotes: fields.paymentNotes,
       ...(receivedMethod ? { receivedMethod } : {}),
       ...(chargeJuniorFee ? { chargeJuniorFee } : {}),
-      ...(useFormMoney ? { useFormMoney } : {}),
       ...(patch as Partial<PaymentDetails>),
     });
   };

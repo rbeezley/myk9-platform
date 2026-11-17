@@ -69,7 +69,7 @@ const checkLeftovers: PaymentDetails = {
 
 describe('using the money already on the form (MYK9-2149)', () => {
   it('sends no payment and no method, and asks for no cash or check', async () => {
-    const params = makeParams('secretary_paid', { ...checkLeftovers, useFormMoney: true });
+    const params = makeParams('form_money', { ...checkLeftovers, receivedMethod: 'check' });
 
     await submitShowRegistration(params);
 

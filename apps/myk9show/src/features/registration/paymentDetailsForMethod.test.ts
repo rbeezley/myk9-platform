@@ -44,12 +44,6 @@ describe('paymentDetailsForMethod (MYK9-2149)', () => {
   });
 
   it('using the money already on the form writes nothing', () => {
-    expect(
-      paymentDetailsForMethod('secretary_paid', {
-        ...leftovers,
-        receivedMethod: undefined,
-        useFormMoney: true,
-      })
-    ).toEqual({});
+    expect(paymentDetailsForMethod('form_money', leftovers)).toEqual({});
   });
 });

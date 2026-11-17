@@ -13,6 +13,7 @@
  *
  * @module features/result-card/ownResultLine
  */
+import { resultStatusLabel } from '@/components/common/resultStatusLabel';
 import { deriveResultReleaseDisplay } from './resultReleaseDisplay';
 import { formatOrdinal } from './resultCardModel';
 
@@ -30,14 +31,14 @@ export interface OwnResultLine {
   isPreliminary: boolean;
 }
 
+// absent and withdrawn keep the badge abbreviations (ABS, WD): a scored WD result must never read
+// as the entry's own withdrawn lifecycle.
 const STATUS_WORDS: Record<string, string> = {
   qualified: 'Qualified',
   nq: 'Did not qualify',
   non_qualifying: 'Did not qualify',
   excused: 'Excused',
   disqualified: 'Disqualified',
-  absent: 'Absent',
-  withdrawn: 'Withdrawn',
 };
 
 /** 52.4 becomes "0:52.40"; 125.5 becomes "2:05.50". */
@@ -59,7 +60,7 @@ export function formatOwnResultLine(input: OwnResultLineInput): OwnResultLine | 
     resultStatus: status,
     finalPlacement: input.finalPlacement,
   });
-  const parts = [STATUS_WORDS[status] ?? status];
+  const parts = [STATUS_WORDS[status] ?? resultStatusLabel(status)];
   const seconds = input.searchTimeSeconds;
   if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0) {
     parts.push(formatResultTime(seconds));

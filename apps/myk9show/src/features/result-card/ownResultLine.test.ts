@@ -43,8 +43,8 @@ describe('formatOwnResultLine', () => {
       finalPlacement: 3,
       resultsReleasedAt: RELEASED,
     };
-    expect(formatOwnResultLine({ ...base, ranCount: null }).text).toBe('Qualified, 3rd');
-    expect(formatOwnResultLine({ ...base, ranCount: 2 }).text).toBe('Qualified, 3rd');
+    expect(formatOwnResultLine({ ...base, ranCount: null })?.text).toBe('Qualified, 3rd');
+    expect(formatOwnResultLine({ ...base, ranCount: 2 })?.text).toBe('Qualified, 3rd');
   });
 
   it('gives a non-qualifying result no placement', () => {
@@ -68,5 +68,19 @@ describe('formatOwnResultLine', () => {
     };
     expect(formatOwnResultLine({ ...base, resultStatus: 'pending' })).toBeNull();
     expect(formatOwnResultLine({ ...base, resultStatus: null })).toBeNull();
+  });
+});
+
+describe('formatOwnResultLine: absent and withdrawn', () => {
+  it('keeps the badge abbreviations so a scored WD never reads as a withdrawn entry', () => {
+    expect(
+      formatOwnResultLine({
+        resultStatus: 'withdrawn',
+        searchTimeSeconds: null,
+        finalPlacement: null,
+        resultsReleasedAt: RELEASED,
+        ranCount: 9,
+      })?.text
+    ).toBe('WD');
   });
 });

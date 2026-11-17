@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +23,9 @@ import { toLocalDate } from '@/utils/date-format';
 import { isPublicShowStatus } from '@/features/payments/onlineEntryGate';
 import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import type { ShowEditFormData } from './ShowEditPanel.types';
+
+/** Plenty for parking, check-in and weather notes; keeps the email readable. */
+const NOTE_TO_EXHIBITORS_MAX_LENGTH = 1000;
 
 interface ShowEditBasicInfoTabProps {
   data: ShowEditFormData;
@@ -246,6 +250,22 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               onChange={handleInputChange('location')}
               onBlur={() => form?.touchField('location')}
               placeholder="Enter show location"
+            />
+          </FormField>
+
+          <FormField
+            label="Note to exhibitors"
+            fieldId="confirmationMessage"
+            optional
+            hint="Printed in each exhibitor's confirmation email and in the reminder two days before the show."
+          >
+            <Textarea
+              id="confirmationMessage"
+              rows={3}
+              maxLength={NOTE_TO_EXHIBITORS_MAX_LENGTH}
+              value={data.confirmationMessage ?? ''}
+              onChange={handleInputChange('confirmationMessage')}
+              aria-describedby="confirmationMessage-hint"
             />
           </FormField>
 

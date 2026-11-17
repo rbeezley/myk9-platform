@@ -37,6 +37,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     acceptCashPayments: show.acceptCashPayments ?? false,
     clubName: show.clubName || '',
     logoUrl: show.logoUrl || '',
+    confirmationMessage: show.confirmationMessage ?? '',
     trials: show.trials || [],
     feesAsOpened: {
       preEntryFee: show.preEntryFee || '',
@@ -77,6 +78,10 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   acceptCheckPayments: formData.acceptCheckPayments,
   acceptCashPayments: formData.acceptCashPayments,
   style: formData.style,
+  // An emptied box saves '', which the mapper and the replicated row turn into null.
+  ...(formData.confirmationMessage !== undefined && {
+    confirmationMessage: formData.confirmationMessage.trim(),
+  }),
   // Conditionally include optional string fields only when non-empty
   // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
   ...(formData.location && { location: formData.location }),

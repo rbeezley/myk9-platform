@@ -177,3 +177,22 @@ describe('ShowEditPanel helpers', () => {
     expect(parsed.error?.issues[0]?.message).toMatch(/shared show content/i);
   });
 });
+
+describe('note to exhibitors (MYK9-2114)', () => {
+  it('loads the saved note into the form', () => {
+    expect(
+      showToFormData({ confirmationMessage: 'Park in the north lot.' }).confirmationMessage
+    ).toBe('Park in the north lot.');
+    expect(showToFormData({}).confirmationMessage).toBe('');
+  });
+
+  it('saves the note, and an empty box saves an empty string the mapper turns into null', () => {
+    expect(
+      formDataToShow({ ...baseFormData, confirmationMessage: 'Park in the north lot.' })
+        .confirmationMessage
+    ).toBe('Park in the north lot.');
+    expect(
+      formDataToShow({ ...baseFormData, confirmationMessage: '   ' }).confirmationMessage
+    ).toBe('');
+  });
+});

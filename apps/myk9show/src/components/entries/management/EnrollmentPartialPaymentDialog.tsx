@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { balanceAfterPayment, type PartialDialog } from './enrollmentPayment';
+import { AMOUNT_NOT_AVAILABLE, balanceAfterPayment, type PartialDialog } from './enrollmentPayment';
 import { ReceivedOnField } from './EnrollmentFullPaymentDialog';
 
 interface EnrollmentPartialPaymentDialogProps {
@@ -16,6 +16,8 @@ interface EnrollmentPartialPaymentDialogProps {
   onChange: (next: PartialDialog) => void;
   totalDollars: number;
   paidDollars: number;
+  /** MYK9-1968: the payment record is not loaded, so no total, paid or balance is quoted. */
+  amountUnknown?: boolean | undefined;
   todayInShowZone: string;
   onClose: () => void;
   onConfirm: () => void;
@@ -34,6 +36,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
   onChange,
   totalDollars,
   paidDollars,
+  amountUnknown = false,
   todayInShowZone,
   onClose,
   onConfirm,
@@ -45,8 +48,11 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
       </DialogHeader>
       <div className="space-y-3 py-2">
         <div className="text-sm text-muted-foreground">
-          Total due: <span className="font-medium text-foreground">${totalDollars.toFixed(2)}</span>
-          {paidDollars > 0 && (
+          Total due:{' '}
+          <span className="font-medium text-foreground">
+            {amountUnknown ? AMOUNT_NOT_AVAILABLE : `$${totalDollars.toFixed(2)}`}
+          </span>
+          {!amountUnknown && paidDollars > 0 && (
             <>
               {' '}
               · Previously paid:{' '}
@@ -105,6 +111,13 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
             return (
               <p className="text-xs text-muted-foreground">
                 Enter a payment amount greater than $0 to record this payment.
+              </p>
+            );
+          }
+          if (amountUnknown) {
+            return (
+              <p className="text-xs text-muted-foreground">
+                The payment record has not loaded, so the balance after this payment is not known.
               </p>
             );
           }

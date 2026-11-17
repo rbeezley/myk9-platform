@@ -187,6 +187,33 @@ type FormMoneyGroup = Pick<
   | 'entries'
 >;
 
+/** What the entry form and the Check-in desk say when a form's money cannot be traced. */
+export const AMOUNT_NOT_AVAILABLE = 'Amount not available';
+
+/**
+ * The form has an enrollment row, but the row did not load (MYK9-1968). The enrollments read
+ * is online-only and comes back empty offline or on an error, so the group fell back to summing
+ * entry fees, which ignores desk money and reads a part-paid form as fully due.
+ */
+export function enrollmentRowMissing(
+  group: Pick<EnrollmentGroup, 'enrollmentId' | 'totalAmountUnit'>
+): boolean {
+  return group.enrollmentId != null && group.totalAmountUnit === 'dollars';
+}
+
+/**
+ * True when no money figure may be shown for the form (MYK9-1968, the Check-in desk's rule from
+ * MYK9-1937): its enrollment row did not load, or a move-up's money root is not in the read.
+ * Every surface that quotes the form's total, paid or due says "Amount not available" instead.
+ */
+export function formMoneyUnknown(
+  group: Pick<EnrollmentGroup, 'enrollmentId' | 'totalAmountUnit' | 'entries'>
+): boolean {
+  return (
+    enrollmentRowMissing(group) || group.entries.some(entry => entry.moneyRootUnresolved === true)
+  );
+}
+
 /** What the form owes, in dollars (the server's figure when it has an enrollment row). */
 export function formTotalDollars(group: Pick<EnrollmentGroup, 'totalAmount' | 'totalAmountUnit'>) {
   return group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;

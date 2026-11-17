@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  AMOUNT_NOT_AVAILABLE,
   EMPTY_FULL_PAYMENT_DIALOG,
   EMPTY_PARTIAL_DIALOG,
   EMPTY_REFUND_DIALOG,
@@ -74,6 +75,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     refundableDollars,
     remainingDollars,
     fullPaymentDollars,
+    amountUnknown,
     today,
     fullDialog,
     setFullDialog,
@@ -97,7 +99,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   // group can read "Paid by check" while only part of the total has arrived, and
   // gating this on the status hid the shortfall exactly when it mattered
   // (MYK9-495 round 2).
-  const isPartiallyPaid = paidDollars > 0 && paidDollars < totalDollars;
+  const isPartiallyPaid = !amountUnknown && paidDollars > 0 && paidDollars < totalDollars;
 
   const openRefundDialog = (isPartial: boolean) => {
     setRefundDialog({
@@ -300,14 +302,20 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 </DropdownMenu>
               )}
 
-              <span className="text-sm font-medium">${totalDollars.toFixed(2)}</span>
+              {/* MYK9-1968: no figure while the payment record is not loaded. */}
+              {amountUnknown ? (
+                <span className="text-sm font-medium text-warning">{AMOUNT_NOT_AVAILABLE}</span>
+              ) : (
+                <span className="text-sm font-medium">${totalDollars.toFixed(2)}</span>
+              )}
 
               {isPartiallyPaid && (
                 <span className="text-xs text-muted-foreground">
                   (${paidDollars.toFixed(2)} paid · ${remainingDollars.toFixed(2)} due)
                 </span>
               )}
-              {paidDollars > 0 &&
+              {!amountUnknown &&
+                paidDollars > 0 &&
                 !isPartiallyPaid &&
                 group.paymentStatus === PaymentStatus.PENDING && (
                   <span className="text-xs text-warning font-medium">
@@ -344,6 +352,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         state={fullDialog}
         onChange={setFullDialog}
         balanceDollars={fullPaymentDollars}
+        amountUnknown={amountUnknown}
         todayInShowZone={today}
         onClose={() => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)}
         onConfirm={confirmFullPayment}
@@ -354,6 +363,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         onChange={setPartialDialog}
         totalDollars={totalDollars}
         paidDollars={paidDollars}
+        amountUnknown={amountUnknown}
         todayInShowZone={today}
         onClose={() => setPartialDialog(EMPTY_PARTIAL_DIALOG)}
         onConfirm={confirmPartialPayment}
@@ -386,7 +396,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         onSend={async () => {
           if (!onSendDecisionEmail || !enrollmentId) return;
           email.setIsSending(true);
-          const amountDue = Math.max(0, remainingDollars);
+          // MYK9-1968: never email a due built from entry fees.
+          const amountDue = amountUnknown ? 0 : Math.max(0, remainingDollars);
           await onSendDecisionEmail(
             enrollmentId,
             email.message.trim() || undefined,

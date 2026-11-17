@@ -1,7 +1,12 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { buildMoneyAttribution } from '@/features/financial/moneyRoot';
 import { groupEntriesByEnrollment } from '@/utils/enrollmentGrouping';
-import { paidInFullDollars } from '../enrollmentPayment';
+import {
+  AMOUNT_NOT_AVAILABLE,
+  enrollmentRowMissing,
+  formMoneyUnknown,
+  paidInFullDollars,
+} from '../enrollmentPayment';
 import { rosterPersonKey } from './peopleRoster';
 
 /** One entry form that still owes, and the desk cards that hold its dogs (MYK9-1937). */
@@ -95,12 +100,9 @@ export function deskOwedForms(entries: readonly EntryManagementEntry[]): DeskOwe
   };
 
   for (const group of groupEntriesByEnrollment([...entries])) {
-    const enrollmentMissing = group.enrollmentId != null && group.totalAmountUnit === 'dollars';
+    const enrollmentMissing = enrollmentRowMissing(group);
     const unknown =
-      enrollmentMissing ||
-      group.entries.some(
-        entry => entry.moneyRootUnresolved === true || unresolvedIds.has(entry.id)
-      );
+      formMoneyUnknown(group) || group.entries.some(entry => unresolvedIds.has(entry.id));
     const due = cents(paidInFullDollars(group));
     if (due <= 0 && !unknown) continue;
     add(group.entries, group.groupKey, due, unknown, enrollmentMissing);
@@ -120,8 +122,8 @@ export function deskOwedForms(entries: readonly EntryManagementEntry[]): DeskOwe
 /** "$25.00": always two decimals, as the entry form's "$X.XX due" reads. */
 const dollars = (amount: number) => `$${amount.toFixed(2)}`;
 
-/** What the card says when part of the money could not be traced. */
-export const AMOUNT_NOT_AVAILABLE = 'Amount not available';
+/** What the card says when part of the money could not be traced (the entry form's wording). */
+export { AMOUNT_NOT_AVAILABLE };
 
 /**
  * The owed lines for one card: one per owing form holding a dog on the card, each form once.

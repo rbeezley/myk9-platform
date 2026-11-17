@@ -11,7 +11,13 @@
  * My Shows, which makes no show-day claim and itself links to Ringside once the
  * day is known.
  */
-import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+// The same day rule as My Shows' `trialDayState` (dayCheckIn.ts), read from its dependency-free
+// module: this helper runs in the alert monitor, which ships in the entry chunk.
+import {
+  calendarDayInZone,
+  calendarDayOf,
+  hasUsableDate,
+} from '@/pages/MyEntriesPage/modules/showPastInZones';
 import { parseLocalDateString } from '@/utils/dateLocal';
 
 /** My Shows, the exhibitor's home before and after a trial day. */
@@ -39,5 +45,6 @@ export function exhibitorShowDayHref({
 }: ExhibitorShowDayLinkInput): string {
   if (!timezone || !trialDate) return MY_SHOWS_PATH;
   const day = parseLocalDateString(trialDate.split('T')[0]);
-  return isTrialDayToday(day, timezone, now) ? ringsideShowPath(showId) : MY_SHOWS_PATH;
+  const isToday = hasUsableDate(day) && calendarDayOf(day) === calendarDayInZone(now, timezone);
+  return isToday ? ringsideShowPath(showId) : MY_SHOWS_PATH;
 }

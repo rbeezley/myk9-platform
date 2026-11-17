@@ -93,15 +93,34 @@ export async function getClassChangeRequestDetails(
   );
 }
 
+/** The class asked for: its name, and the trial it is in (MYK9-2129). */
+export interface RequestedClassFacts {
+  name: string;
+  trialId: string | null;
+}
+
+/**
+ * Name and trial of each class asked for, read on their own so the request line
+ * can name the requested trial even when the show's capacity read fails.
+ */
+export async function getRequestedClassesByIds(
+  classIds: readonly string[]
+): Promise<Record<string, RequestedClassFacts>> {
+  if (classIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('classes')
+    .select('id, name, trial_id')
+    .in('id', [...classIds]);
+  if (error) throw error;
+  return Object.fromEntries(
+    (data ?? []).map(row => [row.id, { name: row.name, trialId: row.trial_id ?? null }])
+  );
+}
+
 /** A class's display name by id, for the line that names the class asked for. */
 export async function getClassNamesByIds(
   classIds: readonly string[]
 ): Promise<Record<string, string>> {
-  if (classIds.length === 0) return {};
-  const { data, error } = await supabase
-    .from('classes')
-    .select('id, name')
-    .in('id', [...classIds]);
-  if (error) throw error;
-  return Object.fromEntries((data ?? []).map(row => [row.id, row.name]));
+  const classes = await getRequestedClassesByIds(classIds);
+  return Object.fromEntries(Object.entries(classes).map(([id, facts]) => [id, facts.name]));
 }

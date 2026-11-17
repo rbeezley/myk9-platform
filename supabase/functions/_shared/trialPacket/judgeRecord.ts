@@ -34,9 +34,8 @@ export function isValidJudgeRecordPayload(body: JudgeRecordPayload): boolean {
   if (body.action === 'send') {
     if (typeof body.pdfBase64 !== 'string' || body.pdfBase64.length === 0) return false;
     if (body.sendAgain !== undefined && typeof body.sendAgain !== 'boolean') return false;
-    if (body.sendAgain && (typeof body.attemptId !== 'string' || !isUuidShaped(body.attemptId))) {
-      return false;
-    }
+    if (body.sendAgain && typeof body.attemptId !== 'string') return false;
+    if (body.attemptId !== undefined && !isUuidShaped(String(body.attemptId))) return false;
   }
   return true;
 }

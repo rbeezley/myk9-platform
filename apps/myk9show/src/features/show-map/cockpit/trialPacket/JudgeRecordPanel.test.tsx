@@ -281,4 +281,20 @@ describe("judge's record panel", () => {
     const print = await screen.findByRole('button', { name: "Print Pat's record" });
     await waitFor(() => expect(print).toBeEnabled(), BUILT);
   });
+
+  it('names the address the last send went to, and says when the judge email has changed', async () => {
+    mocks.previewJudgeRecipient.mockResolvedValue({
+      judgeName: 'Pat',
+      email: 'pat@new.example.com',
+      reason: null,
+      lastSentAt: '2026-12-07T19:05:00.000Z',
+      lastSentTo: 'pat@old.example.com',
+    });
+    renderPanel([row('a', 'Pat')]);
+
+    expect(await screen.findByText('pat@old.example.com')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      "The judge's email is now pat@new.example.com."
+    );
+  });
 });

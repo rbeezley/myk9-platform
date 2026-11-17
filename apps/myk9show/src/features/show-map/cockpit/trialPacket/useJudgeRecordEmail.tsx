@@ -60,6 +60,8 @@ export function useJudgeRecordEmail(input: {
 
   const email = sent?.email ?? recipient.data?.email ?? null;
   const lastSentAt = sent?.sentAt ?? recipient.data?.lastSentAt ?? null;
+  // Where the last send went: the address on file now, unless the preview says it went elsewhere.
+  const lastSentTo = sent?.email ?? recipient.data?.lastSentTo ?? email;
 
   const send = async () => {
     if (!bytes || !judgeId || offline || inFlight.current) return;
@@ -97,6 +99,7 @@ export function useJudgeRecordEmail(input: {
   return {
     email,
     lastSentAt,
+    lastSentTo,
     sending,
     send,
     offline,
@@ -115,13 +118,14 @@ export function JudgeRecordEmailStatus({
   judgeName: string;
   timeZone: string;
 }) {
-  const { email, lastSentAt } = state;
+  const { email, lastSentAt, lastSentTo } = state;
   return (
     <div className="text-sm" role="status">
       {email && lastSentAt ? (
         <span>
-          Emailed{whenSent(lastSentAt, timeZone)} to <strong>{email}</strong>. Send it again only if
-          the judge lost it.
+          Emailed{whenSent(lastSentAt, timeZone)} to <strong>{lastSentTo ?? email}</strong>.
+          {lastSentTo && lastSentTo !== email && <> The judge&apos;s email is now {email}.</>} Send
+          it again only if the judge lost it.
         </span>
       ) : email ? (
         <span>

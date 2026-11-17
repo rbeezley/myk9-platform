@@ -9,6 +9,8 @@ export interface JudgeRecipientPreview {
   reason: 'not_assigned' | 'no_email' | null;
   /** When this judge's record for the day last went out successfully, or null if it never did. */
   lastSentAt: string | null;
+  /** The address that send went to, which may differ from `email` now. */
+  lastSentTo: string | null;
 }
 
 export interface JudgeRecordSent {
@@ -87,6 +89,7 @@ export async function previewJudgeRecipient(input: {
     email: result.email,
     reason: result.reason,
     lastSentAt: result.lastSentAt ?? null,
+    lastSentTo: result.lastSentTo ?? null,
   };
 }
 
@@ -105,7 +108,9 @@ export async function emailJudgeRecord(input: {
       judgeId: input.judgeId,
       day: input.day,
       pdfBase64: toBase64(input.bytes),
-      ...(input.sendAgain ? { sendAgain: true, attemptId: crypto.randomUUID() } : {}),
+      // One id per press: a retry after a failed send must not reuse the first send's Resend key.
+      attemptId: crypto.randomUUID(),
+      ...(input.sendAgain ? { sendAgain: true } : {}),
     },
   });
   if (error || !data) throw await errorFrom(error);

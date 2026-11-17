@@ -41,6 +41,8 @@ export interface JudgeRecordPreview {
   reason: 'not_assigned' | 'no_email' | null;
   /** When this show, judge and day was last emailed successfully, or null if it never was. */
   lastSentAt: string | null;
+  /** The address that send went to (it may differ from `email` if the judge's address changed). */
+  lastSentTo: string | null;
 }
 
 export interface JudgeRecordSendResult {
@@ -120,7 +122,9 @@ export async function previewJudgeRecord(
 ): Promise<JudgeRecordPreview> {
   const recipient = await resolveRecipientForRecord(supabase, show, payload.judgeId, payload.day);
   const relatedId = await judgeRecordRelatedId(show.id, payload.judgeId, payload.day);
-  const lastSentAt = await lastSuccessfulSend(supabase, show.id, relatedId);
+  const { last } = await loadSendHistory(supabase, show.id, relatedId);
+  const lastSentAt = last?.at ?? null;
+  const lastSentTo = last?.to ?? null;
   return recipient.kind === 'send'
     ? {
         action: 'preview',
@@ -128,6 +132,7 @@ export async function previewJudgeRecord(
         email: recipient.email,
         reason: null,
         lastSentAt,
+        lastSentTo,
       }
     : {
         action: 'preview',
@@ -135,6 +140,7 @@ export async function previewJudgeRecord(
         email: null,
         reason: recipient.reason,
         lastSentAt,
+        lastSentTo,
       };
 }
 
@@ -142,27 +148,41 @@ async function judgeRecordRelatedId(showId: string, judgeId: string, day: string
   return uuidFromKey(judgeRecordIdempotencyKey({ showId, judgeId, day }));
 }
 
+export interface SendHistory {
+  /** The newest send that was not a failure or a bounce, with the address it went to. */
+  last: { at: string; to: string | null } | null;
+  /** Any email_log row exists for this show, judge and day, whatever its status. */
+  anyRow: boolean;
+}
+
 /**
- * The one "already sent" check: the newest email_log row for this show, judge and day whose status
- * is not a failure. No count and no cap; a failed or bounced send leaves the day unsent.
+ * The one "already sent" check: every email_log row for this show, judge and day, newest first.
+ * The first whose status is not a failure is the last send. No count and no cap; a failed or
+ * bounced send leaves the day unsent, but it still counts as `anyRow`.
  */
-async function lastSuccessfulSend(
+async function loadSendHistory(
   supabase: SupabaseClient,
   showId: string,
   relatedId: string
-): Promise<string | null> {
+): Promise<SendHistory> {
   const { data, error } = await supabase
     .from('email_log')
-    .select('created_at')
+    .select('created_at, status, recipient_email')
     .eq('show_id', showId)
     .eq('related_id', relatedId)
     .eq('email_type', EMAIL_TYPE)
-    .not('status', 'in', `(${NOT_SENT_STATUSES.join(',')})`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
   if (error) throw new HttpError(500, 'Failed to check whether the record was already sent.');
-  return (data as { created_at: string | null } | null)?.created_at ?? null;
+  const rows = (data ?? []) as {
+    created_at: string | null;
+    status: string | null;
+    recipient_email: string | null;
+  }[];
+  const success = rows.find(row => row.created_at && !NOT_SENT_STATUSES.includes(row.status ?? ''));
+  return {
+    last: success ? { at: success.created_at!, to: success.recipient_email ?? null } : null,
+    anyRow: rows.length > 0,
+  };
 }
 
 export async function sendJudgeRecord(
@@ -207,9 +227,10 @@ export async function sendJudgeRecord(
   const lifetimeSeconds = resolveSignedLinkLifetimeSeconds(show.end_date, now());
   const expiresAt = new Date(now().getTime() + lifetimeSeconds * 1000).toISOString();
 
+  const history = await loadSendHistory(supabase, show.id, relatedId);
   // "Send again" is the same send with this check skipped, on a Resend key of its own.
   if (!payload.sendAgain) {
-    const sentAt = await lastSuccessfulSend(supabase, show.id, relatedId);
+    const sentAt = history.last?.at ?? null;
     if (sentAt) {
       return {
         action: 'send',
@@ -246,7 +267,13 @@ export async function sendJudgeRecord(
     throw new HttpError(500, 'Failed to create the private link.');
   }
 
-  const idempotencyKey = payload.sendAgain ? `${baseKey}-${payload.attemptId}` : baseKey;
+  // The fixed key only guards a first press that is submitted twice. Once any row exists for the
+  // day (a failed or bounced one, or a deliberate send again) the body has a new signed link, which
+  // Resend would reject under a reused key, so that send takes a key of its own.
+  const idempotencyKey =
+    payload.sendAgain || history.anyRow
+      ? `${baseKey}-${payload.attemptId ?? crypto.randomUUID()}`
+      : baseKey;
   const subject = buildJudgeRecordSubject(show.name, payload.day);
   const html = buildJudgeRecordEmailHtml({
     showName: show.name,

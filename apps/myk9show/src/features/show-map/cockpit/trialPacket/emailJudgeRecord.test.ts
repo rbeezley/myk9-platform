@@ -23,6 +23,7 @@ describe('emailJudgeRecord', () => {
         email: 'pat@example.com',
         reason: null,
         lastSentAt: '2026-12-07T19:05:00.000Z',
+        lastSentTo: 'pat@old.example.com',
       },
       error: null,
     });
@@ -32,6 +33,7 @@ describe('emailJudgeRecord', () => {
       email: 'pat@example.com',
       reason: null,
       lastSentAt: '2026-12-07T19:05:00.000Z',
+      lastSentTo: 'pat@old.example.com',
     });
     expect(invoke).toHaveBeenCalledWith('send-judge-record', {
       body: { action: 'preview', ...base },
@@ -53,7 +55,12 @@ describe('emailJudgeRecord', () => {
     const result = await emailJudgeRecord({ ...base, bytes: new Uint8Array([37, 80, 68, 70, 45]) });
 
     const body = invoke.mock.calls[0]![1].body as Record<string, unknown>;
-    expect(body).toEqual({ action: 'send', ...base, pdfBase64: btoa('%PDF-') });
+    expect(body).toEqual({
+      action: 'send',
+      ...base,
+      pdfBase64: btoa('%PDF-'),
+      attemptId: expect.any(String),
+    });
     for (const key of ['to', 'cc', 'recipients', 'recipientEmails', 'replyTo', 'email']) {
       expect(body).not.toHaveProperty(key);
     }

@@ -194,6 +194,7 @@ describe('previewJudgeRecord', () => {
       email: 'pat@example.com',
       reason: null,
       lastSentAt: null,
+      lastSentTo: null,
     });
   });
 
@@ -212,6 +213,25 @@ describe('previewJudgeRecord', () => {
         day: DAY,
       })
     ).toMatchObject({ lastSentAt: '2026-12-07T18:00:00Z' });
+  });
+
+  it('returns the address the last send went to, apart from the address on file now', async () => {
+    const { supabase } = makeStub({
+      emailLog: [
+        await logRow('delivered', '2026-12-07T18:00:00Z', {
+          recipient_email: 'pat@old.example.com',
+        }),
+        await logRow('bounced', '2026-12-07T19:30:00Z', { recipient_email: 'pat@example.com' }),
+      ],
+    });
+    expect(
+      await previewJudgeRecord(supabase, SHOW, {
+        action: 'preview',
+        showId: SHOW.id,
+        judgeId: JUDGE,
+        day: DAY,
+      })
+    ).toMatchObject({ email: 'pat@example.com', lastSentTo: 'pat@old.example.com' });
   });
 
   it('offers a download when the judge has no email', async () => {
@@ -410,6 +430,37 @@ describe('sendJudgeRecord', () => {
     });
     const result = await sendJudgeRecord(supabase, SHOW, sendPayload(), deps(vi.fn()));
     expect(result).toMatchObject({ alreadySent: true, sentAt: '2026-12-07T19:00:00Z' });
+  });
+
+  it('uses the fixed key for the first send of the day, so a double submit is one email', async () => {
+    const sendEmail = vi.fn().mockResolvedValue('msg-1');
+    const { supabase } = makeStub();
+    await sendJudgeRecord(
+      supabase,
+      SHOW,
+      sendPayload({ attemptId: 'd0000000-0000-4000-8000-000000000004' }),
+      deps(sendEmail)
+    );
+    expect((sendEmail.mock.calls[0]![0] as { idempotencyKey: string }).idempotencyKey).toBe(
+      `judge-record-${SHOW.id}-${JUDGE}-${DAY}`
+    );
+  });
+
+  it('retries after a bounce under a fresh key, because the new link changes the body', async () => {
+    const sendEmail = vi.fn().mockResolvedValue('msg-2');
+    const attemptId = 'd0000000-0000-4000-8000-000000000006';
+    const { supabase } = makeStub({ emailLog: [await logRow('bounced', '2026-12-07T19:00:00Z')] });
+    const result = await sendJudgeRecord(
+      supabase,
+      SHOW,
+      sendPayload({ attemptId }),
+      deps(sendEmail)
+    );
+    expect(result.alreadySent).toBe(false);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect((sendEmail.mock.calls[0]![0] as { idempotencyKey: string }).idempotencyKey).toBe(
+      `judge-record-${SHOW.id}-${JUDGE}-${DAY}-${attemptId}`
+    );
   });
 
   it('sends again on purpose, as often as asked, each under a key of its own', async () => {

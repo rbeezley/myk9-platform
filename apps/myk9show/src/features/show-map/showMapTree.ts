@@ -13,7 +13,6 @@ import {
 import { classifyJudgeDays } from './judgeDayStatus';
 import { deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { getEntryAttention } from './attention';
-import { getShowDeskClassHref } from './cockpit/cockpitRoutes';
 import {
   getShowMapClassScoringHref,
   getShowMapShowHref,
@@ -351,8 +350,6 @@ export function buildShowMapTree({
         wrapUpStatus: classWrapUpStatusesById.get(cls.id),
         progress: buildClassProgress(cls, classEntries),
         attentionCount: attentionCountForClass,
-        // A class is run on Show Desk, so a staff "Open Class" focuses it there (MYK9-2119).
-        href: getShowDeskClassHref({ showId: show.id, classId: cls.id, day: trial.trialDate }),
         scoreHref: getShowMapClassScoringHref(cls.id),
         trialDate: trial.trialDate || undefined,
         timezone: getTrialTimezone(trial),

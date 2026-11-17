@@ -14,7 +14,6 @@ import {
   ClipboardList,
   DoorOpen,
   FileText,
-  FolderOpen,
   MessageSquare,
   Pencil,
   PlayCircle,
@@ -49,7 +48,6 @@ export const showMapActionIds = [
   'review-entry',
   'edit-score',
   'score-class',
-  'open-class',
   'print-check-in-sheet',
   'mark-class-started',
   'mark-class-complete',
@@ -403,17 +401,6 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         ...(trialId ? { trialId } : {}),
       });
     }
-    if (node.href) {
-      actions.push({
-        id: 'open-class',
-        nodeId: node.id,
-        label: 'Open Class',
-        why: 'View class details',
-        priority: 30,
-        href: node.href,
-        icon: FolderOpen,
-      });
-    }
     actions.push(
       withHref(
         {
@@ -644,18 +631,4 @@ export function getAttentionCountsByNodeId(
     }
   }
   return counts;
-}
-
-export function getPrimaryActionForNode(
-  node: ShowMapNode | undefined,
-  state: ShowMapActionState
-): ShowMapAction | undefined {
-  if (!node) return undefined;
-  // INTENT: B2b — the highest-priority action wins regardless of whether it
-  // navigates or fires a mutation. The previous href-only filter meant
-  // `mark-class-started` (mutation, no href) could never be the primary
-  // button on a neutral class, so the secretary saw "Print Check-In Sheet"
-  // when the next operational step was actually to start the class. Pattern
-  // 3: next step always visible.
-  return getDirectActionsForNode(node, state)[0];
 }

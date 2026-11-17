@@ -6,7 +6,6 @@ import {
   getAttentionCountsByNodeId,
   getAttentionNodeIds,
   getDirectActionsForNode,
-  getPrimaryActionForNode,
   getRankedActions,
   showMapBadgeTargets,
 } from '../showMapActions';
@@ -413,35 +412,6 @@ describe('showMapActions', () => {
     expect(getAttentionActions('root', { tree })).toEqual([]);
   });
 
-  it('uses the lifecycle-appropriate primary action for each class state (Pattern 3)', () => {
-    const tree = buildShowMapTree({
-      show,
-      trials: [trial],
-      classes,
-      entries: [
-        {
-          id: 'entry-active',
-          class_id: 'class-active',
-          dog: { call_name: 'Bella' },
-          entry_status: 'accepted',
-        },
-      ],
-    });
-
-    // Active class → Score Class (the next operational step).
-    expect(getPrimaryActionForNode(tree.nodesById['class:class-active'], { tree })).toMatchObject({
-      id: 'score-class',
-      label: 'Score Class',
-    });
-    // Neutral / not-started class → Mark Class Started (the next operational
-    // step). Pre-B2b this incorrectly returned Print Check-In Sheet because
-    // the primary picker filtered out mutation actions.
-    expect(getPrimaryActionForNode(tree.nodesById['class:class-future'], { tree })).toMatchObject({
-      id: 'mark-class-started',
-      label: 'Mark Class Started',
-    });
-  });
-
   it('keeps Score Class in the row menu for not-started classes', () => {
     const tree = buildShowMapTree({
       show,
@@ -470,10 +440,6 @@ describe('showMapActions', () => {
       classId: 'class-future',
       trialId: 'trial-1',
       href: '/scoring/classes/class-future/entries',
-    });
-    expect(getPrimaryActionForNode(notStartedClass, { tree })).toMatchObject({
-      id: 'mark-class-started',
-      label: 'Mark Class Started',
     });
   });
 
@@ -701,7 +667,7 @@ describe('showMapActions', () => {
     });
   });
 
-  it('uses verified destinations for class open, score, and print actions', () => {
+  it('uses verified destinations for class score and print actions', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -718,10 +684,8 @@ describe('showMapActions', () => {
 
     const actions = getRankedActions(tree.nodesById['class:class-active'], { tree });
 
-    expect(findAction(actions, 'open-class')).toMatchObject({
-      // MYK9-2119: a class is run on Show Desk, on its trial day.
-      href: '/shows/show-1?day=2026-05-11&focus=class-active',
-    });
+    // MYK9-2133: no screen offered "Open Class", so the action list no longer builds it.
+    expect(actions.map(action => action.label)).not.toContain('Open Class');
     expect(findAction(actions, 'score-class')).toMatchObject({
       href: '/scoring/classes/class-active/entries',
       classId: 'class-active',
@@ -1704,56 +1668,6 @@ describe('showMapActions', () => {
         a => a.id
       );
       expect(ids).not.toContain('move-up-entry');
-    });
-  });
-
-  describe('class-row primary action lifecycle (B2b Pattern 3)', () => {
-    it("returns 'mark-class-started' for a not-started class", () => {
-      const tree = buildShowMapTree({
-        show,
-        trials: [trial],
-        classes: [{ id: 'c', trialId: 'trial-1', name: 'Novice', status: 'Not Started' }],
-        entries: [],
-      });
-
-      expect(getPrimaryActionForNode(tree.nodesById['class:c'], { tree })).toMatchObject({
-        id: 'mark-class-started',
-      });
-    });
-
-    it("returns 'score-class' for an active class", () => {
-      const tree = buildShowMapTree({
-        show,
-        trials: [trial],
-        classes: [{ id: 'c', trialId: 'trial-1', name: 'Novice', status: 'In Progress' }],
-        entries: [],
-      });
-
-      expect(getPrimaryActionForNode(tree.nodesById['class:c'], { tree })).toMatchObject({
-        id: 'score-class',
-      });
-    });
-
-    it("returns 'open-class' for a complete + submitted-to-registry class (no wrap-up competing)", () => {
-      // A complete class still in pre-submit limbo emits review-results
-      // (priority 60) which beats open-class — that's correct behavior, the
-      // next step really IS review. Pattern 3's "Open Class" applies once
-      // the trial has been submitted to the registry, after which no
-      // wrap-up action competes.
-      const trialSubmitted = {
-        ...trial,
-        resultSubmittedAt: '2026-05-20T12:00:00Z',
-      } as SyncableTrial;
-      const tree = buildShowMapTree({
-        show,
-        trials: [trialSubmitted],
-        classes: [{ id: 'c', trialId: 'trial-1', name: 'Novice', status: 'Complete' }],
-        entries: [{ id: 'e1', class_id: 'c', is_scored: true }],
-      });
-
-      expect(getPrimaryActionForNode(tree.nodesById['class:c'], { tree })).toMatchObject({
-        id: 'open-class',
-      });
     });
   });
 });

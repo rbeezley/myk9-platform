@@ -171,6 +171,7 @@ const launchCriticalSqlTests = [
   'myk9_1460_timezone_names_snapshot_test.sql',
   'myk9_1388_club_delete_deactivates_club_roles_test.sql',
   'myk9_1000_count_live_waitlist_entries_test.sql',
+  'myk9_2080_count_paperwork_prints_test.sql',
   'myk9_1001_waitlist_offer_withdrawn_test.sql',
   'myk9_1002_waitlist_offer_message_deadline_test.sql',
   'myk9_1988_waitlist_offer_refills_spot_test.sql',

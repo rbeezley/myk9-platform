@@ -269,6 +269,12 @@ type CountLiveWaitlistEntries = {
   Returns: number;
 };
 
+/** MYK9-2080 (`20261117051700`): the caller's RLS-scoped count of one show's paperwork prints. */
+type CountPaperworkPrints = {
+  Args: { p_show_id: string };
+  Returns: number;
+};
+
 /**
  * CRUD standard Phase 2 (`20261001233700`): `delete_preview(p_scope, p_id)`, the
  * counts and blockers the shared delete dialog reads before Delete is enabled.
@@ -295,6 +301,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'get_secretary_live_entry_count'
       | 'get_show_entry_counts'
       | 'count_live_waitlist_entries'
+      | 'count_paperwork_prints'
       | keyof ClubMembershipRequestFunctions
       | keyof DeletePreviewFunctions
     > & {
@@ -307,6 +314,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       get_secretary_live_entry_count: GetSecretaryLiveEntryCount;
       get_show_entry_counts: GetShowEntryCounts;
       count_live_waitlist_entries: CountLiveWaitlistEntries;
+      count_paperwork_prints: CountPaperworkPrints;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions &

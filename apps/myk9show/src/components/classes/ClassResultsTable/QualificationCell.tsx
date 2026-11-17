@@ -1,149 +1,35 @@
 import React from 'react';
-import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import type { ScoringRow } from './types';
-import {
-  DISPLAY_LABELS,
-  FREE_TEXT_REASON_STATUSES,
-  QUALIFICATION_REASONS,
-  STATUSES_REQUIRING_REASON,
-} from './constants';
+import { DISPLAY_LABELS } from './constants';
 import { PendingCell } from './PendingCell';
 import { RESULTS_PRIVATE_LABEL } from '@/lib/resultsPrivacy';
 
 interface QualificationCellProps {
   item: ScoringRow;
-  canEdit: boolean;
   visible: boolean;
-  onUpdate: (entryId: string, field: string, value: string) => void;
 }
 
-export const QualificationCell: React.FC<QualificationCellProps> = ({
-  item,
-  canEdit,
-  visible,
-  onUpdate,
-}) => {
+export const QualificationCell: React.FC<QualificationCellProps> = ({ item, visible }) => {
   if (!visible) {
     return <PendingCell />;
   }
 
-  if (!canEdit && item.resultsPrivate && !item.qualification) {
+  if (item.resultsPrivate && !item.qualification) {
     // MYK9-969: the entry's people keep their results private. Say so, rather
     // than "Not Set", which reads as a scoring gap.
     return <span className="text-sm text-muted-foreground italic">{RESULTS_PRIVATE_LABEL}</span>;
   }
 
-  if (!canEdit) {
-    return (
-      <div>
-        <div>
-          <Badge variant={item.qualification === 'Qualified' ? 'default' : 'secondary'}>
-            {DISPLAY_LABELS[item.qualification] || item.qualification || 'Not Set'}
-          </Badge>
-        </div>
-        {item.qualificationReason && (
-          <div className="text-xs text-muted-foreground mt-1">{item.qualificationReason}</div>
-        )}
-      </div>
-    );
-  }
-
-  const needsReason = STATUSES_REQUIRING_REASON.includes(item.qualification);
-  const isFreeTextReason = FREE_TEXT_REASON_STATUSES.includes(item.qualification);
-  const showReasonDropdown = needsReason && !isFreeTextReason;
-
-  const handleClear = () => {
-    onUpdate(item.entryId, 'qualification', '');
-    onUpdate(item.entryId, 'qualificationReason', '');
-  };
-
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1">
-        <Select
-          value={item.qualification}
-          onValueChange={value => onUpdate(item.entryId, 'qualification', value)}
-          data-field="qualification"
-        >
-          <SelectTrigger
-            className={cn('w-32', item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500')}
-          >
-            <SelectValue placeholder="Select">
-              {DISPLAY_LABELS[item.qualification] || item.qualification}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Qualified">Qualified</SelectItem>
-            <SelectItem value="Not Qualified">NQ</SelectItem>
-            <SelectItem value="Absent">Absent</SelectItem>
-            <SelectItem value="Excused">Excused</SelectItem>
-            <SelectItem value="Disqualified">Disqualified (DQ)</SelectItem>
-            <SelectItem value="Withdrawn">Withdrawn</SelectItem>
-          </SelectContent>
-        </Select>
-        {item.qualification && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-            onClick={handleClear}
-            title="Clear qualification"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        )}
+    <div>
+      <div>
+        <Badge variant={item.qualification === 'Qualified' ? 'default' : 'secondary'}>
+          {DISPLAY_LABELS[item.qualification] || item.qualification || 'Not Set'}
+        </Badge>
       </div>
-
-      {isFreeTextReason && (
-        <Input
-          value={item.qualificationReason}
-          onChange={event => onUpdate(item.entryId, 'qualificationReason', event.target.value)}
-          maxLength={500}
-          aria-label="Disqualification reason (required)"
-          placeholder="Reason (required)"
-          data-field="qualificationReason"
-          className={cn(
-            'w-44 h-7 text-xs',
-            item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
-          )}
-        />
-      )}
-
-      {showReasonDropdown && (
-        <Select
-          value={item.qualificationReason}
-          onValueChange={value => onUpdate(item.entryId, 'qualificationReason', value)}
-          data-field="qualificationReason"
-        >
-          <SelectTrigger
-            className={cn(
-              'w-44 h-7 text-xs',
-              item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
-            )}
-          >
-            <SelectValue placeholder="Reason" />
-          </SelectTrigger>
-          <SelectContent>
-            {QUALIFICATION_REASONS[item.qualification as keyof typeof QUALIFICATION_REASONS]?.map(
-              reason => (
-                <SelectItem key={reason} value={reason}>
-                  {reason}
-                </SelectItem>
-              )
-            )}
-          </SelectContent>
-        </Select>
+      {item.qualificationReason && (
+        <div className="text-xs text-muted-foreground mt-1">{item.qualificationReason}</div>
       )}
     </div>
   );

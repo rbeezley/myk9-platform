@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { QUALIFICATION_STATUSES } from '@/types/scent-work-types';
-import {
-  DISPLAY_LABELS,
-  FREE_TEXT_REASON_STATUSES,
-  QUALIFICATION_REASONS,
-  STATUSES_REQUIRING_REASON,
-} from '../constants';
+import { DISPLAY_LABELS } from '../constants';
 
 describe('QualificationCell DISPLAY_LABELS', () => {
   it('has a short-code entry for every QualificationStatus union member', () => {
@@ -29,41 +24,5 @@ describe('QualificationCell DISPLAY_LABELS', () => {
     for (const key of Object.keys(DISPLAY_LABELS)) {
       expect(allowed.has(key), `unexpected DISPLAY_LABELS key "${key}"`).toBe(true);
     }
-  });
-});
-
-describe('QUALIFICATION_REASONS / STATUSES_REQUIRING_REASON', () => {
-  it('only the reason-bearing statuses require a reason, and each has a reason list', () => {
-    for (const status of STATUSES_REQUIRING_REASON) {
-      if (FREE_TEXT_REASON_STATUSES.includes(status)) continue;
-      const reasons = QUALIFICATION_REASONS[status as keyof typeof QUALIFICATION_REASONS];
-      expect(reasons, `"${status}" requires a reason but has no reason list`).toBeTruthy();
-      expect(reasons.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('keeps STATUSES_REQUIRING_REASON and QUALIFICATION_REASONS keys in exact sync', () => {
-    // Both directions: a reason list added without flagging the status would make
-    // the reason dropdown silently never render (the editor reads the flag list);
-    // a flagged status without a list would render an empty dropdown.
-    // Free-text statuses (DQ) are typed, so they are flagged but have no list.
-    const flagged = STATUSES_REQUIRING_REASON.filter(
-      s => !FREE_TEXT_REASON_STATUSES.includes(s)
-    ).sort();
-    const withLists = Object.keys(QUALIFICATION_REASONS).sort();
-    expect(withLists).toEqual(flagged);
-  });
-
-  it('every QUALIFICATION_REASONS key is a valid QualificationStatus', () => {
-    const allowed = new Set<string>(QUALIFICATION_STATUSES);
-    for (const key of Object.keys(QUALIFICATION_REASONS)) {
-      expect(allowed.has(key), `unknown reason status "${key}"`).toBe(true);
-    }
-  });
-
-  it('intentionally excludes pass/no-show/display-only statuses from requiring a reason', () => {
-    expect(STATUSES_REQUIRING_REASON).not.toContain('Qualified');
-    expect(STATUSES_REQUIRING_REASON).not.toContain('Absent');
-    expect(STATUSES_REQUIRING_REASON).not.toContain('Eliminated');
   });
 });

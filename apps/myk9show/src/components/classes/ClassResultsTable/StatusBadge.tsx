@@ -10,10 +10,5 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ item }) => {
   if (item.isScored) {
     return <SharedStatusBadge family="entry" status="completed" label="Scored" />;
   }
-
-  if (item.hasEdits) {
-    return <SharedStatusBadge family="entry" status="in-ring" variant="outline" label="Editing" />;
-  }
-
   return <SharedStatusBadge family="entry" status="pending" variant="outline" />;
 };

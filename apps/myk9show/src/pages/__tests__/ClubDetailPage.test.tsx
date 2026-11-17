@@ -63,7 +63,7 @@ vi.mock('@/components/common/SkeletonLoaders', () => ({
 }));
 
 const club: Club = {
-  id: 'club-1',
+  id: '11111111-1111-4111-8111-111111111111',
   name: 'Heartland Club',
   email: '',
   phone: '',
@@ -109,36 +109,44 @@ describe('ClubDetailPage signed-in readiness outcomes', () => {
     state.clubs = [club];
     state.clubReadiness = 'fresh';
 
-    renderPage('/clubs/club-1');
+    renderPage('/clubs/11111111-1111-4111-8111-111111111111');
 
     expect(screen.getByTestId('club-details')).toHaveTextContent('Heartland Club');
-    expect(state.ensureClubsReady).toHaveBeenCalledWith({ requestedClubId: 'club-1' });
+    expect(state.ensureClubsReady).toHaveBeenCalledWith({
+      requestedClubId: '11111111-1111-4111-8111-111111111111',
+    });
     expect(getPublicClubById).not.toHaveBeenCalled();
   });
 
   it('waits in loading when the requested ID is absent from stale cache', () => {
     state.clubs = [{ ...club, id: 'other-club', name: 'Other Club' }];
 
-    renderPage('/clubs/club-1');
+    renderPage('/clubs/11111111-1111-4111-8111-111111111111');
 
     expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
-    expect(state.ensureClubsReady).toHaveBeenCalledWith({ requestedClubId: 'club-1' });
+    expect(state.ensureClubsReady).toHaveBeenCalledWith({
+      requestedClubId: '11111111-1111-4111-8111-111111111111',
+    });
   });
 
-  it('renders an in-page not-found outcome after a fresh sync', () => {
+  it('renders an in-page not-found outcome after a fresh sync and an empty server read', async () => {
     state.clubReadiness = 'fresh';
+    getPublicClubById.mockResolvedValue(null);
 
-    renderPage('/clubs/missing-club');
+    renderPage('/clubs/22222222-2222-4222-8222-222222222222');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Club Not Found' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Club Not Found' })
+    ).toBeInTheDocument();
     expect(screen.getByTestId('app-shell-page')).toBeInTheDocument();
   });
 
   it('not-found goes back to the clubs list through the shared state', async () => {
     state.clubReadiness = 'fresh';
+    getPublicClubById.mockResolvedValue(null);
 
-    const { user } = renderPage('/clubs/missing-club');
-    await user.click(screen.getByRole('button', { name: 'Back to Clubs' }));
+    const { user } = renderPage('/clubs/22222222-2222-4222-8222-222222222222');
+    await user.click(await screen.findByRole('button', { name: 'Back to Clubs' }));
 
     expect(screen.getByTestId('clubs-list')).toBeInTheDocument();
   });
@@ -146,7 +154,7 @@ describe('ClubDetailPage signed-in readiness outcomes', () => {
   it('renders retryable unavailable copy without exposing internal failure details', async () => {
     state.clubReadiness = 'unavailable';
 
-    const { user } = renderPage('/clubs/missing-club');
+    const { user } = renderPage('/clubs/22222222-2222-4222-8222-222222222222');
 
     expect(
       screen.getByRole('heading', { name: 'Club details are unavailable' })
@@ -154,7 +162,7 @@ describe('ClubDetailPage signed-in readiness outcomes', () => {
     expect(screen.queryByText(/supabase|timeout|secret/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(state.ensureClubsReady).toHaveBeenCalledWith({
-      requestedClubId: 'missing-club',
+      requestedClubId: '22222222-2222-4222-8222-222222222222',
       force: true,
     });
   });
@@ -168,16 +176,23 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
   });
 
   it('renders not-found for a revoked club cached in the replica, without reading the replica', async () => {
-    state.clubs = [{ ...club, id: 'club-revoked', name: 'Revoked Club', authorizedAt: null }];
+    state.clubs = [
+      {
+        ...club,
+        id: '33333333-3333-4333-8333-333333333333',
+        name: 'Revoked Club',
+        authorizedAt: null,
+      },
+    ];
     state.clubReadiness = 'fresh';
     // clubs_select hides the revoked club from anon: no row.
     getPublicClubById.mockResolvedValue(null);
 
-    renderPage('/clubs/club-revoked');
+    renderPage('/clubs/33333333-3333-4333-8333-333333333333');
 
     expect(await screen.findByRole('heading', { name: 'Club Not Found' })).toBeInTheDocument();
     expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
-    expect(getPublicClubById).toHaveBeenCalledWith('club-revoked');
+    expect(getPublicClubById).toHaveBeenCalledWith('33333333-3333-4333-8333-333333333333');
     expect(state.replicaReads).toBe(0);
     expect(state.ensureClubsReady).not.toHaveBeenCalled();
   });
@@ -185,7 +200,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
   it("renders the server's club row", async () => {
     getPublicClubById.mockResolvedValue({ ...club, name: 'Server Heartland' });
 
-    renderPage('/clubs/club-1');
+    renderPage('/clubs/11111111-1111-4111-8111-111111111111');
 
     expect(await screen.findByTestId('club-details')).toHaveTextContent('Server Heartland');
     expect(state.replicaReads).toBe(0);
@@ -194,10 +209,13 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
   // Codex P1: a cached earlier read is not an authoritative answer.
   it('does not render a cached club from an earlier visit until the mount refetch resolves', async () => {
     const queryClient = createTestQueryClient();
-    queryClient.setQueryData([...PUBLIC_CLUB_DETAIL_QUERY_KEY, 'club-1', 'signed-out'], {
-      ...club,
-      name: 'Cached Before Revocation',
-    });
+    queryClient.setQueryData(
+      [...PUBLIC_CLUB_DETAIL_QUERY_KEY, '11111111-1111-4111-8111-111111111111', 'signed-out'],
+      {
+        ...club,
+        name: 'Cached Before Revocation',
+      }
+    );
     let resolveFresh: (value: Club | null) => void = () => {};
     getPublicClubById.mockReturnValue(
       new Promise<Club | null>(resolve => {
@@ -205,7 +223,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
       })
     );
 
-    renderPage('/clubs/club-1', queryClient);
+    renderPage('/clubs/11111111-1111-4111-8111-111111111111', queryClient);
 
     expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
@@ -221,7 +239,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
   it('switches to the offline state when the connection drops after a successful read', async () => {
     getPublicClubById.mockResolvedValue(club);
 
-    renderPage('/clubs/club-1');
+    renderPage('/clubs/11111111-1111-4111-8111-111111111111');
     expect(await screen.findByTestId('club-details')).toHaveTextContent('Heartland Club');
 
     act(() => onlineManager.setOnline(false));
@@ -234,7 +252,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
     onlineManager.setOnline(false);
     state.clubs = [club];
 
-    renderPage('/clubs/club-1');
+    renderPage('/clubs/11111111-1111-4111-8111-111111111111');
 
     expect(screen.getByText("You're offline")).toBeInTheDocument();
     expect(screen.getByText('Connect to the internet to see this club.')).toBeInTheDocument();
@@ -247,7 +265,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
   it('renders loading, not not-found, while the read is pending', () => {
     getPublicClubById.mockReturnValue(new Promise(() => {}));
 
-    renderPage('/clubs/club-1');
+    renderPage('/clubs/11111111-1111-4111-8111-111111111111');
 
     expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Club Not Found' })).not.toBeInTheDocument();
@@ -256,7 +274,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
   it('renders the unavailable state, not not-found, when the read fails, and retries the server', async () => {
     getPublicClubById.mockRejectedValueOnce(new Error('network')).mockResolvedValue(club);
 
-    const { user } = renderPage('/clubs/club-1');
+    const { user } = renderPage('/clubs/11111111-1111-4111-8111-111111111111');
 
     expect(
       await screen.findByRole('heading', { name: 'Club details are unavailable' })
@@ -276,7 +294,7 @@ describe('ClubDetailPage states that are not ready keep the page heading and tra
           <Route path="/clubs/:id" element={<ClubDetailPage />} />
         </Routes>
       </DetailCrumbContext.Provider>,
-      { initialRoute: '/clubs/club-1' }
+      { initialRoute: '/clubs/11111111-1111-4111-8111-111111111111' }
     );
     expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
     // The skeleton paints its own placeholder trail, so no second, real one is stacked on it.
@@ -297,10 +315,13 @@ describe('ClubDetailPage states that are not ready keep the page heading and tra
       { initialRoute: path, queryClient: createTestQueryClient() }
     );
 
-  it("not found: the state's own h1 is the only one, with the trail", () => {
+  it("not found: the state's own h1 is the only one, with the trail", async () => {
     state.clubReadiness = 'fresh';
-    renderInRoute('/clubs/missing-club');
-    expect(screen.getByRole('heading', { level: 1, name: 'Club Not Found' })).toBeInTheDocument();
+    getPublicClubById.mockResolvedValue(null);
+    renderInRoute('/clubs/22222222-2222-4222-8222-222222222222');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Club Not Found' })
+    ).toBeInTheDocument();
     const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(trail).getByText('Clubs')).toHaveAttribute('aria-current', 'page');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
@@ -308,7 +329,7 @@ describe('ClubDetailPage states that are not ready keep the page heading and tra
 
   it("unavailable: the state's own h1 is the only one, with the trail", () => {
     state.clubReadiness = 'unavailable';
-    renderInRoute('/clubs/club-1');
+    renderInRoute('/clubs/11111111-1111-4111-8111-111111111111');
     expect(
       screen.getByRole('heading', { level: 1, name: 'Club details are unavailable' })
     ).toBeInTheDocument();
@@ -321,7 +342,7 @@ describe('ClubDetailPage states that are not ready keep the page heading and tra
     auth.value = { user: null, userWithRoles: null, loading: false };
     onlineManager.setOnline(false);
     state.clubs = [club];
-    renderInRoute('/clubs/club-1');
+    renderInRoute('/clubs/11111111-1111-4111-8111-111111111111');
     expect(screen.getByText("You're offline")).toBeInTheDocument();
     const [h1] = screen.getAllByRole('heading', { level: 1 });
     expect(h1).toHaveTextContent('Clubs');

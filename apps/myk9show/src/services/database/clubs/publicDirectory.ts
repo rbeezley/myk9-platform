@@ -70,7 +70,11 @@ export async function getPublicDirectoryClubs(): Promise<Club[]> {
 export const PUBLIC_CLUB_DETAIL_COLUMNS =
   'id, name, email, phone, website, description, logo_url, cover_image_url, accent_color, address, city, state, zip_code';
 
+const PUBLIC_CLUB_DETAIL_COLUMNS_WITH_AUTHORIZATION =
+  'id, name, email, phone, website, description, logo_url, cover_image_url, accent_color, address, city, state, zip_code, authorized_at';
+
 interface PublicClubDetailRow extends PublicDirectoryClubRow {
+  authorized_at?: string | null;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -86,6 +90,9 @@ function publicClubDetailRowToClub(row: PublicClubDetailRow): Club {
   const base = publicDirectoryRowToClub(row);
   return {
     ...base,
+    // Only present when the read asked for it (a signed-in viewer's); a guest's
+    // read leaves it undefined, as before.
+    ...(row.authorized_at !== undefined ? { authorizedAt: row.authorized_at } : {}),
     email: row.email ?? '',
     phone: row.phone ?? '',
     website: row.website ?? undefined,
@@ -107,10 +114,19 @@ function publicClubDetailRowToClub(row: PublicClubDetailRow): Club {
  * authorized, deleted, or no such club): the page's not-found state. Throws
  * on failure so a failed read never reads as not-found.
  */
-export async function getPublicClubById(id: string): Promise<Club | null> {
+export async function getPublicClubById(
+  id: string,
+  // MYK9-2153: a signed-in viewer's read also carries authorized_at, so the
+  // site admin's Authorize control works on a club this device never cached.
+  options: { withAuthorization?: boolean } = {}
+): Promise<Club | null> {
   const { data, error } = await supabase
     .from('clubs')
-    .select(PUBLIC_CLUB_DETAIL_COLUMNS)
+    .select(
+      options.withAuthorization
+        ? PUBLIC_CLUB_DETAIL_COLUMNS_WITH_AUTHORIZATION
+        : PUBLIC_CLUB_DETAIL_COLUMNS
+    )
     .eq('id', id)
     .is('deleted_at', null)
     .maybeSingle();
@@ -119,5 +135,5 @@ export async function getPublicClubById(id: string): Promise<Club | null> {
     throw createDatabaseError(error, 'club', 'select_public_by_id');
   }
 
-  return data ? publicClubDetailRowToClub(data as PublicClubDetailRow) : null;
+  return data ? publicClubDetailRowToClub(data as unknown as PublicClubDetailRow) : null;
 }

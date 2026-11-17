@@ -12,8 +12,6 @@ const FIELD_LOCATION: Record<string, FieldLocation<ShowEditTab>> = {
   organization: { tab: 'basic', elementId: 'organization' },
   clubId: { tab: 'basic', elementId: 'clubId' },
   location: { tab: 'basic', elementId: 'location' },
-  startDate: { tab: 'basic', elementId: 'show-dates' },
-  endDate: { tab: 'basic', elementId: 'show-dates' },
   entryOpenDate: { tab: 'basic', elementId: 'show-entry-period' },
   entryCloseDate: { tab: 'basic', elementId: 'show-entry-period' },
   assignedJudges: { tab: 'judges', elementId: 'judges-tab-heading' },

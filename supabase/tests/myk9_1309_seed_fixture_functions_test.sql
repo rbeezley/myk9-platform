@@ -160,6 +160,8 @@ SELECT pg_temp.expect_raise(
 SELECT pg_temp.expect_raise(
   'A3 an owned show with a trial outside its start/end range',
   $sql$
+    -- MYK9-2131: a trial now moves its show's dates, so the stray trial needs the sync off.
+    ALTER TABLE public.trials DISABLE TRIGGER trg_sync_show_dates_from_trial;
     INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type, timezone)
     VALUES ('00000000-0000-0000-0000-000001309511', 'dededede-0000-0000-0000-000000000010',
             'MYK9-1309 Stray Trial', current_date + 44, 'AKC', 'scent_work', 'America/Chicago');
@@ -170,6 +172,7 @@ SELECT pg_temp.expect_raise(
 SELECT pg_temp.expect_raise(
   'A3b an owned show with a trial after its end date',
   $sql$
+    ALTER TABLE public.trials DISABLE TRIGGER trg_sync_show_dates_from_trial;
     INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type, timezone)
     VALUES ('00000000-0000-0000-0000-000001309512', 'dededede-0000-0000-0000-000000000010',
             'MYK9-1309 Late Trial', current_date + 47, 'AKC', 'scent_work', 'America/Chicago');

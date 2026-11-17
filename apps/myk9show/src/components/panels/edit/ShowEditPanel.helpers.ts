@@ -67,8 +67,8 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   status: formData.status,
   organization: formData.organization,
   clubId: formData.clubId,
-  startDate: formData.startDate,
-  endDate: formData.endDate,
+  // startDate / endDate are deliberately absent: a show's dates are its trials' dates
+  // (MYK9-2131), kept by the database, so Show Edit never sends them.
   assignedJudges: formData.assignedJudges,
   startingArmbandNumber: formData.startingArmbandNumber,
   maxEntriesPerDog: formData.maxEntriesPerDog,

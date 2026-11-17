@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from 'lucide-react';
 import { ShowDatesFields } from '@/components/shows/ShowDatesFields';
+import { ShowEditTrialDates } from './ShowEditTrialDates';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import { toLocalDate } from '@/utils/date-format';
@@ -39,6 +40,8 @@ interface ShowEditBasicInfoTabProps {
    * whether "Published" is offered in the Status dropdown -- see the comment
    * on that option. */
   initialStatus?: string | undefined;
+  /** Called when the "Change a trial's day" link is followed, so the panel can close. */
+  onOpenTrials?: (() => void) | undefined;
 }
 
 export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
@@ -50,11 +53,10 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   handleSelectChange,
   handleDateChange,
   initialStatus,
+  onOpenTrials,
 }) => {
   const nameError = form?.getError('name');
   const clubError = form?.getError('clubId');
-  const startDateError = form?.getError('startDate');
-  const endDateError = form?.getError('endDate');
   const entryOpenError = form?.getError('entryOpenDate');
   const entryCloseError = form?.getError('entryCloseDate');
   const initialIsPublic = isPublicShowStatus(initialStatus);
@@ -280,11 +282,16 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               endDate={data.endDate ? toLocalDate(data.endDate) : undefined}
               entryOpenDate={data.entryOpenDate ? toLocalDate(data.entryOpenDate) : undefined}
               entryCloseDate={data.entryCloseDate ? toLocalDate(data.entryCloseDate) : undefined}
-              onStartDateChange={handleDateChange('startDate')}
-              onEndDateChange={handleDateChange('endDate')}
               onEntryOpenChange={handleDateChange('entryOpenDate')}
               onEntryCloseChange={handleDateChange('entryCloseDate')}
-              datesError={startDateError ?? endDateError}
+              showDatesSlot={
+                <ShowEditTrialDates
+                  startDate={data.startDate}
+                  endDate={data.endDate}
+                  showId={data.id}
+                  onNavigate={onOpenTrials}
+                />
+              }
               entryError={entryOpenError ?? entryCloseError}
             />
           </div>

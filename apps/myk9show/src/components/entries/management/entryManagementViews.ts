@@ -27,7 +27,7 @@ export const SHOW_REGISTRATION_QUEUE_LABELS: Record<ShowRegistrationQueue, strin
 /** The one spelling of each list's name: the Actions menu row and the view's title share it. */
 export const ENTRY_LIST_LABELS: Record<EntryManagementException, string> = {
   pulls: 'Pulls',
-  'move-ups': 'Move-ups',
+  'move-ups': 'Class changes',
   'registration-needed': 'Registration number needed',
   waitlist: 'Waitlist',
   'check-in': 'Check-in desk',

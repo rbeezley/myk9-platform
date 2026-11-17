@@ -1,4 +1,7 @@
-import { moveUpShowMapEntry } from '@/features/show-map/showMapActionMutations';
+import {
+  moveUpShowMapEntry,
+  type ShowMapMoveUpResult,
+} from '@/features/show-map/showMapActionMutations';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedEntriesTable } from '@/services/replication';
 import { logReplicatedEntryStatusChange } from './entryStatusAudit';
@@ -45,6 +48,30 @@ export async function approveMoveUpRequestReplicated(
     return { error: null };
   } catch (error) {
     return { error: toError(error) };
+  }
+}
+
+/**
+ * Accept an exhibitor's class change request (MYK9-1978): the entry moves to
+ * exactly the class the exhibitor asked for and nobody picks another. Any open
+ * class is a valid target, not only a higher level, because a request can be a
+ * move down or a change of section (`anyOpenClass`). The result carries what
+ * `undoShowMapMoveUp` needs, so Accept is one tap with an Undo.
+ */
+export async function acceptClassChangeRequestReplicated(
+  entryId: string,
+  requestedClassId: string
+): Promise<{ data: ShowMapMoveUpResult | null; error: Error | null }> {
+  try {
+    await requireRequestStatus(entryId, 'move-up-requested');
+    const data = await moveUpShowMapEntry({
+      entryId,
+      targetClassId: requestedClassId,
+      anyOpenClass: true,
+    });
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: toError(error) };
   }
 }
 

@@ -415,7 +415,9 @@ export const AtShowClassListPage: React.FC = () => {
               exhibitor's own dogs whenever ownership was merely UNKNOWN (a cold
               device at the venue). Offer the door whenever we have entries OR
               cannot rule them out; the destination handles its own empty state. */}
-          {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
+          {/* MYK9-2135: staff with a dog entered get the same door; unknown ownership
+              only opens it for exhibitor-only accounts, so staff with no dog see no change. */}
+          {(ownEntryIds.size > 0 || (isExhibitorOnly && ownershipUnknown)) && (
             <Button
               type="button"
               variant="ghost"

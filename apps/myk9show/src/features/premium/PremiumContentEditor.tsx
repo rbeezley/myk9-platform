@@ -115,35 +115,23 @@ export function PremiumContentEditor({
     );
   }, []);
 
-  // The narrative text on screen, with the show it belongs to. A failed narrative
-  // refresh keeps this text while still taking the fresh facts the server returned.
-  const lastNarrativesRef = useRef<{
-    showId: string;
-    narratives: GeneratedPremium['narratives'];
-  } | null>(null);
-  if (narratives) lastNarrativesRef.current = { showId, narratives };
-
-  // Each request gets an id; a result or failure from a superseded request is ignored.
-  const requestIdRef = useRef(0);
+  // The narrative text on screen right now (including her edits), read when a
+  // generation finishes so a failed narrative call never replaces it.
+  const narrativesRef = useRef(narratives);
+  narrativesRef.current = narratives;
 
   const handleGenerate = useCallback(async () => {
-    const requestId = ++requestIdRef.current;
     lastPdfErrorMessageRef.current = null;
     setGenerationError(null);
     setIsGenerating(true);
     setAutoGenerateAttemptedFor(showId);
-    const last = lastNarrativesRef.current;
-    // Only text saved for THIS show counts; another show's text is never carried over.
-    const kept = last && last.showId === showId ? last.narratives : null;
-    const keptHasText = Boolean(kept && (kept.showHours.trim() || kept.trialInformation.trim()));
     try {
       const result = await withGenerationTimeout(generate(showId));
-      if (requestId !== requestIdRef.current) return;
-      setOriginal(result);
-      setSupplemental(result.supplemental);
-      if (narrativeGenerationFailed(result) && kept && keptHasText) {
-        // Fresh facts, previous narrative text: never replace it with a failed generation.
-        setNarratives(kept);
+      const current = narrativesRef.current;
+      const currentHasText = Boolean(current?.showHours.trim() || current?.trialInformation.trim());
+      if (narrativeGenerationFailed(result) && currentHasText) {
+        // Fresh show facts, but keep her narratives and supplemental details as they are.
+        setOriginal(result);
         setHasNarrativeError(false);
         setGenerationError(
           result.narrativeGenerationError
@@ -152,16 +140,17 @@ export function PremiumContentEditor({
         );
         return;
       }
+      setOriginal(result);
+      setSupplemental(result.supplemental);
       setNarratives(result.narratives);
       setHasNarrativeError(narrativeGenerationFailed(result));
     } catch (err) {
-      if (requestId !== requestIdRef.current) return;
       // Nothing came back, so everything on screen stays as it was.
       setGenerationError(
         err instanceof Error ? err.message : 'We could not generate that content.'
       );
     } finally {
-      if (requestId === requestIdRef.current) setIsGenerating(false);
+      setIsGenerating(false);
     }
   }, [generate, showId]);
 
@@ -171,6 +160,7 @@ export function PremiumContentEditor({
     setSupplemental(initialPremium.supplemental);
     setNarratives(stripPlaceholderNarratives(initialPremium.narratives));
     setGenerationError(null);
+    setIsGenerating(false);
   }, [active, initialPremium, original]);
 
   useEffect(() => {
@@ -214,8 +204,6 @@ export function PremiumContentEditor({
     setGenerationError(null);
     setIsGenerating(false);
     setAutoGenerateAttemptedFor(null);
-    lastNarrativesRef.current = null;
-    requestIdRef.current += 1;
     onPremiumChangeRef.current?.(undefined);
     onInkSaverChangeRef.current?.(false);
   }, [active, reset]);
@@ -396,7 +384,6 @@ export function PremiumContentEditor({
                       setPdfUrl(null);
                       void handleGenerate();
                     }}
-                    disabled={isGenerating || isLoading}
                   >
                     Try narrative generation again
                   </Button>
@@ -610,7 +597,6 @@ export function PremiumContentEditor({
                   setCoverImageResolveFailed(false);
                   void handleGenerate();
                 }}
-                disabled={isGenerating || isLoading}
               >
                 Regenerate
               </Button>

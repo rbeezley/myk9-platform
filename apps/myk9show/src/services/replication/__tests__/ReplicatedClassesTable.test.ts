@@ -822,6 +822,24 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).toHaveProperty('num_hides', 3);
     });
 
+    it('clears the local time_limit_set_at when a limit changes, keeps it otherwise (MYK9-2120)', async () => {
+      spyOnWriteAndQueue(classesTable);
+      const stamp = '2026-11-10T19:14:00+00:00';
+      await classesTable.set(
+        'class-limit',
+        createMockClass({ id: 'class-limit', timeLimitSeconds: 120, timeLimitSetAt: stamp })
+      );
+
+      await classesTable.updateClass('class-limit', { displayOrder: 3 });
+      expect((await classesTable.get('class-limit'))?.timeLimitSetAt).toBe(stamp);
+
+      await classesTable.updateClass('class-limit', { timeLimitSeconds: 120 });
+      expect((await classesTable.get('class-limit'))?.timeLimitSetAt).toBe(stamp);
+
+      await classesTable.updateClass('class-limit', { timeLimitSeconds: 240 });
+      expect((await classesTable.get('class-limit'))?.timeLimitSetAt).toBeNull();
+    });
+
     it('queues scores_on_paper for an explicit choice, both ways, and omits it otherwise (MYK9-1971)', async () => {
       const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 

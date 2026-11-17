@@ -30,7 +30,7 @@ export function FocusedClassRequirements({
   const cls = live?.[0] ?? null;
   const perArea = (cls?.areaCount ?? 1) > 1;
   const limit = live === null ? 'Loading…' : setMaxTimeText(cls, perArea);
-  const setAt = formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone);
+  const setAt = limit === 'Not set' ? null : formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone);
   return (
     <section aria-label="Requirements" data-testid="focused-class-requirements">
       <button

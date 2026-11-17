@@ -123,6 +123,16 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
       expect(await screen.findByText('Time limit: 2:00 · set Nov 16, 1:14 PM')).toBeInTheDocument();
     });
 
+    it('shows no stamp beside Not set when the limit was cleared', async () => {
+      replica.rows.set('c1', {
+        id: 'c1',
+        areaCount: 1,
+        timeLimitSetAt: '2026-11-17T19:14:00+00:00',
+      });
+      render(<FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/Chicago" />);
+      expect(await screen.findByText('Time limit: Not set')).toBeInTheDocument();
+    });
+
     it('shows nothing extra when the class has no stamp', async () => {
       replica.rows.set('c1', { id: 'c1', areaCount: 1, timeLimitSeconds: 120 });
       render(<FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/Chicago" />);

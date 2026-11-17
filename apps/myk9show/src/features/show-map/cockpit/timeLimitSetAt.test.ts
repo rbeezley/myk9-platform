@@ -24,6 +24,12 @@ describe('formatTimeLimitSetAt (MYK9-2120)', () => {
     );
   });
 
+  it('adds the year when it is not the current year in the show zone', () => {
+    expect(formatTimeLimitSetAt('2025-12-30T19:14:00Z', 'America/New_York', NOW)).toBe(
+      'set Dec 30, 2025, 2:14 PM'
+    );
+  });
+
   it('is null for a missing or unreadable stamp', () => {
     expect(formatTimeLimitSetAt(null, 'America/New_York', NOW)).toBeNull();
     expect(formatTimeLimitSetAt(undefined, 'America/New_York', NOW)).toBeNull();

@@ -466,6 +466,12 @@ type EnrichedClassRow = ClassRow & {
 const classReplicationSelect = () =>
   `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`;
 
+const TIME_LIMIT_KEYS = [
+  'timeLimitSeconds',
+  'timeLimitArea2Seconds',
+  'timeLimitArea3Seconds',
+] as const;
+
 export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
@@ -1050,6 +1056,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
+    // MYK9-2120: the server stamps when a limit was set; a local change to one must not sit
+    // beside the old stamp, so it reads as unknown until the server's stamp syncs back.
+    if (TIME_LIMIT_KEYS.some(key => key in updates && updates[key] !== currentClass[key])) {
+      updatedClass.timeLimitSetAt = null;
+    }
 
     // Intent-aware: the merged row always carries defined server-owned values, so
     // strip the ones this mutation didn't explicitly set before queueing — see

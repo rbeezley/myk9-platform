@@ -14,10 +14,15 @@ export function formatTimeLimitSetAt(
   if (!setAt) return null;
   const date = new Date(setAt);
   if (!Number.isFinite(date.getTime())) return null;
-  const sameDay = calendarDateInTimeZone(date, timeZone) === calendarDateInTimeZone(now, timeZone);
+  const setDay = calendarDateInTimeZone(date, timeZone);
+  const today = calendarDateInTimeZone(now, timeZone);
+  const sameDay = setDay === today;
+  const sameYear = setDay.slice(0, 4) === today.slice(0, 4);
   const text = new Intl.DateTimeFormat('en-US', {
     timeZone,
-    ...(sameDay ? {} : { month: 'short', day: 'numeric' }),
+    ...(sameDay
+      ? {}
+      : { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) }),
     hour: 'numeric',
     minute: '2-digit',
   })

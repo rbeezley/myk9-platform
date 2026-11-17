@@ -12,7 +12,7 @@ import { useShowClassPaperwork } from './useShowClassPaperwork';
 // assignedJudges hashes the unresolved judge, and once they load it matches the printed fingerprint.
 const mocks = vi.hoisted(() => ({
   show: null as unknown,
-  printed: { settled: true, hasData: true },
+  printed: { settled: true, hasData: true, registrationsComplete: true },
 }));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
@@ -86,7 +86,10 @@ vi.mock('@/hooks/queries/useShowClassRows', () => ({
 vi.mock('@/hooks/queries/usePrintedSheetEntries', () => ({
   usePrintedSheetEntries: () => ({
     data: mocks.printed.hasData
-      ? { ...printedSheetRowsOf(classes, entries), registrationsReadComplete: true }
+      ? {
+          ...printedSheetRowsOf(classes, entries),
+          registrationsReadComplete: mocks.printed.registrationsComplete,
+        }
       : undefined,
     isError: false,
     isFetching: !mocks.printed.settled,
@@ -121,7 +124,7 @@ function checkInStates() {
 describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
   beforeEach(() => {
     mocks.show = null;
-    mocks.printed = { settled: true, hasData: true };
+    mocks.printed = { settled: true, hasData: true, registrationsComplete: true };
   });
 
   it('hashes the unresolved judge with none loaded, and matches the printed fingerprint once it loads', () => {
@@ -143,20 +146,28 @@ describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
   };
 
   it('reads the check-in sheet unknown, with no confirmation, until the printed rows have data', () => {
-    mocks.printed = { settled: false, hasData: false };
+    mocks.printed = { settled: false, hasData: false, registrationsComplete: true };
     expect(rowOf('check-in-sheet')).toMatchObject({ state: 'unknown' });
     expect(rowOf('check-in-sheet')?.confirmation).toBeUndefined();
   });
 
   it('keeps showing the verdict while the printed rows re-read, but offers no confirmation', () => {
-    mocks.printed = { settled: false, hasData: true };
+    mocks.printed = { settled: false, hasData: true, registrationsComplete: true };
     expect(rowOf('check-in-sheet')).toMatchObject({ state: 'current' });
     expect(rowOf('check-in-sheet')?.confirmation).toBeUndefined();
     expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
   });
 
+  it('keeps the verdict but offers no confirmation while the registrations read is incomplete', () => {
+    mocks.printed = { settled: true, hasData: true, registrationsComplete: false };
+    expect(rowOf('scoresheet')).toMatchObject({ state: expect.any(String) });
+    expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
+    expect(rowOf('check-in-sheet')?.confirmation).toBeUndefined();
+    expect(rowOf('results-sheet')?.confirmation).toBeDefined();
+  });
+
   it('never withholds the results sheet for the printed rows', () => {
-    mocks.printed = { settled: false, hasData: false };
+    mocks.printed = { settled: false, hasData: false, registrationsComplete: true };
     expect(rowOf('results-sheet')?.confirmation).toBeDefined();
   });
 

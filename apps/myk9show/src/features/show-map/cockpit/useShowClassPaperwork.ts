@@ -69,6 +69,8 @@ export function useShowClassPaperwork(input: {
     printedData !== undefined &&
     !printedSheetEntries.isError &&
     !printedSheetEntries.isFetching &&
+    // Registration numbers print on the scoresheet: an incomplete read means they are unknown.
+    printedData.registrationsReadComplete &&
     !printedSheetEntries.noticePending;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 

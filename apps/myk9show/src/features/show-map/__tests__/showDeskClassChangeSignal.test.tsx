@@ -59,7 +59,8 @@ describe('Show Desk class changes pill (MYK9-2122)', () => {
     expect(found?.count).toBe(2);
     expect(found?.label).toBe('2 class changes waiting');
     expect(found?.href).toContain('/shows/show-1/entries?');
-    expect(found?.href).toContain('exception=move-ups');
+    expect(found?.href).toContain('tab=exceptions');
+    expect(found?.href).not.toContain('exception=');
     expect(found?.destinationName).toBe('Class changes');
     expect(pill([requested('c-late')])?.label).toBe('1 class change waiting');
   });
@@ -111,6 +112,6 @@ describe('Show Desk class changes pill (MYK9-2122)', () => {
       screen.getByRole('link', {
         name: '2 class changes waiting · 1 for a trial starting soon, opens Class changes',
       })
-    ).toHaveAttribute('href', expect.stringContaining('exception=move-ups'));
+    ).toHaveAttribute('href', expect.stringContaining('tab=exceptions'));
   });
 });

@@ -34,3 +34,19 @@ export function publishedNarratives(content: unknown): PremiumNarratives {
     trialInformation: cleanNarrative(row.trialInformation),
   };
 }
+
+/**
+ * A model answer with a blank section is incomplete: each blank section falls back to the
+ * published text, so a partial answer never erases what exhibitors can already read.
+ */
+export function completeNarratives(
+  generated: PremiumNarratives,
+  published: PremiumNarratives
+): { narratives: PremiumNarratives; incomplete: boolean } {
+  const showHours = generated.showHours.trim() ? generated.showHours : published.showHours;
+  const trialInformation = generated.trialInformation.trim()
+    ? generated.trialInformation
+    : published.trialInformation;
+  const incomplete = !generated.showHours.trim() || !generated.trialInformation.trim();
+  return { narratives: { showHours, trialInformation }, incomplete };
+}

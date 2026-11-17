@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
-import { publishedNarratives } from './publishedNarratives.ts';
+import { completeNarratives, publishedNarratives } from './publishedNarratives.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import {
   pickPremiumOfficial,
@@ -190,6 +190,15 @@ handle<GeneratePremiumPayload>(
           }),
         generate: () => generateNarratives(showSummary, anthropicKey),
       });
+      const completed = completeNarratives(
+        narratives,
+        publishedNarratives(show.experience_published_content)
+      );
+      narratives = completed.narratives;
+      if (completed.incomplete) {
+        narrativeGenerationError =
+          'The AI service returned an incomplete answer. Please try again.';
+      }
     } catch (err) {
       if (err instanceof HttpError) {
         throw err;

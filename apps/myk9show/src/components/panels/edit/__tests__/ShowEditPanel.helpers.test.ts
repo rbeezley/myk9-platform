@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
-import { showSchemas } from '@/lib/validation';
+import { NOTE_TO_EXHIBITORS_MAX_LENGTH, showSchemas } from '@/lib/validation';
 import { formDataToShow, formDataToShowSaveData, showToFormData } from '../ShowEditPanel.helpers';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
@@ -179,6 +179,27 @@ describe('ShowEditPanel helpers', () => {
 });
 
 describe('note to exhibitors (MYK9-2114)', () => {
+  it('keeps the note through edit form validation, then saves it', () => {
+    const parsed = showSchemas.edit.parse({
+      ...baseFormData,
+      confirmationMessage: '  Park in the north lot.  ',
+    });
+    expect(parsed.confirmationMessage).toBe('  Park in the north lot.  ');
+    expect(formDataToShowSaveData(parsed as ShowEditFormData).confirmationMessage).toBe(
+      'Park in the north lot.'
+    );
+    const cleared = showSchemas.edit.parse({ ...baseFormData, confirmationMessage: '' });
+    expect(formDataToShowSaveData(cleared as ShowEditFormData).confirmationMessage).toBe('');
+  });
+
+  it('rejects a note over the limit', () => {
+    const result = showSchemas.edit.safeParse({
+      ...baseFormData,
+      confirmationMessage: 'x'.repeat(NOTE_TO_EXHIBITORS_MAX_LENGTH + 1),
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('loads the saved note into the form', () => {
     expect(
       showToFormData({ confirmationMessage: 'Park in the north lot.' }).confirmationMessage

@@ -5,9 +5,11 @@
  * against the whole query as one run, so "rex lab" found Rex the Labrador on
  * the device but not one that only the server had.
  *
- * The fake below answers each PostgREST request by evaluating its filter text
- * against a few rows, so these tests check which dogs come back, not how the
- * filter string happens to be spelled.
+ * The fake below answers the one dogs request the way PostgREST does: each
+ * aliased embed is filtered by its own `.or(...)`, and `alias.not.is.null` in
+ * the dogs filter asks whether that embed kept a row. So these tests check
+ * which dogs come back, not how the filter string happens to be spelled. The
+ * same query shape was run against a real local PostgREST on 2026-11-17.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { searchAllDogs } from '../reads';
@@ -74,39 +76,54 @@ function splitTopLevel(list: string): string[] {
 }
 
 /** Evaluates the subset of the PostgREST filter grammar `searchAllDogs` writes. */
-function matches(row: Row, expr: string): boolean {
+function matches(row: Row, expr: string, embeds: Record<string, boolean> = {}): boolean {
   const logic = /^(and|or)\((.*)\)$/s.exec(expr);
   if (logic) {
     const children = splitTopLevel(logic[2] ?? '');
     return logic[1] === 'and'
-      ? children.every(c => matches(row, c))
-      : children.some(c => matches(row, c));
+      ? children.every(c => matches(row, c, embeds))
+      : children.some(c => matches(row, c, embeds));
   }
   const ilike = /^(\w+)\.ilike\.%(.*)%$/s.exec(expr);
   if (ilike) {
     const needle = (ilike[2] ?? '').replace(/\\(.)/g, '$1').toLowerCase();
     return (row[ilike[1] ?? ''] ?? '').toLowerCase().includes(needle);
   }
-  const inList = /^(\w+)\.in\.\((.*)\)$/s.exec(expr);
-  if (inList) return (inList[2] ?? '').split(',').includes(row[inList[1] ?? ''] ?? '');
+  const embedKept = /^(\w+)\.not\.is\.null$/.exec(expr);
+  if (embedKept) return embeds[embedKept[1] ?? ''] === true;
   throw new Error(`fake PostgREST cannot evaluate: ${expr}`);
 }
 
 interface FakeOptions {
   failTable?: string;
+  dogs?: Row[];
+  registrations?: Row[];
 }
 
-/** A query builder that records `.or(...)` and `.limit(...)` and filters TABLES. */
+/** Which table each search embed alias reads, from the select text. */
+function embedTables(select: string): Record<string, string> {
+  const tables: Record<string, string> = {};
+  for (const m of select.matchAll(/(search_\d+_\w+):(\w+)/g)) tables[m[1] ?? ''] = m[2] ?? '';
+  return tables;
+}
+
+/** A dogs query builder: filters each aliased embed, then the dogs, then applies the limit. */
 function fakeQuery(table: string, options: FakeOptions) {
-  let orFilter: string | null = null;
+  let select = '';
+  let dogFilter: string | null = null;
+  const embedFilters: Record<string, string> = {};
   let cap = Infinity;
   const builder: Record<string, unknown> = {
-    select: () => builder,
+    select: (text: string) => {
+      select = text;
+      return builder;
+    },
     is: () => builder,
     order: () => builder,
     abortSignal: () => builder,
-    or: (filter: string) => {
-      orFilter = filter;
+    or: (filter: string, opts?: { referencedTable?: string }) => {
+      if (opts?.referencedTable) embedFilters[opts.referencedTable] = filter;
+      else dogFilter = filter;
       return builder;
     },
     limit: (n: number) => {
@@ -118,10 +135,25 @@ function fakeQuery(table: string, options: FakeOptions) {
         resolve({ data: null, error: { message: 'PostgREST unavailable', code: '503' } });
         return;
       }
-      const rows = (TABLES[table] ?? []).filter(
-        row => orFilter === null || matches(row, `or(${orFilter})`)
-      );
-      resolve({ data: rows.slice(0, cap), error: null });
+      const tables = embedTables(select);
+      const registrations = options.registrations ?? TABLES.dog_registrations ?? [];
+      const rows = (options.dogs ?? TABLES[table] ?? []).filter(dog => {
+        const kept: Record<string, boolean> = {};
+        for (const [alias, filter] of Object.entries(embedFilters)) {
+          kept[alias] =
+            tables[alias] === 'dog_registrations'
+              ? registrations.some(r => r.dog_id === dog.id && matches(r, `or(${filter})`))
+              : (TABLES.people ?? []).some(
+                  p => p.id === dog.owner_id && matches(p, `or(${filter})`)
+                );
+        }
+        return dogFilter === null || matches(dog, `or(${dogFilter})`, kept);
+      });
+      const withEmbeds = rows.map(dog => ({
+        ...dog,
+        ...Object.fromEntries(Object.keys(tables).map(alias => [alias, null])),
+      }));
+      resolve({ data: withEmbeds.slice(0, cap), error: null });
     },
   };
   return builder;
@@ -183,21 +215,48 @@ describe('searchAllDogs: a multi-word search matches word by word (MYK9-2026)', 
     expect(ids).toEqual([]);
   });
 
-  it('sends the dogs table one filter, so the words are combined in the database', async () => {
+  it('sends one request, so the words are combined in the database before the limit', async () => {
     await searchAllDogs('rex lab');
-    const dogCalls = mockSupabase.from.mock.calls.filter(([table]) => table === 'dogs');
-    expect(dogCalls).toHaveLength(1);
+    expect(mockSupabase.from.mock.calls).toEqual([['dogs']]);
   });
 
-  it('reports the result as truncated when a word lookup fills its page', async () => {
-    // Two registrations say "Labrador"; with a page of two, the per-word
-    // lookup gets one row, so the "lab" word list may be missing a dog.
-    const { hitLimit } = await foundIds('rex lab', 2);
+  it('finds the one dog matching every word when a common word matches many more', async () => {
+    // Codex review of #4099: sixty Labradors sort before Rex. Per-word id
+    // lookups capped at a page missed him; the embeds match before the limit.
+    const labs = Array.from({ length: 60 }, (_, i) => ({
+      id: `d-lab-${i}`,
+      name: `Alpha ${i}`,
+      call_name: `Buddy${i}`,
+      owner_id: 'p-ann',
+    }));
+    const rex = { id: 'd-rex', name: 'Zzz Thunder', call_name: 'Rex', owner_id: 'p-mary' };
+    useFakeDatabase({
+      dogs: [...labs, rex],
+      registrations: [...labs, rex].map(dog => ({
+        dog_id: dog.id,
+        registration_number: `SN-${dog.id}`,
+        registered_name: dog.name,
+        breed: 'Labrador Retriever',
+      })),
+    });
+    const { ids, hitLimit } = await foundIds('rex lab', 10);
+    expect(ids).toEqual(['d-rex']);
+    expect(hitLimit).toBe(false);
+  });
+
+  it('reports the result as truncated only when the page of dogs is full', async () => {
+    const { ids, hitLimit } = await foundIds('lab', 1);
+    expect(ids).toHaveLength(1);
     expect(hitLimit).toBe(true);
   });
 
-  it('propagates a failed word lookup instead of returning an empty list', async () => {
-    useFakeDatabase({ failTable: 'people' });
+  it('returns the usual dog shape, without the search embeds', async () => {
+    const { data } = await searchAllDogs('rex lab');
+    expect(Object.keys(data[0] ?? {}).filter(key => key.startsWith('search_'))).toEqual([]);
+  });
+
+  it('propagates a failed search instead of returning an empty list', async () => {
+    useFakeDatabase({ failTable: 'dogs' });
     const { data, error, hitLimit } = await foundIds('rex lab');
     expect(error).not.toBeNull();
     expect(data).toEqual([]);

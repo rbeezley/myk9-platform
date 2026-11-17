@@ -59,22 +59,47 @@ export function searchWords(term: string): string[] {
   return [...distinct.values()].slice(0, SEARCH_MAX_WORDS);
 }
 
-/** Dog ids and owner ids the registration and owner lookups found for one term. */
-export interface SearchTermIds {
-  registrationDogIds: string[];
-  ownerIds: string[];
+/**
+ * The embeds one search term filters through: the dog's registrations and its
+ * owner, each under its own alias. PostgREST cannot put an embedded table's
+ * column in the parent's `.or(...)`, but it can test whether a filtered embed
+ * kept any row (`alias.not.is.null`). So every term is matched inside the one
+ * dogs request, before its `limit`, and a common word cannot crowd out the
+ * dog that matches every word (MYK9-2026 review).
+ */
+export interface SearchTermEmbed {
+  /** The term, already escaped by `sanitizePostgRESTFilter`. */
+  term: string;
+  /** Alias of the registrations embed filtered by this term. */
+  registrations: string;
+  /** Alias of the owner embed filtered by this term. */
+  owner: string;
 }
 
-/** One term against one dog: its own name columns, or an id the lookups found. */
-function dogTermClauses(term: string, ids: SearchTermIds): string[] {
-  const clauses = [`name.ilike.%${term}%`, `call_name.ilike.%${term}%`];
-  if (ids.registrationDogIds.length > 0) {
-    clauses.push(`id.in.(${ids.registrationDogIds.join(',')})`);
-  }
-  if (ids.ownerIds.length > 0) {
-    clauses.push(`owner_id.in.(${ids.ownerIds.join(',')})`);
-  }
-  return clauses;
+/** Aliases for each term: the whole search first, then each word. */
+export function searchTermEmbeds(terms: readonly string[]): SearchTermEmbed[] {
+  return terms.map((term, index) => ({
+    term,
+    registrations: `search_${index}_registrations`,
+    owner: `search_${index}_owner`,
+  }));
+}
+
+/** The select text adding each term's embeds; only their ids, which nobody reads. */
+export function searchEmbedSelect(embeds: readonly SearchTermEmbed[]): string {
+  return embeds
+    .map(e => `${e.registrations}:dog_registrations(id),${e.owner}:people!dogs_owner_id_fkey(id)`)
+    .join(',');
+}
+
+/** One term against one dog: its own name columns, or a registration or owner it matched. */
+function dogTermClauses(embed: SearchTermEmbed): string[] {
+  return [
+    `name.ilike.%${embed.term}%`,
+    `call_name.ilike.%${embed.term}%`,
+    `${embed.registrations}.not.is.null`,
+    `${embed.owner}.not.is.null`,
+  ];
 }
 
 /**
@@ -84,18 +109,28 @@ function dogTermClauses(term: string, ids: SearchTermIds): string[] {
  * matches at least one of its fields, the rule the picker applies on the
  * device. "rex lab" therefore finds call name Rex with breed Labrador.
  */
-export function dogSearchFilter(
-  whole: { term: string; ids: SearchTermIds },
-  words: Array<{ term: string; ids: SearchTermIds }>
-): string {
-  const clauses = dogTermClauses(whole.term, whole.ids);
+export function dogSearchFilter(whole: SearchTermEmbed, words: readonly SearchTermEmbed[]): string {
+  const clauses = dogTermClauses(whole);
   const [onlyWord] = words;
   if (onlyWord && words.length === 1) {
     // A single usable word (e.g. "rex l"): OR-ing its clauses is the same as AND-ing one group.
-    clauses.push(...dogTermClauses(onlyWord.term, onlyWord.ids));
+    clauses.push(...dogTermClauses(onlyWord));
   } else if (words.length > 1) {
-    const groups = words.map(word => `or(${dogTermClauses(word.term, word.ids).join(',')})`);
+    const groups = words.map(word => `or(${dogTermClauses(word).join(',')})`);
     clauses.push(`and(${groups.join(',')})`);
   }
   return clauses.join(',');
+}
+
+/** Drops the search embeds from a returned row, so callers see the usual dog shape. */
+export function withoutSearchEmbeds(
+  row: Record<string, unknown>,
+  embeds: readonly SearchTermEmbed[]
+): Record<string, unknown> {
+  const rest = { ...row };
+  for (const e of embeds) {
+    delete rest[e.registrations];
+    delete rest[e.owner];
+  }
+  return rest;
 }

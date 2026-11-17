@@ -122,6 +122,12 @@ describe('email delivery history read model', () => {
     expect(getEmailRecoveryHref('lifecycle', 'show-1')).toBe(
       '/secretary/messages?showId=show-1&view=email#scheduled-emails'
     );
+    expect(getEmailRecoveryHref('lifecycle', 'show-1', 'entry_confirmation')).toBe(
+      '/shows/show-1/entries'
+    );
+    expect(getEmailRecoveryHref('lifecycle', 'show-1', 'show_changed')).toBe(
+      '/secretary/messages?showId=show-1&view=email#scheduled-emails'
+    );
     expect(getEmailRecoveryHref('waitlist_notification', 'show-1')).toBe(
       '/shows/show-1/entries?tab=waitlist'
     );

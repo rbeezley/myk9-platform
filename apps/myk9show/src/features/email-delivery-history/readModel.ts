@@ -42,7 +42,7 @@ export function normalizeEmailDeliveryRow(row: EmailDeliveryRpcRow): EmailDelive
     status,
     statusLabel: getEmailDeliveryStatusPresentation(status).label,
     failureSummary: row.failure_summary,
-    recoveryHref: getEmailRecoveryHref(row.source_kind, row.show_id),
+    recoveryHref: getEmailRecoveryHref(row.source_kind, row.show_id, row.lifecycle_step_type),
   };
 }
 
@@ -81,7 +81,16 @@ export function getEmailDeliveryStatusPresentation(status: string): {
   }
 }
 
-export function getEmailRecoveryHref(sourceKind: string, showId: string): string | null {
+export function getEmailRecoveryHref(
+  sourceKind: string,
+  showId: string,
+  lifecycleStepType?: string | null
+): string | null {
+  // MYK9-2088: a failed entry confirmation is reviewed where the entries are, like every other
+  // confirmation failure, not in Scheduled emails (it has no review step there).
+  if (sourceKind === 'lifecycle' && lifecycleStepType === 'entry_confirmation') {
+    return `/shows/${showId}/entries`;
+  }
   switch (sourceKind) {
     case 'registration_confirmation':
     case 'heritage_confirmation':

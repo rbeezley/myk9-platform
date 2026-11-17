@@ -214,6 +214,16 @@ export function latestAcceptanceGenerations(
   return new Map([...latest].map(([entryId, row]) => [entryId, row.id]));
 }
 
+/** The generations of these entries as a plain map (for a job row), 'none' where history has none. */
+export function generationRecord(
+  entryIds: readonly string[],
+  generations: ReadonlyMap<string, string>
+): Record<string, string> {
+  return Object.fromEntries(
+    entryIds.map(id => [id, generations.get(id) ?? NO_ACCEPTANCE_GENERATION])
+  );
+}
+
 /**
  * Resend's idempotency key for one email: the show, the exhibitor and the entries it covers,
  * each with its acceptance generation (the id of its latest entry_status_history row into

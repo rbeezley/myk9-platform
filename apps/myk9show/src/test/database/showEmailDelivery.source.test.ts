@@ -113,8 +113,8 @@ describe('MYK9-180 show email delivery source contract', () => {
   it('records a failed full confirmation when the recipient address is missing', () => {
     const contents = source('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
     const missingRecipientBlock = contents.slice(
-      contents.indexOf('if (!recipient?.email)'),
-      contents.indexOf('const claimed = await deps.claim')
+      contents.indexOf('if (!recipient || !address)'),
+      contents.indexOf('let idempotencyKey: string')
     );
     expect(missingRecipientBlock).toContain('deps.markFailed(entryIds)');
     expect(missingRecipientBlock).toContain('recipient_email: null');

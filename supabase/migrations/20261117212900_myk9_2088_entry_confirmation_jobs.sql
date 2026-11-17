@@ -32,7 +32,11 @@
 --   4. claim_due_auto_email_jobs gains p_step_types, so the show-changed drain and the
 --      confirmation drain each claim only their own kind with the one lease mechanism. The
 --      parameter has NO default: a caller must name what it can render. The result also
---      returns the stored subject and body, batch_key, entry_id and entry_ids.
+--      returns the begun payload (rendered_subject/body, null until a send begins),
+--      batch_key, entry_id, entry_ids, enrollment_id and entry_generations. A two-argument
+--      wrapper (show_changed only) stays for the rollout window; a follow-up drops it.
+--   4b. entry_generations jsonb on the job, and mark_entry_confirmation: the one fenced UPDATE
+--      every marker write goes through (see its comment).
 --
 --   5. get_show_email_delivery_history (copied from 20261117044900, its latest definition) no
 --      longer lists a refused attempt of an entry_confirmation job as a failure: refusals are
@@ -40,8 +44,8 @@
 --      heritage_confirmation email_log row; a refused-then-sent job shows only the sent email.
 --      Other step types are unchanged.
 --
--- Rollback: delete entry_confirmation jobs; restore the two-argument
--- claim_due_auto_email_jobs from 20261117094700 (and redeploy the previous
+-- Rollback: delete entry_confirmation jobs; DROP FUNCTION mark_entry_confirmation; restore the
+-- two-argument claim_due_auto_email_jobs from 20261117094700 (and redeploy the previous
 -- send-lifecycle-email and send-confirmation-email); DROP INDEX
 -- show_lifecycle_email_jobs_one_ready_entry_confirmation; restore the jobs step_type CHECK
 -- without 'entry_confirmation'; ALTER TABLE public.show_lifecycle_email_jobs DROP COLUMN
@@ -52,6 +56,12 @@ BEGIN;
 
 ALTER TABLE public.show_lifecycle_email_jobs
   ADD COLUMN IF NOT EXISTS entry_ids uuid[] NOT NULL DEFAULT '{}'::uuid[];
+
+ALTER TABLE public.show_lifecycle_email_jobs
+  ADD COLUMN IF NOT EXISTS entry_generations jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+COMMENT ON COLUMN public.show_lifecycle_email_jobs.entry_generations IS
+  'MYK9-2088: entry id to the acceptance generation (latest entry_status_history row into confirmed, or none) the job covered. mark_entry_confirmation only touches an entry whose current generation still matches. Written by the server only.';
 
 COMMENT ON COLUMN public.show_lifecycle_email_jobs.entry_ids IS
   'MYK9-2088: the entries one entry_confirmation job covers (one email per exhibitor per show). Written by the server only.';
@@ -97,8 +107,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS show_lifecycle_email_jobs_one_ready_entry_conf
   ON public.show_lifecycle_email_jobs (show_id, batch_key)
   WHERE step_type = 'entry_confirmation' AND status = 'ready' AND batch_key IS NOT NULL;
 
--- The old two-argument claim is dropped, so no caller can reach a claim that takes every
--- kind of automatic job.
+-- Replaced in place below: the two-argument claim becomes a wrapper (rollout window).
 DROP FUNCTION IF EXISTS public.claim_due_auto_email_jobs(integer, timestamptz);
 
 CREATE FUNCTION public.claim_due_auto_email_jobs(
@@ -119,6 +128,8 @@ RETURNS TABLE (
   batch_key text,
   entry_id uuid,
   entry_ids uuid[],
+  enrollment_id uuid,
+  entry_generations jsonb,
   rendered_subject text,
   rendered_body text
 )
@@ -146,12 +157,102 @@ AS $$
      AND p_lease_until > now()
   RETURNING j.id, j.attempt_id, j.show_id, j.step_type, j.recipient_person_id,
             j.recipient_email, j.recipient_name, j.idempotency_key, j.due_at,
-            j.batch_key, j.entry_id, j.entry_ids, j.rendered_subject, j.rendered_body;
+            j.batch_key, j.entry_id, j.entry_ids, j.enrollment_id, j.entry_generations,
+            j.rendered_subject, j.rendered_body;
 $$;
 
 REVOKE ALL ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz, text[])
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz, text[])
+  TO service_role;
+
+-- ROLLOUT WINDOW ONLY. The deployed send-lifecycle-email still calls the two-argument claim
+-- until it is redeployed; between `db push` and that deploy this wrapper keeps its drain working
+-- exactly as before (show_changed jobs only, never a confirmation it cannot render). Remove it in
+-- a follow-up migration once send-lifecycle-email passes p_step_types everywhere.
+CREATE FUNCTION public.claim_due_auto_email_jobs(
+  p_limit integer,
+  p_lease_until timestamptz
+)
+RETURNS TABLE (
+  job_id uuid,
+  attempt_id uuid,
+  show_id uuid,
+  step_type text,
+  recipient_person_id uuid,
+  recipient_email text,
+  recipient_name text,
+  idempotency_key text,
+  due_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT c.job_id, c.attempt_id, c.show_id, c.step_type, c.recipient_person_id,
+         c.recipient_email, c.recipient_name, c.idempotency_key, c.due_at
+    FROM public.claim_due_auto_email_jobs(p_limit, p_lease_until, ARRAY['show_changed']) AS c;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz)
+  TO service_role;
+
+-- Stamps (or fails) the covered entries in ONE update, fenced by acceptance generation. An entry
+-- is touched only while it is still unmarked, still confirmed, and its CURRENT generation (latest
+-- entry_status_history row into 'confirmed', else 'none') equals the one the job covered, so an
+-- entry accepted again after the send is never stamped by the earlier acceptance's job. A failure
+-- never clears a sent marker (it only touches unmarked entries).
+CREATE FUNCTION public.mark_entry_confirmation(
+  p_generations jsonb,
+  p_outcome text,
+  p_message_id text,
+  p_at timestamptz
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  IF p_outcome NOT IN ('sent', 'failed') THEN
+    RAISE EXCEPTION 'mark_entry_confirmation: outcome must be sent or failed' USING ERRCODE = '22023';
+  END IF;
+
+  WITH covered AS (
+    SELECT key::uuid AS entry_id, value AS generation
+      FROM jsonb_each_text(coalesce(p_generations, '{}'::jsonb))
+  )
+  UPDATE public.entries e
+     SET confirmation_email_sent_at = CASE WHEN p_outcome = 'sent' THEN p_at ELSE e.confirmation_email_sent_at END,
+         confirmation_email_status = CASE WHEN p_outcome = 'sent' THEN 'sent' ELSE 'failed' END,
+         confirmation_email_message_id = CASE
+           WHEN p_outcome = 'sent' AND p_message_id IS NOT NULL THEN p_message_id
+           ELSE e.confirmation_email_message_id
+         END
+    FROM covered c
+   WHERE e.id = c.entry_id
+     AND e.confirmation_email_sent_at IS NULL
+     AND e.entry_status = 'confirmed'
+     AND coalesce(
+           (SELECT h.id::text
+              FROM public.entry_status_history h
+             WHERE h.entry_id = e.id AND h.new_status = 'confirmed'
+             ORDER BY h.changed_at DESC, h.id DESC
+             LIMIT 1),
+           'none'
+         ) = c.generation;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.mark_entry_confirmation(jsonb, text, text, timestamptz)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mark_entry_confirmation(jsonb, text, text, timestamptz)
   TO service_role;
 
 CREATE OR REPLACE FUNCTION public.get_show_email_delivery_history(

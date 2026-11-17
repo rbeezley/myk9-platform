@@ -13,6 +13,10 @@
 --   E. the claim is service_role only, the old two-argument claim is gone, and an API role
 --      cannot write entry_ids
 --
+--   G. mark_entry_confirmation stamps an entry only while its CURRENT acceptance generation is the
+--      covered one, never clears a sent marker, and is service_role only
+--   H. the two-argument claim (rollout window) takes show_changed jobs only
+--
 -- Fixtures roll back. Every now() below is the transaction start, so times compare exactly.
 
 begin;
@@ -156,8 +160,14 @@ begin
   if not has_function_privilege('service_role', 'public.claim_due_auto_email_jobs(integer, timestamptz, text[])', 'execute') then
     raise exception 'FAIL E service_role cannot run the claim';
   end if;
-  if to_regprocedure('public.claim_due_auto_email_jobs(integer, timestamptz)') is not null then
-    raise exception 'FAIL E the claim that takes every kind of job still exists';
+  -- The two-argument claim stays for the rollout window, but only as a show_changed claim.
+  if to_regprocedure('public.claim_due_auto_email_jobs(integer, timestamptz)') is null then
+    raise exception 'FAIL E the rollout wrapper claim is missing';
+  end if;
+  if has_function_privilege('authenticated', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute')
+     or has_function_privilege('anon', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute')
+     or not has_function_privilege('service_role', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute') then
+    raise exception 'FAIL E the rollout wrapper claim is not service_role only';
   end if;
   if has_column_privilege('authenticated', 'public.show_lifecycle_email_jobs', 'entry_ids', 'update')
      or has_column_privilege('anon', 'public.show_lifecycle_email_jobs', 'entry_ids', 'update') then
@@ -230,6 +240,95 @@ begin
   end if;
   reset role;
   raise notice 'PASS F Delivery history lists a confirmation only when the job ended failed, once';
+end $$;
+
+-- G and H
+insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
+  ('00000000-0000-0000-0000-000002088603', '00000000-0000-0000-0000-000002088302', 'MYK9-2088 Trial', current_date, 'AKC', 'Scent Work');
+insert into public.classes (id, trial_id, name, status, element, level, section) values
+  ('00000000-0000-0000-0000-000002088604', '00000000-0000-0000-0000-000002088603', 'Container Novice A', 'upcoming', 'Container', 'Novice', 'A');
+insert into public.people (id, first_name, last_name, email) values
+  ('00000000-0000-0000-0000-000002088621', 'Ada', 'Owner', 'ada2088@example.test');
+insert into public.dogs (id, name, call_name, breed, owner_id) values
+  ('00000000-0000-0000-0000-000002088631', 'Dog One', 'One', 'Beagle', '00000000-0000-0000-0000-000002088621'),
+  ('00000000-0000-0000-0000-000002088632', 'Dog Two', 'Two', 'Beagle', '00000000-0000-0000-0000-000002088621'),
+  ('00000000-0000-0000-0000-000002088633', 'Dog Three', 'Three', 'Beagle', '00000000-0000-0000-0000-000002088621');
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000002088641', '00000000-0000-0000-0000-000002088631', '00000000-0000-0000-0000-000002088604', '00000000-0000-0000-0000-000002088302', '00000000-0000-0000-0000-000002088603', 'confirmed', '1', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000002088642', '00000000-0000-0000-0000-000002088632', '00000000-0000-0000-0000-000002088604', '00000000-0000-0000-0000-000002088302', '00000000-0000-0000-0000-000002088603', 'confirmed', '2', 2, 'no-status'),
+  ('00000000-0000-0000-0000-000002088643', '00000000-0000-0000-0000-000002088633', '00000000-0000-0000-0000-000002088604', '00000000-0000-0000-0000-000002088302', '00000000-0000-0000-0000-000002088603', 'confirmed', '3', 3, 'no-status');
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+delete from public.entry_status_history
+ where entry_id in ('00000000-0000-0000-0000-000002088641', '00000000-0000-0000-0000-000002088642', '00000000-0000-0000-0000-000002088643');
+insert into public.entry_status_history (id, entry_id, previous_status, new_status, changed_at) values
+  ('00000000-0000-0000-0000-000002088701', '00000000-0000-0000-0000-000002088641', 'paid', 'confirmed', now() - interval '2 hours'),
+  ('00000000-0000-0000-0000-000002088702', '00000000-0000-0000-0000-000002088642', 'paid', 'confirmed', now() - interval '2 hours');
+
+do $$
+declare
+  e1 uuid := '00000000-0000-0000-0000-000002088641';
+  e2 uuid := '00000000-0000-0000-0000-000002088642';
+  e3 uuid := '00000000-0000-0000-0000-000002088643';
+  v_count integer;
+  v_row record;
+begin
+  -- The covered generation must match: e1 does, e2 is told a stale one, e3 has none.
+  v_count := public.mark_entry_confirmation(
+    jsonb_build_object(e1::text, '00000000-0000-0000-0000-000002088701', e2::text, '00000000-0000-0000-0000-0000000000ff', e3::text, 'none'),
+    'sent', 'msg-1', now());
+  if v_count <> 2 then
+    raise exception 'FAIL G expected e1 and e3 stamped, % rows changed', v_count;
+  end if;
+  if (select confirmation_email_sent_at is null from public.entries where id = e2) is not true then
+    raise exception 'FAIL G an entry whose generation did not match was stamped';
+  end if;
+
+  -- A failure never clears a sent marker, and touches no entry already stamped.
+  v_count := public.mark_entry_confirmation(
+    jsonb_build_object(e1::text, '00000000-0000-0000-0000-000002088701'), 'failed', null, now());
+  select * into v_row from public.entries where id = e1;
+  if v_count <> 0 or v_row.confirmation_email_sent_at is null or v_row.confirmation_email_status <> 'sent'
+     or v_row.confirmation_email_message_id <> 'msg-1' then
+    raise exception 'FAIL G a failure changed a sent marker: %', row_to_json(v_row);
+  end if;
+
+  -- Accepted again (a newer history row): the earlier acceptance's job no longer stamps e2.
+  insert into public.entry_status_history (id, entry_id, previous_status, new_status, changed_at)
+  values ('00000000-0000-0000-0000-000002088703', e2, 'paid', 'confirmed', now() - interval '1 hour');
+  v_count := public.mark_entry_confirmation(
+    jsonb_build_object(e2::text, '00000000-0000-0000-0000-000002088702'), 'sent', 'msg-old', now());
+  if v_count <> 0 or (select confirmation_email_sent_at is not null from public.entries where id = e2) then
+    raise exception 'FAIL G the earlier acceptance stamped a re-accepted entry';
+  end if;
+  v_count := public.mark_entry_confirmation(
+    jsonb_build_object(e2::text, '00000000-0000-0000-0000-000002088703'), 'sent', 'msg-new', now());
+  if v_count <> 1 then
+    raise exception 'FAIL G the current acceptance was not stamped';
+  end if;
+
+  if has_function_privilege('authenticated', 'public.mark_entry_confirmation(jsonb, text, text, timestamptz)', 'execute')
+     or has_function_privilege('anon', 'public.mark_entry_confirmation(jsonb, text, text, timestamptz)', 'execute')
+     or not has_function_privilege('service_role', 'public.mark_entry_confirmation(jsonb, text, text, timestamptz)', 'execute') then
+    raise exception 'FAIL G mark_entry_confirmation is not service_role only';
+  end if;
+  raise notice 'PASS G the marker is fenced by acceptance generation and a failure never clears it';
+end $$;
+
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002088302';
+  v_count integer;
+  v_all_changed boolean;
+begin
+  perform pg_temp.add_job('00000000-0000-0000-0000-000002088302:registration:reg-h1', 'entry_confirmation', 'entry-confirmation:h');
+  perform pg_temp.add_job(null, 'show_changed', 'show-changed:h');
+  select count(*), bool_and(step_type = 'show_changed') into v_count, v_all_changed
+    from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  if v_count < 1 or v_all_changed is not true then
+    raise exception 'FAIL H the two-argument claim took % jobs, expected only show_changed ones', v_count;
+  end if;
+  raise notice 'PASS H the rollout wrapper claim takes show_changed jobs only';
 end $$;
 
 rollback;

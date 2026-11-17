@@ -54,12 +54,19 @@ interrupted send is retried and a provider-accepted send is reconciled. The hist
 
 As built (MYK9-2088): job step type `entry_confirmation` (jobs CHECK only; the secretary's
 switch stays the `accepted` step, and the job's `step_id` points at it), one ready job per
-exhibitor per show (unique on `show_id, batch_key`), the covered ids in `entry_ids`, the text
-rendered when the job is written. `claim_due_auto_email_jobs` takes `p_step_types`, so each
-drain claims only what it can render; the confirmation drain lives in `send-confirmation-email`
-(it owns the heritage renderers) and every scheduled run drains first, which is the recovery.
+exhibitor per show (unique on `show_id, batch_key`), the covered ids in `entry_ids` and each one's
+acceptance generation in `entry_generations`. **No text is stored when the job is written**: the
+worker works out the subject, body and address at send time from current data, like the
+show_changed drain. The only stored payload is the one a send began with (`rendered_*`), repeated
+verbatim under the same key when the provider's answer was lost. The Resend key is the job's key
+plus the address, so the same address always dedupes and a changed address is its own message.
+Every marker write goes through `mark_entry_confirmation`, one UPDATE fenced by generation.
+`claim_due_auto_email_jobs` takes `p_step_types` (a two-argument wrapper stays for the rollout
+window), so each drain claims only what it can render; the confirmation drain lives in
+`send-confirmation-email` (it owns the heritage renderers) and every scheduled run drains first,
+which is the recovery.
 
-### Phase 3: the secretary's entry edits (MYK9-2126)
+## Phase 3: the secretary's entry edits (MYK9-2126)
 
 Step type `entry_changed`, debounced the same way, after the Undo window.
 

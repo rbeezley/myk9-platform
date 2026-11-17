@@ -56,17 +56,21 @@ describe('DB migration sanity contracts', () => {
     const recipients = sliceBetween(source, 'loadRecipients: async', 'loadJudges: async');
     expect(recipients).toContain('registrationsRead = false');
 
-    // MYK9-2088: the marker is written when the job succeeds, only on entries still unmarked,
-    // and a re-acceptance's reset to 'pending' is never overwritten here.
+    // MYK9-2088: the marker is written when the job succeeds, through the one fenced UPDATE
+    // (mark_entry_confirmation: only unmarked entries whose acceptance generation still matches),
+    // and a failure without a job never clears a sent marker.
     const marker = sliceBetween(source, 'markSent: async', 'markFailed: async');
-    expect(marker).toContain(".is('confirmation_email_sent_at', null)");
-    expect(marker).toContain("confirmation_email_status: 'sent'");
-    expect(marker).not.toContain("confirmation_email_status: 'pending'");
+    expect(marker).toContain("rpc('mark_entry_confirmation'");
+    expect(marker).toContain("p_outcome: 'sent'");
+    const failed = sliceBetween(source, 'markFailed: async', 'findLogId: async');
+    expect(failed).toContain(".is('confirmation_email_sent_at', null)");
+    expect(failed).not.toContain('confirmation_email_sent_at: null');
+    expect(failed).not.toContain("confirmation_email_status: 'pending'");
 
     const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
     expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
     expect(run).toContain(
-      'idempotencyKey = await confirmationIdempotencyKey(group, entryIds, generations)'
+      'idempotencyKey = await confirmationIdempotencyKey(group, entryIds, read)'
     );
   });
 

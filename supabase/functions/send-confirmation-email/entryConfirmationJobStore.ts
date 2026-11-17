@@ -25,6 +25,8 @@ interface ClaimedRow {
   batch_key: string | null;
   entry_id: string | null;
   entry_ids: string[] | null;
+  enrollment_id: string | null;
+  entry_generations: Record<string, string> | null;
   recipient_email: string | null;
   rendered_subject: string | null;
   rendered_body: string | null;
@@ -68,13 +70,14 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
         .maybeSingle();
       if (readError) fail('Could not read the confirmation job', readError);
 
+      // No text is stored: the body is worked out when the job is sent.
       const text = {
         recipient_email: args.recipientEmail,
         recipient_name: args.recipientName,
-        subject: args.subject,
-        rendered_subject: args.subject,
-        rendered_body: args.html,
+        rendered_subject: null,
+        rendered_body: null,
         entry_ids: args.entryIds,
+        entry_generations: args.generations,
       };
 
       if (existing) {
@@ -131,6 +134,22 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
       return { outcome: 'created' };
     },
 
+    async loadReadyGroupKeys(showIds) {
+      if (showIds.length === 0) return new Set();
+      const { data, error } = await supabase
+        .from(JOBS)
+        .select('batch_key')
+        .in('show_id', showIds)
+        .eq('step_type', CONFIRMATION_JOB_STEP_TYPE)
+        .eq('status', 'ready');
+      if (error) fail('Could not read the waiting confirmation jobs', error);
+      return new Set(
+        ((data ?? []) as Array<{ batch_key: string | null }>)
+          .map(row => row.batch_key)
+          .filter((key): key is string => !!key)
+      );
+    },
+
     async claimDue(limit, leaseUntilIso): Promise<ConfirmationJob[]> {
       const { data, error } = await supabase.rpc('claim_due_auto_email_jobs', {
         p_limit: limit,
@@ -143,11 +162,19 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
         attemptId: row.attempt_id,
         showId: row.show_id,
         groupKey: row.batch_key ?? '',
+        registrationId: row.enrollment_id,
         anchorEntryId: row.entry_id ?? row.entry_ids?.[0] ?? '',
         entryIds: row.entry_ids ?? [],
+        generations: row.entry_generations ?? {},
         recipientEmail: row.recipient_email ?? '',
-        subject: row.rendered_subject ?? '',
-        html: row.rendered_body ?? '',
+        begun:
+          row.rendered_body === null
+            ? null
+            : {
+                to: row.recipient_email ?? '',
+                subject: row.rendered_subject ?? '',
+                html: row.rendered_body,
+              },
         idempotencyKey: row.idempotency_key,
         dueAt: row.due_at,
       }));
@@ -172,6 +199,22 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
         resendMessageId: row.resend_message_id,
         status: row.status,
       }));
+    },
+
+    async beginSend(job, payload) {
+      const { data, error } = await supabase
+        .from(JOBS)
+        .update({
+          recipient_email: payload.to,
+          rendered_subject: payload.subject,
+          rendered_body: payload.html,
+        })
+        .eq('id', job.id)
+        .eq('attempt_id', job.attemptId)
+        .select('id');
+      if (error) fail('Could not store the confirmation about to be sent', error);
+      // The lease was lost: another run owns the job now, so this one must not send.
+      if ((data ?? []).length === 0) throw new Error('The confirmation lease was lost');
     },
 
     async recordAttempt(job, attempt) {
@@ -201,10 +244,14 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
       if (error) fail('Could not record the confirmation outcome', error);
     },
 
-    async releaseLease(job, untilIso) {
+    async releaseLease(job, untilIso, keepBegun) {
       const { error } = await supabase
         .from(JOBS)
-        .update({ attempt_id: null, claimed_until: untilIso })
+        .update({
+          attempt_id: null,
+          claimed_until: untilIso,
+          ...(keepBegun ? {} : { rendered_subject: null, rendered_body: null }),
+        })
         .eq('id', job.id)
         .eq('attempt_id', job.attemptId);
       if (error) fail('Could not release the confirmation lease', error);

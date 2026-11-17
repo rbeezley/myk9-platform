@@ -11,6 +11,7 @@ import {
 import { runEntryConfirmations } from './entryConfirmationRun';
 import {
   DAY,
+  LONG_AGO,
   entry,
   makeDeps,
   resetEntrySeq,
@@ -269,12 +270,16 @@ describe('what the entries are now (re-acceptance and genuine prior sends)', () 
 
     expect(jobRows.map(row => row.status).sort()).toEqual(['sent', 'skipped']);
     expect(sends).toHaveLength(1);
-    expect(sends[0]!.idempotencyKey).toBe(
-      jobRows.find(row => row.status === 'sent')!.idempotency_key
-    );
-    expect(sends[0]!.idempotencyKey).not.toBe(
-      jobRows.find(row => row.status === 'skipped')!.idempotency_key
-    );
+    expect(
+      sends[0]!.idempotencyKey.startsWith(
+        jobRows.find(row => row.status === 'sent')!.idempotency_key
+      )
+    ).toBe(true);
+    expect(
+      sends[0]!.idempotencyKey.startsWith(
+        jobRows.find(row => row.status === 'skipped')!.idempotency_key
+      )
+    ).toBe(false);
 
     // A third acceptance after the second went out is a new confirmation again.
     accepted.confirmation_email_sent_at = null;
@@ -307,5 +312,170 @@ describe('what the entries are now (re-acceptance and genuine prior sends)', () 
     expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
     expect(sends).toHaveLength(1);
     expect(jobRows).toHaveLength(1);
+  });
+});
+
+describe('the email is worked out when it is sent (not when the job was written)', () => {
+  it('sends the current venue to the current address, under a key for that address', async () => {
+    const people = { 'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: 'L' } };
+    const venue = show();
+    const { deps, sends, jobRows, advance } = setup({ shows: [venue], people });
+    stopOnce(deps.jobs, 'loadAttempts'); // the job is written and leased, never sent
+
+    await runEntryConfirmations(deps, 'new');
+    expect(sends).toHaveLength(0);
+    // Nothing was rendered yet, so nothing stale is stored.
+    expect(jobRows[0]).toMatchObject({ begun: null });
+
+    venue.address = '77 New Venue Lane';
+    people['reg-ada'] = { email: 'ada.new@example.com', firstName: 'Ada', lastName: 'L' };
+    advance(CONFIRMATION_LEASE_MS + MINUTE);
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
+
+    expect(sends).toHaveLength(1);
+    expect(sends[0]!.to).toBe('ada.new@example.com');
+    expect(sends[0]!.html).toContain('77 New Venue Lane');
+    expect(sends[0]!.html).not.toContain('1200 Fairgrounds Rd');
+    // The key carries the address: the same address always repeats it, another gets its own.
+    expect(sends[0]!.idempotencyKey.startsWith(jobRows[0]!.idempotency_key + ':')).toBe(true);
+  });
+
+  it('skips, and marks the entries failed, when the exhibitor has no usable address', async () => {
+    const people: Record<string, { email: string | null; firstName: string; lastName: null }> = {
+      'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: null },
+    };
+    const { deps, sends, jobRows, entries, advance } = setup({ people });
+    stopOnce(deps.jobs, 'loadAttempts');
+    await runEntryConfirmations(deps, 'new');
+
+    people['reg-ada'] = { email: 'not an address', firstName: 'Ada', lastName: null };
+    advance(CONFIRMATION_LEASE_MS + MINUTE);
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, skipped: 1 });
+    expect(sends).toHaveLength(0);
+    expect(jobRows[0]!.status).toBe('skipped');
+
+    // The next run's writer notices: nothing to send to, entries marked for the daily look.
+    await runEntryConfirmations(deps, 'new');
+    expect(entries[0]).toMatchObject({ confirmation_email_status: 'failed' });
+    expect(sends).toHaveLength(0);
+  });
+
+  it('repeats exactly the payload a send began with when the provider answer was lost, so it dedupes', async () => {
+    const venue = show();
+    let lose = true;
+    const { deps, sends, deliveries, logs, jobRows, advance } = setup({
+      shows: [venue],
+      loseResponse: () => lose,
+    });
+
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, retrying: 1 });
+    expect(deliveries.size).toBe(1); // the provider did accept it
+    expect(jobRows[0]!.begun).not.toBeNull();
+
+    // Data changes before the retry; the retry must still be the very same message.
+    venue.address = '77 New Venue Lane';
+    lose = false;
+    advance(10 * MINUTE);
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
+    expect(sends).toHaveLength(2);
+    expect(sends[1]).toEqual(sends[0]);
+    expect(deliveries.size).toBe(1);
+    expect(logs).toHaveLength(1);
+  });
+});
+
+describe('the marker is fenced by acceptance generation', () => {
+  it('does not stamp a re-acceptance after the earlier acceptance was sent, and sends the new one its own email', async () => {
+    const accepted = entry();
+    const history: AcceptanceHistoryRow[] = [
+      { id: 'hist-1', entry_id: accepted.id, changed_at: '2026-11-20T13:00:00Z' },
+    ];
+    const { deps, sends, jobRows, advance } = makeDeps({
+      shows: [show()],
+      entries: [accepted],
+      history,
+    });
+    // The provider accepts, then the run stops before the entries are stamped.
+    stopOnce(deps, 'markSent');
+    await runEntryConfirmations(deps, 'new');
+    expect(sends).toHaveLength(1);
+    expect(accepted.confirmation_email_sent_at).toBeNull();
+
+    // The secretary returns it to review and accepts again: new generation, markers reset, and
+    // the change is recent, so the quiet period holds its own email back for now.
+    advance(CONFIRMATION_LEASE_MS + MINUTE);
+    history.push({ id: 'hist-2', entry_id: accepted.id, changed_at: '2026-11-20T15:05:00Z' });
+    accepted.updated_at = '2026-11-20T15:10:00Z';
+    accepted.confirmation_email_status = 'pending';
+
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ reconciled: 1 });
+    // The first job reconciled, but the new acceptance is NOT stamped by it.
+    expect(accepted.confirmation_email_sent_at).toBeNull();
+    expect(accepted.confirmation_email_status).toBe('pending');
+    expect(sends).toHaveLength(1);
+
+    // Once quiet, the new acceptance gets its own email and its own stamp.
+    advance(15 * MINUTE);
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
+    expect(sends).toHaveLength(2);
+    expect(new Set(sends.map(email => email.idempotencyKey)).size).toBe(2);
+    expect(jobRows).toHaveLength(2);
+    expect(accepted.confirmation_email_sent_at).not.toBeNull();
+  });
+
+  it('never clears a sent marker when a failure is recorded', async () => {
+    const stamped = entry({
+      confirmation_email_sent_at: '2026-11-10T09:00:00Z',
+      confirmation_email_status: 'sent',
+    });
+    const { deps } = makeDeps({ shows: [show()], entries: [stamped] });
+    await deps.markFailed([stamped.id], { [stamped.id]: 'none' });
+    await deps.markFailed([stamped.id]);
+    expect(stamped).toMatchObject({
+      confirmation_email_sent_at: '2026-11-10T09:00:00Z',
+      confirmation_email_status: 'sent',
+    });
+  });
+});
+
+describe('the run limit', () => {
+  it('is not used up by exhibitors whose job is already waiting', async () => {
+    const people: Record<string, { email: string; firstName: string; lastName: null }> = {};
+    const entries = [];
+    for (let i = 0; i < 55; i++) {
+      people[`reg-${i}`] = { email: `x${i}@example.com`, firstName: `X${i}`, lastName: null };
+      entries.push(
+        entry({
+          registration_id: `reg-${i}`,
+          handler_id: `person-${i}`,
+          updated_at: `2026-11-19T00:00:${String(i).padStart(2, '0')}Z`,
+        })
+      );
+    }
+    people['reg-new'] = { email: 'new@example.com', firstName: 'New', lastName: null };
+    const newest = entry({
+      registration_id: 'reg-new',
+      handler_id: 'person-new',
+      updated_at: '2026-11-20T14:50:00Z',
+    });
+    entries.push(newest);
+    let refuse = true;
+    const { deps, sends, advance } = makeDeps({
+      shows: [show()],
+      entries,
+      people,
+      sendResult: () =>
+        refuse ? { ok: false, error: 'provider_http_500' } : { ok: true, messageId: '' },
+    });
+
+    // The oldest 50 are written, refused and left in backoff.
+    await runEntryConfirmations(deps, 'new');
+    expect(sends).toHaveLength(50);
+    refuse = false;
+    advance(MINUTE);
+    // Five more are older than the newcomer: they and the newcomer go now, the waiting 50 do not.
+    await runEntryConfirmations(deps, 'new');
+    expect(sends.filter(email => email.to === 'new@example.com')).toHaveLength(1);
+    expect(sends).toHaveLength(56);
   });
 });

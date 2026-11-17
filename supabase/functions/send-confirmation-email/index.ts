@@ -265,40 +265,48 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       return latestAcceptanceGenerations((data ?? []) as AcceptanceHistoryRow[]);
     },
     jobs: createConfirmationJobStore(supabase),
-    loadLiveEntryIds: async entryIds => {
+    loadEntries: async entryIds => {
       const { data, error } = await supabase
         .from('entries')
-        .select('id')
+        .select(ENTRY_SELECT)
         .in('id', entryIds)
         .eq('entry_status', 'confirmed')
         .not('armband', 'is', null)
         .is('deleted_at', null)
         .is('confirmation_email_sent_at', null);
       if (error) throw new Error(`Could not read the confirmation entries: ${error.message}`);
-      return new Set(((data ?? []) as Array<{ id: string }>).map(row => row.id));
+      return (data ?? []) as unknown as ConfirmationEntry[];
     },
-    markSent: async (entryIds, messageId, nowIso) => {
-      // The marker is written when the job succeeds, never before the send (MYK9-2088). Only
-      // entries still unmarked: a re-accepted entry cleared by the trigger is a new confirmation.
-      const { error } = await supabase
-        .from('entries')
-        .update({
-          confirmation_email_sent_at: nowIso,
-          confirmation_email_status: 'sent',
-          ...(messageId ? { confirmation_email_message_id: messageId } : {}),
-        })
-        .in('id', entryIds)
-        .is('confirmation_email_sent_at', null)
-        .eq('entry_status', 'confirmed');
+    markSent: async (generations, messageId, nowIso) => {
+      // The marker is written when the job succeeds, never before the send (MYK9-2088), in one
+      // update fenced by acceptance generation: an entry accepted again since is not stamped.
+      const { error } = await supabase.rpc('mark_entry_confirmation', {
+        p_generations: generations,
+        p_outcome: 'sent',
+        p_message_id: messageId,
+        p_at: nowIso,
+      });
       // Not swallowed: the job stays leased and the next run reconciles it, so the marker is
       // never left behind a job that says sent.
       if (error) throw new Error(`Could not mark confirmations sent: ${error.message}`);
     },
-    markFailed: async entryIds => {
+    markFailed: async (entryIds, generations) => {
+      if (generations) {
+        const { error } = await supabase.rpc('mark_entry_confirmation', {
+          p_generations: generations,
+          p_outcome: 'failed',
+          p_message_id: null,
+          p_at: new Date().toISOString(),
+        });
+        if (error) console.error('Could not release confirmations', { message: error.message });
+        return;
+      }
+      // Never clears a sent marker: only entries still unmarked.
       const { error } = await supabase
         .from('entries')
-        .update({ confirmation_email_sent_at: null, confirmation_email_status: 'failed' })
-        .in('id', entryIds);
+        .update({ confirmation_email_status: 'failed' })
+        .in('id', entryIds)
+        .is('confirmation_email_sent_at', null);
       if (error) console.error('Could not release confirmations', { message: error.message });
     },
     findLogId: async messageId => {
@@ -313,15 +321,21 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
     },
     render: (data, show) => renderConfirmationEmail(data, show, showRegistry(show)),
     send: async ({ to, subject, html, idempotencyKey }) => {
-      const res = await sendResendEmailWithRetry({
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${resendApiKey}`,
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
-      });
+      let res: Response;
+      try {
+        res = await sendResendEmailWithRetry({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${resendApiKey}`,
+            'Idempotency-Key': idempotencyKey,
+          },
+          body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+        });
+      } catch {
+        // No answer came back: the provider may have accepted it. Kept for the retry to repeat.
+        return { ok: false, error: 'email_delivery_error', ambiguous: true };
+      }
       if (!res.ok) {
         await res.text();
         console.error('Failed to send the full confirmation', { status: res.status });

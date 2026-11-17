@@ -28,6 +28,10 @@ export function reminderDeps(
 ): EntryReminderDeps {
   return {
     ...shared,
+    // The shared writer reports the log row's id (the confirmation job links it); the reminder does not.
+    log: async row => {
+      await shared.log(row);
+    },
     loadEntries: (showIds, staleBeforeIso) =>
       readAllPages<ConfirmationEntry>(
         (from, to) =>

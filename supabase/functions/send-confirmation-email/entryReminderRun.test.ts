@@ -214,6 +214,8 @@ describe('runEntryReminders (MYK9-2113)', () => {
       status: 'sent',
       error_message: null,
     });
+    const adaLog = logs.find(row => row.recipient_email === 'ada@example.com');
+    expect(adaLog?.content).toEqual({ subject: ada.subject, html: ada.html });
   });
 
   it('is recorded against the show, and a second run the same morning sends nothing', async () => {

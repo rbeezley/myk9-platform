@@ -317,7 +317,11 @@ async function sendOneJob(args: {
     return { jobId: args.job.id, status: 'failed', error: 'Email delivery failed' };
   }
 
-  const emailLogId = await insertEmailLog(args, result.messageId, 'sent', null);
+  const emailLogId = await insertEmailLog(args, result.messageId, 'sent', null, {
+    subject,
+    body,
+    secretaryNote,
+  });
   await args.supabase
     .from('show_lifecycle_email_jobs')
     .update({
@@ -345,7 +349,11 @@ async function recordFailure(
   secretaryNote: string,
   error: string
 ) {
-  const emailLogId = await insertEmailLog(args, null, 'failed', error);
+  const emailLogId = await insertEmailLog(args, null, 'failed', error, {
+    subject,
+    body,
+    secretaryNote,
+  });
   await args.supabase
     .from('show_lifecycle_email_jobs')
     .update({

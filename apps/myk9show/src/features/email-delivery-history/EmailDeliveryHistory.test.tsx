@@ -4,13 +4,18 @@ import { render } from '@/test/utils/testUtils';
 import { EmailDeliveryHistory } from './EmailDeliveryHistory';
 import type { EmailDeliveryHistoryPage } from './api';
 
-const { mockFetch } = vi.hoisted(() => ({
+const { mockFetch, mockFetchContent } = vi.hoisted(() => ({
   mockFetch: vi.fn<(...args: never[]) => Promise<EmailDeliveryHistoryPage>>(),
+  mockFetchContent: vi.fn<(...args: never[]) => Promise<{ subject: string; html: string } | null>>(),
 }));
 
 vi.mock('./api', async importOriginal => {
   const actual = await importOriginal<typeof import('./api')>();
-  return { ...actual, fetchShowEmailDeliveryHistory: mockFetch };
+  return {
+    ...actual,
+    fetchShowEmailDeliveryHistory: mockFetch,
+    fetchShowEmailContent: mockFetchContent,
+  };
 });
 
 const row = {
@@ -30,6 +35,7 @@ const row = {
 describe('EmailDeliveryHistory', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    mockFetchContent.mockReset();
   });
 
   it('renders truthful failure status and the existing recovery link', async () => {
@@ -75,5 +81,33 @@ describe('EmailDeliveryHistory', () => {
       await screen.findByText('Email delivery history isn’t available right now. Try again.')
     ).toBeInTheDocument();
     expect(screen.getByText('Delivery history')).toBeInTheDocument();
+  });
+
+  it('opens the stored email in an iframe with an empty sandbox', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockResolvedValue({ subject: 'Entry accepted', html: '<p>Welcome</p>' });
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    const frame = await screen.findByTitle('Email preview');
+    expect(frame).toHaveAttribute('sandbox', '');
+    expect(frame).toHaveAttribute('srcdoc', '<p>Welcome</p>');
+    expect(mockFetchContent).toHaveBeenCalledWith(expect.objectContaining({ emailLogId: 'attempt-1' }));
+  });
+
+  it('says plainly when no copy of the email was kept', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockResolvedValue(null);
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(
+      await screen.findByText(
+        'A copy of this email was not kept. Emails sent after November 17, 2026 can be opened here.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByTitle('Email preview')).not.toBeInTheDocument();
   });
 });

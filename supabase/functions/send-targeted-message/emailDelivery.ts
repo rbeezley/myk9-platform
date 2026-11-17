@@ -1,4 +1,5 @@
 import { RESEND_BATCH_EMAILS_URL, sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { storeEmailContents, type EmailContentClient } from '../_shared/emailLogContent.ts';
 import type { EmailAudience, EmailRecipient } from './targeting.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -188,15 +189,35 @@ export function createShowMessageEmailSender(deps: {
 
 // Delivery history is best-effort after the mail has gone out: failing the request
 // here would invite a retry that emails everyone twice.
+// MYK9-2115: `copyFor` rebuilds what one recipient was sent, so the secretary can read it.
 export async function writeEmailLog(
-  supabase: { from(table: string): { insert(rows: unknown): PromiseLike<{ error: unknown }> } },
-  rows: EmailLogRow[]
+  supabase: {
+    from(table: string): {
+      insert(rows: unknown): {
+        select(columns: string): PromiseLike<{
+          data: Array<{ id: string }> | null;
+          error: unknown;
+        }>;
+      };
+    };
+  },
+  rows: EmailLogRow[],
+  copyFor?: (recipientEmail: string) => { subject: string; html: string }
 ): Promise<boolean> {
   if (rows.length === 0) return true;
-  const { error } = await supabase.from('email_log').insert(rows);
+  const { data, error } = await supabase.from('email_log').insert(rows).select('id');
   if (error) {
     console.error('send-targeted-message: failed to record email delivery history');
     return false;
+  }
+  if (copyFor && data && data.length === rows.length) {
+    await storeEmailContents(
+      supabase as unknown as EmailContentClient,
+      rows.map((row, index) => ({
+        emailLogId: data[index]?.id,
+        ...copyFor(row.recipient_email),
+      }))
+    );
   }
   return true;
 }

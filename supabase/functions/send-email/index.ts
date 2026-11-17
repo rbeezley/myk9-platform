@@ -11,6 +11,7 @@ import {
 import { resolveDerivedRecipient } from './recipientResolution.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { storeEmailContent } from '../_shared/emailLogContent.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -184,9 +185,16 @@ handle<EmailData>(
     if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
       logRow.show_id = authzResult.registration.show.id;
     }
-    const { error: logError } = await supabase.from('email_log').insert(logRow);
+    const { data: loggedRow, error: logError } = await supabase
+      .from('email_log')
+      .insert(logRow)
+      .select('id')
+      .single();
     if (data.type === 'entry_decision') {
       requireEmailLogWrite(logError, 'send-email entry-decision');
+      // MYK9-2115: keep a copy for the show's delivery history. Show-scoped only; a support
+      // notification (no show_id) is never stored.
+      if (logRow.show_id) await storeEmailContent(supabase, loggedRow?.id, subject, html);
     } else if (logError) {
       console.error('send-email: failed to record platform email log', { code: logError.code });
     }

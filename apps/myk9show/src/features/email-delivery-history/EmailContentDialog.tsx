@@ -1,0 +1,93 @@
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { supabase } from '@/lib/supabase-client';
+import { fetchShowEmailContent, type EmailDeliverySupabaseClient } from './api';
+
+/** Copies are kept for emails sent from this date on (MYK9-2115). */
+export const EMAIL_COPIES_KEPT_FROM = 'November 17, 2026';
+
+export function ViewEmailButton({ emailLogId, label }: { emailLogId: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
+        onClick={() => setOpen(true)}
+      >
+        View email
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl">
+          <EmailContentBody emailLogId={emailLogId} label={label} enabled={open} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function EmailContentBody({
+  emailLogId,
+  label,
+  enabled,
+}: {
+  emailLogId: string;
+  label: string;
+  enabled: boolean;
+}) {
+  const query = useQuery({
+    queryKey: ['show-email-content', emailLogId],
+    queryFn: () =>
+      fetchShowEmailContent({
+        supabase: supabase as unknown as EmailDeliverySupabaseClient,
+        emailLogId,
+      }),
+    enabled,
+    staleTime: Infinity,
+  });
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{query.data?.subject ?? label}</DialogTitle>
+        <DialogDescription>What this email said when it was sent.</DialogDescription>
+      </DialogHeader>
+      {query.isPending ? (
+        <p className="text-sm text-muted-foreground" role="status">
+          Loading email…
+        </p>
+      ) : query.isError ? (
+        <div>
+          <p className="text-sm text-destructive">This email isn’t available right now.</p>
+          <button
+            type="button"
+            className="mt-3 min-h-11 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+            onClick={() => void query.refetch()}
+          >
+            Try again
+          </button>
+        </div>
+      ) : query.data ? (
+        // An empty sandbox: no scripts, forms, popups or same-origin access for the email's html.
+        <iframe
+          title="Email preview"
+          sandbox=""
+          srcDoc={query.data.html}
+          className="h-[60vh] w-full rounded-md border bg-white"
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          A copy of this email was not kept. Emails sent after {EMAIL_COPIES_KEPT_FROM} can be
+          opened here.
+        </p>
+      )}
+    </>
+  );
+}

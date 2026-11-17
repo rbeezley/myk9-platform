@@ -1,6 +1,12 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
-import { emailFields, writeEmailLog, type SendShowMessageEmails } from './emailDelivery.ts';
+import {
+  buildShowMessageEmailHtml,
+  buildShowMessageEmailSubject,
+  emailFields,
+  writeEmailLog,
+  type SendShowMessageEmails,
+} from './emailDelivery.ts';
 import {
   ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
   buildAccountPushTargets,
@@ -417,7 +423,12 @@ export function createSendTargetedMessageHandler(deps: {
         emailResult.logRows.filter(row => row.status === 'sent').map(row => row.recipient_email)
       );
       emailSucceededTo = emailAudience.recipients.filter(recipient => sentTo.has(recipient.email));
-      emailLogFailed = !(await writeEmailLog(supabase, emailResult.logRows));
+      const showName = show.name?.trim() || 'your show';
+      const nameByEmail = new Map(emailAudience.recipients.map(r => [r.email, r.name]));
+      emailLogFailed = !(await writeEmailLog(supabase, emailResult.logRows, email => ({
+        subject: buildShowMessageEmailSubject(showName),
+        html: buildShowMessageEmailHtml({ showName, body, name: nameByEmail.get(email) ?? '' }),
+      })));
     }
 
     return {

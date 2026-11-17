@@ -87,6 +87,18 @@ describe('send-lifecycle-email handler', () => {
         expect.objectContaining({ table: 'show_lifecycle_email_attempts', action: 'insert' }),
       ])
     );
+    // MYK9-2115: the text that went out is kept against the email_log row for the history.
+    const kept = calls.find(call => call.table === 'email_log_contents');
+    expect(kept).toMatchObject({
+      action: 'insert',
+      value: [
+        {
+          email_log_id: 'email-log-1',
+          subject: 'Reviewed subject',
+          html: expect.stringContaining('Reviewed body'),
+        },
+      ],
+    });
   });
 
   it('retries a transient provider response without duplicating the business action', async () => {

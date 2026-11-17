@@ -260,7 +260,7 @@ async function sendNumberNeededAttempt(args: {
   const status = result.ok ? 'sent' : 'failed';
   const messageId = result.ok ? result.messageId : null;
   const error = result.ok ? null : result.error;
-  const emailLogId = await insertEmailLog(args, messageId, status, error);
+  const emailLogId = await insertEmailLog(args, messageId, status, error, text);
   await insertAttempt(args, emailLogId, messageId, status, error);
   await finishAttempt(args, status, emailLogId ?? null, text);
   return status;

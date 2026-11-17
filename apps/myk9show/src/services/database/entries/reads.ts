@@ -25,7 +25,6 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
-import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
@@ -45,6 +44,7 @@ import {
   withoutUnverifiedPayment,
 } from './dogEntryMoney';
 import { compareNewestFirst, compareRunOrder, readAllEntryPages } from './entryPagedRead';
+import { backfillMissingArmbands } from './armbandBackfill';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
 import { ensureShowEntriesSynced } from './requireShowEntriesSynced';
 import {
@@ -132,51 +132,6 @@ function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
 // ---------------------------------------------------------------------------
 // Internal helper — keep on PostgREST (Task 6 will migrate later)
 // ---------------------------------------------------------------------------
-
-/**
- * Fetch armband numbers from the authoritative `armbands` table for entries
- * that are missing them. Returns a Map of `show_id:dog_id` → armband_number.
- *
- * The `entries.armband` column is a denormalized copy that may lag behind
- * if the replication UPDATE mutation hasn't synced yet. The `armbands` table
- * is the authoritative source (written atomically by the assign_armband RPC).
- *
- * Reads from replicatedArmbandsTable first, falls back to PostgREST.
- */
-async function fetchMissingArmbands(
-  entries: ReadonlyArray<{ armband: string | null; show_id: string | null; dog_id: string | null }>
-): Promise<Map<string, string>> {
-  const missing = entries.filter(e => !e.armband && e.show_id && e.dog_id);
-  if (missing.length === 0) return new Map();
-
-  const showIds = [...new Set(missing.map(e => e.show_id!))];
-  const dogIds = new Set(missing.map(e => e.dog_id!));
-
-  try {
-    // Read from replication store
-    const armbandsByShow = await Promise.all(
-      showIds.map(sid => replicatedArmbandsTable.getByShow(sid))
-    );
-    const allArmbands = armbandsByShow.flat();
-
-    // Filter to only the dog IDs we need
-    const relevant = allArmbands.filter(a => a.dogId && dogIds.has(a.dogId));
-    if (relevant.length === 0) return new Map();
-
-    return new Map(relevant.map(a => [`${a.showId}:${a.dogId}`, a.armbandNumber]));
-  } catch {
-    // Fallback to PostgREST
-    const { data: armbandRows } = await supabase
-      .from('armbands')
-      .select('show_id, dog_id, armband_number')
-      .in('show_id', showIds)
-      .in('dog_id', [...dogIds]);
-
-    if (!armbandRows || armbandRows.length === 0) return new Map();
-
-    return new Map(armbandRows.map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)]));
-  }
-}
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -556,14 +511,7 @@ async function postgrestGetEntriesByClass(classId: string) {
   >;
 
   // Backfill armbands from the authoritative armbands table
-  const armbandMap = await fetchMissingArmbands(entries);
-  const backfilledEntries = entries.map(e => {
-    if (!e.armband && e.show_id && e.dog_id) {
-      const armband = armbandMap.get(`${e.show_id}:${e.dog_id}`);
-      if (armband) return { ...e, armband };
-    }
-    return e;
-  });
+  const backfilledEntries = await backfillMissingArmbands(entries);
 
   return {
     data: attachPostgrestHandlerIdentity(backfilledEntries as Record<string, unknown>[]),
@@ -832,7 +780,9 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         })
       );
       return {
-        data,
+        // MYK9-2103: the same armband backfill as the class read, so a printed sheet built from
+        // either scope shows the same armband.
+        data: await backfillMissingArmbands(data),
         error: null,
         locallyDeletedIds,
         scopeUnsynced: !scopeSynced,
@@ -999,20 +949,7 @@ export const getEntriesByClass = async (classId: string) => {
       );
       // Backfill armbands from the authoritative armbands table for entries
       // whose replication UPDATE hasn't synced yet
-      const armbandMap = await fetchMissingArmbands(
-        data.map(d => ({
-          armband: d.armband as string | null,
-          show_id: d.show_id as string | null,
-          dog_id: d.dog_id as string | null,
-        }))
-      );
-      const backfilledData = data.map(e => {
-        if (!e.armband && e.show_id && e.dog_id) {
-          const armband = armbandMap.get(`${e.show_id}:${e.dog_id}`);
-          if (armband) return { ...e, armband };
-        }
-        return e;
-      });
+      const backfilledData = await backfillMissingArmbands(data);
       return {
         data: backfilledData,
         error: null,

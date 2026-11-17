@@ -291,8 +291,9 @@ export const queryKeys = {
   // Reports
   reportData: (showId: string, trialId: string, classId: string) =>
     ['reports', showId, trialId, classId] as const,
-  /** The show's entries as the printed sheets read them (MYK9-2103); under the `reports` prefix. */
-  printedSheetEntries: (showId: string) => ['reports', showId, 'printed-sheet-entries'] as const,
+  /** The printed sheets' rows (MYK9-2103): `entries` is the replica read, `hydration` the slower joins. */
+  printedSheetEntries: (showId: string) => ['printed-sheet', showId, 'entries'] as const,
+  printedSheetHydration: (showId: string) => ['printed-sheet', showId, 'hydration'] as const,
 
   // Organization Agreements
   organizationAgreement: (org: string) => ['organization-agreements', org] as const,

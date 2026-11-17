@@ -81,6 +81,13 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: mockTrialsTable,
 }));
 
+const { mockArmbandsGetByShow } = vi.hoisted(() => ({
+  mockArmbandsGetByShow: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: mockArmbandsGetByShow },
+}));
+
 // Captured rows returned by the cascade-aware authenticated view
 // (view_authenticated_entry_results). Since MYK9-536 getUserEntries ALWAYS
 // prefers this view — it applies the per-field visibility cascade the
@@ -149,6 +156,7 @@ import {
   getEntryById,
   getEntriesByShow,
   getEntriesByShowForFinancials,
+  getEntriesByShowFromReplication,
   getEntriesByTrial,
   getEntriesByClass,
   getEntriesByDog,
@@ -525,6 +533,39 @@ describe('entryQueries (replication)', () => {
       const row = result.data[0] as Record<string, unknown>;
       expect(row.dog).toBeDefined();
       expect((row.dog as Record<string, unknown>).id).toBe('dog-1');
+    });
+  });
+
+  // MYK9-2103: a sheet printed from the class read and one fingerprinted from the show read
+  // must show the same armband, including one whose `entries.armband` copy has not synced.
+  describe('armband backfill from the replicated armbands table', () => {
+    beforeEach(() => {
+      mockArmbandsGetByShow.mockResolvedValue([
+        { id: 'a1', showId: 'show-1', dogId: 'dog-1', armbandNumber: '207' },
+      ]);
+    });
+
+    it.each([
+      { name: 'getEntriesByClass', read: () => getEntriesByClass('class-1') },
+      {
+        name: 'getEntriesByShowFromReplication',
+        read: () => getEntriesByShowFromReplication('show-1'),
+      },
+    ])('$name fills a blank armband', async ({ read }) => {
+      const entries = [makeEntry({ armband: undefined })];
+      setupListMocks(entries);
+
+      const result = await read();
+
+      expect((result.data[0] as Record<string, unknown>).armband).toBe('207');
+    });
+
+    it('leaves a present armband alone', async () => {
+      setupListMocks([makeEntry({ armband: '12A' })]);
+
+      const result = await getEntriesByShowFromReplication('show-1');
+
+      expect((result.data[0] as Record<string, unknown>).armband).toBe('12A');
     });
   });
 

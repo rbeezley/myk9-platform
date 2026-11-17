@@ -12,6 +12,17 @@ import { mapScopedReportEntries, readTrialRegistryId } from './reportDataMapping
 
 type PacketData = Omit<EmergencyPacketInput, 'generatedAt'>;
 
+/** The packet's trial list; needs no `Show` (MYK9-2103). */
+export function buildPacketTrials(trials: readonly DbTrial[]): PacketData['trials'] {
+  return trials.map(trial => ({
+    id: trial.id,
+    date: trial.date ?? '',
+    name: formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
+    trialNumber: String(trial.trial_number ?? ''),
+    registryId: readTrialRegistryId(trial),
+  }));
+}
+
 /**
  * The packet's class list. Split out of `buildEmergencyPacketData` (MYK9-2103) so a surface that
  * has no `Show` (the class card's print fingerprint) builds exactly the input the renderer gets.
@@ -90,13 +101,7 @@ export function buildEmergencyPacketData(input: {
       startDate: input.show.startDate ?? '',
       endDate: input.show.endDate ?? input.show.startDate ?? '',
     },
-    trials: trials.map(trial => ({
-      id: trial.id,
-      date: trial.date ?? '',
-      name: formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
-      trialNumber: String(trial.trial_number ?? ''),
-      registryId: readTrialRegistryId(trial),
-    })),
+    trials: buildPacketTrials(trials),
     classes: buildPacketClasses(classes, assignedJudges),
     entries: buildPacketEntries(entries, trials, classes, assignedJudges),
   };

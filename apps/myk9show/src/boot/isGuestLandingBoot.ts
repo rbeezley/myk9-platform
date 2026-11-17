@@ -11,14 +11,19 @@ const AUTH_RETURN_PARAMS = ['code', 'token', 'token_hash', 'error', 'error_code'
  * (a `?code=`, or a `#access_token=…` fragment). Only then may the landing page start without
  * the signed-in app shell. False on any doubt, which is the full app, as before.
  *
- * A passcode (anonymous) session is stored like any other, so it is never a guest here.
+ * A passcode (anonymous) session is stored like any other, so it is never a guest here. A
+ * browser that refuses storage access throws on the read; that is a doubt too.
  */
 export function isGuestLandingBoot(
   location: BootLocation,
-  persistedUserId: string | null = readPersistedAuthUserId()
+  readUserId: () => string | null = readPersistedAuthUserId
 ): boolean {
   if (location.pathname !== '/') return false;
-  if (persistedUserId !== null) return false;
+  try {
+    if (readUserId() !== null) return false;
+  } catch {
+    return false;
+  }
   // `#get-started` is the landing page's own anchor; a fragment with `=` is a token hand-back.
   if (location.hash.includes('=')) return false;
   const params = new URLSearchParams(location.search);

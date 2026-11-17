@@ -30,16 +30,17 @@ export function RootRouter({
   const [guest, setGuest] = useState(guestBoot);
   const [appRouter, setAppRouter] = useState<AppRouter | null>(null);
   const [failed, setFailed] = useState(false);
-  const loading = useRef<Promise<AppRouter | null> | null>(null);
+  const loading = useRef<Promise<AppRouter | { failure: unknown }> | null>(null);
+  const guestRouter = useRef<AppRouter | null>(null);
 
-  const loadAppRouter = useCallback((): Promise<AppRouter | null> => {
+  // One fetch at a time, shared by the guest's background fetch and the page's own. A failure
+  // is handed to whoever is waiting, and the next call starts a new attempt.
+  const loadAppRouter = useCallback((): Promise<AppRouter | { failure: unknown }> => {
     loading.current ??= importWithRetry(() => import('../router'))
       .then(module => module.router)
-      .catch((error: unknown) => {
+      .catch((failure: unknown) => {
         loading.current = null;
-        // A reload is earned only when it can fix a stale build; otherwise say so and offer one.
-        if (!recoverFromChunkLoadError(error)) setFailed(true);
-        return null;
+        return { failure };
       });
     return loading.current;
   }, []);
@@ -52,7 +53,15 @@ export function RootRouter({
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const start = () => {
       void loadAppRouter().then(async router => {
-        if (cancelled || !router || guest) return;
+        if (cancelled || guest) return;
+        if ('failure' in router) {
+          // A guest's background fetch failing is not the guest's problem: they are reading the
+          // landing page, perhaps typing in its form, so it must neither reload nor report.
+          // Here the app IS the page. A reload is earned only when it can fix a stale build;
+          // otherwise say so and offer one.
+          if (!recoverFromChunkLoadError(router.failure)) setFailed(true);
+          return;
+        }
         // The full app's router was created while the URL was `/`. A guest who followed a link
         // moved the URL through the landing page's own router, so bring the full app to it.
         const { pathname, search, hash } = router.state.location;
@@ -60,6 +69,9 @@ export function RootRouter({
           await router.navigate(currentUrl(), { replace: true });
         }
         if (cancelled) return;
+        // The landing page's router is done: stop it listening to Back and Forward.
+        guestRouter.current?.dispose();
+        guestRouter.current = null;
         setAppRouter(router);
         onRouter(router);
       });
@@ -83,8 +95,15 @@ export function RootRouter({
   }, [guest, loadAppRouter, onRouter]);
 
   const leaveGuestLanding = useCallback(() => setGuest(false), []);
+  const trackGuestRouter = useCallback(
+    (router: AppRouter) => {
+      guestRouter.current = router;
+      onRouter(router);
+    },
+    [onRouter]
+  );
 
-  if (guest) return <GuestLanding onLeave={leaveGuestLanding} onRouter={onRouter} />;
+  if (guest) return <GuestLanding onLeave={leaveGuestLanding} onRouter={trackGuestRouter} />;
   if (appRouter) return <RouterProvider router={appRouter} />;
   if (failed) {
     return (

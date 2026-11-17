@@ -35,12 +35,14 @@ insert into public.classes (id, trial_id, name, status, element, level, section)
 insert into public.people (id, first_name, last_name, email) values
   ('00000000-0000-0000-0000-000002076321', 'Ada', 'Owner', 'ada@example.test'),
   ('00000000-0000-0000-0000-000002076322', 'Bo', 'Owner', 'bo@example.test'),
-  ('00000000-0000-0000-0000-000002076323', 'Cy', 'Withdrew', 'cy@example.test');
+  ('00000000-0000-0000-0000-000002076323', 'Cy', 'Withdrew', 'cy@example.test'),
+  ('00000000-0000-0000-0000-000002076325', 'Eve', 'Cancelled', 'eve@example.test');
 insert into public.dogs (id, name, call_name, breed, owner_id) values
   ('00000000-0000-0000-0000-000002076331', 'Ada Dog One', 'One', 'Beagle', '00000000-0000-0000-0000-000002076321'),
   ('00000000-0000-0000-0000-000002076332', 'Ada Dog Two', 'Two', 'Beagle', '00000000-0000-0000-0000-000002076321'),
   ('00000000-0000-0000-0000-000002076333', 'Bo Dog', 'Bo', 'Beagle', '00000000-0000-0000-0000-000002076322'),
-  ('00000000-0000-0000-0000-000002076334', 'Cy Dog', 'Cy', 'Beagle', '00000000-0000-0000-0000-000002076323');
+  ('00000000-0000-0000-0000-000002076334', 'Cy Dog', 'Cy', 'Beagle', '00000000-0000-0000-0000-000002076323'),
+  ('00000000-0000-0000-0000-000002076336', 'Eve Dog', 'Eve', 'Beagle', '00000000-0000-0000-0000-000002076325');
 
 alter table public.entries disable trigger trg_entries_require_dog_registration;
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
@@ -49,7 +51,8 @@ insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_statu
   ('00000000-0000-0000-0000-000002076343', '00000000-0000-0000-0000-000002076333', '00000000-0000-0000-0000-000002076304', '00000000-0000-0000-0000-000002076302', '00000000-0000-0000-0000-000002076303', 'confirmed', '3', 2, 'no-status'),
   ('00000000-0000-0000-0000-000002076344', '00000000-0000-0000-0000-000002076334', '00000000-0000-0000-0000-000002076304', '00000000-0000-0000-0000-000002076302', '00000000-0000-0000-0000-000002076303', 'withdrawn', '4', 3, 'no-status'),
   ('00000000-0000-0000-0000-000002076345', '00000000-0000-0000-0000-000002076331', '00000000-0000-0000-0000-000002076314', '00000000-0000-0000-0000-000002076312', '00000000-0000-0000-0000-000002076313', 'confirmed', '1', 1, 'no-status'),
-  ('00000000-0000-0000-0000-000002076347', '00000000-0000-0000-0000-000002076333', '00000000-0000-0000-0000-000002076306', '00000000-0000-0000-0000-000002076302', '00000000-0000-0000-0000-000002076303', 'confirmed', '6', 1, 'no-status');
+  ('00000000-0000-0000-0000-000002076347', '00000000-0000-0000-0000-000002076333', '00000000-0000-0000-0000-000002076306', '00000000-0000-0000-0000-000002076302', '00000000-0000-0000-0000-000002076303', 'confirmed', '6', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000002076348', '00000000-0000-0000-0000-000002076336', '00000000-0000-0000-0000-000002076306', '00000000-0000-0000-0000-000002076302', '00000000-0000-0000-0000-000002076303', 'confirmed', '7', 2, 'no-status');
 alter table public.entries enable trigger trg_entries_require_dog_registration;
 -- Set after the entries: adding an entry recomputes the class status.
 update public.classes set status = 'cancelled' where id = '00000000-0000-0000-0000-000002076306';
@@ -93,6 +96,11 @@ begin
               where show_id = '00000000-0000-0000-0000-000002076302'
                 and recipient_person_id = '00000000-0000-0000-0000-000002076323') then
     raise exception 'FAIL B an exhibitor whose only dog withdrew was queued';
+  end if;
+  if exists (select 1 from public.show_lifecycle_email_jobs
+              where show_id = '00000000-0000-0000-0000-000002076302'
+                and recipient_person_id = '00000000-0000-0000-0000-000002076325') then
+    raise exception 'FAIL B an exhibitor whose only dog is in a cancelled class was queued';
   end if;
   raise notice 'PASS B the last release queues one job per exhibitor';
 end $$;
@@ -167,6 +175,68 @@ begin
     raise exception 'FAIL F an API role can execute queue_results_available_emails';
   end if;
   raise notice 'PASS F the producer is not callable by an API role';
+end $$;
+
+-- G, H: more shows (cancelling the last waiting class; switching the step on later)
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status) values
+  ('00000000-0000-0000-0000-000002076362', 'MYK9-2076 Cancel Show', 'AKC', current_date, current_date,
+   '00000000-0000-0000-0000-000002076301', 'draft'),
+  ('00000000-0000-0000-0000-000002076372', 'MYK9-2076 Enable Show', 'AKC', current_date, current_date,
+   '00000000-0000-0000-0000-000002076301', 'draft');
+insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
+  ('00000000-0000-0000-0000-000002076363', '00000000-0000-0000-0000-000002076362', 'Cancel Trial', current_date, 'AKC', 'Scent Work'),
+  ('00000000-0000-0000-0000-000002076373', '00000000-0000-0000-0000-000002076372', 'Enable Trial', current_date, 'AKC', 'Scent Work');
+insert into public.classes (id, trial_id, name, status, element, level, section) values
+  ('00000000-0000-0000-0000-000002076364', '00000000-0000-0000-0000-000002076363', 'Container Novice A', 'completed', 'Container', 'Novice', 'A'),
+  ('00000000-0000-0000-0000-000002076365', '00000000-0000-0000-0000-000002076363', 'Interior Novice A', 'upcoming', 'Interior', 'Novice', 'A'),
+  ('00000000-0000-0000-0000-000002076374', '00000000-0000-0000-0000-000002076373', 'Container Novice A', 'completed', 'Container', 'Novice', 'A');
+insert into public.people (id, first_name, last_name, email) values
+  ('00000000-0000-0000-0000-000002076381', 'Fay', 'Stays', 'fay@example.test'),
+  ('00000000-0000-0000-0000-000002076382', 'Gus', 'Cancelled', 'gus@example.test'),
+  ('00000000-0000-0000-0000-000002076383', 'Hal', 'Later', 'hal@example.test');
+insert into public.dogs (id, name, call_name, breed, owner_id) values
+  ('00000000-0000-0000-0000-000002076391', 'Fay Dog', 'Fay', 'Beagle', '00000000-0000-0000-0000-000002076381'),
+  ('00000000-0000-0000-0000-000002076392', 'Gus Dog', 'Gus', 'Beagle', '00000000-0000-0000-0000-000002076382'),
+  ('00000000-0000-0000-0000-000002076393', 'Hal Dog', 'Hal', 'Beagle', '00000000-0000-0000-0000-000002076383');
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000002076394', '00000000-0000-0000-0000-000002076391', '00000000-0000-0000-0000-000002076364', '00000000-0000-0000-0000-000002076362', '00000000-0000-0000-0000-000002076363', 'confirmed', '1', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000002076395', '00000000-0000-0000-0000-000002076392', '00000000-0000-0000-0000-000002076365', '00000000-0000-0000-0000-000002076362', '00000000-0000-0000-0000-000002076363', 'confirmed', '2', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000002076396', '00000000-0000-0000-0000-000002076393', '00000000-0000-0000-0000-000002076374', '00000000-0000-0000-0000-000002076372', '00000000-0000-0000-0000-000002076373', 'confirmed', '1', 1, 'no-status');
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+do $$
+begin
+  update public.classes set results_released_at = now() where id = '00000000-0000-0000-0000-000002076364';
+  if pg_temp.job_count('00000000-0000-0000-0000-000002076362') <> 0 then
+    raise exception 'FAIL G queued while a class still waited';
+  end if;
+  update public.classes set status = 'cancelled' where id = '00000000-0000-0000-0000-000002076365';
+  if pg_temp.job_count('00000000-0000-0000-0000-000002076362') <> 1
+     or not exists (select 1 from public.show_lifecycle_email_jobs
+                     where show_id = '00000000-0000-0000-0000-000002076362'
+                       and recipient_person_id = '00000000-0000-0000-0000-000002076381') then
+    raise exception 'FAIL G cancelling the last waiting class did not queue exactly Fay (found %)',
+      pg_temp.job_count('00000000-0000-0000-0000-000002076362');
+  end if;
+  raise notice 'PASS G cancelling the last waiting class queues';
+end $$;
+
+do $$
+begin
+  update public.show_lifecycle_email_steps set is_enabled = false
+   where show_id = '00000000-0000-0000-0000-000002076372' and step_type = 'results_available';
+  update public.classes set results_released_at = now() where id = '00000000-0000-0000-0000-000002076374';
+  if pg_temp.job_count('00000000-0000-0000-0000-000002076372') <> 0 then
+    raise exception 'FAIL H queued with the step off';
+  end if;
+  update public.show_lifecycle_email_steps set is_enabled = true
+   where show_id = '00000000-0000-0000-0000-000002076372' and step_type = 'results_available';
+  if pg_temp.job_count('00000000-0000-0000-0000-000002076372') <> 1 then
+    raise exception 'FAIL H switching the step on after every release did not queue (found %)',
+      pg_temp.job_count('00000000-0000-0000-0000-000002076372');
+  end if;
+  raise notice 'PASS H switching the step on queues';
 end $$;
 
 rollback;

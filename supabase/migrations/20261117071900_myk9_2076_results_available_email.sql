@@ -31,11 +31,19 @@
 --   * One email per exhibitor: the recipient is the dog's owner (the rule the other
 --     steps use), grouped by person across all their dogs and entries. An owner
 --     with no email address is left out (nothing to send).
+--   * The decision is re-run when the last waiting class stops waiting some other way
+--     (cancelled or soft-deleted), and when the step's switch is turned on after
+--     every class was released. Accepted gap: no trigger on entries, so a last dog
+--     withdrawn AFTER every other class was released does not queue the email by
+--     itself; the next release, cancel or switch change does.
 --   * Serialised per show by an advisory transaction lock, so two classes released
 --     in concurrent transactions cannot each see the other as still waiting.
 --
 -- Rollback: DROP TRIGGER trg_queue_results_available_emails ON public.classes;
--- DROP FUNCTION public.queue_results_available_emails(); DROP INDEX
+-- DROP TRIGGER trg_queue_results_available_on_enable ON public.show_lifecycle_email_steps;
+-- DROP FUNCTION public.queue_results_available_emails();
+-- DROP FUNCTION public.queue_results_available_on_enable();
+-- DROP FUNCTION public.queue_results_available_for_show(uuid); DROP INDEX
 -- show_lifecycle_email_jobs_one_results_per_person.
 -- =============================================================================
 
@@ -45,53 +53,44 @@ CREATE UNIQUE INDEX IF NOT EXISTS show_lifecycle_email_jobs_one_results_per_pers
   ON public.show_lifecycle_email_jobs (show_id, recipient_person_id)
   WHERE step_type = 'results_available' AND recipient_person_id IS NOT NULL;
 
-CREATE OR REPLACE FUNCTION public.queue_results_available_emails()
-RETURNS trigger
+CREATE OR REPLACE FUNCTION public.queue_results_available_for_show(p_show_id uuid)
+RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_show_id uuid;
   v_show_name text;
   v_step_id uuid;
 BEGIN
-  SELECT t.show_id INTO v_show_id
-    FROM public.trials t
-   WHERE t.id = new.trial_id;
-  IF v_show_id IS NULL THEN
-    RETURN new;
-  END IF;
-
   -- One decision at a time per show: two classes released in concurrent
   -- transactions must not each see the other as still waiting.
-  PERFORM pg_advisory_xact_lock(hashtextextended('results_available:' || v_show_id::text, 0));
+  PERFORM pg_advisory_xact_lock(hashtextextended('results_available:' || p_show_id::text, 0));
 
   -- The per-show switch.
   SELECT s.id INTO v_step_id
     FROM public.show_lifecycle_email_steps s
-   WHERE s.show_id = v_show_id
+   WHERE s.show_id = p_show_id
      AND s.step_type = 'results_available'
      AND s.is_enabled;
   IF v_step_id IS NULL THEN
-    RETURN new;
+    RETURN;
   END IF;
 
   -- Already queued for this show (in any state): a later release sends nothing.
   IF EXISTS (
     SELECT 1 FROM public.show_lifecycle_email_jobs j
-     WHERE j.show_id = v_show_id AND j.step_type = 'results_available'
+     WHERE j.show_id = p_show_id AND j.step_type = 'results_available'
   ) THEN
-    RETURN new;
+    RETURN;
   END IF;
 
-  -- Classes of the show that have dogs to release and are not cancelled.
-  -- (waiting = not released; the count of released ones guards a show with none.)
+  -- A class still waits: live, not cancelled, an expected dog, not released.
   IF EXISTS (
     SELECT 1
       FROM public.classes c
       JOIN public.trials t ON t.id = c.trial_id
-     WHERE t.show_id = v_show_id
+     WHERE t.show_id = p_show_id
        AND t.deleted_at IS NULL
        AND c.deleted_at IS NULL
        AND c.results_released_at IS NULL
@@ -102,22 +101,35 @@ BEGIN
             AND e.deleted_at IS NULL
             AND e.entry_status IN (
               'confirmed', 'accepted', 'scheduled', 'checked-in', 'at-gate',
-              'in-ring', 'competing', 'completed', 'move-up-requested'
+              'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested'
             )
             AND e.check_in_status IS DISTINCT FROM 'pulled'
        )
   ) THEN
-    RETURN new;
+    RETURN;
   END IF;
 
-  SELECT sh.name INTO v_show_name FROM public.shows sh WHERE sh.id = v_show_id;
+  -- Something must have been released.
+  IF NOT EXISTS (
+    SELECT 1
+      FROM public.classes c
+      JOIN public.trials t ON t.id = c.trial_id
+     WHERE t.show_id = p_show_id
+       AND t.deleted_at IS NULL
+       AND c.deleted_at IS NULL
+       AND c.results_released_at IS NOT NULL
+  ) THEN
+    RETURN;
+  END IF;
+
+  SELECT sh.name INTO v_show_name FROM public.shows sh WHERE sh.id = p_show_id;
 
   INSERT INTO public.show_lifecycle_email_jobs (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
     recipient_email, recipient_name, subject, body, idempotency_key, due_at
   )
   SELECT
-    v_show_id,
+    p_show_id,
     v_step_id,
     'results_available',
     'ready',
@@ -128,9 +140,9 @@ BEGIN
     'Results from ' || coalesce(v_show_name, 'the show') || ' are ready',
     'Hi ' || coalesce(nullif(btrim(p.first_name), ''), 'there') || E',\n\n'
       || 'Results from ' || coalesce(v_show_name, 'the show') || ' are ready.' || E'\n\n'
-      || 'View your results: https://myk9show.com/exhibitor/entries?showId=' || v_show_id::text
+      || 'View your results: https://myk9show.com/exhibitor/entries?showId=' || p_show_id::text
       || E'\n\nPlease contact the show secretary with questions.',
-    'show-lifecycle-email:' || v_show_id::text || ':results_available:person:' || p.id::text,
+    'show-lifecycle-email:' || p_show_id::text || ':results_available:person:' || p.id::text,
     now()
   FROM public.people p
   WHERE nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
@@ -139,18 +151,43 @@ BEGIN
       SELECT d.owner_id
         FROM public.entries e
         JOIN public.dogs d ON d.id = e.dog_id
-       WHERE e.show_id = v_show_id
+        JOIN public.classes c ON c.id = e.class_id
+        JOIN public.trials t ON t.id = c.trial_id
+       WHERE e.show_id = p_show_id
+         AND t.show_id = p_show_id
+         AND t.deleted_at IS NULL
+         AND c.deleted_at IS NULL
+         AND lower(btrim(coalesce(c.status, ''))) NOT IN ('cancelled', 'canceled')
          AND e.deleted_at IS NULL
          AND e.entry_status IN (
            'confirmed', 'accepted', 'scheduled', 'checked-in', 'at-gate',
-           'in-ring', 'competing', 'completed', 'move-up-requested'
+              'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested'
          )
          AND e.check_in_status IS DISTINCT FROM 'pulled'
          AND d.owner_id IS NOT NULL
          AND d.deleted_at IS NULL
     )
   ON CONFLICT DO NOTHING;
+END;
+$$;
 
+REVOKE ALL ON FUNCTION public.queue_results_available_for_show(uuid) FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.queue_results_available_emails()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_show_id uuid;
+BEGIN
+  SELECT t.show_id INTO v_show_id
+    FROM public.trials t
+   WHERE t.id = new.trial_id AND t.deleted_at IS NULL;
+  IF v_show_id IS NOT NULL THEN
+    PERFORM public.queue_results_available_for_show(v_show_id);
+  END IF;
   RETURN new;
 EXCEPTION WHEN OTHERS THEN
   -- Queuing an email must never block releasing a class's results.
@@ -163,9 +200,40 @@ REVOKE ALL ON FUNCTION public.queue_results_available_emails() FROM PUBLIC, anon
 
 DROP TRIGGER IF EXISTS trg_queue_results_available_emails ON public.classes;
 CREATE TRIGGER trg_queue_results_available_emails
-  AFTER UPDATE OF results_released_at ON public.classes
+  AFTER UPDATE OF results_released_at, status, deleted_at ON public.classes
   FOR EACH ROW
-  WHEN (new.results_released_at IS NOT NULL AND old.results_released_at IS DISTINCT FROM new.results_released_at)
+  WHEN (
+    (new.results_released_at IS NOT NULL AND old.results_released_at IS DISTINCT FROM new.results_released_at)
+    OR (new.deleted_at IS NOT NULL AND old.deleted_at IS NULL)
+    OR (
+      old.status IS DISTINCT FROM new.status
+      AND lower(btrim(coalesce(new.status, ''))) IN ('cancelled', 'canceled')
+    )
+  )
   EXECUTE FUNCTION public.queue_results_available_emails();
+
+CREATE OR REPLACE FUNCTION public.queue_results_available_on_enable()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM public.queue_results_available_for_show(new.show_id);
+  RETURN new;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'queue_results_available_on_enable: % (%)', SQLERRM, SQLSTATE;
+  RETURN new;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.queue_results_available_on_enable() FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS trg_queue_results_available_on_enable ON public.show_lifecycle_email_steps;
+CREATE TRIGGER trg_queue_results_available_on_enable
+  AFTER UPDATE OF is_enabled ON public.show_lifecycle_email_steps
+  FOR EACH ROW
+  WHEN (new.step_type = 'results_available' AND new.is_enabled AND NOT old.is_enabled)
+  EXECUTE FUNCTION public.queue_results_available_on_enable();
 
 COMMIT;

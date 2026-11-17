@@ -63,6 +63,7 @@ describe('email delivery history read model', () => {
   it.each([
     ['registration_confirmation', 'Receipt'],
     ['heritage_confirmation', 'Full confirmation'],
+    ['show_reminder', 'Reminder'],
   ])('labels the exhibitor %s email as her own email names it (MYK9-1999)', (kind, label) => {
     const row = normalizeEmailDeliveryRow({
       id: `attempt-${kind}`,

@@ -21,7 +21,8 @@ import type { HeritageEmailData } from './heritage-email.ts';
 /** One email_log row; related_id is the first entry the email covers. */
 export interface ConfirmationLogRow {
   recipient_email: string | null;
-  email_type: 'heritage_confirmation';
+  /** 'show_reminder' is the reminder's (MYK9-2113), which shares this log writer. */
+  email_type: 'heritage_confirmation' | 'show_reminder';
   related_id: string;
   show_id: string;
   resend_message_id: string | null;

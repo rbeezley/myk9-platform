@@ -8,12 +8,7 @@
 -- (apps/myk9show/src/features/payments/pullReconciliation.ts): a paid-online
 -- entry with no refund and no decision whose entry_status is 'scratched' (a
 -- pull), 'withdrawn' (an exhibitor withdrawal with a reason code, or a
--- secretary removal with none) or a no-show. A no-show is ONE definition,
--- `isNoShow` in the same file: entry_status 'absent' OR result_status 'absent'.
--- Show Desk's Mark absent and the scoresheet's Absent chip write the RESULT
--- (result_status 'absent', entries_result_status_check in 20261011003700) and
--- leave entry_status alone; Mark absent's Undo (clearEntryScore, MYK9-2037)
--- writes result_status 'pending'.
+-- secretary removal with none) or 'absent' (a no-show).
 --
 -- Until now this function refused 'absent' and a codeless 'withdrawn' row, so
 -- Deny refund on those rows raised 22023 and the row stayed "to decide" for
@@ -24,9 +19,8 @@
 --    (20260917214300_withdraw_or_pull_own_entry.sql; 20261004181900 names it
 --    but leaves it in place, and 20260728120000 only re-grants it). Exactly two
 --    things change: the status arm of the eligibility guard now admits
---    entry_status 'scratched', 'withdrawn' (any reason code, including none)
---    and 'absent', or result_status 'absent'; and the sentence it raises
---    names all of them. Still required, unchanged:
+--    'scratched', 'withdrawn' (any reason code, including none) and 'absent';
+--    and the sentence it raises names all of them. Still required, unchanged:
 --    payment_method 'online', payment_status 'paid', no refund_amount, the
 --    show-official authorization, SECURITY DEFINER with an empty search_path,
 --    and the same EXECUTE grants. Only 'denied' is accepted; nothing here
@@ -34,11 +28,9 @@
 --
 -- 2. restrict_entry_refund_decision_columns (the reinstate trigger), copied
 --    from the same file. A decision is cleared when the row leaves the state it
---    was decided in. 'absent' joins the two removal states, and a result that
---    stops being 'absent' (Mark absent's Undo, or a real score replacing it)
---    clears it too. Otherwise a no-show that was denied, marked present and
---    then marked absent again would keep the stale denial and never return to
---    the list. Nothing else changes.
+--    was decided in; 'absent' joins the two removal states, or a no-show that
+--    was denied, marked present and then marked absent again would keep the
+--    stale denial and never return to the list. Nothing else changes.
 --
 -- Rollback: re-run the two CREATE OR REPLACE statements from
 -- 20260917214300_withdraw_or_pull_own_entry.sql.
@@ -63,7 +55,6 @@ DECLARE
   v_payment_status text;
   v_refund_amount numeric;
   v_refund_decision text;
-  v_result_status text;
 BEGIN
   IF p_decision <> 'denied' THEN
     RAISE EXCEPTION 'unsupported refund decision: %', p_decision
@@ -76,16 +67,14 @@ BEGIN
          e.payment_method,
          e.payment_status,
          e.refund_amount,
-         e.refund_decision,
-         e.result_status
+         e.refund_decision
     INTO v_show_id,
          v_club_id,
          v_entry_status,
          v_payment_method,
          v_payment_status,
          v_refund_amount,
-         v_refund_decision,
-         v_result_status
+         v_refund_decision
     FROM public.entries e
     JOIN public.shows s ON s.id = e.show_id
    WHERE e.id = p_entry_id
@@ -110,18 +99,14 @@ BEGIN
   -- offers the decision and the function that records it must admit the same
   -- rows, or one of them is lying. 'withdrawn' covers an exhibitor withdrawal
   -- (a reason code) and a secretary removal (none); entries_withdrawal_reason_code_check
-  -- allows no other code. A no-show is entry_status 'absent' OR result_status
-  -- 'absent' (`isNoShow`). Every arm COALESCEs, because three-valued logic fails
-  -- OPEN here: with a NULL status the IN is NULL, `NOT NULL` is NULL, the IF
-  -- falls through, and a denial would be recorded on a row this guard was meant
-  -- to refuse.
+  -- allows no other code. Every arm COALESCEs, because three-valued logic fails
+  -- OPEN here: with a NULL entry_status the IN is NULL, `NOT NULL` is NULL, the
+  -- IF falls through, and a denial would be recorded on a row this guard was
+  -- meant to refuse.
   IF COALESCE(v_payment_method, '') <> 'online'
      OR COALESCE(v_payment_status, '') <> 'paid'
      OR COALESCE(v_refund_amount, 0) > 0
-     OR NOT (
-          COALESCE(v_entry_status, '') IN ('scratched', 'withdrawn', 'absent')
-          OR COALESCE(v_result_status, '') = 'absent'
-        ) THEN
+     OR COALESCE(v_entry_status, '') NOT IN ('scratched', 'withdrawn', 'absent') THEN
     RAISE EXCEPTION 'entry % is not an unresolved paid-online pull, withdrawal, removal or no-show', p_entry_id
       USING ERRCODE = '22023';
   END IF;
@@ -143,7 +128,7 @@ COMMENT ON FUNCTION public.set_entry_refund_decision(uuid, text) IS
   'MYK9-2099: records a person''s explicit "Deny refund" for a paid-online entry '
   'that stopped running with no refund and no decision: a pull (scratched), a '
   'withdrawal or secretary removal (withdrawn, with or without a reason code), '
-  'or a no-show (entry_status or result_status absent). The same row set refundToDecideRemoval offers the '
+  'or a no-show (absent). The same row set refundToDecideRemoval offers the '
   'control for. A successful Stripe refund is already authoritative via '
   'refund_amount / refunded_at, so only the denial needs a durable decision.';
 
@@ -162,16 +147,10 @@ BEGIN
   -- A reinstated entry needs a fresh decision if it is removed again later.
   -- This runs for every role, including service-role lifecycle mutations.
   -- MYK9-632: both removal states, and any move BETWEEN them. MYK9-2099: a
-  -- no-show too, by either route: the status leaving 'absent', or the result
-  -- leaving 'absent' (Mark absent's Undo writes 'pending'; a real score
-  -- replaces it).
+  -- no-show too, since it can now carry a decision.
   IF TG_OP = 'UPDATE'
-     AND (
-       (old.entry_status IN ('scratched', 'withdrawn', 'absent')
-        AND new.entry_status IS DISTINCT FROM old.entry_status)
-       OR (old.result_status = 'absent'
-           AND new.result_status IS DISTINCT FROM old.result_status)
-     ) THEN
+     AND old.entry_status IN ('scratched', 'withdrawn', 'absent')
+     AND new.entry_status IS DISTINCT FROM old.entry_status THEN
     new.refund_decision := NULL;
     new.refund_decided_at := NULL;
     new.refund_decided_by := NULL;

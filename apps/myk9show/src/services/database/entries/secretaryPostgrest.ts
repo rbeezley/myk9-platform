@@ -6,7 +6,6 @@ import {
 } from '@/features/payments/pullRefundSchemaCompatibility';
 import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import { readAllEntryPages, type KeysetPageQuery } from './entryPagedRead';
-import { REFUND_DECISION_SCOPE_FILTER } from '@/features/payments/pullReconciliation';
 import type { SecretaryEntry } from './secretaryTypes';
 
 export interface SecretaryPullMetadata {
@@ -229,17 +228,17 @@ export async function postgrestGetSecretaryPullMetadataMap(
 ): Promise<Map<string, SecretaryPullMetadata>> {
   // Every column here is migration-backed and applied (20260722160000,
   // 20260918041700); MYK9-654 retired the per-column compat retries.
-  // MYK9-2099: every removal that can carry a refund decision, a no-show by either route
-  // (`REFUND_DECISION_SCOPE_FILTER`), read in full: PostgREST caps one response at 1000 rows,
-  // and a truncated read would show a denied refund as undecided. A failed page throws, and the
-  // caller then treats every decision as unknown.
+  // MYK9-2099: every removal that can carry a refund decision (a no-show is entry_status
+  // 'absent'), read in full: PostgREST caps one response at 1000 rows, and a truncated read
+  // would show a denied refund as undecided. A failed page throws, and the caller then treats
+  // every decision as unknown.
   const data = await readAllEntryPages(
     () =>
       supabase
         .from('entries')
         .select('id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code')
         .eq('show_id', showId)
-        .or(REFUND_DECISION_SCOPE_FILTER) as unknown as KeysetPageQuery,
+        .in('entry_status', ['scratched', 'withdrawn', 'absent']) as unknown as KeysetPageQuery,
     'get_secretary_pull_metadata'
   );
 

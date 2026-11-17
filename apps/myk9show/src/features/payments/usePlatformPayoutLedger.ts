@@ -14,10 +14,9 @@ import { chunk } from '@/utils/chunkIds';
 // `refund_decision` (20260722160000) and `withdrawal_reason_code`
 // (20260918041700) are applied; MYK9-654 retired their compat retries. MYK9-632:
 // a paid WITHDRAWAL with a recognised reason code owes the secretary a decision
-// too, so the count has to be able to see the code. MYK9-2099: a no-show marked absent as a
-// result (`result_status`) owes one as well (`isNoShow`).
+// too, so the count has to be able to see the code.
 const LEDGER_ENTRY_SELECT =
-  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision, withdrawal_reason_code, result_status';
+  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision, withdrawal_reason_code';
 
 export async function loadPlatformPayoutLedgerEntryPage(
   from: number,

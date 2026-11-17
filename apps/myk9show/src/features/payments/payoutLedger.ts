@@ -36,8 +36,6 @@ export interface LedgerEntryRow {
    * never INVENTS an unresolved decision.
    */
   withdrawal_reason_code?: string | null;
-  /** MYK9-2099: 'absent' on a no-show marked absent as a result (`isNoShow`). */
-  result_status?: string | null;
 }
 
 /**

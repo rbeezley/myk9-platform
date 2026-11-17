@@ -158,7 +158,7 @@ function mockMetadataLookups(
       const query = {
         select: vi.fn(() => query),
         eq: vi.fn(() => query),
-        or: vi.fn(() => query),
+        in: vi.fn(() => query),
         order: vi.fn(() => query),
         lt: vi.fn(() => query),
         range: vi.fn(() => Promise.resolve({ data: pullMetadata, error: null })),
@@ -733,7 +733,6 @@ describe('secretary entry read replication', () => {
           eq: vi.fn(() => query),
           in: vi.fn(() => query),
           is: vi.fn(() => query),
-          or: vi.fn(() => query),
           lt: vi.fn(() => query),
           // The pull-metadata read is paged (MYK9-2099): it orders, then asks `range`.
           order: vi.fn(() => (relation === 'entries' ? query : Promise.resolve(respond()))),

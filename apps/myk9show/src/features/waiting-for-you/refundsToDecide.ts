@@ -30,7 +30,6 @@ export function entryRefundInput(entry: EntryManagementEntry): RefundToDecideInp
   return {
     entry_status: entry.rawEntryStatus,
     withdrawal_reason_code: entry.withdrawalReasonCode,
-    result_status: entry.resultStatus,
     // The raw column; a row built without it falls back to the UI enum, whose paid-online is 'paid'.
     payment_status:
       entry.rawPaymentStatus !== undefined

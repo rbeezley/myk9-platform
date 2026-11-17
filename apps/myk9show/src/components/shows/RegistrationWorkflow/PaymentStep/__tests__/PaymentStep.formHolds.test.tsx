@@ -1,13 +1,16 @@
 /**
- * MYK9-2149 (owner decision: collect after submit): when the exhibitor's form already holds
- * money, the desk step takes no cash or check. It says what the form holds, submits with no
- * payment, and Free entry stays available both ways. Unknown money keeps the normal step.
+ * MYK9-2149 (owner decision: collect after submit): when a read CONFIRMS the exhibitor's form
+ * already holds money, the desk step takes no cash or check. It says what the form holds,
+ * submits with no payment, and "Paid by a club or group" and Free entry stay available both
+ * ways. While the read is checking, no money can be taken; when it fails, the step is the
+ * normal one with a note, and anything taken is recorded in full.
  */
 import React from 'react';
 import { render, screen } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makePaymentResolution } from '@/test/utils/paymentResolution';
 import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
+import type { DeskFormMoney } from '@/features/registration/deskFormDue';
 import { PaymentStep } from '../index';
 
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -34,16 +37,17 @@ vi.mock('@/components/auth/PermissionGuard', () => ({
 
 const onPaymentMethodChange = vi.fn();
 const onPaymentDetailsChange = vi.fn();
+const holds: DeskFormMoney = { status: 'holds', heldCents: 4000 };
 
 function step(
-  formHeldCents: number | null,
+  formMoney: DeskFormMoney,
   paymentMethod: PaymentMethod | '' = '',
   details: PaymentDetails = {}
 ) {
   return (
     <PaymentStep
       staffWorkflow
-      formHeldCents={formHeldCents}
+      formMoney={formMoney}
       paymentResolution={makePaymentResolution({
         paymentMethod,
         cardCheckoutAvailable: false,
@@ -61,14 +65,14 @@ function step(
 
 const received = /^(Cash|Check) received/;
 
-describe('the desk step when the form already holds money (MYK9-2149)', () => {
+describe('the desk step and the money already on the form (MYK9-2149)', () => {
   beforeEach(() => {
     onPaymentMethodChange.mockClear();
     onPaymentDetailsChange.mockClear();
   });
 
   it('says what the form holds, offers no cash or check, and submits with no payment', () => {
-    render(step(4000));
+    render(step(holds));
 
     expect(
       screen.getByRole('button', { name: /This form already holds \$40\.00\./ })
@@ -81,9 +85,31 @@ describe('the desk step when the form already holds money (MYK9-2149)', () => {
     expect(onPaymentMethodChange).toHaveBeenCalledWith('secretary_paid');
   });
 
-  it("keeps today's normal step while the money is unknown (loading or failed)", () => {
-    render(step(null));
+  it('keeps the club or group choice beside the money on the form', async () => {
+    const { user } = render(step(holds, 'secretary_paid', { formHoldsMoney: true }));
 
+    await user.click(screen.getByRole('button', { name: /^Paid by a club or group/ }));
+
+    expect(onPaymentMethodChange).toHaveBeenLastCalledWith('group_payment');
+    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ formHoldsMoney: false })
+    );
+  });
+
+  it('takes no money while the form is being checked', () => {
+    render(step({ status: 'checking' }));
+
+    expect(screen.getByText('Checking the money on this form...')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: received })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pay at show/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Free entry/ })).toBeInTheDocument();
+    expect(onPaymentMethodChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps the normal step, with a note, when the check fails', () => {
+    render(step({ status: 'failed' }));
+
+    expect(screen.getByText('Could not check the money already on this form.')).toBeInTheDocument();
     expect(screen.queryByText(/already holds/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Cash received/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Check \(pay at show\)/ })).toBeInTheDocument();
@@ -91,8 +117,15 @@ describe('the desk step when the form already holds money (MYK9-2149)', () => {
     expect(onPaymentDetailsChange).not.toHaveBeenCalled();
   });
 
+  it('keeps the normal step, with no note, when the form holds nothing', () => {
+    render(step({ status: 'none' }));
+
+    expect(screen.queryByText(/Could not check/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Cash received/ })).toBeInTheDocument();
+  });
+
   it('lets the secretary make it a Free entry and change her mind', async () => {
-    const { user, rerender } = render(step(4000, 'secretary_paid', { formHoldsMoney: true }));
+    const { user, rerender } = render(step(holds, 'secretary_paid', { formHoldsMoney: true }));
     onPaymentMethodChange.mockClear();
 
     await user.click(screen.getByRole('button', { name: /^Free entry/ }));
@@ -101,7 +134,7 @@ describe('the desk step when the form already holds money (MYK9-2149)', () => {
       expect.objectContaining({ formHoldsMoney: false })
     );
 
-    rerender(step(4000, 'waived'));
+    rerender(step(holds, 'waived'));
     // Not taken back by the form's money while it is a Free entry.
     expect(onPaymentMethodChange).toHaveBeenLastCalledWith('waived');
 
@@ -113,10 +146,10 @@ describe('the desk step when the form already holds money (MYK9-2149)', () => {
   });
 
   it('drops the form choice when the form is no longer read as holding money', () => {
-    const { rerender } = render(step(4000, 'secretary_paid', { formHoldsMoney: true }));
+    const { rerender } = render(step(holds, 'secretary_paid', { formHoldsMoney: true }));
     onPaymentDetailsChange.mockClear();
 
-    rerender(step(null, 'secretary_paid', { formHoldsMoney: true }));
+    rerender(step({ status: 'none' }, 'secretary_paid', { formHoldsMoney: true }));
 
     expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ formHoldsMoney: false })

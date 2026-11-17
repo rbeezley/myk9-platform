@@ -9,7 +9,7 @@ import { formatCartCurrency } from '@/store/cartStore.helpers';
  * (does the form hold money?) and after (what is still owed?). No client money formula.
  *
  * Online-only desk path (a direct RPC, as other desk money reads are). Any failure is
- * thrown so the caller fails closed: the normal payment step, and no claim about money.
+ * thrown; the desk then keeps its normal step, where anything taken is recorded in full.
  */
 export async function fetchDeskFormDueCents(showId: string, handlerId: string): Promise<number> {
   // Until the generated types are refreshed after the migration is pushed.
@@ -27,6 +27,25 @@ export async function fetchDeskFormDueCents(showId: string, handlerId: string): 
 export function heldCentsFromDue(dueCents: number): number {
   return dueCents < 0 ? -dueCents : 0;
 }
+
+/**
+ * What the desk knows about the form's money on the Payment step. Only `holds` changes the
+ * step; `unknown` (not asked), `checking` and `failed` keep the normal one.
+ */
+export type DeskFormMoney =
+  | { status: 'unknown' }
+  | { status: 'checking' }
+  | { status: 'holds'; heldCents: number }
+  | { status: 'none' }
+  | { status: 'failed' };
+
+/** The money held, only when a read confirmed it; otherwise null. */
+export function heldCentsOf(formMoney: DeskFormMoney | undefined): number | null {
+  return formMoney?.status === 'holds' ? formMoney.heldCents : null;
+}
+
+export const CHECKING_FORM_MONEY = 'Checking the money on this form...';
+export const FORM_MONEY_UNCHECKED = 'Could not check the money already on this form.';
 
 /** What the desk shows after submitting onto a form that held money. */
 export interface DeskFormOutcome {

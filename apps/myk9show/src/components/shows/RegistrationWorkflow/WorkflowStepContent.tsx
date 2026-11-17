@@ -1,6 +1,6 @@
 import type { PaymentMethodResolution } from './PaymentStep/usePaymentMethodResolution';
 import { DeskFormOutcomeNotice } from './DeskFormOutcomeNotice';
-import type { DeskFormOutcome } from '@/features/registration/deskFormDue';
+import type { DeskFormMoney, DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { useMemo } from 'react';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
@@ -70,7 +70,7 @@ interface WorkflowStepContentProps {
   registrationNumber: string | undefined;
   currentRegistrationTotalFees: number;
   /** MYK9-2149: money the form holds before submit, and what it still owes after. */
-  desk?: { formHeldCents: number | null; outcome: DeskFormOutcome | null } | undefined;
+  desk?: { formMoney: DeskFormMoney; outcome: DeskFormOutcome | null } | undefined;
   capacityReady?: boolean | undefined;
   capacityError?: string | null | undefined;
   /** Availability could not be read at all, as opposed to still loading. */
@@ -442,7 +442,7 @@ export function WorkflowStepContent({
             onAgreementChange={onAgreementChange}
             preTickAgreement={currentWorkflowMode !== 'exhibitor'}
             staffWorkflow={currentWorkflowMode !== 'exhibitor'}
-            formHeldCents={desk?.formHeldCents ?? null}
+            formMoney={desk?.formMoney}
             juniorDeclaration={juniorDeclaration}
             capacityReady={capacityReady}
             capacityError={capacityError}

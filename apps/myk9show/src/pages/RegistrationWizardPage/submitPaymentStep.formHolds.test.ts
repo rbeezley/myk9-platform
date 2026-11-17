@@ -39,6 +39,7 @@ describe('submitPaymentStep reads what the form still owes (MYK9-2149)', () => {
       aborted: false,
       registrationNumber: 'REG-1',
       dbRegistrationId: 'form-1',
+      createdEntryOutcomes: [{ dogId: 'dog-1', classId: 'class-1', outcome: 'created' }],
       armbandAssignments: [],
       armbandFailures: [],
     });
@@ -71,6 +72,23 @@ describe('submitPaymentStep reads what the form still owes (MYK9-2149)', () => {
 
     expect(setDeskFormOutcome).toHaveBeenCalledWith({ formId: 'form-1', owedCents: null });
     expect(ctx.setCurrentStep).toHaveBeenCalled();
+  });
+
+  it('carries no outcome when no entry was created (all waitlisted or denied)', async () => {
+    submitShowRegistrationMock.mockResolvedValue({
+      aborted: false,
+      registrationNumber: 'REG-1',
+      dbRegistrationId: 'form-1',
+      entryOutcomes: [{ dogId: 'dog-1', classId: 'class-1', outcome: 'waitlisted' }],
+      armbandAssignments: [],
+      armbandFailures: [],
+    });
+    const { ctx, setDeskFormOutcome } = deskContext(true);
+
+    await submitPaymentStep(ctx);
+
+    expect(fetchDeskFormDueCentsMock).not.toHaveBeenCalled();
+    expect(setDeskFormOutcome).toHaveBeenCalledWith(null);
   });
 
   it('carries no outcome for an ordinary submission', async () => {

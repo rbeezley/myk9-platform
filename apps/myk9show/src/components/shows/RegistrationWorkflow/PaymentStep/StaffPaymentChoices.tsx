@@ -13,7 +13,14 @@ import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-ty
 import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PaymentOptionCard } from './PaymentOptionCard';
 import { usePaymentDetailsFields, type PaymentDetailsFields } from './usePaymentDetailsFields';
-import { FORM_HOLDS_HINT, formHoldsLabel } from '@/features/registration/deskFormDue';
+import {
+  CHECKING_FORM_MONEY,
+  FORM_HOLDS_HINT,
+  FORM_MONEY_UNCHECKED,
+  formHoldsLabel,
+  heldCentsOf,
+  type DeskFormMoney,
+} from '@/features/registration/deskFormDue';
 import type { PaymentMethodSelectorProps } from './types';
 
 /** One secretary choice: a payment method, and for money in hand how it came. */
@@ -87,8 +94,8 @@ type StaffPaymentChoicesProps = Pick<
   | 'juniorFee'
   | 'allowFreeEntry'
 > & {
-  /** MYK9-2149: money the exhibitor's form already holds beyond what it owes, or null. */
-  formHeldCents?: number | null | undefined;
+  /** MYK9-2149: what the page read about the exhibitor's form's money. */
+  formMoney?: DeskFormMoney | undefined;
 };
 
 /**
@@ -106,11 +113,15 @@ type StaffPaymentChoicesProps = Pick<
  *
  * The exhibitor's own list (`PaymentMethodSelector`) is untouched.
  *
- * MYK9-2149 (owner decision: collect after submit): when the exhibitor's form already holds
- * money, no cash or check is taken here. The paid and not-paid choices give way to one
- * choice, "This form already holds $X.", the entry is submitted with no payment, and what is
- * still owed (if anything) is shown after submit, to be recorded on the entry form. Free
- * entry stays available and can be chosen and un-chosen.
+ * MYK9-2149 (owner decision: collect after submit): the form's money is read each time this
+ * step opens, and the cash and check choices wait for it ("Checking the money on this
+ * form..."), so no money is taken on a screen that is about to say the form holds some.
+ * When the read CONFIRMS the form holds money, no cash or check is taken here: the choice is
+ * "This form already holds $X.", the entry is submitted with no payment, and what is still
+ * owed (if anything) is shown after submit, to be recorded on the entry form. "Paid by a club
+ * or group" and Free entry stay available beside it, and every choice can be un-chosen. When
+ * the read fails, the step is the normal one with a note, and anything taken is recorded in
+ * full, as it always was.
  */
 export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   paymentMethod,
@@ -120,10 +131,11 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   acceptedMethods,
   juniorFee = null,
   allowFreeEntry = false,
-  formHeldCents = null,
+  formMoney = { status: 'unknown' },
 }) => {
   const { fields, update } = usePaymentDetailsFields(getInitialDetails, onPaymentDetailsChange);
-  const formHolds = formHeldCents !== null && formHeldCents > 0;
+  const formHeldCents = heldCentsOf(formMoney);
+  const formHolds = formHeldCents !== null;
   const holdsSelected = paymentMethod === 'secretary_paid' && fields.formHoldsMoney;
 
   // The form's money is read after the step opens. When it is first read as holding money,
@@ -135,7 +147,7 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
     if (formHolds) {
       if (autoSelected.current) return;
       autoSelected.current = true;
-      if (!holdsSelected && paymentMethod !== 'waived') {
+      if (!holdsSelected && paymentMethod !== 'waived' && paymentMethod !== 'group_payment') {
         update({ formHoldsMoney: true, receivedMethod: undefined });
         onPaymentMethodChange('secretary_paid');
       }
@@ -234,18 +246,56 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
     </ChoiceDetails>
   );
 
+  // A club or group may pay for an entry whatever the form holds (MYK9-2149).
+  const groupChoice = (
+    <>
+      {card(
+        'group_payment',
+        Users,
+        'Paid by a club or group',
+        'A club or group organizer paid for this entry.',
+        PAID_BADGE
+      )}
+      {isSelected('group_payment') && (
+        <ChoiceDetails>
+          <div>
+            <Label htmlFor="group-reference">Club or group reference</Label>
+            <Input
+              id="group-reference"
+              value={fields.groupReference}
+              onChange={e => update({ groupReference: e.target.value })}
+              placeholder="Club payment batch #123"
+            />
+          </div>
+        </ChoiceDetails>
+      )}
+    </>
+  );
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">How was this entry paid?</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {formHolds ? (
+        {formMoney.status === 'checking' ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            {CHECKING_FORM_MONEY}
+          </p>
+        ) : formHolds ? (
           <ChoiceGroup id="staff-payment-form-holds" title="Money already on this form">
             {card('form_holds_money', Wallet, formHoldsLabel(formHeldCents), FORM_HOLDS_HINT)}
+            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
+              {groupChoice}
+            </PermissionGuard>
           </ChoiceGroup>
         ) : (
           <>
+            {formMoney.status === 'failed' && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {FORM_MONEY_UNCHECKED}
+              </p>
+            )}
             <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
               <ChoiceGroup id="staff-payment-paid" title="Paid with the entry">
                 {paymentMethod === 'secretary_paid' && !fields.receivedMethod && (
@@ -269,26 +319,7 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
                   PAID_BADGE
                 )}
                 {isSelected('cash_received') && receivedDetails('Receipt #', 'Receipt #123')}
-                {card(
-                  'group_payment',
-                  Users,
-                  'Paid by a club or group',
-                  'A club or group organizer paid for this entry.',
-                  PAID_BADGE
-                )}
-                {isSelected('group_payment') && (
-                  <ChoiceDetails>
-                    <div>
-                      <Label htmlFor="group-reference">Club or group reference</Label>
-                      <Input
-                        id="group-reference"
-                        value={fields.groupReference}
-                        onChange={e => update({ groupReference: e.target.value })}
-                        placeholder="Club payment batch #123"
-                      />
-                    </div>
-                  </ChoiceDetails>
-                )}
+                {groupChoice}
               </ChoiceGroup>
             </PermissionGuard>
 

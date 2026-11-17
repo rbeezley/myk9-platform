@@ -15,10 +15,11 @@ describe('DeskFormOutcomeNotice (MYK9-2149)', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Still owed on this form: $20.00. Record it on the entry form when you take it.'
     );
-    expect(screen.getByRole('link', { name: 'Open the entry form' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/entries?registration=form-1'
-    );
+    const link = screen.getByRole('link', { name: 'Open the entry form' });
+    expect(link).toHaveAttribute('href', '/shows/show-1/entries?registration=form-1');
+    // A new tab: leaving the wizard in this tab would drop it (MYK9-1973).
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('says the money on the form covered it, with no link', () => {

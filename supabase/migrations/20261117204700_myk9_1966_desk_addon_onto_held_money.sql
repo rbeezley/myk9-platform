@@ -1,38 +1,24 @@
--- MYK9-1966: a payment taken at submission never records more than the form still owes.
+-- MYK9-1966 / MYK9-2149 (owner decision: collect after submit). A desk add-on onto a form that
+-- already holds money (a refunded class's fee, an overpayment) takes no money at submission.
 --
--- The bug. A secretary adds a class to a form that already holds money beyond what it owes
--- (a refunded class's fee, an overpayment) and records cash or check at submission.
--- private.refresh_enrollment_money (MYK9-1961) settles the add-on from the money held as the
--- entry is inserted, and then submit_show_entries recorded the add-on's full server fee
--- again: a form holding $40 extra, a $30 add-on with $30 cash, ended holding $70 against
--- $30 owed. The same was true of 'secretary_paid' / 'group_payment', which added the full
--- fee to paid_amount.
+-- The bug. A secretary added a class to a form holding money beyond what it owed and recorded
+-- cash or check at submission. private.refresh_enrollment_money (MYK9-1961) settles the add-on
+-- from the money held as the entry is inserted, and submit_show_entries then recorded the full
+-- fee again, so the exhibitor paid money they did not owe.
 --
--- The fix, in this function only. After the entries are inserted (so the entry triggers have
--- already refreshed total_amount and card_covered_cents), the form's due is read fresh from
--- the columns private.refresh_enrollment_money settles on: total_amount less net desk money
--- (paid_amount - refund_amount) less card_covered_cents. The money recorded at submission is
--- LEAST(the created entries' server fees, that due), and nothing when that is zero or less:
---   * the add-on is fully covered by money held: nothing recorded (the held money settled it);
---   * partly covered: only the difference is recorded;
---   * nothing extra held: the full fee is recorded, exactly as before.
--- The cap never exceeds the created fees, so money a form owed before this submission is
--- still the secretary's to collect through "Paid in Full", never folded into this payment.
---
--- Nothing is refunded and no money is moved: anything recorded before this fix stays as it is.
+-- The fix is the desk's, not a cap on what is recorded: money the desk says it received is
+-- always recorded in full (a cap would leave cash in the box with no record). The desk reads
+-- public.desk_form_due_cents (below) before submitting. When it confirms the form holds money,
+-- the desk takes none and submits with p_payment_method NULL and no p_payment: the entries go
+-- in pending with no channel named, refresh_enrollment_money settles whatever the held money
+-- covers, and the desk reads the same function after submitting to say what is still owed, to
+-- be recorded on the entry form. When the read is pending or fails, the desk works as before.
 --
 -- submit_show_entries is copied verbatim from its latest definition
--- (20261113222900_myk9_1886_one_club_admin_rule.sql); only the money lines at the end of the
--- function changed. Signature, SECURITY DEFINER, search_path, REVOKE and GRANT are unchanged.
---
--- MYK9-2149 (owner decision: collect after submit). The desk is told only what a form already
--- holds beyond what it owes, before submission, and what it still owes, after, both from
--- public.desk_form_due_cents (below), which reads the same private.enrollment_due_cents the
--- cap reads; the due formula exists once. A desk add-on onto a form that holds money is
--- submitted with p_payment_method NULL and no p_payment: its entries go in pending with no
--- channel named, private.refresh_enrollment_money settles whatever the held money covers,
--- and the form's own recorded method is left alone. Anything still owed is recorded on the
--- entry form afterwards.
+-- (20261113222900_myk9_1886_one_club_admin_rule.sql). One change: the branch that records how a
+-- still-owing form will pay skips a NULL method, so the form's recorded method is never blanked.
+-- Signature, SECURITY DEFINER, search_path, REVOKE and GRANT are unchanged. Nothing is refunded
+-- and no money is moved.
 
 -- ---------------------------------------------------------------------------
 -- private.enrollment_due_cents: what a form still owes, in cents. Negative when it holds
@@ -55,7 +41,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION private.enrollment_due_cents(uuid) IS
-  'MYK9-1966: a form''s due in cents (total_amount less desk net and card money); negative when it holds more than it owes. Read by submit_show_entries (the cap on money recorded at submission) and desk_form_due_cents (what the desk is told a form holds or still owes), so both use one formula.';
+  'MYK9-1966: a form''s due in cents (total_amount less desk net and card money); negative when it holds more than it owes. Read by desk_form_due_cents (what the desk is told a form holds or still owes).';
 
 REVOKE ALL ON FUNCTION private.enrollment_due_cents(uuid) FROM PUBLIC;
 
@@ -113,10 +99,6 @@ DECLARE
   v_created_cents   int := 0;
   v_pay_method      text;
   v_pay_received_on date;
-  -- MYK9-1966: what the form still owes after this submission's entries, and the part of
-  -- the created fees that money received at submission may pay (never more than that due).
-  v_due_cents       int;
-  v_pay_cents       int;
 
   -- MYK9-1048: this entry's run position (NULL while its class has no order).
   v_run_order     int;
@@ -654,38 +636,29 @@ BEGIN
   -- reopened a settled form the add-on left owing. What is left is the submission's own
   -- status, decided here in the same transaction instead of a second client write.
   IF p_registration_id IS NOT NULL AND cardinality(v_entry_pairs) > 0 THEN
-    -- MYK9-1966: the form's due (private.enrollment_due_cents), read AFTER the entry triggers
-    -- refreshed total_amount and card_covered_cents. Money received at submission
-    -- pays the created fees up to that due and no further: an add-on the form's held money
-    -- already covers records nothing, one it partly covers records only the difference.
-    v_due_cents := private.enrollment_due_cents(p_registration_id);
-    v_pay_cents := GREATEST(LEAST(v_created_cents, COALESCE(v_due_cents, 0)), 0);
-
     IF p_payment IS NOT NULL THEN
-      -- MYK9-677: the created entries' server fees, capped at the form's due (MYK9-1966), are
-      -- the amount received. The ledger core records the payment and moves paid_amount and
-      -- payment_status once. Keyed on the submission id, so the replay branch above (which
-      -- returns the stored result before reaching this) and a direct retry of the key can
-      -- never record it twice.
-      IF v_pay_cents > 0 THEN
+      -- MYK9-677: the created entries' server fees are the amount received. The ledger
+      -- core records the payment and moves paid_amount and payment_status once. Keyed on
+      -- the submission id, so the replay branch above (which returns the stored result
+      -- before reaching this) and a direct retry of the key can never record it twice.
+      IF v_created_cents > 0 THEN
         UPDATE public.enrollments
            SET payment_method = v_pay_method,
                updated_at = now()
          WHERE id = p_registration_id;
 
         PERFORM private.record_enrollment_payment_core(
-          p_registration_id, 'payment', v_pay_cents / 100.0, v_pay_method, v_pay_received_on,
+          p_registration_id, 'payment', v_created_cents / 100.0, v_pay_method, v_pay_received_on,
           NULLIF(btrim(p_payment->>'reference'), ''), NULL, p_submission_id
         );
       END IF;
     ELSIF p_payment_method IN ('secretary_paid', 'group_payment') THEN
       -- Paid outside the desk ledger (the entries above went in as 'paid'): the form
-      -- records the money, capped at its due (MYK9-1966), and is paid once the money
-      -- received (desk and card) covers what it owes.
+      -- records the money, and is paid once the money received (desk and card) covers what it owes.
       UPDATE public.enrollments en
-         SET paid_amount = COALESCE(en.paid_amount, 0) + v_pay_cents / 100.0,
+         SET paid_amount = COALESCE(en.paid_amount, 0) + v_created_cents / 100.0,
              payment_status = CASE
-               WHEN (COALESCE(en.paid_amount, 0) + v_pay_cents / 100.0
+               WHEN (COALESCE(en.paid_amount, 0) + v_created_cents / 100.0
                      - COALESCE(en.refund_amount, 0)) * 100 + en.card_covered_cents
                     >= COALESCE(en.total_amount, 0)
                THEN 'paid'
@@ -707,9 +680,9 @@ BEGIN
          AND COALESCE(en.paid_amount, 0) - COALESCE(en.refund_amount, 0) = 0;
     ELSIF p_payment_method IS NOT NULL THEN
       -- How the exhibitor will pay, recorded while the form still owes. A settled form's
-      -- method says how its money arrived and is not relabelled. MYK9-2149: an add-on the
-      -- form's held money covers is submitted with no method at all (no money changed
-      -- hands, so no channel is named); it leaves the form's recorded method as it is.
+      -- method says how its money arrived and is not relabelled. MYK9-2149: an add-on onto a
+      -- form that holds money is submitted with no method at all (no money changed hands, so
+      -- no channel is named); it leaves the form's recorded method as it is.
       UPDATE public.enrollments en
          SET payment_method = p_payment_method,
              updated_at = now()
@@ -779,7 +752,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.desk_form_due_cents(uuid, uuid) IS
-  'MYK9-2149: what the exhibitor''s form for this show still owes in cents (negative = money held beyond what it owes; 0 = no form). The desk reads it before submission (no cash or check is taken when the form holds money) and after (what is still owed). Same private.enrollment_due_cents as the submission cap. Restates can_record_show_payment.';
+  'MYK9-2149: what the exhibitor''s form for this show still owes in cents (negative = money held beyond what it owes; 0 = no form). The desk reads it before submission (no cash or check is taken when the form holds money) and after (what is still owed). Restates can_record_show_payment.';
 
 REVOKE ALL ON FUNCTION public.desk_form_due_cents(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.desk_form_due_cents(uuid, uuid) TO authenticated, service_role;

@@ -14,7 +14,7 @@ interface DeskFormOutcomeNoticeProps {
  * MYK9-2149 (owner decision: collect after submit): after an entry is added to a form that
  * already held money, say what the form still owes, as the server reads it, and link to that
  * entry form, where the payment is recorded when it is taken (its existing payment actions;
- * no second payment surface here). Nothing owed says the money on the form covered it.
+ * no second payment surface here). In a new tab, like every link out of the wizard. Nothing owed says the money on the form covered it.
  */
 export const DeskFormOutcomeNotice: React.FC<DeskFormOutcomeNoticeProps> = ({
   showId,
@@ -29,6 +29,8 @@ export const DeskFormOutcomeNotice: React.FC<DeskFormOutcomeNoticeProps> = ({
         {!covered && (
           <Link
             to={deskOwedHref(showId, outcome.formId)}
+            target="_blank"
+            rel="noopener noreferrer"
             className="mt-2 inline-flex min-h-11 items-center font-medium underline underline-offset-2"
           >
             Open the entry form

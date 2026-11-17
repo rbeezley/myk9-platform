@@ -42,7 +42,18 @@ function makeParams(paymentDetails: PaymentDetails): SubmitShowRegistrationParam
       }),
       submitShowEntries: vi.fn().mockResolvedValue({
         entries: [{ entryId: 'entry-1', dogId: 'dog-1' }],
-        outcomes: [],
+        outcomes: [
+          {
+            dogId: 'dog-1',
+            classId: 'class-1',
+            outcome: 'created',
+            entryId: 'entry-1',
+            waitlistEntryId: null,
+            waitlistPosition: null,
+            feeCents: 3000,
+            capacityOverride: false,
+          },
+        ],
         registrationId: 'db-reg-1',
         submissionId: 'submission-1',
       }),
@@ -67,6 +78,34 @@ describe('an entry added to a form that holds money (MYK9-2149)', () => {
       })
     );
     expect(call).not.toHaveProperty('payment');
+  });
+
+  it("leaves the form's existing payment details alone: no detail write at all", async () => {
+    const params = makeParams({
+      formHoldsMoney: true,
+      paymentReference: '',
+      paymentDate: '',
+      paymentNotes: '',
+    });
+
+    await submitShowRegistration(params);
+
+    // Once, to find the form; never again with the step's blank detail fields.
+    expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
+  });
+
+  it('still writes the payment details when money was taken (the control)', async () => {
+    const params = makeParams({ receivedMethod: 'check', paymentReference: '1042' });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
+      2,
+      'show-1',
+      'owner-1',
+      expect.objectContaining({ paymentReference: '1042' })
+    );
   });
 
   it('does not ask for cash or check when nothing changed hands', async () => {

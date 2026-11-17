@@ -213,7 +213,9 @@ export async function submitShowRegistration({
     // same transaction as the entries. All that is left is the payment details a
     // secretary typed (reference, check number, date, notes); an exhibitor's own
     // submit has none to write.
-    if (createdAny && submissionSource !== 'self_service' && paymentDetails) {
+    // MYK9-2149: no money changed hands on a form that held money, so its existing check
+    // number, date and notes are left exactly as they are (blank fields would overwrite them).
+    if (createdAny && submissionSource !== 'self_service' && paymentDetails && !formHoldsMoney) {
       await recordEnrollmentPaymentDetails({
         showId,
         ownerResolution,

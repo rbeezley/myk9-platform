@@ -1,23 +1,24 @@
--- MYK9-1966: money received at submission never records more than the form still owes.
--- Behavioural contract for 20261117204700_myk9_1966_submission_payment_capped_at_due.sql.
+-- MYK9-1966 / MYK9-2149: a desk add-on onto a form that already holds money.
+-- Behavioural contract for 20261117204700_myk9_1966_desk_addon_onto_held_money.sql.
 --
--- A secretary adds a $30 class to a form and records money with it. Before this fix
--- submit_show_entries recorded the class's full server fee even when the money the form
--- already held had settled the add-on (MYK9-1961), so the form held more than it owed.
+-- Money the desk says it received is ALWAYS recorded in full: there is no cap, because a cap
+-- would leave cash in the box with no record. The desk avoids taking money a form does not
+-- need by reading desk_form_due_cents first and, when the form holds money, submitting with
+-- no payment and no method.
 --
 -- Asserts, with cash taken at submission (p_payment, the ledger path):
---   1. a form holding $40 beyond what it owes: nothing is recorded; the form holds $40 net
---      against $30 owed and the add-on is paid;
---   2. a form holding $10 beyond what it owes: only the $20 difference is recorded;
+--   1. a form holding $40 beyond what it owes: the $30 received is recorded in full (no silent
+--      drop), and the form then holds $70 against $30 owed, visibly;
+--   2. a form holding $10 beyond what it owes: the $30 received is recorded in full;
 --   3. a form holding nothing extra: the full $30 is recorded, as before;
 -- and the same three through 'group_payment' (money paid outside the desk ledger):
---   4. $40 held: paid_amount does not grow;
---   5. $10 held: paid_amount grows by $20;
+--   4. $40 held: paid_amount grows by the full $30;
+--   5. $10 held: paid_amount grows by the full $30;
 --   6. nothing held: paid_amount grows by $30, as before;
---   7. 'secretary_paid' with no p_payment takes the same branch: $40 held, nothing added.
+--   7. 'secretary_paid' with no p_payment takes the same branch: $40 held, $30 added.
 -- MYK9-2149, public.desk_form_due_cents (what a form still owes; negative = money held):
---   8. before the add-ons it reads -$40 / -$10 / $0, and after them -$10 / $0 / $0: the desk
---      sees the money held before submitting and what is still owed after;
+--   8. before the add-ons it reads -$40 / -$10 / $0, and after them (money recorded in full)
+--      -$40 / -$10 / $0: the desk sees the money held before submitting and after;
 --   9. a person with no form reads $0; an exhibitor (who may not take money at the desk) is
 --      refused; anon cannot execute it, and enrollment_due_cents is not callable by clients.
 --  10. the covered submit itself: no p_payment and no method (p_payment_method NULL). On a
@@ -269,20 +270,20 @@ DECLARE
 BEGIN
   FOR v_case IN
     SELECT * FROM (VALUES
-      (1, '33', 'cash: $40 held covers the $30 add-on, nothing recorded',
-       'total=3000 paid=60.00 refund=20.00 status=paid payments=60.00'),
-      (2, '32', 'cash: $10 held, only the $20 difference recorded',
-       'total=3000 paid=50.00 refund=20.00 status=paid_by_cash payments=20.00,30.00'),
+      (1, '33', 'cash: $40 held, the $30 received is still recorded in full',
+       'total=3000 paid=90.00 refund=20.00 status=paid_by_cash payments=30.00,60.00'),
+      (2, '32', 'cash: $10 held, the $30 received is still recorded in full',
+       'total=3000 paid=60.00 refund=20.00 status=paid_by_cash payments=30.00,30.00'),
       (3, '33', 'cash: nothing held, the full $30 recorded',
        'total=3000 paid=30.00 refund=0.00 status=paid_by_cash payments=30.00'),
-      (4, '33', 'group_payment: $40 held covers the $30 add-on, paid_amount unchanged',
-       'total=3000 paid=60.00 refund=20.00 status=paid payments=60.00'),
-      (5, '32', 'group_payment: $10 held, paid_amount grows by the $20 difference',
-       'total=3000 paid=50.00 refund=20.00 status=paid payments=30.00'),
+      (4, '33', 'group_payment: $40 held, paid_amount grows by the full $30',
+       'total=3000 paid=90.00 refund=20.00 status=paid payments=60.00'),
+      (5, '32', 'group_payment: $10 held, paid_amount grows by the full $30',
+       'total=3000 paid=60.00 refund=20.00 status=paid payments=30.00'),
       (6, '33', 'group_payment: nothing held, paid_amount grows by the full $30',
        'total=3000 paid=30.00 refund=0.00 status=paid payments=none'),
-      (7, '33', 'secretary_paid: $40 held covers the $30 add-on, paid_amount unchanged',
-       'total=3000 paid=60.00 refund=20.00 status=paid payments=60.00')
+      (7, '33', 'secretary_paid: $40 held, paid_amount grows by the full $30',
+       'total=3000 paid=90.00 refund=20.00 status=paid payments=60.00')
     ) AS t(n, class_suffix, label, want)
   LOOP
     IF pg_temp.form1966(v_case.n) IS DISTINCT FROM v_case.want THEN
@@ -316,7 +317,7 @@ RESET ROLE;
 DO $$
 DECLARE
   v_got text;
-  v_want text := '1:-1000 2:0 3:0 4:-1000 5:0 6:0 7:-1000';
+  v_want text := '1:-4000 2:-1000 3:0 4:-4000 5:-1000 6:0 7:-4000';
 BEGIN
   SELECT string_agg(format('%s:%s', n, after_cents), ' ' ORDER BY n) INTO v_got FROM t1966_due;
   IF v_got IS DISTINCT FROM v_want THEN

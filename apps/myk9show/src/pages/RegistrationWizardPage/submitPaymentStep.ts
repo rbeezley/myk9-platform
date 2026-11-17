@@ -128,7 +128,8 @@ export interface SubmitPaymentStepContext {
 /**
  * MYK9-2149 (owner decision: collect after submit): an entry added to a form that held money
  * went in with no payment. Read what the form still owes now, so the receipt can say so and
- * link to the entry form. A failed read says it could not be read, never "covered".
+ * link to the entry form. A failed read says it could not be read, never "covered". Only
+ * when an entry was created: a submission that was all waitlisted or denied added nothing.
  */
 async function readDeskFormOutcome(
   ctx: SubmitPaymentStepContext,
@@ -309,7 +310,11 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     }
     if (ctx.currentWorkflowMode === 'exhibitor') ctx.invalidateOwnTodayEntries();
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
-    ctx.setDeskFormOutcome?.(await readDeskFormOutcome(ctx, submissionResult.dbRegistrationId));
+    ctx.setDeskFormOutcome?.(
+      (submissionResult.createdEntryOutcomes?.length ?? 0) > 0
+        ? await readDeskFormOutcome(ctx, submissionResult.dbRegistrationId)
+        : null
+    );
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
     ctx.setCreatedEntryOutcomes(submissionResult.createdEntryOutcomes ?? []);
     ctx.discardDraftsWithoutFinalSave(

@@ -101,7 +101,12 @@ export default function ShowDeskPanel({
   );
   const returnTo = `${location.pathname}${location.search}`;
   const trialRefs = useMemo(
-    () => trials.map(trialItem => ({ id: trialItem.id, trialDate: trialItem.trialDate })),
+    () =>
+      trials.map(trialItem => ({
+        id: trialItem.id,
+        trialDate: trialItem.trialDate,
+        registryId: trialItem.registryId,
+      })),
     [trials]
   );
   // One class projection for paperwork fingerprints, shared with Reports -- never the camelCase

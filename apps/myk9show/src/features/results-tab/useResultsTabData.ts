@@ -64,7 +64,12 @@ export function useResultsTabData(showId: string) {
     [schedule.trials, showId]
   );
   const trialDates = useMemo(
-    () => showTrials.map(trial => ({ id: trial.id, trialDate: trial.trialDate })),
+    () =>
+      showTrials.map(trial => ({
+        id: trial.id,
+        trialDate: trial.trialDate,
+        registryId: trial.registryId,
+      })),
     [showTrials]
   );
   const entries = entriesQuery.data ?? NO_ENTRIES;

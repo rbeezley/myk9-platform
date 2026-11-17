@@ -47,7 +47,7 @@ vi.mock('@/features/emergency-trial-packet/completePacketRows', () => ({
     entries: [],
   }),
 }));
-vi.mock('@/pages/secretary/ReportsPage/reportDataMapping', () => ({
+vi.mock('@/pages/secretary/ReportsPage/buildPacketData', () => ({
   buildEmergencyPacketData: () => mocks.packetData,
 }));
 vi.mock('@/pages/secretary/ReportsPage/useDeliveredPackets', async importOriginal => ({

@@ -50,9 +50,16 @@ describe('judge changed email wording', () => {
       'Container Novice A (Saturday Trial, Saturday, November 21, 2026): was Judge Olly Oldjudge, now Judge Bea Newjudge'
     );
     expect(email.body).toContain(
-      'Under AKC rules, you may withdraw for a full refund if you ask the trial secretary in writing before judging of Container Novice A (Saturday Trial, Saturday, November 21, 2026) starts.'
+      'Under AKC rules, you may ask the trial secretary in writing for a full refund of your entry fee for the affected class: Container Novice A (Saturday Trial, Saturday, November 21, 2026). If the change was made before the judging schedule was sent out, your request must reach the trial secretary at least 30 minutes before the event starts on your first day entered. If it was made after, your request must reach the trial secretary before judging of that class starts.'
     );
     expect(email.body).toContain('Hi Jamie,');
+  });
+
+  it('AKC states both deadlines, and never a withdrawal or automatic promise', () => {
+    const line = judgeChangeRefundLine('AKC', [change]);
+    expect(line).toContain('30 minutes before the event starts on your first day entered');
+    expect(line).toContain('before judging of that class starts');
+    expect(line).not.toMatch(/automatic|pull|\u2014/i);
   });
 
   it('UKC says the exhibitor may ask the trial secretary in writing for a full refund', () => {
@@ -68,8 +75,8 @@ describe('judge changed email wording', () => {
   });
 
   it('a blank or unknown registry reads as AKC, as getTrialRegistry does', () => {
-    expect(judgeChangeRefundLine(null, [change])).toContain('Under AKC rules, you may withdraw');
-    expect(judgeChangeRefundLine('', [change])).toContain('Under AKC rules, you may withdraw');
+    expect(judgeChangeRefundLine(null, [change])).toContain('Under AKC rules, you may ask');
+    expect(judgeChangeRefundLine('', [change])).toContain('Under AKC rules, you may ask');
   });
 
   it('never says a refund is automatic, never says pull, has no em dash', () => {
@@ -101,7 +108,7 @@ describe('judge changed email wording', () => {
       'Interior Novice A (Saturday Trial, Saturday, November 21, 2026): was the previous judge'
     );
     expect(body).toContain(
-      'Under AKC rules, you may withdraw from a class for a full refund if you ask the trial secretary in writing before judging of that class starts: Container Novice A (Saturday Trial, Saturday, November 21, 2026), Interior Novice A (Saturday Trial, Saturday, November 21, 2026).'
+      'Under AKC rules, you may ask the trial secretary in writing for a full refund of your entry fee for each affected class: Container Novice A (Saturday Trial, Saturday, November 21, 2026), Interior Novice A (Saturday Trial, Saturday, November 21, 2026). If the change was made before the judging schedule was sent out, your request must reach the trial secretary at least 30 minutes before the event starts on your first day entered. If it was made after, your request must reach the trial secretary before judging of that class starts.'
     );
     expect(body).toContain('Hi there,');
   });
@@ -306,7 +313,7 @@ describe('judge changed email: vacancy, wording, link', () => {
       ],
     });
     expect(body).toContain(
-      'before judging of that class starts: Container Novice A (Saturday Trial, Saturday, November 21, 2026), Interior Novice A (Sunday Trial, Sunday, November 22, 2026).'
+      'each affected class: Container Novice A (Saturday Trial, Saturday, November 21, 2026), Interior Novice A (Sunday Trial, Sunday, November 22, 2026).'
     );
     expect(body).not.toMatch(/automatic|already started/i);
   });

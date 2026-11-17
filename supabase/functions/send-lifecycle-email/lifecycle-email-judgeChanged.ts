@@ -225,11 +225,13 @@ export function judgeChangeRefundLine(
     case 'ASCA':
       return 'Contact the trial secretary with questions.';
     default: {
-      if (changes.length === 1) {
-        return `Under AKC rules, you may withdraw for a full refund if you ask the trial secretary in writing before judging of ${classLabel(changes[0])} starts.`;
-      }
-      // Each class has its own deadline.
-      return `Under AKC rules, you may withdraw from a class for a full refund if you ask the trial secretary in writing before judging of that class starts: ${changes.map(classLabel).join(', ')}.`;
+      // AKC Scent Work Regulations, Ch. 3 sec. 24 and 25: the deadline depends on whether the
+      // change came before or after the judging schedule went out, which we cannot tell.
+      const classes =
+        changes.length === 1
+          ? `the affected class: ${classLabel(changes[0])}`
+          : `each affected class: ${changes.map(classLabel).join(', ')}`;
+      return `Under AKC rules, you may ask the trial secretary in writing for a full refund of your entry fee for ${classes}. If the change was made before the judging schedule was sent out, your request must reach the trial secretary at least 30 minutes before the event starts on your first day entered. If it was made after, your request must reach the trial secretary before judging of that class starts.`;
     }
   }
 }

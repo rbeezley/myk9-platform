@@ -34,6 +34,7 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   results_available: 'Results available',
   registration_number_needed: 'Registration number needed',
   show_changed: 'Date or venue changed',
+  judge_changed: 'Judge changed',
 };
 
 // The reminder batches remain deferred until a producer exists (MYK9-318; follow-up tracked
@@ -46,6 +47,7 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
   'results_available',
   'registration_number_needed',
   'show_changed',
+  'judge_changed',
 ]);
 
 // Sent one at a time from the Registration number needed list, never as a batch: the toggle
@@ -56,7 +58,10 @@ const SEND_ON_DEMAND_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>
 
 // Sent by the server itself a few quiet minutes after the change (MYK9-2124): the toggle stays,
 // there is nothing to review.
-const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>(['show_changed']);
+const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
+  'show_changed',
+  'judge_changed',
+]);
 
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
 

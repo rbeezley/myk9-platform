@@ -15,6 +15,8 @@
  *                                             refusal ends the job at `failed`, which stays
  *                                             visible in Delivery history
  *   show unpublished, or no live entry left   the job is skipped
+ *   judge_changed (MYK9-2125)                 same drain; the email names each class whose judge
+ *                                             changed, rendered at send time
  */
 import {
   deliverViaResend,
@@ -27,6 +29,7 @@ import {
   type QueryResult,
   type SendLifecycleEmailDeps,
 } from './lifecycle-email-shared.ts';
+import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -196,12 +199,34 @@ async function processClaimedJob(args: {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
-  if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
-    await finishJob(args, { status: 'skipped' });
-    return 'skipped';
-  }
 
-  const text = renderShowChangedEmail({ show, recipientName: job.recipient_name });
+  let text: { subject: string; body: string };
+  if (job.step_type === 'judge_changed') {
+    // MYK9-2125: still a recipient means a live entry in a class whose judge really changed.
+    const plan = await planJudgeChangedEmail({
+      supabase,
+      jobId: job.job_id,
+      showId: job.show_id,
+      personId: job.recipient_person_id,
+    });
+    if (plan.kind === 'skip') {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderJudgeChangedEmail({
+      showId: job.show_id,
+      showName: show.name,
+      recipientName: job.recipient_name,
+      registryId: plan.registryId,
+      changes: plan.changes,
+    });
+  } else {
+    if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderShowChangedEmail({ show, recipientName: job.recipient_name });
+  }
   const delivery = await deliverViaResend(args.deps, row, { ...text, secretaryNote: '' });
 
   if (!delivery.ok) {

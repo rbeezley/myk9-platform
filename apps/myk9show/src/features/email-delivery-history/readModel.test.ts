@@ -98,6 +98,23 @@ describe('email delivery history read model', () => {
     expect(row.typeLabel).toBe('Date or venue changed');
   });
 
+  it('labels the automatic judge-changed email in plain words', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-4',
+      show_id: 'show-1',
+      source_kind: 'lifecycle',
+      lifecycle_step_type: 'judge_changed',
+      related_id: 'job-2',
+      recipient_name: 'Ada Lovelace',
+      recipient_email: 'ada@example.com',
+      attempted_at: '2026-11-17T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'sent',
+      failure_summary: null,
+    });
+    expect(row.typeLabel).toBe('Judge changed');
+  });
+
   it('routes failures to the existing owner surface', () => {
     expect(getEmailRecoveryHref('registration_confirmation', 'show-1')).toBe(
       '/shows/show-1/entries'

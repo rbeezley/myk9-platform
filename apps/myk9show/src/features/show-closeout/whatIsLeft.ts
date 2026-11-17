@@ -65,6 +65,8 @@ export interface WhatIsLeftTrial {
   timezone?: string | null | undefined;
   /** The discipline (`trials.trial_type`); the deadline rules cover scent work only. */
   trialType?: string | null | undefined;
+  /** A cancelled trial did not happen, so it never sets the results deadline. */
+  status?: string | null | undefined;
 }
 
 export interface WhatIsLeftInput {
@@ -375,6 +377,7 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
                   .filter(
                     trial =>
                       getTrialRegistry(trial).id === registryId &&
+                      !isCancelledStatus(trial.status) &&
                       resultsDeadlineCoversTrialType(trial.trialType)
                   )
                   .map(trial => ({ date: trial.trialDate, timeZone: getTrialTimezone(trial) }))

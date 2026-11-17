@@ -27,7 +27,7 @@ describe('generate-premium throttle integration', () => {
   it('rethrows limiter HttpErrors instead of converting them into Claude fallback copy', () => {
     const gate = source.indexOf('runPremiumGenerationAttempt({');
     const rethrow = source.indexOf('if (err instanceof HttpError)');
-    const fallback = source.indexOf("narratives = { showHours: '', trialInformation: '' }");
+    const fallback = source.indexOf('narratives = publishedNarratives(');
 
     expect(gate).toBeGreaterThan(-1);
     expect(rethrow).toBeGreaterThan(gate);

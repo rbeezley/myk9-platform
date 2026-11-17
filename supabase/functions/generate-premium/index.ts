@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { publishedNarratives } from './publishedNarratives.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import {
   pickPremiumOfficial,
@@ -94,7 +95,7 @@ handle<GeneratePremiumPayload>(
         `
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
-        accept_check_payments, accept_cash_payments, club_id,
+        accept_check_payments, accept_cash_payments, club_id, experience_published_content,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
@@ -195,8 +196,8 @@ handle<GeneratePremiumPayload>(
       }
       console.error('Claude narrative generation failed:', err);
       narrativeGenerationError = describeNarrativeGenerationFailure(err);
-      // Never invent placeholder narratives: the client keeps the saved text on failure.
-      narratives = { showHours: '', trialInformation: '' };
+      // Never invent placeholder narratives: fall back to what is already published.
+      narratives = publishedNarratives(show.experience_published_content);
     }
 
     // Step 10: Assemble and return GeneratedPremium

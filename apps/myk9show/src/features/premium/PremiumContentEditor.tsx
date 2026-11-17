@@ -14,11 +14,7 @@ import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplate
 import { uploadShowCover } from '../../services/imageUploadService';
 import { computePremiumDiff } from './logPremiumGeneration';
 import { fileToDataUrl, resolvePdfCoverImageSrc } from './coverImageDataUrl';
-import {
-  NARRATIVE_REFRESH_FAILED_MESSAGE,
-  narrativeGenerationFailed,
-  stripPlaceholderNarratives,
-} from './premiumNarratives';
+import { narrativeGenerationFailed, stripPlaceholderNarratives } from './premiumNarratives';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 const GENERATION_TIMEOUT_MS = 20_000;
@@ -115,43 +111,19 @@ export function PremiumContentEditor({
     );
   }, []);
 
-  // The narrative text on screen right now (including her edits), read when a
-  // generation finishes so a failed narrative call never replaces it.
-  const narrativesRef = useRef(narratives);
-  narrativesRef.current = narratives;
-  // Her supplemental details (vet clinic, notes): a failed narrative call never replaces them.
-  const supplementalRef = useRef(supplemental);
-  supplementalRef.current = supplemental;
-
   const handleGenerate = useCallback(async () => {
     lastPdfErrorMessageRef.current = null;
     setGenerationError(null);
     setIsGenerating(true);
     setAutoGenerateAttemptedFor(showId);
     try {
-      const raw = await withGenerationTimeout(generate(showId));
-      // A not-yet-redeployed generator can still send the legacy placeholder text; never keep it.
-      const result = { ...raw, narratives: stripPlaceholderNarratives(raw.narratives) };
-      const failed = narrativeGenerationFailed(result);
-      const current = narrativesRef.current;
-      const currentHasText = Boolean(current?.showHours.trim() || current?.trialInformation.trim());
-      if (failed && currentHasText) {
-        // Fresh show facts, but keep her narratives and supplemental details as they are.
-        setOriginal(result);
-        setHasNarrativeError(false);
-        setGenerationError(
-          result.narrativeGenerationError
-            ? `${NARRATIVE_REFRESH_FAILED_MESSAGE} (${result.narrativeGenerationError})`
-            : NARRATIVE_REFRESH_FAILED_MESSAGE
-        );
-        return;
-      }
-      setOriginal(result);
-      if (!failed || !supplementalRef.current) setSupplemental(result.supplemental);
-      setNarratives(result.narratives);
-      setHasNarrativeError(failed);
+      const result = await withGenerationTimeout(generate(showId));
+      const cleaned = { ...result, narratives: stripPlaceholderNarratives(result.narratives) };
+      setOriginal(cleaned);
+      setSupplemental(cleaned.supplemental);
+      setNarratives(cleaned.narratives);
+      setHasNarrativeError(narrativeGenerationFailed(cleaned));
     } catch (err) {
-      // Nothing came back, so everything on screen stays as it was.
       setGenerationError(
         err instanceof Error ? err.message : 'We could not generate that content.'
       );
@@ -377,16 +349,18 @@ export function PremiumContentEditor({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription className="space-y-3">
                   <p>
-                    Narrative generation did not return text
                     {original.narrativeGenerationError
-                      ? `: ${original.narrativeGenerationError}`
-                      : '. You can retry or edit the fields below before downloading.'}
+                      ? `Couldn't refresh the narratives (${original.narrativeGenerationError}). Check the text below, or try again.`
+                      : 'Narrative generation did not return text. You can retry or edit the fields below before downloading.'}
                   </p>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     onClick={() => {
+                      setOriginal(null);
+                      setSupplemental(null);
+                      setNarratives(null);
                       setPdfUrl(null);
                       void handleGenerate();
                     }}
@@ -597,6 +571,9 @@ export function PremiumContentEditor({
                 size="sm"
                 className="w-full"
                 onClick={() => {
+                  setOriginal(null);
+                  setSupplemental(null);
+                  setNarratives(null);
                   setPdfUrl(null);
                   setPdfCoverImageSrc(null);
                   setPdfCoverImageRemoteUrl(null);

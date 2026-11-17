@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { onlineManager } from '@tanstack/react-query';
 
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { act, render, screen, waitFor } from '@/test/utils/testUtils';
 
 const mocks = vi.hoisted(() => ({
   printIframeAndWait: vi.fn(),
@@ -232,6 +232,52 @@ describe("judge's record panel", () => {
     renderPanel([row('a', 'Pat')]);
 
     expect(await screen.findByText(/email could not be checked/)).toBeInTheDocument();
+    const print = await screen.findByRole('button', { name: "Print Pat's record" });
+    await waitFor(() => expect(print).toBeEnabled(), BUILT);
+  });
+
+  it('sends once when the button is pressed twice before the first request settles', async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    mocks.previewJudgeRecipient.mockResolvedValue({
+      judgeName: 'Pat',
+      email: 'pat@example.com',
+      reason: null,
+      lastSentAt: '2026-12-07T19:05:00.000Z',
+    });
+    mocks.emailJudgeRecord.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    renderPanel([row('a', 'Pat')]);
+
+    const again = await screen.findByRole('button', { name: 'Send again' });
+    await waitFor(() => expect(again).toBeEnabled(), BUILT);
+    act(() => {
+      again.click();
+      again.click();
+    });
+    expect(mocks.emailJudgeRecord).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish({ judgeName: 'Pat', email: 'pat@example.com', alreadySent: false, sentAt: null });
+    });
+  });
+
+  it('says emailing needs a connection when offline, and disables the button', async () => {
+    onlineManager.setOnline(false);
+    mocks.previewJudgeRecipient.mockResolvedValue({
+      judgeName: 'Pat',
+      email: 'pat@example.com',
+      reason: null,
+      lastSentAt: null,
+    });
+    renderPanel([row('a', 'Pat')]);
+
+    expect(
+      await screen.findByText('Emailing needs a connection. You can still print or save the PDF.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Checking the judge/)).toBeNull();
     const print = await screen.findByRole('button', { name: "Print Pat's record" });
     await waitFor(() => expect(print).toBeEnabled(), BUILT);
   });

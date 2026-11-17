@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Mail } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { useQueryOnlineStatus } from '@/hooks/guestServerRead';
 
 import {
   emailJudgeRecord,
@@ -44,14 +45,25 @@ export function useJudgeRecordEmail(input: {
     staleTime: 0,
     retry: false,
   });
+  const online = useQueryOnlineStatus();
+  const offline = !online || recipient.fetchStatus === 'paused';
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState<{ email: string; sentAt: string } | null>(null);
+  // One press at a time: a second tap while a request is out is ignored, so Send again cannot
+  // email twice. Each press is one request with one attempt id, made in emailJudgeRecord.
+  const inFlight = useRef(false);
+  // Keyed to the judge and day it was sent for, so a changed judge never shows the last one's line.
+  const sentKey = `${showId}|${judgeId}|${day}`;
+  const [sentState, setSent] = useState<{ key: string; email: string; sentAt: string } | null>(
+    null
+  );
+  const sent = sentState?.key === sentKey ? sentState : null;
 
   const email = sent?.email ?? recipient.data?.email ?? null;
   const lastSentAt = sent?.sentAt ?? recipient.data?.lastSentAt ?? null;
 
   const send = async () => {
-    if (!bytes || !judgeId) return;
+    if (!bytes || !judgeId || offline || inFlight.current) return;
+    inFlight.current = true;
     setSending(true);
     try {
       const result: JudgeRecordSent = await emailJudgeRecord({
@@ -62,7 +74,11 @@ export function useJudgeRecordEmail(input: {
         sendAgain: Boolean(lastSentAt),
       });
       // `alreadySent` means another press (or another device) got there first: say when it went.
-      setSent({ email: result.email, sentAt: result.sentAt ?? new Date().toISOString() });
+      setSent({
+        key: sentKey,
+        email: result.email,
+        sentAt: result.sentAt ?? new Date().toISOString(),
+      });
     } catch (error) {
       toast.error(
         error instanceof JudgeRecordEmailError
@@ -73,6 +89,7 @@ export function useJudgeRecordEmail(input: {
         void recipient.refetch();
       }
     } finally {
+      inFlight.current = false;
       setSending(false);
     }
   };
@@ -82,6 +99,7 @@ export function useJudgeRecordEmail(input: {
     lastSentAt,
     sending,
     send,
+    offline,
     checking: Boolean(judgeId) && recipient.isPending,
     checkFailed: recipient.isError,
     noEmail: !email && (!judgeId || Boolean(recipient.data)),
@@ -108,6 +126,10 @@ export function JudgeRecordEmailStatus({
       ) : email ? (
         <span>
           The email goes to <strong>{email}</strong>, the address on file for {judgeName}.
+        </span>
+      ) : state.offline ? (
+        <span className="text-muted-foreground">
+          Emailing needs a connection. You can still print or save the PDF.
         </span>
       ) : state.checkFailed ? (
         <span className="text-muted-foreground">
@@ -138,7 +160,7 @@ export function JudgeRecordEmailButton({
       type="button"
       size="touch"
       variant="outline"
-      disabled={!ready || state.sending}
+      disabled={!ready || state.sending || state.offline}
       onClick={() => void state.send()}
     >
       <Mail className="mr-2 h-4 w-4" aria-hidden="true" />

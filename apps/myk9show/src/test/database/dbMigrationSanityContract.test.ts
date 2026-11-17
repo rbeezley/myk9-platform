@@ -42,7 +42,7 @@ describe('DB migration sanity contracts', () => {
     const source = readRepoFile('supabase/functions/send-confirmation-email/index.ts');
     const entryQuery = sliceBetween(source, 'loadCandidates: async', 'loadRecipients: async');
     expect(entryQuery).toContain(".is('confirmation_email_sent_at', null)");
-    expect(entryQuery).toContain(".in('confirmation_email_status', statuses)");
+    expect(entryQuery).toContain('.or(statusOrExpired(statuses, nowIso))');
     // Retries rotate: oldest change first, and a failed attempt bumps updated_at.
     expect(entryQuery).toContain(".order('updated_at', { ascending: true })");
 

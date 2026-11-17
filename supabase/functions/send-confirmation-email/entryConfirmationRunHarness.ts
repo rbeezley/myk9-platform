@@ -96,6 +96,14 @@ export function entry(overrides: Partial<StoredEntry> = {}): StoredEntry {
 }
 
 /** An in-memory database with the same filters the real queries apply. No email leaves it. */
+/** The status filter, widened to a row holding an expired lease (an interrupted send). */
+function statusOrExpired(row: StoredEntry, statuses: string[], nowIso: string): boolean {
+  return (
+    statuses.includes(row.confirmation_email_status) ||
+    (row.confirmation_claimed_until !== null && row.confirmation_claimed_until < nowIso)
+  );
+}
+
 export function makeDeps(args: {
   shows: ConfirmationShow[];
   entries: StoredEntry[];
@@ -110,8 +118,8 @@ export function makeDeps(args: {
   /** entry_status_history rows into 'confirmed'; the acceptance generation is the latest id. */
   history?: AcceptanceHistoryRow[];
   historyReadFails?: boolean;
-  /** The stamp after the provider accepts cannot be written (database error). */
-  markSentFails?: boolean;
+  /** How many sent-stamp writes after the provider accepts fail (database error). */
+  markSentFails?: number;
 }) {
   const people: Record<string, ConfirmationRecipient | null> = args.people ?? {
     'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: 'Lovelace' },
@@ -121,6 +129,7 @@ export function makeDeps(args: {
   const deliveries = new Map<string, string>();
   const logs: ConfirmationLogRow[] = [];
   let messageSeq = 0;
+  let stampFailures = args.markSentFails ?? 0;
   let current = NOW;
   const advance = (ms: number) => {
     current = new Date(current.getTime() + ms);
@@ -145,7 +154,7 @@ export function makeDeps(args: {
           row.deleted_at === null &&
           row.confirmation_email_sent_at === null &&
           (row.confirmation_claimed_until === null || row.confirmation_claimed_until < nowIso) &&
-          (statuses as string[]).includes(row.confirmation_email_status) &&
+          statusOrExpired(row, statuses, nowIso) &&
           row.updated_at < quietSince
       )
       .sort((a, b) =>
@@ -202,7 +211,7 @@ export function makeDeps(args: {
           ids.includes(row.id) &&
           row.confirmation_email_sent_at === null &&
           (row.confirmation_claimed_until === null || row.confirmation_claimed_until < nowIso) &&
-          (statuses as string[]).includes(row.confirmation_email_status) &&
+          statusOrExpired(row, statuses, nowIso) &&
           row.entry_status === 'confirmed' &&
           row.armband !== null &&
           row.deleted_at === null
@@ -214,7 +223,10 @@ export function makeDeps(args: {
       return claimed;
     },
     markSent: async (ids, messageId, leaseUntilIso) => {
-      if (args.markSentFails) return [];
+      if (stampFailures > 0) {
+        stampFailures--;
+        throw new Error('database error');
+      }
       const stamped: string[] = [];
       for (const row of args.entries.filter(item => ids.includes(item.id))) {
         if (row.confirmation_claimed_until !== leaseUntilIso || row.entry_status !== 'confirmed') {
@@ -238,6 +250,7 @@ export function makeDeps(args: {
         row.confirmation_email_status = 'failed';
       }
     },
+    sleep: async () => undefined,
     render: (data, renderShow) =>
       renderConfirmationEmail(data, renderShow, showRegistry(renderShow)),
     send: vi.fn(async email => {

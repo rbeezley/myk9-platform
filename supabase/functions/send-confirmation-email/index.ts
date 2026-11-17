@@ -53,6 +53,7 @@ import { runEntryConfirmations, type EntryConfirmationDeps } from './entryConfir
 import { runEntryReminders } from './entryReminderRun.ts';
 import { reminderDeps } from './entryReminderDeps.ts';
 import { renderConfirmationEmail } from './renderConfirmationEmail.ts';
+import { insertEmailLogOnce } from './emailLogOnce.ts';
 import { readAllPages, type PageResult } from './pagedRead.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -107,6 +108,15 @@ function toRecipient(person: PersonRow | null | undefined): ConfirmationRecipien
 const unleasedAt = (nowIso: string) =>
   `confirmation_claimed_until.is.null,confirmation_claimed_until.lt.${nowIso}`;
 
+/**
+ * The status filter, widened: a row holding an EXPIRED lease is an interrupted send (the provider
+ * may already have it) and is recovered on every run, whatever its status, so a daily retry that
+ * could not be stamped is not left for a next day that may fall outside Resend's 24h window.
+ * An ordinary failure has no lease and stays on the daily cadence.
+ */
+const statusOrExpired = (statuses: string[], nowIso: string) =>
+  `confirmation_email_status.in.(${statuses.join(',')}),and(confirmation_claimed_until.not.is.null,confirmation_claimed_until.lt.${nowIso})`;
+
 type ServiceClient = HandlerCtx<unknown>['supabase'];
 
 function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryConfirmationDeps {
@@ -151,7 +161,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .is('deleted_at', null)
         .is('confirmation_email_sent_at', null)
         .or(unleasedAt(nowIso))
-        .in('confirmation_email_status', statuses)
+        .or(statusOrExpired(statuses, nowIso))
         .lt('updated_at', quietSince)
         // Oldest change first: a failed attempt bumps updated_at, so retries rotate.
         .order('updated_at', { ascending: true })
@@ -179,7 +189,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
           .is('deleted_at', null)
           .is('confirmation_email_sent_at', null)
           .or(unleasedAt(nowIso))
-          .in('confirmation_email_status', statuses)
+          .or(statusOrExpired(statuses, nowIso))
           .lt('updated_at', quietSince);
       const readAll = (
         narrow: (query: ReturnType<typeof eligible>) => ReturnType<typeof eligible>
@@ -276,7 +286,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .in('id', entryIds)
         .is('confirmation_email_sent_at', null)
         .or(unleasedAt(nowIso))
-        .in('confirmation_email_status', statuses)
+        .or(statusOrExpired(statuses, nowIso))
         .eq('entry_status', 'confirmed')
         .not('armband', 'is', null)
         .is('deleted_at', null)
@@ -299,15 +309,9 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .eq('confirmation_claimed_until', leaseUntilIso)
         .eq('entry_status', 'confirmed')
         .select('id');
-      if (error) {
-        // The provider has the email. The lease still stands, so after it expires the next run
-        // sends under the same idempotency key (deduplicated) and stamps then.
-        console.error('Could not mark confirmations sent', {
-          message: error.message,
-          entries: entryIds.length,
-        });
-        return [];
-      }
+      // The provider has the email: the run retries this write, and if it still fails the lease
+      // stands and a later run sends under the same idempotency key (deduplicated) and stamps.
+      if (error) throw new Error(`Could not mark confirmations sent: ${error.message}`);
       return ((data ?? []) as Array<{ id: string }>).map(row => row.id);
     },
     markFailed: async (entryIds, leaseUntilIso) => {
@@ -345,13 +349,15 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       return { ok: true, messageId: result.id };
     },
     log: async ({ content, ...row }) => {
-      const { data, error } = await supabase
-        .from('email_log')
-        .insert({ ...row, status_updated_at: new Date().toISOString() })
-        .select('id')
-        .single();
+      const { id, existing, error } = await insertEmailLogOnce(
+        supabase,
+        row,
+        new Date().toISOString()
+      );
       requireEmailLogWrite(error, 'send-confirmation-email');
-      if (content) await storeEmailContent(supabase, data?.id, content.subject, content.html);
+      // A recovered send finds its first attempt's row, which already holds the content.
+      if (content && !existing)
+        await storeEmailContent(supabase, id, content.subject, content.html);
     },
   };
 }

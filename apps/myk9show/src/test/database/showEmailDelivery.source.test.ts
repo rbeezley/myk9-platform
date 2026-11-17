@@ -104,6 +104,9 @@ describe('MYK9-180 show email delivery source contract', () => {
 
   it('full confirmations write canonical show_id (MYK9-1999)', () => {
     expect(source('supabase/functions/send-confirmation-email/index.ts')).toContain(
+      'insertEmailLogOnce('
+    );
+    expect(source('supabase/functions/send-confirmation-email/emailLogOnce.ts')).toContain(
       "from('email_log')"
     );
     const run = source('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');

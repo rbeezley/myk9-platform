@@ -48,7 +48,8 @@ export interface EntryConfirmationDeps {
   loadAcceptedEmailOff(showIds: string[]): Promise<Set<string>>;
   /**
    * Accepted ('confirmed'), not deleted entries with an armband and no confirmation yet, in
-   * these shows, whose confirmation_email_status is one of `statuses` and that have not changed
+   * these shows, whose confirmation_email_status is one of `statuses` OR that hold an EXPIRED
+   * lease (an interrupted send, recovered on every run whatever its status), and that have not changed
    * since `quietSince`, and that no live lease holds (`confirmation_claimed_until` is null or
    * before `nowIso`). Oldest updated_at first: a failed attempt bumps updated_at, so the
    * daily retry rotates through failures instead of taking the same ones every day.
@@ -107,7 +108,8 @@ export interface EntryConfirmationDeps {
    * After the provider accepted: stamps sent_at, 'sent' and the message id and clears the lease,
    * but only on entries whose lease is still the one this run wrote (`leaseUntilIso`) and that
    * are still confirmed. A re-acceptance in between voided the lease (any status change does),
-   * so that entry stays unmarked and gets its own email. Returns the ids it stamped.
+   * so that entry stays unmarked and gets its own email. Returns the ids it stamped; throws when
+   * the write fails (the run retries it inline).
    */
   markSent(entryIds: string[], messageId: string, leaseUntilIso: string): Promise<string[]>;
   /**
@@ -115,6 +117,8 @@ export interface EntryConfirmationDeps {
    * releases that lease (only entries still holding it); without, the entries were never leased.
    */
   markFailed(entryIds: string[], leaseUntilIso?: string): Promise<void>;
+  /** Waits between sent-stamp attempts; tests inject an instant one. */
+  sleep?(ms: number): Promise<void>;
   render(data: HeritageEmailData, show: ConfirmationShow): string;
   send(email: {
     to: string;
@@ -257,6 +261,7 @@ export async function runEntryConfirmations(
     const claimedAnchor = entries[0]!;
 
     let result: ConfirmationSendResult;
+    let idempotencyKey = '';
     let content: ConfirmationLogRow['content'];
     try {
       const generations = await deps.loadAcceptanceGenerations(claimed);
@@ -273,21 +278,22 @@ export async function runEntryConfirmations(
       );
       const subject = confirmationSubject(show.name, entries.length);
       content = { subject, html };
-      result = await deps.send({
-        to: recipient.email,
-        subject,
-        html,
-        idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations),
-      });
+      idempotencyKey = await confirmationIdempotencyKey(group, claimed, generations);
+      result = await deps.send({ to: recipient.email, subject, html, idempotencyKey });
     } catch {
       result = { ok: false, error: 'email_delivery_error' };
     }
 
     if (result.ok) {
-      const stamped = await deps.markSent(claimed, result.messageId, leaseUntilIso);
-      if (stamped.length < claimed.length) {
-        // Not an error: a re-accepted entry is left for its own email, and an entry the stamp
-        // could not reach keeps its lease and is retried under the same key after it expires.
+      const stamped = await stampSent(deps, {
+        entryIds: claimed,
+        messageId: result.messageId,
+        leaseUntilIso,
+        groupKey: group.key,
+        idempotencyKey,
+      });
+      if (stamped !== null && stamped.length < claimed.length) {
+        // Not an error: a re-accepted entry is left for its own email.
         console.warn('Confirmation sent; some entries were not marked sent', {
           claimed: claimed.length,
           stamped: stamped.length,
@@ -337,4 +343,44 @@ function resolveRecipient(
   if (!handlerId) return null;
   if (!recipients.handlersRead) return 'unknown';
   return recipients.byHandler.get(handlerId) ?? null;
+}
+
+const STAMP_ATTEMPTS = 3;
+const STAMP_BACKOFF_MS = 250;
+
+/**
+ * Writes the sent stamp after the provider accepted, retrying a failed write inline so a
+ * transient database error does not leave an accepted send unmarked. Returns the stamped ids, or
+ * null when every attempt failed: the lease then stands and, once it expires, a later run sends
+ * under the same key (Resend dedupes within 24 hours). The error names the group, key and message
+ * so an operator can reconcile by hand.
+ */
+async function stampSent(
+  deps: EntryConfirmationDeps,
+  args: {
+    entryIds: string[];
+    messageId: string;
+    leaseUntilIso: string;
+    groupKey: string;
+    idempotencyKey: string;
+  }
+): Promise<string[] | null> {
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>(done => setTimeout(done, ms)));
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= STAMP_ATTEMPTS; attempt++) {
+    try {
+      return await deps.markSent(args.entryIds, args.messageId, args.leaseUntilIso);
+    } catch (error) {
+      lastError = error;
+      if (attempt < STAMP_ATTEMPTS) await sleep(STAMP_BACKOFF_MS * attempt);
+    }
+  }
+  console.error('Confirmation accepted by the provider but could not be marked sent', {
+    group: args.groupKey,
+    idempotencyKey: args.idempotencyKey,
+    messageId: args.messageId,
+    entries: args.entryIds.length,
+    message: lastError instanceof Error ? lastError.message : String(lastError),
+  });
+  return null;
 }

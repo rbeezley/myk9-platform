@@ -18,6 +18,9 @@
 // again under the same Resend idempotency key (derived from the leased ids and their acceptance
 // generations), so a send that did go out is deduplicated, not repeated. A refused send releases
 // the lease and marks 'failed'; the daily run retries those.
+// Residual case: a crash after the provider accepted, then a retry whose entry set differs (an
+// entry accepted or withdrawn meanwhile) or that falls past Resend's 24h window, sends a second
+// copy; the sent stamp is retried inline to keep that window small.
 //
 // The quiet period: an entry is gathered only once it has gone CONFIRMATION_QUIET_MS without a
 // change, so an Accept the secretary undoes (or keeps editing) is not emailed.

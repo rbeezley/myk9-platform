@@ -73,21 +73,25 @@ describe('the confirmation claim lease (MYK9-2088)', () => {
 
   it('reconciles a send the provider accepted but the run never stamped: same key, one delivery', async () => {
     const entries = [entry()];
-    const control = { markSentFails: true };
     const { deps, sends, deliveries, advance } = makeDeps({
       shows: [show()],
       entries,
-      ...control,
+      markSentFails: Infinity,
     });
 
     // The provider accepted; the stamp could not be written (the run stopped or the write failed).
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
-    expect(warn).toHaveBeenCalledWith(
-      'Confirmation sent; some entries were not marked sent',
-      expect.objectContaining({ claimed: 1, stamped: 0 })
+    // Named for an operator: the group, the key and the provider's message id.
+    expect(error).toHaveBeenCalledWith(
+      'Confirmation accepted by the provider but could not be marked sent',
+      expect.objectContaining({
+        group: 'show-1:registration:reg-ada',
+        idempotencyKey: sends[0]!.idempotencyKey,
+        messageId: 'msg-1',
+      })
     );
-    warn.mockRestore();
+    error.mockRestore();
     expect(entries[0]).toMatchObject({
       confirmation_email_sent_at: null,
       confirmation_claimed_until: leaseFrom(NOW),
@@ -216,6 +220,74 @@ describe('the confirmation claim lease (MYK9-2088)', () => {
       confirmation_email_sent_at: '2026-11-01T00:00:00Z',
       confirmation_email_status: 'sent',
       confirmation_email_message_id: 'msg-historical',
+      confirmation_claimed_until: null,
+    });
+  });
+
+  it('retries a transient stamp failure inline: stamped, one send', async () => {
+    const entries = [entry()];
+    const { deps, sends } = makeDeps({ shows: [show()], entries, markSentFails: 2 });
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
+    expect(sends).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      confirmation_email_status: 'sent',
+      confirmation_claimed_until: null,
+    });
+    expect(entries[0]!.confirmation_email_sent_at).not.toBeNull();
+  });
+
+  it('recovers on the frequent run a daily retry that was accepted but not stamped: same key, one delivery', async () => {
+    let refuse = true;
+    const entries = [entry()];
+    const control = { stampFailures: 0 };
+    const { deps, sends, deliveries, advance } = makeDeps({
+      shows: [show()],
+      entries,
+      sendResult: undefined,
+    });
+    const realSend = deps.send;
+    const realMarkSent = deps.markSent;
+    deps.send = async email => {
+      if (refuse) {
+        sends.push(email);
+        return { ok: false as const, error: 'provider_http_500' };
+      }
+      return realSend(email);
+    };
+    deps.markSent = async (...args) => {
+      if (control.stampFailures > 0) throw new Error('database error');
+      return realMarkSent(...args);
+    };
+
+    // A failure without a lease stays on the daily cadence.
+    await runEntryConfirmations(deps, 'new');
+    expect(entries[0]).toMatchObject({
+      confirmation_email_status: 'failed',
+      confirmation_claimed_until: null,
+    });
+    advance(60_000);
+    await runEntryConfirmations(deps, 'new');
+    expect(sends).toHaveLength(1);
+
+    // The daily run sends; the provider accepts; the stamp cannot be written.
+    refuse = false;
+    control.stampFailures = 99;
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    advance(24 * 60 * 60 * 1000);
+    expect(await runEntryConfirmations(deps, 'all')).toMatchObject({ sent: 1 });
+    error.mockRestore();
+    expect(entries[0]).toMatchObject({ confirmation_email_status: 'failed' });
+    expect(entries[0]!.confirmation_claimed_until).not.toBeNull();
+
+    // The lease expires: the next frequent run recovers it, whatever its status, same key.
+    control.stampFailures = 0;
+    advance(AFTER_LEASE);
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
+    expect(sends).toHaveLength(3);
+    expect(sends[2]!.idempotencyKey).toBe(sends[1]!.idempotencyKey);
+    expect(deliveries.size).toBe(1);
+    expect(entries[0]).toMatchObject({
+      confirmation_email_status: 'sent',
       confirmation_claimed_until: null,
     });
   });

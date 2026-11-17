@@ -23,7 +23,8 @@ export interface JudgeChange {
   where: string;
   /** Name of the judge before the first change; null when that person cannot be named. */
   fromJudge: string | null;
-  toJudge: string;
+  /** The class's confirmed judge now; null when none is named yet. */
+  toJudge: string | null;
 }
 
 export interface RenderedJudgeChangedEmail {
@@ -89,9 +90,6 @@ function parseJudgeChanges(value: unknown): Array<[string, string]> {
   );
 }
 
-/** How long a job waits when a class has no judge yet (a substitute is being found). */
-export const JUDGE_VACANCY_RETRY_MS = 5 * 60 * 1000;
-
 /** Today's YYYY-MM-DD in the trial's zone; an unknown zone reads as America/New_York. */
 function todayInZone(now: Date, timeZone: string | null): string {
   for (const zone of [clean(timeZone), 'America/New_York']) {
@@ -106,15 +104,7 @@ function todayInZone(now: Date, timeZone: string | null): string {
 }
 
 export type JudgeChangedPlan =
-  | { kind: 'skip' }
-  | { kind: 'defer' }
-  | {
-      kind: 'send';
-      registryId: string | null;
-      changes: JudgeChange[];
-      /** Classes still waiting for a judge ({ class id: previous judge's person id }); re-queued. */
-      vacant: Record<string, string>;
-    };
+  { kind: 'skip' } | { kind: 'send'; registryId: string | null; changes: JudgeChange[] };
 
 /**
  * Reads what the email needs and decides whether it still has anything to say: the person
@@ -187,20 +177,19 @@ export async function planJudgeChangedEmail(args: {
 
   const changes: JudgeChange[] = [];
   let registryId: string | null = null;
-  const vacant: Record<string, string> = {};
   for (const [classId, fromId] of affected) {
     const row = classes.get(classId);
     if (!row || row.deleted_at) continue;
     const trial = firstTrial(row);
     if (!trial || trial.deleted_at) continue;
-    const toJudge = currentNames.get(classId);
+    const toJudge = currentNames.get(classId) ?? null;
     if (!toJudge) {
-      // Unassigned while a substitute is found: wait for one, until the trial day is past.
+      // No judge named yet: still told (a new one is coming), unless the trial day is past.
       const date = clean(trial.date).slice(0, 10);
-      if (!date || date >= todayInZone(args.now, trial.timezone)) vacant[classId] = fromId;
+      if (date && date < todayInZone(args.now, trial.timezone)) continue;
+    } else if (currentPerson.get(classId) === fromId) {
       continue;
     }
-    if (currentPerson.get(classId) === fromId) continue;
     registryId ??= trial.registry_id;
     changes.push({
       className: className(row),
@@ -211,15 +200,9 @@ export async function planJudgeChangedEmail(args: {
       toJudge,
     });
   }
-  // A class waiting for its new judge holds back only itself: the others are sent now.
-  if (changes.length === 0) return Object.keys(vacant).length > 0 ? { kind: 'defer' } : skip;
+  if (changes.length === 0) return skip;
   changes.sort((a, b) => a.where.localeCompare(b.where) || a.className.localeCompare(b.className));
-  return { kind: 'send', registryId, changes, vacant };
-}
-
-function joinNames(names: readonly string[]): string {
-  if (names.length <= 2) return names.join(' and ');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return { kind: 'send', registryId, changes };
 }
 
 /** "Container Novice A (Saturday Trial, Saturday, November 21, 2026)". */
@@ -242,8 +225,11 @@ export function judgeChangeRefundLine(
     case 'ASCA':
       return 'Contact the trial secretary with questions.';
     default: {
-      const classes = joinNames(changes.map(classLabel));
-      return `Under AKC rules, you may withdraw for a full refund if you ask the trial secretary in writing before judging of ${classes} starts.`;
+      if (changes.length === 1) {
+        return `Under AKC rules, you may withdraw for a full refund if you ask the trial secretary in writing before judging of ${classLabel(changes[0])} starts.`;
+      }
+      // Each class has its own deadline.
+      return `Under AKC rules, you may withdraw from a class for a full refund if you ask the trial secretary in writing before judging of that class starts: ${changes.map(classLabel).join(', ')}.`;
     }
   }
 }
@@ -260,8 +246,16 @@ export function renderJudgeChangedEmail(args: {
   const lines = args.changes.map(change => {
     const label = classLabel(change);
     const was = change.fromJudge ? `Judge ${change.fromJudge}` : 'the previous judge';
-    return `${label}: was ${was}, now Judge ${change.toJudge}`;
+    return change.toJudge
+      ? `${label}: was ${was}, now Judge ${change.toJudge}`
+      : `${label}: was ${was}`;
   });
+  const unnamed = args.changes
+    .filter(change => !change.toJudge)
+    .map(
+      change =>
+        `A new judge for ${classLabel(change)} has not been named yet. The trial secretary will tell you who it is.`
+    );
   const intro =
     args.changes.length === 1
       ? `The judge for a class you are entered in at ${showName} has changed.`
@@ -273,6 +267,7 @@ export function renderJudgeChangedEmail(args: {
       `Hi ${firstName},`,
       intro,
       lines.join('\n'),
+      ...unnamed,
       judgeChangeRefundLine(args.registryId, args.changes),
       `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
     ].join('\n\n'),

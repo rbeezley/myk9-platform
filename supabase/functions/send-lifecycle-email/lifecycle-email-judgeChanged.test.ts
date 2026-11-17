@@ -101,7 +101,7 @@ describe('judge changed email wording', () => {
       'Interior Novice A (Saturday Trial, Saturday, November 21, 2026): was the previous judge'
     );
     expect(body).toContain(
-      'before judging of Container Novice A (Saturday Trial, Saturday, November 21, 2026) and Interior Novice A (Saturday Trial, Saturday, November 21, 2026) starts.'
+      'Under AKC rules, you may withdraw from a class for a full refund if you ask the trial secretary in writing before judging of that class starts: Container Novice A (Saturday Trial, Saturday, November 21, 2026), Interior Novice A (Saturday Trial, Saturday, November 21, 2026).'
     );
     expect(body).toContain('Hi there,');
   });
@@ -229,50 +229,37 @@ describe('drainAutoEmailJobs for judge_changed', () => {
 });
 
 describe('judge changed email: vacancy, wording, link', () => {
-  it('defers in 5-minute steps while a class has no judge, then sends once when a substitute is confirmed', async () => {
-    const tables = judgeChangedTables();
-    const substitute = tables.judge_assignments[0];
+  it('still sends when the class has no judge yet, saying a new one has not been named', async () => {
+    const tables = judgeChangedTables('AKC');
     tables.judge_assignments = [];
     const fixture = makeAutoSendSupabase(tables, LIVE);
+    const { fetch, promise } = drain(fixture);
 
-    const first = drain(fixture);
-    await expect(first.promise).resolves.toMatchObject({ deferred: 1, sent: 0, skipped: 0 });
-    expect(first.fetch).not.toHaveBeenCalled();
-    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
-      status: 'ready',
-      attempt_id: null,
-      claimed_until: null,
-      due_at: '2026-11-17T12:05:00.000Z',
-    });
-
-    // Still vacant at the next look: deferred again, not skipped.
-    fixture.clock.at = new Date('2026-11-17T12:06:00.000Z');
-    const second = drain(fixture);
-    await expect(second.promise).resolves.toMatchObject({ deferred: 1, sent: 0 });
-
-    // A vacancy filled within the five minutes sends at the very next look.
-    fixture.tables.judge_assignments.push(substitute);
-    fixture.clock.at = new Date('2026-11-17T12:12:00.000Z');
-    const third = drain(fixture);
-    await expect(third.promise).resolves.toMatchObject({ sent: 1, deferred: 0 });
-    expect(third.fetch).toHaveBeenCalledTimes(1);
-    expect(sentBody(third.fetch).html).toContain('was Judge Olly Oldjudge, now Judge Bea Newjudge');
-    expect(fixture.tables.email_log).toHaveLength(1);
+    await expect(promise).resolves.toMatchObject({ sent: 1, skipped: 0 });
+    const html = sentBody(fetch).html;
+    expect(html).toContain('was Judge Olly Oldjudge');
+    expect(html).not.toContain('now Judge');
+    expect(html).toContain(
+      'A new judge for Container Novice A (Saturday Trial, Saturday, November 21, 2026) has not been named yet. The trial secretary will tell you who it is.'
+    );
+    expect(html).not.toMatch(/\u2014/);
+    expect(fixture.tables.show_lifecycle_email_jobs).toHaveLength(1);
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'sent' });
   });
 
-  it('skips a vacancy once the trial day has passed in the show time zone', async () => {
+  it('skips a judge-less class once the trial day has passed in the show time zone', async () => {
     const tables = judgeChangedTables();
     tables.judge_assignments = [];
     (tables.classes[0].trials as { date: string }).date = '2026-11-10';
     const fixture = makeAutoSendSupabase(tables, LIVE);
     const { fetch, promise } = drain(fixture);
 
-    await expect(promise).resolves.toMatchObject({ skipped: 1, deferred: 0 });
+    await expect(promise).resolves.toMatchObject({ skipped: 1, sent: 0 });
     expect(fetch).not.toHaveBeenCalled();
     expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'skipped' });
   });
 
-  it('a vacancy holds back only its own class: the confirmed class is sent now, the vacant one later', async () => {
+  it('names a judged class and a judge-less class together in one email', async () => {
     const tables = judgeChangedTables('AKC');
     tables.show_lifecycle_email_jobs = [
       judgeChangedJob({ judge_changes: { 'class-1': 'judge-old', 'class-2': 'judge-old' } }),
@@ -289,40 +276,18 @@ describe('judge changed email: vacancy, wording, link', () => {
         deleted_at: null,
       },
     });
-    // class-1 has its new judge; class-2 is unassigned.
     const fixture = makeAutoSendSupabase(tables, {
       liveEntryPeople: ['person-1'],
       liveEntryClasses: { 'person-1': ['class-1', 'class-2'] },
     });
-
-    const first = drain(fixture);
-    await expect(first.promise).resolves.toMatchObject({ sent: 1, deferred: 0 });
-    const html = sentBody(first.fetch).html;
-    expect(html).toContain('Container Novice A');
-    expect(html).not.toContain('Interior Novice A');
-    const jobs = fixture.tables.show_lifecycle_email_jobs;
-    expect(jobs[0]).toMatchObject({ status: 'sent' });
-    expect(jobs).toHaveLength(2);
-    expect(jobs[1]).toMatchObject({
-      status: 'ready',
-      due_at: '2026-11-17T12:05:00.000Z',
-      judge_changes: { 'class-2': 'judge-old' },
-    });
-
-    // The substitute arrives; the re-queued job sends the second class on its own.
-    fixture.tables.judge_assignments.push({
-      class_id: 'class-2',
-      status: 'confirmed',
-      person_id: 'judge-new',
-      person: { first_name: 'Bea', last_name: 'Newjudge', deleted_at: null },
-    });
-    fixture.clock.at = new Date('2026-11-17T12:06:00.000Z');
-    const second = drain(fixture);
-    await expect(second.promise).resolves.toMatchObject({ sent: 1 });
-    const later = sentBody(second.fetch).html;
-    expect(later).toContain('Interior Novice A');
-    expect(later).not.toContain('Container Novice A');
-    expect(fixture.tables.email_log).toHaveLength(2);
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    const html = sentBody(fetch).html;
+    expect(html).toContain('now Judge Bea Newjudge');
+    expect(html).toContain(
+      'A new judge for Interior Novice A (Sunday Trial, Sunday, November 22, 2026) has not been named yet.'
+    );
+    expect(fixture.tables.email_log).toHaveLength(1);
   });
 
   it('states the AKC rule per class with trial labels, and never promises an automatic refund', () => {
@@ -341,7 +306,7 @@ describe('judge changed email: vacancy, wording, link', () => {
       ],
     });
     expect(body).toContain(
-      'before judging of Container Novice A (Saturday Trial, Saturday, November 21, 2026) and Interior Novice A (Sunday Trial, Sunday, November 22, 2026) starts.'
+      'before judging of that class starts: Container Novice A (Saturday Trial, Saturday, November 21, 2026), Interior Novice A (Sunday Trial, Sunday, November 22, 2026).'
     );
     expect(body).not.toMatch(/automatic|already started/i);
   });

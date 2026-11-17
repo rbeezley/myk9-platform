@@ -17,8 +17,7 @@
  *   show unpublished, or no live entry left   the job is skipped
  *   judge_changed (MYK9-2125)                 same drain; the email names each class whose judge
  *                                             changed, rendered at send time. A class with no
- *                                             judge yet holds back only itself (re-queued, 5 minutes), until a
- *                                             substitute is confirmed or the trial day is past
+ *                                             judge named yet is told as "not named yet"
  */
 import {
   deliverViaResend,
@@ -31,11 +30,7 @@ import {
   type QueryResult,
   type SendLifecycleEmailDeps,
 } from './lifecycle-email-shared.ts';
-import {
-  JUDGE_VACANCY_RETRY_MS,
-  planJudgeChangedEmail,
-  renderJudgeChangedEmail,
-} from './lifecycle-email-judgeChanged.ts';
+import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -81,8 +76,7 @@ interface AttemptRow {
   status: string;
 }
 
-export type AutoSendOutcome =
-  'sent' | 'reconciled' | 'retry' | 'failed' | 'skipped' | 'deferred' | 'error';
+export type AutoSendOutcome = 'sent' | 'reconciled' | 'retry' | 'failed' | 'skipped' | 'error';
 
 export interface DrainAutoResult {
   claimed: number;
@@ -91,7 +85,6 @@ export interface DrainAutoResult {
   retry: number;
   failed: number;
   skipped: number;
-  deferred: number;
   errors: number;
 }
 
@@ -111,7 +104,6 @@ export async function drainAutoEmailJobs(args: {
     retry: 0,
     failed: 0,
     skipped: 0,
-    deferred: 0,
     errors: 0,
   };
   if (!args.deps.resendApiKey) throw new Error('Email service not configured');
@@ -219,7 +211,6 @@ async function processClaimedJob(args: {
   }
 
   let text: { subject: string; body: string };
-  let vacant: Record<string, string> = {};
   if (job.step_type === 'judge_changed') {
     // MYK9-2125: still a recipient means a live entry in a class whose judge really changed.
     const plan = await planJudgeChangedEmail({
@@ -229,15 +220,10 @@ async function processClaimedJob(args: {
       personId: job.recipient_person_id,
       now: args.now(),
     });
-    if (plan.kind === 'defer') {
-      await deferJob(args, JUDGE_VACANCY_RETRY_MS);
-      return 'deferred';
-    }
     if (plan.kind === 'skip') {
       await finishJob(args, { status: 'skipped' });
       return 'skipped';
     }
-    vacant = plan.vacant;
     text = renderJudgeChangedEmail({
       showId: job.show_id,
       showName: show.name,
@@ -282,16 +268,6 @@ async function processClaimedJob(args: {
     secretaryNote: '',
   });
   await finishJob(args, { status: 'sent', emailLogId: emailLogId ?? null, rendered: text });
-  // Classes still waiting for a judge go back as a fresh job (after this one is sent, so the
-  // one-ready-job-per-person rule makes it a new row, or merges into a later waiting one).
-  if (Object.keys(vacant).length > 0) {
-    const { error } = await supabase.rpc('requeue_judge_changed_vacancies', {
-      p_show_id: job.show_id,
-      p_person_id: job.recipient_person_id,
-      p_judge_changes: vacant,
-    });
-    if (error) throw new Error('Failed to re-queue the waiting classes');
-  }
   return 'sent';
 }
 
@@ -414,21 +390,4 @@ async function releaseLease(args: {
     .eq('id', args.job.job_id)
     .eq('attempt_id', args.job.attempt_id);
   if (error) throw new Error('Failed to release the email lease');
-}
-
-/** Free the attempt and wait: due_at moves out, so the next drain after it looks again. */
-async function deferJob(
-  args: { supabase: LifecycleEmailSupabaseClient; job: ClaimedJob; now: () => Date },
-  delayMs: number
-) {
-  const { error } = await args.supabase
-    .from('show_lifecycle_email_jobs')
-    .update({
-      attempt_id: null,
-      claimed_until: null,
-      due_at: new Date(args.now().getTime() + delayMs).toISOString(),
-    })
-    .eq('id', args.job.job_id)
-    .eq('attempt_id', args.job.attempt_id);
-  if (error) throw new Error('Failed to defer the email');
 }

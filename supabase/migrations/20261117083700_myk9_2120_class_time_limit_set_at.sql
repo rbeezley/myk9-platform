@@ -80,4 +80,21 @@ GRANT SELECT (
   scores_on_paper, time_limit_set_at
 ) ON public.classes TO authenticated;
 
+-- anon's decision, stated: the 20261114205300 anon allowlist restated unchanged and WITHOUT
+-- time_limit_set_at (staff-facing; anon holds no table-level privilege).
+GRANT SELECT (
+  id, trial_id, name, description, level, element, section, competition_type,
+  entry_fee, max_entries, allow_waitlist, max_dogs_per_handler,
+  breed_restrictions, jump_heights, age_min, age_max, height_min, height_max,
+  handler_age_min, handler_age_max, start_time, estimated_duration,
+  actual_start_time, actual_end_time, status, time_limit_seconds, num_areas,
+  max_faults, qualifying_threshold, is_scoring_finalized, results_released_at,
+  dogs_ahead_notification_count, total_entries_count, checked_in_count,
+  scored_count, created_at, updated_at, deleted_at, deleted_by, class_number,
+  timer_mode, distraction_count, is_results_reviewed,
+  time_limit_area2_seconds, time_limit_area3_seconds, display_order,
+  results_released_by, version, status_source, reopened_after_closeout_at,
+  revised_expected_start
+) ON public.classes TO anon;
+
 COMMIT;

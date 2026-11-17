@@ -149,3 +149,61 @@ describe('ResultsFinishRow results file freshness', () => {
     expect(screen.getByRole('link', { name: 'Submit to AKC' })).toBeInTheDocument();
   });
 });
+
+describe('ResultsFinishRow results deadline', () => {
+  const openTrials = [
+    fromAny<SyncableTrial, unknown>({
+      id: 't1',
+      showId: 'show-1',
+      registryId: 'AKC',
+      trialDate: '2026-11-17',
+      timezone: 'America/Los_Angeles',
+    }),
+  ];
+  const show = () =>
+    render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={openTrials}
+        rows={ROWS}
+        entries={[]}
+        entriesTrusted
+      />
+    );
+
+  beforeEach(() => {
+    mocks.scheduleReady.value = true;
+    mocks.getChanges.mockResolvedValue(new Map());
+    mocks.unsynced.mockReturnValue(false);
+  });
+
+  it('shows when AKC must receive the results on an open line, and not on a done one', async () => {
+    mocks.submissions.mockReturnValue([]);
+    const { unmount } = show();
+    const list = within(await screen.findByRole('region', { name: 'Finish the show' }));
+    expect(await list.findByText('Due at AKC by Tue, Nov 24')).toBeInTheDocument();
+    unmount();
+
+    mocks.submissions.mockReturnValue([SENT]);
+    show();
+    const done = within(await screen.findByRole('region', { name: 'Finish the show' }));
+    expect(await done.findByText(FILE_LINE)).toBeInTheDocument();
+    expect(done.queryByText(/Due at AKC/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the deadline on the resend line when a score changed after the AKC file went', async () => {
+    mocks.submissions.mockReturnValue([SENT]);
+    mocks.getChanges.mockResolvedValue(changes('2026-11-14T20:15:00Z'));
+    render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={openTrials}
+        rows={ROWS}
+        entries={[]}
+        entriesTrusted
+      />
+    );
+    await screen.findByRole('link', { name: new RegExp(CHANGED_LINE) });
+    expect(screen.getByText('Due at AKC by Tue, Nov 24')).toBeInTheDocument();
+  });
+});

@@ -72,7 +72,9 @@ The list never claims more than the app knows.
 - **Everything else is her tick**: the AKC paperwork, and all of UKC and ASCA. Those lines read "Marked as mailed Tuesday" or "Marked as submitted", never "received". The app does not hear whether a registry accepted anything.
 - **"Results changed since they were sent."** If a score changes after the results file went, the list says so and offers to resend. This is what protects the record, whether or not the show is closed.
 
-Not yet verified against the regulations: exactly what AKC requires on paper when results are sent electronically. The forms named above come from the text on one form in the app. Check before the list tells a secretary what to mail.
+Verified 2026-11-17 (MYK9-2117), against `docs/rulebooks/` and confirmed by the owner: AKC wants the results packet to reach AKC within 7 days after the event (Scent Work Regulations ch. 3 sec. 37; an arrival date, so the list says "Due at AKC by ..."); ASCA wants results and event dues within 15 days of the event end date (Gross Receipts Report and Scent Trial Report forms). Both are counted from the last trial day in the show's time zone and shown beside an open results line. UKC names no deadline in our copy of the rules, so no date is shown for it.
+
+Still not verified: exactly what AKC requires on paper when results are sent electronically, and fees. The forms named above come from the text on one form in the app. Check before the list tells a secretary what to mail.
 
 ### Close reads the same list
 

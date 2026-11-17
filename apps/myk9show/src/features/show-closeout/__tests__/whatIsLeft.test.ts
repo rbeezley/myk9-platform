@@ -302,3 +302,43 @@ describe('calculateWhatIsLeft: a show with more than one registry', () => {
     expect(line(left, 'akc-judge-initials')?.classIds).toEqual(['no-trial']);
   });
 });
+
+describe('results deadline on a mixed-discipline show', () => {
+  const deadlineOf = (
+    trials: {
+      id: string;
+      registryId: string;
+      trialDate: string;
+      trialType: string;
+      status?: string;
+    }[]
+  ) =>
+    calc([leftClass({ id: 'c1', trialId: 't1' })], { trials, submissions: [] }).lines.find(
+      line => line.kind === 'results-submission'
+    )?.deadline;
+
+  it('ignores a later non-scent trial and omits the date when no trial qualifies', () => {
+    const scent = { id: 't1', registryId: 'AKC', trialDate: '2026-11-17', trialType: 'Scent Work' };
+    const agility = { id: 't2', registryId: 'AKC', trialDate: '2026-11-19', trialType: 'Agility' };
+    expect(deadlineOf([scent, agility])).toBe('2026-11-24');
+    expect(deadlineOf([agility])).toBeUndefined();
+  });
+
+  it('counts from the last trial that ran, not a cancelled later one', () => {
+    const saturday = {
+      id: 't1',
+      registryId: 'AKC',
+      trialDate: '2026-11-14',
+      trialType: 'Scent Work',
+    };
+    const sunday = {
+      id: 't2',
+      registryId: 'AKC',
+      trialDate: '2026-11-15',
+      trialType: 'Scent Work',
+      status: 'cancelled',
+    };
+    expect(deadlineOf([saturday, sunday])).toBe('2026-11-21');
+    expect(deadlineOf([{ ...sunday, status: 'completed' }, saturday])).toBe('2026-11-22');
+  });
+});

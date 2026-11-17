@@ -84,6 +84,9 @@ export function ResultsFinishRow({
               )}
               <span>
                 {item.label}
+                {item.deadlineText && (
+                  <span className="block text-xs text-muted-foreground">{item.deadlineText}</span>
+                )}
                 {item.note && (
                   <span className="block text-xs text-muted-foreground">{item.note}</span>
                 )}

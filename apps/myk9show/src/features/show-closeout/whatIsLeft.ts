@@ -13,7 +13,15 @@ import {
   describeEntryRemovals,
   type EntryRemovalCounts,
 } from '@/features/payments/pullReconciliation';
-import { getCloseoutDuties, getTrialRegistry, type RegistryId } from '@/features/registries';
+import {
+  getCloseoutDuties,
+  getTrialRegistry,
+  getTrialTimezone,
+  lastTrialDay,
+  resultsDeadlineCoversTrialType,
+  resultsDeadlineFor,
+  type RegistryId,
+} from '@/features/registries';
 import {
   summarizeShowDayReconciliation,
   type ShowDayReconciliationEntry,
@@ -52,6 +60,13 @@ export interface WhatIsLeftTrial {
   id?: string | null | undefined;
   registry_id?: string | null;
   registryId?: string | null | undefined;
+  /** The trial's day (`trials.date`). Absent = the deadline cannot be worked out. */
+  trialDate?: string | null | undefined;
+  timezone?: string | null | undefined;
+  /** The discipline (`trials.trial_type`); the deadline rules cover scent work only. */
+  trialType?: string | null | undefined;
+  /** A cancelled trial did not happen, so it never sets the results deadline. */
+  status?: string | null | undefined;
 }
 
 export interface WhatIsLeftInput {
@@ -114,6 +129,12 @@ export interface WhatIsLeftLine {
   /** `true` = something left, `false` = nothing left, `null` = this caller cannot say. */
   open: boolean | null;
   registryId?: RegistryId;
+  /**
+   * A results-submission line only: the `YYYY-MM-DD` the registry wants the results by, counted
+   * from the show's last trial day in its own time zone. Absent when the registry has no verified
+   * deadline or no trial date was passed.
+   */
+  deadline?: string;
   /** The sentence the close step shows for the line while it is open or unknown. */
   closeConcern?: string;
   /** An app-sent results file only; absent when nothing was sent or the caller does not look. */
@@ -348,9 +369,25 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
             }
           }
         }
+        const deadline = duty.deadline
+          ? resultsDeadlineFor(
+              registryId,
+              lastTrialDay(
+                input.trials
+                  .filter(
+                    trial =>
+                      getTrialRegistry(trial).id === registryId &&
+                      !isCancelledStatus(trial.status) &&
+                      resultsDeadlineCoversTrialType(trial.trialType)
+                  )
+                  .map(trial => ({ date: trial.trialDate, timeZone: getTrialTimezone(trial) }))
+              )
+            )
+          : null;
         lines.push({
           key: duty.key,
           kind: 'results-submission',
+          ...(deadline === null ? {} : { deadline }),
           ...(sentFileCheck === undefined ? {} : { sentFileCheck }),
           label: duty.label,
           count: null,

@@ -788,4 +788,120 @@ describe('PremiumContentEditor', () => {
       )
     );
   });
+
+  it('keeps her supplemental details when a failed result arrives with blank narratives', async () => {
+    const saved = {
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: 'Her notes',
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: { showHours: '', trialInformation: '' },
+    };
+    const onPremiumChange = vi.fn();
+    generateMock.mockResolvedValueOnce({
+      ...saved,
+      supplemental: { ...saved.supplemental, hospitalityNotes: 'Server notes' },
+      narrativeGenerationError: 'Claude timed out',
+      narratives: { showHours: '', trialInformation: '' },
+    });
+
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={saved}
+        onPremiumChange={onPremiumChange}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^Regenerate$/ }));
+
+    // Wait until the failed result has been applied (its retry alert shows), then check.
+    await screen.findByRole('button', { name: /Try narrative generation again/i });
+    expect(onPremiumChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        supplemental: expect.objectContaining({ hospitalityNotes: 'Her notes' }),
+      })
+    );
+  });
+
+  it('never keeps legacy placeholder text a generator sends back', async () => {
+    const onPremiumChange = vi.fn();
+    generateMock.mockResolvedValueOnce({
+      org: 'AKC',
+      style: 'magazine',
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narrativeGenerationError: 'Claude timed out',
+      narratives: {
+        showHours: 'Show hours to be announced.',
+        trialInformation: 'Trial information to be announced.',
+      },
+    });
+
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        onPremiumChange={onPremiumChange}
+      />
+    );
+
+    await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(onPremiumChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ narratives: { showHours: '', trialInformation: '' } })
+      )
+    );
+    expect(screen.queryByDisplayValue(/to be announced/i)).toBeNull();
+  });
 });

@@ -119,6 +119,9 @@ export function PremiumContentEditor({
   // generation finishes so a failed narrative call never replaces it.
   const narrativesRef = useRef(narratives);
   narrativesRef.current = narratives;
+  // Her supplemental details (vet clinic, notes): a failed narrative call never replaces them.
+  const supplementalRef = useRef(supplemental);
+  supplementalRef.current = supplemental;
 
   const handleGenerate = useCallback(async () => {
     lastPdfErrorMessageRef.current = null;
@@ -126,10 +129,13 @@ export function PremiumContentEditor({
     setIsGenerating(true);
     setAutoGenerateAttemptedFor(showId);
     try {
-      const result = await withGenerationTimeout(generate(showId));
+      const raw = await withGenerationTimeout(generate(showId));
+      // A not-yet-redeployed generator can still send the legacy placeholder text; never keep it.
+      const result = { ...raw, narratives: stripPlaceholderNarratives(raw.narratives) };
+      const failed = narrativeGenerationFailed(result);
       const current = narrativesRef.current;
       const currentHasText = Boolean(current?.showHours.trim() || current?.trialInformation.trim());
-      if (narrativeGenerationFailed(result) && currentHasText) {
+      if (failed && currentHasText) {
         // Fresh show facts, but keep her narratives and supplemental details as they are.
         setOriginal(result);
         setHasNarrativeError(false);
@@ -141,9 +147,9 @@ export function PremiumContentEditor({
         return;
       }
       setOriginal(result);
-      setSupplemental(result.supplemental);
+      if (!failed || !supplementalRef.current) setSupplemental(result.supplemental);
       setNarratives(result.narratives);
-      setHasNarrativeError(narrativeGenerationFailed(result));
+      setHasNarrativeError(failed);
     } catch (err) {
       // Nothing came back, so everything on screen stays as it was.
       setGenerationError(

@@ -9,6 +9,7 @@ import { buildFocusedClassFacts } from './focusedClassFacts';
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { FocusedClassFields } from './FocusedClassFields';
+import { FocusedClassRequirements } from './FocusedClassRequirements';
 import { FocusedClassActionsMenu, type FocusedClassEditAction } from './FocusedClassActionsMenu';
 import { RunOrderUndoNotice } from './RunOrderUndoNotice';
 import { focusedClassDelay } from './focusedClassDelay';
@@ -297,6 +298,12 @@ export function SecretaryCockpitFocusedClass({
             {undoNotice}
           </>
         )}
+
+        <FocusedClassRequirements
+          key={focused.id}
+          classId={focused.id}
+          registryId={sourceClass.registryId ?? ''}
+        />
 
         {attention.length > 0 && (
           <div className="space-y-2">

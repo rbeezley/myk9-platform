@@ -10,6 +10,8 @@ import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntry
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
 import { queueFor } from './__tests__/queueFixture';
 
+// The Requirements row reads the class replica; these tests do not exercise it.
+vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: {

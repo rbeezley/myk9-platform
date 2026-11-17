@@ -8,7 +8,6 @@
  * saved max time leads; tapping it opens Set Max Time for those who can set it.
  */
 import type React from 'react';
-import { Clock } from 'lucide-react';
 import type { ClassRequirementsDialogProps } from '@myk9/ringside';
 import {
   Dialog,
@@ -18,13 +17,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import {
-  ClassRequirementsCards,
-  RequirementCard,
-} from '@/components/classes/ClassRequirementsPanel';
 import { useLiveClasses } from '../useLiveClasses';
 import { handleOpenChange } from './dialogHelpers';
-import { classRequirementsFromClass, setMaxTimeText } from './classRequirementsFromClass';
+import { ClassRequirementsContent } from './ClassRequirementsContent';
 
 export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = ({
   isOpen,
@@ -40,29 +35,6 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
   // loading: say so, and keep Set Max Time reachable.
   const loading = !!classData.id && live === null;
 
-  const requirements = cls ? classRequirementsFromClass(cls, classData.registry ?? '') : null;
-  const maxTime = (
-    <RequirementCard
-      icon={<Clock className="h-4 w-4" />}
-      colorClass="bg-blue-500/15 text-blue-500"
-      label="Max Time (this class)"
-      value={setMaxTimeText(cls, !!classData.per_area_times)}
-      subtitle={onSetMaxTime ? 'Tap to set' : undefined}
-    />
-  );
-  const maxTimeCard = onSetMaxTime ? (
-    <button
-      type="button"
-      className="block w-full text-left"
-      onClick={onSetMaxTime}
-      aria-label="Set Max Time"
-    >
-      {maxTime}
-    </button>
-  ) : (
-    maxTime
-  );
-
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -76,23 +48,13 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
           {classData.element} {classData.level} · {classData.entry_count}{' '}
           {classData.entry_count === 1 ? 'entry' : 'entries'}
         </p>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading requirements…</p>
-        ) : requirements ? (
-          <ClassRequirementsCards
-            requirements={requirements}
-            className="space-y-3"
-            leading={maxTimeCard}
-          />
-        ) : (
-          <div className="space-y-3">
-            {maxTimeCard}
-            <p className="text-sm text-muted-foreground">
-              This class&apos;s rules aren&apos;t on this device yet. They will appear once this
-              device gets the latest show data.
-            </p>
-          </div>
-        )}
+        <ClassRequirementsContent
+          cls={cls}
+          loading={loading}
+          registry={classData.registry ?? ''}
+          perAreaTimes={!!classData.per_area_times}
+          onSetMaxTime={onSetMaxTime}
+        />
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
             Close

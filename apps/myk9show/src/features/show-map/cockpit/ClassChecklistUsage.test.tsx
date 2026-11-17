@@ -8,6 +8,8 @@ import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
 import type { SecretaryCockpitSnapshot } from './secretaryCockpitTypes';
 
+// The Requirements row reads the class replica; these tests do not exercise it.
+vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1', email: 'secretary@example.com' } }),
 }));

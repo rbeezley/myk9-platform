@@ -61,7 +61,16 @@ export function resolveOnScreenEntryId(
   return firstScorableEntryId(sorted);
 }
 
-export function usePaperScoring(entries: ScoringEntry[], userId: string) {
+export interface PaperScoringOptions {
+  /** The class has one search area: `(num_areas ?? 1) <= 1`, as the server reads it. */
+  isOneArea?: boolean;
+}
+
+export function usePaperScoring(
+  entries: ScoringEntry[],
+  userId: string,
+  { isOneArea = false }: PaperScoringOptions = {}
+) {
   const [requestedEntryId, setRequestedEntryId] = useState<RequestedEntry>(undefined);
   const [sessionSettings, setSessionSettingsState] =
     useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
@@ -110,6 +119,11 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
           // A paper score replaces a phone score whole (MYK9-2084): clear the
           // area/element detail first so the paper's own fields below win.
           ...SCORE_DETAIL_CLEAR_FIELDS,
+          // MYK9-2111: a one-area class has one time, so area 1 is the total.
+          // The server trigger rewrites a blank area 1 to the total on a
+          // Qualified result; sending it here keeps the payload equal to the
+          // stored row, so a replayed save is seen as already applied.
+          ...(isOneArea ? { area1_time_seconds: seconds } : {}),
           result_status: statusValue,
           resultStatus: statusValue,
           disqualification_reason: resultReason,
@@ -128,7 +142,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
         setIsSaving(false);
       }
     },
-    []
+    [isOneArea]
   );
 
   const saveEntry = useCallback(

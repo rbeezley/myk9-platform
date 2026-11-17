@@ -1,7 +1,8 @@
 -- MYK9-2122: Undo after Accept returns a class change request to waiting.
 --
 -- Behavioral test for public.reverse_move_up_entry as redefined in
--- 20261117163700_myk9_2122_undo_class_change_keeps_request.sql. Executes the
+-- 20261117163700_myk9_2122_undo_class_change_keeps_request.sql, which reads the
+-- source's status before the move from public.entry_status_history. Executes the
 -- INSTALLED functions as each caller tier (the exhibitor asks through
 -- request_own_entry_class_change, the secretary accepts through move_up_entry
 -- and undoes through reverse_move_up_entry). Every fixture rolls back.
@@ -25,8 +26,12 @@
 --      class change request is refused in words, so the request is never moved
 --      onto an entry without its class; once the request is taken back the undo
 --      goes through;
---   8. entries.status_before_move is server-only: a direct client write cannot
---      plant a value, and the undo clears it.
+--   8. a move made before this migration (built by hand with triggers off, its
+--      history row inserted as the capture trigger wrote it) still undoes to
+--      waiting: the history covers old moves too;
+--   9. history that says the source was 'confirmed' when the latest move began
+--      restores 'confirmed' even with leftover request columns and an OLDER
+--      move that started from a waiting request (latest row wins).
 
 begin;
 
@@ -65,13 +70,13 @@ from public.roles where name = 'secretary';
 insert into public.dogs (id, name, call_name, breed, owner_id)
 select ('00000000-0000-0000-0000-0000021223' || n)::uuid, 'MYK9-2122 Dog ' || n, 'Dog' || n, 'Beagle',
   '00000000-0000-0000-0000-000002122101'::uuid
-from generate_series(21, 28) n;
+from generate_series(21, 29) n;
 
 insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
 select ('00000000-0000-0000-0000-0000021223' || n)::uuid, 'AKC (American Kennel Club)', 'SR2122' || n, true
-from generate_series(21, 28) n;
+from generate_series(21, 29) n;
 
--- One accepted, paid entry per case (31..38), dog 21..28, all in class 11.
+-- One accepted, paid entry per case (31..39), dog 21..29, all in class 11.
 -- Written as service_role, as the 1265 fixture does, so the payment-field
 -- protection trigger reads it as a server write.
 set local role service_role;
@@ -82,7 +87,7 @@ select ('00000000-0000-0000-0000-0000021220' || (n + 10))::uuid,
   '00000000-0000-0000-0000-000002122011', '00000000-0000-0000-0000-000002122002',
   '00000000-0000-0000-0000-000002122004', '00000000-0000-0000-0000-000002122101',
   'confirmed', 'paid', 35, 'no-status', false
-from generate_series(21, 28) n;
+from generate_series(21, 29) n;
 reset role;
 
 create function pg_temp.act_as(auth_uid text) returns void language plpgsql as $$
@@ -372,47 +377,77 @@ begin
 end;
 $$;
 
--- 8. status_before_move is written only by the server.
+-- Build a moved pair by hand as a pre-migration move_up_entry left it, with
+-- every trigger off, then write the capture trigger's history row ourselves.
+create function pg_temp.legacy_move(source uuid, target uuid, dest uuid,
+  before_status text, moved_at timestamptz) returns void
+language plpgsql as $$
+begin
+  set local session_replication_role = replica;
+  insert into public.entries (id, dog_id, show_id, class_id, trial_id, handler_id,
+    entry_status, check_in_status, payment_status, entry_fee, moved_from_entry_id)
+  select dest, e.dog_id, e.show_id, target, e.trial_id, e.handler_id,
+    'confirmed', 'no-status', 'pending', 0, e.id
+    from public.entries e where e.id = source;
+  update public.entries set entry_status = 'moved' where id = source;
+  set local session_replication_role = origin;
+  insert into public.entry_status_history (entry_id, previous_status, new_status, changed_at)
+  values (source, before_status, 'moved', moved_at);
+end;
+$$;
+
+-- 8. A request accepted before this migration: Undo still returns it to waiting.
 do $$
 declare
-  v_value text;
-  v_rows integer;
+  v_after public.entries%rowtype;
 begin
-  perform pg_temp.secretary_moves('00000000-0000-0000-0000-000002122038',
-    '00000000-0000-0000-0000-000002122012', '00000000-0000-0000-0000-000002122059');
-  select status_before_move into v_value from public.entries
-   where id = '00000000-0000-0000-0000-000002122038';
-  if v_value is distinct from 'confirmed' then
-    raise exception 'FAIL 8: the move recorded % as the status before it', v_value;
-  end if;
-
-  -- The secretary may update entries directly; the planted value is discarded.
-  perform pg_temp.act_as('00000000-0000-0000-0000-000002122205');
-  update public.entries set status_before_move = 'move-up-requested'
-   where id = '00000000-0000-0000-0000-000002122038';
-  get diagnostics v_rows = row_count;
-  reset role;
-  if v_rows <> 1 then
-    raise exception 'FAIL 8 setup: the direct write reached % rows, not 1', v_rows;
-  end if;
-  select status_before_move into v_value from public.entries
-   where id = '00000000-0000-0000-0000-000002122038';
-  if v_value is distinct from 'confirmed' then
-    raise exception 'FAIL 8: a direct write planted % in status_before_move', v_value;
-  end if;
-
+  perform pg_temp.exhibitor_asks('00000000-0000-0000-0000-000002122038',
+    '00000000-0000-0000-0000-000002122012');
+  perform pg_temp.legacy_move('00000000-0000-0000-0000-000002122038',
+    '00000000-0000-0000-0000-000002122012', '00000000-0000-0000-0000-000002122059',
+    'move-up-requested', now() - interval '2 days');
   perform pg_temp.secretary_undoes('00000000-0000-0000-0000-000002122059');
-  select status_before_move into v_value from public.entries
-   where id = '00000000-0000-0000-0000-000002122038';
-  if v_value is not null then
-    raise exception 'FAIL 8: undo left status_before_move as %', v_value;
-  end if;
 
-  if has_column_privilege('anon', 'public.entries'::regclass, 'status_before_move', 'SELECT')
-     or has_column_privilege('authenticated', 'public.entries'::regclass, 'status_before_move', 'SELECT') then
-    raise exception 'FAIL 8: a client role can read status_before_move';
+  select * into v_after from public.entries where id = '00000000-0000-0000-0000-000002122038';
+  if v_after.entry_status is distinct from 'move-up-requested'
+     or v_after.class_change_target_class_id is distinct from '00000000-0000-0000-0000-000002122012' then
+    raise exception 'FAIL 8: undo of a pre-migration Accept restored % (target %)',
+      v_after.entry_status, v_after.class_change_target_class_id;
   end if;
-  raise notice 'PASS 8: status_before_move is server-only state';
+  raise notice 'PASS 8: a request accepted before the migration goes back to waiting';
+end;
+$$;
+
+-- 9. The latest move began from 'confirmed' (an earlier one began from a waiting
+-- request, and the request columns were left behind): Undo restores 'confirmed'.
+do $$
+declare
+  v_after public.entries%rowtype;
+begin
+  perform pg_temp.exhibitor_asks('00000000-0000-0000-0000-000002122039',
+    '00000000-0000-0000-0000-000002122012');
+  -- An older move from the waiting request, long since undone.
+  insert into public.entry_status_history (entry_id, previous_status, new_status, changed_at)
+  values ('00000000-0000-0000-0000-000002122039', 'move-up-requested', 'moved',
+    now() - interval '5 days');
+  -- Accepted in place: confirmed, with the request flag and columns left behind.
+  set local session_replication_role = replica;
+  update public.entries set entry_status = 'confirmed'
+   where id = '00000000-0000-0000-0000-000002122039';
+  set local session_replication_role = origin;
+  perform pg_temp.legacy_move('00000000-0000-0000-0000-000002122039',
+    '00000000-0000-0000-0000-000002122013', '00000000-0000-0000-0000-000002122060',
+    'confirmed', now() - interval '1 day');
+  perform pg_temp.secretary_undoes('00000000-0000-0000-0000-000002122060');
+
+  select * into v_after from public.entries where id = '00000000-0000-0000-0000-000002122039';
+  if v_after.entry_status is distinct from 'confirmed' then
+    raise exception 'FAIL 9: history said confirmed, undo restored %', v_after.entry_status;
+  end if;
+  if v_after.class_change_target_class_id is null then
+    raise exception 'FAIL 9 setup: the leftover request columns were not there';
+  end if;
+  raise notice 'PASS 9: the latest move''s history decides, not leftover request columns';
 end;
 $$;
 

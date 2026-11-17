@@ -257,4 +257,24 @@ describe('the class editor survives the split/stack switch', () => {
       expect(screen.getAllByRole('region', { name: /needs attention/i })).toHaveLength(1);
     }
   );
+
+  // MYK9-2143: the header leans on the class's schedule card only while that card is showing.
+  // "Listed" is not enough: a collapsed trial hides its cards.
+  it('trims the header beside its card, and restores the full line when the trial is collapsed', async () => {
+    cockpit.width = COCKPIT_SPLIT_MIN_WIDTH;
+    const { user } = render(
+      <SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />,
+      { initialRoute: '/shows/show-1?focus=class-1' }
+    );
+    const summary = () => screen.getByTestId('focused-class-summary');
+    expect(summary()).toHaveTextContent(/^Not started$/);
+
+    await user.click(screen.getByRole('button', { name: /^Collapse / }));
+    expect(screen.queryByTestId('class-status-line')).not.toBeInTheDocument();
+    expect(summary()).toHaveTextContent('No expected start');
+    expect(summary()).not.toHaveTextContent(/^Not started$/);
+
+    await user.click(screen.getByRole('button', { name: /^Expand / }));
+    expect(summary()).toHaveTextContent(/^Not started$/);
+  });
 });

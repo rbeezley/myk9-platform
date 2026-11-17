@@ -208,8 +208,6 @@ describe('classEntriesForClass', () => {
     expect(countClassEntries(rows)).toEqual({
       entered: 4,
       scored: 1,
-      inRing: 1,
-      stillToRun: 2,
       notCheckedIn: 1,
     });
   });

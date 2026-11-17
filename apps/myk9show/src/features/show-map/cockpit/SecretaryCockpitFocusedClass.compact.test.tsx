@@ -10,7 +10,7 @@ import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpi
 
 /**
  * MYK9-1989: where the class header pins (from lg), it is compact so a laptop shows the entries.
- * The settings fold behind Class settings, the entries come before the counts and checklist, and
+ * The settings fold behind Class settings, the entries come before the In ring tile and checklist, and
  * Checklist jumps to them. Below lg (pinMode none) the card keeps its full layout.
  */
 
@@ -40,12 +40,13 @@ const focused: FocusedClassModel = {
   scheduledStart: '09:00',
   expectedStart: '9:00 AM',
   startedLabel: null,
+  finishedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
   judgeName: 'Pat Donovan',
   attentionCount: 0,
   closeout: 'none',
-  statusLine: { text: 'Not started', parts: ['Not started'] },
+  cardStatus: { progress: null, inRing: null, nextUp: [], nextStep: null },
   printTrackingInUse: true,
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
@@ -116,7 +117,7 @@ describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
     expect(screen.queryByText('Expected start')).not.toBeInTheDocument();
   });
 
-  it('pinned, puts the entries before the counts and the checklist', () => {
+  it('pinned, puts the entries before the In ring tile and the checklist', () => {
     renderClass('page');
     const entries = screen.getByRole('heading', { name: 'Entries in run order' });
     const checklist = screen.getByRole('heading', { name: 'Class checklist' });
@@ -124,7 +125,7 @@ describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
     expect(before(entries, screen.getByTestId('focused-class-work'))).toBe(true);
   });
 
-  it('Checklist scrolls the counts and checklist into view and moves focus there', async () => {
+  it('Checklist scrolls the In ring tile and checklist into view and moves focus there', async () => {
     // jsdom has no scrollIntoView; give the prototype one for this test only.
     const scrollIntoView = vi.fn();
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -176,4 +177,53 @@ describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
     const checklist = screen.getByRole('heading', { name: 'Class checklist' });
     expect(before(checklist, entries)).toBe(true);
   });
+});
+
+// MYK9-2143: beside its schedule card the header does not repeat what the card says.
+describe('SecretaryCockpitFocusedClass header beside its schedule card', () => {
+  function renderListed(pinMode: FocusedClassPinMode, canManageShow: boolean) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={focused}
+        sourceClass={sourceClass}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone={TZ}
+        pinMode={pinMode}
+        cardListed
+        canManageShow={canManageShow}
+        onCommand={vi.fn()}
+        {...(canManageShow && { judgeControl: <span>Judge picker</span> })}
+      />
+    );
+  }
+
+  it('pinned, keeps the status badge and drops the count, the judge and the times', async () => {
+    const { user } = renderListed('panel', true);
+    const summary = screen.getByTestId('focused-class-summary');
+    expect(summary).toHaveTextContent(/^Not started$/);
+
+    // The settings that hold them are still one click away.
+    await user.click(screen.getByRole('button', { name: 'Class settings' }));
+    expect(screen.getByText('Expected start')).toBeVisible();
+    expect(screen.getByText('Judge picker')).toBeVisible();
+  });
+
+  it('unpinned, shows no facts line under the name', () => {
+    renderListed('none', true);
+    const header = screen.getByTestId('focused-class-header');
+    expect(header).not.toHaveTextContent(/entr(y|ies)/);
+    expect(header).not.toHaveTextContent('Judge Pat Donovan');
+  });
+
+  it.each(['panel', 'none'] as const)(
+    'keeps the judge as a fact for a viewer with no Judge field (%s)',
+    pinMode => {
+      renderListed(pinMode, false);
+      const header = screen.getByTestId('focused-class-header');
+      expect(header).toHaveTextContent('Judge Pat Donovan');
+      expect(header).not.toHaveTextContent(/entr(y|ies)/);
+    }
+  );
 });

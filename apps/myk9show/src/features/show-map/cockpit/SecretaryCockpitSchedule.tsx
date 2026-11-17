@@ -7,6 +7,7 @@ import { ListResultLine } from '@/components/list-toolkit';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
+import { COCKPIT_SCHEDULE_ID } from './CockpitRailDivider';
 import { CockpitTrialGroup } from './CockpitTrialGroup';
 import { ScheduleSelectHeader } from './ScheduleSelectHeader';
 import type { ScheduleClassSelection } from './useScheduleClassSelection';
@@ -32,6 +33,7 @@ export function SecretaryCockpitSchedule({
   aboveHeading,
   entryBreakdownByClassId,
   renderTrialActions,
+  onTrialOpenChange,
   select,
 }: {
   showId: string;
@@ -55,6 +57,11 @@ export function SecretaryCockpitSchedule({
   /** Entered/pending per class (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   renderTrialActions?: ((trialId: string, label: string) => ReactNode) | undefined;
+  /**
+   * Each trial reports whether it is open (MYK9-2143): a collapsed trial hides its class cards,
+   * so the cockpit must know before it lets the class header lean on one. Must be stable.
+   */
+  onTrialOpenChange?: ((trialId: string, open: boolean) => void) | undefined;
   /** Select classes (MYK9-1324), for managers; rows tick instead of focusing while it is on. */
   select?: ScheduleClassSelection | undefined;
 }) {
@@ -131,6 +138,7 @@ export function SecretaryCockpitSchedule({
       </section>
 
       <section
+        id={COCKPIT_SCHEDULE_ID}
         className={cn('space-y-3', split && 'col-start-1 row-start-2')}
         aria-label="Trial schedule"
       >
@@ -161,6 +169,7 @@ export function SecretaryCockpitSchedule({
             inlineFocusedContent={inlineFocusedContent}
             entryBreakdownByClassId={entryBreakdownByClassId}
             trialActions={renderTrialActions?.(group.trialId, group.label)}
+            onOpenChange={onTrialOpenChange}
             select={
               selecting && {
                 isSelected: selecting.isSelected,

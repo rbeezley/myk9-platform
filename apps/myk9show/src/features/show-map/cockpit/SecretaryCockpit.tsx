@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 
@@ -17,6 +17,8 @@ import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { cockpitDaysKey } from './cockpitDayFilter';
 import { CockpitFilterMenu } from './CockpitFilterMenu';
 import { CockpitFocusOutlet } from './CockpitSplitFocusColumn';
+import { CockpitRailDivider } from './CockpitRailDivider';
+import { useCockpitRailWidth } from './useCockpitRailWidth';
 import { pruneCockpitFilters, hasActiveCockpitFilters } from './cockpitClassFilters';
 import { CarriedClassNotice } from '@/components/shows/ShowDetails/CarriedClassNotice';
 import { filtersUpdate, focusedPanelShows } from './cockpitFocusRules';
@@ -122,6 +124,8 @@ export function SecretaryCockpit({
   // panel to its column in the layout effect, before paint. The panel remounts then; the editor
   // it would lose is held here (useFocusedClassSetupActions), and nothing is visible in between.
   const isSplit = isCockpitSplit(gridWidth);
+  // The rail's width beside a focused class, dragged by the divider (MYK9-2142).
+  const rail = useCockpitRailWidth(gridWidth, gridRef);
   const canPin = useMediaQuery(FOCUSED_CLASS_PIN_QUERY);
   const pinMode: FocusedClassPinMode = !canPin ? 'none' : isSplit ? 'panel' : 'page';
   const model = buildSecretaryCockpitModel(snapshot, state);
@@ -141,9 +145,26 @@ export function SecretaryCockpit({
     model,
     clickedClassId
   );
+  // Which trials are open, as each reports it (MYK9-2143). "Listed" only means the class is in
+  // the schedule's model: inside a collapsed trial its card is hidden, and the header must then
+  // keep saying what the card would have.
+  const [trialOpen, setTrialOpen] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const reportTrialOpen = useCallback((trialId: string, open: boolean) => {
+    setTrialOpen(current =>
+      current.get(trialId) === open ? current : new Map(current).set(trialId, open)
+    );
+  }, []);
+  const focusedGroup = model.trialGroups.find(group =>
+    group.classes.some(classItem => classItem.id === focusedId)
+  );
+  const focusedCardShowing =
+    focusedClassIsVisible &&
+    focusedGroup !== undefined &&
+    (trialOpen.get(focusedGroup.trialId) ?? focusedGroup.defaultOpen);
+  // Split with a class focused, the schedule is the rail (MYK9-1782).
+  const railShown = isSplit && panelShows && model.focusedClass !== null;
   // Pinned beside the rail, the panel starts at the schedule heading, not under it (MYK9-1989).
-  const panelLifted =
-    pinMode === 'panel' && panelShows && model.focusedClass !== null && !selecting;
+  const panelLifted = pinMode === 'panel' && railShown && !selecting;
   const attentionStrip = model.attention.items.length > 0 && (
     <CockpitAttentionStrip
       openChoice={attentionOpenChoice}
@@ -164,6 +185,7 @@ export function SecretaryCockpit({
       attention={focusedAttention}
       timeZone={snapshot.timeZone}
       pinMode={pinMode}
+      cardListed={focusedCardShowing}
       canManageShow={canManageShow}
       onCommand={onCommand}
       entryBreakdownByClassId={entryBreakdownByClassId}
@@ -302,18 +324,10 @@ export function SecretaryCockpit({
             : 'grid-cols-[minmax(0,1fr)] gap-4'
         )}
         style={
-          isSplit
-            ? {
-                gridTemplateColumns: cockpitSplitTemplate(
-                  panelShows && model.focusedClass !== null
-                ),
-              }
-            : undefined
+          isSplit ? { gridTemplateColumns: cockpitSplitTemplate(railShown, rail.width) } : undefined
         }
         data-cockpit-layout={isSplit ? 'split' : 'stacked'}
-        data-cockpit-rail={
-          isSplit && panelShows && model.focusedClass !== null ? 'true' : undefined
-        }
+        data-cockpit-rail={railShown ? 'true' : undefined}
       >
         <SecretaryCockpitSchedule
           showId={snapshot.showId}
@@ -351,7 +365,17 @@ export function SecretaryCockpit({
             !isSplit && focusedClassIsVisible && !selecting ? focusedPanel : undefined
           }
           select={canManageShow ? selection : undefined}
+          onTrialOpenChange={reportTrialOpen}
         />
+        {railShown && (
+          <CockpitRailDivider
+            width={rail.width}
+            max={rail.max}
+            lifted={panelLifted}
+            onPreview={rail.previewWidth}
+            onWidthChange={rail.setWidth}
+          />
+        )}
         <CockpitFocusOutlet
           split={isSplit}
           focus={{ shows: panelShows, listed: focusedClassIsVisible, id: focusedId }}

@@ -1,5 +1,5 @@
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
-import type { StatusLine } from './scheduleStatusLine';
+import type { ScheduleCardStatus } from './scheduleCardStatus';
 
 export type EvidenceKind = 'recorded' | 'computed' | 'staff-confirmed' | 'unknown';
 
@@ -176,7 +176,7 @@ export interface SecretaryCockpitSnapshot {
    * print records could not be read. False hides "Not confirmed printed" and "Prepare" chips.
    */
   printTrackingInUse: boolean;
-  /** `printTrackingInUse` or a judge sign-off is recorded. False leaves a complete class's status line at "Complete", with no checklist next step. */
+  /** `printTrackingInUse` or a judge sign-off is recorded. False gives a complete class no checklist next step on its schedule card. */
   checklistInUse: boolean;
   trials: readonly SecretaryCockpitTrial[];
   classes: readonly SecretaryCockpitClass[];
@@ -220,6 +220,8 @@ export interface ScheduledClassModel {
   expectedStart: string | null;
   /** The recorded start, once the class has started; null before, or when none was recorded. */
   startedLabel: string | null;
+  /** The recorded finish, once the class has started; null before, or when none was recorded. */
+  finishedLabel: string | null;
   lifecycle: EvidenceValue<CockpitLifecycle>;
   progress: EvidenceValue<{ completed: number; total: number }>;
   judgeName: string | null;
@@ -227,8 +229,8 @@ export interface ScheduledClassModel {
   filterFacts: CockpitFilterFacts;
   attentionCount: number;
   closeout: CockpitCloseoutState;
-  /** Line 2 of the schedule row: one status-and-next-step phrase. */
-  statusLine: StatusLine;
+  /** What the schedule card says under the name: count, ring, next step (MYK9-2143). */
+  cardStatus: ScheduleCardStatus;
 }
 
 export interface NextTrialNote {

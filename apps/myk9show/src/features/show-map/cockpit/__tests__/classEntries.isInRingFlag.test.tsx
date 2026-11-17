@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
 import { buildShowMapTree } from '../../showMapTree';
-import { ClassCountTiles } from '../FocusedClassEntries';
-import { classEntriesForClass, countClassEntries, runStatusDisplay } from '../cockpitClassEntries';
-import { buildStatusLine } from '../scheduleStatusLine';
+import { InRingTile } from '../FocusedClassEntries';
+import { classEntriesForClass, runStatusDisplay } from '../cockpitClassEntries';
+import { buildScheduleCardStatus } from '../scheduleCardStatus';
 import type { SecretaryCockpitClass } from '../secretaryCockpitTypes';
 
 const show = { id: 'show-1', name: 'Show', organization: 'AKC' } as never;
@@ -44,7 +44,7 @@ const FLAGGED = [
 
 describe('an entry flagged only by is_in_ring', () => {
   it('is the In ring tile dog and is left out of Next up', () => {
-    render(<ClassCountTiles entries={rowsFor(FLAGGED)} />);
+    render(<InRingTile entries={rowsFor(FLAGGED)} />);
     const tile = screen.getByTestId('in-ring-tile');
     expect(tile).toHaveTextContent('Armband 101, Dog101');
     expect(within(tile).queryByText('Nobody in the ring')).toBeNull();
@@ -55,15 +55,15 @@ describe('an entry flagged only by is_in_ring', () => {
     ]);
   });
 
-  it('reads in ring in the table and the counts, and the schedule line names it', () => {
+  it('reads in ring in the table, and the schedule card names it', () => {
     const rows = rowsFor(FLAGGED);
     expect(runStatusDisplay(rows[0]!).label).toBe('In ring');
-    expect(countClassEntries(rows)).toMatchObject({ inRing: 1, stillToRun: 2 });
-    const status = buildStatusLine(
+    const status = buildScheduleCardStatus(
       { lifecycle: 'in-progress', entries: rows } as unknown as SecretaryCockpitClass,
       true
     );
-    expect(status.text).toContain('Dog101 in ring');
+    expect(status.inRing).toEqual({ armband: '101', dogName: 'Dog101' });
+    expect(status.nextUp).toEqual(['#102', '#103']);
   });
 
   it('is ignored on a scored dog (stale flag)', () => {

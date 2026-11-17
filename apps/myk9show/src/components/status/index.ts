@@ -1,5 +1,6 @@
 export { StatusIcon, type StatusIconProps } from './StatusIcon';
 export { StatusBadge } from './StatusBadge';
+export { ClassProgressBar } from './ClassProgressBar';
 export {
   CLASS_STATUS_VALUES,
   ENTRY_STATUS_VALUES,

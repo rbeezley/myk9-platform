@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
-import { ClassCountTiles } from '../FocusedClassEntries';
+import { InRingTile } from '../FocusedClassEntries';
 import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
 import { queueFor } from './queueFixture';
 
@@ -35,9 +35,9 @@ const nextUp = () =>
     .getAllByRole('listitem')
     .map(item => within(item).getByText(/^Armband /).textContent);
 
-describe('ClassCountTiles in-ring tile', () => {
+describe('InRingTile', () => {
   it('shows the in-ring dog as an armband tile with its name', () => {
-    render(<ClassCountTiles entries={[row('106', 'in-ring'), row('107', 'waiting')]} />);
+    render(<InRingTile entries={[row('106', 'in-ring'), row('107', 'waiting')]} />);
     const tile = screen.getByTestId('in-ring-tile');
     expect(within(tile).getByText('106')).toBeInTheDocument();
     expect(within(tile).getByText('Dog106')).toBeInTheDocument();
@@ -46,13 +46,13 @@ describe('ClassCountTiles in-ring tile', () => {
   });
 
   it('says nobody is in the ring when no row is', () => {
-    render(<ClassCountTiles entries={[row('101', 'scored'), row('102', 'waiting')]} />);
+    render(<InRingTile entries={[row('101', 'scored'), row('102', 'waiting')]} />);
     expect(screen.getByTestId('in-ring-tile')).toHaveTextContent('Nobody in the ring');
   });
 
   it('lists the next three waiting dogs in the given order, skipping others', () => {
     render(
-      <ClassCountTiles
+      <InRingTile
         entries={inRunOrder([
           row('101', 'scored'),
           row('102', 'in-ring'),
@@ -69,15 +69,15 @@ describe('ClassCountTiles in-ring tile', () => {
   });
 
   it('lists fewer than three, or nothing, when fewer are waiting', () => {
-    const { unmount } = render(<ClassCountTiles entries={[row('1', 'waiting')]} />);
+    const { unmount } = render(<InRingTile entries={[row('1', 'waiting')]} />);
     expect(nextUp()).toEqual(['Armband 1, Dog1']);
     unmount();
-    render(<ClassCountTiles entries={[row('2', 'scored')]} />);
+    render(<InRingTile entries={[row('2', 'scored')]} />);
     expect(screen.queryByRole('list', { name: 'Next up' })).toBeNull();
   });
 
   it('renders nothing while the entries are unread', () => {
-    render(<ClassCountTiles entries={[row('1', 'in-ring')]} unread />);
-    expect(screen.queryByTestId('class-count-tiles')).toBeNull();
+    render(<InRingTile entries={[row('1', 'in-ring')]} unread />);
+    expect(screen.queryByTestId('in-ring-tile')).toBeNull();
   });
 });

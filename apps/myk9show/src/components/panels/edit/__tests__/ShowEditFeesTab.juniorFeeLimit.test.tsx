@@ -131,9 +131,7 @@ describe('junior handler fee limit on the Fees tab', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ preEntryFee: '15', juniorHandlerFee: '15' })
-      )
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ juniorHandlerFee: '15' }))
     );
     expect(screen.queryByText(/The junior fee can't be more than/)).not.toBeInTheDocument();
   });
@@ -161,10 +159,10 @@ describe('junior handler fee limit on the Fees tab', () => {
       await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
       await waitFor(() =>
-        expect(onSave).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Heartland 2', juniorHandlerFee: '20' })
-        )
+        expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'Heartland 2' }))
       );
+      // MYK9-2081: the fee the show already held is not resent.
+      expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('juniorHandlerFee');
       expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('feesAsOpened');
     });
 

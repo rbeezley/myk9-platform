@@ -107,3 +107,30 @@ export const formDataToShowSaveData = (formData: ShowEditFormData): ShowEditSave
   ...(formData.generatedPremium !== undefined && { generatedPremium: formData.generatedPremium }),
   ...(formData.inkSaver !== undefined && { inkSaver: formData.inkSaver }),
 });
+
+// MYK9-2081: the save names only the fields the user changed, compared after the same
+// normalisation the save applies (trim, empty-to-omitted, ASCA junior fee). A switch or setting
+// the form shows but the user never touched is never sent, so a copy opened before another
+// device changed it cannot write the old value back. The judge list is the exception: the
+// caller diffs it against the show's own list and reads a missing list as "no judges".
+export const changedShowSaveData = (
+  initial: ShowEditFormData,
+  current: ShowEditFormData
+): ShowEditSaveData => {
+  const before = formDataToShowSaveData(initial) as Record<string, unknown>;
+  const after = formDataToShowSaveData(current) as Record<string, unknown>;
+  const changed: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(after)) {
+    if (JSON.stringify(value) !== JSON.stringify(before[key])) changed[key] = value;
+  }
+  if ('assignedJudges' in after) changed.assignedJudges = after.assignedJudges;
+  return changed as ShowEditSaveData;
+};
+
+// True when the user changed anything a save would send.
+export const hasShowChanges = (initial: ShowEditFormData, current: ShowEditFormData): boolean => {
+  const changed = changedShowSaveData(initial, current);
+  const judgesChanged =
+    JSON.stringify(current.assignedJudges) !== JSON.stringify(initial.assignedJudges);
+  return Object.keys(changed).some(key => key !== 'assignedJudges') || judgesChanged;
+};

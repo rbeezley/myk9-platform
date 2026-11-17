@@ -18,7 +18,10 @@
 # exited without printing a session URL (a sign-in error lands here; its output is echoed to
 # stderr). 4 no URL within DISPATCH_TIMEOUT_S (default 90) and the CLI was stopped. This script
 # never retries: a timed-out or silent dispatch may still have created a session, and a second
-# dispatch could be a second writer on the branch (lane reference, Step 2).
+# dispatch could be a second writer on the branch (lane reference, Step 2). 5 `script(1)` is not
+# installed (Git Bash on Windows has none), so the CLI would see no terminal and refuse; nothing
+# was started. Use the desktop app's cloud session launcher instead (MYK9-2059). `claude --help`
+# lists no flag that lets `--cloud` run without a terminal, so there is no other fallback here.
 #
 # Environment: CLOUD_MODEL (default sonnet), CLOUD_EXTRA_ARGS (appended, word-split),
 # DISPATCH_TIMEOUT_S (default 90).
@@ -37,6 +40,15 @@ if [ -z "$log_file" ]; then
   log_file="$root/.logs/cloud-dispatch-$(date +%Y%m%d-%H%M%S)-$$.log"
 fi
 : >"$log_file"
+
+if ! command -v script >/dev/null 2>&1; then
+  {
+    echo "dispatch: cloud dispatch needs script(1) to give the CLI a terminal, and this shell"
+    echo "(for example Git Bash on Windows) does not have it. Nothing was started. Use the"
+    echo "desktop app's cloud session launcher instead, and watch for the PR by branch prefix."
+  } >&2
+  exit 5
+fi
 
 model="${CLOUD_MODEL:-sonnet}"
 timeout_s="${DISPATCH_TIMEOUT_S:-90}"

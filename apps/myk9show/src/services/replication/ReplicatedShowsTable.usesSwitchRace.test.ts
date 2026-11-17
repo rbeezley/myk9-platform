@@ -188,4 +188,43 @@ describe('ReplicatedShowsTable overlapping switch flips (MYK9-1919)', () => {
       'uses_paper_packet',
     ]);
   });
+
+  // MYK9-2081: the edit form names only the fields it changed, and the queued write carries
+  // those columns alone, so a switch another device flipped since stays flipped.
+  it('a rename queues only the name, so a switch changed underneath is not written back', async () => {
+    const toLocalRow = (
+      adapter() as unknown as { toLocalRow(r: unknown): Parameters<typeof table.set>[1] }
+    ).toLocalRow;
+    await table.set(
+      ID,
+      toLocalRow(serverShow({ uses_device_scoring: false, version: 4 })),
+      false,
+      undefined,
+      4
+    );
+    await table.updateShow(ID, { name: 'Renamed' });
+
+    const uploads = (await pending()).filter(m => m.operation === 'UPDATE');
+    expect(uploads).toHaveLength(1);
+    expect(uploads[0]!.data).toMatchObject({ name: 'Renamed' });
+    for (const column of [
+      'uses_device_scoring',
+      'start_date',
+      'end_date',
+      'status',
+      'organization',
+    ]) {
+      expect(uploads[0]!.data).not.toHaveProperty(column);
+    }
+    expect((await row())!.data).toMatchObject({ name: 'Renamed', usesDeviceScoring: false });
+  });
+
+  it('a cleared note queues confirmation_message null and no other content column', async () => {
+    await table.updateShow(ID, { confirmationMessage: 'Bring a crate' });
+    await table.updateShow(ID, { confirmationMessage: null });
+
+    const uploads = (await pending()).filter(m => m.operation === 'UPDATE');
+    expect(uploads.at(-1)!.data).toMatchObject({ confirmation_message: null });
+    expect(uploads.at(-1)!.data).not.toHaveProperty('name');
+  });
 });

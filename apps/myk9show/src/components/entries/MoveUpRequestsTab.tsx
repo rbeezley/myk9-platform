@@ -1,46 +1,19 @@
 /**
- * Move-Up Requests Tab
+ * Class change list (the Move-ups list, renamed in MYK9-1978).
  *
- * Displays and manages pre-show move-up requests from exhibitors.
- * Allows secretary to approve, deny, or add to waitlist.
+ * Exhibitors ask for a class change from My Entries; each request lands here
+ * with the class they asked for and why. Accept moves the entry to exactly that
+ * class, in one tap with an Undo. Decline keeps its reason dialog. A request
+ * with no stored class (a legacy, secretary-made move-up) is the one case that
+ * still gets the class picker.
  */
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
 import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { formatEntryDateTime } from '@/lib/format/dates';
-import {
-  ArrowUpCircle,
-  Check,
-  X,
-  Clock,
-  AlertCircle,
-  Loader2,
-  RefreshCw,
-  Dog,
-  Trophy,
-  Users,
-} from 'lucide-react';
+import { ArrowUpCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   getPendingMoveUpRequests,
@@ -49,14 +22,36 @@ import {
 } from '@/services/database/day-of-operations';
 import { getTrialsByShow } from '@/services/database/trials';
 import {
+  acceptClassChangeRequestReplicated,
   approveMoveUpRequestReplicated,
   denyMoveUpRequestReplicated,
 } from '@/services/show-day/requestManagement';
-import { getAvailableMoveUpTargets, hasConfiguredCapacity } from './moveUpTargets';
+import {
+  classChangeReasonLabel,
+  getClassChangeRequestDetails,
+  getClassNamesByIds,
+  type ClassChangeRequestDetails,
+} from '@/services/database/entries/classChangeRequests';
+import { undoShowMapMoveUp } from '@/features/show-map/showMapActionMutations';
+import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
+import { showUndoToast } from '@/lib/undoToast';
 import { getTrialRegistry } from '@/features/registries';
 import type { RegistryId } from '@/features/registries';
+import {
+  startableTrialFromRow,
+  trialStartInstant,
+  type StartableTrial,
+} from '@/features/show-map/trialStartInstant';
+import {
+  enteredNote,
+  lateRequestNote,
+  minutesBeforeStart,
+} from '@/features/show-map/classChangeLateness';
 import { formatTrialLabel } from './management/entryFormTrialSummary';
 import { MOVE_UP_COPY } from '@/hooks/entryManagementErrorCopy';
+import { ClassChangeRequestCard } from './ClassChangeRequestCard';
+import { ClassChangeDeclineDialog } from './ClassChangeDeclineDialog';
+import { MoveUpApproveDialog } from './MoveUpApproveDialog';
 
 function trialLabelsById(trials: ReadonlyArray<Record<string, unknown>>): Record<string, string> {
   const text = (value: unknown) => (typeof value === 'string' ? value : null);
@@ -97,6 +92,49 @@ interface MoveUpRequestsTabProps {
   onRefresh?: () => void;
 }
 
+/** Everything one load of the list reads, applied to state in one place. */
+interface ListData {
+  requests: MoveUpRequest[] | null;
+  classes: ClassWithCapacity[] | null;
+  trials: ReadonlyArray<Record<string, unknown>> | null;
+  /** The stored class asked for, by entry id; null when it could not be read. */
+  details: Record<string, ClassChangeRequestDetails> | null;
+  /** Class id to name, for the classes asked for. */
+  requestedNames: Record<string, string>;
+}
+
+async function readListData(showId: string): Promise<ListData> {
+  const [requestsResult, classesResult, trialsResult] = await Promise.all([
+    getPendingMoveUpRequests(showId),
+    getClassesWithCapacity(showId),
+    getTrialsByShow(showId),
+  ]);
+  const requests = requestsResult.error ? null : (requestsResult.data as MoveUpRequest[]);
+
+  let details: ListData['details'] = null;
+  let requestedNames: Record<string, string> = {};
+  if (requests) {
+    try {
+      details = await getClassChangeRequestDetails(requests.map(request => request.id));
+      const targetIds = [
+        ...new Set(Object.values(details).flatMap(d => (d.targetClassId ? [d.targetClassId] : []))),
+      ];
+      requestedNames = await getClassNamesByIds(targetIds);
+    } catch {
+      details = null;
+    }
+  }
+  return {
+    requests,
+    classes: classesResult.error ? null : classesResult.data,
+    trials: trialsResult.error
+      ? null
+      : (trialsResult.data as ReadonlyArray<Record<string, unknown>>),
+    details,
+    requestedNames,
+  };
+}
+
 export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, onRefresh }) => {
   const [requests, setRequests] = useState<MoveUpRequest[]>([]);
   const [classes, setClasses] = useState<ClassWithCapacity[]>([]);
@@ -105,6 +143,12 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   // A show's trials always share one registry (scoping §7) — resolved once per
   // load so getAvailableMoveUpTargets recognizes UKC/ASCA-only levels.
   const [registryId, setRegistryId] = useState<RegistryId>('AKC');
+  /** trial id to its start facts, for the "asked N minutes before start" note. */
+  const [trialStarts, setTrialStarts] = useState<Record<string, StartableTrial>>({});
+  const [details, setDetails] = useState<Record<string, ClassChangeRequestDetails>>({});
+  const [requestedNames, setRequestedNames] = useState<Record<string, string>>({});
+  /** The stored class asked for could not be read: Accept is off rather than guessing. */
+  const [detailsError, setDetailsError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,45 +157,42 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   const [searchTerm, setSearchTerm] = useState('');
 
   // Dialog state
-  const [selectedRequest, setSelectedRequest] = useState<MoveUpRequest | null>(null);
-  const [dialogAction, setDialogAction] = useState<'approve' | 'deny' | null>(null);
-  const [targetClassId, setTargetClassId] = useState<string>('');
+  const [pickerRequest, setPickerRequest] = useState<MoveUpRequest | null>(null);
+  const [declineRequest, setDeclineRequest] = useState<MoveUpRequest | null>(null);
   const [denyReason, setDenyReason] = useState('');
+
+  const apply = (data: ListData) => {
+    if (data.requests) setRequests(data.requests);
+    else setError(MOVE_UP_COPY.loadFailed);
+    // The picker derives "which higher classes are available" from this list.
+    // Leaving it empty on a failed read would assert "no higher class
+    // available", a domain conclusion drawn from data that never loaded.
+    setClassesError(data.classes === null);
+    if (data.classes) setClasses(data.classes);
+    if (data.trials) {
+      setRegistryId(getTrialRegistry(data.trials[0]).id);
+      setTrialLabels(trialLabelsById(data.trials));
+      setTrialStarts(
+        Object.fromEntries(
+          data.trials.map(row => {
+            const trial = startableTrialFromRow(row);
+            return [trial.id, trial];
+          })
+        )
+      );
+    }
+    setDetailsError(data.requests !== null && data.details === null);
+    setDetails(data.details ?? {});
+    setRequestedNames(data.requestedNames);
+  };
 
   // Load requests and classes
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       setError(null);
-
       try {
-        const [requestsResult, classesResult, trialsResult] = await Promise.all([
-          getPendingMoveUpRequests(showId),
-          getClassesWithCapacity(showId),
-          getTrialsByShow(showId),
-        ]);
-
-        if (requestsResult.error) {
-          setError(MOVE_UP_COPY.loadFailed);
-        } else {
-          setRequests(requestsResult.data as MoveUpRequest[]);
-        }
-
-        if (classesResult.error) {
-          // The approve dialog derives "which higher classes are available"
-          // from this list. Leaving it empty on a failed read makes the dialog
-          // assert "this show has no higher class available" -- a domain
-          // conclusion drawn from data that never loaded.
-          setClassesError(true);
-        } else {
-          setClassesError(false);
-          setClasses(classesResult.data);
-        }
-
-        if (!trialsResult.error) {
-          setRegistryId(getTrialRegistry(trialsResult.data[0]).id);
-          setTrialLabels(trialLabelsById(trialsResult.data));
-        }
+        apply(await readListData(showId));
       } catch (_err) {
         setError(MOVE_UP_COPY.loadFailed);
       } finally {
@@ -167,31 +208,8 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
-
     try {
-      const [requestsResult, classesResult, trialsResult] = await Promise.all([
-        getPendingMoveUpRequests(showId),
-        getClassesWithCapacity(showId),
-        getTrialsByShow(showId),
-      ]);
-
-      if (requestsResult.error) {
-        setError(MOVE_UP_COPY.loadFailed);
-      } else {
-        setRequests(requestsResult.data as MoveUpRequest[]);
-      }
-
-      if (classesResult.error) {
-        setClassesError(true);
-      } else {
-        setClassesError(false);
-        setClasses(classesResult.data);
-      }
-
-      if (!trialsResult.error) {
-        setRegistryId(getTrialRegistry(trialsResult.data[0]).id);
-        setTrialLabels(trialLabelsById(trialsResult.data));
-      }
+      apply(await readListData(showId));
     } catch (_err) {
       setError(MOVE_UP_COPY.loadFailed);
     } finally {
@@ -199,70 +217,109 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     }
   };
 
-  const handleApprove = async () => {
-    if (!selectedRequest || !targetClassId) return;
+  const afterChange = async () => {
+    await loadData();
+    onRefresh?.();
+  };
 
+  const dogLabel = (request: MoveUpRequest) =>
+    request.dog?.call_name || request.dog?.name || 'Unknown Dog';
+
+  /** One tap: the entry moves to exactly the class the exhibitor asked for. */
+  const handleAccept = async (request: MoveUpRequest, targetClassId: string) => {
     setIsProcessing(true);
-
     try {
-      const { error } = await approveMoveUpRequestReplicated(selectedRequest.id, targetClassId);
+      // The exhibitor may have taken the request back, or asked for another class,
+      // since this list loaded. Accept moves a dog, so it reads the stored class
+      // again and refuses on any difference rather than move to a stale one.
+      const fresh = (await getClassChangeRequestDetails([request.id]))[request.id];
+      if (!fresh?.targetClassId) {
+        toast.error(MOVE_UP_COPY.requestTakenBack);
+        await afterChange();
+        return;
+      }
+      if (fresh.targetClassId !== targetClassId) {
+        toast.error(MOVE_UP_COPY.requestChanged);
+        await afterChange();
+        return;
+      }
+      const { data, error: acceptError } = await acceptClassChangeRequestReplicated(
+        request.id,
+        targetClassId
+      );
+      if (acceptError || !data) {
+        toast.error(getMoveUpErrorMessage(acceptError, MOVE_UP_COPY.approveFailed));
+        return;
+      }
+      showUndoToast({
+        message: `Class change accepted: ${dogLabel(request)}${data.targetClassName ? ` to ${data.targetClassName}` : ''}`,
+        onUndo: () => {
+          undoShowMapMoveUp(data)
+            .then(() => {
+              toast.success('Class change undone');
+              return afterChange();
+            })
+            .catch(undoError =>
+              toast.error(getMoveUpErrorMessage(undoError, MOVE_UP_COPY.unfinished))
+            );
+        },
+      });
+      await afterChange();
+    } catch (_err) {
+      toast.error(MOVE_UP_COPY.unfinished);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-      if (error) {
-        const full = error.message?.includes('full');
+  /** A request that names no class: the secretary picks one, as before. */
+  const handlePickerApprove = async (targetClassId: string) => {
+    if (!pickerRequest || !targetClassId) return;
+    setIsProcessing(true);
+    try {
+      const { error: approveError } = await approveMoveUpRequestReplicated(
+        pickerRequest.id,
+        targetClassId
+      );
+      if (approveError) {
+        const full = approveError.message?.includes('full');
         toast.error(full ? MOVE_UP_COPY.targetFull : MOVE_UP_COPY.approveFailed);
       } else {
-        toast.success('Move-up request approved');
-        await loadData();
-        onRefresh?.();
+        toast.success('Class change accepted');
+        await afterChange();
       }
     } catch (_err) {
       toast.error(MOVE_UP_COPY.unfinished);
     } finally {
       setIsProcessing(false);
-      closeDialog();
+      setPickerRequest(null);
     }
   };
 
-  const handleDeny = async () => {
-    if (!selectedRequest) return;
-
+  const handleDecline = async () => {
+    if (!declineRequest) return;
     setIsProcessing(true);
-
     try {
-      const { error } = await denyMoveUpRequestReplicated(selectedRequest.id, denyReason);
-
-      if (error) {
+      const { error: denyError } = await denyMoveUpRequestReplicated(declineRequest.id, denyReason);
+      if (denyError) {
         toast.error(MOVE_UP_COPY.denyFailed);
       } else {
-        toast.success('Move-up request denied');
-        await loadData();
-        onRefresh?.();
+        toast.success('Class change declined');
+        await afterChange();
       }
     } catch (_err) {
       toast.error(MOVE_UP_COPY.unfinished);
     } finally {
       setIsProcessing(false);
-      closeDialog();
+      setDeclineRequest(null);
+      setDenyReason('');
     }
   };
 
-  const openApproveDialog = (request: MoveUpRequest) => {
-    setSelectedRequest(request);
-    setDialogAction('approve');
-    setTargetClassId('');
-  };
-
-  const openDenyDialog = (request: MoveUpRequest) => {
-    setSelectedRequest(request);
-    setDialogAction('deny');
-    setDenyReason('');
-  };
-
-  const closeDialog = () => {
-    setSelectedRequest(null);
-    setDialogAction(null);
-    setTargetClassId('');
-    setDenyReason('');
+  const onAcceptClick = (request: MoveUpRequest) => {
+    const targetClassId = details[request.id]?.targetClassId;
+    if (targetClassId) void handleAccept(request, targetClassId);
+    else setPickerRequest(request);
   };
 
   // Filter requests by search term
@@ -277,16 +334,11 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     );
   });
 
-  // Available targets: same element + strictly higher level + open spots.
-  // See getAvailableMoveUpTargets for the move-up rule.
-  const getAvailableTargetClasses = (request: MoveUpRequest) =>
-    getAvailableMoveUpTargets(classes, request.class_id, registryId);
-
   if (isLoading) {
-    // Section load = table skeleton (previews the move-up requests table).
+    // Section load = table skeleton (previews the class change table).
     // The inline "Processing…" button spinners below stay animate-spin.
     return (
-      <div role="status" aria-label="Loading move-up requests" className="py-4">
+      <div role="status" aria-label="Loading class changes" className="py-4">
         <TableSkeleton rows={6} columns={4} />
       </div>
     );
@@ -299,10 +351,11 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <ArrowUpCircle className="h-5 w-5" aria-hidden />
-            Move-Up Requests{error ? '' : ` (${filteredRequests.length})`}
+            Class changes{error ? '' : ` (${filteredRequests.length})`}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Review and process exhibitor requests to move up to higher classes
+            Exhibitors ask for a class change from My Entries. Accept moves the dog to the class
+            they asked for.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={loadData}>
@@ -332,19 +385,17 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
       )}
 
       {/*
-        Requests List
-
         The empty state is gated on `!error`. When the read failed, the tab
-        used to show the destructive Alert AND "There are no pending move-up
-        requests for this show" at the same time -- two contradictory claims,
-        of which the confident one was the wrong one. An unread list is not an
-        empty list, so on failure the error card is the whole answer.
+        used to show the destructive Alert AND "There are no pending requests"
+        at the same time -- two contradictory claims, of which the confident one
+        was the wrong one. An unread list is not an empty list, so on failure
+        the error card is the whole answer.
       */}
       {error ? (
         <Card>
           <CardContent className="py-12 text-center">
             <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" aria-hidden />
-            <p className="text-lg font-medium">Couldn&rsquo;t load move-up requests</p>
+            <p className="text-lg font-medium">Couldn&rsquo;t load class changes</p>
             <p className="mt-1 text-sm text-muted-foreground">
               We don&rsquo;t know whether this show has any pending requests.
             </p>
@@ -357,274 +408,88 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
         <Card>
           <CardContent className="py-12 text-center">
             <ArrowUpCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-lg font-medium">No Pending Move-Up Requests</p>
+            <p className="text-lg font-medium">No class changes waiting</p>
             <p className="text-sm text-muted-foreground">
               {searchTerm
                 ? 'No requests match your search'
-                : 'There are no pending move-up requests for this show'}
+                : 'There are no class change requests for this show'}
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredRequests.map(request => (
-            <Card key={request.id} className="hover:bg-muted/50 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {/* Dog Info */}
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-                      <Dog className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">
-                          {request.dog?.call_name || request.dog?.name || 'Unknown Dog'}
-                        </span>
-                        {request.dog?.name && request.dog.name !== request.dog.call_name && (
-                          <span className="text-muted-foreground">({request.dog.name})</span>
-                        )}
-                        {request.armband && <Badge variant="outline">#{request.armband}</Badge>}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Handler: {request.handler || 'Not specified'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Class Info */}
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground">From</div>
-                      <div className="flex items-center gap-1">
-                        <Trophy className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">
-                          {request.class?.class_number && `#${request.class.class_number} `}
-                          {request.class?.name}
-                        </span>
-                      </div>
-                      {trialLabels[request.class?.trial_id ?? request.trial_id ?? ''] && (
-                        <div className="text-xs text-muted-foreground">
-                          {trialLabels[request.class?.trial_id ?? request.trial_id ?? '']}
-                        </div>
-                      )}
-                    </div>
-
-                    <ArrowUpCircle className="h-5 w-5 text-blue-500" />
-
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground">To</div>
-                      <div className="flex items-center gap-1">
-                        <Trophy className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">
-                          <span className="text-muted-foreground italic">Chosen at approval</span>
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Request Time */}
-                    <div className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {request.created_at
-                        ? formatEntryDateTime(request.created_at)
-                        : 'Not recorded'}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={() => openApproveDialog(request)}>
-                        <Check className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => openDenyDialog(request)}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Deny
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {filteredRequests.map(request => {
+            const stored = details[request.id];
+            const trialId = request.class?.trial_id ?? request.trial_id ?? '';
+            const targetClass = stored?.targetClassId
+              ? classes.find(cls => cls.id === stored.targetClassId)
+              : undefined;
+            // Lateness is measured against the trial the dog is asking to move into.
+            const startTrial = trialStarts[targetClass?.trial_id ?? trialId];
+            const lateNote = lateRequestNote(
+              minutesBeforeStart(stored?.requestedAt, trialStartInstant(startTrial))
+            );
+            return (
+              <ClassChangeRequestCard
+                key={request.id}
+                request={{
+                  id: request.id,
+                  dogName: dogLabel(request),
+                  registeredName:
+                    request.dog?.name && request.dog.name !== request.dog.call_name
+                      ? request.dog.name
+                      : null,
+                  armband: request.armband,
+                  handler: request.handler,
+                  fromClass: `${request.class?.class_number ? `#${request.class.class_number} ` : ''}${request.class?.name ?? ''}`,
+                  trialLabel: trialLabels[trialId] ?? null,
+                  requestedClass: stored?.targetClassId
+                    ? (requestedNames[stored.targetClassId] ?? null)
+                    : null,
+                  reasonLabel: classChangeReasonLabel(stored?.reason),
+                  askedAt: stored?.requestedAt ?? request.created_at,
+                  lateNote,
+                  enteredNote:
+                    targetClass && !classesError
+                      ? enteredNote(targetClass.accepted_count, targetClass.max_entries)
+                      : null,
+                }}
+                acceptDisabledReason={detailsError ? MOVE_UP_COPY.targetUnreadable : null}
+                isBusy={isProcessing}
+                onAccept={() => onAcceptClick(request)}
+                onDecline={() => {
+                  setDeclineRequest(request);
+                  setDenyReason('');
+                }}
+              />
+            );
+          })}
         </div>
       )}
 
-      {/* Approve Dialog */}
-      <Dialog open={dialogAction === 'approve'} onOpenChange={open => !open && closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approve Move-Up Request</DialogTitle>
-            <DialogDescription>
-              Move {selectedRequest?.dog?.call_name ?? selectedRequest?.dog?.name} from{' '}
-              {selectedRequest?.class?.name} to the selected class.
-            </DialogDescription>
-          </DialogHeader>
+      <MoveUpApproveDialog
+        key={pickerRequest?.id ?? 'closed'}
+        request={pickerRequest}
+        classes={classes}
+        classesError={classesError}
+        registryId={registryId}
+        isProcessing={isProcessing}
+        onApprove={targetClassId => void handlePickerApprove(targetClassId)}
+        onClose={() => setPickerRequest(null)}
+      />
 
-          <div className="space-y-4 py-4">
-            {(() => {
-              const targetOptions = selectedRequest
-                ? getAvailableTargetClasses(selectedRequest)
-                : [];
-
-              // The class-capacity read failed, so an empty target list means
-              // "we don't know", not "there is nowhere to move up to". Stating
-              // the domain conclusion here would have the secretary deny a
-              // legitimate request on the strength of data that never loaded.
-              if (classesError) {
-                return (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" aria-hidden />
-                    <AlertDescription>
-                      We couldn&rsquo;t load this show&rsquo;s classes, so we can&rsquo;t tell which
-                      ones <strong>{selectedRequest?.dog?.call_name ?? 'this dog'}</strong> could
-                      move up to. Retry from the move-up list before approving or denying.
-                    </AlertDescription>
-                  </Alert>
-                );
-              }
-
-              if (targetOptions.length === 0) {
-                return (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      No valid move-up target for <strong>{selectedRequest?.class?.name}</strong>. A
-                      move-up must be to a higher level within the same element, and this show has
-                      no higher class available.
-                    </AlertDescription>
-                  </Alert>
-                );
-              }
-
-              return (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Target Class</label>
-                  <Select value={targetClassId} onValueChange={setTargetClassId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select target class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {targetOptions.map(cls => (
-                        <SelectItem key={cls.id} value={cls.id}>
-                          <div className="flex items-center justify-between gap-4">
-                            <span>
-                              {cls.class_number && `#${cls.class_number} - `}
-                              {cls.name}
-                            </span>
-                            {hasConfiguredCapacity(cls) && (
-                              <Badge variant="outline" className="ml-2">
-                                {cls.available_spots} spots
-                              </Badge>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              );
-            })()}
-
-            {targetClassId && (
-              <Alert>
-                <Users className="h-4 w-4" />
-                <AlertDescription>
-                  {(() => {
-                    const targetClass = classes.find(c => c.id === targetClassId);
-                    if (!targetClass) return null;
-                    if (!hasConfiguredCapacity(targetClass)) {
-                      return (
-                        <>
-                          <strong>{targetClass.name}</strong> has{' '}
-                          <strong>{targetClass.accepted_count}</strong>{' '}
-                          {targetClass.accepted_count === 1 ? 'entry' : 'entries'} (no entry cap
-                          set)
-                        </>
-                      );
-                    }
-                    return (
-                      <>
-                        <strong>{targetClass.name}</strong> has{' '}
-                        <strong>{targetClass.available_spots}</strong> spots available (
-                        {targetClass.accepted_count}/{targetClass.max_entries} filled)
-                      </>
-                    );
-                  })()}
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button onClick={handleApprove} disabled={isProcessing || !targetClassId}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Approve Move-Up
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Deny Dialog */}
-      <Dialog open={dialogAction === 'deny'} onOpenChange={open => !open && closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deny Move-Up Request</DialogTitle>
-            <DialogDescription>
-              Deny the move-up request for{' '}
-              {selectedRequest?.dog?.call_name ?? selectedRequest?.dog?.name}. The exhibitor will be
-              notified.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Reason (optional)</label>
-              <Textarea
-                placeholder="Enter a reason for denying this request..."
-                value={denyReason}
-                onChange={e => setDenyReason(e.target.value)}
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeny} disabled={isProcessing}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <X className="h-4 w-4 mr-2" />
-                  Deny Request
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ClassChangeDeclineDialog
+        open={declineRequest !== null}
+        dogName={declineRequest ? dogLabel(declineRequest) : undefined}
+        reason={denyReason}
+        onReasonChange={setDenyReason}
+        isProcessing={isProcessing}
+        onConfirm={() => void handleDecline()}
+        onClose={() => {
+          setDeclineRequest(null);
+          setDenyReason('');
+        }}
+      />
     </div>
   );
 };

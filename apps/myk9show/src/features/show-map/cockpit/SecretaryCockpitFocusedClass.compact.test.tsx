@@ -14,6 +14,8 @@ import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpi
  * Checklist jumps to them. Below lg (pinMode none) the card keeps its full layout.
  */
 
+// The Requirements row reads the class replica; these tests do not exercise it.
+vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'user-1', email: 'secretary@example.com', user_metadata: {} },
@@ -48,7 +50,6 @@ const focused: FocusedClassModel = {
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [],
-  classWorkActions: [],
   entryRows: [],
   entries: [],
   entriesHidden: 0,

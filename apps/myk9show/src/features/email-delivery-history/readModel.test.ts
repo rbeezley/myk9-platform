@@ -63,6 +63,7 @@ describe('email delivery history read model', () => {
   it.each([
     ['registration_confirmation', 'Receipt'],
     ['heritage_confirmation', 'Full confirmation'],
+    ['show_reminder', 'Reminder'],
   ])('labels the exhibitor %s email as her own email names it (MYK9-1999)', (kind, label) => {
     const row = normalizeEmailDeliveryRow({
       id: `attempt-${kind}`,
@@ -78,6 +79,23 @@ describe('email delivery history read model', () => {
       failure_summary: null,
     });
     expect(row.typeLabel).toBe(label);
+  });
+
+  it('labels the automatic show-changed email by what happened to the show', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-3',
+      show_id: 'show-1',
+      source_kind: 'lifecycle',
+      lifecycle_step_type: 'show_changed',
+      related_id: 'job-1',
+      recipient_name: 'Ada Lovelace',
+      recipient_email: 'ada@example.com',
+      attempted_at: '2026-11-17T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'sent',
+      failure_summary: null,
+    });
+    expect(row.typeLabel).toBe('Date or venue changed');
   });
 
   it('routes failures to the existing owner surface', () => {

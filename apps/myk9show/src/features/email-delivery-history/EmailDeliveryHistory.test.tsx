@@ -1,16 +1,23 @@
 import { screen, waitFor } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EmailDeliveryHistory } from './EmailDeliveryHistory';
 import type { EmailDeliveryHistoryPage } from './api';
 
-const { mockFetch } = vi.hoisted(() => ({
+const { mockFetch, mockFetchContent } = vi.hoisted(() => ({
   mockFetch: vi.fn<(...args: never[]) => Promise<EmailDeliveryHistoryPage>>(),
+  mockFetchContent:
+    vi.fn<(...args: never[]) => Promise<{ subject: string; html: string } | null>>(),
 }));
 
 vi.mock('./api', async importOriginal => {
   const actual = await importOriginal<typeof import('./api')>();
-  return { ...actual, fetchShowEmailDeliveryHistory: mockFetch };
+  return {
+    ...actual,
+    fetchShowEmailDeliveryHistory: mockFetch,
+    fetchShowEmailContent: mockFetchContent,
+  };
 });
 
 const row = {
@@ -30,6 +37,7 @@ const row = {
 describe('EmailDeliveryHistory', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    mockFetchContent.mockReset();
   });
 
   it('renders truthful failure status and the existing recovery link', async () => {
@@ -75,5 +83,97 @@ describe('EmailDeliveryHistory', () => {
       await screen.findByText('Email delivery history isn’t available right now. Try again.')
     ).toBeInTheDocument();
     expect(screen.getByText('Delivery history')).toBeInTheDocument();
+  });
+
+  it('opens the stored email in an iframe with an empty sandbox', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockResolvedValue({ subject: 'Entry accepted', html: '<p>Welcome</p>' });
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    const frame = await screen.findByTitle('Email preview');
+    expect(frame).toHaveAttribute('sandbox', '');
+    expect(frame).toHaveAttribute('srcdoc', '<p>Welcome</p>');
+    expect(mockFetchContent).toHaveBeenCalledWith(
+      expect.objectContaining({ emailLogId: 'attempt-1' })
+    );
+  });
+
+  it('reads an attempt id with no email_log row as "not kept"', async () => {
+    mockFetch.mockResolvedValue({
+      rows: [{ ...row, id: 'attempt-only', source_kind: 'lifecycle', related_id: 'job-1' }],
+      nextCursor: null,
+    });
+    mockFetchContent.mockResolvedValue(null);
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(mockFetchContent).toHaveBeenCalledWith(
+      expect.objectContaining({ emailLogId: 'attempt-only' })
+    );
+    expect(await screen.findByText(/A copy of this email was not kept\./)).toBeInTheDocument();
+    expect(screen.queryByText(/don’t have access/)).not.toBeInTheDocument();
+  });
+
+  it('says so, with a retry, when the device is offline and the read is paused', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockResolvedValue({ subject: 'S', html: '<p>x</p>' });
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+    const viewButton = await screen.findByRole('button', { name: 'View email' });
+
+    onlineManager.setOnline(false);
+    try {
+      await user.click(viewButton);
+
+      expect(
+        await screen.findByText('You’re offline. Connect to open this email.')
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+      expect(screen.queryByText('Loading email…')).not.toBeInTheDocument();
+      expect(mockFetchContent).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('explains a permission error without offering a retry', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockRejectedValue(Object.assign(new Error('nope'), { code: '42501' }));
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(
+      await screen.findByText('You don’t have access to this show’s emails.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the generic message and a retry for any other error', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockRejectedValue(new Error('boom'));
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(await screen.findByText('This email isn’t available right now.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('says plainly when no copy of the email was kept', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockResolvedValue(null);
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(
+      await screen.findByText(
+        'A copy of this email was not kept. Emails sent after November 17, 2026 can be opened here.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByTitle('Email preview')).not.toBeInTheDocument();
   });
 });

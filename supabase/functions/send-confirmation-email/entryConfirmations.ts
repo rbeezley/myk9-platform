@@ -46,6 +46,8 @@ export interface ConfirmationTrial {
   date: string | null;
   timezone: string | null;
   registry_id: string | null;
+  /** The secretary's free-text start time for the day ("8:00 AM"); only the reminder prints it. */
+  planned_start_time?: string | null;
 }
 
 export interface ConfirmationShow {
@@ -85,6 +87,11 @@ export interface ConfirmationEntry {
   entry_fee: number | null;
   /** 'pending' never tried, 'failed' tried before (the missing-address log is written once). */
   confirmation_email_status?: string | null;
+  /** 'pending' never tried, 'failed' tried before (MYK9-2113: the reminder's own mark). */
+  reminder_email_status?: string | null;
+  /** The reminder's claim stamp and the row's last change (a failed attempt bumps updated_at). */
+  reminder_email_sent_at?: string | null;
+  updated_at?: string | null;
   dog: {
     name: string | null;
     call_name: string | null;
@@ -112,7 +119,7 @@ export interface ConfirmationGroup {
 export type ConfirmationScope = 'new' | 'all';
 
 /** The calendar date (YYYY-MM-DD) in a time zone. */
-function dateInZone(now: Date, timeZone: string): string {
+export function dateInZone(now: Date, timeZone: string): string {
   try {
     return new Intl.DateTimeFormat('en-CA', { timeZone }).format(now);
   } catch {
@@ -268,6 +275,8 @@ export function buildConfirmationEmailData(args: {
   judgeByClass: ReadonlyMap<string, string>;
   confirmationNumber: string | null;
   siteUrl: string | null | undefined;
+  /** The reminder prints each day's start time when the trial has one; the confirmation never does. */
+  includeStartTimes?: boolean;
 }): HeritageEmailData {
   const { show, judgeByClass } = args;
   const registry = showRegistry(show);
@@ -281,9 +290,11 @@ export function buildConfirmationEmailData(args: {
     const classLabel =
       [entry.class?.level, entry.class?.element ?? entry.class?.name].filter(Boolean).join(' · ') ||
       'Class';
+    const startTime = args.includeStartTimes ? trial?.planned_start_time?.trim() : '';
+    const day = formatTrialDay(trial?.date ?? null);
     const run: RunRow = {
       numeral: (entry.trial_id && numerals.get(entry.trial_id)) || 'Trial',
-      dayLabel: formatTrialDay(trial?.date ?? null),
+      dayLabel: startTime ? `${day} · ${startTime}` : day,
       classLabel: severalDogs ? `${dogLabel(entry)}: ${classLabel}` : classLabel,
       judgeName: (entry.class_id && judgeByClass.get(entry.class_id)) || 'To be announced',
       armband: entry.armband,

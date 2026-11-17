@@ -101,6 +101,8 @@ export interface ReplicatedClass {
   timeLimitSeconds?: number | undefined;
   timeLimitArea2Seconds?: number | undefined;
   timeLimitArea3Seconds?: number | undefined;
+  /** MYK9-2120: when a time limit last changed; stamped by the server, read-only here. */
+  timeLimitSetAt?: string | null | undefined;
   judgeName?: string | undefined;
   judgeId?: string | undefined;
   judgeFirstName?: string | undefined;
@@ -263,6 +265,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
     timeLimitArea3Seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,
+    timeLimitSetAt: (dbRow.time_limit_set_at as string | null | undefined) ?? null,
     judgeName: judge.name,
     judgeId: judge.personId,
     judgeFirstName: judge.firstName,
@@ -462,6 +465,12 @@ type EnrichedClassRow = ClassRow & {
 // undefined while this module first evaluates.
 const classReplicationSelect = () =>
   `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`;
+
+const TIME_LIMIT_KEYS = [
+  'timeLimitSeconds',
+  'timeLimitArea2Seconds',
+  'timeLimitArea3Seconds',
+] as const;
 
 export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   /** Most recent mutation ID from a create/update operation */
@@ -1047,6 +1056,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
+    // MYK9-2120: the server stamps when a limit was set; a local change to one must not sit
+    // beside the old stamp, so it reads as unknown until the server's stamp syncs back.
+    if (TIME_LIMIT_KEYS.some(key => key in updates && updates[key] !== currentClass[key])) {
+      updatedClass.timeLimitSetAt = null;
+    }
 
     // Intent-aware: the merged row always carries defined server-owned values, so
     // strip the ones this mutation didn't explicitly set before queueing — see

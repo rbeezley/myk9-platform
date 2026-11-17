@@ -70,6 +70,7 @@ BEGIN
     ('dogs','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('entry_form_notes','SELECT,INSERT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('email_log','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('email_log_contents','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('enrollments','SELECT,INSERT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('entries','INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('entry_cart_items','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -250,7 +251,7 @@ BEGIN
       'chatbot_feedback','chatbot_query_log',
       'class_visibility_overrides','classes','club_access_requests','club_committee_members','club_members','club_membership_requests',
       'club_officers','club_premium_templates','club_registry_numbers','club_stripe_accounts','clubs','dog_favorites',
-      'dog_registrations','dogs','email_log','enrollments','entries','entry_cart_items',
+      'dog_registrations','dogs','email_log','email_log_contents','enrollments','entries','entry_cart_items',
       'entry_carts','entry_form_notes','entry_payment_links','entry_score_audit','entry_status_history','entry_submissions',
       'exhibitor_profiles','fcm_tokens','frontend_logs','genetic_screenings','health_records',
       'judge_assignments','judge_availability','judge_certifications','judge_qualifications',
@@ -339,7 +340,8 @@ BEGIN
       -- anon stays 51.
       -- authenticated 59 -> 60: status_before_close (20261114194300, MYK9-1945); anon stays 51.
       -- authenticated 60 -> 61: scores_on_paper (20261114205300, MYK9-1969); anon stays 51.
-      ('classes','authenticated',61),
+      -- authenticated 61 -> 62: time_limit_set_at (20261117083700, MYK9-2120); anon stays 51.
+      ('classes','authenticated',62),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same

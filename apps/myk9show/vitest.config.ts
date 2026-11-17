@@ -59,6 +59,7 @@ export default defineConfig({
       '../../supabase/functions/_shared/http/__tests__/cors.test.ts',
       '../../supabase/functions/_shared/standardWebhookSignature.test.ts',
       '../../supabase/functions/_shared/emailLog.test.ts',
+      '../../supabase/functions/_shared/emailLogContent.test.ts',
       '../../supabase/functions/_shared/resendEmail.test.ts',
       '../../supabase/functions/_shared/authEmailFailure.test.ts',
       '../../supabase/functions/send-auth-email/delivery.test.ts',
@@ -74,6 +75,8 @@ export default defineConfig({
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.retries.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.lease.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-autoSend.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-route.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
       '../../supabase/functions/send-email/recipientResolution.test.ts',
@@ -101,6 +104,7 @@ export default defineConfig({
       '../../supabase/functions/send-targeted-message/person-target.test.ts',
       '../../supabase/functions/send-targeted-message/audience-pagination.test.ts',
       '../../supabase/functions/deliver-trial-packet/*.test.ts',
+      '../../supabase/functions/send-judge-record/*.test.ts',
       // Trial-packet delivery moved out of the function directory so the
       // automated generator shares it; the glob above no longer reaches it.
       '../../supabase/functions/_shared/trialPacket/*.test.ts',

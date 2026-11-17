@@ -74,8 +74,9 @@ begin
   perform public.ensure_show_lifecycle_email_steps('00000000-0000-0000-0000-000001162302');
   select count(*) into v_count from public.show_lifecycle_email_steps
    where show_id = '00000000-0000-0000-0000-000001162302';
-  if v_count <> 6 then
-    raise exception 'FAIL C expected 6 steps after the backfill path, found %', v_count;
+  -- Seven since MYK9-2124 added show_changed.
+  if v_count <> 7 then
+    raise exception 'FAIL C expected 7 steps after the backfill path, found %', v_count;
   end if;
   raise notice 'PASS C the ensure function backfills the step and is idempotent';
 end $$;

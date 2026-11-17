@@ -33,15 +33,19 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   day_before_reminder: 'Day-before reminder',
   results_available: 'Results available',
   registration_number_needed: 'Registration number needed',
+  show_changed: 'Date or venue changed',
 };
 
-// Reminder/results batches remain deferred until a producer exists (MYK9-318;
-// follow-up tracked with the producer work in MYK9-228). Showing their controls
-// would imply that enabling them schedules work that currently cannot be created.
+// The reminder batches remain deferred until a producer exists (MYK9-318; follow-up tracked
+// with the producer work in MYK9-228). Showing their controls would imply that enabling them
+// schedules work that currently cannot be created. Results available has one: the database
+// queues each exhibitor's email when the show's last class is released (MYK9-2076).
 const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'accepted',
   'waitlisted',
+  'results_available',
   'registration_number_needed',
+  'show_changed',
 ]);
 
 // Sent one at a time from the Registration number needed list, never as a batch: the toggle
@@ -49,6 +53,10 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
 const SEND_ON_DEMAND_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'registration_number_needed',
 ]);
+
+// Sent by the server itself a few quiet minutes after the change (MYK9-2124): the toggle stays,
+// there is nothing to review.
+const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>(['show_changed']);
 
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
 
@@ -137,7 +145,9 @@ function ScheduledEmailStepRow({
   const warningLabel = step.warningCount > 0 ? `${step.warningCount} warning` : null;
   const countLabel = [readyLabel, sentLabel, failedLabel, warningLabel].filter(Boolean).join(' · ');
   const hasReviewableJobs =
-    !SEND_ON_DEMAND_STEP_TYPES.has(step.stepType) && (step.readyCount > 0 || step.failedCount > 0);
+    !SEND_ON_DEMAND_STEP_TYPES.has(step.stepType) &&
+    !AUTOMATIC_STEP_TYPES.has(step.stepType) &&
+    (step.readyCount > 0 || step.failedCount > 0);
 
   return (
     <div className="rounded-md border border-border/70 px-3 py-2">

@@ -179,13 +179,27 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
       };
     case 'results_available':
       return {
-        subject: `Results available - ${showName}`,
+        subject: `Results from ${showName} are ready`,
         body: joinLines([
           greeting,
           '',
-          `Results for ${showName} are available.`,
-          input.resultsUrl ? `View results: ${input.resultsUrl}` : null,
+          `Results from ${showName} are ready.`,
+          '',
+          input.resultsUrl ? `View your results: ${input.resultsUrl}` : null,
+          '',
           'Please contact the show secretary with questions.',
+        ]),
+      };
+    // MYK9-2124: the server writes and sends this one itself, from the show's data at send
+    // time (send-lifecycle-email, lifecycle-email-showChanged.ts); no screen drafts it.
+    case 'show_changed':
+      return {
+        subject: `Update to ${showName}`,
+        body: joinLines([
+          greeting,
+          '',
+          `The date or venue for ${showName} has changed. Here is what it is now.`,
+          showLine,
         ]),
       };
     case 'registration_number_needed': {

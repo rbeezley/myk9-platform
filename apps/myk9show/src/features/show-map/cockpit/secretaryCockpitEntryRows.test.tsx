@@ -119,7 +119,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
   });
 
   it('does not surface actions that already have a home elsewhere', () => {
-    // check-in and edit-score live on SecretaryRunSheet. Re-homing them here would duplicate live surfaces.
+    // check-in and edit-score live in the focused class panel. Re-homing them here would duplicate live surfaces.
     const { snapshot } = buildSnapshot();
     const ids = snapshot.classes.flatMap(c => c.entryRows.flatMap(r => r.actions.map(a => a.id)));
 

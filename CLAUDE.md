@@ -146,7 +146,7 @@ One confirmation covers related pushes in a session; re-confirm for a new system
 
 ## Debugging seed-data / config bugs
 
-Survey every related table in one query pass before writing a migration or code fix (role, permission/config and join/link tables). The full recipe, when to collapse the systematic-debugging ceremony, and when `incident-triage` applies instead, is `docs/PLAYBOOK.md` § 3.
+Survey every related table in one query pass before writing a migration or code fix (role, permission/config and join/link tables). The full recipe, when to collapse the root-cause ceremony, and when `incident-triage` applies instead, is `docs/PLAYBOOK.md` § 3.
 
 ## Planning
 

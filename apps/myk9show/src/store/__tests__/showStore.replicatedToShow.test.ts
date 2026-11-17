@@ -29,6 +29,21 @@ describe('replicatedToShow — isNationals', () => {
   });
 });
 
+describe('replicatedToShow — confirmationMessage (MYK9-2114)', () => {
+  it('carries the note to exhibitors onto the Show', () => {
+    expect(
+      replicatedToShow({ ...baseRow, confirmationMessage: 'Park in the north lot.' })
+        .confirmationMessage
+    ).toBe('Park in the north lot.');
+  });
+
+  it('leaves it unset when the show has none', () => {
+    expect(replicatedToShow({ ...baseRow, confirmationMessage: null }).confirmationMessage).toBe(
+      undefined
+    );
+  });
+});
+
 describe('areAssignedJudgesEqual', () => {
   it('detects assigned class membership changes for the same judge', () => {
     expect(

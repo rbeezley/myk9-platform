@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { render } from '@/test/utils/testUtils';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -47,8 +48,20 @@ const SHOW_ROWS = [
   row('empty', 'no-dogs'),
 ];
 
-function renderList(rows: ResultsClassRow[], trials: SyncableTrial[]) {
-  render(<ResultsFinishRow showId="show-1" trials={trials} rows={rows} />);
+function renderList(
+  rows: ResultsClassRow[],
+  trials: SyncableTrial[],
+  entries: SecretaryEntry[] = []
+) {
+  render(
+    <ResultsFinishRow
+      showId="show-1"
+      trials={trials}
+      rows={rows}
+      entries={entries}
+      entriesTrusted
+    />
+  );
   return within(screen.getByRole('region', { name: 'Finish the show' }));
 }
 
@@ -159,6 +172,8 @@ describe('ResultsFinishRow', () => {
         showId="show-1"
         trials={[first, second]}
         rows={SHOW_ROWS}
+        entries={[]}
+        entriesTrusted
         onOpenAfterShow={onOpen}
       />
     );
@@ -175,10 +190,68 @@ describe('ResultsFinishRow', () => {
         showId="show-1"
         trials={[trialFor('AKC')]}
         rows={SHOW_ROWS}
+        entries={[]}
+        entriesTrusted
         onOpenAfterShow={vi.fn()}
       />
     );
 
     expect(screen.getByRole('button', { name: 'After-show packet' })).toBeInTheDocument();
+  });
+
+  it('lists dogs sharing a handler in a class and drops the line once one is changed (MYK9-2031)', () => {
+    const entry = (id: string, classId: string, handlerId: string) =>
+      fromAny<SecretaryEntry, unknown>({
+        id,
+        class_id: classId,
+        handler_id: handlerId,
+        entry_status: 'confirmed',
+      });
+    const clash = [entry('e1', 'open-1', 'p1'), entry('e2', 'open-1', 'p1')];
+    const { unmount } = render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        entries={clash}
+        entriesTrusted
+      />
+    );
+    const link = screen.getByRole('link', {
+      name: '2 dogs have the same handler as another dog in their class. Choose who handles each before printing the marked catalog.',
+    });
+    expect(link).toHaveAttribute('href', '/shows/show-1/entries?class=open-1');
+    unmount();
+
+    const list = renderList(
+      SHOW_ROWS,
+      [trialFor('AKC')],
+      [entry('e1', 'open-1', 'p1'), entry('e2', 'open-1', 'p2')]
+    );
+    expect(list.queryByText(/share a handler/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about handlers while the entries read is stale or lacks handler_id (MYK9-2031)', () => {
+    const entry = (id: string, handlerId?: string) =>
+      fromAny<SecretaryEntry, unknown>({
+        id,
+        class_id: 'open-1',
+        entry_status: 'confirmed',
+        ...(handlerId ? { handler_id: handlerId } : {}),
+      });
+    const { unmount } = render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        entries={[entry('e1', 'p1'), entry('e2', 'p1')]}
+        entriesTrusted={false}
+      />
+    );
+    expect(screen.queryByText(/share a handler/)).not.toBeInTheDocument();
+    unmount();
+
+    renderList(SHOW_ROWS, [trialFor('AKC')], [entry('e1', 'p1'), entry('e2')]);
+    expect(screen.queryByText(/share a handler/)).not.toBeInTheDocument();
   });
 });

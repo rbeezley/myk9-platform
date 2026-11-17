@@ -2,15 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
 
 describe('buildClassDetailsRelatedLinks', () => {
-  it('returns both links for staff with all IDs loaded', () => {
+  it('returns Open on Show Desk first, on the class day, then the other links for staff', () => {
     const links = buildClassDetailsRelatedLinks({
       isStaff: true,
       showId: 'show-1',
       trialId: 'trial-1',
       classId: 'class-1',
+      classDay: '2026-07-20',
     });
 
     expect(links).toEqual([
+      {
+        key: 'show-desk',
+        label: 'Open on Show Desk',
+        href: '/shows/show-1?day=2026-07-20&focus=class-1',
+      },
       {
         key: 'class-management',
         label: 'Select classes',
@@ -55,6 +61,7 @@ describe('buildClassDetailsRelatedLinks', () => {
     });
 
     expect(links).toEqual([
+      { key: 'show-desk', label: 'Open on Show Desk', href: '/shows/show-1' },
       {
         key: 'class-management',
         label: 'Select classes',

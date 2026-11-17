@@ -26,6 +26,8 @@ export interface JudgeRecord {
   /** `judge key | day`: one record per judge per day. */
   key: string;
   judgeKey: string;
+  /** The judge's person id, or "" when the class carries none (then the record can only be saved). */
+  judgeId: string;
   judgeName: string;
   registryId: string;
   /** `YYYY-MM-DD`. */
@@ -84,6 +86,7 @@ export function buildJudgeRecords(input: {
     records.push({
       key,
       judgeKey: review.key,
+      judgeId: first.judgeId.trim(),
       judgeName: review.judgeName,
       registryId: review.registryId,
       day: first.trialDate,

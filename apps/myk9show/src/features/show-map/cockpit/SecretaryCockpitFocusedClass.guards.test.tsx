@@ -12,6 +12,8 @@ import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
 import { queueFor } from './__tests__/queueFixture';
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
 
+// The Requirements row reads the class replica; these tests do not exercise it.
+vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'user-1', email: 'secretary@example.com' },
@@ -69,7 +71,6 @@ const focusedClass = (id: string, name: string, overrides: Partial<FocusedClassM
     actualStart: { evidence: 'unknown', value: null },
     actualFinish: { evidence: 'unknown', value: null },
     paperwork: [],
-    classWorkActions: [],
     entryRows: [],
     entries: [
       {

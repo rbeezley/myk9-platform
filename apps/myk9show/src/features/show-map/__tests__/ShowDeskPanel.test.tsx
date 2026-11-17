@@ -9,6 +9,8 @@ import type { Show } from '@/types/show-types';
 
 import ShowDeskPanel from '../ShowDeskPanel';
 
+// The Requirements row reads the class replica; these tests do not exercise it.
+vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
   createDatabaseError,
@@ -120,7 +122,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
   });
 
-  it('writes focus and anchor into owner-page return links (All days leaves day unset)', async () => {
+  it('writes focus and anchor into the scoring return link (All days leaves day unset)', async () => {
     const { user } = render(
       <ShowDeskPanel
         show={show}
@@ -137,11 +139,9 @@ describe('ShowDeskPanel cockpit', () => {
     );
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for/ }))[0]!);
-    const entriesLink = await screen.findAllByRole('menuitem', {
-      name: /view entries and results/i,
-    });
-    expect(decodeURIComponent(entriesLink[0]?.getAttribute('href') ?? '')).toContain(
-      'returnTo=/shows/show-1/show-day?focus=class-2&anchor=class-2'
+    const scoreLink = await screen.findAllByRole('menuitem', { name: /score this class/i });
+    expect(decodeURIComponent(scoreLink[0]?.getAttribute('href') ?? '')).toContain(
+      'returnTo=/shows/show-1?focus=class-2'
     );
   });
 
@@ -435,9 +435,9 @@ describe('ShowDeskPanel cockpit', () => {
     );
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for/ }))[0]!);
-    expect(
-      (await screen.findAllByRole('menuitem', { name: /view entries and results/i }))[0]
-    ).toHaveAttribute('href', expect.stringContaining('/trials/trial-1/classes/class-1'));
+    // MYK9-2119: a class is run on Show Desk, so its menu has no door to the class page.
+    expect(await screen.findByRole('menuitem', { name: /score this class/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /view entries and results/i })).toBeNull();
     // MYK9-1796: scoresheet entry, class reports and class entries are the step bar's and the
     // entries table's now, not Class work links.
     expect(screen.queryByRole('link', { name: /enter results from scoresheet/i })).toBeNull();

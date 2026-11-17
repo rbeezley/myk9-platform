@@ -1,95 +1,29 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Building2, CheckCircle2, Search, UserRound } from 'lucide-react';
+import { ArrowLeft, Building2, Search, UserRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
-import { submitNewClubAccessRequest } from '@/services/database/club-access-requests';
-import { normalizeWebsiteUrl } from '@/lib/validation';
 import type { Club } from '@/types/club-types';
 import { ExistingClubRequestPanel } from '@/features/club-requests/ExistingClubRequestPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 import { PageShell } from '@/components/common/PageShell';
-import { ClubNumberFields } from '@/components/clubs/ClubNumberFields';
 import {
-  CLUB_NUMBER_REQUIRED_MESSAGE,
-  EMPTY_CLUB_REGISTRY_NUMBER_INPUTS,
-  hasClubRegistryNumber,
-  normalizeClubRegistryNumbers,
-  type ClubRegistryNumberInputs,
-} from '@/utils/clubRegistryNumbers';
+  ADD_YOUR_CLUB_PATH,
+  ADD_YOUR_CLUB_PROMPT,
+} from '@/components/landing/lifecycle/landingCtas';
 
-type AccessPath = 'new-club' | 'existing-club';
-
+// MYK9-2048: a new club is asked for in one place, the home page form. This page keeps
+// only the search for joining a club that is already on myK9Show.
 const RequestAccessPage: React.FC = () => {
-  const [path, setPath] = useState<AccessPath | null>(null);
+  const [findingClub, setFindingClub] = useState(false);
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
-  const [clubName, setClubName] = useState('');
-  const [website, setWebsite] = useState('');
-  const [note, setNote] = useState('');
-  const [clubNumbers, setClubNumbers] = useState<ClubRegistryNumberInputs>(
-    EMPTY_CLUB_REGISTRY_NUMBER_INPUTS
-  );
-  const [clubNumberError, setClubNumberError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const normalizedWebsite = normalizeWebsiteUrl(website);
-  const errors: Record<string, string> = {};
-  if (!clubName.trim()) errors['requested-club-name'] = 'Enter the club name.';
-  if (!normalizedWebsite.valid) {
-    errors['requested-club-website'] =
-      'Enter a valid website, like example.com or https://example.com.';
-  }
-  const { shown, fail } = useSubmitFieldErrors(errors);
   const { filteredClubs, filters, setFilters, isLoading, hasError, handleRetry } =
     useBrowseClubsData();
 
   const reset = () => {
-    setPath(null);
+    setFindingClub(false);
     setSelectedClub(null);
-    setError(null);
-    setSubmitted(false);
-  };
-
-  const handleWebsiteBlur = () => {
-    const normalized = normalizeWebsiteUrl(website);
-    if (normalized.valid) {
-      setWebsite(normalized.value);
-    }
-  };
-
-  const submitNewClub = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedName = clubName.trim();
-    const numbersMissing = !hasClubRegistryNumber(clubNumbers);
-    setClubNumberError(numbersMissing ? CLUB_NUMBER_REQUIRED_MESSAGE : null);
-    setError(null);
-    if (fail()) return;
-    if (numbersMissing || !normalizedWebsite.valid) {
-      document.getElementById('requested-club-akc-number')?.focus();
-      return;
-    }
-    setWebsite(normalizedWebsite.value);
-
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await submitNewClubAccessRequest({
-        clubName: trimmedName,
-        website: normalizedWebsite.value,
-        note: note.trim(),
-        clubNumbers: normalizeClubRegistryNumbers(clubNumbers),
-      });
-      setSubmitted(true);
-    } catch {
-      setError("We couldn't send your request. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -110,7 +44,7 @@ const RequestAccessPage: React.FC = () => {
           </p>
         </div>
 
-        {!path && (
+        {!findingClub && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Card>
               <CardHeader>
@@ -121,8 +55,8 @@ const RequestAccessPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button className="min-h-11 w-full" onClick={() => setPath('new-club')}>
-                  Request a new club
+                <Button asChild className="min-h-11 w-full">
+                  <Link to={ADD_YOUR_CLUB_PATH}>Add your club</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -139,7 +73,7 @@ const RequestAccessPage: React.FC = () => {
                 <Button
                   variant="outline"
                   className="min-h-11 w-full"
-                  onClick={() => setPath('existing-club')}
+                  onClick={() => setFindingClub(true)}
                 >
                   Find an existing club
                 </Button>
@@ -148,103 +82,7 @@ const RequestAccessPage: React.FC = () => {
           </div>
         )}
 
-        {path === 'new-club' && !submitted && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Set up a new club</CardTitle>
-              <CardDescription>
-                Send us the club name and its AKC, UKC or ASCA club number. We will review the
-                request and help finish the setup. This request does not grant access immediately.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="space-y-5" onSubmit={submitNewClub} noValidate>
-                <div className="space-y-2">
-                  <Label htmlFor="requested-club-name">Club name</Label>
-                  <Input
-                    id="requested-club-name"
-                    value={clubName}
-                    onChange={event => setClubName(event.target.value)}
-                    placeholder="Example: Heartland Dog Club"
-                    required
-                    {...fieldErrorControlProps('requested-club-name', shown['requested-club-name'])}
-                  />
-                  <FieldError field="requested-club-name" message={shown['requested-club-name']} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="requested-club-website">Club website (optional)</Label>
-                  <Input
-                    id="requested-club-website"
-                    type="url"
-                    value={website}
-                    onChange={event => setWebsite(event.target.value)}
-                    onBlur={handleWebsiteBlur}
-                    placeholder="https://"
-                    {...fieldErrorControlProps(
-                      'requested-club-website',
-                      shown['requested-club-website']
-                    )}
-                  />
-                  <FieldError
-                    field="requested-club-website"
-                    message={shown['requested-club-website']}
-                  />
-                </div>
-                <ClubNumberFields
-                  values={clubNumbers}
-                  idFor={org => `requested-club-${org.toLowerCase()}-number`}
-                  onChange={(org, value) => {
-                    setClubNumbers(previous => ({ ...previous, [org]: value }));
-                    setClubNumberError(null);
-                  }}
-                  error={clubNumberError}
-                  disabled={isSubmitting}
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="requested-club-note">Message (optional)</Label>
-                  <Textarea
-                    id="requested-club-note"
-                    value={note}
-                    onChange={event => setNote(event.target.value)}
-                    placeholder="Tell us how you will use myK9Show."
-                    rows={4}
-                  />
-                </div>
-                {error && (
-                  <p className="text-sm text-destructive" role="alert">
-                    {error}
-                  </p>
-                )}
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button type="submit" className="min-h-11" disabled={isSubmitting}>
-                    {isSubmitting ? 'Sending request…' : 'Send request'}
-                  </Button>
-                  <Button type="button" variant="outline" className="min-h-11" onClick={reset}>
-                    Back
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {path === 'new-club' && submitted && (
-          <Card>
-            <CardContent className="space-y-4 py-8 text-center">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-              <h2 className="text-xl font-semibold">Request sent</h2>
-              <p className="text-base text-muted-foreground">
-                We received your club request. We will review it and contact you using the email on
-                your account.
-              </p>
-              <Button asChild className="min-h-11">
-                <Link to="/exhibitor/entries">Return to My Shows</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {path === 'existing-club' && (
+        {findingClub && (
           <Card>
             <CardHeader>
               <CardTitle>{selectedClub ? selectedClub.name : 'Find your club'}</CardTitle>
@@ -283,8 +121,13 @@ const RequestAccessPage: React.FC = () => {
                     filters.search.trim().length >= 2 &&
                     filteredClubs.length === 0 && (
                       <p className="text-sm text-muted-foreground">
-                        We couldn&apos;t find that club. If it is new to myK9Show, go back and
-                        choose “Set up a new club.”
+                        We couldn&apos;t find that club.{' '}
+                        <Link
+                          to={ADD_YOUR_CLUB_PATH}
+                          className="inline-flex min-h-11 items-center font-medium text-primary hover:underline"
+                        >
+                          {ADD_YOUR_CLUB_PROMPT}
+                        </Link>
                       </p>
                     )}
                   {filters.search.trim().length >= 2 && (

@@ -14,16 +14,25 @@ import {
 } from './judgeRecord';
 import type { ReviewEntryInfo } from './judgeReview';
 import { ScoreHistoryNotice } from './ScoreHistoryNotice';
+import {
+  JudgeRecordEmailButton,
+  JudgeRecordEmailStatus,
+  useJudgeRecordEmail,
+} from './useJudgeRecordEmail';
 import { useJudgeCorrections } from './useJudgeCorrections';
 import { useKeyedPdfs } from './useKeyedPdfs';
 import { packetFileName, plural, savePacketPdf, usePacketFrame } from './usePacketFrame';
 
 /**
- * The judge's record (MYK9-1924 phase 2b): one judge, one day. Print it or save it as a
- * PDF to pass on. Nothing here blocks: a note sits beside a working button, and the record builds
- * offline (a score history that cannot be read only leaves the changed-score marks off).
+ * The judge's record (MYK9-1924 phase 2b): one judge, one day. Print it, save it as a PDF, or
+ * email it to the judge (MYK9-1977). The email goes to the address the server reads from the
+ * judge's class assignment; this panel shows that address and when it last went out, and cannot
+ * change either. A judge with no email gets the PDF to pass on. Nothing here blocks: a note sits
+ * beside a working button, and the record builds offline (a score history that cannot be read only
+ * leaves the changed-score marks off; the email needs a connection and says so when it cannot).
  */
 export function JudgeRecordPanelBody({
+  showId,
   rows,
   entries,
   showName,
@@ -31,6 +40,7 @@ export function JudgeRecordPanelBody({
   judgeKey,
   day,
 }: {
+  showId: string;
   rows: readonly ResultsClassRow[];
   entries: readonly ReviewEntryInfo[];
   showName: string;
@@ -54,6 +64,7 @@ export function JudgeRecordPanelBody({
   });
   const bytes = pdfs.status === 'ready' && record ? (pdfs.byKey.get(record.key) ?? null) : null;
   const { frameRef, frameReady } = usePacketFrame(bytes);
+  const email = useJudgeRecordEmail({ showId, judgeId: record?.judgeId ?? '', day, bytes });
 
   const [printing, setPrinting] = useState(false);
 
@@ -119,6 +130,7 @@ export function JudgeRecordPanelBody({
           </Button>
         </div>
       )}
+      <JudgeRecordEmailStatus email={email} judgeName={record.judgeName} timeZone={timeZone} />
       <iframe
         ref={frameRef}
         title="Packet preview"
@@ -154,6 +166,7 @@ export function JudgeRecordPanelBody({
           <Download className="mr-2 h-4 w-4" aria-hidden="true" />
           Save as PDF
         </Button>
+        <JudgeRecordEmailButton email={email} ready={Boolean(bytes)} />
       </div>
     </div>
   );

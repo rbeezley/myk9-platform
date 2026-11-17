@@ -78,7 +78,7 @@ describe('ScheduledLifecycleEmailsPanel', () => {
         {
           stepType: 'results_available',
           isEnabled: true,
-          readyCount: 1,
+          readyCount: 0,
           sentCount: 0,
           failedCount: 0,
           skippedCount: 0,
@@ -110,7 +110,7 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     mockUpdateStep.mockResolvedValue(undefined);
   });
 
-  it('renders producer-backed entry decision steps and hides inert scheduled steps', async () => {
+  it('renders producer-backed steps, including Results available, and hides inert scheduled steps', async () => {
     render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
 
     expect(await screen.findByText('Accepted entries')).toBeInTheDocument();
@@ -118,8 +118,35 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     expect(screen.getByText('3 ready · 2 sent · 1 failed · 1 warning')).toBeInTheDocument();
     expect(screen.queryByText('Two-week reminder')).not.toBeInTheDocument();
     expect(screen.queryByText('Day-before reminder')).not.toBeInTheDocument();
-    expect(screen.queryByText('Results available')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(2);
+    expect(screen.getByText('Results available')).toBeInTheDocument();
+    expect(screen.getAllByRole('switch')).toHaveLength(3);
+  });
+
+  it('offers Review for Results available when the database has queued exhibitors', async () => {
+    mockFetchSummary.mockResolvedValue({
+      steps: [
+        {
+          stepType: 'results_available',
+          isEnabled: true,
+          readyCount: 2,
+          sentCount: 0,
+          failedCount: 0,
+          skippedCount: 0,
+          dismissedCount: 0,
+          warningCount: 0,
+        },
+      ],
+      receipts: { sentCount: 0, failedCount: 0, latestSentAtByRegistrationId: {} },
+    });
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    expect(await screen.findByText('Results available')).toBeInTheDocument();
+    expect(screen.getByText('2 ready')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+
+    expect(mockFetchJobs).toHaveBeenCalledWith(
+      expect.objectContaining({ showId: 'show-1', stepType: 'results_available' })
+    );
   });
 
   it('only updates a visible producer-backed step', async () => {
@@ -159,7 +186,7 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
 
     expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(3);
+    expect(screen.getAllByRole('switch')).toHaveLength(4);
     // Send-on-demand: the other steps (accepted: ready + failed jobs) offer Review, this one
     // never does, even with ready and failed jobs of its own.
     expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(1);

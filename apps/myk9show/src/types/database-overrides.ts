@@ -154,6 +154,18 @@ type UpdateShowStyle = {
 };
 
 /**
+ * MYK9-2115: the text of one sent show email. Returns no row when no copy was kept (emails sent
+ * before copies were stored). Raises 42501 unless the caller can see that show's delivery history.
+ * Added by hand until the committed generated types are regenerated after the migration is pushed.
+ */
+type ShowEmailContentFunctions = {
+  get_show_email_content: {
+    Args: { p_email_log_id: string };
+    Returns: { subject: string; html: string }[];
+  };
+};
+
+/**
  * Club membership requests (MYK9-685) —
  * `supabase/migrations/20260924213100_myk9_685_club_membership_requests.sql`.
  * Hand-declared until the next `supabase gen types` picks them up, the same way
@@ -269,6 +281,12 @@ type CountLiveWaitlistEntries = {
   Returns: number;
 };
 
+/** MYK9-2080 (`20261117051700`): the caller's RLS-scoped count of one show's paperwork prints. */
+type CountPaperworkPrints = {
+  Args: { p_show_id: string };
+  Returns: number;
+};
+
 /**
  * CRUD standard Phase 2 (`20261001233700`): `delete_preview(p_scope, p_id)`, the
  * counts and blockers the shared delete dialog reads before Delete is enabled.
@@ -295,7 +313,9 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'get_secretary_live_entry_count'
       | 'get_show_entry_counts'
       | 'count_live_waitlist_entries'
+      | 'count_paperwork_prints'
       | keyof ClubMembershipRequestFunctions
+      | keyof ShowEmailContentFunctions
       | keyof DeletePreviewFunctions
     > & {
       withdraw_own_entry: WithdrawOwnEntry;
@@ -307,9 +327,11 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       get_secretary_live_entry_count: GetSecretaryLiveEntryCount;
       get_show_entry_counts: GetShowEntryCounts;
       count_live_waitlist_entries: CountLiveWaitlistEntries;
+      count_paperwork_prints: CountPaperworkPrints;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions &
+      ShowEmailContentFunctions &
       DeletePreviewFunctions;
   };
 };

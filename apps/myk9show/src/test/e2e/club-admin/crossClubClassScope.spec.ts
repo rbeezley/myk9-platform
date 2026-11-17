@@ -18,10 +18,10 @@ import { TEST_USERS, signInAsSecretary, signInAsTestUser } from '../helpers/test
  * the answer:
  *
  *   canManage  — class lifecycle controls. A club admin of the owning club HAS this.
- *   canOperate — the show-day operational surface (run sheet, show-wide entry
- *                read). A club admin does NOT; a scoped secretary does.
+ *   canOperate — the show-day operational door (the Show Desk link, show-wide
+ *                entry read). A club admin does NOT; a scoped secretary does.
  *
- * Collapsing them silently granted club admins the run sheet (caught by the
+ * Collapsing them silently granted club admins the operational surface (caught by the
  * Codex gate on #2183). These are the real-viewer proof it stayed fixed.
  *
  * COVERAGE SPLIT. The secretary cases run today. The club-admin cases need
@@ -46,8 +46,12 @@ const OTHER_CLUB_CLASS =
   '/trials/dededede-0000-0000-0000-000000000027' +
   '/classes/dec1a55e-0000-0000-0000-000000000046';
 
-const runSheet = (page: Page) => page.getByTestId('secretary-run-sheet');
-/** The non-staff surface. ClassDetailsPage renders exactly one of these two. */
+/**
+ * The operational door. Staff run a class on Show Desk (MYK9-2119), so the class page offers only
+ * show-day staff this link; the page itself is the same read-only view for everyone.
+ */
+const showDeskLink = (page: Page) => page.getByRole('link', { name: 'Open on Show Desk' });
+/** The class page body, rendered for every viewer. */
 const nonStaffSurface = (page: Page) => page.getByTestId('class-details-main');
 const editButton = (page: Page) => page.getByRole('button', { name: /^edit$/i });
 
@@ -60,35 +64,33 @@ async function openClass(page: Page, path: string) {
 /**
  * Settle on the NON-STAFF surface before asserting the staff one is absent.
  *
- * Waiting on a heading is not enough: the run sheet renders after entries load,
- * so `toHaveCount(0)` run too early reports "absent" for a surface that is
- * merely late. Verified — aiming the cross-club test at the viewer's OWN club
- * (where the run sheet demonstrably renders) still passed without this wait.
- * Because the two surfaces are mutually exclusive, seeing this one IS the
- * evidence that `isStaff` resolved false.
+ * Waiting on a heading is not enough: the class body renders after the data
+ * loads, and staff are held as staff while scope resolves, so the link can be
+ * late to leave. `toHaveCount(0)` retries until it holds; the body being visible
+ * first proves the page rendered at all.
  */
 async function expectNonStaffSurface(page: Page) {
   await expect(nonStaffSurface(page)).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe('Class scope for a club-scoped SECRETARY', () => {
-  // POSITIVE CONTROL for every absence assertion in this file. If the run-sheet
+  // POSITIVE CONTROL for every absence assertion in this file. If the Show Desk link
   // locator ever stops matching the real component, this fails — without it, the
   // `toHaveCount(0)` assertions below would pass for the wrong reason forever.
-  test('sees the run sheet on their OWN club’s class', async ({ page }) => {
+  test('gets the Show Desk link on their OWN club’s class', async ({ page }) => {
     await signInAsSecretary(page);
     await openClass(page, HEARTLAND_CLASS);
 
-    await expect(runSheet(page)).toBeVisible({ timeout: 30_000 });
+    await expect(showDeskLink(page)).toBeVisible({ timeout: 30_000 });
   });
 
   // The cross-club half of the acceptance criteria, with a real viewer.
-  test('gets no operational surface on ANOTHER club’s class', async ({ page }) => {
+  test('gets no Show Desk link on ANOTHER club’s class', async ({ page }) => {
     await signInAsSecretary(page);
     await openClass(page, OTHER_CLUB_CLASS);
 
     await expectNonStaffSurface(page);
-    await expect(runSheet(page)).toHaveCount(0);
+    await expect(showDeskLink(page)).toHaveCount(0);
     await expect(editButton(page)).toHaveCount(0);
   });
 });
@@ -108,25 +110,25 @@ test.describe('Class scope for a club-scoped CLUB ADMIN', () => {
     expect(TEST_USERS.CLUB_ADMIN.email).toBe('clubadmin@myk9t.com');
   });
 
-  test('OWN club: lifecycle controls yes, operational run sheet no', async ({ page }) => {
+  test('OWN club: lifecycle controls yes, Show Desk link no', async ({ page }) => {
     await signInAsTestUser(page, 'CLUB_ADMIN');
     await openClass(page, HEARTLAND_CLASS);
 
     // canManage — theirs.
     await expect(editButton(page)).toBeVisible();
     // canOperate — NOT theirs. The boundary the refactor moved twice. Settle on
-    // the non-staff surface first so this cannot pass on a merely-late run sheet.
+    // the class body first so this cannot pass on a merely-late link.
     await expectNonStaffSurface(page);
-    await expect(runSheet(page)).toHaveCount(0);
+    await expect(showDeskLink(page)).toHaveCount(0);
   });
 
-  test('ANOTHER club: neither lifecycle controls nor run sheet', async ({ page }) => {
+  test('ANOTHER club: neither lifecycle controls nor Show Desk link', async ({ page }) => {
     await signInAsTestUser(page, 'CLUB_ADMIN');
     await openClass(page, OTHER_CLUB_CLASS);
 
     await expectNonStaffSurface(page);
     await expect(editButton(page)).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: /delete class/i })).toHaveCount(0);
-    await expect(runSheet(page)).toHaveCount(0);
+    await expect(showDeskLink(page)).toHaveCount(0);
   });
 });

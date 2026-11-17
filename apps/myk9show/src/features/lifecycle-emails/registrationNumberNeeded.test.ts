@@ -123,7 +123,7 @@ describe('sendRegistrationNumberNeededEmail', () => {
 describe('step list parity with the database', () => {
   const dir = join(__dirname, '../../../../../supabase/migrations');
   const latest = readdirSync(dir)
-    .filter(name => name.endsWith('myk9_1162_lifecycle_registration_number_needed.sql'))
+    .filter(name => name.endsWith('myk9_2124_show_changed_email_jobs.sql'))
     .sort()
     .at(-1);
 

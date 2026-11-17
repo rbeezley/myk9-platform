@@ -78,6 +78,37 @@ describe('generic send of a registration_number_needed job', () => {
     expect(calls.filter(call => call.action === 'update' || call.action === 'insert')).toEqual([]);
   });
 
+  it('skips an automatic job too: only the drain sends it (MYK9-2124)', async () => {
+    const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'resend-1' }) }));
+    const autoJob = {
+      ...readyJob,
+      id: 'job-auto',
+      step_type: 'show_changed',
+      auto_send: true,
+      body: null,
+      idempotency_key: 'idem-auto',
+    };
+    const { supabase, calls } = makeSupabase(baseTables({ show_lifecycle_email_jobs: [autoJob] }));
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+
+    const result = await handler({
+      body: { action: 'send', show_id: 'show-1', job_ids: ['job-auto'] },
+      user: { id: 'secretary-1' },
+      supabase: supabase as Parameters<typeof handler>[0]['supabase'],
+    });
+
+    expect(result).toMatchObject({
+      sent: 0,
+      skipped: 1,
+      results: [{ jobId: 'job-auto', status: 'skipped', reason: 'automatic' }],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(calls.filter(call => call.action === 'update' || call.action === 'insert')).toEqual([]);
+  });
+
   it('refuses an unauthorized caller before anything else', async () => {
     const { fetch, supabase, handler } = setup({ userRoles: [] });
 

@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   showEntries: [] as unknown[],
 }));
 
+// The Requirements row reads the class replica; these tests do not exercise it.
+vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
   createDatabaseError,

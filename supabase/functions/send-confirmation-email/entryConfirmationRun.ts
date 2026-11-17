@@ -21,12 +21,15 @@ import type { HeritageEmailData } from './heritage-email.ts';
 /** One email_log row; related_id is the first entry the email covers. */
 export interface ConfirmationLogRow {
   recipient_email: string | null;
-  email_type: 'heritage_confirmation';
+  /** 'show_reminder' is the reminder's (MYK9-2113), which shares this log writer. */
+  email_type: 'heritage_confirmation' | 'show_reminder';
   related_id: string;
   show_id: string;
   resend_message_id: string | null;
   status: 'sent' | 'failed';
   error_message: string | null;
+  /** What was sent (MYK9-2115): kept beside the log row so the secretary can read it. */
+  content?: { subject: string; html: string };
 }
 
 export type ConfirmationSendResult = { ok: true; messageId: string } | { ok: false; error: string };
@@ -230,6 +233,7 @@ export async function runEntryConfirmations(
     const claimedAnchor = entries[0]!;
 
     let result: ConfirmationSendResult;
+    let content: ConfirmationLogRow['content'];
     try {
       const generations = await deps.loadAcceptanceGenerations(claimed);
       const html = deps.render(
@@ -243,9 +247,11 @@ export async function runEntryConfirmations(
         }),
         show
       );
+      const subject = confirmationSubject(show.name, entries.length);
+      content = { subject, html };
       result = await deps.send({
         to: recipient.email,
-        subject: confirmationSubject(show.name, entries.length),
+        subject,
         html,
         idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations),
       });
@@ -268,6 +274,7 @@ export async function runEntryConfirmations(
       resend_message_id: result.ok ? result.messageId : null,
       status: result.ok ? 'sent' : 'failed',
       error_message: result.ok ? null : result.error,
+      ...(content ? { content } : {}),
     });
   }
 

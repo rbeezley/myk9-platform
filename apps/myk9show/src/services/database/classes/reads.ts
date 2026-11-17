@@ -209,7 +209,8 @@ export const CLASS_AUTHENTICATED_COLUMN_SELECT = `${CLASS_COLUMN_SELECT},
       ring_phase,
       ring_phase_time,
       status_before_close,
-      scores_on_paper`;
+      scores_on_paper,
+      time_limit_set_at`;
 
 /** Pinned by the contract test against the SQL grant. */
 export const CLASS_AUTHENTICATED_COLUMNS = CLASS_AUTHENTICATED_COLUMN_SELECT.split(',').map(

@@ -45,6 +45,10 @@ export interface ClassAvailability {
   trialId: string;
   trialName: string;
   trialDate: string;
+  /** The trial's planned start clock time, when the club set one (MYK9-2122). */
+  trialPlannedStartTime?: string | null;
+  /** The trial's IANA time zone, when stored. */
+  trialTimezone?: string | null;
   entryLimit: number;
   currentEntries: number;
   spotsAvailable: number;
@@ -77,6 +81,8 @@ interface ClassWithTrialRow {
     id: string;
     name: string;
     date: string;
+    planned_start_time: string | null;
+    timezone: string | null;
     show_id: string;
   };
 }
@@ -131,6 +137,8 @@ export function useClassAvailability(
             id,
             name,
             date,
+            planned_start_time,
+            timezone,
             show_id
           )
         `
@@ -200,6 +208,8 @@ export function useClassAvailability(
           trialId: trial.id,
           trialName: trial.name,
           trialDate: trial.date,
+          trialPlannedStartTime: trial.planned_start_time,
+          trialTimezone: trial.timezone,
           entryLimit,
           currentEntries: counts.entry_count,
           spotsAvailable,

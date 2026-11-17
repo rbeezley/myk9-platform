@@ -71,6 +71,11 @@ export interface WhatIsLeftInput {
     | null;
   /** What the score history says since the results file went. `undefined` = this caller does not look. */
   scoreChanges?: ScoreChangeRead | undefined;
+  /**
+   * Dogs sharing one handler in a class (MYK9-2031), with the classes they sit in.
+   * `undefined` = this caller does not look: the line reports unknown.
+   */
+  handlerClashes?: { count: number; classIds: readonly string[] } | undefined;
 }
 
 /**
@@ -89,6 +94,7 @@ export type WhatIsLeftLineKey =
   | 'unknown-counts'
   | 'unscored'
   | 'pending-review'
+  | 'handler-clash'
   | 'unreleased'
   | 'to-print'
   | 'judge-sign-off'
@@ -268,6 +274,19 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     classIds: ids(pendingReview),
     open: pendingReview.length > 0,
     closeConcern: `${plural(pendingReview.length, 'class still has', 'classes still have')} entries waiting for review.`,
+  });
+  // MYK9-2031: the marked catalog names the handler when it differs from the owner (AKC Scent Work
+  // regulations ch. 3 sec. 36), so these are settled before the catalog is made.
+  const clashes = input.handlerClashes;
+  lines.push({
+    key: 'handler-clash',
+    kind: 'handler-clash',
+    label: clashes
+      ? `${plural(clashes.count, 'dog has', 'dogs have')} the same handler as another dog in their class. Choose who handles each before printing the marked catalog.`
+      : 'Handlers to check',
+    count: clashes?.count ?? null,
+    classIds: clashes?.classIds ?? [],
+    open: clashes ? clashes.count > 0 : null,
   });
   lines.push({
     key: 'unreleased',

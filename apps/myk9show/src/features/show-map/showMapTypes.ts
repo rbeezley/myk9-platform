@@ -93,6 +93,14 @@ export interface ShowMapEntryDisplay {
   isInRing?: boolean | undefined;
   runOrder?: number | undefined;
   deletedAt?: string | undefined;
+  /** The server's held verdict (MYK9-1162): the dog awaits a registration number and does not run. */
+  awaitingRegistrationNumber?: boolean | undefined;
+  /** The stored run facts (`search_time_seconds`, `element_time_seconds`, `total_faults`,
+   * `final_placement`), read from the same replicated entry the class run sheet reads. */
+  searchTimeSeconds?: number | undefined;
+  elementTimeSeconds?: number | undefined;
+  totalFaults?: number | undefined;
+  finalPlacement?: number | undefined;
 }
 
 export interface ShowMapDogEntryDisplay {

@@ -35,7 +35,7 @@ export interface SecretaryCockpitAction {
   id: string;
   label: string;
   destination: CockpitDestination;
-  group: 'class-work' | 'paperwork';
+  group: 'paperwork';
 }
 
 export interface SecretaryCockpitPaperwork {
@@ -90,8 +90,8 @@ export interface SecretaryCockpitTrial {
  * move-up dialog could never open. These
  * rows are what emit the commandId `runCommand` already knows how to resolve.
  *
- * Deliberately narrow: check-in, edit-score, scratch and message-handler already have
- * working homes (the run sheet, Entry Management -> Exceptions, the Messages panel),
+ * Deliberately narrow: check-in and edit-score are in the entries table (Check-in cell, row menu); scratch and
+ * message-handler already have working homes (Entry Management -> Exceptions, the Messages panel),
  * and re-homing them here would duplicate live surfaces. See
  * docs/plan-f29b-operational-actions-home.md.
  */
@@ -268,7 +268,6 @@ export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFact
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;
   paperwork: readonly (SecretaryCockpitPaperwork & { evidence: EvidenceKind })[];
-  classWorkActions: readonly SecretaryCockpitAction[];
 }
 
 export interface SecretaryCockpitModel {

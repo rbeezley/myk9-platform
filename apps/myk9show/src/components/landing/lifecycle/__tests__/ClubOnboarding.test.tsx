@@ -104,6 +104,51 @@ describe('ClubOnboarding', () => {
     );
   });
 
+  it('leads back to the show she started, with the new club chosen', async () => {
+    mockSubmit.mockResolvedValue(created);
+    render(<ClubOnboarding />, {
+      initialRoute: '/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1%26clubId%3Dold',
+    });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    expect(await screen.findByRole('link', { name: /back to your show/i })).toHaveAttribute(
+      'href',
+      '/wizard?x=1&clubId=club-9&clubCreated=1'
+    );
+    expect(screen.getByRole('link', { name: /open your club/i })).toHaveAttribute(
+      'href',
+      '/clubs/club-9'
+    );
+  });
+
+  it('ignores an unsafe return target', async () => {
+    mockSubmit.mockResolvedValue(created);
+    render(<ClubOnboarding />, { initialRoute: '/?returnTo=%2F%2Fevil.com' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    expect(await screen.findByRole('link', { name: /open your club/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /back to your show/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps the return target through the sign-in redirect', () => {
+    auth.user = null;
+    render(<ClubOnboarding />, { initialRoute: '/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    fireEvent.submit(
+      screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
+    );
+
+    const redirectTo = new URL(String(mockNavigate.mock.calls[0][0]), 'http://x').searchParams.get(
+      'redirectTo'
+    );
+    expect(redirectTo).toBe('/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1#get-started');
+  });
+
   it('loads her new roles before the saved draft is cleared, then shows success', async () => {
     const order: string[] = [];
     saveClubOnboardingDraft(fullDraft);

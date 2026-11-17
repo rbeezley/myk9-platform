@@ -27,12 +27,10 @@ test.describe('Sign-up page — initial state', () => {
   test('renders form with TOS gate in place', async ({ page }) => {
     await gotoSignUp(page);
 
-    // Exhibitor is pre-checked; other roles are not
-    await expect(page.getByRole('checkbox', { name: 'Exhibitor (I show dogs)' })).toBeChecked();
+    // MYK9-2048: sign-up asks for no role.
     await expect(
-      page.getByRole('checkbox', { name: 'Club officer / show host' })
-    ).not.toBeChecked();
-    await expect(page.getByRole('checkbox', { name: 'Show secretary' })).not.toBeChecked();
+      page.getByRole('checkbox', { name: /exhibitor|club officer|show secretary/i })
+    ).toHaveCount(0);
 
     // TOS is unchecked; submit + Google buttons are disabled
     await expect(

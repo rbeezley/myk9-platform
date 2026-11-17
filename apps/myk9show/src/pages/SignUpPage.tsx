@@ -37,7 +37,6 @@ const SignUp: React.FC = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(['exhibitor']);
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -105,7 +104,7 @@ const SignUp: React.FC = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle(hasRedirectTarget ? signUpReturnTo : undefined, selectedRoles);
+      await signInWithGoogle(hasRedirectTarget ? signUpReturnTo : undefined);
     } catch (error: unknown) {
       setError(friendlyAuthError(error, 'google'));
       setGoogleLoading(false);
@@ -116,7 +115,7 @@ const SignUp: React.FC = () => {
     setError('');
     setAppleLoading(true);
     try {
-      await signInWithApple(hasRedirectTarget ? signUpReturnTo : undefined, selectedRoles);
+      await signInWithApple(hasRedirectTarget ? signUpReturnTo : undefined);
     } catch (error: unknown) {
       setError(friendlyAuthError(error, 'apple'));
       setAppleLoading(false);
@@ -148,7 +147,6 @@ const SignUp: React.FC = () => {
       const metadata = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        roles: selectedRoles,
       };
       if (captchaRequired) {
         if (hasRedirectTarget) {
@@ -273,34 +271,6 @@ const SignUp: React.FC = () => {
           <Link to={signInPath} className="text-primary hover:underline font-medium">
             Sign in
           </Link>
-        </div>
-        <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
-          <p className="mb-2 font-medium">I am…</p>
-          <div className="space-y-2">
-            {[
-              { value: 'exhibitor', label: 'Exhibitor (I show dogs)' },
-              { value: 'club_officer', label: 'Club officer / show host (needs approval)' },
-              { value: 'secretary', label: 'Show secretary (needs approval)' },
-            ].map(({ value, label }) => (
-              <label key={value} className="flex min-h-11 items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedRoles.includes(value)}
-                  onChange={e =>
-                    setSelectedRoles(prev =>
-                      e.target.checked ? [...prev, value] : prev.filter(r => r !== value)
-                    )
-                  }
-                  className="h-4 w-4 rounded border-input accent-primary"
-                />
-                <span className="text-sm">{label}</span>
-              </label>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Exhibitor access starts with your account. Club officer and secretary access requires
-            approval.
-          </p>
         </div>
         <button
           type="button"

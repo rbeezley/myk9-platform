@@ -85,6 +85,7 @@ export function getEmailRecoveryHref(sourceKind: string, showId: string): string
   switch (sourceKind) {
     case 'registration_confirmation':
     case 'heritage_confirmation':
+    case 'show_reminder':
     case 'entry_decision':
       return `/shows/${showId}/entries`;
     case 'lifecycle':
@@ -124,6 +125,8 @@ function formatRecipient(name: string | null, email: string | null): string {
 
 function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null): string {
   if (sourceKind === 'lifecycle' && lifecycleStepType) {
+    // MYK9-2124: sent by the server on its own, so it names what happened to the show.
+    if (lifecycleStepType === 'show_changed') return 'Date or venue changed';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {
@@ -132,6 +135,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
       return 'Receipt';
     case 'heritage_confirmation':
       return 'Full confirmation';
+    case 'show_reminder':
+      return 'Reminder';
     case 'entry_decision':
       return 'Entry decision';
     case 'waitlist_notification':

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getCockpitFinishListHref,
   withReturnTo,
-  getCockpitClassDetailsHref,
+  getShowDeskClassHref,
   getCockpitJudgeDayCatalogHref,
   getCockpitPaperScoringHref,
   getCockpitReportHref,
@@ -169,17 +169,6 @@ describe('Show Desk context routes', () => {
     expect(getCockpitSubmitResultsHref({ showId: 'show-1', trialId: 'trial-1', returnTo })).toBe(
       `/shows/show-1/results?step=submit&trialId=trial-1&returnTo=${encodeURIComponent(returnTo)}`
     );
-
-    expect(
-      getCockpitClassDetailsHref({
-        showId: 'show-1',
-        trialId: 'trial-1',
-        classId: 'class/1',
-        returnTo,
-      })
-    ).toBe(
-      `/shows/show-1/trials/trial-1/classes/class%2F1?returnTo=${encodeURIComponent(returnTo)}`
-    );
   });
 
   it('accepts only a same-Show internal Show Desk return and canonicalizes its state', () => {
@@ -334,6 +323,26 @@ describe('the Finish the show list link (MYK9-1945)', () => {
     );
     expect(withReturnTo('/shows/show-1/results#finish-the-show', '/shows/show-1')).toBe(
       '/shows/show-1/results?returnTo=%2Fshows%2Fshow-1#finish-the-show'
+    );
+  });
+});
+
+describe('getShowDeskClassHref (MYK9-2119)', () => {
+  it('focuses the class on its trial day, so a later day cannot focus another class', () => {
+    expect(getShowDeskClassHref({ showId: 'show-1', classId: 'class-1', day: '2026-07-20' })).toBe(
+      '/shows/show-1?day=2026-07-20&focus=class-1'
+    );
+  });
+
+  it('normalises a timestamp to its date', () => {
+    expect(
+      getShowDeskClassHref({ showId: 'show-1', classId: 'class-1', day: '2026-07-20T00:00:00' })
+    ).toBe('/shows/show-1?day=2026-07-20&focus=class-1');
+  });
+
+  it('opens the bare desk when the day is unknown, never a focus with no day', () => {
+    expect(getShowDeskClassHref({ showId: 'show-1', classId: 'class-1', day: null })).toBe(
+      '/shows/show-1'
     );
   });
 });

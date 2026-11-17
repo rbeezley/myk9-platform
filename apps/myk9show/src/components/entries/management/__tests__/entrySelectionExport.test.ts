@@ -35,6 +35,11 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 }
 
 describe('buildSelectedEntryExportRow', () => {
+  it('names the confirmation column in plain words', () => {
+    expect(SELECTED_ENTRIES_EXPORT_HEADERS).toContain('Confirmation number');
+    expect(SELECTED_ENTRIES_EXPORT_HEADERS).not.toContain('Confirmation #');
+  });
+
   it('maps the fields already on the client entry type, joining multiple classes', () => {
     expect(buildSelectedEntryExportRow(makeEntry())).toEqual([
       '12',

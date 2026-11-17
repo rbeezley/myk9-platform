@@ -9,6 +9,7 @@ import { buildFocusedClassFacts } from './focusedClassFacts';
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { FocusedClassFields } from './FocusedClassFields';
+import { FocusedClassRequirements } from './FocusedClassRequirements';
 import { FocusedClassActionsMenu, type FocusedClassEditAction } from './FocusedClassActionsMenu';
 import { RunOrderUndoNotice } from './RunOrderUndoNotice';
 import { focusedClassDelay } from './focusedClassDelay';
@@ -104,14 +105,6 @@ export function SecretaryCockpitFocusedClass({
     trialDate: trial.date,
     timeZone,
   });
-  // The `class-details:` destination, the one class-work door left (the step bar and the entries
-  // table own scoring, reports and entries).
-  const detailsAction = focused.classWorkActions.find(action =>
-    action.id.startsWith('class-details:')
-  );
-  const entriesHref =
-    detailsAction?.destination.kind === 'href' ? detailsAction.destination.href : null;
-
   const rowMenu = canManageShow
     ? {
         actions: new Map(focused.entryRows.map(row => [row.nodeId, row.actions])),
@@ -250,7 +243,6 @@ export function SecretaryCockpitFocusedClass({
             runOrder={runOrder}
             runOrderEntryCount={runOrderEntryCount}
             editClass={editClass}
-            entriesHref={entriesHref}
           />
         }
       >
@@ -297,6 +289,13 @@ export function SecretaryCockpitFocusedClass({
             {undoNotice}
           </>
         )}
+
+        <FocusedClassRequirements
+          key={focused.id}
+          classId={focused.id}
+          registryId={sourceClass.registryId ?? ''}
+          timeZone={timeZone}
+        />
 
         {attention.length > 0 && (
           <div className="space-y-2">

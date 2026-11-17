@@ -23,16 +23,14 @@ test('secretary and judge preserve stored 61.23 seconds (MYK9-1225)', async ({ b
     search_time_seconds: 61.23,
     check_in_status: 'completed',
   });
-  const secretary = await rolePage(
-    browser,
-    'SECRETARY',
-    `/shows/${f.showId}/trials/${f.trialId}/classes/${f.classId}`
-  );
+  const secretary = await rolePage(browser, 'SECRETARY', `/shows/${f.showId}?focus=${f.classId}`);
   const judge = await rolePage(browser, 'JUDGE', `/at-show/${f.showId}/class/${f.classId}`);
   await secretary.page.reload();
   const secretaryDog = secretaryRow(secretary.page, 'Willow');
-  await expect(secretaryDog).toContainText('1:01.23');
-  await expect(secretaryDog).not.toContainText('1:01.22');
+  // The time sits in Show Desk's focused-class result cell.
+  const secretaryResult = secretaryDog.getByTestId('class-entry-result');
+  await expect(secretaryResult).toContainText('1:01.23');
+  await expect(secretaryResult).not.toContainText('1:01.22');
   await judge.page.reload();
   await judge.page.getByRole('button', { name: /^Completed/ }).click();
   const judgeDog = judgeRow(judge.page, 'Willow');

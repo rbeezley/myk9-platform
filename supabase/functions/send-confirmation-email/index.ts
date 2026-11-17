@@ -11,6 +11,9 @@
 //                                 confirmations.
 //   entry-confirmation-emails     every 15 minutes, body {"scope":"new"}: sends confirmations
 //                                 never tried (migration 20261115065613).
+//   exhibitor-reminder-emails     every 10 minutes, body {"scope":"reminder"}: the reminder two days before
+//                                 a show's first day (MYK9-2113, entryReminderRun.ts); sends
+//                                 nothing else and runs no receipt retry.
 //
 // Deploy: supabase functions deploy send-confirmation-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 
@@ -18,6 +21,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { storeEmailContent } from '../_shared/emailLogContent.ts';
 import {
   JUDGE_ASSIGNMENT_NAME_SELECT,
   judgeNamesByClass,
@@ -46,13 +50,15 @@ import {
   type ConfirmationShow,
 } from './entryConfirmations.ts';
 import { runEntryConfirmations, type EntryConfirmationDeps } from './entryConfirmationRun.ts';
+import { runEntryReminders } from './entryReminderRun.ts';
+import { reminderDeps } from './entryReminderDeps.ts';
 import { renderConfirmationEmail } from './renderConfirmationEmail.ts';
 import { readAllPages, type PageResult } from './pagedRead.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 const SHOW_SELECT =
-  'id, name, status, start_date, end_date, venue_name, address, city, state, zip_code, latitude, longitude, organization, confirmation_message, style, brand_color, experience_is_published, experience_published_style, experience_published_content, trials(id, name, trial_number, display_order, date, timezone, registry_id, deleted_at)';
+  'id, name, status, start_date, end_date, venue_name, address, city, state, zip_code, latitude, longitude, organization, confirmation_message, style, brand_color, experience_is_published, experience_published_style, experience_published_content, trials(id, name, trial_number, display_order, date, timezone, registry_id, planned_start_time, deleted_at)';
 const ENTRY_SELECT =
   'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, confirmation_email_status, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
 
@@ -86,7 +92,7 @@ async function resendReceipt(
 }
 
 interface ConfirmationEmailPayload {
-  /** "new" sends only confirmations never tried; anything else is the daily run. */
+  /** "new" sends only confirmations never tried; "reminder" the show reminders; else the daily run. */
   scope?: string;
 }
 
@@ -303,11 +309,14 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       const result = (await res.json()) as { id: string };
       return { ok: true, messageId: result.id };
     },
-    log: async row => {
-      const { error } = await supabase
+    log: async ({ content, ...row }) => {
+      const { data, error } = await supabase
         .from('email_log')
-        .insert({ ...row, status_updated_at: new Date().toISOString() });
+        .insert({ ...row, status_updated_at: new Date().toISOString() })
+        .select('id')
+        .single();
       requireEmailLogWrite(error, 'send-confirmation-email');
+      if (content) await storeEmailContent(supabase, data?.id, content.subject, content.html);
     },
   };
 }
@@ -323,6 +332,19 @@ handle<ConfirmationEmailPayload>(
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) {
       throw new HttpError(503, 'Email service not configured');
+    }
+
+    // MYK9-2113: the reminder is its own run. It is never part of the daily or frequent run, so
+    // those cannot send it twice and a reminder failure cannot hold up a confirmation.
+    if (body?.scope === 'reminder') {
+      const deps = confirmationDeps(supabase, RESEND_API_KEY);
+      const result = await runEntryReminders(reminderDeps(supabase, deps));
+      // A cap-deferred or failed reminder is otherwise invisible: say so in the function logs.
+      console.log('Exhibitor reminder run', result);
+      if (result.deferred > 0) {
+        console.warn('Exhibitor reminders deferred to the next run', { deferred: result.deferred });
+      }
+      return result;
     }
 
     const scope = body?.scope === 'new' ? 'new' : 'all';

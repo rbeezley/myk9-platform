@@ -31,7 +31,9 @@ export function resultsRowToLeftClass(row: ResultsClassRow): WhatIsLeftClass {
 export function calculateResultsRowsLeft(
   rows: readonly ResultsClassRow[],
   trials: readonly WhatIsLeftTrial[] = [],
-  sent: Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges'> = { submissions: null }
+  sent: Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges' | 'handlerClashes'> = {
+    submissions: null,
+  }
 ): WhatIsLeft {
   return calculateWhatIsLeft({
     classes: rows.map(resultsRowToLeftClass),
@@ -40,5 +42,6 @@ export function calculateResultsRowsLeft(
     incidents: null,
     submissions: sent.submissions,
     scoreChanges: sent.scoreChanges,
+    handlerClashes: sent.handlerClashes,
   });
 }

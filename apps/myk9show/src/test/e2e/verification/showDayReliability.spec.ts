@@ -99,10 +99,13 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
               : status === 'in-ring'
                 ? /in ring/i
                 : new RegExp(status, 'i');
-          await expect(secRow.getByRole('combobox')).toContainText(statusLabel);
+          // Show Desk's check-in and run-status cells; a scored dog reads Scored there.
+          await expect(secRow).toContainText(
+            status === 'completed' ? /completed|scored/i : statusLabel
+          );
           await expect(ownRow).toContainText(scenario.exhibitor);
           if (scenario.name === 'completed') {
-            await expect(secRow.getByText('Qualified', { exact: true })).toBeVisible();
+            await expect(secRow.getByTestId('class-entry-result')).toContainText('Q');
             await expect(ringRow.getByText('Q', { exact: true })).toBeVisible();
             await expect(ownRow.getByText('Completed', { exact: true })).toBeVisible();
           } else
@@ -134,7 +137,7 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
           const judgeText = await ringRow.innerText();
           if (scenario.name === 'gapped') {
             const sheetNames = await secretary.page
-              .getByTestId('secretary-run-sheet')
+              .getByTestId('class-entries-table')
               .getByText(/^(Cooper|Willow)$/)
               .allTextContents();
             expect(sheetNames).toEqual(['Cooper', 'Willow']);
@@ -145,7 +148,7 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
             expect(ringNames).toEqual(['Cooper', 'Willow']);
           }
           if (scenario.name !== 'null') {
-            await secretary.page.getByRole('link', { name: 'Set run order', exact: true }).click();
+            // The secretary is already on Show Desk, where run order is changed.
             // Run order is changed by dragging a waiting dog's grip on the entries table (MYK9-1872).
             const entriesTable = secretary.page.getByTestId('class-entries-table');
             const rowOf = (dog: string) =>
@@ -331,7 +334,9 @@ test('expired token after 61 real minutes offline still queues and uploads the s
       await expect(ownRow.getByRole('group', { name: 'Result', exact: true })).toContainText(
         '61.2s'
       );
-      await expect(secretaryRow(secretary.page, 'Willow')).toContainText('Qualified');
+      await expect(
+        secretaryRow(secretary.page, 'Willow').getByTestId('class-entry-result')
+      ).toContainText('Q');
       for (const role of [judge, exhibitor, secretary]) expect(role.nonLocalSocketUrls).toEqual([]);
       await screenshot(exhibitor.page, info, 'uploaded-exhibitor');
       await screenshot(secretary.page, info, 'uploaded-secretary');

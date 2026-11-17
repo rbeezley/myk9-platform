@@ -50,7 +50,7 @@ function Where() {
  * | Classes: row Edit / Delete           | Class Actions menu "Edit class"; edit panel footer (Delete) |
  * | Classes: status change               | Class header Status field (MYK9-1867)        |
  * | Classes: judge, waitlist, bulk bar   | Actions menu "Select classes" (in place)      |
- * | Classes: row opens class details     | Class Actions menu "View entries and results" |
+ * | Classes: row opens class details     | The focused class panel (MYK9-2119)         |
  */
 describe('show home carries every Setup action (MYK9-956)', () => {
   function renderCockpit(canManageShow: boolean) {

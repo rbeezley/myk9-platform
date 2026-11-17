@@ -18,6 +18,8 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 
+// The Requirements row reads the class replica; these tests do not exercise it.
+vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/services/replication', () => ({
   replicatedPaperworkPrintsTable: {
     confirmPrinted: vi.fn(async () => ({ id: 'print-1' })),
@@ -65,7 +67,6 @@ const FOCUSED: FocusedClassModel = {
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [],
-  classWorkActions: [],
   entryRows: ENTRY_ROWS,
   entries: [],
   entriesHidden: 0,

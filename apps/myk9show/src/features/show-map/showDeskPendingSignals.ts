@@ -35,6 +35,7 @@ export type ShowDeskPendingSignalId =
   | 'results-pending-closeout'
   | 'entries-held'
   | 'waitlist-waiting'
+  | 'refunds-to-decide'
   | 'class-changes-waiting';
 
 export type ShowDeskPendingSignalPriority = 'highest' | 'high' | 'medium';
@@ -255,7 +256,7 @@ export function computeShowDeskPendingSignals({
   });
   if (classChanges) signals.push(classChanges);
 
-  if (waiting) signals.push(...buildWaitingSignals(showId, waiting, scope));
+  if (waiting) signals.push(...buildWaitingSignals(showId, waiting, scope, currentDate));
 
   return signals.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
 }

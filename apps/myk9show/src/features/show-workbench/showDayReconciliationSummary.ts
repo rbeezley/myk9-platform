@@ -2,8 +2,8 @@ import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOf
 import {
   classifyEntryRemoval,
   emptyEntryRemovalCounts,
+  refundToDecideRemoval,
   type EntryRemovalCounts,
-  type EntryRemovalKind,
 } from '@/features/payments/pullReconciliation';
 import {
   ledgerAmount,
@@ -30,6 +30,10 @@ export interface ShowDayReconciliationEntry {
   withdrawal_reason_code?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
+  /** Read by `refundToDecideRemoval`: a refunded or denied removal is decided (MYK9-2099). */
+  refund_amount?: number | string | null;
+  refunded_at?: string | null;
+  refund_decision?: string | null;
   submitted_at?: string | null;
   created_at?: string | null;
 }
@@ -165,20 +169,6 @@ function applyLedger(
     summary.byMethod[group.method].count += group.payments;
     summary.paymentCount += group.payments;
   }
-}
-
-/**
- * The one definition of a refund to decide: an entry no longer running whose fee is still marked
- * paid. Returns the removal's category, or null when the entry is not awaiting a refund decision.
- * The reconciliation summary, the Finish the show list and every "waiting for you" count read it.
- */
-export function refundToDecideRemoval(entry: ShowDayReconciliationEntry): EntryRemovalKind | null {
-  if (entry.payment_status?.toLowerCase() !== 'paid') return null;
-  return classifyEntryRemoval({
-    entryStatus: entry.entry_status,
-    checkInStatus: entry.check_in_status,
-    withdrawalReasonCode: entry.withdrawal_reason_code,
-  });
 }
 
 export function summarizeShowDayReconciliation(

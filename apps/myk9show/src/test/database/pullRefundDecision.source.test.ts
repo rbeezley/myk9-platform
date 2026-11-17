@@ -8,7 +8,8 @@ import { describe, expect, it } from 'vitest';
  * `20260722160000` still owns the SHAPE — the columns, the CHECK constraint and
  * the audit index — and nothing has superseded those. It no longer owns the
  * BEHAVIOUR: MYK9-632 replaced `set_entry_refund_decision` and the reinstate
- * trigger in `20260917214300`, and a source test that keeps reading the older
+ * trigger in `20260917214300`, and MYK9-2099 replaced both again in
+ * `20261117152900` (the latest definition), and a source test that keeps reading the older
  * file certifies a guard that is not what ships. It also stays green while it
  * does so, which is the worst version of that mistake (LESSONS
  * replace-function-latest).
@@ -19,7 +20,7 @@ const shape = readFileSync(
   'utf8'
 );
 const behaviour = readFileSync(
-  resolve(migrationsDir, '20260917214300_withdraw_or_pull_own_entry.sql'),
+  resolve(migrationsDir, '20261117152900_myk9_2099_refund_decision_removed_absent.sql'),
   'utf8'
 );
 
@@ -40,21 +41,20 @@ describe('pull refund decision persistence', () => {
     expect(behaviour).toContain('FOR UPDATE OF e');
   });
 
-  // MYK9-632: the status arm admits a PULL and a WITHDRAWAL carrying a
-  // recognised reason code — the same rows `isUnresolvedRemovalRefundDecision`
-  // offers the Deny control for. Every arm COALESCEs, because with a NULL
-  // entry_status `NOT (NULL OR FALSE)` is NULL and the guard would fall through.
-  it('admits both removal states, and only a coded withdrawal', () => {
-    expect(behaviour).toContain("COALESCE(v_entry_status, '') = 'scratched'");
-    expect(behaviour).toContain("COALESCE(v_entry_status, '') = 'withdrawn'");
+  // MYK9-2099: the status arm admits a pull, a withdrawal (with or without a
+  // reason code, so a secretary removal too) and a no-show: the same rows
+  // `refundToDecideRemoval` offers the Deny control for. It COALESCEs, because
+  // with a NULL entry_status the NOT IN is NULL and the guard would fall through.
+  it('admits pulls, withdrawals, removals and no-shows', () => {
     expect(behaviour).toContain(
-      "COALESCE(v_withdrawal_reason_code, '') IN ('in_season', 'judge_change')"
+      "COALESCE(v_entry_status, '') NOT IN ('scratched', 'withdrawn', 'absent')"
     );
     expect(behaviour).toContain(
-      "RAISE EXCEPTION 'entry % is not an unresolved paid-online pull or withdrawal'"
+      "RAISE EXCEPTION 'entry % is not an unresolved paid-online pull, withdrawal, removal or no-show'"
     );
-    // The superseded guard must not survive anywhere in the shipped file.
-    expect(behaviour).not.toContain("COALESCE(v_entry_status, '') <> 'scratched'");
+    expect(behaviour).toContain('COALESCE(v_refund_amount, 0) > 0');
+    // The superseded coded-withdrawal-only arm must not survive in the shipped file.
+    expect(behaviour).not.toContain('v_withdrawal_reason_code');
   });
 
   it('exposes only the guarded RPC to authenticated users', () => {
@@ -70,12 +70,12 @@ describe('pull refund decision persistence', () => {
     expect(behaviour).toContain("IF TG_OP = 'INSERT'");
   });
 
-  // MYK9-632 widened this: a reinstated WITHDRAWAL kept a stale 'denied' and
-  // never re-entered the queue. Behaviour pinned in
-  // supabase/tests/withdraw_or_pull_own_entry_test.sql — this only checks the
+  // MYK9-632 widened this to withdrawals and MYK9-2099 to no-shows. Behaviour
+  // pinned in supabase/tests/withdraw_or_pull_own_entry_test.sql and
+  // myk9_2099_refund_decision_removed_absent_test.sql; this only checks the
   // shipped file is the one that says it.
-  it('clears a saved denial when either kind of removal is reinstated', () => {
-    expect(behaviour).toContain("old.entry_status IN ('scratched', 'withdrawn')");
+  it('clears a saved denial when any decided removal is reinstated', () => {
+    expect(behaviour).toContain("old.entry_status IN ('scratched', 'withdrawn', 'absent')");
     expect(behaviour).toContain('new.entry_status IS DISTINCT FROM old.entry_status');
     expect(behaviour).toContain('new.refund_decision := NULL');
     expect(behaviour).toContain('new.refund_decided_at := NULL');

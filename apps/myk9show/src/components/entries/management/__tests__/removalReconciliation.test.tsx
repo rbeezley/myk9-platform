@@ -235,24 +235,23 @@ interface ServerRow {
  * would assert that half against itself: the test would stay green if the
  * migration's widening were reverted and the Deny click started raising 22023
  * again, which is the exact defect round 5 found. This mirrors the guard in
- * `supabase/migrations/20260917214300_withdraw_or_pull_own_entry.sql` statement
- * for statement, including the COALESCEs that stop a NULL `entry_status` falling
- * through it.
+ * `supabase/migrations/20261117152900_myk9_2099_refund_decision_removed_absent.sql`
+ * statement for statement, including the COALESCEs that stop a NULL
+ * `entry_status` falling through it.
  *
  * KEPT IN STEP BY HAND. Nothing links the two, so a change to that guard must be
  * copied here in the same commit. The behavioural proof that the REAL function
- * agrees lives in `supabase/tests/withdraw_or_pull_own_entry_test.sql`; this only
- * proves the client reaches a server that would accept it.
+ * agrees lives in `supabase/tests/myk9_2099_refund_decision_removed_absent_test.sql`
+ * and `supabase/tests/withdraw_or_pull_own_entry_test.sql`; this only proves the
+ * client reaches a server that would accept it.
  */
 function sqlGuardAdmits(row: ServerRow): boolean {
   const status = row.entry_status ?? '';
-  const reasonCode = row.withdrawal_reason_code ?? '';
   return (
     (row.payment_method ?? '') === 'online' &&
     (row.payment_status ?? '') === 'paid' &&
     (row.refund_amount ?? 0) <= 0 &&
-    (status === 'scratched' ||
-      (status === 'withdrawn' && ['in_season', 'judge_change'].includes(reasonCode)))
+    ['scratched', 'withdrawn', 'absent'].includes(status)
   );
 }
 
@@ -277,7 +276,7 @@ describe('Deny refund reaches a server that accepts it', () => {
         return Promise.resolve({
           error: {
             code: '22023',
-            message: `entry ${args.p_entry_id} is not an unresolved paid-online pull or withdrawal`,
+            message: `entry ${args.p_entry_id} is not an unresolved paid-online pull, withdrawal, removal or no-show`,
           },
         });
       }
@@ -305,10 +304,38 @@ describe('Deny refund reaches a server that accepts it', () => {
     });
   });
 
+  // MYK9-2099: a paid secretary removal and a paid no-show are on the Pulls list,
+  // so Deny refund on them must reach a server that accepts it.
+  it.each([
+    [
+      'a secretary removal',
+      CODELESS_WITHDRAWAL,
+      makeEntry({ rawEntryStatus: 'withdrawn', pullTiming: null }),
+    ],
+    [
+      'a no-show',
+      { ...CODELESS_WITHDRAWAL, entry_status: 'absent' },
+      makeEntry({ rawEntryStatus: 'absent', pullTiming: null }),
+    ],
+  ])('saves the denial for %s', async (_label, row, entry) => {
+    serveRow(row);
+    const onResolved = vi.fn();
+    render(<PullReconciliationCard entry={entry} onOpenRefund={vi.fn()} onResolved={onResolved} />);
+
+    expect(screen.getByRole('button', { name: /issue refund/i })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
+
+    await waitFor(() => expect(onResolved).toHaveBeenCalled());
+    expect(rpc).toHaveBeenCalledWith('set_entry_refund_decision', {
+      p_entry_id: 'entry-1',
+      p_decision: 'denied',
+    });
+  });
+
   // The other half of the contract. If the transcribed guard ever stops refusing
-  // this, it has drifted from the migration and the case above is worthless.
-  it('is refused by that same guard for a CODELESS withdrawn row', async () => {
-    serveRow(CODELESS_WITHDRAWAL);
+  // this, it has drifted from the migration and the cases above are worthless.
+  it('is refused by that same guard for an entry paid by cash', async () => {
+    serveRow({ ...CODELESS_WITHDRAWAL, entry_status: 'absent', payment_method: 'cash' });
     const onResolved = vi.fn();
     render(
       <PullReconciliationCard
@@ -330,8 +357,9 @@ describe('Deny refund reaches a server that accepts it', () => {
       true
     );
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'scratched' })).toBe(true);
-    expect(sqlGuardAdmits(CODELESS_WITHDRAWAL)).toBe(false);
-    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, withdrawal_reason_code: 'other' })).toBe(false);
+    expect(sqlGuardAdmits(CODELESS_WITHDRAWAL)).toBe(true);
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'absent' })).toBe(true);
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'confirmed' })).toBe(false);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, payment_method: null })).toBe(false);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, payment_status: 'pending' })).toBe(false);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, refund_amount: 25 })).toBe(false);

@@ -13,9 +13,40 @@ import type { ShowDeskPendingSignal, ShowDeskPendingSignalScope } from './showDe
 export interface ShowDeskWaitingInput {
   heldEntries: number | undefined;
   waitlist: WaitlistWaiting | null;
+  /**
+   * MYK9-2099: `findEntryRefundsToDecide`'s count, the Pulls menu count, and the show's payout
+   * day (`computeSettleDate`, `YYYY-MM-DD`; null when the show has no end date).
+   */
+  refundsToDecide?: { count: number; payoutDate: string | null } | undefined;
 }
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * "before Thursday's payout": the payout day in words. The payout date is a UTC calendar day (the
+ * payout job's own arithmetic), so today is read on the same calendar. A payout a week or more
+ * away is named by its date; one already past, or unknown, is not mentioned.
+ */
+export function payoutDayText(payoutDate: string | null, now: Date | null | undefined): string {
+  if (!payoutDate || !/^\d{4}-\d{2}-\d{2}$/.test(payoutDate)) return '';
+  const payout = new Date(`${payoutDate}T12:00:00Z`);
+  const today = new Date(`${(now ?? new Date()).toISOString().slice(0, 10)}T12:00:00Z`);
+  const days = Math.round((payout.getTime() - today.getTime()) / DAY_MS);
+  if (Number.isNaN(days) || days < 0) return '';
+  if (days === 0) return " before today's payout";
+  if (days < 7) {
+    const weekday = payout.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+    return ` before ${weekday}'s payout`;
+  }
+  const date = payout.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+  return ` before the ${date} payout`;
+}
 
 /** `total` is the run-out offers' count, as the list gave it. */
 function runOutText(runOut: WaitlistWaiting['runOut'], total: number): string {
@@ -36,13 +67,29 @@ function openSpotText(openSpots: WaitlistWaiting['openSpots']): string {
   return `Spots opened in ${openSpots.length} classes`;
 }
 
-/** The held-entry and waitlist pills, each present only when something is waiting. */
+/** The refund, held-entry and waitlist pills, each present only when something is waiting. */
 export function buildWaitingSignals(
   showId: string,
   waiting: ShowDeskWaitingInput,
-  scope: ShowDeskPendingSignalScope
+  scope: ShowDeskPendingSignalScope,
+  now?: Date | null
 ): ShowDeskPendingSignal[] {
   const signals: ShowDeskPendingSignal[] = [];
+  const refunds = waiting.refundsToDecide;
+  if (refunds && refunds.count > 0) {
+    signals.push({
+      id: 'refunds-to-decide',
+      count: refunds.count,
+      priority: 'medium',
+      label: `${refunds.count} ${plural(refunds.count, 'refund', 'refunds')} to decide${payoutDayText(
+        refunds.payoutDate,
+        now
+      )}`,
+      href: getEntryListHref(showId, 'pulls'),
+      destinationName: ENTRY_LIST_LABELS.pulls,
+      scope,
+    });
+  }
   const held = waiting.heldEntries ?? 0;
   if (held > 0) {
     signals.push({

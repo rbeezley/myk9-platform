@@ -67,7 +67,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
             Pull Management
           </h2>
           <p className="text-sm text-muted-foreground">
-            Pulled entries and their refund decisions, in one place.
+            Pulls and withdrawals, and any paid removal or no-show with a refund to decide.
           </p>
         </div>
         {onRefresh && (

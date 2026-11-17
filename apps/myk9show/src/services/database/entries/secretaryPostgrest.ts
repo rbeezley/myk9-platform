@@ -228,7 +228,8 @@ export async function postgrestGetSecretaryPullMetadataMap(
     .from('entries')
     .select('id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code')
     .eq('show_id', showId)
-    .in('entry_status', ['scratched', 'withdrawn']);
+    // MYK9-2099: a no-show carries a refund decision too, so 'absent' is read with the removals.
+    .in('entry_status', ['scratched', 'withdrawn', 'absent']);
 
   if (error) {
     throw createDatabaseError(error, 'entries', 'get_secretary_pull_metadata');

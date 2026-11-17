@@ -14,29 +14,68 @@ import {
 } from '..';
 
 describe('findRefundsToDecide', () => {
+  const online = { payment_method: 'online' } as const;
   const entries: ShowDayReconciliationEntry[] = [
-    { id: 'pulled-paid', entry_status: 'scratched', payment_status: 'paid', entry_fee: 25 },
-    { id: 'pulled-refunded', entry_status: 'scratched', payment_status: 'refunded' },
     {
+      ...online,
+      id: 'pulled-paid',
+      entry_status: 'scratched',
+      payment_status: 'paid',
+      entry_fee: 25,
+    },
+    { ...online, id: 'pulled-refunded', entry_status: 'scratched', payment_status: 'refunded' },
+    {
+      ...online,
       id: 'withdrawn-paid',
       entry_status: 'withdrawn',
       payment_status: 'paid',
       withdrawal_reason_code: 'in_season',
     },
-    { id: 'removed-paid', entry_status: 'withdrawn', payment_status: 'PAID' },
-    { id: 'pulled-unpaid', entry_status: 'scratched', payment_status: 'pending' },
-    { id: 'running-paid', entry_status: 'confirmed', payment_status: 'paid' },
+    { ...online, id: 'removed-paid', entry_status: 'withdrawn', payment_status: 'PAID' },
+    { ...online, id: 'absent-paid', entry_status: 'absent', payment_status: 'paid' },
+    // MYK9-2099: a decision already made is never "to decide".
+    {
+      ...online,
+      id: 'pulled-denied',
+      entry_status: 'scratched',
+      payment_status: 'paid',
+      refund_decision: 'denied',
+    },
+    {
+      ...online,
+      id: 'absent-refund-issued',
+      entry_status: 'absent',
+      payment_status: 'paid',
+      refund_amount: 25,
+    },
+    { ...online, id: 'pulled-unpaid', entry_status: 'scratched', payment_status: 'pending' },
+    { ...online, id: 'running-paid', entry_status: 'confirmed', payment_status: 'paid' },
+    // A check-in "pulled" flag on an entry still entered is not a pull yet.
+    {
+      ...online,
+      id: 'flagged-paid',
+      entry_status: 'confirmed',
+      check_in_status: 'pulled',
+      payment_status: 'paid',
+    },
+    { id: 'removed-paid-cash', entry_status: 'withdrawn', payment_status: 'paid' },
   ];
 
-  it('counts paid pulls and removals, with the rows it counted', () => {
+  it('counts paid pulls, withdrawals, removals and no-shows, with the rows it counted', () => {
     const list = findRefundsToDecide(entries);
     expect(list.rows.map(row => row.entry.id)).toEqual([
       'pulled-paid',
       'withdrawn-paid',
       'removed-paid',
+      'absent-paid',
     ]);
-    expect(list.rows.map(row => row.removal)).toEqual(['pulled', 'withdrawn', 'removed']);
+    expect(list.rows.map(row => row.removal)).toEqual(['pulled', 'withdrawn', 'removed', 'absent']);
     expect(list.count).toBe(list.rows.length);
+  });
+
+  it('does not count a denied pull', () => {
+    const denied = entries.filter(entry => entry.id === 'pulled-denied');
+    expect(findRefundsToDecide(denied).count).toBe(0);
   });
 
   it("equals Finish the show's refund line on the same fixture", () => {
@@ -48,7 +87,7 @@ describe('findRefundsToDecide', () => {
       submissions: null,
     });
     const line = left.lines.find(candidate => candidate.kind === 'refund-review');
-    expect(findRefundsToDecide(entries).count).toBe(3);
+    expect(findRefundsToDecide(entries).count).toBe(4);
     expect(line?.count).toBe(findRefundsToDecide(entries).count);
     expect(left.refundReview.count).toBe(findRefundsToDecide(entries).count);
   });

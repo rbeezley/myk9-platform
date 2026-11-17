@@ -53,6 +53,29 @@ describe('postgrestGetSecretaryPullMetadataMap', () => {
     );
   });
 
+  // MYK9-2099: a no-show can carry a refund decision, so it is read with the removals. Without
+  // 'absent' here a denied no-show reads as undecided and stays "to decide" for good.
+  it('reads the decision for pulls, withdrawals, removals and no-shows', async () => {
+    const inFilter = vi.fn();
+    mocks.from.mockImplementation(() => {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        in: vi.fn((column: string, values: string[]) => {
+          inFilter(column, values);
+          return query;
+        }),
+        then: (resolve: (value: { data: unknown[] | null; error: unknown | null }) => unknown) =>
+          Promise.resolve(resolve({ data: [], error: null })),
+      };
+      return query;
+    });
+
+    await postgrestGetSecretaryPullMetadataMap('show-1');
+
+    expect(inFilter).toHaveBeenCalledWith('entry_status', ['scratched', 'withdrawn', 'absent']);
+  });
+
   it('maps the decision and reason code onto each row', async () => {
     mocks.from.mockImplementation(() => {
       const query = {

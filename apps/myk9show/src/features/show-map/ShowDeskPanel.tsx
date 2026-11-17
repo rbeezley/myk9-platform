@@ -82,6 +82,7 @@ export default function ShowDeskPanel({
   const waiting = useShowDeskWaiting({
     showId: show.id,
     entries: canManageShow ? putBackEntries : undefined,
+    showEndDate: show.endDate,
     enabled: canManageShow,
   });
   const pendingSignals = useMemo(

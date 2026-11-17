@@ -121,7 +121,7 @@ describe('EntryManagementPage tab consolidation', () => {
   it('normalizes a legacy Move-ups tab to the Exceptions workspace, with a way back', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=move-ups' });
     // The pane carries its own heading, so the header adds only the way back.
-    expect(screen.queryByRole('heading', { name: 'Move-ups' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Class changes' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Back to entry forms' })).toBeInTheDocument();
     expect(screen.getByText('Move-ups Content')).toBeInTheDocument();
   });

@@ -270,7 +270,7 @@ export function getStatusLabel(kind: EntryStatusKind): string {
     case 'moved':
       return 'Moved';
     case 'move_up_requested':
-      return 'Move-Up Requested';
+      return 'Change requested';
     case 'unknown':
     default:
       return 'Unknown';

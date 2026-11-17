@@ -253,7 +253,7 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     expect(screen.queryByText('58.0s')).not.toBeInTheDocument();
   });
 
-  it('keeps the class-first default for a secretary who also exhibits', async () => {
+  it('keeps the class-first default for a secretary who also exhibits, with a way to their dogs', async () => {
     mockAuthState.hasRole = role => role === UserRole.EXHIBITOR || role === UserRole.SECRETARY;
     mockAuthState.user = { id: 'user-1' };
     seedOwnedEntry();
@@ -261,9 +261,25 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     renderPage();
 
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
-    expect(screen.queryByText('Your dogs today')).not.toBeInTheDocument();
+    // MYK9-2135: staff with a dog entered reach "Your dogs today" without typing ?view=mine.
+    fireEvent.click(await screen.findByRole('button', { name: 'Your dogs today' }));
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'See all classes' }));
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
     // MYK9-1184: the "All classes" heading is for exhibitor-only viewers.
     expect(screen.queryByRole('heading', { name: 'All classes' })).not.toBeInTheDocument();
+  });
+
+  it('offers staff with no dog entered no Your dogs today button', async () => {
+    mockAuthState.hasRole = role => role === UserRole.SECRETARY;
+    mockAuthState.user = { id: 'user-1' };
+    mockSupabase.rpc.mockImplementation(() => Promise.resolve({ data: [], error: null }) as never);
+    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Your dogs today' })).not.toBeInTheDocument();
   });
 
   it('lets the exhibitor switch to the full class list and back', async () => {

@@ -31,7 +31,12 @@ async function fetchRequestedClubIfMissing(
 ): Promise<void> {
   if (clubs.some(club => club.id === requestedClubId)) return;
   try {
-    const fetched = await replicatedClubsTable.fetchClubById(requestedClubId);
+    // Bounded like the sync above: a hung request must not hold readiness at 'loading'.
+    const fetched = await withTimeout(
+      replicatedClubsTable.fetchClubById(requestedClubId),
+      DEFAULT_TIMEOUT_MS,
+      'Requested club read'
+    );
     if (fetched) await reload();
   } catch {
     logger.warn('Requested club fetch unavailable', 'clubs');

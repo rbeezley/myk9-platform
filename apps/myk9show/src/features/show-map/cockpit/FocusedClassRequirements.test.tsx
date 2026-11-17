@@ -2,7 +2,7 @@
  * MYK9-2118: Show Desk's class panel shows the class's Requirements and its current time limit,
  * read live from the class replica (so offline), through the component Ringside's dialog uses.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@/test/utils/testUtils';
 
 const replica = vi.hoisted(() => {
@@ -55,7 +55,7 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
         display: { ...rule.display, areaCount: 1, hasBlank: false, odors: ['Birch'] },
       },
     });
-    render(<FocusedClassRequirements classId="c1" registryId="AKC" />);
+    render(<FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/New_York" />);
 
     expect(await screen.findByText('Time limit: 2:00')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /requirements/i }));
@@ -76,7 +76,7 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
       timeLimitArea3Seconds: 150,
       timeLimitRule: rule,
     });
-    render(<FocusedClassRequirements classId="c3" registryId="AKC" />);
+    render(<FocusedClassRequirements classId="c3" registryId="AKC" timeZone="America/New_York" />);
 
     expect(
       await screen.findByText('Time limit: Area 1 1:30 · Area 2 2:00 · Area 3 2:30')
@@ -88,7 +88,46 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
 
   it('says Not set and that the rules are missing when the class has neither', async () => {
     replica.rows.set('c0', { id: 'c0', element: 'Interior', level: 'Master' });
-    render(<FocusedClassRequirements classId="c0" registryId="AKC" />);
+    render(<FocusedClassRequirements classId="c0" registryId="AKC" timeZone="America/New_York" />);
     expect(await screen.findByText('Time limit: Not set')).toBeInTheDocument();
+  });
+
+  describe('when the limit was set (MYK9-2120)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("shows the time in the show's zone when it was set today", async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-17T22:00:00Z'));
+      replica.rows.set('c1', {
+        id: 'c1',
+        areaCount: 1,
+        timeLimitSeconds: 120,
+        timeLimitSetAt: '2026-11-17T19:14:00+00:00',
+      });
+      render(<FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/Chicago" />);
+      expect(await screen.findByText('Time limit: 2:00 · set 1:14 PM')).toBeInTheDocument();
+    });
+
+    it('adds the date when it was set on another day', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-17T22:00:00Z'));
+      replica.rows.set('c1', {
+        id: 'c1',
+        areaCount: 1,
+        timeLimitSeconds: 120,
+        timeLimitSetAt: '2026-11-16T19:14:00+00:00',
+      });
+      render(<FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/Chicago" />);
+      expect(await screen.findByText('Time limit: 2:00 · set Nov 16, 1:14 PM')).toBeInTheDocument();
+    });
+
+    it('shows nothing extra when the class has no stamp', async () => {
+      replica.rows.set('c1', { id: 'c1', areaCount: 1, timeLimitSeconds: 120 });
+      render(<FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/Chicago" />);
+      expect(await screen.findByText('Time limit: 2:00')).toBeInTheDocument();
+      expect(screen.queryByText(/set /)).not.toBeInTheDocument();
+    });
   });
 });

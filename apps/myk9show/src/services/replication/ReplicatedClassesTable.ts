@@ -101,6 +101,8 @@ export interface ReplicatedClass {
   timeLimitSeconds?: number | undefined;
   timeLimitArea2Seconds?: number | undefined;
   timeLimitArea3Seconds?: number | undefined;
+  /** MYK9-2120: when a time limit last changed; stamped by the server, read-only here. */
+  timeLimitSetAt?: string | null | undefined;
   judgeName?: string | undefined;
   judgeId?: string | undefined;
   judgeFirstName?: string | undefined;
@@ -263,6 +265,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
     timeLimitArea3Seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,
+    timeLimitSetAt: (dbRow.time_limit_set_at as string | null | undefined) ?? null,
     judgeName: judge.name,
     judgeId: judge.personId,
     judgeFirstName: judge.firstName,

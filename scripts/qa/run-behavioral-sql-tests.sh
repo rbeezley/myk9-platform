@@ -237,6 +237,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1235_club_registry_numbers_test.sql"
   "$TEST_DIR/myk9_1254_lifecycle_jobs_column_acl_test.sql"
   "$TEST_DIR/myk9_2076_results_available_email_test.sql"
+  "$TEST_DIR/myk9_2120_class_time_limit_set_at_test.sql"
   "$TEST_DIR/myk9_1310_approval_authorizes_club_test.sql"
   "$TEST_DIR/myk9_1315_club_awaiting_authorization_notice_test.sql"
   "$TEST_DIR/myk9_1395_club_awaiting_authorization_rate_limit_test.sql"

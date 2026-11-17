@@ -303,6 +303,7 @@ export function SecretaryCockpitFocusedClass({
           key={focused.id}
           classId={focused.id}
           registryId={sourceClass.registryId ?? ''}
+          timeZone={timeZone}
         />
 
         {attention.length > 0 && (

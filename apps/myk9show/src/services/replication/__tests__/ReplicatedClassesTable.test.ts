@@ -964,6 +964,28 @@ describe('ReplicatedClassesTable', () => {
       expect(read(undefined)).toBeNull();
     });
 
+    it('reads time_limit_set_at from the DB row and never writes it back (MYK9-2120)', () => {
+      const setAt = '2026-11-17T19:14:00+00:00';
+      const domain = rowToClass({
+        ...createDbRow({ id: '1' }),
+        time_limit_set_at: setAt,
+      } as unknown as Database['public']['Tables']['classes']['Row']);
+      expect(domain.timeLimitSetAt).toBe(setAt);
+
+      const unset = rowToClass(
+        createDbRow({ id: '1' }) as unknown as Database['public']['Tables']['classes']['Row']
+      );
+      expect(unset.timeLimitSetAt).toBeNull();
+
+      const dbRow = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(createMockClass({ timeLimitSeconds: 120, timeLimitSetAt: setAt }));
+      expect(dbRow).toHaveProperty('time_limit_seconds', 120);
+      expect(dbRow).not.toHaveProperty('time_limit_set_at');
+    });
+
     it('round-trips the scent-work hide count num_hides↔hideCount', () => {
       const domain = rowToClass({
         ...createDbRow({ id: '1' }),

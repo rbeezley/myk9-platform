@@ -1202,6 +1202,7 @@ export type Database = {
           time_limit_area2_seconds: number | null
           time_limit_area3_seconds: number | null
           time_limit_seconds: number | null
+          time_limit_set_at: string | null
           timer_mode: string | null
           total_entries_count: number | null
           trial_id: string
@@ -1267,6 +1268,7 @@ export type Database = {
           time_limit_area2_seconds?: number | null
           time_limit_area3_seconds?: number | null
           time_limit_seconds?: number | null
+          time_limit_set_at?: string | null
           timer_mode?: string | null
           total_entries_count?: number | null
           trial_id: string
@@ -1332,6 +1334,7 @@ export type Database = {
           time_limit_area2_seconds?: number | null
           time_limit_area3_seconds?: number | null
           time_limit_seconds?: number | null
+          time_limit_set_at?: string | null
           timer_mode?: string | null
           total_entries_count?: number | null
           trial_id?: string

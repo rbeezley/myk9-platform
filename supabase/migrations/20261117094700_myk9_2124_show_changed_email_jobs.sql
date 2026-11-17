@@ -19,7 +19,7 @@
 --   3. A partial UNIQUE index on (show_id, recipient_person_id) for the one unsent
 --      show_changed job. Several edits in one sitting upsert that one row and push its
 --      due_at; a change after the email went out finds no ready row and makes a new job.
---   4. Producers. AFTER UPDATE triggers on trials (date) and on shows (venue_name,
+--   4. Producers. AFTER UPDATE triggers on trials (date) and on shows (start_date, end_date, venue_name,
 --      address, city, state, zip_code). For a published show (status published, upcoming
 --      or in_progress, the live set the confirmation email uses) with the step switched
 --      on, every person with a live entry gets one ready, auto_send job with
@@ -161,7 +161,9 @@ AS $$
      AND e.deleted_at IS NULL
      AND e.entry_status IN (
        'confirmed', 'accepted', 'scheduled', 'checked-in', 'at-gate',
-       'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested'
+       'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested',
+       -- Submitted or paid but not yet accepted: the exhibitor is planning to come too.
+       'submitted', 'paid', 'pending', 'promotion-expired', 'waitlisted'
      )
      AND e.check_in_status IS DISTINCT FROM 'pulled'
      AND r.person_id IS NOT NULL
@@ -305,10 +307,12 @@ CREATE TRIGGER trg_queue_show_changed_email_trial
 
 DROP TRIGGER IF EXISTS trg_queue_show_changed_email_show ON public.shows;
 CREATE TRIGGER trg_queue_show_changed_email_show
-  AFTER UPDATE OF venue_name, address, city, state, zip_code ON public.shows
+  AFTER UPDATE OF start_date, end_date, venue_name, address, city, state, zip_code ON public.shows
   FOR EACH ROW
   WHEN (
-    old.venue_name IS DISTINCT FROM new.venue_name
+    old.start_date IS DISTINCT FROM new.start_date
+    OR old.end_date IS DISTINCT FROM new.end_date
+    OR old.venue_name IS DISTINCT FROM new.venue_name
     OR old.address IS DISTINCT FROM new.address
     OR old.city IS DISTINCT FROM new.city
     OR old.state IS DISTINCT FROM new.state

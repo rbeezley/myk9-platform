@@ -20,6 +20,8 @@ export function makeAutoSendSupabase(
   tables.show_lifecycle_email_steps ??= [
     { show_id: 'show-1', step_type: 'show_changed', is_enabled: true },
   ];
+  // The fake's wall clock: attempts are stamped with it and the claim honours it.
+  const clock = { at: new Date('2026-11-17T12:00:00.000Z') };
   let nextId = 0;
   let nextAttempt = 0;
 
@@ -31,7 +33,13 @@ export function makeAutoSendSupabase(
     const matching = () => tables[table].filter(row => filters.every(([c, v]) => row[c] === v));
     const exec = (): Row[] => {
       if (op === 'insert') {
-        const row = { id: `${table}-${(nextId += 1)}`, ...payload };
+        const row = {
+          id: `${table}-${(nextId += 1)}`,
+          ...(table === 'show_lifecycle_email_attempts'
+            ? { attempted_at: clock.at.toISOString() }
+            : {}),
+          ...payload,
+        };
         tables[table].push(row);
         return [row];
       }
@@ -48,6 +56,7 @@ export function makeAutoSendSupabase(
         filters.push([column, value]);
         return query;
       }),
+      or: vi.fn(() => query),
       in: vi.fn(() => query),
       order: vi.fn(() => query),
       insert: vi.fn((value: Row) => {
@@ -78,13 +87,21 @@ export function makeAutoSendSupabase(
 
   const rpc = vi.fn(async (fn: string, args: Record<string, unknown>) => {
     if (fn === 'claim_due_auto_email_jobs') {
+      const at = clock.at.toISOString();
       const claimed = tables[JOBS].filter(
-        job => job.status === 'ready' && job.auto_send && !job.attempt_id
-      ).map(job => {
-        job.attempt_id = `attempt-${(nextAttempt += 1)}`;
-        job.claimed_until = args.p_lease_until;
-        return { ...job, job_id: job.id };
-      });
+        job =>
+          job.status === 'ready' &&
+          job.auto_send &&
+          !job.attempt_id &&
+          String(job.due_at) <= at &&
+          (!job.claimed_until || String(job.claimed_until) <= at)
+      )
+        .slice(0, Number(args.p_limit))
+        .map(job => {
+          job.attempt_id = `attempt-${(nextAttempt += 1)}`;
+          job.claimed_until = args.p_lease_until;
+          return { ...job, job_id: job.id };
+        });
       return { data: claimed, error: null };
     }
     if (fn === 'show_person_has_live_entry') {
@@ -96,7 +113,7 @@ export function makeAutoSendSupabase(
     return { data: null, error: { message: `unexpected rpc ${fn}` } };
   });
 
-  return { tables, supabase: { from: vi.fn(makeQuery), rpc }, rpc };
+  return { tables, clock, supabase: { from: vi.fn(makeQuery), rpc }, rpc };
 }
 
 export const publishedShow = {
@@ -104,6 +121,8 @@ export const publishedShow = {
   name: 'Spring Scent Trial',
   status: 'published',
   deleted_at: null,
+  start_date: '2026-11-21',
+  end_date: '2026-11-22',
   venue_name: 'Riverside Barn',
   address: '12 River Road',
   city: 'Fairfield',
@@ -124,6 +143,7 @@ export function autoJob(overrides: Row = {}): Row {
     auto_send: true,
     attempt_id: null,
     claimed_until: null,
+    due_at: '2026-11-17T11:55:00.000Z',
     recipient_person_id: 'person-1',
     recipient_email: 'jamie@example.com',
     recipient_name: 'Jamie Handler',

@@ -15,6 +15,9 @@ export interface ShowChangedShow {
   name: string | null;
   status: string | null;
   deleted_at?: string | null;
+  /** YYYY-MM-DD: what the Show Edit panel writes. */
+  start_date?: string | null;
+  end_date?: string | null;
   venue_name: string | null;
   address: string | null;
   city: string | null;
@@ -61,16 +64,33 @@ function clean(value: string | null | undefined): string {
 }
 
 function dateLines(show: ShowChangedShow): string[] {
+  const start = clean(show.start_date);
+  const end = clean(show.end_date);
+  const lines: string[] = [];
+  if (start) {
+    lines.push(
+      end && end !== start
+        ? `Show: ${formatTrialDate(start)} to ${formatTrialDate(end)}`
+        : `Show: ${formatTrialDate(start)}`
+    );
+  }
   const trials = (show.trials ?? [])
     .filter(trial => !trial.deleted_at && clean(trial.date))
     .sort((a, b) => clean(a.date).localeCompare(clean(b.date)));
-  if (trials.length === 0) return [];
-  if (trials.length === 1) return [formatTrialDate(clean(trials[0].date))];
-  return trials.map(trial => {
-    const label = clean(trial.name);
-    const date = formatTrialDate(clean(trial.date));
-    return label ? `${label}: ${date}` : date;
-  });
+  // One trial on the show's one day says nothing the show line has not.
+  const repeatsShowLine =
+    trials.length === 1 &&
+    start !== '' &&
+    clean(trials[0].date) === start &&
+    (!end || end === start);
+  if (!repeatsShowLine) {
+    for (const trial of trials) {
+      const label = clean(trial.name);
+      const date = formatTrialDate(clean(trial.date));
+      lines.push(label ? `${label}: ${date}` : date);
+    }
+  }
+  return lines;
 }
 
 function venueLines(show: ShowChangedShow): string[] {

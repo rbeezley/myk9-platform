@@ -1,5 +1,6 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
+import { retryAutoJobs } from './lifecycle-email-retryAuto.ts';
 import { sendRegistrationNumberNeeded } from './lifecycle-email-numberNeeded.ts';
 import {
   findSupersededDecisionJobs,
@@ -67,7 +68,8 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
       payload.action !== 'preview' &&
       payload.action !== 'save_ready' &&
       payload.action !== 'send' &&
-      payload.action !== 'send_registration_number_needed'
+      payload.action !== 'send_registration_number_needed' &&
+      payload.action !== 'retry_auto'
     ) {
       throw new HttpError(400, 'Unsupported lifecycle email action');
     }
@@ -75,6 +77,10 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
 
     const show = await fetchShow(supabase, payload.show_id);
     await assertCanSendForShow(supabase, user.id, show);
+
+    if (payload.action === 'retry_auto') {
+      return retryAutoJobs({ supabase, showId: payload.show_id });
+    }
 
     if (payload.action === 'save_ready') {
       return saveReadyJob({ payload, supabase, userId: user.id });

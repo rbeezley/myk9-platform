@@ -6,6 +6,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import {
   fetchLifecycleEmailJobsForReview,
   fetchShowLifecycleEmailSummary,
+  retryAutomaticLifecycleEmails,
   sendLifecycleEmailJobs,
   skipLifecycleEmailJobsForReview,
   updateLifecycleEmailStepEnabled,
@@ -19,6 +20,7 @@ vi.mock('./api', async importOriginal => {
     ...actual,
     fetchLifecycleEmailJobsForReview: vi.fn(),
     fetchShowLifecycleEmailSummary: vi.fn(),
+    retryAutomaticLifecycleEmails: vi.fn(),
     sendLifecycleEmailJobs: vi.fn(),
     skipLifecycleEmailJobsForReview: vi.fn(),
     updateLifecycleEmailStepEnabled: vi.fn(),
@@ -27,6 +29,7 @@ vi.mock('./api', async importOriginal => {
 
 const mockFetchSummary = vi.mocked(fetchShowLifecycleEmailSummary);
 const mockFetchJobs = vi.mocked(fetchLifecycleEmailJobsForReview);
+const mockRetryAuto = vi.mocked(retryAutomaticLifecycleEmails);
 const mockSendJobs = vi.mocked(sendLifecycleEmailJobs);
 const mockSkipJobs = vi.mocked(skipLifecycleEmailJobsForReview);
 const mockUpdateStep = vi.mocked(updateLifecycleEmailStepEnabled);
@@ -108,6 +111,7 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     mockSendJobs.mockResolvedValue({ sent: 1, failed: 0, total: 1 });
     mockSkipJobs.mockResolvedValue(undefined);
     mockUpdateStep.mockResolvedValue(undefined);
+    mockRetryAuto.mockReset();
   });
 
   it('renders producer-backed steps, including Results available, and hides inert scheduled steps', async () => {
@@ -201,6 +205,65 @@ describe('ScheduledLifecycleEmailsPanel', () => {
           isEnabled: false,
         })
       );
+    });
+  });
+
+  describe('the automatic date or venue step', () => {
+    async function withAutomaticStep(failedCount: number) {
+      const current = await mockFetchSummary({ supabase: {} as never, showId: 'show-1' });
+      mockFetchSummary.mockResolvedValue({
+        ...current,
+        steps: [
+          ...current.steps,
+          {
+            stepType: 'show_changed',
+            isEnabled: true,
+            readyCount: 0,
+            sentCount: 4,
+            failedCount,
+            skippedCount: 0,
+            dismissedCount: 0,
+            warningCount: 0,
+          },
+        ],
+      });
+    }
+
+    it('says how many could not be sent and sends them again, with no Review', async () => {
+      await withAutomaticStep(2);
+      mockRetryAuto.mockResolvedValue(2);
+      const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+      expect(await screen.findByText('Date or venue changed')).toBeInTheDocument();
+      expect(screen.getByText('2 emails could not be sent.')).toBeInTheDocument();
+      // Only the accepted step offers Review.
+      expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(1);
+
+      await user.click(screen.getByRole('button', { name: 'Send again' }));
+
+      await waitFor(() =>
+        expect(mockRetryAuto).toHaveBeenCalledWith(expect.objectContaining({ showId: 'show-1' }))
+      );
+    });
+
+    it('says so, and keeps the button, when sending again fails', async () => {
+      await withAutomaticStep(1);
+      mockRetryAuto.mockRejectedValue(new Error('boom'));
+      const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+      await user.click(await screen.findByRole('button', { name: 'Send again' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not send again');
+      expect(screen.queryByText(/boom/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Send again' })).toBeEnabled();
+    });
+
+    it('offers nothing to send again when none failed', async () => {
+      await withAutomaticStep(0);
+      render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+      expect(await screen.findByText('Date or venue changed')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument();
     });
   });
 

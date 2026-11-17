@@ -5,7 +5,13 @@ import { storeEmailContent, type EmailContentClient } from '../_shared/emailLogC
 
 /** Types and database/provider helpers shared by the generic send and the number-needed step. */
 export interface SendLifecycleEmailPayload {
-  action?: 'preview' | 'save_ready' | 'send' | 'send_registration_number_needed' | 'drain_auto';
+  action?:
+    | 'preview'
+    | 'save_ready'
+    | 'send'
+    | 'send_registration_number_needed'
+    | 'drain_auto'
+    | 'retry_auto';
   show_id?: string;
   job_ids?: string[];
   step_type?: string;

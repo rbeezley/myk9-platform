@@ -8,6 +8,7 @@
 --      or a show whose step is switched off
 --   D. two quick edits are one job, and each edit pushes its due time out again
 --   E. the claim takes due automatic jobs only, leases them, and hands an expired lease out again
+--   G. a show start or end date change (what the Show Edit panel writes) queues jobs too
 --   F. the functions are not callable by an API role (the claim is service_role only)
 --
 -- Fixtures roll back. Every now() below is the transaction start, so due times compare exactly.
@@ -34,17 +35,20 @@ insert into public.classes (id, trial_id, name, status, element, level, section)
 insert into public.people (id, first_name, last_name, email) values
   ('00000000-0000-0000-0000-000002124321', 'Ada', 'Owner', 'ada@example.test'),
   ('00000000-0000-0000-0000-000002124325', 'Hal', 'Handler', 'hal@example.test'),
-  ('00000000-0000-0000-0000-000002124326', 'Cy', 'Withdrew', 'cy@example.test');
+  ('00000000-0000-0000-0000-000002124326', 'Cy', 'Withdrew', 'cy@example.test'),
+  ('00000000-0000-0000-0000-000002124327', 'Pat', 'Paid', 'pat@example.test');
 insert into public.dogs (id, name, call_name, breed, owner_id) values
   ('00000000-0000-0000-0000-000002124331', 'Ada Dog One', 'One', 'Beagle', '00000000-0000-0000-0000-000002124321'),
   ('00000000-0000-0000-0000-000002124332', 'Ada Dog Two', 'Two', 'Beagle', '00000000-0000-0000-0000-000002124321'),
-  ('00000000-0000-0000-0000-000002124334', 'Cy Dog', 'Cy', 'Beagle', '00000000-0000-0000-0000-000002124326');
+  ('00000000-0000-0000-0000-000002124334', 'Cy Dog', 'Cy', 'Beagle', '00000000-0000-0000-0000-000002124326'),
+  ('00000000-0000-0000-0000-000002124335', 'Pat Dog', 'Pat', 'Beagle', '00000000-0000-0000-0000-000002124327');
 
 alter table public.entries disable trigger trg_entries_require_dog_registration;
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband, run_order, check_in_status) values
   ('00000000-0000-0000-0000-000002124341', '00000000-0000-0000-0000-000002124331', '00000000-0000-0000-0000-000002124304', '00000000-0000-0000-0000-000002124302', '00000000-0000-0000-0000-000002124303', null, 'confirmed', '1', 1, 'no-status'),
   ('00000000-0000-0000-0000-000002124342', '00000000-0000-0000-0000-000002124332', '00000000-0000-0000-0000-000002124304', '00000000-0000-0000-0000-000002124302', '00000000-0000-0000-0000-000002124303', '00000000-0000-0000-0000-000002124325', 'confirmed', '2', 2, 'no-status'),
   ('00000000-0000-0000-0000-000002124344', '00000000-0000-0000-0000-000002124334', '00000000-0000-0000-0000-000002124304', '00000000-0000-0000-0000-000002124302', '00000000-0000-0000-0000-000002124303', null, 'withdrawn', '4', 3, 'no-status'),
+  ('00000000-0000-0000-0000-000002124347', '00000000-0000-0000-0000-000002124335', '00000000-0000-0000-0000-000002124304', '00000000-0000-0000-0000-000002124302', '00000000-0000-0000-0000-000002124303', null, 'paid', '5', 4, 'no-status'),
   ('00000000-0000-0000-0000-000002124345', '00000000-0000-0000-0000-000002124331', '00000000-0000-0000-0000-000002124314', '00000000-0000-0000-0000-000002124312', '00000000-0000-0000-0000-000002124313', null, 'confirmed', '1', 1, 'no-status'),
   ('00000000-0000-0000-0000-000002124346', '00000000-0000-0000-0000-000002124331', '00000000-0000-0000-0000-000002124324', '00000000-0000-0000-0000-000002124322', '00000000-0000-0000-0000-000002124323', null, 'confirmed', '1', 1, 'no-status');
 alter table public.entries enable trigger trg_entries_require_dog_registration;
@@ -65,8 +69,8 @@ declare
   v_job record;
 begin
   update public.trials set date = current_date + 7 where id = '00000000-0000-0000-0000-000002124303';
-  if pg_temp.jobs(v_show) <> 2 then
-    raise exception 'FAIL A expected 2 jobs (Ada once for two dogs, Hal as handler; Cy withdrew), found %', pg_temp.jobs(v_show);
+  if pg_temp.jobs(v_show) <> 3 then
+    raise exception 'FAIL A expected 3 jobs (Ada once for two dogs, Hal as handler, Pat paid but not yet accepted; Cy withdrew), found %', pg_temp.jobs(v_show);
   end if;
   select * into v_job from public.show_lifecycle_email_jobs
    where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002124321';
@@ -77,6 +81,10 @@ begin
   if exists (select 1 from public.show_lifecycle_email_jobs
               where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002124326') then
     raise exception 'FAIL A an exhibitor whose only dog withdrew was queued';
+  end if;
+  if not exists (select 1 from public.show_lifecycle_email_jobs
+                  where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002124327') then
+    raise exception 'FAIL A an exhibitor whose entry is paid but not yet accepted was not queued';
   end if;
   raise notice 'PASS A a date change queues one automatic job per exhibitor';
 end $$;
@@ -90,8 +98,8 @@ begin
      set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
    where show_id = v_show and step_type = 'show_changed';
   update public.shows set address = '2 New Road' where id = v_show;
-  if pg_temp.jobs(v_show, 'ready') <> 2 or pg_temp.jobs(v_show, 'sent') <> 2 then
-    raise exception 'FAIL B a venue change after the send should queue 2 new jobs beside 2 sent, found % ready % sent',
+  if pg_temp.jobs(v_show, 'ready') <> 3 or pg_temp.jobs(v_show, 'sent') <> 3 then
+    raise exception 'FAIL B a venue change after the send should queue 3 new jobs beside 3 sent, found % ready % sent',
       pg_temp.jobs(v_show, 'ready'), pg_temp.jobs(v_show, 'sent');
   end if;
   raise notice 'PASS B a venue change after a send queues a new job';
@@ -162,7 +170,7 @@ begin
    where show_id = v_show and step_type = 'show_changed' and status = 'ready';
   -- A job a secretary must review is never claimed.
   update public.show_lifecycle_email_jobs set auto_send = false
-   where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002124325'
+   where show_id = v_show and recipient_person_id in ('00000000-0000-0000-0000-000002124325', '00000000-0000-0000-0000-000002124327')
      and step_type = 'show_changed' and status = 'ready';
 
   select * into v_first from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
@@ -187,6 +195,29 @@ begin
     raise exception 'FAIL E an expired lease was not handed out with a new attempt: %', row_to_json(v_third);
   end if;
   raise notice 'PASS E the claim leases due automatic jobs and re-hands an expired lease';
+end $$;
+
+-- G
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002124302';
+begin
+  -- The Show Edit panel writes shows.start_date / end_date, never the trials' dates.
+  update public.show_lifecycle_email_jobs
+     set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = v_show and step_type = 'show_changed';
+  update public.shows set end_date = current_date + 31 where id = v_show;
+  if pg_temp.jobs(v_show, 'ready') <> 3 then
+    raise exception 'FAIL G an end date change queued % jobs, expected 3', pg_temp.jobs(v_show, 'ready');
+  end if;
+  update public.show_lifecycle_email_jobs
+     set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = v_show and step_type = 'show_changed';
+  update public.shows set start_date = current_date + 30 where id = v_show;
+  if pg_temp.jobs(v_show, 'ready') <> 3 then
+    raise exception 'FAIL G a start date change queued % jobs, expected 3', pg_temp.jobs(v_show, 'ready');
+  end if;
+  raise notice 'PASS G a show start or end date change queues a job per exhibitor';
 end $$;
 
 -- F

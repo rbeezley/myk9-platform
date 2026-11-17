@@ -7,11 +7,16 @@ function okFetch(id = 'resend-1') {
   return vi.fn(async () => ({ ok: true, json: async () => ({ id }) }));
 }
 
-function drain(fixture: ReturnType<typeof makeAutoSendSupabase>, fetch: ReturnType<typeof vi.fn>) {
+function drain(
+  fixture: ReturnType<typeof makeAutoSendSupabase>,
+  fetch: ReturnType<typeof vi.fn>,
+  timeBudgetMs?: number
+) {
   return drainAutoEmailJobs({
     deps: { fetch: fetch as unknown as typeof globalThis.fetch, resendApiKey: 'resend-key' },
     supabase: fixture.supabase,
-    now: () => new Date('2026-11-17T12:00:00.000Z'),
+    now: () => fixture.clock.at,
+    ...(timeBudgetMs === undefined ? {} : { timeBudgetMs }),
   });
 }
 
@@ -103,12 +108,20 @@ describe('drainAutoEmailJobs', () => {
 
     const first = await drain(fixture, fetch);
     expect(first).toMatchObject({ claimed: 1, retry: 1, failed: 0 });
-    expect(job(fixture)).toMatchObject({ status: 'ready', attempt_id: null, claimed_until: null });
+    // The job waits out a retry delay, so the same run never takes it again.
+    expect(job(fixture)).toMatchObject({
+      status: 'ready',
+      attempt_id: null,
+      claimed_until: '2026-11-17T12:05:00.000Z',
+    });
+    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 0 });
 
+    fixture.clock.at = new Date('2026-11-17T12:06:00.000Z');
     const second = await drain(fixture, fetch);
     expect(second).toMatchObject({ claimed: 1, retry: 1, failed: 0 });
     expect(job(fixture).status).toBe('ready');
 
+    fixture.clock.at = new Date('2026-11-17T12:12:00.000Z');
     const third = await drain(fixture, fetch);
     expect(third).toMatchObject({ claimed: 1, retry: 0, failed: 1 });
     expect(job(fixture)).toMatchObject({ status: 'failed', attempt_id: null });
@@ -124,7 +137,84 @@ describe('drainAutoEmailJobs', () => {
     ).toEqual([null, null, logId]);
 
     // A failed job is never claimed again.
+    fixture.clock.at = new Date('2026-11-17T12:30:00.000Z');
     expect(await drain(fixture, fetch)).toMatchObject({ claimed: 0 });
+  });
+
+  it('counts only refusals since the job last became due, so sending it again starts afresh', async () => {
+    const refused = (attemptedAt: string) => ({
+      job_id: 'job-1',
+      status: 'failed',
+      attempted_at: attemptedAt,
+      resend_message_id: null,
+      email_log_id: null,
+    });
+    const fixture = makeAutoSendSupabase(
+      {
+        shows: [publishedShow],
+        // Three old refusals, then a secretary sent it again (due_at moved to 11:55).
+        show_lifecycle_email_jobs: [autoJob()],
+        show_lifecycle_email_attempts: [
+          refused('2026-11-17T10:00:00.000Z'),
+          refused('2026-11-17T10:05:00.000Z'),
+          refused('2026-11-17T10:10:00.000Z'),
+        ],
+      },
+      { liveEntryPeople: ['person-1'] }
+    );
+    const fetch = okFetch();
+
+    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 1, sent: 1, failed: 0 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps claiming batches in one run until nothing is due', async () => {
+    const jobs = Array.from({ length: 30 }, (_, index) =>
+      autoJob({
+        id: `job-${index}`,
+        recipient_person_id: `person-${index}`,
+        recipient_email: `p${index}@example.com`,
+        idempotency_key: `key-${index}`,
+      })
+    );
+    const fixture = makeAutoSendSupabase(
+      { shows: [publishedShow], show_lifecycle_email_jobs: jobs },
+      { liveEntryPeople: jobs.map(entry => String(entry.recipient_person_id)) }
+    );
+    const fetch = okFetch();
+
+    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 30, sent: 30 });
+    expect(fetch).toHaveBeenCalledTimes(30);
+    // Two batches of work and the empty claim that ended the run.
+    const claims = fixture.rpc.mock.calls.filter(call => call[0] === 'claim_due_auto_email_jobs');
+    expect(claims).toHaveLength(3);
+  });
+
+  it('stops claiming once the time budget is spent and leaves the rest for the next run', async () => {
+    const jobs = Array.from({ length: 30 }, (_, index) =>
+      autoJob({
+        id: `job-${index}`,
+        recipient_person_id: `person-${index}`,
+        recipient_email: `p${index}@example.com`,
+        idempotency_key: `key-${index}`,
+      })
+    );
+    const fixture = makeAutoSendSupabase(
+      { shows: [publishedShow], show_lifecycle_email_jobs: jobs },
+      { liveEntryPeople: jobs.map(entry => String(entry.recipient_person_id)) }
+    );
+    // Every send takes a minute of the fake clock.
+    const fetch = vi.fn(async () => {
+      fixture.clock.at = new Date(fixture.clock.at.getTime() + 60_000);
+      return { ok: true, json: async () => ({ id: 'resend-1' }) };
+    });
+
+    const result = await drain(fixture, fetch, 60_000);
+
+    expect(result).toMatchObject({ claimed: 25, sent: 25 });
+    expect(
+      fixture.tables.show_lifecycle_email_jobs.filter(entry => entry.status === 'ready')
+    ).toHaveLength(5);
   });
 
   it('skips the job, sending nothing, when the show is no longer published', async () => {
@@ -204,6 +294,7 @@ describe('drainAutoEmailJobs', () => {
       error: null,
     }));
     fixture.rpc.mockImplementationOnce(async () => ({ data: null, error: { message: 'boom' } }));
+    fixture.rpc.mockImplementationOnce(async () => ({ data: [], error: null }));
     const fetch = okFetch();
 
     expect(await drain(fixture, fetch)).toMatchObject({ claimed: 1, errors: 1, sent: 0 });
@@ -213,6 +304,26 @@ describe('drainAutoEmailJobs', () => {
 });
 
 describe('renderShowChangedEmail', () => {
+  it('shows the dates of the show itself, which the Show Edit panel writes, before the trial dates', () => {
+    const email = renderShowChangedEmail({ show: publishedShow, recipientName: 'Jamie' });
+    expect(email.body).toContain(
+      'Show: Saturday, November 21, 2026 to Sunday, November 22, 2026\nSaturday Trial: Saturday, November 21, 2026'
+    );
+  });
+
+  it('gives one line for a one-day show with one trial on the same day', () => {
+    const email = renderShowChangedEmail({
+      show: {
+        ...publishedShow,
+        end_date: '2026-11-21',
+        trials: [{ name: 'Saturday Trial', date: '2026-11-21', deleted_at: null }],
+      },
+      recipientName: null,
+    });
+    expect(email.body).toContain('Date:\nShow: Saturday, November 21, 2026\n\nVenue:');
+    expect(email.body).not.toContain('Saturday Trial');
+  });
+
   it('lists every live trial date and the street address, plainly', () => {
     const email = renderShowChangedEmail({
       show: {

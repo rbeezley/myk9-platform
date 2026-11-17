@@ -196,6 +196,8 @@ export interface ShowInput {
   clubAddress: string;
   clubEmail: string;
   startingArmbandNumber?: number | undefined;
+  /** Note to exhibitors (shows.confirmation_message). */
+  confirmationMessage?: string | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;

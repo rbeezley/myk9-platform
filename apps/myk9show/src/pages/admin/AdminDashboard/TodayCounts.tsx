@@ -25,6 +25,11 @@ export function TodayCounts({ counts, now }: TodayCountsProps) {
     { label: 'Signups', value: counts?.signupsToday, href: signupsHref },
     { label: 'Shows created', value: counts?.showsCreatedToday },
     { label: 'Live shows', value: counts?.liveShows },
+    {
+      label: 'Club requests waiting',
+      value: counts?.clubRequestsWaiting,
+      href: '/admin/onboarding',
+    },
   ];
 
   return (

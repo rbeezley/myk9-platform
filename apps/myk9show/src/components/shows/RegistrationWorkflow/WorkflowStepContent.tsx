@@ -1,4 +1,5 @@
 import type { PaymentMethodResolution } from './PaymentStep/usePaymentMethodResolution';
+import type { DeskAddOnCollect } from '@/features/registration/deskAddOnCollect';
 import { useMemo } from 'react';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
@@ -67,6 +68,8 @@ interface WorkflowStepContentProps {
   registrationId: string | undefined;
   registrationNumber: string | undefined;
   currentRegistrationTotalFees: number;
+  /** MYK9-2149: how much of this entry the exhibitor's form already covers. */
+  deskCollect?: DeskAddOnCollect | undefined;
   capacityReady?: boolean | undefined;
   capacityError?: string | null | undefined;
   /** Availability could not be read at all, as opposed to still loading. */
@@ -116,6 +119,7 @@ export function WorkflowStepContent({
   registrationId,
   registrationNumber,
   currentRegistrationTotalFees,
+  deskCollect,
   capacityReady = true,
   capacityError,
   capacityUnavailable,
@@ -437,6 +441,7 @@ export function WorkflowStepContent({
             onAgreementChange={onAgreementChange}
             preTickAgreement={currentWorkflowMode !== 'exhibitor'}
             staffWorkflow={currentWorkflowMode !== 'exhibitor'}
+            deskCollect={deskCollect}
             juniorDeclaration={juniorDeclaration}
             capacityReady={capacityReady}
             capacityError={capacityError}

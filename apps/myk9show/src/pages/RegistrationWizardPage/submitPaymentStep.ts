@@ -87,6 +87,8 @@ export interface SubmitPaymentStepContext {
   paymentMethod: PaymentMethod | undefined;
   paymentStatus: PaymentStatus;
   paymentDetails: PaymentDetails;
+  /** MYK9-2149: what the desk was told to collect, when the server quoted one. */
+  deskExpectedCollectCents?: number | null | undefined;
   ownerResolution: SelectedDogsOwnerResult;
   exhibitorProfileId: string;
   classSelections: ClassSelectionData[];
@@ -262,6 +264,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       ownerResolution: ctx.ownerResolution,
       paymentMethod: ctx.paymentMethod,
       paymentDetails: ctx.paymentDetails,
+      expectedCollectCents: ctx.deskExpectedCollectCents ?? null,
       classSelections: ctx.classSelections,
       handlerAssignments: ctx.handlerAssignments,
       classes: ctx.classes,

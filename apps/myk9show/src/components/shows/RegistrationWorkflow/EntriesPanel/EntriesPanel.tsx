@@ -8,8 +8,10 @@ import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { useRegistrationShellChrome } from '../RegistrationShellChrome';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult } from '../PaymentStep/types';
+import type { DeskAddOnCollect } from '@/features/registration/deskAddOnCollect';
 import {
   computePaymentTotals,
+  withDeskCollect,
   countPanelLines,
   formatAmountDue,
   sumPanelFeeCents,
@@ -57,6 +59,8 @@ export interface EntriesPanelProps {
   staffWorkflow?: boolean | undefined;
   /** Injectable for tests; defaults to the live platform-fee rates. */
   rates?: PlatformFeeRates | undefined;
+  /** MYK9-2149: how much of this entry the exhibitor's form already covers (desk only). */
+  deskCollect?: DeskAddOnCollect | undefined;
 }
 
 /**
@@ -86,6 +90,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   removingLineKey,
   rates,
   staffWorkflow = false,
+  deskCollect,
 }) => {
   // One pair for every money read this panel makes. Two different unresolved
   // reads (class availability, the show's timezone) blank the same figures, so
@@ -109,12 +114,15 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
 
   const isPayment = variant === 'payment' && !!feeCalculation;
   const totals = isPayment
-    ? computePaymentTotals({
-        paymentMethod,
-        feeCalculation,
-        capacityReady,
-        rates: resolvedRates,
-      })
+    ? withDeskCollect(
+        computePaymentTotals({
+          paymentMethod,
+          feeCalculation,
+          capacityReady,
+          rates: resolvedRates,
+        }),
+        deskCollect
+      )
     : undefined;
 
   const classCount = countPanelLines(groups);

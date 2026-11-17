@@ -74,6 +74,11 @@ export interface SubmitShowRegistrationParams {
   ownerResolution: SelectedDogsOwnerResult;
   paymentMethod?: PaymentMethod | undefined;
   paymentDetails?: PaymentDetails | undefined;
+  /**
+   * MYK9-2149: what the desk was told to collect (the server's quote). Sent with a received
+   * payment so the server never records more than the secretary took. Null: no quote.
+   */
+  expectedCollectCents?: number | null | undefined;
   classSelections: ClassSelectionData[];
   handlerAssignments: Record<string, HandlerInfo>;
   classes: ClassLike[];
@@ -109,6 +114,7 @@ export async function submitShowRegistration({
   ownerResolution,
   paymentMethod,
   paymentDetails,
+  expectedCollectCents = null,
   classSelections,
   handlerAssignments,
   classes,
@@ -144,13 +150,23 @@ export async function submitShowRegistration({
     (sum, entry) => sum + (entry.registrationData.entryFee ?? 0),
     0
   );
+  // MYK9-2149: the money already on the exhibitor's form covers these entries, so
+  // nothing changed hands: no payment and no method are sent (cash or check would be
+  // stamped on the settled entry as "Paid by cash" or "Paid by check"). The entries go
+  // in unpaid and the server settles them from the money held. Should that money have
+  // moved since the step asked, they stay owed; nothing is recorded as received that
+  // was not.
+  const coveredByForm =
+    paymentMethod === 'secretary_paid' && paymentDetails?.coveredByForm === true;
   // MYK9-677: money a secretary says was already received is recorded as cash
   // or check (entries, enrollment and ledger alike), so it must name one
   // before anything is written.
-  assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
+  if (!coveredByForm) assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
   const receivedMethod =
-    feeTotal > 0 ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
-  const submitMethod: PaymentMethod = receivedMethod ?? paymentMethod;
+    feeTotal > 0 && !coveredByForm ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
+  const submitMethod: PaymentMethod | null = coveredByForm
+    ? null
+    : (receivedMethod ?? paymentMethod);
 
   await resolvedDeps.submitRegistration(registrationId, paymentDetails);
   if (!isStillActive(isActive)) return { aborted: true };
@@ -191,6 +207,7 @@ export async function submitShowRegistration({
               method: receivedMethod,
               receivedOn: paymentDetails?.paymentDate?.trim() || null,
               reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
+              ...(expectedCollectCents !== null ? { expectedCollectCents } : {}),
             },
           }
         : {}),

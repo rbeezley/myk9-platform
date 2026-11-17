@@ -1,6 +1,7 @@
 import type { PaymentMethodResolution } from './usePaymentMethodResolution';
 import type { JuniorHandlerDeclaration } from './JuniorHandlerDeclaration';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
+import type { DeskAddOnCollect } from '@/features/registration/deskAddOnCollect';
 
 /** Props for the top-level PaymentStep component. */
 export interface PaymentStepProps {
@@ -27,6 +28,11 @@ export interface PaymentStepProps {
    * the exhibitor's Payment Method list and the desk shortcuts card.
    */
   staffWorkflow?: boolean | undefined;
+  /**
+   * MYK9-2149: how much of this entry the exhibitor's form already covers, as the server
+   * answered it for the PAGE (so the entries panel says the same). Omitted = unchanged.
+   */
+  deskCollect?: DeskAddOnCollect | undefined;
   /**
    * Payment-method resolution, owned by the PAGE so the entries panel and these
    * controls read the same effective method in the same render

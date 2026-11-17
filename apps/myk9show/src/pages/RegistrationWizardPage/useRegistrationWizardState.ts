@@ -56,6 +56,8 @@ import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
+import { useDeskAddOnCollect } from '@/components/shows/RegistrationWorkflow/PaymentStep/useDeskAddOnCollect';
+import { parseJuniorHandlerFee } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { resolveWizardTitles } from './wizardTitles';
 import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './proceedGating';
@@ -324,6 +326,9 @@ export function useRegistrationWizardState() {
   const [entryOutcomes, setEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const [createdEntryOutcomes, setCreatedEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const paymentDetailsRef = useRef<PaymentDetails>({});
+  // MYK9-2149: the secretary's junior fee choice, mirrored out of `paymentDetailsRef` so the
+  // desk quote is asked again when it is toggled (the ref alone re-renders nothing).
+  const [deskChargeJuniorFee, setDeskChargeJuniorFee] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
   const submittingRef = useRef(false);
@@ -582,6 +587,23 @@ export function useRegistrationWizardState() {
     ]
   );
   const liveTotalFees = liveFeeCalculation.total;
+  // MYK9-2149: how much of this entry the exhibitor's form already covers, asked of the
+  // server for the desk's online path only. Page-owned, like `paymentResolution`, so the
+  // entries panel's "Total due" and the payment step say the same amount. The server prices
+  // the add-on itself from the classes being created and the junior override exactly as
+  // submission sends it (`submitShowRegistration`), so the quote and the cap agree.
+  const deskWaitlistIds = capacityReady ? registrationCapacity.waitlistClassIds : undefined;
+  const deskCollect = useDeskAddOnCollect({
+    enabled: currentWorkflowMode !== 'exhibitor' && !isLateEntryMode,
+    showId,
+    handlerId: ownerResolution.ok ? ownerResolution.ownerId : undefined,
+    classIds: classSelections.flatMap(selection =>
+      selection.selectedClasses
+        .map(selected => selected.classId)
+        .filter(classId => !deskWaitlistIds?.has(classId))
+    ),
+    juniorOverride: deskChargeJuniorFee && parseJuniorHandlerFee(currentShow) !== null,
+  });
 
   const entryCloseAvailability = useEntryCloseAvailability({
     showId,
@@ -752,6 +774,8 @@ export function useRegistrationWizardState() {
     completedSteps,
     liveTotalFees,
     liveFeeCalculation,
+    deskCollect,
+    setDeskChargeJuniorFee,
     noEntryFeeClassIds,
     paymentResolution,
     canDeclareJuniorHandler,

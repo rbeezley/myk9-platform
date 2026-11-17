@@ -8,6 +8,7 @@
  */
 
 import type { CartItemWithDetails } from '@/store/cartStore';
+import type { DeskAddOnCollect } from '@/features/registration/deskAddOnCollect';
 import { formatWeekdayShort } from '@/lib/format/dates';
 import {
   calculatePlatformFeeCents,
@@ -285,6 +286,33 @@ export interface PaymentTotals {
   amountDueCents: number;
   /** Payment is due but no method is chosen yet. */
   requiresPaymentMethod: boolean;
+  /**
+   * MYK9-2149: the part of the entry fees the money already on the exhibitor's form
+   * pays (the fees less what the server says to collect). Zero when nothing is held.
+   */
+  formCoveredCents?: number | undefined;
+}
+
+/**
+ * MYK9-2149: the desk's totals once the server has said how much of this entry the
+ * exhibitor's form already covers. "Total due" becomes what to collect, and a covered
+ * entry is never quoted as received: nothing changed hands. Card totals (exhibitors)
+ * and an unchanged answer are returned as they are.
+ */
+export function withDeskCollect(
+  totals: PaymentTotals,
+  deskCollect: DeskAddOnCollect | undefined
+): PaymentTotals {
+  if (!deskCollect || deskCollect.kind === 'unchanged' || totals.isPayableCard) return totals;
+  if (totals.isWaived) return totals;
+  const collectCents = deskCollect.kind === 'covered' ? 0 : deskCollect.collectCents;
+  return {
+    ...totals,
+    isSecretaryReceived: deskCollect.kind === 'partial' && totals.isSecretaryReceived,
+    amountDueCents: collectCents,
+    formCoveredCents: Math.max(0, totals.entryFeeCents - collectCents),
+    requiresPaymentMethod: totals.requiresPaymentMethod && collectCents > 0,
+  };
 }
 
 /**
@@ -357,6 +385,9 @@ export function formatAmountDue({
   // Capacity next: with lines on the entry, no figure is trustworthy until read.
   if (!capacityReady) return placeholder ?? availabilityPlaceholder(capacityUnavailable);
   if (totals?.isWaived) return FREE_ENTRY_AMOUNT_LABEL;
+  if (totals?.formCoveredCents && totals.amountDueCents === 0) {
+    return `${formatCartCurrency(0)} (Already covered)`;
+  }
   const amount = formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
   // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as
   // still owed once the secretary marked it Already Received.

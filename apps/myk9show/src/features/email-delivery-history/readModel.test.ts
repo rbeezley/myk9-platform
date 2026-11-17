@@ -81,6 +81,23 @@ describe('email delivery history read model', () => {
     expect(row.typeLabel).toBe(label);
   });
 
+  it('labels the automatic show-changed email by what happened to the show', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-3',
+      show_id: 'show-1',
+      source_kind: 'lifecycle',
+      lifecycle_step_type: 'show_changed',
+      related_id: 'job-1',
+      recipient_name: 'Ada Lovelace',
+      recipient_email: 'ada@example.com',
+      attempted_at: '2026-11-17T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'sent',
+      failure_summary: null,
+    });
+    expect(row.typeLabel).toBe('Date or venue changed');
+  });
+
   it('routes failures to the existing owner surface', () => {
     expect(getEmailRecoveryHref('registration_confirmation', 'show-1')).toBe(
       '/shows/show-1/entries'

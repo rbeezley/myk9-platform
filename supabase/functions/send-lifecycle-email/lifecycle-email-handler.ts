@@ -116,6 +116,12 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
         results.push({ jobId: job.id, status: 'skipped' as const, reason: 'send_on_demand' });
         continue;
       }
+      // MYK9-2124: an automatic job is sent only by the drain, which holds its lease and
+      // renders it at send time; a hand-built send would race it with an empty body.
+      if (job.auto_send) {
+        results.push({ jobId: job.id, status: 'skipped' as const, reason: 'automatic' });
+        continue;
+      }
       // The entry's decision changed since this email was saved: it would announce a decision
       // that no longer holds. A failed job that did go out is left to sendOneJob to reconcile.
       if (

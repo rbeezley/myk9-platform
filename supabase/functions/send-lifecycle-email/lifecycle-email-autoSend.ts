@@ -244,11 +244,10 @@ async function stepIsEnabled(
     .from('show_lifecycle_email_steps')
     .select('is_enabled')
     .eq('show_id', showId)
-    .eq('step_type', stepType)
-    .maybeSingle()) as QueryResult<{ is_enabled: boolean } | null>;
+    .eq('step_type', stepType)) as QueryResult<Array<{ is_enabled: boolean }>>;
   // A failed read must not read as "switched off": leave the job for the next drain.
   if (error) throw new Error('Failed to load email step');
-  return data?.is_enabled === true;
+  return data?.[0]?.is_enabled === true;
 }
 
 async function personHasLiveEntry(

@@ -66,7 +66,6 @@ export function makeAutoSendSupabase(
           ? { data: row, error: null }
           : { data: null, error: { code: 'PGRST116', message: 'no rows' } };
       }),
-      maybeSingle: vi.fn(async () => ({ data: exec()[0] ?? null, error: null })),
       then: <TResult1 = { data: Row[]; error: null }, TResult2 = never>(
         resolve?:
           ((value: { data: Row[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,

@@ -174,16 +174,8 @@ describe('buildSecretaryCockpitSnapshot', () => {
       scheduledStart: '10:00',
       revisedExpectedStart: '2026-07-20T15:15:00.000Z',
     });
-    // MYK9-1796: the class-work set is the one door left; scoresheet entry, reports and class
-    // entries are the step bar's and the entries table's.
-    expect(
-      snapshot.classes[0]?.actions.filter(action => action.group === 'class-work')
-    ).toHaveLength(1);
-    expect(
-      snapshot.classes[0]?.actions.find(action => action.label === 'View entries and results')
-    ).toMatchObject({
-      destination: { kind: 'href', href: expect.stringContaining('/classes/class-1') },
-    });
+    // MYK9-2119: a class is run on Show Desk, so its menu offers no door to the class page.
+    expect(snapshot.classes[0]?.actions).toEqual([]);
   });
   describe('usage flags (MYK9-1620)', () => {
     const build = (input: {

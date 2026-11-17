@@ -13,8 +13,8 @@ import {
 import { classifyJudgeDays } from './judgeDayStatus';
 import { deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { getEntryAttention } from './attention';
+import { getShowDeskClassHref } from './cockpit/cockpitRoutes';
 import {
-  getShowMapClassHref,
   getShowMapClassScoringHref,
   getShowMapShowHref,
   getShowMapTrialHref,
@@ -134,6 +134,10 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
     isInRing: (entry.isInRing ?? entry.is_in_ring) === true ? true : undefined,
     runOrder: readNumber(entry, 'run_order'),
     deletedAt: readString(entry, 'deleted_at'),
+    awaitingRegistrationNumber:
+      (entry.awaitingRegistrationNumber ?? entry.awaiting_registration_number) === true
+        ? true
+        : undefined,
     searchTimeSeconds: readNumber(entry, 'search_time_seconds'),
     elementTimeSeconds: readNumber(entry, 'element_time_seconds'),
     totalFaults: readNumber(entry, 'total_faults'),
@@ -347,7 +351,8 @@ export function buildShowMapTree({
         wrapUpStatus: classWrapUpStatusesById.get(cls.id),
         progress: buildClassProgress(cls, classEntries),
         attentionCount: attentionCountForClass,
-        href: getShowMapClassHref(show.id, trial.id, cls.id),
+        // A class is run on Show Desk, so a staff "Open Class" focuses it there (MYK9-2119).
+        href: getShowDeskClassHref({ showId: show.id, classId: cls.id, day: trial.trialDate }),
         scoreHref: getShowMapClassScoringHref(cls.id),
         trialDate: trial.trialDate || undefined,
         timezone: getTrialTimezone(trial),

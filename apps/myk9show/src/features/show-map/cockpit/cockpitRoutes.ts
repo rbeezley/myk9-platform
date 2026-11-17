@@ -1,5 +1,6 @@
 import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
+import { toLocalDateOnly } from '@/utils/date-format';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import type { ReportScope } from '@/lib/reports/types';
 
@@ -176,20 +177,6 @@ export function getCockpitSubmitResultsHref(input: {
   );
 }
 
-export function getCockpitClassDetailsHref(input: {
-  showId: string;
-  trialId: string;
-  classId: string;
-  returnTo: string;
-}): string {
-  return withReturnTo(
-    `/shows/${encodeURIComponent(input.showId)}/trials/${encodeURIComponent(
-      input.trialId
-    )}/classes/${encodeURIComponent(input.classId)}`,
-    input.returnTo
-  );
-}
-
 /** The secretary's home: the manager Overview at `/shows/:id` (MYK9-955). */
 export function getShowHomeHref({
   showId,
@@ -201,6 +188,32 @@ export function getShowHomeHref({
   const params = writeCockpitUrlState(new URLSearchParams(), state);
   const query = params.toString();
   return `/shows/${encodeURIComponent(showId)}${query ? `?${query}` : ''}`;
+}
+
+/**
+ * One class on Show Desk (MYK9-2119): the show home with this class focused. Focus and day travel
+ * TOGETHER or not at all. Show Desk's `focusClass` only searches the SELECTED day's classes and
+ * falls back to another class when the focused id is not among them, so a focus with no day on a
+ * multi-day show opens the wrong class. With no usable day the link just opens the desk.
+ * `normalizeCockpitUrlState` drops a `day` that is not YYYY-MM-DD, so the day is normalised here.
+ */
+export function getShowDeskClassHref({
+  showId,
+  classId,
+  day,
+}: {
+  showId: string;
+  classId: string;
+  day?: string | null | undefined;
+}): string {
+  const dateOnly = day ? toLocalDateOnly(day) : null;
+  return getShowHomeHref({
+    showId,
+    state: {
+      statuses: [],
+      ...(dateOnly ? { selectedDays: [dateOnly], focusedClassId: classId } : {}),
+    },
+  });
 }
 
 /**

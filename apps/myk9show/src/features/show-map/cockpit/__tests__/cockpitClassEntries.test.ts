@@ -164,6 +164,25 @@ describe('the Check-in desk fields (MYK9-1797)', () => {
   });
 });
 
+describe('a held entry (MYK9-1162, kept off the run list by MYK9-2119)', () => {
+  it.each([
+    ['snake_case', { awaiting_registration_number: true }],
+    ['camelCase', { awaitingRegistrationNumber: true }],
+  ])('is not listed or counted when the server flags it (%s)', (_label, flag) => {
+    const { rows } = rowsFor([entryRow('Held', flag), entryRow('Free', {})]);
+    expect(rows.map(row => row.dogName)).toEqual(['Free']);
+    expect(countClassEntries(rows).entered).toBe(1);
+  });
+
+  it('lists an entry whose flag is false or absent', () => {
+    const { rows } = rowsFor([
+      entryRow('A', { awaiting_registration_number: false }),
+      entryRow('B', {}),
+    ]);
+    expect(rows).toHaveLength(2);
+  });
+});
+
 describe('classEntriesForClass', () => {
   it.each(CASES)('$name', ({ fields, listed, counted, state, result }) => {
     const { rows } = rowsFor([entryRow('Dog', fields)]);

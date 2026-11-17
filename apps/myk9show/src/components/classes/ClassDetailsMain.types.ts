@@ -11,6 +11,11 @@ export interface ClassDetailsMainProps {
   onDeleteEntry?: (entryId: string) => void;
   /** Opens the requirements panel/drawer */
   onOpenRequirements?: () => void;
+  /**
+   * Read the table with an exhibitor's permissions whatever the viewer's role. Staff run a class on
+   * Show Desk, so the class page never gives them its editable cells or Add and Delete controls.
+   */
+  readOnly?: boolean;
 }
 
 export interface ClassStat {

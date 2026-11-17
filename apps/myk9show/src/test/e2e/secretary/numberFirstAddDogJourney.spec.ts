@@ -18,7 +18,6 @@ import {
   removeJourneyExhibitor,
   SEEDED_RUN_SHEET_DOG,
   SHOW_ID,
-  TRIAL_ID,
 } from './numberFirstAddDogFixture';
 import { waitlistAdmin } from './waitlistJourneyFixture';
 import { chooseAction } from '../helpers/actionsMenu';
@@ -36,8 +35,8 @@ import { chooseAction } from '../helpers/actionsMenu';
  *   Add Dog asks registry + number first -> Cooper's seeded AKC number finds the existing dog
  *   -> Use existing dog -> the entry wizard's Create New > Dog Only adds a dog through "No
  *   registration number yet" -> the dog is entered in Interior Novice B -> it is listed under
- *   Registration number needed and is NOT on that class's run sheet -> Add registration -> the
- *   row leaves the list and the dog appears on the run sheet.
+ *   Registration number needed and is NOT in that class's Show Desk entries -> Add registration -> the
+ *   row leaves the list and the dog appears in the Show Desk entries.
  *
  * Exhibitor at 390px: an AKC number held by a dog the exhibitor cannot see shows only the
  * "already registered" message, with no other detail about the dog.
@@ -73,7 +72,7 @@ async function openAddDogFromDogsPage(page: Page) {
   await chooseAction(page, 'Add Dog');
 }
 
-test.describe('Number-first Add Dog: a held entry is listed, kept off the run sheet, released by its number', () => {
+test.describe('Number-first Add Dog: a held entry is listed, kept off Show Desk entries, released by its number', () => {
   installBrowserDiagnostics(test);
   test.skip(
     !DATA_REQUIRED,
@@ -121,7 +120,9 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
     const heldRegistration = uniqueRegistrationNumber('HELD');
     const row = () =>
       page.getByRole('listitem').filter({ has: page.getByText(heldDog, { exact: true }) });
-    const runSheetUrl = `/shows/${SHOW_ID}/trials/${TRIAL_ID}/classes/${CLASS_ID}`;
+    // The class's entries are run on Show Desk (MYK9-2119); no day, so every day lists the class.
+    const showDeskClassUrl = `/shows/${SHOW_ID}?focus=${CLASS_ID}`;
+    const classEntries = () => page.getByTestId('class-entries-table');
     const registrationNeededUrl = `/shows/${SHOW_ID}/entries?tab=exceptions&exception=registration-needed`;
 
     await test.step('1. Add Dog asks for the number first and finds the existing dog', async () => {
@@ -212,9 +213,9 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
       await expect(row()).toContainText(/AKC number missing/);
     });
 
-    await test.step('5. the held dog is not on the class run sheet', async () => {
-      await page.goto(runSheetUrl, { waitUntil: 'domcontentloaded' });
-      const sheet = page.getByTestId('secretary-run-sheet');
+    await test.step('5. the held dog is not in the Show Desk entries', async () => {
+      await page.goto(showDeskClassUrl, { waitUntil: 'domcontentloaded' });
+      const sheet = classEntries();
       // Positive control on the same page and load: a seeded entry in this class does render.
       await expect(sheet).toContainText(SEEDED_RUN_SHEET_DOG, { timeout: 45_000 });
       await expect(sheet).not.toContainText(heldDog);
@@ -250,15 +251,15 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
       await expect(row()).toHaveCount(0, { timeout: 30_000 });
     });
 
-    await test.step('7. the released entry is on the class run sheet', async () => {
+    await test.step('7. the released entry is in the Show Desk entries', async () => {
       // The server's held verdict clears once the registration syncs; each load re-reads it.
       await expect(async () => {
-        await page.goto(runSheetUrl, { waitUntil: 'domcontentloaded' });
-        await expect(page.getByTestId('secretary-run-sheet')).toContainText(heldDog, {
+        await page.goto(showDeskClassUrl, { waitUntil: 'domcontentloaded' });
+        await expect(classEntries()).toContainText(heldDog, {
           timeout: 10_000,
         });
       }).toPass({ timeout: 90_000 });
-      await expect(page.getByTestId('secretary-run-sheet')).toContainText(SEEDED_RUN_SHEET_DOG);
+      await expect(classEntries()).toContainText(SEEDED_RUN_SHEET_DOG);
     });
   });
 });

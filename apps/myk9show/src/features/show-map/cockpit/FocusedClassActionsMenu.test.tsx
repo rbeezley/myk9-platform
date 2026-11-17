@@ -12,8 +12,6 @@ vi.mock('@/features/show-workbench/workbenchAnnouncementPost', () => ({
   useWorkbenchAnnouncementPost: () => ({ postAnnouncement: vi.fn() }),
 }));
 
-const ENTRIES_HREF = '/shows/show-1/trials/trial-1/classes/class-1?returnTo=%2Fshows%2Fshow-1';
-
 const runOrder = {
   onAutoSort: vi.fn(),
   isAutoSorting: false,
@@ -39,7 +37,6 @@ function renderMenu(
         runOrder={runOrder}
         runOrderEntryCount={8}
         editClass={editClass}
-        entriesHref={ENTRIES_HREF}
         {...overrides}
       />
     </TrialSecretaryAccessProvider>
@@ -68,12 +65,9 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
       'Score this class',
       'Announce a delay',
       'Auto-sort run order',
-      'View entries and results',
     ]);
-    expect(screen.getByRole('menuitem', { name: 'View entries and results' })).toHaveAttribute(
-      'href',
-      ENTRIES_HREF
-    );
+    // MYK9-2119: a class is run here, so the menu offers no door to the class page.
+    expect(itemNames()).not.toContain('View entries and results');
   });
 
   it('Score this class links to the paper scoring route the step bar opens, returning to this class', async () => {
@@ -123,14 +117,11 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
     expect(itemNames()).not.toContain('Auto-sort run order');
   });
 
-  it('gives a viewer who cannot manage the show only a link to the entries and results', () => {
+  it('gives a viewer who cannot manage the show no menu and no link to the class page', () => {
     renderMenu({ canManageShow: false });
 
     expect(screen.queryByRole('button', { name: /^Actions for/ })).toBeNull();
-    expect(screen.getByRole('link', { name: 'View entries and results' })).toHaveAttribute(
-      'href',
-      ENTRIES_HREF
-    );
+    expect(screen.queryByRole('link', { name: 'View entries and results' })).toBeNull();
   });
 
   it('Edit class calls the existing handler, and Place by hand is gone (MYK9-1872)', async () => {

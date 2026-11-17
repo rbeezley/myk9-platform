@@ -164,6 +164,55 @@ describe('reverseMoveUpEntryViaRpc (MYK9-640)', () => {
     expect(await table.getEntriesByClass('class-advanced')).toEqual([]);
   });
 
+  it('stores the restored source as a waiting class change request when the server says so (MYK9-2122)', async () => {
+    await seed('source-1', {
+      id: 'source-1',
+      classId: 'class-novice',
+      showId: 'show-1',
+      entryStatus: 'moved',
+    });
+    await seed('dest-1', {
+      id: 'dest-1',
+      classId: 'class-advanced',
+      showId: 'show-1',
+      entryStatus: 'confirmed',
+      movedFromEntryId: 'source-1',
+    });
+
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'source-1', error: null } as never);
+    vi.mocked(supabase.from).mockImplementation(
+      () =>
+        ({
+          select: () => ({
+            in: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    id: 'source-1',
+                    class_id: 'class-novice',
+                    show_id: 'show-1',
+                    entry_status: 'move-up-requested',
+                    move_up_requested: true,
+                    check_in_status: 'no-status',
+                    version: 5,
+                  },
+                ],
+                error: null,
+              }),
+          }),
+        }) as never
+    );
+
+    await table.reverseMoveUpEntryViaRpc('dest-1');
+
+    // The device that pressed Undo shows the request waiting, not a plain entry.
+    const restored = await table.get('source-1');
+    expect(restored?.entryStatus).toBe('move-up-requested');
+    expect(
+      (await table.getEntriesByShow('show-1')).map(entry => [entry.id, entry.entryStatus])
+    ).toEqual([['source-1', 'move-up-requested']]);
+  });
+
   it('leaves the local store alone when the server refuses', async () => {
     await seed('dest-1', {
       id: 'dest-1',

@@ -54,7 +54,7 @@ export function pickShowUsesUpdates(updates: ShowUsesValues): ShowUsesValues {
 /** What a show uses before anyone touches a switch (matches the migration's column defaults). */
 export const SHOW_USES_DEFAULTS = {
   usesDeviceScoring: true,
-  usesPaperPacket: false,
+  usesPaperPacket: true,
   usesVolunteers: false,
   usesLandingPage: false,
   publishesOwnPremium: false,

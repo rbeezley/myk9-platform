@@ -78,14 +78,14 @@ describe('ReplicatedShowsTable "This show uses…" fields (MYK9-1685)', () => {
 
     expect(created).toMatchObject({
       usesDeviceScoring: true,
-      usesPaperPacket: false,
+      usesPaperPacket: true,
       usesVolunteers: false,
       usesLandingPage: false,
       publishesOwnPremium: false,
     });
     expect(write.mock.calls[0]![2].payload).toMatchObject({
       uses_device_scoring: true,
-      uses_paper_packet: false,
+      uses_paper_packet: true,
       uses_volunteers: false,
     });
   });

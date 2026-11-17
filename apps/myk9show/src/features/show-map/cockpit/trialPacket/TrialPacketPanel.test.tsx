@@ -23,12 +23,13 @@ const mocks = vi.hoisted(() => ({
   /** Records the panel's own prints wrote: they land in the print history, as in the app. */
   landed: [] as Array<Record<string, unknown>>,
   prints: {} as { data?: unknown; isLoading: boolean; isError: boolean; syncFailed: boolean },
+  show: undefined as { usesPaperPacket?: boolean } | undefined,
 }));
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'u1' } }) }));
 vi.mock('@/hooks/useFastShowDetails', () => ({
-  useFastShowDetails: () => ({ show: SHOW }),
+  useFastShowDetails: () => ({ show: mocks.show ?? SHOW }),
 }));
 // One array per read, as the query hook returns, so the packets are built once.
 const TRIALS = [TRIAL];
@@ -74,6 +75,7 @@ vi.mock('../paperworkPrintActions', () => ({
 }));
 
 import { TrialPacketPanel } from './TrialPacketPanel';
+import { useShowStore } from '@/store/showStore';
 
 // Building the packets (jsPDF and pdf-lib) takes a moment under test load.
 const BUILT = { timeout: 15000 };
@@ -94,6 +96,8 @@ describe('TrialPacketPanel', () => {
     mocks.allClasses = undefined;
     mocks.showEntries = [];
     mocks.trials = undefined;
+    mocks.show = undefined;
+    useShowStore.setState({ shows: [] });
     let next = 0;
     mocks.recordPaperworkPrinted.mockImplementation(
       async ({ descriptor }: { descriptor: ReturnType<typeof buildReportPaperworkDescriptor> }) => {
@@ -130,6 +134,25 @@ describe('TrialPacketPanel', () => {
     expect(screen.getByRole('button', { name: /No judge assigned/ })).toBeInTheDocument();
     expect(screen.getByText(/1 class has no dogs yet and is left out/)).toBeInTheDocument();
   });
+
+  it.each([
+    ['unset (on by default)', undefined, undefined, true],
+    ['off on the show', false, undefined, false],
+    ['turned off in Edit show, ahead of the show snapshot', true, false, false],
+  ])(
+    'the Saved copy section follows the Paper fallback packet switch: %s',
+    async (_, snap, live, shown) => {
+      mocks.show = { ...SHOW, usesPaperPacket: snap };
+      if (live !== undefined) {
+        useShowStore.setState({
+          shows: [{ ...SHOW, id: 'show-1', usesPaperPacket: live }] as never,
+        });
+      }
+      renderPanel();
+      expect(await screen.findByText(/Trial 1 · Mon, Dec 7/)).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Saved copy' }) !== null).toBe(shown);
+    }
+  );
 
   describe('a later trial printed before the earlier one has finished (MYK9-2075)', () => {
     const FIRST = {

@@ -129,6 +129,13 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     );
   });
 
+  // The returned club is ignored when editing an existing show, and the round trip would rebuild
+  // the draft from the saved show, so the handoff is not offered there.
+  it.each(['add-trials', 'add-classes'] as const)('offers no add-club link in %s mode', mode => {
+    render(<ShowDetailsStep mode={mode} persistedOrganization="AKC" />);
+    expect(screen.queryByRole('link', { name: /add your club/i })).not.toBeInTheDocument();
+  });
+
   // MYK9-979: card payment exists only online, and online entries are a
   // per-show choice that defaults to off.
   it('renders the "Accept online entries" switch, off by default, with its help text', () => {

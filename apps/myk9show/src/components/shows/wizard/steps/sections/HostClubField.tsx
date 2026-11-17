@@ -24,6 +24,8 @@ interface HostClubFieldProps {
   onSelectClub: (clubId: string) => void;
   /** MYK9-887: the signed-in user cannot create shows for the selected club. */
   clubCreateDenied?: boolean;
+  /** False when editing an existing show: the host club cannot change there, and the handoff would rebuild the draft. */
+  canAddClub?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -42,6 +44,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
   setSearchTerm,
   onSelectClub,
   clubCreateDenied = false,
+  canAddClub = true,
 }) => {
   const location = useLocation();
   const selectedClub = clubId ? clubs.find(c => c.id === clubId) : undefined;
@@ -106,16 +109,18 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
             {clubCreateDeniedMessage(selectedClub?.name ?? 'this club')}
           </p>
         )}
-        <Button
-          asChild
-          variant={selectedClub ? 'link' : 'outline'}
-          className={selectedClub ? 'h-auto min-h-[44px] px-0 py-2 text-sm' : CREATE_BTN_CLASS}
-        >
-          <Link to={addYourClubPath(`${location.pathname}${location.search}`)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {ADD_YOUR_CLUB_PROMPT}
-          </Link>
-        </Button>
+        {canAddClub && (
+          <Button
+            asChild
+            variant={selectedClub ? 'link' : 'outline'}
+            className={selectedClub ? 'h-auto min-h-[44px] px-0 py-2 text-sm' : CREATE_BTN_CLASS}
+          >
+            <Link to={addYourClubPath(`${location.pathname}${location.search}`)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {ADD_YOUR_CLUB_PROMPT}
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   );

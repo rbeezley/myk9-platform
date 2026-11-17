@@ -236,6 +236,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
                 setSearchTerm={setClubSearchTerm}
                 onSelectClub={clubId => updateShowData({ clubId })}
                 clubCreateDenied={clubCreateDenied}
+                canAddClub={!isExistingShow}
               />
             }
           />

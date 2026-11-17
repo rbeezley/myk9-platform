@@ -61,6 +61,11 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
     ).toHaveAttribute('href', '/?onboarding=true&returnTo=%2F#get-started');
   });
 
+  it('offers no add-club link when the club cannot be added from here', () => {
+    renderField({ canAddClub: false });
+    expect(screen.queryByRole('link', { name: /add your club/i })).not.toBeInTheDocument();
+  });
+
   it('frames Add your club as the not-listed path before a club is chosen', () => {
     renderField({ clubId: undefined });
     expect(screen.getByText(/only create a new club if yours is not listed/i)).toBeInTheDocument();

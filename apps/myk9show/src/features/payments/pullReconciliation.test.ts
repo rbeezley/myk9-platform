@@ -3,6 +3,7 @@ import {
   derivePullTiming,
   getSuggestedPullRefundDecision,
   isUnresolvedRemovalRefundDecision,
+  refundToDecideRemoval,
 } from './pullReconciliation';
 
 describe('derivePullTiming', () => {
@@ -81,25 +82,27 @@ describe('isUnresolvedRemovalRefundDecision', () => {
     }
   });
 
-  // The discriminator matters: every secretary removal lands in 'withdrawn' too
-  // (rejectEntry, bulk status changes, every pre-MYK9-632 row). Sweeping those
-  // in would invent a refund obligation nobody agreed to.
-  it('ignores a withdrawn row with no reason code, or an unrecognised one', () => {
+  // MYK9-2099, owner decision 2026-11-16: a paid secretary removal (withdrawn, no
+  // reason code) and a paid no-show (absent) also wait for a refund decision.
+  it('flags a paid online secretary removal and a paid online no-show', () => {
     expect(
       isUnresolvedRemovalRefundDecision({ ...pulledPaidEntry, entry_status: 'withdrawn' })
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isUnresolvedRemovalRefundDecision({
         ...pulledPaidEntry,
         entry_status: 'withdrawn',
         withdrawal_reason_code: null,
       })
-    ).toBe(false);
+    ).toBe(true);
+    expect(isUnresolvedRemovalRefundDecision({ ...pulledPaidEntry, entry_status: 'absent' })).toBe(
+      true
+    );
     expect(
       isUnresolvedRemovalRefundDecision({
         ...pulledPaidEntry,
-        entry_status: 'withdrawn',
-        withdrawal_reason_code: 'other',
+        entry_status: 'absent',
+        refund_decision: 'denied',
       })
     ).toBe(false);
   });
@@ -118,5 +121,56 @@ describe('isUnresolvedRemovalRefundDecision', () => {
       false
     );
     expect(isUnresolvedRemovalRefundDecision({ ...withdrawn, refund_amount: 25 })).toBe(false);
+  });
+});
+
+describe('refundToDecideRemoval (MYK9-2099: the one definition)', () => {
+  const paidOnline = {
+    payment_method: 'online',
+    payment_status: 'paid',
+    refund_amount: null,
+    refunded_at: null,
+    refund_decision: null,
+  };
+
+  it('names every removal kind that waits for a decision', () => {
+    expect(refundToDecideRemoval({ ...paidOnline, entry_status: 'scratched' })).toBe('pulled');
+    expect(
+      refundToDecideRemoval({
+        ...paidOnline,
+        entry_status: 'withdrawn',
+        withdrawal_reason_code: 'judge_change',
+      })
+    ).toBe('withdrawn');
+    expect(refundToDecideRemoval({ ...paidOnline, entry_status: 'withdrawn' })).toBe('removed');
+    expect(refundToDecideRemoval({ ...paidOnline, entry_status: 'absent' })).toBe('absent');
+  });
+
+  it('drops a removal once it is denied or refunded', () => {
+    for (const entry_status of ['scratched', 'withdrawn', 'absent']) {
+      const row = { ...paidOnline, entry_status };
+      expect(refundToDecideRemoval({ ...row, refund_decision: 'denied' }), entry_status).toBeNull();
+      expect(refundToDecideRemoval({ ...row, refund_amount: 25 }), entry_status).toBeNull();
+      expect(refundToDecideRemoval({ ...row, refund_amount: '25.00' }), entry_status).toBeNull();
+      expect(
+        refundToDecideRemoval({ ...row, refunded_at: '2026-11-17T12:00:00Z' }),
+        entry_status
+      ).toBeNull();
+      expect(
+        refundToDecideRemoval({ ...row, payment_status: 'refunded' }),
+        entry_status
+      ).toBeNull();
+    }
+  });
+
+  it('needs a card payment to decide, and a removal recorded on the entry', () => {
+    expect(
+      refundToDecideRemoval({ ...paidOnline, entry_status: 'absent', payment_method: 'cash' })
+    ).toBeNull();
+    expect(
+      refundToDecideRemoval({ ...paidOnline, entry_status: 'absent', payment_status: 'pending' })
+    ).toBeNull();
+    expect(refundToDecideRemoval({ ...paidOnline, entry_status: 'confirmed' })).toBeNull();
+    expect(refundToDecideRemoval({ ...paidOnline, entry_status: null })).toBeNull();
   });
 });

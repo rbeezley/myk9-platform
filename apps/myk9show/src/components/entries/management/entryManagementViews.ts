@@ -5,7 +5,8 @@
  * The four exception lists (Pulls, Move-ups, Registration number needed, Waitlist) are different
  * lists with different rows, so they are rows of the header Actions menu ("Entry lists") and each
  * opens as its own titled view. A count means "waiting for you" (MYK9-1949), the same number as
- * the Show Desk pill: Registration number needed is the held entries; Waitlist is the offers that
+ * the Show Desk pill: Pulls is the refunds to decide (MYK9-2099), not every row the list shows;
+ * Registration number needed is the held entries; Waitlist is the offers that
  * ran out, plus one for each class with a spot to offer when the show does not offer spots
  * automatically. Each is read from its one calculation in `@/features/waiting-for-you`.
  */
@@ -43,7 +44,11 @@ const ENTRY_LIST_ORDER: readonly EntryManagementException[] = [
 ];
 
 export interface EntryListCounts {
-  pulls: number;
+  /**
+   * Refunds to decide (`findEntryRefundsToDecide`), the Show Desk refund pill's count. Omitted (no
+   * badge) while the saved refund decisions could not be read (MYK9-2099).
+   */
+  pulls: number | undefined;
   /** Omitted (no badge) when unknown: still loading, or the read failed. */
   moveUps: number | undefined;
   /**
@@ -86,6 +91,9 @@ export function buildEntryListTools(showId: string, counts: EntryListCounts): Sh
 /** How many entry-list items are waiting, for the Actions button's badge. */
 export function sumEntryListCounts(counts: EntryListCounts): number {
   return (
-    counts.pulls + (counts.moveUps ?? 0) + (counts.registrationNeeded ?? 0) + (counts.waitlist ?? 0)
+    (counts.pulls ?? 0) +
+    (counts.moveUps ?? 0) +
+    (counts.registrationNeeded ?? 0) +
+    (counts.waitlist ?? 0)
   );
 }

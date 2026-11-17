@@ -35,7 +35,9 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
     queryFn: () => listShowPayments(showId),
   });
   const recon = summarizeShowDayReconciliation(entries, deskWindow, paymentsQuery.data ?? []);
-  const reconNeedsReview = recon.removalCount > 0 || recon.refundReviewCount > 0;
+  const refundDecisionsUnknown = recon.refundDecisionUnknownCount > 0;
+  const reconNeedsReview =
+    recon.removalCount > 0 || recon.refundReviewCount > 0 || refundDecisionsUnknown;
   const removalBreakdown = describeEntryRemovals(recon.removals);
   const hasDeskMoney = DESK_PAYMENT_METHODS.some(
     method => recon.byMethod[method.id].count > 0 || recon.byMethod[method.id].amount !== 0
@@ -140,8 +142,20 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           </div>
           <div role="group" aria-label="Manual refund review">
             <p className={STAT_LABEL_CLASS}>Refund review</p>
-            <p className={STAT_VALUE_CLASS}>{recon.refundReviewCount}</p>
-            <p className="text-xs text-muted-foreground">{refundReviewText}</p>
+            {refundDecisionsUnknown ? (
+              <>
+                <p className={STAT_VALUE_CLASS}>Unknown</p>
+                {/* MYK9-2099: a denied refund must never read as one still to decide. */}
+                <p className="text-xs text-destructive">
+                  Saved refund decisions could not be loaded. Reconnect and reopen this page.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className={STAT_VALUE_CLASS}>{recon.refundReviewCount}</p>
+                <p className="text-xs text-muted-foreground">{refundReviewText}</p>
+              </>
+            )}
           </div>
         </div>
 

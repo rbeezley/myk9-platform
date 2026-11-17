@@ -5,6 +5,7 @@ import {
   isPlacementTieSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
 import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
+import { readAllEntryPages, type KeysetPageQuery } from './entryPagedRead';
 import type { SecretaryEntry } from './secretaryTypes';
 
 export interface SecretaryPullMetadata {
@@ -193,12 +194,15 @@ export async function postgrestGetSecretaryEntriesForShow(
   // separately is legal. This mirrors what the replicated path does; without it
   // the cold-store fallback would render every scratched entry as "no saved
   // decision" and invite a second refund.
-  const pullMetadata = await postgrestGetSecretaryPullMetadataMap(showId).catch(
-    // Reconciliation is online-only and must not fail the whole read.
-    () => new Map<string, SecretaryPullMetadata>()
-  );
+  // Reconciliation is online-only and must not fail the whole read. A failure is `null`, not an
+  // empty map, so no denied refund reads as undecided (MYK9-2099).
+  const pullMetadata = await postgrestGetSecretaryPullMetadataMap(showId).catch(() => null);
 
   for (const entry of entries) {
+    if (pullMetadata === null) {
+      entry.refund_decision_unknown = true;
+      continue;
+    }
     const meta = pullMetadata.get(entry.id);
     if (!meta) continue;
     entry.withdrawn_at = meta.withdrawn_at;
@@ -224,17 +228,21 @@ export async function postgrestGetSecretaryPullMetadataMap(
 ): Promise<Map<string, SecretaryPullMetadata>> {
   // Every column here is migration-backed and applied (20260722160000,
   // 20260918041700); MYK9-654 retired the per-column compat retries.
-  const { data, error } = await supabase
-    .from('entries')
-    .select('id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code')
-    .eq('show_id', showId)
-    .in('entry_status', ['scratched', 'withdrawn']);
+  // MYK9-2099: every removal that can carry a refund decision (a no-show is entry_status
+  // 'absent'), read in full: PostgREST caps one response at 1000 rows, and a truncated read
+  // would show a denied refund as undecided. A failed page throws, and the caller then treats
+  // every decision as unknown.
+  const data = await readAllEntryPages(
+    () =>
+      supabase
+        .from('entries')
+        .select('id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code')
+        .eq('show_id', showId)
+        .in('entry_status', ['scratched', 'withdrawn', 'absent']) as unknown as KeysetPageQuery,
+    'get_secretary_pull_metadata'
+  );
 
-  if (error) {
-    throw createDatabaseError(error, 'entries', 'get_secretary_pull_metadata');
-  }
-
-  const rows = (data ?? []) as unknown as Array<
+  const rows = data as unknown as Array<
     Pick<SecretaryPullMetadata, 'id' | 'withdrawn_at'> &
       Partial<
         Pick<

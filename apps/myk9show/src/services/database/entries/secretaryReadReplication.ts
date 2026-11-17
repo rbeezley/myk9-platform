@@ -74,7 +74,8 @@ export interface SecretaryEntryRelations {
   handlerIdentityPeopleMap?: ReadonlyMap<string, HandlerPersonRow>;
   enrollmentsMap: ReadonlyMap<string, SecretaryEnrollment>;
   trialsMap: ReadonlyMap<string, ReplicatedTrial>;
-  pullMetadataMap: ReadonlyMap<string, SecretaryPullMetadata>;
+  /** `null`: the saved refund decisions could not be read (MYK9-2099). */
+  pullMetadataMap: ReadonlyMap<string, SecretaryPullMetadata> | null;
 }
 
 type SecretaryDog = Pick<ReplicatedDog, 'id' | 'name' | 'callName' | 'breed' | 'ownerId'>;
@@ -174,15 +175,18 @@ async function loadSecretaryEnrollmentsMap(
   }
 }
 
+/**
+ * Reconciliation is online-only. Offline (or on a failed read) Entry Management stays usable, but
+ * the answer is `null`, never an empty map: an empty map reads as "nothing decided" and would put
+ * every denied refund back on the list as one to decide (MYK9-2099).
+ */
 async function loadSecretaryPullMetadataMap(
   showId: string
-): Promise<Map<string, SecretaryPullMetadata>> {
+): Promise<Map<string, SecretaryPullMetadata> | null> {
   try {
     return await postgrestGetSecretaryPullMetadataMap(showId);
   } catch {
-    // Reconciliation is online-only. Offline Entry Management remains usable
-    // and renders unknown timing/no saved decision until this metadata loads.
-    return new Map();
+    return null;
   }
 }
 
@@ -220,7 +224,7 @@ export function toSecretaryEntry(
     : null;
   const trialId = entry.trialId ?? entry.trial_id ?? null;
   const trial = trialId ? (trialsMap.get(trialId) ?? null) : null;
-  const pullMetadata = pullMetadataMap.get(entry.id) ?? null;
+  const pullMetadata = pullMetadataMap?.get(entry.id) ?? null;
   const handler_identity = projectEntryHandlerIdentity(entry, handlerIdentityPeopleMap);
   const armband = resolveEntryArmband(
     { id: entry.id, dogId, armband: entry.armband },
@@ -307,6 +311,7 @@ export function toSecretaryEntry(
     comped_reason: stringFrom(replicatedField(entry, 'compedReason', 'comped_reason')),
     refund_decision: pullMetadata?.refund_decision ?? null,
     refund_decided_at: pullMetadata?.refund_decided_at ?? null,
+    ...(pullMetadataMap === null ? { refund_decision_unknown: true } : {}),
     // Secretary payment bookkeeping (20260828200000). Carried here so the warm
     // replicated read and the cold PostgREST fallback expose the same fields.
     payment_reference: stringFrom(replicatedField(entry, 'paymentReference', 'payment_reference')),

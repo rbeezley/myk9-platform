@@ -4,6 +4,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { StatusIcon } from '@/components/status';
 import { formatEntryDateTime } from '@/lib/format/dates';
 import { withdrawalReasonLabel } from '@/features/registries';
+import {
+  classifyEntryRemoval,
+  describeEntryRemovalKind,
+  type EntryRemovalKind,
+} from '@/features/payments/pullReconciliation';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationActions } from './PullReconciliationActions';
 import { formatTrialLabel } from './entryFormTrialSummary';
@@ -51,13 +56,29 @@ function PullTimingBadge({ pullTiming }: { pullTiming: EntryManagementEntry['pul
  * premium's. Same queue, same refund controls, different sentence — the
  * secretary must not have to guess which one they are looking at.
  */
-function removalSummary(entry: EntryManagementEntry): string {
+function removalSummary(entry: EntryManagementEntry, kind: EntryRemovalKind): string {
   const reason = withdrawalReasonLabel(entry.withdrawalReasonCode);
-  if (entry.rawEntryStatus === 'withdrawn' && reason) {
+  if (kind === 'withdrawn' && reason) {
     return `Withdrawn · ${reason} · refund per the premium`;
+  }
+  // MYK9-2099: a paid secretary removal or no-show, named with the removal words the counts use.
+  if (kind === 'removed' || kind === 'absent') {
+    return `${capitalize(describeEntryRemovalKind(kind))} · refund at the club's discretion`;
   }
   return "Pulled — refund at the club's discretion";
 }
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** The date beside the row: when it was pulled, withdrawn or removed. A no-show has none. */
+const REMOVED_AT_LABEL: Record<EntryRemovalKind, string | null> = {
+  pulled: 'Pulled',
+  withdrawn: 'Withdrawn',
+  removed: 'Removed',
+  absent: null,
+};
 
 export function PullReconciliationCard({
   entry,
@@ -66,7 +87,12 @@ export function PullReconciliationCard({
 }: PullReconciliationCardProps) {
   const entryClass = entry.classes[0];
   const trialLabel = formatTrialLabel(entryClass?.trialDate, entryClass?.trialNumber);
-  const isWithdrawal = entry.rawEntryStatus === 'withdrawn';
+  const kind =
+    classifyEntryRemoval({
+      entryStatus: entry.rawEntryStatus,
+      withdrawalReasonCode: entry.withdrawalReasonCode,
+    }) ?? 'pulled';
+  const removedAtLabel = REMOVED_AT_LABEL[kind];
   return (
     <Card className="transition-colors hover:bg-muted/50">
       <CardContent className="p-4">
@@ -85,7 +111,7 @@ export function PullReconciliationCard({
                 {entryClass?.number && `#${entryClass.number} - `}
                 {entryClass?.name}
               </div>
-              <div className="text-xs text-muted-foreground">{removalSummary(entry)}</div>
+              <div className="text-xs text-muted-foreground">{removalSummary(entry, kind)}</div>
               {entry.pullReason && (
                 <div className="text-xs italic text-muted-foreground">{entry.pullReason}</div>
               )}
@@ -93,15 +119,16 @@ export function PullReconciliationCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            {/* Pull timing drives the club-discretion default. A withdrawal's
-                refund follows the premium, not the entry-close date, so the
-                before/after-close chip would be answering a question nobody
-                asked of it. */}
-            {!isWithdrawal && <PullTimingBadge pullTiming={entry.pullTiming} />}
-            <div className="text-sm text-muted-foreground">
-              {isWithdrawal ? 'Withdrawn' : 'Pulled'}:{' '}
-              {formatEntryDateTime(entry.pulledAt) || NOT_RECORDED_LABEL}
-            </div>
+            {/* Pull timing drives the club-discretion default for a PULL only. A
+                withdrawal's refund follows the premium, and a removal or a
+                no-show has no pull date to time, so the before/after-close
+                chip would be answering a question nobody asked of it. */}
+            {kind === 'pulled' && <PullTimingBadge pullTiming={entry.pullTiming} />}
+            {removedAtLabel && (
+              <div className="text-sm text-muted-foreground">
+                {removedAtLabel}: {formatEntryDateTime(entry.pulledAt) || NOT_RECORDED_LABEL}
+              </div>
+            )}
             <PullReconciliationActions
               entry={entry}
               onOpenRefund={onOpenRefund}

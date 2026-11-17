@@ -19,7 +19,8 @@ describe('PDF font sources', () => {
     await import('@/features/premium/pdf/pdfFonts');
 
     expect(registered).toHaveLength(37);
-    const offOrigin = registered.filter(({ src }) => /^[a-z][a-z0-9+.-]*:/i.test(src));
+    // A scheme (https:, data:) or a protocol-relative //host/ path both leave our origin.
+    const offOrigin = registered.filter(({ src }) => /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(src));
     expect(offOrigin).toEqual([]);
     for (const { src } of registered) {
       expect(src).toMatch(/\.woff$/);

@@ -22,9 +22,9 @@ const productionCsp = vercelConfig.headers
 
 const PROBE_PATH = '/__premium-csp-probe';
 
-const premiumFor = (style: string) => ({
+// The style is set per render in the page; data crosses as JSON, never as code.
+const basePremium = {
   org: 'AKC',
-  style,
   templateId: null,
   show: {
     name: 'CSP Probe Show',
@@ -66,7 +66,7 @@ const premiumFor = (style: string) => ({
     additionalNotes: null,
   },
   narratives: { showHours: 'Building opens 7:00 AM.', trialInformation: 'Bring water.' },
-});
+};
 
 test.describe('Premium PDF under the production CSP', () => {
   test.skip(
@@ -95,7 +95,7 @@ test.describe('Premium PDF under the production CSP', () => {
     });
     await page.goto(PROBE_PATH);
 
-    const sizes = await page.evaluate(async makePremiumSource => {
+    const sizes = await page.evaluate(async premium => {
       // The dev server's React refresh preamble is an inline script in index.html,
       // which this page does not have; stub it so .tsx modules load.
       const w = window as unknown as Record<string, unknown>;
@@ -103,21 +103,20 @@ test.describe('Premium PDF under the production CSP', () => {
       w.$RefreshSig$ = () => (type: unknown) => type;
       w.__vite_plugin_react_preamble_installed__ = true;
 
-      const makePremium = new Function(`return ${makePremiumSource}`)() as (s: string) => unknown;
       const { STYLE_TOKENS } = await import('/src/features/premium/pdf/pdfStyles.ts');
       const { renderPremiumPdf } = await import('/src/features/premium/publishPremium.tsx');
 
       const rendered: Record<string, number | string> = {};
       for (const style of Object.keys(STYLE_TOKENS)) {
         try {
-          const blob: Blob = await renderPremiumPdf('csp-probe', makePremium(style), false);
+          const blob: Blob = await renderPremiumPdf('csp-probe', { ...premium, style }, false);
           rendered[style] = blob.size;
         } catch (err) {
           rendered[style] = err instanceof Error ? err.message : String(err);
         }
       }
       return rendered;
-    }, premiumFor.toString());
+    }, basePremium);
 
     expect(blocked).toEqual([]);
     const styles = Object.keys(sizes);

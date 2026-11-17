@@ -157,6 +157,8 @@ out of the active suite; it is not a prerequisite for the sweep above.
 
 ### Feature Audit
 
+`apps/myk9show/src/test/e2e/premiumPdfProductionCsp.spec.ts` renders every premium style in a page that carries the production Content-Security-Policy from `vercel.json`, and fails on any CSP refusal or failed render (MYK9-2102). Hermetic: no sign-in, no Supabase call. It imports the app's own render function from the dev server, so it cannot run against the preview build PR smoke uses; replay it when touching `features/premium/pdf`, the entry-blank documents, or the CSP.
+
 ```bash
 cd apps/myk9show
 pnpm test:e2e:clean src/test/e2e/entities/<spec>.spec.ts --project=chromium --workers=1

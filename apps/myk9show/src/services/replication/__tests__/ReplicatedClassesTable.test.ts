@@ -822,6 +822,24 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).toHaveProperty('num_hides', 3);
     });
 
+    it('clears the local time_limit_set_at when a limit changes, keeps it otherwise (MYK9-2120)', async () => {
+      spyOnWriteAndQueue(classesTable);
+      const stamp = '2026-11-10T19:14:00+00:00';
+      await classesTable.set(
+        'class-limit',
+        createMockClass({ id: 'class-limit', timeLimitSeconds: 120, timeLimitSetAt: stamp })
+      );
+
+      await classesTable.updateClass('class-limit', { displayOrder: 3 });
+      expect((await classesTable.get('class-limit'))?.timeLimitSetAt).toBe(stamp);
+
+      await classesTable.updateClass('class-limit', { timeLimitSeconds: 120 });
+      expect((await classesTable.get('class-limit'))?.timeLimitSetAt).toBe(stamp);
+
+      await classesTable.updateClass('class-limit', { timeLimitSeconds: 240 });
+      expect((await classesTable.get('class-limit'))?.timeLimitSetAt).toBeNull();
+    });
+
     it('queues scores_on_paper for an explicit choice, both ways, and omits it otherwise (MYK9-1971)', async () => {
       const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
@@ -962,6 +980,28 @@ describe('ReplicatedClassesTable', () => {
       expect(read(false)).toBe(false);
       expect(read(null)).toBeNull();
       expect(read(undefined)).toBeNull();
+    });
+
+    it('reads time_limit_set_at from the DB row and never writes it back (MYK9-2120)', () => {
+      const setAt = '2026-11-17T19:14:00+00:00';
+      const domain = rowToClass({
+        ...createDbRow({ id: '1' }),
+        time_limit_set_at: setAt,
+      } as unknown as Database['public']['Tables']['classes']['Row']);
+      expect(domain.timeLimitSetAt).toBe(setAt);
+
+      const unset = rowToClass(
+        createDbRow({ id: '1' }) as unknown as Database['public']['Tables']['classes']['Row']
+      );
+      expect(unset.timeLimitSetAt).toBeNull();
+
+      const dbRow = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(createMockClass({ timeLimitSeconds: 120, timeLimitSetAt: setAt }));
+      expect(dbRow).toHaveProperty('time_limit_seconds', 120);
+      expect(dbRow).not.toHaveProperty('time_limit_set_at');
     });
 
     it('round-trips the scent-work hide count num_hides↔hideCount', () => {

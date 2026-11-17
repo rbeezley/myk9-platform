@@ -340,7 +340,8 @@ BEGIN
       -- anon stays 51.
       -- authenticated 59 -> 60: status_before_close (20261114194300, MYK9-1945); anon stays 51.
       -- authenticated 60 -> 61: scores_on_paper (20261114205300, MYK9-1969); anon stays 51.
-      ('classes','authenticated',61),
+      -- authenticated 61 -> 62: time_limit_set_at (20261117083700, MYK9-2120); anon stays 51.
+      ('classes','authenticated',62),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same

@@ -24,5 +24,6 @@ export function formatTimeLimitSetAt(
     .formatToParts(date)
     .map(part => (part.type === 'literal' && part.value === ' at ' ? ', ' : part.value))
     .join('');
-  return `set ${text}`;
+  // Newer ICU puts a narrow no-break space before AM/PM; plain spaces read and match the same.
+  return `set ${text.replace(/\s/g, ' ')}`;
 }

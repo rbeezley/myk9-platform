@@ -115,38 +115,35 @@ export function PremiumContentEditor({
     );
   }, []);
 
-  // Last good content, kept so a failed regenerate can restore it (the Regenerate
-  // buttons clear state before calling handleGenerate).
-  const lastGoodRef = useRef<{
+  // The narrative text on screen, with the show it belongs to. A failed narrative
+  // refresh keeps this text while still taking the fresh facts the server returned.
+  const lastNarrativesRef = useRef<{
     showId: string;
-    original: GeneratedPremium;
-    supplemental: GeneratedPremium['supplemental'];
     narratives: GeneratedPremium['narratives'];
   } | null>(null);
-  lastGoodRef.current =
-    original && supplemental && narratives
-      ? { showId, original, supplemental, narratives }
-      : lastGoodRef.current;
+  if (narratives) lastNarrativesRef.current = { showId, narratives };
+
+  // Each request gets an id; a result or failure from a superseded request is ignored.
+  const requestIdRef = useRef(0);
 
   const handleGenerate = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     lastPdfErrorMessageRef.current = null;
     setGenerationError(null);
     setIsGenerating(true);
     setAutoGenerateAttemptedFor(showId);
-    const snapshot = lastGoodRef.current;
-    // Only a snapshot of THIS show counts; one from another show is never restored.
-    const previous = snapshot && snapshot.showId === showId ? snapshot : null;
-    const previousHasText = Boolean(
-      previous &&
-      (previous.narratives.showHours.trim() || previous.narratives.trialInformation.trim())
-    );
+    const last = lastNarrativesRef.current;
+    // Only text saved for THIS show counts; another show's text is never carried over.
+    const kept = last && last.showId === showId ? last.narratives : null;
+    const keptHasText = Boolean(kept && (kept.showHours.trim() || kept.trialInformation.trim()));
     try {
       const result = await withGenerationTimeout(generate(showId));
-      if (narrativeGenerationFailed(result) && previous && previousHasText) {
-        // Keep the saved narratives; never replace them with a failed generation.
-        setOriginal(previous.original);
-        setSupplemental(previous.supplemental);
-        setNarratives(previous.narratives);
+      if (requestId !== requestIdRef.current) return;
+      setOriginal(result);
+      setSupplemental(result.supplemental);
+      if (narrativeGenerationFailed(result) && kept && keptHasText) {
+        // Fresh facts, previous narrative text: never replace it with a failed generation.
+        setNarratives(kept);
         setHasNarrativeError(false);
         setGenerationError(
           result.narrativeGenerationError
@@ -155,21 +152,16 @@ export function PremiumContentEditor({
         );
         return;
       }
-      setOriginal(result);
-      setSupplemental(result.supplemental);
       setNarratives(result.narratives);
       setHasNarrativeError(narrativeGenerationFailed(result));
     } catch (err) {
-      if (previous) {
-        setOriginal(previous.original);
-        setSupplemental(previous.supplemental);
-        setNarratives(previous.narratives);
-      }
+      if (requestId !== requestIdRef.current) return;
+      // Nothing came back, so everything on screen stays as it was.
       setGenerationError(
         err instanceof Error ? err.message : 'We could not generate that content.'
       );
     } finally {
-      setIsGenerating(false);
+      if (requestId === requestIdRef.current) setIsGenerating(false);
     }
   }, [generate, showId]);
 
@@ -179,7 +171,6 @@ export function PremiumContentEditor({
     setSupplemental(initialPremium.supplemental);
     setNarratives(stripPlaceholderNarratives(initialPremium.narratives));
     setGenerationError(null);
-    setIsGenerating(false);
   }, [active, initialPremium, original]);
 
   useEffect(() => {
@@ -223,7 +214,8 @@ export function PremiumContentEditor({
     setGenerationError(null);
     setIsGenerating(false);
     setAutoGenerateAttemptedFor(null);
-    lastGoodRef.current = null;
+    lastNarrativesRef.current = null;
+    requestIdRef.current += 1;
     onPremiumChangeRef.current?.(undefined);
     onInkSaverChangeRef.current?.(false);
   }, [active, reset]);
@@ -401,12 +393,10 @@ export function PremiumContentEditor({
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      setOriginal(null);
-                      setSupplemental(null);
-                      setNarratives(null);
                       setPdfUrl(null);
                       void handleGenerate();
                     }}
+                    disabled={isGenerating || isLoading}
                   >
                     Try narrative generation again
                   </Button>
@@ -614,15 +604,13 @@ export function PremiumContentEditor({
                 size="sm"
                 className="w-full"
                 onClick={() => {
-                  setOriginal(null);
-                  setSupplemental(null);
-                  setNarratives(null);
                   setPdfUrl(null);
                   setPdfCoverImageSrc(null);
                   setPdfCoverImageRemoteUrl(null);
                   setCoverImageResolveFailed(false);
                   void handleGenerate();
                 }}
+                disabled={isGenerating || isLoading}
               >
                 Regenerate
               </Button>

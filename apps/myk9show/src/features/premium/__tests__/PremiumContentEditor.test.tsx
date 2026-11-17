@@ -721,4 +721,184 @@ describe('PremiumContentEditor', () => {
     expect(screen.queryByDisplayValue('Show A hours.')).toBeNull();
     expect(screen.queryByText(/Your current text is kept/i)).toBeNull();
   });
+
+  it('uses the fresh facts of a failed narrative result but keeps the saved narrative text', async () => {
+    const saved = {
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: { showHours: 'Saturday 8 to 5.', trialInformation: 'Two trials.' },
+    };
+    const onPremiumChange = vi.fn();
+    generateMock.mockResolvedValueOnce({
+      ...saved,
+      show: { ...saved.show, venue: 'New Venue' },
+      narrativeGenerationError: 'Claude timed out',
+      narratives: { showHours: '', trialInformation: '' },
+    });
+
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={saved}
+        onPremiumChange={onPremiumChange}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^Regenerate$/ }));
+
+    await screen.findByText(/Your current text is kept/i);
+    await waitFor(() =>
+      expect(onPremiumChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          show: expect.objectContaining({ venue: 'New Venue' }),
+          narratives: { showHours: 'Saturday 8 to 5.', trialInformation: 'Two trials.' },
+        })
+      )
+    );
+  });
+
+  it('ignores a late failure from a superseded request', async () => {
+    const saved = {
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: { showHours: 'Saturday 8 to 5.', trialInformation: 'Two trials.' },
+    };
+    let rejectFirst: (e: Error) => void = () => {};
+    generateMock.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectFirst = reject;
+      })
+    );
+    generateMock.mockResolvedValueOnce({
+      ...saved,
+      narratives: { showHours: 'Newer hours.', trialInformation: 'Newer info.' },
+    });
+
+    const view = render(
+      <PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active />
+    );
+    await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(1));
+    view.rerender(
+      <PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active={false} />
+    );
+    view.rerender(<PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active />);
+    await screen.findByDisplayValue('Newer hours.');
+
+    await act(async () => {
+      rejectFirst(new Error('Late failure'));
+    });
+
+    expect(screen.getByDisplayValue('Newer hours.')).toBeInTheDocument();
+    expect(screen.queryByText(/Late failure/i)).toBeNull();
+  });
+
+  it('disables Regenerate while a generation is pending, even after initial content arrives', async () => {
+    const saved = {
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: { showHours: 'Saturday 8 to 5.', trialInformation: 'Two trials.' },
+    };
+    generateMock.mockReturnValueOnce(new Promise(() => {}));
+
+    const view = render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={saved}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^Regenerate$/ }));
+    expect(screen.getByRole('button', { name: /^Regenerate$/ })).toBeDisabled();
+
+    view.rerender(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={{ ...saved }}
+      />
+    );
+    expect(screen.getByRole('button', { name: /^Regenerate$/ })).toBeDisabled();
+    expect(generateMock).toHaveBeenCalledTimes(1);
+  });
 });

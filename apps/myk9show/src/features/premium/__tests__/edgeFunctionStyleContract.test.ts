@@ -27,7 +27,7 @@ describe('generate-premium edge function style contract', () => {
   });
 
   it('aborts slow narrative generation so premium generation can return fallback content', () => {
-    expect(source).toMatch(/const NARRATIVE_TIMEOUT_MS = \d+;/);
+    expect(source).toMatch(/const NARRATIVE_TIMEOUT_MS = [\d_]+;/);
     expect(source).toMatch(/new AbortController\(\)/);
     expect(source).toMatch(/signal: controller\.signal/);
     expect(source).toMatch(/clearTimeout\(timeoutId\)/);

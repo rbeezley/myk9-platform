@@ -118,13 +118,14 @@ export function PremiumContentEditor({
   // Last good content, kept so a failed regenerate can restore it (the Regenerate
   // buttons clear state before calling handleGenerate).
   const lastGoodRef = useRef<{
+    showId: string;
     original: GeneratedPremium;
     supplemental: GeneratedPremium['supplemental'];
     narratives: GeneratedPremium['narratives'];
   } | null>(null);
   lastGoodRef.current =
     original && supplemental && narratives
-      ? { original, supplemental, narratives }
+      ? { showId, original, supplemental, narratives }
       : lastGoodRef.current;
 
   const handleGenerate = useCallback(async () => {
@@ -132,10 +133,16 @@ export function PremiumContentEditor({
     setGenerationError(null);
     setIsGenerating(true);
     setAutoGenerateAttemptedFor(showId);
-    const previous = lastGoodRef.current;
+    const snapshot = lastGoodRef.current;
+    // Only a snapshot of THIS show counts; one from another show is never restored.
+    const previous = snapshot && snapshot.showId === showId ? snapshot : null;
+    const previousHasText = Boolean(
+      previous &&
+      (previous.narratives.showHours.trim() || previous.narratives.trialInformation.trim())
+    );
     try {
       const result = await withGenerationTimeout(generate(showId));
-      if (narrativeGenerationFailed(result) && previous) {
+      if (narrativeGenerationFailed(result) && previous && previousHasText) {
         // Keep the saved narratives; never replace them with a failed generation.
         setOriginal(previous.original);
         setSupplemental(previous.supplemental);
@@ -216,6 +223,7 @@ export function PremiumContentEditor({
     setGenerationError(null);
     setIsGenerating(false);
     setAutoGenerateAttemptedFor(null);
+    lastGoodRef.current = null;
     onPremiumChangeRef.current?.(undefined);
     onInkSaverChangeRef.current?.(false);
   }, [active, reset]);

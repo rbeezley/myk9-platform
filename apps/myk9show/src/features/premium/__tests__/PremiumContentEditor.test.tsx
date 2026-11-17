@@ -662,4 +662,63 @@ describe('PremiumContentEditor', () => {
     await screen.findByText(/Network down/i);
     expect(screen.getByDisplayValue('Saturday 8 to 5.')).toBeInTheDocument();
   });
+
+  it('never restores a snapshot from another show into a failed first generation', async () => {
+    const base = {
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: { showHours: 'Show A hours.', trialInformation: 'Show A trials.' },
+    };
+    generateMock.mockResolvedValueOnce({
+      ...base,
+      narrativeGenerationError: 'Claude timed out',
+      narratives: { showHours: '', trialInformation: '' },
+    });
+
+    const view = render(
+      <PremiumContentEditor
+        showId="show-a"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={base}
+      />
+    );
+    await screen.findByDisplayValue('Show A hours.');
+
+    view.rerender(
+      <PremiumContentEditor showId="show-a" clubId="club-1" showOrg="AKC" active={false} />
+    );
+    view.rerender(<PremiumContentEditor showId="show-b" clubId="club-1" showOrg="AKC" active />);
+
+    await waitFor(() => expect(generateMock).toHaveBeenCalledWith('show-b'));
+    await screen.findByText(/Narrative generation did not return text/i);
+    expect(screen.queryByDisplayValue('Show A hours.')).toBeNull();
+    expect(screen.queryByText(/Your current text is kept/i)).toBeNull();
+  });
 });

@@ -15,6 +15,10 @@ import ShowDeskPanel from '../ShowDeskPanel';
 const mockGetClassesWithCapacity = vi.hoisted(() => vi.fn());
 
 // The Requirements row reads the class replica; these tests do not exercise it.
+// The card hook also reads the printed-sheet rows (MYK9-2103); not under test here.
+vi.mock('@/hooks/queries/usePrintedSheetEntries', () => ({
+  usePrintedSheetEntries: () => ({ data: undefined }),
+}));
 vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },

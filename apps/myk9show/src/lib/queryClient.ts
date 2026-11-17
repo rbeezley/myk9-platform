@@ -291,6 +291,8 @@ export const queryKeys = {
   // Reports
   reportData: (showId: string, trialId: string, classId: string) =>
     ['reports', showId, trialId, classId] as const,
+  /** The printed sheets' rows (MYK9-2103): Reports' own show read, cached for the class card. */
+  printedSheetEntries: (showId: string) => ['printed-sheet', showId, 'entries'] as const,
 
   // Organization Agreements
   organizationAgreement: (org: string) => ['organization-agreements', org] as const,

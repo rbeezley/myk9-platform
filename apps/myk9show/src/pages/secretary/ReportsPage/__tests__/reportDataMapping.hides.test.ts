@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
-import { buildEmergencyPacketData } from '../reportDataMapping';
+import { buildEmergencyPacketData } from '../buildPacketData';
 import { mapReplicatedClassToDbRow } from '@/services/mappers/classMappers';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';

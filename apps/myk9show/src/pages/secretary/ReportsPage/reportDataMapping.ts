@@ -1,4 +1,3 @@
-import { formatTrialLabel } from '@myk9/core';
 import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports/reportUtils';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
@@ -14,8 +13,6 @@ import type {
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
-import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
-import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
@@ -23,7 +20,6 @@ import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import { mapCatalogEntryFields } from '@/lib/reports/catalogFields';
 import { computeDayTrialNumber } from './dayTrialNumber';
 import { resolveHandlerJunior } from './reportHandlerJunior';
-import { isEntryOnRunSheet } from '@/lib/reports/runSheetEntries';
 import { isReportEntryHeld, omitHeldEntries } from './reportHeldEntries';
 
 export function mapReportEntries(
@@ -321,80 +317,6 @@ export function buildClassReportProps(input: {
     sortOrder,
     organization: show.organization ?? undefined,
     clubName: show.clubName ?? undefined,
-  };
-}
-
-export function buildEmergencyPacketData(input: {
-  show: Show;
-  trials: DbTrial[] | null | undefined;
-  classes: DbClass[] | null | undefined;
-  entries: ReportDbEntry[] | null | undefined;
-}): Omit<EmergencyPacketInput, 'generatedAt'> {
-  const trials = input.trials ?? [];
-  const classes = input.classes ?? [];
-  const entries = input.entries ?? [];
-  const scope: ReportScope = { kind: 'show', showId: input.show.id };
-  const mappedEntries = mapScopedReportEntries(
-    entries,
-    trials,
-    classes,
-    scope,
-    input.show.assignedJudges ?? []
-  );
-
-  return {
-    show: {
-      id: input.show.id,
-      name: input.show.name ?? '',
-      clubName: input.show.clubName ?? undefined,
-      organization: input.show.organization ?? undefined,
-      startDate: input.show.startDate ?? '',
-      endDate: input.show.endDate ?? input.show.startDate ?? '',
-    },
-    trials: trials.map(trial => ({
-      id: trial.id,
-      date: trial.date ?? '',
-      name: formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number }),
-      trialNumber: String(trial.trial_number ?? ''),
-      registryId: readTrialRegistryId(trial),
-    })),
-    classes: classes.map(classItem => {
-      const raw = classItem as DbClass & Record<string, unknown>;
-      const ringLabel = formatRingLabel(
-        (raw.ring ?? raw.ring_number ?? raw.ringNumber) as string | number | null | undefined
-      );
-      return {
-        id: classItem.id,
-        trialId: classItem.trial_id ?? '',
-        name:
-          classItem.name ??
-          [classItem.element, classItem.level, resolveClassSection(classItem.section)]
-            .filter(Boolean)
-            .join(' '),
-        element: classItem.element ?? '',
-        level: classItem.level ?? '',
-        section: resolveClassSection(classItem.section),
-        classNumber: classItem.class_number,
-        displayOrder: classItem.display_order,
-        judgeName: resolveClassJudgeName(classItem, input.show.assignedJudges ?? []),
-        // No placeholder: `formatRingLabel` already returns null for absent or
-        // meaningless values, and a ringless sport should print nothing at all.
-        ringLabel: ringLabel,
-        startTime: classItem.start_time,
-        timeLimitSeconds: classItem.time_limit_seconds,
-        timeLimitArea2Seconds: (raw.time_limit_area2_seconds as number | null) ?? null,
-        timeLimitArea3Seconds: (raw.time_limit_area3_seconds as number | null) ?? null,
-        numAreas: (raw.num_areas as number | null) ?? null,
-        numHides: (raw.num_hides as number | null) ?? null,
-        distractionCount: (raw.distraction_count as number | null) ?? null,
-      };
-    }),
-    // MYK9-1162: the packet and Reports scoresheets never list an entry that is
-    // still awaiting a registration number. MYK9-2082: nor one that will not run in its class
-    // (the source of a move-up, withdrawn, declined, scratched or pulled).
-    entries: mappedEntries.filter(
-      entry => !entry.awaitingRegistrationNumber && isEntryOnRunSheet(entry)
-    ),
   };
 }
 

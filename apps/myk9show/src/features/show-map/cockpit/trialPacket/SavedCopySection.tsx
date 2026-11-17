@@ -14,7 +14,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
-import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/buildPacketData';
 import {
   deliveredPacketsKey,
   useDeliveredPackets,

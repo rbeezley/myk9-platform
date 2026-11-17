@@ -34,6 +34,10 @@ vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useSecretaryShowEntriesQuery: () => mocks.entries,
 }));
+// The card hook also reads the printed-sheet rows (MYK9-2103); not under test here.
+vi.mock('@/hooks/queries/usePrintedSheetEntries', () => ({
+  usePrintedSheetEntries: () => ({ data: undefined }),
+}));
 vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
   useShowPaperworkPrints: () => mocks.prints,
 }));

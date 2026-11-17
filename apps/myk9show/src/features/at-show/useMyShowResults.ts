@@ -14,6 +14,7 @@ type OwnRow = {
   total_faults?: number | null;
   final_placement?: number | null;
   class_results_released_at?: string | null;
+  class?: { scored_count?: number | null } | null;
 };
 
 /**
@@ -58,6 +59,7 @@ export function useMyShowResults(showId: string | undefined): ReadonlyMap<string
           totalFaults: row.total_faults ?? null,
           finalPlacement: row.final_placement ?? null,
           resultsReleasedAt: row.class_results_released_at ?? null,
+          classScoredCount: row.class?.scored_count ?? null,
           serverConfirmed,
         });
       }

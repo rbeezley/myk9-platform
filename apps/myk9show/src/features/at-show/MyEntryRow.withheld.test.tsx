@@ -94,13 +94,13 @@ describe('MyEntryRow: withheld results', () => {
 
   it('keeps the released row as it was', () => {
     const row = renderRow(RELEASED);
-    expect(row).toHaveTextContent('42.5s');
+    expect(row).toHaveTextContent('Qualified, 0:42.50');
     expect(row).not.toHaveTextContent(/preliminary|not released/i);
   });
 
   it('keeps the unreleased preliminary row as it was', () => {
     const row = renderRow(PRELIMINARY);
-    expect(row).toHaveTextContent('42.5s');
+    expect(row).toHaveTextContent('Qualified, 0:42.50');
     expect(row).toHaveTextContent(/preliminary/i);
     expect(row).not.toHaveTextContent(/not released/i);
   });

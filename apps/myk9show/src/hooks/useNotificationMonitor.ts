@@ -28,6 +28,8 @@ import { hasRunOrder } from '@/utils/showEntryRunQueue';
 import { resolveClaim } from '@myk9/ringside/run-queue';
 import { readOwnClaimStates } from '@/hooks/queries/useMyEntryQueuePlaces';
 import type { ShowEntry } from '@/store/entry-store-types';
+import { getTrialTimezone } from '@/features/registries';
+import { exhibitorShowDayHref, MY_SHOWS_PATH } from '@/utils/exhibitorShowDayLink';
 
 const DEDUP_WINDOW_MS = 60_000;
 const REFRESH_DEBOUNCE_MS = 400;
@@ -43,7 +45,13 @@ interface ClassRow {
   /** MYK9-1969: true = judged on paper, null = follows the show (the server answers that). */
   scores_on_paper?: boolean | null;
   /** The class's trial and its show's device-scoring switch (the claim fallback, MYK9-1970). */
-  trial?: { show?: { uses_device_scoring?: boolean | null } | null } | null;
+  trial?: {
+    show_id?: string | null;
+    /** MYK9-2134: the trial's calendar day and zone, to pick Ringside or My Shows. */
+    date?: string | null;
+    timezone?: string | null;
+    show?: { uses_device_scoring?: boolean | null } | null;
+  } | null;
 }
 
 interface NotificationSnapshot {
@@ -78,8 +86,23 @@ function isRevealableResult(
   return resultStatus === 'qualified' && Boolean(resultsReleasedAt);
 }
 
+/**
+ * MYK9-2134: where an alert about a class the exhibitor entered opens. Ringside
+ * on the trial day, My Shows otherwise (also when the class's trial is unknown);
+ * never the class page.
+ */
+function exhibitorAlertUrl(classRow: ClassRow | undefined): string {
+  const trial = classRow?.trial;
+  if (!trial?.show_id) return MY_SHOWS_PATH;
+  return exhibitorShowDayHref({
+    showId: trial.show_id,
+    trialDate: trial.date,
+    timezone: trial.date ? getTrialTimezone({ timezone: trial.timezone }) : undefined,
+  });
+}
+
 function buildResultsActionUrl(
-  classId: string,
+  classRow: ClassRow | undefined,
   userEntries: ShowEntry[],
   entryResultStatuses: ReadonlyMap<string, string | null>,
   resultsReleasedAt: string | null | undefined
@@ -91,7 +114,7 @@ function buildResultsActionUrl(
     return `/exhibitor/entries?resultEntryId=${encodeURIComponent(userEntries[0].id)}`;
   }
 
-  return `/classes/${classId}`;
+  return exhibitorAlertUrl(classRow);
 }
 
 export function useNotificationMonitor(): void {
@@ -159,6 +182,7 @@ export function useNotificationMonitor(): void {
 
   const lastYourTurnAlert = useRef<Map<string, number>>(new Map());
   const classContextRef = useRef<Map<string, ClassContext>>(new Map());
+  const classRowRef = useRef<Map<string, ClassRow>>(new Map());
   const dogNameMap = useRef<Map<string, string>>(new Map());
   const entryResultStatusMapRef = useRef<Map<string, string | null>>(new Map());
   // INTENT (MYK9-735): the in-app monitor alerts only on changes it observes
@@ -254,7 +278,7 @@ export function useNotificationMonitor(): void {
         armband: entry.registrationData?.armband ?? null,
         ...(conflicts.length > 0 ? { conflicts } : {}),
       });
-      notification.actionUrl = `/classes/${context.classId}`;
+      notification.actionUrl = exhibitorAlertUrl(classRowRef.current.get(context.classId));
       deliverRef.current(notification);
     }
   }, []);
@@ -315,6 +339,7 @@ export function useNotificationMonitor(): void {
       }
 
       classContextRef.current = nextContexts;
+      classRowRef.current = classLookup;
       dogNameMap.current = nextDogNames;
       entryResultStatusMapRef.current = nextResultStatuses;
 
@@ -355,7 +380,7 @@ export function useNotificationMonitor(): void {
         const startedNow = now.inProgress && !before.inProgress;
         if (startedNow && userEntries.length > 0) {
           const starting = buildClassStartingPayload({ className: context.className });
-          starting.actionUrl = `/classes/${classId}`;
+          starting.actionUrl = exhibitorAlertUrl(classRow);
           deliverRef.current(starting);
         }
 
@@ -368,7 +393,7 @@ export function useNotificationMonitor(): void {
               dogName: nextDogNames.get(entry.dogId) ?? 'Your dog',
               className: context.className,
             });
-            reminder.actionUrl = `/classes/${classId}`;
+            reminder.actionUrl = exhibitorAlertUrl(classRow);
             deliverRef.current(reminder);
           }
         }
@@ -381,7 +406,7 @@ export function useNotificationMonitor(): void {
             className: context.className,
           });
           results.actionUrl = buildResultsActionUrl(
-            classId,
+            classRow,
             userEntries,
             nextResultStatuses,
             classRow.results_released_at

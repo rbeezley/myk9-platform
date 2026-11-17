@@ -1,6 +1,12 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { DogEntriesSection } from '../DogEntriesSection';
 import type { DogEntriesGroup } from '@/hooks/useShowEntriesForUser';
+
+const mockTrials = vi.hoisted(() => ({ data: [] as Array<{ id: string; timezone?: string }> }));
+vi.mock('@/hooks/queries/useShowTrials', () => ({
+  useShowTrials: () => ({ data: mockTrials.data }),
+}));
 
 const group: DogEntriesGroup = {
   dogId: 'dog-1',
@@ -32,6 +38,46 @@ const group: DogEntriesGroup = {
 };
 
 describe('DogEntriesSection', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('where the row links (MYK9-2134)', () => {
+    const at = (iso: string) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(iso));
+      mockTrials.data = [{ id: 'trial-1', timezone: 'America/Los_Angeles' }];
+    };
+
+    it('links to My Shows before the trial day', () => {
+      at('2026-05-08T20:00:00Z');
+      render(<DogEntriesSection group={group} showId="show-1" />);
+      expect(screen.getByRole('link')).toHaveAttribute('href', '/exhibitor/entries');
+    });
+
+    it('links to Ringside on the trial day in the trial zone', () => {
+      at('2026-05-10T03:00:00Z');
+      render(<DogEntriesSection group={group} showId="show-1" />);
+      expect(screen.getByRole('link')).toHaveAttribute('href', '/at-show/show-1');
+    });
+
+    it('keeps a private entry private: no result shown and no link to the class page', () => {
+      at('2026-05-09T20:00:00Z');
+      render(
+        <DogEntriesSection
+          group={{
+            ...group,
+            entries: [{ ...group.entries[0], hasResult: false, result: undefined }],
+          }}
+          showId="show-1"
+        />
+      );
+      expect(screen.queryByText('Qualified')).not.toBeInTheDocument();
+      expect(screen.queryByText('Not qualified')).not.toBeInTheDocument();
+      expect(screen.getByRole('link').getAttribute('href')).not.toContain('/classes/');
+    });
+  });
+
   it('shows armband once in the dedicated run detail column', () => {
     render(<DogEntriesSection group={group} showId="show-1" />);
 

@@ -22,6 +22,7 @@ import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySe
 import { getStatusDescriptor } from '@/components/status';
 import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
 import { getTrialTimezone } from '@/features/registries';
+import { exhibitorShowDayHref } from '@/utils/exhibitorShowDayLink';
 
 interface WhereToBeProps {
   entries: EnrichedShowEntry[];
@@ -126,7 +127,12 @@ function isFutureDay(entry: EnrichedShowEntry, trialTimezone: string | undefined
 }
 
 function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps) {
-  const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
+  // MYK9-2134: Ringside on the trial day, My Shows on every other; never the class page.
+  const href = exhibitorShowDayHref({
+    showId,
+    trialDate: entry.trialDate,
+    timezone: trialTimezone,
+  });
   const accessibleTimeLabel = entry.startTime || 'schedule details pending';
   // MYK9-992: place in line or the dog's state, never the stored run number.
   // MYK9-995: the place is the server's count; offline it stays the state.

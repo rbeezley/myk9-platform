@@ -1,15 +1,15 @@
 ---
 name: debugging-patterns
-description: 'Common bug pattern lookup tables for React, Zustand, Supabase, and TypeScript. Use alongside superpowers:systematic-debugging during Phase 1 (Root Cause Investigation) and Phase 2 (Pattern Analysis) to quickly identify bug categories from symptoms — concurrency, state management, async, database/RLS, build, and UI bugs.'
+description: 'Common bug pattern lookup tables for React, Zustand, Supabase, and TypeScript. Use with the bug method in docs/PLAYBOOK.md § 3, after reproducing and before forming a hypothesis, to quickly identify bug categories from symptoms — concurrency, state management, async, database/RLS, build, and UI bugs.'
 ---
 
 # Common Bug Patterns Reference
 
-Supplementary reference for `superpowers:systematic-debugging`. Use during Phase 1 (Root Cause Investigation) and Phase 2 (Pattern Analysis) to identify what category of bug you're dealing with.
+Supplementary reference for the bug method in `docs/PLAYBOOK.md` § 3. Use it while gathering evidence and comparing against working code, to identify what category of bug you're dealing with.
 
 ## When to Use
 
-During systematic debugging, after reproducing the issue but before forming a hypothesis. Scan the relevant category below to see if the symptoms match a known pattern — this accelerates root cause identification.
+While debugging, after reproducing the issue but before forming a hypothesis. Scan the relevant category below to see if the symptoms match a known pattern — this accelerates root cause identification.
 
 ## Concurrency & Timing Bugs
 

@@ -5,7 +5,7 @@
 
 > **Status:** V1.0 validated 2026-08-29; optional V1.1 deferred until usage proves the lookup friction
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Implement this plan task by task with the `ship-it` skill. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a local, site-admin-only myK9 MCP server that lets Codex/Claude ask myK9-aware read-only admin questions without turning Supabase into a raw SQL chat surface.
 

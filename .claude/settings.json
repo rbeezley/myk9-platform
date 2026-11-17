@@ -150,7 +150,7 @@
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false,
     "playground@claude-plugins-official": false,
     "stripe@claude-plugins-official": false,
     "skill-creator@claude-plugins-official": false,

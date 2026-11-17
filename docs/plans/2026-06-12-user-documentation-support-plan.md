@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Implement this plan task by task with the `ship-it` skill. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Create a reviewed, code-grounded plan for a customer self-service support library: user guide, slide decks, knowledge base, blog/how-to posts, reusable support answers, and other reference material that lets a one-person support operation answer questions quickly.
 

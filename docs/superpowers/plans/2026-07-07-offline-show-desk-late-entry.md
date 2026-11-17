@@ -1,6 +1,6 @@
 # Offline Show Desk Late Entry Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Implement this plan task by task with the `ship-it` skill. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let a secretary at a no-connectivity show create a new exhibitor, create a new dog, select classes, record payment, and save day-of entry rows locally from the existing late-entry wizard.
 

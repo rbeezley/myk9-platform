@@ -161,6 +161,27 @@ describe('MoveUpRequestsTab', () => {
     );
   });
 
+  it('after Undo, the request is waiting in the list again (MYK9-2122)', async () => {
+    const { getPendingMoveUpRequests } = await import('@/services/database/day-of-operations');
+    const user = userEvent.setup();
+    render(<MoveUpRequestsTab showId="show-1" />);
+    await screen.findAllByTestId('class-change-line');
+
+    // Accepted: the replica no longer holds req-1 as waiting.
+    vi.mocked(getPendingMoveUpRequests).mockResolvedValueOnce({
+      data: [REQUESTS[1]],
+      error: null,
+    } as never);
+    await user.click(screen.getAllByRole('button', { name: 'Accept' })[0] as HTMLElement);
+    await waitFor(() => expect(screen.queryByText('Fido')).not.toBeInTheDocument());
+
+    // Undo: reverse_move_up_entry restores the source as move-up-requested, and the
+    // list reads it back as a waiting request with the class it asked for.
+    mocks.showUndoToast.mock.calls[0]?.[0].onUndo();
+    expect(await screen.findByText('Fido')).toBeInTheDocument();
+    expect((await screen.findAllByTestId('class-change-line'))[0]).toHaveTextContent('Open C');
+  });
+
   it('keeps the class picker for a legacy request with no stored class', async () => {
     const user = userEvent.setup();
     render(<MoveUpRequestsTab showId="show-1" />);

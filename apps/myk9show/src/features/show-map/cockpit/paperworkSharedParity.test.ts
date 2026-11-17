@@ -70,9 +70,9 @@ const scopes: ReportScope[] = [
 // class subject: the check-in sheet gained class subjects (judge), and an absent judge or hides
 // now hashes as null. scoresheet/class is unchanged: its class carries a judge and hides.
 const PINNED: Record<string, string> = {
-  'check-in-sheet/class': 'fnv1a64:e1e4eba9a14f3576',
-  'check-in-sheet/trial': 'fnv1a64:86da9d331b8710ed',
-  'check-in-sheet/show': 'fnv1a64:cad10d066fff8234',
+  'check-in-sheet/class': 'fnv1a64:356c9acf8f53410d',
+  'check-in-sheet/trial': 'fnv1a64:79d5d628331a756c',
+  'check-in-sheet/show': 'fnv1a64:0ae6d05c8f9fb71c',
   'scoresheet/class': 'fnv1a64:aa00e904808e0eb8',
   'scoresheet/trial': 'fnv1a64:c5c0806c053b9460',
   'scoresheet/show': 'fnv1a64:19cc19aec031cb5b',

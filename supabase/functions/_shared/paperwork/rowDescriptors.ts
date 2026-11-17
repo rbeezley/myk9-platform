@@ -73,7 +73,9 @@ export function buildPaperworkClassFacts(
         section: classItem.section,
         // The check-in sheet and scoresheets do not print the class's own status, so starting or
         // finishing a class must not read as a change (MYK9-2074). The results sheet keeps it.
-        ...(reportId === 'scoresheet' ? {} : { status: classItem.status }),
+        ...(reportId === 'scoresheet' || reportId === 'check-in-sheet'
+          ? {}
+          : { status: classItem.status }),
         // Optional facts hash as null when absent, so undefined and null never differ.
         judgeName: classItem.judgeName ?? null,
         ...(reportId === 'check-in-sheet'

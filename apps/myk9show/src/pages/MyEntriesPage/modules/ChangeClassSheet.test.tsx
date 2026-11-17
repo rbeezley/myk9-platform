@@ -3,7 +3,7 @@
  * the ones sent to the server (entry, class, reason) and the sentences a refusal
  * turns into, so the request call is asserted with its exact arguments.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
@@ -71,6 +71,9 @@ beforeEach(() => {
     availability({ classId: 'class-started', className: 'Container Master', hasStarted: true }),
   ];
 });
+
+const LATE_WARNING =
+  'This is less than 30 minutes before the trial starts. The club may not be able to accept it.';
 
 describe('ChangeClassSheet', () => {
   it('lists only classes the request could land in, and a full class cannot be picked', () => {
@@ -169,5 +172,43 @@ describe('ChangeClassSheet', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send request' })).toBeDisabled();
     expect(mocks.requestClassChange).not.toHaveBeenCalled();
+  });
+
+  describe('the late warning (MYK9-2122)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      mocks.classes = [
+        availability({
+          classId: 'class-adv',
+          className: 'Container Advanced',
+          trialDate: '2026-11-16',
+          trialPlannedStartTime: '9:00 AM',
+          trialTimezone: 'UTC',
+        }),
+      ];
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('warns, and still sends, when asked inside 30 minutes of the trial start', async () => {
+      vi.setSystemTime(new Date('2026-11-16T08:45:00Z'));
+      const user = userEvent.setup({ advanceTimers: () => undefined });
+      renderSheet();
+      expect(screen.queryByText(LATE_WARNING)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('radio', { name: /Container Advanced/ }));
+      await user.click(screen.getByRole('radio', { name: 'Finished this level' }));
+      expect(screen.getByText(LATE_WARNING)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Send request' }));
+      await waitFor(() => expect(mocks.requestClassChange).toHaveBeenCalled());
+    });
+
+    it('says nothing when the trial is more than 30 minutes away', async () => {
+      vi.setSystemTime(new Date('2026-11-16T07:00:00Z'));
+      const user = userEvent.setup({ advanceTimers: () => undefined });
+      renderSheet();
+      await user.click(screen.getByRole('radio', { name: /Container Advanced/ }));
+      expect(screen.queryByText(LATE_WARNING)).not.toBeInTheDocument();
+    });
   });
 });

@@ -37,6 +37,16 @@ import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
 import { showUndoToast } from '@/lib/undoToast';
 import { getTrialRegistry } from '@/features/registries';
 import type { RegistryId } from '@/features/registries';
+import {
+  startableTrialFromRow,
+  trialStartInstant,
+  type StartableTrial,
+} from '@/features/show-map/trialStartInstant';
+import {
+  enteredNote,
+  lateRequestNote,
+  minutesBeforeStart,
+} from '@/features/show-map/classChangeLateness';
 import { formatTrialLabel } from './management/entryFormTrialSummary';
 import { MOVE_UP_COPY } from '@/hooks/entryManagementErrorCopy';
 import { ClassChangeRequestCard } from './ClassChangeRequestCard';
@@ -133,6 +143,8 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   // A show's trials always share one registry (scoping §7) — resolved once per
   // load so getAvailableMoveUpTargets recognizes UKC/ASCA-only levels.
   const [registryId, setRegistryId] = useState<RegistryId>('AKC');
+  /** trial id to its start facts, for the "asked N minutes before start" note. */
+  const [trialStarts, setTrialStarts] = useState<Record<string, StartableTrial>>({});
   const [details, setDetails] = useState<Record<string, ClassChangeRequestDetails>>({});
   const [requestedNames, setRequestedNames] = useState<Record<string, string>>({});
   /** The stored class asked for could not be read: Accept is off rather than guessing. */
@@ -160,6 +172,14 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     if (data.trials) {
       setRegistryId(getTrialRegistry(data.trials[0]).id);
       setTrialLabels(trialLabelsById(data.trials));
+      setTrialStarts(
+        Object.fromEntries(
+          data.trials.map(row => {
+            const trial = startableTrialFromRow(row);
+            return [trial.id, trial];
+          })
+        )
+      );
     }
     setDetailsError(data.requests !== null && data.details === null);
     setDetails(data.details ?? {});
@@ -401,6 +421,14 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
           {filteredRequests.map(request => {
             const stored = details[request.id];
             const trialId = request.class?.trial_id ?? request.trial_id ?? '';
+            const targetClass = stored?.targetClassId
+              ? classes.find(cls => cls.id === stored.targetClassId)
+              : undefined;
+            // Lateness is measured against the trial the dog is asking to move into.
+            const startTrial = trialStarts[targetClass?.trial_id ?? trialId];
+            const lateNote = lateRequestNote(
+              minutesBeforeStart(stored?.requestedAt, trialStartInstant(startTrial))
+            );
             return (
               <ClassChangeRequestCard
                 key={request.id}
@@ -420,6 +448,11 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                     : null,
                   reasonLabel: classChangeReasonLabel(stored?.reason),
                   askedAt: stored?.requestedAt ?? request.created_at,
+                  lateNote,
+                  enteredNote:
+                    targetClass && !classesError
+                      ? enteredNote(targetClass.accepted_count, targetClass.max_entries)
+                      : null,
                 }}
                 acceptDisabledReason={detailsError ? MOVE_UP_COPY.targetUnreadable : null}
                 isBusy={isProcessing}

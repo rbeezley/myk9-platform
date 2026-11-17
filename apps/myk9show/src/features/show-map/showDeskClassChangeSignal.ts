@@ -1,16 +1,15 @@
-import { getTrialTimezone } from '@/features/registries';
 import {
   ENTRY_LIST_LABELS,
   getEntryListHref,
 } from '@/components/entries/management/entryManagementViews';
-import { clockTimeToInstant, scheduledClockValue } from './cockpit/cockpitTime';
+import { CLASS_CHANGE_SOON_MINUTES } from './classChangeSoonMinutes';
+import { trialStartInstant } from './trialStartInstant';
 import { MOVE_UP_REQUEST_STATUSES } from './moveUpRequestStatuses';
 import { getShowMapNodeId } from './showMapTree';
 import type { ShowMapTree } from './showMapTypes';
 import type { ShowDeskPendingSignal, ShowDeskPendingSignalScope } from './showDeskPendingSignals';
 
-/** A request this close to its trial's start is told apart on the pill (MYK9-2122). */
-export const CLASS_CHANGE_SOON_MINUTES = 30;
+export { CLASS_CHANGE_SOON_MINUTES };
 
 /** The trial facts "starting soon" reads: its day, its planned start and its time zone. */
 export interface ClassChangeTrial {
@@ -29,15 +28,9 @@ interface ClassChangeEntry {
 
 /** True when `now` is inside the half hour before the trial's planned start. */
 function startsSoon(trial: ClassChangeTrial | undefined, now: Date): boolean {
-  const date = trial?.trialDate?.slice(0, 10);
-  const clock = scheduledClockValue(trial?.plannedStartTime ?? null);
-  if (!trial || !date || !clock) return false;
-  let start: number;
-  try {
-    start = new Date(clockTimeToInstant(date, clock, getTrialTimezone(trial))).getTime();
-  } catch {
-    return false;
-  }
+  const startAt = trialStartInstant(trial);
+  if (!startAt) return false;
+  const start = startAt.getTime();
   const minutesAway = (start - now.getTime()) / 60_000;
   return minutesAway >= 0 && minutesAway <= CLASS_CHANGE_SOON_MINUTES;
 }

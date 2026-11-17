@@ -80,7 +80,8 @@ export function buildClassChangeSignal(input: {
   return {
     id: 'class-changes-waiting',
     count,
-    priority: 'high',
+    // Waiting like the waitlist pills; urgent only when a trial is about to start.
+    priority: soon > 0 ? 'high' : 'medium',
     label: soon > 0 ? `${base} · ${soon} for a trial starting soon` : base,
     href: getEntryListHref(input.showId, 'move-ups'),
     destinationName: ENTRY_LIST_LABELS['move-ups'],

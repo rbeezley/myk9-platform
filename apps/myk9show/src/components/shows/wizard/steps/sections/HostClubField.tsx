@@ -1,6 +1,6 @@
 import React from 'react';
 import { RequiredMark } from '@/components/common/RequiredMark';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { SearchablePopover } from '@/components/ui/searchable-popover';
@@ -9,10 +9,7 @@ import type { Club } from '@/types/club-types';
 import { FieldError, useFieldError } from '@/components/forms';
 import { SHOW_FIELD } from '@/pages/secretary/ShowCreationWizard/wizardFieldIds';
 import { clubCreateDeniedMessage } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
-import {
-  ADD_YOUR_CLUB_PATH,
-  ADD_YOUR_CLUB_PROMPT,
-} from '@/components/landing/lifecycle/landingCtas';
+import { addYourClubPath, ADD_YOUR_CLUB_PROMPT } from '@/components/landing/lifecycle/landingCtas';
 
 const CREATE_BTN_CLASS = 'w-full border-primary/20 text-primary hover:bg-primary/5';
 
@@ -46,6 +43,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
   onSelectClub,
   clubCreateDenied = false,
 }) => {
+  const location = useLocation();
   const selectedClub = clubId ? clubs.find(c => c.id === clubId) : undefined;
   const clubError = useFieldError(SHOW_FIELD.hostClub);
   return (
@@ -113,7 +111,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
           variant={selectedClub ? 'link' : 'outline'}
           className={selectedClub ? 'h-auto min-h-[44px] px-0 py-2 text-sm' : CREATE_BTN_CLASS}
         >
-          <Link to={ADD_YOUR_CLUB_PATH}>
+          <Link to={addYourClubPath(`${location.pathname}${location.search}`)}>
             <Plus className="mr-2 h-4 w-4" />
             {ADD_YOUR_CLUB_PROMPT}
           </Link>

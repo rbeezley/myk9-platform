@@ -123,7 +123,10 @@ describe('ShowDetailsStep — Payment Methods section', () => {
 
     expect(
       screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
-    ).toHaveAttribute('href', '/?onboarding=true#get-started');
+    ).toHaveAttribute(
+      'href',
+      '/?onboarding=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard%3Fsource%3Dclub-handoff#get-started'
+    );
   });
 
   // MYK9-979: card payment exists only online, and online entries are a

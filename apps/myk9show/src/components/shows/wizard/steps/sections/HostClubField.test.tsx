@@ -24,7 +24,7 @@ describe('HostClubField club-management handoff', () => {
 
     expect(
       screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
-    ).toHaveAttribute('href', '/?onboarding=true#get-started');
+    ).toHaveAttribute('href', '/?onboarding=true&returnTo=%2F#get-started');
     expect(screen.queryByLabelText(/club name/i)).not.toBeInTheDocument();
   });
 });
@@ -58,7 +58,7 @@ describe('HostClubField existing-club clarity (MYK9-889) and permission notice (
     // The add action stays reachable, but as a quiet text link.
     expect(
       screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
-    ).toHaveAttribute('href', '/?onboarding=true#get-started');
+    ).toHaveAttribute('href', '/?onboarding=true&returnTo=%2F#get-started');
   });
 
   it('frames Add your club as the not-listed path before a club is chosen', () => {

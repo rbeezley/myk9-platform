@@ -85,6 +85,7 @@ export function getEmailRecoveryHref(sourceKind: string, showId: string): string
   switch (sourceKind) {
     case 'registration_confirmation':
     case 'heritage_confirmation':
+    case 'show_reminder':
     case 'entry_decision':
       return `/shows/${showId}/entries`;
     case 'lifecycle':
@@ -132,6 +133,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
       return 'Receipt';
     case 'heritage_confirmation':
       return 'Full confirmation';
+    case 'show_reminder':
+      return 'Reminder';
     case 'entry_decision':
       return 'Entry decision';
     case 'waitlist_notification':

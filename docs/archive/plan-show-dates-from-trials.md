@@ -1,6 +1,6 @@
 # Show dates come from the trials
 
-> **Status:** Active
+> **Status:** Complete
 
 Linear: MYK9-2131. Owner decision (2026-11-17): option B. A show's start and end dates are the
 earliest and latest date of its live trials. Nothing edits them on their own.

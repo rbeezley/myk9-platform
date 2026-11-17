@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { secretaryEntryToRawRow } from './useClassDetailsData';
 import { buildClassReadinessSummary, type ClassReadinessEntry } from './classReadiness';
-import { buildRunSheetEntries } from './SecretaryRunSheet/buildRunSheetEntries';
 import type { SecretaryEntry } from '@/services/database/entries';
 
 /**
@@ -98,36 +97,5 @@ describe('secretaryEntryToRawRow feeding buildClassReadinessSummary', () => {
     );
 
     expect(row.moved_from_entry_id).toBe(SOURCE_ID);
-  });
-});
-
-// MYK9-1162: the staff run sheet leaves a held entry off by the row's server
-// flag, so the projection must carry it: drive the real projection into the
-// real builder, as the page does.
-describe('secretaryEntryToRawRow -> buildRunSheetEntries (MYK9-1162)', () => {
-  it('keeps a held entry off the staff run sheet', () => {
-    const rows = [
-      secretaryEntry({ id: SOURCE_ID, run_order: 1 }),
-      secretaryEntry({ id: DESTINATION_ID, run_order: 2, awaiting_registration_number: true }),
-    ].map(secretaryEntryToRawRow);
-
-    expect(buildRunSheetEntries(rows).map(entry => entry.id)).toEqual([SOURCE_ID]);
-  });
-});
-
-describe('element time through the staff projection (MYK9-2090)', () => {
-  it.each([
-    [42.5, '0:42.50'],
-    [null, ''],
-  ])('secretary element_time_seconds %s reaches the run sheet as %j', (seconds, expected) => {
-    const rows = [
-      secretaryEntry({
-        is_scored: true,
-        result_status: 'qualified',
-        element_time_seconds: seconds,
-      }),
-    ].map(secretaryEntryToRawRow);
-    const [entry] = buildRunSheetEntries(rows);
-    expect(entry.result!.elementTimeStr).toBe(expected);
   });
 });

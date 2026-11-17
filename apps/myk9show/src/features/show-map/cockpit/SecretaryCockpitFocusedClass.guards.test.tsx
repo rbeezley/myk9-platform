@@ -71,7 +71,6 @@ const focusedClass = (id: string, name: string, overrides: Partial<FocusedClassM
     actualStart: { evidence: 'unknown', value: null },
     actualFinish: { evidence: 'unknown', value: null },
     paperwork: [],
-    classWorkActions: [],
     entryRows: [],
     entries: [
       {

@@ -138,12 +138,39 @@ beforeEach(() => {
   isOnline.value = true;
 });
 
+describe('the per-dog result link (MYK9-2119)', () => {
+  const scoreLink = (name: string) => screen.getByRole('menuitem', { name });
+
+  it('offers Enter result, on the paper scoring route for this dog, to a dog that can run', async () => {
+    await openMenu(table(row('waiting')));
+    expect(scoreLink('Enter result')).toHaveAttribute(
+      'href',
+      '/scoring/classes/class-1/entries?entryId=e-110'
+    );
+  });
+
+  it('offers Edit result once the dog is scored', async () => {
+    await openMenu(table(row('scored', { result: 'Q' })));
+    expect(scoreLink('Edit result')).toHaveAttribute(
+      'href',
+      '/scoring/classes/class-1/entries?entryId=e-110'
+    );
+    expect(screen.queryByRole('menuitem', { name: 'Enter result' })).toBeNull();
+  });
+
+  it.each(['pulled', 'withdrawn'] as const)('offers no result link for a %s dog', async state => {
+    await openMenu(table(row(state)));
+    expect(screen.queryByRole('menuitem', { name: /^(Enter|Edit) result$/ })).toBeNull();
+  });
+});
+
 describe('the per-dog menu (MYK9-1873)', () => {
   it('lists the five owner items for a waiting dog, in order', async () => {
     await openMenu(table(row('waiting')));
     expect(await names()).toEqual([
       'Change class',
       'Change handler',
+      'Enter result',
       'Mark absent',
       'Print armband label',
       'Open dog details',
@@ -203,6 +230,7 @@ describe('the per-dog menu (MYK9-1873)', () => {
     expect(await names()).toEqual([
       'Change class',
       'Change handler',
+      'Enter result',
       'Print armband label',
       'Open dog details',
       'Open person details',
@@ -221,6 +249,7 @@ describe('the per-dog menu (MYK9-1873)', () => {
     expect(await names()).toEqual([
       'Change class',
       'Change handler',
+      'Enter result',
       'Mark absent',
       'Print armband label',
     ]);

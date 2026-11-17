@@ -158,7 +158,8 @@ export function classPath(f: Fixture) {
   return `/at-show/${f.showId}/class/${f.classId}`;
 }
 export function secretaryPath(f: Fixture) {
-  return `/shows/${f.showId}/trials/${f.trialId}/classes/${f.classId}`;
+  // Staff run a class on Show Desk (MYK9-2119); no day means every day, so the class is listed.
+  return `/shows/${f.showId}?focus=${f.classId}`;
 }
 export async function replica(page: Page, entryId: string) {
   return page.evaluate(async id => {
@@ -229,8 +230,9 @@ export function judgeRow(page: Page, dog: string): Locator {
     .filter({ has: page.getByRole('heading', { name: dog, exact: true }) });
 }
 export function secretaryRow(page: Page, dog: string): Locator {
+  // One row of Show Desk's focused-class entries table, found by the dog's name cell.
   return page
-    .getByTestId('secretary-run-sheet')
-    .getByText(dog, { exact: true })
-    .locator('xpath=ancestor::div[.//*[@role="combobox"]][1]');
+    .getByTestId('class-entries-table')
+    .getByTestId('class-entry-row')
+    .filter({ has: page.getByText(dog, { exact: true }) });
 }

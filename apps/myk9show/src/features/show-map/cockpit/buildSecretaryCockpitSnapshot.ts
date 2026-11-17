@@ -9,7 +9,7 @@ import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
 import { classEntriesForClass, hiddenEntryCount } from './cockpitClassEntries';
 import { isChecklistInUse, isPrintTrackingInUse } from './checklistUsage';
-import { getCockpitClassDetailsHref, withReturnTo } from './cockpitRoutes';
+import { withReturnTo } from './cockpitRoutes';
 import type {
   CockpitAttentionKind,
   CockpitCloseoutState,
@@ -93,8 +93,8 @@ function destinationFor(action: ShowMapAction): SecretaryCockpitAction['destinat
 /**
  * Operational actions that exist in the catalog but have no reachable home (F29b).
  *
- * Only these are surfaced on the cockpit's entry rows. check-in and edit-score live on
- * SecretaryRunSheet, scratch under Entry Management -> Exceptions, and message-handler
+ * Only these are surfaced on the cockpit's entry rows. check-in and edit-score (Enter or Edit result in the row menu) live in the
+ * focused class panel, scratch under Entry Management -> Exceptions, and message-handler
  * in the header Messages panel -- adding them here would duplicate working surfaces,
  * which is what the "consolidate, don't duplicate" rule exists to prevent.
  */
@@ -129,22 +129,6 @@ function entryRowsForClass(classId: string, tree: ShowMapTree): SecretaryCockpit
   }
 
   return rows;
-}
-
-function classWorkActions(input: {
-  showId: string;
-  trialId: string;
-  classId: string;
-  returnTo: string;
-}): SecretaryCockpitAction[] {
-  return [
-    {
-      id: `class-details:${input.classId}`,
-      label: 'View entries and results',
-      destination: { kind: 'href', href: getCockpitClassDetailsHref(input) },
-      group: 'class-work',
-    },
-  ];
 }
 
 function administrativeAttention(
@@ -243,12 +227,8 @@ export function buildSecretaryCockpitSnapshot({
       judgeId: classItem.judgeId ?? null,
       scoresOnPaper: classItem.scoresOnPaper ?? null,
       attention,
-      actions: classWorkActions({
-        showId,
-        trialId: classItem.trialId,
-        classId: classItem.id,
-        returnTo,
-      }),
+      // Nothing links out of the class menu any more: a class is run on Show Desk (MYK9-2119).
+      actions: [],
       paperwork: [...(paperworkByClassId?.get(classItem.id) ?? [])],
       entryRows: entryRowsForClass(classItem.id, tree),
       entries: classEntriesForClass(classItem.id, tree),

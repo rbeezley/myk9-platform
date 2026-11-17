@@ -51,6 +51,8 @@ insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_statu
   ('00000000-0000-0000-0000-000002076345', '00000000-0000-0000-0000-000002076331', '00000000-0000-0000-0000-000002076314', '00000000-0000-0000-0000-000002076312', '00000000-0000-0000-0000-000002076313', 'confirmed', '1', 1, 'no-status'),
   ('00000000-0000-0000-0000-000002076347', '00000000-0000-0000-0000-000002076333', '00000000-0000-0000-0000-000002076306', '00000000-0000-0000-0000-000002076302', '00000000-0000-0000-0000-000002076303', 'confirmed', '6', 1, 'no-status');
 alter table public.entries enable trigger trg_entries_require_dog_registration;
+-- Set after the entries: adding an entry recomputes the class status.
+update public.classes set status = 'cancelled' where id = '00000000-0000-0000-0000-000002076306';
 
 create or replace function pg_temp.job_count(p_show uuid) returns integer
 language sql as $$

@@ -35,12 +35,14 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   registration_number_needed: 'Registration number needed',
 };
 
-// Reminder/results batches remain deferred until a producer exists (MYK9-318;
-// follow-up tracked with the producer work in MYK9-228). Showing their controls
-// would imply that enabling them schedules work that currently cannot be created.
+// The reminder batches remain deferred until a producer exists (MYK9-318; follow-up tracked
+// with the producer work in MYK9-228). Showing their controls would imply that enabling them
+// schedules work that currently cannot be created. Results available has one: the database
+// queues each exhibitor's email when the show's last class is released (MYK9-2076).
 const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'accepted',
   'waitlisted',
+  'results_available',
   'registration_number_needed',
 ]);
 

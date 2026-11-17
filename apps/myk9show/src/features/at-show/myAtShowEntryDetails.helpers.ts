@@ -21,7 +21,7 @@ import { formatAtShowClassTime } from './atShowClassTiming';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
-import { deriveResultReleaseDisplay } from '@/features/result-card/resultReleaseDisplay';
+import { formatOwnResultLine } from '@/features/result-card/ownResultLine';
 
 const STAFF_ROLES: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
@@ -103,6 +103,8 @@ export interface OwnShowResult {
   /** Null until the class is released; the masked read withholds it before. */
   finalPlacement: number | null;
   resultsReleasedAt: string | null;
+  /** Dogs that ran in the class (`classes.scored_count`): the "of N" of a placement. */
+  classScoredCount?: number | null | undefined;
   /**
    * True only when the server's masked view answered. The offline fallback nulls the
    * same result columns, so a null status from it says nothing about release (MYK9-1519).
@@ -130,6 +132,8 @@ export interface AtShowEntryDetail {
   resultTimeSeconds: number | null;
   /** Fault count; the row shows it on a Q above zero (the #2879 rule). Null when withheld. */
   resultFaults: number | null;
+  /** The one-sentence result, "Qualified, 0:52.40, 2nd of 14" (`formatOwnResultLine`). Null when withheld. */
+  resultLine?: string | null | undefined;
   /** True while the class is unreleased: the row labels the result "preliminary". */
   isPreliminary: boolean;
   /** Scored, but the release preset withholds the result: the row says it is not released (MYK9-1519). */
@@ -223,13 +227,18 @@ export function buildMyAtShowEntryDetails(
     const isResultWithheld =
       !pulled && own?.serverConfirmed === true && own.isScored === true && status == null;
     const seconds = own?.searchTimeSeconds;
-    const { isPreliminary } = deriveResultReleaseDisplay({
-      // The own read is authoritative: a stale class replica must never turn
-      // an unreleased result final.
-      resultsReleasedAt: own?.resultsReleasedAt ?? null,
-      resultStatus: status,
-      finalPlacement: null,
-    });
+    // The own read is authoritative: a stale class replica must never turn
+    // an unreleased result final. A placement is claimed only once released.
+    const line = hasVisibleResult
+      ? formatOwnResultLine({
+          resultStatus: status,
+          searchTimeSeconds: seconds,
+          finalPlacement: own?.finalPlacement ?? null,
+          resultsReleasedAt: own?.resultsReleasedAt ?? null,
+          ranCount: own?.classScoredCount ?? null,
+        })
+      : null;
+    const isPreliminary = line?.isPreliminary ?? false;
 
     details.push({
       entryId: entry.id,
@@ -248,7 +257,8 @@ export function buildMyAtShowEntryDetails(
           ? seconds
           : null,
       resultFaults: hasVisibleResult ? (own?.totalFaults ?? null) : null,
-      isPreliminary: hasVisibleResult && isPreliminary,
+      resultLine: line?.text ?? null,
+      isPreliminary,
       isResultWithheld,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,

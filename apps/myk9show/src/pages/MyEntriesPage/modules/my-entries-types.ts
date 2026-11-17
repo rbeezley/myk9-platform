@@ -104,6 +104,8 @@ export interface EntryClass {
   finalPlacement?: number | undefined;
   /** Class result release marker; changes when secretary releases or re-releases results. */
   resultsReleasedAt?: string | undefined;
+  /** Dogs that ran in this class (`classes.scored_count`): the "of N" in "2nd of 14". */
+  classScoredCount?: number | undefined;
   /** Optional dog photo URL for result-card rendering. */
   dogImageUrl?: string | undefined;
   /**

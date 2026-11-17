@@ -110,6 +110,8 @@ export interface HandlerInfo {
   handlerId: string;
   handlerName: string;
   isOwner: boolean;
+  /** MYK9-2031: the exhibitor chose "I'll decide at the show"; the entry is flagged after submit. */
+  decideAtShow?: boolean;
 }
 
 // Handler key helpers for per-entry (dog+class) handler assignments

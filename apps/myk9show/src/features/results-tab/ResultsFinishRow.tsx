@@ -4,12 +4,14 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
+import { readHandlerToDecide } from '@/features/show-closeout/handlerToDecide';
 import { buildFinishList } from '@/features/show-closeout/finishList';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
+import type { SecretaryEntry } from '@/services/database/entries';
 import { trialLabelOf, type ResultsClassRow } from './buildResultsClassRows';
 
 interface ResultsFinishRowProps {
@@ -17,6 +19,8 @@ interface ResultsFinishRowProps {
   trials: readonly SyncableTrial[];
   /** Every class in the show, so the list counts what the Results tab itself counts. */
   rows: readonly ResultsClassRow[];
+  /** The show's entries, for the entries still left as "I'll decide at the show" (MYK9-2031). */
+  entries: readonly SecretaryEntry[];
   /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
   onOpenAfterShow?: (trialId: string) => void;
 }
@@ -27,15 +31,28 @@ interface ResultsFinishRowProps {
  * `calculateWhatIsLeft`'s (the same function the filter counts, Show Desk and the close step
  * read); a line that opens the class list filters it to exactly the classes the line counted.
  */
-export function ResultsFinishRow({ showId, trials, rows, onOpenAfterShow }: ResultsFinishRowProps) {
+export function ResultsFinishRow({
+  showId,
+  trials,
+  rows,
+  entries,
+  onOpenAfterShow,
+}: ResultsFinishRowProps) {
   // Until the schedule is confirmed the rows may be partial: not loaded reads as "checking".
   const scheduleReady = useTrialStore(
     state => state.trialsHasConfirmedSnapshot && state.trialClassesHasConfirmedSnapshot
   );
   const sent = useResultsSentCheck(showId, scheduleReady ? rows : null);
   const items = useMemo(
-    () => buildFinishList(showId, calculateResultsRowsLeft(rows, trials, sent)),
-    [rows, sent, showId, trials]
+    () =>
+      buildFinishList(
+        showId,
+        calculateResultsRowsLeft(rows, trials, {
+          ...sent,
+          handlerToDecide: readHandlerToDecide(entries),
+        })
+      ),
+    [entries, rows, sent, showId, trials]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();

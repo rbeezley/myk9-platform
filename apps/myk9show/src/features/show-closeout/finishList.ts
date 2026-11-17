@@ -7,6 +7,7 @@
  */
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { getResultsStepHref, getFinishLineHref } from '@/features/results-tab/resultsTabRoutes';
+import { writeCockpitScope } from '@/components/entries/management/entryManagementCockpitParams';
 import { SENT_FILE_TEXT } from './submissionTimes';
 import type { WhatIsLeft, WhatIsLeftLine } from './whatIsLeft';
 
@@ -34,6 +35,17 @@ function itemFor(
   const classListHref = getFinishLineHref(showId, line.key);
   const base = { key: line.key, state, opensClassList: true as const };
   switch (line.kind) {
+    case 'handler-to-decide':
+      // Listed only while something is left: the Entries list, filtered to the classes they sit in.
+      // The secretary settles each with Change handler on the entry (MYK9-2031).
+      if (line.open !== true) return null;
+      return {
+        key: line.key,
+        state: 'open',
+        opensClassList: false,
+        href: `/shows/${encodeURIComponent(showId)}/entries?${writeCockpitScope(new URLSearchParams(), [], line.classIds).toString()}`,
+        label: line.label,
+      };
     case 'unreleased':
       if (line.open === null) return null;
       return {

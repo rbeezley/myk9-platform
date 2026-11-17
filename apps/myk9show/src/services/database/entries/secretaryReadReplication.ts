@@ -282,6 +282,7 @@ export function toSecretaryEntry(
     check_in_pulled_by: hasUnsyncedLocalWrite(entry)
       ? null
       : stringFrom(replicatedField(entry, 'checkInPulledBy', 'check_in_pulled_by')),
+    handler_to_decide: replicatedField(entry, 'handlerToDecide', 'handler_to_decide') === true,
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
     // MYK9-632: from the side-read, not the replica — the column lives on
     // `entries` and the view the replica mirrors does not carry it.

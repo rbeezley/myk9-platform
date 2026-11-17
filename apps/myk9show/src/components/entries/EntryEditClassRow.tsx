@@ -37,6 +37,8 @@ export interface EntryClass {
   trialType?: string;
   handlerId?: string | null;
   handler?: string;
+  /** MYK9-2031: the exhibitor left the handler as "I'll decide at the show". */
+  handlerToDecide?: boolean;
   runOrder?: number;
   /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
   status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
@@ -174,6 +176,12 @@ export function EntryEditClassRow({
           placeholder="Enter handler name"
           disabled={isRemoved}
         />
+        {classEntry.handlerToDecide && (
+          <p className="text-xs text-muted-foreground" data-testid={`handler-to-decide-${classEntry.id}`}>
+            The exhibitor chose &ldquo;I&apos;ll decide at the show&rdquo; for the handler. Change
+            the handler to settle it.
+          </p>
+        )}
         {canClearHandlerId && classEntry.handlerId && (
           <div className="flex items-center gap-2 pt-1">
             <Checkbox

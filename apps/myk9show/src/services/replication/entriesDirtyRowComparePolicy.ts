@@ -17,7 +17,13 @@ import type { DirtyRowComparePolicy } from '@myk9/replication';
  * undefined vs 'staff') is staleness and must neither hold a dirty row for manual resolution nor
  * survive a reconcile. Both spellings the local row carries are listed.
  */
-export const ENTRY_SERVER_OWNED_FIELDS = ['check_in_pulled_by', 'checkInPulledBy'] as const;
+export const ENTRY_SERVER_OWNED_FIELDS = [
+  'check_in_pulled_by',
+  'checkInPulledBy',
+  // MYK9-2031: set by an RPC after submit and cleared by Change handler; a device never writes it.
+  'handler_to_decide',
+  'handlerToDecide',
+] as const;
 
 /**
  * MYK9-2010 (owner decision 5, restructure approved 2026-11-14): an entry's day-of facts fall in

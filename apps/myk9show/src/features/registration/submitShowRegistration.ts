@@ -5,10 +5,12 @@ import {
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { claimNextArmband } from '@/services/database/armbands';
 import {
+  markEntriesHandlerToDecide,
   submitShowEntries,
   type EntrySubmissionOutcome,
   type EntrySubmissionSource,
 } from '@/services/database/entries';
+import { logger } from '@/utils/logger';
 import { createShowRegistration } from '@/services/database/show-registrations';
 import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
 import type {
@@ -18,6 +20,7 @@ import type {
   PaymentMethod,
 } from '@/types/show-registration-types';
 import { registrationToEntries } from '@/utils/registrationToEntries';
+import { makeHandlerKey } from '@/types/show-registration-types';
 import type { SelectedDogsOwnerResult } from './selectedDogsOwner';
 
 interface ClassLike {
@@ -63,6 +66,7 @@ interface SubmitShowRegistrationDeps {
   submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
   createShowRegistration: typeof createShowRegistration;
   submitShowEntries: typeof submitShowEntries;
+  markEntriesHandlerToDecide: typeof markEntriesHandlerToDecide;
   claimNextArmband: typeof claimNextArmband;
   createSubmissionId: () => string;
 }
@@ -95,6 +99,7 @@ export interface SubmitShowRegistrationParams {
 const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration'> = {
   createShowRegistration,
   submitShowEntries,
+  markEntriesHandlerToDecide,
   claimNextArmband,
   createSubmissionId: () => crypto.randomUUID(),
 };
@@ -199,6 +204,27 @@ export async function submitShowRegistration({
 
     submissionOutcomes = rpcResult.outcomes;
     const createdAny = rpcResult.outcomes.some(outcome => outcome.outcome === 'created');
+
+    // MYK9-2031: entries the exhibitor left as "I'll decide at the show" are flagged so the
+    // secretary sees them before the marked catalog. Never fails the submit: the entries and
+    // any money are already committed, so a failed flag is logged and the rest carries on.
+    const decideEntryIds = rpcResult.outcomes
+      .filter(
+        outcome =>
+          outcome.outcome === 'created' &&
+          handlerAssignments[makeHandlerKey(outcome.dogId, outcome.classId)]?.decideAtShow === true
+      )
+      .map(outcome => outcome.entryId)
+      .filter((id): id is string => !!id);
+    if (decideEntryIds.length > 0) {
+      try {
+        await resolvedDeps.markEntriesHandlerToDecide(decideEntryIds);
+      } catch (error) {
+        logger.error('Could not flag entries as handler to decide', 'registration', {
+          error: String(error),
+        });
+      }
+    }
 
     // MYK9-1634: the RPC already set the form's total and payment status in the
     // same transaction as the entries. All that is left is the payment details a

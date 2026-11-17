@@ -42,6 +42,8 @@ export interface EntryClass {
    * row as `checkInStatus`. null/undefined = unknown (offline, an older row, the online fallback).
    */
   checkInPulledBy?: string | null;
+  /** MYK9-2031: the exhibitor left the handler as "I'll decide at the show"; Change handler clears it. */
+  handlerToDecide?: boolean;
   checkInTime?: Date;
 }
 

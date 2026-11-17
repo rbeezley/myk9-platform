@@ -1,6 +1,6 @@
 import type { CheckInStatus } from '@myk9/core';
 import type { Database } from '@/types/supabase';
-import { optionalColumn, optionalNumberColumn } from './optionalColumn';
+import { optionalBooleanColumn, optionalColumn, optionalNumberColumn } from './optionalColumn';
 
 /** `results_private` from a view row, or undefined when the view lacks it. */
 function resultsPrivateColumn(row: unknown): boolean | undefined {
@@ -56,6 +56,13 @@ export interface ReplicatedEntry {
    */
   checkInPulledBy?: string | null | undefined;
   check_in_pulled_by?: string | null | undefined;
+  /**
+   * MYK9-2031: the exhibitor left the handler as "I'll decide at the show". Server-owned like
+   * `check_in_pulled_by`: set by an RPC after submit, cleared by Change handler, view-only and
+   * never projected back in `entryToSupabaseRow`. Absent on rows cached before the migration.
+   */
+  handlerToDecide?: boolean | undefined;
+  handler_to_decide?: boolean | undefined;
 
   jumpHeight?: string | undefined;
   entryFee?: number | undefined;
@@ -433,6 +440,9 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     // return it, and the generated row type cannot know it. Absent reads as unknown.
     checkInPulledBy: optionalColumn(row, 'check_in_pulled_by'),
     check_in_pulled_by: optionalColumn(row, 'check_in_pulled_by'),
+    // MYK9-2031. `optionalColumn` on purpose, for the same reason as `check_in_pulled_by`.
+    handlerToDecide: optionalBooleanColumn(row, 'handler_to_decide'),
+    handler_to_decide: optionalBooleanColumn(row, 'handler_to_decide'),
     jumpHeight: row.jump_height ?? undefined,
     entryFee: row.entry_fee ?? undefined,
     totalFees: (dbRow.total_fees as number | undefined) ?? undefined,

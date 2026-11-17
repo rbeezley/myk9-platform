@@ -62,6 +62,7 @@ export function ResultsPackets({
         showId={showId}
         trials={trials}
         rows={rows}
+        entries={entries}
         onOpenAfterShow={trialId => setPacket({ kind: 'after-show', trialId })}
       />
       {packet?.kind === 'judge-review' && (

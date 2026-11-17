@@ -159,9 +159,10 @@ export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
                 onCheckedChange={value => {
                   if (value !== true) {
                     onDeferredChange(deferredPairKeys.filter(key => key !== clash.pairKey));
+                    writeHandler(clash, ownerHandler(clash));
                     return;
                   }
-                  writeHandler(clash, ownerHandler(clash));
+                  writeHandler(clash, { ...ownerHandler(clash), decideAtShow: true });
                   onDeferredChange([...deferredPairKeys, clash.pairKey]);
                 }}
               />

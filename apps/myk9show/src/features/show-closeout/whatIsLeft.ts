@@ -71,6 +71,11 @@ export interface WhatIsLeftInput {
     | null;
   /** What the score history says since the results file went. `undefined` = this caller does not look. */
   scoreChanges?: ScoreChangeRead | undefined;
+  /**
+   * Live entries the exhibitor left as "I'll decide at the show" for the handler (MYK9-2031), with
+   * the classes they sit in. `undefined` = this caller does not look: the line reports unknown.
+   */
+  handlerToDecide?: { count: number; classIds: readonly string[] } | undefined;
 }
 
 /**
@@ -89,6 +94,7 @@ export type WhatIsLeftLineKey =
   | 'unknown-counts'
   | 'unscored'
   | 'pending-review'
+  | 'handler-to-decide'
   | 'unreleased'
   | 'to-print'
   | 'judge-sign-off'
@@ -268,6 +274,19 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     classIds: ids(pendingReview),
     open: pendingReview.length > 0,
     closeConcern: `${plural(pendingReview.length, 'class still has', 'classes still have')} entries waiting for review.`,
+  });
+  // MYK9-2031: the marked catalog names the handler when it differs from the owner (AKC Scent Work
+  // regulations ch. 3 sec. 36), so these are settled before the catalog is made.
+  const toDecide = input.handlerToDecide;
+  lines.push({
+    key: 'handler-to-decide',
+    kind: 'handler-to-decide',
+    label: toDecide
+      ? `${plural(toDecide.count, 'entry still says', 'entries still say')} "I'll decide at the show" for the handler`
+      : 'Handlers to decide',
+    count: toDecide?.count ?? null,
+    classIds: toDecide?.classIds ?? [],
+    open: toDecide ? toDecide.count > 0 : null,
   });
   lines.push({
     key: 'unreleased',

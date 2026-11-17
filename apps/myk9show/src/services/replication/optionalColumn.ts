@@ -13,3 +13,11 @@ export function optionalNumberColumn(row: unknown, column: string): number | und
   const value = (row as Record<string, unknown>)[column];
   return typeof value === 'number' ? value : undefined;
 }
+
+/**
+ * Read a boolean migration-backed view column that may be absent during deployment.
+ */
+export function optionalBooleanColumn(row: unknown, column: string): boolean | undefined {
+  const value = (row as Record<string, unknown>)[column];
+  return typeof value === 'boolean' ? value : undefined;
+}

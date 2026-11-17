@@ -21,7 +21,9 @@ const CLASS = {
   level: 'Novice',
   section: 'A',
   status: 'completed',
-  judge_name: 'Pat Donovan',
+  judge_assignments: [
+    { person_id: 'p1', status: 'confirmed', people: { first_name: 'Pat', last_name: 'Donovan' } },
+  ],
   time_limit_seconds: 180,
   num_areas: 1,
   num_hides: 1,
@@ -55,6 +57,7 @@ function fingerprintsThroughBothReadPaths(patch: Record<string, unknown>) {
   } as unknown as ReplicatedEntry;
   const descriptorFor = (row: unknown) =>
     buildReportPaperworkDescriptor({
+      assignedJudges: [],
       reportId: 'results-sheet',
       scope: SCOPE,
       classes: [CLASS],
@@ -127,6 +130,7 @@ describe('buildReportPaperworkDescriptor: element time (MYK9-2090)', () => {
   it('result labels, which do not print the element time, ignore it', () => {
     const labelFingerprint = (elementTime: number | null) =>
       buildReportPaperworkDescriptor({
+        assignedJudges: [],
         reportId: 'result-labels',
         scope: SCOPE,
         classes: [CLASS],

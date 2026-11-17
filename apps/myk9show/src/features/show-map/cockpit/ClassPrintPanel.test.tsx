@@ -38,6 +38,7 @@ const PREVIEW_ROWS = [entryRow('e1', 1), entryRow('e2', 2)];
 const EXPECTED_SCOPE = { kind: 'class', showId: 'show-1', trialId: 't1', classId: 'c1' } as const;
 const expectedFor = (reportId: string, entries: unknown[]) =>
   buildReportPaperworkDescriptor({
+    assignedJudges: [],
     reportId,
     scope: EXPECTED_SCOPE,
     classes: [CLASS_ROW] as never,

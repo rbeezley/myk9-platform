@@ -10,7 +10,6 @@ export const CLASS_RESULTS_EXPORT_HEADERS = [
   'Qualification',
   'Search Time',
   'Faults',
-  'Check-in',
 ] as const;
 
 export function classResultsExportRows(rows: readonly ScoringRow[]): (string | number | null)[][] {
@@ -22,7 +21,6 @@ export function classResultsExportRows(rows: readonly ScoringRow[]): (string | n
     row.qualification,
     row.searchTime,
     row.faults,
-    row.checkInStatus,
   ]);
 }
 
@@ -31,13 +29,11 @@ interface GuestColumnState {
   showQualification: boolean;
   showTime: boolean;
   showFaults: boolean;
-  /** The table has no Check-in column on the Completed tab. */
-  checkInColumnShown: boolean;
 }
 
 /**
  * Export columns the public results table does NOT render for a guest: the fields the class's
- * visibility settings hide (cells show a pending dash) and Check-in where the table drops it. A
+ * visibility settings hide (cells show a pending dash). A
  * guest's CSV leaves these out so it carries only what the table shows (MYK9-993).
  */
 export function guestResultsOmit(state: GuestColumnState): string[] {
@@ -46,7 +42,6 @@ export function guestResultsOmit(state: GuestColumnState): string[] {
   if (!state.showQualification) omit.push('Qualification');
   if (!state.showTime) omit.push('Search Time');
   if (!state.showFaults) omit.push('Faults');
-  if (!state.checkInColumnShown) omit.push('Check-in');
   return omit;
 }
 

@@ -62,6 +62,7 @@ export function buildReportPrintChips(input: {
   scope: ReportScope;
   classes: Parameters<typeof buildReportPaperworkDescriptor>[0]['classes'];
   entries: Parameters<typeof buildReportPaperworkDescriptor>[0]['entries'];
+  assignedJudges: Parameters<typeof buildReportPaperworkDescriptor>[0]['assignedJudges'];
   /** The armband descriptor comes from its own read, so it only exists while that report is open. */
   armband?: { selected: boolean; descriptor: PaperworkDescriptor | null };
   timeZone?: string | undefined;
@@ -74,6 +75,7 @@ export function buildReportPrintChips(input: {
       scope: input.scope,
       classes: input.classes,
       entries: input.entries,
+      assignedJudges: input.assignedJudges,
     });
     if (descriptor) chips[reportId] = chipFor(input.records, descriptor, input.timeZone);
   }

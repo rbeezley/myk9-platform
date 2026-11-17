@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
 import { useShowPaperworkPrints } from '../useShowPaperworkPrints';
@@ -45,8 +46,9 @@ export function useChangedPacket(input: {
   fullPacket: CollatedTrialPacket | null;
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): ChangedPacket {
-  const { showId, fullPacket, classes, entries } = input;
+  const { showId, fullPacket, classes, entries, assignedJudges } = input;
   const prints = useShowPaperworkPrints(showId);
   const recordsFailed = prints.isError || prints.syncFailed;
   const status = useMemo(
@@ -60,9 +62,19 @@ export function useChangedPacket(input: {
             records: prints.data,
             recordsLoading: prints.isLoading && !recordsFailed,
             recordsUnavailable: recordsFailed,
+            assignedJudges,
           })
         : null,
-    [fullPacket, showId, classes, entries, prints.data, prints.isLoading, recordsFailed]
+    [
+      fullPacket,
+      showId,
+      classes,
+      entries,
+      assignedJudges,
+      prints.data,
+      prints.isLoading,
+      recordsFailed,
+    ]
   );
   const known = status?.kind === 'known' ? status : null;
   const [decision, setDecision] = useState<Decision | null>(null);

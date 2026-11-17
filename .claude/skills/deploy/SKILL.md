@@ -50,7 +50,7 @@ Consider dispatching the `migration-auditor` agent on any new migration file bef
 
 1. `supabase migration list` — remote matches local.
 2. Functions: hit the function or check `supabase functions list --project-ref sojmvhhwsjxmfistvzbe` shows the new version; watch logs via the Supabase MCP `get_logs`.
-3. Frontend: nothing deploys on merge. With the user's go-ahead or under standing approvals (tripwire exit 0), `gh workflow run deploy-myk9show.yml` deploys the newest `main` commit with a green CI run. Wait for it with `gh run watch <id> --exit-status` started with `run_in_background: true` (a foreground watch is refused, MYK9-1481), then read the summary for the deployed commit and the entry chunk myk9show.com serves, and comment on each `MYK9-<n>` issue whose commits it shipped.
+3. Frontend: nothing deploys on merge. With the user's go-ahead or under standing approvals (tripwire exit 0), `gh workflow run deploy-myk9show.yml` deploys the newest `main` commit with a green CI run. Wait for it with `gh run watch <id> --interval 60 --exit-status` started with `run_in_background: true` (a foreground watch is refused, MYK9-1481). Always pass `--interval 60`: the default polls every 3 seconds, about 1,200 GitHub API calls an hour, and one such watch drained the account's shared 5,000-an-hour limit on 2026-11-16, stalling every session's merges and watchers. Then read the summary for the deployed commit and the entry chunk myk9show.com serves, and comment on each `MYK9-<n>` issue whose commits it shipped.
 4. Run `get_advisors` after schema changes to catch new RLS/security warnings.
 
 ## Post-deploy pass (after a Deploy myK9Show run)

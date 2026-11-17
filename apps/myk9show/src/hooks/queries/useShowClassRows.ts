@@ -10,7 +10,7 @@ import { replicatedClassesTable } from '@/services/replication';
  *
  * A print counts as current only when the fingerprint built now equals the one stored with the
  * confirmation, and that fingerprint includes class facts (`time_limit_seconds`, `num_areas`,
- * `judge_name`, ...). Reports and Overview must therefore read the SAME full rows, never project
+ * the confirmed judge's name from `judge_assignments`, ...). Reports and Overview must therefore read the SAME full rows, never project
  * their own: Overview's camelCase tree rows lack those facts, so a print confirmed on one surface
  * read as stale on the other. `getClassesByTrialId` is replication-backed, so this works offline.
  */

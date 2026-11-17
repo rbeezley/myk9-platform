@@ -32,12 +32,6 @@ vi.mock('./useClassDetailsDialogs', () => ({
     setEditClassPanelOpen: vi.fn(),
     openEditClassPanel: vi.fn(),
     closeEditClassPanel: closeEditPanel,
-    deleteEntryDialogOpen: false,
-    setDeleteEntryDialogOpen: vi.fn(),
-    entryToDelete: null,
-    setEntryToDelete: vi.fn(),
-    openDeleteEntryDialog: vi.fn(),
-    closeDeleteEntryDialog: vi.fn(),
   }),
 }));
 const updateClass = vi.hoisted(() => vi.fn());

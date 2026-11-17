@@ -31,6 +31,7 @@ const DAY = '2026-12-07';
 
 function cards(entries: DbEntry[], records: ReplicatedPaperworkPrint[]) {
   const map = buildClassPaperworkMap({
+    assignedJudges: [],
     showId: 'show-1',
     classes,
     trials: [{ id: 'trial-1', trialDate: DAY }],

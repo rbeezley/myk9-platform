@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReportScope } from '@/lib/reports/types';
 import { buildSheetDescriptorFromRows } from '../../../../../../supabase/functions/_shared/paperwork/rowDescriptors.ts';
+import { paperworkJudgeName } from './paperworkClassJudge';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 
 const classes = [
@@ -12,13 +13,23 @@ const classes = [
     level: 'Novice',
     section: 'A',
     status: 'in_progress',
-    judge_name: 'Judge One',
+    judge_assignments: [
+      {
+        person_id: 'p1',
+        status: 'confirmed',
+        people: { first_name: 'Judge', last_name: 'One' },
+      },
+    ],
     time_limit_seconds: '180.5',
     num_areas: 1,
     num_hides: 2,
   },
   { id: 'class-2', trial_id: 'trial-2', element: 'Interior', level: 'Excellent', section: null },
 ] as unknown as DbClass[];
+const sharedClasses = classes.map(classItem => ({
+  ...classItem,
+  judgeName: paperworkJudgeName(classItem),
+}));
 const entries = [
   {
     id: 'e1',
@@ -55,23 +66,36 @@ const scopes: ReportScope[] = [
   { kind: 'show', showId: 's1' },
 ];
 
-// Fingerprints recorded from the pre-extraction app code (MYK9-2086), so a drift in either
-// path breaks here before it breaks a stored print.
+// Self-recorded fingerprints: first recorded from the pre-extraction app code (MYK9-2086), then
+// re-recorded in MYK9-2116 when the check-in sheet gained class subjects (judge) and an absent
+// hides hashes as null, and a class with no judge hashes the sheet's "TBD". A drift in either
+// path breaks here before it breaks a stored print. The shared input is derived the app's way.
 const PINNED: Record<string, string> = {
-  'check-in-sheet/class': 'fnv1a64:cf14e5c532c76de5',
-  'check-in-sheet/trial': 'fnv1a64:a9920135f87b0ccc',
-  'check-in-sheet/show': 'fnv1a64:9ef81d025c43d714',
+  'check-in-sheet/class': 'fnv1a64:356c9acf8f53410d',
+  'check-in-sheet/trial': 'fnv1a64:8d7ed858a6ed7bea',
+  'check-in-sheet/show': 'fnv1a64:b7eafc74c8a7adee',
   'scoresheet/class': 'fnv1a64:aa00e904808e0eb8',
-  'scoresheet/trial': 'fnv1a64:f0344e162caa9632',
-  'scoresheet/show': 'fnv1a64:acdc2be2f6cc62f5',
+  'scoresheet/trial': 'fnv1a64:767f9dc8c9b4649d',
+  'scoresheet/show': 'fnv1a64:5d1200fd1c331c1e',
 };
 
 describe('app and shared paperwork descriptors agree', () => {
   for (const reportId of ['check-in-sheet', 'scoresheet']) {
     for (const scope of scopes) {
       it(`${reportId} / ${scope.kind}`, () => {
-        const app = buildReportPaperworkDescriptor({ reportId, scope, classes, entries });
-        const shared = buildSheetDescriptorFromRows({ reportId, scope, classes, entries });
+        const app = buildReportPaperworkDescriptor({
+          assignedJudges: [],
+          reportId,
+          scope,
+          classes,
+          entries,
+        });
+        const shared = buildSheetDescriptorFromRows({
+          reportId,
+          scope,
+          classes: sharedClasses,
+          entries,
+        });
         expect(app).toEqual(shared);
         expect(app?.fingerprint).toBe(PINNED[`${reportId}/${scope.kind}`]);
       });

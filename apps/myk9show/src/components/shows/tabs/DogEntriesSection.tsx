@@ -25,6 +25,7 @@ import {
   getRemovedStateLabel,
 } from './entryResultDisplay';
 import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
+import { useExhibitorShowDayHref } from '@/hooks/useExhibitorShowDayHref';
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
 
@@ -78,6 +79,7 @@ interface DogEntriesSectionProps {
 
 export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
   const { dogName, entries } = group;
+  const hrefFor = useExhibitorShowDayHref(showId);
 
   return (
     <section aria-label={`${dogName}'s entries`} className="space-y-3">
@@ -93,7 +95,7 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
 
       <div className="space-y-2">
         {entries.map(entry => (
-          <EntryRow key={entry.entryId} entry={entry} showId={showId} />
+          <EntryRow key={entry.entryId} entry={entry} href={hrefFor(entry)} />
         ))}
       </div>
     </section>
@@ -102,12 +104,11 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
 
 interface EntryRowProps {
   entry: EnrichedShowEntry;
-  showId: string;
+  href: string;
 }
 
-function EntryRow({ entry, showId }: EntryRowProps) {
+function EntryRow({ entry, href }: EntryRowProps) {
   const { icon: Icon, bg, fg } = getElementIcon(entry.element);
-  const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
 
   const meta = [entry.dayLabel, entry.startTime, entry.judgeName ? judgeLine(entry.judgeName) : '']
     .filter(Boolean)
@@ -117,7 +118,7 @@ function EntryRow({ entry, showId }: EntryRowProps) {
     <Link
       to={href}
       className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/40 transition-colors"
-      aria-label={`${entry.classTitle} — view class`}
+      aria-label={`${entry.classTitle} — see where to be`}
     >
       <span className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${bg}`}>
         <Icon className={`h-5 w-5 ${fg}`} />

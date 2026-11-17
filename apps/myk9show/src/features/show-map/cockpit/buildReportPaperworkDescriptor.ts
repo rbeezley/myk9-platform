@@ -1,4 +1,5 @@
 import type { DbClass, DbEntry } from '@/types/database-mappings';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ReportScope } from '@/lib/reports/types';
 
 import {
@@ -6,6 +7,7 @@ import {
   buildSheetDescriptorFromRows,
   paperworkEntryInScope,
 } from '../../../../../../supabase/functions/_shared/paperwork/rowDescriptors.ts';
+import { withPaperworkJudge } from './paperworkClassJudge';
 import { buildResultPaperworkDescriptor, type PaperworkDescriptor } from './paperworkPrintState';
 
 /**
@@ -25,15 +27,23 @@ export function buildReportPaperworkDescriptor(input: {
   scope: ReportScope;
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
+  /** `show.assignedJudges`: the sheet's judge fallback, so the fingerprint hashes the printed name. */
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): PaperworkDescriptor | null {
+  const classes = withPaperworkJudge(input.classes, input.assignedJudges);
   if (input.reportId === 'check-in-sheet' || input.reportId === 'scoresheet') {
-    return buildSheetDescriptorFromRows(input);
+    return buildSheetDescriptorFromRows({
+      reportId: input.reportId,
+      scope: input.scope,
+      classes,
+      entries: input.entries,
+    });
   }
   const selected = input.entries.filter(entry =>
-    paperworkEntryInScope(entry, input.scope, input.classes)
+    paperworkEntryInScope(entry, input.scope, classes)
   );
   if (selected.length === 0) return null;
-  const classById = new Map(input.classes.map(classItem => [classItem.id, classItem] as const));
+  const classById = new Map(classes.map(classItem => [classItem.id, classItem] as const));
   const classFacts = buildPaperworkClassFacts(input.reportId, selected, classById);
 
   if (input.reportId === 'results-sheet' || input.reportId === 'result-labels') {

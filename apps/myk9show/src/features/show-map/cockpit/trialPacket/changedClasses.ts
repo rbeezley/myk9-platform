@@ -1,3 +1,4 @@
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
@@ -38,6 +39,7 @@ export function packetPrintStatus(input: {
   records: readonly ReplicatedPaperworkPrint[] | undefined;
   recordsLoading: boolean;
   recordsUnavailable: boolean;
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): PacketPrintStatus {
   if (input.recordsUnavailable) return { kind: 'unknown' };
   if (input.records === undefined || input.recordsLoading) return { kind: 'loading' };
@@ -48,6 +50,7 @@ export function packetPrintStatus(input: {
     entries: input.entries,
     records: input.records,
     returnTo: '',
+    assignedJudges: input.assignedJudges,
   });
   const changedIds = new Set<string>();
   const unprintedIds = new Set<string>();

@@ -52,6 +52,8 @@ export interface AtShowClassRowProps {
     ((entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void) | undefined;
   /** The ellipsis. Omitted for roles that may not open Class Options. */
   onOpenOptions?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
+  /** The read-only Requirements button, for roles without the ellipsis. */
+  onOpenRequirements?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
 }
 
 /** The props every card shares; the lists add the entry and, for Your ring, its day facts. */
@@ -116,6 +118,7 @@ export function AtShowClassRow({
   onToggleFavorite,
   onShowDetails,
   onOpenOptions,
+  onOpenRequirements,
 }: AtShowClassRowProps) {
   // MYK9-1847: a cancelled class reads Cancelled whatever its counts or times say. Derived on
   // every render from the class status, so changing the status back restores the card.
@@ -240,6 +243,7 @@ export function AtShowClassRow({
           onToggleFavorite={onToggleFavorite}
           onShowDetails={onShowDetails}
           onOpenOptions={onOpenOptions}
+          onOpenRequirements={onOpenRequirements}
         />
       </div>
     </li>

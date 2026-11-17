@@ -244,7 +244,8 @@ const EntryManagementPage: React.FC = () => {
     canManage: manageScope.status === 'resolved' && manageScope.canManage,
     counts: {
       // Refunds to decide, the Show Desk pill's count (MYK9-2099), not every row the list shows.
-      pulls: refundsToDecide.count,
+      // No badge while saved decisions are unread: the count could include a denied refund.
+      pulls: refundsToDecide.decisionsUnknown > 0 ? undefined : refundsToDecide.count,
       moveUps: moveUpRequestsCount,
       registrationNeeded: registrationNeeded.count,
     },

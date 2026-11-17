@@ -72,6 +72,20 @@ export interface RefundToDecideInput {
   refunded_at?: string | null | undefined;
   /** 'denied' once a person has decided; a refund is recorded on `refund_amount` instead. */
   refund_decision?: string | null | undefined;
+  /** The saved decisions could not be read, so a null `refund_decision` says nothing. */
+  refund_decision_unknown?: boolean | undefined;
+}
+
+/** A paid-online removal with no refund issued, whatever its saved decision. */
+function paidOnlineUnrefundedRemoval(entry: RefundToDecideInput): EntryRemovalKind | null {
+  if (entry.payment_status?.toLowerCase() !== 'paid') return null;
+  if (entry.payment_method?.toLowerCase() !== 'online') return null;
+  const refunded = Number(entry.refund_amount ?? 0);
+  if ((Number.isFinite(refunded) && refunded > 0) || entry.refunded_at) return null;
+  return classifyEntryRemoval({
+    entryStatus: entry.entry_status,
+    withdrawalReasonCode: entry.withdrawal_reason_code,
+  });
 }
 
 /**
@@ -87,21 +101,24 @@ export interface RefundToDecideInput {
  *   row could never leave the count.
  * - The removal is read from `entry_status` alone. A check-in "pulled" flag on an entry that is
  *   still entered is not a pull until the secretary makes it one.
+ * - Saved decisions not read: not counted here, but by `refundDecisionUnknownRemoval`, so no
+ *   screen presents a denied refund as one to decide.
  *
  * `set_entry_refund_decision` admits exactly these rows
  * (supabase/migrations/20261117152900_myk9_2099_refund_decision_removed_absent.sql). Change both
  * together. Money is never refunded here; a person decides each row.
  */
 export function refundToDecideRemoval(entry: RefundToDecideInput): EntryRemovalKind | null {
-  if (entry.payment_status?.toLowerCase() !== 'paid') return null;
-  if (entry.payment_method?.toLowerCase() !== 'online') return null;
-  const refunded = Number(entry.refund_amount ?? 0);
-  if ((Number.isFinite(refunded) && refunded > 0) || entry.refunded_at) return null;
-  if (entry.refund_decision) return null;
-  return classifyEntryRemoval({
-    entryStatus: entry.entry_status,
-    withdrawalReasonCode: entry.withdrawal_reason_code,
-  });
+  if (entry.refund_decision_unknown || entry.refund_decision) return null;
+  return paidOnlineUnrefundedRemoval(entry);
+}
+
+/**
+ * MYK9-2099: a removal that would be a refund to decide, except its saved decision could not be
+ * read. It may already be denied, so it is neither counted nor offered a decision until it loads.
+ */
+export function refundDecisionUnknownRemoval(entry: RefundToDecideInput): EntryRemovalKind | null {
+  return entry.refund_decision_unknown ? paidOnlineUnrefundedRemoval(entry) : null;
 }
 
 /**

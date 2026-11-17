@@ -193,12 +193,15 @@ export async function postgrestGetSecretaryEntriesForShow(
   // separately is legal. This mirrors what the replicated path does; without it
   // the cold-store fallback would render every scratched entry as "no saved
   // decision" and invite a second refund.
-  const pullMetadata = await postgrestGetSecretaryPullMetadataMap(showId).catch(
-    // Reconciliation is online-only and must not fail the whole read.
-    () => new Map<string, SecretaryPullMetadata>()
-  );
+  // Reconciliation is online-only and must not fail the whole read. A failure is `null`, not an
+  // empty map, so no denied refund reads as undecided (MYK9-2099).
+  const pullMetadata = await postgrestGetSecretaryPullMetadataMap(showId).catch(() => null);
 
   for (const entry of entries) {
+    if (pullMetadata === null) {
+      entry.refund_decision_unknown = true;
+      continue;
+    }
     const meta = pullMetadata.get(entry.id);
     if (!meta) continue;
     entry.withdrawn_at = meta.withdrawn_at;

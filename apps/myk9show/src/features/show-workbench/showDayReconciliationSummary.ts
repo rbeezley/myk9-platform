@@ -2,6 +2,7 @@ import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOf
 import {
   classifyEntryRemoval,
   emptyEntryRemovalCounts,
+  refundDecisionUnknownRemoval,
   refundToDecideRemoval,
   type EntryRemovalCounts,
 } from '@/features/payments/pullReconciliation';
@@ -34,6 +35,8 @@ export interface ShowDayReconciliationEntry {
   refund_amount?: number | string | null;
   refunded_at?: string | null;
   refund_decision?: string | null;
+  /** The saved refund decisions could not be read (MYK9-2099). */
+  refund_decision_unknown?: boolean;
   submitted_at?: string | null;
   created_at?: string | null;
 }
@@ -85,6 +88,11 @@ export interface ShowDayReconciliationSummary {
   refundReviewAmount: number;
   /** Of those, the paid ones awaiting a refund decision, by category. */
   refundReviewRemovals: EntryRemovalCounts;
+  /**
+   * Paid removals whose saved refund decision could not be read (MYK9-2099). Above zero, the
+   * refund review figures are not the whole answer and must not be shown as fact.
+   */
+  refundDecisionUnknownCount: number;
   refundedCount: number;
   refundedAmount: number;
 }
@@ -189,6 +197,7 @@ export function summarizeShowDayReconciliation(
     refundReviewCount: 0,
     refundReviewAmount: 0,
     refundReviewRemovals: emptyEntryRemovalCounts(),
+    refundDecisionUnknownCount: 0,
     refundedCount: 0,
     refundedAmount: 0,
   };
@@ -217,6 +226,8 @@ export function summarizeShowDayReconciliation(
         summary.refundReviewRemovals[removal] += 1;
         summary.refundReviewCount += 1;
         summary.refundReviewAmount += fee;
+      } else if (refundDecisionUnknownRemoval(entry)) {
+        summary.refundDecisionUnknownCount += 1;
       }
     }
 

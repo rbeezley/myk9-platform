@@ -93,7 +93,7 @@ describe('findRefundsToDecide', () => {
   });
 
   it('is empty when nothing is waiting', () => {
-    expect(findRefundsToDecide([])).toEqual({ count: 0, rows: [] });
+    expect(findRefundsToDecide([])).toEqual({ count: 0, rows: [], decisionsUnknown: 0 });
   });
 });
 

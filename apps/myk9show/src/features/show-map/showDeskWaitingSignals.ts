@@ -2,6 +2,7 @@ import {
   ENTRY_LIST_LABELS,
   getEntryListHref,
 } from '@/components/entries/management/entryManagementViews';
+import { currentCalendarDate } from '@/features/_shared/isDayOfShowEntry';
 import type { WaitlistWaiting } from '@/features/waiting-for-you/waitlistWaiting';
 import type { ShowDeskPendingSignal, ShowDeskPendingSignalScope } from './showDeskPendingSignals';
 
@@ -17,7 +18,8 @@ export interface ShowDeskWaitingInput {
    * MYK9-2099: `findEntryRefundsToDecide`'s count, the Pulls menu count, and the show's payout
    * day (`computeSettleDate`, `YYYY-MM-DD`; null when the show has no end date).
    */
-  refundsToDecide?: { count: number; payoutDate: string | null } | undefined;
+  refundsToDecide?:
+    { count: number; payoutDate: string | null; timeZone?: string | null | undefined } | undefined;
 }
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
@@ -25,14 +27,19 @@ const plural = (count: number, one: string, many: string) => (count === 1 ? one 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * "before Thursday's payout": the payout day in words. The payout date is a UTC calendar day (the
- * payout job's own arithmetic), so today is read on the same calendar. A payout a week or more
- * away is named by its date; one already past, or unknown, is not mentioned.
+ * "before Thursday's payout": the payout day in words. The payout DATE is a calendar day
+ * (`computeSettleDate`); "today" is read on the show's own calendar, so a US evening does not
+ * already count as tomorrow. A weekday names a calendar date, so it needs no zone. A payout a week
+ * or more away is named by its date; one already past, or unknown, is not mentioned.
  */
-export function payoutDayText(payoutDate: string | null, now: Date | null | undefined): string {
+export function payoutDayText(
+  payoutDate: string | null,
+  now: Date | null | undefined,
+  timeZone?: string | null
+): string {
   if (!payoutDate || !/^\d{4}-\d{2}-\d{2}$/.test(payoutDate)) return '';
   const payout = new Date(`${payoutDate}T12:00:00Z`);
-  const today = new Date(`${(now ?? new Date()).toISOString().slice(0, 10)}T12:00:00Z`);
+  const today = new Date(`${currentCalendarDate(now ?? new Date(), timeZone)}T12:00:00Z`);
   const days = Math.round((payout.getTime() - today.getTime()) / DAY_MS);
   if (Number.isNaN(days) || days < 0) return '';
   if (days === 0) return " before today's payout";
@@ -83,7 +90,8 @@ export function buildWaitingSignals(
       priority: 'medium',
       label: `${refunds.count} ${plural(refunds.count, 'refund', 'refunds')} to decide${payoutDayText(
         refunds.payoutDate,
-        now
+        now,
+        refunds.timeZone
       )}`,
       href: getEntryListHref(showId, 'pulls'),
       destinationName: ENTRY_LIST_LABELS.pulls,

@@ -163,6 +163,35 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
     expect(viewReads[0].select).toContain('payment_notes');
   });
 
+  // MYK9-2099: a failed decision read is "unknown", never "nothing decided": an empty answer would
+  // put every denied refund back on the list as one to decide.
+  it('marks every entry as decisions-unknown when the saved-decision read fails', async () => {
+    mocks.from.mockImplementation((relation: string) => {
+      const answer =
+        relation === 'entries'
+          ? { data: null, error: { message: 'network' } }
+          : { data: [], error: null };
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        in: vi.fn(() => query),
+        order: vi.fn(() =>
+          Promise.resolve({
+            data: [{ id: 'entry-1', entry_status: 'absent', payment_status: 'paid' }],
+            error: null,
+          })
+        ),
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve(answer).then(resolve),
+      };
+      return query;
+    });
+
+    const { data } = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(data[0]).toMatchObject({ refund_decision_unknown: true });
+  });
+
   // MYK9-1473: Results derives "Record coin flip" from the tie state. A fallback
   // that omits it reads every tie as resolved, offers Check scores, and the
   // server refuses the check (MK018) with no way forward from the tab.

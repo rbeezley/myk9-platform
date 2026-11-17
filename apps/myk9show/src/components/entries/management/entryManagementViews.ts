@@ -44,8 +44,11 @@ const ENTRY_LIST_ORDER: readonly EntryManagementException[] = [
 ];
 
 export interface EntryListCounts {
-  /** Refunds to decide (`findEntryRefundsToDecide`), the Show Desk refund pill's count. */
-  pulls: number;
+  /**
+   * Refunds to decide (`findEntryRefundsToDecide`), the Show Desk refund pill's count. Omitted (no
+   * badge) while the saved refund decisions could not be read (MYK9-2099).
+   */
+  pulls: number | undefined;
   /** Omitted (no badge) when unknown: still loading, or the read failed. */
   moveUps: number | undefined;
   /**
@@ -88,6 +91,9 @@ export function buildEntryListTools(showId: string, counts: EntryListCounts): Sh
 /** How many entry-list items are waiting, for the Actions button's badge. */
 export function sumEntryListCounts(counts: EntryListCounts): number {
   return (
-    counts.pulls + (counts.moveUps ?? 0) + (counts.registrationNeeded ?? 0) + (counts.waitlist ?? 0)
+    (counts.pulls ?? 0) +
+    (counts.moveUps ?? 0) +
+    (counts.registrationNeeded ?? 0) +
+    (counts.waitlist ?? 0)
   );
 }

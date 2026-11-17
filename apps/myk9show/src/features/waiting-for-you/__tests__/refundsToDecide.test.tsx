@@ -151,4 +151,14 @@ describe('payoutDayText', () => {
     expect(payoutDayText('2026-11-16', now)).toBe('');
     expect(payoutDayText(null, now)).toBe('');
   });
+
+  // 9 pm Wednesday in Chicago is already Thursday in UTC. The show's calendar says the Thursday
+  // payout is tomorrow, not today.
+  it("reads today on the show's calendar across UTC midnight", () => {
+    const wednesdayEvening = new Date('2026-11-19T03:00:00Z');
+    expect(payoutDayText('2026-11-19', wednesdayEvening, 'America/Chicago')).toBe(
+      " before Thursday's payout"
+    );
+    expect(payoutDayText('2026-11-19', wednesdayEvening, 'UTC')).toBe(" before today's payout");
+  });
 });

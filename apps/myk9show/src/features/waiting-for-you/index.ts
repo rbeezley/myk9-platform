@@ -4,6 +4,7 @@ export {
   findRefundsToDecide,
   isPullsListEntry,
   type RefundToDecideRow,
+  type RefundsToDecideList,
 } from './refundsToDecide';
 export { findHeldEntries } from './heldEntries';
 export {

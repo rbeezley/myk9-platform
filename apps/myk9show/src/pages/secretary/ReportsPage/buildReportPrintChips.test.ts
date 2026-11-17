@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
 import type { PaperworkPrintEvidence } from '@/features/show-map/cockpit/paperworkPrintState';
 import type { ReportScope } from '@/lib/reports/types';
@@ -41,6 +42,7 @@ describe('buildReportPrintChips with a judge known only via assignedJudges', () 
     classes,
     entries,
     assignedJudges,
+    printedSheets: printedSheetRowsOf(classes, entries),
   })!;
   const records = [
     {
@@ -61,6 +63,7 @@ describe('buildReportPrintChips with a judge known only via assignedJudges', () 
       scope,
       classes,
       entries,
+      trials: printedSheetRowsOf(classes, entries).trials,
       assignedJudges,
     });
     expect(chips['check-in-sheet']?.tone).toBe('done');
@@ -73,6 +76,7 @@ describe('buildReportPrintChips with a judge known only via assignedJudges', () 
       scope,
       classes,
       entries,
+      trials: printedSheetRowsOf(classes, entries).trials,
       assignedJudges: [],
     });
     expect(chips['check-in-sheet']?.label).toBe('Changed since printed');

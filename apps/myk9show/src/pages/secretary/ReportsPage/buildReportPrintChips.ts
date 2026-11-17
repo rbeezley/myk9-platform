@@ -4,7 +4,8 @@ import {
   type PaperworkPrintEvidence,
 } from '@/features/show-map/cockpit/paperworkPrintState';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
-import type { ReportScope } from '@/lib/reports/types';
+import type { ReportDbEntry, ReportScope } from '@/lib/reports/types';
+import type { DbClass, DbTrial } from '@/types/database-mappings';
 
 export type ReportPrintChipTone = 'done' | 'warning' | 'neutral';
 
@@ -62,6 +63,8 @@ export function buildReportPrintChips(input: {
   scope: ReportScope;
   classes: Parameters<typeof buildReportPaperworkDescriptor>[0]['classes'];
   entries: Parameters<typeof buildReportPaperworkDescriptor>[0]['entries'];
+  /** With `classes` and `entries`, the rows the check-in sheet and scoresheet print from. */
+  trials: readonly DbTrial[];
   assignedJudges: Parameters<typeof buildReportPaperworkDescriptor>[0]['assignedJudges'];
   /** The armband descriptor comes from its own read, so it only exists while that report is open. */
   armband?: { selected: boolean; descriptor: PaperworkDescriptor | null };
@@ -76,6 +79,11 @@ export function buildReportPrintChips(input: {
       classes: input.classes,
       entries: input.entries,
       assignedJudges: input.assignedJudges,
+      printedSheets: {
+        trials: input.trials,
+        classes: input.classes as unknown as DbClass[],
+        entries: input.entries as unknown as ReportDbEntry[],
+      },
     });
     if (descriptor) chips[reportId] = chipFor(input.records, descriptor, input.timeZone);
   }

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { buildReportPaperworkDescriptor } from '../buildReportPaperworkDescriptor';
 import type { DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
@@ -218,6 +219,7 @@ describe('TrialPacketPanel', () => {
         scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId },
         classes: CLASSES,
         entries: ENTRIES,
+        printedSheets: printedSheetRowsOf(CLASSES, ENTRIES, [TRIAL]),
       });
       expect(mocks.recordPaperworkPrinted).toHaveBeenCalledWith(
         expect.objectContaining({ descriptor: expected })
@@ -262,6 +264,7 @@ describe('TrialPacketPanel', () => {
             scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: cls.id },
             classes: CLASSES,
             entries: at,
+            printedSheets: printedSheetRowsOf(CLASSES, at, [TRIAL]),
           });
           if (!descriptor) return [];
           return [

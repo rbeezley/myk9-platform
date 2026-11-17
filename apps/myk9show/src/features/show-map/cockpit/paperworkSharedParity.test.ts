@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import type { DbClass, DbEntry } from '@/types/database-mappings';
-import type { ReportScope } from '@/lib/reports/types';
-import { buildSheetDescriptorFromRows } from '../../../../../../supabase/functions/_shared/paperwork/rowDescriptors.ts';
-import { paperworkJudgeName } from './paperworkClassJudge';
+import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
+import type { ReportDbEntry, ReportScope } from '@/lib/reports/types';
+import type {
+  EmergencyPacketClass,
+  EmergencyPacketTrial,
+  PacketReportEntry,
+} from '../../../../../../supabase/functions/_shared/trialPacket/renderer/types.ts';
+import { buildSheetDescriptorFromPrinted } from '../../../../../../supabase/functions/_shared/paperwork/printedSheet.ts';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 
+// The app derives the renderer's input from database rows (`buildPacket*`); a Deno edge function
+// is handed that input by its own RPC. These tests build the SAME sheet both ways and require the
+// same fingerprints, so a drift in either path breaks here before it breaks a stored print.
+const trials = [
+  { id: 'trial-1', date: '2026-12-07', trial_number: '1', name: 'Trial 1', registry_id: 'AKC' },
+  { id: 'trial-2', date: '2026-12-08', trial_number: '2', name: 'Trial 2', registry_id: 'UKC' },
+] as unknown as DbTrial[];
 const classes = [
   {
     id: 'class-1',
@@ -26,19 +37,22 @@ const classes = [
   },
   { id: 'class-2', trial_id: 'trial-2', element: 'Interior', level: 'Excellent', section: null },
 ] as unknown as DbClass[];
-const sharedClasses = classes.map(classItem => ({
-  ...classItem,
-  judgeName: paperworkJudgeName(classItem),
-}));
 const entries = [
   {
     id: 'e1',
     class_id: 'class-1',
     dog_id: 'd1',
-    armband: '101',
+    armband: '12A',
     run_order: 2,
     check_in_status: 'checked-in',
     entry_status: 'confirmed',
+    handler: 'Jamie Walker',
+    dog: {
+      id: 'd1',
+      call_name: 'Juni',
+      breed: 'Beagle',
+      registrations: [{ organization: 'AKC', registration_number: 'AKC-1' }],
+    },
   },
   {
     id: 'e2',
@@ -48,6 +62,8 @@ const entries = [
     run_order: 1,
     check_in_status: null,
     entry_status: 'withdrawn',
+    handler: 'Sam Reed',
+    dog: { id: 'd2', call_name: 'Moss', breed: 'Basset' },
   },
   {
     id: 'e3',
@@ -56,9 +72,90 @@ const entries = [
     armband: null,
     run_order: null,
     check_in_status: 'no-show',
-    entry_status: null,
+    entry_status: 'confirmed',
+    handler: 'Pat Holder',
+    dog: { id: 'd3', call_name: 'Nil', breed: '' },
   },
 ] as unknown as DbEntry[];
+
+/** The renderer input for those rows, written out as the edge function's RPC supplies it. */
+const packetTrials: EmergencyPacketTrial[] = [
+  { id: 'trial-1', date: '2026-12-07', name: 'Trial 1', trialNumber: '1', registryId: 'AKC' },
+  { id: 'trial-2', date: '2026-12-08', name: 'Trial 2', trialNumber: '2', registryId: 'UKC' },
+];
+const packetClass = (patch: Partial<EmergencyPacketClass>): EmergencyPacketClass => ({
+  id: 'x',
+  trialId: 'x',
+  name: '',
+  element: '',
+  level: '',
+  section: null,
+  classNumber: null,
+  displayOrder: null,
+  judgeName: '',
+  ringLabel: null,
+  startTime: null,
+  timeLimitSeconds: null,
+  timeLimitArea2Seconds: null,
+  timeLimitArea3Seconds: null,
+  numAreas: null,
+  numHides: null,
+  distractionCount: null,
+  ...patch,
+});
+const packetClasses: EmergencyPacketClass[] = [
+  packetClass({
+    id: 'class-1',
+    trialId: 'trial-1',
+    name: 'Container Novice A',
+    element: 'Container',
+    level: 'Novice',
+    section: 'A',
+    judgeName: 'Judge One',
+    timeLimitSeconds: 180.5,
+    numAreas: 1,
+    numHides: 2,
+  }),
+  packetClass({
+    id: 'class-2',
+    trialId: 'trial-2',
+    name: 'Interior Excellent',
+    element: 'Interior',
+    level: 'Excellent',
+    judgeName: 'TBD',
+  }),
+];
+const packetEntry = (patch: Partial<PacketReportEntry>): PacketReportEntry => ({
+  id: 'x',
+  armband: null,
+  runOrder: null,
+  callName: '',
+  breed: '',
+  handler: '',
+  registrationNumber: null,
+  section: null,
+  ...patch,
+});
+const packetEntries: PacketReportEntry[] = [
+  packetEntry({
+    id: 'e1',
+    classId: 'class-1',
+    armband: '12A',
+    runOrder: 2,
+    callName: 'Juni',
+    breed: 'Beagle',
+    handler: 'Jamie Walker',
+    registrationNumber: 'AKC-1',
+  }),
+  packetEntry({
+    id: 'e3',
+    classId: 'class-2',
+    armband: null,
+    runOrder: null,
+    callName: 'Nil',
+    handler: 'Pat Holder',
+  }),
+];
 
 const scopes: ReportScope[] = [
   { kind: 'class', showId: 's1', trialId: 'trial-1', classId: 'class-1' },
@@ -66,21 +163,21 @@ const scopes: ReportScope[] = [
   { kind: 'show', showId: 's1' },
 ];
 
-// Self-recorded fingerprints: first recorded from the pre-extraction app code (MYK9-2086), then
-// re-recorded in MYK9-2116 when the check-in sheet gained class subjects (judge) and an absent
-// hides hashes as null, and a class with no judge hashes the sheet's "TBD". A drift in either
-// path breaks here before it breaks a stored print. The shared input is derived the app's way.
+// Re-recorded in MYK9-2103: the check-in sheet and scoresheet fingerprints are now the printed
+// text (names, breed, handler, registration number, the suffixed armband label, the whole class
+// header), not dog id, check-in status, entry status or raw run order. Every earlier value was
+// the old row-field hash, so each one changes by design; a print made before this reads changed once.
 const PINNED: Record<string, string> = {
-  'check-in-sheet/class': 'fnv1a64:356c9acf8f53410d',
-  'check-in-sheet/trial': 'fnv1a64:8d7ed858a6ed7bea',
-  'check-in-sheet/show': 'fnv1a64:b7eafc74c8a7adee',
-  'scoresheet/class': 'fnv1a64:aa00e904808e0eb8',
-  'scoresheet/trial': 'fnv1a64:767f9dc8c9b4649d',
-  'scoresheet/show': 'fnv1a64:5d1200fd1c331c1e',
+  'check-in-sheet/class': 'fnv1a64:446461969ab96ed5',
+  'check-in-sheet/trial': 'fnv1a64:0c1d47c590eb3b05',
+  'check-in-sheet/show': 'fnv1a64:a63b4a3be1d32361',
+  'scoresheet/class': 'fnv1a64:3e07c7ffeb408b94',
+  'scoresheet/trial': 'fnv1a64:2c1f0cb75c4d3612',
+  'scoresheet/show': 'fnv1a64:4d21293988aaec5b',
 };
 
 describe('app and shared paperwork descriptors agree', () => {
-  for (const reportId of ['check-in-sheet', 'scoresheet']) {
+  for (const reportId of ['check-in-sheet', 'scoresheet'] as const) {
     for (const scope of scopes) {
       it(`${reportId} / ${scope.kind}`, () => {
         const app = buildReportPaperworkDescriptor({
@@ -89,16 +186,36 @@ describe('app and shared paperwork descriptors agree', () => {
           scope,
           classes,
           entries,
+          printedSheets: {
+            trials,
+            classes,
+            entries: entries as unknown as ReportDbEntry[],
+          },
         });
-        const shared = buildSheetDescriptorFromRows({
+        const shared = buildSheetDescriptorFromPrinted({
           reportId,
           scope,
-          classes: sharedClasses,
-          entries,
+          trials: packetTrials,
+          classes: packetClasses,
+          entries: packetEntries,
         });
         expect(app).toEqual(shared);
         expect(app?.fingerprint).toBe(PINNED[`${reportId}/${scope.kind}`]);
       });
     }
   }
+
+  it('leaves the withdrawn entry off the sheet, so it has no subject', () => {
+    const shared = buildSheetDescriptorFromPrinted({
+      reportId: 'check-in-sheet',
+      scope: scopes[0]!,
+      trials: packetTrials,
+      classes: packetClasses,
+      entries: packetEntries,
+    });
+    expect(Object.keys(shared?.coverage.subjectFingerprints ?? {})).toEqual([
+      'class:class-1',
+      'entry:e1',
+    ]);
+  });
 });

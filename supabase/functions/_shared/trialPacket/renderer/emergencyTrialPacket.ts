@@ -5,13 +5,7 @@
  * agree so the copy cannot drift.
  */
 import { compareArmbands } from './armband.ts';
-
-export function formatPacketSeconds(seconds?: number | null): string {
-  if (!seconds || seconds === 0) return '';
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
+import { printedClassHeader } from './printedClassHeader.ts';
 import {
   EMERGENCY_PACKET_MARKER,
   type EmergencyPacketAvailability,
@@ -86,7 +80,7 @@ function compareClasses(a: EmergencyPacketClass, b: EmergencyPacketClass): numbe
   );
 }
 
-function compareEntries(a: PacketReportEntry, b: PacketReportEntry): number {
+export function compareEntries(a: PacketReportEntry, b: PacketReportEntry): number {
   const runOrderA = a.runOrder ?? Number.MAX_SAFE_INTEGER;
   const runOrderB = b.runOrder ?? Number.MAX_SAFE_INTEGER;
   // Armband ordering is the shared contract's, not a numeric subtraction:
@@ -124,15 +118,6 @@ function chunksWithFirst<T>(items: T[], first: number, rest: number): T[][] {
   return pages;
 }
 
-function classLabel(classItem: EmergencyPacketClass): string {
-  const identity = [classItem.element, classItem.level, classItem.section]
-    .filter(Boolean)
-    .join(' ');
-  return classItem.classNumber
-    ? `${classItem.classNumber} · ${identity}`
-    : identity || classItem.name;
-}
-
 /**
  * The printed "Order" is the row's position on its class's check-in sheet
  * (1..N in sheet order), never the stored `run_order` (MYK9-992): the stored
@@ -140,7 +125,7 @@ function classLabel(classItem: EmergencyPacketClass): string {
  * a steward "31" at the top of a sheet. An entry with no order assigned prints
  * blank, as before. `sortedEntries` must already be in sheet order.
  */
-function sheetPositions(sortedEntries: readonly PacketReportEntry[]): Map<string, number> {
+export function sheetPositions(sortedEntries: readonly PacketReportEntry[]): Map<string, number> {
   const nextByClass = new Map<string, number>();
   const positions = new Map<string, number>();
   for (const entry of sortedEntries) {
@@ -216,88 +201,6 @@ export function emergencyPacketAvailability(
     return { available: false, reason: 'No entries are ready for an emergency packet yet.' };
   }
   return { available: true };
-}
-
-/**
- * The class maximum, stated on every page a judge or timekeeper writes on.
- *
- * Two traps, both caught in review and both reachable in live data:
- *
- *  1. The three limit columns are INDEPENDENTLY nullable. Compacting the
- *     configured values renumbers them, so an area-3 limit prints as "Area 2".
- *     A wrong number on the sheet the ring times from is worse than no number,
- *     so each limit keeps its own area index and a missing one is named.
- *  2. `num_areas` is the authoritative area count, not "how many limits happen
- *     to be filled in". A class with two areas and only an area-1 limit would
- *     otherwise print a bare "Max time 3:00" and imply a single-area search.
- *     Naming the gap lets the secretary write it in at the briefing.
- *
- * Returns undefined when nothing is configured at all: on a page the ring runs
- * on, silence beats a confident "Max time 0:00".
- */
-/**
- * `classes` stores only THREE per-area limits, and sport_class_rules tops out
- * at three areas, but nothing in the schema constrains num_areas. Clamping to
- * three silently dropped the rest; naming them with no limit is the truth,
- * since the system has nowhere to record one. MAX_AREAS is a defensive bound
- * so a data-entry typo cannot run the header (or the scoresheet's time stack)
- * off the page.
- */
-const MAX_AREAS = 10;
-
-/**
- * The authoritative area count for a class: `num_areas` when set, but never
- * lower than the highest per-area time limit actually configured (a class
- * with two areas and only an area-1 limit still searches area 2).
- *
- * Exported so the scoresheet's per-dog time stack (`buildEmergencyTrialPacketPdf.ts`)
- * and this file's own `formatClassTimeLimits` share ONE area count rather than
- * two computations that can drift.
- */
-export function resolveAreaCount(classItem: {
-  timeLimitSeconds: number | null;
-  timeLimitArea2Seconds?: number | null;
-  timeLimitArea3Seconds?: number | null;
-  numAreas?: number | null;
-}): number {
-  const configured = [
-    classItem.timeLimitSeconds,
-    classItem.timeLimitArea2Seconds,
-    classItem.timeLimitArea3Seconds,
-  ].map(seconds => formatPacketSeconds(seconds));
-  const highestConfigured = configured.reduce(
-    (highest, label, index) => (label === '' ? highest : index + 1),
-    1
-  );
-  return Math.min(MAX_AREAS, Math.max(classItem.numAreas ?? 1, highestConfigured));
-}
-
-export function formatClassTimeLimits(classItem: {
-  timeLimitSeconds: number | null;
-  timeLimitArea2Seconds?: number | null;
-  timeLimitArea3Seconds?: number | null;
-  numAreas?: number | null;
-}): string | undefined {
-  const configured = [
-    classItem.timeLimitSeconds,
-    classItem.timeLimitArea2Seconds,
-    classItem.timeLimitArea3Seconds,
-  ].map(seconds => formatPacketSeconds(seconds));
-
-  if (configured.every(label => label === '')) return undefined;
-
-  // Report every area the class searches, and never hide a limit configured
-  // beyond that count — a stale value is still information the ring can use.
-  const areaCount = resolveAreaCount(classItem);
-
-  if (areaCount === 1) {
-    return configured[0] === '' ? undefined : `Max time ${configured[0]}`;
-  }
-
-  return `Max time — ${Array.from({ length: areaCount }, (_, index) => {
-    const label = configured[index] ?? '';
-    return `Area ${index + 1} ${label === '' ? 'not set' : label}`;
-  }).join(' · ')}`;
 }
 
 /**
@@ -411,14 +314,7 @@ export function buildEmergencyPacketModel(
       const classEntries = sortedEntries.filter(entry => entry.classId === classItem.id);
       const classContext: EmergencyPacketPageContext = {
         ...context,
-        ringLabel: classItem.ringLabel || undefined,
-        classLabel: classLabel(classItem),
-        judgeName: classItem.judgeName || 'Judge unassigned',
-        timeLimitLabel: formatClassTimeLimits(classItem),
-        areaCount: resolveAreaCount(classItem),
-        registryId: classItem.registryId ?? trial.registryId,
-        numHides: classItem.numHides,
-        distractionCount: classItem.distractionCount,
+        ...printedClassHeader(classItem, trial),
       };
 
       chunks(classEntries, CHECK_IN_ROWS_PER_PAGE).forEach((entries, index, pages) => {
@@ -508,3 +404,9 @@ export function buildEmergencyPacketStoragePath(showId: string, snapshotId: stri
     throw new Error('Packet IDs cannot contain slashes');
   return `${showId}/${snapshotId}.pdf`;
 }
+
+export {
+  formatClassTimeLimits,
+  formatPacketSeconds,
+  resolveAreaCount,
+} from './printedClassHeader.ts';

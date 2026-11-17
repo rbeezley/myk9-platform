@@ -13,7 +13,11 @@ const mockReportState = vi.hoisted(() => ({
 }));
 
 /** The rows the page hands the preview, captured so a test can fingerprint exactly what it saw. */
-const seenRows = vi.hoisted(() => ({ classes: [] as unknown[], entries: [] as unknown[] }));
+const seenRows = vi.hoisted(() => ({
+  classes: [] as unknown[],
+  entries: [] as unknown[],
+  trials: [] as unknown[],
+}));
 
 const mockPrintState = vi.hoisted(() => ({
   records: [] as Array<Record<string, unknown>>,
@@ -219,7 +223,9 @@ vi.mock('../ReportPreview', () => ({
     classId: string;
     classes?: unknown[];
     entries?: unknown[];
+    trials?: unknown[];
   }) => {
+    seenRows.trials = props.trials ?? [];
     seenRows.classes = props.classes ?? [];
     seenRows.entries = props.entries ?? [];
     return (
@@ -364,6 +370,11 @@ describe('ReportsPage shows the report phases as visible sections', () => {
         scope: { kind: 'show', showId: 'show-1' },
         classes: seenRows.classes as never,
         entries: seenRows.entries as never,
+        printedSheets: {
+          trials: seenRows.trials as never,
+          classes: seenRows.classes as never,
+          entries: seenRows.entries as never,
+        },
       });
       if (!descriptor) throw new Error('fixture has no check-in descriptor');
       const record: Record<string, unknown> = {

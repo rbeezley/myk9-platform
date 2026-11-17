@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 
@@ -60,6 +61,7 @@ function printed(classItem: DbClass): ReplicatedPaperworkPrint[] {
       scope,
       classes: [classItem],
       entries,
+      printedSheets: printedSheetRowsOf([classItem], entries),
     })!;
     return {
       id: reportId,
@@ -88,6 +90,7 @@ function cardOf(
     classes: [classItem],
     trials: [{ id: 'trial-1', trialDate: '2026-12-07' }],
     entries,
+    printedSheets: printedSheetRowsOf([classItem], entries),
     records,
     returnTo: '/x',
   });
@@ -136,6 +139,10 @@ describe('class judge in the paperwork fingerprints (MYK9-2116)', () => {
         scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-a' },
         classes: [classWith({ ...judge('Pat', 'Donovan'), num_hides: hides })],
         entries,
+        printedSheets: printedSheetRowsOf(
+          [classWith({ ...judge('Pat', 'Donovan'), num_hides: hides })],
+          entries
+        ),
       })?.fingerprint;
     expect(fingerprint('check-in-sheet', 1)).toBe(fingerprint('check-in-sheet', 3));
     expect(fingerprint('scoresheet', 1)).not.toBe(fingerprint('scoresheet', 3));

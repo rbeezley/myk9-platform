@@ -4,12 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import { useShowClassPaperwork } from './useShowClassPaperwork';
 
 // MYK9-2116: with no show details (a cold offline open) a class that depends on the show's
 // assignedJudges hashes the unresolved judge, and once they load it matches the printed fingerprint.
-const mocks = vi.hoisted(() => ({ show: null as unknown }));
+const mocks = vi.hoisted(() => ({
+  show: null as unknown,
+  printed: { settled: true, hasData: true },
+}));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({ show: mocks.show }),
@@ -51,6 +55,7 @@ const records = classes.map(classItem => {
     classes,
     entries,
     assignedJudges: assignedJudges as never,
+    printedSheets: printedSheetRowsOf(classes, entries),
   })!;
   return {
     id: `r-${classItem.id}`,
@@ -79,7 +84,14 @@ vi.mock('@/hooks/queries/useShowClassRows', () => ({
   }),
 }));
 vi.mock('@/hooks/queries/usePrintedSheetEntries', () => ({
-  usePrintedSheetEntries: () => ({ data: undefined }),
+  usePrintedSheetEntries: () => ({
+    data: mocks.printed.hasData
+      ? { ...printedSheetRowsOf(classes, entries), registrationsReadComplete: true }
+      : undefined,
+    isError: false,
+    isFetching: !mocks.printed.settled,
+    noticePending: false,
+  }),
 }));
 vi.mock('./useShowPaperworkPrints', () => ({
   useShowPaperworkPrints: () => ({
@@ -109,11 +121,46 @@ function checkInStates() {
 describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
   beforeEach(() => {
     mocks.show = null;
+    mocks.printed = { settled: true, hasData: true };
   });
 
   it('hashes the unresolved judge with none loaded, and matches the printed fingerprint once it loads', () => {
     expect(checkInStates()).toEqual({ own: 'current', assigned: 'stale' });
     mocks.show = { id: 'show-1', assignedJudges };
     expect(checkInStates()).toEqual({ own: 'current', assigned: 'current' });
+  });
+
+  const rowOf = (reportId: string) => {
+    const { result } = renderHook(() =>
+      useShowClassPaperwork({
+        showId: 'show-1',
+        trials: [{ id: 'trial-1', trialDate: '2026-12-07' }],
+        entries,
+        returnTo: '/x',
+      })
+    );
+    return result.current.byClassId.get('class-own')?.find(item => item.reportId === reportId);
+  };
+
+  it('reads the check-in sheet unknown, with no confirmation, until the printed rows have data', () => {
+    mocks.printed = { settled: false, hasData: false };
+    expect(rowOf('check-in-sheet')).toMatchObject({ state: 'unknown' });
+    expect(rowOf('check-in-sheet')?.confirmation).toBeUndefined();
+  });
+
+  it('keeps showing the verdict while the printed rows re-read, but offers no confirmation', () => {
+    mocks.printed = { settled: false, hasData: true };
+    expect(rowOf('check-in-sheet')).toMatchObject({ state: 'current' });
+    expect(rowOf('check-in-sheet')?.confirmation).toBeUndefined();
+    expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
+  });
+
+  it('never withholds the results sheet for the printed rows', () => {
+    mocks.printed = { settled: false, hasData: false };
+    expect(rowOf('results-sheet')?.confirmation).toBeDefined();
+  });
+
+  it('confirms against the printed rows once they settle', () => {
+    expect(rowOf('check-in-sheet')?.confirmation?.fingerprint).toBeDefined();
   });
 });

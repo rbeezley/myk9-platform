@@ -5,6 +5,7 @@ import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { buildReportPaperworkDescriptor } from '../buildReportPaperworkDescriptor';
 import { recordPaperworkPrinted } from '../paperworkPrintActions';
+import type { PrintedSheetRows } from '../printedSheetDescriptor';
 import { PACKET_REPORT_IDS } from './packetReports';
 
 export interface TrialPacketPrintRecords {
@@ -27,6 +28,8 @@ export async function recordTrialPacketPrint(input: {
   classIds: readonly string[];
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
+  /** The rows the check-in sheet and scoresheet print from (MYK9-2103). */
+  printedSheets: PrintedSheetRows;
   user: User;
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): Promise<TrialPacketPrintRecords> {
@@ -49,6 +52,7 @@ export async function recordTrialPacketPrint(input: {
           classes: input.classes,
           entries: input.entries,
           assignedJudges: input.assignedJudges,
+          printedSheets: input.printedSheets,
         });
         if (!descriptor) continue;
         const record = await recordPaperworkPrinted({

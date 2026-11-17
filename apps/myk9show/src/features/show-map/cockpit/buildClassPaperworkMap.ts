@@ -12,6 +12,7 @@ import { buildPrintedLabelIndex, labelPrintStatus } from '@/lib/labels/armbandPr
 
 import { getCockpitReportHref } from './cockpitRoutes';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
+import { isPrintedSheetReportId, type PrintedSheetRows } from './printedSheetDescriptor';
 import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
@@ -48,6 +49,18 @@ export function buildClassPaperworkMap(input: {
    * no row may offer to record a print: the stored fingerprint would describe obsolete facts.
    */
   withholdConfirmation?: boolean;
+  /**
+   * The rows the check-in sheet and scoresheet print from (`usePrintedSheetEntries`, the PDF's own
+   * reader), and the one class source for those two sheets (MYK9-2103). Absent means they are not
+   * read yet: those rows show an unknown state and offer no confirmation, because a fingerprint
+   * built from anything else would describe a sheet nobody printed.
+   */
+  printedSheets?: PrintedSheetRows | undefined;
+  /**
+   * False while `printedSheets` is being re-read (loading, errored, or a replica notice pending):
+   * the verdict still shows, from the rows in hand, but no print may be confirmed against them.
+   */
+  printedSheetsSettled?: boolean;
   returnTo: string;
   /** `show.assignedJudges`; undefined means the show details are not available. */
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
@@ -61,6 +74,7 @@ export function buildClassPaperworkMap(input: {
     const scope = { kind: 'class' as const, showId: input.showId, trialId, classId: classItem.id };
     const paperwork = REPORTS.flatMap((report): SecretaryCockpitPaperwork[] => {
       const classEntries = input.entries.filter(entry => entry.class_id === classItem.id);
+      const printedSheet = isPrintedSheetReportId(report.id);
       const descriptor =
         report.id === 'armband-labels'
           ? buildArmbandDescriptor(scope, classEntries, trialDateById.get(trialId) ?? '')
@@ -70,7 +84,11 @@ export function buildClassPaperworkMap(input: {
               classes: input.classes,
               entries: input.entries,
               assignedJudges: input.assignedJudges,
+              printedSheets: input.printedSheets,
             });
+      const withhold =
+        Boolean(input.withholdConfirmation) ||
+        (printedSheet && input.printedSheetsSettled === false);
       const history = input.records
         .filter(record => record.reportId === report.id)
         .filter(
@@ -109,7 +127,7 @@ export function buildClassPaperworkMap(input: {
               scope,
               returnTo: input.returnTo,
             }),
-            ...(input.withholdConfirmation
+            ...(withhold
               ? {}
               : {
                   confirmation: {
@@ -130,6 +148,22 @@ export function buildClassPaperworkMap(input: {
           },
         ];
       }
+      if (!descriptor && printedSheet && !input.printedSheets && classEntries.length > 0) {
+        // The printed rows are not read yet: say so, and keep the print link.
+        return [
+          {
+            reportId: report.id,
+            label: report.label,
+            state: 'unknown',
+            printHref: getCockpitReportHref({
+              reportId: report.id,
+              scope,
+              returnTo: input.returnTo,
+            }),
+            history,
+          },
+        ];
+      }
       if (!descriptor) return [];
       const derived = derivePaperworkPrintState(input.records, descriptor);
       return [
@@ -138,7 +172,7 @@ export function buildClassPaperworkMap(input: {
           label: report.label,
           state: input.recordsUnavailable ? 'unknown' : derived.state,
           printHref: getCockpitReportHref({ reportId: report.id, scope, returnTo: input.returnTo }),
-          ...(input.withholdConfirmation
+          ...(withhold
             ? {}
             : {
                 confirmation: {

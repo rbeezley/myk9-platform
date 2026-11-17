@@ -9,6 +9,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { resolveReportScope } from '@/lib/reports/reportScope';
+import type { ReportDbEntry } from '@/lib/reports/types';
+import type { DbClass, DbTrial } from '@/types/database-mappings';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportPreviewBody } from '@/pages/secretary/ReportsPage/ReportPreviewBody';
 import {
@@ -137,6 +139,11 @@ function ClassPrintPanelBody({
         typeof buildReportPaperworkDescriptor
       >[0]['entries'],
       assignedJudges: show?.assignedJudges,
+      printedSheets: {
+        trials: (trials ?? []) as unknown as DbTrial[],
+        classes: (classes ?? []) as unknown as DbClass[],
+        entries: (entries ?? []) as unknown as ReportDbEntry[],
+      },
     });
   // A freshly opened panel never prints cached rows: the class's report data is re-read on open
   // (a run-order change does not invalidate the cached `['reports', ...]` entries).

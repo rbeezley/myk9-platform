@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import {
@@ -58,6 +58,8 @@ export function usePrintedSheetEntries(showId: string) {
   );
   const enabled = Boolean(showId);
   const entriesKey = queryKeys.printedSheetEntries(showId);
+  // A replica notice waiting out its debounce: the rows below are about to be re-read.
+  const [noticePending, setNoticePending] = useState(false);
 
   useReplicaNotices(
     enabled,
@@ -71,7 +73,8 @@ export function usePrintedSheetEntries(showId: string) {
         void queryClient.invalidateQueries({ queryKey });
       }
     },
-    NOTICE_DEBOUNCE_MS
+    NOTICE_DEBOUNCE_MS,
+    setNoticePending
   );
   useHandlerPeopleRevisionChange(() => {
     if (enabled) void queryClient.invalidateQueries({ queryKey: entriesKey });
@@ -120,6 +123,12 @@ export function usePrintedSheetEntries(showId: string) {
   return {
     data,
     isError: entriesQuery.isError || trialsQuery.isError || classesQuery.isError,
-    isFetching: entriesQuery.isFetching,
+    /** Any of the three reads is in flight. */
+    isFetching: entriesQuery.isFetching || trialsQuery.isFetching || classesQuery.isFetching,
+    /**
+     * A replica notice has arrived and its re-read has not started. A print must not be confirmed
+     * against these rows in that window (MYK9-2103).
+     */
+    noticePending,
   };
 }

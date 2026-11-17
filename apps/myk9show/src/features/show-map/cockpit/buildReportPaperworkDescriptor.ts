@@ -4,10 +4,14 @@ import type { ReportScope } from '@/lib/reports/types';
 
 import {
   buildPaperworkClassFacts,
-  buildSheetDescriptorFromRows,
   paperworkEntryInScope,
 } from '../../../../../../supabase/functions/_shared/paperwork/rowDescriptors.ts';
 import { withPaperworkJudge } from './paperworkClassJudge';
+import {
+  buildPrintedSheetDescriptor,
+  isPrintedSheetReportId,
+  type PrintedSheetRows,
+} from './printedSheetDescriptor';
 import { buildResultPaperworkDescriptor, type PaperworkDescriptor } from './paperworkPrintState';
 
 /**
@@ -29,22 +33,30 @@ export function buildReportPaperworkDescriptor(input: {
   entries: readonly DbEntry[];
   /** `show.assignedJudges`: the sheet's judge fallback, so the fingerprint hashes the printed name. */
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
+  /**
+   * The check-in sheet and scoresheet hash what they print, from the rows the PDF is built from
+   * (MYK9-2103); without them those two reports have no descriptor. The results reports read
+   * `classes` and `entries`.
+   */
+  printedSheets?: PrintedSheetRows | undefined;
 }): PaperworkDescriptor | null {
-  const classes = withPaperworkJudge(input.classes, input.assignedJudges);
-  if (input.reportId === 'check-in-sheet' || input.reportId === 'scoresheet') {
-    return buildSheetDescriptorFromRows({
-      reportId: input.reportId,
-      scope: input.scope,
-      classes,
-      entries: input.entries,
-    });
+  if (isPrintedSheetReportId(input.reportId)) {
+    return input.printedSheets
+      ? buildPrintedSheetDescriptor({
+          reportId: input.reportId,
+          scope: input.scope,
+          rows: input.printedSheets,
+          assignedJudges: input.assignedJudges,
+        })
+      : null;
   }
+  const classes = withPaperworkJudge(input.classes, input.assignedJudges);
   const selected = input.entries.filter(entry =>
     paperworkEntryInScope(entry, input.scope, classes)
   );
   if (selected.length === 0) return null;
   const classById = new Map(classes.map(classItem => [classItem.id, classItem] as const));
-  const classFacts = buildPaperworkClassFacts(input.reportId, selected, classById);
+  const classFacts = buildPaperworkClassFacts(selected, classById);
 
   if (input.reportId === 'results-sheet' || input.reportId === 'result-labels') {
     return buildResultPaperworkDescriptor(

@@ -4,6 +4,7 @@ import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 
 // MYK9-2074: after a print, a move-up (in and out), a late entry or a pull flips exactly the
@@ -56,6 +57,7 @@ function printRecords(
         scope,
         classes,
         entries,
+        printedSheets: printedSheetRowsOf(classes, entries),
       })!;
       return {
         id: `${reportId}-${classId}`,
@@ -85,6 +87,7 @@ function stateOf(
     classes: currentClasses,
     trials: [{ id: 'trial-1', trialDate: '2026-12-07' }],
     entries,
+    printedSheets: printedSheetRowsOf(currentClasses, entries),
     records,
     returnTo: '/x',
   });

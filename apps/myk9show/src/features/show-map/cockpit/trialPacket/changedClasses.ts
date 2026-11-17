@@ -3,6 +3,7 @@ import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
 import { buildClassPaperworkMap } from '../buildClassPaperworkMap';
+import type { PrintedSheetRows } from '../printedSheetDescriptor';
 import { withJudgeTotals, type CollatedTrialPacket } from './collateTrialPacket';
 import { PACKET_REPORT_IDS } from './packetReports';
 
@@ -36,6 +37,8 @@ export function packetPrintStatus(input: {
   packet: CollatedTrialPacket;
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
+  printedSheets: PrintedSheetRows;
+  printedSheetsSettled: boolean;
   records: readonly ReplicatedPaperworkPrint[] | undefined;
   recordsLoading: boolean;
   recordsUnavailable: boolean;
@@ -48,6 +51,8 @@ export function packetPrintStatus(input: {
     classes: input.classes,
     trials: [{ id: input.packet.trial.id, trialDate: input.packet.trial.date ?? '' }],
     entries: input.entries,
+    printedSheets: input.printedSheets,
+    printedSheetsSettled: input.printedSheetsSettled,
     records: input.records,
     returnTo: '',
     assignedJudges: input.assignedJudges,

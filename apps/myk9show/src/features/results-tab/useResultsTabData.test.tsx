@@ -24,6 +24,10 @@ const mocks = vi.hoisted(() => ({
 const getClassesByTrialId = vi.hoisted(() => vi.fn());
 vi.mock('@/services/database/classes', () => ({ getClassesByTrialId }));
 
+// The show details have loaded with no extra judge assignments (MYK9-2116).
+vi.mock('@/hooks/useFastShowDetails', () => ({
+  useFastShowDetails: () => ({ show: { id: 'show-1', assignedJudges: [] } }),
+}));
 vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
   useShowDeskScheduleRead: () => mocks.schedule,
 }));

@@ -38,7 +38,10 @@ export function useShowClassPaperwork(input: {
   const { showId, trials, classes = [], entries, returnTo } = input;
   const prints = useShowPaperworkPrints(showId);
   // The judge the sheet prints falls back to the show's assignments, so the fingerprint does too.
-  const assignedJudges = useFastShowDetails(showId).show?.assignedJudges;
+  // Until the show has loaded the judge is not known, so no card may give a verdict (MYK9-2116).
+  const showDetails = useFastShowDetails(showId).show;
+  const judgesUnknown = !showDetails;
+  const assignedJudges = showDetails?.assignedJudges ?? [];
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
   // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
@@ -71,10 +74,12 @@ export function useShowClassPaperwork(input: {
       recordsUnavailable: !available,
       withholdConfirmation: !classesAvailable,
       returnTo,
-      ...(assignedJudges ? { assignedJudges } : {}),
+      assignedJudges,
+      judgesUnknown,
     });
   }, [
     assignedJudges,
+    judgesUnknown,
     available,
     classFacts.data,
     classes,

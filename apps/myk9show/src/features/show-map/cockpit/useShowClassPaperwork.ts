@@ -12,6 +12,11 @@
  * "not printed" is not a finding. React Query keeps `data` after a failed or in-flight refetch, so
  * the class read must be `ready` (settled, not erroring, not refetching), never merely have data.
  *
+ * The check-in sheet and scoresheet are fingerprinted from `usePrintedSheetEntries` (the PDF's own
+ * rows and class source), not from the class rows above or `entries` (MYK9-2103): until that read
+ * has data those rows read unknown, and while it is re-reading (or a replica notice is waiting)
+ * the verdict still shows but no print is confirmed.
+ *
  * A status that reads unknown never hides an action: while the class rows are loading or failed,
  * rows still render from the tree classes (print link only, state unknown, no confirmation, because
  * those rows lack the facts a fingerprint includes and would record a print against obsolete facts).
@@ -20,6 +25,7 @@ import { useMemo } from 'react';
 
 import type { ReadStatus } from '@/features/_shared/combineReads';
 import { readinessOf, resolveReportReadiness } from '@/hooks/queries/reportReadiness';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
 import { usePrintedSheetEntries } from '@/hooks/queries/usePrintedSheetEntries';
@@ -43,9 +49,35 @@ export function useShowClassPaperwork(input: {
   // Undefined while the show details are unavailable (a cold offline open): the fingerprint then
   // hashes the unresolved judge and corrects itself once they load (MYK9-2116).
   const assignedJudges = useFastShowDetails(showId).show?.assignedJudges;
-  // The rows the printed sheets are built from (MYK9-2103). Returned, not yet hashed: the swap
-  // from `SecretaryEntry` to these rows is the next change, so no fingerprint moves here.
+  // The rows the check-in sheet and scoresheet print from, read the way Reports reads them
+  // (MYK9-2103); their fingerprints hash exactly this, never the `SecretaryEntry` rows.
   const printedSheetEntries = usePrintedSheetEntries(showId);
+  const printedData = printedSheetEntries.data;
+  const printedSheets = useMemo(
+    () =>
+      printedData
+        ? {
+            trials: printedData.trials,
+            classes: printedData.classes,
+            entries: printedData.entries,
+          }
+        : undefined,
+    [printedData]
+  );
+  // A verdict may show from rows being replaced, but no print is confirmed against them: a
+  // stamped fingerprint of rows about to change would read "changed" on the next render.
+  const printedSheetsSettled =
+    printedData !== undefined &&
+    !printedSheetEntries.isError &&
+    !printedSheetEntries.isFetching &&
+    // A judge known only through the show's assignments prints "Judge unassigned" until the show
+    // details load; stamping that would record a sheet nobody prints.
+    assignedJudges !== undefined &&
+    !printedSheetEntries.noticePending;
+  // Online, an incomplete registrations read means the server read failed or was partial. Offline
+  // it is the device copy, which is also what prints, so confirming from it matches the paper.
+  const isOnline = useOnlineStatus();
+  const registrationsUnknown = isOnline && printedData?.registrationsReadComplete === false;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
   // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
@@ -77,6 +109,9 @@ export function useShowClassPaperwork(input: {
       records: classesAvailable ? (prints.data ?? []) : [],
       recordsUnavailable: !available,
       withholdConfirmation: !classesAvailable,
+      printedSheets,
+      printedSheetsSettled,
+      registrationsUnknown,
       returnTo,
       assignedJudges,
     });
@@ -88,6 +123,9 @@ export function useShowClassPaperwork(input: {
     classesAvailable,
     entries,
     prints.data,
+    printedSheets,
+    printedSheetsSettled,
+    registrationsUnknown,
     returnTo,
     showId,
     trials,

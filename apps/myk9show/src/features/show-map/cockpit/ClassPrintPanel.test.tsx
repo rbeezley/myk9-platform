@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
@@ -43,6 +44,7 @@ const expectedFor = (reportId: string, entries: unknown[]) =>
     scope: EXPECTED_SCOPE,
     classes: [CLASS_ROW] as never,
     entries: entries as never,
+    printedSheets: printedSheetRowsOf([CLASS_ROW] as never, entries as never),
   });
 
 vi.mock('sonner', () => ({ toast: mocks.toast }));
@@ -53,7 +55,7 @@ vi.mock('@/hooks/useFastShowDetails', () => ({
 vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
     show: { id: 'show-1' },
-    trials: [],
+    trials: printedSheetRowsOf([CLASS_ROW] as never, []).trials,
     classes: [CLASS_ROW],
     entries: mocks.entries,
     catalogProfilesReadComplete: true,

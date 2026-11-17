@@ -7,11 +7,11 @@
  * reads underneath are mocked; the mocked entry readers apply the real armband backfill the real
  * readers use (their own calls to it are tested in entryQueries.replication.test.ts).
  */
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { fromAny } from '@total-typescript/shoehorn';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedDogRegistrationsTable, replicatedEntriesTable } from '@/services/replication';
 
 import { render } from '@/test/utils/testUtils';
 import {
@@ -24,6 +24,10 @@ import { getEntriesByClass, getEntriesByShowFromReplication } from '@/services/d
 import type { ReportDbEntry } from '@/lib/reports/types';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
+import { buildClassPaperworkMap } from '@/features/show-map/cockpit/buildClassPaperworkMap';
+import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
+import { buildSheetDescriptorFromPrinted } from '../../../../../supabase/functions/_shared/paperwork/printedSheet.ts';
+import type { ReplicatedPaperworkPrint } from '@/services/replication';
 import { hydrateReportEntries } from './reportEntryHydration';
 import { usePrintedSheetEntries, type PrintedSheetData } from './usePrintedSheetEntries';
 
@@ -282,5 +286,192 @@ describe('printed-sheet rows: an entry that arrives after the first hydration', 
     );
     expect(cardEntries).toEqual(reports.entries);
     expect(cardEntries.find(entry => entry.id === 'move-up')?.registrationNumber).toBe('UKC-1');
+  });
+});
+
+describe('printed-sheet fingerprints: the card, Reports and the shared function agree', () => {
+  const SHEETS = ['check-in-sheet', 'scoresheet'] as const;
+  const scopeOf = (classId: string) => {
+    const trialId = classId === 'class-akc' ? 'trial-akc' : 'trial-ukc';
+    return { kind: 'class' as const, showId: 'show-1', trialId, classId };
+  };
+
+  beforeEach(() => {
+    mocks.rows = fixtures;
+    mocks.trials = trials;
+    mocks.classes = classes;
+    mocks.armbands = [{ showId: 'show-1', dogId: 'dog-7', armbandNumber: '301' }];
+    mocks.registrations = new Map([
+      ['dog-1', [{ organization: 'AKC (American Kennel Club)', registration_number: 'AKC-1' }]],
+    ]);
+  });
+
+  async function reportsRows() {
+    const showRows = (await getEntriesByShowFromReplication('show-1')).data as ReportDbEntry[];
+    return (await hydrateReportEntries(showRows)).entries;
+  }
+
+  function cardFingerprint(
+    card: Pick<PrintedSheetData, 'trials' | 'classes' | 'entries'>,
+    classId: string,
+    reportId: string,
+    assignedJudges: Show['assignedJudges'] | undefined
+  ) {
+    const map = buildClassPaperworkMap({
+      showId: 'show-1',
+      classes: card.classes,
+      trials: card.trials.map(trial => ({ id: trial.id, trialDate: trial.date ?? '' })),
+      entries: [],
+      printedSheets: card,
+      printedSheetsSettled: true,
+      records: [],
+      returnTo: '/x',
+      assignedJudges,
+    });
+    return map.get(classId)?.find(item => item.reportId === reportId)?.confirmation?.fingerprint;
+  }
+
+  it.each(SHEETS)(
+    '%s: Reports path, card path and the direct function give equal fingerprints',
+    async reportId => {
+      const card = await readCard();
+      const rows = await reportsRows();
+      const direct = buildEmergencyPacketData({ show, trials, classes, entries: rows });
+      for (const classId of ['class-akc', 'class-ukc']) {
+        const scope = scopeOf(classId);
+        const reports = buildReportPaperworkDescriptor({
+          reportId,
+          scope,
+          classes,
+          entries: [],
+          assignedJudges: show.assignedJudges,
+          printedSheets: { trials, classes, entries: rows },
+        });
+        const shared = buildSheetDescriptorFromPrinted({
+          reportId,
+          scope,
+          trials: direct.trials,
+          classes: direct.classes,
+          entries: direct.entries,
+        });
+        expect(reports).not.toBeNull();
+        expect(reports?.fingerprint).toBe(shared?.fingerprint);
+        expect(cardFingerprint(card, classId, reportId, show.assignedJudges)).toBe(
+          reports?.fingerprint
+        );
+      }
+    }
+  );
+
+  it.each(SHEETS)(
+    '%s: a print recorded from Reports reads current on the card once the late inputs settle',
+    async reportId => {
+      const card = await readCard();
+      const rows = await reportsRows();
+      const classId = 'class-ukc';
+      const printed = buildReportPaperworkDescriptor({
+        reportId,
+        scope: scopeOf(classId),
+        classes,
+        entries: [],
+        assignedJudges: show.assignedJudges,
+        printedSheets: { trials, classes, entries: rows },
+      })!;
+      const records = [
+        {
+          id: 'r1',
+          showId: 'show-1',
+          trialId: 'trial-ukc',
+          classId,
+          scopeKind: 'class',
+          reportId,
+          coverage: printed.coverage,
+          fingerprint: printed.fingerprint,
+          printedBy: 'u1',
+          printedByName: 'Jannie',
+          printedAt: '2026-12-06T08:00:00Z',
+        },
+      ] as unknown as ReplicatedPaperworkPrint[];
+      const stateOn = (
+        entriesRead: ReportDbEntry[],
+        assignedJudges: Show['assignedJudges'] | undefined
+      ) =>
+        buildClassPaperworkMap({
+          showId: 'show-1',
+          classes: card.classes,
+          trials: card.trials.map(trial => ({ id: trial.id, trialDate: trial.date ?? '' })),
+          entries: [],
+          printedSheets: { trials: card.trials, classes: card.classes, entries: entriesRead },
+          printedSheetsSettled: true,
+          records,
+          returnTo: '/x',
+          assignedJudges,
+        })
+          .get(classId)
+          ?.find(item => item.reportId === reportId)?.state;
+
+      // Cold: no show details (the assigned judge) and no registrations hydrated yet. A verdict of
+      // changed is what the paper would show, and it is not permanent.
+      const bare = card.entries.map(entry => ({
+        ...entry,
+        dog: entry.dog ? { ...entry.dog, registrations: [] } : entry.dog,
+      }));
+      expect(stateOn(bare, undefined)).toBe('stale');
+      // Settled: the judge and the registrations have landed.
+      expect(stateOn(card.entries, show.assignedJudges)).toBe('current');
+    }
+  );
+});
+
+describe('printed-sheet rows: a replica notice marks the rows as about to change', () => {
+  it('reports noticePending from the notice until its re-read is delivered', async () => {
+    mocks.rows = fixtures;
+    mocks.trials = trials;
+    mocks.classes = classes;
+    mocks.armbands = [];
+    mocks.registrations = new Map();
+    const listeners: Array<() => void> = [];
+    vi.spyOn(replicatedEntriesTable, 'subscribe').mockImplementation(listener => {
+      listeners.push(listener as () => void);
+      return () => undefined;
+    });
+    function PendingProbe() {
+      const { data, noticePending } = usePrintedSheetEntries('show-1');
+      return <div>{`${data ? 'loaded' : 'loading'} ${noticePending ? 'pending' : 'quiet'}`}</div>;
+    }
+    render(<PendingProbe />);
+    await waitFor(() => expect(screen.getByText('loaded quiet')).toBeInTheDocument());
+
+    act(() => listeners.forEach(listener => listener()));
+    expect(screen.getByText('loaded pending')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('loaded quiet')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
+  });
+
+  it('a dog registration change marks the rows as about to be re-read', async () => {
+    mocks.rows = fixtures;
+    mocks.trials = trials;
+    mocks.classes = classes;
+    mocks.armbands = [];
+    mocks.registrations = new Map();
+    const listeners: Array<() => void> = [];
+    vi.spyOn(replicatedDogRegistrationsTable, 'subscribe').mockImplementation(listener => {
+      listeners.push(listener as () => void);
+      return () => undefined;
+    });
+    function PendingProbe() {
+      const { data, noticePending } = usePrintedSheetEntries('show-1');
+      return <div>{`${data ? 'loaded' : 'loading'} ${noticePending ? 'pending' : 'quiet'}`}</div>;
+    }
+    render(<PendingProbe />);
+    await waitFor(() => expect(screen.getByText('loaded quiet')).toBeInTheDocument());
+    expect(listeners.length).toBeGreaterThan(0);
+
+    act(() => listeners.forEach(listener => listener()));
+    expect(screen.getByText('loaded pending')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('loaded quiet')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
   });
 });

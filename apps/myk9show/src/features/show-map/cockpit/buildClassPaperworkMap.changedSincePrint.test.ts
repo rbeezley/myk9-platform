@@ -4,6 +4,8 @@ import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
+import { derivePaperworkPrintState } from './paperworkPrintState';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 
 // MYK9-2074: after a print, a move-up (in and out), a late entry or a pull flips exactly the
@@ -56,6 +58,7 @@ function printRecords(
         scope,
         classes,
         entries,
+        printedSheets: printedSheetRowsOf(classes, entries),
       })!;
       return {
         id: `${reportId}-${classId}`,
@@ -85,6 +88,7 @@ function stateOf(
     classes: currentClasses,
     trials: [{ id: 'trial-1', trialDate: '2026-12-07' }],
     entries,
+    printedSheets: printedSheetRowsOf(currentClasses, entries),
     records,
     returnTo: '/x',
   });
@@ -128,6 +132,55 @@ describe('classes read changed only when their paperwork changed (MYK9-2074)', (
       'class-a',
       'class-b',
     ]);
+  });
+
+  it('reads a class stale when every dog in it was withdrawn after printing', () => {
+    const gone = [juni, hazel].map(item => ({ ...item, entry_status: 'withdrawn' }) as DbEntry);
+    const states = stateOf([...gone, moss, pip], records);
+    expect(states['class-a']).toEqual(['stale', 'stale']);
+    expect(changed(states)).toEqual(['class-a']);
+  });
+
+  it('does not record an empty class in a show-wide print, and editing it leaves the print current', () => {
+    const emptyB = [juni, hazel, pip];
+    const showDescriptor = (rows: readonly DbEntry[], rowClasses: readonly DbClass[]) =>
+      buildReportPaperworkDescriptor({
+        assignedJudges: [],
+        reportId: 'scoresheet',
+        scope: { kind: 'show', showId: 'show-1' },
+        classes: rowClasses,
+        entries: rows,
+        printedSheets: printedSheetRowsOf(rowClasses, rows),
+      })!;
+    const printed = showDescriptor(emptyB, classes);
+    expect(Object.keys(printed.coverage.subjectFingerprints)).not.toContain('class:class-b');
+    const record = {
+      id: 'show-print',
+      showId: 'show-1',
+      trialId: null,
+      classId: null,
+      scopeKind: 'show',
+      reportId: 'scoresheet',
+      coverage: printed.coverage,
+      fingerprint: printed.fingerprint,
+      printedBy: 'u1',
+      printedByName: 'Jannie',
+      printedAt: '2026-12-07T08:00:00Z',
+    } as unknown as ReplicatedPaperworkPrint;
+    const edited = classes.map(item =>
+      item.id === 'class-b' ? ({ ...item, time_limit_seconds: 300 } as unknown as DbClass) : item
+    );
+    const states = stateOf(emptyB, [record], edited);
+    expect(states['class-a']).toEqual(['unconfirmed', 'current']);
+    expect(states['class-b']).toEqual([undefined, undefined]);
+    expect(derivePaperworkPrintState([record as never], showDescriptor(emptyB, edited)).state).toBe(
+      'current'
+    );
+  });
+
+  it('offers no sheet for a class with no printable dogs and no print', () => {
+    const gone = [juni, hazel].map(item => ({ ...item, entry_status: 'withdrawn' }) as DbEntry);
+    expect(stateOf([...gone, moss, pip], [])['class-a']).toEqual([undefined, undefined]);
   });
 
   it('flips the class a dog was withdrawn from, and no other', () => {

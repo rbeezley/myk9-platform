@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildDescriptor } from '../../../../../../supabase/functions/_shared/paperwork/descriptor.ts';
+
 import {
   buildArmbandPaperworkDescriptor,
   buildEmergencyPacketPaperworkDescriptor,
-  buildCheckInPaperworkDescriptor,
   buildResultPaperworkDescriptor,
-  buildScoreSheetPaperworkDescriptor,
   derivePaperworkPrintState,
   type PaperworkDescriptor,
   type PaperworkPrintEvidence,
@@ -17,6 +17,36 @@ const classScope = {
   trialId: 'trial-1',
   classId: 'class-1',
 };
+
+interface SheetEntry {
+  entryId: string;
+  classId: string;
+  trialId?: string;
+  [fact: string]: unknown;
+}
+
+/** A sheet descriptor from generic subjects: the state logic under test does not care what they hash. */
+function sheetDescriptor(
+  reportId: string,
+  scope: PaperworkDescriptor['scope'],
+  entries: readonly SheetEntry[],
+  classes: readonly { classId: string; trialId: string; facts: Record<string, unknown> }[] = []
+): PaperworkDescriptor {
+  return buildDescriptor(reportId, scope, [
+    ...entries.map(entry => ({
+      key: `entry:${entry.entryId}`,
+      facts: entry,
+      classIds: [entry.classId],
+      trialIds: entry.trialId ? [entry.trialId] : [],
+    })),
+    ...classes.map(item => ({
+      key: `class:${item.classId}`,
+      facts: item.facts,
+      classIds: [item.classId],
+      trialIds: [item.trialId],
+    })),
+  ]);
+}
 
 function evidence(
   id: string,
@@ -37,7 +67,7 @@ function evidence(
 
 describe('paperwork coverage and fingerprints', () => {
   it('uses document-specific facts and stable subject coverage', () => {
-    const checkIn = buildCheckInPaperworkDescriptor(classScope, [
+    const checkIn = sheetDescriptor('check-in-sheet', classScope, [
       {
         entryId: 'entry-1',
         classId: 'class-1',
@@ -47,7 +77,8 @@ describe('paperwork coverage and fingerprints', () => {
         checkInStatus: 'checked-in',
       },
     ]);
-    const scoreSheet = buildScoreSheetPaperworkDescriptor(
+    const scoreSheet = sheetDescriptor(
+      'scoresheet',
       classScope,
       [
         {
@@ -101,7 +132,7 @@ describe('paperwork coverage and fingerprints', () => {
   });
 
   it('uses a broader batch record as current coverage for one Class', () => {
-    const classDescriptor = buildCheckInPaperworkDescriptor(classScope, [
+    const classDescriptor = sheetDescriptor('check-in-sheet', classScope, [
       {
         entryId: 'entry-1',
         classId: 'class-1',
@@ -112,7 +143,8 @@ describe('paperwork coverage and fingerprints', () => {
         checkInStatus: null,
       },
     ]);
-    const trialDescriptor = buildCheckInPaperworkDescriptor(
+    const trialDescriptor = sheetDescriptor(
+      'check-in-sheet',
       { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
       [
         {
@@ -144,7 +176,7 @@ describe('paperwork coverage and fingerprints', () => {
   });
 
   it('marks only the changed subject stale and ignores irrelevant changes', () => {
-    const printed = buildCheckInPaperworkDescriptor(classScope, [
+    const printed = sheetDescriptor('check-in-sheet', classScope, [
       {
         entryId: 'entry-1',
         classId: 'class-1',
@@ -162,7 +194,7 @@ describe('paperwork coverage and fingerprints', () => {
         checkInStatus: null,
       },
     ]);
-    const current = buildCheckInPaperworkDescriptor(classScope, [
+    const current = sheetDescriptor('check-in-sheet', classScope, [
       {
         entryId: 'entry-1',
         classId: 'class-1',
@@ -199,10 +231,10 @@ describe('paperwork coverage and fingerprints', () => {
       checkInStatus: null,
     };
     const second = { ...first, entryId: 'entry-2', dogId: 'dog-2', armband: 102, runOrder: 2 };
-    const printed = buildCheckInPaperworkDescriptor(classScope, [first]);
-    const afterAdd = buildCheckInPaperworkDescriptor(classScope, [first, second]);
-    const printedTwo = buildCheckInPaperworkDescriptor(classScope, [first, second]);
-    const afterRemove = buildCheckInPaperworkDescriptor(classScope, [first]);
+    const printed = sheetDescriptor('check-in-sheet', classScope, [first]);
+    const afterAdd = sheetDescriptor('check-in-sheet', classScope, [first, second]);
+    const printedTwo = sheetDescriptor('check-in-sheet', classScope, [first, second]);
+    const afterRemove = sheetDescriptor('check-in-sheet', classScope, [first]);
 
     expect(
       derivePaperworkPrintState(
@@ -228,7 +260,8 @@ describe('paperwork coverage and fingerprints', () => {
       runOrder: 1,
       checkInStatus: null,
     };
-    const printed = buildScoreSheetPaperworkDescriptor(
+    const printed = sheetDescriptor(
+      'scoresheet',
       classScope,
       [entry],
       [
@@ -239,7 +272,8 @@ describe('paperwork coverage and fingerprints', () => {
         },
       ]
     );
-    const current = buildScoreSheetPaperworkDescriptor(
+    const current = sheetDescriptor(
+      'scoresheet',
       classScope,
       [entry],
       [
@@ -260,7 +294,7 @@ describe('paperwork coverage and fingerprints', () => {
   });
 
   it('prefers a later Class-only reprint and falls back after it is voided', () => {
-    const descriptor = buildCheckInPaperworkDescriptor(classScope, [
+    const descriptor = sheetDescriptor('check-in-sheet', classScope, [
       {
         entryId: 'entry-1',
         classId: 'class-1',
@@ -282,7 +316,7 @@ describe('paperwork coverage and fingerprints', () => {
   });
 
   it('uses truthful unconfirmed wording state when no covering record exists', () => {
-    const descriptor = buildCheckInPaperworkDescriptor(classScope, []);
+    const descriptor = sheetDescriptor('check-in-sheet', classScope, []);
     expect(derivePaperworkPrintState([], descriptor)).toEqual({
       state: 'unconfirmed',
       record: null,

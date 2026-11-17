@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@supabase/supabase-js';
 
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { buildReportPaperworkDescriptor } from '../buildReportPaperworkDescriptor';
 import { CLASSES, ENTRIES } from './trialPacketFixtures';
 
@@ -22,6 +23,7 @@ function run(classIds = CLASS_IDS) {
     classIds,
     classes: CLASSES,
     entries: ENTRIES,
+    printedSheets: printedSheetRowsOf(CLASSES, ENTRIES),
     user: USER,
   });
 }
@@ -46,6 +48,7 @@ describe('recordTrialPacketPrint', () => {
           scope,
           classes: CLASSES,
           entries: ENTRIES,
+          printedSheets: printedSheetRowsOf(CLASSES, ENTRIES),
         });
         expect(mocks.recordPaperworkPrinted).toHaveBeenCalledWith(
           expect.objectContaining({ descriptor: expected, user: USER })

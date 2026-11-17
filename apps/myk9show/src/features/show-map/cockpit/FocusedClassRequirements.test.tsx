@@ -39,7 +39,9 @@ const rule = {
 };
 
 describe('FocusedClassRequirements (MYK9-2118)', () => {
-  beforeEach(() => replica.rows.clear());
+  beforeEach(() => {
+    replica.rows.clear();
+  });
 
   it('shows a one-area class its single time limit and its requirements', async () => {
     replica.rows.set('c1', {

@@ -244,6 +244,31 @@ describe('searchAllDogs: a multi-word search matches word by word (MYK9-2026)', 
     expect(hitLimit).toBe(false);
   });
 
+  it('applies a fourth word and an initial before the limit ("german shepherd dog rex", "rex g")', async () => {
+    // Codex review of #4099, round 2: only three words reached the server, so
+    // sixty German Shepherds filled the page and Rex, named by the fourth word,
+    // never came back.
+    const shepherds = Array.from({ length: 60 }, (_, i) => ({
+      id: `d-gsd-${i}`,
+      name: `Alpha ${i}`,
+      call_name: `Buddy${i}`,
+      owner_id: 'p-ann',
+    }));
+    const rex = { id: 'd-rex', name: 'Zzz Thunder', call_name: 'Rex', owner_id: 'p-mary' };
+    useFakeDatabase({
+      dogs: [...shepherds, rex],
+      registrations: [...shepherds, rex].map(dog => ({
+        dog_id: dog.id,
+        registration_number: `SN-${dog.id}`,
+        registered_name: dog.name,
+        breed: 'German Shepherd Dog',
+      })),
+    });
+    expect((await foundIds('german shepherd dog rex', 10)).ids).toEqual(['d-rex']);
+    expect((await foundIds('buddy7 g z', 10)).ids).toEqual([]);
+    expect((await foundIds('rex g', 10)).ids).toEqual(['d-rex']);
+  });
+
   it('reports the result as truncated only when the page of dogs is full', async () => {
     const { ids, hitLimit } = await foundIds('lab', 1);
     expect(ids).toHaveLength(1);

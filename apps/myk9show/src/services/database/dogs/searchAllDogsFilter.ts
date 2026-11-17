@@ -9,14 +9,13 @@
 const OWNER_NAME_MAX_SPLITS = 3;
 
 /**
- * MYK9-2026: most words matched one by one on the server. Later words are not
- * lost: the picker applies every word to the rows that come back
- * (`matchesDogSearch`), so the server only has to return a superset.
+ * MYK9-2026: most words matched one by one on the server. Every word is sent,
+ * one-letter initials included, so the server never fills its page with dogs
+ * that only match the first few words ("German Shepherd Dog Rex"). Each word
+ * adds two embeds to the one request, so a cap stays as a guard against a
+ * pasted paragraph; no search a person types comes near it.
  */
-export const SEARCH_MAX_WORDS = 3;
-
-/** Shorter words are left to the picker's own filter; one letter matches nearly every row. */
-const SEARCH_MIN_WORD_LENGTH = 2;
+export const SEARCH_MAX_WORDS = 8;
 
 /**
  * PostgREST `.or(...)` body matching a person by first or last name, and a
@@ -42,9 +41,8 @@ export function registrationFilter(term: string): string {
 }
 
 /**
- * The words of a multi-word search that the server matches one by one: at
- * least two characters, case-insensitively distinct, at most
- * `SEARCH_MAX_WORDS`. Empty for a one-word search, which the whole-term match
+ * The words of a multi-word search that the server matches one by one:
+ * case-insensitively distinct, at most `SEARCH_MAX_WORDS`. Empty for a one-word search, which the whole-term match
  * already covers.
  */
 export function searchWords(term: string): string[] {
@@ -52,7 +50,7 @@ export function searchWords(term: string): string[] {
   if (words.length < 2) return [];
   const distinct = new Map<string, string>();
   for (const word of words) {
-    if (word.length >= SEARCH_MIN_WORD_LENGTH && !distinct.has(word.toLowerCase())) {
+    if (!distinct.has(word.toLowerCase())) {
       distinct.set(word.toLowerCase(), word);
     }
   }

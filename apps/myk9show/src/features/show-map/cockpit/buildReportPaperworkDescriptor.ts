@@ -6,6 +6,7 @@ import {
   buildSheetDescriptorFromRows,
   paperworkEntryInScope,
 } from '../../../../../../supabase/functions/_shared/paperwork/rowDescriptors.ts';
+import { withPaperworkJudge } from './paperworkClassJudge';
 import { buildResultPaperworkDescriptor, type PaperworkDescriptor } from './paperworkPrintState';
 
 /**
@@ -26,14 +27,15 @@ export function buildReportPaperworkDescriptor(input: {
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
 }): PaperworkDescriptor | null {
+  const classes = withPaperworkJudge(input.classes);
   if (input.reportId === 'check-in-sheet' || input.reportId === 'scoresheet') {
-    return buildSheetDescriptorFromRows(input);
+    return buildSheetDescriptorFromRows({ ...input, classes });
   }
   const selected = input.entries.filter(entry =>
-    paperworkEntryInScope(entry, input.scope, input.classes)
+    paperworkEntryInScope(entry, input.scope, classes)
   );
   if (selected.length === 0) return null;
-  const classById = new Map(input.classes.map(classItem => [classItem.id, classItem] as const));
+  const classById = new Map(classes.map(classItem => [classItem.id, classItem] as const));
   const classFacts = buildPaperworkClassFacts(input.reportId, selected, classById);
 
   if (input.reportId === 'results-sheet' || input.reportId === 'result-labels') {

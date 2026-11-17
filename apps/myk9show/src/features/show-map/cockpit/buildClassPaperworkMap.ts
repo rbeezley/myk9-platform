@@ -11,6 +11,7 @@ import { buildPrintedLabelIndex, labelPrintStatus } from '@/lib/labels/armbandPr
 
 import { getCockpitReportHref } from './cockpitRoutes';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
+import { paperworkJudgeUnknown } from './paperworkClassJudge';
 import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
@@ -56,6 +57,9 @@ export function buildClassPaperworkMap(input: {
     const trialId = classItem.trial_id;
     if (!trialId) continue;
     const scope = { kind: 'class' as const, showId: input.showId, trialId, classId: classItem.id };
+    // The judge is a fingerprint input and is not loaded yet: no verdict and no confirmation for
+    // the sheets that hash it, so a print cannot read "changed" and back as the judge loads.
+    const judgeUnknown = paperworkJudgeUnknown(classItem);
     const paperwork = REPORTS.flatMap((report): SecretaryCockpitPaperwork[] => {
       const classEntries = input.entries.filter(entry => entry.class_id === classItem.id);
       const descriptor =
@@ -132,9 +136,9 @@ export function buildClassPaperworkMap(input: {
         {
           reportId: report.id,
           label: report.label,
-          state: input.recordsUnavailable ? 'unknown' : derived.state,
+          state: input.recordsUnavailable || judgeUnknown ? 'unknown' : derived.state,
           printHref: getCockpitReportHref({ reportId: report.id, scope, returnTo: input.returnTo }),
-          ...(input.withholdConfirmation
+          ...(input.withholdConfirmation || judgeUnknown
             ? {}
             : {
                 confirmation: {

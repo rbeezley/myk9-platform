@@ -21,7 +21,9 @@ const CLASS = {
   level: 'Novice',
   section: 'A',
   status: 'completed',
-  judge_name: 'Pat Donovan',
+  judge_assignments: [
+    { person_id: 'p1', status: 'confirmed', people: { first_name: 'Pat', last_name: 'Donovan' } },
+  ],
   time_limit_seconds: 180,
   num_areas: 1,
   num_hides: 1,

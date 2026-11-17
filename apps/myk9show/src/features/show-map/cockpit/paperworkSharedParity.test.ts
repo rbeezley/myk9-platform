@@ -12,13 +12,23 @@ const classes = [
     level: 'Novice',
     section: 'A',
     status: 'in_progress',
-    judge_name: 'Judge One',
+    judge_assignments: [
+      {
+        person_id: 'p1',
+        status: 'confirmed',
+        people: { first_name: 'Judge', last_name: 'One' },
+      },
+    ],
     time_limit_seconds: '180.5',
     num_areas: 1,
     num_hides: 2,
   },
   { id: 'class-2', trial_id: 'trial-2', element: 'Interior', level: 'Excellent', section: null },
 ] as unknown as DbClass[];
+const sharedClasses = classes.map(classItem => ({
+  ...classItem,
+  judgeName: classItem.id === 'class-1' ? 'Judge One' : null,
+}));
 const entries = [
   {
     id: 'e1',
@@ -56,14 +66,16 @@ const scopes: ReportScope[] = [
 ];
 
 // Fingerprints recorded from the pre-extraction app code (MYK9-2086), so a drift in either
-// path breaks here before it breaks a stored print.
+// path breaks here before it breaks a stored print. MYK9-2116 re-pinned every one that hashes a
+// class subject: the check-in sheet gained class subjects (judge), and an absent judge or hides
+// now hashes as null. scoresheet/class is unchanged: its class carries a judge and hides.
 const PINNED: Record<string, string> = {
-  'check-in-sheet/class': 'fnv1a64:cf14e5c532c76de5',
-  'check-in-sheet/trial': 'fnv1a64:a9920135f87b0ccc',
-  'check-in-sheet/show': 'fnv1a64:9ef81d025c43d714',
+  'check-in-sheet/class': 'fnv1a64:e1e4eba9a14f3576',
+  'check-in-sheet/trial': 'fnv1a64:86da9d331b8710ed',
+  'check-in-sheet/show': 'fnv1a64:cad10d066fff8234',
   'scoresheet/class': 'fnv1a64:aa00e904808e0eb8',
-  'scoresheet/trial': 'fnv1a64:f0344e162caa9632',
-  'scoresheet/show': 'fnv1a64:acdc2be2f6cc62f5',
+  'scoresheet/trial': 'fnv1a64:c5c0806c053b9460',
+  'scoresheet/show': 'fnv1a64:19cc19aec031cb5b',
 };
 
 describe('app and shared paperwork descriptors agree', () => {
@@ -71,7 +83,12 @@ describe('app and shared paperwork descriptors agree', () => {
     for (const scope of scopes) {
       it(`${reportId} / ${scope.kind}`, () => {
         const app = buildReportPaperworkDescriptor({ reportId, scope, classes, entries });
-        const shared = buildSheetDescriptorFromRows({ reportId, scope, classes, entries });
+        const shared = buildSheetDescriptorFromRows({
+          reportId,
+          scope,
+          classes: sharedClasses,
+          entries,
+        });
         expect(app).toEqual(shared);
         expect(app?.fingerprint).toBe(PINNED[`${reportId}/${scope.kind}`]);
       });

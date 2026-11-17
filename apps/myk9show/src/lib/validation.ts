@@ -235,7 +235,8 @@ export const showSchemas = {
         return true;
       },
       {
-        message: 'Entry close date must be before show start date',
+        // The show's start is its first trial day (MYK9-2131): name what the secretary can see.
+        message: 'Entry close date must be on or before the first trial day',
         path: ['entryCloseDate'],
       }
     )

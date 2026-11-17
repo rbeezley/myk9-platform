@@ -65,6 +65,10 @@ BEGIN
     RETURN;
   END IF;
 
+  -- Lock the show first, so two transactions changing its trials at once compute in turn:
+  -- the second reads the first's committed trials and cannot write stale dates over them.
+  PERFORM 1 FROM public.shows s WHERE s.id = p_show_id FOR UPDATE;
+
   SELECT d.start_date, d.end_date INTO v_start, v_end
     FROM private.derived_show_dates(p_show_id) d;
 

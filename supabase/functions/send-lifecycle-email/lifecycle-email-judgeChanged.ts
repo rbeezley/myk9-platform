@@ -226,12 +226,13 @@ export function judgeChangeRefundLine(
       return 'Contact the trial secretary with questions.';
     default: {
       // AKC Scent Work Regulations, Ch. 3 sec. 24 and 25: the deadline depends on whether the
-      // change came before or after the judging schedule went out, which we cannot tell.
+      // change came before or after the judging schedule went out, which we cannot tell. Sec. 24
+      // applies only to changes after the premium list went out, so the line names that boundary.
       const classes =
         changes.length === 1
-          ? `the affected class: ${classLabel(changes[0])}`
-          : `each affected class: ${changes.map(classLabel).join(', ')}`;
-      return `Under AKC rules, you may ask the trial secretary in writing for a full refund of your entry fee for ${classes}. If the change was made before the judging schedule was sent out, your request must reach the trial secretary at least 30 minutes before the event starts on your first day entered. If it was made after, your request must reach the trial secretary before judging of that class starts.`;
+          ? `the affected class (${classLabel(changes[0])})`
+          : `each affected class (${changes.map(classLabel).join('; ')})`;
+      return `Under AKC rules, when a judge changes after the premium list went out, you may withdraw from ${classes} and ask for a full refund of its entry fee. Tell the trial secretary in writing. If the change was made before the judging schedule was sent out, your request must reach the trial secretary at least 30 minutes before the event starts on your first day entered. If it was made after, your request must reach the trial secretary before judging of that class starts.`;
     }
   }
 }

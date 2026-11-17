@@ -164,6 +164,23 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
     });
   });
 
+  it('sends the committee row to the show Personnel tab when the show has its own committee', () => {
+    const [item] = missingPremiumFacts({ ...completeFacts(), committee: [] }, 'AKC', {
+      ...targets,
+      committeeSource: 'show',
+    });
+    expect(item?.id).toBe('committee');
+    expect(item?.href).toBe('/shows/show-1?edit=true&editTab=personnel');
+  });
+
+  it('sends the committee row to the club Members tab when the show uses the club committee', () => {
+    const [item] = missingPremiumFacts({ ...completeFacts(), committee: [] }, 'AKC', {
+      ...targets,
+      committeeSource: 'club',
+    });
+    expect(item?.href).toBe('/clubs/club-1?tab=members');
+  });
+
   it('says how short the committee is, with the minimum from the catalog', () => {
     const committee = PREMIUM_FACT_CATALOG.find(f => f.id === 'committee')!;
     expect(committee.minimumBy?.AKC).toBe(AKC_EVENT_COMMITTEE_MINIMUM);

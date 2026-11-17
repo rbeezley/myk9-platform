@@ -213,6 +213,20 @@ describe('reverseMoveUpEntryViaRpc (MYK9-640)', () => {
     ).toEqual([['source-1', 'move-up-requested']]);
   });
 
+  it('shows the waiting-request refusal in the server words (MYK9-2122)', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: null,
+      error: {
+        code: '22023',
+        message: 'This entry has a class change request waiting. Accept or decline it first.',
+      },
+    } as never);
+
+    await expect(table.reverseMoveUpEntryViaRpc('dest-1')).rejects.toThrow(
+      'This entry has a class change request waiting. Accept or decline it first.'
+    );
+  });
+
   it('leaves the local store alone when the server refuses', async () => {
     await seed('dest-1', {
       id: 'dest-1',

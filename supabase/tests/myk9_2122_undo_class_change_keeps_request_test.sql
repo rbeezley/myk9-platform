@@ -17,7 +17,16 @@
 --      that entry still undoes to 'confirmed' (the leftovers are not a request);
 --   4. a move to a class other than the one asked for, made while the request was
 --      waiting, also undoes to waiting (the request was never answered);
---   5. the run-started guard (ring_entry_time set) still refuses the undo.
+--   5. the run-started guard (ring_entry_time set) still refuses the undo;
+--   6. an entry accepted in place over a waiting request (Accept entry, which
+--      leaves the request columns behind) is moved and undone: it stays
+--      'confirmed', because nothing was waiting when THAT move began;
+--   7. consecutive moves: undoing a move whose destination itself holds a waiting
+--      class change request is refused in words, so the request is never moved
+--      onto an entry without its class; once the request is taken back the undo
+--      goes through;
+--   8. entries.status_before_move is server-only: a direct client write cannot
+--      plant a value, and the undo clears it.
 
 begin;
 
@@ -56,13 +65,13 @@ from public.roles where name = 'secretary';
 insert into public.dogs (id, name, call_name, breed, owner_id)
 select ('00000000-0000-0000-0000-0000021223' || n)::uuid, 'MYK9-2122 Dog ' || n, 'Dog' || n, 'Beagle',
   '00000000-0000-0000-0000-000002122101'::uuid
-from generate_series(21, 25) n;
+from generate_series(21, 28) n;
 
 insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
 select ('00000000-0000-0000-0000-0000021223' || n)::uuid, 'AKC (American Kennel Club)', 'SR2122' || n, true
-from generate_series(21, 25) n;
+from generate_series(21, 28) n;
 
--- One accepted, paid entry per case (31..35), dog 21..25, all in class 11.
+-- One accepted, paid entry per case (31..38), dog 21..28, all in class 11.
 -- Written as service_role, as the 1265 fixture does, so the payment-field
 -- protection trigger reads it as a server write.
 set local role service_role;
@@ -73,7 +82,7 @@ select ('00000000-0000-0000-0000-0000021220' || (n + 10))::uuid,
   '00000000-0000-0000-0000-000002122011', '00000000-0000-0000-0000-000002122002',
   '00000000-0000-0000-0000-000002122004', '00000000-0000-0000-0000-000002122101',
   'confirmed', 'paid', 35, 'no-status', false
-from generate_series(21, 25) n;
+from generate_series(21, 28) n;
 reset role;
 
 create function pg_temp.act_as(auth_uid text) returns void language plpgsql as $$
@@ -275,6 +284,135 @@ begin
       v_source_status, v_dest_deleted;
   end if;
   raise notice 'PASS 5: the run-started guard still refuses the undo';
+end;
+$$;
+
+-- 6. Accepted in place over a waiting request, then moved and undone: confirmed.
+do $$
+declare
+  v_after public.entries%rowtype;
+begin
+  perform pg_temp.exhibitor_asks('00000000-0000-0000-0000-000002122036',
+    '00000000-0000-0000-0000-000002122012');
+  -- Accept entry on the waiting row: the status goes to confirmed and the request
+  -- flag and columns stay behind (the same shape an undo made before MYK9-2122
+  -- left).
+  update public.entries set entry_status = 'confirmed'
+   where id = '00000000-0000-0000-0000-000002122036';
+
+  perform pg_temp.secretary_moves('00000000-0000-0000-0000-000002122036',
+    '00000000-0000-0000-0000-000002122013', '00000000-0000-0000-0000-000002122056');
+  perform pg_temp.secretary_undoes('00000000-0000-0000-0000-000002122056');
+
+  select * into v_after from public.entries where id = '00000000-0000-0000-0000-000002122036';
+  if v_after.entry_status is distinct from 'confirmed' then
+    raise exception 'FAIL 6: an entry accepted in place came back as % after an ordinary move',
+      v_after.entry_status;
+  end if;
+  raise notice 'PASS 6: leftovers of a request accepted in place do not revive it';
+end;
+$$;
+
+-- 7. Consecutive moves: A -> B by the secretary, then the exhibitor asks for C on
+-- B, the secretary accepts B -> C and undoes it (B waits again), then tries to
+-- undo A -> B. That would carry B's waiting status onto A and delete the row that
+-- holds the class asked for, so it is refused until the request is answered.
+do $$
+declare
+  v_a public.entries%rowtype;
+  v_b public.entries%rowtype;
+  v_refused boolean := false;
+begin
+  perform pg_temp.secretary_moves('00000000-0000-0000-0000-000002122037',
+    '00000000-0000-0000-0000-000002122012', '00000000-0000-0000-0000-000002122057');
+  perform pg_temp.exhibitor_asks('00000000-0000-0000-0000-000002122057',
+    '00000000-0000-0000-0000-000002122013');
+  perform pg_temp.secretary_moves('00000000-0000-0000-0000-000002122057',
+    '00000000-0000-0000-0000-000002122013', '00000000-0000-0000-0000-000002122058');
+  perform pg_temp.secretary_undoes('00000000-0000-0000-0000-000002122058');
+
+  select * into v_b from public.entries where id = '00000000-0000-0000-0000-000002122057';
+  if v_b.entry_status is distinct from 'move-up-requested' then
+    raise exception 'FAIL 7 setup: B is % after the first undo', v_b.entry_status;
+  end if;
+
+  begin
+    perform pg_temp.secretary_undoes('00000000-0000-0000-0000-000002122057');
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'This entry has a class change request waiting. Accept or decline it first.' then
+      raise;
+    end if;
+    v_refused := true;
+  end;
+  reset role;
+
+  if not v_refused then
+    select * into v_a from public.entries where id = '00000000-0000-0000-0000-000002122037';
+    raise exception 'FAIL 7: undo under a waiting request went through (A is %, target %)',
+      v_a.entry_status, v_a.class_change_target_class_id;
+  end if;
+  select * into v_a from public.entries where id = '00000000-0000-0000-0000-000002122037';
+  select * into v_b from public.entries where id = '00000000-0000-0000-0000-000002122057';
+  if v_a.entry_status <> 'moved' or v_b.deleted_at is not null
+     or v_b.entry_status <> 'move-up-requested'
+     or v_b.class_change_target_class_id is distinct from '00000000-0000-0000-0000-000002122013' then
+    raise exception 'FAIL 7: the refused undo changed the pair or the request';
+  end if;
+
+  -- Once the exhibitor takes the request back, the undo goes through.
+  perform pg_temp.act_as('00000000-0000-0000-0000-000002122201');
+  perform public.cancel_own_entry_class_change('00000000-0000-0000-0000-000002122057');
+  reset role;
+  perform pg_temp.secretary_undoes('00000000-0000-0000-0000-000002122057');
+  select * into v_a from public.entries where id = '00000000-0000-0000-0000-000002122037';
+  if v_a.entry_status is distinct from 'confirmed' then
+    raise exception 'FAIL 7: undo after the take-back restored %', v_a.entry_status;
+  end if;
+  raise notice 'PASS 7: undo is refused while the destination holds a waiting request';
+end;
+$$;
+
+-- 8. status_before_move is written only by the server.
+do $$
+declare
+  v_value text;
+  v_rows integer;
+begin
+  perform pg_temp.secretary_moves('00000000-0000-0000-0000-000002122038',
+    '00000000-0000-0000-0000-000002122012', '00000000-0000-0000-0000-000002122059');
+  select status_before_move into v_value from public.entries
+   where id = '00000000-0000-0000-0000-000002122038';
+  if v_value is distinct from 'confirmed' then
+    raise exception 'FAIL 8: the move recorded % as the status before it', v_value;
+  end if;
+
+  -- The secretary may update entries directly; the planted value is discarded.
+  perform pg_temp.act_as('00000000-0000-0000-0000-000002122205');
+  update public.entries set status_before_move = 'move-up-requested'
+   where id = '00000000-0000-0000-0000-000002122038';
+  get diagnostics v_rows = row_count;
+  reset role;
+  if v_rows <> 1 then
+    raise exception 'FAIL 8 setup: the direct write reached % rows, not 1', v_rows;
+  end if;
+  select status_before_move into v_value from public.entries
+   where id = '00000000-0000-0000-0000-000002122038';
+  if v_value is distinct from 'confirmed' then
+    raise exception 'FAIL 8: a direct write planted % in status_before_move', v_value;
+  end if;
+
+  perform pg_temp.secretary_undoes('00000000-0000-0000-0000-000002122059');
+  select status_before_move into v_value from public.entries
+   where id = '00000000-0000-0000-0000-000002122038';
+  if v_value is not null then
+    raise exception 'FAIL 8: undo left status_before_move as %', v_value;
+  end if;
+
+  if has_column_privilege('anon', 'public.entries'::regclass, 'status_before_move', 'SELECT')
+     or has_column_privilege('authenticated', 'public.entries'::regclass, 'status_before_move', 'SELECT') then
+    raise exception 'FAIL 8: a client role can read status_before_move';
+  end if;
+  raise notice 'PASS 8: status_before_move is server-only state';
 end;
 $$;
 

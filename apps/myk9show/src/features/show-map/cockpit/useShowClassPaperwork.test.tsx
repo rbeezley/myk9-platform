@@ -158,12 +158,21 @@ describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
     expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
   });
 
-  it('keeps the verdict but offers no confirmation while the registrations read is incomplete', () => {
+  it('offers confirmation from the device rows even when the registrations read is incomplete (offline)', () => {
+    mocks.show = { id: 'show-1', assignedJudges };
     mocks.printed = { settled: true, hasData: true, registrationsComplete: false };
-    expect(rowOf('scoresheet')).toMatchObject({ state: expect.any(String) });
-    expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
+    expect(rowOf('scoresheet')?.confirmation?.fingerprint).toBeDefined();
+    expect(rowOf('check-in-sheet')?.confirmation?.fingerprint).toBeDefined();
+  });
+
+  it('keeps the verdict but offers no confirmation until the show details (judges) load', () => {
+    mocks.show = null;
+    expect(rowOf('check-in-sheet')?.state).toBeDefined();
     expect(rowOf('check-in-sheet')?.confirmation).toBeUndefined();
+    expect(rowOf('scoresheet')?.confirmation).toBeUndefined();
     expect(rowOf('results-sheet')?.confirmation).toBeDefined();
+    mocks.show = { id: 'show-1', assignedJudges };
+    expect(rowOf('check-in-sheet')?.confirmation).toBeDefined();
   });
 
   it('never withholds the results sheet for the printed rows', () => {
@@ -172,6 +181,7 @@ describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
   });
 
   it('confirms against the printed rows once they settle', () => {
+    mocks.show = { id: 'show-1', assignedJudges };
     expect(rowOf('check-in-sheet')?.confirmation?.fingerprint).toBeDefined();
   });
 });

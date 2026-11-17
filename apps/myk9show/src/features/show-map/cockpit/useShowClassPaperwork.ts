@@ -69,8 +69,9 @@ export function useShowClassPaperwork(input: {
     printedData !== undefined &&
     !printedSheetEntries.isError &&
     !printedSheetEntries.isFetching &&
-    // Registration numbers print on the scoresheet: an incomplete read means they are unknown.
-    printedData.registrationsReadComplete &&
+    // A judge known only through the show's assignments prints "Judge unassigned" until the show
+    // details load; stamping that would record a sheet nobody prints.
+    assignedJudges !== undefined &&
     !printedSheetEntries.noticePending;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 

@@ -16,7 +16,9 @@ vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
   usePlatformFeeRatesQuery: () => ({ rates: fee.rates, state: fee.rates ? 'ready' : 'loading' }),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: auth.user }) }));
-vi.mock('@/features/show-today/ShowTodayBanner', () => ({ ShowTodayBanner: () => null }));
+vi.mock('@/features/show-today/ShowTodayBanner', () => ({
+  ShowTodayBanner: () => <div data-testid="show-today-banner" />,
+}));
 vi.mock('@/components/landing/lifecycle/ClubOnboarding', () => ({
   ClubOnboarding: () => <section id="get-started" aria-label="Add your club form" />,
 }));
@@ -176,6 +178,17 @@ describe('Home', () => {
     window.history.replaceState({}, '', '/#get-started');
     render(<Home />);
     expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  // The banner lists a signed-in account's entries for today, so a guest's page never loads it.
+  it('loads the show-today banner for a signed-in visitor only', async () => {
+    const guest = render(<Home />);
+    expect(screen.queryByTestId('show-today-banner')).toBeNull();
+    guest.unmount();
+
+    auth.user = { id: 'signed-in' };
+    render(<Home />);
+    expect(await screen.findByTestId('show-today-banner')).toBeInTheDocument();
   });
 
   it('ignores retired anchors without error', () => {

@@ -1,0 +1,99 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { RouterProvider } from 'react-router-dom';
+import { ErrorState } from '@/components/common/ErrorState';
+import { PageLoadingFallback } from '@/components/common/PageLoadingFallback';
+import { importWithRetry } from '@/utils/lazyWithRetry';
+import { recoverFromChunkLoadError } from '@/utils/chunkLoadRecovery';
+import { GuestLanding, type AppRouter } from './GuestLanding';
+
+const currentUrl = () => window.location.pathname + window.location.search + window.location.hash;
+
+/** How long a guest's page may sit idle before the full app is fetched in the background. */
+const GUEST_PRELOAD_IDLE_TIMEOUT_MS = 4_000;
+/** The same wait where the browser has no idle callback. */
+const GUEST_PRELOAD_FALLBACK_DELAY_MS = 1_000;
+
+/**
+ * The top of the route tree (MYK9-2140). The full app (`../router`, with the signed-in shell and
+ * every route) is its own file. A first-time visitor on `/` (`guestBoot`) gets the light landing
+ * page at once and the full app is fetched when the browser is idle; everyone else waits for the
+ * full app, as before. When a guest follows a link off the landing page, the full app takes over
+ * at that URL.
+ */
+export function RootRouter({
+  guestBoot,
+  onRouter,
+}: {
+  guestBoot: boolean;
+  onRouter: (router: AppRouter) => void;
+}) {
+  const [guest, setGuest] = useState(guestBoot);
+  const [appRouter, setAppRouter] = useState<AppRouter | null>(null);
+  const [failed, setFailed] = useState(false);
+  const loading = useRef<Promise<AppRouter | null> | null>(null);
+
+  const loadAppRouter = useCallback((): Promise<AppRouter | null> => {
+    loading.current ??= importWithRetry(() => import('../router'))
+      .then(module => module.router)
+      .catch((error: unknown) => {
+        loading.current = null;
+        // A reload is earned only when it can fix a stale build; otherwise say so and offer one.
+        if (!recoverFromChunkLoadError(error)) setFailed(true);
+        return null;
+      });
+    return loading.current;
+  }, []);
+
+  // Not a guest: the full app is the page, so fetch it now and show it.
+  // A guest: only fetch it, once the landing page has loaded and the browser is idle.
+  useEffect(() => {
+    let cancelled = false;
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+      void loadAppRouter().then(async router => {
+        if (cancelled || !router || guest) return;
+        // The full app's router was created while the URL was `/`. A guest who followed a link
+        // moved the URL through the landing page's own router, so bring the full app to it.
+        const { pathname, search, hash } = router.state.location;
+        if (pathname + search + hash !== currentUrl()) {
+          await router.navigate(currentUrl(), { replace: true });
+        }
+        if (cancelled) return;
+        setAppRouter(router);
+        onRouter(router);
+      });
+    };
+    const whenIdle = () => {
+      if ('requestIdleCallback' in window) {
+        idleId = window.requestIdleCallback(start, { timeout: GUEST_PRELOAD_IDLE_TIMEOUT_MS });
+      } else {
+        timeoutId = setTimeout(start, GUEST_PRELOAD_FALLBACK_DELAY_MS);
+      }
+    };
+    if (!guest) start();
+    else if (document.readyState === 'complete') whenIdle();
+    else window.addEventListener('load', whenIdle, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener('load', whenIdle);
+      if (idleId !== undefined) window.cancelIdleCallback(idleId);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    };
+  }, [guest, loadAppRouter, onRouter]);
+
+  const leaveGuestLanding = useCallback(() => setGuest(false), []);
+
+  if (guest) return <GuestLanding onLeave={leaveGuestLanding} onRouter={onRouter} />;
+  if (appRouter) return <RouterProvider router={appRouter} />;
+  if (failed) {
+    return (
+      <ErrorState
+        message="myK9Show could not finish loading"
+        headingLevel={1}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+  return <PageLoadingFallback />;
+}

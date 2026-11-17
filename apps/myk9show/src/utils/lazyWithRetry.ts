@@ -26,7 +26,8 @@ const resetters = new Set<() => void>();
 
 const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
-async function importWithRetry<M>(factory: () => Promise<M>): Promise<M> {
+/** Run an `import()` factory, retrying with a short backoff before letting the failure through. */
+export async function importWithRetry<M>(factory: () => Promise<M>): Promise<M> {
   for (const delay of RETRY_DELAYS_MS) {
     try {
       return await factory();

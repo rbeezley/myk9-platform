@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/authContextObject';
 export { getPrimaryRole } from '../context/authContextHelpers';
 
 export function useAuthContext() {

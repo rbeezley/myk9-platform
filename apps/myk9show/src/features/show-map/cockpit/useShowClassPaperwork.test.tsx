@@ -78,6 +78,9 @@ vi.mock('@/hooks/queries/useShowClassRows', () => ({
     refetch: vi.fn(),
   }),
 }));
+vi.mock('@/hooks/queries/usePrintedSheetEntries', () => ({
+  usePrintedSheetEntries: () => ({ data: undefined }),
+}));
 vi.mock('./useShowPaperworkPrints', () => ({
   useShowPaperworkPrints: () => ({
     data: records,

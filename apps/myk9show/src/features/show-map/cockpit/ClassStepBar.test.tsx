@@ -11,6 +11,10 @@ vi.mock('@/services/replication', () => ({
   replicatedPaperworkPrintsTable: { confirmPrinted: vi.fn(), voidPrint: vi.fn() },
 }));
 
+// The card hook also reads the printed-sheet rows (MYK9-2103); not under test here.
+vi.mock('@/hooks/queries/usePrintedSheetEntries', () => ({
+  usePrintedSheetEntries: () => ({ data: undefined }),
+}));
 vi.mock('./useShowPaperworkPrints', () => ({
   useShowPaperworkPrints: () => ({ data: [] }),
 }));

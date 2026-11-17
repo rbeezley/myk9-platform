@@ -48,7 +48,7 @@ export const LOCAL_STORES_BY_KIND: Record<DeleteObjectKind, readonly LocalStoreN
  * (`deleteQueryRoots.test.ts` derives them from the `queryKeys` factories), so
  * one entry-bearing family cannot go stale after Undo while another refreshes.
  */
-const ENTRY_QUERY_ROOTS = ['entries', 'shows', 'trials', 'classes'] as const;
+const ENTRY_QUERY_ROOTS = ['entries', 'shows', 'trials', 'classes', 'printed-sheet'] as const;
 
 export const QUERY_ROOTS_BY_KIND: Record<DeleteObjectKind, readonly string[]> = {
   club: ['clubs', 'shows'],

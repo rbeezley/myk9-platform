@@ -59,12 +59,38 @@ export interface PullRefundDecisionEntry {
   refund_decision: string | null;
   /** MYK9-632: set only on a WITHDRAWAL, and only to one of the two codes. */
   withdrawal_reason_code?: string | null;
+  /** MYK9-2099: 'absent' on a no-show marked absent as a result (`isNoShow`). */
+  result_status?: string | null;
 }
+
+/**
+ * MYK9-2099: THE one definition of a no-show. Either the lifecycle says so (`entry_status`
+ * 'absent') or the result does (`result_status` 'absent': Show Desk's Mark absent and the
+ * scoresheet's Absent write a result, not a status). The SQL in
+ * 20261117152900_myk9_2099_refund_decision_removed_absent.sql states the same two arms.
+ */
+export function isNoShow(entry: {
+  entryStatus?: string | null | undefined;
+  resultStatus?: string | null | undefined;
+}): boolean {
+  return (
+    entry.entryStatus?.toLowerCase() === 'absent' || entry.resultStatus?.toLowerCase() === 'absent'
+  );
+}
+
+/**
+ * The PostgREST filter for every row that can carry a refund decision: a pull, a withdrawal or a
+ * secretary removal (`entry_status`), or a no-show by either route (`isNoShow`).
+ */
+export const REFUND_DECISION_SCOPE_FILTER =
+  'entry_status.in.(scratched,withdrawn,absent),result_status.eq.absent';
 
 /** The entry fields the refund-to-decide question reads, in the database's own names. */
 export interface RefundToDecideInput {
   entry_status?: string | null | undefined;
   withdrawal_reason_code?: string | null | undefined;
+  /** 'absent' when the dog was marked absent as a result (a no-show, `isNoShow`). */
+  result_status?: string | null | undefined;
   payment_status?: string | null | undefined;
   payment_method?: string | null | undefined;
   /** DECIMAL dollars; a string when read straight from PostgREST. */
@@ -84,6 +110,7 @@ function paidOnlineUnrefundedRemoval(entry: RefundToDecideInput): EntryRemovalKi
   if ((Number.isFinite(refunded) && refunded > 0) || entry.refunded_at) return null;
   return classifyEntryRemoval({
     entryStatus: entry.entry_status,
+    resultStatus: entry.result_status,
     withdrawalReasonCode: entry.withdrawal_reason_code,
   });
 }
@@ -99,8 +126,9 @@ function paidOnlineUnrefundedRemoval(entry: RefundToDecideInput): EntryRemovalKi
  * - Already denied or already refunded: decided, never "to decide".
  * - Not paid online: there is no card payment for Issue refund or Deny refund to act on, so the
  *   row could never leave the count.
- * - The removal is read from `entry_status` alone. A check-in "pulled" flag on an entry that is
- *   still entered is not a pull until the secretary makes it one.
+ * - The removal is read from `entry_status`, and a no-show also from `result_status`
+ *   (`isNoShow`). A check-in "pulled" flag on an entry that is still entered is not a pull until
+ *   the secretary makes it one.
  * - Saved decisions not read: not counted here, but by `refundDecisionUnknownRemoval`, so no
  *   screen presents a denied refund as one to decide.
  *
@@ -139,7 +167,7 @@ export function isUnresolvedRemovalRefundDecision(entry: PullRefundDecisionEntry
  * - `withdrawn`: 'withdrawn' WITH a recognised reason code (In Season / Judge
  *   Change); the premium decides.
  * - `removed`: 'withdrawn' with NO reason code, a secretary removal.
- * - `absent`: a no-show.
+ * - `absent`: a no-show (`isNoShow`: the status, or a result marked absent).
  */
 export type EntryRemovalKind = 'pulled' | 'withdrawn' | 'removed' | 'absent';
 
@@ -147,6 +175,8 @@ export interface EntryRemovalInput {
   entryStatus?: string | null | undefined;
   /** Only the closeout read carries it; the Entries view passes none. */
   checkInStatus?: string | null | undefined;
+  /** 'absent' when the dog was marked absent as a result (Mark absent, the scoresheet). */
+  resultStatus?: string | null | undefined;
   withdrawalReasonCode?: string | null | undefined;
 }
 
@@ -159,7 +189,7 @@ export function classifyEntryRemoval(input: EntryRemovalInput): EntryRemovalKind
       ? 'withdrawn'
       : 'removed';
   }
-  if (entryStatus === 'absent') return 'absent';
+  if (isNoShow(input)) return 'absent';
   return input.checkInStatus?.toLowerCase() === 'pulled' ? 'pulled' : null;
 }
 

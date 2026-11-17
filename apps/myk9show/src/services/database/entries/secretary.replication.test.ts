@@ -154,12 +154,14 @@ function mockMetadataLookups(
     }
 
     if (table === 'entries') {
+      // The saved-decision read is paged (MYK9-2099): `range` answers each page.
       const query = {
         select: vi.fn(() => query),
         eq: vi.fn(() => query),
-        in: vi.fn(() => query),
-        then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-          Promise.resolve(resolve({ data: pullMetadata, error: null })),
+        or: vi.fn(() => query),
+        order: vi.fn(() => query),
+        lt: vi.fn(() => query),
+        range: vi.fn(() => Promise.resolve({ data: pullMetadata, error: null })),
       };
       return query;
     }
@@ -731,9 +733,11 @@ describe('secretary entry read replication', () => {
           eq: vi.fn(() => query),
           in: vi.fn(() => query),
           is: vi.fn(() => query),
-          order: vi.fn(() => Promise.resolve(respond())),
-          // The pull-metadata chain ends at .eq(), so it awaits the query itself.
-          then: (resolve: (value: unknown) => unknown) => Promise.resolve(respond()).then(resolve),
+          or: vi.fn(() => query),
+          lt: vi.fn(() => query),
+          // The pull-metadata read is paged (MYK9-2099): it orders, then asks `range`.
+          order: vi.fn(() => (relation === 'entries' ? query : Promise.resolve(respond()))),
+          range: vi.fn(() => Promise.resolve(respond())),
         };
         return query;
       });

@@ -17,6 +17,53 @@ import {
   postgrestGetSecretaryPullMetadataMap,
 } from './secretaryPostgrest';
 
+/**
+ * A fake `entries` read that pages like PostgREST: `max_rows` 1000 per response, keyset on id
+ * (descending, `lt` the last id). `fail` answers that page number with an error.
+ */
+function fakeMetadataRead(rows: Array<Record<string, unknown>>, fail?: { page: number }) {
+  const calls = { select: [] as string[], or: [] as string[], pages: 0 };
+  mocks.from.mockImplementation(() => {
+    let cursor: string | null = null;
+    const query = {
+      select: vi.fn((columns: string) => {
+        calls.select.push(columns);
+        return query;
+      }),
+      eq: vi.fn(() => query),
+      or: vi.fn((filter: string) => {
+        calls.or.push(filter);
+        return query;
+      }),
+      order: vi.fn(() => query),
+      lt: vi.fn((_column: string, value: string) => {
+        cursor = value;
+        return query;
+      }),
+      range: vi.fn((from: number, to: number) => {
+        calls.pages += 1;
+        if (fail && calls.pages === fail.page) {
+          return Promise.resolve({ data: null, error: { message: 'network' } });
+        }
+        const sorted = [...rows].sort((a, b) => String(b.id).localeCompare(String(a.id)));
+        const after = cursor === null ? sorted : sorted.filter(row => String(row.id) < cursor!);
+        return Promise.resolve({ data: after.slice(from, to + 1), error: null });
+      }),
+    };
+    return query;
+  });
+  return calls;
+}
+
+const metadataRow = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  withdrawn_at: null,
+  refund_decision: null,
+  refund_decided_at: null,
+  withdrawal_reason_code: null,
+  ...over,
+});
+
 describe('postgrestGetSecretaryPullMetadataMap', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,80 +73,61 @@ describe('postgrestGetSecretaryPullMetadataMap', () => {
   // 20260918041700). MYK9-654 retired the per-group retries: one read names
   // every column, and a schema error is a failure the caller handles, never a
   // quiet read that renders every pulled entry as "no saved decision".
-  it('asks for every pull column in one read, with no retry', async () => {
-    const schemaError = {
-      code: '42703',
-      message: 'column entries.withdrawal_reason_code does not exist',
-    };
-    mocks.from.mockImplementation(() => {
-      const query = {
-        select: vi.fn((columns: string) => {
-          mocks.select(columns);
-          return query;
-        }),
-        eq: vi.fn(() => query),
-        // MYK9-632: the row scope is BOTH terminal exhibitor states.
-        in: vi.fn(() => query),
-        then: (resolve: (value: { data: unknown[] | null; error: unknown | null }) => unknown) =>
-          Promise.resolve(resolve({ data: null, error: schemaError })),
-      };
-      return query;
-    });
+  it('asks for every pull column, and a failed read throws', async () => {
+    const calls = fakeMetadataRead([], { page: 1 });
 
     await expect(postgrestGetSecretaryPullMetadataMap('show-1')).rejects.toBeTruthy();
-    expect(mocks.select).toHaveBeenCalledTimes(1);
-    expect(mocks.select).toHaveBeenCalledWith(
-      'id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code'
-    );
+    expect(calls.select).toEqual([
+      'id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code',
+    ]);
   });
 
-  // MYK9-2099: a no-show can carry a refund decision, so it is read with the removals. Without
-  // 'absent' here a denied no-show reads as undecided and stays "to decide" for good.
-  it('reads the decision for pulls, withdrawals, removals and no-shows', async () => {
-    const inFilter = vi.fn();
-    mocks.from.mockImplementation(() => {
-      const query = {
-        select: vi.fn(() => query),
-        eq: vi.fn(() => query),
-        in: vi.fn((column: string, values: string[]) => {
-          inFilter(column, values);
-          return query;
-        }),
-        then: (resolve: (value: { data: unknown[] | null; error: unknown | null }) => unknown) =>
-          Promise.resolve(resolve({ data: [], error: null })),
-      };
-      return query;
-    });
+  // MYK9-2099: every row that can carry a refund decision, a no-show by either route
+  // (`isNoShow`: entry_status OR result_status 'absent', which is what Mark absent writes).
+  it('reads the decision for pulls, withdrawals, removals and no-shows by status or result', async () => {
+    const calls = fakeMetadataRead([]);
 
     await postgrestGetSecretaryPullMetadataMap('show-1');
 
-    expect(inFilter).toHaveBeenCalledWith('entry_status', ['scratched', 'withdrawn', 'absent']);
+    expect(calls.or).toEqual([
+      'entry_status.in.(scratched,withdrawn,absent),result_status.eq.absent',
+    ]);
+  });
+
+  // MYK9-2099: PostgREST caps one response at 1000 rows. A truncated read would show every
+  // denied refund past row 1000 as undecided.
+  it('reads every page past 1000 rows', async () => {
+    const rows = Array.from({ length: 2345 }, (_, index) =>
+      metadataRow(`entry-${String(index).padStart(5, '0')}`, { refund_decision: 'denied' })
+    );
+    const calls = fakeMetadataRead(rows);
+
+    const result = await postgrestGetSecretaryPullMetadataMap('show-1');
+
+    expect(calls.pages).toBe(3);
+    expect(result.size).toBe(2345);
+    expect(result.get('entry-00000')?.refund_decision).toBe('denied');
+    expect(result.get('entry-02344')?.refund_decision).toBe('denied');
+  });
+
+  it('throws when a later page fails, so decisions read as unknown, never as a partial map', async () => {
+    const rows = Array.from({ length: 1500 }, (_, index) =>
+      metadataRow(`entry-${String(index).padStart(5, '0')}`)
+    );
+    fakeMetadataRead(rows, { page: 2 });
+
+    await expect(postgrestGetSecretaryPullMetadataMap('show-1')).rejects.toBeTruthy();
   });
 
   it('maps the decision and reason code onto each row', async () => {
-    mocks.from.mockImplementation(() => {
-      const query = {
-        select: vi.fn(() => query),
-        eq: vi.fn(() => query),
-        in: vi.fn(() => query),
-        then: (resolve: (value: { data: unknown[] | null; error: unknown | null }) => unknown) =>
-          Promise.resolve(
-            resolve({
-              data: [
-                {
-                  id: 'entry-1',
-                  withdrawn_at: '2026-06-18T11:00:00Z',
-                  refund_decision: 'refund',
-                  refund_decided_at: '2026-06-19T11:00:00Z',
-                  withdrawal_reason_code: 'in_season',
-                },
-              ],
-              error: null,
-            })
-          ),
-      };
-      return query;
-    });
+    fakeMetadataRead([
+      metadataRow('entry-1', {
+        withdrawn_at: '2026-06-18T11:00:00Z',
+        refund_decision: 'refund',
+        refund_decided_at: '2026-06-19T11:00:00Z',
+        withdrawal_reason_code: 'in_season',
+      }),
+    ]);
 
     const result = await postgrestGetSecretaryPullMetadataMap('show-1');
 
@@ -176,11 +204,17 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
         eq: vi.fn(() => query),
         is: vi.fn(() => query),
         in: vi.fn(() => query),
+        or: vi.fn(() => query),
+        lt: vi.fn(() => query),
+        // The saved-decision read pages through `range`; that is where it fails.
+        range: vi.fn(() => Promise.resolve(answer)),
         order: vi.fn(() =>
-          Promise.resolve({
-            data: [{ id: 'entry-1', entry_status: 'absent', payment_status: 'paid' }],
-            error: null,
-          })
+          relation === 'entries'
+            ? query
+            : Promise.resolve({
+                data: [{ id: 'entry-1', entry_status: 'absent', payment_status: 'paid' }],
+                error: null,
+              })
         ),
         then: (resolve: (value: unknown) => unknown) => Promise.resolve(answer).then(resolve),
       };
@@ -381,6 +415,17 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
   it('copies the withdrawal reason code from the pull metadata onto the merged row (MYK9-1410)', async () => {
     mocks.from.mockImplementation((relation: string) => {
       let heldLookup = false;
+      // The saved-decision read is paged (MYK9-2099): `or` names its scope, `range` answers it.
+      let metadataLookup = false;
+      const metadataRows = [
+        {
+          id: 'entry-withdrawn',
+          withdrawn_at: '2026-06-18T11:00:00Z',
+          refund_decision: null,
+          refund_decided_at: null,
+          withdrawal_reason_code: 'in_season',
+        },
+      ];
       const query = {
         select: vi.fn(() => query),
         eq: vi.fn(() => query),
@@ -390,8 +435,13 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
           heldLookup = true;
           return query;
         }),
+        or: vi.fn(() => {
+          metadataLookup = true;
+          return query;
+        }),
+        lt: vi.fn(() => query),
         order: vi.fn(() =>
-          heldLookup
+          heldLookup || metadataLookup
             ? query
             : Promise.resolve({
                 data:
@@ -401,7 +451,9 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
                 error: null,
               })
         ),
-        range: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        range: vi.fn(() =>
+          Promise.resolve({ data: metadataLookup ? metadataRows : [], error: null })
+        ),
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({
             data:

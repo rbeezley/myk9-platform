@@ -27,6 +27,8 @@ export interface ShowDayReconciliationEntry {
   entry_fee?: number | string | null;
   entry_status?: string | null;
   check_in_status?: string | null;
+  /** 'absent' when the dog was marked absent as a result: a no-show (MYK9-2099). */
+  result_status?: string | null;
   /** 'in_season' | 'judge_change' on a withdrawal; null on a pull or a secretary removal. */
   withdrawal_reason_code?: string | null;
   payment_status?: string | null;
@@ -212,6 +214,7 @@ export function summarizeShowDayReconciliation(
 
     const removal = classifyEntryRemoval({
       entryStatus: entry.entry_status,
+      resultStatus: entry.result_status,
       checkInStatus: entry.check_in_status,
       withdrawalReasonCode: entry.withdrawal_reason_code,
     });

@@ -47,8 +47,10 @@ describe('pull refund decision persistence', () => {
   // with a NULL entry_status the NOT IN is NULL and the guard would fall through.
   it('admits pulls, withdrawals, removals and no-shows', () => {
     expect(behaviour).toContain(
-      "COALESCE(v_entry_status, '') NOT IN ('scratched', 'withdrawn', 'absent')"
+      "COALESCE(v_entry_status, '') IN ('scratched', 'withdrawn', 'absent')"
     );
+    // A no-show marked absent as a result (Mark absent) is a no-show too (`isNoShow`).
+    expect(behaviour).toContain("OR COALESCE(v_result_status, '') = 'absent'");
     expect(behaviour).toContain(
       "RAISE EXCEPTION 'entry % is not an unresolved paid-online pull, withdrawal, removal or no-show'"
     );
@@ -76,6 +78,9 @@ describe('pull refund decision persistence', () => {
   // shipped file is the one that says it.
   it('clears a saved denial when any decided removal is reinstated', () => {
     expect(behaviour).toContain("old.entry_status IN ('scratched', 'withdrawn', 'absent')");
+    // ...and a result that stops being 'absent' (Mark absent's Undo) clears it too.
+    expect(behaviour).toContain("old.result_status = 'absent'");
+    expect(behaviour).toContain('new.result_status IS DISTINCT FROM old.result_status');
     expect(behaviour).toContain('new.entry_status IS DISTINCT FROM old.entry_status');
     expect(behaviour).toContain('new.refund_decision := NULL');
     expect(behaviour).toContain('new.refund_decided_at := NULL');

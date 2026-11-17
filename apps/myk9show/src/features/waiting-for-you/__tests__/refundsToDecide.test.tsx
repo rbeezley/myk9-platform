@@ -142,6 +142,32 @@ describe('refunds to decide: the pill, the menu and the Pulls list agree (MYK9-2
   });
 });
 
+// Show Desk's Mark absent writes the RESULT ('absent') and leaves the entry status alone; its Undo
+// writes the result back to 'pending' (MYK9-2037). A no-show by either route is one (`isNoShow`).
+describe('a no-show marked absent as a result (MYK9-2099)', () => {
+  const markedAbsent = entry('MarkedAbsent', {
+    rawEntryStatus: 'confirmed',
+    resultStatus: 'absent',
+  });
+
+  it('is a refund to decide, on the Pulls list under its removal words', () => {
+    expect(findEntryRefundsToDecide([markedAbsent]).rows.map(row => row.removal)).toEqual([
+      'absent',
+    ]);
+    expect(isPullsListEntry(markedAbsent)).toBe(true);
+
+    render(<PullManagementTab processedEntries={[markedAbsent]} />);
+    expect(screen.getByText("Absent · refund at the club's discretion")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /deny refund/i })).toBeEnabled();
+  });
+
+  it('leaves the list and the count once Mark absent is undone', () => {
+    const undone = { ...markedAbsent, resultStatus: 'pending' };
+    expect(findEntryRefundsToDecide([undone]).count).toBe(0);
+    expect(isPullsListEntry(undone)).toBe(false);
+  });
+});
+
 describe('payoutDayText', () => {
   const now = new Date('2026-11-17T15:00:00Z');
   it('names the payout day within a week, its date beyond, and nothing once it has passed', () => {

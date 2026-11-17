@@ -226,6 +226,8 @@ interface ServerRow {
   refund_amount: number | null;
   refund_decision: string | null;
   withdrawal_reason_code: string | null;
+  /** 'absent' when Mark absent wrote the result (a no-show, `isNoShow`). */
+  result_status?: string | null;
 }
 
 /**
@@ -251,7 +253,8 @@ function sqlGuardAdmits(row: ServerRow): boolean {
     (row.payment_method ?? '') === 'online' &&
     (row.payment_status ?? '') === 'paid' &&
     (row.refund_amount ?? 0) <= 0 &&
-    ['scratched', 'withdrawn', 'absent'].includes(status)
+    (['scratched', 'withdrawn', 'absent'].includes(status) ||
+      (row.result_status ?? '') === 'absent')
   );
 }
 
@@ -317,6 +320,11 @@ describe('Deny refund reaches a server that accepts it', () => {
       { ...CODELESS_WITHDRAWAL, entry_status: 'absent' },
       makeEntry({ rawEntryStatus: 'absent', pullTiming: null }),
     ],
+    [
+      'a no-show marked absent as a result',
+      { ...CODELESS_WITHDRAWAL, entry_status: 'confirmed', result_status: 'absent' },
+      makeEntry({ rawEntryStatus: 'confirmed', resultStatus: 'absent', pullTiming: null }),
+    ],
   ])('saves the denial for %s', async (_label, row, entry) => {
     serveRow(row);
     const onResolved = vi.fn();
@@ -360,6 +368,12 @@ describe('Deny refund reaches a server that accepts it', () => {
     expect(sqlGuardAdmits(CODELESS_WITHDRAWAL)).toBe(true);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'absent' })).toBe(true);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'confirmed' })).toBe(false);
+    expect(
+      sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'confirmed', result_status: 'absent' })
+    ).toBe(true);
+    expect(
+      sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'confirmed', result_status: 'pending' })
+    ).toBe(false);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, payment_method: null })).toBe(false);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, payment_status: 'pending' })).toBe(false);
     expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, refund_amount: 25 })).toBe(false);

@@ -2,10 +2,12 @@
 --
 -- Executes the INSTALLED public.set_entry_refund_decision (never a source-string
 -- contract) from 20261117152900_myk9_2099_refund_decision_removed_absent.sql:
---   * a paid-online 'withdrawn' row with no reason code (a secretary removal)
---     and a paid-online 'absent' row (a no-show) can be marked denied;
+--   * a paid-online 'withdrawn' row with no reason code (a secretary removal),
+--     a paid-online 'absent' row (a no-show) and a paid-online row whose RESULT
+--     is 'absent' (Show Desk's Mark absent) can be marked denied;
 --   * the paid-online, unresolved and authorization guards still refuse;
---   * a no-show that is marked present again loses its denial.
+--   * a no-show that is marked present again, or whose absent result is undone,
+--     loses its denial.
 --
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
 --     -f supabase/tests/myk9_2099_refund_decision_removed_absent_test.sql
@@ -62,30 +64,33 @@ WHERE NOT EXISTS (
 
 INSERT INTO public.entries (
   id, show_id, entry_status, withdrawal_reason_code,
-  payment_method, payment_status, entry_fee, refund_amount
+  payment_method, payment_status, entry_fee, refund_amount, result_status
 )
 VALUES
   -- 41: a paid-online secretary removal (withdrawn, no reason code)
   ('00000000-0000-0000-0000-000002099041', '00000000-0000-0000-0000-000002099031',
-    'withdrawn', NULL, 'online', 'paid', 25, NULL),
+    'withdrawn', NULL, 'online', 'paid', 25, NULL, 'pending'),
   -- 42: a paid-online no-show
   ('00000000-0000-0000-0000-000002099042', '00000000-0000-0000-0000-000002099031',
-    'absent', NULL, 'online', 'paid', 25, NULL),
+    'absent', NULL, 'online', 'paid', 25, NULL, 'pending'),
   -- 43: a no-show paid by cash: no card payment to decide
   ('00000000-0000-0000-0000-000002099043', '00000000-0000-0000-0000-000002099031',
-    'absent', NULL, 'cash', 'paid', 25, NULL),
+    'absent', NULL, 'cash', 'paid', 25, NULL, 'pending'),
   -- 44: a no-show not paid yet
   ('00000000-0000-0000-0000-000002099044', '00000000-0000-0000-0000-000002099031',
-    'absent', NULL, 'online', 'pending', 25, NULL),
+    'absent', NULL, 'online', 'pending', 25, NULL, 'pending'),
   -- 45: a no-show already refunded
   ('00000000-0000-0000-0000-000002099045', '00000000-0000-0000-0000-000002099031',
-    'absent', NULL, 'online', 'paid', 25, 25),
+    'absent', NULL, 'online', 'paid', 25, 25, 'pending'),
   -- 46: a paid-online entry still running
   ('00000000-0000-0000-0000-000002099046', '00000000-0000-0000-0000-000002099031',
-    'confirmed', NULL, 'online', 'paid', 25, NULL),
+    'confirmed', NULL, 'online', 'paid', 25, NULL, 'pending'),
   -- 47: a paid-online no-show the unrelated club admin tries to deny
   ('00000000-0000-0000-0000-000002099047', '00000000-0000-0000-0000-000002099031',
-    'absent', NULL, 'online', 'paid', 25, NULL);
+    'absent', NULL, 'online', 'paid', 25, NULL, 'pending'),
+  -- 48: a paid-online entry still entered, marked absent as a RESULT (Mark absent)
+  ('00000000-0000-0000-0000-000002099048', '00000000-0000-0000-0000-000002099031',
+    'confirmed', NULL, 'online', 'paid', 25, NULL, 'absent');
 
 RESET ROLE;
 
@@ -106,6 +111,7 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002099001', true);
 SELECT public.set_entry_refund_decision('00000000-0000-0000-0000-000002099041', 'denied');
 SELECT public.set_entry_refund_decision('00000000-0000-0000-0000-000002099042', 'denied');
+SELECT public.set_entry_refund_decision('00000000-0000-0000-0000-000002099048', 'denied');
 RESET ROLE;
 
 DO $$
@@ -116,7 +122,8 @@ BEGIN
     SELECT id, refund_decision, refund_decided_at, refund_decided_by
       FROM public.entries
      WHERE id IN ('00000000-0000-0000-0000-000002099041',
-                  '00000000-0000-0000-0000-000002099042')
+                  '00000000-0000-0000-0000-000002099042',
+                  '00000000-0000-0000-0000-000002099048')
   LOOP
     IF r.refund_decision IS DISTINCT FROM 'denied'
        OR r.refund_decided_at IS NULL
@@ -125,7 +132,7 @@ BEGIN
         r.id, r.refund_decision, r.refund_decided_at, r.refund_decided_by;
     END IF;
   END LOOP;
-  RAISE NOTICE 'PASS a paid-online secretary removal and a paid-online no-show can be marked denied';
+  RAISE NOTICE 'PASS a paid-online secretary removal and a paid-online no-show (by status or by result) can be marked denied';
 END;
 $$;
 
@@ -215,5 +222,28 @@ BEGIN
   RAISE NOTICE 'PASS marking a denied no-show present clears the decision';
 END;
 $$;
+
+-- Mark absent's Undo writes result_status 'pending' (clearEntryScore): the
+-- denial goes with the absent result.
+UPDATE public.entries
+   SET result_status = 'pending'
+ WHERE id = '00000000-0000-0000-0000-000002099048';
+
+DO $
+DECLARE
+  r record;
+BEGIN
+  SELECT refund_decision, refund_decided_at, refund_decided_by INTO r
+    FROM public.entries
+   WHERE id = '00000000-0000-0000-0000-000002099048';
+  IF r.refund_decision IS NOT NULL
+     OR r.refund_decided_at IS NOT NULL
+     OR r.refund_decided_by IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL an undone absent result kept its decision (decision=% at=% by=%)',
+      r.refund_decision, r.refund_decided_at, r.refund_decided_by;
+  END IF;
+  RAISE NOTICE 'PASS undoing an absent result clears the decision';
+END;
+$;
 
 ROLLBACK;

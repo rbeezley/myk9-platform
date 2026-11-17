@@ -75,6 +75,8 @@ export interface MyShowsListProps {
   onOpenReceipts: (group: MyShowGroup, moneyKind: ShowMoneyKind) => void;
   /** MYK9-631 AC3: leaving one class, threaded to the class row that owns it. */
   onLeaveClass: (target: LeaveClassTarget) => void;
+  /** Re-read the entries after a class change request is sent or taken back. */
+  onClassChanged?: (() => void | Promise<void>) | undefined;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
   /**
    * The instant the whole list reckons against. Injectable so tests can place
@@ -98,6 +100,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   onOpenEdit,
   onOpenReceipts,
   onLeaveClass,
+  onClassChanged,
   onResultRevealClick,
   now: nowProp,
   emptyState,
@@ -176,6 +179,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
         onOpenEdit={onOpenEdit}
         onOpenReceipts={onOpenReceipts}
         onLeaveClass={onLeaveClass}
+        onClassChanged={onClassChanged}
         onResultRevealClick={onResultRevealClick}
       />
     </li>

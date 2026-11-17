@@ -451,6 +451,7 @@ const MyEntriesPage: React.FC = () => {
                       onOpenCheckIn={dialogs.openCheckIn}
                       onOpenEdit={dialogs.openEdit}
                       onLeaveClass={dialogs.openLeaveClass}
+                      onClassChanged={refreshEntries}
                       onOpenReceipts={(group, moneyKind) =>
                         dialogs.openReceipt(group.orders, moneyKind)
                       }

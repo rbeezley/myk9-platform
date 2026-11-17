@@ -340,6 +340,7 @@ export function useMyEntriesData({
         finalPlacement: (entry.final_placement as number) ?? undefined,
         resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
         dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
+        specialRequests: (entry.special_requests as string | null) ?? undefined,
       },
     ];
 

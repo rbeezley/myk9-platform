@@ -79,6 +79,8 @@ export interface MyShowGroupProps {
   onOpenReceipts: (group: MyShowGroupModel, moneyKind: ShowMoneyKind) => void;
   /** MYK9-631 AC3: a row verb, so it travels to the class row that owns it. */
   onLeaveClass: (target: LeaveClassTarget) => void;
+  /** Re-read the entries after a class change request is sent or taken back. */
+  onClassChanged?: (() => void | Promise<void>) | undefined;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -96,6 +98,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   onOpenEdit,
   onOpenReceipts,
   onLeaveClass,
+  onClassChanged,
   onResultRevealClick,
 }) => {
   const [calendarOpen, setCalendarOpen] = React.useState(false);
@@ -426,6 +429,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                   showId: group.showId,
                 })
               }
+              onClassChanged={onClassChanged}
               onResultRevealClick={onResultRevealClick}
             />
           </li>

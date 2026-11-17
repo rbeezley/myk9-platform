@@ -9,7 +9,7 @@ describe('buildEntryListTools', () => {
     const tools = buildEntryListTools('show-1', counts);
     expect(tools.map(tool => [tool.title, tool.group])).toEqual([
       ['Pulls', 'entry-lists'],
-      ['Move-ups', 'entry-lists'],
+      ['Class changes', 'entry-lists'],
       ['Registration number needed', 'entry-lists'],
       ['Waitlist', 'entry-lists'],
       ['Check-in desk', 'entry-lists'],

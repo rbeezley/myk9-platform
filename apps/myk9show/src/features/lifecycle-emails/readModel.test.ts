@@ -14,6 +14,7 @@ describe('lifecycle email read model', () => {
       { stepType: 'day_before_reminder', isEnabled: true },
       { stepType: 'results_available', isEnabled: true },
       { stepType: 'registration_number_needed', isEnabled: true },
+      { stepType: 'show_changed', isEnabled: true },
     ]);
   });
 

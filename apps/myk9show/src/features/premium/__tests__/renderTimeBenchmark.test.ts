@@ -13,7 +13,7 @@
 //     heritage   ~XXXms
 //
 // If a style consistently exceeds ~3000ms in the browser preview, that is the
-// signal to self-host fonts (currently fetched from CDN). The 15s ceiling
+// signal to look at font loading (self-hosted since MYK9-2102). The 15s ceiling
 // below is a sanity guard against hung-render regressions, not a perf bar.
 
 import React from 'react';

@@ -183,7 +183,6 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     if (showId) {
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply only sets state
   }, [showId]);
 
   const loadData = async () => {

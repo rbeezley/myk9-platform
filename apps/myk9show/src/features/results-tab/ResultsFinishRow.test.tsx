@@ -218,7 +218,7 @@ describe('ResultsFinishRow', () => {
       />
     );
     const link = screen.getByRole('link', {
-      name: '2 dogs share a handler in one class. Choose who handles each before printing the marked catalog.',
+      name: '2 dogs have the same handler as another dog in their class. Choose who handles each before printing the marked catalog.',
     });
     expect(link).toHaveAttribute('href', '/shows/show-1/entries?class=open-1');
     unmount();

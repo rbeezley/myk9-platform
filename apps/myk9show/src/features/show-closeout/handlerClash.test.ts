@@ -72,7 +72,7 @@ describe('Finish the show: handler clash line', () => {
     expect(item).toMatchObject({
       state: 'open',
       label:
-        '2 dogs share a handler in one class. Choose who handles each before printing the marked catalog.',
+        '2 dogs have the same handler as another dog in their class. Choose who handles each before printing the marked catalog.',
       href: '/shows/show-1/entries?class=c1%2Cc2',
     });
     expect(item?.label).not.toContain('—');

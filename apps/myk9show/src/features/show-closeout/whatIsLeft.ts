@@ -282,7 +282,7 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     key: 'handler-clash',
     kind: 'handler-clash',
     label: clashes
-      ? `${plural(clashes.count, 'dog shares', 'dogs share')} a handler in one class. Choose who handles each before printing the marked catalog.`
+      ? `${plural(clashes.count, 'dog has', 'dogs have')} the same handler as another dog in their class. Choose who handles each before printing the marked catalog.`
       : 'Handlers to check',
     count: clashes?.count ?? null,
     classIds: clashes?.classIds ?? [],

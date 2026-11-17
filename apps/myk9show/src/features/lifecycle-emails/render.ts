@@ -179,12 +179,14 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
       };
     case 'results_available':
       return {
-        subject: `Results available - ${showName}`,
+        subject: `Results from ${showName} are ready`,
         body: joinLines([
           greeting,
           '',
-          `Results for ${showName} are available.`,
-          input.resultsUrl ? `View results: ${input.resultsUrl}` : null,
+          `Results from ${showName} are ready.`,
+          '',
+          input.resultsUrl ? `View your results: ${input.resultsUrl}` : null,
+          '',
           'Please contact the show secretary with questions.',
         ]),
       };

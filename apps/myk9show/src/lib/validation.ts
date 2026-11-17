@@ -164,8 +164,9 @@ export const showSchemas = {
       status: z.string(),
       organization: z.string(),
       clubId: z.string().min(1, 'Please select a hosting club'),
-      startDate: z.string().min(1, 'Please select a start date'),
-      endDate: z.string().min(1, 'Please select an end date'),
+      // Read only: a show's dates are its trials' dates (MYK9-2131), so nothing here asks for them.
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
       location: z.string(),
       // Optional staffing fields — not always present in ShowEditFormData
       chairman: z.string().optional().default(''),
@@ -216,18 +217,6 @@ export const showSchemas = {
     })
     .refine(
       data => {
-        if (data.startDate && data.endDate) {
-          return new Date(data.endDate) >= new Date(data.startDate);
-        }
-        return true;
-      },
-      {
-        message: 'End date must be after start date',
-        path: ['endDate'],
-      }
-    )
-    .refine(
-      data => {
         if (data.entryOpenDate && data.entryCloseDate) {
           return new Date(data.entryCloseDate) >= new Date(data.entryOpenDate);
         }
@@ -246,7 +235,8 @@ export const showSchemas = {
         return true;
       },
       {
-        message: 'Entry close date must be before show start date',
+        // The show's start is its first trial day (MYK9-2131): name what the secretary can see.
+        message: 'Entry close date must be on or before the first trial day',
         path: ['entryCloseDate'],
       }
     )

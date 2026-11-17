@@ -125,6 +125,8 @@ function formatRecipient(name: string | null, email: string | null): string {
 
 function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null): string {
   if (sourceKind === 'lifecycle' && lifecycleStepType) {
+    // MYK9-2124: sent by the server on its own, so it names what happened to the show.
+    if (lifecycleStepType === 'show_changed') return 'Date or venue changed';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {

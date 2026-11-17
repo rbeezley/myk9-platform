@@ -5,7 +5,7 @@ import { storeEmailContent, type EmailContentClient } from '../_shared/emailLogC
 
 /** Types and database/provider helpers shared by the generic send and the number-needed step. */
 export interface SendLifecycleEmailPayload {
-  action?: 'preview' | 'save_ready' | 'send' | 'send_registration_number_needed';
+  action?: 'preview' | 'save_ready' | 'send' | 'send_registration_number_needed' | 'drain_auto';
   show_id?: string;
   job_ids?: string[];
   step_type?: string;
@@ -239,7 +239,11 @@ export async function insertEmailLog(
 }
 
 export async function insertAttempt(
-  args: { supabase: LifecycleEmailSupabaseClient; job: LifecycleEmailJobRow; userId: string },
+  args: {
+    supabase: LifecycleEmailSupabaseClient;
+    job: LifecycleEmailJobRow;
+    userId: string | null;
+  },
   emailLogId: string | null | undefined,
   resendMessageId: string | null,
   status: string,

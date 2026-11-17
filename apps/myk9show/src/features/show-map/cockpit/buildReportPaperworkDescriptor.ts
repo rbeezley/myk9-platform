@@ -1,4 +1,5 @@
 import type { DbClass, DbEntry } from '@/types/database-mappings';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ReportScope } from '@/lib/reports/types';
 
 import {
@@ -26,10 +27,17 @@ export function buildReportPaperworkDescriptor(input: {
   scope: ReportScope;
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
+  /** `show.assignedJudges`: the sheet's judge fallback, so the fingerprint hashes the printed name. */
+  assignedJudges?: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): PaperworkDescriptor | null {
-  const classes = withPaperworkJudge(input.classes);
+  const classes = withPaperworkJudge(input.classes, input.assignedJudges);
   if (input.reportId === 'check-in-sheet' || input.reportId === 'scoresheet') {
-    return buildSheetDescriptorFromRows({ ...input, classes });
+    return buildSheetDescriptorFromRows({
+      reportId: input.reportId,
+      scope: input.scope,
+      classes,
+      entries: input.entries,
+    });
   }
   const selected = input.entries.filter(entry =>
     paperworkEntryInScope(entry, input.scope, classes)

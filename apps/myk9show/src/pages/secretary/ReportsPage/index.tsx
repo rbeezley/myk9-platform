@@ -216,8 +216,9 @@ export default function ReportsPage() {
       entries: (entries ?? []) as unknown as Parameters<
         typeof buildReportPaperworkDescriptor
       >[0]['entries'],
+      assignedJudges: show?.assignedJudges,
     });
-  }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
+  }, [armbandDescriptor, reportType, effectiveScope, classes, entries, show?.assignedJudges]);
   const { printStatusUnavailable, printStatusChecking, printStatusKnown, printState, printChips } =
     useReportPrintStatus({
       showId: showId ?? '',

@@ -120,6 +120,13 @@ describe('class judge in the paperwork fingerprints (MYK9-2116)', () => {
     expect(cardOf(original, records)['check-in-sheet']?.state).toBe('current');
   });
 
+  it('a print recorded with no judge reads changed once the judge loads (the paper lacks it)', () => {
+    const noJudge = classWith({ judge_resolved: true });
+    expect(cardOf(classWith(judge('Pat', 'Donovan')), printed(noJudge))['scoresheet']?.state).toBe(
+      'stale'
+    );
+  });
+
   it('a class with no judge once the lookup ran is a known state', () => {
     const none = classWith({ judge_resolved: true });
     expect(cardOf(none, printed(none))['scoresheet']?.state).toBe('current');

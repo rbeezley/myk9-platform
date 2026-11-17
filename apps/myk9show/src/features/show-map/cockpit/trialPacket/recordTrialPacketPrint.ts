@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { buildReportPaperworkDescriptor } from '../buildReportPaperworkDescriptor';
 import { recordPaperworkPrinted } from '../paperworkPrintActions';
 import { PACKET_REPORT_IDS } from './packetReports';
@@ -27,6 +28,7 @@ export async function recordTrialPacketPrint(input: {
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
   user: User;
+  assignedJudges?: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): Promise<TrialPacketPrintRecords> {
   const recordIds: string[] = [];
   const failedClassIds: string[] = [];
@@ -46,6 +48,7 @@ export async function recordTrialPacketPrint(input: {
           scope,
           classes: input.classes,
           entries: input.entries,
+          assignedJudges: input.assignedJudges,
         });
         if (!descriptor) continue;
         const record = await recordPaperworkPrinted({

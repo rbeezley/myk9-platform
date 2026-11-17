@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReportScope } from '@/lib/reports/types';
 import { buildSheetDescriptorFromRows } from '../../../../../../supabase/functions/_shared/paperwork/rowDescriptors.ts';
+import { paperworkJudgeName } from './paperworkClassJudge';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 
 const classes = [
@@ -27,7 +28,7 @@ const classes = [
 ] as unknown as DbClass[];
 const sharedClasses = classes.map(classItem => ({
   ...classItem,
-  judgeName: classItem.id === 'class-1' ? 'Judge One' : null,
+  judgeName: paperworkJudgeName(classItem),
 }));
 const entries = [
   {
@@ -65,17 +66,17 @@ const scopes: ReportScope[] = [
   { kind: 'show', showId: 's1' },
 ];
 
-// Fingerprints recorded from the pre-extraction app code (MYK9-2086), so a drift in either
-// path breaks here before it breaks a stored print. MYK9-2116 re-pinned every one that hashes a
-// class subject: the check-in sheet gained class subjects (judge), and an absent judge or hides
-// now hashes as null. scoresheet/class is unchanged: its class carries a judge and hides.
+// Self-recorded fingerprints: first recorded from the pre-extraction app code (MYK9-2086), then
+// re-recorded in MYK9-2116 when the check-in sheet gained class subjects (judge) and an absent
+// hides hashes as null, and a class with no judge hashes the sheet's "TBD". A drift in either
+// path breaks here before it breaks a stored print. The shared input is derived the app's way.
 const PINNED: Record<string, string> = {
   'check-in-sheet/class': 'fnv1a64:356c9acf8f53410d',
-  'check-in-sheet/trial': 'fnv1a64:79d5d628331a756c',
-  'check-in-sheet/show': 'fnv1a64:0ae6d05c8f9fb71c',
+  'check-in-sheet/trial': 'fnv1a64:8d7ed858a6ed7bea',
+  'check-in-sheet/show': 'fnv1a64:b7eafc74c8a7adee',
   'scoresheet/class': 'fnv1a64:aa00e904808e0eb8',
-  'scoresheet/trial': 'fnv1a64:c5c0806c053b9460',
-  'scoresheet/show': 'fnv1a64:19cc19aec031cb5b',
+  'scoresheet/trial': 'fnv1a64:767f9dc8c9b4649d',
+  'scoresheet/show': 'fnv1a64:5d1200fd1c331c1e',
 };
 
 describe('app and shared paperwork descriptors agree', () => {

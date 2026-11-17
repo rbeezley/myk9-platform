@@ -2,6 +2,7 @@ import {
   projectHandlerIdentity,
   type HandlerPersonLike,
 } from '@/features/registries/handlerIdentity';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
@@ -49,6 +50,7 @@ export function buildClassPaperworkMap(input: {
    */
   withholdConfirmation?: boolean;
   returnTo: string;
+  assignedJudges?: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]> {
   const result = new Map<string, SecretaryCockpitPaperwork[]>();
   const printedLabels = buildPrintedLabelIndex(input.records);
@@ -59,7 +61,7 @@ export function buildClassPaperworkMap(input: {
     const scope = { kind: 'class' as const, showId: input.showId, trialId, classId: classItem.id };
     // The judge is a fingerprint input and is not loaded yet: no verdict and no confirmation for
     // the sheets that hash it, so a print cannot read "changed" and back as the judge loads.
-    const judgeUnknown = paperworkJudgeUnknown(classItem);
+    const judgeUnknown = paperworkJudgeUnknown(classItem, input.assignedJudges);
     const paperwork = REPORTS.flatMap((report): SecretaryCockpitPaperwork[] => {
       const classEntries = input.entries.filter(entry => entry.class_id === classItem.id);
       const descriptor =
@@ -70,6 +72,7 @@ export function buildClassPaperworkMap(input: {
               scope,
               classes: input.classes,
               entries: input.entries,
+              assignedJudges: input.assignedJudges,
             });
       const history = input.records
         .filter(record => record.reportId === report.id)

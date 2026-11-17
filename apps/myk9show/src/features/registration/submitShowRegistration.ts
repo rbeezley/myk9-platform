@@ -74,11 +74,6 @@ export interface SubmitShowRegistrationParams {
   ownerResolution: SelectedDogsOwnerResult;
   paymentMethod?: PaymentMethod | undefined;
   paymentDetails?: PaymentDetails | undefined;
-  /**
-   * MYK9-2149: what the desk was told to collect (the server's quote). Sent with a received
-   * payment so the server never records more than the secretary took. Null: no quote.
-   */
-  expectedCollectCents?: number | null | undefined;
   classSelections: ClassSelectionData[];
   handlerAssignments: Record<string, HandlerInfo>;
   classes: ClassLike[];
@@ -114,7 +109,6 @@ export async function submitShowRegistration({
   ownerResolution,
   paymentMethod,
   paymentDetails,
-  expectedCollectCents = null,
   classSelections,
   handlerAssignments,
   classes,
@@ -150,21 +144,20 @@ export async function submitShowRegistration({
     (sum, entry) => sum + (entry.registrationData.entryFee ?? 0),
     0
   );
-  // MYK9-2149: the money already on the exhibitor's form covers these entries, so
-  // nothing changed hands: no payment and no method are sent (cash or check would be
-  // stamped on the settled entry as "Paid by cash" or "Paid by check"). The entries go
-  // in unpaid and the server settles them from the money held. Should that money have
-  // moved since the step asked, they stay owed; nothing is recorded as received that
-  // was not.
-  const coveredByForm =
-    paymentMethod === 'secretary_paid' && paymentDetails?.coveredByForm === true;
+  // MYK9-2149: the exhibitor's form already holds money, so the desk took none: no
+  // payment and no method are sent (cash or check would be stamped on a settled entry as
+  // "Paid by cash" or "Paid by check"). The entries go in unpaid, the server settles
+  // whatever the held money covers, and anything still owed is shown after submit to be
+  // recorded on the entry form. Nothing is recorded as received that was not.
+  const formHoldsMoney =
+    paymentMethod === 'secretary_paid' && paymentDetails?.formHoldsMoney === true;
   // MYK9-677: money a secretary says was already received is recorded as cash
   // or check (entries, enrollment and ledger alike), so it must name one
   // before anything is written.
-  if (!coveredByForm) assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
+  if (!formHoldsMoney) assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
   const receivedMethod =
-    feeTotal > 0 && !coveredByForm ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
-  const submitMethod: PaymentMethod | null = coveredByForm
+    feeTotal > 0 && !formHoldsMoney ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
+  const submitMethod: PaymentMethod | null = formHoldsMoney
     ? null
     : (receivedMethod ?? paymentMethod);
 
@@ -207,7 +200,6 @@ export async function submitShowRegistration({
               method: receivedMethod,
               receivedOn: paymentDetails?.paymentDate?.trim() || null,
               reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
-              ...(expectedCollectCents !== null ? { expectedCollectCents } : {}),
             },
           }
         : {}),

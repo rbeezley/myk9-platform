@@ -82,7 +82,8 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     registrationNumber,
     liveTotalFees,
     liveFeeCalculation,
-    deskCollect,
+    formHeldCents,
+    deskFormOutcome,
     entryWindowTimezoneState,
     paymentDetailsRef,
     paymentResolution,
@@ -218,7 +219,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,
               feeCalculation: liveFeeCalculation,
-              deskCollect,
+              formHeldCents,
               onRemoveLine: removeLine,
               removingLineKey,
             }
@@ -416,7 +417,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               registrationId={registrationId}
               registrationNumber={registrationNumber}
               currentRegistrationTotalFees={liveTotalFees}
-              deskCollect={deskCollect}
+              desk={{ formHeldCents, outcome: deskFormOutcome }}
               capacityReady={capacityReady}
               capacityError={capacityError}
               capacityUnavailable={capacityUnavailable}

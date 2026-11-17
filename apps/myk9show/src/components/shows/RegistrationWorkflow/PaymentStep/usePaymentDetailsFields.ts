@@ -10,8 +10,8 @@ export interface PaymentDetailsFields {
   paymentNotes: string;
   receivedMethod: PaymentDetails['receivedMethod'];
   chargeJuniorFee: boolean;
-  /** MYK9-2149: see `PaymentDetails.coveredByForm`. */
-  coveredByForm: boolean;
+  /** MYK9-2149: see `PaymentDetails.formHoldsMoney`. */
+  formHoldsMoney: boolean;
 }
 
 /**
@@ -39,14 +39,14 @@ export function usePaymentDetailsFields(
       paymentNotes: initial?.paymentNotes ?? '',
       receivedMethod: initial?.receivedMethod,
       chargeJuniorFee: initial?.chargeJuniorFee === true,
-      coveredByForm: initial?.coveredByForm === true,
+      formHoldsMoney: initial?.formHoldsMoney === true,
     };
   });
 
   const update = (patch: Partial<PaymentDetailsFields>) => {
     setFields(previous => ({ ...previous, ...patch }));
     if (!onPaymentDetailsChange) return;
-    const { receivedMethod, chargeJuniorFee, coveredByForm } = fields;
+    const { receivedMethod, chargeJuniorFee, formHoldsMoney } = fields;
     onPaymentDetailsChange({
       checkNumber: fields.checkNumber,
       paymentDate: fields.paymentDate,
@@ -55,7 +55,7 @@ export function usePaymentDetailsFields(
       paymentNotes: fields.paymentNotes,
       ...(receivedMethod ? { receivedMethod } : {}),
       ...(chargeJuniorFee ? { chargeJuniorFee } : {}),
-      ...(coveredByForm ? { coveredByForm } : {}),
+      ...(formHoldsMoney ? { formHoldsMoney } : {}),
       ...(patch as Partial<PaymentDetails>),
     });
   };

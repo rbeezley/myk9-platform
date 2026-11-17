@@ -139,28 +139,6 @@ describe('submitShowEntries', () => {
     ]);
   });
 
-  it('sends the desk quote as expected_collect_cents in the payment (MYK9-2149)', async () => {
-    mockRpc.mockResolvedValue(rpcSuccess);
-
-    await submitShowEntries({
-      ...baseParams,
-      paymentMethod: 'cash',
-      payment: { method: 'cash', receivedOn: null, reference: null, expectedCollectCents: 1000 },
-    });
-
-    expect(mockRpc).toHaveBeenCalledWith(
-      'submit_show_entries',
-      expect.objectContaining({
-        p_payment: {
-          method: 'cash',
-          received_on: null,
-          reference: null,
-          expected_collect_cents: 1000,
-        },
-      })
-    );
-  });
-
   it('RPC error — throws when supabase returns an error', async () => {
     mockRpc.mockResolvedValue({
       data: null,

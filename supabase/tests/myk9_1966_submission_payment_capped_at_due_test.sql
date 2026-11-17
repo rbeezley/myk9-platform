@@ -15,16 +15,11 @@
 --   5. $10 held: paid_amount grows by $20;
 --   6. nothing held: paid_amount grows by $30, as before;
 --   7. 'secretary_paid' with no p_payment takes the same branch: $40 held, nothing added.
--- MYK9-2149, public.desk_addon_amount_to_collect, asked before each add-on:
---   8. it answers collect $0 / held $40, collect $20 / held $10, collect $30 / held $0, and
---      what it said to collect is exactly what the cap then recorded on every form;
---   9. a person with no form collects the whole add-on; an exhibitor (who may not take money
---      at the desk) is refused; anon cannot execute it.
---  11. the quote prices the add-on as the submission will, junior handler fee included: a $20
---      junior fee on a $30 class quotes and records the same amount (collect $10 on a form
---      holding $10; "covered" on a form holding $25, where the regular fee would not be);
---  12. a payment never records more than the expected_collect_cents the desk was quoted:
---      the rest stays owed.
+-- MYK9-2149, public.desk_form_due_cents (what a form still owes; negative = money held):
+--   8. before the add-ons it reads -$40 / -$10 / $0, and after them -$10 / $0 / $0: the desk
+--      sees the money held before submitting and what is still owed after;
+--   9. a person with no form reads $0; an exhibitor (who may not take money at the desk) is
+--      refused; anon cannot execute it, and enrollment_due_cents is not callable by clients.
 --  10. the covered submit itself: no p_payment and no method (p_payment_method NULL). On a
 --      form holding $40 the add-on settles to 'paid' with payment_method NULL (Entry
 --      Management reads "Paid", never "Paid by cash"), nothing is recorded, and the form's
@@ -210,10 +205,9 @@ BEGIN
 END;
 $$;
 
--- 8. Before the add-ons: what the desk is told to collect, and what each form holds now.
-CREATE TEMP TABLE t1966_quote (n int, collect_cents int, held_cents int, paid_before numeric)
-  ON COMMIT DROP;
-GRANT ALL ON t1966_quote TO authenticated;
+-- 8. Before the add-ons: what each form holds, as the desk reads it.
+CREATE TEMP TABLE t1966_due (n int, before_cents int, after_cents int) ON COMMIT DROP;
+GRANT ALL ON t1966_due TO authenticated;
 
 SET LOCAL ROLE authenticated;
 DO $$
@@ -222,34 +216,24 @@ DECLARE
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001966b02', true);
   FOR n IN 1..7 LOOP
-    INSERT INTO t1966_quote (n, collect_cents, held_cents)
-    SELECT n, q.collect_cents, q.held_cents
-      FROM public.desk_addon_amount_to_collect(
-        '00000000-0000-0000-0000-000001966a11',
-        ('00000000-0000-0000-0000-000001966e0' || n)::uuid,
-        ARRAY[('00000000-0000-0000-0000-000001966a'
-               || CASE WHEN n IN (2, 5) THEN '32' ELSE '33' END)::uuid],
-        false) AS q;
+    INSERT INTO t1966_due (n, before_cents)
+    VALUES (n, public.desk_form_due_cents('00000000-0000-0000-0000-000001966a11',
+                                          ('00000000-0000-0000-0000-000001966e0' || n)::uuid));
   END LOOP;
 END;
 $$;
 
 RESET ROLE;
-UPDATE t1966_quote q SET paid_before = COALESCE(en.paid_amount, 0)
-  FROM public.enrollments en
- WHERE en.id = ('00000000-0000-0000-0000-000001966f0' || q.n)::uuid;
-
 DO $$
 DECLARE
   v_got text;
-  v_want text := '1:0/4000 2:2000/1000 3:3000/0 4:0/4000 5:2000/1000 6:3000/0 7:0/4000';
+  v_want text := '1:-4000 2:-1000 3:0 4:-4000 5:-1000 6:0 7:-4000';
 BEGIN
-  SELECT string_agg(format('%s:%s/%s', n, collect_cents, held_cents), ' ' ORDER BY n)
-    INTO v_got FROM t1966_quote;
+  SELECT string_agg(format('%s:%s', n, before_cents), ' ' ORDER BY n) INTO v_got FROM t1966_due;
   IF v_got IS DISTINCT FROM v_want THEN
-    RAISE EXCEPTION 'FAIL desk_addon_amount_to_collect quotes: got [%], want [%]', v_got, v_want;
+    RAISE EXCEPTION 'FAIL desk_form_due_cents before: got [%], want [%]', v_got, v_want;
   END IF;
-  RAISE NOTICE 'PASS desk_addon_amount_to_collect quotes collect/held: %', v_got;
+  RAISE NOTICE 'PASS desk_form_due_cents reads the money each form holds: %', v_got;
 END;
 $$;
 
@@ -314,29 +298,35 @@ BEGIN
 END;
 $$;
 
--- 8 (agreement). What the desk was told to collect is exactly what the cap recorded.
+-- 8 (after). What each form still owes after its add-on, as the desk reads it.
+SET LOCAL ROLE authenticated;
 DO $$
 DECLARE
-  v_row record;
+  v_n int;
 BEGIN
-  FOR v_row IN
-    SELECT q.n, q.collect_cents,
-           round((COALESCE(en.paid_amount, 0) - q.paid_before) * 100)::int AS recorded_cents
-      FROM t1966_quote q
-      JOIN public.enrollments en
-        ON en.id = ('00000000-0000-0000-0000-000001966f0' || q.n)::uuid
-     ORDER BY q.n
-  LOOP
-    IF v_row.recorded_cents IS DISTINCT FROM v_row.collect_cents THEN
-      RAISE EXCEPTION 'FAIL form %: the desk was told to collect % cents, the cap recorded %',
-        v_row.n, v_row.collect_cents, v_row.recorded_cents;
-    END IF;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001966b02', true);
+  FOR v_n IN 1..7 LOOP
+    UPDATE t1966_due SET after_cents = public.desk_form_due_cents(
+      '00000000-0000-0000-0000-000001966a11', ('00000000-0000-0000-0000-000001966e0' || v_n)::uuid)
+     WHERE t1966_due.n = v_n;
   END LOOP;
-  RAISE NOTICE 'PASS on every form the quoted amount to collect equals what the cap recorded';
+END;
+$$;
+RESET ROLE;
+DO $$
+DECLARE
+  v_got text;
+  v_want text := '1:-1000 2:0 3:0 4:-1000 5:0 6:0 7:-1000';
+BEGIN
+  SELECT string_agg(format('%s:%s', n, after_cents), ' ' ORDER BY n) INTO v_got FROM t1966_due;
+  IF v_got IS DISTINCT FROM v_want THEN
+    RAISE EXCEPTION 'FAIL desk_form_due_cents after: got [%], want [%]', v_got, v_want;
+  END IF;
+  RAISE NOTICE 'PASS desk_form_due_cents reads what each form still owes after submission: %', v_got;
 END;
 $$;
 
--- 9. No form yet: the whole add-on. An exhibitor is refused.
+-- 9. No form yet reads $0. An exhibitor is refused.
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES ('00000000-0000-0000-0000-000001966e09', 'MYK9-1966', 'No Form',
         'myk9-1966-no-form@example.test');
@@ -352,28 +342,21 @@ VALUES
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000001966b09'
  WHERE id = '00000000-0000-0000-0000-000001966e09';
 
+
 SET LOCAL ROLE authenticated;
 DO $$
-DECLARE
-  v_collect int;
-  v_held int;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001966b02', true);
-  SELECT q.collect_cents, q.held_cents INTO v_collect, v_held
-    FROM public.desk_addon_amount_to_collect(
-      '00000000-0000-0000-0000-000001966a11', '00000000-0000-0000-0000-000001966e09',
-      ARRAY['00000000-0000-0000-0000-000001966a31', '00000000-0000-0000-0000-000001966a32']::uuid[],
-      false) AS q;
-  IF v_collect IS DISTINCT FROM 6000 OR v_held IS DISTINCT FROM 0 THEN
-    RAISE EXCEPTION 'FAIL no form: collect %, held %', v_collect, v_held;
+  IF public.desk_form_due_cents('00000000-0000-0000-0000-000001966a11',
+                                '00000000-0000-0000-0000-000001966e09') IS DISTINCT FROM 0 THEN
+    RAISE EXCEPTION 'FAIL no form does not read 0';
   END IF;
-  RAISE NOTICE 'PASS a person with no form collects the whole add-on';
+  RAISE NOTICE 'PASS a person with no form reads $0';
 
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001966b09', true);
   BEGIN
-    PERFORM public.desk_addon_amount_to_collect(
-      '00000000-0000-0000-0000-000001966a11', '00000000-0000-0000-0000-000001966e01',
-      ARRAY['00000000-0000-0000-0000-000001966a33']::uuid[], false);
+    PERFORM public.desk_form_due_cents('00000000-0000-0000-0000-000001966a11',
+                                       '00000000-0000-0000-0000-000001966e01');
     RAISE EXCEPTION 'FAIL an exhibitor was told what another form holds';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PASS an exhibitor cannot ask what a form holds';
@@ -384,15 +367,13 @@ RESET ROLE;
 
 DO $$
 BEGIN
-  IF has_function_privilege('anon',
-       'public.desk_addon_amount_to_collect(uuid, uuid, uuid[], boolean)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated',
-       'public.desk_addon_amount_to_collect(uuid, uuid, uuid[], boolean)', 'EXECUTE')
+  IF has_function_privilege('anon', 'public.desk_form_due_cents(uuid, uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.desk_form_due_cents(uuid, uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'private.enrollment_due_cents(uuid)', 'EXECUTE')
      OR has_function_privilege('anon', 'private.enrollment_due_cents(uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'FAIL desk_addon_amount_to_collect / enrollment_due_cents grants';
+    RAISE EXCEPTION 'FAIL desk_form_due_cents / enrollment_due_cents grants';
   END IF;
-  RAISE NOTICE 'PASS desk_addon_amount_to_collect is authenticated-only; enrollment_due_cents is not callable by clients';
+  RAISE NOTICE 'PASS desk_form_due_cents is authenticated-only; enrollment_due_cents is not callable by clients';
 END;
 $$;
 
@@ -480,146 +461,6 @@ BEGIN
     RAISE EXCEPTION 'FAIL covered submit, money gone: got [%], want [%]', v_b, v_want_b;
   END IF;
   RAISE NOTICE 'PASS with the held money gone the add-on stays owed, form method kept: %', v_b;
-END;
-$$;
-
--- 11 and 12. Junior pricing and the quoted ceiling. The show gets a $20 junior fee.
-UPDATE public.shows SET junior_handler_fee = 20 WHERE id = '00000000-0000-0000-0000-000001966a11';
-INSERT INTO public.people (id, first_name, last_name, email)
-SELECT ('00000000-0000-0000-0000-000001966e' || x)::uuid, 'MYK9-1966', 'Junior ' || x,
-       'myk9-1966-junior-' || x || '@example.test'
-  FROM unnest(ARRAY['0c', '0d', '0e']) AS x;
-INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
-SELECT ('00000000-0000-0000-0000-000001966d' || x)::uuid, 'MYK9-1966 Dog ' || x, 'Cap', 'Beagle',
-       'active', ('00000000-0000-0000-0000-000001966e' || x)::uuid
-  FROM unnest(ARRAY['0c', '0d', '0e']) AS x;
-INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
-SELECT ('00000000-0000-0000-0000-000001966d' || x)::uuid, 'UKC', 'UKC1966' || x, true
-  FROM unnest(ARRAY['0c', '0d', '0e']) AS x;
-INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
-SELECT ('00000000-0000-0000-0000-000001966f' || x)::uuid, '00000000-0000-0000-0000-000001966a11',
-       ('00000000-0000-0000-0000-000001966e' || x)::uuid, 'pending'
-  FROM unnest(ARRAY['0c', '0d', '0e']) AS x;
-
-CREATE TEMP TABLE t1966_junior (form text, collect_cents int, held_cents int, addon_cents int,
-                                plain_collect int) ON COMMIT DROP;
-GRANT ALL ON t1966_junior TO authenticated;
-
-SET LOCAL ROLE authenticated;
-DO $$
-DECLARE
-  v_form text;
-  v_refund numeric;
-BEGIN
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001966b02', true);
-  -- Each form: one $30 class paid in cash, then a refund leaves $10 (c, e) or $25 (d) held.
-  FOREACH v_form IN ARRAY ARRAY['0c', '0d', '0e'] LOOP
-    PERFORM public.submit_show_entries(
-      '00000000-0000-0000-0000-000001966a11', ('00000000-0000-0000-0000-000001966f' || v_form)::uuid,
-      jsonb_build_array(jsonb_build_object(
-        'dog_id', '00000000-0000-0000-0000-000001966d' || v_form,
-        'class_id', '00000000-0000-0000-0000-000001966a31',
-        'handler_name', 'MYK9-1966 Exhibitor', 'client_fee_cents', 3000)),
-      ('00000000-0000-0000-0000-000001966c3' || right(v_form, 1))::uuid, 'cash',
-      jsonb_build_object('method', 'cash'));
-    v_refund := CASE v_form WHEN '0d' THEN 5 ELSE 20 END;
-    PERFORM public.record_enrollment_payment(
-      ('00000000-0000-0000-0000-000001966f' || v_form)::uuid, 'refund', v_refund, 'cash', NULL,
-      NULL, 'Cash Returned');
-    -- The quote for a $30 class (a32), with the junior fee and without it.
-    INSERT INTO t1966_junior (form, collect_cents, held_cents, addon_cents, plain_collect)
-    SELECT v_form, j.collect_cents, j.held_cents, j.addon_cents, p.collect_cents
-      FROM public.desk_addon_amount_to_collect(
-             '00000000-0000-0000-0000-000001966a11',
-             ('00000000-0000-0000-0000-000001966e' || v_form)::uuid,
-             ARRAY['00000000-0000-0000-0000-000001966a32']::uuid[], true) AS j,
-           public.desk_addon_amount_to_collect(
-             '00000000-0000-0000-0000-000001966a11',
-             ('00000000-0000-0000-0000-000001966e' || v_form)::uuid,
-             ARRAY['00000000-0000-0000-0000-000001966a32']::uuid[], false) AS p;
-  END LOOP;
-
-  -- c: junior add-on, cash for exactly what was quoted.
-  PERFORM public.submit_show_entries(
-    '00000000-0000-0000-0000-000001966a11', '00000000-0000-0000-0000-000001966f0c',
-    jsonb_build_array(jsonb_build_object(
-      'dog_id', '00000000-0000-0000-0000-000001966d0c',
-      'class_id', '00000000-0000-0000-0000-000001966a32',
-      'handler_name', 'MYK9-1966 Exhibitor', 'client_fee_cents', 2000,
-      'junior_fee_override', true)),
-    '00000000-0000-0000-0000-000001966c4c', 'cash',
-    jsonb_build_object('method', 'cash', 'expected_collect_cents',
-                       (SELECT collect_cents FROM t1966_junior WHERE form = '0c')));
-  -- d: junior add-on the held money covers: no payment, no method.
-  PERFORM public.submit_show_entries(
-    '00000000-0000-0000-0000-000001966a11', '00000000-0000-0000-0000-000001966f0d',
-    jsonb_build_array(jsonb_build_object(
-      'dog_id', '00000000-0000-0000-0000-000001966d0d',
-      'class_id', '00000000-0000-0000-0000-000001966a32',
-      'handler_name', 'MYK9-1966 Exhibitor', 'client_fee_cents', 2000,
-      'junior_fee_override', true)),
-    '00000000-0000-0000-0000-000001966c4d', NULL);
-  -- e: a regular $30 add-on on $10 held; the cap is $20, but the desk was quoted $15.
-  PERFORM public.submit_show_entries(
-    '00000000-0000-0000-0000-000001966a11', '00000000-0000-0000-0000-000001966f0e',
-    jsonb_build_array(jsonb_build_object(
-      'dog_id', '00000000-0000-0000-0000-000001966d0e',
-      'class_id', '00000000-0000-0000-0000-000001966a32',
-      'handler_name', 'MYK9-1966 Exhibitor', 'client_fee_cents', 3000)),
-    '00000000-0000-0000-0000-000001966c4e', 'cash',
-    jsonb_build_object('method', 'cash', 'expected_collect_cents', 1500));
-END;
-$$;
-
-RESET ROLE;
-DO $$
-DECLARE
-  v_quotes text;
-  v_want_quotes text := '0c:1000/1000/2000/2000 0d:0/2500/2000/500 0e:1000/1000/2000/2000';
-  v_recorded int;
-  v_got text;
-BEGIN
-  SELECT string_agg(format('%s:%s/%s/%s/%s', form, collect_cents, held_cents, addon_cents,
-                           plain_collect), ' ' ORDER BY form)
-    INTO v_quotes FROM t1966_junior;
-  IF v_quotes IS DISTINCT FROM v_want_quotes THEN
-    RAISE EXCEPTION 'FAIL junior quotes (collect/held/addon/plain collect): got [%], want [%]',
-      v_quotes, v_want_quotes;
-  END IF;
-  RAISE NOTICE 'PASS the quote prices the junior fee as the submission does: %', v_quotes;
-
-  -- c: what was recorded at submission equals the junior quote.
-  SELECT round((en.paid_amount - 30) * 100)::int INTO v_recorded
-    FROM public.enrollments en WHERE en.id = '00000000-0000-0000-0000-000001966f0c';
-  IF v_recorded IS DISTINCT FROM (SELECT collect_cents FROM t1966_junior WHERE form = '0c') THEN
-    RAISE EXCEPTION 'FAIL junior partial: quoted %, recorded %',
-      (SELECT collect_cents FROM t1966_junior WHERE form = '0c'), v_recorded;
-  END IF;
-  RAISE NOTICE 'PASS a junior add-on records exactly the quoted % cents', v_recorded;
-
-  -- d: covered by the junior price, settled, nothing recorded, nothing owed.
-  SELECT format('total=%s paid=%s status=%s addon=%s/%s due=%s', en.total_amount,
-                en.paid_amount::numeric(10, 2), en.payment_status, e.payment_status,
-                COALESCE(e.payment_method, 'null'), private.enrollment_due_cents(en.id))
-    INTO v_got
-    FROM public.enrollments en
-    JOIN public.entries e ON e.registration_id = en.id
-     AND e.class_id = '00000000-0000-0000-0000-000001966a32'
-   WHERE en.id = '00000000-0000-0000-0000-000001966f0d';
-  IF v_got IS DISTINCT FROM 'total=2000 paid=30.00 status=paid addon=paid/null due=-500' THEN
-    RAISE EXCEPTION 'FAIL junior covered: got [%]', v_got;
-  END IF;
-  RAISE NOTICE 'PASS a junior add-on the held money covers settles with nothing owed: %', v_got;
-
-  -- e: the quoted ceiling wins over the larger cap; the rest stays owed.
-  SELECT format('paid=%s status=%s due=%s', en.paid_amount::numeric(10, 2), en.payment_status,
-                private.enrollment_due_cents(en.id))
-    INTO v_got
-    FROM public.enrollments en WHERE en.id = '00000000-0000-0000-0000-000001966f0e';
-  IF v_got IS DISTINCT FROM 'paid=45.00 status=pending due=500' THEN
-    RAISE EXCEPTION 'FAIL quoted ceiling: got [%], want [paid=45.00 status=pending due=500]', v_got;
-  END IF;
-  RAISE NOTICE 'PASS money recorded never exceeds the quote; the rest stays owed: %', v_got;
 END;
 $$;
 

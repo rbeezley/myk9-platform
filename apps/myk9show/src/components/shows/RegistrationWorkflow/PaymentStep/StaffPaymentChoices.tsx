@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, CircleDollarSign, FileCheck, FileText, Tag, Users } from 'lucide-react';
+import { Banknote, CircleDollarSign, FileCheck, FileText, Tag, Users, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -12,19 +12,23 @@ import { UserRole } from '@/types/auth-types';
 import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
 import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PaymentOptionCard } from './PaymentOptionCard';
-import { usePaymentDetailsFields } from './usePaymentDetailsFields';
-import {
-  alreadyCoveredLabel,
-  collectDifferenceLabel,
-  type DeskAddOnCollect,
-} from '@/features/registration/deskAddOnCollect';
+import { usePaymentDetailsFields, type PaymentDetailsFields } from './usePaymentDetailsFields';
+import { FORM_HOLDS_HINT, formHoldsLabel } from '@/features/registration/deskFormDue';
 import type { PaymentMethodSelectorProps } from './types';
 
 /** One secretary choice: a payment method, and for money in hand how it came. */
 type StaffChoice =
-  'check_received' | 'cash_received' | 'group_payment' | 'check' | 'cash' | 'waived';
+  | 'check_received'
+  | 'cash_received'
+  | 'group_payment'
+  | 'check'
+  | 'cash'
+  | 'waived'
+  | 'form_holds_money';
 
 const CHOICE_METHOD: Record<StaffChoice, PaymentMethod> = {
+  // MYK9-2149: carried as secretary_paid in the wizard; submitted with no method at all.
+  form_holds_money: 'secretary_paid',
   check_received: 'secretary_paid',
   cash_received: 'secretary_paid',
   group_payment: 'group_payment',
@@ -83,8 +87,8 @@ type StaffPaymentChoicesProps = Pick<
   | 'juniorFee'
   | 'allowFreeEntry'
 > & {
-  /** MYK9-2149: how much of this entry the exhibitor's form already covers. */
-  deskCollect?: DeskAddOnCollect | undefined;
+  /** MYK9-2149: money the exhibitor's form already holds beyond what it owes, or null. */
+  formHeldCents?: number | null | undefined;
 };
 
 /**
@@ -102,11 +106,11 @@ type StaffPaymentChoicesProps = Pick<
  *
  * The exhibitor's own list (`PaymentMethodSelector`) is untouched.
  *
- * MYK9-2149: when the money already on the exhibitor's form covers the entry, there is
- * nothing to collect, so the paid / not-paid choices give way to "Already covered" and the
- * entry is submitted with no payment (the server settles it from the money held). When the
- * form covers part of it, the paid choices say to collect only the difference, which is what
- * the server records.
+ * MYK9-2149 (owner decision: collect after submit): when the exhibitor's form already holds
+ * money, no cash or check is taken here. The paid and not-paid choices give way to one
+ * choice, "This form already holds $X.", the entry is submitted with no payment, and what is
+ * still owed (if anything) is shown after submit, to be recorded on the entry form. Free
+ * entry stays available and can be chosen and un-chosen.
  */
 export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   paymentMethod,
@@ -116,38 +120,54 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   acceptedMethods,
   juniorFee = null,
   allowFreeEntry = false,
-  deskCollect = { kind: 'unchanged' },
+  formHeldCents = null,
 }) => {
   const { fields, update } = usePaymentDetailsFields(getInitialDetails, onPaymentDetailsChange);
-  const covered = deskCollect.kind === 'covered';
-  const coveredSelected = paymentMethod === 'secretary_paid' && fields.coveredByForm;
+  const formHolds = formHeldCents !== null && formHeldCents > 0;
+  const holdsSelected = paymentMethod === 'secretary_paid' && fields.formHoldsMoney;
 
-  // The server's answer arrives after the step opens: a covered entry takes "Already covered"
-  // unless the secretary made it a Free entry, and an entry no longer covered drops it, so
-  // its method then asks for cash or check again before it can be submitted.
+  // The form's money is read after the step opens. When it is first read as holding money,
+  // the one choice is taken (unless the secretary already made it a Free entry), once: after
+  // that her own clicks decide, so Free entry can be chosen and un-chosen. A form no longer
+  // read as holding money drops the choice, so the method asks for cash or check again.
+  const autoSelected = useRef(false);
   useEffect(() => {
-    if (covered && !coveredSelected && paymentMethod !== 'waived') {
-      update({ coveredByForm: true, receivedMethod: undefined });
-      onPaymentMethodChange('secretary_paid');
-    } else if (!covered && fields.coveredByForm) {
-      update({ coveredByForm: false });
+    if (formHolds) {
+      if (autoSelected.current) return;
+      autoSelected.current = true;
+      if (!holdsSelected && paymentMethod !== 'waived') {
+        update({ formHoldsMoney: true, receivedMethod: undefined });
+        onPaymentMethodChange('secretary_paid');
+      }
+      return;
     }
-    // `update` and the change handler are recreated each render; the answer and the
+    autoSelected.current = false;
+    if (fields.formHoldsMoney) update({ formHoldsMoney: false });
+    // `update` and the change handler are recreated each render; the read and the
     // selection are what this follows.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [covered, coveredSelected, paymentMethod, fields.coveredByForm]);
+  }, [formHolds, holdsSelected, paymentMethod, fields.formHoldsMoney]);
   const showCheck = acceptedMethods?.check ?? true;
   const showCash = acceptedMethods?.cash ?? true;
 
   const isSelected = (choice: StaffChoice) => {
+    if (choice === 'form_holds_money') return holdsSelected;
     const received = CHOICE_RECEIVED[choice];
     if (received) return paymentMethod === 'secretary_paid' && fields.receivedMethod === received;
     return paymentMethod === CHOICE_METHOD[choice];
   };
 
   const handleSelect = (choice: StaffChoice) => {
+    // One patch, so a cleared form flag and a received method are sent together.
+    const patch: Partial<PaymentDetailsFields> = {};
+    if (choice === 'form_holds_money') {
+      Object.assign(patch, { formHoldsMoney: true, receivedMethod: undefined });
+    } else if (fields.formHoldsMoney) {
+      patch.formHoldsMoney = false;
+    }
     const received = CHOICE_RECEIVED[choice];
-    if (received && received !== fields.receivedMethod) update({ receivedMethod: received });
+    if (received && received !== fields.receivedMethod) patch.receivedMethod = received;
+    if (Object.keys(patch).length > 0) update(patch);
     onPaymentMethodChange(CHOICE_METHOD[choice]);
   };
 
@@ -220,15 +240,10 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
         <CardTitle className="text-base">How was this entry paid?</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {deskCollect.kind === 'covered' ? (
-          <div role="status" className="space-y-1 rounded-md border border-success/40 p-4">
-            <p className="font-semibold text-foreground">
-              {alreadyCoveredLabel(deskCollect.heldCents)}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Nothing to collect. The money already on this form pays for this entry.
-            </p>
-          </div>
+        {formHolds ? (
+          <ChoiceGroup id="staff-payment-form-holds" title="Money already on this form">
+            {card('form_holds_money', Wallet, formHoldsLabel(formHeldCents), FORM_HOLDS_HINT)}
+          </ChoiceGroup>
         ) : (
           <>
             <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
@@ -236,11 +251,6 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
                 {paymentMethod === 'secretary_paid' && !fields.receivedMethod && (
                   <p role="status" className="text-sm text-muted-foreground">
                     Choose whether a check or cash came with this entry.
-                  </p>
-                )}
-                {deskCollect.kind === 'partial' && (
-                  <p role="status" className="text-sm font-semibold text-foreground">
-                    {collectDifferenceLabel(deskCollect.collectCents, deskCollect.heldCents)}
                   </p>
                 )}
                 {card(

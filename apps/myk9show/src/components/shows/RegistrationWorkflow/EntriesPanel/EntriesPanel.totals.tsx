@@ -106,8 +106,8 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="text-muted-foreground">Payment method</span>
             <Badge variant="outline">
-              {totals?.formCoveredCents && totals.amountDueCents === 0
-                ? 'Already covered'
+              {totals?.formHeldCents && payment.paymentMethod === 'secretary_paid'
+                ? 'Money on this form'
                 : payment.paymentMethod
                   ? getPaymentMethodLabel(payment.paymentMethod)
                   : 'Not selected'}
@@ -142,10 +142,10 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
               </span>
             </div>
           )}
-          {!!totals?.formCoveredCents && (
+          {!!totals?.formHeldCents && (
             <div className="flex items-baseline justify-between gap-2 text-sm">
               <span className="text-muted-foreground">Already on this form</span>
-              <span className="tabular-nums">-{formatCartCurrency(totals.formCoveredCents)}</span>
+              <span className="tabular-nums">{formatCartCurrency(totals.formHeldCents)}</span>
             </div>
           )}
           {totals?.isPayableCard && (

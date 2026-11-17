@@ -25,12 +25,14 @@
 -- (20261113222900_myk9_1886_one_club_admin_rule.sql); only the money lines at the end of the
 -- function changed. Signature, SECURITY DEFINER, search_path, REVOKE and GRANT are unchanged.
 --
--- MYK9-2149: the desk's payment step must name the right amount BEFORE money is taken, so
--- public.desk_addon_amount_to_collect (below) answers what the cap will record, from the
--- same private.enrollment_due_cents the cap reads. The due formula exists once. An add-on
--- the held money covers is submitted with p_payment_method NULL and no p_payment: its
--- entries go in pending with no channel named, private.refresh_enrollment_money settles them
--- to 'paid' from the money held, and the form's own recorded method is left alone.
+-- MYK9-2149 (owner decision: collect after submit). The desk is told only what a form already
+-- holds beyond what it owes, before submission, and what it still owes, after, both from
+-- public.desk_form_due_cents (below), which reads the same private.enrollment_due_cents the
+-- cap reads; the due formula exists once. A desk add-on onto a form that holds money is
+-- submitted with p_payment_method NULL and no p_payment: its entries go in pending with no
+-- channel named, private.refresh_enrollment_money settles whatever the held money covers,
+-- and the form's own recorded method is left alone. Anything still owed is recorded on the
+-- entry form afterwards.
 
 -- ---------------------------------------------------------------------------
 -- private.enrollment_due_cents: what a form still owes, in cents. Negative when it holds
@@ -53,51 +55,9 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION private.enrollment_due_cents(uuid) IS
-  'MYK9-1966: a form''s due in cents (total_amount less desk net and card money); negative when it holds more than it owes. Read by submit_show_entries (the cap on money recorded at submission) and desk_addon_amount_to_collect (what the desk is told to collect), so both use one formula.';
+  'MYK9-1966: a form''s due in cents (total_amount less desk net and card money); negative when it holds more than it owes. Read by submit_show_entries (the cap on money recorded at submission) and desk_form_due_cents (what the desk is told a form holds or still owes), so both use one formula.';
 
 REVOKE ALL ON FUNCTION private.enrollment_due_cents(uuid) FROM PUBLIC;
-
--- ---------------------------------------------------------------------------
--- private.submission_is_day_of_show: MYK9-642's day-of rule for a submission made now, moved
--- here verbatim from submit_show_entries so the desk's quote (desk_addon_amount_to_collect)
--- prices an add-on in the same registry bucket the submission will. A day-of entry is one
--- made on or after the show's first day, or after entries closed, on the show's own calendar
--- (its first trial's zone, resolved against public.timezone_names, else America/New_York).
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION private.submission_is_day_of_show(p_show_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY INVOKER
-SET search_path = ''
-AS $$
-  WITH show AS (
-    SELECT s.start_date AS show_start, s.entry_close_date AS show_close,
-           COALESCE(
-             (SELECT n.name
-                FROM public.timezone_names n
-               WHERE n.name = (SELECT t.timezone
-                                 FROM public.trials t
-                                WHERE t.show_id = s.id
-                                ORDER BY t.date NULLS LAST, t.id
-                                LIMIT 1)),
-             'America/New_York'
-           ) AS show_tz
-      FROM public.shows s
-     WHERE s.id = p_show_id
-  )
-  SELECT (
-           show_close IS NOT NULL
-           AND (now() AT TIME ZONE show_tz)::date > (show_close AT TIME ZONE 'UTC')::date
-         )
-         OR (
-           show_start IS NOT NULL
-           AND (now() AT TIME ZONE show_tz)::date >= (show_start AT TIME ZONE 'UTC')::date
-         )
-    FROM show;
-$$;
-
-REVOKE ALL ON FUNCTION private.submission_is_day_of_show(uuid) FROM PUBLIC;
 
 CREATE OR REPLACE FUNCTION public.submit_show_entries(p_show_id uuid, p_registration_id uuid, p_entries jsonb, p_submission_id uuid, p_payment_method text, p_payment jsonb DEFAULT NULL::jsonb)
  RETURNS jsonb
@@ -157,8 +117,6 @@ DECLARE
   -- the created fees that money received at submission may pay (never more than that due).
   v_due_cents       int;
   v_pay_cents       int;
-  -- MYK9-2149: the amount the desk was told to collect, when it was quoted one.
-  v_expected_cents  int;
 
   -- MYK9-1048: this entry's run position (NULL while its class has no order).
   v_run_order     int;
@@ -314,19 +272,6 @@ BEGIN
       RAISE EXCEPTION 'a received payment needs an enrollment' USING ERRCODE = '22023';
     END IF;
     v_pay_received_on := NULLIF(p_payment->>'received_on', '')::date;
-    -- MYK9-2149: what the desk told the secretary to collect. Money is never recorded above
-    -- it: if the form owes more by now, the rest stays owed rather than being recorded as
-    -- cash nobody took.
-    IF p_payment ? 'expected_collect_cents' THEN
-      IF jsonb_typeof(p_payment->'expected_collect_cents') <> 'number'
-         OR (p_payment->>'expected_collect_cents')::numeric < 0
-         OR (p_payment->>'expected_collect_cents')::numeric
-            <> trunc((p_payment->>'expected_collect_cents')::numeric) THEN
-        RAISE EXCEPTION 'expected_collect_cents must be a whole number of cents, 0 or more (got %)',
-          p_payment->'expected_collect_cents' USING ERRCODE = '22023';
-      END IF;
-      v_expected_cents := (p_payment->>'expected_collect_cents')::int;
-    END IF;
   END IF;
 
   -- MYK9-642. ONE rule, evaluated once per submission so every entry in the
@@ -342,9 +287,16 @@ BEGIN
   -- it below them buys nothing. The zone is validated against public.timezone_names
   -- where it is read instead, which is what actually makes a bad value safe --
   -- for the exhibitor guards too, which never had that protection.
-  -- MYK9-2149: the rule itself lives in private.submission_is_day_of_show, which the desk's
-  -- quote also prices with; it reads the same show row, zone and fallback as above.
-  v_is_day_of_show := COALESCE(private.submission_is_day_of_show(p_show_id), false);
+  v_is_day_of_show := (
+    (
+      v_show_close IS NOT NULL
+      AND (now() AT TIME ZONE v_show_tz)::date > (v_show_close AT TIME ZONE 'UTC')::date
+    )
+    OR (
+      v_show_start IS NOT NULL
+      AND (now() AT TIME ZONE v_show_tz)::date >= (v_show_start AT TIME ZONE 'UTC')::date
+    )
+  );
 
   FOR v_entry IN SELECT * FROM jsonb_array_elements(p_entries)
   LOOP
@@ -708,8 +660,6 @@ BEGIN
     -- already covers records nothing, one it partly covers records only the difference.
     v_due_cents := private.enrollment_due_cents(p_registration_id);
     v_pay_cents := GREATEST(LEAST(v_created_cents, COALESCE(v_due_cents, 0)), 0);
-    -- MYK9-2149: and never more than the desk was told to collect (only a p_payment carries it).
-    v_pay_cents := LEAST(v_pay_cents, COALESCE(v_expected_cents, v_pay_cents));
 
     IF p_payment IS NOT NULL THEN
       -- MYK9-677: the created entries' server fees, capped at the form's due (MYK9-1966), are
@@ -787,33 +737,22 @@ REVOKE ALL ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text,
 GRANT EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- MYK9-2149: public.desk_addon_amount_to_collect. What the desk should collect for the
--- classes about to be added to the exhibitor's form for this show, and the money that form
--- already holds beyond what it owes.
---
--- The add-on is priced HERE, by the same private.price_entry_fee and the same day-of rule
--- (private.submission_is_day_of_show) submit_show_entries prices with, including the
--- secretary's junior handler fee override, so the quote and the cap cannot disagree about
--- the fee. One p_class_ids element per entry line (a class entered by two dogs is listed
--- twice). addon_cents is that price; collect_cents is exactly what submit_show_entries' cap
--- records for it (LEAST(add-on, the form's due once it is added), never below 0); held_cents
--- is GREATEST(-due, 0) today. A person with no form yet holds nothing.
+-- MYK9-2149: public.desk_form_due_cents. What the exhibitor's form for this show still owes, in
+-- cents: negative when it holds money beyond what it owes, 0 when it has no form yet. The
+-- desk reads it twice: before submission (is there money on this form? then no cash or check
+-- is taken at submission) and after (what is still owed, to record on the entry form). It is
+-- a fact about the form, independent of any pricing.
 --
 -- Keyed on (show, handler), not an enrollment id: before submission the wizard knows the
 -- exhibitor, not the form, and a form is one row per (show_id, handler_id).
 --
 -- SECURITY DEFINER, with the predicate submit_show_entries applies to a payment taken at
 -- submission (private.can_record_show_payment) restated: only someone who may take that
--- money is told how much a form holds. price_entry_fee restates its own junior-override
--- check (is_show_secretary).
+-- money is told what a form holds or owes. The form's money columns are read whole here,
+-- whatever the caller's RLS lets them see; the restated predicate is the guard.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.desk_addon_amount_to_collect(
-  p_show_id uuid,
-  p_handler_id uuid,
-  p_class_ids uuid[],
-  p_junior_override boolean
-)
-RETURNS TABLE (collect_cents integer, held_cents integer, addon_cents integer)
+CREATE OR REPLACE FUNCTION public.desk_form_due_cents(p_show_id uuid, p_handler_id uuid)
+RETURNS integer
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
@@ -821,52 +760,26 @@ SET search_path = ''
 AS $$
 DECLARE
   v_enrollment_id uuid;
-  v_due integer;
-  v_day_of boolean;
-  v_addon integer := 0;
-  v_class_id uuid;
 BEGIN
-  IF p_show_id IS NULL OR p_handler_id IS NULL OR p_class_ids IS NULL
-     OR p_junior_override IS NULL THEN
-    RAISE EXCEPTION 'a show, an exhibitor, the classes and the junior choice are required'
-      USING ERRCODE = '22023';
+  IF p_show_id IS NULL OR p_handler_id IS NULL THEN
+    RAISE EXCEPTION 'a show and an exhibitor are required' USING ERRCODE = '22023';
   END IF;
   IF NOT private.can_record_show_payment(p_show_id) THEN
     RAISE EXCEPTION 'not authorized to record payments for show %', p_show_id
       USING ERRCODE = '42501';
   END IF;
 
-  v_day_of := COALESCE(private.submission_is_day_of_show(p_show_id), false);
-  FOREACH v_class_id IN ARRAY p_class_ids LOOP
-    IF NOT EXISTS (
-      SELECT 1 FROM public.classes c JOIN public.trials t ON t.id = c.trial_id
-       WHERE c.id = v_class_id AND t.show_id = p_show_id
-    ) THEN
-      RAISE EXCEPTION 'class % is not a class of show %', v_class_id, p_show_id
-        USING ERRCODE = '22023';
-    END IF;
-    v_addon := v_addon + (
-      SELECT ROUND(pr.fee * 100)::int
-        FROM private.price_entry_fee(p_show_id, v_class_id, v_day_of, p_junior_override) AS pr
-    );
-  END LOOP;
-
   SELECT en.id INTO v_enrollment_id
     FROM public.enrollments en
    WHERE en.show_id = p_show_id
      AND en.handler_id = p_handler_id;
 
-  v_due := COALESCE(private.enrollment_due_cents(v_enrollment_id), 0);
-
-  addon_cents := v_addon;
-  collect_cents := GREATEST(LEAST(v_addon, v_due + v_addon), 0);
-  held_cents := GREATEST(-v_due, 0);
-  RETURN NEXT;
+  RETURN COALESCE(private.enrollment_due_cents(v_enrollment_id), 0);
 END;
 $$;
 
-COMMENT ON FUNCTION public.desk_addon_amount_to_collect(uuid, uuid, uuid[], boolean) IS
-  'MYK9-2149: for the desk payment step, the add-on priced as submit_show_entries prices it (price_entry_fee, submission_is_day_of_show, the junior override), what to collect for it (what submit_show_entries'' cap records) and what the exhibitor''s form holds beyond what it owes. Same private.enrollment_due_cents as the cap. Restates can_record_show_payment.';
+COMMENT ON FUNCTION public.desk_form_due_cents(uuid, uuid) IS
+  'MYK9-2149: what the exhibitor''s form for this show still owes in cents (negative = money held beyond what it owes; 0 = no form). The desk reads it before submission (no cash or check is taken when the form holds money) and after (what is still owed). Same private.enrollment_due_cents as the submission cap. Restates can_record_show_payment.';
 
-REVOKE ALL ON FUNCTION public.desk_addon_amount_to_collect(uuid, uuid, uuid[], boolean) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.desk_addon_amount_to_collect(uuid, uuid, uuid[], boolean) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.desk_form_due_cents(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.desk_form_due_cents(uuid, uuid) TO authenticated, service_role;

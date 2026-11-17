@@ -47,6 +47,7 @@ import type {
   NewCartItem,
 } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
+import { fetchDeskFormDueCents, type DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { sendSubmittedEntryEmail, submittedEntryIdsToEmail } from './sendSubmittedEntryEmail';
 
 /** Subset of the cart store actions the checkout handoff needs. */
@@ -87,8 +88,6 @@ export interface SubmitPaymentStepContext {
   paymentMethod: PaymentMethod | undefined;
   paymentStatus: PaymentStatus;
   paymentDetails: PaymentDetails;
-  /** MYK9-2149: what the desk was told to collect, when the server quoted one. */
-  deskExpectedCollectCents?: number | null | undefined;
   ownerResolution: SelectedDogsOwnerResult;
   exhibitorProfileId: string;
   classSelections: ClassSelectionData[];
@@ -111,6 +110,8 @@ export interface SubmitPaymentStepContext {
   setArmbandAssignments: (value: ArmbandAssignment[]) => void;
   setEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
   setCreatedEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
+  /** MYK9-2149: what a form that held money still owes after this submission. */
+  setDeskFormOutcome?: ((value: DeskFormOutcome | null) => void) | undefined;
   markStepComplete: (stepIndex: number) => void;
   setCurrentStep: (updater: (prev: number) => number) => void;
   updateShowRegistration: (
@@ -122,6 +123,28 @@ export interface SubmitPaymentStepContext {
   invalidateOwnTodayEntries: () => void;
   navigate: (path: string) => void;
   discardDraftsWithoutFinalSave: (handledClasses: HandledDraftClass[]) => void;
+}
+
+/**
+ * MYK9-2149 (owner decision: collect after submit): an entry added to a form that held money
+ * went in with no payment. Read what the form still owes now, so the receipt can say so and
+ * link to the entry form. A failed read says it could not be read, never "covered".
+ */
+async function readDeskFormOutcome(
+  ctx: SubmitPaymentStepContext,
+  formId: string
+): Promise<DeskFormOutcome | null> {
+  if (ctx.paymentMethod !== 'secretary_paid' || ctx.paymentDetails.formHoldsMoney !== true) {
+    return null;
+  }
+  if (!ctx.ownerResolution.ok) return { formId, owedCents: null };
+  try {
+    const due = await fetchDeskFormDueCents(ctx.showId, ctx.ownerResolution.ownerId);
+    return { formId, owedCents: Math.max(0, due) };
+  } catch (error) {
+    console.error('Reading what the entry form still owes failed:', error);
+    return { formId, owedCents: null };
+  }
 }
 
 function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
@@ -264,7 +287,6 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       ownerResolution: ctx.ownerResolution,
       paymentMethod: ctx.paymentMethod,
       paymentDetails: ctx.paymentDetails,
-      expectedCollectCents: ctx.deskExpectedCollectCents ?? null,
       classSelections: ctx.classSelections,
       handlerAssignments: ctx.handlerAssignments,
       classes: ctx.classes,
@@ -287,6 +309,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     }
     if (ctx.currentWorkflowMode === 'exhibitor') ctx.invalidateOwnTodayEntries();
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
+    ctx.setDeskFormOutcome?.(await readDeskFormOutcome(ctx, submissionResult.dbRegistrationId));
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
     ctx.setCreatedEntryOutcomes(submissionResult.createdEntryOutcomes ?? []);
     ctx.discardDraftsWithoutFinalSave(

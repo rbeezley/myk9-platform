@@ -1,7 +1,7 @@
 /**
- * MYK9-2149: an entry the money already on the exhibitor's form covers is submitted with
- * no payment and no method (no cash, check or secretary_paid), so the server settles it
- * from the money held, records nothing received and names no channel. A part-covered or uncovered entry still sends the cash or
+ * MYK9-2149 (collect after submit): an entry added to a form that already holds money is
+ * submitted with no payment and no method (no cash, check or secretary_paid), so the server
+ * settles what the money held covers, records nothing received and names no channel. A part-covered or uncovered entry still sends the cash or
  * check the secretary took (the server records only what is due, MYK9-1966).
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -52,9 +52,9 @@ function makeParams(paymentDetails: PaymentDetails): SubmitShowRegistrationParam
   };
 }
 
-describe('an entry the form already covers (MYK9-2149)', () => {
+describe('an entry added to a form that holds money (MYK9-2149)', () => {
   it('is submitted with no payment and no method, so nothing is recorded as received', async () => {
-    const params = makeParams({ coveredByForm: true });
+    const params = makeParams({ formHoldsMoney: true });
 
     await submitShowRegistration(params);
 
@@ -70,12 +70,12 @@ describe('an entry the form already covers (MYK9-2149)', () => {
   });
 
   it('does not ask for cash or check when nothing changed hands', async () => {
-    const params = makeParams({ coveredByForm: true });
+    const params = makeParams({ formHoldsMoney: true });
 
     await expect(submitShowRegistration(params)).resolves.toMatchObject({ aborted: false });
   });
 
-  it('still sends the cash taken for a part-covered entry (the server records only the due)', async () => {
+  it('still sends the cash taken when the form holds nothing (the server records at most the due)', async () => {
     const params = makeParams({ receivedMethod: 'cash' });
 
     await submitShowRegistration(params);
@@ -84,18 +84,6 @@ describe('an entry the form already covers (MYK9-2149)', () => {
       expect.objectContaining({
         paymentMethod: 'cash',
         payment: { method: 'cash', receivedOn: null, reference: null },
-      })
-    );
-  });
-
-  it('sends the amount the desk was told to collect, so the server records no more', async () => {
-    const params = { ...makeParams({ receivedMethod: 'cash' }), expectedCollectCents: 1000 };
-
-    await submitShowRegistration(params);
-
-    expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payment: { method: 'cash', receivedOn: null, reference: null, expectedCollectCents: 1000 },
       })
     );
   });

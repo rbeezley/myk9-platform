@@ -1,7 +1,6 @@
 import type { PaymentMethodResolution } from './usePaymentMethodResolution';
 import type { JuniorHandlerDeclaration } from './JuniorHandlerDeclaration';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
-import type { DeskAddOnCollect } from '@/features/registration/deskAddOnCollect';
 
 /** Props for the top-level PaymentStep component. */
 export interface PaymentStepProps {
@@ -29,10 +28,10 @@ export interface PaymentStepProps {
    */
   staffWorkflow?: boolean | undefined;
   /**
-   * MYK9-2149: how much of this entry the exhibitor's form already covers, as the server
-   * answered it for the PAGE (so the entries panel says the same). Omitted = unchanged.
+   * MYK9-2149: money the exhibitor's form already holds beyond what it owes, read by the
+   * PAGE (so the entries panel says the same), or null while unknown or when it holds none.
    */
-  deskCollect?: DeskAddOnCollect | undefined;
+  formHeldCents?: number | null | undefined;
   /**
    * Payment-method resolution, owned by the PAGE so the entries panel and these
    * controls read the same effective method in the same render

@@ -10,7 +10,6 @@
  * left identical to the pre-refactor page — only its location changed.
  */
 
-import { deskExpectedCollectCents } from '@/features/registration/deskAddOnCollect';
 import { notifications } from '@/lib/notifications';
 import { useCartStore } from '@/store/cartStore';
 import {
@@ -192,7 +191,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           paymentMethod: registrationData.paymentMethod,
           paymentStatus,
           paymentDetails: paymentDetailsRef.current,
-          deskExpectedCollectCents: deskExpectedCollectCents(state.deskCollect),
+          setDeskFormOutcome: state.setDeskFormOutcome,
           ownerResolution,
           exhibitorProfileId: exhibitorProfile?.id ?? '',
           classSelections: state.classSelections,
@@ -393,8 +392,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
 
   const handlePaymentDetailsChange = (details: PaymentDetails) => {
     paymentDetailsRef.current = details;
-    // MYK9-2149: the desk quote prices the junior fee, so a toggle asks again.
-    state.setDeskChargeJuniorFee(details.chargeJuniorFee === true);
   };
 
   const handlePaymentStatusChange = (regId: string, status: PaymentStatus) => {

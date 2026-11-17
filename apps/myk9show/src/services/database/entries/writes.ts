@@ -328,11 +328,6 @@ export interface ReceivedEntryPayment {
   /** `YYYY-MM-DD`; omitted means today on the show's calendar (server-side). */
   receivedOn?: string | null | undefined;
   reference?: string | null | undefined;
-  /**
-   * MYK9-2149: what the desk was told to collect. The server records at most this (and at
-   * most what the form owes); any rest stays owed.
-   */
-  expectedCollectCents?: number | undefined;
 }
 
 // Submit show entries via the server-side RPC (enforces ownership, fees, payment auth, and capacity)
@@ -344,7 +339,7 @@ export async function submitShowEntries(params: {
     classId: string;
     handlerId?: string | undefined;
     handlerName: string;
-    /** Null only for an add-on the form's held money covers (MYK9-2149): no channel. */
+    /** Null only for an add-on onto a form that holds money (MYK9-2149): no channel. */
     paymentMethod: string | null;
     clientFeeCents: number;
     /** MYK9-878: a secretary / site admin charges the show's junior handler fee. */
@@ -352,8 +347,8 @@ export async function submitShowEntries(params: {
   }>;
   submissionId: string;
   /**
-   * MYK9-2149: null for an add-on the money already on the form covers. No money changed
-   * hands, so no channel is named; the server settles the entries from the money held.
+   * MYK9-2149: null for an add-on onto a form that already holds money. No money changed
+   * hands, so no channel is named; the server settles what the money held covers.
    */
   paymentMethod: string | null;
   submissionSource: EntrySubmissionSource;
@@ -399,9 +394,6 @@ export async function submitShowEntries(params: {
               method: payment.method,
               received_on: payment.receivedOn ?? null,
               reference: payment.reference ?? null,
-              ...(payment.expectedCollectCents !== undefined
-                ? { expected_collect_cents: payment.expectedCollectCents }
-                : {}),
             },
           }
         : {}),

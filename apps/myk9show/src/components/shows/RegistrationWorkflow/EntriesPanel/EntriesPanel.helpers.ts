@@ -8,7 +8,6 @@
  */
 
 import type { CartItemWithDetails } from '@/store/cartStore';
-import type { DeskAddOnCollect } from '@/features/registration/deskAddOnCollect';
 import { formatWeekdayShort } from '@/lib/format/dates';
 import {
   calculatePlatformFeeCents,
@@ -287,32 +286,26 @@ export interface PaymentTotals {
   /** Payment is due but no method is chosen yet. */
   requiresPaymentMethod: boolean;
   /**
-   * MYK9-2149: the part of the entry fees the money already on the exhibitor's form
-   * pays (the fees less what the server says to collect). Zero when nothing is held.
+   * MYK9-2149: money the exhibitor's form already holds beyond what it owes (the server's
+   * figure), when the desk is submitting against it. Shown as it is, never subtracted from
+   * the fees here: what is still owed is the server's answer after submit.
    */
-  formCoveredCents?: number | undefined;
+  formHeldCents?: number | undefined;
 }
 
 /**
- * MYK9-2149: the desk's totals once the server has said how much of this entry the
- * exhibitor's form already covers. "Total due" becomes what to collect, and a covered
- * entry is never quoted as received: nothing changed hands. Card totals (exhibitors)
- * and an unchanged answer are returned as they are.
+ * MYK9-2149: the desk's totals when the exhibitor's form already holds money. No money is
+ * taken at submission then, so the fees are never quoted as received. Card totals
+ * (exhibitors) and a form holding nothing are returned as they are.
  */
-export function withDeskCollect(
+export function withFormHeld(
   totals: PaymentTotals,
-  deskCollect: DeskAddOnCollect | undefined
+  formHeldCents: number | null | undefined
 ): PaymentTotals {
-  if (!deskCollect || deskCollect.kind === 'unchanged' || totals.isPayableCard) return totals;
-  if (totals.isWaived) return totals;
-  const collectCents = deskCollect.kind === 'covered' ? 0 : deskCollect.collectCents;
-  return {
-    ...totals,
-    isSecretaryReceived: deskCollect.kind === 'partial' && totals.isSecretaryReceived,
-    amountDueCents: collectCents,
-    formCoveredCents: Math.max(0, totals.entryFeeCents - collectCents),
-    requiresPaymentMethod: totals.requiresPaymentMethod && collectCents > 0,
-  };
+  if (!formHeldCents || formHeldCents <= 0 || totals.isPayableCard || totals.isWaived) {
+    return totals;
+  }
+  return { ...totals, isSecretaryReceived: false, formHeldCents };
 }
 
 /**
@@ -385,8 +378,8 @@ export function formatAmountDue({
   // Capacity next: with lines on the entry, no figure is trustworthy until read.
   if (!capacityReady) return placeholder ?? availabilityPlaceholder(capacityUnavailable);
   if (totals?.isWaived) return FREE_ENTRY_AMOUNT_LABEL;
-  if (totals?.formCoveredCents && totals.amountDueCents === 0) {
-    return `${formatCartCurrency(0)} (Already covered)`;
+  if (totals?.formHeldCents) {
+    return `${formatCartCurrency(totals.amountDueCents)} (before money on this form)`;
   }
   const amount = formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
   // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as

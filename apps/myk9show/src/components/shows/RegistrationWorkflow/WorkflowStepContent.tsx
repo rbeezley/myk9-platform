@@ -1,5 +1,6 @@
 import type { PaymentMethodResolution } from './PaymentStep/usePaymentMethodResolution';
-import type { DeskAddOnCollect } from '@/features/registration/deskAddOnCollect';
+import { DeskFormOutcomeNotice } from './DeskFormOutcomeNotice';
+import type { DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { useMemo } from 'react';
 import { DogSelectionStep } from './DogSelectionStep';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
@@ -68,8 +69,8 @@ interface WorkflowStepContentProps {
   registrationId: string | undefined;
   registrationNumber: string | undefined;
   currentRegistrationTotalFees: number;
-  /** MYK9-2149: how much of this entry the exhibitor's form already covers. */
-  deskCollect?: DeskAddOnCollect | undefined;
+  /** MYK9-2149: money the form holds before submit, and what it still owes after. */
+  desk?: { formHeldCents: number | null; outcome: DeskFormOutcome | null } | undefined;
   capacityReady?: boolean | undefined;
   capacityError?: string | null | undefined;
   /** Availability could not be read at all, as opposed to still loading. */
@@ -119,7 +120,7 @@ export function WorkflowStepContent({
   registrationId,
   registrationNumber,
   currentRegistrationTotalFees,
-  deskCollect,
+  desk,
   capacityReady = true,
   capacityError,
   capacityUnavailable,
@@ -441,7 +442,7 @@ export function WorkflowStepContent({
             onAgreementChange={onAgreementChange}
             preTickAgreement={currentWorkflowMode !== 'exhibitor'}
             staffWorkflow={currentWorkflowMode !== 'exhibitor'}
-            deskCollect={deskCollect}
+            formHeldCents={desk?.formHeldCents ?? null}
             juniorDeclaration={juniorDeclaration}
             capacityReady={capacityReady}
             capacityError={capacityError}
@@ -453,6 +454,9 @@ export function WorkflowStepContent({
         </PaymentErrorBoundary>
       )}
 
+      {currentStepId === 'confirmation' && desk?.outcome && (
+        <DeskFormOutcomeNotice showId={showId} outcome={desk.outcome} />
+      )}
       {currentStepId === 'confirmation' &&
         (styledReceipt && styledReceiptProps && hasCreatedCapacityOutcome ? (
           <div className="space-y-6">

@@ -51,12 +51,13 @@ export interface PaymentDetails {
    */
   chargeJuniorFee?: boolean;
   /**
-   * MYK9-2149: the money already on the exhibitor's form covers these entries
-   * (the server said so: `desk_addon_amount_to_collect`), so the desk collects
-   * nothing and submission records no payment; the server settles the entries
-   * from the money held.
+   * MYK9-2149: the exhibitor's form already holds money beyond what it owes
+   * (`desk_form_due_cents`), so the desk takes no money at submission: the
+   * entries go in with no payment and no method, the server settles whatever
+   * the held money covers, and anything still owed is shown after submit, to be
+   * recorded on the entry form.
    */
-  coveredByForm?: boolean;
+  formHoldsMoney?: boolean;
 }
 
 // Registration context for role-based workflows

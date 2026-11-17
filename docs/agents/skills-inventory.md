@@ -75,3 +75,8 @@ Claude transcripts showed its last load on Oct 31 and five of its skills never l
 working methods now live in `docs/PLAYBOOK.md`: § 2 (intent check, test first) and § 3 (root cause
 before any fix). `ship-it`, `incident-triage`, `debugging-patterns` and `code-review-extensions`
 no longer route to it, and plan headers point at `ship-it`.
+
+The same day (MYK9-2132) `opsx:explore` was removed, both `.claude/commands/opsx/explore.md` and
+its Codex copy `.codex/skills/openspec-explore/`: it was never loaded, and nothing routed to it.
+PLAYBOOK § 1 step 1 now says to clarify the idea directly. `opsx:sync` stays because
+`opsx:archive` calls it.

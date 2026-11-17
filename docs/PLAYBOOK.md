@@ -8,7 +8,7 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 
 ## 1. New feature (design-level / spans multiple files or a schema change)
 
-1. `opsx:explore` — think through the idea, investigate the problem, clarify requirements before committing to an approach.
+1. Clarify the idea before committing to an approach: investigate the problem in code, read `docs/INTENT.md` for UX-facing work, and settle product questions with the owner.
 2. `opsx:propose` — creates the OpenSpec change (`openspec/changes/<id>/`) with proposal, design, specs, and `tasks.md` in one step. This **is** the plan — do not also write a `docs/plan-*.md` for the same work.
 3. Implement: `opsx:apply` (direct) or `orchestrate` (cheaper-model sub-agents implement, you stay as reviewer/gatekeeper; it also runs a picked list of Linear issues to merge) or `opsx:ship` (full end-to-end: propose → implement → PR → review → merge → archive, autonomous).
 4. `opsx:verify` — confirm implementation matches the change artifacts before archiving. It runs `pnpm qa:openspec-proof <id>` and requires the printed proof files to run green. Every ADDED or MODIFIED scenario ends with a `- **PROOF** <repo-relative test path> :: <test name substring>` bullet (`:: <name>` may be omitted only for `.sql` files; prefer a Playwright spec or SQL behaviour test). `pnpm qa:openspec-proof --report` counts unproven scenarios per main spec; existing specs are not backfilled.

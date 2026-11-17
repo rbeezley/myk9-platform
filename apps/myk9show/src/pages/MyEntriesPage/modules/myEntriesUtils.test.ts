@@ -284,7 +284,7 @@ describe('My Entries terminal status display', () => {
     rerender(
       React.createElement(React.Fragment, null, getEntryStatusBadge(EntryStatus.MOVE_UP_REQUESTED))
     );
-    expect(screen.getByText('Move-Up Requested')).toBeInTheDocument();
+    expect(screen.getByText('Change requested')).toBeInTheDocument();
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
   });
 

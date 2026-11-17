@@ -134,8 +134,8 @@ const KIND_WORDING: Record<EntryStatusKind, VoicedWording> = {
     exhibitor: { line: 'Moved' },
   },
   move_up_requested: {
-    secretary: { line: 'Move-up requested', hint: 'Approve or decline in Move-ups & pulls' },
-    exhibitor: { line: 'Move-up requested', hint: 'Awaiting secretary approval' },
+    secretary: { line: 'Change requested', hint: 'Accept or decline in Class changes' },
+    exhibitor: { line: 'Change requested', hint: 'Awaiting secretary approval' },
   },
   unknown: {
     secretary: { line: 'Status unavailable' },

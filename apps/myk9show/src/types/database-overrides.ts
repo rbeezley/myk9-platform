@@ -154,6 +154,18 @@ type UpdateShowStyle = {
 };
 
 /**
+ * MYK9-2115: the text of one sent show email. Returns no row when no copy was kept (emails sent
+ * before copies were stored). Raises 42501 unless the caller can see that show's delivery history.
+ * Added by hand until the committed generated types are regenerated after the migration is pushed.
+ */
+type ShowEmailContentFunctions = {
+  get_show_email_content: {
+    Args: { p_email_log_id: string };
+    Returns: { subject: string; html: string }[];
+  };
+};
+
+/**
  * Club membership requests (MYK9-685) —
  * `supabase/migrations/20260924213100_myk9_685_club_membership_requests.sql`.
  * Hand-declared until the next `supabase gen types` picks them up, the same way
@@ -303,6 +315,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'count_live_waitlist_entries'
       | 'count_paperwork_prints'
       | keyof ClubMembershipRequestFunctions
+      | keyof ShowEmailContentFunctions
       | keyof DeletePreviewFunctions
     > & {
       withdraw_own_entry: WithdrawOwnEntry;
@@ -318,6 +331,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions &
+      ShowEmailContentFunctions &
       DeletePreviewFunctions;
   };
 };

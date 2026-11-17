@@ -7,6 +7,7 @@ import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { storeEmailContent } from '../_shared/emailLogContent.ts';
 import {
   assertSendResultsAuthorization,
   deriveResultsAddresses,
@@ -105,6 +106,8 @@ handle<SendResultsPayload>(
     // authenticated caller's own email — never the request body.
     const { secretaryEmail } = deriveResultsAddresses(show, callerEmail);
 
+    const resultsSubject = `Electronic Results — ${filename}`;
+    const resultsHtml = `<p>Electronic results submission from myK9Show attached.</p>`;
     let resendRes: Response;
     try {
       resendRes = await sendResendEmailWithRetry({
@@ -117,8 +120,8 @@ handle<SendResultsPayload>(
           from: FROM_EMAIL,
           to: [toEmail],
           ...(secretaryEmail ? { cc: [secretaryEmail], reply_to: secretaryEmail } : {}),
-          subject: `Electronic Results — ${filename}`,
-          html: `<p>Electronic results submission from myK9Show attached.</p>`,
+          subject: resultsSubject,
+          html: resultsHtml,
           attachments: [
             {
               filename,
@@ -155,14 +158,19 @@ handle<SendResultsPayload>(
     }
 
     const result = (await resendRes.json()) as { id?: string };
-    const { error: logError } = await supabase.from('email_log').insert({
-      recipient_email: toEmail,
-      email_type: 'registry_results_submission',
-      resend_message_id: result.id ?? null,
-      status: 'sent',
-      show_id: show.id,
-    });
+    const { data: logRow, error: logError } = await supabase
+      .from('email_log')
+      .insert({
+        recipient_email: toEmail,
+        email_type: 'registry_results_submission',
+        resend_message_id: result.id ?? null,
+        status: 'sent',
+        show_id: show.id,
+      })
+      .select('id')
+      .single();
     requireEmailLogWrite(logError, 'send-results');
+    await storeEmailContent(supabase, logRow?.id, resultsSubject, resultsHtml);
 
     return { success: true };
   }

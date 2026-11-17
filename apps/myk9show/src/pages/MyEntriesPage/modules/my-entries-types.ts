@@ -106,6 +106,11 @@ export interface EntryClass {
   resultsReleasedAt?: string | undefined;
   /** Optional dog photo URL for result-card rendering. */
   dogImageUrl?: string | undefined;
+  /**
+   * `entries.special_requests`. Read for one thing: the note a declined class
+   * change leaves behind (`declinedClassChangeReason`).
+   */
+  specialRequests?: string | undefined;
 }
 
 /**

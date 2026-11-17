@@ -52,6 +52,8 @@ export interface MyShowDogCardProps {
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   /** MYK9-631 AC3: withdrawing or pulling one class, from the row that owns it. */
   onLeaveClass: (dog: MyShowDog, cls: MyShowClass, classWhen: string) => void;
+  /** Re-read the entries after a class change request is sent or taken back. */
+  onClassChanged?: (() => void | Promise<void>) | undefined;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -69,6 +71,7 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
   onCheckInDay,
   onOpenCheckIn,
   onLeaveClass,
+  onClassChanged,
   onResultRevealClick,
 }) => {
   const chip = deriveDogChip(dog, {
@@ -76,6 +79,10 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
     isShowCancelled,
   });
   const targets = deriveDayCheckInTargets(dog, checkInContext);
+  const dogClassIds = React.useMemo(
+    () => new Set(dog.classes.flatMap(cls => (cls.classId ? [cls.classId] : []))),
+    [dog.classes]
+  );
 
   return (
     <div className="myk9-entries-dog-card">
@@ -132,6 +139,8 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
             onCheckInClass={one => onCheckInDay(dog, [one])}
             onOpenCheckIn={onOpenCheckIn}
             onLeaveClass={(one, classWhen) => onLeaveClass(dog, one, classWhen)}
+            dogClassIds={dogClassIds}
+            onClassChanged={onClassChanged}
             onResultRevealClick={onResultRevealClick}
           />
         ))}

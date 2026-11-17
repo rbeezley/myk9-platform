@@ -46,6 +46,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   dog_registrations: 'SELECT,INSERT,UPDATE,DELETE',
   dogs: 'SELECT,INSERT,UPDATE,DELETE',
   email_log: 'SELECT',
+  email_log_contents: '',
   enrollments: 'SELECT,INSERT,UPDATE',
   entries: 'INSERT,UPDATE,DELETE',
   // MYK9-1601: officials only (RLS); no DELETE, notes soft-delete.

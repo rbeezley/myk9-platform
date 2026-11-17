@@ -2,6 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Clock3, HelpCircle, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase-client';
+import { ViewEmailButton } from './EmailContentDialog';
 import {
   fetchShowEmailDeliveryHistory,
   type EmailDeliveryCursor,
@@ -136,6 +137,7 @@ function DeliveryHistoryRow({ row }: { row: EmailDeliveryHistoryRow }) {
               Review this email
             </Link>
           ) : null}
+          <ViewEmailButton emailLogId={row.id} label={row.typeLabel} />
         </div>
       </div>
     </article>

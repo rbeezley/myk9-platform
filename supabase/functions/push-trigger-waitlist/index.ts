@@ -7,6 +7,7 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { storeEmailContent, type EmailContentClient } from '../_shared/emailLogContent.ts';
 import {
   buildWaitlistNotificationContent,
   formatTrialLabel,
@@ -298,15 +299,28 @@ async function deliverEmail(input: {
     throw { channel: 'email', statusCode: response.status };
   }
   const result = (await response.json()) as { id?: string };
-  const { error: logError } = await input.supabase.from('email_log').insert({
-    recipient_email: input.recipient,
-    email_type: 'waitlist_notification',
-    related_id: input.eventId,
-    resend_message_id: result.id ?? null,
-    status: 'sent',
-    show_id: input.showId,
-  });
+  const { data: logRow, error: logError } = await input.supabase
+    .from('email_log')
+    .insert({
+      recipient_email: input.recipient,
+      email_type: 'waitlist_notification',
+      related_id: input.eventId,
+      resend_message_id: result.id ?? null,
+      status: 'sent',
+      show_id: input.showId,
+    })
+    .select('id')
+    .single();
   requireEmailLogWrite(logError, 'push-trigger-waitlist');
+  // MYK9-2115: a copy for the show's delivery history (show-scoped only).
+  if (input.showId) {
+    await storeEmailContent(
+      input.supabase as unknown as EmailContentClient,
+      logRow?.id,
+      input.content.subject,
+      input.content.emailHtml
+    );
+  }
   await updateEvent(input.supabase, input.eventId, input.claimToken, {
     email_sent_at: new Date().toISOString(),
   });

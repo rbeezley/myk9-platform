@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { createShowMessageEmailSender } from './emailDelivery';
+import { createShowMessageEmailSender, writeEmailLog } from './emailDelivery';
 import { createSendTargetedMessageHandler } from './targeted-message-handler';
 import { resolveEmailAudience, type EntryRecipientSource } from './targeting';
 
@@ -529,5 +529,88 @@ describe('createShowMessageEmailSender', () => {
     const result = await createShowMessageEmailSender({ apiKey: undefined })(args);
     expect(result.failed).toBe(2);
     expect(result.logRows.every(r => r.error_message === 'email_not_configured')).toBe(true);
+  });
+});
+
+describe('writeEmailLog keeps a copy of each email (MYK9-2115)', () => {
+  const rows = [
+    {
+      recipient_email: 'a@example.com',
+      email_type: 'show_message',
+      related_id: null,
+      resend_message_id: 'r1',
+      status: 'sent' as const,
+      error_message: null,
+      show_id: 'show-1',
+    },
+    {
+      recipient_email: 'b@example.com',
+      email_type: 'show_message',
+      related_id: null,
+      resend_message_id: 'r2',
+      status: 'sent' as const,
+      error_message: null,
+      show_id: 'show-1',
+    },
+  ];
+
+  function makeSupabase(
+    returned: Array<{ id: string; recipient_email: string }> = [
+      { id: 'log-a', recipient_email: 'a@example.com' },
+      { id: 'log-b', recipient_email: 'b@example.com' },
+    ]
+  ) {
+    const contentInsert = vi.fn(() => Promise.resolve({ error: null }));
+    const from = vi.fn((table: string) =>
+      table === 'email_log_contents'
+        ? { insert: contentInsert }
+        : {
+            insert: vi.fn(() => ({
+              select: () => Promise.resolve({ data: returned, error: null }),
+            })),
+          }
+    );
+    return { supabase: { from } as never, contentInsert };
+  }
+
+  it("stores each recipient's own text against its email_log id", async () => {
+    const { supabase, contentInsert } = makeSupabase();
+    await writeEmailLog(supabase, rows, email => ({ subject: 'S', html: `<p>${email}</p>` }));
+    expect(contentInsert).toHaveBeenCalledWith([
+      { email_log_id: 'log-a', subject: 'S', html: '<p>a@example.com</p>' },
+      { email_log_id: 'log-b', subject: 'S', html: '<p>b@example.com</p>' },
+    ]);
+  });
+
+  it('pairs copies by recipient when the rows come back in reverse order', async () => {
+    const { supabase, contentInsert } = makeSupabase([
+      { id: 'log-b', recipient_email: 'b@example.com' },
+      { id: 'log-a', recipient_email: 'a@example.com' },
+    ]);
+    await writeEmailLog(supabase, rows, email => ({ subject: 'S', html: `<p>${email}</p>` }));
+    expect(contentInsert).toHaveBeenCalledWith([
+      { email_log_id: 'log-a', subject: 'S', html: '<p>a@example.com</p>' },
+      { email_log_id: 'log-b', subject: 'S', html: '<p>b@example.com</p>' },
+    ]);
+  });
+
+  it('skips a duplicated or unmatched recipient instead of guessing', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { supabase, contentInsert } = makeSupabase([
+      { id: 'log-a', recipient_email: 'a@example.com' },
+    ]);
+    await writeEmailLog(supabase, [rows[0]!, rows[0]!, rows[1]!], email => ({
+      subject: 'S',
+      html: email,
+    }));
+    expect(contentInsert).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('stores nothing without a copy builder', async () => {
+    const { supabase, contentInsert } = makeSupabase();
+    await writeEmailLog(supabase, rows);
+    expect(contentInsert).not.toHaveBeenCalled();
   });
 });

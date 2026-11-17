@@ -29,6 +29,8 @@ import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from '@myk9/core';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { canLeaveClass } from './leaveClassRow';
+import { canChangeClass } from './changeClassRow';
+import { ClassChangeRowControls } from './ClassChangeRowControls';
 import type { ClassRowKind } from './myShowDogState';
 import { CLASS_ROW_TEXT, classRowDisplay } from './classRowStatusText';
 import type { DayCheckInContext } from './dayCheckIn';
@@ -84,8 +86,14 @@ export interface MyShowClassRowProps {
    * order picker that used to stand in front of it is what AC3 deletes.
    */
   onLeaveClass: (cls: MyShowClass, classWhen: string) => void;
+  /** Every class this dog is entered in at this show: the class change sheet skips them. */
+  dogClassIds?: ReadonlySet<string> | undefined;
+  /** Re-read the entries after a class change request is sent or taken back. */
+  onClassChanged?: (() => void | Promise<void>) | undefined;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
+
+const NO_CLASS_IDS: ReadonlySet<string> = new Set();
 
 export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   cls,
@@ -99,6 +107,8 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   onCheckInClass,
   onOpenCheckIn,
   onLeaveClass,
+  dogClassIds = NO_CLASS_IDS,
+  onClassChanged,
   onResultRevealClick,
 }) => {
   const state = classRowDisplay(cls, checkInContext);
@@ -125,6 +135,14 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
     isShowClosedOut: Boolean(order?.isShowClosedOut),
     unresolved: Boolean(cls.unresolved),
     hasShowId: showId !== '',
+  });
+  const canChange = canChangeClass({
+    kind: state.kind,
+    isPastShow: checkInContext.isPastShow,
+    isShowClosedOut: Boolean(order?.isShowClosedOut),
+    unresolved: Boolean(cls.unresolved),
+    hasShowId: showId !== '',
+    entryStatus: cls.entryStatus,
   });
   // The same discriminator the row already shows. Two trials of one show can
   // run a class with the SAME display name, which is why RemoveFromClassDialog
@@ -206,6 +224,14 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             owns it. Muted rather than `text-destructive`: it sits beside a
             check-in control the exhibitor uses far more often, and the
             chooser it opens is where the consequences are stated. */}
+        <ClassChangeRowControls
+          cls={cls}
+          dogName={dogName}
+          showId={showId}
+          dogClassIds={dogClassIds}
+          canChange={canChange}
+          onChanged={onClassChanged}
+        />
         {canLeave && (
           <>
             <span aria-hidden="true" className="text-muted-foreground">

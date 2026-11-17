@@ -3,6 +3,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { storeEmailContent } from '../_shared/emailLogContent.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
@@ -318,6 +319,7 @@ handle<SendRegistrationEmailPayload>(
       .single();
 
     requireEmailLogWrite(logError, 'send-registration-email');
+    await storeEmailContent(supabase, logRow?.id, emailPayload.subject, emailPayload.html);
 
     if (claimedIds && resendMessageId) {
       await supabase

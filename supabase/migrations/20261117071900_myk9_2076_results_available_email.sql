@@ -148,11 +148,14 @@ BEGIN
   WHERE nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
     AND p.deleted_at IS NULL
     AND p.id IN (
-      SELECT d.owner_id
+      -- The dog's owner and the entry's handler each get one (deduplicated per person):
+      -- My Shows lists the entry for both.
+      SELECT r.person_id
         FROM public.entries e
         JOIN public.dogs d ON d.id = e.dog_id
         JOIN public.classes c ON c.id = e.class_id
         JOIN public.trials t ON t.id = c.trial_id
+        CROSS JOIN LATERAL (VALUES (d.owner_id), (e.handler_id)) AS r(person_id)
        WHERE e.show_id = p_show_id
          AND t.show_id = p_show_id
          AND t.deleted_at IS NULL
@@ -164,7 +167,7 @@ BEGIN
               'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested'
          )
          AND e.check_in_status IS DISTINCT FROM 'pulled'
-         AND d.owner_id IS NOT NULL
+         AND r.person_id IS NOT NULL
          AND d.deleted_at IS NULL
     )
   ON CONFLICT DO NOTHING;

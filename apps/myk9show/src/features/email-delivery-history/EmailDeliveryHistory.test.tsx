@@ -6,7 +6,8 @@ import type { EmailDeliveryHistoryPage } from './api';
 
 const { mockFetch, mockFetchContent } = vi.hoisted(() => ({
   mockFetch: vi.fn<(...args: never[]) => Promise<EmailDeliveryHistoryPage>>(),
-  mockFetchContent: vi.fn<(...args: never[]) => Promise<{ subject: string; html: string } | null>>(),
+  mockFetchContent:
+    vi.fn<(...args: never[]) => Promise<{ subject: string; html: string } | null>>(),
 }));
 
 vi.mock('./api', async importOriginal => {
@@ -93,7 +94,9 @@ describe('EmailDeliveryHistory', () => {
     const frame = await screen.findByTitle('Email preview');
     expect(frame).toHaveAttribute('sandbox', '');
     expect(frame).toHaveAttribute('srcdoc', '<p>Welcome</p>');
-    expect(mockFetchContent).toHaveBeenCalledWith(expect.objectContaining({ emailLogId: 'attempt-1' }));
+    expect(mockFetchContent).toHaveBeenCalledWith(
+      expect.objectContaining({ emailLogId: 'attempt-1' })
+    );
   });
 
   it('says plainly when no copy of the email was kept', async () => {

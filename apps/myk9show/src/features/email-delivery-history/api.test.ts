@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchShowEmailContent, fetchShowEmailDeliveryHistory, type EmailDeliverySupabaseClient } from './api';
+import {
+  fetchShowEmailContent,
+  fetchShowEmailDeliveryHistory,
+  type EmailDeliverySupabaseClient,
+} from './api';
 
 function client(data: unknown): EmailDeliverySupabaseClient {
   return { rpc: vi.fn().mockResolvedValue({ data, error: null }) };
@@ -44,16 +48,16 @@ describe('fetchShowEmailDeliveryHistory', () => {
 
 describe('fetchShowEmailContent', () => {
   it('asks the RPC for one email_log row and returns its copy', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: [{ subject: 'S', html: '<p>h</p>' }], error: null });
+    const rpc = vi
+      .fn()
+      .mockResolvedValue({ data: [{ subject: 'S', html: '<p>h</p>' }], error: null });
     const result = await fetchShowEmailContent({ supabase: { rpc }, emailLogId: 'log-1' });
     expect(rpc).toHaveBeenCalledWith('get_show_email_content', { p_email_log_id: 'log-1' });
     expect(result).toEqual({ subject: 'S', html: '<p>h</p>' });
   });
 
   it('returns null when no copy was kept and throws on an RPC error', async () => {
-    expect(
-      await fetchShowEmailContent({ supabase: client([]), emailLogId: 'log-1' })
-    ).toBeNull();
+    expect(await fetchShowEmailContent({ supabase: client([]), emailLogId: 'log-1' })).toBeNull();
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: 'forbidden' } });
     await expect(fetchShowEmailContent({ supabase: { rpc }, emailLogId: 'x' })).rejects.toThrow(
       'forbidden'

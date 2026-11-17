@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { MAX_STORED_EMAIL_HTML_CHARS, storeEmailContent, storeEmailContents } from './emailLogContent.ts';
+import {
+  MAX_STORED_EMAIL_HTML_CHARS,
+  storeEmailContent,
+  storeEmailContents,
+} from './emailLogContent.ts';
 
 function makeClient(result: { error: unknown } | Error) {
   const insert = vi.fn(() =>

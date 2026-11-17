@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clashQuestion,
+  deferredHandlerKeys,
   findHandlerClashes,
   isClashAnswered,
   type ClashClassInfo,
@@ -129,5 +130,36 @@ describe('isClashAnswered', () => {
   it('is answered by a typed name or by deciding at the show', () => {
     expect(isClashAnswered(clash, { 'scout|cNovA': friend }, [])).toBe(true);
     expect(isClashAnswered(clash, { 'scout|cNovA': owner }, [clash.pairKey])).toBe(true);
+  });
+});
+
+describe('deferredHandlerKeys (MYK9-2031)', () => {
+  const pairKey = 'scout+willow>scout';
+
+  it("flags the second dog's clashing class when the pair was deferred", () => {
+    const clashes = find(['willow', 'scout'], [pick('willow', 'cNovA'), pick('scout', 'cNovA')]);
+    expect(deferredHandlerKeys(clashes, [clashes[0]!.pairKey])).toEqual(['scout|cNovA']);
+  });
+
+  it('(a) also flags a class added after she ticked it, for the same pair', () => {
+    const clashes = find(
+      ['willow', 'scout'],
+      [pick('willow', 'cNovA', 'iNovA'), pick('scout', 'cNovA', 'iNovA')]
+    );
+    expect(clashes).toHaveLength(1);
+    expect(clashes[0]!.pairKey).toBe(pairKey);
+    expect(deferredHandlerKeys(clashes, [pairKey]).sort()).toEqual(['scout|cNovA', 'scout|iNovA']);
+  });
+
+  it('(b) flags nothing once the clash is gone, though the pair key is still deferred', () => {
+    const oneDog = find(['scout'], [pick('scout', 'cNovA')]);
+    expect(deferredHandlerKeys(oneDog, [pairKey])).toEqual([]);
+    const otherClass = find(['willow', 'scout'], [pick('willow', 'cNovA'), pick('scout', 'iNovA')]);
+    expect(deferredHandlerKeys(otherClass, [pairKey])).toEqual([]);
+  });
+
+  it('flags nothing for a clash that was not deferred', () => {
+    const clashes = find(['willow', 'scout'], [pick('willow', 'cNovA'), pick('scout', 'cNovA')]);
+    expect(deferredHandlerKeys(clashes, [])).toEqual([]);
   });
 });

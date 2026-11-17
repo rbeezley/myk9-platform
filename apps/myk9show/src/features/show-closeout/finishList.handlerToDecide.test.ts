@@ -62,8 +62,35 @@ describe('readHandlerToDecide', () => {
           check_in_status: 'pulled',
         },
         { handler_to_decide: false, class_id: 'c4', entry_status: 'confirmed' },
-        { class_id: 'c5', entry_status: 'confirmed' },
       ])
     ).toEqual({ count: 2, classIds: ['c1'] });
+  });
+
+  it('is unknown, not zero, when a live entry does not carry the flag', () => {
+    expect(
+      readHandlerToDecide([
+        { handler_to_decide: false, class_id: 'c1', entry_status: 'confirmed' },
+        { class_id: 'c2', entry_status: 'confirmed' },
+      ])
+    ).toBeUndefined();
+    expect(
+      readHandlerToDecide([{ handler_to_decide: null, class_id: 'c2', entry_status: 'confirmed' }])
+    ).toBeUndefined();
+  });
+
+  it('ignores a withdrawn entry that lacks the flag', () => {
+    expect(readHandlerToDecide([{ class_id: 'c2', entry_status: 'withdrawn' }])).toEqual({
+      count: 0,
+      classIds: [],
+    });
+  });
+
+  it('does not count a flagged entry with no class, so the link always names a class', () => {
+    expect(
+      readHandlerToDecide([
+        { handler_to_decide: true, class_id: null, entry_status: 'confirmed' },
+        { handler_to_decide: true, class_id: 'c1', entry_status: 'confirmed' },
+      ])
+    ).toEqual({ count: 1, classIds: ['c1'] });
   });
 });

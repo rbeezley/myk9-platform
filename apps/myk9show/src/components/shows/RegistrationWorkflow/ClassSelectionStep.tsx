@@ -725,6 +725,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           deferredPairKeys={handlerClash.deferredPairKeys}
           onDeferredChange={handlerClash.onDeferredChange}
           onPendingChange={handlerClash.onPendingChange}
+          onDeferredKeysChange={handlerClash.onDeferredKeysChange}
+          allowDecideAtShow={handlerClash.allowDecideAtShow ?? true}
         />
       )}
 

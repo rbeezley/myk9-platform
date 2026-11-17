@@ -53,7 +53,15 @@ function renderList(
   trials: SyncableTrial[],
   entries: SecretaryEntry[] = []
 ) {
-  render(<ResultsFinishRow showId="show-1" trials={trials} rows={rows} entries={entries} />);
+  render(
+    <ResultsFinishRow
+      showId="show-1"
+      trials={trials}
+      rows={rows}
+      entries={entries}
+      entriesTrusted
+    />
+  );
   return within(screen.getByRole('region', { name: 'Finish the show' }));
 }
 
@@ -165,6 +173,7 @@ describe('ResultsFinishRow', () => {
         trials={[first, second]}
         rows={SHOW_ROWS}
         entries={[]}
+        entriesTrusted
         onOpenAfterShow={onOpen}
       />
     );
@@ -182,6 +191,7 @@ describe('ResultsFinishRow', () => {
         trials={[trialFor('AKC')]}
         rows={SHOW_ROWS}
         entries={[]}
+        entriesTrusted
         onOpenAfterShow={vi.fn()}
       />
     );
@@ -216,6 +226,7 @@ describe('ResultsFinishRow', () => {
         trials={[trialFor('AKC')]}
         rows={SHOW_ROWS}
         entries={entries}
+        entriesTrusted
       />
     );
     const link = screen.getByRole('link', {
@@ -226,5 +237,33 @@ describe('ResultsFinishRow', () => {
 
     const list = renderList(SHOW_ROWS, [trialFor('AKC')], []);
     expect(list.queryByText(/I'll decide at the show/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about handlers while the entries read is stale or lacks the flag (MYK9-2031)', () => {
+    const flagged = fromAny<SecretaryEntry, unknown>({
+      id: 'e1',
+      class_id: 'open-1',
+      entry_status: 'confirmed',
+      handler_to_decide: true,
+    });
+    const { unmount } = render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        entries={[flagged]}
+        entriesTrusted={false}
+      />
+    );
+    expect(screen.queryByText(/I'll decide at the show/)).not.toBeInTheDocument();
+    unmount();
+
+    const noFlag = fromAny<SecretaryEntry, unknown>({
+      id: 'e2',
+      class_id: 'open-1',
+      entry_status: 'confirmed',
+    });
+    renderList(SHOW_ROWS, [trialFor('AKC')], [flagged, noFlag]);
+    expect(screen.queryByText(/I'll decide at the show/)).not.toBeInTheDocument();
   });
 });

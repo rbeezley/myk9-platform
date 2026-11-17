@@ -73,6 +73,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setClassSelections,
     setHandlerAssignments,
     setHandlerClashDeferred,
+    setHandlerDeferredKeys,
     registrationId,
     setRegistrationNumber,
     paymentStatus,
@@ -83,6 +84,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setCreatedEntryOutcomes,
     paymentDetailsRef,
     juniorHandlerDogIds,
+    handlerDeferredKeys,
     setJuniorHandlerDogs,
     setIsSubmitting,
     setAgreedToEntryAgreement,
@@ -212,6 +214,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
             entryWindowTimezone,
           },
           juniorHandlerDogIds,
+          handlerDeferredKeys,
           currentStep,
           cart: {
             clearCart,
@@ -300,6 +303,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       setClassSelections([]);
       setHandlerAssignments({});
       setHandlerClashDeferred([]);
+      setHandlerDeferredKeys([]);
       setStepCompletionState({});
       setPaymentStatus(PaymentStatus.PENDING);
       setEntryStatus(EntryStatus.PENDING);

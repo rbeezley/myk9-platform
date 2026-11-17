@@ -29,6 +29,7 @@ export function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext>
       startDate: '2026-08-01',
     },
     juniorHandlerDogIds: new Set<string>(),
+    handlerDeferredKeys: [],
     currentStep: 2,
     cart: {
       clearCart: vi.fn(async () => {

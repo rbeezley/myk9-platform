@@ -184,6 +184,21 @@ export function clashHandlerName(
     : '';
 }
 
+/**
+ * MYK9-2031: the `dog|class` keys to flag as "I'll decide at the show". Read from the clashes
+ * found NOW on the final selection, so a clash that has since gone (the other dog or class was
+ * removed) flags nothing, and a class added later to a deferred pair is flagged too. A clash that
+ * is not deferred (a typed handler, or still open) flags nothing.
+ */
+export function deferredHandlerKeys(
+  clashes: readonly HandlerClash[],
+  deferredPairKeys: readonly string[]
+): string[] {
+  return clashes
+    .filter(clash => deferredPairKeys.includes(clash.pairKey))
+    .flatMap(clash => clash.subjectClassIds.map(id => makeHandlerKey(clash.subjectDogId, id)));
+}
+
 export function isClashAnswered(
   clash: HandlerClash,
   handlerAssignments: Readonly<Record<string, HandlerInfo>>,

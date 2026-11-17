@@ -32,6 +32,7 @@ describe('entries.handler_to_decide', () => {
     expect(body).toContain('public.can_manage_show(e.show_id)');
     expect(body).toContain('public.is_show_secretary(e.show_id)');
     expect(body).toContain('e.deleted_at IS NULL');
+    expect(body).toContain('e.handler_to_decide IS DISTINCT FROM true');
     expect(body).toMatch(/SECURITY DEFINER\s+SET search_path = ''/);
     expect(sql).toContain(
       'REVOKE ALL ON FUNCTION public.mark_entries_handler_to_decide(uuid[]) FROM PUBLIC, anon;'

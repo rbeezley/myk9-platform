@@ -21,6 +21,8 @@ interface ResultsFinishRowProps {
   rows: readonly ResultsClassRow[];
   /** The show's entries, for the entries still left as "I'll decide at the show" (MYK9-2031). */
   entries: readonly SecretaryEntry[];
+  /** False while the entries read is stale (a refresh failed): the line then says nothing. */
+  entriesTrusted: boolean;
   /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
   onOpenAfterShow?: (trialId: string) => void;
 }
@@ -36,6 +38,7 @@ export function ResultsFinishRow({
   trials,
   rows,
   entries,
+  entriesTrusted,
   onOpenAfterShow,
 }: ResultsFinishRowProps) {
   // Until the schedule is confirmed the rows may be partial: not loaded reads as "checking".
@@ -49,10 +52,10 @@ export function ResultsFinishRow({
         showId,
         calculateResultsRowsLeft(rows, trials, {
           ...sent,
-          handlerToDecide: readHandlerToDecide(entries),
+          handlerToDecide: entriesTrusted ? readHandlerToDecide(entries) : undefined,
         })
       ),
-    [entries, rows, sent, showId, trials]
+    [entries, entriesTrusted, rows, sent, showId, trials]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();

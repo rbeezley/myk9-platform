@@ -316,6 +316,8 @@ export function useRegistrationWizardState() {
   // how many same-class handler questions the Classes step still has open.
   const [handlerClashDeferred, setHandlerClashDeferred] = useState<string[]>([]);
   const [handlerClashPending, setHandlerClashPending] = useState(0);
+  // MYK9-2031: the keys of entries left as "I'll decide at the show", from the clashes as they stand.
+  const [handlerDeferredKeys, setHandlerDeferredKeys] = useState<string[]>([]);
   const [registrationId, setRegistrationId] = useState<string | undefined>();
   const [registrationNumber, setRegistrationNumber] = useState<string | undefined>();
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
@@ -714,6 +716,8 @@ export function useRegistrationWizardState() {
     handlerClashDeferred,
     setHandlerClashDeferred,
     setHandlerClashPending,
+    handlerDeferredKeys,
+    setHandlerDeferredKeys,
     registrationId,
     setRegistrationId,
     registrationNumber,

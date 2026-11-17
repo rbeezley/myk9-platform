@@ -51,6 +51,7 @@ BEGIN
     FROM public.dogs d
    WHERE e.id = ANY (COALESCE(p_entry_ids, '{}'::uuid[]))
      AND e.deleted_at IS NULL
+     AND e.handler_to_decide IS DISTINCT FROM true
      AND d.id = e.dog_id
      AND (
        d.owner_id = v_person_id

@@ -394,6 +394,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
         trials={trials}
         rows={rows}
         entries={entries}
+        entriesTrusted={!refreshFailed}
         timeZone={timeZone}
       />
       {state.classId && !selected && <CarriedClassNotice />}

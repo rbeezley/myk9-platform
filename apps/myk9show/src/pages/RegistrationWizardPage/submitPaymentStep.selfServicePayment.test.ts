@@ -162,6 +162,7 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
     canAssignArmbands: false,
     showFeeInfo: { preEntryFee: '25', startDate: '2099-08-01' },
     juniorHandlerDogIds: new Set<string>(),
+    handlerDeferredKeys: [],
     currentStep: 2,
     cart: {
       clearCart: vi.fn(async () => true),

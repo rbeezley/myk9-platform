@@ -115,6 +115,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     handlerClashDeferred,
     setHandlerClashDeferred,
     setHandlerClashPending,
+    setHandlerDeferredKeys,
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,
@@ -433,6 +434,8 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
                 deferredPairKeys: handlerClashDeferred,
                 onDeferredChange: setHandlerClashDeferred,
                 onPendingChange: setHandlerClashPending,
+                onDeferredKeysChange: setHandlerDeferredKeys,
+                allowDecideAtShow: !(isLateEntryMode && currentWorkflowMode !== 'exhibitor'),
               }}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
               onPaymentMethodClear={handlePaymentMethodClear}

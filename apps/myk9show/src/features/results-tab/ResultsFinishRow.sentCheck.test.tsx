@@ -61,7 +61,9 @@ const CHANGED_LINE = SENT_FILE_TEXT.changed;
 const COULD_NOT_CHECK = SENT_FILE_TEXT.unknown;
 
 function renderRow() {
-  return render(<ResultsFinishRow showId="show-1" trials={trials} rows={ROWS} entries={[]} />);
+  return render(
+    <ResultsFinishRow showId="show-1" trials={trials} rows={ROWS} entries={[]} entriesTrusted />
+  );
 }
 
 describe('ResultsFinishRow results file freshness', () => {

@@ -38,13 +38,9 @@ function makeParams(markEntriesHandlerToDecide: ReturnType<typeof vi.fn>) {
     handlerAssignments: {
       'dog-1|class-1': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
       'dog-1|class-2': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
-      'dog-2|class-1': {
-        handlerId: 'o1',
-        handlerName: 'Pat Owner',
-        isOwner: true,
-        decideAtShow: true,
-      },
+      'dog-2|class-1': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
     },
+    decideAtShowKeys: ['dog-2|class-1'],
     classes: [{ id: 'class-1' }, { id: 'class-2' }],
     showFeeInfo: { preEntryFee: '25', dayOfShowFee: '30', startDate: '2026-05-01' },
     submissionSource: 'self_service',
@@ -82,9 +78,7 @@ describe('submitShowRegistration handler to decide (MYK9-2031)', () => {
   it('does not call the flag RPC when no entry was left to decide', async () => {
     const mark = vi.fn().mockResolvedValue(undefined);
     const params = makeParams(mark);
-    params.handlerAssignments = {
-      'dog-2|class-1': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
-    };
+    params.decideAtShowKeys = [];
     await submitShowRegistration(params);
     expect(mark).not.toHaveBeenCalled();
   });

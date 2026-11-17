@@ -11,6 +11,7 @@ import { getDogDisplayName } from '@/types/dog-types';
 import {
   clashHandlerName,
   clashQuestion,
+  deferredHandlerKeys,
   findHandlerClashes,
   isClashAnswered,
   type ClashClassInfo,
@@ -28,6 +29,10 @@ export interface HandlerClashSectionProps {
   onDeferredChange: (pairKeys: string[]) => void;
   /** How many questions still have no answer; the wizard blocks Continue on it. */
   onPendingChange: (count: number) => void;
+  /** The `dog|class` keys to flag "I'll decide at the show" after submit (MYK9-2031). */
+  onDeferredKeysChange: (keys: string[]) => void;
+  /** False where an entry cannot be flagged for later: the secretary names the handler. */
+  allowDecideAtShow?: boolean;
 }
 
 /**
@@ -45,6 +50,8 @@ export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
   deferredPairKeys,
   onDeferredChange,
   onPendingChange,
+  onDeferredKeysChange,
+  allowDecideAtShow = true,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { classes: queryClasses = [] } = useClassStoreCompat();
@@ -95,6 +102,12 @@ export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
   useEffect(() => {
     onPendingChange(pending);
   }, [pending, onPendingChange]);
+
+  // Re-read from the clashes as they stand, so the flag follows the final selection.
+  const deferredKeysText = deferredHandlerKeys(clashes, deferredPairKeys).join(',');
+  useEffect(() => {
+    onDeferredKeysChange(deferredKeysText ? deferredKeysText.split(',') : []);
+  }, [deferredKeysText, onDeferredKeysChange]);
 
   const writeHandler = useCallback(
     (clash: HandlerClash, handler: HandlerInfo) => {
@@ -149,25 +162,26 @@ export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
                 );
               }}
             />
-            <label
-              htmlFor={`${inputId}-later`}
-              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1"
-            >
-              <Checkbox
-                id={`${inputId}-later`}
-                checked={deferred}
-                onCheckedChange={value => {
-                  if (value !== true) {
-                    onDeferredChange(deferredPairKeys.filter(key => key !== clash.pairKey));
+            {allowDecideAtShow && (
+              <label
+                htmlFor={`${inputId}-later`}
+                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-1"
+              >
+                <Checkbox
+                  id={`${inputId}-later`}
+                  checked={deferred}
+                  onCheckedChange={value => {
+                    if (value !== true) {
+                      onDeferredChange(deferredPairKeys.filter(key => key !== clash.pairKey));
+                      return;
+                    }
                     writeHandler(clash, ownerHandler(clash));
-                    return;
-                  }
-                  writeHandler(clash, { ...ownerHandler(clash), decideAtShow: true });
-                  onDeferredChange([...deferredPairKeys, clash.pairKey]);
-                }}
-              />
-              <span className="text-sm">I'll decide at the show</span>
-            </label>
+                    onDeferredChange([...deferredPairKeys, clash.pairKey]);
+                  }}
+                />
+                <span className="text-sm">I'll decide at the show</span>
+              </label>
+            )}
           </div>
         );
       })}

@@ -7,6 +7,12 @@ export interface HandlerClashControl {
   deferredPairKeys: string[];
   onDeferredChange: (pairKeys: string[]) => void;
   onPendingChange: (count: number) => void;
+  onDeferredKeysChange: (keys: string[]) => void;
+  /**
+   * False on the secretary's offline late entry, which cannot flag an entry for later (MYK9-2031):
+   * she names the handler instead. Defaults to true.
+   */
+  allowDecideAtShow?: boolean | undefined;
 }
 
 export interface ClassSelectionStepProps {

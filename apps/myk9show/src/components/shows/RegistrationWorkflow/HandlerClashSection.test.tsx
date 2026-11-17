@@ -35,6 +35,8 @@ interface HarnessProps {
   existing?: { dogId: string; classId: string }[];
   onPending: (count: number) => void;
   onAssign: (next: Record<string, HandlerInfo>) => void;
+  onKeys?: (keys: string[]) => void;
+  allowDecideAtShow?: boolean;
 }
 
 function Harness({
@@ -43,6 +45,8 @@ function Harness({
   existing = [],
   onPending,
   onAssign,
+  onKeys = vi.fn(),
+  allowDecideAtShow = true,
 }: HarnessProps) {
   const [assignments, setAssignments] = useState<Record<string, HandlerInfo>>(() =>
     Object.fromEntries(
@@ -63,6 +67,8 @@ function Harness({
       deferredPairKeys={deferred}
       onDeferredChange={setDeferred}
       onPendingChange={onPending}
+      onDeferredKeysChange={onKeys}
+      allowDecideAtShow={allowDecideAtShow}
     />
   );
 }
@@ -149,35 +155,42 @@ describe('HandlerClashSection (MYK9-2021)', () => {
     await userEvent.click(button);
     expect(onAssign).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        'scout|cNovA': {
-          handlerId: 'o1',
-          handlerName: 'Pat Owner',
-          isOwner: true,
-          decideAtShow: true,
-        },
+        'scout|cNovA': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
       })
     );
     expect(button).toBeChecked();
     expect(onPending).toHaveBeenLastCalledWith(0);
   });
 
-  it('clears the decide-at-show mark when she unticks it', async () => {
-    const onAssign = vi.fn();
+  it('reports the keys to flag only while the box is ticked and the clash stands (MYK9-2031)', async () => {
+    const onKeys = vi.fn();
     render(
       <Harness
         selections={[pick('willow', 'cNovA'), pick('scout', 'cNovA')]}
         onPending={vi.fn()}
-        onAssign={onAssign}
+        onAssign={vi.fn()}
+        onKeys={onKeys}
       />
     );
+    expect(onKeys).toHaveBeenLastCalledWith([]);
     const button = screen.getByRole('checkbox', { name: "I'll decide at the show" });
     await userEvent.click(button);
+    expect(onKeys).toHaveBeenLastCalledWith(['scout|cNovA']);
     await userEvent.click(button);
-    expect(onAssign).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        'scout|cNovA': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
-      })
+    expect(onKeys).toHaveBeenLastCalledWith([]);
+  });
+
+  it('does not offer "I\'ll decide at the show" where the entry cannot be flagged', () => {
+    render(
+      <Harness
+        selections={[pick('willow', 'cNovA'), pick('scout', 'cNovA')]}
+        onPending={vi.fn()}
+        onAssign={vi.fn()}
+        allowDecideAtShow={false}
+      />
     );
+    expect(screen.getByText(/You can't handle both Willow and Scout/)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: "I'll decide at the show" })).toBeNull();
   });
 
   it('catches a dog entered now when her other dog is already entered in that class', () => {

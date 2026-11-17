@@ -96,6 +96,8 @@ export interface SubmitPaymentStepContext {
   showFeeInfo: PaymentStepShowFeeInfo;
   /** MYK9-879: dogs whose handler the exhibitor declared a junior (card checkout). */
   juniorHandlerDogIds: ReadonlySet<string>;
+  /** MYK9-2031: `dog|class` keys left as "I'll decide at the show", from the final clashes. */
+  handlerDeferredKeys: readonly string[];
   currentStep: number;
 
   // Deps
@@ -265,6 +267,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       classSelections: ctx.classSelections,
       handlerAssignments: ctx.handlerAssignments,
       classes: ctx.classes,
+      decideAtShowKeys: ctx.handlerDeferredKeys,
       canAssignArmbands: ctx.canAssignArmbands,
       showFeeInfo: ctx.showFeeInfo,
       submissionSource: ctx.currentWorkflowMode === 'exhibitor' ? 'self_service' : 'organizer',

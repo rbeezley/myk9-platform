@@ -63,6 +63,16 @@ describe('submitPaymentStep', () => {
     });
   });
 
+  it('hands the keys left as "I\'ll decide at the show" to the submit (MYK9-2031)', async () => {
+    const { ctx } = makeContextAndOrder({ handlerDeferredKeys: ['dog-2|class-1'] });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitShowRegistrationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ decideAtShowKeys: ['dog-2|class-1'] })
+    );
+  });
+
   it('a 409 hand-off says what changed over /cart and releases Pay (MYK9-1964)', async () => {
     const message =
       'A class you picked has closed or filled since you added it. Review your entry and try again.';

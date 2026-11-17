@@ -113,6 +113,10 @@ function replicatedField(entry: ReplicatedEntry, camel: string, snake: string): 
   return record[camel] ?? record[snake] ?? null;
 }
 
+function booleanOrUndefined(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
 function replicatedClassNumber(cls: ReplicatedClass): string | null {
   const record = cls as unknown as Record<string, unknown>;
   return stringFrom(record.classNumber ?? record.class_number);
@@ -282,7 +286,10 @@ export function toSecretaryEntry(
     check_in_pulled_by: hasUnsyncedLocalWrite(entry)
       ? null
       : stringFrom(replicatedField(entry, 'checkInPulledBy', 'check_in_pulled_by')),
-    handler_to_decide: replicatedField(entry, 'handlerToDecide', 'handler_to_decide') === true,
+    // MYK9-2031: an absent field stays undefined (unknown), never false.
+    handler_to_decide: booleanOrUndefined(
+      replicatedField(entry, 'handlerToDecide', 'handler_to_decide')
+    ),
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
     // MYK9-632: from the side-read, not the replica — the column lives on
     // `entries` and the view the replica mirrors does not carry it.

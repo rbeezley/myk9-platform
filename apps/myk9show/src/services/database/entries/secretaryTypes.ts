@@ -52,7 +52,7 @@ export interface SecretaryEntry {
    */
   check_in_pulled_by?: string | null;
   /** MYK9-2031: the exhibitor chose "I'll decide at the show" for the handler. */
-  handler_to_decide?: boolean | null;
+  handler_to_decide?: boolean | null | undefined;
   withdrawal_reason: string | null;
   /** MYK9-632: the recognised withdrawal reason code, or null for a pull. */
   withdrawal_reason_code?: string | null;

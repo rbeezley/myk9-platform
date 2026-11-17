@@ -80,6 +80,8 @@ export interface SubmitShowRegistrationParams {
   paymentDetails?: PaymentDetails | undefined;
   classSelections: ClassSelectionData[];
   handlerAssignments: Record<string, HandlerInfo>;
+  /** MYK9-2031: `dog|class` keys the exhibitor left as "I'll decide at the show". */
+  decideAtShowKeys?: readonly string[] | undefined;
   classes: ClassLike[];
   showFeeInfo: ShowFeeInfo;
   submissionSource: EntrySubmissionSource;
@@ -116,6 +118,7 @@ export async function submitShowRegistration({
   paymentDetails,
   classSelections,
   handlerAssignments,
+  decideAtShowKeys = [],
   classes,
   showFeeInfo,
   submissionSource,
@@ -212,7 +215,7 @@ export async function submitShowRegistration({
       .filter(
         outcome =>
           outcome.outcome === 'created' &&
-          handlerAssignments[makeHandlerKey(outcome.dogId, outcome.classId)]?.decideAtShow === true
+          decideAtShowKeys.includes(makeHandlerKey(outcome.dogId, outcome.classId))
       )
       .map(outcome => outcome.entryId)
       .filter((id): id is string => !!id);

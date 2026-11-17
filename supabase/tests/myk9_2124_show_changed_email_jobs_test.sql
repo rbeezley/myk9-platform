@@ -160,7 +160,7 @@ declare
   v_third record;
 begin
   -- Nothing is due yet.
-  select count(*) into v_claimed from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  select count(*) into v_claimed from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes', array['show_changed']);
   if v_claimed <> 0 then
     raise exception 'FAIL E claimed % jobs that are not due', v_claimed;
   end if;
@@ -172,7 +172,7 @@ begin
    where show_id = v_show and recipient_person_id in ('00000000-0000-0000-0000-000002124325', '00000000-0000-0000-0000-000002124327')
      and step_type = 'show_changed' and status = 'ready';
 
-  select * into v_first from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  select * into v_first from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes', array['show_changed']);
   if v_first.recipient_person_id <> '00000000-0000-0000-0000-000002124321' or v_first.attempt_id is null
      or v_first.show_id <> v_show or v_first.step_type <> 'show_changed' then
     raise exception 'FAIL E the claim returned the wrong job: %', row_to_json(v_first);
@@ -182,14 +182,14 @@ begin
     raise exception 'FAIL E the claim did not lease exactly the one automatic job';
   end if;
 
-  select count(*) into v_second from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  select count(*) into v_second from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes', array['show_changed']);
   if v_second <> 0 then
     raise exception 'FAIL E a second claim took % jobs while the lease was live', v_second;
   end if;
 
   update public.show_lifecycle_email_jobs set claimed_until = now() - interval '1 minute'
    where id = v_first.job_id;
-  select * into v_third from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  select * into v_third from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes', array['show_changed']);
   if v_third.job_id is distinct from v_first.job_id or v_third.attempt_id is not distinct from v_first.attempt_id then
     raise exception 'FAIL E an expired lease was not handed out with a new attempt: %', row_to_json(v_third);
   end if;
@@ -199,11 +199,11 @@ end $$;
 -- F
 do $$
 begin
-  if has_function_privilege('authenticated', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute')
-     or has_function_privilege('anon', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute') then
+  if has_function_privilege('authenticated', 'public.claim_due_auto_email_jobs(integer, timestamptz, text[])', 'execute')
+     or has_function_privilege('anon', 'public.claim_due_auto_email_jobs(integer, timestamptz, text[])', 'execute') then
     raise exception 'FAIL F an API role can run the claim';
   end if;
-  if not has_function_privilege('service_role', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute') then
+  if not has_function_privilege('service_role', 'public.claim_due_auto_email_jobs(integer, timestamptz, text[])', 'execute') then
     raise exception 'FAIL F service_role cannot run the claim';
   end if;
   if has_function_privilege('authenticated', 'public.queue_show_changed_email_for_show(uuid)', 'execute')

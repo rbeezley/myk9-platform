@@ -98,6 +98,23 @@ describe('email delivery history read model', () => {
     expect(row.typeLabel).toBe('Date or venue changed');
   });
 
+  it('labels a confirmation that ended failed in plain words', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-4',
+      show_id: 'show-1',
+      source_kind: 'lifecycle',
+      lifecycle_step_type: 'entry_confirmation',
+      related_id: 'job-2',
+      recipient_name: 'Ada Lovelace',
+      recipient_email: 'ada@example.com',
+      attempted_at: '2026-11-17T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'failed',
+      failure_summary: 'The email could not be sent.',
+    });
+    expect(row.typeLabel).toBe('Entry confirmation');
+  });
+
   it('routes failures to the existing owner surface', () => {
     expect(getEmailRecoveryHref('registration_confirmation', 'show-1')).toBe(
       '/shows/show-1/entries'

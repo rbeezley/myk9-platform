@@ -25,6 +25,27 @@ function job(fixture: ReturnType<typeof makeAutoSendSupabase>) {
 }
 
 describe('drainAutoEmailJobs', () => {
+  it('claims show_changed jobs only: a confirmation job (MYK9-2088) is left for its own drain', async () => {
+    const fixture = makeAutoSendSupabase(
+      {
+        shows: [publishedShow],
+        show_lifecycle_email_jobs: [
+          autoJob({ id: 'job-confirmation', step_type: 'entry_confirmation' }),
+        ],
+      },
+      { liveEntryPeople: ['person-1'] }
+    );
+    const fetch = okFetch();
+
+    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 0, sent: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
+      status: 'ready',
+      attempt_id: null,
+      claimed_until: null,
+    });
+  });
+
   it('claims a due job, sends the current dates and address, and records it for Delivery history', async () => {
     const fixture = makeAutoSendSupabase(
       { shows: [publishedShow], show_lifecycle_email_jobs: [autoJob()] },
@@ -39,6 +60,7 @@ describe('drainAutoEmailJobs', () => {
     expect(fixture.rpc).toHaveBeenCalledWith('claim_due_auto_email_jobs', {
       p_limit: 25,
       p_lease_until: '2026-11-17T12:10:00.000Z',
+      p_step_types: ['show_changed'],
     });
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://api.resend.com/emails');

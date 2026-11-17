@@ -50,7 +50,14 @@ So we do **not** add a table (consolidation rule). We add:
 
 `send-confirmation-email`'s claim-then-send stamp becomes a job with a lease, so an
 interrupted send is retried and a provider-accepted send is reconciled. The historical
-`confirmation_email_sent_at` marker stays.
+`confirmation_email_sent_at` marker stays, and is now written when the job succeeds.
+
+As built (MYK9-2088): job step type `entry_confirmation` (jobs CHECK only; the secretary's
+switch stays the `accepted` step, and the job's `step_id` points at it), one ready job per
+exhibitor per show (unique on `show_id, batch_key`), the covered ids in `entry_ids`, the text
+rendered when the job is written. `claim_due_auto_email_jobs` takes `p_step_types`, so each
+drain claims only what it can render; the confirmation drain lives in `send-confirmation-email`
+(it owns the heritage renderers) and every scheduled run drains first, which is the recovery.
 
 ### Phase 3: the secretary's entry edits (MYK9-2126)
 

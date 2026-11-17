@@ -127,6 +127,9 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
   if (sourceKind === 'lifecycle' && lifecycleStepType) {
     // MYK9-2124: sent by the server on its own, so it names what happened to the show.
     if (lifecycleStepType === 'show_changed') return 'Date or venue changed';
+    // MYK9-2088: only a confirmation that ended failed reaches here (the full confirmation sent
+    // is listed through its own email_log row).
+    if (lifecycleStepType === 'entry_confirmation') return 'Entry confirmation';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {

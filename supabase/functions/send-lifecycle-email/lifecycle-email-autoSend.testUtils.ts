@@ -92,6 +92,7 @@ export function makeAutoSendSupabase(
         job =>
           job.status === 'ready' &&
           job.auto_send &&
+          (args.p_step_types as string[]).includes(String(job.step_type)) &&
           !job.attempt_id &&
           String(job.due_at) <= at &&
           (!job.claimed_until || String(job.claimed_until) <= at)

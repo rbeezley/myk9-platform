@@ -110,6 +110,9 @@ export async function drainAutoEmailJobs(args: {
     const { data, error } = await args.supabase.rpc('claim_due_auto_email_jobs', {
       p_limit: AUTO_SEND_BATCH_SIZE,
       p_lease_until: new Date(now().getTime() + AUTO_SEND_LEASE_MS).toISOString(),
+      // This drain renders show_changed only; the confirmation job rides the same claim from
+      // send-confirmation-email (MYK9-2088).
+      p_step_types: ['show_changed'],
     });
     if (error) {
       console.error('drain_auto: claim failed', getErrorMessage(error));

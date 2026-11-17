@@ -56,14 +56,17 @@ describe('DB migration sanity contracts', () => {
     const recipients = sliceBetween(source, 'loadRecipients: async', 'loadJudges: async');
     expect(recipients).toContain('registrationsRead = false');
 
-    const claim = sliceBetween(source, 'claim: async', 'markSent: async');
-    expect(claim).toContain(".is('confirmation_email_sent_at', null)");
-    expect(claim).not.toContain("confirmation_email_status: 'pending'");
+    // MYK9-2088: the marker is written when the job succeeds, only on entries still unmarked,
+    // and a re-acceptance's reset to 'pending' is never overwritten here.
+    const marker = sliceBetween(source, 'markSent: async', 'markFailed: async');
+    expect(marker).toContain(".is('confirmation_email_sent_at', null)");
+    expect(marker).toContain("confirmation_email_status: 'sent'");
+    expect(marker).not.toContain("confirmation_email_status: 'pending'");
 
     const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
     expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
     expect(run).toContain(
-      'idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations)'
+      'idempotencyKey = await confirmationIdempotencyKey(group, entryIds, generations)'
     );
   });
 

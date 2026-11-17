@@ -16,23 +16,22 @@ import {
   type ConfirmationScope,
   type ConfirmationShow,
 } from './entryConfirmations.ts';
+import {
+  drainConfirmationJobs,
+  emptyDrainTotals,
+  type ConfirmationJobStore,
+  type ConfirmationLogEntry,
+  type ConfirmationSendOutcome,
+} from './entryConfirmationJobs.ts';
 import type { HeritageEmailData } from './heritage-email.ts';
 
 /** One email_log row; related_id is the first entry the email covers. */
-export interface ConfirmationLogRow {
-  recipient_email: string | null;
+export interface ConfirmationLogRow extends Omit<ConfirmationLogEntry, 'email_type'> {
   /** 'show_reminder' is the reminder's (MYK9-2113), which shares this log writer. */
   email_type: 'heritage_confirmation' | 'show_reminder';
-  related_id: string;
-  show_id: string;
-  resend_message_id: string | null;
-  status: 'sent' | 'failed';
-  error_message: string | null;
-  /** What was sent (MYK9-2115): kept beside the log row so the secretary can read it. */
-  content?: { subject: string; html: string };
 }
 
-export type ConfirmationSendResult = { ok: true; messageId: string } | { ok: false; error: string };
+export type ConfirmationSendResult = ConfirmationSendOutcome;
 
 export interface EntryConfirmationDeps {
   now(): Date;
@@ -88,15 +87,24 @@ export interface EntryConfirmationDeps {
    * sent under a key that could repeat an earlier acceptance's.
    */
   loadAcceptanceGenerations(entryIds: string[]): Promise<Map<string, string>>;
-  /** Stamps the entries still unclaimed and still confirmed; returns the ids it stamped. */
-  claim(
-    entryIds: string[],
-    statuses: Array<'pending' | 'failed'>,
-    nowIso: string
-  ): Promise<string[]>;
-  markSent(entryIds: string[], messageId: string): Promise<void>;
-  /** Releases a claim after a failed send: unstamped, 'failed', so the daily run retries it. */
+  /**
+   * The durable job row each email travels on (MYK9-2088, entryConfirmationJobs.ts). The run
+   * writes a job instead of stamping the entries before the send, so a run that stops between
+   * the claim and the send leaves a leased job the next run recovers, not stamped entries nobody
+   * will email.
+   */
+  jobs: ConfirmationJobStore;
+  /** Of these entries, the ids still accepted, with an armband, not deleted and unmarked. */
+  loadLiveEntryIds(entryIds: string[]): Promise<Set<string>>;
+  /**
+   * Writes the historical marker once the email is out: confirmation_email_sent_at, status
+   * 'sent' and the message id, on entries still unmarked. Idempotent.
+   */
+  markSent(entryIds: string[], messageId: string | null, nowIso: string): Promise<void>;
+  /** Unmarked and 'failed', so the daily run looks again (no address, or the job ended failed). */
   markFailed(entryIds: string[]): Promise<void>;
+  /** The sent Delivery history row already written for a provider message id, if any. */
+  findLogId(messageId: string): Promise<string | null>;
   render(data: HeritageEmailData, show: ConfirmationShow): string;
   send(email: {
     to: string;
@@ -104,12 +112,19 @@ export interface EntryConfirmationDeps {
     html: string;
     idempotencyKey: string;
   }): Promise<ConfirmationSendResult>;
-  log(row: ConfirmationLogRow): Promise<void>;
+  /** Resolves to the row's id. */
+  log(row: ConfirmationLogRow): Promise<string | null>;
 }
 
 export interface EntryConfirmationRunResult {
   sent: number;
+  /** Finished from a provider acceptance an earlier run did not record, with no second send. */
+  reconciled: number;
+  /** Refused by the provider; the job waits out a delay and a later run tries again. */
+  retrying: number;
   failed: number;
+  /** Jobs a run stopped on (their lease runs out and the next run takes them again). */
+  errors: number;
   /** Exhibitors left untouched this run because their recipient could not be read. */
   skipped: number;
   /** Exhibitors left for the next run because this one reached its cap. */
@@ -119,6 +134,9 @@ export interface EntryConfirmationRunResult {
 /**
  * 'new' (every few minutes): entries never tried. 'all' (the daily run): also the ones whose
  * send failed, so a failure is retried once a day rather than every few minutes.
+ *
+ * Every run first drains the jobs earlier runs left (recovering a stopped one), then writes a job
+ * for each exhibitor still waiting, then drains again so a fresh job goes out in the same run.
  */
 export async function runEntryConfirmations(
   deps: EntryConfirmationDeps,
@@ -127,15 +145,52 @@ export async function runEntryConfirmations(
   const now = deps.now();
   const liveShows = (await deps.loadShows()).filter(show => showTakesConfirmations(show, now));
   // The secretary's switch for the acceptance email holds for this email too: it is that email.
-  // A show switched off is not read at all, so its entries stay unclaimed and pending (nothing
+  // A show switched off is not read at all, so its entries stay unmarked and pending (nothing
   // logged, nothing to retry); switching it back on sends them.
   const switchedOff =
     liveShows.length > 0
       ? await deps.loadAcceptedEmailOff(liveShows.map(show => show.id))
       : new Set<string>();
   const shows = liveShows.filter(show => !switchedOff.has(show.id));
-  if (shows.length === 0) return { sent: 0, failed: 0, skipped: 0, deferred: 0 };
   const showById = new Map(shows.map(show => [show.id, show]));
+  const activeShowIds = new Set(showById.keys());
+
+  const drained = emptyDrainTotals();
+  await drainConfirmationJobs(deps, activeShowIds, drained);
+
+  const written = await writeJobs(deps, scope, shows, showById);
+  await drainConfirmationJobs(deps, activeShowIds, drained);
+
+  if (drained.errors > 0) {
+    console.warn('Confirmation jobs left for the next run', { errors: drained.errors });
+  }
+  return {
+    sent: drained.sent,
+    reconciled: drained.reconciled,
+    retrying: drained.retrying,
+    failed: drained.failed + written.failed,
+    errors: drained.errors,
+    skipped: drained.skipped + written.skipped,
+    deferred: written.deferred,
+  };
+}
+
+interface WriteResult {
+  failed: number;
+  skipped: number;
+  deferred: number;
+}
+
+/** Gathers the exhibitors waiting for a confirmation and writes (or finds) each one's job. */
+async function writeJobs(
+  deps: EntryConfirmationDeps,
+  scope: ConfirmationScope,
+  shows: ConfirmationShow[],
+  showById: ReadonlyMap<string, ConfirmationShow>
+): Promise<WriteResult> {
+  const none: WriteResult = { failed: 0, skipped: 0, deferred: 0 };
+  if (shows.length === 0) return none;
+  const now = deps.now();
   const statuses: Array<'pending' | 'failed'> =
     scope === 'all' ? ['pending', 'failed'] : ['pending'];
 
@@ -150,7 +205,7 @@ export async function runEntryConfirmations(
   // email is then built from all of her eligible entries, never from the part the limit let in.
   const groups = groupConfirmationsByExhibitor(candidates.filter(eligible));
   const chosen = groups.slice(0, CONFIRMATION_MAX_EMAILS_PER_RUN);
-  if (chosen.length === 0) return { sent: 0, failed: 0, skipped: 0, deferred: 0 };
+  if (chosen.length === 0) return none;
 
   const unique = (ids: Array<string | null>) => [
     ...new Set(ids.filter((id): id is string => !!id)),
@@ -187,9 +242,9 @@ export async function runEntryConfirmations(
     unique(batch.map(group => group.registrationId))
   );
 
-  let sent = 0;
   let failed = 0;
-  let skipped = 0;
+  let skipped = chosen.length - batch.length;
+  let deferred = groups.length - chosen.length;
   for (const group of batch) {
     const show = showById.get(group.showId);
     if (!show) continue;
@@ -197,7 +252,7 @@ export async function runEntryConfirmations(
     const resolved = resolveRecipient(group.registrationId, anchor.handler_id, recipients);
     if (resolved === 'unknown') {
       // A failed read is not "no registration": sending to the handler instead could give one
-      // person's confirmation to another. Left unclaimed and unsent for the next run.
+      // person's confirmation to another. Left unmarked and unsent for the next run.
       skipped++;
       continue;
     }
@@ -205,9 +260,9 @@ export async function runEntryConfirmations(
     const entryIds = group.entries.map(entry => entry.id);
 
     if (!recipient?.email) {
-      // Nothing to send to. Marked 'failed' (not claimed) so the daily run looks again, in case
-      // an address is added; the update moves the group behind the others. Logged once, the
-      // first time, so Delivery history says why she got nothing without a row every day.
+      // Nothing to send to. Marked 'failed' so the daily run looks again, in case an address is
+      // added; the update moves the group behind the others. Logged once, the first time, so
+      // Delivery history says why she got nothing without a row every day.
       const firstTime = group.entries.some(entry => entry.confirmation_email_status === 'pending');
       await deps.markFailed(entryIds);
       if (!firstTime) {
@@ -227,19 +282,15 @@ export async function runEntryConfirmations(
       continue;
     }
 
-    const claimed = await deps.claim(entryIds, statuses, now.toISOString());
-    if (claimed.length === 0) continue;
-    const entries = group.entries.filter(entry => claimed.includes(entry.id));
-    const claimedAnchor = entries[0]!;
-
-    let result: ConfirmationSendResult;
-    let content: ConfirmationLogRow['content'];
+    let subject: string;
+    let html: string;
+    let idempotencyKey: string;
     try {
-      const generations = await deps.loadAcceptanceGenerations(claimed);
-      const html = deps.render(
+      const generations = await deps.loadAcceptanceGenerations(entryIds);
+      html = deps.render(
         buildConfirmationEmailData({
           show,
-          entries,
+          entries: group.entries,
           recipient,
           judgeByClass: judges,
           confirmationNumber: (group.registrationId && numbers.get(group.registrationId)) || null,
@@ -247,43 +298,46 @@ export async function runEntryConfirmations(
         }),
         show
       );
-      const subject = confirmationSubject(show.name, entries.length);
-      content = { subject, html };
-      result = await deps.send({
-        to: recipient.email,
-        subject,
-        html,
-        idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations),
-      });
+      subject = confirmationSubject(show.name, group.entries.length);
+      idempotencyKey = await confirmationIdempotencyKey(group, entryIds, generations);
     } catch {
-      result = { ok: false, error: 'email_delivery_error' };
+      // The acceptance history (or the render) could not be read: nothing is written, and the
+      // group is released for the daily run rather than sent under a key that could repeat.
+      await deps.markFailed(entryIds);
+      await deps.log({
+        recipient_email: recipient.email,
+        email_type: 'heritage_confirmation',
+        related_id: anchor.id,
+        show_id: show.id,
+        resend_message_id: null,
+        status: 'failed',
+        error_message: 'email_delivery_error',
+      });
+      failed++;
+      continue;
     }
 
-    if (result.ok) {
-      await deps.markSent(claimed, result.messageId);
-      sent++;
-    } else {
-      await deps.markFailed(claimed);
-      failed++;
-    }
-    await deps.log({
-      recipient_email: recipient.email,
-      email_type: 'heritage_confirmation',
-      related_id: claimedAnchor.id,
-      show_id: show.id,
-      resend_message_id: result.ok ? result.messageId : null,
-      status: result.ok ? 'sent' : 'failed',
-      error_message: result.ok ? null : result.error,
-      ...(content ? { content } : {}),
+    const enqueued = await deps.jobs.enqueue({
+      showId: show.id,
+      groupKey: group.key,
+      registrationId: group.registrationId,
+      entryIds,
+      recipientEmail: recipient.email,
+      recipientName: [recipient.firstName, recipient.lastName].filter(Boolean).join(' ') || null,
+      subject,
+      html,
+      idempotencyKey,
+      nowIso: now.toISOString(),
     });
+    if (enqueued.outcome === 'sent') {
+      // The email already went out; only the entries' marker lagged behind the job.
+      await deps.markSent(entryIds, enqueued.messageId, now.toISOString());
+    } else if (enqueued.outcome === 'open') {
+      deferred++;
+    }
   }
 
-  return {
-    sent,
-    failed,
-    skipped: skipped + chosen.length - batch.length,
-    deferred: groups.length - chosen.length,
-  };
+  return { failed, skipped, deferred };
 }
 
 /**

@@ -11,11 +11,14 @@
 // at the same moment, so on a published show that is not over the app no longer sends its own
 // accepted email (decisionEmail.ts, MYK9-1999); this one says it.
 //
-// Once only, per entry: an entry is claimed (confirmation_email_sent_at stamped) before the send,
-// and only an unclaimed, still-confirmed entry can be claimed, so two overlapping runs cannot both
-// send it. A failed send releases the claim as 'failed'; the daily run retries those. Resend's
-// idempotency key is derived from the claimed ids and their acceptance generations, so a retry of a send that did go out is the
-// same message, not a second one.
+// Once only, per exhibitor per show: the email travels on a durable job (entryConfirmationJobs.ts,
+// MYK9-2088) keyed by Resend's idempotency key, and the entries' confirmation_email_sent_at is
+// written when the job succeeds, so only unmarked, still-confirmed entries are ever gathered.
+// One ready job per exhibitor per show is a database guarantee, so two overlapping runs cannot
+// both send. A run stopped mid-send leaves a leased job the next run recovers; a failed send is
+// retried by the job's own delays, then by the daily run. Resend's idempotency key is derived
+// from the covered ids and their acceptance generations, so a retry of a send that did go out is
+// the same message, not a second one.
 //
 // The quiet period: an entry is gathered only once it has gone CONFIRMATION_QUIET_MS without a
 // change, so an Accept the secretary undoes (or keeps editing) is not emailed.

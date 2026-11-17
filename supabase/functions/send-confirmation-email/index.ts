@@ -9,6 +9,8 @@
 //   heritage-confirmation-emails  daily 09:00 UTC, body {}: retries failed receipts
 //                                 (receiptSweep.ts), then sends new and retries failed
 //                                 confirmations.
+// Every run first drains the confirmation jobs an earlier run left (entryConfirmationJobs.ts),
+// so a run stopped mid-send is recovered by the next scheduled one.
 //   entry-confirmation-emails     every 15 minutes, body {"scope":"new"}: sends confirmations
 //                                 never tried (migration 20261115065613).
 //   exhibitor-reminder-emails     every 10 minutes, body {"scope":"reminder"}: the reminder two days before
@@ -49,6 +51,7 @@ import {
   type ConfirmationRecipient,
   type ConfirmationShow,
 } from './entryConfirmations.ts';
+import { createConfirmationJobStore } from './entryConfirmationJobStore.ts';
 import { runEntryConfirmations, type EntryConfirmationDeps } from './entryConfirmationRun.ts';
 import { runEntryReminders } from './entryReminderRun.ts';
 import { reminderDeps } from './entryReminderDeps.ts';
@@ -261,27 +264,35 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       if (error) throw new Error(`Could not read acceptance history: ${error.message}`);
       return latestAcceptanceGenerations((data ?? []) as AcceptanceHistoryRow[]);
     },
-    claim: async (entryIds, statuses, nowIso) => {
+    jobs: createConfirmationJobStore(supabase),
+    loadLiveEntryIds: async entryIds => {
       const { data, error } = await supabase
         .from('entries')
-        .update({ confirmation_email_sent_at: nowIso })
+        .select('id')
         .in('id', entryIds)
-        .is('confirmation_email_sent_at', null)
-        .in('confirmation_email_status', statuses)
         .eq('entry_status', 'confirmed')
         .not('armband', 'is', null)
         .is('deleted_at', null)
-        .select('id');
-      if (error) throw new Error(`Could not claim confirmations: ${error.message}`);
-      return ((data ?? []) as Array<{ id: string }>).map(row => row.id);
+        .is('confirmation_email_sent_at', null);
+      if (error) throw new Error(`Could not read the confirmation entries: ${error.message}`);
+      return new Set(((data ?? []) as Array<{ id: string }>).map(row => row.id));
     },
-    markSent: async (entryIds, messageId) => {
+    markSent: async (entryIds, messageId, nowIso) => {
+      // The marker is written when the job succeeds, never before the send (MYK9-2088). Only
+      // entries still unmarked: a re-accepted entry cleared by the trigger is a new confirmation.
       const { error } = await supabase
         .from('entries')
-        .update({ confirmation_email_status: 'sent', confirmation_email_message_id: messageId })
-        .in('id', entryIds);
-      // The claim already stands, so the entries are not sent again; only the status lags.
-      if (error) console.error('Could not mark confirmations sent', { message: error.message });
+        .update({
+          confirmation_email_sent_at: nowIso,
+          confirmation_email_status: 'sent',
+          ...(messageId ? { confirmation_email_message_id: messageId } : {}),
+        })
+        .in('id', entryIds)
+        .is('confirmation_email_sent_at', null)
+        .eq('entry_status', 'confirmed');
+      // Not swallowed: the job stays leased and the next run reconciles it, so the marker is
+      // never left behind a job that says sent.
+      if (error) throw new Error(`Could not mark confirmations sent: ${error.message}`);
     },
     markFailed: async entryIds => {
       const { error } = await supabase
@@ -289,6 +300,16 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .update({ confirmation_email_sent_at: null, confirmation_email_status: 'failed' })
         .in('id', entryIds);
       if (error) console.error('Could not release confirmations', { message: error.message });
+    },
+    findLogId: async messageId => {
+      const { data, error } = await supabase
+        .from('email_log')
+        .select('id')
+        .eq('resend_message_id', messageId)
+        .eq('email_type', 'heritage_confirmation')
+        .limit(1);
+      if (error) throw new Error(`Could not read the delivery log: ${error.message}`);
+      return ((data ?? []) as Array<{ id: string }>)[0]?.id ?? null;
     },
     render: (data, show) => renderConfirmationEmail(data, show, showRegistry(show)),
     send: async ({ to, subject, html, idempotencyKey }) => {
@@ -317,6 +338,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .single();
       requireEmailLogWrite(error, 'send-confirmation-email');
       if (content) await storeEmailContent(supabase, data?.id, content.subject, content.html);
+      return (data?.id as string | undefined) ?? null;
     },
   };
 }
@@ -364,6 +386,15 @@ handle<ConfirmationEmailPayload>(
       confirmationDeps(supabase, RESEND_API_KEY),
       scope
     );
+    // A refused, recovered or interrupted confirmation is otherwise invisible: say so in the logs.
+    console.log('Entry confirmation run', { scope, ...confirmations });
+    if (confirmations.retrying + confirmations.reconciled + confirmations.errors > 0) {
+      console.warn('Entry confirmations needed recovery or a retry', {
+        retrying: confirmations.retrying,
+        reconciled: confirmations.reconciled,
+        errors: confirmations.errors,
+      });
+    }
     return { ...confirmations, receiptRetry };
   }
 );

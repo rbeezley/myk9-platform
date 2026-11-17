@@ -43,12 +43,15 @@ interface ShowEditFormProps {
   /** The show's status when the panel opened; gates the Basic Info tab's
    * "Published" option (MYK9-579). */
   initialStatus?: string | undefined;
+  /** Closes the panel; the Basic Info tab's trial-days link calls it before it navigates. */
+  onClose?: (() => void) | undefined;
 }
 
 export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   activeTab,
   onTabChange,
   initialStatus,
+  onClose,
 }) => {
   const { data, form } = useEditPanel<ShowEditFormData>();
 
@@ -250,6 +253,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           handleSelectChange={handleSelectChange}
           handleDateChange={handleDateChange}
           initialStatus={initialStatus}
+          onOpenTrials={onClose}
         />
 
         {/* Personnel Tab */}

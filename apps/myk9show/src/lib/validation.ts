@@ -164,8 +164,9 @@ export const showSchemas = {
       status: z.string(),
       organization: z.string(),
       clubId: z.string().min(1, 'Please select a hosting club'),
-      startDate: z.string().min(1, 'Please select a start date'),
-      endDate: z.string().min(1, 'Please select an end date'),
+      // Read only: a show's dates are its trials' dates (MYK9-2131), so nothing here asks for them.
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
       location: z.string(),
       // Optional staffing fields — not always present in ShowEditFormData
       chairman: z.string().optional().default(''),
@@ -214,18 +215,6 @@ export const showSchemas = {
       trials: z.custom<import('@/types/show-types').Show['trials']>().optional(),
       feesAsOpened: z.custom<import('@/features/_shared/juniorFeeLimit').ShowFormFees>().optional(),
     })
-    .refine(
-      data => {
-        if (data.startDate && data.endDate) {
-          return new Date(data.endDate) >= new Date(data.startDate);
-        }
-        return true;
-      },
-      {
-        message: 'End date must be after start date',
-        path: ['endDate'],
-      }
-    )
     .refine(
       data => {
         if (data.entryOpenDate && data.entryCloseDate) {

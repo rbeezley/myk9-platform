@@ -9,8 +9,14 @@ interface ShowDatesFieldsProps {
   endDate?: Date | undefined;
   entryOpenDate?: Date | undefined;
   entryCloseDate?: Date | undefined;
-  onStartDateChange: (date: Date | undefined) => void;
-  onEndDateChange: (date: Date | undefined) => void;
+  /** Both are needed unless `showDatesSlot` replaces the show-date picker. */
+  onStartDateChange?: ((date: Date | undefined) => void) | undefined;
+  onEndDateChange?: ((date: Date | undefined) => void) | undefined;
+  /**
+   * Replaces the show-date picker. Edit Show passes the dates as text, because a show's
+   * dates are its trials' dates (MYK9-2131) and are changed on the trials.
+   */
+  showDatesSlot?: React.ReactNode;
   onEntryOpenChange: (date: Date | undefined) => void;
   onEntryCloseChange: (date: Date | undefined) => void;
   /** Shown under the show dates, e.g. "Start date must be before end date". */
@@ -23,6 +29,8 @@ interface ShowDatesFieldsProps {
    */
   dateOnly?: boolean | undefined;
 }
+
+const noop = () => undefined;
 
 /**
  * Show dates and the entry period: the ONE date control, used by the creation
@@ -38,6 +46,7 @@ export const ShowDatesFields: React.FC<ShowDatesFieldsProps> = ({
   onEndDateChange,
   onEntryOpenChange,
   onEntryCloseChange,
+  showDatesSlot,
   datesError,
   entryError,
   dateOnly = false,
@@ -48,28 +57,34 @@ export const ShowDatesFields: React.FC<ShowDatesFieldsProps> = ({
   const entryField = useFieldError('show-entry-period', entryError);
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <div className="space-y-2 md:col-span-2" data-testid="show-dates-field">
-        <Label htmlFor="show-dates">
-          Show Dates
-          <RequiredMark />
-        </Label>
-        <DateRangePicker
-          id="show-dates"
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={onStartDateChange}
-          onEndDateChange={onEndDateChange}
-          startLabel="Start"
-          endLabel="End"
-          placeholder="Select show start and end dates"
-          startDefaultTime="8:00 AM"
-          endDefaultTime="5:00 PM"
-          showTime={!dateOnly}
-          keepEndWhilePicking={dateOnly}
-          {...datesField.controlProps}
-        />
-        <FieldError field="show-dates" message={datesError} />
-      </div>
+      {showDatesSlot ? (
+        <div className="space-y-2 md:col-span-2" data-testid="show-dates-readonly">
+          {showDatesSlot}
+        </div>
+      ) : (
+        <div className="space-y-2 md:col-span-2" data-testid="show-dates-field">
+          <Label htmlFor="show-dates">
+            Show Dates
+            <RequiredMark />
+          </Label>
+          <DateRangePicker
+            id="show-dates"
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={onStartDateChange ?? noop}
+            onEndDateChange={onEndDateChange ?? noop}
+            startLabel="Start"
+            endLabel="End"
+            placeholder="Select show start and end dates"
+            startDefaultTime="8:00 AM"
+            endDefaultTime="5:00 PM"
+            showTime={!dateOnly}
+            keepEndWhilePicking={dateOnly}
+            {...datesField.controlProps}
+          />
+          <FieldError field="show-dates" message={datesError} />
+        </div>
+      )}
 
       <div className="space-y-2 md:col-span-2" data-testid="show-entry-period-field">
         {/* MYK9-716: a draft may be saved without an entry window; publishing

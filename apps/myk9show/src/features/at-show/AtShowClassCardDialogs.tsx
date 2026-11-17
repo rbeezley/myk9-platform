@@ -34,7 +34,8 @@ import {
   classStatusData,
 } from './classCardDialogData';
 
-export type ClassCardDialogMode = 'details' | 'options';
+/** 'requirements' is the read-only door for people without Class Options (MYK9-2137). */
+export type ClassCardDialogMode = 'details' | 'options' | 'requirements';
 type OptionsView = 'menu' | 'requirements' | 'max-time' | 'status' | 'settings';
 
 export interface ActiveClassCard {
@@ -151,6 +152,18 @@ export function AtShowClassCardDialogs({
     );
   }
 
+  if (active.mode === 'requirements') {
+    // Read-only: no onSetMaxTime, so the max time card is not a button.
+    return (
+      <ClassRequirementsDialog
+        isOpen
+        onClose={onClose}
+        timeZone={active.trialTimeZone}
+        classData={classRequirementsData(entry, safeRegistryId(active.trial))}
+      />
+    );
+  }
+
   const show = (next: OptionsView) => setView({ cardKey, view: next });
   const registry = safeRegistryId(active.trial);
   const maxTimeData = { ...classMaxTimeData(entry, live), per_area_times: perAreaMaxTimes };
@@ -175,6 +188,7 @@ export function AtShowClassCardDialogs({
         isOpen={optionsView === 'requirements'}
         onClose={onClose}
         {...(canManageClasses ? { onSetMaxTime: () => show('max-time') } : {})}
+        timeZone={active.trialTimeZone}
         classData={{ ...classRequirementsData(entry, registry), per_area_times: perAreaMaxTimes }}
       />
       <ClassSettingsDialog

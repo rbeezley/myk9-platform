@@ -211,4 +211,37 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     );
     expect(await screen.findByText('Interior Master \u00b7 1 entry')).toBeInTheDocument();
   });
+
+  it("says when the max time was set, in the show's zone, and never offers Tap to set read-only (MYK9-2137)", async () => {
+    seed({ timeLimitSetAt: '2024-03-05T20:14:00Z' });
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        classData={classData}
+        timeZone="America/Chicago"
+      />
+    );
+    expect(await screen.findByText(/set Mar 5, 2024, 2:14 PM/)).toBeInTheDocument();
+    expect(screen.queryByText(/Tap to set/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about when for a class with no saved max time', async () => {
+    seed({
+      timeLimitSeconds: undefined,
+      timeLimitArea2Seconds: undefined,
+      timeLimitArea3Seconds: undefined,
+      timeLimitSetAt: '2024-03-05T20:14:00Z',
+    });
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        classData={classData}
+        timeZone="America/Chicago"
+      />
+    );
+    await screen.findByText('Not set');
+    expect(screen.queryByText(/set Mar 5/)).not.toBeInTheDocument();
+  });
 });

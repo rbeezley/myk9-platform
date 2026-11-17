@@ -5,7 +5,9 @@
  *
  * Works offline: the cards come from the class's rule as cached on it at sync
  * (see classRequirementsFromClass), read live from the replica. The class's
- * saved max time leads; tapping it opens Set Max Time for those who can set it.
+ * saved max time leads, with when it was set; tapping it opens Set Max Time for those who can
+ * set it. Without `onSetMaxTime` it is the read-only view exhibitors get from Ringside's class
+ * card and My Shows (MYK9-2137): one view, two doors.
  */
 import type React from 'react';
 import type { ClassRequirementsDialogProps } from '@myk9/ringside';
@@ -20,17 +22,21 @@ import { Button } from '@/components/ui/button';
 import { useLiveClasses } from '../useLiveClasses';
 import { handleOpenChange } from './dialogHelpers';
 import { ClassRequirementsContent } from './ClassRequirementsContent';
+import { useClassRegistryId } from './useClassRegistryId';
 
-export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = ({
-  isOpen,
-  onClose,
-  onSetMaxTime,
-  classData,
-}) => {
+export const ClassRequirementsDialog: React.FC<
+  ClassRequirementsDialogProps & {
+    /** The show's zone, for when the max time was set. */
+    timeZone?: string | undefined;
+    /** False where the entry count is not known (My Shows). */
+    showEntryCount?: boolean | undefined;
+  }
+> = ({ isOpen, onClose, onSetMaxTime, classData, timeZone, showEntryCount = true }) => {
   // Live: a max time saved on another device shows without reopening.
   const live = useLiveClasses(classData.id ? [classData.id] : [], isOpen);
-  if (!isOpen) return null;
   const cls = live?.[0] ?? null;
+  const registry = useClassRegistryId(cls?.trialId, classData.registry, isOpen);
+  if (!isOpen) return null;
   // A finished read that found no class (or a list with no single class) is not
   // loading: say so, and keep Set Max Time reachable.
   const loading = !!classData.id && live === null;
@@ -45,14 +51,16 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
           </DialogTitle>
         </DialogHeader>
         <p>
-          {classData.element} {classData.level} · {classData.entry_count}{' '}
-          {classData.entry_count === 1 ? 'entry' : 'entries'}
+          {cls?.element ?? classData.element} {cls?.level ?? classData.level}
+          {showEntryCount &&
+            ` · ${classData.entry_count} ${classData.entry_count === 1 ? 'entry' : 'entries'}`}
         </p>
         <ClassRequirementsContent
           cls={cls}
           loading={loading}
-          registry={classData.registry ?? ''}
-          perAreaTimes={!!classData.per_area_times}
+          registry={registry}
+          perAreaTimes={classData.per_area_times ?? (cls?.areaCount ?? 1) > 1}
+          timeZone={timeZone}
           onSetMaxTime={onSetMaxTime}
         />
         <DialogFooter>

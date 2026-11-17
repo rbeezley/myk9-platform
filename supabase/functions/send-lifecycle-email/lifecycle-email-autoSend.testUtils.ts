@@ -21,6 +21,11 @@ export function makeAutoSendSupabase(
     { show_id: 'show-1', step_type: 'show_changed', is_enabled: true },
     { show_id: 'show-1', step_type: 'judge_changed', is_enabled: true },
   ];
+  // person-1's current address, unless a test says otherwise.
+  tables.people ??= [];
+  if (!tables.people.some(person => person.id === 'person-1')) {
+    tables.people.push({ id: 'person-1', email: 'jamie@example.com', deleted_at: null });
+  }
   // The fake's wall clock: attempts are stamped with it and the claim honours it.
   const clock = { at: new Date('2026-11-17T12:00:00.000Z') };
   let nextId = 0;
@@ -123,6 +128,42 @@ export function makeAutoSendSupabase(
     if (fn === 'person_live_entry_class_ids') {
       return { data: options.liveEntryClasses?.[String(args.p_person_id)] ?? [], error: null };
     }
+    if (fn === 'requeue_judge_changed_vacancies') {
+      // Like the SQL function: merge into the person's one ready job (the earlier "from" wins),
+      // else make a fresh one due in five minutes.
+      const due = new Date(clock.at.getTime() + 5 * 60 * 1000).toISOString();
+      const waiting = tables[JOBS].find(
+        job =>
+          job.step_type === 'judge_changed' &&
+          job.status === 'ready' &&
+          job.show_id === args.p_show_id &&
+          job.recipient_person_id === args.p_person_id
+      );
+      if (waiting) {
+        waiting.judge_changes = {
+          ...(args.p_judge_changes as Row),
+          ...(waiting.judge_changes as Row),
+        };
+        waiting.due_at = due;
+      } else {
+        tables[JOBS].push({
+          id: `job-requeued-${(nextId += 1)}`,
+          show_id: args.p_show_id,
+          step_type: 'judge_changed',
+          status: 'ready',
+          auto_send: true,
+          attempt_id: null,
+          claimed_until: null,
+          due_at: due,
+          recipient_person_id: args.p_person_id,
+          recipient_email: 'jamie@example.com',
+          recipient_name: 'Jamie Handler',
+          idempotency_key: `requeued-${nextId}`,
+          judge_changes: args.p_judge_changes,
+        });
+      }
+      return { data: null, error: null };
+    }
     return { data: null, error: { message: `unexpected rpc ${fn}` } };
   });
 
@@ -184,8 +225,6 @@ export function judgeChangedTables(registryId: string | null = 'AKC'): Record<st
         element: 'Container',
         level: 'Novice',
         section: 'A',
-        status: 'upcoming',
-        actual_start_time: null,
         deleted_at: null,
         trials: {
           name: 'Saturday Trial',

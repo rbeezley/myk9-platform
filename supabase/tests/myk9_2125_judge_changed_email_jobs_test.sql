@@ -229,6 +229,53 @@ begin
   raise notice 'PASS E a direct update queues, and a change after a send is a new job';
 end $$;
 
+-- H: the sender's re-queue of classes still waiting for a judge
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002125002';
+  v_ada uuid := '00000000-0000-0000-0000-000002125021';
+  v_job record;
+  v_ready integer;
+begin
+  -- Ada has a ready job from E. The re-queue merges into it: one ready job, both classes,
+  -- the earlier "from" judge kept for a class already there, due in 5 minutes.
+  update public.show_lifecycle_email_jobs set due_at = now() - interval '1 minute'
+   where show_id = v_show and step_type = 'judge_changed' and status = 'ready';
+  select count(*) into v_ready from public.show_lifecycle_email_jobs
+   where show_id = v_show and step_type = 'judge_changed' and status = 'ready' and recipient_person_id = v_ada;
+  perform public.requeue_judge_changed_vacancies(v_show, v_ada, jsonb_build_object(
+    '00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125052',
+    '00000000-0000-0000-0000-000002125005', '00000000-0000-0000-0000-000002125052'));
+  select * into v_job from public.show_lifecycle_email_jobs
+   where show_id = v_show and step_type = 'judge_changed' and status = 'ready' and recipient_person_id = v_ada;
+  if v_ready <> 1 or (select count(*) from public.show_lifecycle_email_jobs
+       where show_id = v_show and step_type = 'judge_changed' and status = 'ready' and recipient_person_id = v_ada) <> 1 then
+    raise exception 'FAIL H the re-queue made a second ready job for one person';
+  end if;
+  if v_job.due_at <> now() + interval '5 minutes'
+     or v_job.judge_changes <> jsonb_build_object(
+          '00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125053',
+          '00000000-0000-0000-0000-000002125005', '00000000-0000-0000-0000-000002125052') then
+    raise exception 'FAIL H the merged job is wrong: %', row_to_json(v_job);
+  end if;
+  -- No ready job: a fresh one is made, carrying only the vacant class.
+  delete from public.show_lifecycle_email_jobs
+   where show_id = v_show and step_type = 'judge_changed' and recipient_person_id = v_ada;
+  perform public.requeue_judge_changed_vacancies(v_show, v_ada, jsonb_build_object(
+    '00000000-0000-0000-0000-000002125005', '00000000-0000-0000-0000-000002125052'));
+  select * into v_job from public.show_lifecycle_email_jobs
+   where show_id = v_show and step_type = 'judge_changed' and status = 'ready' and recipient_person_id = v_ada;
+  if v_job.id is null or not v_job.auto_send or v_job.recipient_email <> 'ada@example.test'
+     or v_job.judge_changes <> jsonb_build_object('00000000-0000-0000-0000-000002125005', '00000000-0000-0000-0000-000002125052') then
+    raise exception 'FAIL H a fresh re-queued job is wrong: %', row_to_json(v_job);
+  end if;
+  if has_function_privilege('authenticated', 'public.requeue_judge_changed_vacancies(uuid, uuid, jsonb)', 'execute')
+     or not has_function_privilege('service_role', 'public.requeue_judge_changed_vacancies(uuid, uuid, jsonb)', 'execute') then
+    raise exception 'FAIL H the re-queue grants are wrong';
+  end if;
+  raise notice 'PASS H the re-queue merges into the one ready job or makes one';
+end $$;
+
 -- G
 do $$
 begin

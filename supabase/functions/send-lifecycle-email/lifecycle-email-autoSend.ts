@@ -17,7 +17,7 @@
  *   show unpublished, or no live entry left   the job is skipped
  *   judge_changed (MYK9-2125)                 same drain; the email names each class whose judge
  *                                             changed, rendered at send time. A class with no
- *                                             judge yet defers the job 30 minutes, until a
+ *                                             judge yet holds back only itself (re-queued, 5 minutes), until a
  *                                             substitute is confirmed or the trial day is past
  */
 import {
@@ -199,10 +199,19 @@ async function processClaimedJob(args: {
   }
 
   const show = await loadShow(supabase, job.show_id);
-  if (!show || !isPublishedShow(show) || !job.recipient_person_id || !job.recipient_email) {
+  if (!show || !isPublishedShow(show) || !job.recipient_person_id) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
+  // The address on the job is a snapshot from when it was queued: send to the person's
+  // CURRENT one, and skip when they have none now.
+  const currentEmail = await resolveCurrentEmail(supabase, job.recipient_person_id);
+  if (!currentEmail) {
+    console.warn('drain_auto: skipped, the recipient has no email now', job.job_id);
+    await finishJob(args, { status: 'skipped' });
+    return 'skipped';
+  }
+  row.recipient_email = currentEmail;
   // The secretary may switch the step off during the quiet minutes: honour it at send time.
   if (!(await stepIsEnabled(supabase, job.show_id, job.step_type))) {
     await finishJob(args, { status: 'skipped' });
@@ -210,6 +219,7 @@ async function processClaimedJob(args: {
   }
 
   let text: { subject: string; body: string };
+  let vacant: Record<string, string> = {};
   if (job.step_type === 'judge_changed') {
     // MYK9-2125: still a recipient means a live entry in a class whose judge really changed.
     const plan = await planJudgeChangedEmail({
@@ -227,6 +237,7 @@ async function processClaimedJob(args: {
       await finishJob(args, { status: 'skipped' });
       return 'skipped';
     }
+    vacant = plan.vacant;
     text = renderJudgeChangedEmail({
       showId: job.show_id,
       showName: show.name,
@@ -271,6 +282,16 @@ async function processClaimedJob(args: {
     secretaryNote: '',
   });
   await finishJob(args, { status: 'sent', emailLogId: emailLogId ?? null, rendered: text });
+  // Classes still waiting for a judge go back as a fresh job (after this one is sent, so the
+  // one-ready-job-per-person rule makes it a new row, or merges into a later waiting one).
+  if (Object.keys(vacant).length > 0) {
+    const { error } = await supabase.rpc('requeue_judge_changed_vacancies', {
+      p_show_id: job.show_id,
+      p_person_id: job.recipient_person_id,
+      p_judge_changes: vacant,
+    });
+    if (error) throw new Error('Failed to re-queue the waiting classes');
+  }
   return 'sent';
 }
 
@@ -317,6 +338,21 @@ async function stepIsEnabled(
   // A failed read must not read as "switched off": leave the job for the next drain.
   if (error) throw new Error('Failed to load email step');
   return data?.[0]?.is_enabled === true;
+}
+
+async function resolveCurrentEmail(
+  supabase: LifecycleEmailSupabaseClient,
+  personId: string
+): Promise<string | null> {
+  const { data, error } = (await supabase
+    .from('people')
+    .select('email, deleted_at')
+    .eq('id', personId)) as QueryResult<Array<{ email: string | null; deleted_at: string | null }>>;
+  // A failed read must not read as "no email": leave the job for the next drain.
+  if (error) throw new Error('Failed to load the recipient');
+  const person = data?.[0];
+  if (!person || person.deleted_at) return null;
+  return person.email?.trim() || null;
 }
 
 async function personHasLiveEntry(

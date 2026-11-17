@@ -39,6 +39,7 @@
 -- DROP TRIGGER trg_queue_judge_changed_email_update ON public.judge_assignments; DROP
 -- FUNCTION public.queue_judge_changed_email_from_assignment(),
 -- public.queue_judge_changed_email_for_class(uuid, uuid),
+-- public.requeue_judge_changed_vacancies(uuid, uuid, jsonb),
 -- public.person_live_entry_class_ids(uuid, uuid),
 -- public.live_entry_person_class_pairs(uuid); DROP INDEX
 -- show_lifecycle_email_jobs_one_ready_judge_changed; delete judge_changed jobs and steps,
@@ -279,6 +280,69 @@ $$;
 
 REVOKE ALL ON FUNCTION public.queue_judge_changed_email_for_class(uuid, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
+
+-- The sender's own re-queue: it sends the classes that have a new judge and hands the classes
+-- still waiting for one back as a fresh ready job, due in 5 minutes. One ready job per show and
+-- person is the rule, so this merges into the waiting one when there is one (the existing "from"
+-- judge wins, as in the producer). Recipient details are the person's CURRENT ones.
+CREATE OR REPLACE FUNCTION public.requeue_judge_changed_vacancies(
+  p_show_id uuid,
+  p_person_id uuid,
+  p_judge_changes jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_show_name text;
+  v_step_id uuid;
+BEGIN
+  IF p_judge_changes IS NULL OR p_judge_changes = '{}'::jsonb THEN
+    RETURN;
+  END IF;
+
+  SELECT sh.name INTO v_show_name FROM public.shows sh WHERE sh.id = p_show_id;
+  SELECT s.id INTO v_step_id
+    FROM public.show_lifecycle_email_steps s
+   WHERE s.show_id = p_show_id AND s.step_type = 'judge_changed' AND s.is_enabled;
+  IF v_step_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.show_lifecycle_email_jobs AS j (
+    show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
+    recipient_email, recipient_name, subject, idempotency_key, due_at, auto_send,
+    judge_changes
+  )
+  SELECT
+    p_show_id, v_step_id, 'judge_changed', 'ready', 'show_recipient', p.id,
+    btrim(p.email),
+    nullif(btrim(coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')), ''),
+    'Judge change for ' || coalesce(v_show_name, 'your show'),
+    'show-lifecycle-email:' || p_show_id::text || ':judge_changed:person:' || p.id::text
+      || ':' || gen_random_uuid()::text,
+    now() + interval '5 minutes',
+    true,
+    p_judge_changes
+  FROM public.people p
+  WHERE p.id = p_person_id
+    AND p.deleted_at IS NULL
+    AND nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
+  ON CONFLICT (show_id, recipient_person_id)
+    WHERE step_type = 'judge_changed' AND status = 'ready' AND recipient_person_id IS NOT NULL
+  DO UPDATE SET
+    due_at = now() + interval '5 minutes',
+    recipient_email = excluded.recipient_email,
+    recipient_name = excluded.recipient_name,
+    judge_changes = excluded.judge_changes || j.judge_changes;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.requeue_judge_changed_vacancies(uuid, uuid, jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.requeue_judge_changed_vacancies(uuid, uuid, jsonb) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.queue_judge_changed_email_from_assignment()
 RETURNS trigger

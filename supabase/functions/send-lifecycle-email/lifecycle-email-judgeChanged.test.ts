@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { drainAutoEmailJobs } from './lifecycle-email-autoSend';
+import { renderHtmlEmail } from './lifecycle-email-shared';
 import {
   judgeChangeRefundLine,
   renderJudgeChangedEmail,
@@ -33,7 +34,6 @@ const change: JudgeChange = {
   where: 'Saturday Trial, Saturday, November 21, 2026',
   fromJudge: 'Olly Oldjudge',
   toJudge: 'Bea Newjudge',
-  started: false,
 };
 
 describe('judge changed email wording', () => {
@@ -50,14 +50,14 @@ describe('judge changed email wording', () => {
       'Container Novice A (Saturday Trial, Saturday, November 21, 2026): was Judge Olly Oldjudge, now Judge Bea Newjudge'
     );
     expect(email.body).toContain(
-      'You may withdraw for a full refund. Ask the trial secretary in writing before judging of Container Novice A starts.'
+      'Under AKC rules, you may withdraw for a full refund if you ask the trial secretary in writing before judging of Container Novice A (Saturday Trial, Saturday, November 21, 2026) starts.'
     );
     expect(email.body).toContain('Hi Jamie,');
   });
 
   it('UKC says the exhibitor may ask the trial secretary in writing for a full refund', () => {
     expect(judgeChangeRefundLine('UKC', [change])).toBe(
-      'You may ask the trial secretary in writing for a full refund.'
+      'Under UKC rules, you may ask the trial secretary in writing for a full refund.'
     );
   });
 
@@ -68,8 +68,8 @@ describe('judge changed email wording', () => {
   });
 
   it('a blank or unknown registry reads as AKC, as getTrialRegistry does', () => {
-    expect(judgeChangeRefundLine(null, [change])).toContain('You may withdraw for a full refund.');
-    expect(judgeChangeRefundLine('', [change])).toContain('You may withdraw for a full refund.');
+    expect(judgeChangeRefundLine(null, [change])).toContain('Under AKC rules, you may withdraw');
+    expect(judgeChangeRefundLine('', [change])).toContain('Under AKC rules, you may withdraw');
   });
 
   it('never says a refund is automatic, never says pull, has no em dash', () => {
@@ -100,7 +100,9 @@ describe('judge changed email wording', () => {
     expect(body).toContain(
       'Interior Novice A (Saturday Trial, Saturday, November 21, 2026): was the previous judge'
     );
-    expect(body).toContain('before judging of each class starts');
+    expect(body).toContain(
+      'before judging of Container Novice A (Saturday Trial, Saturday, November 21, 2026) and Interior Novice A (Saturday Trial, Saturday, November 21, 2026) starts.'
+    );
     expect(body).toContain('Hi there,');
   });
 });
@@ -116,7 +118,9 @@ describe('drainAutoEmailJobs for judge_changed', () => {
     expect(sent.to).toBe('jamie@example.com');
     expect(sent.subject).toBe('Judge change for Spring Scent Trial');
     expect(sent.html).toContain('was Judge Olly Oldjudge, now Judge Bea Newjudge');
-    expect(sent.html).toContain('You may ask the trial secretary in writing for a full refund.');
+    expect(sent.html).toContain(
+      'Under UKC rules, you may ask the trial secretary in writing for a full refund.'
+    );
     expect(fixture.tables.email_log).toEqual([
       expect.objectContaining({
         email_type: 'show_lifecycle_email',
@@ -224,8 +228,8 @@ describe('drainAutoEmailJobs for judge_changed', () => {
   });
 });
 
-describe('judge changed email: vacancy, started classes, link', () => {
-  it('defers while a class has no judge, then sends once when a substitute is confirmed', async () => {
+describe('judge changed email: vacancy, wording, link', () => {
+  it('defers in 5-minute steps while a class has no judge, then sends once when a substitute is confirmed', async () => {
     const tables = judgeChangedTables();
     const substitute = tables.judge_assignments[0];
     tables.judge_assignments = [];
@@ -238,16 +242,17 @@ describe('judge changed email: vacancy, started classes, link', () => {
       status: 'ready',
       attempt_id: null,
       claimed_until: null,
-      due_at: '2026-11-17T12:30:00.000Z',
+      due_at: '2026-11-17T12:05:00.000Z',
     });
 
     // Still vacant at the next look: deferred again, not skipped.
-    fixture.clock.at = new Date('2026-11-17T12:31:00.000Z');
+    fixture.clock.at = new Date('2026-11-17T12:06:00.000Z');
     const second = drain(fixture);
     await expect(second.promise).resolves.toMatchObject({ deferred: 1, sent: 0 });
 
+    // A vacancy filled within the five minutes sends at the very next look.
     fixture.tables.judge_assignments.push(substitute);
-    fixture.clock.at = new Date('2026-11-17T13:02:00.000Z');
+    fixture.clock.at = new Date('2026-11-17T12:12:00.000Z');
     const third = drain(fixture);
     await expect(third.promise).resolves.toMatchObject({ sent: 1, deferred: 0 });
     expect(third.fetch).toHaveBeenCalledTimes(1);
@@ -267,47 +272,117 @@ describe('judge changed email: vacancy, started classes, link', () => {
     expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'skipped' });
   });
 
-  it('a started class names the change but offers no withdrawal', async () => {
+  it('a vacancy holds back only its own class: the confirmed class is sent now, the vacant one later', async () => {
     const tables = judgeChangedTables('AKC');
-    tables.classes[0].status = 'in_progress';
-    const fixture = makeAutoSendSupabase(tables, LIVE);
-    const { fetch, promise } = drain(fixture);
-    await promise;
-    const html = sentBody(fetch).html;
-    expect(html).toContain('was Judge Olly Oldjudge, now Judge Bea Newjudge');
-    expect(html).toContain(
-      'Judging of Container Novice A had already started when the judge changed.'
-    );
-    expect(html).not.toMatch(/withdraw|refund/i);
+    tables.show_lifecycle_email_jobs = [
+      judgeChangedJob({ judge_changes: { 'class-1': 'judge-old', 'class-2': 'judge-old' } }),
+    ];
+    tables.classes.push({
+      id: 'class-2',
+      name: 'Interior Novice A',
+      deleted_at: null,
+      trials: {
+        name: 'Sunday Trial',
+        date: '2026-11-22',
+        registry_id: 'AKC',
+        timezone: null,
+        deleted_at: null,
+      },
+    });
+    // class-1 has its new judge; class-2 is unassigned.
+    const fixture = makeAutoSendSupabase(tables, {
+      liveEntryPeople: ['person-1'],
+      liveEntryClasses: { 'person-1': ['class-1', 'class-2'] },
+    });
+
+    const first = drain(fixture);
+    await expect(first.promise).resolves.toMatchObject({ sent: 1, deferred: 0 });
+    const html = sentBody(first.fetch).html;
+    expect(html).toContain('Container Novice A');
+    expect(html).not.toContain('Interior Novice A');
+    const jobs = fixture.tables.show_lifecycle_email_jobs;
+    expect(jobs[0]).toMatchObject({ status: 'sent' });
+    expect(jobs).toHaveLength(2);
+    expect(jobs[1]).toMatchObject({
+      status: 'ready',
+      due_at: '2026-11-17T12:05:00.000Z',
+      judge_changes: { 'class-2': 'judge-old' },
+    });
+
+    // The substitute arrives; the re-queued job sends the second class on its own.
+    fixture.tables.judge_assignments.push({
+      class_id: 'class-2',
+      status: 'confirmed',
+      person_id: 'judge-new',
+      person: { first_name: 'Bea', last_name: 'Newjudge', deleted_at: null },
+    });
+    fixture.clock.at = new Date('2026-11-17T12:06:00.000Z');
+    const second = drain(fixture);
+    await expect(second.promise).resolves.toMatchObject({ sent: 1 });
+    const later = sentBody(second.fetch).html;
+    expect(later).toContain('Interior Novice A');
+    expect(later).not.toContain('Container Novice A');
+    expect(fixture.tables.email_log).toHaveLength(2);
   });
 
-  it('a class with a scoring start time counts as started', async () => {
-    const tables = judgeChangedTables('UKC');
-    tables.classes[0].actual_start_time = '2026-11-17T11:00:00Z';
-    const fixture = makeAutoSendSupabase(tables, LIVE);
-    const { fetch, promise } = drain(fixture);
-    await promise;
-    expect(sentBody(fetch).html).not.toMatch(/refund/i);
-  });
-
-  it('mixes started and not-yet-started classes, offering withdrawal for the latter only', () => {
-    const started: JudgeChange = { ...change, className: 'Interior Novice A', started: true };
+  it('states the AKC rule per class with trial labels, and never promises an automatic refund', () => {
     const { body } = renderJudgeChangedEmail({
       showId: 'show-1',
       showName: 'Spring Scent Trial',
       recipientName: null,
       registryId: 'AKC',
-      changes: [change, started],
+      changes: [
+        change,
+        {
+          ...change,
+          className: 'Interior Novice A',
+          where: 'Sunday Trial, Sunday, November 22, 2026',
+        },
+      ],
     });
     expect(body).toContain(
-      'Judging of Interior Novice A had already started when the judge changed.'
+      'before judging of Container Novice A (Saturday Trial, Saturday, November 21, 2026) and Interior Novice A (Sunday Trial, Sunday, November 22, 2026) starts.'
     );
-    expect(body).toContain(
-      'Ask the trial secretary in writing before judging of Container Novice A starts.'
+    expect(body).not.toMatch(/automatic|already started/i);
+  });
+
+  it('UKC states no class cutoff', () => {
+    expect(judgeChangeRefundLine('UKC', [change])).not.toMatch(/before|starts/);
+  });
+
+  it("sends to the recipient's current address, not the one on the job", async () => {
+    const tables = judgeChangedTables();
+    tables.people.push({ id: 'person-1', email: 'jamie.new@example.com', deleted_at: null });
+    const fixture = makeAutoSendSupabase(tables, LIVE);
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    expect(sentBody(fetch).to).toBe('jamie.new@example.com');
+    expect(fixture.tables.email_log[0]).toMatchObject({ recipient_email: 'jamie.new@example.com' });
+  });
+
+  it('skips when the recipient has no email now', async () => {
+    const tables = judgeChangedTables();
+    tables.people.push({ id: 'person-1', email: '  ', deleted_at: null });
+    const fixture = makeAutoSendSupabase(tables, LIVE);
+    const { fetch, promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ skipped: 1, sent: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'skipped' });
+  });
+
+  it('leaves sentence punctuation out of a linked URL', () => {
+    const html = renderHtmlEmail(
+      'S',
+      'See (https://myk9show.com/x).\n\nOr https://myk9show.com/y?a=1, then https://myk9show.com/z!',
+      ''
     );
-    expect(judgeChangeRefundLine('UKC', [change, started])).toBe(
-      'For Container Novice A, you may ask the trial secretary in writing for a full refund.'
+    expect(html).toContain(
+      '(<a href="https://myk9show.com/x" style="color:#1d4ed8;">https://myk9show.com/x</a>).'
     );
+    expect(html).toContain(
+      '<a href="https://myk9show.com/y?a=1" style="color:#1d4ed8;">https://myk9show.com/y?a=1</a>,'
+    );
+    expect(html).toContain('>https://myk9show.com/z</a>!');
   });
 
   it('the My Shows link is an anchor in the HTML and a plain URL in the stored text', async () => {

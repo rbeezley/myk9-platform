@@ -282,10 +282,11 @@ function paragraphs(value: string): string {
 
 /** Our own links (already HTML-escaped) become anchors; the plain text keeps the bare URL. */
 function linkify(escaped: string): string {
-  return escaped.replace(
-    /https:\/\/myk9show\.com\/[^\s<]*/g,
-    url => `<a href="${url}" style="color:#1d4ed8;">${url}</a>`
-  );
+  return escaped.replace(/https:\/\/myk9show\.com\/[^\s<]*/g, match => {
+    // Sentence punctuation (and the &amp; of an escaped ampersand is kept) is not part of the link.
+    const url = match.replace(/(?:[).,;:!?]|&(?:quot|#039);)+$/, '');
+    return `<a href="${url}" style="color:#1d4ed8;">${url}</a>${match.slice(url.length)}`;
+  });
 }
 
 function escapeHtml(value: string): string {

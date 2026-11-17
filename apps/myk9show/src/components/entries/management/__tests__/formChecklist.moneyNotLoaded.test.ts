@@ -46,6 +46,25 @@ describe('buildFormChecklist when the payment record is not loaded (MYK9-1968)',
     ]);
   });
 
+  it('says the amount is not available even when every entry is marked paid', () => {
+    // Codex review of #4104: cached entries say "paid", but the missing record can still
+    // carry a balance, so the checklist must not read "All set".
+    const { items } = buildFormChecklist(form(PaymentStatus.PAID_BY_CASH), {
+      paidDollars: 50,
+      remainingDollars: 0,
+      amountUnknown: true,
+    });
+    expect(items.filter(item => item.kind === 'payment')).toEqual([
+      {
+        kind: 'payment',
+        id: 'payment',
+        title: 'Amount not available',
+        detail: 'The payment record has not loaded, so whether anything is due is not known.',
+        canRecord: false,
+      },
+    ]);
+  });
+
   it('quotes no paid figure in the done line', () => {
     const { done } = buildFormChecklist(form(PaymentStatus.PAID_BY_CASH), {
       paidDollars: 50,

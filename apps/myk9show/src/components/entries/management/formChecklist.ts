@@ -123,39 +123,44 @@ export function buildFormChecklist(
   const liveCount = entries.filter(live).length;
 
   const unpaid = withReason('payment_due');
-  if (unpaid.length > 0) {
+  const unpaidLine = `${unpaid.length} of ${liveCount} ${entriesWord(liveCount)} unpaid`;
+  if (money.amountUnknown && liveCount > 0) {
+    // MYK9-1968: the enrollment row did not load (offline, or the read failed), so the
+    // only figure to hand is built from entry fees and ignores money already taken.
+    // Quote nothing, and offer no button that takes money for an unknown due. Shown even
+    // when no entry is marked unpaid: the missing record can still carry a balance, so a
+    // green "All set" would claim more than the device knows (Codex review of #4104).
+    items.push({
+      kind: 'payment',
+      id: 'payment',
+      title: AMOUNT_NOT_AVAILABLE,
+      detail:
+        unpaid.length > 0
+          ? `${unpaidLine}. The payment record has not loaded, so what is due is not known.`
+          : 'The payment record has not loaded, so whether anything is due is not known.',
+      canRecord: false,
+    });
+  } else if (unpaid.length > 0) {
     const due = money.remainingDollars;
-    const unpaidLine = `${unpaid.length} of ${liveCount} ${entriesWord(liveCount)} unpaid`;
     items.push(
-      money.amountUnknown
+      due > 0
         ? {
-            // MYK9-1968: the enrollment row did not load (offline, or the read failed), so
-            // the only figure to hand is built from entry fees and ignores money already
-            // taken. Quote nothing, and offer no button that takes money for an unknown due.
             kind: 'payment',
             id: 'payment',
-            title: AMOUNT_NOT_AVAILABLE,
-            detail: `${unpaidLine}. The payment record has not loaded, so what is due is not known.`,
+            title: `${dollars(due)} due`,
+            detail: unpaidLine,
+            canRecord: Boolean(registration.enrollmentId),
+          }
+        : {
+            // The money received already covers the total, yet entries are still
+            // marked unpaid: never offer to take more money or say "due" while the
+            // footer reads Paid in full. The status is fixed from Change payment.
+            kind: 'payment',
+            id: 'payment',
+            title: 'Entries still marked unpaid',
+            detail: `${unpaidLine}, but the money received covers the total. Use Change payment below to update the status.`,
             canRecord: false,
           }
-        : due > 0
-          ? {
-              kind: 'payment',
-              id: 'payment',
-              title: `${dollars(due)} due`,
-              detail: unpaidLine,
-              canRecord: Boolean(registration.enrollmentId),
-            }
-          : {
-              // The money received already covers the total, yet entries are still
-              // marked unpaid: never offer to take more money or say "due" while the
-              // footer reads Paid in full. The status is fixed from Change payment.
-              kind: 'payment',
-              id: 'payment',
-              title: 'Entries still marked unpaid',
-              detail: `${unpaidLine}, but the money received covers the total. Use Change payment below to update the status.`,
-              canRecord: false,
-            }
     );
   }
 

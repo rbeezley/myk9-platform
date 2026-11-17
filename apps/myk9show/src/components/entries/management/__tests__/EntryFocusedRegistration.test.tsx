@@ -160,7 +160,9 @@ describe('EntryFocusedRegistration', () => {
 
   describe('one armband control per dog (MYK9-1672)', () => {
     const renderForm = (entries: EntryManagementEntry[]) => {
-      const registration = groupEntriesByShowRegistration(entries)[0]!;
+      // No enrollment record: these tests are about armbands, and a form whose record did
+      // not load would add an "Amount not available" item to the checklist (MYK9-1968).
+      const registration = { ...groupEntriesByShowRegistration(entries)[0]!, enrollmentId: null };
       return render(
         <EntryFocusedRegistration
           registration={registration}

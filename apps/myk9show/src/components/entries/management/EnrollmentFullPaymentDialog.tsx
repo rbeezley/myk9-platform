@@ -70,6 +70,14 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
             {amountUnknown ? AMOUNT_NOT_AVAILABLE : `$${balanceDollars.toFixed(2)}`}
           </span>
         </p>
+        {amountUnknown && (
+          // Paid in Full records the whole balance, which is not known here, so it cannot be
+          // confirmed. Partial Payment records the amount actually received (Codex review of #4104).
+          <p className="text-sm text-muted-foreground" data-testid="full-payment-unknown-note">
+            Paid in Full needs the balance, which has not loaded. To record money received now, use
+            Partial Payment and enter the amount.
+          </p>
+        )}
         {state.method === 'check' && (
           <Input
             placeholder="Check number (optional)"
@@ -89,7 +97,7 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={onConfirm} disabled={!state.receivedOn}>
+        <Button onClick={onConfirm} disabled={amountUnknown || !state.receivedOn}>
           Confirm
         </Button>
       </DialogFooter>

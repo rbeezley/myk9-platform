@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 
@@ -125,7 +125,7 @@ export function SecretaryCockpit({
   // it would lose is held here (useFocusedClassSetupActions), and nothing is visible in between.
   const isSplit = isCockpitSplit(gridWidth);
   // The rail's width beside a focused class, dragged by the divider (MYK9-2142).
-  const rail = useCockpitRailWidth(gridWidth);
+  const rail = useCockpitRailWidth(gridWidth, gridRef);
   const canPin = useMediaQuery(FOCUSED_CLASS_PIN_QUERY);
   const pinMode: FocusedClassPinMode = !canPin ? 'none' : isSplit ? 'panel' : 'page';
   const model = buildSecretaryCockpitModel(snapshot, state);
@@ -145,6 +145,22 @@ export function SecretaryCockpit({
     model,
     clickedClassId
   );
+  // Which trials are open, as each reports it (MYK9-2143). "Listed" only means the class is in
+  // the schedule's model: inside a collapsed trial its card is hidden, and the header must then
+  // keep saying what the card would have.
+  const [trialOpen, setTrialOpen] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const reportTrialOpen = useCallback((trialId: string, open: boolean) => {
+    setTrialOpen(current =>
+      current.get(trialId) === open ? current : new Map(current).set(trialId, open)
+    );
+  }, []);
+  const focusedGroup = model.trialGroups.find(group =>
+    group.classes.some(classItem => classItem.id === focusedId)
+  );
+  const focusedCardShowing =
+    focusedClassIsVisible &&
+    focusedGroup !== undefined &&
+    (trialOpen.get(focusedGroup.trialId) ?? focusedGroup.defaultOpen);
   // Split with a class focused, the schedule is the rail (MYK9-1782).
   const railShown = isSplit && panelShows && model.focusedClass !== null;
   // Pinned beside the rail, the panel starts at the schedule heading, not under it (MYK9-1989).
@@ -169,7 +185,7 @@ export function SecretaryCockpit({
       attention={focusedAttention}
       timeZone={snapshot.timeZone}
       pinMode={pinMode}
-      cardListed={focusedClassIsVisible}
+      cardListed={focusedCardShowing}
       canManageShow={canManageShow}
       onCommand={onCommand}
       entryBreakdownByClassId={entryBreakdownByClassId}
@@ -349,12 +365,14 @@ export function SecretaryCockpit({
             !isSplit && focusedClassIsVisible && !selecting ? focusedPanel : undefined
           }
           select={canManageShow ? selection : undefined}
+          onTrialOpenChange={reportTrialOpen}
         />
         {railShown && (
           <CockpitRailDivider
             width={rail.width}
             max={rail.max}
             lifted={panelLifted}
+            onPreview={rail.previewWidth}
             onWidthChange={rail.setWidth}
           />
         )}

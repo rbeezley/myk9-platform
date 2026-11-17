@@ -34,8 +34,8 @@ function selectsRow(event: MouseEvent<HTMLElement>): boolean {
  * dog's call name: the secretary knows dogs by name, the gate by armband.
  */
 function CardNextUp({ status }: { status: ScheduledClassModel['cardStatus'] }) {
-  const { inRing, nextArmbands } = status;
-  if (!inRing && nextArmbands.length === 0) return null;
+  const { inRing, nextUp } = status;
+  if (!inRing && nextUp.length === 0) return null;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
       {inRing && (
@@ -55,10 +55,8 @@ function CardNextUp({ status }: { status: ScheduledClassModel['cardStatus'] }) {
           </span>
         </span>
       )}
-      {nextArmbands.length > 0 && (
-        <span className="text-muted-foreground">
-          Next {nextArmbands.map(armband => `#${armband}`).join(' · ')}
-        </span>
+      {nextUp.length > 0 && (
+        <span className="min-w-0 break-words text-muted-foreground">Next {nextUp.join(' · ')}</span>
       )}
     </div>
   );
@@ -96,7 +94,7 @@ export function CockpitScheduleRow({
   const lifecycle = classItem.lifecycle.value;
   const { progress, nextStep } = classItem.cardStatus;
   // Before the class starts the bar would be an empty track under "0 / 5".
-  const showBar = lifecycle === 'in-progress' || lifecycle === 'complete';
+  const started = lifecycle === 'in-progress' || lifecycle === 'complete';
   return (
     <div
       id={getCockpitAnchorElementId(classItem.id)}
@@ -152,11 +150,22 @@ export function CockpitScheduleRow({
             className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium"
           >
             <Clock3 size={13} className="shrink-0" aria-hidden="true" />
-            {classItem.startedLabel
-              ? // The recorded start, never mistaken for the planned time.
-                `Started ${classItem.startedLabel}`
-              : (time ?? 'No time')}
+            {/* Once a class is under way the planned time is labelled, so it is never read as
+                the start. */}
+            {started ? (time ? `Expected ${time}` : 'No expected time') : (time ?? 'No time')}
           </span>
+          {/* The card is the one place the times are compared, so it carries all of them: the
+              recorded start and finish, and a start nobody recorded. */}
+          {started && (
+            <span data-testid="class-ran" className="text-xs">
+              {[
+                classItem.startedLabel ? `Started ${classItem.startedLabel}` : 'Start not recorded',
+                classItem.finishedLabel ? `Finished ${classItem.finishedLabel}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
         </div>
         <div data-testid="class-status-line">
           <CardNextUp status={classItem.cardStatus} />
@@ -180,7 +189,10 @@ export function CockpitScheduleRow({
             </div>
           )}
           <div className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2">
-            <ClassStatusBadge lifecycle={lifecycle} />
+            {/* The badge never wraps or shrinks; the bar is what gives way in a narrow rail. */}
+            <span className="shrink-0 whitespace-nowrap">
+              <ClassStatusBadge lifecycle={lifecycle} />
+            </span>
             {/* An unknown count is left out, never spelled as a zero (MYK9-637). */}
             {progress && (
               <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -192,12 +204,16 @@ export function CockpitScheduleRow({
                 </span>
               </span>
             )}
-            {progress && showBar && (
-              <ClassProgressBar
-                label={`${classItem.name} scoring progress`}
-                done={progress.scored}
-                total={progress.total}
-              />
+            {/* Before the class starts the bar would be an empty track under "0 / 5". Hidden from
+                screen readers here: the count beside it already says "3 of 5 scored". */}
+            {progress && started && (
+              <span aria-hidden="true" className="flex min-w-0 flex-1">
+                <ClassProgressBar
+                  label={`${classItem.name} scoring progress`}
+                  done={progress.scored}
+                  total={progress.total}
+                />
+              </span>
             )}
           </div>
         </div>

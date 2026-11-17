@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import { TrialGroupCard } from '@/components/schedule/TrialGroupCard';
@@ -34,6 +34,7 @@ export function CockpitTrialGroup({
   inlineFocusedContent,
   entryBreakdownByClassId,
   trialActions,
+  onOpenChange,
   select,
 }: {
   showId: string;
@@ -45,10 +46,19 @@ export function CockpitTrialGroup({
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** The trial's menu (MYK9-956, MYK9-1727), for managers. */
   trialActions?: ReactNode;
+  /**
+   * Told whether this trial is open, on mount and on every change (MYK9-2143): collapsed, its
+   * class cards are hidden, so the class header must not lean on them. Must be stable.
+   */
+  onOpenChange?: ((trialId: string, open: boolean) => void) | undefined;
   /** Select classes (MYK9-1324): rows tick instead of focusing. */
   select?: TrialGroupSelect | undefined;
 }) {
   const [open, setOpenState] = useState(group.defaultOpen);
+  const trialId = group.trialId;
+  useEffect(() => {
+    onOpenChange?.(trialId, open);
+  }, [onOpenChange, trialId, open]);
   const setOpen = (next: boolean) => {
     setOpenState(next);
     select?.onOpenChange(next);

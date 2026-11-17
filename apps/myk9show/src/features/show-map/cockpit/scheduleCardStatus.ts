@@ -12,8 +12,11 @@ export interface ScheduleCardStatus {
   progress: { scored: number; total: number } | null;
   /** The dog in the ring, while the class is running. */
   inRing: { armband: string | null; dogName: string } | null;
-  /** The next waiting armbands in run order, while the class is running. */
-  nextArmbands: readonly string[];
+  /**
+   * The next waiting dogs in run order, while the class is running: `#105`, or the call name for
+   * a dog with no armband yet, so the line never skips a dog the In ring tile lists.
+   */
+  nextUp: readonly string[];
   /** What the secretary does next, or what is holding the class: null when nothing is. */
   nextStep: string | null;
 }
@@ -52,7 +55,7 @@ function nextStepAfterScoring(items: readonly ClassChecklistItem[]): string | nu
 const NOTHING: ScheduleCardStatus = {
   progress: null,
   inRing: null,
-  nextArmbands: [],
+  nextUp: [],
   nextStep: null,
 };
 
@@ -87,7 +90,7 @@ export function buildScheduleCardStatus(
       return {
         progress,
         inRing: inRing ? { armband: inRing.armband ?? null, dogName: inRing.dogName } : null,
-        nextArmbands: nextUp.flatMap(entry => entry.armband ?? []),
+        nextUp: nextUp.map(entry => (entry.armband ? `#${entry.armband}` : entry.dogName)),
         nextStep: null,
       };
     }
@@ -95,11 +98,15 @@ export function buildScheduleCardStatus(
       return {
         ...NOTHING,
         progress,
-        // Of the same entered total; notCheckedIn is 0 while the entries are unread.
+        // Of the same entered total; notCheckedIn is 0 while the entries are unread. A class known
+        // to have nobody entered says so: with no count beside the badge it would otherwise read
+        // like a class whose entries have not loaded.
         nextStep:
           counts.notCheckedIn > 0
             ? `${counts.notCheckedIn} of ${counts.entered} not checked in`
-            : null,
+            : total === 0
+              ? 'None entered'
+              : null,
       };
     default:
       return { ...NOTHING, progress };

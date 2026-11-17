@@ -16,6 +16,7 @@ const classItem: ScheduledClassModel = {
   scheduledStart: '9:00 AM',
   expectedStart: '9:00 AM',
   startedLabel: null,
+  finishedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
   judgeName: null,
@@ -31,7 +32,7 @@ const classItem: ScheduledClassModel = {
   cardStatus: {
     progress: { scored: 0, total: 5 },
     inRing: null,
-    nextArmbands: [],
+    nextUp: [],
     nextStep: '3 of 5 not checked in',
   },
 };
@@ -43,7 +44,7 @@ const running: ScheduledClassModel = {
   cardStatus: {
     progress: { scored: 3, total: 5 },
     inRing: { armband: '106', dogName: 'Willow' },
-    nextArmbands: ['105', '110'],
+    nextUp: ['#105', '#110'],
     nextStep: null,
   },
 };
@@ -138,9 +139,37 @@ describe('CockpitScheduleRow layout', () => {
     expect(screen.getByTestId('class-time')).toHaveTextContent(/^No time$/);
   });
 
-  it('marks a recorded start as started, so it is not read as the planned time', () => {
+  it('labels the planned time once the class has started, beside the recorded start', () => {
     renderRow(0, vi.fn(), running);
-    expect(screen.getByTestId('class-time')).toHaveTextContent(/^Started 9:42 AM$/);
+    expect(screen.getByTestId('class-time')).toHaveTextContent(/^Expected 9:00 AM$/);
+    expect(screen.getByTestId('class-ran')).toHaveTextContent(/^Started 9:42 AM$/);
+  });
+
+  it('adds the recorded finish, and says when a start was never recorded', () => {
+    renderRow(0, vi.fn(), {
+      ...running,
+      lifecycle: { evidence: 'recorded', value: 'complete' },
+      finishedLabel: '11:05 AM',
+    });
+    expect(screen.getByTestId('class-ran')).toHaveTextContent(
+      /^Started 9:42 AM · Finished 11:05 AM$/
+    );
+  });
+
+  it('says a running class has no recorded start or planned time, never a bare time', () => {
+    renderRow(0, vi.fn(), {
+      ...running,
+      startedLabel: null,
+      expectedStart: null,
+      timeLabel: 'Time not set',
+    });
+    expect(screen.getByTestId('class-time')).toHaveTextContent(/^No expected time$/);
+    expect(screen.getByTestId('class-ran')).toHaveTextContent(/^Start not recorded$/);
+  });
+
+  it('shows no start or finish line before the class starts', () => {
+    renderRow(0);
+    expect(screen.queryByTestId('class-ran')).toBeNull();
   });
 
   it('states the attention count in words and as visible text', () => {
@@ -163,10 +192,17 @@ describe('CockpitScheduleRow status footer (MYK9-2143)', () => {
     renderRow(0, vi.fn(), running);
     expect(within(status()).getByText('In progress')).toBeInTheDocument();
     expect(within(status()).getByText('3 / 5')).toBeInTheDocument();
-    const bar = screen.getByRole('progressbar', { name: 'Container Novice scoring progress' });
+    // Hidden from screen readers: the count beside it already says "3 of 5 scored" once.
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    const bar = screen.getByRole('progressbar', { hidden: true });
     expect(bar).toHaveAttribute('aria-valuenow', '3');
     expect(bar).toHaveAttribute('aria-valuemax', '5');
-    expect(bar).toHaveAttribute('aria-valuetext', '3 of 5 scored');
+  });
+
+  it('keeps the status badge whole and lets the bar give way in a narrow rail', () => {
+    renderRow(0, vi.fn(), running);
+    const badge = within(status()).getByText('In progress');
+    expect(badge.parentElement).toHaveClass('shrink-0', 'whitespace-nowrap');
   });
 
   it('names the dog in the ring by armband and name, then the next armbands', () => {
@@ -184,6 +220,14 @@ describe('CockpitScheduleRow status footer (MYK9-2143)', () => {
     expect(status()).not.toHaveTextContent('Armband');
   });
 
+  it('lists a waiting dog with no armband by name, in its place in line', () => {
+    renderRow(0, vi.fn(), {
+      ...running,
+      cardStatus: { ...running.cardStatus, nextUp: ['Scout', '#110'] },
+    });
+    expect(status()).toHaveTextContent('Next Scout · #110');
+  });
+
   it('shows no ring line when nobody is in the ring or waiting', () => {
     renderRow(0);
     expect(status()).not.toHaveTextContent('Next');
@@ -193,7 +237,7 @@ describe('CockpitScheduleRow status footer (MYK9-2143)', () => {
   it('leaves an unknown count out, never as a zero', () => {
     renderRow(0, vi.fn(), {
       ...classItem,
-      cardStatus: { progress: null, inRing: null, nextArmbands: [], nextStep: null },
+      cardStatus: { progress: null, inRing: null, nextUp: [], nextStep: null },
     });
     expect(within(status()).getByText('Not started')).toBeInTheDocument();
     expect(status()).not.toHaveTextContent('/');
@@ -207,13 +251,13 @@ describe('CockpitScheduleRow status footer (MYK9-2143)', () => {
       cardStatus: {
         progress: { scored: 5, total: 5 },
         inRing: null,
-        nextArmbands: [],
+        nextUp: [],
         nextStep: 'Print preliminary results',
       },
     });
     expect(within(status()).getByText('Complete')).toBeInTheDocument();
     expect(status()).toHaveTextContent('Print preliminary results');
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5');
+    expect(screen.getByRole('progressbar', { hidden: true })).toHaveAttribute('aria-valuenow', '5');
   });
 });
 

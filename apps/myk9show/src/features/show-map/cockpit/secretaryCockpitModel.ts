@@ -113,6 +113,10 @@ function toScheduledClass(
       cls.lifecycle && cls.lifecycle !== 'not-started'
         ? (formatClock(cls.actualStart ?? null, timeZone) ?? null)
         : null,
+    finishedLabel:
+      cls.lifecycle && cls.lifecycle !== 'not-started'
+        ? (formatClock(cls.actualFinish ?? null, timeZone) ?? null)
+        : null,
     lifecycle: lifecycleFor(cls),
     progress: progressFor(cls),
     judgeName: cls.judgeName ?? null,

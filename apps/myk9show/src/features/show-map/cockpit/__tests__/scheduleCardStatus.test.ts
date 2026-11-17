@@ -58,7 +58,7 @@ function paperwork(reportId: string, state: SecretaryCockpitPaperwork['state']) 
 
 const PRINTED_BEFORE = [paperwork('check-in-sheet', 'current'), paperwork('scoresheet', 'current')];
 
-const NOTHING = { progress: null, inRing: null, nextArmbands: [], nextStep: null };
+const NOTHING = { progress: null, inRing: null, nextUp: [], nextStep: null };
 
 // MYK9-2143: the lifecycle is the card's badge, so the status never repeats it as a word.
 describe('buildScheduleCardStatus', () => {
@@ -83,7 +83,10 @@ describe('buildScheduleCardStatus', () => {
 
   it('does not count a pulled dog as not checked in, or as entered', () => {
     const pulled = entry(1, { state: 'pulled', counted: false, place: null });
-    expect(buildScheduleCardStatus(cls({ entries: [pulled] }), true)).toEqual(NOTHING);
+    expect(buildScheduleCardStatus(cls({ entries: [pulled] }), true)).toEqual({
+      ...NOTHING,
+      nextStep: 'None entered',
+    });
   });
 
   it("uses the class's own counts only while its entries are unread", () => {
@@ -102,6 +105,22 @@ describe('buildScheduleCardStatus', () => {
     expect(buildScheduleCardStatus(cls({ entryCount: 0 }), true).progress).toBeNull();
   });
 
+  it('tells a class known to have nobody entered from one whose entries are unread', () => {
+    expect(buildScheduleCardStatus(cls({ entryCount: 0 }), true).nextStep).toBe('None entered');
+    expect(buildScheduleCardStatus(cls({ entryCount: null }), true).nextStep).toBeNull();
+    // Only before the start: a running class with nobody entered has nothing to do next.
+    expect(
+      buildScheduleCardStatus(cls({ lifecycle: 'in-progress', entryCount: 0 }), true).nextStep
+    ).toBeNull();
+  });
+
+  it('keeps a waiting dog with no armband in the next line, by name', () => {
+    const entries = [entry(1, { dogName: 'Scout' }), entry(2, { armband: '110' })];
+    expect(
+      buildScheduleCardStatus(cls({ lifecycle: 'in-progress', entries }), true).nextUp
+    ).toEqual(['Scout', '#110']);
+  });
+
   it('names the dog in the ring and the next armbands while running', () => {
     const entries = [
       entry(1, { state: 'scored', place: null }),
@@ -112,7 +131,7 @@ describe('buildScheduleCardStatus', () => {
     expect(buildScheduleCardStatus(cls({ lifecycle: 'in-progress', entries }), true)).toEqual({
       progress: { scored: 1, total: 4 },
       inRing: { armband: '102', dogName: 'Willow' },
-      nextArmbands: ['103', '104'],
+      nextUp: ['#103', '#104'],
       nextStep: null,
     });
   });
@@ -121,10 +140,10 @@ describe('buildScheduleCardStatus', () => {
     const waiting = [entry(1, { armband: '101' })];
     expect(
       buildScheduleCardStatus(cls({ lifecycle: 'in-progress', entries: waiting }), true)
-    ).toMatchObject({ inRing: null, nextArmbands: ['101'] });
+    ).toMatchObject({ inRing: null, nextUp: ['#101'] });
     expect(buildScheduleCardStatus(cls({ entries: waiting }), true)).toMatchObject({
       inRing: null,
-      nextArmbands: [],
+      nextUp: [],
     });
   });
 

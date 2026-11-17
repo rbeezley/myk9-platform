@@ -220,6 +220,8 @@ export interface ScheduledClassModel {
   expectedStart: string | null;
   /** The recorded start, once the class has started; null before, or when none was recorded. */
   startedLabel: string | null;
+  /** The recorded finish, once the class has started; null before, or when none was recorded. */
+  finishedLabel: string | null;
   lifecycle: EvidenceValue<CockpitLifecycle>;
   progress: EvidenceValue<{ completed: number; total: number }>;
   judgeName: string | null;

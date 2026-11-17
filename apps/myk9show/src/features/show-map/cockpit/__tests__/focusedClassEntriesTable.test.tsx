@@ -222,6 +222,9 @@ describe('the focused class entries table (MYK9-1782)', () => {
     expect(status).toHaveTextContent('Armband #102 Willow in the ring');
     expect(status).toHaveTextContent('In progress');
     expect(status).toHaveTextContent('1 of 3 scored');
-    expect(within(status).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+    expect(within(status).getByRole('progressbar', { hidden: true })).toHaveAttribute(
+      'aria-valuenow',
+      '1'
+    );
   });
 });

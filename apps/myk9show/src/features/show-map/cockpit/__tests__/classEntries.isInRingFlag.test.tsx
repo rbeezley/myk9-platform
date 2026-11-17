@@ -63,7 +63,7 @@ describe('an entry flagged only by is_in_ring', () => {
       true
     );
     expect(status.inRing).toEqual({ armband: '101', dogName: 'Dog101' });
-    expect(status.nextArmbands).toEqual(['102', '103']);
+    expect(status.nextUp).toEqual(['#102', '#103']);
   });
 
   it('is ignored on a scored dog (stale flag)', () => {

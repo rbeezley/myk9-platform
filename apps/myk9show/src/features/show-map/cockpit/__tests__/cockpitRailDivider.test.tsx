@@ -104,15 +104,78 @@ describe('the divider between the schedule and the selected class', () => {
 
   it('follows a drag and stops following when the pointer is released', () => {
     const { columns } = renderCockpit();
-    fireEvent.pointerDown(divider(), { clientX: 310, pointerId: 1 });
-    fireEvent.pointerMove(divider(), { clientX: 410, pointerId: 1 });
+    fireEvent.pointerDown(divider(), {
+      clientX: 310,
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+    });
+    fireEvent.pointerMove(divider(), { clientX: 410, pointerId: 1, buttons: 1 });
     expect(columns()).toBe('400px minmax(0, 1fr)');
     // Saved once, where the drag ends, not on every move.
     expect(window.localStorage.getItem(RAIL_WIDTH_STORAGE_KEY)).toBeNull();
     fireEvent.pointerUp(divider(), { clientX: 410, pointerId: 1 });
-    fireEvent.pointerMove(divider(), { clientX: 500, pointerId: 1 });
+    fireEvent.pointerMove(divider(), { clientX: 500, pointerId: 1, buttons: 1 });
     expect(columns()).toBe('400px minmax(0, 1fr)');
     expect(window.localStorage.getItem(RAIL_WIDTH_STORAGE_KEY)).toBe('400');
+    expect(divider()).toHaveAttribute('aria-valuenow', '400');
+  });
+
+  it('ignores the right button, and a press that never moves saves nothing', () => {
+    const { columns } = renderCockpit();
+    fireEvent.pointerDown(divider(), {
+      clientX: 310,
+      pointerId: 1,
+      isPrimary: true,
+      button: 2,
+      buttons: 2,
+    });
+    fireEvent.pointerMove(divider(), { clientX: 410, pointerId: 1, buttons: 2 });
+    expect(columns()).toBe(`${RAIL_PX}px minmax(0, 1fr)`);
+
+    fireEvent.pointerDown(divider(), {
+      clientX: 310,
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+    });
+    fireEvent.pointerUp(divider(), { clientX: 310, pointerId: 1 });
+    expect(window.localStorage.getItem(RAIL_WIDTH_STORAGE_KEY)).toBeNull();
+  });
+
+  it('ends a drag whose button came up where no pointerup reached the page', () => {
+    const { columns } = renderCockpit();
+    fireEvent.pointerDown(divider(), {
+      clientX: 310,
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+    });
+    fireEvent.pointerMove(divider(), { clientX: 410, pointerId: 1, buttons: 1 });
+    // No pointerup (a context menu took it); the next move arrives with no button held.
+    fireEvent.pointerMove(divider(), { clientX: 520, pointerId: 1, buttons: 0 });
+    fireEvent.pointerMove(divider(), { clientX: 560, pointerId: 1, buttons: 0 });
+    expect(columns()).toBe('400px minmax(0, 1fr)');
+    expect(window.localStorage.getItem(RAIL_WIDTH_STORAGE_KEY)).toBe('400');
+  });
+
+  it('leaves modified keys alone, so Alt+Left is still the browser Back', async () => {
+    const { user, columns } = renderCockpit();
+    divider().focus();
+    await user.keyboard('{Alt>}{ArrowRight}{/Alt}{Control>}{End}{/Control}{Shift>}{End}{/Shift}');
+    expect(columns()).toBe(`${RAIL_PX}px minmax(0, 1fr)`);
+  });
+
+  it('names the schedule it resizes', () => {
+    renderCockpit();
+    const controls = divider().getAttribute('aria-controls');
+    expect(controls).toBeTruthy();
+    expect(document.getElementById(controls!)).toBe(
+      screen.getByRole('region', { name: 'Trial schedule' })
+    );
   });
 
   it('returns to 300px on a double-click', async () => {

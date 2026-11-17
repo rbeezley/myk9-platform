@@ -19,7 +19,7 @@
 --   3. A partial UNIQUE index on (show_id, recipient_person_id) for the one unsent
 --      show_changed job. Several edits in one sitting upsert that one row and push its
 --      due_at; a change after the email went out finds no ready row and makes a new job.
---   4. Producers. AFTER UPDATE triggers on trials (date) and on shows (start_date, end_date, venue_name,
+--   4. Producers. AFTER UPDATE triggers on trials (date) and on shows (venue_name,
 --      address, city, state, zip_code). For a published show (status published, upcoming
 --      or in_progress, the live set the confirmation email uses) with the step switched
 --      on, every person with a live entry gets one ready, auto_send job with
@@ -27,7 +27,8 @@
 --      with an email, deduplicated: the rule queue_results_available_for_show (MYK9-2076)
 --      uses, because My Shows lists the entry for both. The email text is NOT stored on
 --      the job: the sender renders it at send time from the current dates and address, so
---      it always carries the latest values. Triggers never block the edit.
+--      it always carries the latest values. Triggers never block the edit. The schedule is
+--      the trials' dates, so the show's own start_date / end_date are not watched.
 --   5. claim_due_auto_email_jobs(p_limit, p_lease_until): the drain's claim. Ready,
 --      auto_send, due, lease free or expired; FOR UPDATE SKIP LOCKED; mints a fresh
 --      attempt_id and sets claimed_until (the MYK9-1212 lease). service_role only.
@@ -307,12 +308,10 @@ CREATE TRIGGER trg_queue_show_changed_email_trial
 
 DROP TRIGGER IF EXISTS trg_queue_show_changed_email_show ON public.shows;
 CREATE TRIGGER trg_queue_show_changed_email_show
-  AFTER UPDATE OF start_date, end_date, venue_name, address, city, state, zip_code ON public.shows
+  AFTER UPDATE OF venue_name, address, city, state, zip_code ON public.shows
   FOR EACH ROW
   WHEN (
-    old.start_date IS DISTINCT FROM new.start_date
-    OR old.end_date IS DISTINCT FROM new.end_date
-    OR old.venue_name IS DISTINCT FROM new.venue_name
+    old.venue_name IS DISTINCT FROM new.venue_name
     OR old.address IS DISTINCT FROM new.address
     OR old.city IS DISTINCT FROM new.city
     OR old.state IS DISTINCT FROM new.state

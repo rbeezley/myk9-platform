@@ -10,10 +10,10 @@
  *   interrupted after the provider accepted   the next drain finds the attempt's
  *                                             resend_message_id and marks the job sent
  *                                             without a second send
- *   provider refused                          attempt recorded, lease released, the next
- *                                             drain tries again; the third failure ends the
- *                                             job at `failed`, which stays visible until a
- *                                             secretary sends it again (retry_auto)
+ *   provider refused                          attempt recorded, the job waits out a growing
+ *                                             delay (5 min, 15 min, 1 h, 3 h); the fifth
+ *                                             refusal ends the job at `failed`, which stays
+ *                                             visible in Delivery history
  *   show unpublished, or no live entry left   the job is skipped
  */
 import {
@@ -36,14 +36,22 @@ import {
 export const AUTO_SEND_BATCH_SIZE = 25;
 /** Longer than the function's wall-clock cap, so an attempt cannot still run once its lease ends. */
 export const AUTO_SEND_LEASE_MS = 10 * 60 * 1000;
-export const AUTO_SEND_MAX_FAILED_ATTEMPTS = 3;
+export const AUTO_SEND_MAX_FAILED_ATTEMPTS = 5;
 /** One invocation keeps claiming batches until nothing is due or this much wall clock is spent. */
 export const AUTO_SEND_TIME_BUDGET_MS = 60_000;
-/** A refused job waits this long before the next try, so one invocation never retries it at once. */
-export const AUTO_SEND_RETRY_DELAY_MS = 5 * 60 * 1000;
+/**
+ * How long a job waits after its 1st, 2nd, 3rd and 4th refusal. It is held through
+ * claimed_until, so neither this run's loop nor an earlier cron run takes it sooner.
+ */
+export const AUTO_SEND_RETRY_DELAYS_MS = [
+  5 * 60 * 1000,
+  15 * 60 * 1000,
+  60 * 60 * 1000,
+  3 * 60 * 60 * 1000,
+];
 
 const SHOW_SELECT =
-  'id, name, status, deleted_at, start_date, end_date, venue_name, address, city, state, zip_code, trials(name, date, deleted_at)';
+  'id, name, status, deleted_at, venue_name, address, city, state, zip_code, trials(name, date, deleted_at)';
 
 interface ClaimedJob {
   job_id: string;
@@ -212,7 +220,7 @@ async function processClaimedJob(args: {
       return 'failed';
     }
     await insertAttempt(ctx, null, null, 'failed', delivery.error);
-    await releaseLease(args);
+    await releaseLease({ ...args, refusals: failedBefore + 1 });
     return 'retry';
   }
 
@@ -318,12 +326,15 @@ async function releaseLease(args: {
   supabase: LifecycleEmailSupabaseClient;
   job: ClaimedJob;
   now: () => Date;
+  refusals: number;
 }) {
+  const delay =
+    AUTO_SEND_RETRY_DELAYS_MS[Math.min(args.refusals, AUTO_SEND_RETRY_DELAYS_MS.length) - 1];
   const { error } = await args.supabase
     .from('show_lifecycle_email_jobs')
     .update({
       attempt_id: null,
-      claimed_until: new Date(args.now().getTime() + AUTO_SEND_RETRY_DELAY_MS).toISOString(),
+      claimed_until: new Date(args.now().getTime() + delay).toISOString(),
     })
     .eq('id', args.job.job_id)
     .eq('attempt_id', args.job.attempt_id);

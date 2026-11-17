@@ -121,8 +121,6 @@ export const publishedShow = {
   name: 'Spring Scent Trial',
   status: 'published',
   deleted_at: null,
-  start_date: '2026-11-21',
-  end_date: '2026-11-22',
   venue_name: 'Riverside Barn',
   address: '12 River Road',
   city: 'Fairfield',

@@ -323,22 +323,6 @@ export async function sendLifecycleEmailJobs(args: {
   return { sent, failed, ...(skipped > 0 ? { skipped } : {}), total: args.jobIds.length };
 }
 
-/**
- * MYK9-2124: "Send again" for the automatic emails that ended at failed. The server puts the
- * show's failed automatic jobs back to ready, due now; its next run sends them.
- */
-export async function retryAutomaticLifecycleEmails(args: {
-  supabase: LifecycleEmailFunctionsClient;
-  showId: string;
-}): Promise<number> {
-  const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
-    body: { action: 'retry_auto', show_id: args.showId },
-  });
-  if (error) throw new Error(error.message ?? 'Failed to send again');
-  const retried = (data as { retried?: unknown } | null | undefined)?.retried;
-  return typeof retried === 'number' ? retried : 0;
-}
-
 export async function updateReadyLifecycleEmailJob(args: {
   supabase: LifecycleEmailSupabaseClient;
   jobId: string;

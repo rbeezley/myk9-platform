@@ -99,49 +99,52 @@ describe('drainAutoEmailJobs', () => {
     expect(job(fixture)).toMatchObject({ status: 'sent', email_log_id: 'log-9', attempt_id: null });
   });
 
-  it('retries a refused send on the next drain and ends the job at failed on the third refusal', async () => {
+  it('waits 5 minutes, 15 minutes, 1 hour and 3 hours after the first four refusals, then fails on the fifth', async () => {
     const fixture = makeAutoSendSupabase(
       { shows: [publishedShow], show_lifecycle_email_jobs: [autoJob()] },
       { liveEntryPeople: ['person-1'] }
     );
     const fetch = vi.fn(async () => ({ ok: false, status: 422, text: async () => 'refused' }));
+    const minute = 60_000;
+    let at = fixture.clock.at.getTime();
 
-    const first = await drain(fixture, fetch);
-    expect(first).toMatchObject({ claimed: 1, retry: 1, failed: 0 });
-    // The job waits out a retry delay, so the same run never takes it again.
-    expect(job(fixture)).toMatchObject({
-      status: 'ready',
-      attempt_id: null,
-      claimed_until: '2026-11-17T12:05:00.000Z',
-    });
-    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 0 });
+    for (const [index, wait] of [5, 15, 60, 180].entries()) {
+      fixture.clock.at = new Date(at);
+      expect(await drain(fixture, fetch)).toMatchObject({ claimed: 1, retry: 1, failed: 0 });
+      // The job waits out the delay, so nothing takes it before then, this run's loop included.
+      expect(job(fixture)).toMatchObject({
+        status: 'ready',
+        attempt_id: null,
+        claimed_until: new Date(at + wait * minute).toISOString(),
+      });
+      fixture.clock.at = new Date(at + wait * minute - 1000);
+      expect(
+        await drain(fixture, fetch),
+        `one second early after refusal ${index + 1}`
+      ).toMatchObject({ claimed: 0 });
+      at += wait * minute;
+    }
 
-    fixture.clock.at = new Date('2026-11-17T12:06:00.000Z');
-    const second = await drain(fixture, fetch);
-    expect(second).toMatchObject({ claimed: 1, retry: 1, failed: 0 });
-    expect(job(fixture).status).toBe('ready');
-
-    fixture.clock.at = new Date('2026-11-17T12:12:00.000Z');
-    const third = await drain(fixture, fetch);
-    expect(third).toMatchObject({ claimed: 1, retry: 0, failed: 1 });
+    fixture.clock.at = new Date(at);
+    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 1, retry: 0, failed: 1 });
     expect(job(fixture)).toMatchObject({ status: 'failed', attempt_id: null });
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fixture.tables.show_lifecycle_email_attempts).toHaveLength(3);
+    expect(fetch).toHaveBeenCalledTimes(5);
+    expect(fixture.tables.show_lifecycle_email_attempts).toHaveLength(5);
+    // One Delivery history line for the final refusal: the log row, with its attempt tied to it.
     expect(fixture.tables.email_log).toEqual([
       expect.objectContaining({ status: 'failed', show_id: 'show-1', related_id: 'job-1' }),
     ]);
-    // Delivery history lists an attempt without a log row on its own: only the first two do.
     const logId = fixture.tables.email_log[0].id;
     expect(
       fixture.tables.show_lifecycle_email_attempts.map(attempt => attempt.email_log_id)
-    ).toEqual([null, null, logId]);
+    ).toEqual([null, null, null, null, logId]);
 
     // A failed job is never claimed again.
-    fixture.clock.at = new Date('2026-11-17T12:30:00.000Z');
+    fixture.clock.at = new Date(at + 24 * 60 * minute);
     expect(await drain(fixture, fetch)).toMatchObject({ claimed: 0 });
   });
 
-  it('counts only refusals since the job last became due, so sending it again starts afresh', async () => {
+  it('counts only refusals since the job last became due', async () => {
     const refused = (attemptedAt: string) => ({
       job_id: 'job-1',
       status: 'failed',
@@ -152,12 +155,14 @@ describe('drainAutoEmailJobs', () => {
     const fixture = makeAutoSendSupabase(
       {
         shows: [publishedShow],
-        // Three old refusals, then a secretary sent it again (due_at moved to 11:55).
+        // Five old refusals, then a new edit moved due_at to 11:55.
         show_lifecycle_email_jobs: [autoJob()],
         show_lifecycle_email_attempts: [
-          refused('2026-11-17T10:00:00.000Z'),
-          refused('2026-11-17T10:05:00.000Z'),
-          refused('2026-11-17T10:10:00.000Z'),
+          refused('2026-11-17T09:00:00.000Z'),
+          refused('2026-11-17T09:05:00.000Z'),
+          refused('2026-11-17T09:20:00.000Z'),
+          refused('2026-11-17T10:20:00.000Z'),
+          refused('2026-11-17T10:30:00.000Z'),
         ],
       },
       { liveEntryPeople: ['person-1'] }
@@ -304,26 +309,6 @@ describe('drainAutoEmailJobs', () => {
 });
 
 describe('renderShowChangedEmail', () => {
-  it('shows the dates of the show itself, which the Show Edit panel writes, before the trial dates', () => {
-    const email = renderShowChangedEmail({ show: publishedShow, recipientName: 'Jamie' });
-    expect(email.body).toContain(
-      'Show: Saturday, November 21, 2026 to Sunday, November 22, 2026\nSaturday Trial: Saturday, November 21, 2026'
-    );
-  });
-
-  it('gives one line for a one-day show with one trial on the same day', () => {
-    const email = renderShowChangedEmail({
-      show: {
-        ...publishedShow,
-        end_date: '2026-11-21',
-        trials: [{ name: 'Saturday Trial', date: '2026-11-21', deleted_at: null }],
-      },
-      recipientName: null,
-    });
-    expect(email.body).toContain('Date:\nShow: Saturday, November 21, 2026\n\nVenue:');
-    expect(email.body).not.toContain('Saturday Trial');
-  });
-
   it('lists every live trial date and the street address, plainly', () => {
     const email = renderShowChangedEmail({
       show: {

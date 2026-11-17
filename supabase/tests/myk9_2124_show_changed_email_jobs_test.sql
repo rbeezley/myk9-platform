@@ -8,7 +8,6 @@
 --      or a show whose step is switched off
 --   D. two quick edits are one job, and each edit pushes its due time out again
 --   E. the claim takes due automatic jobs only, leases them, and hands an expired lease out again
---   G. a show start or end date change (what the Show Edit panel writes) queues jobs too
 --   F. the functions are not callable by an API role (the claim is service_role only)
 --
 -- Fixtures roll back. Every now() below is the transaction start, so due times compare exactly.
@@ -195,29 +194,6 @@ begin
     raise exception 'FAIL E an expired lease was not handed out with a new attempt: %', row_to_json(v_third);
   end if;
   raise notice 'PASS E the claim leases due automatic jobs and re-hands an expired lease';
-end $$;
-
--- G
-do $$
-declare
-  v_show uuid := '00000000-0000-0000-0000-000002124302';
-begin
-  -- The Show Edit panel writes shows.start_date / end_date, never the trials' dates.
-  update public.show_lifecycle_email_jobs
-     set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
-   where show_id = v_show and step_type = 'show_changed';
-  update public.shows set end_date = current_date + 31 where id = v_show;
-  if pg_temp.jobs(v_show, 'ready') <> 3 then
-    raise exception 'FAIL G an end date change queued % jobs, expected 3', pg_temp.jobs(v_show, 'ready');
-  end if;
-  update public.show_lifecycle_email_jobs
-     set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
-   where show_id = v_show and step_type = 'show_changed';
-  update public.shows set start_date = current_date + 30 where id = v_show;
-  if pg_temp.jobs(v_show, 'ready') <> 3 then
-    raise exception 'FAIL G a start date change queued % jobs, expected 3', pg_temp.jobs(v_show, 'ready');
-  end if;
-  raise notice 'PASS G a show start or end date change queues a job per exhibitor';
 end $$;
 
 -- F

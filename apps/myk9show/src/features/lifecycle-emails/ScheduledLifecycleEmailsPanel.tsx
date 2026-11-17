@@ -19,7 +19,6 @@ import {
   type LifecycleSendResult,
   type LifecycleEmailSupabaseClient,
 } from './api';
-import { AutomaticStepRetry } from './AutomaticStepRetry';
 import type { LifecycleEmailStepSummary } from './readModel';
 import type { LifecycleEmailStepType } from './types';
 
@@ -108,7 +107,6 @@ export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmai
           .map(step => (
             <ScheduledEmailStepRow
               key={step.stepType}
-              showId={showId}
               step={step}
               disabled={updateStep.isPending}
               onToggle={isEnabled => updateStep.mutate({ stepType: step.stepType, isEnabled })}
@@ -131,13 +129,11 @@ export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmai
 }
 
 function ScheduledEmailStepRow({
-  showId,
   step,
   disabled,
   onToggle,
   onReview,
 }: {
-  showId: string;
   step: LifecycleEmailStepSummary;
   disabled: boolean;
   onToggle: (isEnabled: boolean) => void;
@@ -167,9 +163,6 @@ function ScheduledEmailStepRow({
           onCheckedChange={onToggle}
         />
       </div>
-      {AUTOMATIC_STEP_TYPES.has(step.stepType) ? (
-        <AutomaticStepRetry showId={showId} failedCount={step.failedCount} />
-      ) : null}
       {hasReviewableJobs ? (
         <Button
           type="button"

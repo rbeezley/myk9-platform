@@ -99,7 +99,13 @@ describe('closeout and the Pulls view on the demo state', () => {
   it('sorts a real pull, an in-season withdrawal, a removal and an absence into their own buckets', () => {
     const summary = summarizeShowDayReconciliation(
       [
-        { id: 'p', entry_status: 'scratched', payment_status: 'paid', entry_fee: 10 },
+        {
+          id: 'p',
+          entry_status: 'scratched',
+          payment_status: 'paid',
+          payment_method: 'online',
+          entry_fee: 10,
+        },
         {
           id: 'w',
           entry_status: 'withdrawn',
@@ -125,7 +131,15 @@ describe('closeout and the Pulls view on the demo state', () => {
   it('still gates close-out on a paid secretary removal, naming it as such', () => {
     const readiness = buildCloseoutReadiness({
       classes: [],
-      entries: [{ id: 'r', entry_fee: 20, entry_status: 'withdrawn', payment_status: 'paid' }],
+      entries: [
+        {
+          id: 'r',
+          entry_fee: 20,
+          entry_status: 'withdrawn',
+          payment_status: 'paid',
+          payment_method: 'online',
+        },
+      ],
       incidents: { reportableCount: 0, urgentCount: 0 },
       submissions: [],
     });

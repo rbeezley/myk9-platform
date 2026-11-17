@@ -154,6 +154,11 @@ export interface EntryManagementEntry {
   pulledAt?: string | null;
   pullTiming?: PullTiming;
   refundDecision?: PullRefundDecision | null;
+  /**
+   * MYK9-2099: the saved refund decisions could not be read, so `refundDecision` being null says
+   * nothing. Refund controls are held and the row is not counted as a refund to decide.
+   */
+  refundDecisionUnknown?: boolean;
 }
 
 export interface EntryManagementShow {

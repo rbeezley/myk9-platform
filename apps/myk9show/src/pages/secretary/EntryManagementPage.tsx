@@ -30,7 +30,7 @@ import { EntryManagementCockpit } from '@/components/entries/management/EntryMan
 import { EntryManagementViewToolbar } from '@/components/entries/management/EntryManagementViewToolbar';
 import { EntryListViewHeader } from '@/components/entries/management/EntryListViewHeader';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
-import { classifyEntryRemoval, isExhibitorRemoval } from '@/features/payments/pullReconciliation';
+import { findEntryRefundsToDecide, isPullsListEntry } from '@/features/waiting-for-you';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { showSendsDecisionEmailsUnasked } from '@/features/lifecycle-emails/decisionEmail';
 import {
@@ -96,23 +96,11 @@ const EntryManagementPage: React.FC = () => {
     useCallback(() => loadEntries(selectedShowId), [loadEntries, selectedShowId])
   );
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
-  // MYK9-632: the tab lists BOTH acts an exhibitor can leave behind. A pull
-  // ('scratched') is the club's call; a withdrawal carrying one of the two
-  // recognised reason codes is the premium's, and the secretary confirms it on
-  // the same surface. A 'withdrawn' row with NO code is a secretary removal, not
-  // an exhibitor act, and stays out.
-  const pulledEntries = useMemo(
-    () =>
-      entries.filter(entry =>
-        isExhibitorRemoval(
-          classifyEntryRemoval({
-            entryStatus: entry.rawEntryStatus,
-            withdrawalReasonCode: entry.withdrawalReasonCode,
-          })
-        )
-      ),
-    [entries]
-  );
+  // MYK9-632 / MYK9-2099: the Pulls list is every pull and withdrawal an
+  // exhibitor left, plus every secretary removal and no-show whose refund is
+  // still to decide; its menu count is the refunds to decide alone.
+  const pulledEntries = useMemo(() => entries.filter(isPullsListEntry), [entries]);
+  const refundsToDecide = useMemo(() => findEntryRefundsToDecide(entries), [entries]);
   const canValidateFocus =
     Boolean(selectedShowId) && loadedEntriesShowId === selectedShowId && !isLoading && !loadError;
   const { trials, trialsLoaded } = useEntryManagementTrialScope({ selectedShowId });
@@ -255,7 +243,9 @@ const EntryManagementPage: React.FC = () => {
     showId: selectedShowId || undefined,
     canManage: manageScope.status === 'resolved' && manageScope.canManage,
     counts: {
-      pulls: pulledEntries.length,
+      // Refunds to decide, the Show Desk pill's count (MYK9-2099), not every row the list shows.
+      // No badge while saved decisions are unread: the count could include a denied refund.
+      pulls: refundsToDecide.decisionsUnknown > 0 ? undefined : refundsToDecide.count,
       moveUps: moveUpRequestsCount,
       registrationNeeded: registrationNeeded.count,
     },

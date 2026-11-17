@@ -138,7 +138,8 @@ export interface WhatIsLeft {
    * `false` when no class carried a phase.
    */
   releasedAndInitialed: boolean;
-  refundReview: { count: number; removals: EntryRemovalCounts };
+  /** `decisionsUnknown` above zero: saved refund decisions were not read, so `count` is partial. */
+  refundReview: { count: number; removals: EntryRemovalCounts; decisionsUnknown: number };
   registryIds: readonly RegistryId[];
   lines: readonly WhatIsLeftLine[];
   /** The close step's sentences, in its order. */
@@ -363,14 +364,21 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
   }
 
   const refundCount = reconciliation.refundReviewCount;
+  // MYK9-2099: a removal whose saved decision was not read may already be denied. Unknown is its
+  // own state: the line claims neither a count nor "nothing left".
+  const refundDecisionsUnknown = reconciliation.refundDecisionUnknownCount > 0;
   lines.push({
     key: 'refund-review',
     kind: 'refund-review',
-    label: `${plural(refundCount, 'refund', 'refunds')} to decide`,
-    count: refundCount,
+    label: refundDecisionsUnknown
+      ? 'Refunds to decide: saved refund decisions could not be loaded'
+      : `${plural(refundCount, 'refund', 'refunds')} to decide`,
+    count: refundDecisionsUnknown ? null : refundCount,
     classIds: [],
-    open: refundCount > 0,
-    closeConcern: `${refundCount} paid ${refundCount === 1 ? 'entry' : 'entries'} (${describeEntryRemovals(reconciliation.refundReviewRemovals)}) ${refundCount === 1 ? 'needs' : 'need'} refund review.`,
+    open: refundDecisionsUnknown ? null : refundCount > 0,
+    closeConcern: refundDecisionsUnknown
+      ? 'Saved refund decisions could not be loaded, so the refunds still to decide are unknown.'
+      : `${refundCount} paid ${refundCount === 1 ? 'entry' : 'entries'} (${describeEntryRemovals(reconciliation.refundReviewRemovals)}) ${refundCount === 1 ? 'needs' : 'need'} refund review.`,
   });
   const incidentCount = input.incidents?.reportableCount ?? 0;
   lines.push({
@@ -429,7 +437,11 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     doneClassIds: ids(byPhase('done')),
     phaseCounts,
     releasedAndInitialed: isReleasedAndInitialed(classes),
-    refundReview: { count: refundCount, removals: reconciliation.refundReviewRemovals },
+    refundReview: {
+      count: refundCount,
+      removals: reconciliation.refundReviewRemovals,
+      decisionsUnknown: reconciliation.refundDecisionUnknownCount,
+    },
     registryIds,
     lines,
     concerns,

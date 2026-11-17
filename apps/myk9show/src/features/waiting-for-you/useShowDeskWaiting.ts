@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useRegistrationNeededEntries } from '@/hooks/useRegistrationNeededEntries';
+import { computeSettleDate } from '@/features/payments/payoutLedger';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { useWaitlistWaiting } from './useWaitlistWaiting';
+import { findEntryRefundsToDecide } from './refundsToDecide';
 import type { ShowDeskWaitingInput } from '@/features/show-map/showDeskWaitingSignals';
 
 /**
@@ -12,12 +14,31 @@ import type { ShowDeskWaitingInput } from '@/features/show-map/showDeskWaitingSi
 export function useShowDeskWaiting(input: {
   showId: string;
   entries: ReadonlyMap<string, EntryManagementEntry> | undefined;
+  /** `shows.end_date`: the payout goes three days after it (`computeSettleDate`). */
+  showEndDate?: string | null | undefined;
+  /** The show's calendar (its trials' IANA zone), for "today" in the payout wording. */
+  timeZone?: string | null | undefined;
   /** The viewer manages the show; otherwise nothing is read. */
   enabled: boolean;
 }): ShowDeskWaitingInput {
-  const { showId, entries, enabled } = input;
+  const { showId, entries, showEndDate, timeZone, enabled } = input;
   const list = useMemo(() => (entries ? [...entries.values()] : []), [entries]);
   const held = useRegistrationNeededEntries(showId, list);
   const waitlist = useWaitlistWaiting(showId, enabled);
-  return { heldEntries: entries ? held.count : undefined, waitlist };
+  // The Pulls menu count is this same call over the same entries (MYK9-2099).
+  const refunds = useMemo(() => findEntryRefundsToDecide(list), [list]);
+  // Saved decisions not read: the count could include a refund already denied, so no pill claims
+  // it (MYK9-2099). The Pulls list says the decisions did not load.
+  const refundsKnown = entries !== undefined && refunds.decisionsUnknown === 0;
+  return {
+    heldEntries: entries ? held.count : undefined,
+    waitlist,
+    refundsToDecide: refundsKnown
+      ? {
+          count: refunds.count,
+          payoutDate: computeSettleDate(showEndDate ?? null),
+          timeZone: timeZone ?? null,
+        }
+      : undefined,
+  };
 }

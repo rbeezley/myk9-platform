@@ -52,11 +52,11 @@ export function removalSummaryLine(entry: RemovalSummaryEntry): string {
   }
   // A 'withdrawn' row with NO reason code says NOTHING about money, on purpose.
   // That state is not an exhibitor's act: it is what a secretary Decline/Reject
-  // writes (`rejectEntry`), and what every pre-MYK9-632 row holds. The
-  // reconciliation queue excludes it for exactly that reason
-  // (`isUnresolvedRemovalRefundDecision`), so promising "refund per the premium"
-  // here would advertise an obligation nobody agreed to and that no surface can
-  // resolve. Silence is the honest answer, and it is what this line said before
+  // writes (`rejectEntry`), and what every pre-MYK9-632 row holds, so promising
+  // "refund per the premium" here would advertise an obligation nobody agreed
+  // to. When such a row was paid online, the Pulls list carries its refund
+  // decision under its own words, "removed by the secretary" (MYK9-2099).
+  // Silence is the honest answer here, and it is what this line said before
   // MYK9-632 touched it.
 
   return parts.join(' · ');

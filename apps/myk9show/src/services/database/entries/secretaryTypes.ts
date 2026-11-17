@@ -72,6 +72,11 @@ export interface SecretaryEntry {
   comped_reason?: string | null;
   refund_decision?: string | null;
   refund_decided_at?: string | null;
+  /**
+   * MYK9-2099: the saved refund decisions could not be read (offline, or the read failed), so
+   * `refund_decision` being null says nothing. Absent when they were read.
+   */
+  refund_decision_unknown?: boolean;
   /** Secretary payment bookkeeping (20260828200000). */
   payment_reference?: string | null;
   payment_received_on?: string | null;

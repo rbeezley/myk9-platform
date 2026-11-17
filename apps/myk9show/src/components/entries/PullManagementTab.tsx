@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { XCircle, RefreshCw } from 'lucide-react';
 import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
@@ -47,6 +48,9 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [refundEntry, setRefundEntry] = useState<EntryManagementEntry | null>(null);
 
+  // MYK9-2099: the saved refund decisions are a separate, online-only read. When it failed, a
+  // denied refund looks undecided, so the list says so and every card holds its refund controls.
+  const decisionsUnknown = processedEntries.some(entry => entry.refundDecisionUnknown);
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredProcessed = normalizedSearch
     ? processedEntries.filter(
@@ -67,7 +71,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
             Pull Management
           </h2>
           <p className="text-sm text-muted-foreground">
-            Pulled entries and their refund decisions, in one place.
+            Pulls and withdrawals, and any paid removal or no-show with a refund to decide.
           </p>
         </div>
         {onRefresh && (
@@ -93,6 +97,15 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
           filtered={normalizedSearch !== ''}
           onShowAll={() => setSearchTerm('')}
         />
+      )}
+
+      {decisionsUnknown && !processedEntriesLoading && !processedEntriesUnknown && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Saved refund decisions couldn&apos;t be loaded, so some of these may already be decided.
+            Issue refund and Deny refund are held until they load. Refresh to try again.
+          </AlertDescription>
+        </Alert>
       )}
 
       {processedEntriesLoading ? (

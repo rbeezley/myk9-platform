@@ -122,6 +122,7 @@ describe('ShowCloseoutSummary', () => {
             entry_status: 'scratched',
             check_in_status: 'pulled',
             payment_status: 'paid',
+            payment_method: 'online',
           },
         ]}
       />

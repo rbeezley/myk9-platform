@@ -24,6 +24,7 @@ describe('summarizeShowDayReconciliation', () => {
           entry_status: 'scratched',
           check_in_status: 'pulled',
           payment_status: 'paid',
+          payment_method: 'online',
         },
         { id: 'pending-pull', entry_fee: 30, check_in_status: 'pulled', payment_status: 'pending' },
       ],
@@ -33,6 +34,43 @@ describe('summarizeShowDayReconciliation', () => {
     expect(summary.removals.pulled).toBe(2);
     expect(summary.refundReviewCount).toBe(1);
     expect(summary.refundReviewAmount).toBe(35);
+  });
+
+  // MYK9-2099: refund review is `refundToDecideRemoval`, the rows Deny refund can decide.
+  it('leaves out a decided, cash-paid or check-in-flagged removal from refund review', () => {
+    const summary = summarizeShowDayReconciliation(
+      [
+        {
+          id: 'denied',
+          entry_fee: 35,
+          entry_status: 'scratched',
+          payment_status: 'paid',
+          payment_method: 'online',
+          refund_decision: 'denied',
+        },
+        { id: 'cash', entry_fee: 30, entry_status: 'withdrawn', payment_status: 'paid' },
+        {
+          id: 'flagged',
+          entry_fee: 25,
+          check_in_status: 'pulled',
+          payment_status: 'paid',
+          payment_method: 'online',
+        },
+        {
+          id: 'absent',
+          entry_fee: 20,
+          entry_status: 'absent',
+          payment_status: 'paid',
+          payment_method: 'online',
+        },
+      ],
+      WINDOW
+    );
+
+    expect(summary.removalCount).toBe(4);
+    expect(summary.refundReviewCount).toBe(1);
+    expect(summary.refundReviewRemovals.absent).toBe(1);
+    expect(summary.refundReviewAmount).toBe(20);
   });
 
   it('totals already-refunded removals separately', () => {
@@ -49,7 +87,15 @@ describe('summarizeShowDayReconciliation', () => {
 
   it('normalizes payment status case for refund review', () => {
     const summary = summarizeShowDayReconciliation(
-      [{ id: 'paid-pull', entry_fee: 35, check_in_status: 'pulled', payment_status: 'Paid' }],
+      [
+        {
+          id: 'paid-pull',
+          entry_fee: 35,
+          entry_status: 'scratched',
+          payment_status: 'Paid',
+          payment_method: 'online',
+        },
+      ],
       WINDOW
     );
 
@@ -58,7 +104,15 @@ describe('summarizeShowDayReconciliation', () => {
 
   it('still reports pulls and refund review with no desk window', () => {
     const summary = summarizeShowDayReconciliation(
-      [{ id: 'paid-pull', entry_fee: 35, check_in_status: 'pulled', payment_status: 'paid' }],
+      [
+        {
+          id: 'paid-pull',
+          entry_fee: 35,
+          entry_status: 'scratched',
+          payment_status: 'paid',
+          payment_method: 'online',
+        },
+      ],
       null
     );
 

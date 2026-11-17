@@ -177,7 +177,10 @@ export function EntryEditClassRow({
           disabled={isRemoved}
         />
         {classEntry.handlerToDecide && (
-          <p className="text-xs text-muted-foreground" data-testid={`handler-to-decide-${classEntry.id}`}>
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid={`handler-to-decide-${classEntry.id}`}
+          >
             The exhibitor chose &ldquo;I&apos;ll decide at the show&rdquo; for the handler. Change
             the handler to settle it.
           </p>

@@ -1,12 +1,5 @@
 import { useState } from 'react';
-import {
-  ClipboardCheck,
-  ExternalLink,
-  ListOrdered,
-  Megaphone,
-  MoreHorizontal,
-  Pencil,
-} from 'lucide-react';
+import { ClipboardCheck, ListOrdered, Megaphone, MoreHorizontal, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
@@ -37,7 +30,7 @@ export interface FocusedClassEditAction {
  * ⋯ button pinned top-right of the header card like the trial card's. Status, expected start and
  * actual timing are inline fields under the title (MYK9-1867, FocusedClassFields), not items here.
  * Score this class links to the paper scoring route the step bar uses. Someone who cannot manage
- * the show gets a plain link, since View entries and results is then the only item.
+ * the show gets no menu: a class is run here, so there is no other page to send them to.
  */
 export function FocusedClassActionsMenu({
   showId,
@@ -49,7 +42,6 @@ export function FocusedClassActionsMenu({
   runOrder,
   runOrderEntryCount,
   editClass,
-  entriesHref,
 }: {
   showId: string;
   classId: string;
@@ -61,8 +53,6 @@ export function FocusedClassActionsMenu({
   runOrder: SecretaryCockpitRunOrderControls | undefined;
   runOrderEntryCount: number;
   editClass: FocusedClassEditAction | undefined;
-  /** The class's `class-details:` destination; absent when the snapshot offers none. */
-  entriesHref: string | null;
 }) {
   const [delayOpen, setDelayOpen] = useState(false);
   const secretaryOnlyReason = useTrialSecretaryOnlyReason();
@@ -72,23 +62,7 @@ export function FocusedClassActionsMenu({
     returnTo: getShowHomeHref({ showId, state: { statuses: [], focusedClassId: classId } }),
   });
 
-  const entriesLink = entriesHref && (
-    <Link to={entriesHref} className="flex w-full items-center gap-2">
-      <ExternalLink className="h-4 w-4" aria-hidden="true" />
-      View entries and results
-    </Link>
-  );
-
-  if (!canManageShow) {
-    return entriesHref ? (
-      <Button asChild variant="outline" size="touch" className="gap-2">
-        <Link to={entriesHref}>
-          <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          View entries and results
-        </Link>
-      </Button>
-    ) : null;
-  }
+  if (!canManageShow) return null;
 
   const showDelay = offerDelay;
   // INTENT: Sorting a 0- or 1-entry class is meaningless, so Run order is hidden entirely
@@ -157,12 +131,6 @@ export function FocusedClassActionsMenu({
                   </p>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
-            </>
-          )}
-          {entriesLink && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>{entriesLink}</DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>

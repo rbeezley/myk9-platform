@@ -64,7 +64,6 @@ const focused: FocusedClassModel = {
       },
     },
   ],
-  classWorkActions: [],
   entryRows: [],
   entries: [],
   entriesHidden: 0,

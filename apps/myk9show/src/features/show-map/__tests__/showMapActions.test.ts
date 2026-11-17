@@ -719,7 +719,8 @@ describe('showMapActions', () => {
     const actions = getRankedActions(tree.nodesById['class:class-active'], { tree });
 
     expect(findAction(actions, 'open-class')).toMatchObject({
-      href: '/shows/show-1/trials/trial-1/classes/class-active',
+      // MYK9-2119: a class is run on Show Desk, on its trial day.
+      href: '/shows/show-1?day=2026-05-11&focus=class-active',
     });
     expect(findAction(actions, 'score-class')).toMatchObject({
       href: '/scoring/classes/class-active/entries',

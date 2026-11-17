@@ -50,7 +50,6 @@ const focused: FocusedClassModel = {
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [],
-  classWorkActions: [],
   entryRows: [],
   entries: [],
   entriesHidden: 0,

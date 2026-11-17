@@ -437,9 +437,9 @@ describe('ShowDeskPanel cockpit', () => {
     );
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for/ }))[0]!);
-    expect(
-      (await screen.findAllByRole('menuitem', { name: /view entries and results/i }))[0]
-    ).toHaveAttribute('href', expect.stringContaining('/trials/trial-1/classes/class-1'));
+    // MYK9-2119: a class is run on Show Desk, so its menu has no door to the class page.
+    expect(await screen.findByRole('menuitem', { name: /score this class/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /view entries and results/i })).toBeNull();
     // MYK9-1796: scoresheet entry, class reports and class entries are the step bar's and the
     // entries table's now, not Class work links.
     expect(screen.queryByRole('link', { name: /enter results from scoresheet/i })).toBeNull();

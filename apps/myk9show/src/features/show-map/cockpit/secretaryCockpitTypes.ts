@@ -35,7 +35,7 @@ export interface SecretaryCockpitAction {
   id: string;
   label: string;
   destination: CockpitDestination;
-  group: 'class-work' | 'paperwork';
+  group: 'paperwork';
 }
 
 export interface SecretaryCockpitPaperwork {
@@ -268,7 +268,6 @@ export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFact
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;
   paperwork: readonly (SecretaryCockpitPaperwork & { evidence: EvidenceKind })[];
-  classWorkActions: readonly SecretaryCockpitAction[];
 }
 
 export interface SecretaryCockpitModel {

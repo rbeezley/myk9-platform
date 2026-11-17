@@ -316,7 +316,6 @@ function toFocusedClass(
     actualStart: evidence(cls.actualStart, 'recorded'),
     actualFinish: evidence(cls.actualFinish, 'recorded'),
     paperwork: cls.paperwork.map(item => ({ ...item, evidence: paperworkEvidence(item.state) })),
-    classWorkActions: cls.actions.filter(action => action.group === 'class-work'),
     entryRows: cls.entryRows,
     entries: cls.entries ?? [],
     entriesHidden: cls.entriesHidden ?? 0,

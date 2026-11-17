@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ShowEditTrialDates } from '../ShowEditTrialDates';
 import { formatShowDatesText } from '../formatShowDatesText';
+import { EditPanelContext, type EditPanelContextValue } from '../useEditPanel';
 import { formDataToShow } from '../ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
@@ -41,6 +42,42 @@ describe('ShowEditTrialDates', () => {
     expect(link).toHaveAttribute('href', '/shows/show-1');
     await user.click(link);
     expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
+});
+
+function withChanges(hasChanges: boolean, onNavigate = vi.fn()) {
+  const value = { hasChanges } as unknown as EditPanelContextValue;
+  return render(
+    <EditPanelContext.Provider value={value}>
+      <ShowEditTrialDates
+        startDate="2026-12-12T00:00:00+00:00"
+        endDate="2026-12-13T00:00:00+00:00"
+        showId="show-1"
+        onNavigate={onNavigate}
+      />
+    </EditPanelContext.Provider>
+  );
+}
+
+describe('ShowEditTrialDates unsaved changes', () => {
+  it('links and closes the panel when nothing is unsaved', async () => {
+    const onNavigate = vi.fn();
+    const { user } = withChanges(false, onNavigate);
+    await user.click(screen.getByRole('link', { name: /change a trial.s day/i }));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/save or cancel your changes first/i)).not.toBeInTheDocument();
+  });
+
+  it('is a disabled control with a hint, and never navigates, while changes are unsaved', async () => {
+    const onNavigate = vi.fn();
+    const { user } = withChanges(true, onNavigate);
+    const control = screen.getByRole('link', { name: /change a trial.s day/i });
+    expect(control).toHaveAttribute('aria-disabled', 'true');
+    expect(control).not.toHaveAttribute('href');
+    expect(control).not.toHaveAttribute('tabindex');
+    expect(screen.getByText(/save or cancel your changes first/i)).toBeInTheDocument();
+    await user.click(control);
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 });
 

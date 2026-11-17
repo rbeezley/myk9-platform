@@ -5,6 +5,7 @@ import {
 } from '@/features/entry-operations/attentionClassification';
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { AMOUNT_NOT_AVAILABLE } from './enrollmentPayment';
 import { entryAttentionReasons, type ShowRegistrationGroup } from './showRegistrationProjection';
 
 /** One open item on the entry form's "To finish this form" list. */
@@ -83,7 +84,8 @@ const dogNames = (entries: readonly EntryManagementEntry[]) =>
  */
 export function buildFormChecklist(
   registration: ShowRegistrationGroup,
-  money: { paidDollars: number; remainingDollars: number },
+  /** `amountUnknown`: the payment record is not loaded, so no figure is quoted (MYK9-1968). */
+  money: { paidDollars: number; remainingDollars: number; amountUnknown?: boolean | undefined },
   /** Entries eligible for check-in right now (`eligibleCheckInEntryIds`); empty off a show day. */
   eligibleCheckInIds: ReadonlySet<string> = new Set()
 ): FormChecklist {
@@ -121,9 +123,26 @@ export function buildFormChecklist(
   const liveCount = entries.filter(live).length;
 
   const unpaid = withReason('payment_due');
-  if (unpaid.length > 0) {
+  const unpaidLine = `${unpaid.length} of ${liveCount} ${entriesWord(liveCount)} unpaid`;
+  // Any entry, not only live ones: a run that is over has not settled its fee (round 2).
+  if (money.amountUnknown && entries.length > 0) {
+    // MYK9-1968: the enrollment row did not load (offline, or the read failed), so the
+    // only figure to hand is built from entry fees and ignores money already taken.
+    // Quote nothing, and offer no button that takes money for an unknown due. Shown even
+    // when no entry is marked unpaid: the missing record can still carry a balance, so a
+    // green "All set" would claim more than the device knows (Codex review of #4104).
+    items.push({
+      kind: 'payment',
+      id: 'payment',
+      title: AMOUNT_NOT_AVAILABLE,
+      detail:
+        unpaid.length > 0
+          ? `${unpaidLine}. The payment record has not loaded, so what is due is not known.`
+          : 'The payment record has not loaded, so whether anything is due is not known.',
+      canRecord: false,
+    });
+  } else if (unpaid.length > 0) {
     const due = money.remainingDollars;
-    const unpaidLine = `${unpaid.length} of ${liveCount} ${entriesWord(liveCount)} unpaid`;
     items.push(
       due > 0
         ? {
@@ -201,7 +220,7 @@ export function buildFormChecklist(
       }) === 'accepted'
   );
   if (accepted.length > 0) done.push(`${accepted.length} accepted`);
-  if (unpaid.length === 0 && money.paidDollars > 0) {
+  if (unpaid.length === 0 && !money.amountUnknown && money.paidDollars > 0) {
     done.push(`${dollars(money.paidDollars)} paid${PAID_BY[registration.paymentStatus] ?? ''}`);
   }
   const armbands = [

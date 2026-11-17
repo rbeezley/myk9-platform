@@ -163,7 +163,7 @@ describe('EnrollmentCard', () => {
     render(
       <EnrollmentCard
         {...defaultProps}
-        group={makeGroup({ totalAmount: 35, totalAmountUnit: 'dollars' })}
+        group={makeGroup({ enrollmentId: null, totalAmount: 35, totalAmountUnit: 'dollars' })}
       />
     );
     expect(screen.getByText('$35.00')).toBeTruthy();

@@ -14,7 +14,7 @@ Shipped as [`docs/PLAYBOOK.md`](PLAYBOOK.md).
 
 Create `docs/PLAYBOOK.md`: a single decision-tree document that answers "I want to do X — what's the exact sequence?" One page per scenario, each a short numbered recipe naming the skills/commands in order. Scenarios to cover:
 
-1. **New feature (design-level)** — `opsx:explore` → `opsx:propose` → `opsx:apply`/`opsx-orchestrate` or `opsx:ship` → `opsx:verify` → `opsx:archive`. When to use opsx vs a `docs/plan-*.md` (the OpenSpec carve-out rule, restated plainly).
+1. **New feature (design-level)** — clarify → `opsx:propose` → `opsx:apply`/`opsx-orchestrate` or `opsx:ship` → `opsx:verify` → `opsx:archive`. When to use opsx vs a `docs/plan-*.md` (the OpenSpec carve-out rule, restated plainly).
 2. **New feature (small, no spec needed)** — intent check → TDD → implement → `/simplify` → `/harden` → `/commit` → PR → `/review` (+ `/codex:review` if user-visible behavior) → merge → `/cleanup`. This is the existing 8-step workflow from memory; write it down in the repo.
 3. **Bug / troubleshooting** — root cause first (`docs/PLAYBOOK.md` § 3) + `debugging-patterns`; the seed-data/RBAC collapse rule (survey all tables first); assertion-first testing for value-sensitive bugs; `incident-triage` for prod/staging fires vs local bugs.
 4. **Which review when** — lift the existing table from CLAUDE.md, expand with: `security-audit`, `migration-auditor` agent, `code-review-extensions` triggers, `harden` vs `simplify` ordering, when Codex review is a gate (default-ON for user-visible behavior per memory).

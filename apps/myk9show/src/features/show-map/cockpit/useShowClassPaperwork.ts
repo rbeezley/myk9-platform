@@ -22,6 +22,7 @@ import type { ReadStatus } from '@/features/_shared/combineReads';
 import { readinessOf, resolveReportReadiness } from '@/hooks/queries/reportReadiness';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
+import { usePrintedSheetEntries } from '@/hooks/queries/usePrintedSheetEntries';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
@@ -29,7 +30,8 @@ import { useShowPaperworkPrints } from './useShowPaperworkPrints';
 
 export function useShowClassPaperwork(input: {
   showId: string;
-  trials: readonly { id: string; trialDate: string }[];
+  /** `registryId` picks the registration number a printed sheet shows (MYK9-2103). */
+  trials: readonly { id: string; trialDate: string; registryId?: string | null | undefined }[];
   /** Tree class rows (camelCase): the print-link-only fallback while the full rows are unavailable. */
   classes?: readonly { id: string; trialId?: string | null }[];
   entries: readonly unknown[];
@@ -41,6 +43,9 @@ export function useShowClassPaperwork(input: {
   // Undefined while the show details are unavailable (a cold offline open): the fingerprint then
   // hashes the unresolved judge and corrects itself once they load (MYK9-2116).
   const assignedJudges = useFastShowDetails(showId).show?.assignedJudges;
+  // The rows the printed sheets are built from (MYK9-2103). Returned, not yet hashed: the swap
+  // from `SecretaryEntry` to these rows is the next change, so no fingerprint moves here.
+  const printedSheetEntries = usePrintedSheetEntries(showId);
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
   // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
@@ -108,6 +113,7 @@ export function useShowClassPaperwork(input: {
 
   return {
     byClassId,
+    printedSheetEntries,
     available,
     /**
      * Any print record exists for the show, read raw: the per-class map leaves out emergency

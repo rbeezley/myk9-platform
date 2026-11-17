@@ -2,7 +2,7 @@ import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 
 import { compareClassesByProgression } from '@/features/premium/pdf/bodies/classOrder';
 import { getTrialRegistry } from '@/features/registries';
-import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/buildPacketData';
 import { buildPages } from '@/pages/secretary/ReportsPage/reportPreviewPages';
 import { lifecycleFor } from '../buildSecretaryCockpitSnapshot';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';

@@ -9,7 +9,7 @@ import {
 } from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
-import { loadDogRegistrations } from '@/services/database/dogs/reads';
+import { attachDogRegistrations } from './attachDogRegistrations';
 import { loadEntryHandlerJuniorFlags } from '@/services/database/users/juniorHandlerProfiles';
 import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import type { ReportDbEntry } from '@/lib/reports/types';
@@ -118,30 +118,10 @@ async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<Hydr
   // MYK9-1009: the AKC marked catalog's dog date of birth and owner address.
   const { entries: withHandlers, readComplete: catalogProfilesReadComplete } =
     await hydrateCatalogDogProfiles(withHandlerProfiles);
-  const dogIds = [
-    ...new Set(withHandlers.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
-  ];
-  if (dogIds.length === 0) {
-    return { entries: withHandlers, registrationsReadComplete: true, catalogProfilesReadComplete };
-  }
+  const { entries: withRegistrations, registrationsReadComplete } =
+    await attachDogRegistrations(withHandlers);
 
-  const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
-
-  return {
-    entries: withHandlers.map(entry => {
-      if (!entry.dog_id) return entry;
-      const dog = entry.dog ?? { id: entry.dog_id };
-      return {
-        ...entry,
-        dog: {
-          ...dog,
-          registrations: byDog.get(entry.dog_id) ?? [],
-        },
-      };
-    }),
-    registrationsReadComplete,
-    catalogProfilesReadComplete,
-  };
+  return { entries: withRegistrations, registrationsReadComplete, catalogProfilesReadComplete };
 }
 
 /**

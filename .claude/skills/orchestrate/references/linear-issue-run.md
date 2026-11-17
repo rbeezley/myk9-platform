@@ -90,6 +90,11 @@ local. The owner's rule from 2026-09-26 holds: **never message a cloud session**
 round is a fresh session (below), and the Mac reads results from the PR, never from the
 session.
 
+On Windows (Git Bash) there is no `script(1)`, so `dispatch-cloud-session.sh` exits 5 at once
+and starts nothing. Do not retry it. Start the session from the desktop app's cloud session
+launcher instead. That session gives no URL for the stall watcher, so watch for the PR by the
+`claude/myk9-<n>-` branch prefix.
+
 Why `claude --cloud` and not the app's `start_session` with a cloud target: the picker behind
 `start_session` is only available while it is on screen (`list_start_targets` reports
 `not_on_screen` otherwise), so an unattended run cannot rely on it. `claude --cloud` is a

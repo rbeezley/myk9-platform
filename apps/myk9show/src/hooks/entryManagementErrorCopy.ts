@@ -40,16 +40,19 @@ export const ENTRY_ACTION_COPY = {
 
 export const MOVE_UP_COPY = {
   /** The tab's error card says what is unknown and offers Retry. */
-  loadFailed: "We couldn't load the move-up requests. Try again.",
+  loadFailed: "We couldn't load the class changes. Try again.",
   /** Unchanged wording; moved here so the tab's approve handler stays one ternary. */
   targetFull: 'Target class is full. Consider adding to waitlist.',
   approveFailed:
-    "We couldn't approve this move-up request. Press Refresh to see where it stands before you try again.",
+    "We couldn't accept this class change. Press Refresh to see where it stands before you try again.",
   /** The status may have changed before the history record failed. */
   denyFailed:
-    "We couldn't deny this move-up request. Press Refresh to see where it stands before you try again.",
+    "We couldn't decline this class change. Press Refresh to see where it stands before you try again.",
   /** Something after the write failed (the list refresh), so the outcome is unknown. */
-  unfinished: "We couldn't finish this move-up request. Press Refresh to see where it stands.",
+  /** The stored class asked for could not be read, so Accept cannot be trusted. */
+  targetUnreadable:
+    "We couldn't read the class this exhibitor asked for. Press Refresh before accepting.",
+  unfinished: "We couldn't finish this class change. Press Refresh to see where it stands.",
 } as const;
 
 /** The armband number another dog in this show already wears. */

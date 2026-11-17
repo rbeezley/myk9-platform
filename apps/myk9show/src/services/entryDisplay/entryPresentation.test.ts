@@ -48,10 +48,10 @@ describe('deriveEntryPresentation — context-aware wording', () => {
     }
   });
 
-  it('surfaces the move-up approval queue to the secretary', () => {
+  it('surfaces the class change queue to the secretary', () => {
     const sec = present('move-up-requested', secretary);
-    expect(sec.statusLine).toBe('Move-up requested');
-    expect(sec.actionHint).toBe('Approve or decline in Move-ups & pulls');
+    expect(sec.statusLine).toBe('Change requested');
+    expect(sec.actionHint).toBe('Accept or decline in Class changes');
     expect(present('move-up-requested', exhibitor).actionHint).toBe('Awaiting secretary approval');
   });
 

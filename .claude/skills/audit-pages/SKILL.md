@@ -1,6 +1,6 @@
 ---
 name: audit-pages
-description: Use when auditing myK9Show pages for console errors, network errors, or broken UI after a refactor, before a release, or when the "Audit all pages" todo is active. Covers all roles: secretary, exhibitor, admin, judge, club-admin, public.
+description: 'Use when auditing myK9Show pages for console errors, network errors, or broken UI after a refactor, before a release, or when the "Audit all pages" todo is active. Covers all roles: secretary, exhibitor, admin, judge, club-admin, public.'
 ---
 
 # Audit Pages for Console and Network Errors

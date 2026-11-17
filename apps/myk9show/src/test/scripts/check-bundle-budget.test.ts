@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import {
   BUDGETS,
+  ENV_MISSING_MARKER,
   PDF_CHUNK_POLICY,
   chunkName,
   evaluateBudgets,
@@ -291,6 +292,83 @@ describe('check-bundle-budget — PDF renderer chunks stay off the static path',
   });
 });
 
+// MYK9-2150: a build made without VITE_SUPABASE_URL keeps the throw in supabaseClient.ts and
+// loses the code after it. For weeks this check passed on such a build (a 484 KB startup file
+// while production shipped 2,240 KB), so a build that carries the throw must fail outright.
+describe('check-bundle-budget — the build measured must be the app', () => {
+  const within = {
+    initialJsKb: 1000,
+    initialCssKb: 290,
+    largestChunk: { file: 'vendor.js', kb: 1200 },
+  };
+
+  function buildDist(entrySource: string) {
+    const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-budget-env-'));
+    fs.mkdirSync(path.join(dist, 'assets/scripts'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dist, 'index.html'),
+      '<!doctype html><html><head><script type="module" src="/assets/scripts/index-AbC123xy.js"></script></head></html>'
+    );
+    fs.writeFileSync(path.join(dist, 'assets/scripts', 'index-AbC123xy.js'), entrySource);
+    return dist;
+  }
+
+  it('fails a build whose chunk carries the missing-variable throw, however small it is', () => {
+    const dist = buildDist(`throw new Error('${ENV_MISSING_MARKER}SUPABASE_URL');`);
+    try {
+      const stats = collectBundleStats(dist);
+      expect(stats.builtWithoutEnvironmentFiles).toEqual(['assets/scripts/index-AbC123xy.js']);
+      const violations = evaluateBudgets(stats, BUDGETS);
+      expect(violations).toHaveLength(1);
+      expect(violations[0].metric).toBe('Build made without the environment');
+      expect(violations[0].file).toBe('assets/scripts/index-AbC123xy.js');
+    } finally {
+      fs.rmSync(dist, { recursive: true, force: true });
+    }
+  });
+
+  it('passes a build with no such throw in any chunk', () => {
+    const dist = buildDist('console.log("the app")');
+    try {
+      const stats = collectBundleStats(dist);
+      expect(stats.builtWithoutEnvironmentFiles).toEqual([]);
+      expect(evaluateBudgets(stats, BUDGETS)).toEqual([]);
+    } finally {
+      fs.rmSync(dist, { recursive: true, force: true });
+    }
+  });
+
+  it('reports the missing environment before any size', () => {
+    const violations = evaluateBudgets(
+      {
+        ...within,
+        initialJsKb: BUDGETS.initialJsKb + 1,
+        builtWithoutEnvironmentFiles: ['assets/scripts/index-AbC123xy.js'],
+      },
+      BUDGETS
+    );
+    expect(violations.map(v => v.metric)).toEqual([
+      'Build made without the environment',
+      'Initial JS',
+    ]);
+  });
+
+  it('skips the rule when the stats carry no environment facts', () => {
+    expect(evaluateBudgets(within, BUDGETS)).toEqual([]);
+  });
+
+  // Positive control: the marker is the wording of a throw in another file. If that wording
+  // changes, the rule above would pass every build without saying so.
+  it('matches the throw supabaseClient.ts really makes', () => {
+    const client = fs.readFileSync(
+      path.resolve(__dirname, '../../services/database/supabaseClient.ts'),
+      'utf8'
+    );
+    expect(client).toContain(`throw new Error('${ENV_MISSING_MARKER}SUPABASE_URL')`);
+    expect(client).toContain(`throw new Error('${ENV_MISSING_MARKER}SUPABASE_ANON_KEY')`);
+  });
+});
+
 describe('check-bundle-budget — precache rules', () => {
   const within = {
     initialJsKb: 1000,
@@ -300,8 +378,11 @@ describe('check-bundle-budget — precache rules', () => {
     largestNonCodePrecached: { file: 'pwa-512x512.png', kb: 40 },
   };
 
-  it('pins the MYK9-1356 ceilings', () => {
-    expect(BUDGETS.precacheTotalKb).toBe(12288);
+  // The total was 12288 (MYK9-1356) until MYK9-2150: that figure was recorded on a build made
+  // without the environment, which lacked about 1.7 MB of the app. 13312 is the same rule on
+  // the real build, not a relaxation; it only comes down from here.
+  it('pins the precache ceilings', () => {
+    expect(BUDGETS.precacheTotalKb).toBe(13312);
     expect(BUDGETS.precacheNonCodeFileKb).toBe(1024);
   });
 
@@ -318,7 +399,7 @@ describe('check-bundle-budget — precache rules', () => {
     expect(evaluateBudgets(atLimit, BUDGETS)).toEqual([]);
   });
 
-  it('flags a precache total over 12 MB', () => {
+  it('flags a precache total over the ceiling', () => {
     const v = evaluateBudgets({ ...within, precacheTotalKb: BUDGETS.precacheTotalKb + 1 }, BUDGETS);
     expect(v).toHaveLength(1);
     expect(v[0].metric).toBe('Precache total');

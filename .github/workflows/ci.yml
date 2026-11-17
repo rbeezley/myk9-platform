@@ -658,10 +658,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The two VITE_ values are placeholders, not a project: the build never calls them.
+      # They are here because supabaseClient.ts throws at module load without them, and a
+      # build made without them drops the code after that throw, so the budget step below
+      # measured a 484 KB startup file while production shipped 2,240 KB (MYK9-2150). The
+      # budget step fails on a build that still carries the throw.
       - name: Build all
         run: pnpm build
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY: ci-build-placeholder-not-a-key
 
       # Gate the myK9Show initial-load payload against recorded budgets.
       # Reuses the dist produced by "Build all"; ratchet down only.

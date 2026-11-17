@@ -24,7 +24,10 @@ import {
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
-const NARRATIVE_TIMEOUT_MS = 8000;
+// MYK9-2139: measured 2026-11-16/17, whole generate-premium calls took 7.7-8.8 s, so an 8 s
+// narrative cap aborted ordinary calls. 14 s still finishes inside the client's 20 s
+// GENERATION_TIMEOUT_MS (PremiumContentEditor.tsx) with room for the reads around it.
+const NARRATIVE_TIMEOUT_MS = 14_000;
 
 interface GeneratePremiumPayload {
   show_id?: string;

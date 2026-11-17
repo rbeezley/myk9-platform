@@ -93,9 +93,10 @@ export default function ShowDeskPanel({
             entries,
             currentDate: effectiveScopeNow,
             waiting,
+            trials,
           })
         : [],
-    [canManageShow, effectiveScopeNow, entries, show.id, tree, waiting]
+    [canManageShow, effectiveScopeNow, entries, show.id, tree, trials, waiting]
   );
   const returnTo = `${location.pathname}${location.search}`;
   const trialRefs = useMemo(

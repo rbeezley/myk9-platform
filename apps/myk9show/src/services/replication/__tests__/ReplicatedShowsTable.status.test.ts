@@ -79,15 +79,26 @@ describe('ReplicatedShowsTable status on full-row writes', () => {
       table as unknown as { rebuildUpdatePayload: (s: ReplicatedShow) => Record<string, unknown> }
     ).rebuildUpdatePayload(show);
 
-  it.each(CHECK_STATUSES)('keeps %s on a name-only edit', async status => {
+  it.each(CHECK_STATUSES)('a name-only edit leaves %s alone (MYK9-2081)', async status => {
     await table.set('show-1', showWithStatus(status));
     await table.updateShow('show-1', { name: 'Renamed' });
-    expect(queueMutation).toHaveBeenCalledWith(
-      'UPDATE',
-      'show-1',
-      expect.objectContaining({ name: 'Renamed', status })
-    );
+    const payload = queueMutation.mock.calls.at(-1)?.[2] as Record<string, unknown>;
+    expect(payload).toMatchObject({ name: 'Renamed' });
+    expect(payload).not.toHaveProperty('status');
   });
+
+  it.each(CHECK_STATUSES.filter(status => status !== 'draft'))(
+    'a status change to %s writes that status',
+    async status => {
+      await table.set('show-1', showWithStatus('draft'));
+      await table.updateShow('show-1', { status });
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        expect.objectContaining({ status })
+      );
+    }
+  );
 
   it.each(CHECK_STATUSES)('keeps %s when a queued edit is rebuilt after a conflict', status => {
     expect(rebuild(showWithStatus(status))).toMatchObject({ status });

@@ -409,20 +409,15 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     stripUnsetCloseRecordColumns(updatePayload, resolvedUpdates); // MYK9-1945
 
-    // MYK9-1919: a switch-only update sends only its own columns (see showUpdatePayload), so a
-    // rebase can never carry this device's copy of anything else over another device's change.
-    // Edit-form saves stay full-row writes, as their date and status contracts require.
-    const switchFields: ReadonlySet<string> = new Set(SHOW_USES_FIELD_COLUMNS.map(([f]) => f));
-    const switchOnly =
-      Object.keys(resolvedUpdates).length > 0 &&
-      Object.keys(resolvedUpdates).every(key => switchFields.has(key));
-    const queuedPayload = switchOnly
-      ? narrowShowUpdatePayload(
-          updatePayload,
-          this.toSupabaseRow(currentShow),
-          new Set(SHOW_USES_FIELD_COLUMNS.map(([, column]) => column))
-        )
-      : updatePayload;
+    // MYK9-1919 / MYK9-2081: every update sends only the columns it changes (see
+    // showUpdatePayload), so a rebase can never carry this device's copy of anything else over
+    // another device's change. The edit form names only its changed fields, and a switch the
+    // caller set is kept even when the replica already holds that value.
+    const queuedPayload = narrowShowUpdatePayload(
+      updatePayload,
+      this.toSupabaseRow(currentShow),
+      new Set(SHOW_USES_FIELD_COLUMNS.map(([, column]) => column))
+    );
 
     const { mutationId } = await this.writeAndQueue(showId, updatedShow, {
       operation: 'UPDATE',

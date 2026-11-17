@@ -442,7 +442,11 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
       Object.assign(replicatedUpdates, pickShowUsesUpdates(updates));
 
-      const showMutationId = await replicatedShowsTable.updateShow(id, replicatedUpdates);
+      // MYK9-2081: an edit that changed only the judge list has no show column to write.
+      const showMutationId =
+        Object.keys(replicatedUpdates).length > 0
+          ? await replicatedShowsTable.updateShow(id, replicatedUpdates)
+          : null;
 
       // Registry is show-wide and stored denormalized on each trial (write-path Phase 1).
       // On an organization change, give the editing client immediate LOCAL consistency for

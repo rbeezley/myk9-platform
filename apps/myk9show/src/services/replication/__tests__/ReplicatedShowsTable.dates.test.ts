@@ -59,9 +59,9 @@ describe('ReplicatedShowsTable date writes', () => {
 
   it('sends the typed calendar day for an evening pick in America/Los_Angeles', async () => {
     process.env.TZ = 'America/Los_Angeles';
-    // Oct 1, 7:30 PM PDT is 2026-10-02T02:30Z: the raw instant is the NEXT UTC day.
-    const eveningPick = new Date(2026, 9, 1, 19, 30).toISOString();
-    expect(eveningPick).toBe('2026-10-02T02:30:00.000Z');
+    // Oct 5, 7:30 PM PDT is 2026-10-06T02:30Z: the raw instant is the NEXT UTC day.
+    const eveningPick = new Date(2026, 9, 5, 19, 30).toISOString();
+    expect(eveningPick).toBe('2026-10-06T02:30:00.000Z');
 
     await table.set('show-1', serverShapedShow());
     await table.updateShow('show-1', { entryOpenDate: eveningPick, entryCloseDate: eveningPick });
@@ -69,12 +69,12 @@ describe('ReplicatedShowsTable date writes', () => {
     expect(queueMutation).toHaveBeenCalledWith(
       'UPDATE',
       'show-1',
-      expect.objectContaining({ entry_open_date: '2026-10-01', entry_close_date: '2026-10-01' })
+      expect.objectContaining({ entry_open_date: '2026-10-05', entry_close_date: '2026-10-05' })
     );
     // The local copy holds the same calendar day the server will.
     expect(await table.get('show-1')).toMatchObject({
-      entryOpenDate: '2026-10-01',
-      entryCloseDate: '2026-10-01',
+      entryOpenDate: '2026-10-05',
+      entryCloseDate: '2026-10-05',
     });
   });
 
@@ -91,14 +91,32 @@ describe('ReplicatedShowsTable date writes', () => {
   });
 
   it.each(['America/Los_Angeles', 'Pacific/Auckland'])(
-    'a server-shaped midnight-UTC row round-trips to the same calendar day in %s',
+    'a rename of a server-shaped midnight-UTC row sends no date in %s (MYK9-2081)',
     async timezone => {
       process.env.TZ = timezone;
       await table.set('show-1', serverShapedShow());
 
       await table.updateShow('show-1', { name: 'Renamed' });
 
-      expect(lastPayload()).toMatchObject({
+      for (const column of ['start_date', 'end_date', 'entry_open_date', 'entry_close_date']) {
+        expect(lastPayload()).not.toHaveProperty(column);
+      }
+    }
+  );
+
+  it.each(['America/Los_Angeles', 'Pacific/Auckland'])(
+    'a server-shaped midnight-UTC row still replays to the same calendar day in %s',
+    async timezone => {
+      process.env.TZ = timezone;
+      await table.set('show-1', serverShapedShow());
+      const local = await table.get('show-1');
+      const replay = (
+        table as unknown as {
+          rebuildUpdatePayload: (s: ReplicatedShow) => Record<string, unknown>;
+        }
+      ).rebuildUpdatePayload(local as ReplicatedShow);
+
+      expect(replay).toMatchObject({
         start_date: '2026-11-07',
         end_date: '2026-11-08',
         entry_open_date: '2026-10-01',
@@ -159,22 +177,21 @@ describe('ReplicatedShowsTable date writes', () => {
       await table.set('show-1', { ...serverShapedShow(), entryCloseDate: LEGACY_CLOSE });
     });
 
-    it('on an unrelated edit', async () => {
+    it('on an unrelated edit, which sends no date at all', async () => {
       await table.updateShow('show-1', { name: 'Renamed' });
-      expect(lastPayload()).toMatchObject({ entry_close_date: '2026-10-02' });
+      expect(lastPayload()).not.toHaveProperty('entry_close_date');
     });
 
     it('on a full-row save that re-sends it unchanged, while a changed date is typed', async () => {
-      const eveningPick = new Date(2026, 9, 1, 19, 30).toISOString();
+      const eveningPick = new Date(2026, 9, 5, 19, 30).toISOString();
       await table.updateShow('show-1', {
         ...SERVER_SHAPED_FIELDS,
         entryOpenDate: eveningPick,
         entryCloseDate: LEGACY_CLOSE,
       });
-      expect(lastPayload()).toMatchObject({
-        entry_open_date: '2026-10-01',
-        entry_close_date: '2026-10-02',
-      });
+      // Only the date the user changed goes out; the untouched one is not resent.
+      expect(lastPayload()).toMatchObject({ entry_open_date: '2026-10-05' });
+      expect(lastPayload()).not.toHaveProperty('entry_close_date');
     });
 
     it('on a conflict rebuild of the edited local row', async () => {

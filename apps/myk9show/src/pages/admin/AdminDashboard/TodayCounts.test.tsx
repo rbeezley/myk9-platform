@@ -5,7 +5,13 @@ import { easternDayStartIso } from '@/features/admin-overview/easternDay';
 import { TodayCounts } from './TodayCounts';
 
 const NOW = Date.parse('2026-09-05T19:00:00Z');
-const COUNTS = { liveShows: 3, entriesToday: 41, signupsToday: 7, showsCreatedToday: 2 };
+const COUNTS = {
+  liveShows: 3,
+  entriesToday: 41,
+  signupsToday: 7,
+  showsCreatedToday: 2,
+  clubRequestsWaiting: 4,
+};
 
 function cell(label: string) {
   return screen.getByTestId(`today-count-${label}`);
@@ -24,6 +30,15 @@ describe('TodayCounts', () => {
     expect(filters.showDeleted).toBe(false);
     const start = filters.dateRange.start;
     expect(start?.toISOString()).toBe(easternDayStartIso(NOW));
+  });
+
+  it('Club requests waiting shows the count and opens the onboarding inbox', () => {
+    render(<TodayCounts counts={COUNTS} now={NOW} />);
+    expect(cell('Club requests waiting')).toHaveTextContent('4');
+    expect(within(cell('Club requests waiting')).getByRole('link')).toHaveAttribute(
+      'href',
+      '/admin/onboarding'
+    );
   });
 
   it.each(['Entries', 'Shows created', 'Live shows'])(

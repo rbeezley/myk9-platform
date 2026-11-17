@@ -21,6 +21,8 @@ export interface AdminOverviewCounts {
   /** Shows CREATED today. There is no `published_at` column, so this is not
    * "published today" and the UI must not label it as such. */
   showsCreatedToday: number;
+  /** Club requests still waiting on a decision (not limited to today). */
+  clubRequestsWaiting: number;
 }
 
 /** `head: true` with an exact count returns the number and zero rows. */
@@ -62,28 +64,34 @@ async function fetchOverviewCounts(now: number): Promise<AdminOverviewCounts> {
   // `shows.status` does not have — so it reported 0 live shows while a show
   // was running. `deleted_at` is required because the site-admin RLS policy
   // deliberately exposes soft-deleted rows.
-  const [liveShows, entriesToday, signupsToday, showsCreatedToday] = await Promise.all([
-    supabase
-      .from('shows')
-      .select(COUNT_COLUMN, HEAD_COUNT)
-      .eq('status', 'published')
-      .is('deleted_at', null)
-      .lte('start_date', easternMidnightUtc)
-      .gte('end_date', easternMidnightUtc),
-    supabase.from('entries').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
-    supabase.from('people').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
-    supabase
-      .from('shows')
-      .select(COUNT_COLUMN, HEAD_COUNT)
-      .is('deleted_at', null)
-      .gte('created_at', dayStart),
-  ]);
+  const [liveShows, entriesToday, signupsToday, showsCreatedToday, clubRequestsWaiting] =
+    await Promise.all([
+      supabase
+        .from('shows')
+        .select(COUNT_COLUMN, HEAD_COUNT)
+        .eq('status', 'published')
+        .is('deleted_at', null)
+        .lte('start_date', easternMidnightUtc)
+        .gte('end_date', easternMidnightUtc),
+      supabase.from('entries').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
+      supabase.from('people').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
+      supabase
+        .from('shows')
+        .select(COUNT_COLUMN, HEAD_COUNT)
+        .is('deleted_at', null)
+        .gte('created_at', dayStart),
+      supabase
+        .from('club_access_requests')
+        .select(COUNT_COLUMN, HEAD_COUNT)
+        .eq('status', 'pending'),
+    ]);
 
   return {
     liveShows: countFrom(liveShows),
     entriesToday: countFrom(entriesToday),
     signupsToday: countFrom(signupsToday),
     showsCreatedToday: countFrom(showsCreatedToday),
+    clubRequestsWaiting: countFrom(clubRequestsWaiting),
   };
 }
 

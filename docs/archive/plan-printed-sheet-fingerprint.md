@@ -1,6 +1,6 @@
 # Print fingerprints hash what the sheet prints
 
-> **Status:** Active
+> **Status:** Complete
 
 Linear: MYK9-2103 (parent MYK9-1924). MYK9-2116 (#4058) already hashes the judge and the
 scoresheet-only hides. This plan finishes the job: the check-in sheet and scoresheet

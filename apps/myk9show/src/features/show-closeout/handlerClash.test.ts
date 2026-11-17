@@ -22,7 +22,7 @@ describe('readHandlerClashes', () => {
     expect(readHandlerClashes([e('c1', 'p1'), e('c2', 'p1')])).toEqual({ count: 0, classIds: [] });
   });
 
-  it('ignores withdrawn, pulled, moved, deleted and classless entries', () => {
+  it('ignores withdrawn, pulled, moved, deleted, pending and classless entries', () => {
     expect(
       readHandlerClashes([
         e('c1', 'p1'),
@@ -32,6 +32,7 @@ describe('readHandlerClashes', () => {
         e('c1', 'p1', { deleted_at: '2026-11-01T00:00:00Z' }),
         e(null, 'p1'),
         e(null, 'p1'),
+        e('c1', 'p1', { entry_status: 'pending' }),
       ])
     ).toEqual({ count: 0, classIds: [] });
   });

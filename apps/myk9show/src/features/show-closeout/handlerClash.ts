@@ -6,11 +6,13 @@
  * ch. 3 sec. 36), so the secretary settles these first with Change handler on the entry. The
  * clash clears itself once one of the dogs names someone else.
  *
- * "Live" is `isExpectedEntry` (not withdrawn, pulled, moved or deleted). An entry with no class,
+ * "Live" is the Results rows' rule: `isExpectedEntry` (not withdrawn, pulled, moved or deleted)
+ * and not still pending acceptance. An entry with no class,
  * or with no handler person on the row, cannot clash and is skipped. `undefined` is "unknown",
  * never 0: a live entry whose row does not carry `handler_id` at all means the read cannot say.
  */
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import type { WhatIsLeftInput } from './whatIsLeft';
 
 export interface HandlerClashEntry {
@@ -32,7 +34,9 @@ export function readHandlerClashes(
         entry_status: entry.entry_status ?? undefined,
         check_in_status: entry.check_in_status ?? undefined,
         deleted_at: entry.deleted_at ?? undefined,
-      })
+      }) &&
+      // Still waiting on an accept decision: the Results rows do not list it yet either.
+      !isPendingEntryStatus(entry.entry_status)
   );
   if (live.some(entry => entry.handler_id === undefined)) return undefined;
   const groups = new Map<string, number>();

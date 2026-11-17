@@ -10,6 +10,11 @@ import {
   type PremiumOfficialRow,
 } from './showOfficialsRow.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
+import {
+  PREMIUM_TRIAL_JUDGES_SELECT,
+  premiumTrialJudges,
+  type PremiumTrialJudgeRow,
+} from './trialJudges.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
 import {
   buildPremiumWithdrawalRow,
@@ -91,9 +96,7 @@ handle<GeneratePremiumPayload>(
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id,
-          judge_assignments(
-            people(id, first_name, last_name)
-          ),
+          judge_assignments(${PREMIUM_TRIAL_JUDGES_SELECT}),
           classes(id, name, level, element, section)
         )
       `
@@ -191,9 +194,7 @@ handle<GeneratePremiumPayload>(
         planned_start_time: string | null;
         event_number: string | null;
         trial_type: string | null;
-        judge_assignments: Array<{
-          people: { id: string; first_name: string; last_name: string } | null;
-        }>;
+        judge_assignments: PremiumTrialJudgeRow[];
         classes: Array<{
           id: string;
           name: string;
@@ -208,13 +209,7 @@ handle<GeneratePremiumPayload>(
       startTime: trial.planned_start_time,
       eventNumber: trial.event_number,
       type: trial.trial_type ?? '',
-      judges: (trial.judge_assignments ?? [])
-        .map(ja => ja.people)
-        .filter(Boolean)
-        .map(p => ({
-          name: `${p!.first_name} ${p!.last_name}`.trim(),
-          elements: [] as string[],
-        })),
+      judges: premiumTrialJudges(trial.judge_assignments, trial.classes),
       classes: (trial.classes ?? []).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',

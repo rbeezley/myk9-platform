@@ -33,6 +33,7 @@ const change: JudgeChange = {
   where: 'Saturday Trial, Saturday, November 21, 2026',
   fromJudge: 'Olly Oldjudge',
   toJudge: 'Bea Newjudge',
+  started: false,
 };
 
 describe('judge changed email wording', () => {
@@ -221,12 +222,109 @@ describe('drainAutoEmailJobs for judge_changed', () => {
     expect(result.skipped).toBe(1);
     expect(fetch).not.toHaveBeenCalled();
   });
+});
 
-  it('skips when the class was left with no judge', async () => {
-    const { fetch, result } = await skipped(tables => {
-      tables.judge_assignments = [];
+describe('judge changed email: vacancy, started classes, link', () => {
+  it('defers while a class has no judge, then sends once when a substitute is confirmed', async () => {
+    const tables = judgeChangedTables();
+    const substitute = tables.judge_assignments[0];
+    tables.judge_assignments = [];
+    const fixture = makeAutoSendSupabase(tables, LIVE);
+
+    const first = drain(fixture);
+    await expect(first.promise).resolves.toMatchObject({ deferred: 1, sent: 0, skipped: 0 });
+    expect(first.fetch).not.toHaveBeenCalled();
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
+      status: 'ready',
+      attempt_id: null,
+      claimed_until: null,
+      due_at: '2026-11-17T12:30:00.000Z',
     });
-    expect(result.skipped).toBe(1);
+
+    // Still vacant at the next look: deferred again, not skipped.
+    fixture.clock.at = new Date('2026-11-17T12:31:00.000Z');
+    const second = drain(fixture);
+    await expect(second.promise).resolves.toMatchObject({ deferred: 1, sent: 0 });
+
+    fixture.tables.judge_assignments.push(substitute);
+    fixture.clock.at = new Date('2026-11-17T13:02:00.000Z');
+    const third = drain(fixture);
+    await expect(third.promise).resolves.toMatchObject({ sent: 1, deferred: 0 });
+    expect(third.fetch).toHaveBeenCalledTimes(1);
+    expect(sentBody(third.fetch).html).toContain('was Judge Olly Oldjudge, now Judge Bea Newjudge');
+    expect(fixture.tables.email_log).toHaveLength(1);
+  });
+
+  it('skips a vacancy once the trial day has passed in the show time zone', async () => {
+    const tables = judgeChangedTables();
+    tables.judge_assignments = [];
+    (tables.classes[0].trials as { date: string }).date = '2026-11-10';
+    const fixture = makeAutoSendSupabase(tables, LIVE);
+    const { fetch, promise } = drain(fixture);
+
+    await expect(promise).resolves.toMatchObject({ skipped: 1, deferred: 0 });
     expect(fetch).not.toHaveBeenCalled();
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'skipped' });
+  });
+
+  it('a started class names the change but offers no withdrawal', async () => {
+    const tables = judgeChangedTables('AKC');
+    tables.classes[0].status = 'in_progress';
+    const fixture = makeAutoSendSupabase(tables, LIVE);
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    const html = sentBody(fetch).html;
+    expect(html).toContain('was Judge Olly Oldjudge, now Judge Bea Newjudge');
+    expect(html).toContain(
+      'Judging of Container Novice A had already started when the judge changed.'
+    );
+    expect(html).not.toMatch(/withdraw|refund/i);
+  });
+
+  it('a class with a scoring start time counts as started', async () => {
+    const tables = judgeChangedTables('UKC');
+    tables.classes[0].actual_start_time = '2026-11-17T11:00:00Z';
+    const fixture = makeAutoSendSupabase(tables, LIVE);
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    expect(sentBody(fetch).html).not.toMatch(/refund/i);
+  });
+
+  it('mixes started and not-yet-started classes, offering withdrawal for the latter only', () => {
+    const started: JudgeChange = { ...change, className: 'Interior Novice A', started: true };
+    const { body } = renderJudgeChangedEmail({
+      showId: 'show-1',
+      showName: 'Spring Scent Trial',
+      recipientName: null,
+      registryId: 'AKC',
+      changes: [change, started],
+    });
+    expect(body).toContain(
+      'Judging of Interior Novice A had already started when the judge changed.'
+    );
+    expect(body).toContain(
+      'Ask the trial secretary in writing before judging of Container Novice A starts.'
+    );
+    expect(judgeChangeRefundLine('UKC', [change, started])).toBe(
+      'For Container Novice A, you may ask the trial secretary in writing for a full refund.'
+    );
+  });
+
+  it('the My Shows link is an anchor in the HTML and a plain URL in the stored text', async () => {
+    const fixture = makeAutoSendSupabase(judgeChangedTables(), LIVE);
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    const url = 'https://myk9show.com/exhibitor/entries?showId=show-1';
+    expect(sentBody(fetch).html).toContain(`<a href="${url.replace('&', '&amp;')}"`);
+    expect(fixture.tables.email_log[0]).not.toHaveProperty('body_html');
+    const { body } = renderJudgeChangedEmail({
+      showId: 'show-1',
+      showName: 'S',
+      recipientName: null,
+      registryId: 'AKC',
+      changes: [change],
+    });
+    expect(body).toContain(url);
+    expect(body).not.toContain('<a ');
   });
 });

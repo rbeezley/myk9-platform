@@ -41,6 +41,7 @@ insert into public.people (id, first_name, last_name, email) values
   ('00000000-0000-0000-0000-000002125025', 'Hal', 'Handler', 'hal@example.test'),
   ('00000000-0000-0000-0000-000002125026', 'Cy', 'Withdrew', 'cy@example.test'),
   ('00000000-0000-0000-0000-000002125027', 'Ivy', 'Interior', 'ivy@example.test'),
+  ('00000000-0000-0000-0000-000002125028', 'Pam', 'Pending', 'pam@example.test'),
   ('00000000-0000-0000-0000-000002125051', 'Judge', 'One', 'j1@example.test'),
   ('00000000-0000-0000-0000-000002125052', 'Judge', 'Two', 'j2@example.test'),
   ('00000000-0000-0000-0000-000002125053', 'Judge', 'Three', 'j3@example.test');
@@ -48,13 +49,15 @@ insert into public.dogs (id, name, call_name, breed, owner_id) values
   ('00000000-0000-0000-0000-000002125031', 'Ada Dog One', 'One', 'Beagle', '00000000-0000-0000-0000-000002125021'),
   ('00000000-0000-0000-0000-000002125032', 'Ada Dog Two', 'Two', 'Beagle', '00000000-0000-0000-0000-000002125021'),
   ('00000000-0000-0000-0000-000002125034', 'Cy Dog', 'Cy', 'Beagle', '00000000-0000-0000-0000-000002125026'),
-  ('00000000-0000-0000-0000-000002125035', 'Ivy Dog', 'Ivy', 'Beagle', '00000000-0000-0000-0000-000002125027');
+  ('00000000-0000-0000-0000-000002125035', 'Ivy Dog', 'Ivy', 'Beagle', '00000000-0000-0000-0000-000002125027'),
+  ('00000000-0000-0000-0000-000002125036', 'Pam Dog', 'Pam', 'Beagle', '00000000-0000-0000-0000-000002125028');
 
 alter table public.entries disable trigger trg_entries_require_dog_registration;
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband, run_order, check_in_status) values
   ('00000000-0000-0000-0000-000002125041', '00000000-0000-0000-0000-000002125031', '00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125002', '00000000-0000-0000-0000-000002125003', null, 'confirmed', '1', 1, 'no-status'),
   ('00000000-0000-0000-0000-000002125042', '00000000-0000-0000-0000-000002125032', '00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125002', '00000000-0000-0000-0000-000002125003', '00000000-0000-0000-0000-000002125025', 'confirmed', '2', 2, 'no-status'),
   ('00000000-0000-0000-0000-000002125044', '00000000-0000-0000-0000-000002125034', '00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125002', '00000000-0000-0000-0000-000002125003', null, 'withdrawn', '4', 3, 'no-status'),
+  ('00000000-0000-0000-0000-000002125048', '00000000-0000-0000-0000-000002125036', '00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125002', '00000000-0000-0000-0000-000002125003', null, 'pending-payment', '6', 5, 'no-status'),
   ('00000000-0000-0000-0000-000002125047', '00000000-0000-0000-0000-000002125035', '00000000-0000-0000-0000-000002125005', '00000000-0000-0000-0000-000002125002', '00000000-0000-0000-0000-000002125003', null, 'confirmed', '5', 1, 'no-status'),
   ('00000000-0000-0000-0000-000002125045', '00000000-0000-0000-0000-000002125031', '00000000-0000-0000-0000-000002125014', '00000000-0000-0000-0000-000002125012', '00000000-0000-0000-0000-000002125013', null, 'confirmed', '1', 1, 'no-status'),
   ('00000000-0000-0000-0000-000002125046', '00000000-0000-0000-0000-000002125031', '00000000-0000-0000-0000-000002125024', '00000000-0000-0000-0000-000002125022', '00000000-0000-0000-0000-000002125023', null, 'confirmed', '1', 1, 'no-status');
@@ -97,8 +100,8 @@ begin
   end if;
   perform pg_temp.replace_judge('00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125052',
     v_show, '00000000-0000-0000-0000-000002125003');
-  if pg_temp.jobs(v_show) <> 2 then
-    raise exception 'FAIL A expected 2 jobs (Ada once for two dogs, Hal as handler; Cy withdrew, Ivy is in another class), found %', pg_temp.jobs(v_show);
+  if pg_temp.jobs(v_show) <> 3 then
+    raise exception 'FAIL A expected 3 jobs (Ada once for two dogs, Hal as handler, Pam on a waitlist offer awaiting payment; Cy withdrew, Ivy is in another class), found %', pg_temp.jobs(v_show);
   end if;
   select * into v_job from public.show_lifecycle_email_jobs
    where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002125021';
@@ -111,6 +114,10 @@ begin
               where show_id = v_show and recipient_person_id in
                 ('00000000-0000-0000-0000-000002125026', '00000000-0000-0000-0000-000002125027')) then
     raise exception 'FAIL A a withdrawn exhibitor or one in another class was queued';
+  end if;
+  if not exists (select 1 from public.show_lifecycle_email_jobs
+                  where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002125028') then
+    raise exception 'FAIL A an exhibitor whose entry is pending-payment was not queued';
   end if;
   raise notice 'PASS A a judge change queues one automatic job per exhibitor in that class';
 end $$;
@@ -209,8 +216,8 @@ begin
    where show_id = v_show and step_type = 'judge_changed';
   update public.judge_assignments set person_id = '00000000-0000-0000-0000-000002125051'
    where class_id = '00000000-0000-0000-0000-000002125004' and status = 'confirmed';
-  if pg_temp.jobs(v_show, 'ready') <> 2 or pg_temp.jobs(v_show, 'sent') <> 3 then
-    raise exception 'FAIL E a direct judge update after a send should queue 2 new jobs beside 3 sent, found % ready % sent',
+  if pg_temp.jobs(v_show, 'ready') <> 3 or pg_temp.jobs(v_show, 'sent') <> 4 then
+    raise exception 'FAIL E a direct judge update after a send should queue 3 new jobs beside 4 sent, found % ready % sent',
       pg_temp.jobs(v_show, 'ready'), pg_temp.jobs(v_show, 'sent');
   end if;
   select * into v_job from public.show_lifecycle_email_jobs

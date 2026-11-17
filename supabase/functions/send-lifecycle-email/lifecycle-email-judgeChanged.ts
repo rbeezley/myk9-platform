@@ -24,6 +24,8 @@ export interface JudgeChange {
   /** Name of the judge before the first change; null when that person cannot be named. */
   fromJudge: string | null;
   toJudge: string;
+  /** Judging of this class had begun when the judge changed: no withdrawal is offered. */
+  started: boolean;
 }
 
 export interface RenderedJudgeChangedEmail {
@@ -37,6 +39,8 @@ interface ClassRow {
   element: string | null;
   level: string | null;
   section: string | null;
+  status: string | null;
+  actual_start_time: string | null;
   deleted_at: string | null;
   trials: TrialRow | TrialRow[] | null;
 }
@@ -45,6 +49,7 @@ interface TrialRow {
   name: string | null;
   date: string | null;
   registry_id: string | null;
+  timezone: string | null;
   deleted_at: string | null;
 }
 
@@ -88,8 +93,34 @@ function parseJudgeChanges(value: unknown): Array<[string, string]> {
   );
 }
 
+/** How long a job waits when a class has no judge yet (a substitute is being found). */
+export const JUDGE_VACANCY_RETRY_MS = 30 * 60 * 1000;
+
+/** Today's YYYY-MM-DD in the trial's zone; an unknown zone reads as America/New_York. */
+function todayInZone(now: Date, timeZone: string | null): string {
+  for (const zone of [clean(timeZone), 'America/New_York']) {
+    if (!zone) continue;
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(now);
+    } catch {
+      // An invalid zone: try the default.
+    }
+  }
+  return now.toISOString().slice(0, 10);
+}
+
+/** Judging has begun: the class is in progress or done, or scoring stamped a start time. */
+function judgingStarted(row: ClassRow): boolean {
+  const status = clean(row.status).toLowerCase();
+  return (
+    status === 'in_progress' || status === 'completed' || Boolean(clean(row.actual_start_time))
+  );
+}
+
 export type JudgeChangedPlan =
-  { kind: 'skip' } | { kind: 'send'; registryId: string | null; changes: JudgeChange[] };
+  | { kind: 'skip' }
+  | { kind: 'defer' }
+  | { kind: 'send'; registryId: string | null; changes: JudgeChange[] };
 
 /**
  * Reads what the email needs and decides whether it still has anything to say: the person
@@ -102,6 +133,7 @@ export async function planJudgeChangedEmail(args: {
   jobId: string;
   showId: string;
   personId: string;
+  now: Date;
 }): Promise<JudgeChangedPlan> {
   const { supabase } = args;
   const skip: JudgeChangedPlan = { kind: 'skip' };
@@ -131,7 +163,7 @@ export async function planJudgeChangedEmail(args: {
   const classRead = (await supabase
     .from('classes')
     .select(
-      'id, name, element, level, section, deleted_at, trials(name, date, registry_id, deleted_at)'
+      'id, name, element, level, section, status, actual_start_time, deleted_at, trials(name, date, registry_id, timezone, deleted_at)'
     )
     .in('id', classIds)) as QueryResult<ClassRow[]>;
   if (classRead.error) throw new Error('Failed to load classes');
@@ -161,12 +193,20 @@ export async function planJudgeChangedEmail(args: {
 
   const changes: JudgeChange[] = [];
   let registryId: string | null = null;
+  let vacant = false;
   for (const [classId, fromId] of affected) {
     const row = classes.get(classId);
-    const toJudge = currentNames.get(classId);
-    if (!row || row.deleted_at || !toJudge || currentPerson.get(classId) === fromId) continue;
+    if (!row || row.deleted_at) continue;
     const trial = firstTrial(row);
     if (!trial || trial.deleted_at) continue;
+    const toJudge = currentNames.get(classId);
+    if (!toJudge) {
+      // Unassigned while a substitute is found: wait for one, until the trial day is past.
+      const date = clean(trial.date).slice(0, 10);
+      if (!date || date >= todayInZone(args.now, trial.timezone)) vacant = true;
+      continue;
+    }
+    if (currentPerson.get(classId) === fromId) continue;
     registryId ??= trial.registry_id;
     changes.push({
       className: className(row),
@@ -175,28 +215,42 @@ export async function planJudgeChangedEmail(args: {
         .join(', '),
       fromJudge: personName(previous.get(fromId)),
       toJudge,
+      started: judgingStarted(row),
     });
   }
+  // Any class still waiting for its new judge holds the whole email, so it names every change.
+  if (vacant) return { kind: 'defer' };
   if (changes.length === 0) return skip;
   changes.sort((a, b) => a.where.localeCompare(b.where) || a.className.localeCompare(b.className));
   return { kind: 'send', registryId, changes };
 }
 
-/** What the registry's rulebook lets us say about money. Never "automatic". */
+function joinNames(names: readonly string[]): string {
+  if (names.length <= 2) return names.join(' and ');
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
+ * What the registry's rulebook lets us say about money. Never "automatic". A class whose
+ * judging had already started gets no offer (it is named in its own sentence instead).
+ */
 export function judgeChangeRefundLine(
   registryId: string | null | undefined,
   changes: readonly JudgeChange[]
 ): string {
-  switch (registryEmailLanguage(registryId).id) {
-    case 'UKC':
-      return 'You may ask the trial secretary in writing for a full refund.';
-    case 'ASCA':
-      return 'Contact the trial secretary with questions.';
-    default: {
-      const subject = changes.length === 1 ? changes[0].className : 'each class';
-      return `You may withdraw for a full refund. Ask the trial secretary in writing before judging of ${subject} starts.`;
-    }
+  const open = changes.filter(change => !change.started);
+  const mixed = open.length < changes.length;
+  const registry = registryEmailLanguage(registryId).id;
+  if (registry === 'ASCA' || open.length === 0)
+    return 'Contact the trial secretary with questions.';
+  const names = joinNames(open.map(change => change.className));
+  if (registry === 'UKC') {
+    return mixed
+      ? `For ${names}, you may ask the trial secretary in writing for a full refund.`
+      : 'You may ask the trial secretary in writing for a full refund.';
   }
+  const subject = open.length === 1 || mixed ? names : 'each class';
+  return `You may withdraw for a full refund. Ask the trial secretary in writing before judging of ${subject} starts.`;
 }
 
 export function renderJudgeChangedEmail(args: {
@@ -224,6 +278,11 @@ export function renderJudgeChangedEmail(args: {
       `Hi ${firstName},`,
       intro,
       lines.join('\n'),
+      ...args.changes
+        .filter(change => change.started)
+        .map(
+          change => `Judging of ${change.className} had already started when the judge changed.`
+        ),
       judgeChangeRefundLine(args.registryId, args.changes),
       `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
     ].join('\n\n'),

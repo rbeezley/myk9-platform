@@ -162,7 +162,9 @@ AS $$
      AND e.entry_status IN (
        'confirmed', 'accepted', 'scheduled', 'checked-in', 'at-gate',
        'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested',
-       'submitted', 'paid', 'pending', 'promotion-expired', 'waitlisted'
+       'submitted', 'paid', 'pending', 'promotion-expired', 'waitlisted',
+       -- A waitlist offer awaiting payment (MYK9-1988): the spot is theirs for now.
+       'pending-payment'
      )
      AND e.check_in_status IS DISTINCT FROM 'pulled'
      AND r.person_id IS NOT NULL

@@ -149,11 +149,35 @@ describe('HandlerClashSection (MYK9-2021)', () => {
     await userEvent.click(button);
     expect(onAssign).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        'scout|cNovA': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
+        'scout|cNovA': {
+          handlerId: 'o1',
+          handlerName: 'Pat Owner',
+          isOwner: true,
+          decideAtShow: true,
+        },
       })
     );
     expect(button).toBeChecked();
     expect(onPending).toHaveBeenLastCalledWith(0);
+  });
+
+  it('clears the decide-at-show mark when she unticks it', async () => {
+    const onAssign = vi.fn();
+    render(
+      <Harness
+        selections={[pick('willow', 'cNovA'), pick('scout', 'cNovA')]}
+        onPending={vi.fn()}
+        onAssign={onAssign}
+      />
+    );
+    const button = screen.getByRole('checkbox', { name: "I'll decide at the show" });
+    await userEvent.click(button);
+    await userEvent.click(button);
+    expect(onAssign).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        'scout|cNovA': { handlerId: 'o1', handlerName: 'Pat Owner', isOwner: true },
+      })
+    );
   });
 
   it('catches a dog entered now when her other dog is already entered in that class', () => {

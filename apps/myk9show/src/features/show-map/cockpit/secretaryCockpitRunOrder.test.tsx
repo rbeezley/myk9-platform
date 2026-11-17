@@ -62,7 +62,7 @@ const FOCUSED: FocusedClassModel = {
   judgeName: null,
   attentionCount: 0,
   closeout: 'none',
-  statusLine: { text: 'Not started', parts: ['Not started'] },
+  cardStatus: { progress: null, inRing: null, nextArmbands: [], nextStep: null },
   printTrackingInUse: true,
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },

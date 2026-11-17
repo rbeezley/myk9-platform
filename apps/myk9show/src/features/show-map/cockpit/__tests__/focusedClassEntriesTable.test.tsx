@@ -144,19 +144,17 @@ describe('the focused class entries table (MYK9-1782)', () => {
     ).toBeInTheDocument();
   });
 
-  it('counts entered, scored, in ring and still to run from the same rows', () => {
+  it('names the dog in the ring and does not repeat the class counts as tiles (MYK9-2141)', () => {
     render(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />, {
       initialRoute: '/shows/show-1',
     });
-    const tiles = screen.getByTestId('class-count-tiles');
-    const value = (label: string) =>
-      [...tiles.querySelectorAll('dt')].find(term => term.textContent === label)?.nextElementSibling
-        ?.textContent;
-    // The pulled dog is listed but is not in the expected set.
-    expect(value('Entered')).toBe('3');
-    expect(value('Scored')).toBe('1');
-    expect(value('Still to run')).toBe('1');
-    expect(value('In ring')).toContain('Armband 102, Willow');
+    const work = screen.getByTestId('focused-class-work');
+    expect(within(work).getByTestId('in-ring-tile')).toHaveTextContent('Armband 102, Willow');
+    // The schedule card carries the counts.
+    const terms = [...work.querySelectorAll('dt')].map(term => term.textContent);
+    expect(terms).not.toContain('Entered');
+    expect(terms).not.toContain('Scored');
+    expect(terms).not.toContain('Still to run');
   });
 
   const withClass = (
@@ -193,7 +191,7 @@ describe('the focused class entries table (MYK9-1782)', () => {
       <SecretaryCockpit snapshot={withClass({ entries: [] })} canManageShow onCommand={vi.fn()} />,
       { initialRoute: '/shows/show-1' }
     );
-    expect(screen.queryByTestId('class-count-tiles')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('in-ring-tile')).not.toBeInTheDocument();
     expect(screen.getByTestId('class-entries-empty')).toHaveTextContent(
       'The entries for this class have not loaded yet.'
     );
@@ -216,12 +214,14 @@ describe('the focused class entries table (MYK9-1782)', () => {
     );
   });
 
-  it('shows the schedule row phrase with the dog in the ring', () => {
+  it('shows the dog in the ring, the count and the status on the schedule card', () => {
     render(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />, {
       initialRoute: '/shows/show-1',
     });
-    expect(screen.getByTestId('class-status-line')).toHaveTextContent(
-      'Running · 1 of 3 scored · Willow in ring'
-    );
+    const status = screen.getByTestId('class-status-line');
+    expect(status).toHaveTextContent('Armband #102 Willow in the ring');
+    expect(status).toHaveTextContent('In progress');
+    expect(status).toHaveTextContent('1 of 3 scored');
+    expect(within(status).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
   });
 });

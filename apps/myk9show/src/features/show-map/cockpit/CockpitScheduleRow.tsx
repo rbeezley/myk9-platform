@@ -1,10 +1,13 @@
 import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
-import { Fragment, type MouseEvent } from 'react';
+import { Clock3, User } from 'lucide-react';
+import type { MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 
+import { ClassProgressBar } from '@/components/status';
 import { getClassReviewHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { cn } from '@/lib/utils';
 
+import { ClassStatusBadge } from './ClassOperationalControls';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
 import { ScheduleRowCheckbox, type TrialGroupSelect } from './ScheduleSelectControls';
 import type { ScheduledClassModel } from './secretaryCockpitTypes';
@@ -26,11 +29,49 @@ function selectsRow(event: MouseEvent<HTMLElement>): boolean {
 }
 
 /**
- * One class on the schedule, the same two lines in the narrow rail and the full-width list
- * (MYK9-1782). Line 1: time, class name and judge (per class, so never on the trial band). Line 1
- * wraps rather than truncates, so in the 300px rail the judge drops below the name instead of
- * collapsing. Line 2: one status-and-next-step phrase. A red dot marks a class on Needs attention;
- * the full seven-step bar lives on the class page.
+ * Who is in the ring and who is next, as the Ringside class card says it. The dot is the at-show
+ * amber token, never Ring Green, which is reserved for live judging surfaces. The desk adds the
+ * dog's call name: the secretary knows dogs by name, the gate by armband.
+ */
+function CardNextUp({ status }: { status: ScheduledClassModel['cardStatus'] }) {
+  const { inRing, nextArmbands } = status;
+  if (!inRing && nextArmbands.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+      {inRing && (
+        <span className="flex min-w-0 items-center gap-1 font-semibold text-foreground">
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--at-show-in-ring)]"
+          />
+          <span className="min-w-0 break-words">
+            {inRing.armband && (
+              <>
+                <span className="sr-only">Armband </span>#{inRing.armband}{' '}
+              </>
+            )}
+            {inRing.dogName}
+            <span className="sr-only"> in the ring</span>
+          </span>
+        </span>
+      )}
+      {nextArmbands.length > 0 && (
+        <span className="text-muted-foreground">
+          Next {nextArmbands.map(armband => `#${armband}`).join(' · ')}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One class on the schedule, in the Ringside class card's layout (MYK9-2143): the class name, then
+ * the judge and the time, then who is in the ring and who is next, and a footer with the status
+ * badge, the scored count and a progress bar. The desk's own lines sit between: the "N pending"
+ * link and the next step. Lines wrap rather than truncate, so nothing collapses in the 300px
+ * rail; a wider rail (MYK9-2142) puts the judge and the time on one line. A red dot marks a class
+ * on Needs attention. This is the one place every class in a trial is compared, so the selected
+ * class's header does not repeat it.
  */
 export function CockpitScheduleRow({
   classItem,
@@ -52,6 +93,10 @@ export function CockpitScheduleRow({
   const time = classItem.expectedStart ? classItem.timeLabel : null;
   const attention = classItem.attentionCount;
   const attentionWords = `${attention} ${attention === 1 ? 'needs' : 'need'} attention`;
+  const lifecycle = classItem.lifecycle.value;
+  const { progress, nextStep } = classItem.cardStatus;
+  // Before the class starts the bar would be an empty track under "0 / 5".
+  const showBar = lifecycle === 'in-progress' || lifecycle === 'complete';
   return (
     <div
       id={getCockpitAnchorElementId(classItem.id)}
@@ -73,40 +118,18 @@ export function CockpitScheduleRow({
         />
       )}
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          {/* Time and name stay together; only the judge wraps below them in the rail. */}
-          <div className="flex min-w-0 items-baseline gap-2">
-            <span className="shrink-0 whitespace-nowrap text-sm font-semibold">
-              {classItem.startedLabel ? (
-                // The recorded start, never mistaken for the planned time.
-                <>
-                  <span className="mr-1 text-xs font-normal text-muted-foreground">Started</span>
-                  {classItem.startedLabel}
-                </>
-              ) : (
-                (time ?? <span className="font-normal text-muted-foreground">No time</span>)
-              )}
-            </span>
-            {/* No onClick: the click (keyboard too) bubbles to the card's. */}
-            <button
-              type="button"
-              data-selects-row
-              aria-pressed={select ? ticked : focused}
-              className="min-w-0 break-words rounded-sm text-left font-semibold hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {classItem.name}
-            </button>
-          </div>
-          <span
-            data-testid="class-judge"
-            className="min-w-0 break-words text-sm text-muted-foreground"
+        <div className="flex items-start justify-between gap-2">
+          {/* No onClick: the click (keyboard too) bubbles to the card's. */}
+          <button
+            type="button"
+            data-selects-row
+            aria-pressed={select ? ticked : focused}
+            className="min-w-0 break-words rounded-sm text-left font-semibold hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {judgeNameOrUnsetLabel(classItem.judgeName)}
-          </span>
-        </div>
-        <div className="mt-0.5 flex items-baseline gap-1.5 text-sm text-muted-foreground">
+            {classItem.name}
+          </button>
           {attention > 0 && (
-            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-destructive">
+            <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-xs font-medium text-destructive">
               <span
                 role="img"
                 aria-label={attentionWords}
@@ -116,32 +139,67 @@ export function CockpitScheduleRow({
               {attention} {attention === 1 ? 'issue' : 'issues'}
             </span>
           )}
-          <span className="min-w-0">
-            <span data-testid="class-status-line">
-              {classItem.statusLine.parts.map((part, index) => (
-                <Fragment key={`${index}:${part}`}>
-                  {index > 0 && ' · '}
-                  {part}
-                  {index === 0 && pendingCount > 0 && (
-                    <>
-                      {' · '}
-                      <Link
-                        to={getClassReviewHref({
-                          showId,
-                          trialId: classItem.trialId,
-                          classId: classItem.id,
-                        })}
-                        aria-label={`${pendingCount} pending in ${classItem.name}`}
-                        className="font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {pendingCount} pending
-                      </Link>
-                    </>
-                  )}
-                </Fragment>
-              ))}
-            </span>
+        </div>
+        {/* The judge and the time wrap onto lines of their own in the rail, and share one when
+            the secretary has dragged it wider. */}
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+          <span data-testid="class-judge" className="flex min-w-0 items-start gap-1 break-words">
+            <User size={13} className="mt-1 shrink-0" aria-hidden="true" />
+            {judgeNameOrUnsetLabel(classItem.judgeName)}
           </span>
+          <span
+            data-testid="class-time"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium"
+          >
+            <Clock3 size={13} className="shrink-0" aria-hidden="true" />
+            {classItem.startedLabel
+              ? // The recorded start, never mistaken for the planned time.
+                `Started ${classItem.startedLabel}`
+              : (time ?? 'No time')}
+          </span>
+        </div>
+        <div data-testid="class-status-line">
+          <CardNextUp status={classItem.cardStatus} />
+          {(pendingCount > 0 || nextStep) && (
+            <div className="mt-1 text-sm text-muted-foreground">
+              {pendingCount > 0 && (
+                <Link
+                  to={getClassReviewHref({
+                    showId,
+                    trialId: classItem.trialId,
+                    classId: classItem.id,
+                  })}
+                  aria-label={`${pendingCount} pending in ${classItem.name}`}
+                  className="font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {pendingCount} pending
+                </Link>
+              )}
+              {pendingCount > 0 && nextStep && ' · '}
+              {nextStep}
+            </div>
+          )}
+          <div className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2">
+            <ClassStatusBadge lifecycle={lifecycle} />
+            {/* An unknown count is left out, never spelled as a zero (MYK9-637). */}
+            {progress && (
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                <span aria-hidden="true">
+                  {progress.scored} / {progress.total}
+                </span>
+                <span className="sr-only">
+                  {progress.scored} of {progress.total} scored
+                </span>
+              </span>
+            )}
+            {progress && showBar && (
+              <ClassProgressBar
+                label={`${classItem.name} scoring progress`}
+                done={progress.scored}
+                total={progress.total}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

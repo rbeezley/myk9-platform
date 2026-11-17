@@ -264,7 +264,7 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     expect(nameButton).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('gives each class card two lines and no checklist strip (MYK9-1782)', () => {
+  it('gives each class card its status badge and no checklist strip (MYK9-1782, MYK9-2143)', () => {
     render(<SecretaryCockpit snapshot={twoClassSnapshot()} canManageShow onCommand={vi.fn()} />, {
       initialRoute: '/shows/show-1',
     });
@@ -301,7 +301,7 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     ).toBeNull();
   });
 
-  it('reads "Running · N of M" once scoring has begun', () => {
+  it('reads In progress with "N of M scored" once scoring has begun', () => {
     const base = twoClassSnapshot();
     const snapshotScoring: SecretaryCockpitSnapshot = {
       ...base,
@@ -316,7 +316,9 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     });
     const scoring = document.getElementById('cockpit-anchor-class-2')!;
 
-    expect(within(scoring).getByTestId('class-status-line')).toHaveTextContent('Running · 1 of 3');
+    const scoringStatus = within(scoring).getByTestId('class-status-line');
+    expect(scoringStatus).toHaveTextContent('In progress');
+    expect(scoringStatus).toHaveTextContent('1 of 3 scored');
     expect(
       within(document.getElementById('cockpit-anchor-class-1')!).getByTestId('class-status-line')
     ).toHaveTextContent('Not started');

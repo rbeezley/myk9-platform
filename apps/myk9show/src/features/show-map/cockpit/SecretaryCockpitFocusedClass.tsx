@@ -28,7 +28,7 @@ import {
   focusedClassSummaryParts,
 } from './focusedClassTiming';
 import { entriesUnread } from './cockpitClassEntries';
-import { ClassCountTiles, ClassEntriesTable } from './FocusedClassEntries';
+import { ClassEntriesTable, InRingTile } from './FocusedClassEntries';
 import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS,
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
@@ -47,6 +47,7 @@ export function SecretaryCockpitFocusedClass({
   attention,
   timeZone,
   pinMode = 'none',
+  cardListed = false,
   canManageShow,
   onCommand,
   runOrder,
@@ -65,6 +66,13 @@ export function SecretaryCockpitFocusedClass({
   timeZone: string;
   /** Rendered in the split's own-scroll panel (SecretaryCockpit), so the header pins to it. */
   pinMode?: FocusedClassPinMode;
+  /**
+   * The class's card is in the schedule (MYK9-2143). The card already says the count, the judge
+   * and the times, so the header keeps to the name, the status and its controls. False (a class
+   * the secretary's own work moved out of the filter) keeps the full line, the only place left
+   * that says them.
+   */
+  cardListed?: boolean;
   canManageShow: boolean;
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
@@ -119,33 +127,36 @@ export function SecretaryCockpitFocusedClass({
   // The Run order menu hides itself below 2 entries, so its label does too.
   const runOrderEntryCount =
     sourceClass.runListCount ?? sourceClass.entryCount ?? focused.entryRows.length;
-  const facts = buildFocusedClassFacts({
-    focused,
-    entryCount: sourceClass.entryCount ?? null,
-    breakdown: entryBreakdownByClassId?.get(focused.id) ?? (entryBreakdownByClassId && NO_ENTRIES),
-    // With the Judge field in the header, the facts would only repeat it.
-    showJudge: !judgeControl,
-  });
+  const factsOf = (showJudge: boolean) =>
+    buildFocusedClassFacts({
+      focused,
+      entryCount: sourceClass.entryCount ?? null,
+      breakdown:
+        entryBreakdownByClassId?.get(focused.id) ?? (entryBreakdownByClassId && NO_ENTRIES),
+      showJudge,
+      // The class's schedule card already says the count and the pending entries (MYK9-2143).
+      showCount: !cardListed,
+    });
+  // With the Judge field in the header, the facts would only repeat it. A viewer has no Judge
+  // field, so the judge stays a fact for them even beside the card.
+  const facts = factsOf(!judgeControl);
 
   // Where the header pins (from lg), a laptop's height goes to the entries (MYK9-1989): the header
   // is one line of name and controls plus one line of values, the settings fold behind Class
-  // settings, and the entries come before the counts and the checklist. Below lg nothing pins and
+  // settings, and the entries come before the In ring tile and the checklist. Below lg nothing pins and
   // the card keeps its full layout.
   const compact = pinMode !== 'none';
   const settingsOpen = !compact || settingsFor === focused.id;
-  const summaryParts = compact
-    ? focusedClassSummaryParts({
-        facts: buildFocusedClassFacts({
-          focused,
-          entryCount: sourceClass.entryCount ?? null,
-          breakdown:
-            entryBreakdownByClassId?.get(focused.id) ?? (entryBreakdownByClassId && NO_ENTRIES),
-          showJudge: true,
-        }),
-        expectedStart: expectedStartValue(sourceClass, timeZone),
-        timing: actualTimingText(focused, sourceClass.lifecycle, timeZone),
-      })
-    : [];
+  const summaryParts = !compact
+    ? []
+    : cardListed
+      ? // Beside its card the summary is the status badge alone (and the viewer's judge).
+        facts
+      : focusedClassSummaryParts({
+          facts: factsOf(true),
+          expectedStart: expectedStartValue(sourceClass, timeZone),
+          timing: actualTimingText(focused, sourceClass.lifecycle, timeZone),
+        });
   const jumpToChecklist = () => {
     const work = workRef.current;
     if (!work) return;
@@ -191,7 +202,7 @@ export function SecretaryCockpitFocusedClass({
       className="space-y-5 outline-none"
       data-testid="focused-class-work"
     >
-      <ClassCountTiles entries={focused.entries} unread={unread} />
+      <InRingTile entries={focused.entries} unread={unread} />
       <ClassChecklistSection
         showId={showId}
         sourceClass={sourceClass}

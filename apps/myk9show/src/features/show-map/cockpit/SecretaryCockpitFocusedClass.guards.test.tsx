@@ -66,7 +66,7 @@ const focusedClass = (id: string, name: string, overrides: Partial<FocusedClassM
     judgeName: null,
     attentionCount: 0,
     closeout: 'none',
-    statusLine: { text: 'In progress', parts: ['In progress'] },
+    cardStatus: { progress: null, inRing: null, nextArmbands: [], nextStep: null },
     printTrackingInUse: true,
     actualStart: { evidence: 'unknown', value: null },
     actualFinish: { evidence: 'unknown', value: null },

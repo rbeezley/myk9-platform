@@ -18,6 +18,7 @@ export function buildFocusedClassFacts({
   entryCount,
   breakdown,
   showJudge,
+  showCount = true,
 }: {
   focused: Pick<FocusedClassModel, 'progress' | 'lifecycle' | 'judgeName'>;
   /** The class's own entry count; the fallback while the entries are unread. */
@@ -26,6 +27,11 @@ export function buildFocusedClassFacts({
   breakdown: ClassEntryBreakdown | undefined;
   /** False when the Judge setting below already shows the judge. */
   showJudge: boolean;
+  /**
+   * False while the class's schedule card is showing (MYK9-2143): the card already says the count
+   * and the pending entries, so the header does not repeat them.
+   */
+  showCount?: boolean;
 }): string[] {
   const progress = focused.progress.value;
   // Same rule as the class card: before scoring can begin it would only read "0 of N".
@@ -40,7 +46,6 @@ export function buildFocusedClassFacts({
     : (text?.entered ?? (entryCount === null ? null : countLabel(entryCount, 'entry', 'entries')));
   const judgeFact =
     showJudge && !isUnsetJudgeName(focused.judgeName) ? judgeLine(focused.judgeName) : null;
-  return [countFact, text?.pending ?? null, judgeFact].filter((fact): fact is string =>
-    Boolean(fact)
-  );
+  const countFacts = showCount ? [countFact, text?.pending ?? null] : [];
+  return [...countFacts, judgeFact].filter((fact): fact is string => Boolean(fact));
 }

@@ -196,7 +196,7 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
     await expect(sec.inRingTile).toContainText('Nobody in the ring');
     await expect(sec.nextUp).toHaveCount(2);
     await expect(sec.entryRow('Cooper')).toContainText('Not checked in');
-    await expect(sec.scheduleLine).toContainText('Running');
+    await expect(sec.scheduleLine).toContainText('In progress');
     await expect(sec.scheduleLine).toContainText('0 of 2 scored');
     if (blockRealtime) await expect.poll(() => secretary.blockedSockets()).toBeGreaterThan(0);
     else await expect.poll(() => secretary.realtimeFrames()).toBeGreaterThan(0);
@@ -245,7 +245,7 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         await expect(sec.inRingTile).toContainText('Willow', { timeout: 1_000 });
         await expect(sec.nextUp).toHaveCount(1, { timeout: 1_000 });
         await expect(sec.nextUp.first()).toContainText('Cooper', { timeout: 1_000 });
-        await expect(sec.scheduleLine).toContainText('Willow in ring', { timeout: 1_000 });
+        await expect(sec.scheduleLine).toContainText('Willow in the ring', { timeout: 1_000 });
       },
       blockRealtime
         ? async () => expect(sec.inRingTile).toContainText('Nobody in the ring', { timeout: 1_000 })
@@ -269,10 +269,11 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
         await expect(sec.inRingTile).toContainText('Nobody in the ring', { timeout: 1_000 });
         await expect(sec.entryRow('Willow')).toContainText('Q', { timeout: 1_000 });
         await expect(sec.scheduleLine).toContainText('1 of 2 scored', { timeout: 1_000 });
-        await expect(sec.scheduleLine).not.toContainText('Willow in ring', { timeout: 1_000 });
+        await expect(sec.scheduleLine).not.toContainText('Willow in the ring', { timeout: 1_000 });
       },
       blockRealtime
-        ? async () => expect(sec.scheduleLine).toContainText('Willow in ring', { timeout: 1_000 })
+        ? async () =>
+            expect(sec.scheduleLine).toContainText('Willow in the ring', { timeout: 1_000 })
         : undefined
     );
     if (blockRealtime) expect(secretary.realtimeFrames()).toBe(0);

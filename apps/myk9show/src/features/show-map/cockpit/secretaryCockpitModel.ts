@@ -34,7 +34,7 @@ import {
   minuteOfDayInTimeZone,
   operationalMinutes,
 } from './cockpitClock';
-import { buildStatusLine } from './scheduleStatusLine';
+import { buildScheduleCardStatus } from './scheduleCardStatus';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 
 const ATTENTION_LIMIT = 3;
@@ -119,7 +119,7 @@ function toScheduledClass(
     filterFacts: filterFactsOf(cls),
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
-    statusLine: buildStatusLine(cls, checklistInUse),
+    cardStatus: buildScheduleCardStatus(cls, checklistInUse),
   };
 }
 

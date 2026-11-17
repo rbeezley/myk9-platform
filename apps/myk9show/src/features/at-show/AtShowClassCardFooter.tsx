@@ -2,6 +2,7 @@ import { CloudUpload, Heart, Info, MoreHorizontal } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { ClassEntry } from '@myk9/ringside';
+import { ClassProgressBar } from '@/components/status';
 import { cn } from '@/lib/utils';
 
 /** Gloved taps want 48px targets (INTENT s.6), so every icon button is h-12 w-12. */
@@ -10,30 +11,6 @@ const ICON_BUTTON =
 
 function queuedScoresLabel(count: number): string {
   return `${count} ${count === 1 ? 'score' : 'scores'} not sent yet`;
-}
-
-/** Completed over total, drawn only when the count is known and there is something to complete. */
-function ClassProgressBar({ entry }: { entry: ClassEntry }) {
-  const total = entry.entry_count;
-  const done = Math.min(entry.completed_count, total);
-  return (
-    <div
-      role="progressbar"
-      aria-label={`${entry.class_name} scoring progress`}
-      aria-valuemin={0}
-      aria-valuemax={total}
-      aria-valuenow={done}
-      aria-valuetext={`${done} of ${total} scored`}
-      // Phones drop the bar: beside the status, the count and three 48px buttons it
-      // pushed the row past the card, and the "2 / 5" count already says it.
-      className="h-2 min-w-12 flex-1 overflow-hidden rounded-full bg-muted max-sm:hidden"
-    >
-      <div
-        className="h-full rounded-full bg-primary transition-[width]"
-        style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}
-      />
-    </div>
-  );
 }
 
 interface AtShowClassCardFooterProps {
@@ -89,7 +66,14 @@ export function AtShowClassCardFooter({
         {hasProgress ? (
           <>
             <span className="flex-1 sm:hidden" aria-hidden />
-            <ClassProgressBar entry={entry} />
+            <ClassProgressBar
+              label={`${entry.class_name} scoring progress`}
+              done={entry.completed_count}
+              total={entry.entry_count}
+              // Phones drop the bar: beside the status, the count and three 48px buttons it
+              // pushed the row past the card, and the "2 / 5" count already says it.
+              className="max-sm:hidden"
+            />
           </>
         ) : (
           <span className="flex-1" />

@@ -13,7 +13,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useState } from 'react';
-import { findInRingEntry, pendingByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
 
 import { cn } from '@/lib/utils';
 import { ListKeyboardSensor } from './listKeyboardSensor';
@@ -28,7 +27,6 @@ import {
 
 import { StatusPill } from './StatusPill';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
-import { NEXT_UP_PREVIEW_LIMIT } from '@/features/at-show/atShowNextUpPreview';
 import { ClassEntryResultCell } from './ClassEntryResultCell';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
@@ -53,7 +51,7 @@ import {
   runOrderAnnouncements,
 } from './runOrderDrag';
 import {
-  countClassEntries,
+  runQueuePreview,
   runStatusDisplay,
   type SecretaryCockpitClassEntry,
 } from './cockpitClassEntries';
@@ -73,21 +71,23 @@ const LABEL_ITEMS: readonly SecretaryCockpitPaperwork[] = [
   { reportId: 'armband-labels', label: 'Armband labels', state: 'unknown' },
 ];
 
-const TILE = 'rounded-lg border bg-muted/30 px-4 py-3';
-
-/** The one dog in the ring (armband tile and call name) and the next few waiting, in run order. */
-function InRingTile({ entries }: { entries: readonly SecretaryCockpitClassEntry[] }) {
-  // The shared run-queue rule, as Ringside reads it. A row that is not expected to run is folded
-  // to `pulled` in its queue entry, so `counted` needs no second filter here.
-  const byId = new Map(entries.map(entry => [entry.queue.id, entry]));
-  const rowOf = (queued: RunQueueEntry | undefined) => (queued ? byId.get(queued.id) : undefined);
-  const queue = entries.map(entry => entry.queue);
-  const inRing = rowOf(findInRingEntry(queue) ?? undefined);
-  const nextUp = pendingByRunOrder(queue)
-    .slice(0, NEXT_UP_PREVIEW_LIMIT)
-    .flatMap(queued => byId.get(queued.id) ?? []);
+/**
+ * The one dog in the ring (armband tile and call name) and the next few waiting, in run order.
+ * The class's counts are not repeated here: the schedule card carries them, and the header does
+ * when the card is not listed (MYK9-2141, MYK9-2143).
+ */
+export function InRingTile({
+  entries,
+  unread = false,
+}: {
+  entries: readonly SecretaryCockpitClassEntry[];
+  /** The entries have not been read, so there is nobody true to name yet. */
+  unread?: boolean;
+}) {
+  if (unread) return null;
+  const { inRing, nextUp } = runQueuePreview(entries);
   return (
-    <div className={cn(TILE, 'col-span-2')} data-testid="in-ring-tile">
+    <dl className="rounded-lg border bg-muted/30 px-4 py-3" data-testid="in-ring-tile">
       <dt className="text-xs font-medium text-muted-foreground">In ring</dt>
       <dd className="mt-1">
         {inRing ? (
@@ -123,43 +123,7 @@ function InRingTile({ entries }: { entries: readonly SecretaryCockpitClassEntry[
           </div>
         )}
       </dd>
-    </div>
-  );
-}
-
-/** Entered, scored, still to run as counts; the one in-ring dog and who is next as armbands. */
-export function ClassCountTiles({
-  entries,
-  unread = false,
-}: {
-  entries: readonly SecretaryCockpitClassEntry[];
-  /** The entries have not been read, so there is nothing true to count yet. */
-  unread?: boolean;
-}) {
-  if (unread) return null;
-  const counts = countClassEntries(entries);
-  const tiles = [
-    { label: 'Entered', value: counts.entered },
-    { label: 'Scored', value: counts.scored },
-    { label: 'Still to run', value: counts.stillToRun },
-  ];
-  return (
-    // The panel decides the columns, not the window: in the split its focus column can be 360px
-    // on a wide screen, where five tiles would not fit.
-    <div className="w-full [container-type:inline-size]">
-      <dl
-        className="grid grid-cols-2 gap-3 [@container(min-width:36rem)]:grid-cols-5"
-        data-testid="class-count-tiles"
-      >
-        {tiles.map(tile => (
-          <div key={tile.label} className={TILE}>
-            <dt className="text-xs font-medium text-muted-foreground">{tile.label}</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{tile.value}</dd>
-          </div>
-        ))}
-        <InRingTile entries={entries} />
-      </dl>
-    </div>
+    </dl>
   );
 }
 

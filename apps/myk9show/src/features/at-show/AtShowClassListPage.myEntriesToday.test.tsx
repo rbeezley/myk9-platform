@@ -213,8 +213,8 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
 
     expect(await screen.findByText('Ranger')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(await screen.findByText('Q')).toBeInTheDocument();
-    expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified, 0:58.00')).toBeInTheDocument();
+    // MYK9-2138: one result line ("Qualified, 0:58.00") on My Shows and Ringside.
     expect(screen.getByText('1 fault')).toBeInTheDocument();
     expect(screen.queryByText('preliminary')).not.toBeInTheDocument();
   });
@@ -228,8 +228,8 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     renderPage();
 
     expect(await screen.findByText('Rex')).toBeInTheDocument();
-    expect(await screen.findByText('Q')).toBeInTheDocument();
-    expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified, 0:58.00')).toBeInTheDocument();
+    // MYK9-2138: one result line ("Qualified, 0:58.00") on My Shows and Ringside.
     expect(screen.getByText('preliminary')).toBeInTheDocument();
   });
 

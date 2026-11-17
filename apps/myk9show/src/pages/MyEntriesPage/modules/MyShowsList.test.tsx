@@ -95,7 +95,7 @@ describe('MyShowsList — a multi-order show renders once, dog-first', () => {
     expect(within(dogCard('Willow')).getByText('at gate')).toBeInTheDocument();
     expect(within(dogCard('Ranger')).getByText('conflict')).toBeInTheDocument();
     expect(within(dogCard('Ranger')).getByText('preliminary')).toBeInTheDocument();
-    expect(within(dogCard('Ranger')).getByText('56.8s')).toBeInTheDocument();
+    expect(within(dogCard('Ranger')).getByText('Qualified, 0:56.80')).toBeInTheDocument();
     expect(within(dogCard('Ranger')).getByText('2F')).toBeInTheDocument();
     expect(within(dogCard('Scout')).getByText('Check in on the day')).toBeInTheDocument();
   });

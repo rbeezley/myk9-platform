@@ -28,6 +28,13 @@ import { ownerNameCacheKey, recallOwnerNames, rememberOwnerNames } from './owner
 import { attachRosterRelations, groupRegistrationsByDog } from './serverRosterRows';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { unsentWorkProvenByServer } from '../registrations/unsentWork';
+import {
+  dogSearchFilter,
+  ownerNameFilter,
+  registrationFilter,
+  searchWords,
+  type SearchTermIds,
+} from './searchAllDogsFilter';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -777,27 +784,54 @@ export const forceDeleteDog = async (
 // search" hint when the returned row count hits this limit.
 export const SEARCH_ALL_DOGS_LIMIT = 50;
 
-/** Most first-name / last-name splits tried for a typed full name. */
-const OWNER_NAME_MAX_SPLITS = 3;
+/** Ids from the registration and owner lookups for one term, and whether either filled its page. */
+async function findSearchTermIds(
+  term: string,
+  cap: number,
+  signal?: AbortSignal
+): Promise<SearchTermIds & { registrationsTruncated: boolean; ownersTruncated: boolean }> {
+  // MYK9-90: registration number and registered name live on
+  // `dog_registrations`. PostgREST cannot OR a parent-column filter with an
+  // embedded-table filter in one request, so resolve matching dog ids first
+  // and fold them into the dogs `.or(...)` as an id list.
+  const registrationQuery = supabase
+    .from('dog_registrations')
+    .select('dog_id')
+    // Breed is a registration attribute, so it is matched here alongside the
+    // number and registered name rather than against `dogs.breed`.
+    .or(registrationFilter(term))
+    .limit(cap);
+  // MYK9-2020: the owner's name. The secretary's search box promises it, and
+  // her local roster is capped, so a dog beyond it is found here or not at
+  // all. Same shape as the registration lookup, over the `people` rows RLS
+  // already lets her read (the same rows the `owner` embed returns).
+  const ownerQuery = supabase
+    .from('people')
+    .select('id')
+    .is('deleted_at', null)
+    .or(ownerNameFilter(term))
+    .limit(cap);
+  const [registrations, owners] = await Promise.all([
+    signal ? registrationQuery.abortSignal(signal) : registrationQuery,
+    signal ? ownerQuery.abortSignal(signal) : ownerQuery,
+  ]);
+  // Both errors are thrown, NOT swallowed. Treating a failed lookup as "no
+  // matches" would make a transient PostgREST, network, or authorization
+  // failure indistinguishable from "no such dog".
+  if (registrations.error) throw createDatabaseError(registrations.error, 'dog', 'search_all');
+  if (owners.error) throw createDatabaseError(owners.error, 'dog', 'search_all');
+  const registrationRows = (registrations.data ?? []) as Array<{ dog_id?: string | null }>;
+  const ownerRows = (owners.data ?? []) as Array<{ id?: string | null }>;
+  return {
+    registrationDogIds: distinctIds(registrationRows.map(r => r.dog_id)),
+    ownerIds: distinctIds(ownerRows.map(r => r.id)),
+    registrationsTruncated: registrationRows.length >= cap,
+    ownersTruncated: ownerRows.length >= cap,
+  };
+}
 
-/**
- * PostgREST `.or(...)` body matching a person by first or last name, and a
- * typed full name by every split of it into a first name (the first k words)
- * and a last name (the rest), so "Mary Jane Smith" finds first name "Mary
- * Jane". At most three splits (four words); later words stay in the last name.
- * `term` is already escaped by `sanitizePostgRESTFilter`, so commas,
- * parentheses, dots and asterisks in it are literal text.
- */
-function ownerNameFilter(term: string): string {
-  const filters = [`first_name.ilike.%${term}%`, `last_name.ilike.%${term}%`];
-  const words = term.split(/\s+/).filter(Boolean);
-  const splits = Math.min(words.length - 1, OWNER_NAME_MAX_SPLITS);
-  for (let k = 1; k <= splits; k += 1) {
-    const first = words.slice(0, k).join(' ');
-    const last = words.slice(k).join(' ');
-    filters.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
-  }
-  return filters.join(',');
+function distinctIds(ids: Array<string | null | undefined>): string[] {
+  return [...new Set(ids.filter((id): id is string => typeof id === 'string' && id.length > 0))];
 }
 
 // Search dogs across the entire system (not scoped to ownership).
@@ -821,73 +855,29 @@ export const searchAllDogs = async (
     }
     const sanitized = sanitizePostgRESTFilter(trimmed);
 
-    // MYK9-90: registration number and registered name live on
-    // `dog_registrations`. The old filter searched `dogs.akc_number`, which is
-    // NULL for every row, so no dog was findable by registration number at all.
-    // PostgREST cannot OR a parent-column filter with an embedded-table filter
-    // in one request, so resolve matching dog ids first and fold them into the
-    // same `.or(...)` as an id list.
-    //
-    // The pre-query's error is thrown, NOT swallowed. Treating a failed
-    // registration lookup as "no matches" would make a transient PostgREST,
-    // network, or authorization failure indistinguishable from "no such dog":
-    // a registration-number search would return an empty list with
-    // `error: null` while the backend was actually broken.
-    const registrationQuery = supabase
-      .from('dog_registrations')
-      .select('dog_id')
-      // Breed is a registration attribute, so it is matched here alongside the
-      // number and registered name rather than against `dogs.breed`.
-      .or(
-        `registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%`
-      )
-      .limit(limit);
-    const { data: regMatches, error: regError } = signal
-      ? await registrationQuery.abortSignal(signal)
-      : await registrationQuery;
-    if (regError) throw createDatabaseError(regError, 'dog', 'search_all');
-    const registrationDogIds = [
-      ...new Set(
-        ((regMatches ?? []) as Array<{ dog_id?: string | null }>)
-          .map(r => r.dog_id)
-          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    // MYK9-2026: a multi-word search also matches word by word, the rule the
+    // picker applies on the device, so "rex lab" finds Rex the Labrador here
+    // too. Each word gets its own, smaller lookup page so the id lists folded
+    // into the one dogs request stay short.
+    const wordCap = Math.max(1, Math.floor(limit / 2));
+    const [whole, wordIds] = await Promise.all([
+      findSearchTermIds(sanitized, limit, signal),
+      Promise.all(
+        searchWords(trimmed).map(async word => {
+          const term = sanitizePostgRESTFilter(word);
+          return {
+            term,
+            ids: await findSearchTermIds(term, wordCap, signal),
+          };
+        })
       ),
-    ];
-
-    // MYK9-2020: the owner's name. The secretary's search box promises it, and
-    // her local roster is capped, so a dog beyond it is found here or not at
-    // all. Same shape as the registration pre-query (ids folded into the one
-    // `.or(...)`), over the `people` rows RLS already lets her read (the same
-    // rows the `owner` embed below returns). Its error is thrown, not
-    // swallowed, for the same reason.
-    const ownerQuery = supabase
-      .from('people')
-      .select('id')
-      .is('deleted_at', null)
-      .or(ownerNameFilter(sanitized))
-      .limit(limit);
-    const { data: ownerMatches, error: ownerError } = signal
-      ? await ownerQuery.abortSignal(signal)
-      : await ownerQuery;
-    if (ownerError) throw createDatabaseError(ownerError, 'dog', 'search_all');
-    // A full page of owners means more may exist that were never folded in, so
-    // the result is reported truncated ("type more") whatever the dog count.
-    const ownersTruncated = (ownerMatches ?? []).length >= limit;
-    const ownerIds = [
-      ...new Set(
-        ((ownerMatches ?? []) as Array<{ id?: string | null }>)
-          .map(r => r.id)
-          .filter((id): id is string => typeof id === 'string' && id.length > 0)
-      ),
-    ];
-
-    const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
-    if (registrationDogIds.length > 0) {
-      orFilters.push(`id.in.(${registrationDogIds.join(',')})`);
-    }
-    if (ownerIds.length > 0) {
-      orFilters.push(`owner_id.in.(${ownerIds.join(',')})`);
-    }
+    ]);
+    // A full page of owners (or of any word's matches) means more may exist
+    // that were never folded in, so the result is reported truncated ("type
+    // more") whatever the dog count.
+    const lookupsTruncated =
+      whole.ownersTruncated ||
+      wordIds.some(w => w.ids.ownersTruncated || w.ids.registrationsTruncated);
 
     const dogQuery = supabase
       .from('dogs')
@@ -904,7 +894,7 @@ export const searchAllDogs = async (
         registrations:dog_registrations(*)
       `
       )
-      .or(orFilters.join(','))
+      .or(dogSearchFilter({ term: sanitized, ids: whole }, wordIds))
       .is('deleted_at', null)
       .order('name', { ascending: true })
       .limit(limit);
@@ -915,7 +905,7 @@ export const searchAllDogs = async (
 
     if (error) throw createDatabaseError(error, 'dog', 'search_all');
     const rows = (data as Record<string, unknown>[] | null) ?? [];
-    return { data: rows, error: null, hitLimit: rows.length >= limit || ownersTruncated };
+    return { data: rows, error: null, hitLimit: rows.length >= limit || lookupsTruncated };
   } catch (error) {
     // React Query treats an aborted query as a superseded request. Preserve
     // that cancellation signal instead of converting it into a search error

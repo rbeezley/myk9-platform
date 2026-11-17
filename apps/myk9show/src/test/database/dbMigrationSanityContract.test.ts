@@ -63,7 +63,7 @@ describe('DB migration sanity contracts', () => {
     const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
     expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
     expect(run).toContain(
-      'idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations)'
+      'idempotencyKey = await confirmationIdempotencyKey(group, claimed, generations)'
     );
   });
 

@@ -237,7 +237,8 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
         {/* MYK9-2137: the same read-only Requirements view Ringside's class card opens. */}
         {cls.classId && !cls.unresolved && (
           <>
-            <span aria-hidden="true" className="text-muted-foreground">
+            {/* First child of the row means nothing precedes it: no dangling dot. */}
+            <span aria-hidden="true" className="text-muted-foreground first:hidden">
               ·
             </span>
             <button
@@ -247,7 +248,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
               aria-haspopup="dialog"
               className={LINK_CLASS}
             >
-              Requirements
+              requirements
             </button>
           </>
         )}
@@ -281,6 +282,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           isOpen
           onClose={() => setRequirementsOpen(false)}
           showEntryCount={false}
+          perAreaFromClass
           {...(cls.trialTimezone ? { timeZone: cls.trialTimezone } : {})}
           classData={{
             id: cls.classId,

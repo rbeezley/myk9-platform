@@ -244,4 +244,40 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     await screen.findByText('Not set');
     expect(screen.queryByText(/set Mar 5/)).not.toBeInTheDocument();
   });
+
+  it('draws no blank subtitle when the class names no element, level or count (MYK9-2137)', async () => {
+    replica.rows.clear();
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        showEntryCount={false}
+        classData={{ ...classData, element: '', level: '' }}
+      />
+    );
+    await screen.findByText(/aren.t on this device yet/);
+    expect(screen.getByRole('dialog').querySelector('p:empty')).toBeNull();
+    expect(screen.queryByText('·')).not.toBeInTheDocument();
+  });
+
+  it("follows the class's areas for per-area times only when the caller opts in", async () => {
+    const { unmount } = render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        classData={{ ...classData, per_area_times: undefined }}
+      />
+    );
+    expect(await screen.findByText('1:30')).toBeInTheDocument();
+    unmount();
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        perAreaFromClass
+        classData={{ ...classData, per_area_times: undefined }}
+      />
+    );
+    expect(await screen.findByText(/Area 1 1:30/)).toBeInTheDocument();
+  });
 });

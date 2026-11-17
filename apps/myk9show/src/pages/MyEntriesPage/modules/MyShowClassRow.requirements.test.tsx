@@ -7,7 +7,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
-import { makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import { EntryStatus } from '@/types/show-registration-types';
+import { makeClass, day, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
 import { MyShowsList } from './MyShowsList';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -74,5 +75,29 @@ describe('My Shows class row Requirements link (MYK9-2137)', () => {
   it('offers no link on a row whose class has not replicated yet', () => {
     renderRow([makeClass({ unresolved: true })]);
     expect(screen.queryByRole('button', { name: /^Requirements for/ })).not.toBeInTheDocument();
+  });
+
+  it("reads in the row's lowercase verb voice", () => {
+    renderRow([makeClass()]);
+    expect(
+      screen.getByRole('button', { name: 'Requirements for Container Novice A' })
+    ).toHaveTextContent(/^requirements$/);
+  });
+
+  it('starts no dot when nothing precedes the link, and keeps it when something does', () => {
+    // A pending entry on a day still ahead: the row renders no state word or control.
+    const { unmount } = renderRow([
+      makeClass({ entryStatus: EntryStatus.PENDING, trialDate: day('2026-12-01') }),
+    ]);
+    const link = screen.getByRole('button', { name: 'Requirements for Container Novice A' });
+    const dot = link.previousElementSibling as HTMLElement;
+    expect(dot).toHaveAttribute('aria-hidden', 'true');
+    expect(dot.previousElementSibling).toBeNull();
+    unmount();
+
+    // A scored-free accepted row on its trial day has a state word before the link.
+    renderRow([makeClass({ trialDate: day('2026-10-24') })]);
+    const link2 = screen.getByRole('button', { name: 'Requirements for Container Novice A' });
+    expect((link2.previousElementSibling as HTMLElement).previousElementSibling).not.toBeNull();
   });
 });

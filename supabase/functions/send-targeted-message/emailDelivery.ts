@@ -195,7 +195,7 @@ export async function writeEmailLog(
     from(table: string): {
       insert(rows: unknown): {
         select(columns: string): PromiseLike<{
-          data: Array<{ id: string }> | null;
+          data: Array<{ id: string; recipient_email: string | null }> | null;
           error: unknown;
         }>;
       };
@@ -205,19 +205,41 @@ export async function writeEmailLog(
   copyFor?: (recipientEmail: string) => { subject: string; html: string }
 ): Promise<boolean> {
   if (rows.length === 0) return true;
-  const { data, error } = await supabase.from('email_log').insert(rows).select('id');
+  const { data, error } = await supabase
+    .from('email_log')
+    .insert(rows)
+    .select('id, recipient_email');
   if (error) {
     console.error('send-targeted-message: failed to record email delivery history');
     return false;
   }
-  if (copyFor && data && data.length === rows.length) {
-    await storeEmailContents(
-      supabase as unknown as EmailContentClient,
-      rows.map((row, index) => ({
-        emailLogId: data[index]?.id,
-        ...copyFor(row.recipient_email),
-      }))
-    );
+  if (copyFor && data) {
+    // Pair each copy to its email_log row by recipient, never by position. A recipient that
+    // appears twice, or has no returned row, is skipped (and logged) rather than risk a mismatch.
+    const idsByEmail = new Map<string, string[]>();
+    for (const logged of data) {
+      if (!logged.recipient_email) continue;
+      idsByEmail.set(logged.recipient_email, [
+        ...(idsByEmail.get(logged.recipient_email) ?? []),
+        logged.id,
+      ]);
+    }
+    const sentCount = new Map<string, number>();
+    for (const row of rows) {
+      sentCount.set(row.recipient_email, (sentCount.get(row.recipient_email) ?? 0) + 1);
+    }
+    const items: Array<{ emailLogId: string; subject: string; html: string }> = [];
+    for (const [email, count] of sentCount) {
+      const ids = idsByEmail.get(email);
+      if (count !== 1 || !ids || ids.length !== 1) {
+        console.error('send-targeted-message: skipped keeping a copy of an email', {
+          reason: count !== 1 ? 'duplicate_recipient' : 'no_matching_log_row',
+        });
+        continue;
+      }
+      items.push({ emailLogId: ids[0]!, ...copyFor(email) });
+    }
+    await storeEmailContents(supabase as unknown as EmailContentClient, items);
   }
   return true;
 }

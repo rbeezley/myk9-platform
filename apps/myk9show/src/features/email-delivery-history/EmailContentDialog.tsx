@@ -59,21 +59,24 @@ function EmailContentBody({
         <DialogTitle>{query.data?.subject ?? label}</DialogTitle>
         <DialogDescription>What this email said when it was sent.</DialogDescription>
       </DialogHeader>
-      {query.isPending ? (
+      {query.fetchStatus === 'paused' || (query.isPending && !isOnline()) ? (
+        <RetryNotice
+          message="You’re offline. Connect to open this email."
+          onRetry={() => void query.refetch()}
+        />
+      ) : query.isPending ? (
         <p className="text-sm text-muted-foreground" role="status">
           Loading email…
         </p>
       ) : query.isError ? (
-        <div>
-          <p className="text-sm text-destructive">This email isn’t available right now.</p>
-          <button
-            type="button"
-            className="mt-3 min-h-11 rounded-md border px-3 text-sm font-medium hover:bg-muted"
-            onClick={() => void query.refetch()}
-          >
-            Try again
-          </button>
-        </div>
+        (query.error as { code?: string }).code === '42501' ? (
+          <p className="text-sm text-destructive">You don’t have access to this show’s emails.</p>
+        ) : (
+          <RetryNotice
+            message="This email isn’t available right now."
+            onRetry={() => void query.refetch()}
+          />
+        )
       ) : query.data ? (
         // An empty sandbox: no scripts, forms, popups or same-origin access for the email's html.
         <iframe
@@ -89,5 +92,24 @@ function EmailContentBody({
         </p>
       )}
     </>
+  );
+}
+
+function isOnline(): boolean {
+  return typeof navigator === 'undefined' || navigator.onLine;
+}
+
+function RetryNotice({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div>
+      <p className="text-sm text-destructive">{message}</p>
+      <button
+        type="button"
+        className="mt-3 min-h-11 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+        onClick={onRetry}
+      >
+        Try again
+      </button>
+    </div>
   );
 }

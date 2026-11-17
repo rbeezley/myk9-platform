@@ -554,15 +554,19 @@ describe('writeEmailLog keeps a copy of each email (MYK9-2115)', () => {
     },
   ];
 
-  function makeSupabase() {
+  function makeSupabase(
+    returned: Array<{ id: string; recipient_email: string }> = [
+      { id: 'log-a', recipient_email: 'a@example.com' },
+      { id: 'log-b', recipient_email: 'b@example.com' },
+    ]
+  ) {
     const contentInsert = vi.fn(() => Promise.resolve({ error: null }));
     const from = vi.fn((table: string) =>
       table === 'email_log_contents'
         ? { insert: contentInsert }
         : {
             insert: vi.fn(() => ({
-              select: () =>
-                Promise.resolve({ data: [{ id: 'log-a' }, { id: 'log-b' }], error: null }),
+              select: () => Promise.resolve({ data: returned, error: null }),
             })),
           }
     );
@@ -576,6 +580,32 @@ describe('writeEmailLog keeps a copy of each email (MYK9-2115)', () => {
       { email_log_id: 'log-a', subject: 'S', html: '<p>a@example.com</p>' },
       { email_log_id: 'log-b', subject: 'S', html: '<p>b@example.com</p>' },
     ]);
+  });
+
+  it('pairs copies by recipient when the rows come back in reverse order', async () => {
+    const { supabase, contentInsert } = makeSupabase([
+      { id: 'log-b', recipient_email: 'b@example.com' },
+      { id: 'log-a', recipient_email: 'a@example.com' },
+    ]);
+    await writeEmailLog(supabase, rows, email => ({ subject: 'S', html: `<p>${email}</p>` }));
+    expect(contentInsert).toHaveBeenCalledWith([
+      { email_log_id: 'log-a', subject: 'S', html: '<p>a@example.com</p>' },
+      { email_log_id: 'log-b', subject: 'S', html: '<p>b@example.com</p>' },
+    ]);
+  });
+
+  it('skips a duplicated or unmatched recipient instead of guessing', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { supabase, contentInsert } = makeSupabase([
+      { id: 'log-a', recipient_email: 'a@example.com' },
+    ]);
+    await writeEmailLog(supabase, [rows[0]!, rows[0]!, rows[1]!], email => ({
+      subject: 'S',
+      html: email,
+    }));
+    expect(contentInsert).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it('stores nothing without a copy builder', async () => {

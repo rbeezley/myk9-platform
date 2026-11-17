@@ -12,7 +12,7 @@ export interface EmailDeliveryHistoryPage {
 
 interface RpcResult<T> {
   data: T | null;
-  error: { message?: string } | null;
+  error: { message?: string; code?: string } | null;
 }
 
 export interface EmailDeliverySupabaseClient {
@@ -61,7 +61,9 @@ export async function fetchShowEmailContent(args: {
     p_email_log_id: args.emailLogId,
   });
   if (result.error) {
-    throw new Error(result.error.message ?? 'This email is unavailable');
+    throw Object.assign(new Error(result.error.message ?? 'This email is unavailable'), {
+      code: result.error.code,
+    });
   }
   return result.data?.[0] ?? null;
 }

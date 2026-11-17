@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EmailDeliveryHistory } from './EmailDeliveryHistory';
@@ -97,6 +98,51 @@ describe('EmailDeliveryHistory', () => {
     expect(mockFetchContent).toHaveBeenCalledWith(
       expect.objectContaining({ emailLogId: 'attempt-1' })
     );
+  });
+
+  it('says so, with a retry, when the device is offline and the read is paused', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockResolvedValue({ subject: 'S', html: '<p>x</p>' });
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+    const viewButton = await screen.findByRole('button', { name: 'View email' });
+
+    onlineManager.setOnline(false);
+    try {
+      await user.click(viewButton);
+
+      expect(
+        await screen.findByText('You’re offline. Connect to open this email.')
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+      expect(screen.queryByText('Loading email…')).not.toBeInTheDocument();
+      expect(mockFetchContent).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('explains a permission error without offering a retry', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockRejectedValue(Object.assign(new Error('nope'), { code: '42501' }));
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(
+      await screen.findByText('You don’t have access to this show’s emails.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the generic message and a retry for any other error', async () => {
+    mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
+    mockFetchContent.mockRejectedValue(new Error('boom'));
+    const { user } = render(<EmailDeliveryHistory showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'View email' }));
+
+    expect(await screen.findByText('This email isn’t available right now.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('says plainly when no copy of the email was kept', async () => {

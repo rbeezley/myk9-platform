@@ -239,4 +239,37 @@ begin
   raise notice 'PASS H switching the step on queues';
 end $$;
 
+-- I: a handler who does not own the dog is a recipient too, once, even with a dog of their own
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status) values
+  ('00000000-0000-0000-0000-000002076402', 'MYK9-2076 Handler Show', 'AKC', current_date, current_date,
+   '00000000-0000-0000-0000-000002076301', 'draft');
+insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
+  ('00000000-0000-0000-0000-000002076403', '00000000-0000-0000-0000-000002076402', 'Handler Trial', current_date, 'AKC', 'Scent Work');
+insert into public.classes (id, trial_id, name, status, element, level, section) values
+  ('00000000-0000-0000-0000-000002076404', '00000000-0000-0000-0000-000002076403', 'Container Novice A', 'completed', 'Container', 'Novice', 'A');
+insert into public.people (id, first_name, last_name, email) values
+  ('00000000-0000-0000-0000-000002076411', 'Ivy', 'Owner', 'ivy@example.test'),
+  ('00000000-0000-0000-0000-000002076412', 'Jon', 'Handler', 'jon@example.test');
+insert into public.dogs (id, name, call_name, breed, owner_id) values
+  ('00000000-0000-0000-0000-000002076421', 'Ivy Dog', 'Ivy', 'Beagle', '00000000-0000-0000-0000-000002076411'),
+  ('00000000-0000-0000-0000-000002076422', 'Jon Dog', 'Jon', 'Beagle', '00000000-0000-0000-0000-000002076412');
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+insert into public.entries (id, dog_id, handler_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000002076431', '00000000-0000-0000-0000-000002076421', '00000000-0000-0000-0000-000002076412', '00000000-0000-0000-0000-000002076404', '00000000-0000-0000-0000-000002076402', '00000000-0000-0000-0000-000002076403', 'confirmed', '1', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000002076432', '00000000-0000-0000-0000-000002076422', null, '00000000-0000-0000-0000-000002076404', '00000000-0000-0000-0000-000002076402', '00000000-0000-0000-0000-000002076403', 'confirmed', '2', 2, 'no-status');
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+do $$
+begin
+  update public.classes set results_released_at = now() where id = '00000000-0000-0000-0000-000002076404';
+  if pg_temp.job_count('00000000-0000-0000-0000-000002076402') <> 2
+     or (select count(distinct recipient_person_id) from public.show_lifecycle_email_jobs
+          where show_id = '00000000-0000-0000-0000-000002076402'
+            and recipient_person_id in ('00000000-0000-0000-0000-000002076411', '00000000-0000-0000-0000-000002076412')) <> 2 then
+    raise exception 'FAIL I expected exactly one job each for the owner and the handler (found %)',
+      pg_temp.job_count('00000000-0000-0000-0000-000002076402');
+  end if;
+  raise notice 'PASS I the owner and a different handler each get one job';
+end $$;
+
 rollback;

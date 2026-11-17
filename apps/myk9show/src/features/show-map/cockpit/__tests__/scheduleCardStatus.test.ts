@@ -83,10 +83,8 @@ describe('buildScheduleCardStatus', () => {
 
   it('does not count a pulled dog as not checked in, or as entered', () => {
     const pulled = entry(1, { state: 'pulled', counted: false, place: null });
-    expect(buildScheduleCardStatus(cls({ entries: [pulled] }), true)).toEqual({
-      ...NOTHING,
-      nextStep: 'None entered',
-    });
+    // A pulled dog is still an entry: the table lists it, so the card must not say "None entered".
+    expect(buildScheduleCardStatus(cls({ entries: [pulled] }), true)).toEqual(NOTHING);
   });
 
   it("uses the class's own counts only while its entries are unread", () => {

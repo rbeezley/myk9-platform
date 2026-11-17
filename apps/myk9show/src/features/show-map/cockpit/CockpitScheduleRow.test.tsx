@@ -172,6 +172,32 @@ describe('CockpitScheduleRow layout', () => {
     expect(screen.queryByTestId('class-ran')).toBeNull();
   });
 
+  it('keeps a recorded start and finish on a class cancelled after it began', () => {
+    renderRow(0, vi.fn(), {
+      ...running,
+      lifecycle: { evidence: 'recorded', value: 'cancelled' },
+      finishedLabel: '10:10 AM',
+    });
+    expect(screen.getByTestId('class-time')).toHaveTextContent(/^Expected 9:00 AM$/);
+    expect(screen.getByTestId('class-ran')).toHaveTextContent(
+      /^Started 9:42 AM · Finished 10:10 AM$/
+    );
+    expect(screen.queryByRole('progressbar', { hidden: true })).toBeNull();
+  });
+
+  it('breaks the start and finish line between its parts, never inside a time', () => {
+    renderRow(0, vi.fn(), { ...running, finishedLabel: '11:05 AM' });
+    const parts = [...screen.getByTestId('class-ran').children];
+    expect(parts.map(part => part.textContent)).toEqual(['Started 9:42 AM', '· Finished 11:05 AM']);
+    parts.forEach(part => expect(part).toHaveClass('whitespace-nowrap'));
+  });
+
+  it('clips the progress bar to the room the card has left', () => {
+    renderRow(0, vi.fn(), running);
+    const bar = screen.getByRole('progressbar', { hidden: true });
+    expect(bar.parentElement).toHaveClass('min-w-0', 'overflow-hidden');
+  });
+
   it('states the attention count in words and as visible text', () => {
     renderRow(0, vi.fn(), { ...classItem, attentionCount: 3 });
     expect(screen.getByRole('img', { name: '3 need attention' })).toBeInTheDocument();

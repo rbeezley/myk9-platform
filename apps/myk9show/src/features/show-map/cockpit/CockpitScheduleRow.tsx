@@ -93,8 +93,10 @@ export function CockpitScheduleRow({
   const attentionWords = `${attention} ${attention === 1 ? 'needs' : 'need'} attention`;
   const lifecycle = classItem.lifecycle.value;
   const { progress, nextStep } = classItem.cardStatus;
-  // Before the class starts the bar would be an empty track under "0 / 5".
   const started = lifecycle === 'in-progress' || lifecycle === 'complete';
+  // A recorded start or finish counts whatever the status now says (a class cancelled after it
+  // began), so a time on record is never hidden.
+  const ran = started || classItem.startedLabel !== null || classItem.finishedLabel !== null;
   return (
     <div
       id={getCockpitAnchorElementId(classItem.id)}
@@ -152,18 +154,24 @@ export function CockpitScheduleRow({
             <Clock3 size={13} className="shrink-0" aria-hidden="true" />
             {/* Once a class is under way the planned time is labelled, so it is never read as
                 the start. */}
-            {started ? (time ? `Expected ${time}` : 'No expected time') : (time ?? 'No time')}
+            {ran ? (time ? `Expected ${time}` : 'No expected time') : (time ?? 'No time')}
           </span>
           {/* The card is the one place the times are compared, so it carries all of them: the
-              recorded start and finish, and a start nobody recorded. */}
-          {started && (
+              recorded start and finish, and a start nobody recorded. Each part stays whole, so
+              a narrow card breaks the line between them, never inside a time. */}
+          {ran && (
             <span data-testid="class-ran" className="text-xs">
-              {[
-                classItem.startedLabel ? `Started ${classItem.startedLabel}` : 'Start not recorded',
-                classItem.finishedLabel ? `Finished ${classItem.finishedLabel}` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
+              <span className="whitespace-nowrap">
+                {classItem.startedLabel
+                  ? `Started ${classItem.startedLabel}`
+                  : 'Start not recorded'}
+              </span>
+              {classItem.finishedLabel && (
+                <>
+                  {' '}
+                  <span className="whitespace-nowrap">· Finished {classItem.finishedLabel}</span>
+                </>
+              )}
             </span>
           )}
         </div>
@@ -207,7 +215,7 @@ export function CockpitScheduleRow({
             {/* Before the class starts the bar would be an empty track under "0 / 5". Hidden from
                 screen readers here: the count beside it already says "3 of 5 scored". */}
             {progress && started && (
-              <span aria-hidden="true" className="flex min-w-0 flex-1">
+              <span aria-hidden="true" className="flex min-w-0 flex-1 overflow-hidden rounded-full">
                 <ClassProgressBar
                   label={`${classItem.name} scoring progress`}
                   done={progress.scored}

@@ -98,13 +98,14 @@ export function buildScheduleCardStatus(
       return {
         ...NOTHING,
         progress,
-        // Of the same entered total; notCheckedIn is 0 while the entries are unread. A class known
-        // to have nobody entered says so: with no count beside the badge it would otherwise read
-        // like a class whose entries have not loaded.
+        // Of the same entered total; notCheckedIn is 0 while the entries are unread. A class with
+        // no rows and a count known to be zero says so: with no count beside the badge it would
+        // otherwise read like a class whose entries have not loaded. Rows that will not run
+        // (pulled, absent) are entries, so a class holding only those does not say it.
         nextStep:
           counts.notCheckedIn > 0
             ? `${counts.notCheckedIn} of ${counts.entered} not checked in`
-            : total === 0
+            : !read && cls.entryCount === 0
               ? 'None entered'
               : null,
       };

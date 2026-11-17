@@ -22,13 +22,14 @@ describe('DeskFormOutcomeNotice (MYK9-2149)', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('says the money on the form covered it, with no link', () => {
+  it('says nothing is owed, in neutral words, and still links to the entry form', () => {
     render(<DeskFormOutcomeNotice showId="show-1" outcome={{ formId: 'form-1', owedCents: 0 }} />);
 
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Covered by the money already on this form.'
+    expect(screen.getByRole('status')).toHaveTextContent('Nothing is owed on this form now.');
+    expect(screen.getByRole('link', { name: 'Open the entry form' })).toHaveAttribute(
+      'target',
+      '_blank'
     );
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('links to the entry form when what is owed could not be read', () => {

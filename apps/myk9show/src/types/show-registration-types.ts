@@ -50,6 +50,12 @@ export interface PaymentDetails {
    * server re-checks who is asking.
    */
   chargeJuniorFee?: boolean;
+  /**
+   * MYK9-2149: the secretary chose "Use the money already on this form (take
+   * nothing now)". Nothing changed hands: submission sends no payment and no
+   * method, and the server settles what the form's money covers.
+   */
+  useFormMoney?: boolean;
 }
 
 // Registration context for role-based workflows

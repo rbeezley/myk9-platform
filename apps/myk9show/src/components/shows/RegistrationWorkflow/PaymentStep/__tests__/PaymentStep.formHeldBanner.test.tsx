@@ -1,13 +1,14 @@
 /**
- * MYK9-2149 (owner decision: inform only): when the exhibitor's form already holds money, the
- * desk's payment step says so and nothing else. Every choice, default and the submit stay as
- * they are; anything taken is recorded in full.
+ * MYK9-2149 (owner decision: inform only): when a confirmed read says the exhibitor's form
+ * already holds money, the desk's payment step says so and offers ONE more choice, "Use the
+ * money already on this form (take nothing now)". The secretary picks it herself: nothing is
+ * preselected, and no later read changes what she chose. Every other choice is unchanged.
  */
 import React from 'react';
 import { render, screen } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makePaymentResolution } from '@/test/utils/paymentResolution';
-import type { PaymentMethod } from '@/types/show-registration-types';
+import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
 import { PaymentStep } from '../index';
 
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -35,8 +36,12 @@ vi.mock('@/components/auth/PermissionGuard', () => ({
 const onPaymentMethodChange = vi.fn();
 const onPaymentDetailsChange = vi.fn();
 
-function renderStep(formHeldCents: number | null, paymentMethod: PaymentMethod | '' = '') {
-  return render(
+function step(
+  formHeldCents: number | null,
+  paymentMethod: PaymentMethod | '' = '',
+  details: PaymentDetails = {}
+) {
+  return (
     <PaymentStep
       staffWorkflow
       formHeldCents={formHeldCents}
@@ -50,12 +55,14 @@ function renderStep(formHeldCents: number | null, paymentMethod: PaymentMethod |
       paymentMethod={paymentMethod}
       onPaymentMethodChange={onPaymentMethodChange}
       onPaymentDetailsChange={onPaymentDetailsChange}
-      getPaymentDetails={() => ({})}
+      getPaymentDetails={() => details}
     />
   );
 }
 
-const BANNER = 'This form already holds $40.00. Take only what is still owed.';
+const BANNER =
+  "This form already holds $40.00. To use it, choose 'Use the money already on this form'. Record anything still owed on the entry form after submitting.";
+const USE_FORM_MONEY = /^Use the money already on this form \(take nothing now\)/;
 const CHOICES = [
   /^Check received/,
   /^Cash received/,
@@ -65,16 +72,20 @@ const CHOICES = [
   /^Free entry/,
 ];
 
-describe('the money already on the form is said, never acted on (MYK9-2149)', () => {
+describe('the money already on the form (MYK9-2149, inform only)', () => {
   beforeEach(() => {
     onPaymentMethodChange.mockClear();
     onPaymentDetailsChange.mockClear();
   });
 
-  it('shows the banner on a confirmed read, beside every usual choice, choosing nothing', () => {
-    renderStep(4000);
+  it('on a confirmed read, says so and offers the choice, preselecting nothing', () => {
+    render(step(4000));
 
     expect(screen.getByText(BANNER)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: USE_FORM_MONEY })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
     for (const name of CHOICES) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
@@ -82,22 +93,47 @@ describe('the money already on the form is said, never acted on (MYK9-2149)', ()
     expect(onPaymentDetailsChange).not.toHaveBeenCalled();
   });
 
-  it('leaves a choice the secretary makes exactly as it would be without the banner', async () => {
-    const { user } = renderStep(4000, 'secretary_paid');
+  it('choosing it takes nothing: no cash or check is named', async () => {
+    const { user } = render(step(4000));
+
+    await user.click(screen.getByRole('button', { name: USE_FORM_MONEY }));
+
+    expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ useFormMoney: true, receivedMethod: undefined })
+    );
+    expect(onPaymentMethodChange).toHaveBeenLastCalledWith('secretary_paid');
+  });
+
+  it('a later read does not change, clear or hide what she chose', () => {
+    const { rerender } = render(step(4000, 'secretary_paid', { useFormMoney: true }));
+
+    rerender(step(null, 'secretary_paid', { useFormMoney: true }));
+
+    expect(screen.queryByText(BANNER)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: USE_FORM_MONEY })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(onPaymentMethodChange).not.toHaveBeenCalled();
+    expect(onPaymentDetailsChange).not.toHaveBeenCalled();
+  });
+
+  it('cash received still works as always beside it, and drops the form-money choice', async () => {
+    const { user } = render(step(4000, 'secretary_paid', { useFormMoney: true }));
 
     await user.click(screen.getByRole('button', { name: /^Cash received/ }));
 
     expect(onPaymentDetailsChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ receivedMethod: 'cash' })
+      expect.objectContaining({ receivedMethod: 'cash', useFormMoney: false })
     );
     expect(onPaymentMethodChange).toHaveBeenLastCalledWith('secretary_paid');
-    expect(screen.getByText(BANNER)).toBeInTheDocument();
   });
 
-  it('shows no banner when nothing was confirmed (loading, failed, offline or nothing held)', () => {
-    renderStep(null);
+  it('no banner and no extra choice when nothing was confirmed', () => {
+    render(step(null));
 
     expect(screen.queryByText(/already holds/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: USE_FORM_MONEY })).not.toBeInTheDocument();
     for (const name of CHOICES) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }

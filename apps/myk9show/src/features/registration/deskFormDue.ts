@@ -25,9 +25,9 @@ export function heldCentsFromDue(dueCents: number): number {
   return dueCents < 0 ? -dueCents : 0;
 }
 
-/** "This form already holds $40.00. Take only what is still owed." */
+/** The payment step's banner when a confirmed read says the form holds money. */
 export function formHoldsBannerLabel(heldCents: number): string {
-  return `This form already holds ${formatCartCurrency(heldCents)}. Take only what is still owed.`;
+  return `This form already holds ${formatCartCurrency(heldCents)}. To use it, choose 'Use the money already on this form'. Record anything still owed on the entry form after submitting.`;
 }
 
 /** What the desk shows after submitting onto a form that held money. */
@@ -46,5 +46,5 @@ export function deskFormOutcomeLabel(owedCents: number | null): string {
   if (owedCents > 0) {
     return `Still owed on this form: ${formatCartCurrency(owedCents)}. Record it on the entry form when you take it.`;
   }
-  return 'Covered by the money already on this form.';
+  return 'Nothing is owed on this form now.';
 }

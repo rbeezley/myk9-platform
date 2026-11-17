@@ -42,12 +42,13 @@ describe('deskFormDue (MYK9-2149)', () => {
 
   it('words what the form holds and what is still owed, without dashes', () => {
     expect(formHoldsBannerLabel(4000)).toBe(
-      'This form already holds $40.00. Take only what is still owed.'
+      "This form already holds $40.00. To use it, choose 'Use the money already on this form'. Record anything still owed on the entry form after submitting."
     );
     expect(deskFormOutcomeLabel(2000)).toBe(
       'Still owed on this form: $20.00. Record it on the entry form when you take it.'
     );
-    expect(deskFormOutcomeLabel(0)).toBe('Covered by the money already on this form.');
+    expect(deskFormOutcomeLabel(0)).toBe('Nothing is owed on this form now.');
+    expect(deskFormOutcomeLabel(-1000)).toBe('Nothing is owed on this form now.');
     expect(deskFormOutcomeLabel(null)).toMatch(/could not read what is still owed/);
   });
 });

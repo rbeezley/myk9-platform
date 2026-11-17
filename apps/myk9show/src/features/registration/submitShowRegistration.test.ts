@@ -370,9 +370,9 @@ describe('submitShowRegistration', () => {
 
     const result = await submitShowRegistration(params);
 
+    // MYK9-2149: only the details the final choice saves (receivedMethod was never a column).
     expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(2, 'show-1', 'owner-1', {
       paymentReference: 'check-1',
-      receivedMethod: 'check',
     });
     expect(params.deps.claimNextArmband).toHaveBeenCalledTimes(1);
     expect(params.deps.claimNextArmband).toHaveBeenCalledWith('show-1', 'dog-1', {

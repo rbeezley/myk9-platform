@@ -195,7 +195,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       )}
 
       {/* MYK9-2149 (inform only): the form already holds money. Said, never acted on: no
-          choice, default or Submit depends on it, and anything taken is recorded in full. */}
+          choice is made or cleared by it, and anything taken is recorded in full. */}
       {staffWorkflow && formHeldCents !== null && (
         <Alert role="status">
           <Wallet className="h-4 w-4" />
@@ -215,6 +215,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           acceptedMethods={acceptedMethods}
           juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
           allowFreeEntry={canUseDeskPaymentActions}
+          formHeldCents={formHeldCents}
         />
       ) : (
         <PaymentMethodSelector

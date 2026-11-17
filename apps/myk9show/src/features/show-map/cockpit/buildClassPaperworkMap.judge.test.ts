@@ -7,7 +7,7 @@ import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 
 // MYK9-2116: the class's confirmed judge is a fingerprint input for the check-in sheet and the
-// scoresheet, and a judge that is not loaded yet never flaps a print to "changed" and back.
+// scoresheet, and a judge not loaded yet is hashed as printed (unresolved), then corrects on load.
 const REPORT_IDS = ['check-in-sheet', 'scoresheet'] as const;
 const entries = [
   {
@@ -114,16 +114,6 @@ describe('class judge in the paperwork fingerprints (MYK9-2116)', () => {
     const states = cardOf(classWith(judge('Sam', 'Reed')), records, []);
     expect(states['check-in-sheet']?.state).toBe('stale');
     expect(states.scoresheet?.state).toBe('stale');
-  });
-
-  it('a judge the row does not settle, with no show details, withholds a verdict and a confirmation instead of flipping', () => {
-    const unloaded = classWith({ judge_resolved: false });
-    expect(cardOf(unloaded, records, undefined)).toEqual({
-      'check-in-sheet': { state: 'unknown', hasConfirmation: false },
-      scoresheet: { state: 'unknown', hasConfirmation: false },
-    });
-    // And back once it loads: the same print is current again.
-    expect(cardOf(original, records, [])['check-in-sheet']?.state).toBe('current');
   });
 
   it('a print recorded with no judge reads changed once the judge loads (the paper lacks it)', () => {

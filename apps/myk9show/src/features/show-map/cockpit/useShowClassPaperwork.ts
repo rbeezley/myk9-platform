@@ -38,8 +38,8 @@ export function useShowClassPaperwork(input: {
   const { showId, trials, classes = [], entries, returnTo } = input;
   const prints = useShowPaperworkPrints(showId);
   // The judge the sheet prints falls back to the show's assignments, so the fingerprint does too.
-  // Undefined while the show details are unavailable (a cold offline open): only classes that
-  // depend on `assignedJudges` then stay unknown (`paperworkJudgeUnknown`, MYK9-2116).
+  // Undefined while the show details are unavailable (a cold offline open): the fingerprint then
+  // hashes the unresolved judge and corrects itself once they load (MYK9-2116).
   const assignedJudges = useFastShowDetails(showId).show?.assignedJudges;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 

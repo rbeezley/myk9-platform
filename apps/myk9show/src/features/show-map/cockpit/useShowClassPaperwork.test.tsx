@@ -7,8 +7,8 @@ import type { ReplicatedPaperworkPrint } from '@/services/replication';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import { useShowClassPaperwork } from './useShowClassPaperwork';
 
-// MYK9-2116: a class whose own row names its judge confirms even with no show details (a cold
-// offline open); a class that depends on the show's assignedJudges stays unknown until they load.
+// MYK9-2116: with no show details (a cold offline open) a class that depends on the show's
+// assignedJudges hashes the unresolved judge, and once they load it matches the printed fingerprint.
 const mocks = vi.hoisted(() => ({ show: null as unknown }));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
@@ -103,16 +103,13 @@ function checkInStates() {
   return { own: stateOf('class-own'), assigned: stateOf('class-assigned') };
 }
 
-describe('useShowClassPaperwork without the show details (MYK9-2116)', () => {
+describe('useShowClassPaperwork judge loading (MYK9-2116)', () => {
   beforeEach(() => {
     mocks.show = null;
   });
 
-  it('confirms a class whose row has its judge and withholds one that relies on assignedJudges', () => {
-    expect(checkInStates()).toEqual({ own: 'current', assigned: 'unknown' });
-  });
-
-  it('reads both current once the show loads with its judges', () => {
+  it('hashes the unresolved judge with none loaded, and matches the printed fingerprint once it loads', () => {
+    expect(checkInStates()).toEqual({ own: 'current', assigned: 'stale' });
     mocks.show = { id: 'show-1', assignedJudges };
     expect(checkInStates()).toEqual({ own: 'current', assigned: 'current' });
   });

@@ -7,11 +7,29 @@
  * submission (the app emails the AKC results file itself, so its record is a fact the app
  * knows; UKC and ASCA are filed outside the app and the secretary marks them: `secretary`).
  *
- * Deliberately absent: deadlines, fees and the paper AKC wants by mail. They are not verified
- * against the regulations yet (`docs/plan-show-closeout.md`, "Not yet verified"), and the list
- * must never tell a secretary what to mail on a guess. They join this table when they are.
+ * Deadlines (MYK9-2117) are verified against `docs/rulebooks/` and carry their source in
+ * `supabase/functions/_shared/showCloseout/resultsDeadline.ts`: AKC 7 days after the event
+ * (arrival, Scent Work Regulations ch. 3 sec. 37), ASCA 15 days after the event end (Gross
+ * Receipts and Scent Trial Report forms). UKC is `null`: our copy of the rules names none, and
+ * the list must never tell a secretary a date we have not verified.
+ *
+ * Still absent: fees and the paper AKC wants by mail, which are not verified
+ * (`docs/plan-show-closeout.md`).
  */
+import { RESULTS_DEADLINE_RULES } from '../../../../../supabase/functions/_shared/showCloseout/resultsDeadline';
+import type { ResultsDeadlineRule } from '../../../../../supabase/functions/_shared/showCloseout/resultsDeadline';
 import type { RegistryId } from './types';
+
+export {
+  RESULTS_DEADLINE_RULES,
+  addCalendarDays,
+  calendarDayInZone,
+  describeResultsDeadline,
+  formatDeadlineDay,
+  lastTrialDay,
+  resultsDeadlineFor,
+} from '../../../../../supabase/functions/_shared/showCloseout/resultsDeadline';
+export type { ResultsDeadlineRule };
 
 export type RegistryCloseoutDutyKind = 'judge-sign-off' | 'results-submission';
 
@@ -23,6 +41,8 @@ export interface RegistryCloseoutDuty {
   label: string;
   /** Who records it: `app` when the app does it itself, `secretary` when she ticks it. */
   recordedBy: 'app' | 'secretary';
+  /** Verified deadline, counted from the last trial day; `null` = none verified (never guess). */
+  deadline: ResultsDeadlineRule | null;
 }
 
 const DUTIES: Readonly<Record<RegistryId, readonly RegistryCloseoutDuty[]>> = {
@@ -32,12 +52,14 @@ const DUTIES: Readonly<Record<RegistryId, readonly RegistryCloseoutDuty[]>> = {
       kind: 'judge-sign-off',
       label: "Judge's initials collected",
       recordedBy: 'secretary',
+      deadline: null,
     },
     {
       key: 'akc-results-file',
       kind: 'results-submission',
       label: 'Results file sent to AKC',
       recordedBy: 'app',
+      deadline: RESULTS_DEADLINE_RULES.AKC ?? null,
     },
   ],
   UKC: [
@@ -46,12 +68,14 @@ const DUTIES: Readonly<Record<RegistryId, readonly RegistryCloseoutDuty[]>> = {
       kind: 'judge-sign-off',
       label: 'Judge signature collected',
       recordedBy: 'secretary',
+      deadline: null,
     },
     {
       key: 'ukc-paperwork-packet',
       kind: 'results-submission',
       label: 'UKC paperwork packet marked as submitted',
       recordedBy: 'secretary',
+      deadline: RESULTS_DEADLINE_RULES.UKC ?? null,
     },
   ],
   ASCA: [
@@ -60,12 +84,14 @@ const DUTIES: Readonly<Record<RegistryId, readonly RegistryCloseoutDuty[]>> = {
       kind: 'judge-sign-off',
       label: 'Judge signature collected',
       recordedBy: 'secretary',
+      deadline: null,
     },
     {
       key: 'asca-online-upload',
       kind: 'results-submission',
       label: 'ASCA online results upload marked as submitted',
       recordedBy: 'secretary',
+      deadline: RESULTS_DEADLINE_RULES.ASCA ?? null,
     },
   ],
 };

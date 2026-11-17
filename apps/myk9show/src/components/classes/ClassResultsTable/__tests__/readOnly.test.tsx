@@ -6,7 +6,7 @@
  *
  * MYK9-2130: the old "You have read-only access. Contact the show secretary to edit results."
  * notice told the show's own secretary to contact herself. Results are edited on Show Desk, so
- * no viewer of this table gets that notice.
+ * she does not get that notice.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
@@ -106,22 +106,24 @@ describe('ClassResultsTable offers no control to anyone', () => {
   );
 });
 
-describe('ClassResultsTable shows no "contact the secretary to edit" notice (MYK9-2130)', () => {
-  it.each(viewers)(
-    '%s is not told to contact the show secretary, before or after release',
-    (_label, viewer) => {
-      mockViewer = viewer;
-      const { rerender } = render(<ClassResultsTable {...props} />);
-      const expectNoNotice = () => {
-        expect(screen.getByText('Rex')).toBeInTheDocument();
-        expect(screen.queryByText(/contact the show secretary/i)).not.toBeInTheDocument();
-        expect(screen.queryByText(/read-only access/i)).not.toBeInTheDocument();
-        expect(screen.queryByText(/to edit results/i)).not.toBeInTheDocument();
-      };
-      expectNoNotice();
+describe('ClassResultsTable does not tell the show secretary to contact herself (MYK9-2130)', () => {
+  // Scoped to the show's own secretary, who runs the class on Show Desk. A viewer who cannot run
+  // the class (an exhibitor, another club's staff) may still be told whom to ask, so this test
+  // does not ban that guidance for them.
+  const showSecretary = viewers.find(([label]) => label === 'a secretary of the show')![1];
 
-      rerender(<ClassResultsTable {...props} resultsReleasedAt="2026-06-16T00:00:00Z" />);
-      expectNoNotice();
-    }
-  );
+  it('the show secretary is not told to contact the show secretary, before or after release', () => {
+    mockViewer = showSecretary;
+    const { rerender } = render(<ClassResultsTable {...props} />);
+    const expectNoNotice = () => {
+      expect(screen.getByText('Rex')).toBeInTheDocument();
+      expect(screen.queryByText(/contact the show secretary/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/read-only access/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/to edit results/i)).not.toBeInTheDocument();
+    };
+    expectNoNotice();
+
+    rerender(<ClassResultsTable {...props} resultsReleasedAt="2026-06-16T00:00:00Z" />);
+    expectNoNotice();
+  });
 });

@@ -138,6 +138,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     fullPacket,
     classes: (classes ?? []) as DbClass[],
     entries: (entries ?? []) as DbEntry[],
+    assignedJudges: show?.assignedJudges,
   });
   const { packet, onlyNeed, emptyView } = view;
   const [attempt, setAttempt] = useState(0);

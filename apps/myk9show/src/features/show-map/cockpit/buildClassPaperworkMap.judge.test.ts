@@ -55,6 +55,7 @@ function printed(classItem: DbClass): ReplicatedPaperworkPrint[] {
       classId: 'class-a',
     };
     const descriptor = buildReportPaperworkDescriptor({
+      assignedJudges: [],
       reportId,
       scope,
       classes: [classItem],
@@ -76,8 +77,13 @@ function printed(classItem: DbClass): ReplicatedPaperworkPrint[] {
   });
 }
 
-function cardOf(classItem: DbClass, records: ReplicatedPaperworkPrint[]) {
+function cardOf(
+  classItem: DbClass,
+  records: ReplicatedPaperworkPrint[],
+  assignedJudges: [] | undefined
+) {
   const map = buildClassPaperworkMap({
+    assignedJudges,
     showId: 'show-1',
     classes: [classItem],
     trials: [{ id: 'trial-1', trialDate: '2026-12-07' }],
@@ -98,43 +104,44 @@ describe('class judge in the paperwork fingerprints (MYK9-2116)', () => {
   const records = printed(original);
 
   it('reads current when nothing changed', () => {
-    expect(cardOf(original, records)).toEqual({
+    expect(cardOf(original, records, [])).toEqual({
       'check-in-sheet': { state: 'current', hasConfirmation: true },
       scoresheet: { state: 'current', hasConfirmation: true },
     });
   });
 
   it('a judge change after printing turns the check-in sheet and the scoresheet stale', () => {
-    const states = cardOf(classWith(judge('Sam', 'Reed')), records);
+    const states = cardOf(classWith(judge('Sam', 'Reed')), records, []);
     expect(states['check-in-sheet']?.state).toBe('stale');
     expect(states.scoresheet?.state).toBe('stale');
   });
 
-  it('a judge that is not loaded yet withholds a verdict and a confirmation instead of flipping', () => {
+  it('a judge the row does not settle, with no show details, withholds a verdict and a confirmation instead of flipping', () => {
     const unloaded = classWith({ judge_resolved: false });
-    expect(cardOf(unloaded, records)).toEqual({
+    expect(cardOf(unloaded, records, undefined)).toEqual({
       'check-in-sheet': { state: 'unknown', hasConfirmation: false },
       scoresheet: { state: 'unknown', hasConfirmation: false },
     });
     // And back once it loads: the same print is current again.
-    expect(cardOf(original, records)['check-in-sheet']?.state).toBe('current');
+    expect(cardOf(original, records, [])['check-in-sheet']?.state).toBe('current');
   });
 
   it('a print recorded with no judge reads changed once the judge loads (the paper lacks it)', () => {
     const noJudge = classWith({ judge_resolved: true });
-    expect(cardOf(classWith(judge('Pat', 'Donovan')), printed(noJudge))['scoresheet']?.state).toBe(
-      'stale'
-    );
+    expect(
+      cardOf(classWith(judge('Pat', 'Donovan')), printed(noJudge), [])['scoresheet']?.state
+    ).toBe('stale');
   });
 
   it('a class with no judge once the lookup ran is a known state', () => {
     const none = classWith({ judge_resolved: true });
-    expect(cardOf(none, printed(none))['scoresheet']?.state).toBe('current');
+    expect(cardOf(none, printed(none), [])['scoresheet']?.state).toBe('current');
   });
 
   it('hides changes the scoresheet fingerprint and not the check-in sheet', () => {
     const fingerprint = (reportId: string, hides: number) =>
       buildReportPaperworkDescriptor({
+        assignedJudges: [],
         reportId,
         scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-a' },
         classes: [classWith({ ...judge('Pat', 'Donovan'), num_hides: hides })],

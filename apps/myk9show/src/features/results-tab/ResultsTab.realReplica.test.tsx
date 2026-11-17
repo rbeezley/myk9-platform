@@ -313,6 +313,7 @@ describe('Results tab on the real replicated class rows', () => {
       const entries = ((await getEntriesForShow('show-1')).data ?? []) as never[];
       prints.data = (['results-sheet', 'result-labels'] as const).map(reportId => {
         const descriptor = buildReportPaperworkDescriptor({
+          assignedJudges: [],
           reportId,
           scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-released' },
           classes,

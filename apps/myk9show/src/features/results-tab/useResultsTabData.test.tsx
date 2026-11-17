@@ -230,6 +230,7 @@ describe('useResultsTabData', () => {
     const entries = mocks.entries.data as Record<string, unknown>[];
     const confirm = (reportId: 'results-sheet' | 'result-labels') => {
       const descriptor = buildReportPaperworkDescriptor({
+        assignedJudges: [],
         reportId,
         scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-1' },
         classes: [reportClass] as never,

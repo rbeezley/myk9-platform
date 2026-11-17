@@ -28,7 +28,7 @@ export function buildReportPaperworkDescriptor(input: {
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
   /** `show.assignedJudges`: the sheet's judge fallback, so the fingerprint hashes the printed name. */
-  assignedJudges?: ReadonlyArray<ShowJudgeAssignment> | undefined;
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): PaperworkDescriptor | null {
   const classes = withPaperworkJudge(input.classes, input.assignedJudges);
   if (input.reportId === 'check-in-sheet' || input.reportId === 'scoresheet') {

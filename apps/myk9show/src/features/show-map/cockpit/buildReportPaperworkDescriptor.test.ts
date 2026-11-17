@@ -57,6 +57,7 @@ function fingerprintsThroughBothReadPaths(patch: Record<string, unknown>) {
   } as unknown as ReplicatedEntry;
   const descriptorFor = (row: unknown) =>
     buildReportPaperworkDescriptor({
+      assignedJudges: [],
       reportId: 'results-sheet',
       scope: SCOPE,
       classes: [CLASS],
@@ -129,6 +130,7 @@ describe('buildReportPaperworkDescriptor: element time (MYK9-2090)', () => {
   it('result labels, which do not print the element time, ignore it', () => {
     const labelFingerprint = (elementTime: number | null) =>
       buildReportPaperworkDescriptor({
+        assignedJudges: [],
         reportId: 'result-labels',
         scope: SCOPE,
         classes: [CLASS],

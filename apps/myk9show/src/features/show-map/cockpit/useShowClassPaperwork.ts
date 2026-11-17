@@ -27,8 +27,6 @@ import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 import { useShowPaperworkPrints } from './useShowPaperworkPrints';
 
-const NO_JUDGES: readonly never[] = [];
-
 export function useShowClassPaperwork(input: {
   showId: string;
   trials: readonly { id: string; trialDate: string }[];
@@ -40,10 +38,9 @@ export function useShowClassPaperwork(input: {
   const { showId, trials, classes = [], entries, returnTo } = input;
   const prints = useShowPaperworkPrints(showId);
   // The judge the sheet prints falls back to the show's assignments, so the fingerprint does too.
-  // Until the show has loaded the judge is not known, so no card may give a verdict (MYK9-2116).
-  const showDetails = useFastShowDetails(showId).show;
-  const judgesUnknown = !showDetails;
-  const assignedJudges = showDetails?.assignedJudges ?? NO_JUDGES;
+  // Undefined while the show details are unavailable (a cold offline open): only classes that
+  // depend on `assignedJudges` then stay unknown (`paperworkJudgeUnknown`, MYK9-2116).
+  const assignedJudges = useFastShowDetails(showId).show?.assignedJudges;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
   // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
@@ -77,11 +74,9 @@ export function useShowClassPaperwork(input: {
       withholdConfirmation: !classesAvailable,
       returnTo,
       assignedJudges,
-      judgesUnknown,
     });
   }, [
     assignedJudges,
-    judgesUnknown,
     available,
     classFacts.data,
     classes,

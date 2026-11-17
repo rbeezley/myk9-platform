@@ -16,6 +16,7 @@ const CLASS_IDS = ['c-interior', 'c-container', 'c-exterior', 'c-buried'];
 
 function run(classIds = CLASS_IDS) {
   return recordTrialPacketPrint({
+    assignedJudges: [],
     showId: 'show-1',
     trialId: 'trial-1',
     classIds,
@@ -40,6 +41,7 @@ describe('recordTrialPacketPrint', () => {
       for (const reportId of ['check-in-sheet', 'scoresheet']) {
         const scope = { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId } as const;
         const expected = buildReportPaperworkDescriptor({
+          assignedJudges: [],
           reportId,
           scope,
           classes: CLASSES,

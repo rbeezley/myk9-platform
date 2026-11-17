@@ -83,7 +83,13 @@ describe('app and shared paperwork descriptors agree', () => {
   for (const reportId of ['check-in-sheet', 'scoresheet']) {
     for (const scope of scopes) {
       it(`${reportId} / ${scope.kind}`, () => {
-        const app = buildReportPaperworkDescriptor({ reportId, scope, classes, entries });
+        const app = buildReportPaperworkDescriptor({
+          assignedJudges: [],
+          reportId,
+          scope,
+          classes,
+          entries,
+        });
         const shared = buildSheetDescriptorFromRows({
           reportId,
           scope,

@@ -7,53 +7,69 @@ import type { ReplicatedPaperworkPrint } from '@/services/replication';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import { useShowClassPaperwork } from './useShowClassPaperwork';
 
-// MYK9-2116: a judge known only through the show's assignedJudges is part of the fingerprint, so
-// until the show details load no card may say "changed".
+// MYK9-2116: a class whose own row names its judge confirms even with no show details (a cold
+// offline open); a class that depends on the show's assignedJudges stays unknown until they load.
 const mocks = vi.hoisted(() => ({ show: null as unknown }));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({ show: mocks.show }),
 }));
 
-const klass = { id: 'class-1', trial_id: 'trial-1', element: 'Container', level: 'Novice' };
-const entries = [
-  {
-    id: 'e1',
-    class_id: 'class-1',
-    dog_id: 'd1',
-    armband: '101',
-    run_order: 1,
-    check_in_status: 'no-status',
-    entry_status: 'confirmed',
-  },
-] as unknown as DbEntry[];
-const assignedJudges = [{ judgeId: 'j1', judgeName: 'Ada Assigned', assignedClasses: ['class-1'] }];
+const ownJudge = {
+  id: 'class-own',
+  trial_id: 'trial-1',
+  element: 'Container',
+  level: 'Novice',
+  judge_assignments: [
+    { person_id: 'p1', status: 'confirmed', people: { first_name: 'Pat', last_name: 'Donovan' } },
+  ],
+};
+const viaAssigned = {
+  id: 'class-assigned',
+  trial_id: 'trial-1',
+  element: 'Interior',
+  level: 'Novice',
+};
+const classes = [ownJudge, viaAssigned] as unknown as DbClass[];
+const entries = ['class-own', 'class-assigned'].map((classId, index) => ({
+  id: `e${index}`,
+  class_id: classId,
+  dog_id: `d${index}`,
+  armband: `10${index}`,
+  run_order: 1,
+  check_in_status: 'no-status',
+  entry_status: 'confirmed',
+})) as unknown as DbEntry[];
+const assignedJudges = [
+  { judgeId: 'j1', judgeName: 'Ada Assigned', assignedClasses: ['class-assigned'] },
+];
 
-const scope = { kind: 'class' as const, showId: 'show-1', trialId: 'trial-1', classId: 'class-1' };
-const printedDescriptor = buildReportPaperworkDescriptor({
-  reportId: 'check-in-sheet',
-  scope,
-  classes: [klass as unknown as DbClass],
-  entries,
-  assignedJudges: assignedJudges as never,
-})!;
-const record = {
-  id: 'r1',
-  showId: 'show-1',
-  trialId: 'trial-1',
-  classId: 'class-1',
-  scopeKind: 'class',
-  reportId: 'check-in-sheet',
-  coverage: printedDescriptor.coverage,
-  fingerprint: printedDescriptor.fingerprint,
-  printedBy: 'u1',
-  printedByName: 'Jannie',
-  printedAt: '2026-12-07T08:00:00Z',
-} as unknown as ReplicatedPaperworkPrint;
+const records = classes.map(classItem => {
+  const descriptor = buildReportPaperworkDescriptor({
+    reportId: 'check-in-sheet',
+    scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: classItem.id },
+    classes,
+    entries,
+    assignedJudges: assignedJudges as never,
+  })!;
+  return {
+    id: `r-${classItem.id}`,
+    showId: 'show-1',
+    trialId: 'trial-1',
+    classId: classItem.id,
+    scopeKind: 'class',
+    reportId: 'check-in-sheet',
+    coverage: descriptor.coverage,
+    fingerprint: descriptor.fingerprint,
+    printedBy: 'u1',
+    printedByName: 'Jannie',
+    printedAt: '2026-12-07T08:00:00Z',
+  } as unknown as ReplicatedPaperworkPrint;
+});
 
 vi.mock('@/hooks/queries/useShowClassRows', () => ({
   useShowClassRows: () => ({
-    data: [klass],
+    data: classes,
     isLoading: false,
     isError: false,
     isFetching: false,
@@ -64,7 +80,7 @@ vi.mock('@/hooks/queries/useShowClassRows', () => ({
 }));
 vi.mock('./useShowPaperworkPrints', () => ({
   useShowPaperworkPrints: () => ({
-    data: [record],
+    data: records,
     isLoading: false,
     isError: false,
     syncFailed: false,
@@ -73,7 +89,7 @@ vi.mock('./useShowPaperworkPrints', () => ({
   }),
 }));
 
-function checkInState() {
+function checkInStates() {
   const { result } = renderHook(() =>
     useShowClassPaperwork({
       showId: 'show-1',
@@ -82,21 +98,22 @@ function checkInState() {
       returnTo: '/x',
     })
   );
-  return result.current.byClassId.get('class-1')?.find(item => item.reportId === 'check-in-sheet')
-    ?.state;
+  const stateOf = (classId: string) =>
+    result.current.byClassId.get(classId)?.find(item => item.reportId === 'check-in-sheet')?.state;
+  return { own: stateOf('class-own'), assigned: stateOf('class-assigned') };
 }
 
-describe('useShowClassPaperwork waits for the show details (MYK9-2116)', () => {
+describe('useShowClassPaperwork without the show details (MYK9-2116)', () => {
   beforeEach(() => {
     mocks.show = null;
   });
 
-  it('reads unknown while the show details are still loading', () => {
-    expect(checkInState()).toBe('unknown');
+  it('confirms a class whose row has its judge and withholds one that relies on assignedJudges', () => {
+    expect(checkInStates()).toEqual({ own: 'current', assigned: 'unknown' });
   });
 
-  it('reads current once the show loads with the matching judge', () => {
+  it('reads both current once the show loads with its judges', () => {
     mocks.show = { id: 'show-1', assignedJudges };
-    expect(checkInState()).toBe('current');
+    expect(checkInStates()).toEqual({ own: 'current', assigned: 'current' });
   });
 });

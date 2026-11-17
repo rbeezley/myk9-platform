@@ -187,6 +187,7 @@ const scope = {
 
 function reportsDescriptor() {
   const descriptor = buildReportPaperworkDescriptor({
+    assignedJudges: [],
     reportId: 'scoresheet',
     scope,
     classes: reportsClassRows,
@@ -212,6 +213,7 @@ function renderOverview(queryClient = createTestQueryClient()) {
 
 function printRecordFor(rows: DbClass[]): ReplicatedPaperworkPrint {
   const descriptor = buildReportPaperworkDescriptor({
+    assignedJudges: [],
     reportId: 'scoresheet',
     scope,
     classes: rows,

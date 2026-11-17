@@ -28,7 +28,7 @@ export async function recordTrialPacketPrint(input: {
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
   user: User;
-  assignedJudges?: ReadonlyArray<ShowJudgeAssignment> | undefined;
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): Promise<TrialPacketPrintRecords> {
   const recordIds: string[] = [];
   const failedClassIds: string[] = [];

@@ -229,6 +229,7 @@ export default function ReportsPage() {
       scope: effectiveScope,
       classes,
       entries,
+      assignedJudges: show?.assignedJudges,
       timeZone: showTimeZone,
     });
 

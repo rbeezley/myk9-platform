@@ -25,21 +25,21 @@ export function paperworkJudgeName(
 }
 
 /**
- * True when the class's judge is not known yet: the replica holds no name for it, no
- * `assignedJudges` entry names one, and the `get_show_judges` enrichment has not run
- * (`judge_resolved === false`). A verdict built now would read "changed" and then flip back as the
- * judge loads. Rows from PostgREST, legacy or cold replica rows carry `judge_resolved: undefined`
- * and count as known.
+ * True when this class's judge cannot be told yet, so its card gives no verdict and no
+ * confirmation. Both must hold:
+ *   (a) its own row does not settle a judge: it resolves no name without `assignedJudges`, or the
+ *       `get_show_judges` enrichment has not run (`judge_resolved === false`); and
+ *   (b) the show's `assignedJudges` are not available (no show details, e.g. a cold offline open).
+ * Otherwise the verdict is computed with `assignedJudges ?? []`. A class whose replica row carries
+ * its judge still confirms offline; only classes that depend on `assignedJudges` stay unknown.
+ * Rows from PostgREST, legacy or cold replica rows carry `judge_resolved: undefined`, which is not
+ * `false`, so they count as settled when they name a judge.
  */
-export function paperworkJudgeUnknown(
-  classItem: unknown,
-  assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
-): boolean {
+export function paperworkJudgeUnknown(classItem: unknown, assignedJudgesLoaded: boolean): boolean {
+  if (assignedJudgesLoaded) return false;
   const row = classItem as JudgeSourceRow;
-  return (
-    row.judge_resolved === false &&
-    paperworkJudgeName(classItem, assignedJudges) === paperworkJudgeName(null)
-  );
+  const ownRowNamesJudge = paperworkJudgeName(classItem, []) !== paperworkJudgeName(null);
+  return !ownRowNamesJudge || row.judge_resolved === false;
 }
 
 /** The rows the shared builders take: each class with the name its sheet prints. */

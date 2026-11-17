@@ -53,6 +53,7 @@ import { runEntryConfirmations, type EntryConfirmationDeps } from './entryConfir
 import { runEntryReminders } from './entryReminderRun.ts';
 import { reminderDeps } from './entryReminderDeps.ts';
 import { renderConfirmationEmail } from './renderConfirmationEmail.ts';
+import { claimableFilter } from './confirmationFilter.ts';
 import { insertEmailLogOnce } from './emailLogOnce.ts';
 import { readAllPages, type PageResult } from './pagedRead.ts';
 
@@ -104,19 +105,6 @@ function toRecipient(person: PersonRow | null | undefined): ConfirmationRecipien
   return { email: person.email, firstName: person.first_name, lastName: person.last_name };
 }
 
-/** No live lease: never claimed, or the lease ran out (an interrupted run). */
-const unleasedAt = (nowIso: string) =>
-  `confirmation_claimed_until.is.null,confirmation_claimed_until.lt.${nowIso}`;
-
-/**
- * The status filter, widened: a row holding an EXPIRED lease is an interrupted send (the provider
- * may already have it) and is recovered on every run, whatever its status, so a daily retry that
- * could not be stamped is not left for a next day that may fall outside Resend's 24h window.
- * An ordinary failure has no lease and stays on the daily cadence.
- */
-const statusOrExpired = (statuses: string[], nowIso: string) =>
-  `confirmation_email_status.in.(${statuses.join(',')}),and(confirmation_claimed_until.not.is.null,confirmation_claimed_until.lt.${nowIso})`;
-
 type ServiceClient = HandlerCtx<unknown>['supabase'];
 
 function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryConfirmationDeps {
@@ -160,8 +148,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .not('armband', 'is', null)
         .is('deleted_at', null)
         .is('confirmation_email_sent_at', null)
-        .or(unleasedAt(nowIso))
-        .or(statusOrExpired(statuses, nowIso))
+        .or(claimableFilter(statuses, nowIso))
         .lt('updated_at', quietSince)
         // Oldest change first: a failed attempt bumps updated_at, so retries rotate.
         .order('updated_at', { ascending: true })
@@ -188,8 +175,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
           .not('armband', 'is', null)
           .is('deleted_at', null)
           .is('confirmation_email_sent_at', null)
-          .or(unleasedAt(nowIso))
-          .or(statusOrExpired(statuses, nowIso))
+          .or(claimableFilter(statuses, nowIso))
           .lt('updated_at', quietSince);
       const readAll = (
         narrow: (query: ReturnType<typeof eligible>) => ReturnType<typeof eligible>
@@ -285,8 +271,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .update({ confirmation_claimed_until: leaseUntilIso })
         .in('id', entryIds)
         .is('confirmation_email_sent_at', null)
-        .or(unleasedAt(nowIso))
-        .or(statusOrExpired(statuses, nowIso))
+        .or(claimableFilter(statuses, nowIso))
         .eq('entry_status', 'confirmed')
         .not('armband', 'is', null)
         .is('deleted_at', null)

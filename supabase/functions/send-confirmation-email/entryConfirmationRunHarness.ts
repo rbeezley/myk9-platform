@@ -16,6 +16,7 @@ import {
   type ConfirmationRecipient,
   type ConfirmationShow,
 } from './entryConfirmations';
+import { claimableFilter } from './confirmationFilter';
 import { renderConfirmationEmail } from './renderConfirmationEmail';
 
 export const NOW = new Date('2026-11-20T15:00:00Z');
@@ -96,12 +97,44 @@ export function entry(overrides: Partial<StoredEntry> = {}): StoredEntry {
 }
 
 /** An in-memory database with the same filters the real queries apply. No email leaves it. */
-/** The status filter, widened to a row holding an expired lease (an interrupted send). */
-function statusOrExpired(row: StoredEntry, statuses: string[], nowIso: string): boolean {
-  return (
-    statuses.includes(row.confirmation_email_status) ||
-    (row.confirmation_claimed_until !== null && row.confirmation_claimed_until < nowIso)
-  );
+/**
+ * Evaluates a PostgREST `or` expression of the shape claimableFilter sends: comma-separated
+ * terms, each a leaf `column.op.value` (is.null, lt.<value>, in.(a,b)) or `and(...)` of leaves.
+ * The in-memory store thus runs the real filter string, not a restatement of it.
+ */
+function evaluateOr(expression: string, row: Record<string, unknown>): boolean {
+  const split = (text: string): string[] => {
+    const parts: string[] = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '(') depth++;
+      else if (text[i] === ')') depth--;
+      else if (text[i] === ',' && depth === 0) {
+        parts.push(text.slice(start, i));
+        start = i + 1;
+      }
+    }
+    parts.push(text.slice(start));
+    return parts;
+  };
+  const leaf = (term: string): boolean => {
+    const [column, op, ...rest] = term.split('.');
+    const value = rest.join('.');
+    const actual = row[column!];
+    if (op === 'is' && value === 'null') return actual === null || actual === undefined;
+    if (op === 'lt') return typeof actual === 'string' && actual < value;
+    if (op === 'in') return split(value.slice(1, -1)).includes(String(actual));
+    throw new Error(`unsupported filter term ${term}`);
+  };
+  const term = (text: string): boolean =>
+    text.startsWith('and(') ? split(text.slice(4, -1)).every(term) : leaf(text);
+  return split(expression).some(term);
+}
+
+/** The shared candidate/claim predicate: the one `.or()` the real queries send. */
+function claimable(row: StoredEntry, statuses: string[], nowIso: string): boolean {
+  return evaluateOr(claimableFilter(statuses, nowIso), row as unknown as Record<string, unknown>);
 }
 
 export function makeDeps(args: {
@@ -153,8 +186,7 @@ export function makeDeps(args: {
           row.armband !== null &&
           row.deleted_at === null &&
           row.confirmation_email_sent_at === null &&
-          (row.confirmation_claimed_until === null || row.confirmation_claimed_until < nowIso) &&
-          statusOrExpired(row, statuses, nowIso) &&
+          claimable(row, statuses, nowIso) &&
           row.updated_at < quietSince
       )
       .sort((a, b) =>
@@ -210,8 +242,7 @@ export function makeDeps(args: {
         if (
           ids.includes(row.id) &&
           row.confirmation_email_sent_at === null &&
-          (row.confirmation_claimed_until === null || row.confirmation_claimed_until < nowIso) &&
-          statusOrExpired(row, statuses, nowIso) &&
+          claimable(row, statuses, nowIso) &&
           row.entry_status === 'confirmed' &&
           row.armband !== null &&
           row.deleted_at === null

@@ -92,7 +92,7 @@ describe('claimSubmissionEntries (once per submission)', () => {
       'utf8'
     );
     expect(scheduled).toContain(".is('confirmation_email_sent_at', null)");
-    expect(scheduled).toContain('.or(statusOrExpired(statuses, nowIso))');
+    expect(scheduled).toContain('.or(claimableFilter(statuses, nowIso))');
     expect(scheduled).not.toContain('receipt_email_');
   });
 

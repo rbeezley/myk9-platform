@@ -124,7 +124,8 @@ export function buildFormChecklist(
 
   const unpaid = withReason('payment_due');
   const unpaidLine = `${unpaid.length} of ${liveCount} ${entriesWord(liveCount)} unpaid`;
-  if (money.amountUnknown && liveCount > 0) {
+  // Any entry, not only live ones: a run that is over has not settled its fee (round 2).
+  if (money.amountUnknown && entries.length > 0) {
     // MYK9-1968: the enrollment row did not load (offline, or the read failed), so the
     // only figure to hand is built from entry fees and ignores money already taken.
     // Quote nothing, and offer no button that takes money for an unknown due. Shown even

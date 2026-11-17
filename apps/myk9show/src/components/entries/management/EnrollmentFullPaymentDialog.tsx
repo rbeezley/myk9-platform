@@ -72,10 +72,11 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
         </p>
         {amountUnknown && (
           // Paid in Full records the whole balance, which is not known here, so it cannot be
-          // confirmed. Partial Payment records the amount actually received (Codex review of #4104).
+          // confirmed. No other recording path is suggested: they are online-only too, and
+          // offline they would drop what was typed (Codex review of #4104, round 2).
           <p className="text-sm text-muted-foreground" data-testid="full-payment-unknown-note">
-            Paid in Full needs the balance, which has not loaded. To record money received now, use
-            Partial Payment and enter the amount.
+            Paid in Full needs the balance, which has not loaded. Record this payment once the
+            form&rsquo;s payment record loads.
           </p>
         )}
         {state.method === 'check' && (

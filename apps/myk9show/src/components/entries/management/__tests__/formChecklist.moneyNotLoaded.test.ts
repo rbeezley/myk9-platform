@@ -65,6 +65,23 @@ describe('buildFormChecklist when the payment record is not loaded (MYK9-1968)',
     ]);
   });
 
+  it('says the amount is not available after every run is over', () => {
+    // Codex review of #4104, round 2: a completed run has not settled its fee.
+    const completed = groupEntriesByShowRegistration([
+      { ...entry('e1', PaymentStatus.PAID_BY_CASH), entryStatus: EntryStatus.COMPLETED },
+      { ...entry('e2', PaymentStatus.PAID_BY_CASH), entryStatus: EntryStatus.COMPLETED },
+    ])[0]!;
+    const { items } = buildFormChecklist(completed, {
+      paidDollars: 50,
+      remainingDollars: 0,
+      amountUnknown: true,
+    });
+    expect(items.find(item => item.kind === 'payment')).toMatchObject({
+      title: 'Amount not available',
+      canRecord: false,
+    });
+  });
+
   it('quotes no paid figure in the done line', () => {
     const { done } = buildFormChecklist(form(PaymentStatus.PAID_BY_CASH), {
       paidDollars: 50,

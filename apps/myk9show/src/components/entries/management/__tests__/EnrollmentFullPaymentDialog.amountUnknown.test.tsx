@@ -2,7 +2,6 @@
  * MYK9-1968, Codex review of #4104: "Paid in Full" sends no amount, so the server
  * records the whole remaining balance. When the payment record has not loaded,
  * that balance is unknown, so the dialog must not let the secretary confirm it.
- * Partial Payment, which records an explicit amount, stays the way to log money.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
@@ -32,12 +31,13 @@ function renderDialog(amountUnknown: boolean) {
 }
 
 describe('EnrollmentFullPaymentDialog when the balance is not known', () => {
-  it('cannot be confirmed, and points to Partial Payment', () => {
+  it('cannot be confirmed, and says the payment waits for the record', () => {
     renderDialog(true);
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
-    expect(screen.getByTestId('full-payment-unknown-note')).toHaveTextContent(
-      'use Partial Payment and enter the amount'
-    );
+    const note = screen.getByTestId('full-payment-unknown-note');
+    expect(note).toHaveTextContent('Record this payment once the form’s payment record loads.');
+    // Every other recording path is online-only too, so none is offered (round 2).
+    expect(note).not.toHaveTextContent(/Partial Payment/i);
     expect(screen.queryByText('$50.00')).not.toBeInTheDocument();
   });
 

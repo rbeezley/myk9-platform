@@ -12,7 +12,9 @@ const TRUNCATION_NOTE = '<p><em>This copy was shortened because the email was ve
 
 export interface EmailContentClient {
   from(table: string): {
-    insert(values: Record<string, unknown> | Record<string, unknown>[]): PromiseLike<{ error: unknown }>;
+    insert(
+      values: Record<string, unknown> | Record<string, unknown>[]
+    ): PromiseLike<{ error: unknown }>;
   };
 }
 

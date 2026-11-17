@@ -561,14 +561,15 @@ describe('writeEmailLog keeps a copy of each email (MYK9-2115)', () => {
         ? { insert: contentInsert }
         : {
             insert: vi.fn(() => ({
-              select: () => Promise.resolve({ data: [{ id: 'log-a' }, { id: 'log-b' }], error: null }),
+              select: () =>
+                Promise.resolve({ data: [{ id: 'log-a' }, { id: 'log-b' }], error: null }),
             })),
           }
     );
     return { supabase: { from } as never, contentInsert };
   }
 
-  it('stores each recipient\'s own text against its email_log id', async () => {
+  it("stores each recipient's own text against its email_log id", async () => {
     const { supabase, contentInsert } = makeSupabase();
     await writeEmailLog(supabase, rows, email => ({ subject: 'S', html: `<p>${email}</p>` }));
     expect(contentInsert).toHaveBeenCalledWith([

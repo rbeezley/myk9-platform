@@ -201,6 +201,37 @@ describe('usePaperScoring', () => {
     );
   });
 
+  describe('area 1 on a one-area class (MYK9-2111)', () => {
+    async function save(isOneArea: boolean, result: 'Q' | 'NQ') {
+      const { replicatedEntriesTable } =
+        await import('@/services/replication/ReplicatedEntriesTable');
+      const { result: hook } = renderHook(() => usePaperScoring(entries, 'user-1', { isOneArea }));
+      await act(() => hook.current.saveEntry('e1', result, '10203', 0));
+      return replicatedEntriesTable.updateEntry;
+    }
+
+    it('a Q save on a one-area class sends area 1 equal to the total', async () => {
+      expect(await save(true, 'Q')).toHaveBeenCalledWith(
+        'e1',
+        expect.objectContaining({ search_time_seconds: 62.03, area1_time_seconds: 62.03 })
+      );
+    });
+
+    it('an NQ save on a one-area class sends area 1 equal to the total', async () => {
+      expect(await save(true, 'NQ')).toHaveBeenCalledWith(
+        'e1',
+        expect.objectContaining({ search_time_seconds: 62.03, area1_time_seconds: 62.03 })
+      );
+    });
+
+    it('a Q save on a multi-area class sends area 1 as null', async () => {
+      expect(await save(false, 'Q')).toHaveBeenCalledWith(
+        'e1',
+        expect.objectContaining({ area1_time_seconds: null })
+      );
+    });
+  });
+
   it('saveEntry writes 0 seconds for empty time on NQ', async () => {
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');

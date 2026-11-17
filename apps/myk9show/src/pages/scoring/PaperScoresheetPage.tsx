@@ -73,6 +73,7 @@ export function PaperScoresheetPage() {
   const [className, setClassName] = useState<string | null>(null);
   // Undefined for multi-area classes: the paper form has one total-time field,
   // and the per-area limits do not compare against a total.
+  const [isOneArea, setIsOneArea] = useState(false);
   const [maxTimeSeconds, setMaxTimeSeconds] = useState<number | undefined>(undefined);
   // Registry of the class, for registry-specific scoring help (the DQ trigger rule).
   const [sportKey, setSportKey] = useState<ScoresheetSportType | null>(null);
@@ -150,6 +151,8 @@ export function PaperScoresheetPage() {
           return;
         }
         trialId = cls.trialId;
+        // The server's one-area test (MYK9-2111), on the raw class column.
+        setIsOneArea((cls.areaCount ?? 1) <= 1);
         if (awaitingClass && !syncing) {
           // Hold change reloads like the page's own load, so the sync's own
           // row writes replay after it instead of overruling it.
@@ -239,7 +242,7 @@ export function PaperScoresheetPage() {
   }, [classesSyncStatus]);
 
   const userId = user?.id ?? 'anonymous';
-  const scoring = usePaperScoring(entries, userId);
+  const scoring = usePaperScoring(entries, userId, { isOneArea });
   const scoringMode = scoring.mode;
   const setScoringMode = scoring.setMode;
   const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);

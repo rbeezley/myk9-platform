@@ -134,6 +134,10 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
     isInRing: (entry.isInRing ?? entry.is_in_ring) === true ? true : undefined,
     runOrder: readNumber(entry, 'run_order'),
     deletedAt: readString(entry, 'deleted_at'),
+    awaitingRegistrationNumber:
+      (entry.awaitingRegistrationNumber ?? entry.awaiting_registration_number) === true
+        ? true
+        : undefined,
     searchTimeSeconds: readNumber(entry, 'search_time_seconds'),
     elementTimeSeconds: readNumber(entry, 'element_time_seconds'),
     totalFaults: readNumber(entry, 'total_faults'),

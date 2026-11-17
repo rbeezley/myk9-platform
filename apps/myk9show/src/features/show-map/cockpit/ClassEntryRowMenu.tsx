@@ -17,6 +17,7 @@ import {
   CHANGE_HANDLER_OFFLINE_REASON,
 } from '../changeClassEligibility';
 import { PEOPLE_ROUTE_ROLES } from '@/routes/peopleRouteRoles';
+import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import { canMarkAbsent } from './entryRowLinks';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
 import type { CockpitLifecycle, SecretaryCockpitEntryAction } from './secretaryCockpitTypes';
@@ -43,6 +44,8 @@ function ItemLabel({ label, reason }: { label: string; reason: string | undefine
  * - Change handler: a link to the entry's sheet on Entry Management (the sheet's one field for a
  *   scent work entry is the handler). Change class and Change handler need a connection, so
  *   offline they are disabled with the reason beside them, before she taps (MYK9-1940).
+ * - Enter result / Edit result: the paper scoring route opened on this dog, for a dog that can
+ *   still have a result.
  * - Mark absent: a dog that can still run, and only for someone who may operate the show (the
  *   trial secretary gate Score this class uses). `onMarkAbsent` writes the result at once and offers Undo.
  * - Print armband label: the one print panel, opened on this dog, for a lost label or a late entry.
@@ -56,6 +59,7 @@ export function ClassEntryRowMenu({
   actions,
   onCommand,
   editEntryHref,
+  classId,
   onMarkAbsent,
   onPrintLabel,
   classLifecycle,
@@ -64,6 +68,8 @@ export function ClassEntryRowMenu({
   actions: readonly SecretaryCockpitEntryAction[];
   onCommand: (commandId: string) => void;
   editEntryHref: string;
+  /** The class the row is in: the paper scoring route is keyed on it. */
+  classId: string;
   onMarkAbsent: (entry: SecretaryCockpitClassEntry) => void;
   /** Opens the print panel on this dog's armband label (MYK9-2073). */
   onPrintLabel: (entry: SecretaryCockpitClassEntry) => void;
@@ -75,6 +81,11 @@ export function ClassEntryRowMenu({
   const { hasRole } = useAuthContext();
   const { dogName, armband } = entry;
   const showMarkAbsent = canMarkAbsent(entry, classLifecycle) && secretaryOnlyReason === undefined;
+  // The paper scoring route for this one dog, as the class run sheet's row button opened it: a
+  // dog that can still have a result (not pulled or withdrawn) gets Enter result, or Edit result
+  // once scored. Locked to the trial secretary like Score this class.
+  const canScore = entry.state !== 'pulled' && entry.state !== 'withdrawn';
+  const scoreLabel = entry.state === 'scored' ? 'Edit result' : 'Enter result';
   const personHref = PEOPLE_ROUTE_ROLES.some(role => hasRole(role)) ? entry.handlerHref : undefined;
   const showOpenLinks = Boolean(entry.dogHref || personHref);
   return (
@@ -118,6 +129,16 @@ export function ClassEntryRowMenu({
             <ItemLabel label="Change handler" reason={CHANGE_HANDLER_OFFLINE_REASON} />
           </DropdownMenuItem>
         )}
+        {canScore &&
+          (secretaryOnlyReason !== undefined ? (
+            <DropdownMenuItem className="min-h-11" disabled title={secretaryOnlyReason}>
+              {scoreLabel}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem asChild className="min-h-11">
+              <Link to={getPaperScoringEntryHref(classId, entry.entryId)}>{scoreLabel}</Link>
+            </DropdownMenuItem>
+          ))}
         {showMarkAbsent && (
           <DropdownMenuItem className="min-h-11" onClick={() => onMarkAbsent(entry)}>
             Mark absent

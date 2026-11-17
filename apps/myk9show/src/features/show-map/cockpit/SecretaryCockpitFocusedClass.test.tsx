@@ -589,6 +589,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
       'Change class',
       'Move up a level',
       'Change handler',
+      'Enter result',
       'Mark absent',
       'Print armband label',
     ]);
@@ -598,6 +599,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change class',
       'Change handler',
+      'Enter result',
       'Mark absent',
       'Print armband label',
     ]);
@@ -608,6 +610,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for #101 Juno' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change handler',
+      'Enter result',
       'Mark absent',
       'Print armband label',
     ]);

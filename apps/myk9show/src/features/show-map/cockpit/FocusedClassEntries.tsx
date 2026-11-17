@@ -331,6 +331,7 @@ export function ClassEntriesTable({
                   <ClassEntryRowMenu
                     entry={entry}
                     editEntryHref={entryEditHref(rowMenu.showId, entry.entryId)}
+                    classId={rowMenu.classId}
                     onMarkAbsent={markAbsent.request}
                     onPrintLabel={entry => setLabelEntryId(entry.entryId)}
                     classLifecycle={rowMenu.classLifecycle}

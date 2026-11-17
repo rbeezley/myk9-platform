@@ -93,7 +93,7 @@ function destinationFor(action: ShowMapAction): SecretaryCockpitAction['destinat
 /**
  * Operational actions that exist in the catalog but have no reachable home (F29b).
  *
- * Only these are surfaced on the cockpit's entry rows. check-in and edit-score live in the
+ * Only these are surfaced on the cockpit's entry rows. check-in and edit-score (Enter or Edit result in the row menu) live in the
  * focused class panel, scratch under Entry Management -> Exceptions, and message-handler
  * in the header Messages panel -- adding them here would duplicate working surfaces,
  * which is what the "consolidate, don't duplicate" rule exists to prevent.

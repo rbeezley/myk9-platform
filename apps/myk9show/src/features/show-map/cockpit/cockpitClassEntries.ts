@@ -19,6 +19,7 @@ import {
   isRanResultStatus,
   storedPlacement,
 } from '@/features/_shared/runResultFacts';
+import { isHeldEntry } from '@/features/dogs/identity';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { deskStatusEditableFor } from '@/components/entries/management/checkInDesk/deskEditable';
 import { deskLockedReason } from '@/components/entries/management/checkInDesk/deskStatus';
@@ -102,8 +103,15 @@ function accountingFields(display: ShowMapEntryDisplay): EntryAccountingFields {
 }
 
 /** Listed in the table: the expected set, plus dogs that will not run (shown with their status). */
-function isListed(fields: EntryAccountingFields, entryStatus: string | undefined): boolean {
+function isListed(
+  fields: EntryAccountingFields,
+  entryStatus: string | undefined,
+  awaitingRegistrationNumber: boolean | undefined
+): boolean {
   if (fields.deleted_at != null) return false;
+  // A dog awaiting its registration number cannot run, so it is not on the table to be checked in
+  // or scored (MYK9-1162, the rule the class run sheet applied). It is not counted here either.
+  if (isHeldEntry({ ...fields, awaitingRegistrationNumber })) return false;
   // Awaiting approval is reached only through the "N pending" link; rejected and moved never list.
   if (entryStatus && isPendingEntryStatus(entryStatus)) return false;
   return isExpectedEntry(fields) || isNonRunningEntry(fields) || isPulledEntry(fields);
@@ -196,7 +204,7 @@ export function classEntriesForClass(
     const display = node.entryDisplay;
     const fields = accountingFields(display);
     const entryStatus = display.entryStatus?.trim().toLowerCase();
-    if (!isListed(fields, entryStatus)) continue;
+    if (!isListed(fields, entryStatus, display.awaitingRegistrationNumber)) continue;
     const queue = queueRowOf(node.id, display, fields);
     const state = stateOf(fields, entryStatus ?? '', queue);
     const counted = isExpectedEntry(fields);

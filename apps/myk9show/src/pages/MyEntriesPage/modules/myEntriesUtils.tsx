@@ -101,7 +101,7 @@ export function getEntryStatusBadgeLabel(
       contextualLabel = 'Scored';
       break;
     case EntryStatus.MOVE_UP_REQUESTED:
-      contextualLabel = 'Move-Up Requested';
+      contextualLabel = 'Change requested';
       break;
   }
   // Wins over every label above: on a part-scored order those describe only the

@@ -11,9 +11,9 @@ import {
 } from './showOfficialsRow.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 import {
-  PREMIUM_TRIAL_JUDGES_SELECT,
+  PREMIUM_JUDGE_ASSIGNMENTS_SELECT,
   premiumTrialJudges,
-  type PremiumTrialJudgeRow,
+  type PremiumJudgeAssignmentRow,
 } from './trialJudges.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
 import {
@@ -96,8 +96,7 @@ handle<GeneratePremiumPayload>(
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id,
-          judge_assignments(${PREMIUM_TRIAL_JUDGES_SELECT}),
-          classes(id, name, level, element, section)
+          classes(id, name, level, element, section, deleted_at)
         )
       `
       )
@@ -119,6 +118,20 @@ handle<GeneratePremiumPayload>(
         `Premium generation is only supported for AKC and UKC shows (got: ${showOrg ?? 'null'})`
       );
     }
+
+    // Step 7a: The judges, read for the whole show and matched to each trial by class
+    // (MYK9-2056). Class-level rows from set_class_judge carry no trial_id, so a nested
+    // trials(judge_assignments(...)) embed drops them.
+    const { data: judgeRows, error: judgesError } = await userClient
+      .from('judge_assignments')
+      .select(PREMIUM_JUDGE_ASSIGNMENTS_SELECT)
+      .eq('show_id', show_id)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+    if (judgesError) {
+      throw new HttpError(500, 'Failed to resolve show judges');
+    }
+    const judgeAssignments = (judgeRows ?? []) as unknown as PremiumJudgeAssignmentRow[];
 
     // Step 7b: The Trial Secretary and Trial Chair, from show_officials (MYK9-2056). The
     // Personnel tab writes there; the show-scoped user_roles rows this used to read were retired
@@ -194,13 +207,13 @@ handle<GeneratePremiumPayload>(
         planned_start_time: string | null;
         event_number: string | null;
         trial_type: string | null;
-        judge_assignments: PremiumTrialJudgeRow[];
         classes: Array<{
           id: string;
           name: string;
           level: string | null;
           element: string | null;
           section: string | null;
+          deleted_at: string | null;
         }>;
       }>
     ).map(trial => ({
@@ -209,7 +222,7 @@ handle<GeneratePremiumPayload>(
       startTime: trial.planned_start_time,
       eventNumber: trial.event_number,
       type: trial.trial_type ?? '',
-      judges: premiumTrialJudges(trial.judge_assignments, trial.classes),
+      judges: premiumTrialJudges(judgeAssignments, trial),
       classes: (trial.classes ?? []).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',

@@ -3,17 +3,24 @@
  * classes each one judges (AKC Ch. 3 §15: judges' names, cities of residence, assignments).
  *
  * `judge_assignments` holds one row per judge per class, so a judge on two classes came out of
- * the generator twice, with no city and no classes. This folds the rows to one entry per judge.
- * The label and residence formats match the app's `formatPremiumClassLabel` and
- * `formatJudgeResidence`, which this Deno function cannot import.
+ * the generator twice, with no city and no classes. The rows are read once for the whole show
+ * and matched to a trial through their class, never `trial_id`: `set_class_judge` writes
+ * class-level rows with `trial_id` NULL, and a nested `trials(judge_assignments(...))` embed
+ * silently drops them. The label and residence formats match the app's `formatPremiumClassLabel`
+ * and `formatJudgeResidence`, which this Deno function cannot import.
  */
 
-/** The `judge_assignments` select nested under a trial: the class and the judge's printable facts. */
-export const PREMIUM_TRIAL_JUDGES_SELECT =
-  'class_id, people(id, first_name, last_name, city, state)';
+/** The show-wide `judge_assignments` select: where the row applies and the judge's printable facts. */
+export const PREMIUM_JUDGE_ASSIGNMENTS_SELECT =
+  'trial_id, class_id, status, people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state)';
 
-export interface PremiumTrialJudgeRow {
+/** Statuses that keep a judge off the premium, as `generate-trial-packet` treats them. */
+const INACTIVE_STATUSES = new Set(['declined', 'cancelled']);
+
+export interface PremiumJudgeAssignmentRow {
+  trial_id: string | null;
   class_id: string | null;
+  status?: string | null;
   people: {
     id: string;
     first_name: string | null;
@@ -28,6 +35,7 @@ export interface PremiumTrialClassRow {
   element: string | null;
   level: string | null;
   section: string | null;
+  deleted_at?: string | null;
 }
 
 export interface PremiumTrialJudge {
@@ -54,16 +62,19 @@ export function formatClassLabel(cls: PremiumTrialClassRow): string | null {
 }
 
 /**
- * One entry per judge, in the order first assigned. Classes follow the trial's class order, each
- * once. A trial-level row (no class) means the judge takes every class, so that judge lists none:
- * the renderer then prints the name and residence alone. A class not on this trial is skipped.
+ * The judges of one trial, one entry each, in the order the rows come (the caller orders them by
+ * `created_at`). A row applies to this trial when its class is one of the trial's live classes.
+ * A row with no class covers every class of its trial, or of every trial when it has no trial
+ * either (a whole-show judge); that judge lists no classes, so the renderer prints the name and
+ * residence alone. Declined and cancelled assignments, and deleted classes, print nothing.
  */
 export function premiumTrialJudges(
-  rows: ReadonlyArray<PremiumTrialJudgeRow> | null | undefined,
-  trialClasses: ReadonlyArray<PremiumTrialClassRow> | null | undefined
+  rows: ReadonlyArray<PremiumJudgeAssignmentRow> | null | undefined,
+  trial: { id: string; classes: ReadonlyArray<PremiumTrialClassRow> | null | undefined }
 ): PremiumTrialJudge[] {
-  const classOrder = new Map((trialClasses ?? []).map((cls, index) => [cls.id, index]));
-  const classById = new Map((trialClasses ?? []).map(cls => [cls.id, cls]));
+  const liveClasses = (trial.classes ?? []).filter(cls => !cls.deleted_at);
+  const classOrder = new Map(liveClasses.map((cls, index) => [cls.id, index]));
+  const classById = new Map(liveClasses.map(cls => [cls.id, cls]));
   const byPerson = new Map<
     string,
     { name: string; residence: string | null; classIds: Set<string>; wholeTrial: boolean }
@@ -71,7 +82,11 @@ export function premiumTrialJudges(
 
   for (const row of rows ?? []) {
     const person = row.people;
-    if (!person) continue;
+    if (!person || INACTIVE_STATUSES.has(row.status ?? '')) continue;
+    const wholeTrial =
+      row.class_id === null && (row.trial_id === null || row.trial_id === trial.id);
+    const classHere = row.class_id !== null && classById.has(row.class_id);
+    if (!wholeTrial && !classHere) continue;
     const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
     if (!name) continue;
     const entry = byPerson.get(person.id) ?? {
@@ -80,8 +95,8 @@ export function premiumTrialJudges(
       classIds: new Set<string>(),
       wholeTrial: false,
     };
-    if (row.class_id === null) entry.wholeTrial = true;
-    else if (classById.has(row.class_id)) entry.classIds.add(row.class_id);
+    if (wholeTrial) entry.wholeTrial = true;
+    else entry.classIds.add(row.class_id!);
     byPerson.set(person.id, entry);
   }
 

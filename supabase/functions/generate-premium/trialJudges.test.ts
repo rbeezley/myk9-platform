@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import {
   formatResidence,
   premiumTrialJudges,
+  type PremiumJudgeAssignmentRow,
   type PremiumTrialClassRow,
-  type PremiumTrialJudgeRow,
 } from './trialJudges.ts';
 
 const donovan = {
@@ -24,30 +24,50 @@ const classes: PremiumTrialClassRow[] = [
   { id: 'c-cont-b', element: 'Container', level: 'Novice', section: 'B' },
   { id: 'c-int', element: 'Interior', level: 'Advanced', section: null },
 ];
+const trial = { id: 't-2', classes };
 
-const row = (people: PremiumTrialJudgeRow['people'], class_id: string | null) => ({
+const row = (
+  people: PremiumJudgeAssignmentRow['people'],
+  class_id: string | null,
+  extra: Partial<PremiumJudgeAssignmentRow> = {}
+): PremiumJudgeAssignmentRow => ({
+  trial_id: 't-2',
   class_id,
+  status: 'confirmed',
   people,
+  ...extra,
 });
 
 describe('premiumTrialJudges', () => {
   it('prints a judge on two classes once, with city, state and both classes (Heartland Trial 2)', () => {
-    expect(
-      premiumTrialJudges([row(donovan, 'c-cont-b'), row(donovan, 'c-buried')], classes)
-    ).toEqual([
-      {
-        name: 'Pat Donovan',
-        residence: 'Demoville, KS',
-        classes: ['Buried Master', 'Container Novice B'],
-      },
+    expect(premiumTrialJudges([row(donovan, 'c-cont-b'), row(donovan, 'c-buried')], trial)).toEqual(
+      [
+        {
+          name: 'Pat Donovan',
+          residence: 'Demoville, KS',
+          classes: ['Buried Master', 'Container Novice B'],
+        },
+      ]
+    );
+  });
+
+  it('matches a class-level row with no trial_id (set_class_judge) through its class', () => {
+    expect(premiumTrialJudges([row(donovan, 'c-int', { trial_id: null })], trial)).toEqual([
+      { name: 'Pat Donovan', residence: 'Demoville, KS', classes: ['Interior Advanced'] },
     ]);
   });
 
-  it('keeps judges in the order first assigned, each with only their own classes', () => {
+  it('leaves out a judge whose classes are all on another trial', () => {
+    expect(premiumTrialJudges([row(donovan, 'c-other-trial', { trial_id: 't-1' })], trial)).toEqual(
+      []
+    );
+  });
+
+  it('keeps judges in row order, each with only their own classes', () => {
     expect(
       premiumTrialJudges(
         [row(kerr, 'c-int'), row(donovan, 'c-cont-a'), row(kerr, 'c-cont-a')],
-        classes
+        trial
       )
     ).toEqual([
       { name: 'Sam Kerr', residence: null, classes: ['Container Novice A', 'Interior Advanced'] },
@@ -55,28 +75,51 @@ describe('premiumTrialJudges', () => {
     ]);
   });
 
-  it('lists no classes for a judge assigned to the whole trial, even with class rows too', () => {
-    expect(premiumTrialJudges([row(donovan, 'c-int'), row(donovan, null)], classes)).toEqual([
+  it('lists no classes for a whole-trial judge, and a whole-show judge appears on every trial', () => {
+    expect(premiumTrialJudges([row(donovan, 'c-int'), row(donovan, null)], trial)).toEqual([
       { name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] },
     ]);
+    expect(premiumTrialJudges([row(kerr, null, { trial_id: null })], trial)).toEqual([
+      { name: 'Sam Kerr', residence: null, classes: [] },
+    ]);
+    expect(premiumTrialJudges([row(kerr, null, { trial_id: 't-1' })], trial)).toEqual([]);
   });
 
-  it('skips a class that is not on this trial, and rows with no person or no name', () => {
+  it('prints nothing for declined or cancelled assignments, or for a deleted class', () => {
+    const withDeleted = {
+      id: 't-2',
+      classes: [
+        ...classes,
+        {
+          id: 'c-gone',
+          element: 'Buried',
+          level: 'Novice',
+          section: 'A',
+          deleted_at: '2026-11-01',
+        },
+      ],
+    };
     expect(
       premiumTrialJudges(
         [
-          row(donovan, 'c-other-trial'),
-          row(null, 'c-int'),
-          row({ id: 'p-3', first_name: ' ', last_name: null }, 'c-int'),
+          row(donovan, 'c-int', { status: 'declined' }),
+          row(kerr, 'c-int', { status: 'cancelled' }),
+          row(donovan, 'c-gone'),
         ],
-        classes
+        withDeleted
       )
-    ).toEqual([{ name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] }]);
+    ).toEqual([]);
   });
 
-  it('returns nothing for a trial with no assignments', () => {
-    expect(premiumTrialJudges(undefined, classes)).toEqual([]);
-    expect(premiumTrialJudges([], undefined)).toEqual([]);
+  it('skips rows with no person or no name, and a trial with no assignments', () => {
+    expect(
+      premiumTrialJudges(
+        [row(null, 'c-int'), row({ id: 'p-3', first_name: ' ', last_name: null }, 'c-int')],
+        trial
+      )
+    ).toEqual([]);
+    expect(premiumTrialJudges(undefined, trial)).toEqual([]);
+    expect(premiumTrialJudges([], { id: 't-2', classes: undefined })).toEqual([]);
   });
 });
 
@@ -90,10 +133,14 @@ describe('formatResidence', () => {
 });
 
 describe('generate-premium wiring', () => {
-  it('selects the judges with city, state and class, and folds them per trial', () => {
+  it('reads judges for the whole show, ordered, and folds them per trial by class', () => {
     const source = readFileSync(join(__dirname, 'index.ts'), 'utf8');
-    expect(source).toContain('judge_assignments(${PREMIUM_TRIAL_JUDGES_SELECT})');
-    expect(source).toContain('judges: premiumTrialJudges(trial.judge_assignments, trial.classes)');
+    expect(source).toContain(".from('judge_assignments')");
+    expect(source).toContain('.select(PREMIUM_JUDGE_ASSIGNMENTS_SELECT)');
+    expect(source).toContain(".order('created_at', { ascending: true })");
+    expect(source).toContain('judges: premiumTrialJudges(judgeAssignments, trial)');
+    // The nested trials(judge_assignments(...)) embed dropped rows with no trial_id.
+    expect(source).not.toMatch(/^\s*judge_assignments\(/m);
     expect(source).not.toContain('elements: [] as string[]');
   });
 });

@@ -414,14 +414,12 @@ describe('ReportsPage', () => {
     expect(lastToast?.[1]).toBeUndefined();
   });
 
-  it('keeps emergency packet preparation in Show tools', () => {
+  it('no longer points at the retired emergency packet tool', () => {
     render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
 
     expect(screen.queryByRole('heading', { name: 'Emergency Trial Packet' })).toBeNull();
-    expect(screen.getByRole('link', { name: /open it in show tools/i })).toHaveAttribute(
-      'href',
-      '/shows/show-1?tool=emergency-trial-packet'
-    );
+    expect(screen.queryByText(/emergency paper fallback/i)).toBeNull();
+    expect(screen.queryByRole('link', { name: /open it in show tools/i })).toBeNull();
   });
 
   it('offers the official AKC entry form PDF when a dog is selected', async () => {

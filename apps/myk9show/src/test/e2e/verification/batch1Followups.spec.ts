@@ -379,7 +379,9 @@ async function showUsesRow(client: Client, showId: string) {
   return { ...show.data, self_checkin_enabled: settings.data?.self_checkin_enabled ?? null };
 }
 
-const GATED_ROWS = ['Self check-in', 'Access codes', 'Emergency trial packet', 'Volunteers'];
+const GATED_ROWS = ['Self check-in', 'Access codes', 'Volunteers'];
+// "Paper fallback packet" no longer gates a Show Desk row (MYK9-2109), but it is still a switch
+// and the server round-trip below still checks `uses_paper_packet`.
 const TOOL_SWITCHES = [
   'Exhibitor self check-in',
   'Judges score on devices',

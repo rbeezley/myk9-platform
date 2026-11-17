@@ -4,18 +4,20 @@ The emergency trial packet is the paper fallback for running a show when the lap
 
 ## Before the show
 
-1. Open the show's **Reports** page with **All Trials** and **All Classes** selected.
-2. Under **Emergency Trial Packet**, choose **Prepare and email packet**.
+The packet is generated and emailed automatically the night before each trial day. To make one by hand, or to see which copies were sent:
+
+1. Open the trial's before-trial packet from the show map and choose **Show saved copies**.
+2. Choose **Save and email a copy**. It builds the day's packet the same way the nightly job does and emails a link to the show's secretary and club administrators.
 3. Open the emailed private link from a device that does not depend on the show laptop.
 4. Print the complete packet. Confirm every trial, class, and entry is present.
 5. Put the packet in the physical trial box with pens, blank paper, the registry rulebook, and required official forms.
-6. In Reports, choose **Mark packet printed** only after the paper is physically in hand.
+6. In **Saved copy**, choose **Mark printed** only after the paper is physically in hand.
 
 Email delivery is not readiness. A packet that exists only on the show laptop or in its browser cannot recover a dead device.
 
 ## Running on paper
 
-- Use the generation time and `SNAPSHOT — NOT LIVE` footer on every page. If several packets exist, use the newest complete copy.
+- Use the printed time in each page's footer (the judge pages say when they were printed; the catalog, certification and recovery pages carry `SNAPSHOT — NOT LIVE`). If several packets exist, use the newest complete copy.
 - Keep each page with the trial day, ring, and class printed in its footer.
 - Write check-ins, pulls, move-ups, absences, running-order changes, scores, faults, times, placements, corrections, and incidents directly on the packet.
 - Initial corrections. Do not erase the original value so the change remains auditable.

@@ -60,7 +60,6 @@ const SHOW_TOOL_ICONS: Readonly<Record<string, ActionIconName>> = {
   'check-in-desk': 'check-in',
   'self-checkin': 'self-check-in',
   'access-codes': 'access-codes',
-  'emergency-trial-packet': 'emergency-packet',
   'message-exhibitors': 'message',
   volunteers: 'volunteers',
   'lunch-orders': 'lunch',

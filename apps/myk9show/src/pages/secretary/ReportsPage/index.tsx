@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData } from '@/hooks/queries/useReportData';
@@ -356,18 +356,6 @@ export default function ReportsPage() {
           printed here and in Show Desk's class checklist.
         </p>
       </div>
-      {linkShowId && (
-        <p className="mb-6 text-sm text-muted-foreground">
-          Need the emergency paper fallback?{' '}
-          <Link
-            to={`/shows/${linkShowId}?tool=emergency-trial-packet`}
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            Open it in Show tools
-          </Link>
-          .
-        </p>
-      )}
 
       <ReportPhaseSections
         reportType={reportType}

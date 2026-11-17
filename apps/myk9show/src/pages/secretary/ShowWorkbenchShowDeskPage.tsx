@@ -14,7 +14,6 @@ import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard'
 import { ShowJudgeSuppliesTool } from '@/features/judge-supplies/ShowJudgeSuppliesTool';
 import { LunchOrdersTool } from '@/features/lunch-orders/LunchOrdersTool';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
-import { EmergencyTrialPacketTool } from '@/features/emergency-trial-packet/EmergencyTrialPacketTool';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
 import {
@@ -305,14 +304,6 @@ function ShowWorkbenchShowDeskBody() {
         ),
       },
       {
-        id: 'emergency-trial-packet',
-        group: 'show-day',
-        title: 'Emergency trial packet',
-        summary: 'Prepare or confirm the printed paper fallback for this show',
-        layout: 'wide',
-        content: <EmergencyTrialPacketTool show={currentShow} />,
-      },
-      {
         id: 'message-exhibitors',
         group: 'show-day',
         title: 'Message exhibitors',
@@ -410,7 +401,6 @@ function ShowWorkbenchShowDeskBody() {
       filterShowDeskTools(allShowDeskTools, {
         selfCheckin: showSettings.data?.selfCheckinEnabled,
         deviceScoring: replicaShow?.usesDeviceScoring ?? currentShow?.usesDeviceScoring,
-        paperPacket: replicaShow?.usesPaperPacket ?? currentShow?.usesPaperPacket,
         volunteers: replicaShow?.usesVolunteers ?? currentShow?.usesVolunteers,
       }),
     [allShowDeskTools, currentShow, replicaShow, showSettings.data?.selfCheckinEnabled]

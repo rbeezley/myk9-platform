@@ -21,6 +21,10 @@ vi.mock('@/pages/Home', () => ({
   },
 }));
 
+vi.mock('@/components/pwa/PWAInstallBanner', () => ({
+  PWAInstallBanner: () => <p>install banner</p>,
+}));
+
 describe('GuestLanding', () => {
   afterEach(() => {
     home.crash = false;
@@ -34,6 +38,12 @@ describe('GuestLanding', () => {
 
     expect(screen.getByText('landing for a guest')).toBeInTheDocument();
     expect(onLeave).not.toHaveBeenCalled();
+  });
+
+  it('shows the install banner above the landing page, as the app shell does', async () => {
+    render(<GuestLanding onLeave={vi.fn()} onRouter={vi.fn()} />);
+
+    expect(await screen.findByText('install banner')).toBeInTheDocument();
   });
 
   it('hands its router to the caller for page-view tracking', () => {

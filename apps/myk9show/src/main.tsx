@@ -6,6 +6,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { RootRouter } from './boot/RootRouter';
 import type { AppRouter } from './boot/GuestLanding';
 import { isGuestLandingBoot } from './boot/isGuestLandingBoot';
+import { startInstallPromptCapture } from './boot/installPromptCapture';
 import './index.css';
 // Ringside page styles — required by the @myk9/ringside EntryList mount at
 // /at-show (Phase 1a). Imported unconditionally; the route itself is flag-gated.
@@ -29,6 +30,11 @@ import {
 // avoid touching browser globals during SSR or module-loading tests.
 if (typeof window !== 'undefined' && import.meta.env.MODE !== 'test') {
   installSupportErrorCapture();
+}
+
+// The browser makes its install offer once per page load, before the install banner has loaded.
+if (typeof window !== 'undefined' && import.meta.env.MODE !== 'test') {
+  startInstallPromptCapture();
 }
 
 // Everyone but a first-time landing visitor needs the full app, so start fetching it now, not

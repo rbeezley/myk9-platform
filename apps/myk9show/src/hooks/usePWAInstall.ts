@@ -7,14 +7,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { isIOSSafariUA } from '@/features/pwa/pwaInstallTelemetry';
+import {
+  clearCapturedInstallPrompt,
+  getCapturedInstallPrompt,
+  type BeforeInstallPromptEvent,
+} from '@/boot/installPromptCapture';
 
 interface NavigatorStandalone extends Navigator {
   standalone?: boolean;
-}
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
 export interface UsePWAInstallReturn {
@@ -49,7 +49,11 @@ function detectIOSSafari(): boolean {
 export function usePWAInstall(): UsePWAInstallReturn {
   const [isInstalled, setIsInstalled] = useState(false);
   const [wasInstalledBefore, setWasInstalledBefore] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  // The browser offers once per page load, often before this hook mounts (MYK9-2140), so start
+  // from the offer kept at boot.
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
+    getCapturedInstallPrompt
+  );
   const [isDismissed, setIsDismissed] = useState(false);
   const [isIOSSafari] = useState(detectIOSSafari);
 
@@ -129,6 +133,8 @@ export function usePWAInstall(): UsePWAInstallReturn {
   const promptInstall = useCallback(async (): Promise<boolean> => {
     if (!installPrompt) return false;
     try {
+      // A prompt can be shown once: a banner mounted later must not start from a spent offer.
+      clearCapturedInstallPrompt();
       await installPrompt.prompt();
       const result = await installPrompt.userChoice;
       if (result.outcome === 'accepted') {

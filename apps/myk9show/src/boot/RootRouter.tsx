@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PageLoadingFallback } from '@/components/common/PageLoadingFallback';
+import { logger } from '@/services/LoggingService';
 import { importWithRetry } from '@/utils/lazyWithRetry';
 import { recoverFromChunkLoadError } from '@/utils/chunkLoadRecovery';
 import { GuestLanding, type AppRouter } from './GuestLanding';
@@ -58,8 +59,16 @@ export function RootRouter({
           // A guest's background fetch failing is not the guest's problem: they are reading the
           // landing page, perhaps typing in its form, so it must neither reload nor report.
           // Here the app IS the page. A reload is earned only when it can fix a stale build;
-          // otherwise say so and offer one.
-          if (!recoverFromChunkLoadError(router.failure)) setFailed(true);
+          // otherwise say so and offer one. Report it either way: the app did not start, and
+          // while the router was part of the startup file the browser reported that by itself.
+          const { failure } = router;
+          logger.error(
+            'The app file failed to load',
+            'boot',
+            { data: { url: currentUrl(), failure: String(failure) } },
+            failure instanceof Error ? failure : undefined
+          );
+          if (!recoverFromChunkLoadError(failure)) setFailed(true);
           return;
         }
         // The full app's router was created while the URL was `/`. A guest who followed a link

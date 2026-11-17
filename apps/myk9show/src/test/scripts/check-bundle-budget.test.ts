@@ -369,6 +369,15 @@ describe('check-bundle-budget — the build measured must be the app', () => {
   });
 });
 
+describe('check-bundle-budget — initial-load ceilings', () => {
+  // MYK9-2140 moved the signed-in app out of the startup file. A change that puts it back
+  // has to raise these on purpose, here, where a reviewer sees it.
+  it('pins the initial-load ceilings', () => {
+    expect(BUDGETS.initialJsKb).toBe(1275);
+    expect(BUDGETS.maxChunkKb).toBe(1360);
+  });
+});
+
 describe('check-bundle-budget — precache rules', () => {
   const within = {
     initialJsKb: 1000,
@@ -381,13 +390,6 @@ describe('check-bundle-budget — precache rules', () => {
   // The total was 12288 (MYK9-1356) until MYK9-2150: that figure was recorded on a build made
   // without the environment, which lacked about 1.7 MB of the app. 13312 is the same rule on
   // the real build, not a relaxation; it only comes down from here.
-  // MYK9-2140 moved the signed-in app out of the startup file. A change that puts it back
-  // has to raise these on purpose, here, where a reviewer sees it.
-  it('pins the initial-load ceilings', () => {
-    expect(BUDGETS.initialJsKb).toBe(1275);
-    expect(BUDGETS.maxChunkKb).toBe(1360);
-  });
-
   it('pins the precache ceilings', () => {
     expect(BUDGETS.precacheTotalKb).toBe(13312);
     expect(BUDGETS.precacheNonCodeFileKb).toBe(1024);

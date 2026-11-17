@@ -8,6 +8,9 @@ import { RootRouter } from './RootRouter';
 const recovery = vi.hoisted(() => ({ recoverFromChunkLoadError: vi.fn(() => false) }));
 vi.mock('@/utils/chunkLoadRecovery', () => recovery);
 
+const logging = vi.hoisted(() => ({ logger: { error: vi.fn() } }));
+vi.mock('@/services/LoggingService', () => logging);
+
 vi.mock('@/pages/Home', () => ({
   default: () => (
     <main>
@@ -32,6 +35,7 @@ describe('RootRouter when the app file cannot be fetched', () => {
   afterEach(() => {
     vi.useRealTimers();
     recovery.recoverFromChunkLoadError.mockClear();
+    logging.logger.error.mockClear();
     window.history.replaceState({}, '', '/');
   });
 
@@ -42,6 +46,7 @@ describe('RootRouter when the app file cannot be fetched', () => {
     expect(screen.getByText('light landing page')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(recovery.recoverFromChunkLoadError).not.toHaveBeenCalled();
+    expect(logging.logger.error).not.toHaveBeenCalled();
   });
 
   it('tries again when the guest leaves the landing page, and only then reports', async () => {
@@ -60,6 +65,12 @@ describe('RootRouter when the app file cannot be fetched', () => {
     render(<RootRouter guestBoot={false} onRouter={vi.fn()} />);
     await act(() => vi.advanceTimersByTimeAsync(ONE_ATTEMPT_MS));
 
+    expect(logging.logger.error).toHaveBeenCalledWith(
+      'The app file failed to load',
+      'boot',
+      { data: { url: '/shows', failure: expect.any(String) } },
+      expect.any(Error)
+    );
     expect(recovery.recoverFromChunkLoadError).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('alert')).toHaveTextContent('myK9Show could not finish loading');
   });

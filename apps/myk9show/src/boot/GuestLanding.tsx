@@ -1,9 +1,19 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Home from '@/pages/Home';
 import { AuthContext } from '@/context/authContextObject';
 import { PageLoadingFallback } from '@/components/common/PageLoadingFallback';
 import { GUEST_AUTH_VALUE } from './guestAuthValue';
+
+/**
+ * The "Install myK9Show" banner, as the app shell shows it, fetched after the page. If its file
+ * cannot be fetched the landing page simply has no banner: never an error, never a reload.
+ */
+const InstallBanner = lazy(() =>
+  import('@/components/pwa/PWAInstallBanner')
+    .then(module => ({ default: module.PWAInstallBanner }))
+    .catch(() => ({ default: () => null }))
+);
 
 /** The visitor is leaving the light landing page: hand over to the full app. */
 function LeaveGuestLanding({ onLeave }: { onLeave: () => void }) {
@@ -43,6 +53,9 @@ export function GuestLanding({
 
   return (
     <AuthContext.Provider value={GUEST_AUTH_VALUE}>
+      <Suspense fallback={null}>
+        <InstallBanner />
+      </Suspense>
       <RouterProvider router={router} />
     </AuthContext.Provider>
   );

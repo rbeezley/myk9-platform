@@ -134,6 +134,7 @@ BEGIN
     now()
   FROM public.people p
   WHERE nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
+    AND p.deleted_at IS NULL
     AND p.id IN (
       SELECT d.owner_id
         FROM public.entries e
@@ -146,9 +147,14 @@ BEGIN
          )
          AND e.check_in_status IS DISTINCT FROM 'pulled'
          AND d.owner_id IS NOT NULL
+         AND d.deleted_at IS NULL
     )
   ON CONFLICT DO NOTHING;
 
+  RETURN new;
+EXCEPTION WHEN OTHERS THEN
+  -- Queuing an email must never block releasing a class's results.
+  RAISE WARNING 'queue_results_available_emails: % (%)', SQLERRM, SQLSTATE;
   RETURN new;
 END;
 $$;

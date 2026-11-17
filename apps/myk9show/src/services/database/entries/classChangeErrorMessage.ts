@@ -29,8 +29,14 @@ const BY_CODE: Record<string, string> = {
 };
 
 /** One plain sentence for a refused request or take-back. Never the raw Postgres text. */
-export function classChangeErrorMessage(error: ClassChangeFailure | null | undefined): string {
+export const CLASS_CHANGE_TAKE_BACK_FALLBACK_MESSAGE =
+  'We could not take that request back. Please try again, or ask the secretary.';
+
+export function classChangeErrorMessage(
+  error: ClassChangeFailure | null | undefined,
+  fallback: string = CLASS_CHANGE_FALLBACK_MESSAGE
+): string {
   if (error?.hint && BY_HINT[error.hint]) return BY_HINT[error.hint] as string;
   if (error?.code && BY_CODE[error.code]) return BY_CODE[error.code] as string;
-  return CLASS_CHANGE_FALLBACK_MESSAGE;
+  return fallback;
 }

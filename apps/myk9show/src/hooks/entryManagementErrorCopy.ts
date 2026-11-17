@@ -52,6 +52,8 @@ export const MOVE_UP_COPY = {
   /** The stored class asked for could not be read, so Accept cannot be trusted. */
   targetUnreadable:
     "We couldn't read the class this exhibitor asked for. Press Refresh before accepting.",
+  requestTakenBack: 'This request was taken back.',
+  requestChanged: 'The exhibitor changed this request. Check the new one and accept again.',
   unfinished: "We couldn't finish this class change. Press Refresh to see where it stands.",
 } as const;
 

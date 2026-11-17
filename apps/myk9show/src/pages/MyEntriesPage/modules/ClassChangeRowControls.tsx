@@ -16,7 +16,12 @@
 import React from 'react';
 import { toast } from 'sonner';
 import { cancelClassChange } from '@/services/database/entries/classChangeRequests';
-import { classChangeErrorMessage } from '@/services/database/entries/classChangeErrorMessage';
+import {
+  CLASS_CHANGE_OFFLINE_MESSAGE,
+  CLASS_CHANGE_TAKE_BACK_FALLBACK_MESSAGE,
+  classChangeErrorMessage,
+} from '@/services/database/entries/classChangeErrorMessage';
+import { useQueryOnlineStatus } from '@/hooks/guestServerRead';
 import { logger } from '@/services/LoggingService';
 import { EntryStatus } from '@/types/show-registration-types';
 import { ChangeClassSheet } from './ChangeClassSheet';
@@ -54,8 +59,30 @@ export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
   onChanged,
 }) => {
   const [sheetOpen, setSheetOpen] = React.useState(false);
-  // 'sent' and 'taken-back' override the replicated status until it catches up.
-  const [local, setLocal] = React.useState<'sent' | 'taken-back' | null>(null);
+  // 'sent' and 'taken-back' override the replicated row until it catches up. The
+  // override is tied to the row as it was when set: once the status, the declined
+  // note or the class changes (a decline, an accept, a sync), it no longer applies.
+  const [override, setOverride] = React.useState<{
+    value: 'sent' | 'taken-back';
+    status: typeof cls.entryStatus;
+    note: string | undefined;
+    classId: string | undefined;
+  } | null>(null);
+  const local =
+    override &&
+    override.status === cls.entryStatus &&
+    override.note === cls.specialRequests &&
+    override.classId === cls.classId
+      ? override.value
+      : null;
+  const setLocal = (value: 'sent' | 'taken-back') =>
+    setOverride({
+      value,
+      status: cls.entryStatus,
+      note: cls.specialRequests,
+      classId: cls.classId,
+    });
+  const isOnline = useQueryOnlineStatus();
   const [isTakingBack, setIsTakingBack] = React.useState(false);
 
   const replicatedWaiting = cls.entryStatus === EntryStatus.MOVE_UP_REQUESTED;
@@ -64,11 +91,15 @@ export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
   const declined = waiting ? null : declinedClassChangeReason(cls.entryStatus, cls.specialRequests);
 
   const takeBack = async () => {
+    if (!isOnline) {
+      toast.error(CLASS_CHANGE_OFFLINE_MESSAGE);
+      return;
+    }
     setIsTakingBack(true);
     try {
       const { error } = await cancelClassChange(cls.id);
       if (error) {
-        toast.error(classChangeErrorMessage(error));
+        toast.error(classChangeErrorMessage(error, CLASS_CHANGE_TAKE_BACK_FALLBACK_MESSAGE));
         return;
       }
       setLocal('taken-back');
@@ -81,7 +112,7 @@ export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
         { entryId: cls.id },
         err as Error
       );
-      toast.error(classChangeErrorMessage(null));
+      toast.error(classChangeErrorMessage(null, CLASS_CHANGE_TAKE_BACK_FALLBACK_MESSAGE));
     } finally {
       setIsTakingBack(false);
     }
@@ -101,7 +132,7 @@ export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
           <button
             type="button"
             onClick={() => void takeBack()}
-            disabled={isTakingBack}
+            disabled={isTakingBack || !isOnline}
             aria-label={`Take back class change request for ${dogName} in ${cls.name}`}
             className={LINK_CLASS}
           >

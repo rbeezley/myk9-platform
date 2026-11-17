@@ -116,6 +116,30 @@ describe('MoveUpRequestsTab', () => {
     );
   });
 
+  it('refuses Accept when the exhibitor took the request back since the list loaded', async () => {
+    const user = userEvent.setup();
+    render(<MoveUpRequestsTab showId="show-1" />);
+    await screen.findAllByTestId('class-change-line');
+    mocks.details.mockResolvedValue({});
+    await user.click(screen.getAllByRole('button', { name: 'Accept' })[0] as HTMLElement);
+
+    await waitFor(() => expect(mocks.details).toHaveBeenCalledWith(['req-1']));
+    expect(mocks.accept).not.toHaveBeenCalled();
+  });
+
+  it('refuses Accept when the exhibitor asked for a different class since the list loaded', async () => {
+    const user = userEvent.setup();
+    render(<MoveUpRequestsTab showId="show-1" />);
+    await screen.findAllByTestId('class-change-line');
+    mocks.details.mockResolvedValue({
+      'req-1': { entryId: 'req-1', targetClassId: 'class-other', reason: null, requestedAt: null },
+    });
+    await user.click(screen.getAllByRole('button', { name: 'Accept' })[0] as HTMLElement);
+
+    await waitFor(() => expect(mocks.details).toHaveBeenCalledWith(['req-1']));
+    expect(mocks.accept).not.toHaveBeenCalled();
+  });
+
   it('Undo reverses exactly the move that Accept made', async () => {
     const user = userEvent.setup();
     render(<MoveUpRequestsTab showId="show-1" />);

@@ -12,7 +12,11 @@ import {
   classChangeReasonLabel,
   requestClassChange,
 } from './classChangeRequests';
-import { classChangeErrorMessage, CLASS_CHANGE_FALLBACK_MESSAGE } from './classChangeErrorMessage';
+import {
+  classChangeErrorMessage,
+  CLASS_CHANGE_FALLBACK_MESSAGE,
+  CLASS_CHANGE_TAKE_BACK_FALLBACK_MESSAGE,
+} from './classChangeErrorMessage';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -65,5 +69,11 @@ describe('copy', () => {
       CLASS_CHANGE_FALLBACK_MESSAGE
     );
     expect(classChangeErrorMessage(null)).toBe(CLASS_CHANGE_FALLBACK_MESSAGE);
+  });
+
+  it('says "take back", not "send", when a take back fails', () => {
+    const message = classChangeErrorMessage(null, CLASS_CHANGE_TAKE_BACK_FALLBACK_MESSAGE);
+    expect(message).toMatch(/take that request back/);
+    expect(message).not.toMatch(/send/);
   });
 });

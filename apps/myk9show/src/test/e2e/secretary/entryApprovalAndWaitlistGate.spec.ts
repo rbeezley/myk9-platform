@@ -63,13 +63,13 @@ test.describe('Secretary entry approval + move-up gate', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('move-ups tab surfaces the pending move-up request with a valid target', async ({
+  test('class changes list surfaces the pending request; the seed names no class, so Accept opens the legacy picker', async ({
     page,
   }) => {
     await signInAsSecretary(page, `${ENTRIES_PATH}?tab=move-ups`);
     await expect(page).toHaveURL(new RegExp(`${escapeRegExp(ENTRIES_PATH)}\\?tab=move-ups`));
 
-    await expect(page.getByText(/Move-Up Requests \(\d+\)/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/Class changes \(\d+\)/)).toBeVisible({ timeout: 20_000 });
 
     // The pending-request list is read through the replicated (offline-first)
     // entries table, which can still be syncing on a cold session even after
@@ -80,12 +80,12 @@ test.describe('Secretary entry approval + move-up gate', () => {
         async () => {
           if (
             await page
-              .getByText('No Pending Move-Up Requests')
+              .getByText('No class changes waiting')
               .isVisible()
               .catch(() => false)
           ) {
             await page.reload();
-            await expect(page.getByText(/Move-Up Requests \(\d+\)/)).toBeVisible({
+            await expect(page.getByText(/Class changes \(\d+\)/)).toBeVisible({
               timeout: 20_000,
             });
           }
@@ -95,15 +95,15 @@ test.describe('Secretary entry approval + move-up gate', () => {
       )
       .toBe(true);
 
-    await page.getByRole('button', { name: 'Approve' }).first().click();
-    await expect(page.getByRole('dialog', { name: 'Approve Move-Up Request' })).toBeVisible();
+    await page.getByRole('button', { name: 'Accept' }).first().click();
+    await expect(page.getByRole('dialog', { name: 'Accept class change' })).toBeVisible();
 
     // The target-class select should offer Interior Advanced (seed comment:
     // "same element, higher level" is the only valid destination).
     await expect(page.getByText('Target Class')).toBeVisible();
 
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByRole('dialog', { name: 'Approve Move-Up Request' })).toBeHidden();
+    await expect(page.getByRole('dialog', { name: 'Accept class change' })).toBeHidden();
   });
 });
 

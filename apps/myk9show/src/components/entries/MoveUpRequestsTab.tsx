@@ -209,6 +209,20 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   const handleAccept = async (request: MoveUpRequest, targetClassId: string) => {
     setIsProcessing(true);
     try {
+      // The exhibitor may have taken the request back, or asked for another class,
+      // since this list loaded. Accept moves a dog, so it reads the stored class
+      // again and refuses on any difference rather than move to a stale one.
+      const fresh = (await getClassChangeRequestDetails([request.id]))[request.id];
+      if (!fresh?.targetClassId) {
+        toast.error(MOVE_UP_COPY.requestTakenBack);
+        await afterChange();
+        return;
+      }
+      if (fresh.targetClassId !== targetClassId) {
+        toast.error(MOVE_UP_COPY.requestChanged);
+        await afterChange();
+        return;
+      }
       const { data, error: acceptError } = await acceptClassChangeRequestReplicated(
         request.id,
         targetClassId

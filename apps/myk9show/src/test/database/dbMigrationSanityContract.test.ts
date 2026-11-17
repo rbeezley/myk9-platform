@@ -42,7 +42,7 @@ describe('DB migration sanity contracts', () => {
     const source = readRepoFile('supabase/functions/send-confirmation-email/index.ts');
     const entryQuery = sliceBetween(source, 'loadCandidates: async', 'loadRecipients: async');
     expect(entryQuery).toContain(".is('confirmation_email_sent_at', null)");
-    expect(entryQuery).toContain(".in('confirmation_email_status', statuses)");
+    expect(entryQuery).toContain('.or(claimableFilter(statuses, nowIso))');
     // Retries rotate: oldest change first, and a failed attempt bumps updated_at.
     expect(entryQuery).toContain(".order('updated_at', { ascending: true })");
 
@@ -63,7 +63,7 @@ describe('DB migration sanity contracts', () => {
     const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
     expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
     expect(run).toContain(
-      'idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations)'
+      'idempotencyKey = await confirmationIdempotencyKey(group, claimed, generations)'
     );
   });
 

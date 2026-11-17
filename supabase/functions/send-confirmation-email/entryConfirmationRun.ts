@@ -5,6 +5,7 @@
 
 import {
   buildConfirmationEmailData,
+  CONFIRMATION_LEASE_MS,
   CONFIRMATION_MAX_EMAILS_PER_RUN,
   CONFIRMATION_QUIET_MS,
   confirmationIdempotencyKey,
@@ -47,14 +48,17 @@ export interface EntryConfirmationDeps {
   loadAcceptedEmailOff(showIds: string[]): Promise<Set<string>>;
   /**
    * Accepted ('confirmed'), not deleted entries with an armband and no confirmation yet, in
-   * these shows, whose confirmation_email_status is one of `statuses` and that have not changed
-   * since `quietSince`. Oldest updated_at first: a failed attempt bumps updated_at, so the
+   * these shows, whose confirmation_email_status is one of `statuses` OR that hold an EXPIRED
+   * lease (an interrupted send, recovered on every run whatever its status), and that have not changed
+   * since `quietSince`, and that no live lease holds (`confirmation_claimed_until` is null or
+   * before `nowIso`). Oldest updated_at first: a failed attempt bumps updated_at, so the
    * daily retry rotates through failures instead of taking the same ones every day.
    */
   loadCandidates(args: {
     showIds: string[];
     statuses: Array<'pending' | 'failed'>;
     quietSince: string;
+    nowIso: string;
   }): Promise<ConfirmationEntry[]>;
   /**
    * byRegistration: a registration that was read maps to its person, or to null when it has
@@ -73,6 +77,7 @@ export interface EntryConfirmationDeps {
     handlerIds: string[];
     statuses: Array<'pending' | 'failed'>;
     quietSince: string;
+    nowIso: string;
   }): Promise<ConfirmationEntry[]>;
   loadRecipients(args: { registrationIds: string[]; handlerIds: string[] }): Promise<{
     byRegistration: Map<string, ConfirmationRecipient | null>;
@@ -88,15 +93,32 @@ export interface EntryConfirmationDeps {
    * sent under a key that could repeat an earlier acceptance's.
    */
   loadAcceptanceGenerations(entryIds: string[]): Promise<Map<string, string>>;
-  /** Stamps the entries still unclaimed and still confirmed; returns the ids it stamped. */
+  /**
+   * Leases the entries still unsent, still confirmed and not under a live lease (never claimed,
+   * or `confirmation_claimed_until` before `nowIso`): sets confirmation_claimed_until to
+   * `leaseUntilIso` in one atomic update and returns the ids it leased. Nothing is stamped sent.
+   */
   claim(
     entryIds: string[],
     statuses: Array<'pending' | 'failed'>,
-    nowIso: string
+    nowIso: string,
+    leaseUntilIso: string
   ): Promise<string[]>;
-  markSent(entryIds: string[], messageId: string): Promise<void>;
-  /** Releases a claim after a failed send: unstamped, 'failed', so the daily run retries it. */
-  markFailed(entryIds: string[]): Promise<void>;
+  /**
+   * After the provider accepted: stamps sent_at, 'sent' and the message id and clears the lease,
+   * but only on entries whose lease is still the one this run wrote (`leaseUntilIso`) and that
+   * are still confirmed. A re-acceptance in between voided the lease (any status change does),
+   * so that entry stays unmarked and gets its own email. Returns the ids it stamped; throws when
+   * the write fails (the run retries it inline).
+   */
+  markSent(entryIds: string[], messageId: string, leaseUntilIso: string): Promise<string[]>;
+  /**
+   * A failed send: marks 'failed' so the daily run retries it. With `leaseUntilIso` it also
+   * releases that lease (only entries still holding it); without, the entries were never leased.
+   */
+  markFailed(entryIds: string[], leaseUntilIso?: string): Promise<void>;
+  /** Waits between sent-stamp attempts; tests inject an instant one. */
+  sleep?(ms: number): Promise<void>;
   render(data: HeritageEmailData, show: ConfirmationShow): string;
   send(email: {
     to: string;
@@ -141,10 +163,12 @@ export async function runEntryConfirmations(
 
   const quietSince = new Date(now.getTime() - CONFIRMATION_QUIET_MS).toISOString();
   const eligible = (entry: ConfirmationEntry) => !!entry.armband && showById.has(entry.show_id);
+  const nowIso = now.toISOString();
   const candidates = await deps.loadCandidates({
     showIds: shows.map(show => show.id),
     statuses,
     quietSince,
+    nowIso,
   });
   // The candidates choose WHICH exhibitors go this run (oldest first); each chosen exhibitor's
   // email is then built from all of her eligible entries, never from the part the limit let in.
@@ -164,6 +188,7 @@ export async function runEntryConfirmations(
           handlerIds: unique(chosen.map(group => group.handlerId)),
           statuses,
           quietSince,
+          nowIso,
         })
       ).filter(eligible)
     ).map(group => [group.key, group])
@@ -227,12 +252,16 @@ export async function runEntryConfirmations(
       continue;
     }
 
-    const claimed = await deps.claim(entryIds, statuses, now.toISOString());
+    // The lease outlives any run, so a live one is never overtaken; a dead run's expires and the
+    // next run sends the same email under the same idempotency key.
+    const leaseUntilIso = new Date(now.getTime() + CONFIRMATION_LEASE_MS).toISOString();
+    const claimed = await deps.claim(entryIds, statuses, nowIso, leaseUntilIso);
     if (claimed.length === 0) continue;
     const entries = group.entries.filter(entry => claimed.includes(entry.id));
     const claimedAnchor = entries[0]!;
 
     let result: ConfirmationSendResult;
+    let idempotencyKey = '';
     let content: ConfirmationLogRow['content'];
     try {
       const generations = await deps.loadAcceptanceGenerations(claimed);
@@ -249,21 +278,31 @@ export async function runEntryConfirmations(
       );
       const subject = confirmationSubject(show.name, entries.length);
       content = { subject, html };
-      result = await deps.send({
-        to: recipient.email,
-        subject,
-        html,
-        idempotencyKey: await confirmationIdempotencyKey(group, claimed, generations),
-      });
+      idempotencyKey = await confirmationIdempotencyKey(group, claimed, generations);
+      result = await deps.send({ to: recipient.email, subject, html, idempotencyKey });
     } catch {
       result = { ok: false, error: 'email_delivery_error' };
     }
 
     if (result.ok) {
-      await deps.markSent(claimed, result.messageId);
+      const stamped = await stampSent(deps, {
+        entryIds: claimed,
+        messageId: result.messageId,
+        leaseUntilIso,
+        groupKey: group.key,
+        idempotencyKey,
+      });
+      if (stamped !== null && stamped.length < claimed.length) {
+        // Not an error: a re-accepted entry is left for its own email.
+        console.warn('Confirmation sent; some entries were not marked sent', {
+          claimed: claimed.length,
+          stamped: stamped.length,
+          relatedId: claimedAnchor.id,
+        });
+      }
       sent++;
     } else {
-      await deps.markFailed(claimed);
+      await deps.markFailed(claimed, leaseUntilIso);
       failed++;
     }
     await deps.log({
@@ -304,4 +343,44 @@ function resolveRecipient(
   if (!handlerId) return null;
   if (!recipients.handlersRead) return 'unknown';
   return recipients.byHandler.get(handlerId) ?? null;
+}
+
+const STAMP_ATTEMPTS = 3;
+const STAMP_BACKOFF_MS = 250;
+
+/**
+ * Writes the sent stamp after the provider accepted, retrying a failed write inline so a
+ * transient database error does not leave an accepted send unmarked. Returns the stamped ids, or
+ * null when every attempt failed: the lease then stands and, once it expires, a later run sends
+ * under the same key (Resend dedupes within 24 hours). The error names the group, key and message
+ * so an operator can reconcile by hand.
+ */
+async function stampSent(
+  deps: EntryConfirmationDeps,
+  args: {
+    entryIds: string[];
+    messageId: string;
+    leaseUntilIso: string;
+    groupKey: string;
+    idempotencyKey: string;
+  }
+): Promise<string[] | null> {
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>(done => setTimeout(done, ms)));
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= STAMP_ATTEMPTS; attempt++) {
+    try {
+      return await deps.markSent(args.entryIds, args.messageId, args.leaseUntilIso);
+    } catch (error) {
+      lastError = error;
+      if (attempt < STAMP_ATTEMPTS) await sleep(STAMP_BACKOFF_MS * attempt);
+    }
+  }
+  console.error('Confirmation accepted by the provider but could not be marked sent', {
+    group: args.groupKey,
+    idempotencyKey: args.idempotencyKey,
+    messageId: args.messageId,
+    entries: args.entryIds.length,
+    message: lastError instanceof Error ? lastError.message : String(lastError),
+  });
+  return null;
 }

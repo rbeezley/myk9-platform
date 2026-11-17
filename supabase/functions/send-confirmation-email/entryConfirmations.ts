@@ -11,11 +11,16 @@
 // at the same moment, so on a published show that is not over the app no longer sends its own
 // accepted email (decisionEmail.ts, MYK9-1999); this one says it.
 //
-// Once only, per entry: an entry is claimed (confirmation_email_sent_at stamped) before the send,
-// and only an unclaimed, still-confirmed entry can be claimed, so two overlapping runs cannot both
-// send it. A failed send releases the claim as 'failed'; the daily run retries those. Resend's
-// idempotency key is derived from the claimed ids and their acceptance generations, so a retry of a send that did go out is the
-// same message, not a second one.
+// Once only, per entry (MYK9-2088): an entry is LEASED (confirmation_claimed_until = now + 15
+// minutes) before the send, and only an unsent, still-confirmed entry with no live lease can be
+// leased, so two overlapping runs cannot both send it. confirmation_email_sent_at is stamped only
+// after the provider accepts. A run that dies leaves a lease that expires, and the next run sends
+// again under the same Resend idempotency key (derived from the leased ids and their acceptance
+// generations), so a send that did go out is deduplicated, not repeated. A refused send releases
+// the lease and marks 'failed'; the daily run retries those.
+// Residual case: a crash after the provider accepted, then a retry whose entry set differs (an
+// entry accepted or withdrawn meanwhile) or that falls past Resend's 24h window, sends a second
+// copy; the sent stamp is retried inline to keep that window small.
 //
 // The quiet period: an entry is gathered only once it has gone CONFIRMATION_QUIET_MS without a
 // change, so an Accept the secretary undoes (or keeps editing) is not emailed.
@@ -30,6 +35,13 @@ import { getPublishedExperienceHospitalityNotes } from './published-experience.t
 
 /** How long an accepted entry must go unchanged before it is emailed. */
 export const CONFIRMATION_QUIET_MS = 10 * 60 * 1000;
+/**
+ * How long a claim holds. A run is bounded by the edge function's wall clock (a few minutes at
+ * most: 50 exhibitors, each send retried within seconds), so 15 minutes always outlives a live
+ * run, while a dead run's entries come back within the next 15-minute cron tick or two. It is far
+ * inside Resend's 24-hour idempotency window, so a retry after expiry is deduplicated.
+ */
+export const CONFIRMATION_LEASE_MS = 15 * 60 * 1000;
 /** Exhibitors emailed per run; the rest wait for the next run. */
 export const CONFIRMATION_MAX_EMAILS_PER_RUN = 50;
 /** Candidate entries read per run. */

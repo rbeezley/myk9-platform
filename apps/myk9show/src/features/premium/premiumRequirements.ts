@@ -39,6 +39,11 @@ export interface PremiumRequirementFacts {
 export interface PremiumRequirementTargets {
   showId: string;
   clubId: string | null;
+  /**
+   * Whose Event Committee the show prints: its own list (edited in Edit show, Personnel) or the
+   * club's (edited on the club's Members tab). Omitted means the club's.
+   */
+  committeeSource?: 'show' | 'club';
 }
 
 /** One required fact that is still empty: a sentence and the place to fix it. */
@@ -182,7 +187,12 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
   },
   committee: {
     missing: (f, r, minimum) => committeeMessage(r, f.committee.length, minimum),
-    href: t => (t.clubId ? `/clubs/${t.clubId}?tab=members` : null),
+    href: t =>
+      t.committeeSource === 'show'
+        ? getShowEditHref(t.showId, 'personnel')
+        : t.clubId
+          ? `/clubs/${t.clubId}?tab=members`
+          : null,
   },
 };
 

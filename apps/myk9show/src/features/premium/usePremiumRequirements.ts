@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { COMMITTEE_QUERY_KEY } from '@/components/committee/useCommittee';
+import { COMMITTEE_QUERY_KEY, committeeScopeKey } from '@/components/committee/useCommittee';
 import {
   getTrialRegistry,
   resolveConfiguredRegistryId,
   type RegistryId,
 } from '@/features/registries';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
-import { fetchShowCommittee } from '@/services/database/club-memberships/committee';
+import { fetchShowCommittee, getCommittee } from '@/services/database/club-memberships/committee';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
 import type { PremiumFactId } from './premiumFacts';
@@ -111,6 +111,12 @@ export function usePremiumRequirements(
     },
     enabled,
   });
+  // Whether the show has replaced the club's committee; decides which list "Fix it" opens.
+  const ownCommittee = useQuery({
+    queryKey: committeeScopeKey({ kind: 'show', showId: show.id }),
+    queryFn: () => getCommittee({ kind: 'show', showId: show.id }),
+    enabled,
+  });
 
   // The trial's registry, else the show's own organization. A registry the app has no rules for
   // (so no AKC default) has nothing to require.
@@ -144,7 +150,11 @@ export function usePremiumRequirements(
     items: missingPremiumFacts(
       facts,
       registry,
-      { showId: show.id, clubId: show.clubId || null },
+      {
+        showId: show.id,
+        clubId: show.clubId || null,
+        committeeSource: ownCommittee.data?.length ? 'show' : 'club',
+      },
       unavailable
     ),
     registry,

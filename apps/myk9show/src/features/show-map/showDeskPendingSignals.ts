@@ -13,6 +13,7 @@ import { getEntryManagementHref } from '@/features/entry-operations/entryAttenti
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import { ENTRY_LIST_LABELS } from '@/components/entries/management/entryManagementViews';
 import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
+import { buildClassChangeSignal, type ClassChangeTrial } from './showDeskClassChangeSignal';
 import { buildWaitingSignals, type ShowDeskWaitingInput } from './showDeskWaitingSignals';
 
 /**
@@ -22,6 +23,8 @@ import { buildWaitingSignals, type ShowDeskWaitingInput } from './showDeskWaitin
  */
 interface CheckInEntryLike extends EntryLike {
   class_id?: string | null;
+  trial_id?: string | null;
+  deleted_at?: string | null;
 }
 
 export type ShowDeskPendingSignalId =
@@ -31,7 +34,8 @@ export type ShowDeskPendingSignalId =
   | 'classes-needing-signature'
   | 'results-pending-closeout'
   | 'entries-held'
-  | 'waitlist-waiting';
+  | 'waitlist-waiting'
+  | 'class-changes-waiting';
 
 export type ShowDeskPendingSignalPriority = 'highest' | 'high' | 'medium';
 
@@ -75,6 +79,8 @@ export interface ComputeShowDeskPendingSignalsInput {
   currentDate?: Date | null | undefined;
   /** The lists with something waiting for her (MYK9-1949); omitted, no such pill. */
   waiting?: ShowDeskWaitingInput | undefined;
+  /** The show's trials, for the class change pill's "starting soon" (MYK9-2122). */
+  trials?: readonly ClassChangeTrial[] | undefined;
 }
 
 const PRIORITY_ORDER: Record<ShowDeskPendingSignalPriority, number> = {
@@ -153,6 +159,7 @@ export function computeShowDeskPendingSignals({
   entries,
   currentDate,
   waiting,
+  trials,
 }: ComputeShowDeskPendingSignalsInput): ShowDeskPendingSignal[] {
   const signals: ShowDeskPendingSignal[] = [];
   const scope: ShowDeskPendingSignalScope = { kind: 'show', showId };
@@ -237,6 +244,16 @@ export function computeShowDeskPendingSignals({
       scope,
     });
   }
+
+  const classChanges = buildClassChangeSignal({
+    showId,
+    entries,
+    tree,
+    trials,
+    now: currentDate,
+    scope,
+  });
+  if (classChanges) signals.push(classChanges);
 
   if (waiting) signals.push(...buildWaitingSignals(showId, waiting, scope));
 

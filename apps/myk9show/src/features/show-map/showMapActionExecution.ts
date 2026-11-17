@@ -47,7 +47,6 @@ export const showMapActionExecutionById = {
   'review-entry': { kind: 'navigate' },
   'edit-score': { kind: 'navigate' },
   'score-class': { kind: 'navigate' },
-  'open-class': { kind: 'navigate' },
   'print-check-in-sheet': { kind: 'navigate' },
   'mark-class-started': {
     kind: 'mutation',

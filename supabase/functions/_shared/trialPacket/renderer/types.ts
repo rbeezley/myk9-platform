@@ -57,6 +57,12 @@ export interface EmergencyPacketTrial {
   name: string;
   trialNumber: string;
   registryId: string;
+  /**
+   * The trial's IANA time zone, for the judge packet's footer. `emergency_packet_input` does not
+   * return it; `generate-trial-packet` reads it from `trials` (packetLookups.ts). A missing one
+   * prints on Eastern time, as `getTrialTimezone` does.
+   */
+  timezone?: string | undefined;
 }
 
 export interface EmergencyPacketClass {

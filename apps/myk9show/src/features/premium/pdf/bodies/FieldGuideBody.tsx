@@ -1,6 +1,7 @@
 // Numbered §00–§07 sections, each rendering its data as dense rows. Sections
 // hide entirely when their data is empty. No multi-column at the body level —
 // long sections flow vertically and react-pdf paginates.
+import { judgeBlockText } from './judgeLine';
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import type { StyleTokens } from '../pdfStyles';
@@ -48,7 +49,9 @@ export function FieldGuideBody({ data, tokens }: Props) {
   const blockStyle = { marginBottom: 14 };
 
   const hasOverview = Boolean(f.trialInformation.trim());
-  const hasOfficials = Boolean(chair || secretary.name || f.officers.length > 0);
+  const hasOfficials = Boolean(
+    chair || secretary.name || f.officers.length > 0 || f.committee.length > 0
+  );
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.length > 0;
   const hasEntry = Boolean(
@@ -147,6 +150,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>{o.name}</Text>
             </View>
           ))}
+          {f.committee.length > 0 && (
+            <View style={rowStyle}>
+              <Text style={labelStyle}>Event Committee</Text>
+              <Text style={valueStyle}>{f.committee.join(', ')}</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -157,10 +166,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
             trial.judges.map((j, ji) => (
               <View key={`${ti}-${ji}`} style={rowStyle}>
                 <Text style={labelStyle}>{trial.name}</Text>
-                <Text style={valueStyle}>
-                  {j.name}
-                  {j.elements.length > 0 ? ` · ${j.elements.join(', ')}` : ''}
-                </Text>
+                <Text style={valueStyle}>{judgeBlockText(j)}</Text>
               </View>
             ))
           )}

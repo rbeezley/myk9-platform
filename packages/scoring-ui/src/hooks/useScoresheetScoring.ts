@@ -41,7 +41,18 @@ export interface ScoresheetScoringConfig {
    * under the limit in every area, and no more faults than `faultLimit`. Absent,
    * a Qualified saves as before (Obedience, Rally, Fast CAT).
    */
-  qualifiedRules?: { faultLimit?: FaultLimit | undefined } | undefined;
+  qualifiedRules?:
+    | {
+        faultLimit?: FaultLimit | undefined;
+        /**
+         * Nationals: only four area times are stored (MYK9-2006), so a reopened
+         * score may have an area the saved score never had a time for. That area
+         * may stay blank; every time that is there is still checked. A fresh score
+         * stays strict. Until MYK9-2068 stores every area.
+         */
+        keepUnstoredAreaBlank?: boolean | undefined;
+      }
+    | undefined;
   /** UKC and ASCA (MYK9-2008): an Excused saves only with a reason the judge chose. */
   excusedReasonRequired?: boolean;
 }
@@ -100,8 +111,8 @@ export interface ScoresheetScoringReturn {
   reset: () => void;
 }
 
-/** The entries table stores area1..area4 times only. */
-const STORED_AREA_COLUMNS = 4;
+/** The entries table stores area1..area5 times (area 5 since MYK9-2068). */
+const STORED_AREA_COLUMNS = 5;
 
 function secondsOf(time: string | undefined): number {
   const parsed = time ? parseDuration(time, 'search') : null;
@@ -109,8 +120,8 @@ function secondsOf(time: string | undefined): number {
 }
 
 /**
- * Only four area times are stored (MYK9-2006), so a reopened sheet cannot rebuild
- * a fifth area's time. Its total is the saved total moved by what the judge changed.
+ * Only five area times are stored, so a reopened sheet with more areas cannot rebuild
+ * the extra area's time. Its total is the saved total moved by what the judge changed.
  */
 function savedTotalPlusChanges(existingScore: ScoreData, areas: AreaScore[]): string {
   const change = areas.reduce(
@@ -247,8 +258,17 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   // The sheet never changes the result: it names the problem and Save stays off.
   const checkQualified = qualifiedRules !== undefined && qualifying === 'Q';
   const qualifiedTimeProblemList = useMemo(
-    () => (checkQualified ? qualifiedTimeProblems(areas, rules) : areas.map(() => null)),
-    [checkQualified, areas, rules]
+    () =>
+      checkQualified
+        ? qualifiedTimeProblems(
+            areas,
+            rules,
+            qualifiedRules?.keepUnstoredAreaBlank && secondsOf(existingScore?.searchTime) > 0
+              ? index => !existingScore?.areaTimes?.[index]
+              : undefined
+          )
+        : areas.map(() => null),
+    [checkQualified, areas, rules, qualifiedRules?.keepUnstoredAreaBlank, existingScore]
   );
   const qualifiedFaultProblemText = checkQualified
     ? qualifiedFaultProblem(faultCount, qualifiedRules?.faultLimit)

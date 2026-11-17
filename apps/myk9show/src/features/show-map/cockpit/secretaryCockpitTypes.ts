@@ -43,6 +43,11 @@ export interface SecretaryCockpitPaperwork {
   label: string;
   state: PaperworkState;
   printHref?: string;
+  /**
+   * Armband labels only: the dog-day labels with no current print, by subject key (MYK9-2075).
+   * Absent when the print history cannot be read.
+   */
+  labelsToPrint?: { notPrinted: readonly string[]; changed: readonly string[] };
   /** The current print record, so a row can offer to mark it not printed. */
   recordId?: string;
   printedAt?: string;
@@ -67,6 +72,12 @@ export interface SecretaryCockpitTrial {
   number: string;
   name?: string;
   order: number;
+  /** The trials.planned_start_time column; with `displayOrder` it settles the day's trial order. */
+  plannedStartTime?: string | null;
+  /** The trials.display_order column as stored (no fallback), for the shared trial order. */
+  displayOrder?: string | null;
+  /** The trials.trial_number column as stored (no fallback), for the shared trial order. */
+  storedNumber?: string | null;
 }
 
 /**
@@ -220,6 +231,14 @@ export interface ScheduledClassModel {
   statusLine: StatusLine;
 }
 
+export interface NextTrialNote {
+  text: string;
+  linkLabel: string;
+  href: string;
+  /** The new day's armband labels, when some still need printing: they print from a class. */
+  labels?: { linkLabel: string; href: string } | undefined;
+}
+
 export interface TrialScheduleGroupModel {
   trialId: string;
   number: string;
@@ -229,6 +248,8 @@ export interface TrialScheduleGroupModel {
   nowMarkerIndex: number | null;
   /** Whether the group starts expanded. */
   defaultOpen: boolean;
+  /** The trial before this one finished and this trial's paperwork is not current (MYK9-2075). */
+  nextTrialNote: NextTrialNote | null;
   summary: {
     classCount: number;
     inProgressCount: number;

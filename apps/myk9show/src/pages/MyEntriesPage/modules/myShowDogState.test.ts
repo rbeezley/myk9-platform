@@ -262,7 +262,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', checkInStatus: 'pulled' }),
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'conflict' }),
       ])
-    ).toEqual({ kind: 'pulled', label: 'Pulled', status: 'pulled' });
+    ).toEqual({ kind: 'pulled', label: 'Pulled at the show', status: 'pulled' });
   });
 
   it('reports conflict above in-ring', () => {
@@ -280,7 +280,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', checkInStatus: 'in-ring' }),
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'at-gate' }),
       ])
-    ).toEqual({ kind: 'in_ring', label: 'In ring', status: 'in_ring' });
+    ).toEqual({ kind: 'in_ring', label: 'In the ring', status: 'in_ring' });
   });
 
   it('reports at-gate above checked-in', () => {
@@ -434,7 +434,7 @@ describe('deriveDogChip', () => {
 
     expect(deriveDogChip(group.dogs[0] as MyShowDog, ctx)).toEqual({
       kind: 'in_ring',
-      label: 'In ring',
+      label: 'In the ring',
       status: 'in_ring',
     });
   });

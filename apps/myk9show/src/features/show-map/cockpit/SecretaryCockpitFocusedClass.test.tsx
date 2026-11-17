@@ -173,7 +173,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
     expect(
       screen.getByText(/Printed 9:42 AM by Jannie · Printed with the whole trial/)
     ).toBeInTheDocument();
-    expect(screen.getByText(/Class data changed after printing/)).toBeInTheDocument();
+    expect(screen.getByText(/Changed since printing/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /review and reprint/i })).toBeInTheDocument();
 
     await user.click(screen.getByText('Print history (2)'));
@@ -589,6 +589,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
       'Move up a level',
       'Change handler',
       'Mark absent',
+      'Print armband label',
     ]);
     await user.keyboard('{Escape}');
 
@@ -597,6 +598,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
       'Change class',
       'Change handler',
       'Mark absent',
+      'Print armband label',
     ]);
   });
 
@@ -606,6 +608,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change handler',
       'Mark absent',
+      'Print armband label',
     ]);
   });
 

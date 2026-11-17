@@ -56,6 +56,32 @@ describe('CockpitAttentionStrip', () => {
     phone.value = false;
   });
 
+  it('keeps the choice the cockpit holds, so moving the strip into the rail keeps it (MYK9-1989)', () => {
+    render(
+      <CockpitAttentionStrip
+        items={items}
+        all={items}
+        overflowCount={0}
+        classNameById={new Map()}
+        onCommand={vi.fn()}
+        openChoice={false}
+        onOpenChoiceChange={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /needs attention · 3/i })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('starts open on a laptop', () => {
+    renderStrip(vi.fn());
+    expect(screen.getByRole('button', { name: /needs attention · 3/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
   it('names the class on its pill and links to where the fix happens', () => {
     renderStrip();
 

@@ -119,13 +119,23 @@ export interface GeneratedPremium {
    * generated before it, which prints no officers.
    */
   officers?: Array<{ position: string; name: string }>;
+  /**
+   * MYK9-2064: the show's Event Committee names (the show's own list, else the club's). Absent on
+   * a premium generated before it, which prints no committee.
+   */
+  committee?: string[];
   trials: Array<{
     name: string;
     date: string;
     startTime: string | null;
     eventNumber: string | null;
     type: string;
-    judges: Array<{ name: string; elements: string[] }>;
+    /**
+     * MYK9-2067: `residence` is "City, ST" and `classes` are "Element Level Section" labels (empty
+     * for a judge on every class). Both are absent on a premium generated before it, which also
+     * carried `elements`; nothing reads `elements` any more.
+     */
+    judges: Array<{ name: string; residence?: string | null; classes?: string[] }>;
     classes: Array<{ element: string; level: string; section: string | null }>;
   }>;
   supplemental: PremiumSupplemental;

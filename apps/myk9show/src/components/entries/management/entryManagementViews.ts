@@ -4,9 +4,10 @@
  * The three registration queues are the Filter menu's Status field (`entryManagementFilterFields`).
  * The four exception lists (Pulls, Move-ups, Registration number needed, Waitlist) are different
  * lists with different rows, so they are rows of the header Actions menu ("Entry lists") and each
- * opens as its own titled view. Pulls and Move-ups counts come from data the page already has or
- * fetches cheaply. Waitlist has no count: it would need a duplicate fetch or a restructure of
- * `WaitlistManagementPage`'s data hook, so its row carries no badge.
+ * opens as its own titled view. A count means "waiting for you" (MYK9-1949), the same number as
+ * the Show Desk pill: Registration number needed is the held entries; Waitlist is the offers that
+ * ran out, plus one for each class with a spot to offer when the show does not offer spots
+ * automatically. Each is read from its one calculation in `@/features/waiting-for-you`.
  */
 import type { ShowToolItem } from '@/features/actions/showToolActions';
 import {
@@ -50,6 +51,8 @@ export interface EntryListCounts {
    * confident 0 (MYK9-1162).
    */
   registrationNeeded: number | undefined;
+  /** Omitted (no badge) while the waitlist read is unknown. */
+  waitlist: number | undefined;
 }
 
 /** A list is reached by the URL the page reads (`tab=exceptions&exception=...`). */
@@ -68,7 +71,7 @@ export function buildEntryListTools(showId: string, counts: EntryListCounts): Sh
     pulls: counts.pulls,
     'move-ups': counts.moveUps,
     'registration-needed': counts.registrationNeeded,
-    waitlist: undefined,
+    waitlist: counts.waitlist,
     'check-in': undefined,
   };
   return ENTRY_LIST_ORDER.map(exception => ({
@@ -82,5 +85,7 @@ export function buildEntryListTools(showId: string, counts: EntryListCounts): Sh
 
 /** How many entry-list items are waiting, for the Actions button's badge. */
 export function sumEntryListCounts(counts: EntryListCounts): number {
-  return counts.pulls + (counts.moveUps ?? 0) + (counts.registrationNeeded ?? 0);
+  return (
+    counts.pulls + (counts.moveUps ?? 0) + (counts.registrationNeeded ?? 0) + (counts.waitlist ?? 0)
+  );
 }

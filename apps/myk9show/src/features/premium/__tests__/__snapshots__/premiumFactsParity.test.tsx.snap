@@ -60,7 +60,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -69,7 +70,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -153,7 +155,8 @@ June 1, 2026 at 9:00 AM
 Event #
 UKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -162,7 +165,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -208,24 +212,15 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
-Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > banner prints the same facts with ink saver on 1`] = `
@@ -288,7 +283,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -297,7 +293,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -368,11 +365,13 @@ Jane Smith · jane@test.com · (918) 555-0000
 §02
 Judges
 Saturday Trial 1
-Alice Judge · Container, Interior
+Alice Judge, Springfield, IL
+Container Novice A
 Saturday Trial 1
 Carl Judge
 Sunday Trial 2
-Alice Judge · Vehicle
+Alice Judge
+Vehicle Master
 §03
 Classes
 Saturday Trial 1 — June 1, 2026
@@ -463,11 +462,13 @@ Jane Smith · jane@test.com · (918) 555-0000
 §02
 Judges
 Saturday Trial 1
-Alice Judge · Container, Interior
+Alice Judge, Springfield, IL
+Container Novice A
 Saturday Trial 1
 Carl Judge
 Sunday Trial 2
-Alice Judge · Vehicle
+Alice Judge
+Vehicle Master
 §03
 Classes
 Saturday Trial 1 — June 1, 2026
@@ -597,11 +598,13 @@ Jane Smith · jane@test.com · (918) 555-0000
 §02
 Judges
 Saturday Trial 1
-Alice Judge · Container, Interior
+Alice Judge, Springfield, IL
+Container Novice A
 Saturday Trial 1
 Carl Judge
 Sunday Trial 2
-Alice Judge · Vehicle
+Alice Judge
+Vehicle Master
 §03
 Classes
 Saturday Trial 1 — June 1, 2026
@@ -667,7 +670,7 @@ AKC
 Entries Close
 May 15, 2026
 Judging Panel
-Alice Judge · Container
+Alice Judge
 Carl Judge
 --- page 2 ---
 Style: Gazette
@@ -677,9 +680,11 @@ Chair Email: bob@test.com
 Chair Phone: (918) 555-0001
 Secretary: Jane Smith
 Judges
-Alice Judge — Container, Interior
+Alice Judge, Springfield, IL
+Container Novice A
 Carl Judge
-Alice Judge — Vehicle
+Alice Judge
+Vehicle Master
 Classes
 Saturday Trial 1
 Container Novice A · Container Excellent · Interior Advanced
@@ -744,7 +749,7 @@ UKC
 Entries Close
 May 15, 2026
 Judging Panel
-Alice Judge · Container
+Alice Judge
 Carl Judge
 --- page 2 ---
 Style: Gazette
@@ -754,9 +759,11 @@ Chair Email: bob@test.com
 Chair Phone: (918) 555-0001
 Secretary: Jane Smith
 Judges
-Alice Judge — Container, Interior
+Alice Judge, Springfield, IL
+Container Novice A
 Carl Judge
-Alice Judge — Vehicle
+Alice Judge
+Vehicle Master
 Classes
 Saturday Trial 1
 Container Novice A · Container Excellent · Interior Advanced
@@ -836,7 +843,7 @@ AKC
 Entries Close
 May 15, 2026
 Judging Panel
-Alice Judge · Container
+Alice Judge
 Carl Judge
 --- page 2 ---
 Style: Gazette
@@ -846,9 +853,11 @@ Chair Email: bob@test.com
 Chair Phone: (918) 555-0001
 Secretary: Jane Smith
 Judges
-Alice Judge — Container, Interior
+Alice Judge, Springfield, IL
+Container Novice A
 Carl Judge
-Alice Judge — Vehicle
+Alice Judge
+Vehicle Master
 Classes
 Saturday Trial 1
 Container Novice A · Container Excellent · Interior Advanced
@@ -952,7 +961,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -961,7 +971,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -1044,7 +1055,8 @@ June 1, 2026 at 9:00 AM
 Event #
 UKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1053,7 +1065,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -1096,24 +1109,15 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
-Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > headline prints the same facts with ink saver on 1`] = `
@@ -1175,7 +1179,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1184,7 +1189,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -1273,7 +1279,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1282,7 +1289,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 §
@@ -1376,7 +1384,8 @@ June 1, 2026 at 9:00 AM
 Event #
 UKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1385,7 +1394,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 §
@@ -1437,18 +1447,10 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
-§
-Trial Secretary
-Name
-[REQUIRED — add before submitting]
 §
 Trials & Judges
 §
@@ -1456,10 +1458,7 @@ Show Hours
 
 §
 Trial Information
-
-§
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > heritage prints the same facts with ink saver on 1`] = `
@@ -1525,7 +1524,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1534,7 +1534,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 §
@@ -1634,7 +1635,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1643,7 +1645,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -1734,7 +1737,8 @@ June 1, 2026 at 9:00 AM
 Event #
 UKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1743,7 +1747,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -1787,24 +1792,15 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
-Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > magazine prints the same facts with ink saver on 1`] = `
@@ -1874,7 +1870,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1883,7 +1880,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -1967,7 +1965,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -1976,7 +1975,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -2058,7 +2058,8 @@ June 1, 2026 at 9:00 AM
 Event #
 UKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -2067,7 +2068,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -2110,24 +2112,15 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
-Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > monogram prints the same facts with ink saver on 1`] = `
@@ -2188,7 +2181,8 @@ June 1, 2026 at 9:00 AM
 Event #
 AKC-2026-001
 Judge
-Alice Judge (Container, Interior)
+Alice Judge, Springfield, IL
+Container Novice A
 
 Carl Judge
 Classes
@@ -2197,7 +2191,8 @@ Sunday Trial 2
 Date
 June 2, 2026
 Judge
-Alice Judge (Vehicle)
+Alice Judge
+Vehicle Master
 Classes
 Vehicle Master
 Show Hours
@@ -2262,11 +2257,11 @@ Chair: Bob Jones · bob@test.com · (918) 555-0001
 Trials & Judges
 Saturday Trial 1
 June 1, 2026 at 9:00 AM · Event AKC-2026-001
-Judged by Alice Judge (Container, Interior) & Carl Judge
+Judged by Alice Judge, Springfield, IL (Container Novice A) & Carl Judge
 Container Novice A · Container Excellent · Interior Advanced
 Sunday Trial 2
 June 2, 2026
-Judged by Alice Judge (Vehicle)
+Judged by Alice Judge (Vehicle Master)
 Vehicle Master
 Show Hours
 Building opens at 8:00 AM.
@@ -2326,11 +2321,11 @@ Chair: Bob Jones · bob@test.com · (918) 555-0001
 Trials & Judges
 Saturday Trial 1
 June 1, 2026 at 9:00 AM · Event UKC-2026-001
-Judged by Alice Judge (Container, Interior) & Carl Judge
+Judged by Alice Judge, Springfield, IL (Container Novice A) & Carl Judge
 Container Novice A · Container Excellent · Interior Advanced
 Sunday Trial 2
 June 2, 2026
-Judged by Alice Judge (Vehicle)
+Judged by Alice Judge (Vehicle Master)
 Vehicle Master
 Show Hours
 Building opens at 8:00 AM.
@@ -2372,24 +2367,15 @@ $—
 Day-Of Fee
 —
 Accepted Payment
-Entry Opens
-[REQUIRED — add before submitting]
-Entry Closes
-[REQUIRED — add before submitting]
 Entry Method
 Online entries via myK9Show
 Scouting the Trial Location
 It is not appropriate to scout the trial location prior to the trial date. Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future.
-Trial Secretary
-Name
-[REQUIRED — add before submitting]
 Trials & Judges
 Show Hours
 
 Trial Information
-
-Veterinary Services
-[REQUIRED — add before submitting]"
+"
 `;
 
 exports[`premium PDF facts parity (8 styles) > poster prints the same facts with ink saver on 1`] = `
@@ -2431,11 +2417,11 @@ Chair: Bob Jones · bob@test.com · (918) 555-0001
 Trials & Judges
 Saturday Trial 1
 June 1, 2026 at 9:00 AM · Event AKC-2026-001
-Judged by Alice Judge (Container, Interior) & Carl Judge
+Judged by Alice Judge, Springfield, IL (Container Novice A) & Carl Judge
 Container Novice A · Container Excellent · Interior Advanced
 Sunday Trial 2
 June 2, 2026
-Judged by Alice Judge (Vehicle)
+Judged by Alice Judge (Vehicle Master)
 Vehicle Master
 Show Hours
 Building opens at 8:00 AM.

@@ -139,7 +139,8 @@
   font-size: 1rem;
   color: var(--stone-700);
 }
-.landing-v2 .lc-hero-exhibitor a {
+.landing-v2 .lc-hero-exhibitor a,
+.landing-v2 .lc-section-more a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -152,4 +153,197 @@
   margin: 1rem 0 0;
   font-size: 0.9375rem;
   color: var(--stone-500);
+}
+
+/* Trust bar: a band under the hero. Four facts in a row, wrapping to two and then one. */
+.landing-v2 .lc-trust {
+  container: lc-trust / inline-size;
+  padding: clamp(2rem, 5vw, 3rem) 0;
+  background: var(--ivory-100);
+  border-block: 1px solid var(--border);
+}
+.landing-v2 .lc-trust-title {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(1.25rem, 2.2vw, 1.5rem);
+  line-height: 1.25;
+  color: var(--ink-900);
+  text-wrap: balance;
+}
+.landing-v2 .lc-trust-items {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.landing-v2 .lc-trust-items li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding-top: 0.875rem;
+  border-top: 2px solid var(--terracotta-600);
+}
+.landing-v2 .lc-trust-items strong {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-trust-items span,
+.landing-v2 .lc-trust-lineage {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--stone-700);
+}
+.landing-v2 .lc-trust-lineage {
+  margin: 1.25rem 0 0;
+}
+@container lc-trust (max-width: 900px) {
+  .landing-v2 .lc-trust-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* A phone: one column, drawn tighter, because the page has a length budget there
+   (landing-lifecycle.spec.ts, "page length is 8 to 14 screens on phone"). */
+@container lc-trust (max-width: 480px) {
+  .landing-v2 .lc-trust-items {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.875rem;
+  }
+  .landing-v2 .lc-trust-items li {
+    padding-top: 0.625rem;
+  }
+}
+
+/* Pricing: its lede and the link on to /fees (styled with the hero's exhibitor link above). */
+.landing-v2 .lc-section-lede {
+  max-width: 62ch;
+  margin: 0;
+  font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
+  line-height: 1.6;
+  color: var(--stone-700);
+}
+.landing-v2 .lc-section-more {
+  margin: 1.5rem 0 0;
+  font-size: 1rem;
+}
+.landing-v2 .lc-pricing {
+  container: lc-pricing / inline-size;
+  background: var(--paper, #fff);
+}
+.landing-v2 .lc-pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  max-width: 880px;
+  margin-top: 2rem;
+}
+.landing-v2 .lc-pricing-card {
+  min-width: 0;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--ivory-50);
+}
+.landing-v2 .lc-pricing-card h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--stone-700);
+}
+.landing-v2 .lc-pricing-price {
+  margin: 0.5rem 0 1rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 3cqi, 2.25rem);
+  line-height: 1.15;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-pricing-card ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.125rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--stone-700);
+}
+@container lc-pricing (max-width: 640px) {
+  .landing-v2 .lc-pricing-cards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .landing-v2 .lc-pricing-card {
+    padding: 1.25rem;
+  }
+}
+
+/* FAQ: each question opens in place. Two columns when there is room. */
+.landing-v2 .lc-faq {
+  container: lc-faq / inline-size;
+}
+.landing-v2 .lc-faq-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 3rem;
+  align-items: start;
+  margin: 1.5rem 0 0;
+}
+.landing-v2 .lc-faq-item {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+}
+.landing-v2 .lc-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 56px;
+  padding: 0.75rem 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink-900);
+  cursor: pointer;
+  list-style: none;
+}
+.landing-v2 .lc-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.landing-v2 .lc-faq-item summary::after {
+  content: '+';
+  flex: none;
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--terracotta-600);
+}
+.landing-v2 .lc-faq-item[open] summary::after {
+  content: '\2212';
+}
+.landing-v2 .lc-faq-item summary:focus-visible {
+  outline: 2px solid var(--terracotta-600);
+  outline-offset: 2px;
+}
+.landing-v2 .lc-faq-item p {
+  max-width: 62ch;
+  margin: 0 0 0.625rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--stone-700);
+}
+.landing-v2 .lc-faq-item p:last-child {
+  margin-bottom: 1.25rem;
+}
+@container lc-faq (max-width: 760px) {
+  .landing-v2 .lc-faq-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

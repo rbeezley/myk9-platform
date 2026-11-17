@@ -331,6 +331,9 @@ show-day results — scores and placements that cannot be re-derived, because th
 > handler identity mapping, live Broadcast delivery, Edge Functions, Storage files, and accepted
 > RPO/RTO remain open. The destination OCC probe and replication unit suites are supporting evidence,
 > not the end-to-end gate. This does not check off G8.
+>
+> Whole-show restore from an independent export (`scripts/backup/single-show-restore.ts`, dry run by
+> default) and the other open drills: [independent-database-drills.md](independent-database-drills.md).
 
 **Use `psql` connected as `postgres`, not the Dashboard SQL Editor.** Everything below uses psql
 meta-commands — `\set` for the show id and tombstone, `\copy` for the hard-delete export — and those

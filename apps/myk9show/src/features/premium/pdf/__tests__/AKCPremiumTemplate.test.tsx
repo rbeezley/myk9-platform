@@ -34,7 +34,7 @@ const premium: GeneratedPremium = {
       startTime: '9:00 AM',
       eventNumber: 'AKC-2026-001',
       type: 'Scent Work',
-      judges: [{ name: 'Alice Judge', elements: [] }],
+      judges: [{ name: 'Alice Judge', classes: [] }],
       classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
     },
   ],
@@ -78,10 +78,11 @@ describe('AKCPremiumTemplate', () => {
     expect(screen.getByText(/Animal ER/)).toBeTruthy();
   });
 
-  it('renders REQUIRED placeholder when vet clinic is null', () => {
+  it('prints no placeholder and no vet section when the vet clinic is null', () => {
     const p = { ...premium, supplemental: { ...premium.supplemental, vetClinic: null } };
     render(<AKCPremiumTemplate premium={p} />);
-    expect(screen.getByText(/REQUIRED/)).toBeTruthy();
+    expect(screen.queryByText(/REQUIRED/)).toBeNull();
+    expect(screen.queryByText(/Veterinary Services/)).toBeNull();
   });
 
   it('renders show hours narrative', () => {

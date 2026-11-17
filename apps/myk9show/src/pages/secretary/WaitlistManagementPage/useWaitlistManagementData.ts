@@ -6,6 +6,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { judgeDaysIfCurrent } from '@/hooks/queries/judgeDaysIfCurrent';
 import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase';
@@ -22,7 +23,9 @@ import {
   WaitlistOfferNotWithdrawnError,
 } from '@/services/database/waitlists';
 import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
-import { WAITLIST_READ_TABLES } from './replicaDependencies';
+import { findOpenWaitlistSpots, toSpotClass } from '@/features/waiting-for-you';
+import { WAITLIST_READ_TABLES } from '@/services/database/waitlists/replicaDependencies';
+import { toSpotEntry } from './spotEntry';
 import { useWaitlistOffers } from './useWaitlistOffers';
 import { withdrawOutcomeNotice } from './withdrawOutcomeNotice';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
@@ -64,11 +67,10 @@ export function useWaitlistManagementData(showId: string) {
   // Offer and Remove are server calls (an RPC, a DELETE): offline they are disabled up front
   // (MYK9-1005) instead of failing with "Please try again" after the click.
   const isOffline = !useIsOnline();
-  const {
-    judgeDays,
-    isPaused: isCapacityUnavailable,
-    error: capacityError,
-  } = useJudgeDayCapacity(showId || undefined);
+  const capacity = useJudgeDayCapacity(showId || undefined);
+  const { judgeDays, isPaused: isCapacityUnavailable, error: capacityError } = capacity;
+  // Figures for deciding a spot: current ones only (the cards may still show the last known).
+  const currentJudgeDays = judgeDaysIfCurrent(capacity, !isOffline);
 
   const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -384,6 +386,21 @@ export function useWaitlistManagementData(showId: string) {
       }));
   }, [classes, waitlistEntries, searchTerm]);
 
+  // Where a spot is open and who is next in line: the one calculation the Show Desk pill reads
+  // too. The judge-day figures are the server's own answer; until they are loaded nothing is
+  // decided ("unknown"), never "a spot is open".
+  const spots = useMemo(
+    () =>
+      isLoading
+        ? null
+        : findOpenWaitlistSpots({
+            classes: classes.map(toSpotClass),
+            waitlist: [...waitlistEntries, ...offersRead.allOpenOffers].map(toSpotEntry),
+            judgeDays: currentJudgeDays,
+          }),
+    [isLoading, classes, waitlistEntries, offersRead.allOpenOffers, currentJudgeDays]
+  );
+
   const viewJudgeDay = useCallback(
     (judgeId: string, showDate: string) => setJudgeDayKey({ showId, judgeId, showDate }),
     [showId]
@@ -399,6 +416,7 @@ export function useWaitlistManagementData(showId: string) {
     selectedJudgeDay,
     waitlistEntries,
     groups,
+    spots,
     offers: offersRead.offers,
     runOutOffers: offersRead.runOutOffers,
     isLoading,

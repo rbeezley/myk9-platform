@@ -19,6 +19,7 @@ import { useScoringStore, type QualifyingResult } from '@/store/scoringStore';
 import { logger } from '@/services/LoggingService';
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
 import { parseDuration } from '@myk9/core';
+import { ScoreResultRefusedError } from './scoreResultRefusedError';
 
 export interface ScoreSubmissionData {
   entryId: string | number;
@@ -55,6 +56,11 @@ export interface OptimisticScoringOptions {
   armband?: number;
   /** Class name for offline queue */
   className?: string;
+  /**
+   * The score timestamp to store, used verbatim. A caller that must recognise its own write later
+   * (Show Desk's Mark absent Undo, MYK9-2037) mints it and holds it. Defaults to now.
+   */
+  completedAt?: string;
   /** Called when score successfully syncs */
   onSuccess?: () => void;
   /** Called when score fails to sync after all retries */
@@ -101,6 +107,8 @@ export function useOptimisticScoring() {
   const submitScoreOptimistically = useCallback(
     async (options: OptimisticScoringOptions) => {
       const { entryId, scoreData, armband, onSuccess, onError } = options;
+      // One instant for both spellings: Show Desk's Absent Undo compares this stamp (MYK9-2037).
+      const completedAt = options.completedAt ?? new Date().toISOString();
       // Clear any prior fail-closed error before this attempt.
       setSubmitError(null);
 
@@ -121,9 +129,7 @@ export function useOptimisticScoring() {
         // ('pending', is_scored false) behind a "saved" message (MYK9-1806).
         // Refuse it through the same fail-closed path as a queue failure.
         if (optimisticResult.trim() !== '' && resultStatus === 'pending') {
-          throw new Error(
-            `"${optimisticResult}" is not a result that can be saved. Choose the result again and save.`
-          );
+          throw new ScoreResultRefusedError(optimisticResult);
         }
         const searchTimeSeconds = scoreData.searchTime
           ? convertTimeToSeconds(scoreData.searchTime)
@@ -147,6 +153,11 @@ export function useOptimisticScoring() {
         detailFields.area2_time_seconds = areaSeconds[1] ?? null;
         detailFields.area3_time_seconds = areaSeconds[2] ?? null;
         detailFields.area4_time_seconds = areaSeconds[3] ?? null;
+        // Nationals' fifth area (MYK9-2068); null for every sheet with fewer areas.
+        detailFields.area5_time_seconds = areaSeconds[4] ?? null;
+        // UKC Nosework's element time (dual-timer classes only); null clears a stale one.
+        const elementSeconds = scoreData.element ? convertTimeToSeconds(scoreData.element) : 0;
+        detailFields.element_time_seconds = elementSeconds > 0 ? elementSeconds : null;
         if (scoreData.correctCount !== undefined)
           detailFields.total_correct_finds = scoreData.correctCount;
         if (scoreData.incorrectCount !== undefined)
@@ -160,8 +171,6 @@ export function useOptimisticScoring() {
         // and updateEntry merges over the cached row). Write the reason when present.
         detailFields.disqualification_reason = scoreData.nonQualifyingReason ?? null;
 
-        // One instant for both spellings: Show Desk's Absent Undo compares this stamp (MYK9-2037).
-        const completedAt = new Date().toISOString();
         const mutationId = await replicatedEntriesTable.updateEntry(String(entryId), {
           // Write both camelCase and snake_case so toSupabaseRow() picks up the values
           resultStatus: resultStatus,

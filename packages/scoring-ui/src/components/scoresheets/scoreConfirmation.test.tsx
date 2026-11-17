@@ -103,8 +103,13 @@ const sports: Sport[] = [
 
 /** A Qualified needs a time (MYK9-2004); the scent-work sheets offer Use max time. */
 function giveTime() {
-  const useMax = screen.queryByRole('button', { name: /use max time/i });
-  if (useMax) fireEvent.click(useMax);
+  // The Nationals sheet shows one area at a time and needs a time in each of its tabs.
+  const tabs = screen.queryAllByTestId(/^area-tab-/);
+  for (const tab of tabs.length > 0 ? tabs : [null]) {
+    if (tab) fireEvent.click(tab);
+    const useMax = screen.queryByRole('button', { name: /use max time/i });
+    if (useMax) fireEvent.click(useMax);
+  }
 }
 
 function openConfirmation(sport: Sport, result: string, areaCount = 1) {

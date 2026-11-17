@@ -81,7 +81,7 @@ describe('ExhibitorClassCallout', () => {
       isAfterClass: false,
     });
     render(<ExhibitorClassCallout classId="c1" />);
-    expect(screen.getByText('In ring')).toBeInTheDocument();
+    expect(screen.getByText('In the ring')).toBeInTheDocument();
     expect(screen.getByText('Pulled')).toBeInTheDocument();
   });
 
@@ -89,12 +89,17 @@ describe('ExhibitorClassCallout', () => {
     mockHook({ myEntries: [makeEntry({ queue: { kind: 'withdrawn' } })], isAfterClass: false });
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.getByText('Withdrawn')).toBeInTheDocument();
-    expect(screen.queryByText('Pulled')).not.toBeInTheDocument();
+    expect(screen.queryByText(/pulled/i)).not.toBeInTheDocument();
   });
 
   it('renders "Your results" region after class', () => {
     mockHook({
-      myEntries: [makeEntry({ hasResult: true, result: { qualified: true, time: '00:38.2' } })],
+      myEntries: [
+        makeEntry({
+          hasResult: true,
+          result: { isPreliminary: false, qualified: true, time: '00:38.2' },
+        }),
+      ],
       isAfterClass: true,
     });
     render(<ExhibitorClassCallout classId="c1" />);
@@ -103,7 +108,12 @@ describe('ExhibitorClassCallout', () => {
 
   it('shows QUALIFIED chip and search time for a passing result', () => {
     mockHook({
-      myEntries: [makeEntry({ hasResult: true, result: { qualified: true, time: '00:38.2' } })],
+      myEntries: [
+        makeEntry({
+          hasResult: true,
+          result: { isPreliminary: false, qualified: true, time: '00:38.2' },
+        }),
+      ],
       isAfterClass: true,
     });
     render(<ExhibitorClassCallout classId="c1" />);
@@ -113,7 +123,9 @@ describe('ExhibitorClassCallout', () => {
 
   it('shows "Not qualified" chip for a failing result', () => {
     mockHook({
-      myEntries: [makeEntry({ hasResult: true, result: { qualified: false } })],
+      myEntries: [
+        makeEntry({ hasResult: true, result: { isPreliminary: false, qualified: false } }),
+      ],
       isAfterClass: true,
     });
     render(<ExhibitorClassCallout classId="c1" />);
@@ -123,7 +135,10 @@ describe('ExhibitorClassCallout', () => {
   it('shows placement pill for a placed qualifying result', () => {
     mockHook({
       myEntries: [
-        makeEntry({ hasResult: true, result: { qualified: true, time: '00:31.5', placement: 1 } }),
+        makeEntry({
+          hasResult: true,
+          result: { isPreliminary: false, qualified: true, time: '00:31.5', placement: 1 },
+        }),
       ],
       isAfterClass: true,
     });
@@ -133,10 +148,33 @@ describe('ExhibitorClassCallout', () => {
 
   it('does not show placement section when not qualified', () => {
     mockHook({
-      myEntries: [makeEntry({ hasResult: true, result: { qualified: false, placement: 1 } })],
+      myEntries: [
+        makeEntry({
+          hasResult: true,
+          result: { isPreliminary: false, qualified: false, placement: 1 },
+        }),
+      ],
       isAfterClass: true,
     });
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.queryByText('1st')).not.toBeInTheDocument();
+  });
+
+  it('labels an unreleased result preliminary and a released one not (MYK9-2094)', () => {
+    mockHook({
+      myEntries: [makeEntry({ hasResult: true, result: { isPreliminary: true, qualified: true } })],
+      isAfterClass: true,
+    });
+    const { unmount } = render(<ExhibitorClassCallout classId="c1" />);
+    expect(screen.getByText('preliminary')).toBeInTheDocument();
+    unmount();
+    mockHook({
+      myEntries: [
+        makeEntry({ hasResult: true, result: { isPreliminary: false, qualified: true } }),
+      ],
+      isAfterClass: true,
+    });
+    render(<ExhibitorClassCallout classId="c1" />);
+    expect(screen.queryByText('preliminary')).not.toBeInTheDocument();
   });
 });

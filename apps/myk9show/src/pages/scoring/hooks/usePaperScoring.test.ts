@@ -176,6 +176,62 @@ describe('usePaperScoring', () => {
     );
   });
 
+  it('saveEntry over a phone-scored row clears its area and element times (MYK9-2084)', async () => {
+    const { replicatedEntriesTable } =
+      await import('@/services/replication/ReplicatedEntriesTable');
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
+    await act(() => result.current.saveEntry('e1', 'Q', '12345', 2));
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith(
+      'e1',
+      expect.objectContaining({
+        area1_time_seconds: null,
+        area2_time_seconds: null,
+        area3_time_seconds: null,
+        area4_time_seconds: null,
+        area5_time_seconds: null,
+        element_time_seconds: null,
+        total_correct_finds: null,
+        total_incorrect_finds: null,
+        no_finish_count: null,
+        points_earned: null,
+        result_status: 'qualified',
+        search_time_seconds: 83.45,
+        total_faults: 2,
+      })
+    );
+  });
+
+  describe('area 1 on a one-area class (MYK9-2111)', () => {
+    async function save(isOneArea: boolean, result: 'Q' | 'NQ') {
+      const { replicatedEntriesTable } =
+        await import('@/services/replication/ReplicatedEntriesTable');
+      const { result: hook } = renderHook(() => usePaperScoring(entries, 'user-1', { isOneArea }));
+      await act(() => hook.current.saveEntry('e1', result, '10203', 0));
+      return replicatedEntriesTable.updateEntry;
+    }
+
+    it('a Q save on a one-area class sends area 1 equal to the total', async () => {
+      expect(await save(true, 'Q')).toHaveBeenCalledWith(
+        'e1',
+        expect.objectContaining({ search_time_seconds: 62.03, area1_time_seconds: 62.03 })
+      );
+    });
+
+    it('an NQ save on a one-area class sends area 1 equal to the total', async () => {
+      expect(await save(true, 'NQ')).toHaveBeenCalledWith(
+        'e1',
+        expect.objectContaining({ search_time_seconds: 62.03, area1_time_seconds: 62.03 })
+      );
+    });
+
+    it('a Q save on a multi-area class sends area 1 as null', async () => {
+      expect(await save(false, 'Q')).toHaveBeenCalledWith(
+        'e1',
+        expect.objectContaining({ area1_time_seconds: null })
+      );
+    });
+  });
+
   it('saveEntry writes 0 seconds for empty time on NQ', async () => {
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');

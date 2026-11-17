@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { generatedPremium } from './fixtures/generatedPremium';
+import type { GeneratedPremium } from '@/types/premium-types';
 import {
   PREMIUM_FACT_CATALOG,
+  AKC_EVENT_COMMITTEE_MINIMUM,
+  buildCommitteeFacts,
   buildOfficerFacts,
   buildPremiumFacts,
   pickSupplementalFacts,
@@ -82,5 +85,92 @@ describe('buildOfficerFacts (MYK9-2045)', () => {
       { title: 'Treasurer', name: 'Tia Treasurer' },
     ]);
     expect(buildPremiumFacts(generatedPremium()).officers).toEqual([]);
+  });
+});
+
+describe('Event Committee facts (MYK9-2064)', () => {
+  it('trims names, keeps the list order and drops blanks', () => {
+    expect(buildCommitteeFacts(['  Pat Chair ', '', '   ', 'Sam Typed'])).toEqual([
+      'Pat Chair',
+      'Sam Typed',
+    ]);
+    expect(buildCommitteeFacts(undefined)).toEqual([]);
+    expect(buildCommitteeFacts([])).toEqual([]);
+  });
+
+  it('puts the committee on the facts every style prints from, [] when none', () => {
+    const premium = generatedPremium();
+    premium.committee = ['Pat Chair', 'Sam Typed'];
+    expect(buildPremiumFacts(premium).committee).toEqual(['Pat Chair', 'Sam Typed']);
+    expect(buildPremiumFacts(generatedPremium()).committee).toEqual([]);
+  });
+
+  it('marks the committee required for AKC with a minimum of five, for the checklist to read', () => {
+    const entry = PREMIUM_FACT_CATALOG.find(f => f.id === 'committee');
+    expect(entry?.requiredBy).toEqual(['AKC']);
+    expect(entry?.minimumBy).toEqual({ AKC: 5 });
+    expect(AKC_EVENT_COMMITTEE_MINIMUM).toBe(5);
+  });
+});
+
+describe('judge facts (MYK9-2067)', () => {
+  function premiumWithJudges(judges: NonNullable<GeneratedPremium['trials'][number]['judges']>) {
+    const premium = generatedPremium();
+    premium.trials = [
+      {
+        name: 'Saturday',
+        date: '2026-05-01',
+        startTime: null,
+        eventNumber: null,
+        type: 'Scent Work',
+        judges,
+        classes: [
+          { element: 'Interior', level: 'Advanced', section: null },
+          { element: 'Container', level: 'Novice', section: 'A' },
+        ],
+      },
+    ];
+    return premium;
+  }
+
+  it('carries the residence and only the classes this trial runs, in its progression order', () => {
+    const facts = buildPremiumFacts(
+      premiumWithJudges([
+        {
+          name: 'Jane Smith',
+          residence: ' Springfield, IL ',
+          classes: ['Interior Advanced', 'Container Novice A', 'Vehicle Master'],
+        },
+      ])
+    );
+    expect(facts.trials[0]?.judges).toEqual([
+      {
+        name: 'Jane Smith',
+        residence: 'Springfield, IL',
+        classes: ['Container Novice A', 'Interior Advanced'],
+      },
+    ]);
+  });
+
+  it('gives a judge with no city a null residence and a judge with no assignment no classes', () => {
+    const facts = buildPremiumFacts(
+      premiumWithJudges([
+        { name: 'No City', residence: null, classes: ['Container Novice A'] },
+        { name: 'Blank City', residence: '  ', classes: [] },
+        { name: 'Old Row' },
+      ])
+    );
+    expect(facts.trials[0]?.judges).toEqual([
+      { name: 'No City', residence: null, classes: ['Container Novice A'] },
+      { name: 'Blank City', residence: null, classes: [] },
+      { name: 'Old Row', residence: null, classes: [] },
+    ]);
+  });
+
+  it('keeps no class line for a show-level judge, who is published with an empty class list', () => {
+    const facts = buildPremiumFacts(
+      premiumWithJudges([{ name: 'Every Class', residence: 'Austin, TX', classes: [] }])
+    );
+    expect(facts.trials[0]?.judges[0]?.classes).toEqual([]);
   });
 });

@@ -25,6 +25,8 @@ export const ResultsSheet: React.FC<ReportProps> = ({
   const sortedEntries = sortOrder === 'armband' ? sortByArmband(entries) : sortByPlacement(entries);
 
   const qualifiedCount = countQualified(entries);
+  // MYK9-2089: UKC runs only; AKC and ASCA classes carry none, so their sheet is unchanged.
+  const showElementTime = entries.some(entry => entry.elementTimeSeconds != null);
   const orgTitle = buildReportOrgTitle(organization, activityType, classData?.element);
 
   return (
@@ -48,6 +50,7 @@ export const ResultsSheet: React.FC<ReportProps> = ({
             <th className="qualified-col">Qualified</th>
             <th className="faults-col">Faults</th>
             <th className="time-col">Time</th>
+            {showElementTime && <th className="time-col">Element Time</th>}
           </tr>
         </thead>
         <tbody>
@@ -64,6 +67,9 @@ export const ResultsSheet: React.FC<ReportProps> = ({
                 <td className={qualified ? 'qualified-text' : 'nq-text'}>{statusText}</td>
                 <td className="faults-col">{entry.totalFaults ?? 0}</td>
                 <td className="time-cell">{formatReportTime(entry.searchTimeSeconds)}</td>
+                {showElementTime && (
+                  <td className="time-cell">{formatReportTime(entry.elementTimeSeconds)}</td>
+                )}
               </tr>
             );
           })}

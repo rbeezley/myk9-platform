@@ -40,6 +40,8 @@ export interface ReportEntry {
   isScored: boolean;
   resultText: string | null;
   searchTimeSeconds: number | null;
+  /** MYK9-2089: UKC element time; the results sheet shows a column only when a run has one. */
+  elementTimeSeconds?: number | null;
   totalFaults: number | null;
   finalPlacement: number | null;
   // Financial fields — populated when DB has entry_fee/payment columns

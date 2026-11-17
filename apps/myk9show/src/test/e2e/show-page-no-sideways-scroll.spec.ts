@@ -78,3 +78,53 @@ test('secretary Overview with a class focused has no horizontal scroll at 375px 
   });
   expect(overruns, 'no settings field may pass the card edge').toEqual([]);
 });
+
+/**
+ * Lunch orders and Judge supplies open in a 448px side panel, even on a wide window (MYK9-2100).
+ * At 1280x800 the Lunch orders "Add person" form took its three-column layout from the window's
+ * `sm:` breakpoint, so its content measured 456px in a 437px panel and "Add to list" ended past
+ * the panel's right edge. Opening a tool reads only; nothing here adds a person.
+ */
+const SIDE_PANEL_SIZES = [
+  { width: 1280, height: 800 },
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+] as const;
+/** `ready` is text only the tool's loaded content shows, never the panel title. */
+const SIDE_PANEL_TOOLS = [
+  { id: 'lunch-orders', ready: /Add to list/ },
+  { id: 'judge-supplies', ready: /Pat Donovan/ },
+] as const;
+
+for (const size of SIDE_PANEL_SIZES) {
+  for (const tool of SIDE_PANEL_TOOLS) {
+    test(`${tool.id} side panel has no horizontal scroll at ${size.width}px (MYK9-2100)`, async ({
+      page,
+    }) => {
+      await installSharedStagingWriteGuard(page);
+      await page.setViewportSize(size);
+      const path = `/shows/${SHOW_ID}?tool=${tool.id}`;
+      await signInAsSecretary(page, path);
+      await page.goto(path);
+      const panel = page.getByRole('dialog').last();
+      // Positive control: the tool's own content rendered, so the width check measures it.
+      await expect(panel.getByText(tool.ready).first()).toBeVisible({ timeout: 30_000 });
+      await page.waitForTimeout(1000);
+
+      const result = await panel.evaluate(el => {
+        const edge = el.getBoundingClientRect().right;
+        const sideways = [...el.querySelectorAll<HTMLElement>('*')]
+          .filter(c => /(auto|scroll)/.test(getComputedStyle(c).overflowX))
+          .filter(c => c.scrollWidth > c.clientWidth + 1)
+          .map(c => `${c.tagName} ${c.scrollWidth}>${c.clientWidth}`);
+        const pastEdge = [...el.querySelectorAll('button')]
+          .filter(b => b.getBoundingClientRect().width > 0)
+          .filter(b => b.getBoundingClientRect().right > edge + 0.5)
+          .map(b => (b.textContent ?? '').trim().slice(0, 30));
+        return { sideways, pastEdge };
+      });
+      expect(result.sideways, 'the panel must not scroll sideways').toEqual([]);
+      expect(result.pastEdge, 'no button may pass the panel edge').toEqual([]);
+    });
+  }
+}

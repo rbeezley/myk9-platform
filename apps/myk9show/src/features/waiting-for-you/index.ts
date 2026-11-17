@@ -8,5 +8,6 @@ export {
   type WaitlistSpotEntry,
   type WaitlistSpots,
 } from './waitlistSpots';
+export { toSpotClass } from './spotClass';
 export { findRunOutOffers, type RunOutOfferEntry } from './runOutOffers';
 export type { WaitingList } from './types';

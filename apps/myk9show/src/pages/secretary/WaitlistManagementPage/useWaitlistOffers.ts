@@ -50,6 +50,8 @@ export function useWaitlistOffers(
   }, [offersQuery.data, searchTerm]);
 
   return {
+    /** Every open offer in scope, whatever the search: the spot calculation must not see a filter. */
+    allOpenOffers: offersQuery.data?.open ?? [],
     offers,
     runOutOffers,
     isPending: enabled && classIds.length > 0 && offersQuery.isPending,

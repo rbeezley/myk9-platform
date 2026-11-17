@@ -35,6 +35,17 @@ describe('toSavedScore', () => {
     });
   });
 
+  it('adds the UKC element time when the sheet recorded one (MYK9-2068)', () => {
+    const saved = toSavedScore(
+      {
+        ...base,
+        scoreData: { resultText: 'Q', searchTime: '00:04.35', element: '00:09.10' },
+      },
+      routes
+    );
+    expect(saved.elementLabel).toBe('0:09.10');
+  });
+
   it.each([
     ['NQ', 'Not qualified'],
     ['EX', 'Excused'],

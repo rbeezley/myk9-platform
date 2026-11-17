@@ -34,7 +34,7 @@ const premium: GeneratedPremium = {
       startTime: '8:00 AM',
       eventNumber: 'UKC-2026-101',
       type: 'Scent Work',
-      judges: [{ name: 'Carol Judge', elements: ['Container', 'Interior'] }],
+      judges: [{ name: 'Carol Judge', classes: ['Container', 'Interior'] }],
       classes: [{ element: 'Container', level: 'Novice', section: null }],
     },
   ],
@@ -70,9 +70,10 @@ describe('UKCPremiumTemplate', () => {
     expect(screen.getByText(/City Animal Hospital/)).toBeTruthy();
   });
 
-  it('renders REQUIRED placeholder when vet clinic is null', () => {
+  it('prints no placeholder and no vet section when the vet clinic is null', () => {
     const p = { ...premium, supplemental: { ...premium.supplemental, vetClinic: null } };
     render(<UKCPremiumTemplate premium={p} />);
-    expect(screen.getAllByText(/REQUIRED/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/REQUIRED/)).toBeNull();
+    expect(screen.queryByText(/Veterinary Services/)).toBeNull();
   });
 });

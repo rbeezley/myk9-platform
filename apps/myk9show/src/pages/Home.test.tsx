@@ -5,6 +5,16 @@ import Home from './Home';
 import { BANNED_COPY } from '@/components/landing/lifecycle/lifecycleStories';
 
 const auth = vi.hoisted(() => ({ user: null as { id: string } | null }));
+const fee = vi.hoisted(() => ({
+  rates: { percent: 7, flatCents: 0, minCents: 0 } as {
+    percent: number;
+    flatCents: number;
+    minCents: number;
+  } | null,
+}));
+vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
+  usePlatformFeeRatesQuery: () => ({ rates: fee.rates, state: fee.rates ? 'ready' : 'loading' }),
+}));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: auth.user }) }));
 vi.mock('@/features/show-today/ShowTodayBanner', () => ({ ShowTodayBanner: () => null }));
 vi.mock('@/components/landing/lifecycle/ClubOnboarding', () => ({
@@ -28,6 +38,7 @@ describe('Home', () => {
   });
   afterEach(() => {
     auth.user = null;
+    fee.rates = { percent: 7, flatCents: 0, minCents: 0 };
     vi.restoreAllMocks();
     HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     window.history.replaceState({}, '', '/');
@@ -104,6 +115,61 @@ describe('Home', () => {
   it('renders no banned copy anywhere on the page', () => {
     const { container } = render(<Home />);
     for (const re of BANNED_COPY) expect(container.textContent ?? '').not.toMatch(re);
+  });
+
+  it('orders the page: trust bar, timeline, pricing, FAQ, then the close', () => {
+    render(<Home />);
+    const ids = ['trust-title', 'lc-title', 'pricing-title', 'faq-title', 'close-title'];
+    const nodes = ids.map(id => document.getElementById(id));
+    for (const [i, node] of nodes.entries()) expect(node, ids[i]).not.toBeNull();
+    for (let i = 1; i < nodes.length; i += 1) {
+      const follows =
+        nodes[i - 1]!.compareDocumentPosition(nodes[i]!) & Node.DOCUMENT_POSITION_FOLLOWING;
+      expect(follows, `${ids[i]} after ${ids[i - 1]}`).toBeTruthy();
+    }
+  });
+
+  it('states the service fee that is charged, read live, in pricing and in the FAQ', () => {
+    fee.rates = { percent: 9, flatCents: 0, minCents: 0 };
+    render(<Home />);
+    const pricing = screen.getByRole('region', { name: 'What it costs' });
+    expect(pricing).toHaveTextContent('Exhibitors pay a 9% service fee when they enter online.');
+    expect(within(pricing).getByText('9% service fee')).toBeInTheDocument();
+    expect(within(pricing).getByText('Free')).toBeInTheDocument();
+    const faq = screen.getByRole('region', { name: 'Questions clubs ask' });
+    expect(faq).toHaveTextContent('Exhibitors pay a 9% service fee when they pay by card.');
+    expect(document.body.textContent).not.toMatch(/7%/);
+  });
+
+  it('prints no fee figure until the live rate has been read', () => {
+    fee.rates = null;
+    render(<Home />);
+    const pricing = screen.getByRole('region', { name: 'What it costs' });
+    expect(pricing).toHaveTextContent('Exhibitors pay a service fee when they enter online.');
+    expect(within(pricing).getByText('A service fee')).toBeInTheDocument();
+    expect(pricing.textContent).not.toMatch(/\d\s*%/);
+    expect(screen.getByRole('region', { name: 'Questions clubs ask' }).textContent).not.toMatch(
+      /\d\s*%/
+    );
+  });
+
+  it('links pricing to the one fee explanation and answers six questions', () => {
+    render(<Home />);
+    const pricing = screen.getByRole('region', { name: 'What it costs' });
+    expect(within(pricing).getByRole('link', { name: 'How our fees work' })).toHaveAttribute(
+      'href',
+      '/fees'
+    );
+    const faq = screen.getByRole('region', { name: 'Questions clubs ask' });
+    expect(faq.querySelectorAll('details > summary')).toHaveLength(6);
+  });
+
+  it('keeps the trust bar under the hero with its four facts and the about anchor', () => {
+    render(<Home />);
+    const trust = screen.getByRole('region', { name: /built by the team behind/i });
+    expect(trust).toHaveAttribute('id', 'about');
+    expect(within(trust).getAllByRole('listitem')).toHaveLength(4);
+    expect(trust).toHaveTextContent('More than 200 clubs run their trials on mySWT and myNWT.');
   });
 
   it('still scrolls /#get-started to the club form', () => {

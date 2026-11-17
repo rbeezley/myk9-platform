@@ -2,7 +2,7 @@ import { toast } from 'sonner';
 
 import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 import { ABSENT_SCORE } from '@/features/at-show/absentScore';
-import { clearEntryScore, entryScoreStamp } from '@/features/at-show/clearEntryScore';
+import { clearEntryScore } from '@/features/at-show/clearEntryScore';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { buildStatusUndoToastMessage } from '@/services/database/entries/statusUndo';
 import { STATUS_UNDO_WINDOW_MS, showUndoToast } from '@/lib/undoToast';
@@ -12,15 +12,6 @@ import { transitionToCompleted } from '@/utils/checkInTransitions';
 
 import { dayOfDogLabel, markedAbsentMessage } from '../dayOfMessages';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
-
-async function readScoreStamp(entryId: string): Promise<string | null> {
-  try {
-    const stored = await replicatedEntriesTable.get(entryId);
-    return stored ? entryScoreStamp(stored) : null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Mark absent from the entries table (MYK9-1873, MYK9-1940). Absent is a RESULT, not a check-in
@@ -75,6 +66,9 @@ export function useMarkEntryAbsent({
       toast.error(`${label} was scored while this was open; nothing was changed.`);
       return;
     }
+    // Minted here and written verbatim, so the toast holds exactly what this Absent stored, never a
+    // read-back that a newer score could have replaced (MYK9-2037).
+    const absentStamp = new Date().toISOString();
     const outcome: { saved: boolean; failure: string | null } = { saved: false, failure: null };
     await submitScoreOptimistically({
       entryId: entry.entryId,
@@ -82,6 +76,7 @@ export function useMarkEntryAbsent({
       armband: entry.queue.armband ?? 0,
       className,
       scoreData: toOptimisticScorePayload(ABSENT_SCORE),
+      completedAt: absentStamp,
       onSuccess: () => {
         outcome.saved = true;
       },
@@ -92,7 +87,6 @@ export function useMarkEntryAbsent({
     if (outcome.saved) {
       // As the scoresheet does after a score: a dog that was in the ring leaves it.
       if (entry.state === 'in-ring') transitionToCompleted(entry.entryId);
-      const absentStamp = await readScoreStamp(entry.entryId);
       showUndoToast({
         message: markedAbsentMessage(label, className),
         onUndo: () => void undo(entry, label, absentStamp),

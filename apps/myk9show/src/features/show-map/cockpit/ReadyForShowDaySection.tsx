@@ -6,6 +6,8 @@ import { getTrialTimezone } from '@/features/registries';
 import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePromptWindow';
 import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineReadiness';
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
+import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
+import { resolveShowUses } from '@/features/show-workbench/showUses';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { ShowMapClassInput, ShowMapTrialInput } from '../showMapTypes';
 import { useShowWithLiveUses } from '@/features/show-workbench/useShowWithLiveUses';
@@ -57,7 +59,17 @@ function LineRow({ line }: { line: ReadyLine }) {
     <li className="flex items-start gap-3 text-sm">
       <LineIcon status={line.status} />
       <div>
-        {line.status === 'fail' && line.href ? (
+        {line.status === 'fail' && line.href && line.linkLabel ? (
+          <>
+            {text}
+            <Link
+              to={line.href}
+              className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+            >
+              {line.linkLabel}
+            </Link>
+          </>
+        ) : line.status === 'fail' && line.href ? (
           <Link to={line.href} className="underline-offset-4 hover:underline">
             {text}
           </Link>
@@ -80,6 +92,16 @@ function ReadyForShowDayContent({
 }: Omit<ReadyForShowDaySectionProps, 'now'> & { offlinePromptOpen: boolean }) {
   const show = useShowWithLiveUses(routeShow);
   const publishInfo = usePublishInfo(show.id, true);
+  // MYK9-2053: the About page's premium list, counted. Show Desk holds no judge roster (its class
+  // rows only name each class's judge), so judges are left to the About page and to the
+  // judges-missing readiness line rather than miscounted here.
+  const premiumMissingFacts = usePremiumRequirements(
+    show,
+    trials,
+    classes,
+    null,
+    !resolveShowUses(show).publishesOwnPremium
+  ).items.length;
   const { readiness } = useOfflineReadiness(show.id);
 
   const result = useMemo(() => {
@@ -88,7 +110,7 @@ function ReadyForShowDayContent({
     const info =
       publishInfo.fetchStatus === 'paused' || publishInfo.isError ? undefined : publishInfo.data;
     return buildReadyForShowDay({
-      setup: { show, trials, classes },
+      setup: { show, trials, classes, premiumMissingFacts },
       premiumInfo: info
         ? {
             publishedPremiumUrl: info.publishedLocator || info.publishedPath,
@@ -116,6 +138,7 @@ function ReadyForShowDayContent({
     paperwork.available,
     paperwork.byClassId,
     printTrackingInUse,
+    premiumMissingFacts,
     publishInfo.data,
     publishInfo.fetchStatus,
     publishInfo.isError,

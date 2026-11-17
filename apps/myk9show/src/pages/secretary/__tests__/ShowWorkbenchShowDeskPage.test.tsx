@@ -340,7 +340,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
     // Once the desk body renders, its tools reach the header for this show.
     expect(usePageEditTargetStore.getState().showTools?.showId).toBe('show-1');
-    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(10);
+    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(9);
     expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
@@ -363,12 +363,6 @@ describe('ShowWorkbenchShowDeskPage', () => {
       () => (usesSwitches.show.usesDeviceScoring = true),
     ],
     [
-      'Paper fallback packet',
-      'emergency-trial-packet',
-      () => (usesSwitches.show.usesPaperPacket = false),
-      () => (usesSwitches.show.usesPaperPacket = true),
-    ],
-    [
       'Volunteer tracking',
       'volunteers',
       () => (usesSwitches.show.usesVolunteers = false),
@@ -388,7 +382,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOff();
       const rows = await inventory();
       expect(rows).not.toContain(toolId);
-      expect(rows).toHaveLength(9);
+      expect(rows).toHaveLength(8);
       // A deep link still opens it: the panel is handed the full list.
       expect(screen.getByTestId('panel-tool-ids')).toHaveTextContent(toolId);
     });
@@ -397,7 +391,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOn();
       const rows = await inventory();
       expect(rows).toContain(toolId);
-      expect(rows).toHaveLength(10);
+      expect(rows).toHaveLength(9);
     });
   });
 
@@ -431,7 +425,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     });
   });
 
-  it('keeps exactly nine tools in two groups, in sheet order', async () => {
+  it('keeps exactly eight tools in two groups, in sheet order', async () => {
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
 
     renderPage();
@@ -444,7 +438,6 @@ describe('ShowWorkbenchShowDeskPage', () => {
       'show-day:check-in-desk',
       'show-day:self-checkin',
       'show-day:access-codes',
-      'show-day:emergency-trial-packet',
       'show-day:message-exhibitors',
       'show-logistics:volunteers',
       'show-logistics:lunch-orders',

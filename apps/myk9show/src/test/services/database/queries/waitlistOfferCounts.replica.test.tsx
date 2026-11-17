@@ -129,6 +129,8 @@ import {
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import { WaitlistTable } from '@/pages/secretary/WaitlistManagementPage/WaitlistTable';
+import { toSpotEntry } from '@/pages/secretary/WaitlistManagementPage/spotEntry';
+import { findOpenWaitlistSpots, toSpotClass } from '@/features/waiting-for-you';
 
 const waitingRow = (id: string, dog: string, position: number): Row => ({
   id,
@@ -185,16 +187,25 @@ async function tabClass() {
 async function offerSpotShown(): Promise<boolean> {
   const cls = await tabClass();
   const queue = (await getWaitlistByClass('class-1')).data;
+  // The page's own calculation; the judge's day has no limit here, so only the class's counts decide.
+  const spot = findOpenWaitlistSpots({
+    classes: [toSpotClass(cls)],
+    waitlist: queue.map(toSpotEntry),
+    judgeDays: [],
+  }).classes[0];
   const { unmount } = render(
     <WaitlistTable
       entries={queue}
+      spot={spot}
+      nextEntry={queue[0] ?? null}
+      autoOffer
       selectedClass={cls}
       isLoading={false}
       searchActive={false}
       onSetActionDialog={vi.fn()}
     />
   );
-  const shown = screen.queryAllByRole('button', { name: /Offer Spot/ }).length > 0;
+  const shown = screen.queryAllByRole('button', { name: /^Offer/ }).length > 0;
   unmount();
   return shown;
 }
@@ -228,7 +239,7 @@ describe('offer actions keep the replica counts equal to the server', () => {
     expect((await replicatedEntriesTable.get('entry-new'))?.entryStatus).toBe('pending-payment');
   });
 
-  it('frees the seat a withdrawn offer held, so "Offer Spot" shows for the next dog', async () => {
+  it('frees the seat a withdrawn offer held, so "Offer" shows for the next dog', async () => {
     await seed(['e1'], [waitingRow('wl-1', 'dog-a', 1), waitingRow('wl-2', 'dog-b', 2)]);
     await promoteWaitlistEntry('wl-1');
     expect(await offerSpotShown()).toBe(false);

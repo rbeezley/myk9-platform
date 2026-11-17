@@ -48,6 +48,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     selectedJudgeDay,
     waitlistEntries,
     groups,
+    spots,
     offers,
     runOutOffers,
     isLoading,
@@ -79,6 +80,11 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
   const dialogTrialLabel = dialogOffer
     ? formatTrialLabel({ name: dialogOffer.trial_name, date: dialogOffer.trial_date })
     : formatTrialLabel(dialogClass?.trial);
+
+  // Unread (loading or failed) is its own state: no recommendation and no offer until it is known.
+  const autoOffer = waitListSettings ? waitListSettings.autoOffer : null;
+  const spotByClass = new Map(spots?.classes.map(spot => [spot.classId, spot]));
+  const entryById = new Map(waitlistEntries.map(entry => [entry.id, entry]));
 
   const shownCount = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -226,6 +232,9 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
           searchActive={searchTerm !== ''}
           onSetActionDialog={setActionDialog}
           offline={isOffline}
+          spot={spotByClass.get(cls.id)}
+          autoOffer={autoOffer}
+          nextEntry={entryById.get(spotByClass.get(cls.id)?.nextInLine?.id ?? '') ?? null}
         />
       ))}
 

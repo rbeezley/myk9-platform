@@ -45,7 +45,7 @@ export function composeFallbackArticle(
 
 /**
  * Flatten judges across all trials, dedup by name, and emit up to
- * `JUDGES_STRIP_MAX` "Name · Element" entries. When more judges exist than fit,
+ * `JUDGES_STRIP_MAX` "Name" entries. When more judges exist than fit,
  * the final entry becomes the meta-marker '…and others' (no leading middot —
  * the row separator already inserts spacing between entries, so a leading
  * middot here would render as a stray dot).
@@ -57,8 +57,7 @@ export function buildJudgeStrip(trials: CoverContext['data']['trials']): string[
     for (const j of trial.judges ?? []) {
       if (!j?.name || seen.has(j.name)) continue;
       seen.add(j.name);
-      const elements = (j.elements?.length ?? 0) > 0 ? ` ${MIDDOT} ${j.elements[0]}` : '';
-      entries.push(`${j.name}${elements}`);
+      entries.push(j.name);
     }
   }
   if (entries.length <= JUDGES_STRIP_MAX) return entries;

@@ -1,5 +1,6 @@
 import { judgeLine } from '@/utils/classJudgeDisplay';
 import { Link } from 'react-router-dom';
+import { checkInStateLabel } from '@myk9/ui';
 import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
@@ -151,8 +152,9 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
           // "Check in on the day" here could contradict it.
           futureDay
           ? null
-          : 'Not checked in'
-        : getStatusDescriptor('entry', entry.checkInStatus).label
+          : checkInStateLabel('no-status')
+        : (checkInStateLabel(entry.checkInStatus) ??
+          getStatusDescriptor('entry', entry.checkInStatus).label)
       : 'Check-in pending';
 
   return (

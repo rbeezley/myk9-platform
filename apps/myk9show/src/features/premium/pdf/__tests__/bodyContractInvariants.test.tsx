@@ -70,7 +70,7 @@ function makePremium(style: PremiumStyle): GeneratedPremium {
         startTime: '9:00 AM',
         eventNumber: 'AKC-2026-001',
         type: 'Scent Work',
-        judges: [{ name: 'Alice Judge', elements: ['Container'] }],
+        judges: [{ name: 'Alice Judge', classes: ['Container'] }],
         classes: SCRAMBLED_CLASSES,
       },
     ],

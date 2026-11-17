@@ -3,10 +3,12 @@ import { ArrowRight, CheckCircle2, Printer } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 import { buildFinishList } from '@/features/show-closeout/finishList';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { trialLabelOf, type ResultsClassRow } from './buildResultsClassRows';
 
@@ -26,9 +28,14 @@ interface ResultsFinishRowProps {
  * read); a line that opens the class list filters it to exactly the classes the line counted.
  */
 export function ResultsFinishRow({ showId, trials, rows, onOpenAfterShow }: ResultsFinishRowProps) {
+  // Until the schedule is confirmed the rows may be partial: not loaded reads as "checking".
+  const scheduleReady = useTrialStore(
+    state => state.trialsHasConfirmedSnapshot && state.trialClassesHasConfirmedSnapshot
+  );
+  const sent = useResultsSentCheck(showId, scheduleReady ? rows : null);
   const items = useMemo(
-    () => buildFinishList(showId, calculateResultsRowsLeft(rows, trials)),
-    [rows, showId, trials]
+    () => buildFinishList(showId, calculateResultsRowsLeft(rows, trials, sent)),
+    [rows, sent, showId, trials]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();
@@ -55,7 +62,12 @@ export function ResultsFinishRow({ showId, trials, rows, onOpenAfterShow }: Resu
               {item.state === 'done' && (
                 <CheckCircle2 className="h-4 w-4 text-primary" aria-label="Done" />
               )}
-              {item.label}
+              <span>
+                {item.label}
+                {item.note && (
+                  <span className="block text-xs text-muted-foreground">{item.note}</span>
+                )}
+              </span>
             </span>
           );
           return (

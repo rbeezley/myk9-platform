@@ -6,7 +6,6 @@ const ids = [
   'people-at-show',
   'self-checkin',
   'access-codes',
-  'emergency-trial-packet',
   'volunteers',
   'lunch-orders',
   'tasks-notes',
@@ -23,7 +22,6 @@ const tools = ids.map(id => ({
 const allOn: ShowDeskToolSwitches = {
   selfCheckin: true,
   deviceScoring: true,
-  paperPacket: true,
   volunteers: true,
 };
 
@@ -35,7 +33,6 @@ describe('filterShowDeskTools (MYK9-1685)', () => {
   it.each([
     ['selfCheckin', 'self-checkin'],
     ['deviceScoring', 'access-codes'],
-    ['paperPacket', 'emergency-trial-packet'],
     ['volunteers', 'volunteers'],
   ] as const)('%s off hides only %s, and on restores it', (key, id) => {
     const off = filterShowDeskTools(tools, { ...allOn, [key]: false }).map(t => t.id);
@@ -48,7 +45,6 @@ describe('filterShowDeskTools (MYK9-1685)', () => {
     const unknown = {
       selfCheckin: undefined,
       deviceScoring: undefined,
-      paperPacket: undefined,
       volunteers: undefined,
     };
     expect(filterShowDeskTools(tools, unknown).map(t => t.id)).toEqual(ids);

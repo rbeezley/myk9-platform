@@ -160,6 +160,15 @@ describe('buildRunSheetEntries', () => {
     expect(e.result!.timeStr).toBe('1:01.23');
   });
 
+  it('formats the UKC element time next to the run time, and leaves it empty without one (MYK9-2090)', () => {
+    const [withElement, without] = buildRunSheetEntries([
+      makeRow({ id: 'a', is_scored: true, result_status: 'qualified', element_time_seconds: 42.5 }),
+      makeRow({ id: 'b', is_scored: true, result_status: 'qualified', element_time_seconds: null }),
+    ]);
+    expect(withElement.result!.elementTimeStr).toBe('0:42.50');
+    expect(without.result!.elementTimeStr).toBe('');
+  });
+
   it('builds an NQ result with empty timeStr when no time recorded', () => {
     const [e] = buildRunSheetEntries([
       makeRow({ is_scored: true, result_status: 'nq', search_time_seconds: null }),

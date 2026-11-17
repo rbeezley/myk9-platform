@@ -1,4 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { TrialGroupCard } from '@/components/schedule/TrialGroupCard';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
@@ -93,6 +94,28 @@ export function CockpitTrialGroup({
       }
       actions={trialActions}
     >
+      {group.nextTrialNote && (
+        <p
+          role="status"
+          className="flex flex-wrap items-center gap-x-3 border-b bg-warning/10 px-4 py-2 text-sm"
+        >
+          <span>{group.nextTrialNote.text}</span>
+          <Link
+            to={group.nextTrialNote.href}
+            className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+          >
+            {group.nextTrialNote.linkLabel}
+          </Link>
+          {group.nextTrialNote.labels && (
+            <Link
+              to={group.nextTrialNote.labels.href}
+              className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+            >
+              {group.nextTrialNote.labels.linkLabel}
+            </Link>
+          )}
+        </p>
+      )}
       {group.classes.map((classItem, classIndex) => {
         const focused = model.focusedClass?.id === classItem.id;
         return (

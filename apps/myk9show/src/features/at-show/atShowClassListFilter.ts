@@ -12,10 +12,10 @@ export type ClassListTab = 'pending' | 'in-progress' | 'favorites' | 'completed'
 export type ClassListSort = 'run-order' | 'element-level' | 'level-element';
 
 export const CLASS_LIST_TABS: readonly { id: ClassListTab; label: string }[] = [
-  { id: 'pending', label: 'Pending' },
+  { id: 'pending', label: 'To do' },
   { id: 'in-progress', label: 'Running' },
   { id: 'favorites', label: 'Favorites' },
-  { id: 'completed', label: 'Done' },
+  { id: 'completed', label: 'Completed' },
 ];
 
 export const CLASS_LIST_SORTS: readonly { id: ClassListSort; label: string }[] = [
@@ -35,7 +35,7 @@ export function isClassListSort(value: unknown): value is ClassListSort {
   return CLASS_LIST_SORTS.some(sort => sort.id === value);
 }
 
-/** Whether a card belongs under a tab. Pending is "not completed" (v3), so it includes live classes. */
+/** Whether a card belongs under a tab. "To do" (v3) deliberately includes the Running classes (a running class is still to do), so its count is not added to Running. */
 export function classMatchesTab(entry: ClassEntry, tab: ClassListTab): boolean {
   const status = getEffectiveClassStatus(entry);
   switch (tab) {

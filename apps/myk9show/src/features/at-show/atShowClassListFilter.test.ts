@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassEntry } from '@myk9/ringside';
 import {
+  CLASS_LIST_TABS,
   classMatchesSearch,
   classMatchesTab,
   countByTab,
@@ -59,6 +60,17 @@ describe('classMatchesTab', () => {
     expect(classMatchesTab(favedDone, 'favorites')).toBe(true);
     expect(classMatchesTab(favedDone, 'completed')).toBe(true);
     expect(classMatchesTab(favedDone, 'pending')).toBe(false);
+  });
+});
+
+describe('tab labels', () => {
+  it('names the superset honestly and uses the entry list word for finished classes', () => {
+    expect(CLASS_LIST_TABS.map(tab => tab.label)).toEqual([
+      'To do',
+      'Running',
+      'Favorites',
+      'Completed',
+    ]);
   });
 });
 

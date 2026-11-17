@@ -220,6 +220,8 @@ export interface ReplicatedEntry {
   area2_time_seconds?: number | null | undefined;
   area3_time_seconds?: number | null | undefined;
   area4_time_seconds?: number | null | undefined;
+  area5_time_seconds?: number | null | undefined;
+  element_time_seconds?: number | null | undefined;
   total_correct_finds?: number | null | undefined;
   total_incorrect_finds?: number | null | undefined;
   no_finish_count?: number | null | undefined;
@@ -359,6 +361,12 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
     }),
     ...(entry.area4_time_seconds !== undefined && {
       area4_time_seconds: entry.area4_time_seconds,
+    }),
+    ...(entry.area5_time_seconds !== undefined && {
+      area5_time_seconds: entry.area5_time_seconds,
+    }),
+    ...(entry.element_time_seconds !== undefined && {
+      element_time_seconds: entry.element_time_seconds,
     }),
     ...(entry.total_correct_finds !== undefined && {
       total_correct_finds: entry.total_correct_finds,
@@ -541,6 +549,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     area2_time_seconds: (dbRow.area2_time_seconds as number | undefined) ?? undefined,
     area3_time_seconds: (dbRow.area3_time_seconds as number | undefined) ?? undefined,
     area4_time_seconds: (dbRow.area4_time_seconds as number | undefined) ?? undefined,
+    area5_time_seconds: (dbRow.area5_time_seconds as number | undefined) ?? undefined,
+    element_time_seconds: (dbRow.element_time_seconds as number | undefined) ?? undefined,
     total_correct_finds: (dbRow.total_correct_finds as number | undefined) ?? undefined,
     total_incorrect_finds: (dbRow.total_incorrect_finds as number | undefined) ?? undefined,
     no_finish_count: (dbRow.no_finish_count as number | undefined) ?? undefined,

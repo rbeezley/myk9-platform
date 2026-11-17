@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'tailwind-preset': 'src/tailwind-preset.ts',
+    'check-in-words': 'src/components/StatusIcon/checkInStateWords.ts',
   },
   format: ['esm'],
   dts: true,

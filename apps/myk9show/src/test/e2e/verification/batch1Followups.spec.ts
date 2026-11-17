@@ -139,7 +139,22 @@ const isPolicyRead = (url: URL) =>
   url.pathname.endsWith('/rest/v1/entries') &&
   url.searchParams.get('select') === 'withdrawal_policy_snapshot,trials(timezone)';
 
+// The toaster docks bottom-right, where the dog Actions menu opens beside it. A toast there
+// (going offline raises one for 6 s) can sit over "Withdraw Willow", and sonner pauses a toast's
+// timer while the pointer is over it, so a click that lands on it keeps it up. Dismiss every toast
+// the way a person would, with its close button, then wait for the toaster to be empty.
+async function dismissToasts(page: Page) {
+  const toasts = page.locator('li[data-sonner-toast]');
+  await expect(async () => {
+    for (const close of await toasts.locator('[data-close-button]').all()) {
+      await close.click({ timeout: 2_000 }).catch(() => undefined);
+    }
+    await expect(toasts).toHaveCount(0, { timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+}
+
 async function openDogWithdraw(page: Page) {
+  await dismissToasts(page);
   await page.getByRole('button', { name: 'Actions for Willow, all entries' }).click();
   await page.getByRole('menuitem', { name: /^Withdraw Willow/ }).click();
   const dialog = page.getByRole('dialog');
@@ -233,6 +248,8 @@ test('dog Withdraw offline: refunds left to approval as an explicit choice (MYK9
   });
 
   await secretary.context.setOffline(true);
+  // Going offline raises its one toast; wait for it so it is dismissed, not raced.
+  await expect(page.getByText(/^You're offline\./)).toBeVisible();
   const dialog = await openDogWithdraw(page);
   const confirm = dialog.getByRole('button', { name: 'Withdraw Willow', exact: true });
   await expect(dialog.getByText("Couldn't check the refund policy")).toHaveCount(2, {
@@ -362,7 +379,9 @@ async function showUsesRow(client: Client, showId: string) {
   return { ...show.data, self_checkin_enabled: settings.data?.self_checkin_enabled ?? null };
 }
 
-const GATED_ROWS = ['Self check-in', 'Access codes', 'Emergency trial packet', 'Volunteers'];
+const GATED_ROWS = ['Self check-in', 'Access codes', 'Volunteers'];
+// "Paper fallback packet" no longer gates a Show Desk row (MYK9-2109), but it is still a switch
+// and the server round-trip below still checks `uses_paper_packet`.
 const TOOL_SWITCHES = [
   'Exhibitor self check-in',
   'Judges score on devices',

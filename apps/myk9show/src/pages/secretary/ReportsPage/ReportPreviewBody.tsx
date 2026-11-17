@@ -34,6 +34,8 @@ export interface ReportPreviewBodyProps {
   onRetry: () => void;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
   onArmbandDescriptorChange?: (descriptor: PaperworkDescriptor | null) => void;
+  /** The armband labels open on this entry's dog and day (a dog's row, MYK9-2073). */
+  armbandPresetEntryId?: string | undefined;
 }
 
 /**
@@ -55,6 +57,7 @@ export function ReportPreviewBody(props: ReportPreviewBodyProps) {
           scope={props.scope}
           iframeRef={iframeRef}
           onDescriptorChange={props.onArmbandDescriptorChange ?? noopDescriptor}
+          presetEntryId={props.armbandPresetEntryId}
         />
         <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
       </div>

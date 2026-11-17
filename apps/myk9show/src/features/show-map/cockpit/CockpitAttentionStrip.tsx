@@ -33,16 +33,26 @@ export function CockpitAttentionStrip({
   overflowCount,
   classNameById,
   onCommand,
+  openChoice: openChoiceProp,
+  onOpenChoiceChange,
 }: {
   items: readonly SecretaryCockpitAttention[];
   all: readonly SecretaryCockpitAttention[];
   overflowCount: number;
   classNameById: ReadonlyMap<string, string>;
   onCommand: (commandId: string) => void;
+  /**
+   * The user's open/closed choice, held by the cockpit so it survives the strip moving between the
+   * rail and the full-width slot (each is a different tree position, so local state would reset).
+   */
+  openChoice?: boolean | null;
+  onOpenChoiceChange?: (open: boolean) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const isPhone = useMediaQuery('(max-width: 639px)');
-  const [openChoice, setOpenChoice] = useState<boolean | null>(null);
+  const [localChoice, setLocalChoice] = useState<boolean | null>(null);
+  const openChoice = openChoiceProp === undefined ? localChoice : openChoiceProp;
+  const setOpenChoice = onOpenChoiceChange ?? setLocalChoice;
   const open = openChoice ?? !isPhone;
   const visible = showAll ? all : items;
 

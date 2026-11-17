@@ -671,3 +671,56 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
     expect(model.attention.all.some(item => item.kind === 'preparation')).toBe(false);
   });
 });
+
+describe('the next trial note on the schedule (MYK9-2075)', () => {
+  it('reaches the trial group model, with the packet link, from the real snapshot shape', () => {
+    const snapshot = makeSnapshot({
+      trials: [
+        { id: 'trial-1', date: '2026-07-20', number: '1', storedNumber: '1', order: 1 },
+        { id: 'trial-2', date: '2026-07-20', number: '2', storedNumber: '2', order: 2 },
+      ],
+      classes: [
+        makeClass({ id: 'a', trialId: 'trial-1', name: 'Done', lifecycle: 'complete' }),
+        makeClass({
+          id: 'b',
+          trialId: 'trial-2',
+          name: 'Next',
+          paperwork: [{ reportId: 'scoresheet', label: 'Score sheets', state: 'unconfirmed' }],
+        }),
+      ],
+    });
+    const model = buildSecretaryCockpitModel(snapshot, { statuses: [], selectedDays: [] });
+    const notes = model.trialGroups.map(group => group.nextTrialNote?.href ?? null);
+    expect(notes).toEqual([null, '/shows/show-1?day=2026-07-20&packet=trial-2']);
+  });
+
+  it('names the finished and the next trial exactly as the group header does (Heartland shape)', () => {
+    const heartland = [1, 2, 3, 4].map(n => ({
+      id: `trial-${n}`,
+      date: n === 1 ? '2026-12-07' : '2026-12-08',
+      name: `Trial ${n}`,
+      number: `Trial ${n}`,
+      storedNumber: `Trial ${n}`,
+      displayOrder: String(n),
+      order: n,
+    }));
+    const snapshot = makeSnapshot({
+      trials: heartland,
+      classes: [
+        makeClass({ id: 'a', trialId: 'trial-2', name: 'Done', lifecycle: 'complete' }),
+        makeClass({
+          id: 'b',
+          trialId: 'trial-3',
+          name: 'Next',
+          paperwork: [{ reportId: 'scoresheet', label: 'Score sheets', state: 'unconfirmed' }],
+        }),
+      ],
+    });
+    const model = buildSecretaryCockpitModel(snapshot, { statuses: [], selectedDays: [] });
+    const group = model.trialGroups.find(item => item.trialId === 'trial-3');
+    expect(group?.label).toBe('Trial 3 · December 8');
+    expect(group?.nextTrialNote?.text).toBe(
+      "Trial 2 is finished. Trial 3's paperwork is ready to print."
+    );
+  });
+});

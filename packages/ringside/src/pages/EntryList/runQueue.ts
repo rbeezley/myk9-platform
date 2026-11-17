@@ -17,6 +17,7 @@
  * ReplicatedEntry normalizer.
  */
 
+import { checkInStateLabel } from '@myk9/ui/check-in-words';
 import { ordinal } from './ordinal';
 
 /**
@@ -280,10 +281,12 @@ export function formatRunQueueState(state: RunQueueState): string {
     case 'stale':
       return 'Order may be out of date';
     case 'in-ring':
-      return 'In ring';
+      return checkInStateLabel('in-ring');
     case 'done':
       return 'Done';
     case 'pulled':
+      // Not on the shared check-in table: the queue cannot tell a day-of pull from a scratch
+      // before the show, so "at the show" could be false (MYK9-632).
       return 'Pulled';
     case 'withdrawn':
       return 'Withdrawn';

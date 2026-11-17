@@ -4,6 +4,7 @@
 // long judges section) makes column-equalization brittle. Tall sections spill
 // naturally to the next column. Sections use wrap={false} so individual
 // classifieds don't split mid-row.
+import { judgeBlockText } from './judgeLine';
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import type { StyleTokens } from '../pdfStyles';
@@ -46,7 +47,7 @@ export function GazetteBody({ data, tokens }: Props) {
   };
   const denseStyle = { ...bodyTextStyle, fontSize: tokens.bodyFontSize - 1 };
 
-  const hasOfficials = Boolean(chair || f.officers.length > 0);
+  const hasOfficials = Boolean(chair || f.officers.length > 0 || f.committee.length > 0);
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.some(t => t.classLabels.length > 0);
   const hasFees = f.fees.hasAny;
@@ -84,6 +85,9 @@ export function GazetteBody({ data, tokens }: Props) {
                 {o.title}: {o.name}
               </Text>
             ))}
+            {f.committee.length > 0 && (
+              <Text style={bodyTextStyle}>Event Committee: {f.committee.join(', ')}</Text>
+            )}
           </View>
         )}
 
@@ -95,8 +99,7 @@ export function GazetteBody({ data, tokens }: Props) {
             {trials.flatMap((trial, ti) =>
               trial.judges.map((j, ji) => (
                 <Text key={`${ti}-${ji}`} style={denseStyle}>
-                  {j.name}
-                  {j.elements.length > 0 ? ` — ${j.elements.join(', ')}` : ''}
+                  {judgeBlockText(j)}
                 </Text>
               ))
             )}

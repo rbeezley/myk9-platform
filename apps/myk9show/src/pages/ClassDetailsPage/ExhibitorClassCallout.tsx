@@ -16,6 +16,8 @@ interface ExhibitorClassCalloutProps {
   releasedRows?: RawEntryRow[];
   /** The class row this device holds says it is judged on paper (MYK9-1970). */
   scoresOnPaper?: boolean;
+  /** The class's `results_released_at` (MYK9-2094: unset labels results preliminary). */
+  resultsReleasedAt?: string | null | undefined;
   /** The class's trial day (YYYY-MM-DD) and the trial's own IANA zone. */
   trialDate?: string | undefined;
   trialTimezone?: string | undefined;
@@ -25,10 +27,16 @@ export function ExhibitorClassCallout({
   classId,
   releasedRows,
   scoresOnPaper = false,
+  resultsReleasedAt,
   trialDate,
   trialTimezone,
 }: ExhibitorClassCalloutProps) {
-  const { myEntries, isAfterClass } = useMyEntriesInClass(classId, releasedRows, scoresOnPaper);
+  const { myEntries, isAfterClass } = useMyEntriesInClass(
+    classId,
+    releasedRows,
+    scoresOnPaper,
+    resultsReleasedAt
+  );
 
   if (myEntries.length === 0) return null;
 
@@ -169,6 +177,9 @@ function ResultCallout({ entry }: { entry: MyClassEntry }) {
           <Chip color="red" size="md" leadingIcon={<XCircle className="h-3.5 w-3.5" />}>
             Not qualified
           </Chip>
+        )}
+        {result?.isPreliminary && (
+          <span className="text-xs text-muted-foreground">preliminary</span>
         )}
       </div>
 

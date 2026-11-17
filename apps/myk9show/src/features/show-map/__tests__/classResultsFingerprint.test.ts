@@ -134,17 +134,17 @@ const FIXTURE: ClassResultsFingerprintEntry[] = [
 ];
 
 /** Also pinned in supabase/tests/myk9_1045_results_verified_test.sql (PASS 2). */
-const FIXTURE_HASH = '4d0d56e5b7bb8cdb47591069945876b6bd09bc638cec4c559f0d3669d9612e46';
+const FIXTURE_HASH = 'bf9c1a5bb8da7beb6ba372433a313acc0963f5c0053a7e24d003d06b6a8ac280';
 
 describe('classResultsFingerprint (MYK9-1045)', () => {
   it('writes the canonical text the SQL fingerprint hashes', () => {
     expect(classResultsCanonicalText(FIXTURE)).toBe(
       [
         'myk9-class-results-v1',
-        '00000000-0000-0000-0000-000000104511|1|qualified|30.5|30.5|0|0|0|1|0|1|0|0|0|2|\\N',
-        '00000000-0000-0000-0000-000000104512|1|nq|12|12|0|0|0|0|0|3|0|0|0|\\N|Handler said "a\\|b\\\\c"\\nthen left',
-        '00000000-0000-0000-0000-000000104513|1|qualified|45.2|45.2|0|0|0|1|0|0|0|0|0|1|\\N',
-        '00000000-0000-0000-0000-000000104514|0|absent|0|0|0|0|0|0|0|0|0|0|0|\\N|\\N',
+        '00000000-0000-0000-0000-000000104511|1|qualified|30.5|30.5|0|0|0|\\N|\\N|1|0|1|0|0|0|2|\\N',
+        '00000000-0000-0000-0000-000000104512|1|nq|12|12|0|0|0|\\N|\\N|0|0|3|0|0|0|\\N|Handler said "a\\|b\\\\c"\\nthen left',
+        '00000000-0000-0000-0000-000000104513|1|qualified|45.2|45.2|0|0|0|\\N|\\N|1|0|0|0|0|0|1|\\N',
+        '00000000-0000-0000-0000-000000104514|0|absent|0|0|0|0|0|\\N|\\N|0|0|0|0|0|0|\\N|\\N',
       ].join('\n')
     );
   });
@@ -175,6 +175,14 @@ describe('classResultsFingerprint (MYK9-1045)', () => {
       entry.id.endsWith('104511') ? { ...entry, search_time_seconds: 30.25 } : entry
     );
     await expect(classResultsFingerprint(corrected)).resolves.not.toBe(FIXTURE_HASH);
+
+    // MYK9-2068: the fifth area and the UKC element time are results too.
+    for (const column of ['area5_time_seconds', 'element_time_seconds'] as const) {
+      const timed = FIXTURE.map(entry =>
+        entry.id.endsWith('104511') ? { ...entry, [column]: 12.5 } : entry
+      );
+      await expect(classResultsFingerprint(timed), column).resolves.not.toBe(FIXTURE_HASH);
+    }
 
     // An unscored, pending entry has no line, so adding or dropping one changes nothing.
     const withWaitlisted = [

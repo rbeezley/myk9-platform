@@ -270,6 +270,32 @@ describe('buildLandingData', () => {
       expect(data.judges[0]?.trialNumbers).toEqual(['Trial 2']);
     });
 
+    it("puts a judge's city and state on the landing judge, and null when they have no city (MYK9-2067)", () => {
+      const data = buildLandingData(show, t1, [t1, t2], 0, [
+        { ...pat, trialId: 't-1', city: 'Springfield', state: 'IL' },
+        {
+          personId: 'p-sam',
+          firstName: 'Sam',
+          lastName: 'Lee',
+          trialId: 't-2',
+          classId: null,
+          city: null,
+          state: 'TX',
+        },
+        {
+          personId: 'p-kim',
+          firstName: 'Kim',
+          lastName: 'Ode',
+          trialId: 't-2',
+          classId: null,
+          city: 'Austin',
+          state: null,
+        },
+      ]);
+
+      expect(data.judges.map(judge => judge.city)).toEqual(['Springfield, IL', null, 'Austin']);
+    });
+
     it('has no judges when there are no assignments', () => {
       expect(buildLandingData(show, t1, [t1, t2], 0).judges).toEqual([]);
     });

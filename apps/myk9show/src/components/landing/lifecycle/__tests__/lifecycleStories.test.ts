@@ -8,6 +8,7 @@ import {
   DEFAULT_AUDIENCE,
   MEANWHILE_LABEL,
   PEAK_LEAD,
+  SCENE_LINES,
   STORIES,
   STORY_HEADING,
   type Audience,
@@ -87,8 +88,33 @@ describe('STORIES', () => {
       ...Object.values(STORY_HEADING),
       ...Object.values(MEANWHILE_LABEL),
     ];
-    const all = [...labels, ...AUDIENCES.flatMap(a => STORIES[a].flatMap(copyOf))];
+    const sceneCopy = Object.values(SCENE_LINES).flatMap(lines =>
+      lines.flatMap(line => [line.head, line.text])
+    );
+    const all = [...labels, ...sceneCopy, ...AUDIENCES.flatMap(a => STORIES[a].flatMap(copyOf))];
     for (const text of all) for (const re of BANNED_COPY) expect(text).not.toMatch(re);
+  });
+
+  it('writes a heading and a sentence for every line of the four scenes, none repeated', () => {
+    expect(Object.fromEntries(Object.entries(SCENE_LINES).map(([k, v]) => [k, v.length]))).toEqual({
+      entries: 5,
+      'showday-ring': 5,
+      'showday-desk': 5,
+      results: 4,
+    });
+    const seen = new Set<string>();
+    for (const [scene, lines] of Object.entries(SCENE_LINES)) {
+      for (const { head, text } of lines) {
+        expect(head.trim().length, scene).toBeGreaterThan(10);
+        // A heading is read at a glance while the scene plays.
+        expect(head.length, head).toBeLessThanOrEqual(40);
+        expect(text.trim().length, scene).toBeGreaterThan(20);
+        for (const copy of [head, text]) {
+          expect(seen.has(copy), copy).toBe(false);
+          seen.add(copy);
+        }
+      }
+    }
   });
 
   it('ships a real share image and light hero variants', () => {

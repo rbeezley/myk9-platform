@@ -1,6 +1,7 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Lock } from 'lucide-react';
 
 import type { CheckInStatus } from '@/types/check-in-types';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import {
   deskPutBackReason,
@@ -53,44 +54,62 @@ export function ClassCheckInCell({
     pill
   );
   const shape = 'flex min-h-11 items-center gap-0.5 rounded-md px-1';
+  const lockedNote = !putBackNote && checkIn.canChange && !entry.deskEditable && entry.lockedReason;
   return (
     <>
-      {putBack?.canUnpull ? (
-        <button
-          type="button"
-          disabled={!isOnline || checkIn.isBusy(entry.entryId)}
-          aria-label={`Put ${entry.dogName} back in this class`}
-          onClick={() => checkIn.requestUnpull(putBack.row)}
-          className={`${shape} hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:hover:bg-transparent`}
-        >
-          {pill}
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-        </button>
-      ) : checkIn.canChange ? (
-        <button
-          type="button"
-          disabled={!editable || checkIn.isBusy(entry.entryId)}
-          aria-label={
-            editable
-              ? `Change check-in for ${entry.dogName}: ${display.label}`
-              : `Check-in for ${entry.dogName}: ${display.label}, locked`
-          }
-          onClick={() => checkIn.open(entry.entryId)}
-          className={`${shape} hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:hover:bg-transparent`}
-        >
-          {body}
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-        </button>
-      ) : (
-        <div className={shape}>{body}</div>
-      )}
+      <div className="flex items-center">
+        {putBack?.canUnpull ? (
+          <button
+            type="button"
+            disabled={!isOnline || checkIn.isBusy(entry.entryId)}
+            aria-label={`Put ${entry.dogName} back in this class`}
+            onClick={() => checkIn.requestUnpull(putBack.row)}
+            className={`${shape} hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:hover:bg-transparent`}
+          >
+            {pill}
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+          </button>
+        ) : checkIn.canChange ? (
+          <button
+            type="button"
+            disabled={!editable || checkIn.isBusy(entry.entryId)}
+            aria-label={
+              editable
+                ? `Change check-in for ${entry.dogName}: ${display.label}`
+                : `Check-in for ${entry.dogName}: ${display.label}, locked`
+            }
+            onClick={() => checkIn.open(entry.entryId)}
+            className={`${shape} hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:hover:bg-transparent`}
+          >
+            {body}
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+          </button>
+        ) : (
+          <div className={shape}>{body}</div>
+        )}
+        {lockedNote && (
+          // From lg an icon, not a line of text: the line made every scored row a line taller and
+          // pushed the entries off a laptop's screen (MYK9-1989). The words stay in the DOM below.
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                aria-hidden="true"
+                data-testid="locked-reason-icon"
+                className="hidden min-h-11 items-center px-1.5 text-muted-foreground lg:inline-flex"
+              >
+                <Lock className="h-3.5 w-3.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{lockedNote}</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
       {putBackNote ? (
         <span className="mt-1 block text-xs text-muted-foreground">{putBackNote}</span>
       ) : (
-        checkIn.canChange &&
-        !entry.deskEditable &&
-        entry.lockedReason && (
-          <span className="mt-1 block text-xs text-muted-foreground">{entry.lockedReason}</span>
+        lockedNote && (
+          // Phones and tablets read it on the row as before; from lg screen readers still get it.
+          <span className="mt-1 block text-xs text-muted-foreground lg:sr-only">{lockedNote}</span>
         )
       )}
       {entry.scoredAfterRemoval && (

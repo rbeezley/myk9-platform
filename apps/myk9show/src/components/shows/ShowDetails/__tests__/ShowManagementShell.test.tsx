@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManagementShell';
@@ -13,17 +13,24 @@ import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
 import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 
+const NO_OFFICIALS = { secretaries: [], chairmen: [], stewards: [] };
+
 const saveHarness = vi.hoisted(() => ({
   updateShow: vi.fn(),
   runPublish: vi.fn(),
   persistJudges: vi.fn(),
   publishJudges: vi.fn(),
+  officials: vi.fn(),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
   premiumPublishDraftKey: () => 'draft-key',
   runPremiumPublishOperation: saveHarness.runPublish,
+}));
+vi.mock('@/features/premium/premiumOfficials', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/premium/premiumOfficials')>()),
+  fetchOfficialsForPublish: (...args: unknown[]) => saveHarness.officials(...args),
 }));
 vi.mock('@/services/database/judges', () => ({
   saveShowJudgeChanges: saveHarness.persistJudges,
@@ -490,6 +497,45 @@ describe('ShowManagementShell', () => {
     expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
   });
 
+  describe('with a class selected on a laptop (MYK9-1989)', () => {
+    const original = window.matchMedia;
+    const breadcrumbs = [
+      { label: 'Shows', href: '/shows' },
+      { label: 'Test Show', href: '/shows/show-1' },
+    ];
+    const setWide = (wide: boolean) => {
+      window.matchMedia = ((query: string) => ({
+        matches: wide && query === '(min-width: 1024px)',
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+        onchange: null,
+      })) as typeof window.matchMedia;
+    };
+    afterEach(() => {
+      window.matchMedia = original;
+    });
+
+    it('drops the breadcrumb row with a class selected on a laptop', () => {
+      setWide(true);
+      renderShell({ breadcrumbs }, '/shows/show-1?focus=class-1');
+      expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    });
+
+    it.each([
+      { name: 'no class is selected', wide: true, route: '/shows/show-1' },
+      { name: 'the window is narrower than lg', wide: false, route: '/shows/show-1?focus=class-1' },
+    ])('keeps the breadcrumb when $name', ({ wide, route }) => {
+      setWide(wide);
+      renderShell({ breadcrumbs }, route);
+      expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument();
+    });
+  });
+
   it('lets the show header own the page h1 so the page header renders no second title', () => {
     renderShell();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
@@ -789,6 +835,7 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
     saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     // Reservation fails (e.g. the RPC is not deployed yet), so the operation
     // rejects before it would ever call createPremium.
     saveHarness.runPublish.mockReset().mockRejectedValue(new Error('function not found'));
@@ -862,6 +909,9 @@ describe('Save & Publish lists the server judges on the premium', () => {
     const saved: unknown[] = [];
     saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    // Publish now awaits the officials (MYK9-2053); reset it so a sibling test's rejection
+    // cannot leak in under shuffle and refuse this publish.
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     saveHarness.publishJudges
       .mockReset()
       .mockResolvedValue([
@@ -903,5 +953,64 @@ describe('Save & Publish lists the server judges on the premium', () => {
     expect(published?.trials.map(trial => trial.judges.map(judge => judge.name))).toEqual([
       ['Pat Judge'],
     ]);
+  });
+
+  it('publishes the show officials as the premium secretary and chair (MYK9-2053)', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue({
+      secretaries: [
+        {
+          personId: 'p1',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          email: 'jane@test.com',
+          role: 'secretary',
+        },
+      ],
+      chairmen: [
+        { personId: 'p2', firstName: 'Bob', lastName: 'Jones', email: null, role: 'chairman' },
+      ],
+      stewards: [],
+    });
+    let published: ReturnType<typeof generatedPremium> | undefined;
+    saveHarness.runPublish
+      .mockReset()
+      .mockImplementation(async (op: { createPremium: () => Promise<typeof published> }) => {
+        published = await op.createPremium();
+      });
+    saveHarness.payload = {
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: generatedPremium(),
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(published).toBeDefined());
+    expect(saveHarness.officials).toHaveBeenCalledWith('show-1');
+    expect(published?.secretary).toMatchObject({ name: 'Jane Smith', email: 'jane@test.com' });
+    expect(published?.officials.chairman).toMatchObject({ name: 'Bob Jones' });
+  });
+
+  it('does not publish a blank when the officials cannot be read', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockRejectedValue(new Error('boom'));
+    saveHarness.runPublish.mockReset();
+    saveHarness.payload = {
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: generatedPremium(),
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(saveHarness.officials).toHaveBeenCalled());
+    expect(saveHarness.runPublish).not.toHaveBeenCalled();
   });
 });

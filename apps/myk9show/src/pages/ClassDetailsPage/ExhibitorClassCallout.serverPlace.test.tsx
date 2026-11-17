@@ -133,7 +133,7 @@ describe('ExhibitorClassCallout with a server place in line', () => {
       screen.getByText('This class is scored on paper. Listen for your number at the ring.')
     ).toBeInTheDocument();
     expect(rpc).not.toHaveBeenCalled();
-    expect(useMyEntriesInClass).toHaveBeenCalledWith('c1', undefined, true);
+    expect(useMyEntriesInClass).toHaveBeenCalledWith('c1', undefined, true, undefined);
   });
 
   it('says the order may be out of date for a stale claim (MYK9-1970)', async () => {
@@ -148,7 +148,7 @@ describe('ExhibitorClassCallout with a server place in line', () => {
     showMyEntries([classEntry({ queue: { kind: 'in-ring' } })]);
     answer([{ entry_id: 'e1', place: 1, claim_state: 'live' }]);
     render(<ExhibitorClassCallout classId="c1" />);
-    expect(screen.getByText('In ring')).toBeInTheDocument();
+    expect(screen.getByText('In the ring')).toBeInTheDocument();
     await new Promise(r => setTimeout(r, 20));
     expect(screen.queryByText('Next up')).not.toBeInTheDocument();
   });
@@ -198,7 +198,7 @@ describe('WhereToBe with a server place in line', () => {
       />
     );
     expect(await screen.findByText('2nd up')).toBeInTheDocument();
-    expect(screen.getByText('In ring')).toBeInTheDocument();
+    expect(screen.getByText('In the ring')).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith('get_my_entry_queue_places', { p_entry_ids: ['e1'] });
   });
 

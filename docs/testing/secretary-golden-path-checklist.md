@@ -230,7 +230,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 ### 4.2 — Verify the Show Tools in the Actions Menu
 
 - [ ] On the show's Overview, open the header **Actions** menu
-- [ ] **Show day** lists: People at show, Self check-in, Access codes, Emergency trial packet
+- [ ] **Show day** lists: People at show, Self check-in, Access codes
 - [ ] **Show logistics** lists: Volunteers, Judge hospitality, Tasks and notes, Incident log
 - [ ] Each row opens its own panel holding only that tool (Volunteers opens the Volunteers page)
 - [ ] **Access codes** — view the QR code and passcode; if no plaintext codes are displayed, use **Generate new codes** and confirm the regenerated codes appear

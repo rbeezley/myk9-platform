@@ -119,6 +119,7 @@ export const AtShowClassListPage: React.FC = () => {
     retry: retryAssignments,
   } = useMyAtShowJudgeAssignments(showId);
   const isOnline = useOnlineStatus();
+  const onBackToDashboard = user?.is_anonymous ? undefined : () => navigate('/judge/dashboard');
 
   // For a judge-only account, keep the picker focused on assigned classes.
   // This is a UI scope; route guards, RLS, and canScore remain the security
@@ -363,18 +364,13 @@ export const AtShowClassListPage: React.FC = () => {
         isOnline={isOnline}
         onRetry={retryAssignments}
         onSeeEveryClass={() => setSeeEveryClass(true)}
-        onBack={() => navigate('/judge/dashboard')}
+        onBack={onBackToDashboard}
       />
     );
   }
 
   if (isJudgeOnly && !assignmentsUnknown && assignedClassIds.size === 0) {
-    return (
-      <AtShowClassListNoAssignmentsScreen
-        readySlot={readySlot}
-        onBack={() => navigate('/judge/dashboard')}
-      />
-    );
+    return <AtShowClassListNoAssignmentsScreen readySlot={readySlot} onBack={onBackToDashboard} />;
   }
 
   if (view === 'mine') {
@@ -478,6 +474,7 @@ export const AtShowClassListPage: React.FC = () => {
 
       <AtShowClassListSections
         tab={tab}
+        searching={search.trim() !== ''}
         yourRing={visibleYourRing}
         byTrial={visibleByTrial}
         scopeToAssignedClasses={scopeToAssignedClasses}

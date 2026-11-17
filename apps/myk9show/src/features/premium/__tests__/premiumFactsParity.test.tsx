@@ -74,8 +74,8 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
         eventNumber: `${org}-2026-001`,
         type: 'Scent Work',
         judges: [
-          { name: 'Alice Judge', elements: ['Container', 'Interior'] },
-          { name: 'Carl Judge', elements: [] },
+          { name: 'Alice Judge', residence: 'Springfield, IL', classes: ['Container Novice A'] },
+          { name: 'Carl Judge', residence: null, classes: [] },
         ],
         classes: [
           { element: 'Interior', level: 'Advanced', section: null },
@@ -89,7 +89,7 @@ function fullPremium(org: Org, style: PremiumStyle): GeneratedPremium {
         startTime: null,
         eventNumber: null,
         type: 'Scent Work',
-        judges: [{ name: 'Alice Judge', elements: ['Vehicle'] }],
+        judges: [{ name: 'Alice Judge', classes: ['Vehicle Master'] }],
         classes: [{ element: 'Vehicle', level: 'Master', section: null }],
       },
     ],
@@ -179,6 +179,37 @@ describe('premium PDF facts parity (8 styles)', () => {
   });
 });
 
+const DANGLING_ENTRY_LABELS = /Opens\s*·\s*Closes|Closes\s*$|Closes\s*·|Entry Closes/m;
+
+describe('premium PDF prints no placeholder for an empty fact (MYK9-2053)', () => {
+  it('the dangling-label pattern matches a string that has the dangling label', () => {
+    expect('Opens · Closes.').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Opens Apr 1 · Closes').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Entry Closes\nMay 15').toMatch(DANGLING_ENTRY_LABELS);
+    expect('Opens April 1, 2026.').not.toMatch(DANGLING_ENTRY_LABELS);
+  });
+
+  it.each(ALL_STYLES)('%s prints no "[REQUIRED" text and no dangling labels when empty', style => {
+    for (const org of ['AKC', 'UKC'] as const) {
+      const text = pdfText(org, sparsePremium(org, style));
+      expect(text).not.toMatch(/REQUIRED/);
+      expect(text).not.toMatch(DANGLING_ENTRY_LABELS);
+      expect(text).not.toMatch(/Trial Secretary/);
+      expect(text).not.toMatch(/Veterinary Services|On-Call Vet/);
+    }
+  });
+
+  it.each(ALL_STYLES)('%s still prints the entry dates it has', style => {
+    const premium = fullPremium('AKC', style);
+    const text = pdfText('AKC', {
+      ...premium,
+      show: { ...premium.show, entryCloseDate: null },
+    });
+    expect(text).toMatch(/Apr(il)? 1, 2026/);
+    expect(text).not.toMatch(DANGLING_ENTRY_LABELS);
+  });
+});
+
 describe('premium PDF prints the refund and withdrawal policy whole (MYK9-1976)', () => {
   const LONG_TEXT = `${'The club keeps a five dollar office fee after the cutoff. '.repeat(19)}Last line.`;
 
@@ -249,6 +280,33 @@ describe("premium PDF prints the club's officers (MYK9-2045)", () => {
       expect(text).not.toContain('Club Officers');
       expect(text).not.toContain('President');
     }
+  });
+});
+
+describe("premium PDF prints the show's Event Committee (MYK9-2064)", () => {
+  const COMMITTEE = ['Pat Chair', 'Sam Typed', 'Linda Linked', 'Olive Override', 'Gus Guest'];
+
+  describe.each<Org>(['AKC', 'UKC'])('%s', org => {
+    it.each(ALL_STYLES)('%s prints every committee name in order', style => {
+      const premium = fullPremium(org, style);
+      premium.committee = COMMITTEE;
+      const text = pdfText(org, premium);
+      expect(text).toContain('Event Committee');
+      for (const name of COMMITTEE) expect(text).toContain(name);
+      expect(text.indexOf('Pat Chair')).toBeLessThan(text.indexOf('Gus Guest'));
+    });
+
+    it.each(ALL_STYLES)('%s prints the committee on a show with nothing else filled in', style => {
+      const premium = sparsePremium(org, style);
+      premium.committee = COMMITTEE;
+      expect(pdfText(org, premium)).toContain('Sam Typed');
+    });
+
+    it.each(ALL_STYLES)('%s prints no committee heading or placeholder when empty', style => {
+      for (const premium of [fullPremium(org, style), sparsePremium(org, style)]) {
+        expect(pdfText(org, premium)).not.toContain('Event Committee');
+      }
+    });
   });
 });
 

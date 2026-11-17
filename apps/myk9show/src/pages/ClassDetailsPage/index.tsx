@@ -47,6 +47,7 @@ import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { getClassDetailHref } from '@/utils/classDetailHref';
+import { isClassScoredOnPaper } from '@/utils/showEntryRunQueue';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -313,7 +314,11 @@ const ClassDetailsPage: React.FC = () => {
           <ExhibitorClassCallout
             classId={classId}
             releasedRows={releasedResults.rawEntries}
-            scoresOnPaper={currentClass?.scoresOnPaper === true}
+            resultsReleasedAt={currentClass?.results_released_at}
+            scoresOnPaper={isClassScoredOnPaper(
+              currentClass?.scoresOnPaper,
+              parentShow?.usesDeviceScoring
+            )}
             trialDate={parentTrial?.trialDate}
             trialTimezone={parentTrial ? getTrialTimezone(parentTrial) : undefined}
           />

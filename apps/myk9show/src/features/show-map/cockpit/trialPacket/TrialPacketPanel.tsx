@@ -15,12 +15,16 @@ import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 
 import { voidPaperworkPrint } from '../paperworkPrintActions';
+import { ChangedSinceNote } from './ChangedSinceNote';
+import { EarlierTrialNote } from './EarlierTrialNote';
+import { useChangedPacket } from './useChangedPacket';
 import { AfterShowPanelBody } from './AfterShowPanelBody';
 import { JudgeRecordPanelBody } from './JudgeRecordPanelBody';
 import { JudgeReviewPanelBody } from './JudgeReviewPanelBody';
 import type { ReviewEntryInfo } from './judgeReview';
 import { collateTrialPacket } from './collateTrialPacket';
 import { formatCoverDate } from './judgeCoverSheet';
+import { SavedCopySection } from './SavedCopySection';
 import { recordTrialPacketPrint, type TrialPacketPrintRecords } from './recordTrialPacketPrint';
 import { packetFileName, plural, savePacketPdf, usePacketFrame } from './usePacketFrame';
 import { useTrialPacketPdfs } from './useTrialPacketPdfs';
@@ -107,7 +111,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const packet = useMemo(
+  const fullPacket = useMemo(
     () =>
       readiness.state === 'ready' && show
         ? collateTrialPacket({
@@ -120,9 +124,24 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         : null,
     [readiness.state, show, trials, classes, entries, trialId]
   );
+  // "Only what needs printing": judged from the same replicated print records the class cards read,
+  // so it works offline.
+  const view = useChangedPacket({
+    showId,
+    fullPacket,
+    classes: (classes ?? []) as DbClass[],
+    entries: (entries ?? []) as DbEntry[],
+  });
+  const { packet, onlyNeed, emptyView } = view;
   const [attempt, setAttempt] = useState(0);
-  const pdfs = useTrialPacketPdfs(packet, show?.name ?? '', attempt);
-  const [selected, setSelected] = useState<string>(ALL);
+  const pdfs = useTrialPacketPdfs(emptyView ? null : packet, show?.name ?? '', attempt);
+  const [pickedJudge, setSelected] = useState<string>(ALL);
+  const selected = packet?.judges.some(item => item.key === pickedJudge) ? pickedJudge : ALL;
+  // A judge with nothing left to print in the narrowed view is named, never silently swapped.
+  const nothingForJudge =
+    pickedJudge !== ALL && selected === ALL && onlyNeed && !emptyView
+      ? (fullPacket?.judges.find(item => item.key === pickedJudge) ?? null)
+      : null;
   const [printing, setPrinting] = useState(false);
   const [printed, setPrinted] = useState<(TrialPacketPrintRecords & { label: string }) | null>(
     null
@@ -168,7 +187,9 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         ...result,
         label: subject
           ? `${plural(result.classCount, 'class', 'classes')} marked as printed (${subject})`
-          : `All ${plural(result.classCount, 'class', 'classes')} marked as printed with ${packet.trialLabel}`,
+          : onlyNeed
+            ? `${plural(result.classCount, 'class', 'classes')} marked as printed with ${packet.trialLabel}`
+            : `All ${plural(result.classCount, 'class', 'classes')} marked as printed with ${packet.trialLabel}`,
       });
     } finally {
       setPrinting(false);
@@ -212,7 +233,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     );
   }
   if (!packet) return <p className="p-4 text-sm text-muted-foreground">Getting the trial ready…</p>;
-  if (packet.judges.length === 0) {
+  if (packet.judges.length === 0 && !emptyView) {
     return (
       <p className="p-4 text-sm">
         {packet.trialLabel} has no dogs entered yet, so there is nothing to print.
@@ -241,10 +262,20 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           {packet.cancelledClassCount === 1 ? 'is' : 'are'} left out.
         </p>
       )}
-      <p className="text-sm text-muted-foreground">
-        Each packet holds a cover sheet, then for each class the check-in sheet and the scoresheets.
-      </p>
-      {pdfs.status === 'error' && (
+      <EarlierTrialNote showId={showId} trialId={trialId} trials={(trials ?? []) as DbTrial[]} />
+      <ChangedSinceNote view={view} />
+      {nothingForJudge && (
+        <p role="status" className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+          {nothingForJudge.judgeName ?? 'No judge assigned'} has nothing that needs printing.
+        </p>
+      )}
+      {!emptyView && (
+        <p className="text-sm text-muted-foreground">
+          Each packet holds a cover sheet, then for each class the check-in sheet and the
+          scoresheets.
+        </p>
+      )}
+      {!emptyView && pdfs.status === 'error' && (
         <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
           <span>The packets could not be built.</span>
           <Button
@@ -257,45 +288,47 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           </Button>
         </div>
       )}
-      <div className="grid gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
-        <ul aria-label="Packets" className="flex flex-col gap-2">
-          {[null, ...packet.judges].map(item => {
-            const key = item?.key ?? ALL;
-            const active = selected === key;
-            return (
-              <li key={key}>
-                <button
-                  type="button"
-                  aria-current={active ? 'true' : undefined}
-                  onClick={() => setSelected(key)}
-                  className={`min-h-11 w-full rounded-md border px-3 py-2 text-left text-sm ${active ? 'border-primary bg-primary/5' : ''}`}
-                >
-                  <span className="block font-medium">
-                    {item ? (item.judgeName ?? 'No judge assigned') : 'Every packet'}
-                  </span>
-                  <span className="block text-muted-foreground">
-                    {item
-                      ? `${plural(item.classes.length, 'class', 'classes')} · ${plural(item.dogTotal, 'dog', 'dogs')} · ${plural(item.sheetTotal, 'sheet', 'sheets')}`
-                      : `${plural(packet.judges.length, 'judge packet', 'judge packets')} · ${plural(
-                          packet.judges.reduce(
-                            (sum, judgePacket) => sum + judgePacket.sheetTotal,
-                            0
-                          ),
-                          'sheet',
-                          'sheets'
-                        )}`}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        <iframe
-          ref={frameRef}
-          title="Packet preview"
-          className="h-[60vh] w-full rounded-md border bg-white"
-        />
-      </div>
+      {!emptyView && (
+        <div className="grid gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
+          <ul aria-label="Packets" className="flex flex-col gap-2">
+            {[null, ...packet.judges].map(item => {
+              const key = item?.key ?? ALL;
+              const active = selected === key;
+              return (
+                <li key={key}>
+                  <button
+                    type="button"
+                    aria-current={active ? 'true' : undefined}
+                    onClick={() => setSelected(key)}
+                    className={`min-h-11 w-full rounded-md border px-3 py-2 text-left text-sm ${active ? 'border-primary bg-primary/5' : ''}`}
+                  >
+                    <span className="block font-medium">
+                      {item ? (item.judgeName ?? 'No judge assigned') : 'Every packet'}
+                    </span>
+                    <span className="block text-muted-foreground">
+                      {item
+                        ? `${plural(item.classes.length, 'class', 'classes')} · ${plural(item.dogTotal, 'dog', 'dogs')} · ${plural(item.sheetTotal, 'sheet', 'sheets')}`
+                        : `${plural(packet.judges.length, 'judge packet', 'judge packets')} · ${plural(
+                            packet.judges.reduce(
+                              (sum, judgePacket) => sum + judgePacket.sheetTotal,
+                              0
+                            ),
+                            'sheet',
+                            'sheets'
+                          )}`}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <iframe
+            ref={frameRef}
+            title="Packet preview"
+            className="h-[60vh] w-full rounded-md border bg-white"
+          />
+        </div>
+      )}
       {printed && (
         <p role="status" className="flex flex-wrap items-center gap-2 text-sm">
           <span>{printed.label}</span>
@@ -311,21 +344,29 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
           )}
         </p>
       )}
+      {packet.trial.date && <SavedCopySection showId={showId} trialDate={packet.trial.date} />}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t bg-card px-4 py-3">
         <span className="text-sm text-muted-foreground">
-          {plural(printedJudges.length, 'judge packet', 'judge packets')} ·{' '}
-          {plural(sheetTotal, 'sheet', 'sheets')}
+          {emptyView
+            ? 'Nothing to print.'
+            : `${plural(printedJudges.length, 'judge packet', 'judge packets')} · ${plural(sheetTotal, 'sheet', 'sheets')}`}
         </span>
         <Button
           type="button"
           size="touch"
-          disabled={printing || !frameReady}
+          disabled={emptyView || printing || !frameReady}
           onClick={() => void print()}
         >
           <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
-          {printing ? 'Printing…' : printLabel}
+          {printing ? 'Printing…' : emptyView ? 'Print' : printLabel}
         </Button>
-        <Button type="button" size="touch" variant="outline" disabled={!bytes} onClick={save}>
+        <Button
+          type="button"
+          size="touch"
+          variant="outline"
+          disabled={emptyView || !bytes}
+          onClick={save}
+        >
           <Download className="mr-2 h-4 w-4" aria-hidden="true" />
           Save as PDF
         </Button>

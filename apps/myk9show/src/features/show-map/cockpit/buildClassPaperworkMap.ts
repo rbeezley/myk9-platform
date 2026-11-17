@@ -5,6 +5,10 @@ import {
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
+import { isHeldEntry } from '@/features/dogs/identity';
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
+import { buildPrintedLabelIndex, labelPrintStatus } from '@/lib/labels/armbandPrintIndex';
+
 import { getCockpitReportHref } from './cockpitRoutes';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
@@ -46,6 +50,7 @@ export function buildClassPaperworkMap(input: {
   returnTo: string;
 }): ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]> {
   const result = new Map<string, SecretaryCockpitPaperwork[]>();
+  const printedLabels = buildPrintedLabelIndex(input.records);
   const trialDateById = new Map(input.trials.map(trial => [trial.id, trial.trialDate] as const));
   for (const classItem of input.classes) {
     const trialId = classItem.trial_id;
@@ -85,6 +90,16 @@ export function buildClassPaperworkMap(input: {
             reportId: report.id,
             label: report.label,
             state: input.recordsUnavailable ? 'unknown' : derived.state,
+            ...(input.recordsUnavailable
+              ? {}
+              : {
+                  labelsToPrint: labelsToPrint(
+                    printedLabels,
+                    scope,
+                    classEntries,
+                    trialDateById.get(trialId) ?? ''
+                  ),
+                }),
             printHref: getCockpitReportHref({
               reportId: report.id,
               scope,
@@ -143,6 +158,37 @@ export function buildClassPaperworkMap(input: {
     result.set(classItem.id, paperwork);
   }
   return result;
+}
+
+/**
+ * The dog-day labels of this class with no current print (MYK9-2075): never printed, or printed and
+ * since changed. Judged per label by the 2073 print index, so a late entry is one label, not a
+ * class. A dog still pending acceptance, held, deleted, or without an armband number has no label.
+ */
+function labelsToPrint(
+  index: ReturnType<typeof buildPrintedLabelIndex>,
+  scope: Extract<import('@/lib/reports/types').ReportScope, { kind: 'class' }>,
+  entries: readonly DbEntry[],
+  calendarDay: string
+): { notPrinted: readonly string[]; changed: readonly string[] } {
+  // A held entry (awaiting a registration number) gets no label from the print
+  // (useArmbandLabelData), so counting it would leave the line unprinted forever.
+  const labelled = entries.filter(
+    entry =>
+      !entry.deleted_at &&
+      !isPendingEntryStatus(entry.entry_status) &&
+      !isHeldEntry(entry as Parameters<typeof isHeldEntry>[0])
+  );
+  const subjects =
+    buildArmbandDescriptor(scope, labelled, calendarDay)?.coverage.subjectFingerprints ?? {};
+  const notPrinted: string[] = [];
+  const changed: string[] = [];
+  for (const [key, fingerprint] of Object.entries(subjects)) {
+    const status = labelPrintStatus(index, key, fingerprint);
+    if (status === 'not-printed') notPrinted.push(key);
+    if (status === 'changed') changed.push(key);
+  }
+  return { notPrinted, changed };
 }
 
 function buildArmbandDescriptor(

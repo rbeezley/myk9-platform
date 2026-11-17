@@ -1395,6 +1395,7 @@ export type Database = {
           approved_club_id: string | null
           club_numbers: Json
           created_at: string
+          created_club_id: string | null
           id: string
           request_note: string | null
           requested_club_name: string
@@ -1411,6 +1412,7 @@ export type Database = {
           approved_club_id?: string | null
           club_numbers?: Json
           created_at?: string
+          created_club_id?: string | null
           id?: string
           request_note?: string | null
           requested_club_name: string
@@ -1427,6 +1429,7 @@ export type Database = {
           approved_club_id?: string | null
           club_numbers?: Json
           created_at?: string
+          created_club_id?: string | null
           id?: string
           request_note?: string | null
           requested_club_name?: string
@@ -1448,6 +1451,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "club_access_requests_created_club_id_fkey"
+            columns: ["created_club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "club_access_requests_requester_person_id_fkey"
             columns: ["requester_person_id"]
             isOneToOne: false
@@ -1457,6 +1467,51 @@ export type Database = {
           {
             foreignKeyName: "club_access_requests_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_committee_members: {
+        Row: {
+          club_id: string
+          created_at: string
+          display_name: string | null
+          id: string
+          person_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          person_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          person_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_committee_members_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_committee_members_person_id_fkey"
+            columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
@@ -2416,6 +2471,7 @@ export type Database = {
           area3_incorrect: number | null
           area3_time_seconds: number | null
           area4_time_seconds: number | null
+          area5_time_seconds: number | null
           armband: string | null
           bonus_points: number | null
           capacity_override: boolean
@@ -2423,6 +2479,9 @@ export type Database = {
           check_in_pulled_by: string | null
           check_in_status: string | null
           check_in_status_before_pull: string | null
+          class_change_reason: string | null
+          class_change_requested_at: string | null
+          class_change_target_class_id: string | null
           class_id: string | null
           comped: boolean | null
           comped_reason: string | null
@@ -2435,6 +2494,7 @@ export type Database = {
           discount_amount: number | null
           disqualification_reason: string | null
           dog_id: string | null
+          element_time_seconds: number | null
           entry_fee: number | null
           entry_source: string
           entry_status: string | null
@@ -2524,6 +2584,7 @@ export type Database = {
           area3_incorrect?: number | null
           area3_time_seconds?: number | null
           area4_time_seconds?: number | null
+          area5_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
@@ -2531,6 +2592,9 @@ export type Database = {
           check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
+          class_change_reason?: string | null
+          class_change_requested_at?: string | null
+          class_change_target_class_id?: string | null
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
@@ -2543,6 +2607,7 @@ export type Database = {
           discount_amount?: number | null
           disqualification_reason?: string | null
           dog_id?: string | null
+          element_time_seconds?: number | null
           entry_fee?: number | null
           entry_source?: string
           entry_status?: string | null
@@ -2632,6 +2697,7 @@ export type Database = {
           area3_incorrect?: number | null
           area3_time_seconds?: number | null
           area4_time_seconds?: number | null
+          area5_time_seconds?: number | null
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
@@ -2639,6 +2705,9 @@ export type Database = {
           check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
+          class_change_reason?: string | null
+          class_change_requested_at?: string | null
+          class_change_target_class_id?: string | null
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
@@ -2651,6 +2720,7 @@ export type Database = {
           discount_amount?: number | null
           disqualification_reason?: string | null
           dog_id?: string | null
+          element_time_seconds?: number | null
           entry_fee?: number | null
           entry_source?: string
           entry_status?: string | null
@@ -7083,6 +7153,135 @@ export type Database = {
             referencedRelation: "shows"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "show_close_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_close_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_close_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_close_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_close_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_close_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
+      show_committee_members: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          person_id: string | null
+          show_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          person_id?: string | null
+          show_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          person_id?: string | null
+          show_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_committee_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "show_committee_members_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
         ]
       }
       show_eve_nudge_log: {
@@ -8790,6 +8989,7 @@ export type Database = {
           accept_cash_payments: boolean
           accept_check_payments: boolean
           address: string | null
+          allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
           allow_waitlist: boolean
           brand_color: string
@@ -8869,6 +9069,7 @@ export type Database = {
           accept_cash_payments?: boolean
           accept_check_payments?: boolean
           address?: string | null
+          allow_class_changes_after_close?: boolean
           allow_non_owner_handlers?: boolean | null
           allow_waitlist?: boolean
           brand_color?: string
@@ -8948,6 +9149,7 @@ export type Database = {
           accept_cash_payments?: boolean
           accept_check_payments?: boolean
           address?: string | null
+          allow_class_changes_after_close?: boolean
           allow_non_owner_handlers?: boolean | null
           allow_waitlist?: boolean
           brand_color?: string
@@ -11755,6 +11957,7 @@ export type Database = {
           area3_incorrect: number | null
           area3_time_seconds: number | null
           area4_time_seconds: number | null
+          area5_time_seconds: number | null
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null
@@ -11781,6 +11984,7 @@ export type Database = {
           dog_id: string | null
           dog_image_url: string | null
           dog_name: string | null
+          element_time_seconds: number | null
           entry_fee: number | null
           entry_source: string | null
           entry_status: string | null
@@ -12077,6 +12281,7 @@ export type Database = {
           area3_incorrect: number | null
           area3_time_seconds: number | null
           area4_time_seconds: number | null
+          area5_time_seconds: number | null
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null
@@ -12103,6 +12308,7 @@ export type Database = {
           dog_id: string | null
           dog_image_url: string | null
           dog_name: string | null
+          element_time_seconds: number | null
           entry_fee: number | null
           entry_source: string | null
           entry_status: string | null
@@ -13201,6 +13407,7 @@ export type Database = {
           offered_at: string | null
           position: number
           promoted_entry_id: string | null
+          refilled_by_offer_id: string | null
           status: string | null
           updated_at: string | null
           version: number
@@ -13321,6 +13528,10 @@ export type Database = {
       }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
       can_read_dog_directory: { Args: never; Returns: boolean }
+      cancel_own_entry_class_change: {
+        Args: { p_entry_id: string; p_expected_version?: number }
+        Returns: number
+      }
       cart_checkout_lease_seconds: { Args: never; Returns: number }
       check_and_record_premium_generation_attempt: {
         Args: { p_auth_user_id: string; p_show_id: string }
@@ -13537,6 +13748,10 @@ export type Database = {
           request_status: string
           stripe_payment_intent_id: string
         }[]
+      }
+      copy_club_committee_to_show: {
+        Args: { p_show_id: string }
+        Returns: number
       }
       count_blocking_entries_by_dog: {
         Args: { p_dog_id: string }
@@ -13762,6 +13977,7 @@ export type Database = {
       entry_queue_places_for_classes: {
         Args: { p_class_ids: string[] }
         Returns: {
+          claim_state: string
           entry_id: string
           place: number
         }[]
@@ -14099,9 +14315,11 @@ export type Database = {
           ring_phase: string | null
           ring_phase_time: string | null
           scored_count: number | null
+          scores_on_paper: boolean | null
           section: string | null
           start_time: string | null
           status: string | null
+          status_before_close: string | null
           status_source: string
           time_limit_area2_seconds: number | null
           time_limit_area3_seconds: number | null
@@ -14183,11 +14401,13 @@ export type Database = {
           accept_cash_payments: boolean
           accept_check_payments: boolean
           address: string | null
+          allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
           allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
+          closed_at: string | null
           club_id: string
           confirmation_message: string | null
           cover_image_url: string | null
@@ -14229,6 +14449,7 @@ export type Database = {
           published_premium_url: string | null
           published_premium_version: number | null
           publishes_own_premium: boolean
+          reopened_at: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -14394,6 +14615,7 @@ export type Database = {
       get_my_entry_queue_places: {
         Args: { p_entry_ids: string[] }
         Returns: {
+          claim_state: string
           entry_id: string
           place: number
         }[]
@@ -14504,6 +14726,20 @@ export type Database = {
           show_date: string
         }[]
       }
+      get_show_club_officers: {
+        Args: { p_show_id: string }
+        Returns: {
+          name: string
+          position: string
+        }[]
+      }
+      get_show_committee: {
+        Args: { p_show_id: string }
+        Returns: {
+          name: string
+          sort_order: number
+        }[]
+      }
       get_show_email_delivery_history: {
         Args: {
           p_before_created_at?: string
@@ -14547,21 +14783,16 @@ export type Database = {
           waitlist_count: number
         }[]
       }
-      get_show_club_officers: {
-        Args: { p_show_id: string }
-        Returns: {
-          name: string
-          position: string
-        }[]
-      }
       get_show_judges: {
         Args: { p_show_id: string }
         Returns: {
           assignment_id: string
+          city: string
           class_id: string
           first_name: string
           last_name: string
           person_id: string
+          state: string
           status: string
           trial_id: string
         }[]
@@ -15134,6 +15365,24 @@ export type Database = {
         Args: { p_base_url: string; p_secret: string }
         Returns: undefined
       }
+      request_new_club: {
+        Args: {
+          p_club_name: string
+          p_club_numbers: Json
+          p_club_website?: string
+          p_request_note?: string
+        }
+        Returns: Json
+      }
+      request_own_entry_class_change: {
+        Args: {
+          p_entry_id: string
+          p_expected_version?: number
+          p_reason: string
+          p_target_class_id: string
+        }
+        Returns: number
+      }
       request_trial_packet_generation: {
         Args: { p_base_url: string; p_secret: string }
         Returns: undefined
@@ -15266,9 +15515,11 @@ export type Database = {
           ring_phase: string | null
           ring_phase_time: string | null
           scored_count: number | null
+          scores_on_paper: boolean | null
           section: string | null
           start_time: string | null
           status: string | null
+          status_before_close: string | null
           status_source: string
           time_limit_area2_seconds: number | null
           time_limit_area3_seconds: number | null
@@ -15336,11 +15587,13 @@ export type Database = {
           accept_cash_payments: boolean
           accept_check_payments: boolean
           address: string | null
+          allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
           allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
+          closed_at: string | null
           club_id: string
           confirmation_message: string | null
           cover_image_url: string | null
@@ -15382,6 +15635,7 @@ export type Database = {
           published_premium_url: string | null
           published_premium_version: number | null
           publishes_own_premium: boolean
+          reopened_at: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -15586,6 +15840,7 @@ export type Database = {
           class_id: string
           class_name: string
           handler_name: string
+          run_claim_state: string
           run_position: number
           trial_date: string
           trial_name: string

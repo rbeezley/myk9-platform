@@ -27,6 +27,8 @@ export interface SecretaryEntry {
   is_scored: boolean | null;
   result_status: string | null;
   search_time_seconds: number | null;
+  /** MYK9-2090: the UKC Nosework element time; null on every other registry and before scoring. */
+  element_time_seconds?: number | null;
   total_faults: number | null;
   final_placement: number | null;
   /** MYK9-1473: points at nationals (the ranking key there); absent on the online fallback read. */

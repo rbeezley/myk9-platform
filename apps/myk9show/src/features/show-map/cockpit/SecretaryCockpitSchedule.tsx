@@ -28,6 +28,8 @@ export function SecretaryCockpitSchedule({
   onFocusClass,
   inlineFocusedContent,
   split = false,
+  panelLifted = false,
+  aboveHeading,
   entryBreakdownByClassId,
   renderTrialActions,
   select,
@@ -46,6 +48,10 @@ export function SecretaryCockpitSchedule({
   inlineFocusedContent?: ReactNode;
   /** The cockpit is split: the schedule holds the first column, the focused class the second. */
   split?: boolean;
+  /** The focused panel starts beside this heading (MYK9-1989), so the heading takes the rail column only. */
+  panelLifted?: boolean;
+  /** The Needs attention strip, when the lifted panel leaves it the rail to sit in (MYK9-1989). */
+  aboveHeading?: ReactNode;
   /** Entered/pending per class (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   renderTrialActions?: ((trialId: string, label: string) => ReactNode) | undefined;
@@ -69,9 +75,13 @@ export function SecretaryCockpitSchedule({
     <>
       <section
         // Split, the heading and its Filter row span both columns, so the chips fit beside the button.
-        className={cn('space-y-3', split && 'col-span-2 col-start-1 row-start-1')}
+        className={cn(
+          'space-y-3',
+          split && (panelLifted ? 'col-start-1 row-start-1' : 'col-span-2 col-start-1 row-start-1')
+        )}
         aria-labelledby="cockpit-schedule-title"
       >
+        {aboveHeading}
         {selecting ? (
           <ScheduleSelectHeader
             selection={selecting}

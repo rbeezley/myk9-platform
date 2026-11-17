@@ -59,6 +59,7 @@ export function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
     result_status: entry.result_status,
     is_scored: entry.is_scored,
     search_time_seconds: entry.search_time_seconds,
+    element_time_seconds: entry.element_time_seconds ?? null,
     total_faults: entry.total_faults,
     final_placement: entry.final_placement,
     judge_notes: entry.judge_notes,

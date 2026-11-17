@@ -29,7 +29,8 @@
  *
  *   const context = await browser.newContext();
  *   const log = await installReadOnlyGuard(context, { appOrigin });
- * *   ... walk ...
+ *   // optional: await answerLocally(context, ['entry_carts'], log);
+ *   ... walk ...
  *   console.log(formatWalkLog(log));
  *
  * The decision is `decideRequest`, a pure function, so its verdicts are
@@ -38,6 +39,9 @@
  */
 import type { BrowserContext, Route, WebSocketRoute } from '@playwright/test';
 import { AUDIT_READ_ONLY_RPCS } from '../../apps/myk9show/src/test/e2e/helpers/sharedStagingWriteGuard';
+import { describeSimulated, type Simulated } from './readonly-walk-local';
+
+export { answerLocally } from './readonly-walk-answers';
 
 export type Verdict = {
   allow: boolean;
@@ -62,6 +66,8 @@ export type GuardOptions = {
 export type WalkLog = {
   refused: string[];
   readRpcs: Set<string>;
+  /** Writes `answerLocally` answered in the browser, so each screen reached through one is marked. */
+  simulated: Simulated[];
 };
 
 /**
@@ -189,6 +195,7 @@ export async function installReadOnlyGuard(
   const log: WalkLog = {
     refused: [],
     readRpcs: new Set(),
+    simulated: [],
   };
   await context.route('**/*', async (route: Route) => {
     const request = route.request();
@@ -259,5 +266,21 @@ export function formatWalkLog(log: WalkLog): string {
     `refused ${log.refused.length} request(s), ${refused.length} distinct:`,
     ...refused.map(line => `  ${line}`),
     `read RPCs allowed: ${[...log.readRpcs].sort().join(', ') || 'none'}`,
+    ...formatSimulated(log.simulated),
   ].join('\n');
+}
+
+/**
+ * The Simulated list: every write answered in the browser and never sent. A
+ * finding on a screen listed here describes a simulated state, not the real one.
+ */
+function formatSimulated(simulated: readonly Simulated[]): string[] {
+  const lines = [...new Set(simulated.map(describeSimulated))];
+  return [
+    `Simulated (answered in the browser, never sent): ${simulated.length}`,
+    ...(lines.length
+      ? ['  Screens reached through these are simulated; mark their findings so.']
+      : []),
+    ...lines.map(line => `  ${line}`),
+  ];
 }

@@ -150,7 +150,7 @@ vi.mock('@/hooks/useShowManageScope', () => ({
 
 const releaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
-  useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
+  useReleaseResults: () => ({ mutateAsync: releaseMutate, isPending: false }),
 }));
 
 const serverCheck = vi.hoisted(() => ({
@@ -230,6 +230,10 @@ beforeEach(() => {
   media.wide = false;
   scope.canOperate = true;
   releaseMutate.mockReset();
+  releaseMutate.mockImplementation(async (vars: { classIds: string[] }) => ({
+    released: vars.classIds,
+    failed: [],
+  }));
   recordSignOff.mockReset();
   verifyMutate.mockReset();
   serverCheck.read.mockReset();
@@ -559,10 +563,7 @@ describe('ResultsTab detail', () => {
     await user.click(screen.getByRole('button', { name: 'Release results' }));
 
     await waitFor(() => expect(releaseMutate).toHaveBeenCalledTimes(1));
-    expect(releaseMutate).toHaveBeenCalledWith(
-      { classIds: ['class-ready'], showId: 'show-1' },
-      expect.any(Object)
-    );
+    expect(releaseMutate).toHaveBeenCalledWith({ classIds: ['class-ready'], showId: 'show-1' });
   });
 
   it('selects the class named by ?classId under the default filter and keeps it in the list', () => {
@@ -811,10 +812,7 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
     const releaseOrder = releaseMutate.mock.invocationCallOrder[0]!;
     expect(verifyOrder).toBeLessThan(readOrder);
     expect(readOrder).toBeLessThan(releaseOrder);
-    expect(releaseMutate).toHaveBeenCalledWith(
-      { classIds: ['class-ready'], showId: 'show-1' },
-      expect.anything()
-    );
+    expect(releaseMutate).toHaveBeenCalledWith({ classIds: ['class-ready'], showId: 'show-1' });
   });
 
   it('does not release when the server says the scores moved (MK015)', async () => {
@@ -853,9 +851,7 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
   });
 
   it('checked but the release fails: says the scores are checked and not released yet', async () => {
-    releaseMutate.mockImplementation((_vars: unknown, options: { onError: () => void }) =>
-      options.onError()
-    );
+    releaseMutate.mockRejectedValue(new Error('offline'));
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
 
@@ -1037,7 +1033,7 @@ describe('ResultsTab Release asks the server', () => {
     await waitFor(() => expect(refreshClass).toHaveBeenCalledWith('trial-1'));
     expect(releaseMutate).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith(
-      'This class needs checking again — the scores changed.'
+      'The scores changed, so this class needs checking again.'
     );
   });
 

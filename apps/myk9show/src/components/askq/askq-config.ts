@@ -1,53 +1,18 @@
-export interface ExampleQuery {
-  text: string;
-  category: 'rules' | 'show-data' | 'app-help';
-}
-
-export type AskQPanelMode = ExampleQuery['category'] | 'operator-support';
-
-export interface RulebookScopeOption {
-  label: string;
-  organizationCode: string;
-  sportCode: string;
-}
-
-export const EXAMPLE_QUERIES: ExampleQuery[] = [
-  { text: 'What are the AKC time limits for Excellent Containers?', category: 'rules' },
-  { text: 'What are the UKC rules for Excellent Containers?', category: 'rules' },
-  { text: 'How did my dog do today?', category: 'show-data' },
-  { text: 'Show me the trial schedule', category: 'show-data' },
-  { text: 'What classes are running right now?', category: 'show-data' },
-  { text: 'How many dogs qualified in Buried?', category: 'show-data' },
-  { text: 'How do I add a mail-in entry?', category: 'app-help' },
-  { text: 'Where do I find my armband number?', category: 'app-help' },
-  { text: 'I need help with a payment or refund', category: 'app-help' },
+/** Exhibitor and spectator suggestions: one set, whatever page the panel opens on. */
+export const EXAMPLE_QUERIES: string[] = [
+  'What are the AKC time limits for Excellent Containers?',
+  'How did my dog do today?',
+  'Show me the trial schedule',
+  'Where do I find my armband number?',
+  'I need help with a payment or refund',
 ];
 
 /** Secretary, club admin and judge suggestions: how-to questions the secretary guide answers. */
-export const STAFF_EXAMPLE_QUERIES: ExampleQuery[] = [
-  { text: 'How do I add a late entry?', category: 'app-help' },
-  { text: 'How do I add a mail-in entry?', category: 'app-help' },
-  { text: 'How do I check dogs in?', category: 'app-help' },
-  { text: 'How do I refund an entry?', category: 'app-help' },
-];
-
-export const CATEGORY_LABELS: Record<ExampleQuery['category'], string> = {
-  rules: 'Rules',
-  'show-data': 'Show Data',
-  'app-help': 'App Help',
-};
-
-export const QUESTION_MODE_LABELS: Record<AskQPanelMode, string> = {
-  'app-help': 'App help',
-  rules: 'Rules',
-  'show-data': 'This show',
-  'operator-support': 'Operator Support',
-};
-
-export const RULEBOOK_SCOPE_OPTIONS: RulebookScopeOption[] = [
-  { label: 'AKC Scent Work', organizationCode: 'AKC', sportCode: 'akc-scent-work' },
-  { label: 'UKC Nose Work', organizationCode: 'UKC', sportCode: 'ukc-nosework' },
-  { label: 'ASCA Scent Detection', organizationCode: 'ASCA', sportCode: 'asca-scent-detection' },
+export const STAFF_EXAMPLE_QUERIES: string[] = [
+  'How do I add a late entry?',
+  'How do I add a mail-in entry?',
+  'How do I check dogs in?',
+  'How do I refund an entry?',
 ];
 
 export const RATE_LIMIT_DEFAULTS = {
@@ -60,7 +25,6 @@ export const TOOL_LABELS: Record<string, string> = {
   get_entry_results: 'Results',
   get_trial_overview: 'Trials',
   search_entries: 'Entries',
-  summarize_operator_alerts: 'Operator alerts',
 };
 
 export const TERA_WORKING_COPY = 'Sniffing that out for you...';

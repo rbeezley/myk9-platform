@@ -41,8 +41,13 @@ import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
+import {
+  applyOfficialsToPremium,
+  fetchOfficialsForPublish,
+} from '@/features/premium/premiumOfficials';
 import { showHeroParent } from './showHeroParent';
 import { carriedClassSearch } from './showTabClass';
+import { useClassSelectedOnLaptop } from './useClassSelectedOnLaptop';
 import type { HeroViewer } from '@/components/common/heroParentLink';
 
 const ShowHomeCockpit = lazy(() =>
@@ -213,6 +218,7 @@ function AuthorizedShowManagementShell({
     SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ?? 'overview';
   const location = useLocation();
   const { hash, search } = location;
+  const classSelectedOnLaptop = useClassSelectedOnLaptop();
   const goToTab = (id: string) => {
     const tab = SHOW_TABS.find(item => item.id === id);
     if (!tab) return;
@@ -229,6 +235,7 @@ function AuthorizedShowManagementShell({
 
   const headerControls = <ShowHeaderControls show={show} />;
   const isShowDesk = !activeManagementSection;
+  const hideBreadcrumb = isShowDesk && classSelectedOnLaptop;
   // Every `#setup-publish*` link (readiness signals, the status-line nudge) means the publish
   // cards, and those live on About (MYK9-1683). Replace, like a tab click, so Back leaves the show.
   const publishAnchor = publishAnchorFromHash(hash);
@@ -249,7 +256,11 @@ function AuthorizedShowManagementShell({
     <>
       <PageShell>
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} omitTitle />
+          {/* Folded with a class selected on a laptop (MYK9-1989): the Shows button and the nav
+              rail's Home cover it, and the class's entries need the row's height. */}
+          {!hideBreadcrumb && (
+            <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} omitTitle />
+          )}
 
           <ShowHeader
             name={show.name || 'Untitled Show'}
@@ -394,10 +405,16 @@ function AuthorizedShowManagementShell({
                 // read failed; the published premium lists the server's judges,
                 // and only when this device agrees with them (MYK9-774).
                 const judges = await fetchShowJudgesForPublish(id);
-                const premium = applyShowFormDataToPremium(
-                  publishableShowData.generatedPremium,
-                  showData as Partial<ShowInput>,
-                  judges
+                // The secretary and chair come from show_officials, which the generated
+                // premium does not read (MYK9-2053); an unreadable read fails the publish.
+                const officials = await fetchOfficialsForPublish(id);
+                const premium = applyOfficialsToPremium(
+                  applyShowFormDataToPremium(
+                    publishableShowData.generatedPremium,
+                    showData as Partial<ShowInput>,
+                    judges
+                  ),
+                  officials
                 );
                 await runPremiumPublishOperation({
                   showId: id,

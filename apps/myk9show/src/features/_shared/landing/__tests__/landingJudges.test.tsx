@@ -19,9 +19,10 @@ vi.mock('@/services/database/supabaseClient', async importOriginal => {
   return {
     ...actual,
     supabase: {
-      // MYK9-2045: the club officers read is not this test's subject; answer it with none.
+      // MYK9-2045 / MYK9-2064: the club officers and committee reads are not this test's
+      // subject; answer them with none.
       rpc: (name: string, ...rest: unknown[]) =>
-        name === 'get_show_club_officers'
+        name === 'get_show_club_officers' || name === 'get_show_committee'
           ? Promise.resolve({ data: [], error: null })
           : mockRpc(name, ...rest),
     },

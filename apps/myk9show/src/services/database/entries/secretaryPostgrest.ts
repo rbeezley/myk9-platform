@@ -43,6 +43,7 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         is_scored,
         result_status,
         search_time_seconds,
+        element_time_seconds,
         total_faults,
         final_placement,
         points_earned,

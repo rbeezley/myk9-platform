@@ -36,6 +36,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   club_access_requests: 'SELECT,UPDATE',
   club_members: 'SELECT,INSERT,UPDATE,DELETE',
   club_membership_requests: 'SELECT',
+  club_committee_members: 'SELECT,INSERT,UPDATE,DELETE',
   club_officers: 'SELECT,INSERT,UPDATE,DELETE',
   club_premium_templates: 'SELECT,INSERT,UPDATE,DELETE',
   club_registry_numbers: 'SELECT,INSERT,UPDATE,DELETE',
@@ -119,6 +120,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   // MYK9-203: service_role only; the ledger is never touched by a client role.
   show_eve_nudge_log: '',
   show_incidents: 'SELECT,INSERT',
+  show_committee_members: 'SELECT,INSERT,UPDATE,DELETE',
   show_judge_supplies: 'SELECT,INSERT,UPDATE,DELETE',
   show_lifecycle_email_attempts: 'SELECT',
   show_lifecycle_email_job_requests: '',

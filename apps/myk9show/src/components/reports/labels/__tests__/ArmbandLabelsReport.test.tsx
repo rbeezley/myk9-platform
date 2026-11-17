@@ -37,6 +37,10 @@ vi.mock('@/hooks/queries/useArmbandLabelData', () => ({
   }),
 }));
 
+vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
+  useShowPaperworkPrints: () => ({ data: [] }),
+}));
+
 vi.mock('@/hooks/useLabelPreferences', () => ({
   useLabelPreferences: () => [
     {

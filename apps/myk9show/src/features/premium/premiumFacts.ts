@@ -10,6 +10,7 @@
  * Deliberately free of `@react-pdf/renderer` and font side effects: the public landing pages
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
+import { formatPremiumClassLabel } from './premiumClassLabel';
 import {
   OFFICER_POSITION_LABELS,
   OFFICER_POSITION_ORDER,
@@ -21,9 +22,6 @@ import { buildWithdrawalDisclosure } from '@/features/payments/withdrawalPolicyT
 import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
-
-/** Placeholder a style prints where a fact the secretary must supply is still empty. */
-export const REQUIRED_PLACEHOLDER = '[REQUIRED — add before submitting]';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -41,6 +39,7 @@ export type PremiumFactId =
   | 'judges'
   | 'secretary'
   | 'officers'
+  | 'committee'
   | 'chair'
   | 'entryWindow'
   | 'vetClinic'
@@ -59,7 +58,12 @@ export interface PremiumFactDefinition {
   source: PremiumFactSource;
   /** Registries whose rules require the fact in a premium list (AKC Ch. 3 §15 for AKC). */
   requiredBy: readonly RegistryId[];
+  /** Registries that need at least this many entries of a list fact (AKC: five committee names). */
+  minimumBy?: Partial<Record<RegistryId, number>>;
 }
+
+/** AKC Ch. 3 §15: an Event Committee of at least five, including the Chair. */
+export const AKC_EVENT_COMMITTEE_MINIMUM = 5;
 
 export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'clubName', label: 'Name of club', source: 'club', requiredBy: ['AKC'] },
@@ -83,6 +87,15 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
   // MYK9-2045: the club's Officers list (Club admin > Officers), the one list the premium prints.
   { id: 'officers', label: 'Club officers', source: 'club', requiredBy: [] },
+  // MYK9-2064: the club's Event Committee (Club admin > Officers > Committee), which a show may
+  // change for itself. AKC needs at least five names; MYK9-2053's checklist reads minimumBy.
+  {
+    id: 'committee',
+    label: 'Event Committee',
+    source: 'club',
+    requiredBy: ['AKC'],
+    minimumBy: { AKC: AKC_EVENT_COMMITTEE_MINIMUM },
+  },
   { id: 'chair', label: 'Trial Chair', source: 'person', requiredBy: ['AKC'] },
   { id: 'entryWindow', label: 'Entries open and close', source: 'show', requiredBy: ['AKC'] },
   { id: 'vetClinic', label: 'Veterinary services', source: 'template', requiredBy: [] },
@@ -255,13 +268,21 @@ export function buildOfficerFacts(
     .map(o => ({ title: OFFICER_POSITION_LABELS[o.position as OfficerPosition], name: o.name }));
 }
 
+/**
+ * MYK9-2064: the Event Committee as trimmed names in the list's own order. Empty (nothing
+ * printed, never a placeholder) when the club and the show list none.
+ */
+export function buildCommitteeFacts(names: ReadonlyArray<string> | null | undefined): string[] {
+  return (names ?? []).map(name => name.trim()).filter(Boolean);
+}
+
 export interface PremiumTrialFacts {
   name: string;
   /** Long display date. */
   date: string;
   startTime: string | null;
   eventNumber: string | null;
-  judges: Array<{ name: string; elements: string[] }>;
+  judges: Array<{ name: string; residence: string | null; classes: string[] }>;
   /** "Element Level Section" in the registry's progression order. */
   classLabels: string[];
 }
@@ -305,6 +326,8 @@ export interface PremiumFacts {
   chair: PremiumContact | null;
   /** The club's officers, [] when none: no style prints a heading or placeholder then. */
   officers: PremiumOfficerFact[];
+  /** The show's Event Committee names, [] when none: no style prints a heading then. */
+  committee: string[];
   trials: PremiumTrialFacts[];
   vetClinic: { name: string; address: string; phone: string } | null;
   accommodations: Array<{ name: string; address: string; phone: string }>;
@@ -370,16 +393,23 @@ export function buildPremiumFacts(
         }
       : null,
     officers: buildOfficerFacts(data.officers),
-    trials: (data.trials ?? []).map(trial => ({
-      name: trial.name,
-      date: formatPremiumDate(trial.date),
-      startTime: trial.startTime,
-      eventNumber: trial.eventNumber,
-      judges: (trial.judges ?? []).map(j => ({ name: j.name, elements: j.elements ?? [] })),
-      classLabels: [...(trial.classes ?? [])]
-        .sort(comparator)
-        .map(c => `${c.element} ${c.level}${c.section ? ` ${c.section}` : ''}`),
-    })),
+    committee: buildCommitteeFacts(data.committee),
+    trials: (data.trials ?? []).map(trial => {
+      const classLabels = [...(trial.classes ?? [])].sort(comparator).map(formatPremiumClassLabel);
+      return {
+        name: trial.name,
+        date: formatPremiumDate(trial.date),
+        startTime: trial.startTime,
+        eventNumber: trial.eventNumber,
+        judges: (trial.judges ?? []).map(j => ({
+          name: j.name,
+          residence: j.residence?.trim() || null,
+          // Only the classes this trial runs, in its own progression order.
+          classes: [...new Set(classLabels.filter(label => (j.classes ?? []).includes(label)))],
+        })),
+        classLabels,
+      };
+    }),
     vetClinic: supplemental.vetClinic
       ? { ...supplemental.vetClinic, phone: formatPhone(supplemental.vetClinic.phone) }
       : null,

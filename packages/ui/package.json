@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./check-in-words": {
+      "types": "./dist/check-in-words.d.ts",
+      "import": "./dist/check-in-words.js"
+    },
     "./styles": {
       "import": "./dist/styles/index.css"
     },
@@ -42,7 +46,7 @@
     "@myk9/test-utils": "workspace:*",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
+    "@testing-library/user-event": "^14.6.10",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitest/coverage-v8": "^5.1.0",

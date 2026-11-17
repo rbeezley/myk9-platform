@@ -38,6 +38,7 @@ const AREA_TIME_FIELDS = [
   'area2_time_seconds',
   'area3_time_seconds',
   'area4_time_seconds',
+  'area5_time_seconds',
 ] as const;
 
 export interface ScoreDetailRow {
@@ -89,6 +90,8 @@ export function describeScoreFields(fields: Record<string, unknown>): {
       rows.push({ label: row.label, value: String(row.value) });
     }
   }
+  const element = seconds(fields.element_time_seconds);
+  if (element) rows.push({ label: 'Element time', value: element });
   for (const { field, label } of SCORE_FIELD_ROWS) {
     const value = fields[field];
     if (typeof value === 'number') rows.push({ label, value: String(value) });

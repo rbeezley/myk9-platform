@@ -117,6 +117,7 @@ export function SecretaryCockpitFocusedClass({
         actions: new Map(focused.entryRows.map(row => [row.nodeId, row.actions])),
         showId,
         classId: focused.id,
+        trialId: sourceClass.trialId,
         classLifecycle: focused.lifecycle.value,
         onCommand,
       }
@@ -163,7 +164,11 @@ export function SecretaryCockpitFocusedClass({
     <section aria-labelledby="focused-class-entries">
       <h3
         id="focused-class-entries"
-        className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+        // Compact: the table's column headings label it, so the kicker is for screen readers only.
+        className={cn(
+          'text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground',
+          compact ? 'sr-only' : 'mb-2'
+        )}
       >
         Entries in run order
       </h3>

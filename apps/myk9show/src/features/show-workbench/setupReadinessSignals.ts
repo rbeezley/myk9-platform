@@ -18,6 +18,7 @@ export type SetupReadinessSignalId =
   | 'judges-missing'
   | 'show-not-visible'
   | 'exhibitor-materials-unpublished'
+  | 'premium-facts-missing'
   | 'landing-content-unpublished';
 
 export interface SetupReadinessSignal {
@@ -65,6 +66,11 @@ export interface SetupReadinessInput {
    * this override a published premium would always read as unpublished.
    */
   premiumInfo?: PremiumPublishStateInput & { experienceIsPublished?: boolean | null };
+  /**
+   * How many facts the registry requires in the premium list are still empty (MYK9-2053,
+   * usePremiumRequirements). Unset or 0 means none, or not known: no signal either way.
+   */
+  premiumMissingFacts?: number;
 }
 
 function hasText(value: string | null | undefined): boolean {
@@ -133,6 +139,16 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   // the source clears the Ready line and the Show Desk chip together.
   const { usesLandingPage, publishesOwnPremium } = resolveShowUses(input.show);
   const premiumState = classifyPremiumPublishState(input.premiumInfo ?? input.show);
+  // MYK9-2053: facts the registry requires that the premium would print empty. Listed in full on
+  // the About page's premium card, which is where this lands. First,
+  // so the secretary fixes the gaps before publishing rather than after.
+  if (!publishesOwnPremium && (input.premiumMissingFacts ?? 0) > 0) {
+    signals.push({
+      id: 'premium-facts-missing',
+      label: 'Premium list is missing required facts',
+      href: `#${PREMIUM_CARD_ANCHOR}`,
+    });
+  }
   if (publishesOwnPremium) {
     // no premium nudge
   } else if (premiumState === 'published-stale') {

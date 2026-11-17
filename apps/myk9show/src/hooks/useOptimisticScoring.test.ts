@@ -12,6 +12,7 @@
  * fired anyway.
  */
 
+import { ScoreResultRefusedError } from './scoreResultRefusedError';
 import { renderHook, act } from '@testing-library/react';
 import { useOptimisticScoring } from './useOptimisticScoring';
 
@@ -34,7 +35,8 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 vi.mock('@/utils/scoringMappings', () => ({
-  mapQualificationToResultStatus: (r: string) => (r === 'Qualified' ? 'qualified' : 'nq'),
+  mapQualificationToResultStatus: (r: string) =>
+    r === 'Qualified' ? 'qualified' : r === 'Mystery' ? 'pending' : 'nq',
 }));
 
 function baseOptions(overrides: Record<string, unknown> = {}) {
@@ -56,6 +58,23 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     addScoreToSession.mockReset();
     // Force the online branch so the no-op serverUpdate resolves to success.
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  });
+
+  it('refuses a result it cannot map with a typed error, and a queue failure is not that type', async () => {
+    const refused = baseOptions({ scoreData: { resultText: 'Mystery', faultCount: 0 } });
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(refused);
+    });
+    expect(refused.onError.mock.calls[0][0]).toBeInstanceOf(ScoreResultRefusedError);
+    expect(updateEntry).not.toHaveBeenCalled();
+
+    updateEntry.mockRejectedValue(new Error('Mutation queue is full (1000)'));
+    const full = baseOptions();
+    await act(async () => {
+      await result.current.submitScoreOptimistically(full);
+    });
+    expect(full.onError.mock.calls[0][0]).not.toBeInstanceOf(ScoreResultRefusedError);
   });
 
   it('does NOT call onSuccess when the queue write throws (e.g. queue overflow)', async () => {
@@ -146,6 +165,40 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(result.current.hasError).toBe(true);
   });
 
+  // MYK9-2037: Show Desk's Absent Undo holds the stamp it passes in, so the write must store
+  // exactly that value in both spellings, never a fresh now().
+  it('stores a caller-supplied completedAt verbatim in both spellings', async () => {
+    updateEntry.mockResolvedValue('mutation-2037');
+    const completedAt = '2026-11-16T12:34:56.789Z';
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically({ ...baseOptions(), completedAt });
+    });
+
+    expect(updateEntry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        scoringCompletedAt: completedAt,
+        scoring_completed_at: completedAt,
+      })
+    );
+  });
+
+  it('stamps one valid instant in both spellings when no completedAt is given', async () => {
+    updateEntry.mockResolvedValue('mutation-2037-default');
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(baseOptions());
+    });
+
+    const payload = updateEntry.mock.calls[0][1] as Record<string, unknown>;
+    expect(typeof payload.scoring_completed_at).toBe('string');
+    expect(Number.isNaN(Date.parse(payload.scoring_completed_at as string))).toBe(false);
+    expect(payload.scoringCompletedAt).toBe(payload.scoring_completed_at);
+  });
+
   // Audit M3: full multi-area detail must reach the whitelisted ringside columns,
   // not just the 5 summary fields. Assertion-first — pins the exact column names
   // and values the write carries.
@@ -184,6 +237,67 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(payload.total_incorrect_finds).toBe(1);
     expect(payload.no_finish_count).toBe(0);
     expect(payload.points_earned).toBe(95);
+  });
+
+  // MYK9-2068: Nationals' fifth area and UKC's element time have columns of their own.
+  it('writes Area 5 and the UKC element time to their own columns', async () => {
+    updateEntry.mockResolvedValue('mutation-789');
+    const opts = baseOptions({
+      scoreData: {
+        resultText: 'Qualified',
+        searchTime: '2:30.00',
+        faultCount: 0,
+        areaTimes: ['0:10.00', '0:20.00', '0:30.00', '0:40.00', '0:50.00'],
+        element: '3:05.50',
+        correctCount: 0,
+        incorrectCount: 0,
+        finishCallErrors: 0,
+        points: 0,
+      },
+    });
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(updateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ area5_time_seconds: 50, element_time_seconds: 185.5 })
+    );
+  });
+
+  it('stores a null element time when the element clock never ran', async () => {
+    updateEntry.mockResolvedValue('mutation-791');
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(
+        baseOptions({
+          scoreData: {
+            resultText: 'Qualified',
+            searchTime: '0:45.00',
+            faultCount: 0,
+            element: '0:00.00',
+          },
+        })
+      );
+    });
+    expect(updateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ element_time_seconds: null })
+    );
+  });
+
+  it('clears both columns on a score that has neither', async () => {
+    updateEntry.mockResolvedValue('mutation-790');
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(baseOptions());
+    });
+    expect(updateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ area5_time_seconds: null, element_time_seconds: null })
+    );
   });
 
   // Rescore correcting nonzero detail down to 0 must WRITE 0, not omit it (which

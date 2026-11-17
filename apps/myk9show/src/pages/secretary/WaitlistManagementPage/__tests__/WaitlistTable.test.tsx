@@ -1,5 +1,8 @@
 import { render, screen } from '@/test/utils/testUtils';
+import { findOpenWaitlistSpots, toSpotClass } from '@/features/waiting-for-you';
+import type { JudgeDayCapacity } from '@/types/waitlist-types';
 import { WaitlistTable } from '../WaitlistTable';
+import { toSpotEntry } from '../spotEntry';
 import type { WaitlistEntry, ClassWithWaitlistCount } from '../types';
 
 const mockEntries: WaitlistEntry[] = [
@@ -52,6 +55,34 @@ const mockClassFull: ClassWithWaitlistCount = {
   ...mockClassWithSpots,
   accepted_count: 5,
 };
+
+// 2026-04-06 is a Monday. Two open spots in the judge's day; the class has room too.
+const openDay: JudgeDayCapacity = {
+  judgeId: 'j1',
+  judgeName: 'Pat Donovan',
+  showDate: '2026-04-06',
+  capacity: 10,
+  confirmedCount: 8,
+  waitlistCount: 2,
+  mailInReserved: 0,
+  availableSpots: 2,
+  classIds: ['c1'],
+  classNames: ['Novice Agility'],
+};
+
+/** The page's own calculation, run on the fixture. */
+function spotFor(
+  cls: ClassWithWaitlistCount,
+  day: JudgeDayCapacity | null,
+  offers: WaitlistEntry[] = []
+) {
+  const result = findOpenWaitlistSpots({
+    classes: [toSpotClass(cls)],
+    waitlist: [...mockEntries, ...offers].map(toSpotEntry),
+    judgeDays: day ? [day] : null,
+  });
+  return result.classes[0];
+}
 
 const defaultProps = {
   entries: mockEntries,
@@ -108,35 +139,145 @@ describe('WaitlistTable', () => {
     expect(screen.getByText('#2')).toBeInTheDocument();
   });
 
-  it('renders Offer Spot buttons when class has available spots', () => {
-    render(<WaitlistTable {...defaultProps} selectedClass={mockClassWithSpots} />);
-    const offerButtons = screen.getAllByRole('button', { name: /offer spot/i });
-    expect(offerButtons.length).toBeGreaterThan(0);
+  describe('spot recommendation', () => {
+    it('names the next dog with one main button; other rows keep a quiet Offer', async () => {
+      const onSetActionDialog = vi.fn();
+      const { user } = render(
+        <WaitlistTable
+          {...defaultProps}
+          autoOffer={false}
+          spot={spotFor(mockClassWithSpots, openDay)}
+          nextEntry={mockEntries[0]!}
+          onSetActionDialog={onSetActionDialog}
+        />
+      );
+      expect(screen.getByTestId('waitlist-spot-notice')).toHaveTextContent(
+        '2 spots open. Next in line: Rexy (joined Mar 1)'
+      );
+      const main = screen.getByRole('button', { name: 'Offer spot to Rexy' });
+      expect(screen.getAllByRole('button', { name: /^Offer spot to / })).toHaveLength(2);
+      expect(screen.getByRole('button', { name: 'Offer spot to Bella' })).toHaveTextContent(
+        /^Offer$/
+      );
+      expect(screen.queryByRole('button', { name: /offer spot$/i })).not.toBeInTheDocument();
+      await user.click(main);
+      expect(onSetActionDialog).toHaveBeenCalledWith({
+        open: true,
+        action: 'offer',
+        entry: mockEntries[0],
+      });
+    });
+
+    it('with automatic offering on, recommends no one and every row keeps its own Offer', () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          autoOffer
+          spot={spotFor(mockClassWithSpots, openDay)}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByTestId('waitlist-spot-notice')).toHaveTextContent('2 spots open');
+      expect(screen.getByTestId('waitlist-spot-notice')).not.toHaveTextContent('Next in line');
+      expect(screen.getAllByRole('button', { name: /^Offer spot to / })).toHaveLength(
+        mockEntries.length
+      );
+    });
+
+    it('disables the offers offline', () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          offline
+          autoOffer={false}
+          spot={spotFor(mockClassWithSpots, openDay)}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Offer spot to Rexy' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Offer spot to Bella' })).toBeDisabled();
+    });
+
+    it('recommends no one and offers nothing while the automatic-offer setting is unread', () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          autoOffer={null}
+          spot={spotFor(mockClassWithSpots, openDay)}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByTestId('waitlist-spot-notice')).not.toHaveTextContent('Next in line');
+      expect(screen.queryByRole('button', { name: /^offer/i })).not.toBeInTheDocument();
+    });
+
+    it('says plainly that the device is offline when spots cannot be checked', () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          offline
+          autoOffer={false}
+          spot={spotFor(mockClassWithSpots, null)}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByRole('status')).toHaveTextContent(
+        "You're offline, so open spots can't be checked against the judge's day. Offers need a connection."
+      );
+    });
+
+    it('one open spot with one open offer leaves nothing to offer and no offer button', () => {
+      const offered = { ...mockEntries[1]!, id: 'o1', dog_id: 'd9', status: 'offered' };
+      const cls = { ...mockClassWithSpots, max_entries: 4, accepted_count: 4 };
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          selectedClass={cls}
+          spot={spotFor(cls, { ...openDay, availableSpots: 0 }, [offered])}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByTestId('waitlist-spot-notice')).toHaveTextContent(
+        '1 spot open · 1 offered, waiting for payment · none left to offer'
+      );
+      expect(screen.queryByRole('button', { name: /^offer/i })).not.toBeInTheDocument();
+    });
+
+    it("names the judge's day when the class has room but the day is full", () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          spot={spotFor(mockClassWithSpots, { ...openDay, availableSpots: 0 })}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.getByTestId('waitlist-spot-notice')).toHaveTextContent(
+        "Novice Agility has room, but Pat Donovan's Monday is full."
+      );
+      expect(screen.queryByRole('button', { name: /^offer/i })).not.toBeInTheDocument();
+    });
+
+    it('offers nothing while the judge-day figures are not known', () => {
+      render(
+        <WaitlistTable
+          {...defaultProps}
+          spot={spotFor(mockClassWithSpots, null)}
+          nextEntry={mockEntries[0]!}
+        />
+      );
+      expect(screen.queryByRole('button', { name: /^offer/i })).not.toBeInTheDocument();
+    });
   });
 
-  it('does not render Offer Spot buttons when class is full', () => {
+  it('does not render Offer buttons when no spot has been decided', () => {
     render(<WaitlistTable {...defaultProps} selectedClass={mockClassFull} />);
-    expect(screen.queryByRole('button', { name: /offer spot/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^offer/i })).not.toBeInTheDocument();
   });
 
   it('renders Remove buttons for each entry', () => {
     render(<WaitlistTable {...defaultProps} />);
     const removeButtons = screen.getAllByRole('button', { name: /remove/i });
     expect(removeButtons).toHaveLength(mockEntries.length);
-  });
-
-  it('calls onSetActionDialog with offer action when Offer Spot is clicked', async () => {
-    const onSetActionDialog = vi.fn();
-    const { user } = render(
-      <WaitlistTable {...defaultProps} onSetActionDialog={onSetActionDialog} />
-    );
-    const offerButtons = screen.getAllByRole('button', { name: /offer spot/i });
-    await user.click(offerButtons[0]);
-    expect(onSetActionDialog).toHaveBeenCalledWith({
-      open: true,
-      action: 'offer',
-      entry: mockEntries[0],
-    });
   });
 
   it('calls onSetActionDialog with remove action when Remove is clicked', async () => {

@@ -40,7 +40,7 @@ function makePremium(org: Org): GeneratedPremium {
         startTime: '9:00 AM',
         eventNumber: `${org}-2026-001`,
         type: 'Scent Work',
-        judges: [{ name: 'Alice Judge', elements: ['Container'] }],
+        judges: [{ name: 'Alice Judge', classes: ['Container'] }],
         classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
       },
     ],
@@ -77,6 +77,36 @@ describe('Poster style — full-data render', () => {
     // PosterBody body copy uses a sentence form distinct from StandardBody —
     // confirm the typography-shift body actually rendered, not the fallback.
     expect(screen.getAllByText(/About the Trial/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Poster style — empty facts print nothing (MYK9-2053)', () => {
+  it.each(ORGS)('%s prints no placeholder, no dangling labels and no empty sections', org => {
+    const full = makePremium(org);
+    const premium: GeneratedPremium = {
+      ...full,
+      show: { ...full.show, entryOpenDate: null, entryCloseDate: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      supplemental: { ...full.supplemental, vetClinic: null },
+    };
+    const { container } = renderTemplate(org, premium);
+    // Still the poster body, not the minimum-data fallback.
+    expect(screen.getAllByText(/About the Trial/).length).toBeGreaterThan(0);
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/REQUIRED/);
+    expect(text).not.toMatch(/Opens|Closes/);
+    expect(text).not.toMatch(/Trial Secretary|On-Call Vet/);
+  });
+
+  it.each(ORGS)('%s prints only the entry date it has', org => {
+    const full = makePremium(org);
+    const { container } = renderTemplate(org, {
+      ...full,
+      show: { ...full.show, entryCloseDate: null },
+    });
+    const text = container.textContent ?? '';
+    expect(text).toMatch(/Opens .*2026./);
+    expect(text).not.toMatch(/Closes/);
   });
 });
 

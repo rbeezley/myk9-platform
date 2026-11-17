@@ -176,4 +176,21 @@ describe('ResultsSheet', () => {
       'Dog abs105',
     ]);
   });
+
+  // MYK9-2089: the UKC element time, only when a run in the class has one.
+  it('adds an Element Time column in the search time format when a run has one', () => {
+    const entries = [
+      makeEntry({ id: '1', armband: '1', finalPlacement: 1, elementTimeSeconds: 42.5 }),
+      makeEntry({ id: '2', armband: '2', finalPlacement: 2 }),
+    ];
+    render(<ResultsSheet {...baseProps} entries={entries} />);
+    const headers = screen.getAllByRole('columnheader').map(h => h.textContent);
+    expect(headers.indexOf('Element Time')).toBe(headers.indexOf('Time') + 1);
+    expect(screen.getByText('00:42.50')).toBeInTheDocument();
+  });
+
+  it('has no Element Time column when no run has one', () => {
+    render(<ResultsSheet {...baseProps} entries={threeEntries} />);
+    expect(screen.queryByRole('columnheader', { name: 'Element Time' })).not.toBeInTheDocument();
+  });
 });

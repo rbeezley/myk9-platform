@@ -57,7 +57,7 @@ function makePremium(style: PremiumStyle): GeneratedPremium {
         startTime: '8:00 AM',
         eventNumber: 'BENCH-001',
         type: 'Scent Work',
-        judges: [{ name: 'Judge A', elements: ['Container'] }],
+        judges: [{ name: 'Judge A', classes: ['Container'] }],
         classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
       },
     ],

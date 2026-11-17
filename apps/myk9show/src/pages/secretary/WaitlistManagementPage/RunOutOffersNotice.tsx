@@ -7,6 +7,7 @@
 import { Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { formatOfferDeadline } from '@/lib/format/offerDeadline';
+import { waitlistDogName } from './spotEntry';
 import { formatTrialLabel } from './trialLabel';
 import type { WaitlistOffer } from './types';
 
@@ -69,9 +70,7 @@ export function RunOutOffersNotice({ offers }: RunOutOffersNoticeProps) {
                 const ranOut = formatOfferDeadline(offer.offer_expires_at, offer.trial_timezone);
                 return (
                   <li key={offer.id} data-testid="waitlist-run-out-offer">
-                    <span className="font-medium text-foreground">
-                      {offer.dog?.call_name || offer.dog?.name || 'Unknown Dog'}
-                    </span>
+                    <span className="font-medium text-foreground">{waitlistDogName(offer)}</span>
                     {offered && <> · offered {offered}</>}
                     {ranOut && <> · ran out {ranOut}</>}
                   </li>

@@ -48,7 +48,7 @@ const SHOW_USES_ROWS: readonly ShowUsesRow[] = [
   {
     field: 'usesPaperPacket',
     label: 'Paper fallback packet',
-    description: 'Shows the Emergency trial packet row for a printed backup of the day.',
+    description: 'A printed backup packet of each trial day, kept in the trial box.',
     fallback: true,
   },
   {

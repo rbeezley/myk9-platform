@@ -306,6 +306,22 @@ describe('JudgeDashboard', () => {
     expect(screen.queryByText(/\d{1,2}:\d{2}/)).not.toBeInTheDocument();
   });
 
+  it('describes the page without promising management, and never claims a fixed "On schedule"', () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment({ totalEntries: 10, completedEntries: 10, status: 'completed' }),
+        ],
+      })
+    );
+
+    render(<JudgeDashboard />);
+
+    expect(screen.getByText('Your judging assignments')).toBeInTheDocument();
+    expect(screen.queryByText(/manage your judging/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('On schedule')).not.toBeInTheDocument();
+  });
+
   it('does not render the removed dead buttons', () => {
     mockUseJudgeAssignments.mockReturnValue(hookState({ assignments: [makeAssignment()] }));
 

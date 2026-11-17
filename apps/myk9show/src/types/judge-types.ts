@@ -10,6 +10,15 @@ export interface ShowJudgeAssignment {
   assignedClasses?: string[]; // Classes this judge is assigned to
   /** True when the judge has a show-level row (not only class-level rows). Show-level removal only touches these. */
   hasShowLevelAssignment?: boolean;
+  /** "City, ST" of residence for the premium (MYK9-2067); null or absent when `people` has no city. */
+  residence?: string | null;
+  /** Labels ("Element Level Section") of the classes assigned at class level. */
+  classLabels?: string[];
+  /**
+   * The same labels keyed by the trial the class belongs to, matched to a premium trial by name
+   * and date (premium trials carry no id). Empty or absent when no class-level row has a trial.
+   */
+  classLabelsByTrial?: Array<{ trialName: string; trialDate: string; labels: string[] }>;
 }
 
 // Legacy format used in some parts of the codebase

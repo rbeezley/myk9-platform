@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedEntriesTable, replicatedShowsTable } from '@/services/replication';
+import { isClassScoredOnPaper } from '@/utils/showEntryRunQueue';
 import {
   buildMyAtShowEntryDetails,
   type AtShowClassSummary,
@@ -70,16 +71,39 @@ export function useMyAtShowEntryDetails(
     networkMode: 'always',
   });
 
+  // MYK9-1970: the show's own switch, from the replicated show, so a class that follows the show
+  // reads as paper offline too (a class's own flag still wins).
+  const showQuery = useQuery({
+    queryKey: ['at-show', 'my-entries-show-scoring', showId],
+    queryFn: () => replicatedShowsTable.getShowById(showId as string),
+    enabled: !!showId && ownEntryIds.size > 0,
+    networkMode: 'always',
+  });
+  const showUsesDeviceScoring = showQuery.data?.usesDeviceScoring;
+  const resolvedClasses = useMemo(
+    () =>
+      new Map(
+        [...classesById].map(([id, cls]) => [
+          id,
+          {
+            ...cls,
+            scoresOnPaper: isClassScoredOnPaper(cls.scoresOnPaper, showUsesDeviceScoring),
+          },
+        ])
+      ),
+    [classesById, showUsesDeviceScoring]
+  );
+
   const entries = useMemo(() => {
     if (!entriesQuery.data) return [];
     return buildMyAtShowEntryDetails(
       entriesQuery.data,
       ownEntryIds,
-      classesById,
+      resolvedClasses,
       trialsById,
       ownResults
     );
-  }, [entriesQuery.data, ownEntryIds, classesById, trialsById, ownResults]);
+  }, [entriesQuery.data, ownEntryIds, resolvedClasses, trialsById, ownResults]);
 
   return {
     entries,

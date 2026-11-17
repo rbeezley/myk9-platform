@@ -45,7 +45,7 @@ export function AtShowClassListErrorScreen({
 export function AtShowClassListNoAssignmentsScreen({
   readySlot,
   onBack,
-}: Pick<ScreenProps, 'readySlot'> & { onBack: () => void }) {
+}: Pick<ScreenProps, 'readySlot'> & { onBack: (() => void) | undefined }) {
   return (
     <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
       <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
@@ -56,9 +56,11 @@ export function AtShowClassListNoAssignmentsScreen({
       </p>
       {readySlot}
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button className="min-h-11" onClick={onBack}>
-          Back to Judge Dashboard
-        </Button>
+        {onBack && (
+          <Button className="min-h-11" onClick={onBack}>
+            Back to Judge Dashboard
+          </Button>
+        )}
       </div>
     </main>
   );
@@ -79,7 +81,7 @@ export function AtShowClassListScopeUnknownScreen({
   isOnline: boolean;
   onRetry: () => void;
   onSeeEveryClass: () => void;
-  onBack: () => void;
+  onBack: (() => void) | undefined;
 }) {
   return (
     <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
@@ -95,9 +97,11 @@ export function AtShowClassListScopeUnknownScreen({
         <Button variant="outline" className="min-h-11" onClick={onRetry}>
           Try again
         </Button>
-        <Button className="min-h-11" onClick={onBack}>
-          Back to Judge Dashboard
-        </Button>
+        {onBack && (
+          <Button className="min-h-11" onClick={onBack}>
+            Back to Judge Dashboard
+          </Button>
+        )}
       </div>
       <Button variant="link" className="min-h-11" onClick={onSeeEveryClass}>
         Show every class in this show

@@ -5,9 +5,11 @@ import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import type { ConfirmedJudgeAssignment } from '@/services/database/_shared/judgeNamesByClass';
 import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
+import { formatJudgeResidence } from '@/utils/formatJudgeResidence';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
 import {
+  buildCommitteeFacts,
   buildOfficerFacts,
   buildScoutingStatementFact,
   pickSupplementalFacts,
@@ -73,6 +75,12 @@ export interface LandingAccommodation {
   type?: string;
 }
 
+/** One "Event Committee: A, B, C" line, so every style's existing officers list prints it. */
+function committeeAsOfficerFacts(names: ReadonlyArray<string> | null | undefined) {
+  const members = buildCommitteeFacts(names);
+  return members.length > 0 ? [{ title: 'Event Committee', name: members.join(', ') }] : [];
+}
+
 export interface LandingData<
   TTrial extends LandingTrial = LandingTrial,
   TJudge extends LandingJudge = LandingJudge,
@@ -119,7 +127,8 @@ export interface LandingData<
   scoutingStatement?: PremiumRegistryStatementFact | null;
   /**
    * MYK9-2045: the club's Officers list as "Title: Name" facts, the same the premium PDF
-   * prints. [] when the club lists none or the read has not finished.
+   * prints, then (MYK9-2064) one "Event Committee: A, B" line. [] when none is listed or the
+   * read has not finished.
    */
   clubOfficers?: PremiumOfficerFact[];
   journeySteps: LandingJourneyStep[];
@@ -219,7 +228,9 @@ export function buildLandingData(
   judgesState: LandingJudgesState = 'ready',
   /** undefined = not known yet (loading or failed); null = the read succeeded and none is listed. */
   secretary?: { name: string | null; email: string | null } | null,
-  clubOfficers?: ReadonlyArray<{ position: string; name: string }> | null
+  clubOfficers?: ReadonlyArray<{ position: string; name: string }> | null,
+  /** MYK9-2064: the Event Committee names (the show's own list, else the club's). */
+  committee?: ReadonlyArray<string> | null
 ): LandingData {
   const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
   // The same normalised template facts the premium PDF prints (features/premium/premiumFacts).
@@ -272,9 +283,18 @@ export function buildLandingData(
   // MYK9-985: a judge is one person however many trials they sit, so confirmed assignments
   // collapse by person id; the legacy `trial.judge` string (never populated today) collapses
   // by name.
-  const judgeMap = new Map<string, { name: string; assigned: Map<string, LandingTrial> }>();
-  const addJudge = (key: string, name: string, trial: LandingTrial | undefined) => {
-    const entry = judgeMap.get(key) ?? { name, assigned: new Map<string, LandingTrial>() };
+  const judgeMap = new Map<
+    string,
+    { name: string; city: string | null; assigned: Map<string, LandingTrial> }
+  >();
+  const addJudge = (
+    key: string,
+    name: string,
+    trial: LandingTrial | undefined,
+    city: string | null = null
+  ) => {
+    const entry = judgeMap.get(key) ?? { name, city, assigned: new Map<string, LandingTrial>() };
+    if (!entry.city && city) entry.city = city;
     if (trial) entry.assigned.set(trial.id, trial);
     judgeMap.set(key, entry);
   };
@@ -306,17 +326,20 @@ export function buildLandingData(
     addJudge(
       `person:${assignment.personId}`,
       name,
-      assignment.trialId ? trialsById.get(assignment.trialId) : undefined
+      assignment.trialId ? trialsById.get(assignment.trialId) : undefined,
+      formatJudgeResidence(assignment.city, assignment.state)
     );
   }
-  const judges = Array.from(judgeMap.values()).map<LandingJudge>(({ name, assigned }, index) => ({
-    id: `judge-${index}`,
-    name,
-    city: null,
-    trials: judgeTrialLabels([...assigned.values()]),
-    trialNumbers: [...assigned.values()].map(trial => trial.trialNumber),
-    elements: [],
-  }));
+  const judges = Array.from(judgeMap.values()).map<LandingJudge>(
+    ({ name, city, assigned }, index) => ({
+      id: `judge-${index}`,
+      name,
+      city,
+      trials: judgeTrialLabels([...assigned.values()]),
+      trialNumbers: [...assigned.values()].map(trial => trial.trialNumber),
+      elements: [],
+    })
+  );
 
   const entryLimit = allTrials.reduce<number | null>((maximum, trial) => {
     const value = trial.maxTotalEntries ?? null;
@@ -368,7 +391,7 @@ export function buildLandingData(
     licenseLanguage: registry.licenseLanguage,
     memberClubLanguage: registry.memberClubLanguage,
     scoutingStatement: buildScoutingStatementFact(registry.id),
-    clubOfficers: buildOfficerFacts(clubOfficers),
+    clubOfficers: [...buildOfficerFacts(clubOfficers), ...committeeAsOfficerFacts(committee)],
     journeySteps: buildJourneySteps(
       show?.entryOpenDate ?? null,
       entryCloseDate,

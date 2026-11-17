@@ -6,12 +6,18 @@ import type { ReplicatedEntry } from './ReplicatedEntriesTable.mapper';
  * times / find counts / points on the entry (they'd otherwise persist until the
  * next full score overwrites them, showing wrong detail in secretary reports).
  * All columns are ringside-RPC-whitelisted, so the reset still routes correctly.
+ *
+ * A payload must equal what the server stores, because a replayed write
+ * compares every key (MYK9-2111): the one-area Qualified trigger rewrites a
+ * blank area 1 to the total, so a one-area paper save sends area 1 = the total.
  */
 export const SCORE_DETAIL_CLEAR_FIELDS: Partial<ReplicatedEntry> = {
   area1_time_seconds: null,
   area2_time_seconds: null,
   area3_time_seconds: null,
   area4_time_seconds: null,
+  area5_time_seconds: null,
+  element_time_seconds: null,
   total_correct_finds: null,
   total_incorrect_finds: null,
   no_finish_count: null,

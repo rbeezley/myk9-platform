@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
+import { ScoreResultRefusedError } from '@/hooks/scoreResultRefusedError';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -46,6 +47,19 @@ import { CANCELLED_CLASS_MESSAGE, useIsClassCancelled } from './cancelledClassGu
 /** Shown while a cold sheet's show sync keeps failing; retried automatically. */
 export const NOT_LOADED_YET_MESSAGE =
   'We could not reach myK9Show to load this dog yet. Trying again…';
+/**
+ * Shown when a score could not be saved on this phone (full storage, entry missing from the
+ * cache, no queued write). The queue write is local, so it is never a signal problem; the cause
+ * is logged.
+ */
+export const SCORE_NOT_SAVED_MESSAGE =
+  'This score was not saved on this phone. Press Save again. If it happens again, tell the secretary.';
+/** Shown when the result itself was refused; saving again would be refused the same way. */
+export const SCORE_RESULT_REFUSED_MESSAGE =
+  'That result could not be saved. Choose the result again and save.';
+/** Shown when the class or dog behind the open sheet cannot be found. */
+export const SHEET_NOT_FOUND_MESSAGE =
+  'We could not find this dog. Go back to the entry list and pick it again.';
 const NOT_LOADED_RETRY_BASE_MS = 2_000;
 const NOT_LOADED_RETRY_MAX_MS = 30_000;
 
@@ -90,7 +104,6 @@ export interface UseAtShowScoresheetResult {
   startRun: () => void;
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
-  hasSyncError: boolean;
   /** Set when a submit failed to durably queue the score; the judge stays on the sheet. */
   submitError: string | null;
   /** Clear the submit error (e.g. when the judge edits and retries). */
@@ -103,7 +116,7 @@ export function useAtShowScoresheet({
   entryId,
   onScored,
 }: UseAtShowScoresheetOptions): UseAtShowScoresheetResult {
-  const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
+  const { submitScoreOptimistically, isSyncing } = useOptimisticScoring();
   const classCancelled = useIsClassCancelled(classId);
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
@@ -165,7 +178,7 @@ export function useAtShowScoresheet({
       setLoadedEntryId(null);
 
       if (!showId || !classId || !entryId) {
-        setError('Missing class or entry ID');
+        setError(SHEET_NOT_FOUND_MESSAGE);
         setIsLoading(false);
         return;
       }
@@ -209,7 +222,7 @@ export function useAtShowScoresheet({
             showNotLoadedYet();
             return;
           }
-          setError('Class not found');
+          setError(SHEET_NOT_FOUND_MESSAGE);
           setIsLoading(false);
           return;
         }
@@ -325,9 +338,9 @@ export function useAtShowScoresheet({
         // sheet with a visible error rather than navigating away.
         logger.error('At-show score submission failed:', 'at-show', {}, err as Error);
         setSubmitError(
-          err instanceof Error
-            ? `Score not saved: ${err.message}`
-            : 'Score not saved — please retry.'
+          err instanceof ScoreResultRefusedError
+            ? SCORE_RESULT_REFUSED_MESSAGE
+            : SCORE_NOT_SAVED_MESSAGE
         );
       },
     });
@@ -378,7 +391,6 @@ export function useAtShowScoresheet({
     startRun: ringMove.start,
     submit,
     isSyncing,
-    hasSyncError,
     submitError,
     clearSubmitError: () => setSubmitError(null),
   };

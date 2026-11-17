@@ -12,7 +12,7 @@ import { getTrialTimezone } from '@/features/registries';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { AtShowClassRow, type AtShowClassCardProps } from './AtShowClassRow';
 import { CLASS_LIST_PANEL_ID } from './AtShowClassListToolbar';
-import { CLASS_LIST_TABS, type ClassListTab } from './atShowClassListFilter';
+import { type ClassListTab } from './atShowClassListFilter';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import type { DatedRingClass } from './orderRingClassesByDay';
 import { groupYourRingByTrial } from './groupYourRingByTrial';
@@ -20,6 +20,8 @@ import { useYourRingGroupOpen } from './useYourRingGroupOpen';
 
 interface AtShowClassListSectionsProps {
   tab: ClassListTab;
+  /** A search is active: an empty tab then means "nothing matches", not "nothing yet". */
+  searching: boolean;
   yourRing: DatedRingClass[];
   byTrial: { trial: ReplicatedTrial; classes: ClassEntry[] }[];
   scopeToAssignedClasses: boolean;
@@ -33,6 +35,7 @@ const COUNT_CHIP =
 
 export function AtShowClassListSections({
   tab,
+  searching,
   yourRing,
   byTrial,
   scopeToAssignedClasses,
@@ -45,13 +48,16 @@ export function AtShowClassListSections({
     (!scopeToAssignedClasses && byTrial.some(({ classes }) => classes.length > 0));
   const yourRingGroups = useMemo(() => groupYourRingByTrial(yourRing), [yourRing]);
   const { isGroupOpen, toggleGroup } = useYourRingGroupOpen(yourRingGroups);
-  const tabLabel = CLASS_LIST_TABS.find(({ id }) => id === tab)?.label ?? '';
+  const emptyMessage =
+    tab === 'completed' && !searching
+      ? 'No completed classes yet.'
+      : 'No classes match. Try another tab, or clear the search.';
 
   return (
     <div role="tabpanel" id={CLASS_LIST_PANEL_ID} aria-labelledby={`at-show-class-tab-${tab}`}>
       {!hasCards && (
         <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-          No classes match. Try another tab, or clear the search ({tabLabel}).
+          {emptyMessage}
         </p>
       )}
       {yourRing.length > 0 && (

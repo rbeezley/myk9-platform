@@ -1,42 +1,30 @@
+import { armbandLabelFacts, armbandLabelSubjectKey } from '@/lib/labels/armbandSubjectKey';
+import { deriveArmbandPrintState } from './armbandPrintState';
 import type { ReportScope } from '@/lib/reports/types';
+import {
+  buildCheckInPaperworkDescriptor,
+  buildDescriptor,
+  buildScoreSheetPaperworkDescriptor,
+  type CheckInPaperworkEntry,
+  type PaperworkClassFacts,
+  type PaperworkCoverage,
+  type PaperworkDescriptor,
+  type PaperworkSubject,
+  type ScoreSheetPaperworkEntry,
+} from '../../../../../../supabase/functions/_shared/paperwork/descriptor.ts';
 
-export interface PaperworkSubject {
-  key: string;
-  facts: unknown;
-  classIds?: readonly string[] | undefined;
-  trialIds?: readonly string[] | undefined;
-}
-
-export interface PaperworkCoverage extends Record<string, unknown> {
-  scopeKind: ReportScope['kind'];
-  scope: ReportScope;
-  subjectFingerprints: Record<string, string>;
-  subjectScopes: Record<string, { classIds: readonly string[]; trialIds: readonly string[] }>;
-  /**
-   * Set only by artifacts whose identity is a trial DAY — today just the
-   * emergency packet. `ReportScope` has no 'day' kind and cannot get one (a
-   * day may hold three trials, a trial scope holds one id), so two days of one
-   * show both write show-scoped rows and `scopeCovers` cannot tell them apart.
-   * When present on both sides it must match, or Saturday's confirmation is
-   * read as evidence about Sunday (MYK9-228 phase 5).
-   */
-  trialDate?: string;
-  /**
-   * Which generated packet was printed. Read alongside `trialDate` by the
-   * print reminder: a confirmation for a SUPERSEDED snapshot means the box
-   * holds paper the evening regeneration has already invalidated, and going
-   * quiet on it would leave a trial running from a stale catalog. The UI model
-   * already calls that `stale`; without this the server called it done.
-   */
-  snapshotId?: string;
-}
-
-export interface PaperworkDescriptor {
-  reportId: string;
-  scope: ReportScope;
-  coverage: PaperworkCoverage;
-  fingerprint: string;
-}
+// The check-in sheet and scoresheet descriptors live in the shared module so the edge function
+// computes the same fingerprints (MYK9-2086).
+export {
+  buildCheckInPaperworkDescriptor,
+  buildScoreSheetPaperworkDescriptor,
+  type CheckInPaperworkEntry,
+  type PaperworkClassFacts,
+  type PaperworkCoverage,
+  type PaperworkDescriptor,
+  type PaperworkSubject,
+  type ScoreSheetPaperworkEntry,
+};
 
 export interface PaperworkPrintEvidence {
   id: string;
@@ -48,20 +36,6 @@ export interface PaperworkPrintEvidence {
   voidedAt?: string | undefined;
 }
 
-export interface CheckInPaperworkEntry {
-  entryId: string;
-  classId: string;
-  dogId: string;
-  armband: number | null;
-  runOrder: number | null;
-  checkInStatus: string | null;
-  trialId?: string | undefined;
-}
-
-export interface ScoreSheetPaperworkEntry extends CheckInPaperworkEntry {
-  section?: string | null;
-}
-
 export interface ResultPaperworkEntry {
   entryId: string;
   classId: string;
@@ -70,6 +44,8 @@ export interface ResultPaperworkEntry {
   resultStatus: string | null;
   placement: number | null;
   searchTimeSeconds: number | null;
+  /** UKC element time (MYK9-2090); present only when recorded, so other registries hash as before. */
+  elementTimeSeconds?: number;
   totalFaults: number | null;
   trialId?: string | undefined;
 }
@@ -82,107 +58,6 @@ export interface ArmbandPaperworkDog {
   handlerName: string;
   classIds?: readonly string[] | undefined;
   trialIds?: readonly string[] | undefined;
-}
-
-export interface PaperworkClassFacts {
-  classId: string;
-  trialId: string;
-  facts: Record<string, unknown>;
-}
-
-function stableStringify(value: unknown): string {
-  if (value === undefined) return 'undefined';
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  return `{${Object.keys(value as Record<string, unknown>)
-    .sort()
-    .map(
-      key => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`
-    )
-    .join(',')}}`;
-}
-
-function compactFingerprint(value: unknown): string {
-  const source = stableStringify(value);
-  let hash = 14695981039346656037n;
-  for (let index = 0; index < source.length; index += 1) {
-    hash ^= BigInt(source.charCodeAt(index));
-    hash = BigInt.asUintN(64, hash * 1099511628211n);
-  }
-  return `fnv1a64:${hash.toString(16).padStart(16, '0')}`;
-}
-
-function buildDescriptor(
-  reportId: string,
-  scope: ReportScope,
-  subjects: readonly PaperworkSubject[],
-  dayIdentity?: { trialDate: string; snapshotId: string }
-): PaperworkDescriptor {
-  const subjectFingerprints = Object.fromEntries(
-    [...subjects]
-      .sort((left, right) => left.key.localeCompare(right.key))
-      .map(subject => [subject.key, compactFingerprint(subject.facts)])
-  );
-  const subjectScopes = Object.fromEntries(
-    subjects.map(subject => [
-      subject.key,
-      {
-        classIds: [...new Set(subject.classIds ?? [])].sort(),
-        trialIds: [...new Set(subject.trialIds ?? [])].sort(),
-      },
-    ])
-  );
-  return {
-    reportId,
-    scope,
-    coverage: {
-      scopeKind: scope.kind,
-      scope,
-      subjectFingerprints,
-      subjectScopes,
-      ...(dayIdentity
-        ? { trialDate: dayIdentity.trialDate, snapshotId: dayIdentity.snapshotId }
-        : {}),
-    },
-    fingerprint: compactFingerprint(subjectFingerprints),
-  };
-}
-
-export function buildCheckInPaperworkDescriptor(
-  scope: ReportScope,
-  entries: readonly CheckInPaperworkEntry[]
-): PaperworkDescriptor {
-  return buildDescriptor(
-    'check-in-sheet',
-    scope,
-    entries.map(entry => ({
-      key: `entry:${entry.entryId}`,
-      facts: entry,
-      classIds: [entry.classId],
-      trialIds: entry.trialId ? [entry.trialId] : [],
-    }))
-  );
-}
-
-export function buildScoreSheetPaperworkDescriptor(
-  scope: ReportScope,
-  entries: readonly ScoreSheetPaperworkEntry[],
-  classes: readonly PaperworkClassFacts[]
-): PaperworkDescriptor {
-  return buildDescriptor('scoresheet', scope, [
-    ...entries.map(entry => ({
-      key: `entry:${entry.entryId}`,
-      facts: entry,
-      classIds: [entry.classId],
-      trialIds: entry.trialId ? [entry.trialId] : [],
-    })),
-    ...classes.map(classItem => ({
-      key: `class:${classItem.classId}`,
-      facts: classItem.facts,
-      classIds: [classItem.classId],
-      trialIds: [classItem.trialId],
-    })),
-  ]);
 }
 
 export function buildResultPaperworkDescriptor(
@@ -215,8 +90,10 @@ export function buildArmbandPaperworkDescriptor(
     'armband-labels',
     scope,
     dogs.map(dog => ({
-      key: `dog-day:${dog.dogId || `armband:${dog.armband}`}:${dog.calendarDay}`,
-      facts: dog,
+      key: armbandLabelSubjectKey(dog),
+      // The label's own content, never the classes the dog is in (MYK9-2073): a day print and a
+      // one-dog print must read the same as the class print they cover.
+      facts: armbandLabelFacts(dog),
       classIds: dog.classIds,
       trialIds: dog.trialIds,
     }))
@@ -354,6 +231,7 @@ export function derivePaperworkPrintState(
   record: PaperworkPrintEvidence | null;
   staleSubjectKeys: readonly string[];
 } {
+  if (current.reportId === 'armband-labels') return deriveArmbandPrintState(records, current);
   const currentSubjects = current.coverage.subjectFingerprints;
   const candidates = records
     .filter(record => record.reportId === current.reportId && !record.voidedAt)

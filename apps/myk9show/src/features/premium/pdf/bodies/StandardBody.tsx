@@ -1,10 +1,11 @@
 // Shared body for both AKC and UKC. The 'org' prop is the seam for future org-specific divergence; today both orgs render identically.
+import { judgeBlockText } from './judgeLine';
 import { Page, Text, View } from '@react-pdf/renderer';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import { buildStyles, resolveTokens } from '../pdfStyles';
 import { SectionDivider } from '../SectionDivider';
 import { PdfFooter } from '../PdfFooter';
-import { buildPremiumFacts, REQUIRED_PLACEHOLDER as REQUIRED } from '../../premiumFacts';
+import { buildPremiumFacts } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
@@ -24,6 +25,10 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
   const divider = <SectionDivider style={data.style} tokens={t} />;
   const f = buildPremiumFacts(data, org);
   const { secretary, chair, trials } = f;
+  // An empty secretary prints no heading either (MYK9-2053).
+  const hasSecretary = Boolean(
+    secretary.name || secretary.email || secretary.phone || secretary.mailingAddress
+  );
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -44,14 +49,18 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </View>
       </View>
 
-      <View style={s.row}>
-        <Text style={s.label}>Entry Opens</Text>
-        <Text style={s.value}>{f.entry.opens ?? REQUIRED}</Text>
-      </View>
-      <View style={s.row}>
-        <Text style={s.label}>Entry Closes</Text>
-        <Text style={s.value}>{f.entry.closes ?? REQUIRED}</Text>
-      </View>
+      {f.entry.opens && (
+        <View style={s.row}>
+          <Text style={s.label}>Entry Opens</Text>
+          <Text style={s.value}>{f.entry.opens}</Text>
+        </View>
+      )}
+      {f.entry.closes && (
+        <View style={s.row}>
+          <Text style={s.label}>Entry Closes</Text>
+          <Text style={s.value}>{f.entry.closes}</Text>
+        </View>
+      )}
 
       {/* INTENT: Online via myK9Show is the primary (and revenue-generating)
           entry method — the bold value below makes that prominent across every
@@ -79,30 +88,36 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </View>
       )}
 
-      {divider}
+      {hasSecretary && (
+        <>
+          {divider}
 
-      <Text style={s.sectionTitle}>Trial Secretary</Text>
-      <View style={s.row}>
-        <Text style={s.label}>Name</Text>
-        <Text style={s.value}>{secretary.name ?? REQUIRED}</Text>
-      </View>
-      {secretary.email && (
-        <View style={s.row}>
-          <Text style={s.label}>Email</Text>
-          <Text style={s.value}>{secretary.email}</Text>
-        </View>
-      )}
-      {secretary.phone && (
-        <View style={s.row}>
-          <Text style={s.label}>Phone</Text>
-          <Text style={s.value}>{secretary.phone}</Text>
-        </View>
-      )}
-      {secretary.mailingAddress && (
-        <View style={s.row}>
-          <Text style={s.label}>Address</Text>
-          <Text style={s.value}>{secretary.mailingAddress}</Text>
-        </View>
+          <Text style={s.sectionTitle}>Trial Secretary</Text>
+          {secretary.name && (
+            <View style={s.row}>
+              <Text style={s.label}>Name</Text>
+              <Text style={s.value}>{secretary.name}</Text>
+            </View>
+          )}
+          {secretary.email && (
+            <View style={s.row}>
+              <Text style={s.label}>Email</Text>
+              <Text style={s.value}>{secretary.email}</Text>
+            </View>
+          )}
+          {secretary.phone && (
+            <View style={s.row}>
+              <Text style={s.label}>Phone</Text>
+              <Text style={s.value}>{secretary.phone}</Text>
+            </View>
+          )}
+          {secretary.mailingAddress && (
+            <View style={s.row}>
+              <Text style={s.label}>Address</Text>
+              <Text style={s.value}>{secretary.mailingAddress}</Text>
+            </View>
+          )}
+        </>
       )}
 
       {chair && (
@@ -141,6 +156,14 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </>
       )}
 
+      {f.committee.length > 0 && (
+        <>
+          {divider}
+          <Text style={s.sectionTitle}>Event Committee</Text>
+          <Text style={s.value}>{f.committee.join(', ')}</Text>
+        </>
+      )}
+
       {divider}
 
       <Text style={s.sectionTitle}>Trials &amp; Judges</Text>
@@ -163,10 +186,7 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           {trial.judges.map((j, ji) => (
             <View key={ji} style={s.row}>
               <Text style={s.label}>{ji === 0 ? 'Judge' : ''}</Text>
-              <Text style={s.value}>
-                {j.name}
-                {j.elements.length > 0 ? ` (${j.elements.join(', ')})` : ''}
-              </Text>
+              <Text style={s.value}>{judgeBlockText(j)}</Text>
             </View>
           ))}
           {trial.classLabels.length > 0 && (
@@ -188,17 +208,14 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
       <Text style={s.sectionTitle}>Trial Information</Text>
       <Text style={s.body}>{f.trialInformation}</Text>
 
-      {divider}
-
-      <Text style={s.sectionTitle}>Veterinary Services</Text>
-      {f.vetClinic ? (
+      {f.vetClinic && (
         <>
+          {divider}
+          <Text style={s.sectionTitle}>Veterinary Services</Text>
           <Text style={s.body}>{f.vetClinic.name}</Text>
           <Text style={s.body}>{f.vetClinic.address}</Text>
           <Text style={s.body}>{f.vetClinic.phone}</Text>
         </>
-      ) : (
-        <Text style={s.required}>{REQUIRED}</Text>
       )}
 
       {f.accommodations.length > 0 && (

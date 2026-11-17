@@ -1,6 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NOT_LOADED_YET_MESSAGE, useAtShowScoresheet } from './useAtShowScoresheet';
+import {
+  NOT_LOADED_YET_MESSAGE,
+  SHEET_NOT_FOUND_MESSAGE,
+  useAtShowScoresheet,
+} from './useAtShowScoresheet';
 import { syncAtShowData } from './atShowDataAdapter';
 
 const mocks = vi.hoisted(() => ({
@@ -175,7 +179,7 @@ describe('useAtShowScoresheet cold load', () => {
     const { result } = renderScoresheet();
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
-    expect(result.current.error).not.toBe('Class not found');
+    expect(result.current.error).not.toBe(SHEET_NOT_FOUND_MESSAGE);
 
     await waitFor(() => expect(result.current.entry?.entryId).toBe('entry-1'), {
       timeout: 5_000,
@@ -276,7 +280,7 @@ describe('useAtShowScoresheet cold load', () => {
 
     const { result } = renderScoresheet();
 
-    await waitFor(() => expect(result.current.error).toBe('Class not found'));
+    await waitFor(() => expect(result.current.error).toBe(SHEET_NOT_FOUND_MESSAGE));
   });
 
   describe('automatic retry versus manual Retry', () => {

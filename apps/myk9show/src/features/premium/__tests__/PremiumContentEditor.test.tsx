@@ -515,8 +515,8 @@ describe('PremiumContentEditor', () => {
       },
       narrativeGenerationError: 'Claude timed out',
       narratives: {
-        showHours: 'Show hours to be announced.',
-        trialInformation: 'Trial information to be announced.',
+        showHours: '',
+        trialInformation: '',
       },
     });
     generateMock.mockResolvedValueOnce({
@@ -560,5 +560,106 @@ describe('PremiumContentEditor', () => {
 
     await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText(/Claude timed out/i)).toBeNull());
+  });
+
+  it('keeps the saved narratives and says the refresh failed when regenerate fails', async () => {
+    const saved = {
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: { showHours: 'Saturday 8 to 5.', trialInformation: 'Two trials.' },
+    };
+    generateMock.mockResolvedValueOnce({
+      ...saved,
+      narrativeGenerationError: 'Claude timed out',
+      narratives: { showHours: '', trialInformation: '' },
+    });
+
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={saved}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^Regenerate$/ }));
+
+    await screen.findByText(/refresh the narratives. Your current text is kept/i);
+    expect(screen.getByDisplayValue('Saturday 8 to 5.')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Two trials.')).toBeInTheDocument();
+  });
+
+  it('keeps the saved narratives when regenerate throws', async () => {
+    const saved = {
+      org: 'AKC' as const,
+      style: 'magazine' as const,
+      templateId: null,
+      show: {
+        name: 'Test Show',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        venue: 'Test Venue',
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: 0,
+        dayOfFee: 0,
+        acceptChecks: false,
+        acceptCash: false,
+      },
+      club: { name: 'Test Club', logoUrl: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+      officials: { chairman: null },
+      trials: [],
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      narratives: { showHours: 'Saturday 8 to 5.', trialInformation: 'Two trials.' },
+    };
+    generateMock.mockRejectedValueOnce(new Error('Network down'));
+
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={saved}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^Regenerate$/ }));
+
+    await screen.findByText(/Network down/i);
+    expect(screen.getByDisplayValue('Saturday 8 to 5.')).toBeInTheDocument();
   });
 });

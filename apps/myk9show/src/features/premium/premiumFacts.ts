@@ -10,6 +10,7 @@
  * Deliberately free of `@react-pdf/renderer` and font side effects: the public landing pages
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
+import { stripPlaceholderNarrative } from './premiumNarratives';
 import { formatPremiumClassLabel } from './premiumClassLabel';
 import {
   OFFICER_POSITION_LABELS,
@@ -421,7 +422,7 @@ export function buildPremiumFacts(
     hospitalityNotes: supplemental.hospitalityNotes,
     awardsDescription: supplemental.awardsDescription,
     additionalNotes: supplemental.additionalNotes,
-    showHours: narratives?.showHours ?? '',
-    trialInformation: narratives?.trialInformation ?? '',
+    showHours: stripPlaceholderNarrative(narratives?.showHours ?? ''),
+    trialInformation: stripPlaceholderNarrative(narratives?.trialInformation ?? ''),
   };
 }

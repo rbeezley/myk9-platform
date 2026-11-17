@@ -14,6 +14,11 @@ import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplate
 import { uploadShowCover } from '../../services/imageUploadService';
 import { computePremiumDiff } from './logPremiumGeneration';
 import { fileToDataUrl, resolvePdfCoverImageSrc } from './coverImageDataUrl';
+import {
+  NARRATIVE_REFRESH_FAILED_MESSAGE,
+  narrativeGenerationFailed,
+  stripPlaceholderNarratives,
+} from './premiumNarratives';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 const GENERATION_TIMEOUT_MS = 20_000;
@@ -72,8 +77,8 @@ export function PremiumContentEditor({
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(
     () => initialPremium?.supplemental ?? null
   );
-  const [narratives, setNarratives] = useState<GeneratedPremium['narratives'] | null>(
-    () => initialPremium?.narratives ?? null
+  const [narratives, setNarratives] = useState<GeneratedPremium['narratives'] | null>(() =>
+    initialPremium ? stripPlaceholderNarratives(initialPremium.narratives) : null
   );
   const [hasNarrativeError, setHasNarrativeError] = useState(false);
   const [inkSaver, setInkSaver] = useState(false);
@@ -110,21 +115,49 @@ export function PremiumContentEditor({
     );
   }, []);
 
+  // Last good content, kept so a failed regenerate can restore it (the Regenerate
+  // buttons clear state before calling handleGenerate).
+  const lastGoodRef = useRef<{
+    original: GeneratedPremium;
+    supplemental: GeneratedPremium['supplemental'];
+    narratives: GeneratedPremium['narratives'];
+  } | null>(null);
+  lastGoodRef.current =
+    original && supplemental && narratives
+      ? { original, supplemental, narratives }
+      : lastGoodRef.current;
+
   const handleGenerate = useCallback(async () => {
     lastPdfErrorMessageRef.current = null;
     setGenerationError(null);
     setIsGenerating(true);
     setAutoGenerateAttemptedFor(showId);
+    const previous = lastGoodRef.current;
     try {
       const result = await withGenerationTimeout(generate(showId));
+      if (narrativeGenerationFailed(result) && previous) {
+        // Keep the saved narratives; never replace them with a failed generation.
+        setOriginal(previous.original);
+        setSupplemental(previous.supplemental);
+        setNarratives(previous.narratives);
+        setHasNarrativeError(false);
+        setGenerationError(
+          result.narrativeGenerationError
+            ? `${NARRATIVE_REFRESH_FAILED_MESSAGE} (${result.narrativeGenerationError})`
+            : NARRATIVE_REFRESH_FAILED_MESSAGE
+        );
+        return;
+      }
       setOriginal(result);
       setSupplemental(result.supplemental);
       setNarratives(result.narratives);
-      setHasNarrativeError(
-        result.narratives.showHours === 'Show hours to be announced.' ||
-          result.narratives.trialInformation === 'Trial information to be announced.'
-      );
+      setHasNarrativeError(narrativeGenerationFailed(result));
     } catch (err) {
+      if (previous) {
+        setOriginal(previous.original);
+        setSupplemental(previous.supplemental);
+        setNarratives(previous.narratives);
+      }
       setGenerationError(
         err instanceof Error ? err.message : 'We could not generate that content.'
       );
@@ -137,7 +170,7 @@ export function PremiumContentEditor({
     if (!active || original || !initialPremium) return;
     setOriginal(initialPremium);
     setSupplemental(initialPremium.supplemental);
-    setNarratives(initialPremium.narratives);
+    setNarratives(stripPlaceholderNarratives(initialPremium.narratives));
     setGenerationError(null);
     setIsGenerating(false);
   }, [active, initialPremium, original]);
@@ -350,7 +383,7 @@ export function PremiumContentEditor({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription className="space-y-3">
                   <p>
-                    Narrative generation returned fallback copy
+                    Narrative generation did not return text
                     {original.narrativeGenerationError
                       ? `: ${original.narrativeGenerationError}`
                       : '. You can retry or edit the fields below before downloading.'}

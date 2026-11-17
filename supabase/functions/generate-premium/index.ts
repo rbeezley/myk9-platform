@@ -192,10 +192,8 @@ handle<GeneratePremiumPayload>(
       }
       console.error('Claude narrative generation failed:', err);
       narrativeGenerationError = describeNarrativeGenerationFailure(err);
-      narratives = {
-        showHours: 'Show hours to be announced.',
-        trialInformation: 'Trial information to be announced.',
-      };
+      // Never invent placeholder narratives: the client keeps the saved text on failure.
+      narratives = { showHours: '', trialInformation: '' };
     }
 
     // Step 10: Assemble and return GeneratedPremium

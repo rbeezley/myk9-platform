@@ -72,29 +72,22 @@ describe('SignUpPage', () => {
     fireEvent.click(screen.getByLabelText(/I agree to the/i));
     fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
 
-    expect(mockSignInWithGoogle).toHaveBeenCalledWith('/?onboarding=true#get-started', [
-      'exhibitor',
-    ]);
+    expect(mockSignInWithGoogle).toHaveBeenCalledWith('/?onboarding=true#get-started');
   });
 
-  it('passes elevated role intent to Google OAuth', async () => {
-    const user = userEvent.setup();
+  // MYK9-2048: sign-up is an account and nothing more. A club is asked for on the home
+  // page form, so OAuth carries no role intent either.
+  it('starts Google OAuth with no role intent', () => {
     render(
       <MemoryRouter>
         <SignUpPage />
       </MemoryRouter>
     );
 
-    await user.click(screen.getByLabelText(/club officer/i));
-    await user.click(screen.getByLabelText(/show secretary/i));
-    await user.click(screen.getByLabelText(/I agree to the/i));
-    await user.click(screen.getByRole('button', { name: /continue with google/i }));
+    fireEvent.click(screen.getByLabelText(/I agree to the/i));
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
 
-    expect(mockSignInWithGoogle).toHaveBeenCalledWith(undefined, [
-      'exhibitor',
-      'club_officer',
-      'secretary',
-    ]);
+    expect(mockSignInWithGoogle).toHaveBeenCalledWith(undefined);
   });
 
   describe('one password field (MYK9-1799, owner decision 2026-11-09)', () => {
@@ -246,22 +239,22 @@ describe('SignUpPage', () => {
     });
   });
 
-  describe('elevated role requests', () => {
-    it('explains that club officer and secretary access requires approval', () => {
+  describe('asks for no role (MYK9-2048)', () => {
+    it('has no club officer or show secretary ticks', () => {
       render(
         <MemoryRouter>
           <SignUpPage />
         </MemoryRouter>
       );
 
-      expect(screen.queryByText(/request access as/i)).not.toBeInTheDocument();
-      expect(screen.getByText(/show secretary \(needs approval\)/i)).toBeInTheDocument();
-      expect(
-        screen.getByText(/club officer and secretary access requires approval/i)
-      ).toBeInTheDocument();
+      expect(screen.queryByText(/I am/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/club officer/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/show secretary/i)).not.toBeInTheDocument();
+      // The only checkbox left is the terms agreement.
+      expect(screen.getAllByRole('checkbox')).toHaveLength(1);
     });
 
-    it('passes selected elevated roles as signup intent without granting access client-side', async () => {
+    it('creates the account with a name and no role intent', async () => {
       const user = userEvent.setup();
       mockSignUp.mockResolvedValue(undefined);
 
@@ -275,15 +268,12 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/last name/i), 'Morgan');
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.click(screen.getByLabelText(/club officer/i));
-      await user.click(screen.getByLabelText(/show secretary/i));
       await user.click(screen.getByLabelText(/i agree to the/i));
       await user.click(screen.getByRole('button', { name: /create account/i }));
 
       expect(mockSignUp).toHaveBeenCalledWith('pat@example.com', 'password123', {
         firstName: 'Pat',
         lastName: 'Morgan',
-        roles: ['exhibitor', 'club_officer', 'secretary'],
       });
     });
   });
@@ -367,7 +357,7 @@ describe('SignUpPage', () => {
     expect(mockSignUp).toHaveBeenCalledWith(
       'pat@example.com',
       'password123',
-      { firstName: 'Pat', lastName: 'Morgan', roles: ['exhibitor'] },
+      { firstName: 'Pat', lastName: 'Morgan' },
       undefined,
       '/?onboarding=true#get-started'
     );
@@ -407,7 +397,6 @@ describe('SignUpPage', () => {
       {
         firstName: 'Pat',
         lastName: 'Morgan',
-        roles: ['exhibitor'],
       },
       'turnstile-token'
     );

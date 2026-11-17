@@ -266,6 +266,16 @@ describe('AccountPage', () => {
     expect(card).toContainElement(link);
   });
 
+  // MYK9-2048: Account reaches the one place to ask for a club, the home page form.
+  it('links to the home page form to add a club', () => {
+    render();
+
+    const card = screen.getByTestId('account-access-roles-card');
+    const addClub = screen.getByRole('link', { name: "Your club isn't listed? Add your club" });
+    expect(addClub).toHaveAttribute('href', '/?onboarding=true#get-started');
+    expect(card).toContainElement(addClub);
+  });
+
   it('shows the signed-in user roles as read-only information', () => {
     render();
 

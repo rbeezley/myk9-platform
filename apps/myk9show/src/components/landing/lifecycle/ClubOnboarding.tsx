@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   ClubNameTakenError,
@@ -26,6 +26,7 @@ import {
 } from '@/utils/clubRegistryNumbers';
 import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
+import { addYourClubPath, returnPathWithClub, safeReturnPath } from './landingCtas';
 
 // Club-onboarding form for the marketing homepage. Restyled onto the editorial
 // l-* system so it reads as one page with the lifecycle landing page. It reuses
@@ -41,6 +42,9 @@ import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
 export function ClubOnboarding() {
   const { user, refreshPermissions } = useAuthContext();
   const navigate = useNavigate();
+  // The show wizard sends its own address here so a new host club leads back to the draft.
+  const [searchParams] = useSearchParams();
+  const returnTo = safeReturnPath(searchParams.get('returnTo'));
 
   // Form state
   const [clubName, setClubName] = useState('');
@@ -122,7 +126,7 @@ export function ClubOnboarding() {
         firstShowDate,
         message,
       });
-      navigate(buildSignInPathForRedirect('/?onboarding=true#get-started'));
+      navigate(buildSignInPathForRedirect(addYourClubPath(returnTo)));
       return;
     }
 
@@ -190,12 +194,29 @@ export function ClubOnboarding() {
           public until we approve the club, usually within a day.
         </p>
         <div className="l-submit-row">
-          <Link
-            to={`/clubs/${createdClubId}`}
-            className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
-          >
-            Open your club
-          </Link>
+          {returnTo ? (
+            <>
+              <Link
+                to={returnPathWithClub(returnTo, createdClubId)}
+                className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
+              >
+                Back to your show
+              </Link>
+              <Link
+                to={`/clubs/${createdClubId}`}
+                className="l-btn l-btn-ghost l-btn-lg inline-flex min-h-11 items-center"
+              >
+                Open your club
+              </Link>
+            </>
+          ) : (
+            <Link
+              to={`/clubs/${createdClubId}`}
+              className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
+            >
+              Open your club
+            </Link>
+          )}
         </div>
       </div>
     );

@@ -115,15 +115,25 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     expect(screen.queryByTestId('clone-status-banner')).not.toBeInTheDocument();
   });
 
-  it('preserves the current wizard route when handing off complete club creation', () => {
+  // MYK9-2048: a club not listed is asked for on the one form, the home page form.
+  it('sends a club that is not listed to the home page form', () => {
     render(<ShowDetailsStep />, {
       initialRoute: '/secretary/create-show/wizard?source=club-handoff',
     });
 
-    expect(screen.getByRole('link', { name: /add club/i })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
+    ).toHaveAttribute(
       'href',
-      '/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard%3Fsource%3Dclub-handoff'
+      '/?onboarding=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard%3Fsource%3Dclub-handoff#get-started'
     );
+  });
+
+  // The returned club is ignored when editing an existing show, and the round trip would rebuild
+  // the draft from the saved show, so the handoff is not offered there.
+  it.each(['add-trials', 'add-classes'] as const)('offers no add-club link in %s mode', mode => {
+    render(<ShowDetailsStep mode={mode} persistedOrganization="AKC" />);
+    expect(screen.queryByRole('link', { name: /add your club/i })).not.toBeInTheDocument();
   });
 
   // MYK9-979: card payment exists only online, and online entries are a

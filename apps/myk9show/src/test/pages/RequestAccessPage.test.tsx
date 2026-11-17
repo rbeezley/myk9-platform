@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import RequestAccessPage from '@/pages/RequestAccessPage';
-import { submitNewClubAccessRequest } from '@/services/database/club-access-requests';
 
 const mockBrowse = vi.hoisted(() => ({
   data: {
@@ -18,9 +17,9 @@ vi.mock('@/hooks/useBrowseClubsData', () => ({
   useBrowseClubsData: () => mockBrowse.data,
 }));
 
-vi.mock('@/services/database/club-access-requests', () => ({
-  submitNewClubAccessRequest: vi.fn(),
-}));
+// MYK9-2048: a new club is asked for in one place, the home page form. This page sends
+// people there and keeps only the search for joining a club already on myK9Show.
+const ADD_YOUR_CLUB_HREF = '/?onboarding=true#get-started';
 
 describe('RequestAccessPage', () => {
   beforeEach(() => {
@@ -35,144 +34,25 @@ describe('RequestAccessPage', () => {
     };
   });
 
-  it('offers new-club and existing-club paths without sending users through onboarding', () => {
+  it('sends "Set up a new club" to the home page form and keeps the existing-club search', () => {
     render(<RequestAccessPage />, { initialRoute: '/request-access' });
 
     expect(screen.getByRole('heading', { name: 'Request additional access' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Request a new club' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add your club' })).toHaveAttribute(
+      'href',
+      ADD_YOUR_CLUB_HREF
+    );
+    expect(screen.queryByRole('button', { name: 'Request a new club' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Find an existing club' })).toBeInTheDocument();
-    expect(screen.queryByText(/onboarding/i)).not.toBeInTheDocument();
   });
 
-  it('submits a new club request with the simple form', async () => {
-    vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
+  it('has no new-club form of its own', () => {
     render(<RequestAccessPage />, { initialRoute: '/request-access' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    fireEvent.change(screen.getByLabelText('Club name'), {
-      target: { value: 'Heartland Dog Club' },
-    });
-    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '4521' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Find an existing club' }));
 
-    await waitFor(() => {
-      expect(submitNewClubAccessRequest).toHaveBeenCalledWith({
-        clubName: 'Heartland Dog Club',
-        website: '',
-        note: '',
-        clubNumbers: { AKC: '4521' },
-      });
-    });
-    expect(await screen.findByRole('heading', { name: 'Request sent' })).toBeInTheDocument();
-  });
-
-  it('normalizes a bare domain website to https:// on blur', () => {
-    render(<RequestAccessPage />, { initialRoute: '/request-access' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    const websiteInput = screen.getByLabelText('Club website (optional)');
-    fireEvent.change(websiteInput, { target: { value: 'myclub.org' } });
-    fireEvent.blur(websiteInput);
-
-    expect(websiteInput).toHaveValue('https://myclub.org/');
-  });
-
-  it('saves a bare www domain website as https:// on submit', async () => {
-    vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
-    render(<RequestAccessPage />, { initialRoute: '/request-access' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    fireEvent.change(screen.getByLabelText('Club name'), {
-      target: { value: 'Heartland Dog Club' },
-    });
-    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
-      target: { value: 'www.myclub.org' },
-    });
-    fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-7' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
-
-    await waitFor(() => {
-      expect(submitNewClubAccessRequest).toHaveBeenCalledWith({
-        clubName: 'Heartland Dog Club',
-        website: 'https://www.myclub.org/',
-        note: '',
-        clubNumbers: { UKC: 'U-7' },
-      });
-    });
-  });
-
-  it('saves a real https:// website value in canonical form on submit', async () => {
-    vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
-    render(<RequestAccessPage />, { initialRoute: '/request-access' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    fireEvent.change(screen.getByLabelText('Club name'), {
-      target: { value: 'Heartland Dog Club' },
-    });
-    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
-      target: { value: 'https://myclub.org' },
-    });
-    fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-7' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
-
-    await waitFor(() => {
-      expect(submitNewClubAccessRequest).toHaveBeenCalledWith({
-        clubName: 'Heartland Dog Club',
-        website: 'https://myclub.org/',
-        note: '',
-        clubNumbers: { UKC: 'U-7' },
-      });
-    });
-  });
-
-  it('shows an error and does not submit when the website is still not a valid URL', async () => {
-    render(<RequestAccessPage />, { initialRoute: '/request-access' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    fireEvent.change(screen.getByLabelText('Club name'), {
-      target: { value: 'Heartland Dog Club' },
-    });
-    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
-      target: { value: 'myclub' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
-
-    expect(await screen.findByText(/enter a valid website/i)).toBeInTheDocument();
-    expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
-  });
-
-  it('refuses a new club request with no club number', async () => {
-    render(<RequestAccessPage />, { initialRoute: '/request-access' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    fireEvent.change(screen.getByLabelText('Club name'), {
-      target: { value: 'Heartland Dog Club' },
-    });
-    fireEvent.change(screen.getByLabelText('ASCA club number'), { target: { value: '   ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
-
-    expect(await screen.findByText('Enter at least one club number.')).toBeInTheDocument();
-    expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
-  });
-
-  it('sends every club number entered when a club holds two', async () => {
-    vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
-    render(<RequestAccessPage />, { initialRoute: '/request-access' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    expect(screen.getByText(/enter at least one/i)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Club name'), {
-      target: { value: 'Heartland Dog Club' },
-    });
-    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: ' 4521 ' } });
-    fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-7' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
-
-    await waitFor(() => {
-      expect(submitNewClubAccessRequest).toHaveBeenCalledWith(
-        expect.objectContaining({ clubNumbers: { AKC: '4521', UKC: 'U-7' } })
-      );
-    });
+    expect(screen.queryByLabelText('Club name')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
   });
 
   it('lets an exhibitor search for an existing club from the page', () => {
@@ -194,30 +74,18 @@ describe('RequestAccessPage', () => {
     expect(screen.getByRole('button', { name: /Heartland Dog Club/ })).toBeInTheDocument();
   });
 
-  it('puts callouts under the club name and website, focuses the name, and clears when fixed', async () => {
+  it('points a search that finds nothing at the home page form', () => {
+    mockBrowse.data = {
+      ...mockBrowse.data,
+      filters: { search: 'Nowhere Kennel', clubType: 'all' },
+    };
+
     render(<RequestAccessPage />, { initialRoute: '/request-access' });
+    fireEvent.click(screen.getByRole('button', { name: 'Find an existing club' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
-    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
-      target: { value: 'myclub' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
-
-    const name = screen.getByLabelText('Club name');
-    expect(screen.getByText('Enter the club name.')).toBeInTheDocument();
-    expect(screen.getByText(/enter a valid website, like example\.com/i)).toBeInTheDocument();
-    expect(screen.getByText('Enter at least one club number.')).toBeInTheDocument();
-    expect(name).toHaveAttribute('aria-invalid', 'true');
-    expect(name).toHaveAttribute('aria-describedby', 'requested-club-name-error');
-    expect(screen.getByLabelText('Club website (optional)')).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    );
-    expect(name).toHaveFocus();
-    expect(screen.queryByText(/before sending your request/i)).not.toBeInTheDocument();
-    expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
-
-    fireEvent.change(name, { target: { value: 'Heartland' } });
-    expect(screen.queryByText('Enter the club name.')).not.toBeInTheDocument();
+    expect(screen.getByText(/We couldn.t find that club/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: "Your club isn't listed? Add your club" })
+    ).toHaveAttribute('href', ADD_YOUR_CLUB_HREF);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { printedSheetRowsOf } from '@/test/fixtures/printedSheetRows';
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import { buildArmbandPaperworkDescriptor } from './paperworkPrintState';
@@ -32,6 +33,7 @@ describe('buildClassPaperworkMap', () => {
       scope,
       classes,
       entries,
+      printedSheets: printedSheetRowsOf(classes, entries),
     });
     expect(descriptor).not.toBeNull();
     const map = buildClassPaperworkMap({
@@ -40,6 +42,7 @@ describe('buildClassPaperworkMap', () => {
       classes,
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
       entries,
+      printedSheets: printedSheetRowsOf(classes, entries),
       records: [
         {
           id: 'print-1',

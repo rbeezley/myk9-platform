@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
+import { completeNarratives, publishedNarratives } from './publishedNarratives.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import {
   pickPremiumOfficial,
@@ -24,7 +25,10 @@ import {
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
-const NARRATIVE_TIMEOUT_MS = 8000;
+// MYK9-2139: measured 2026-11-16/17, whole generate-premium calls took 7.7-8.8 s, so an 8 s
+// narrative cap aborted ordinary calls. 14 s still finishes inside the client's 20 s
+// GENERATION_TIMEOUT_MS (PremiumContentEditor.tsx) with room for the reads around it.
+const NARRATIVE_TIMEOUT_MS = 14_000;
 
 interface GeneratePremiumPayload {
   show_id?: string;
@@ -91,7 +95,7 @@ handle<GeneratePremiumPayload>(
         `
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
-        accept_check_payments, accept_cash_payments, club_id,
+        accept_check_payments, accept_cash_payments, club_id, experience_published_content,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
@@ -186,16 +190,23 @@ handle<GeneratePremiumPayload>(
           }),
         generate: () => generateNarratives(showSummary, anthropicKey),
       });
+      const completed = completeNarratives(
+        narratives,
+        publishedNarratives(show.experience_published_content)
+      );
+      narratives = completed.narratives;
+      if (completed.incomplete) {
+        narrativeGenerationError =
+          'The AI service returned an incomplete answer. Please try again.';
+      }
     } catch (err) {
       if (err instanceof HttpError) {
         throw err;
       }
       console.error('Claude narrative generation failed:', err);
       narrativeGenerationError = describeNarrativeGenerationFailure(err);
-      narratives = {
-        showHours: 'Show hours to be announced.',
-        trialInformation: 'Trial information to be announced.',
-      };
+      // Never invent placeholder narratives: fall back to what is already published.
+      narratives = publishedNarratives(show.experience_published_content);
     }
 
     // Step 10: Assemble and return GeneratedPremium

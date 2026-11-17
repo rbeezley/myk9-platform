@@ -198,15 +198,21 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         </View>
       ))}
 
-      {divider}
+      {f.showHours.trim() && (
+        <>
+          {divider}
+          <Text style={s.sectionTitle}>Show Hours</Text>
+          <Text style={s.body}>{f.showHours}</Text>
+        </>
+      )}
 
-      <Text style={s.sectionTitle}>Show Hours</Text>
-      <Text style={s.body}>{f.showHours}</Text>
-
-      {divider}
-
-      <Text style={s.sectionTitle}>Trial Information</Text>
-      <Text style={s.body}>{f.trialInformation}</Text>
+      {f.trialInformation.trim() && (
+        <>
+          {divider}
+          <Text style={s.sectionTitle}>Trial Information</Text>
+          <Text style={s.body}>{f.trialInformation}</Text>
+        </>
+      )}
 
       {f.vetClinic && (
         <>

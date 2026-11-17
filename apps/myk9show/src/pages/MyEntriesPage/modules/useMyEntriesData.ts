@@ -253,6 +253,8 @@ export function useMyEntriesData({
       name: string;
       class_number?: string;
       start_time?: string | null;
+      /** Server-kept count of dogs scored in the class: the "of N" of a placement (MYK9-2138). */
+      scored_count?: number | null;
       trial?: EntryRowTrial | null;
     } | null;
     // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
@@ -339,6 +341,7 @@ export function useMyEntriesData({
         totalFaults: (entry.total_faults as number) ?? undefined,
         finalPlacement: (entry.final_placement as number) ?? undefined,
         resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
+        classScoredCount: classData?.scored_count ?? undefined,
         dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
         specialRequests: (entry.special_requests as string | null) ?? undefined,
       },

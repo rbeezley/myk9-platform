@@ -7,7 +7,7 @@ import { buildEmergencyPacketModel } from '@/features/emergency-trial-packet/eme
 // layering. Not moved in this task: it also depends on that file's private
 // `mapScopedReportEntries`/`readTrialRegistryId`, so relocating it cleanly is
 // a small refactor of its own, not a one-line move. Flagged for a follow-up.
-import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/buildPacketData';
 import type {
   EmergencyPacketModel,
   EmergencyPacketPage,

@@ -124,12 +124,12 @@ describe('AtShowMyEntriesToday — own result on the existing row (MYK9-1026)', 
         isScored: true,
         resultStatus: 'qualified',
         resultTimeSeconds: 58,
+        resultLine: 'Qualified, 0:58.00, 2nd of 14',
       }),
     ]);
 
     expect(await screen.findByText('Completed')).toBeInTheDocument();
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(screen.getByText('Qualified, 0:58.00, 2nd of 14')).toBeInTheDocument();
     expect(screen.queryByText(/preliminary/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/fault/i)).not.toBeInTheDocument();
   });
@@ -143,12 +143,12 @@ describe('AtShowMyEntriesToday — own result on the existing row (MYK9-1026)', 
         resultStatus: 'qualified',
         resultTimeSeconds: 58,
         resultFaults: 2,
+        resultLine: 'Qualified, 0:58.00',
         isPreliminary: true,
       }),
     ]);
 
-    expect(await screen.findByText('Q')).toBeInTheDocument();
-    expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified, 0:58.00')).toBeInTheDocument();
     expect(screen.getByText('2 faults')).toBeInTheDocument();
     expect(screen.getByText('preliminary')).toBeInTheDocument();
   });

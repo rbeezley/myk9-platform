@@ -5,7 +5,10 @@ import { render } from '@/test/utils/testUtils';
 import { useNotificationStore } from '@/store/notificationStore';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { groupEntriesByShowRegistration } from '../showRegistrationProjection';
+import {
+  groupEntriesByShowRegistration,
+  type ShowRegistrationGroup,
+} from '../showRegistrationProjection';
 import { EntryFocusedRegistration } from '../EntryFocusedRegistration';
 
 const targetedSend = vi.hoisted(() => ({ allowed: true }));
@@ -48,6 +51,22 @@ function entry(
     confirmationNumber: 'MYK9-1001',
   };
 }
+
+/**
+ * A mail-in form whose enrollment row loaded: its total is the server's, in cents. A form
+ * with an enrollment id but entry-fee (dollars) figures is one whose row did not load, and
+ * quotes no money at all (MYK9-1968).
+ */
+const enrolled = (
+  registration: ShowRegistrationGroup,
+  overrides: Partial<ShowRegistrationGroup> = {}
+): ShowRegistrationGroup => ({
+  ...registration,
+  enrollmentId: 'enrollment-1',
+  totalAmount: Math.round(registration.totalAmount * 100),
+  totalAmountUnit: 'cents',
+  ...overrides,
+});
 
 describe('EntryFocusedRegistration', () => {
   beforeEach(() => {
@@ -141,7 +160,9 @@ describe('EntryFocusedRegistration', () => {
 
   describe('one armband control per dog (MYK9-1672)', () => {
     const renderForm = (entries: EntryManagementEntry[]) => {
-      const registration = groupEntriesByShowRegistration(entries)[0]!;
+      // No enrollment record: these tests are about armbands, and a form whose record did
+      // not load would add an "Amount not available" item to the checklist (MYK9-1968).
+      const registration = { ...groupEntriesByShowRegistration(entries)[0]!, enrollmentId: null };
       return render(
         <EntryFocusedRegistration
           registration={registration}
@@ -308,7 +329,7 @@ describe('EntryFocusedRegistration', () => {
       const { user } = render(
         <EntryFocusedRegistration
           {...props}
-          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+          registration={enrolled(registration)}
           onOpenEditEntry={onOpenEditEntry}
         />
       );
@@ -350,12 +371,10 @@ describe('EntryFocusedRegistration', () => {
       render(
         <EntryFocusedRegistration
           {...baseProps()}
-          registration={{
-            ...registration,
-            enrollmentId: 'enrollment-1',
+          registration={enrolled(registration, {
             paymentStatus: PaymentStatus.PAID_BY_CHECK,
             paidAmount: 50,
-          }}
+          })}
         />
       );
 
@@ -371,12 +390,7 @@ describe('EntryFocusedRegistration', () => {
       const registration = groupEntriesByShowRegistration([
         accepted('entry-1', 'Poppy', 'dog-1'),
       ])[0]!;
-      render(
-        <EntryFocusedRegistration
-          {...baseProps()}
-          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
-        />
-      );
+      render(<EntryFocusedRegistration {...baseProps()} registration={enrolled(registration)} />);
       expect(screen.getByText('Done: 1 accepted · armband 201')).toBeInTheDocument();
       expect(screen.getByText('1 to do')).toBeInTheDocument();
     });
@@ -389,7 +403,7 @@ describe('EntryFocusedRegistration', () => {
       render(
         <EntryFocusedRegistration
           {...baseProps()}
-          registration={{ ...registration, enrollmentId: 'enrollment-1', paidAmount: 50 }}
+          registration={enrolled(registration, { paidAmount: 50 })}
         />
       );
       const list = screen.getByRole('region', { name: 'To finish this form' });
@@ -408,12 +422,7 @@ describe('EntryFocusedRegistration', () => {
           rawEntryStatus: 'waitlist',
         },
       ])[0]!;
-      render(
-        <EntryFocusedRegistration
-          {...baseProps()}
-          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
-        />
-      );
+      render(<EntryFocusedRegistration {...baseProps()} registration={enrolled(registration)} />);
       expect(screen.queryByText('Bean has no armband')).not.toBeInTheDocument();
     });
 
@@ -427,12 +436,7 @@ describe('EntryFocusedRegistration', () => {
           armbandNumber: '105',
         },
       ])[0]!;
-      render(
-        <EntryFocusedRegistration
-          {...baseProps()}
-          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
-        />
-      );
+      render(<EntryFocusedRegistration {...baseProps()} registration={enrolled(registration)} />);
       expect(screen.getByText(/^Done: 1 accepted · armband 201$/)).toBeInTheDocument();
     });
 
@@ -460,7 +464,7 @@ describe('EntryFocusedRegistration', () => {
       const registration = groupEntriesByShowRegistration([
         accepted('entry-1', 'Poppy', 'dog-1'),
       ])[0]!;
-      const form = { ...registration, enrollmentId: 'enrollment-1' };
+      const form = enrolled(registration);
       const first = render(<EntryFocusedRegistration {...viaChecklist} registration={form} />);
       await first.user.click(screen.getByRole('button', { name: 'Cash…' }));
       await first.user.click(screen.getByRole('button', { name: 'Confirm' }));
@@ -493,10 +497,7 @@ describe('EntryFocusedRegistration', () => {
         accepted('entry-1', 'Poppy', 'dog-1'),
       ])[0]!;
       const { user } = render(
-        <EntryFocusedRegistration
-          {...props}
-          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
-        />
+        <EntryFocusedRegistration {...props} registration={enrolled(registration)} />
       );
       await user.click(screen.getByRole('button', { name: 'Check…' }));
       await user.type(screen.getByPlaceholderText('Check number (optional)'), '9');
@@ -520,10 +521,7 @@ describe('EntryFocusedRegistration', () => {
         accepted('entry-1', 'Poppy', 'dog-1'),
       ])[0]!;
       const { user } = render(
-        <EntryFocusedRegistration
-          {...props}
-          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
-        />
+        <EntryFocusedRegistration {...props} registration={enrolled(registration)} />
       );
       await user.click(screen.getByRole('button', { name: 'More payment options' }));
       await user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Online…' }));
@@ -545,7 +543,7 @@ describe('EntryFocusedRegistration', () => {
       ])[0]!;
       const { user } = render(
         <EntryFocusedRegistration
-          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+          registration={enrolled(registration)}
           onStatusChange={vi.fn()}
           onCheckInStatusChange={vi.fn()}
           onOpenArmbandDialog={vi.fn()}

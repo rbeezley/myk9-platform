@@ -5,6 +5,8 @@ export interface BundleStats {
   initialJsFiles?: Array<{ file: string; kb: number }>;
   initialCssFiles?: Array<{ file: string; kb: number }>;
   chunkCount?: number;
+  /** Chunks carrying the missing-variable throw; any entry means the build is not the app. */
+  builtWithoutEnvironmentFiles?: string[];
   pdfChunkFiles?: string[];
   pdfStaticImports?: PdfStaticImport[];
   precacheManifestFound?: boolean;
@@ -42,6 +44,7 @@ export interface BudgetViolation {
 }
 
 export const BUDGETS: BundleBudgets;
+export const ENV_MISSING_MARKER: string;
 export const PDF_CHUNK_MARKERS: Array<{ kind: string; marker: string }>;
 export const PDF_CHUNK_POLICY: PdfChunkPolicy;
 export function chunkName(file: string): string;

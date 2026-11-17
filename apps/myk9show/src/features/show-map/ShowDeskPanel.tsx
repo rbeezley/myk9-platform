@@ -12,6 +12,7 @@ import { useMoveUpTargets } from './useMoveUpTargets';
 import { buildMoveUpClassLabeler, classIdsEnteredByDog } from './buildMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { useShowDeskWaiting } from '@/features/waiting-for-you/useShowDeskWaiting';
+import { getTrialTimezone } from '@/features/registries';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
@@ -82,6 +83,8 @@ export default function ShowDeskPanel({
   const waiting = useShowDeskWaiting({
     showId: show.id,
     entries: canManageShow ? putBackEntries : undefined,
+    showEndDate: show.endDate,
+    timeZone: trials.length > 0 ? getTrialTimezone(trials[0]) : null,
     enabled: canManageShow,
   });
   const pendingSignals = useMemo(
@@ -100,7 +103,12 @@ export default function ShowDeskPanel({
   );
   const returnTo = `${location.pathname}${location.search}`;
   const trialRefs = useMemo(
-    () => trials.map(trialItem => ({ id: trialItem.id, trialDate: trialItem.trialDate })),
+    () =>
+      trials.map(trialItem => ({
+        id: trialItem.id,
+        trialDate: trialItem.trialDate,
+        registryId: trialItem.registryId,
+      })),
     [trials]
   );
   // One class projection for paperwork fingerprints, shared with Reports -- never the camelCase

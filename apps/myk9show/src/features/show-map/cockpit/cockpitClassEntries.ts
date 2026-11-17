@@ -1,10 +1,13 @@
 import {
   placeInLine,
   compareByRunOrder,
+  findInRingEntry,
   isInRingEntry,
+  pendingByRunOrder,
   type RunQueueEntry,
 } from '@myk9/ringside/run-queue';
 
+import { NEXT_UP_PREVIEW_LIMIT } from '@/features/at-show/atShowNextUpPreview';
 import { resultStatusLabel } from '@/components/common/resultStatusLabel';
 import {
   isAccountedFor,
@@ -46,7 +49,7 @@ export interface ClassEntryRunFacts {
 }
 
 /**
- * One dog in a class, as the Show Desk entries table and the schedule row's phrase read it. Which
+ * One dog in a class, as the Show Desk entries table and the schedule card read it. Which
  * dogs are listed and counted is `entryAccounting` (the same set as the class's `entryCount`), the
  * order and place in line are the `runQueue` rules. The only rules held here are display ones: which
  * non-running dogs are still listed (`isListed`) and the label each dog gets (`stateOf`). The labels
@@ -293,7 +296,7 @@ export function runStatusDisplay(entry: SecretaryCockpitClassEntry): {
 
 /**
  * True while the class's entries have not been read: no rows, and the class does not say it has
- * none. The tiles and table then say so, never "0 entered" or "No entries" for a class that has dogs.
+ * none. The In ring tile and the table then say so, never "No entries" for a class that has dogs.
  */
 export function entriesUnread(
   entries: readonly SecretaryCockpitClassEntry[],
@@ -302,35 +305,44 @@ export function entriesUnread(
   return entries.length === 0 && entryCount !== 0;
 }
 
+/**
+ * Who is in the ring and who runs next, by the shared run-queue rule Ringside reads. A row that is
+ * not expected to run is folded to `pulled` in its queue entry, so no second filter is needed.
+ * The In ring tile and the schedule card both read this, so they always name the same dogs.
+ */
+export function runQueuePreview(entries: readonly SecretaryCockpitClassEntry[]): {
+  inRing: SecretaryCockpitClassEntry | undefined;
+  nextUp: SecretaryCockpitClassEntry[];
+} {
+  const byId = new Map(entries.map(entry => [entry.queue.id, entry]));
+  const queue = entries.map(entry => entry.queue);
+  const inRingQueued = findInRingEntry(queue);
+  return {
+    inRing: inRingQueued ? byId.get(inRingQueued.id) : undefined,
+    nextUp: pendingByRunOrder(queue)
+      .slice(0, NEXT_UP_PREVIEW_LIMIT)
+      .flatMap(queued => byId.get(queued.id) ?? []),
+  };
+}
+
 export interface ClassEntryCounts {
   entered: number;
   scored: number;
-  inRing: number;
-  stillToRun: number;
   notCheckedIn: number;
 }
 
 /**
- * The four count tiles, and the "not checked in" the schedule phrase uses, from the same rows.
- * Entered is the expected set (the class's `entryCount`); scored, in the ring and still to run
- * partition it.
+ * The counts the schedule card uses (scored over entered, not checked in), from the same rows.
+ * Entered is the expected set (the class's `entryCount`).
  */
 export function countClassEntries(
   entries: readonly SecretaryCockpitClassEntry[]
 ): ClassEntryCounts {
-  const counts: ClassEntryCounts = {
-    entered: 0,
-    scored: 0,
-    inRing: 0,
-    stillToRun: 0,
-    notCheckedIn: 0,
-  };
+  const counts: ClassEntryCounts = { entered: 0, scored: 0, notCheckedIn: 0 };
   for (const entry of entries) {
     if (!entry.counted) continue;
     counts.entered += 1;
     if (entry.state === 'scored') counts.scored += 1;
-    else if (entry.state === 'in-ring') counts.inRing += 1;
-    else if (entry.state === 'waiting') counts.stillToRun += 1;
     if (entry.notCheckedIn) counts.notCheckedIn += 1;
   }
   return counts;

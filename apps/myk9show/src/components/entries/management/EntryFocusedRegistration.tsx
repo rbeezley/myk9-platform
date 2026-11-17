@@ -231,6 +231,7 @@ export function EntryFocusedRegistration({
         totalDollars={controls.totalDollars}
         paidDollars={controls.paidDollars}
         remainingDollars={controls.remainingDollars}
+        amountUnknown={controls.amountUnknown}
       />
     </section>
   );

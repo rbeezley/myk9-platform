@@ -13,7 +13,15 @@ import {
   describeEntryRemovals,
   type EntryRemovalCounts,
 } from '@/features/payments/pullReconciliation';
-import { getCloseoutDuties, getTrialRegistry, type RegistryId } from '@/features/registries';
+import {
+  getCloseoutDuties,
+  getTrialRegistry,
+  getTrialTimezone,
+  lastTrialDay,
+  resultsDeadlineCoversTrialType,
+  resultsDeadlineFor,
+  type RegistryId,
+} from '@/features/registries';
 import {
   summarizeShowDayReconciliation,
   type ShowDayReconciliationEntry,
@@ -52,6 +60,13 @@ export interface WhatIsLeftTrial {
   id?: string | null | undefined;
   registry_id?: string | null;
   registryId?: string | null | undefined;
+  /** The trial's day (`trials.date`). Absent = the deadline cannot be worked out. */
+  trialDate?: string | null | undefined;
+  timezone?: string | null | undefined;
+  /** The discipline (`trials.trial_type`); the deadline rules cover scent work only. */
+  trialType?: string | null | undefined;
+  /** A cancelled trial did not happen, so it never sets the results deadline. */
+  status?: string | null | undefined;
 }
 
 export interface WhatIsLeftInput {
@@ -114,6 +129,12 @@ export interface WhatIsLeftLine {
   /** `true` = something left, `false` = nothing left, `null` = this caller cannot say. */
   open: boolean | null;
   registryId?: RegistryId;
+  /**
+   * A results-submission line only: the `YYYY-MM-DD` the registry wants the results by, counted
+   * from the show's last trial day in its own time zone. Absent when the registry has no verified
+   * deadline or no trial date was passed.
+   */
+  deadline?: string;
   /** The sentence the close step shows for the line while it is open or unknown. */
   closeConcern?: string;
   /** An app-sent results file only; absent when nothing was sent or the caller does not look. */
@@ -138,7 +159,8 @@ export interface WhatIsLeft {
    * `false` when no class carried a phase.
    */
   releasedAndInitialed: boolean;
-  refundReview: { count: number; removals: EntryRemovalCounts };
+  /** `decisionsUnknown` above zero: saved refund decisions were not read, so `count` is partial. */
+  refundReview: { count: number; removals: EntryRemovalCounts; decisionsUnknown: number };
   registryIds: readonly RegistryId[];
   lines: readonly WhatIsLeftLine[];
   /** The close step's sentences, in its order. */
@@ -347,9 +369,25 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
             }
           }
         }
+        const deadline = duty.deadline
+          ? resultsDeadlineFor(
+              registryId,
+              lastTrialDay(
+                input.trials
+                  .filter(
+                    trial =>
+                      getTrialRegistry(trial).id === registryId &&
+                      !isCancelledStatus(trial.status) &&
+                      resultsDeadlineCoversTrialType(trial.trialType)
+                  )
+                  .map(trial => ({ date: trial.trialDate, timeZone: getTrialTimezone(trial) }))
+              )
+            )
+          : null;
         lines.push({
           key: duty.key,
           kind: 'results-submission',
+          ...(deadline === null ? {} : { deadline }),
           ...(sentFileCheck === undefined ? {} : { sentFileCheck }),
           label: duty.label,
           count: null,
@@ -363,14 +401,21 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
   }
 
   const refundCount = reconciliation.refundReviewCount;
+  // MYK9-2099: a removal whose saved decision was not read may already be denied. Unknown is its
+  // own state: the line claims neither a count nor "nothing left".
+  const refundDecisionsUnknown = reconciliation.refundDecisionUnknownCount > 0;
   lines.push({
     key: 'refund-review',
     kind: 'refund-review',
-    label: `${plural(refundCount, 'refund', 'refunds')} to decide`,
-    count: refundCount,
+    label: refundDecisionsUnknown
+      ? 'Refunds to decide: saved refund decisions could not be loaded'
+      : `${plural(refundCount, 'refund', 'refunds')} to decide`,
+    count: refundDecisionsUnknown ? null : refundCount,
     classIds: [],
-    open: refundCount > 0,
-    closeConcern: `${refundCount} paid ${refundCount === 1 ? 'entry' : 'entries'} (${describeEntryRemovals(reconciliation.refundReviewRemovals)}) ${refundCount === 1 ? 'needs' : 'need'} refund review.`,
+    open: refundDecisionsUnknown ? null : refundCount > 0,
+    closeConcern: refundDecisionsUnknown
+      ? 'Saved refund decisions could not be loaded, so the refunds still to decide are unknown.'
+      : `${refundCount} paid ${refundCount === 1 ? 'entry' : 'entries'} (${describeEntryRemovals(reconciliation.refundReviewRemovals)}) ${refundCount === 1 ? 'needs' : 'need'} refund review.`,
   });
   const incidentCount = input.incidents?.reportableCount ?? 0;
   lines.push({
@@ -429,7 +474,11 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     doneClassIds: ids(byPhase('done')),
     phaseCounts,
     releasedAndInitialed: isReleasedAndInitialed(classes),
-    refundReview: { count: refundCount, removals: reconciliation.refundReviewRemovals },
+    refundReview: {
+      count: refundCount,
+      removals: reconciliation.refundReviewRemovals,
+      decisionsUnknown: reconciliation.refundDecisionUnknownCount,
+    },
     registryIds,
     lines,
     concerns,

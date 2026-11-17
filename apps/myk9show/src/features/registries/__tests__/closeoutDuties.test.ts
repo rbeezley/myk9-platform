@@ -23,4 +23,12 @@ describe('getCloseoutDuties', () => {
     );
     expect(appRecorded).toEqual(['akc-results-file']);
   });
+
+  it('carries a verified deadline for AKC and ASCA submissions and none for UKC', () => {
+    const rule = (id: 'AKC' | 'UKC' | 'ASCA') =>
+      getCloseoutDuties(id).find(duty => duty.kind === 'results-submission')?.deadline;
+    expect(rule('AKC')).toEqual({ days: 7, mustArrive: true });
+    expect(rule('ASCA')).toEqual({ days: 15, mustArrive: false });
+    expect(rule('UKC')).toBeNull();
+  });
 });

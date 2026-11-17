@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { FullPaymentDialog } from './enrollmentPayment';
+import { AMOUNT_NOT_AVAILABLE, type FullPaymentDialog } from './enrollmentPayment';
 
 interface ReceivedOnFieldProps {
   id: string;
@@ -36,6 +36,8 @@ interface EnrollmentFullPaymentDialogProps {
   onChange: (next: FullPaymentDialog) => void;
   /** What "Paid in Full" will record: the balance still due. */
   balanceDollars: number;
+  /** MYK9-1968: the payment record is not loaded, so the balance is not quoted. */
+  amountUnknown?: boolean | undefined;
   todayInShowZone: string;
   onClose: () => void;
   onConfirm: () => void;
@@ -49,6 +51,7 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
   state,
   onChange,
   balanceDollars,
+  amountUnknown = false,
   todayInShowZone,
   onClose,
   onConfirm,
@@ -63,8 +66,19 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
       <div className="space-y-3 py-2">
         <p className="text-sm text-muted-foreground">
           Balance due:{' '}
-          <span className="font-medium text-foreground">${balanceDollars.toFixed(2)}</span>
+          <span className="font-medium text-foreground">
+            {amountUnknown ? AMOUNT_NOT_AVAILABLE : `$${balanceDollars.toFixed(2)}`}
+          </span>
         </p>
+        {amountUnknown && (
+          // Paid in Full records the whole balance, which is not known here, so it cannot be
+          // confirmed. No other recording path is suggested: they are online-only too, and
+          // offline they would drop what was typed (Codex review of #4104, round 2).
+          <p className="text-sm text-muted-foreground" data-testid="full-payment-unknown-note">
+            Paid in Full needs the balance, which has not loaded. Record this payment once the
+            form&rsquo;s payment record loads.
+          </p>
+        )}
         {state.method === 'check' && (
           <Input
             placeholder="Check number (optional)"
@@ -84,7 +98,7 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={onConfirm} disabled={!state.receivedOn}>
+        <Button onClick={onConfirm} disabled={amountUnknown || !state.receivedOn}>
           Confirm
         </Button>
       </DialogFooter>

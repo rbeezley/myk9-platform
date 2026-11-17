@@ -88,7 +88,7 @@ vi.mock('@/hooks/queries/useClubsDatabase', () => ({
 }));
 
 const club: Club = {
-  id: 'club-1',
+  id: '11111111-1111-4111-8111-111111111111',
   name: 'Heartland Club',
   email: '',
   phone: '',
@@ -109,7 +109,7 @@ function replicaShow(overrides: Partial<Show> & Pick<Show, 'id' | 'name' | 'stat
     endDate: '2099-05-02',
     location: 'Tulsa, OK',
     events: ['Scent Work'],
-    clubId: 'club-1',
+    clubId: '11111111-1111-4111-8111-111111111111',
     accentColor: '',
     ...overrides,
   } as Show;
@@ -138,7 +138,7 @@ function renderPage() {
     <Routes>
       <Route path="/clubs/:id" element={<ClubDetailPage />} />
     </Routes>,
-    { initialRoute: '/clubs/club-1' }
+    { initialRoute: '/clubs/11111111-1111-4111-8111-111111111111' }
   );
 }
 
@@ -165,7 +165,7 @@ describe('ClubDetailPage show list for a signed-out guest (MYK9-768)', () => {
     expect(await screen.findByText('Spring Scent Trial')).toBeInTheDocument();
     expect(screen.queryByText('Secret Draft Trial')).not.toBeInTheDocument();
     expect(screen.queryByText('Cancelled Trial')).not.toBeInTheDocument();
-    expect(getPublicClubShows).toHaveBeenCalledWith('club-1');
+    expect(getPublicClubShows).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
     expect(replica.reads).toBe(0);
     // Counts agree with the list: one upcoming show, not three.
     expect(screen.getByText('Upcoming: 1 \u00B7 Completed: 0')).toBeInTheDocument();

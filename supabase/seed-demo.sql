@@ -929,14 +929,14 @@ DELETE FROM public.club_stripe_accounts WHERE club_id IN (
 -- listings (signed-out Find Shows, the guest club directory) while direct links
 -- and signed-in accounts still reach them (MYK9-952). The seed sets it on every
 -- run, insert AND conflict, so a reseed can never bring them back into public view.
-INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version, is_demo)
+INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version, is_demo, authorized_at)
 VALUES (
   'dededede-0000-0000-0000-000000000001',
   'Heartland Scent Work Club',
   'Tulsa', 'Oklahoma',
   'testadmin@myk9t.com',
   'Demo scent work club for the myK9Show showcase dataset.',
-  'HSWC-001', 1, true
+  'HSWC-001', 1, true, now()
 ),
 (
   'dededede-0000-0000-0000-000000000002',
@@ -944,7 +944,7 @@ VALUES (
   'Wichita', 'Kansas',
   'testadmin@myk9t.com',
   'Second demo club. Exists so club-scoped authority has a club to be REFUSED on — see MYK9-137.',
-  'PTDSC-002', 1, true
+  'PTDSC-002', 1, true, NULL
 )
 ON CONFLICT (id) DO UPDATE
   SET name        = EXCLUDED.name,
@@ -963,6 +963,18 @@ ON CONFLICT (id) DO UPDATE
       -- prior e2e run can leave exactly this state behind.
       deleted_at  = NULL,
       deleted_by  = NULL,
+      -- MYK9-2105: Heartland is an established, authorized club. Owner walks run
+      -- on it, so every authorization check (publish gate, public directory,
+      -- the "awaiting authorization" notices) must see it as authorized, not as
+      -- a new club waiting for a site admin. Before this the seed never set
+      -- authorized_at: the MYK9-572 backfill authorized the clubs that existed
+      -- then, but a club inserted on a fresh database (or revoked during a walk)
+      -- stayed null. COALESCE keeps an existing timestamp, so a reseed does not
+      -- restamp it, and restores one a walk revoked. Prairie Trail declares NULL,
+      -- so COALESCE leaves its current state alone: it is a scope boundary
+      -- (MYK9-137), and this issue does not change its authorization.
+      -- The seed runs as postgres, which guard_club_authorization_write() exempts.
+      authorized_at = COALESCE(clubs.authorized_at, EXCLUDED.authorized_at),
       -- Every column the fixture does NOT declare, reset to its default. The
       -- delete-and-recreate this replaced produced a row with these at their
       -- defaults; an upsert that lists only the declared columns preserves whatever

@@ -116,11 +116,12 @@ export function MyEntryRow({
             role="group"
             aria-label="Result"
           >
-            <ResultBadge resultStatus={detail.resultStatus} />
-            {detail.resultTimeSeconds != null && (
-              <span className="tabular-nums text-muted-foreground">
-                {detail.resultTimeSeconds.toFixed(1)}s
+            {detail.resultLine ? (
+              <span className="font-medium tabular-nums" data-testid="own-result-line">
+                {detail.resultLine}
               </span>
+            ) : (
+              <ResultBadge resultStatus={detail.resultStatus} />
             )}
             {detail.resultStatus === 'qualified' &&
               detail.resultFaults != null &&

@@ -17,6 +17,7 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 import type { ReportScope } from '@/lib/reports/types';
 import { resolveReportScope } from '@/lib/reports/reportScope';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
+import { isEmptyDescriptor } from '@/features/show-map/cockpit/printedSheetDescriptor';
 import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
 import { recordPaperworkPrinted } from '@/features/show-map/cockpit/paperworkPrintActions';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -24,6 +25,7 @@ import { useReportDogOptions } from './useReportDogOptions';
 import { useReportScopeOptions } from './useReportScopeOptions';
 import { useJudgeDayReportScope } from './useJudgeDayReportScope';
 import type { ReportDbEntry } from '@/lib/reports/types';
+import type { DbClass, DbTrial } from '@/types/database-mappings';
 import { useHostedReportData } from './useHostedReportData';
 import { blockedPrintMessage, resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
@@ -207,7 +209,7 @@ export default function ReportsPage() {
 
   const paperworkDescriptor = useMemo(() => {
     if (reportType === 'armband-labels') return armbandDescriptor;
-    return buildReportPaperworkDescriptor({
+    const descriptor = buildReportPaperworkDescriptor({
       reportId: reportType,
       scope: effectiveScope,
       classes: (classes ?? []) as unknown as Parameters<
@@ -217,8 +219,23 @@ export default function ReportsPage() {
         typeof buildReportPaperworkDescriptor
       >[0]['entries'],
       assignedJudges: show?.assignedJudges,
+      printedSheets: {
+        trials: (trials ?? []) as unknown as DbTrial[],
+        classes: (classes ?? []) as unknown as DbClass[],
+        entries: (entries ?? []) as unknown as ReportDbEntry[],
+      },
     });
-  }, [armbandDescriptor, reportType, effectiveScope, classes, entries, show?.assignedJudges]);
+    // A sheet that prints nothing is never recorded, and has no status of its own.
+    return descriptor && isEmptyDescriptor(descriptor) ? null : descriptor;
+  }, [
+    armbandDescriptor,
+    reportType,
+    effectiveScope,
+    classes,
+    entries,
+    trials,
+    show?.assignedJudges,
+  ]);
   const { printStatusUnavailable, printStatusChecking, printStatusKnown, printState, printChips } =
     useReportPrintStatus({
       showId: showId ?? '',
@@ -229,6 +246,7 @@ export default function ReportsPage() {
       scope: effectiveScope,
       classes,
       entries,
+      trials,
       assignedJudges: show?.assignedJudges,
       timeZone: showTimeZone,
     });

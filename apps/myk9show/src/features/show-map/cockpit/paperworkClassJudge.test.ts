@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/buildPacketData';
 import type { Show } from '@/types/show-types';
 import type { DbClass } from '@/types/database-mappings';
 import type { ShowJudgeAssignment } from '@/types/judge-types';

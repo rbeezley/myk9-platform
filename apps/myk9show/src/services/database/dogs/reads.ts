@@ -28,6 +28,15 @@ import { ownerNameCacheKey, recallOwnerNames, rememberOwnerNames } from './owner
 import { attachRosterRelations, groupRegistrationsByDog } from './serverRosterRows';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { unsentWorkProvenByServer } from '../registrations/unsentWork';
+import {
+  dogSearchFilter,
+  ownerNameFilter,
+  registrationFilter,
+  searchEmbedSelect,
+  searchTermEmbeds,
+  searchWords,
+  withoutSearchEmbeds,
+} from './searchAllDogsFilter';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -777,29 +786,6 @@ export const forceDeleteDog = async (
 // search" hint when the returned row count hits this limit.
 export const SEARCH_ALL_DOGS_LIMIT = 50;
 
-/** Most first-name / last-name splits tried for a typed full name. */
-const OWNER_NAME_MAX_SPLITS = 3;
-
-/**
- * PostgREST `.or(...)` body matching a person by first or last name, and a
- * typed full name by every split of it into a first name (the first k words)
- * and a last name (the rest), so "Mary Jane Smith" finds first name "Mary
- * Jane". At most three splits (four words); later words stay in the last name.
- * `term` is already escaped by `sanitizePostgRESTFilter`, so commas,
- * parentheses, dots and asterisks in it are literal text.
- */
-function ownerNameFilter(term: string): string {
-  const filters = [`first_name.ilike.%${term}%`, `last_name.ilike.%${term}%`];
-  const words = term.split(/\s+/).filter(Boolean);
-  const splits = Math.min(words.length - 1, OWNER_NAME_MAX_SPLITS);
-  for (let k = 1; k <= splits; k += 1) {
-    const first = words.slice(0, k).join(' ');
-    const last = words.slice(k).join(' ');
-    filters.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
-  }
-  return filters.join(',');
-}
-
 // Search dogs across the entire system (not scoped to ownership).
 // Used by secretaries/admins entering mail-in registrations — the secretary
 // rarely owns the dog being registered, so ownership-scoped search is useless.
@@ -821,75 +807,24 @@ export const searchAllDogs = async (
     }
     const sanitized = sanitizePostgRESTFilter(trimmed);
 
-    // MYK9-90: registration number and registered name live on
-    // `dog_registrations`. The old filter searched `dogs.akc_number`, which is
-    // NULL for every row, so no dog was findable by registration number at all.
-    // PostgREST cannot OR a parent-column filter with an embedded-table filter
-    // in one request, so resolve matching dog ids first and fold them into the
-    // same `.or(...)` as an id list.
+    // MYK9-2026: a multi-word search also matches word by word, the rule the
+    // picker applies on the device, so "rex lab" finds Rex the Labrador here
+    // too. Each term (the whole search, then each word) filters its own
+    // registrations and owner embeds, and the dogs `.or(...)` asks which
+    // embeds kept a row. Everything is matched in this one request, before its
+    // limit, so a common word cannot crowd out the dog that matches them all.
     //
-    // The pre-query's error is thrown, NOT swallowed. Treating a failed
-    // registration lookup as "no matches" would make a transient PostgREST,
-    // network, or authorization failure indistinguishable from "no such dog":
-    // a registration-number search would return an empty list with
-    // `error: null` while the backend was actually broken.
-    const registrationQuery = supabase
-      .from('dog_registrations')
-      .select('dog_id')
-      // Breed is a registration attribute, so it is matched here alongside the
-      // number and registered name rather than against `dogs.breed`.
-      .or(
-        `registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%`
-      )
-      .limit(limit);
-    const { data: regMatches, error: regError } = signal
-      ? await registrationQuery.abortSignal(signal)
-      : await registrationQuery;
-    if (regError) throw createDatabaseError(regError, 'dog', 'search_all');
-    const registrationDogIds = [
-      ...new Set(
-        ((regMatches ?? []) as Array<{ dog_id?: string | null }>)
-          .map(r => r.dog_id)
-          .filter((id): id is string => typeof id === 'string' && id.length > 0)
-      ),
-    ];
+    // MYK9-90: registration number, registered name and breed live on
+    // `dog_registrations`, not on `dogs`. MYK9-2020: the owner's name, over the
+    // `people` rows RLS already lets her read (the same rows `owner` returns).
+    const embeds = searchTermEmbeds([
+      sanitized,
+      ...searchWords(trimmed).map(word => sanitizePostgRESTFilter(word)),
+    ]);
+    const [whole, ...words] = embeds;
+    if (!whole) return { data: [], error: null, hitLimit: false };
 
-    // MYK9-2020: the owner's name. The secretary's search box promises it, and
-    // her local roster is capped, so a dog beyond it is found here or not at
-    // all. Same shape as the registration pre-query (ids folded into the one
-    // `.or(...)`), over the `people` rows RLS already lets her read (the same
-    // rows the `owner` embed below returns). Its error is thrown, not
-    // swallowed, for the same reason.
-    const ownerQuery = supabase
-      .from('people')
-      .select('id')
-      .is('deleted_at', null)
-      .or(ownerNameFilter(sanitized))
-      .limit(limit);
-    const { data: ownerMatches, error: ownerError } = signal
-      ? await ownerQuery.abortSignal(signal)
-      : await ownerQuery;
-    if (ownerError) throw createDatabaseError(ownerError, 'dog', 'search_all');
-    // A full page of owners means more may exist that were never folded in, so
-    // the result is reported truncated ("type more") whatever the dog count.
-    const ownersTruncated = (ownerMatches ?? []).length >= limit;
-    const ownerIds = [
-      ...new Set(
-        ((ownerMatches ?? []) as Array<{ id?: string | null }>)
-          .map(r => r.id)
-          .filter((id): id is string => typeof id === 'string' && id.length > 0)
-      ),
-    ];
-
-    const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
-    if (registrationDogIds.length > 0) {
-      orFilters.push(`id.in.(${registrationDogIds.join(',')})`);
-    }
-    if (ownerIds.length > 0) {
-      orFilters.push(`owner_id.in.(${ownerIds.join(',')})`);
-    }
-
-    const dogQuery = supabase
+    let dogQuery = supabase
       .from('dogs')
       .select(
         `
@@ -901,21 +836,30 @@ export const searchAllDogs = async (
           email,
           phone
         ),
-        registrations:dog_registrations(*)
+        registrations:dog_registrations(*),
+        ${searchEmbedSelect(embeds)}
       `
       )
-      .or(orFilters.join(','))
-      .is('deleted_at', null)
-      .order('name', { ascending: true })
-      .limit(limit);
-    const { data, error } = signal ? await dogQuery.abortSignal(signal) : await dogQuery;
+      .or(dogSearchFilter(whole, words))
+      .is('deleted_at', null);
+    for (const embed of embeds) {
+      dogQuery = dogQuery
+        .or(registrationFilter(embed.term), { referencedTable: embed.registrations })
+        .or(ownerNameFilter(embed.term), { referencedTable: embed.owner })
+        .is(`${embed.owner}.deleted_at`, null);
+    }
+    const limitedQuery = dogQuery.order('name', { ascending: true }).limit(limit);
+    const { data, error } = signal ? await limitedQuery.abortSignal(signal) : await limitedQuery;
 
     const duration = Date.now() - startTime;
     logQuery('dog', 'search_all', duration, error?.message);
 
     if (error) throw createDatabaseError(error, 'dog', 'search_all');
-    const rows = (data as Record<string, unknown>[] | null) ?? [];
-    return { data: rows, error: null, hitLimit: rows.length >= limit || ownersTruncated };
+    const rows = ((data as unknown as Record<string, unknown>[] | null) ?? []).map(row =>
+      withoutSearchEmbeds(row, embeds)
+    );
+    // Every term is matched before the limit, so only a full page means more exist.
+    return { data: rows, error: null, hitLimit: rows.length >= limit };
   } catch (error) {
     // React Query treats an aborted query as a superseded request. Preserve
     // that cancellation signal instead of converting it into a search error

@@ -29,8 +29,9 @@ import {
 import {
   classChangeReasonLabel,
   getClassChangeRequestDetails,
-  getClassNamesByIds,
+  getRequestedClassesByIds,
   type ClassChangeRequestDetails,
+  type RequestedClassFacts,
 } from '@/services/database/entries/classChangeRequests';
 import { undoShowMapMoveUp } from '@/features/show-map/showMapActionMutations';
 import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
@@ -47,21 +48,11 @@ import {
   lateRequestNote,
   minutesBeforeStart,
 } from '@/features/show-map/classChangeLateness';
-import { formatTrialLabel } from './management/entryFormTrialSummary';
+import { requestTrialLabels, trialFactsById, type TrialFacts } from './classChangeTrialLabels';
 import { MOVE_UP_COPY } from '@/hooks/entryManagementErrorCopy';
 import { ClassChangeRequestCard } from './ClassChangeRequestCard';
 import { ClassChangeDeclineDialog } from './ClassChangeDeclineDialog';
 import { MoveUpApproveDialog } from './MoveUpApproveDialog';
-
-function trialLabelsById(trials: ReadonlyArray<Record<string, unknown>>): Record<string, string> {
-  const text = (value: unknown) => (typeof value === 'string' ? value : null);
-  return Object.fromEntries(
-    trials.map(trial => [
-      String(trial.id),
-      formatTrialLabel(text(trial.date), text(trial.trial_number)),
-    ])
-  );
-}
 
 interface MoveUpRequest {
   id: string;
@@ -99,8 +90,8 @@ interface ListData {
   trials: ReadonlyArray<Record<string, unknown>> | null;
   /** The stored class asked for, by entry id; null when it could not be read. */
   details: Record<string, ClassChangeRequestDetails> | null;
-  /** Class id to name, for the classes asked for. */
-  requestedNames: Record<string, string>;
+  /** Name and trial of each class asked for, read apart from capacity. */
+  requestedClasses: Record<string, RequestedClassFacts>;
 }
 
 async function readListData(showId: string): Promise<ListData> {
@@ -112,14 +103,14 @@ async function readListData(showId: string): Promise<ListData> {
   const requests = requestsResult.error ? null : (requestsResult.data as MoveUpRequest[]);
 
   let details: ListData['details'] = null;
-  let requestedNames: Record<string, string> = {};
+  let requestedClasses: ListData['requestedClasses'] = {};
   if (requests) {
     try {
       details = await getClassChangeRequestDetails(requests.map(request => request.id));
       const targetIds = [
         ...new Set(Object.values(details).flatMap(d => (d.targetClassId ? [d.targetClassId] : []))),
       ];
-      requestedNames = await getClassNamesByIds(targetIds);
+      requestedClasses = await getRequestedClassesByIds(targetIds);
     } catch {
       details = null;
     }
@@ -131,22 +122,22 @@ async function readListData(showId: string): Promise<ListData> {
       ? null
       : (trialsResult.data as ReadonlyArray<Record<string, unknown>>),
     details,
-    requestedNames,
+    requestedClasses,
   };
 }
 
 export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, onRefresh }) => {
   const [requests, setRequests] = useState<MoveUpRequest[]>([]);
   const [classes, setClasses] = useState<ClassWithCapacity[]>([]);
-  /** trial id to "Mon, Nov 9 · Trial 1", so a request says which trial its class is in. */
-  const [trialLabels, setTrialLabels] = useState<Record<string, string>>({});
+  /** trial id to its day and number, so a request says which trial each class is in. */
+  const [trialFacts, setTrialFacts] = useState<Record<string, TrialFacts>>({});
   // A show's trials always share one registry (scoping §7) — resolved once per
   // load so getAvailableMoveUpTargets recognizes UKC/ASCA-only levels.
   const [registryId, setRegistryId] = useState<RegistryId>('AKC');
   /** trial id to its start facts, for the "asked N minutes before start" note. */
   const [trialStarts, setTrialStarts] = useState<Record<string, StartableTrial>>({});
   const [details, setDetails] = useState<Record<string, ClassChangeRequestDetails>>({});
-  const [requestedNames, setRequestedNames] = useState<Record<string, string>>({});
+  const [requestedClasses, setRequestedClasses] = useState<ListData['requestedClasses']>({});
   /** The stored class asked for could not be read: Accept is off rather than guessing. */
   const [detailsError, setDetailsError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -171,7 +162,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     if (data.classes) setClasses(data.classes);
     if (data.trials) {
       setRegistryId(getTrialRegistry(data.trials[0]).id);
-      setTrialLabels(trialLabelsById(data.trials));
+      setTrialFacts(trialFactsById(data.trials));
       setTrialStarts(
         Object.fromEntries(
           data.trials.map(row => {
@@ -183,7 +174,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
     }
     setDetailsError(data.requests !== null && data.details === null);
     setDetails(data.details ?? {});
-    setRequestedNames(data.requestedNames);
+    setRequestedClasses(data.requestedClasses);
   };
 
   // Load requests and classes
@@ -424,8 +415,15 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
             const targetClass = stored?.targetClassId
               ? classes.find(cls => cls.id === stored.targetClassId)
               : undefined;
+            const requested = stored?.targetClassId
+              ? requestedClasses[stored.targetClassId]
+              : undefined;
+            // The requested trial comes from the class read, not capacity, so it
+            // still shows when the capacity read fails.
+            const targetTrialId = requested?.trialId ?? targetClass?.trial_id;
             // Lateness is measured against the trial the dog is asking to move into.
-            const startTrial = trialStarts[targetClass?.trial_id ?? trialId];
+            const startTrial = trialStarts[targetTrialId ?? trialId];
+            const trialLabels = requestTrialLabels(trialFacts, trialId, targetTrialId);
             const lateNote = lateRequestNote(
               minutesBeforeStart(stored?.requestedAt, trialStartInstant(startTrial))
             );
@@ -442,10 +440,9 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                   armband: request.armband,
                   handler: request.handler,
                   fromClass: `${request.class?.class_number ? `#${request.class.class_number} ` : ''}${request.class?.name ?? ''}`,
-                  trialLabel: trialLabels[trialId] ?? null,
-                  requestedClass: stored?.targetClassId
-                    ? (requestedNames[stored.targetClassId] ?? null)
-                    : null,
+                  trialLabel: trialLabels.fromTrial,
+                  requestedTrialLabel: trialLabels.requestedTrial,
+                  requestedClass: requested?.name ?? null,
                   reasonLabel: classChangeReasonLabel(stored?.reason),
                   askedAt: stored?.requestedAt ?? request.created_at,
                   lateNote,

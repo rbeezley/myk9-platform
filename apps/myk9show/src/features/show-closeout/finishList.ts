@@ -5,6 +5,7 @@
  * A line that opens the class list carries the key the list filters by, so the link lands on
  * exactly the classes the line counted.
  */
+import { describeResultsDeadline } from '@/features/registries';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { getResultsStepHref, getFinishLineHref } from '@/features/results-tab/resultsTabRoutes';
 import { writeCockpitScope } from '@/components/entries/management/entryManagementCockpitParams';
@@ -20,6 +21,8 @@ export interface FinishListItem {
   href: string | null;
   /** A plain sentence under the line, when the screen could not check something about it. */
   note?: string;
+  /** An open registry submission only: "Due at AKC by Tue, Nov 24". Absent = no verified date. */
+  deadlineText?: string;
   /** The line opens the Results class list filtered to the classes it counted (`?left=<key>`). */
   opensClassList: boolean;
 }
@@ -74,10 +77,15 @@ function itemFor(
       // The app's own send is the only line that can go stale: a score changed after it (MYK9-2078).
       // Its action is the existing send, so the first record stays and a second is made.
       if (line.open === false && line.sentFileCheck === 'changed') {
+        // A resend is still owed by the same date, so the line keeps it.
+        const resendDeadline = line.registryId
+          ? describeResultsDeadline(line.registryId, line.deadline)
+          : null;
         return {
           key: line.key,
           state: 'open',
           opensClassList: false,
+          ...(resendDeadline ? { deadlineText: resendDeadline } : {}),
           href: getResultsStepHref(showId, 'submit'),
           label: SENT_FILE_TEXT.changed,
         };
@@ -93,10 +101,15 @@ function itemFor(
           note: SENT_FILE_TEXT.checking,
         };
       }
+      const deadlineText =
+        line.open === true && line.registryId
+          ? describeResultsDeadline(line.registryId, line.deadline)
+          : null;
       return {
         key: line.key,
         state,
         opensClassList: false,
+        ...(deadlineText ? { deadlineText } : {}),
         href: line.open === false ? null : getResultsStepHref(showId, 'submit'),
         label: line.open === false ? line.label : `Submit to ${line.registryId ?? 'the registry'}`,
         ...(line.open === false && line.sentFileCheck === 'unknown'

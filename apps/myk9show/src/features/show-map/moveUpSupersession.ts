@@ -192,7 +192,10 @@ export async function resolveMoveUpReversal(
  * ONE server call, the mirror of the move-up: it restores the source from the
  * destination's OWN live entry status and check-in — the row that has been live
  * since the move, which may have been checked in hours later — and soft-deletes
- * the destination, in a single transaction.
+ * the destination, in a single transaction. One exception (MYK9-2122): when a
+ * class change request was waiting at the move (Accept, or a Change class over
+ * it), the source goes back to `move-up-requested` with the stored request
+ * intact, so Undo returns the request to waiting rather than answering it.
  *
  * It touches no money, because after MYK9-639 the destination never held any:
  * the settlement stayed on the entry the exhibitor paid for, which is the very

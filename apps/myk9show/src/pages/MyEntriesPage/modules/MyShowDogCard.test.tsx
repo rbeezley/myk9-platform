@@ -242,16 +242,17 @@ describe('MyShowDogCard — a result says only what has been released (MYK9-263)
     renderRows(scored());
 
     expect(screen.getByText('preliminary')).toBeInTheDocument();
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.queryByText('2nd')).not.toBeInTheDocument();
+    expect(screen.getByTestId('own-result-line')).toHaveTextContent('Qualified, 0:42.50');
+    expect(screen.queryByText(/2nd/)).not.toBeInTheDocument();
   });
 
   it('shows the placement and says nothing about "preliminary" once released', () => {
-    renderRows(scored({ resultsReleasedAt: '2026-10-24T15:00:00Z' }));
+    renderRows(scored({ resultsReleasedAt: '2026-10-24T15:00:00Z', classScoredCount: 14 }));
 
     expect(screen.queryByText('preliminary')).not.toBeInTheDocument();
-    expect(screen.getByText('2nd')).toBeInTheDocument();
-    expect(screen.getByText('42.5s')).toBeInTheDocument();
+    expect(screen.getByTestId('own-result-line')).toHaveTextContent(
+      'Qualified, 0:42.50, 2nd of 14'
+    );
   });
 
   it('shows no placement for an NQ row even when a placement value leaks through', () => {
@@ -259,8 +260,8 @@ describe('MyShowDogCard — a result says only what has been released (MYK9-263)
       scored({ resultStatus: 'nq', resultsReleasedAt: '2026-10-24T15:00:00Z', finalPlacement: 2 })
     );
 
-    expect(screen.getByText('NQ')).toBeInTheDocument();
-    expect(screen.queryByText('2nd')).not.toBeInTheDocument();
+    expect(screen.getByTestId('own-result-line')).toHaveTextContent(/^Did not qualify, 0:42.50$/);
+    expect(screen.queryByText(/2nd/)).not.toBeInTheDocument();
   });
 
   // 0 is the un-ranked DB default, not a placement. Rendering it produced
@@ -269,15 +270,14 @@ describe('MyShowDogCard — a result says only what has been released (MYK9-263)
   it('shows no placement for the 0 default rather than rendering "0th"', () => {
     renderRows(scored({ resultsReleasedAt: '2026-10-24T15:00:00Z', finalPlacement: 0 }));
 
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.queryByText('0th')).not.toBeInTheDocument();
+    expect(screen.getByTestId('own-result-line')).toHaveTextContent(/^Qualified, 0:42.50$/);
+    expect(screen.queryByText(/0th/)).not.toBeInTheDocument();
   });
 
   it('shows no placement for a qualifying row that has not been ranked', () => {
     renderRows(scored({ resultsReleasedAt: '2026-10-24T15:00:00Z', finalPlacement: undefined }));
 
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.queryByText(/^\d+(st|nd|rd|th)$/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('own-result-line')).toHaveTextContent(/^Qualified, 0:42.50$/);
   });
 });
 
@@ -392,5 +392,28 @@ describe('MyShowDogCard — the opens-later row promises check-in only when elig
 
     expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
     expect(screen.queryByText(/opens/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('MyShowDogCard — the running order once it is posted (MYK9-2138)', () => {
+  it('shows the posted running order the night before, with no place-in-line claim', () => {
+    renderRows(rexWith([makeClass({ id: 'later', trialDate: day('2026-10-25'), runOrder: 5 })]));
+
+    expect(screen.getByText(/Running order 5/)).toBeInTheDocument();
+    expect(screen.queryByText(/dogs ahead|next up|in line/i)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about the running order until the secretary has posted one', () => {
+    renderRows(rexWith([makeClass({ id: 'later', trialDate: day('2026-10-25') })]));
+
+    expect(screen.queryByText(/Running order/)).not.toBeInTheDocument();
+  });
+
+  it('drops the running order once the dog has a result', () => {
+    renderRows(
+      rexWith([makeClass({ id: 'done', isScored: true, resultStatus: 'qualified', runOrder: 5 })])
+    );
+
+    expect(screen.queryByText(/Running order/)).not.toBeInTheDocument();
   });
 });

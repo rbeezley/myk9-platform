@@ -34,7 +34,7 @@ import {
   minuteOfDayInTimeZone,
   operationalMinutes,
 } from './cockpitClock';
-import { buildStatusLine } from './scheduleStatusLine';
+import { buildScheduleCardStatus } from './scheduleCardStatus';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 
 const ATTENTION_LIMIT = 3;
@@ -113,13 +113,17 @@ function toScheduledClass(
       cls.lifecycle && cls.lifecycle !== 'not-started'
         ? (formatClock(cls.actualStart ?? null, timeZone) ?? null)
         : null,
+    finishedLabel:
+      cls.lifecycle && cls.lifecycle !== 'not-started'
+        ? (formatClock(cls.actualFinish ?? null, timeZone) ?? null)
+        : null,
     lifecycle: lifecycleFor(cls),
     progress: progressFor(cls),
     judgeName: cls.judgeName ?? null,
     filterFacts: filterFactsOf(cls),
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
-    statusLine: buildStatusLine(cls, checklistInUse),
+    cardStatus: buildScheduleCardStatus(cls, checklistInUse),
   };
 }
 

@@ -66,7 +66,7 @@ vi.mock('@/services/show-day/requestManagement', () => ({
 vi.mock('@/services/database/entries/classChangeRequests', async importActual => ({
   ...(await importActual<typeof import('@/services/database/entries/classChangeRequests')>()),
   getClassChangeRequestDetails: mocks.details,
-  getClassNamesByIds: mocks.names,
+  getRequestedClassesByIds: mocks.names,
 }));
 vi.mock('@/features/show-map/showMapActionMutations', () => ({ undoShowMapMoveUp: mocks.undo }));
 vi.mock('@/lib/undoToast', () => ({ showUndoToast: mocks.showUndoToast }));
@@ -88,7 +88,7 @@ beforeEach(() => {
     },
     'req-2': { entryId: 'req-2', targetClassId: null, reason: null, requestedAt: null },
   });
-  mocks.names.mockResolvedValue({ 'class-adv': 'Open C' });
+  mocks.names.mockResolvedValue({ 'class-adv': { name: 'Open C', trialId: null } });
   mocks.accept.mockResolvedValue({
     data: { originalEntryId: 'req-1', newEntryId: 'new-1', targetClassName: 'Open C' },
     error: null,
@@ -159,6 +159,27 @@ describe('MoveUpRequestsTab', () => {
         targetClassName: 'Open C',
       })
     );
+  });
+
+  it('after Undo, the request is waiting in the list again (MYK9-2122)', async () => {
+    const { getPendingMoveUpRequests } = await import('@/services/database/day-of-operations');
+    const user = userEvent.setup();
+    render(<MoveUpRequestsTab showId="show-1" />);
+    await screen.findAllByTestId('class-change-line');
+
+    // Accepted: the replica no longer holds req-1 as waiting.
+    vi.mocked(getPendingMoveUpRequests).mockResolvedValueOnce({
+      data: [REQUESTS[1]],
+      error: null,
+    } as never);
+    await user.click(screen.getAllByRole('button', { name: 'Accept' })[0] as HTMLElement);
+    await waitFor(() => expect(screen.queryByText('Fido')).not.toBeInTheDocument());
+
+    // Undo: reverse_move_up_entry restores the source as move-up-requested, and the
+    // list reads it back as a waiting request with the class it asked for.
+    mocks.showUndoToast.mock.calls[0]?.[0].onUndo();
+    expect(await screen.findByText('Fido')).toBeInTheDocument();
+    expect((await screen.findAllByTestId('class-change-line'))[0]).toHaveTextContent('Open C');
   });
 
   it('keeps the class picker for a legacy request with no stored class', async () => {
@@ -302,6 +323,87 @@ describe('MoveUpRequestsTab', () => {
       render(<MoveUpRequestsTab showId="show-1" />);
       expect(await screen.findByText(/4 entered/)).toBeInTheDocument();
       expect(screen.queryByText(/of \d+ entered/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('the trial of the class asked for (MYK9-2129)', () => {
+    const trial = (id: string, date: string, number: string) => ({
+      id,
+      date,
+      trial_number: number,
+    });
+    const classIn = (trialId: string) => ({
+      id: 'class-adv',
+      name: 'Open C',
+      class_number: '3',
+      max_entries: 12,
+      trial_id: trialId,
+      accepted_count: 4,
+      available_spots: 8,
+      element: null,
+      level: null,
+      section: null,
+    });
+    it('names the other trial next to the class asked for, with its entered count', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [
+          trial('trial-1', '2026-11-16', 'Trial 1'),
+          trial('trial-4', '2026-11-16', 'Trial 4'),
+        ],
+        error: null,
+      });
+      mocks.capacity.mockResolvedValue({ data: [classIn('trial-4')], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^in Trial 4 · 4 of 12 entered$/
+      );
+      expect(
+        await screen.findByText('From Mon, Nov 16 · Trial 1 · Finished this level')
+      ).toBeInTheDocument();
+    });
+
+    it('still names the other trial when the capacity read fails', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [
+          trial('trial-1', '2026-11-16', 'Trial 1'),
+          trial('trial-4', '2026-11-16', 'Trial 4'),
+        ],
+        error: null,
+      });
+      mocks.names.mockResolvedValue({ 'class-adv': { name: 'Open C', trialId: 'trial-4' } });
+      mocks.capacity.mockResolvedValue({ data: null, error: new Error('not synced') });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^in Trial 4$/
+      );
+    });
+
+    it('adds the day when the other trial is on another day', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [trial('trial-1', '2026-11-16', 'Trial 1'), trial('trial-4', '2026-11-17', '4')],
+        error: null,
+      });
+      mocks.capacity.mockResolvedValue({ data: [classIn('trial-4')], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^in Tue, Nov 17 · Trial 4 · 4 of 12 entered$/
+      );
+    });
+
+    it('adds no trial and no "From" when the class asked for is in the same trial', async () => {
+      mocks.trials.mockResolvedValue({
+        data: [trial('trial-1', '2026-11-16', 'Trial 1')],
+        error: null,
+      });
+      mocks.capacity.mockResolvedValue({ data: [classIn('trial-1')], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-target-facts')).toHaveTextContent(
+        /^4 of 12 entered$/
+      );
+      expect(
+        await screen.findByText('Mon, Nov 16 · Trial 1 · Finished this level')
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/^From /)).not.toBeInTheDocument();
     });
   });
 });

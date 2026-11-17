@@ -28,6 +28,22 @@ export function PullReconciliationActions({
     return <span className="text-sm text-muted-foreground">No online payment</span>;
   }
 
+  // MYK9-2099: the saved decision was not read, so this refund may already be denied. Neither
+  // control is offered until it loads; the list's notice says why.
+  if (entry.refundDecisionUnknown) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" variant="outline" className="min-h-11" disabled>
+          Issue refund
+        </Button>
+        <Button type="button" size="sm" variant="outline" className="min-h-11" disabled>
+          Deny refund
+        </Button>
+        <span className="text-xs text-muted-foreground">Waiting for saved refund decisions</span>
+      </div>
+    );
+  }
+
   // MYK9-632: the before/after-close default is a PULL heuristic. A withdrawal's
   // refund is the premium's rule, which this app does not hold, so it gets no
   // pre-selected answer — the secretary picks.

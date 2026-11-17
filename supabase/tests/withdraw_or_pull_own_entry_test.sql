@@ -535,8 +535,10 @@ begin
 end;
 $$;
 
--- ...and a CODELESS withdrawn row must NOT be deniable, because the queue does
--- not offer it: that state is a secretary Decline/Reject, not an exhibitor act.
+-- ...and a CODELESS withdrawn row (a secretary removal) is deniable too since
+-- MYK9-2099: owner decision 2026-11-16 put a paid secretary removal on the Pulls
+-- list, so the function admits the row the list offers Deny refund for. The
+-- no-show and refusal cases live in myk9_2099_refund_decision_removed_absent_test.sql.
 set local role service_role;
 update public.entries
    set entry_status = 'withdrawn', withdrawal_reason_code = null,
@@ -553,23 +555,19 @@ begin
   perform set_config('request.jwt.claims', jsonb_build_object(
     'sub', '00000000-0000-0000-0000-000000632106', 'role', 'authenticated')::text, true);
   perform set_config('role', 'authenticated', true);
-  begin
-    perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632034', 'denied');
-    reset role;
-    raise exception 'FAIL: a codeless withdrawn row was accepted for a refund decision';
-  exception when invalid_parameter_value then
-    reset role;
-    if sqlerrm not like 'entry % is not an unresolved paid-online pull or withdrawal' then
-      raise exception 'FAIL codeless deny: wrong message %', sqlerrm;
-    end if;
-  end;
+  perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632034', 'denied');
+  reset role;
 
   select e.refund_decision into v_decision
     from public.entries e where e.id = '00000000-0000-0000-0000-000000632034';
-  if v_decision is not null then
-    raise exception 'FAIL codeless deny: a decision was written anyway (%)', v_decision;
+  if v_decision is distinct from 'denied' then
+    raise exception 'FAIL codeless deny: decision=%', v_decision;
   end if;
-  raise notice 'PASS a codeless withdrawn row cannot be marked denied';
+  raise notice 'PASS a paid-online codeless withdrawn row (a secretary removal) can be marked denied';
+exception when others then
+  reset role;
+  if sqlstate = 'P0001' and sqlerrm like 'FAIL%' then raise; end if;
+  raise exception 'FAIL codeless deny: unexpected SQLSTATE %: %', sqlstate, sqlerrm;
 end;
 $$;
 

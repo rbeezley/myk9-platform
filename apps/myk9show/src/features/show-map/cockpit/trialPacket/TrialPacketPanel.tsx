@@ -10,6 +10,7 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { resolvePrintReadiness } from '@/pages/secretary/ReportsPage/reportReadinessCopy';
 import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
+import type { ReportDbEntry } from '@/lib/reports/types';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
@@ -113,6 +114,15 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     classId: 'all',
   });
   const readiness = resolvePrintReadiness(dataState, 'ready');
+  // The rows the sheets print from, which are also the rows the PDF below is built from.
+  const printedSheets = useMemo(
+    () => ({
+      trials: (trials ?? []) as unknown as DbTrial[],
+      classes: (classes ?? []) as unknown as DbClass[],
+      entries: (entries ?? []) as unknown as ReportDbEntry[],
+    }),
+    [classes, entries, trials]
+  );
   // A freshly opened panel never prints cached rows: a run-order change does not invalidate them.
   useEffect(() => {
     void refetch();
@@ -140,6 +150,8 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
     fullPacket,
     classes: (classes ?? []) as DbClass[],
     entries: (entries ?? []) as DbEntry[],
+    printedSheets,
+    printedSheetsSettled: dataState === 'ready',
     assignedJudges: show?.assignedJudges,
   });
   const { packet, onlyNeed, emptyView } = view;
@@ -186,6 +198,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
         classIds: printedJudges.flatMap(item => item.classes.map(cls => cls.classId)),
         classes: (classes ?? []) as DbClass[],
         entries: (entries ?? []) as DbEntry[],
+        printedSheets,
         assignedJudges: show?.assignedJudges,
         user,
       });

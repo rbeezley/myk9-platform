@@ -52,7 +52,12 @@ VALUES
   ('00000000-0000-0000-0000-000000135451', '00000000-0000-0000-0000-000000135441',
    'MYK9-1354 LA Trial', '2026-11-07', 'AKC', 'Scent Work', 'America/Los_Angeles'),
   ('00000000-0000-0000-0000-000000135452', '00000000-0000-0000-0000-000000135442',
-   'MYK9-1354 Bad Zone Trial', '2026-11-07', 'AKC', 'Scent Work', 'Not/AZone');
+   'MYK9-1354 Bad Zone Trial', '2026-11-07', 'AKC', 'Scent Work', 'Not/AZone'),
+  -- MYK9-2131: a show's dates are its trials' dates, so a two-day show needs a day-2 trial.
+  ('00000000-0000-0000-0000-000000135453', '00000000-0000-0000-0000-000000135441',
+   'MYK9-1354 LA Trial Day 2', '2026-11-08', 'AKC', 'Scent Work', 'America/Los_Angeles'),
+  ('00000000-0000-0000-0000-000000135454', '00000000-0000-0000-0000-000000135442',
+   'MYK9-1354 Bad Zone Trial Day 2', '2026-11-08', 'AKC', 'Scent Work', 'Not/AZone');
 
 INSERT INTO public.entries (id, dog_id, handler_id, show_id, trial_id, entry_status)
 VALUES

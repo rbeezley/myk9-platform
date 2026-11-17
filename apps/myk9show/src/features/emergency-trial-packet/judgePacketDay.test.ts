@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compareClassesByProgression } from '@/features/premium/pdf/bodies/classOrder';
 import { getRegistry, listRegistries, type RegistryId } from '@/features/registries';
 import { getScentWorkSport, scentWorkLevelOrder } from '@/features/registries/scentWork';
-import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/buildPacketData';
 import { buildClassSheetParts as buildBrowserClassSheetParts } from '../show-map/cockpit/trialPacket/buildJudgePacketPdf';
 import { buildJudgePacketPdf } from '../show-map/cockpit/trialPacket/buildJudgePacketPdf';
 import { collateTrialPacket } from '../show-map/cockpit/trialPacket/collateTrialPacket';

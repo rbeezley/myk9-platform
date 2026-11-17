@@ -2,28 +2,18 @@ import { armbandLabelFacts, armbandLabelSubjectKey } from '@/lib/labels/armbandS
 import { deriveArmbandPrintState } from './armbandPrintState';
 import type { ReportScope } from '@/lib/reports/types';
 import {
-  buildCheckInPaperworkDescriptor,
   buildDescriptor,
-  buildScoreSheetPaperworkDescriptor,
-  type CheckInPaperworkEntry,
   type PaperworkClassFacts,
   type PaperworkCoverage,
   type PaperworkDescriptor,
   type PaperworkSubject,
-  type ScoreSheetPaperworkEntry,
 } from '../../../../../../supabase/functions/_shared/paperwork/descriptor.ts';
 
-// The check-in sheet and scoresheet descriptors live in the shared module so the edge function
-// computes the same fingerprints (MYK9-2086).
 export {
-  buildCheckInPaperworkDescriptor,
-  buildScoreSheetPaperworkDescriptor,
-  type CheckInPaperworkEntry,
   type PaperworkClassFacts,
   type PaperworkCoverage,
   type PaperworkDescriptor,
   type PaperworkSubject,
-  type ScoreSheetPaperworkEntry,
 };
 
 export interface PaperworkPrintEvidence {

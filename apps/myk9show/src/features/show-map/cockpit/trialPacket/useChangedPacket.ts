@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
+import type { PrintedSheetRows } from '../printedSheetDescriptor';
 import { useShowPaperworkPrints } from '../useShowPaperworkPrints';
 import { onlyPacketClasses, packetPrintStatus, type PacketPrintStatus } from './changedClasses';
 import type { CollatedTrialPacket } from './collateTrialPacket';
@@ -46,9 +47,20 @@ export function useChangedPacket(input: {
   fullPacket: CollatedTrialPacket | null;
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
+  /** The rows the check-in sheet and scoresheet print from, and whether they are settled. */
+  printedSheets: PrintedSheetRows;
+  printedSheetsSettled: boolean;
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> | undefined;
 }): ChangedPacket {
-  const { showId, fullPacket, classes, entries, assignedJudges } = input;
+  const {
+    showId,
+    fullPacket,
+    classes,
+    entries,
+    printedSheets,
+    printedSheetsSettled,
+    assignedJudges,
+  } = input;
   const prints = useShowPaperworkPrints(showId);
   const recordsFailed = prints.isError || prints.syncFailed;
   const status = useMemo(
@@ -59,6 +71,8 @@ export function useChangedPacket(input: {
             packet: fullPacket,
             classes,
             entries,
+            printedSheets,
+            printedSheetsSettled,
             records: prints.data,
             recordsLoading: prints.isLoading && !recordsFailed,
             recordsUnavailable: recordsFailed,
@@ -70,6 +84,8 @@ export function useChangedPacket(input: {
       showId,
       classes,
       entries,
+      printedSheets,
+      printedSheetsSettled,
       assignedJudges,
       prints.data,
       prints.isLoading,

@@ -45,26 +45,6 @@ export interface PaperworkDescriptor {
   fingerprint: string;
 }
 
-export interface CheckInPaperworkEntry {
-  entryId: string;
-  classId: string;
-  dogId: string;
-  armband: number | null;
-  runOrder: number | null;
-  checkInStatus: string | null;
-  trialId?: string | undefined;
-  /**
-   * `entries.entry_status`. A move-up leaves the source entry in its class with every other fact
-   * unchanged, and a withdrawal does the same, so without it the class would read as printed
-   * after either (MYK9-2074).
-   */
-  entryStatus?: string | null | undefined;
-}
-
-export interface ScoreSheetPaperworkEntry extends CheckInPaperworkEntry {
-  section?: string | null;
-}
-
 export interface PaperworkClassFacts {
   classId: string;
   trialId: string;
@@ -105,46 +85,4 @@ export function buildDescriptor(
     },
     fingerprint: compactFingerprint(subjectFingerprints),
   };
-}
-
-export function buildCheckInPaperworkDescriptor(
-  scope: PaperworkScope,
-  entries: readonly CheckInPaperworkEntry[],
-  classes: readonly PaperworkClassFacts[] = []
-): PaperworkDescriptor {
-  return buildDescriptor('check-in-sheet', scope, [
-    ...entries.map(entry => ({
-      key: `entry:${entry.entryId}`,
-      facts: entry,
-      classIds: [entry.classId],
-      trialIds: entry.trialId ? [entry.trialId] : [],
-    })),
-    ...classes.map(classItem => ({
-      key: `class:${classItem.classId}`,
-      facts: classItem.facts,
-      classIds: [classItem.classId],
-      trialIds: [classItem.trialId],
-    })),
-  ]);
-}
-
-export function buildScoreSheetPaperworkDescriptor(
-  scope: PaperworkScope,
-  entries: readonly ScoreSheetPaperworkEntry[],
-  classes: readonly PaperworkClassFacts[]
-): PaperworkDescriptor {
-  return buildDescriptor('scoresheet', scope, [
-    ...entries.map(entry => ({
-      key: `entry:${entry.entryId}`,
-      facts: entry,
-      classIds: [entry.classId],
-      trialIds: entry.trialId ? [entry.trialId] : [],
-    })),
-    ...classes.map(classItem => ({
-      key: `class:${classItem.classId}`,
-      facts: classItem.facts,
-      classIds: [classItem.classId],
-      trialIds: [classItem.trialId],
-    })),
-  ]);
 }

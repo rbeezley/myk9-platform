@@ -258,6 +258,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
           })
         : null,
     refundDecision: (entry.refund_decision as PullRefundDecision | null) ?? null,
+    ...(entry.refund_decision_unknown === true ? { refundDecisionUnknown: true } : {}),
   };
 }
 

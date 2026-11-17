@@ -403,7 +403,15 @@ describe('Dog Queries', () => {
       expect(result).toEqual({ data: [], error: null, hitLimit: false });
     });
 
-    it('queries dogs across the system (no ownership filter) on match', async () => {
+    /** The dogs request's `.or(...)` calls: the dogs filter, then each embed's. */
+    function orCalls(chain: ReturnType<typeof createChainableQuery>) {
+      return vi.mocked(chain.or).mock.calls as Array<[string, { referencedTable?: string }?]>;
+    }
+    function embedFilter(chain: ReturnType<typeof createChainableQuery>, alias: string) {
+      return orCalls(chain).find(([, opts]) => opts?.referencedTable === alias)?.[0];
+    }
+
+    it('queries dogs across the system (no ownership filter) in one request', async () => {
       const mockResults = [
         {
           id: '1',
@@ -413,28 +421,23 @@ describe('Dog Queries', () => {
         },
       ];
       const chain = createChainableQuery({ data: mockResults, error: null });
-      // MYK9-90: registration number and registered name live on
-      // `dog_registrations`, so the search resolves matching dog ids there
-      // first. `dogs.akc_number` is NULL for every row and no longer searched.
-      const regChain = createChainableQuery({ data: [{ dog_id: '1' }], error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'dog_registrations' ? regChain : chain
-      );
+      mockSupabase.from.mockReturnValue(chain);
 
       const result = await searchAllDogs('rang');
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('dog_registrations');
-      expect(regChain.or).toHaveBeenCalledWith(
-        expect.stringContaining('registration_number.ilike.%rang%')
+      // MYK9-2026 review: registrations and owners are matched through
+      // filtered embeds of this one request, so nothing is capped before it.
+      expect(mockSupabase.from.mock.calls).toEqual([['dogs']]);
+      const [dogFilter] = orCalls(chain)[0] ?? [];
+      expect(dogFilter).toContain('name.ilike.%rang%');
+      expect(dogFilter).toContain('search_0_registrations.not.is.null');
+      expect(dogFilter).toContain('search_0_owner.not.is.null');
+      expect(dogFilter).not.toContain('akc_number');
+      // MYK9-90: registration number and registered name live on `dog_registrations`.
+      expect(embedFilter(chain, 'search_0_registrations')).toBe(
+        'registration_number.ilike.%rang%,registered_name.ilike.%rang%,breed.ilike.%rang%'
       );
-      expect(regChain.or).toHaveBeenCalledWith(
-        expect.stringContaining('registered_name.ilike.%rang%')
-      );
-      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('name.ilike.%rang%'));
-      // Registration matches are folded into the dogs query as an id list.
-      expect(chain.or).toHaveBeenCalledWith(expect.stringContaining('id.in.(1)'));
-      expect(chain.or).not.toHaveBeenCalledWith(expect.stringContaining('akc_number'));
+      expect(chain.is).toHaveBeenCalledWith('search_0_owner.deleted_at', null);
       expect(chain.limit).toHaveBeenCalledWith(50);
       expect(result.data).toEqual(mockResults);
       expect(result.error).toBeNull();
@@ -445,74 +448,56 @@ describe('Dog Queries', () => {
     // name. Her local roster is capped, so the system-wide search has to match
     // owners too, through the people rows she can already read.
     it("finds a dog by its owner's first or last name", async () => {
-      const dogsChain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
-      const regChain = createChainableQuery({ data: [], error: null });
-      const peopleChain = createChainableQuery({ data: [{ id: 'p1' }], error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
-      );
+      const chain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
+      mockSupabase.from.mockReturnValue(chain);
 
       await searchAllDogs('alice');
 
-      expect(peopleChain.or).toHaveBeenCalledWith(
+      expect(embedFilter(chain, 'search_0_owner')).toBe(
         'first_name.ilike.%alice%,last_name.ilike.%alice%'
       );
-      expect(dogsChain.or).toHaveBeenCalledWith(expect.stringContaining('owner_id.in.(p1)'));
     });
 
     it("finds a dog by its owner's full name", async () => {
-      const dogsChain = createChainableQuery({ data: [], error: null });
-      const regChain = createChainableQuery({ data: [], error: null });
-      const peopleChain = createChainableQuery({ data: [{ id: 'p1' }], error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
-      );
+      const chain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(chain);
 
       await searchAllDogs('Alice Smith');
 
-      expect(peopleChain.or).toHaveBeenCalledWith(
+      expect(embedFilter(chain, 'search_0_owner')).toBe(
         'first_name.ilike.%Alice Smith%,last_name.ilike.%Alice Smith%,and(first_name.ilike.%Alice%,last_name.ilike.%Smith%)'
       );
-      expect(dogsChain.or).toHaveBeenCalledWith(expect.stringContaining('owner_id.in.(p1)'));
     });
 
     it('tries every first/last split of a full name, so a two-word first name is found', async () => {
-      const dogsChain = createChainableQuery({ data: [], error: null });
-      const regChain = createChainableQuery({ data: [], error: null });
-      const peopleChain = createChainableQuery({ data: [{ id: 'p1' }], error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
-      );
+      const chain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(chain);
 
       await searchAllDogs('Mary Jane Smith');
 
-      const filter = vi.mocked(peopleChain.or).mock.calls[0]?.[0] as string;
+      const filter = embedFilter(chain, 'search_0_owner') ?? '';
       expect(filter).toContain('and(first_name.ilike.%Mary Jane%,last_name.ilike.%Smith%)');
       expect(filter).toContain('and(first_name.ilike.%Mary%,last_name.ilike.%Jane Smith%)');
     });
 
     it('tries at most three splits, keeping later words in the last name', async () => {
-      const peopleChain = createChainableQuery({ data: [], error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'people' ? peopleChain : createChainableQuery({ data: [], error: null })
-      );
+      const chain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(chain);
 
       await searchAllDogs('a b c d e');
 
-      const filter = vi.mocked(peopleChain.or).mock.calls[0]?.[0] as string;
+      const filter = embedFilter(chain, 'search_0_owner') ?? '';
       expect(filter.match(/and\(/g)).toHaveLength(3);
       expect(filter).toContain('and(first_name.ilike.%a b c%,last_name.ilike.%d e%)');
     });
 
-    it('keeps commas and parentheses in the term literal, so the filter stays well formed', async () => {
-      const peopleChain = createChainableQuery({ data: [], error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'people' ? peopleChain : createChainableQuery({ data: [], error: null })
-      );
+    it('keeps commas and parentheses in the term escaped in every filter', async () => {
+      const chain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(chain);
 
       const result = await searchAllDogs('Smith, Jo (Jr)');
 
-      const filter = vi.mocked(peopleChain.or).mock.calls[0]?.[0] as string;
+      const filter = embedFilter(chain, 'search_0_owner') ?? '';
       // Strip the escaped characters: what is left has only the filter's own syntax.
       const structural = filter.replace(/\\[,().*%\\]/g, '');
       expect(structural).not.toMatch(/Smith,|\(Jr|Jr\)/);
@@ -520,56 +505,31 @@ describe('Dog Queries', () => {
       expect(result.error).toBeNull();
     });
 
-    it('reports the result as truncated when the owner lookup fills its page', async () => {
-      const owners = Array.from({ length: 50 }, (_, i) => ({ id: `p${i}` }));
-      const dogsChain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
-      const regChain = createChainableQuery({ data: [], error: null });
-      const peopleChain = createChainableQuery({ data: owners, error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
-      );
+    it('reports the result as truncated only when the page of dogs is full', async () => {
+      const dogs = Array.from({ length: 50 }, (_, i) => ({ id: `d${i}` }));
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: dogs, error: null }));
 
       const result = await searchAllDogs('an');
 
-      expect(peopleChain.limit).toHaveBeenCalledWith(50);
-      expect(result.data).toHaveLength(1);
+      expect(result.data).toHaveLength(50);
       expect(result.hitLimit).toBe(true);
     });
 
-    it('propagates an error from the owner pre-query instead of returning empty', async () => {
-      const dogsChain = createChainableQuery({ data: [{ id: 'd1' }], error: null });
-      const regChain = createChainableQuery({ data: [], error: null });
-      const peopleChain = createChainableQuery({
-        data: null,
-        error: { message: 'PostgREST unavailable', code: '503' },
-      });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'dog_registrations' ? regChain : table === 'people' ? peopleChain : dogsChain
-      );
-
-      const result = await searchAllDogs('alice');
-
-      expect(result.error).not.toBeNull();
-      expect(result.data).toEqual([]);
-    });
-
-    // MYK9-90 review finding: a failed registration pre-query must not be
-    // silently downgraded to "no registration matches". Otherwise a broken
-    // backend is indistinguishable from "no such dog" — the caller sees an
-    // empty list with error: null and reports "not found" to the operator.
-    it('propagates an error from the registration pre-query instead of returning empty', async () => {
-      const regError = { message: 'PostgREST unavailable', code: '503' };
-      const regChain = createChainableQuery({ data: null, error: regError });
-      const dogsChain = createChainableQuery({ data: [{ id: '1' }], error: null });
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'dog_registrations' ? regChain : dogsChain
+    // MYK9-90 review finding: a failed search must not be silently downgraded
+    // to "no matches". Otherwise a broken backend is indistinguishable from
+    // "no such dog", and the caller reports "not found" to the operator.
+    it('propagates an error from the search instead of returning empty', async () => {
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: null,
+          error: { message: 'PostgREST unavailable', code: '503' },
+        })
       );
 
       const result = await searchAllDogs('rang');
 
       expect(result.error).not.toBeNull();
       expect(result.data).toEqual([]);
-      // The dogs query must not have been treated as the authoritative answer.
       expect(result.hitLimit).toBe(false);
     });
 

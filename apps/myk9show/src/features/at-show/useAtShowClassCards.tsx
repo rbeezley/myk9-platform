@@ -31,6 +31,8 @@ export interface ClassCardRowProps {
   onShowDetails: (entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void;
   /** Undefined hides the ellipsis for roles that may not open Class Options. */
   onOpenOptions: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
+  /** The read-only Requirements door for roles without Class Options (MYK9-2137). */
+  onOpenRequirements: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
 }
 
 export function useAtShowClassCards(showId: string | undefined, groups: AtShowClassGroup[]) {
@@ -78,6 +80,7 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
 
   const onShowDetails = useMemo(() => open('details'), [open]);
   const onOpenOptions = useMemo(() => open('options'), [open]);
+  const onOpenRequirements = useMemo(() => open('requirements'), [open]);
 
   const rowProps = useCallback(
     (entry: ClassEntry): ClassCardRowProps => {
@@ -94,11 +97,15 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
         // Class Options is the entry list's own gate: managers only, and one class at a
         // time (a combined A/B card has no single class to act on).
         onOpenOptions: canManageClasses && !isCombinedEntry(entry) ? onOpenOptions : undefined,
+        // Managers reach Requirements inside Class Options; everyone else gets it on the card.
+        onOpenRequirements:
+          !canManageClasses && !isCombinedEntry(entry) ? onOpenRequirements : undefined,
       };
     },
     [
       canManageClasses,
       onOpenOptions,
+      onOpenRequirements,
       onShowDetails,
       queuedByClass,
       showId,

@@ -24,6 +24,7 @@ export function useReportPrintStatus(input: {
   scope: ReportScope;
   classes: unknown;
   entries: unknown;
+  trials: unknown;
   assignedJudges: Parameters<typeof buildReportPrintChips>[0]['assignedJudges'];
   timeZone: string | undefined;
 }) {
@@ -36,6 +37,7 @@ export function useReportPrintStatus(input: {
     scope,
     classes,
     entries,
+    trials,
     assignedJudges,
     timeZone,
   } = input;
@@ -73,6 +75,7 @@ export function useReportPrintStatus(input: {
         scope,
         classes: (classes ?? []) as Parameters<typeof buildReportPrintChips>[0]['classes'],
         entries: (entries ?? []) as Parameters<typeof buildReportPrintChips>[0]['entries'],
+        trials: (trials ?? []) as Parameters<typeof buildReportPrintChips>[0]['trials'],
         assignedJudges,
         armband: { selected: reportType === 'armband-labels', descriptor: armbandDescriptor },
         timeZone,
@@ -84,6 +87,7 @@ export function useReportPrintStatus(input: {
       scope,
       classes,
       entries,
+      trials,
       assignedJudges,
       reportType,
       armbandDescriptor,

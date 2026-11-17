@@ -2,8 +2,9 @@ import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOf
 import {
   classifyEntryRemoval,
   emptyEntryRemovalCounts,
+  refundDecisionUnknownRemoval,
+  refundToDecideRemoval,
   type EntryRemovalCounts,
-  type EntryRemovalKind,
 } from '@/features/payments/pullReconciliation';
 import {
   ledgerAmount,
@@ -30,6 +31,12 @@ export interface ShowDayReconciliationEntry {
   withdrawal_reason_code?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
+  /** Read by `refundToDecideRemoval`: a refunded or denied removal is decided (MYK9-2099). */
+  refund_amount?: number | string | null;
+  refunded_at?: string | null;
+  refund_decision?: string | null;
+  /** The saved refund decisions could not be read (MYK9-2099). */
+  refund_decision_unknown?: boolean;
   submitted_at?: string | null;
   created_at?: string | null;
 }
@@ -81,6 +88,11 @@ export interface ShowDayReconciliationSummary {
   refundReviewAmount: number;
   /** Of those, the paid ones awaiting a refund decision, by category. */
   refundReviewRemovals: EntryRemovalCounts;
+  /**
+   * Paid removals whose saved refund decision could not be read (MYK9-2099). Above zero, the
+   * refund review figures are not the whole answer and must not be shown as fact.
+   */
+  refundDecisionUnknownCount: number;
   refundedCount: number;
   refundedAmount: number;
 }
@@ -167,20 +179,6 @@ function applyLedger(
   }
 }
 
-/**
- * The one definition of a refund to decide: an entry no longer running whose fee is still marked
- * paid. Returns the removal's category, or null when the entry is not awaiting a refund decision.
- * The reconciliation summary, the Finish the show list and every "waiting for you" count read it.
- */
-export function refundToDecideRemoval(entry: ShowDayReconciliationEntry): EntryRemovalKind | null {
-  if (entry.payment_status?.toLowerCase() !== 'paid') return null;
-  return classifyEntryRemoval({
-    entryStatus: entry.entry_status,
-    checkInStatus: entry.check_in_status,
-    withdrawalReasonCode: entry.withdrawal_reason_code,
-  });
-}
-
 export function summarizeShowDayReconciliation(
   entries: ShowDayReconciliationEntry[],
   deskWindow: DeskCollectionWindow | null,
@@ -199,6 +197,7 @@ export function summarizeShowDayReconciliation(
     refundReviewCount: 0,
     refundReviewAmount: 0,
     refundReviewRemovals: emptyEntryRemovalCounts(),
+    refundDecisionUnknownCount: 0,
     refundedCount: 0,
     refundedAmount: 0,
   };
@@ -227,6 +226,8 @@ export function summarizeShowDayReconciliation(
         summary.refundReviewRemovals[removal] += 1;
         summary.refundReviewCount += 1;
         summary.refundReviewAmount += fee;
+      } else if (refundDecisionUnknownRemoval(entry)) {
+        summary.refundDecisionUnknownCount += 1;
       }
     }
 

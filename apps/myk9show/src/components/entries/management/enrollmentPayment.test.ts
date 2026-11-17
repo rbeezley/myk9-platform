@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePartialPayment, resolveRefund } from './enrollmentPayment';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
+import {
+  enrollmentRowMissing,
+  formMoneyUnknown,
+  resolvePartialPayment,
+  resolveRefund,
+} from './enrollmentPayment';
 
 /**
  * MYK9-677: the payment forms resolve into payments-ledger actions. The server
@@ -213,5 +219,45 @@ describe('resolveRefund', () => {
 
   it.each(cases)('$name', ({ amountStr, paidDollars, method, notes, expected }) => {
     expect(resolveRefund(amountStr, paidDollars, method, notes, DAY)).toEqual(expected);
+  });
+});
+
+describe('formMoneyUnknown (MYK9-1968)', () => {
+  const row = (overrides: Partial<EntryManagementEntry> = {}) =>
+    ({ id: 'entry-1', moneyRootUnresolved: false, ...overrides }) as EntryManagementEntry;
+
+  it('is unknown when the form has an enrollment but its row did not load (entry-fee fallback)', () => {
+    const group = {
+      enrollmentId: 'enrollment-1',
+      totalAmountUnit: 'dollars' as const,
+      entries: [row()],
+    };
+    expect(enrollmentRowMissing(group)).toBe(true);
+    expect(formMoneyUnknown(group)).toBe(true);
+  });
+
+  it('is known when the enrollment row loaded', () => {
+    const group = {
+      enrollmentId: 'enrollment-1',
+      totalAmountUnit: 'cents' as const,
+      entries: [row()],
+    };
+    expect(enrollmentRowMissing(group)).toBe(false);
+    expect(formMoneyUnknown(group)).toBe(false);
+  });
+
+  it('is known for an online-checkout form, which has no enrollment row to miss', () => {
+    const group = { enrollmentId: null, totalAmountUnit: 'dollars' as const, entries: [row()] };
+    expect(formMoneyUnknown(group)).toBe(false);
+  });
+
+  it("is unknown when a move-up's money root is not in the read, even with the row loaded", () => {
+    const group = {
+      enrollmentId: 'enrollment-1',
+      totalAmountUnit: 'cents' as const,
+      entries: [row(), row({ id: 'entry-2', moneyRootUnresolved: true })],
+    };
+    expect(enrollmentRowMissing(group)).toBe(false);
+    expect(formMoneyUnknown(group)).toBe(true);
   });
 });

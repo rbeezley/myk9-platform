@@ -183,15 +183,19 @@ export function PosterBody({ data, tokens }: Props) {
         ))}
       </View>
 
-      <View style={sectionGap}>
-        <Text style={labelStyle}>Show Hours</Text>
-        <Text style={bodyStyle}>{f.showHours}</Text>
-      </View>
+      {f.showHours.trim() && (
+        <View style={sectionGap}>
+          <Text style={labelStyle}>Show Hours</Text>
+          <Text style={bodyStyle}>{f.showHours}</Text>
+        </View>
+      )}
 
-      <View style={sectionGap}>
-        <Text style={labelStyle}>About the Trial</Text>
-        <Text style={bodyStyle}>{f.trialInformation}</Text>
-      </View>
+      {f.trialInformation.trim() && (
+        <View style={sectionGap}>
+          <Text style={labelStyle}>About the Trial</Text>
+          <Text style={bodyStyle}>{f.trialInformation}</Text>
+        </View>
+      )}
 
       {f.vetClinic && (
         <View style={sectionGap}>

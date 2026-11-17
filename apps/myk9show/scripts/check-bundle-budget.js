@@ -31,6 +31,14 @@
  * Budgets are RAW (uncompressed) KB, recorded from the current build with modest
  * headroom. RATCHET DOWN ONLY — never raise a budget to make a regression pass;
  * lower it as the bundle shrinks.
+ *
+ * The build measured must be the app (MYK9-2150). `supabaseClient.ts` throws at module
+ * load when VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing. Built without them,
+ * that throw is unconditional and the bundler drops the code after it: the startup file
+ * came out at 484 KB while production shipped 2,240 KB, and this check passed for weeks on
+ * a build with no landing page and no router in it. So a build that still carries the throw
+ * fails here, whatever its sizes (see ENV_MISSING_MARKER), and CI builds with placeholder
+ * values (the `Build all` step in .github/workflows/ci.yml).
  */
 
 import fs from 'fs';
@@ -39,17 +47,34 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// RAW KB. Baseline measured 2026-10-24 on main 6123a4e75 (after MYK9-1356 and
-// MYK9-1358): initialJs 1022.4, initialCss 296, maxChunk 1222.6 (react-pdf),
-// precache 10190. Budgets sit about 10% above (MYK9-1357); the 2026-06-15
-// baseline (initialJs 3120, initialCss 329, maxChunk 1476) is history.
+// RAW KB. Baseline measured 2026-11-17 on main 913fea591, built WITH the environment
+// (MYK9-2150): initialJs 2796.1, initialCss 296.8, maxChunk 2163.2 (the startup file),
+// precache 12505.2. Production on the same day: startup file 2,240 KB, initial JS about
+// 2,872 KB. initialJs and maxChunk sit about 10% above the baseline, precache at the next
+// whole megabyte.
+//
+// These three are HIGHER than the MYK9-1357 figures (1125, 1345, 12288), and that is a
+// correction, not a relaxation: those were recorded on 2026-10-24 from a build made without
+// the environment, which was missing about 1.7 MB of the app (see the header). The app did
+// not grow; the measure was wrong. From here the rule is unchanged: ratchet down only.
+// MYK9-2140 moves the app out of the startup file; its build measures initialJs at about
+// 1,160 and its largest chunk at about 1,235, so both ceilings come down when it lands.
 export const BUDGETS = {
-  initialJsKb: 1125, // entry + eager (modulepreload) vendor chunks
+  initialJsKb: 3075, // entry + eager (modulepreload) vendor chunks
   initialCssKb: 325, // stylesheets linked from index.html
-  maxChunkKb: 1345, // ceiling for any single JS chunk (the react-pdf chunk, loaded lazily)
-  precacheTotalKb: 12288, // 12 MB: everything the service worker fetches on first visit
+  maxChunkKb: 2380, // ceiling for any single JS chunk (today the startup file)
+  precacheTotalKb: 13312, // 13 MB: everything the service worker fetches on first visit
   precacheNonCodeFileKb: 1024, // any precached file that is not .js/.css (MYK9-1356)
 };
+
+/**
+ * The text of the throw in src/services/database/supabaseClient.ts. In a build made with
+ * the environment the bundler removes that throw (its condition is a constant false), so
+ * the text is in no chunk. In a build made without it, the throw stays and the code after
+ * it is gone. A chunk carrying this text therefore means the build is not the app.
+ * `check-bundle-budget.test.ts` fails if supabaseClient.ts stops using this wording.
+ */
+export const ENV_MISSING_MARKER = 'Missing environment variable: VITE_';
 
 /**
  * A "PDF chunk" is a built JS chunk containing one of these case-sensitive
@@ -242,6 +267,9 @@ export function collectBundleStats(distDir) {
     : { precacheManifestFound: false };
 
   return {
+    builtWithoutEnvironmentFiles: scriptChunks
+      .filter(chunk => chunk.source.includes(ENV_MISSING_MARKER))
+      .map(chunk => chunk.file),
     pdfChunkFiles,
     pdfStaticImports: findPdfStaticImports(scriptChunks),
     ...precache,
@@ -260,6 +288,16 @@ export function collectBundleStats(distDir) {
  */
 export function evaluateBudgets(stats, budgets = BUDGETS) {
   const violations = [];
+  // First, because every size below is meaningless for a build that is not the app.
+  for (const file of stats.builtWithoutEnvironmentFiles ?? []) {
+    violations.push({
+      metric: 'Build made without the environment',
+      actual: 1,
+      budget: 0,
+      file,
+      message: `${file} carries the "${ENV_MISSING_MARKER}…" throw: the build was made without VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY, so the code after that throw is missing and these sizes are not the app's. Build with both set (placeholder values will do).`,
+    });
+  }
   if (stats.initialJsKb > budgets.initialJsKb) {
     violations.push({
       metric: 'Initial JS',
@@ -317,6 +355,13 @@ function runCli() {
   }
 
   console.log('📦 Bundle budget check (initial-load payload)\n');
+  console.log(
+    `   Environment:  ${
+      stats.builtWithoutEnvironmentFiles.length === 0
+        ? 'present (no chunk carries the missing-variable throw)'
+        : `MISSING (${stats.builtWithoutEnvironmentFiles.join(', ')})`
+    }`
+  );
   console.log(`   Initial JS:   ${stats.initialJsKb} KB / ${BUDGETS.initialJsKb} KB`);
   for (const f of stats.initialJsFiles)
     console.log(`      ${String(f.kb).padStart(8)} KB  ${f.file}`);

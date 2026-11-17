@@ -16,7 +16,8 @@ import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { Show } from '@/types/show-types';
-import type { DbClass, DbEntry } from '@/types/database-mappings';
+import type { ReportDbEntry } from '@/lib/reports/types';
+import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
 import ShowDeskPanel from '../ShowDeskPanel';
@@ -29,10 +30,39 @@ const mocks = vi.hoisted(() => ({
   confirmPrinted: vi.fn(),
   classListeners: new Set<() => void>(),
   // The rows the print panel's preview reads; the record is fingerprinted from these (MYK9-1244).
-  reportRows: { classes: [] as unknown[], entries: [] as unknown[] },
+  reportRows: { classes: [] as unknown[], entries: [] as unknown[], trials: [] as unknown[] },
 }));
 
 // The Requirements row reads the class replica; these tests do not exercise it.
+// The card hook also reads the printed-sheet rows (MYK9-2103); not under test here.
+// The printed-sheet rows take their classes from the same replica class read the Reports page uses
+// (`useShowClassRows`), so a changed class reaches the check-in sheet and scoresheet fingerprints.
+vi.mock('@/hooks/queries/usePrintedSheetEntries', async () => {
+  const { useShowClassRows } = await import('@/hooks/queries/useShowClassRows');
+  return {
+    usePrintedSheetEntries: (showId: string) => {
+      const classes = useShowClassRows({
+        showId,
+        trialId: 'all',
+        trialIds: ['trial-1'],
+        enabled: true,
+      });
+      return {
+        data: classes.data
+          ? {
+              trials: mocks.reportRows.trials,
+              classes: classes.data,
+              entries: mocks.reportRows.entries,
+              registrationsReadComplete: true,
+            }
+          : undefined,
+        isError: classes.isError,
+        isFetching: classes.isFetching,
+        noticePending: false,
+      };
+    },
+  };
+});
 vi.mock('@/features/at-show/useLiveClasses', () => ({ useLiveClasses: () => null }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
@@ -93,7 +123,7 @@ vi.mock('@/hooks/useFastShowDetails', () => ({
 vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
     show: { id: 'show-1' },
-    trials: [],
+    trials: mocks.reportRows.trials,
     classes: mocks.reportRows.classes,
     entries: mocks.reportRows.entries,
     catalogProfilesReadComplete: true,
@@ -178,7 +208,21 @@ const overviewClassProps = [
   },
 ];
 
-mocks.reportRows = { classes: reportsClassRows, entries };
+const printedTrials = [
+  {
+    id: 'trial-1',
+    name: 'Friday AM',
+    trial_number: 'Friday AM',
+    date: '2026-06-12',
+    registry_id: 'AKC',
+  },
+] as unknown as DbTrial[];
+mocks.reportRows = { classes: reportsClassRows, entries, trials: printedTrials };
+
+/** The rows the check-in sheet and scoresheet print from, as the card reads them. */
+function printedSheetsOf(rows: DbClass[]) {
+  return { trials: printedTrials, classes: rows, entries: entries as unknown as ReportDbEntry[] };
+}
 
 const scope = {
   kind: 'class' as const,
@@ -194,6 +238,7 @@ function reportsDescriptor() {
     scope,
     classes: reportsClassRows,
     entries,
+    printedSheets: printedSheetsOf(reportsClassRows),
   });
   expect(descriptor).not.toBeNull();
   return descriptor!;
@@ -220,6 +265,7 @@ function printRecordFor(rows: DbClass[]): ReplicatedPaperworkPrint {
     scope,
     classes: rows,
     entries,
+    printedSheets: printedSheetsOf(rows),
   })!;
   return {
     id: 'print-1',

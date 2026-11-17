@@ -8,7 +8,8 @@
  * its facts and actions without wrapping, so the cockpit splits only once its fractional share
  * alone reaches that (`COCKPIT_SPLIT_MIN_WIDTH`) and stacks below it.
  *
- * With a class focused the schedule narrows to a rail of `RAIL_PX` and the focused class takes the
+ * With a class focused the schedule narrows to a rail (`RAIL_PX` until the secretary drags it
+ * wider, MYK9-2142) and the focused class takes the
  * rest, so its entries table has the width of a PC screen (MYK9-1782). The split / stacked switch
  * is unchanged; only the column template differs.
  */
@@ -20,13 +21,27 @@ export const FOCUS_MIN_PX = 360;
 /** The two-column template, written once so the grid and the arithmetic below agree. */
 export const COCKPIT_SPLIT_COLUMNS = `minmax(0, ${SCHEDULE_FR}fr) minmax(${FOCUS_MIN_PX}px, ${FOCUS_FR}fr)`;
 
-/** The rail the schedule narrows to once a class is focused. */
+/**
+ * The rail the schedule narrows to once a class is focused: where it starts, and its narrowest.
+ * The secretary drags the divider to widen it (MYK9-2142).
+ */
 export const RAIL_PX = 300;
-const COCKPIT_RAIL_COLUMNS = `${RAIL_PX}px minmax(0, 1fr)`;
+/** One arrow-key press on the divider. */
+export const RAIL_STEP_PX = 16;
 
 /** The split's grid template: the full schedule with nothing focused, the rail beside a class. */
-export function cockpitSplitTemplate(hasFocusedClass: boolean): string {
-  return hasFocusedClass ? COCKPIT_RAIL_COLUMNS : COCKPIT_SPLIT_COLUMNS;
+export function cockpitSplitTemplate(hasFocusedClass: boolean, railPx: number = RAIL_PX): string {
+  return hasFocusedClass ? `${railPx}px minmax(0, 1fr)` : COCKPIT_SPLIT_COLUMNS;
+}
+
+/** The widest rail that still leaves the focused class `FOCUS_MIN_PX`; never under `RAIL_PX`. */
+export function railMaxWidth(containerWidth: number): number {
+  return Math.max(RAIL_PX, Math.floor(containerWidth - SPLIT_GAP_PX - FOCUS_MIN_PX));
+}
+
+/** A rail width in whole pixels, held between `RAIL_PX` and `railMaxWidth`. */
+export function clampRailWidth(width: number, containerWidth: number): number {
+  return Math.min(railMaxWidth(containerWidth), Math.max(RAIL_PX, Math.round(width)));
 }
 
 /** Column widths the split grid lays out at `containerWidth` (CSS grid's fr rules for this template). */

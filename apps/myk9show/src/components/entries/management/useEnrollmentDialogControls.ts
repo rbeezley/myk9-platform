@@ -6,6 +6,7 @@ import {
   EMPTY_LEDGER_CONFIRM,
   EMPTY_PARTIAL_DIALOG,
   enrollmentRemainingDollars,
+  formMoneyUnknown,
   formTotalDollars,
   netReceivedDollars,
   paidInFullDollars,
@@ -44,6 +45,10 @@ export function useEnrollmentDialogControls(
   const remainingDollars = enrollmentRemainingDollars(group);
   // What "Paid in Full" records: the due, never below zero (a payment reopens nothing).
   const fullPaymentDollars = paidInFullDollars(group);
+  // MYK9-1968: the form's money cannot be traced (its enrollment row did not load, or a
+  // move-up's money root is missing), so the figures above are not the form's: every surface
+  // reading these controls says the amount is not available instead of quoting them.
+  const amountUnknown = formMoneyUnknown(group);
   const today = paymentLedger.todayInShowZone;
 
   // MYK9-1841: "Paid in Full: Online" and "Payment Due" change what the whole
@@ -111,6 +116,7 @@ export function useEnrollmentDialogControls(
     refundableDollars,
     remainingDollars,
     fullPaymentDollars,
+    amountUnknown,
     today,
     fullDialog,
     setFullDialog,

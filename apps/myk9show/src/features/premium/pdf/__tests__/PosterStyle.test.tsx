@@ -110,6 +110,31 @@ describe('Poster style — empty facts print nothing (MYK9-2053)', () => {
   });
 });
 
+describe('Blank narratives print no empty headings (MYK9-2139)', () => {
+  it.each(ORGS)('%s poster prints neither narrative heading when both are blank', org => {
+    const { container } = renderTemplate(org, {
+      ...makePremium(org),
+      narratives: { showHours: '', trialInformation: '  ' },
+    });
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/About the Trial/);
+    expect(text).not.toMatch(/Show Hours/);
+  });
+
+  it.each(ORGS)('%s standard body prints neither narrative heading when both are blank', org => {
+    const full = makePremium(org);
+    const { container } = renderTemplate(org, {
+      ...full,
+      trials: [],
+      show: { ...full.show, preEntryFee: 0, dayOfFee: 0 },
+      narratives: { showHours: '', trialInformation: '' },
+    });
+    const text = container.textContent ?? '';
+    expect(text).toMatch(/Trials & Judges/);
+    expect(text).not.toMatch(/Show Hours|Trial Information/);
+  });
+});
+
 describe('Poster style — minimum-data fallback', () => {
   it.each(ORGS)(
     'falls back to StandardBody when judges + fees + trials are all empty (%s)',

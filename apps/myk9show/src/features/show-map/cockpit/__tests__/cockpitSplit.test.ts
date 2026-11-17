@@ -6,9 +6,11 @@ import {
   FOCUS_MIN_PX,
   RAIL_PX,
   SPLIT_GAP_PX,
+  clampRailWidth,
   cockpitSplitColumns,
   cockpitSplitTemplate,
   isCockpitSplit,
+  railMaxWidth,
 } from '../cockpitSplit';
 
 describe('the cockpit split geometry', () => {
@@ -55,5 +57,22 @@ describe('the cockpit split geometry', () => {
     expect(RAIL_PX).toBe(300);
     expect(cockpitSplitTemplate(true)).toBe('300px minmax(0, 1fr)');
     expect(cockpitSplitTemplate(false)).toBe(COCKPIT_SPLIT_COLUMNS);
+  });
+
+  // MYK9-2142: the secretary drags the rail wider; 300px is where it starts and its narrowest.
+  it('writes a dragged rail width into the template, only while a class is focused', () => {
+    expect(cockpitSplitTemplate(true, 420)).toBe('420px minmax(0, 1fr)');
+    expect(cockpitSplitTemplate(false, 420)).toBe(COCKPIT_SPLIT_COLUMNS);
+  });
+
+  it('keeps the rail between 300px and what leaves the focused class its minimum', () => {
+    expect(railMaxWidth(1200)).toBe(1200 - SPLIT_GAP_PX - FOCUS_MIN_PX);
+    expect(clampRailWidth(100, 1200)).toBe(RAIL_PX);
+    expect(clampRailWidth(451.6, 1200)).toBe(452);
+    expect(clampRailWidth(2000, 1200)).toBe(820);
+    // The narrowest split still has room above the minimum rail.
+    expect(railMaxWidth(COCKPIT_SPLIT_MIN_WIDTH)).toBeGreaterThan(RAIL_PX);
+    // Unmeasured or too narrow never goes below the minimum rail.
+    expect(railMaxWidth(0)).toBe(RAIL_PX);
   });
 });

@@ -2,7 +2,6 @@ import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DbClass, DbEntry } from '@/types/database-mappings';
-import type { Show } from '@/types/show-types';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';

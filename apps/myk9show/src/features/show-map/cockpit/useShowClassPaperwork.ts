@@ -27,6 +27,8 @@ import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 import { useShowPaperworkPrints } from './useShowPaperworkPrints';
 
+const NO_JUDGES: readonly never[] = [];
+
 export function useShowClassPaperwork(input: {
   showId: string;
   trials: readonly { id: string; trialDate: string }[];
@@ -41,7 +43,7 @@ export function useShowClassPaperwork(input: {
   // Until the show has loaded the judge is not known, so no card may give a verdict (MYK9-2116).
   const showDetails = useFastShowDetails(showId).show;
   const judgesUnknown = !showDetails;
-  const assignedJudges = showDetails?.assignedJudges ?? [];
+  const assignedJudges = showDetails?.assignedJudges ?? NO_JUDGES;
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
   // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).

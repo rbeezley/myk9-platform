@@ -71,9 +71,10 @@ export function PaperScoresheetPage() {
 
   const [entries, setEntries] = useState<ScoringEntry[]>([]);
   const [className, setClassName] = useState<string | null>(null);
+  // Whether the class has one search area, as the server reads `num_areas` (MYK9-2111).
+  const [isOneArea, setIsOneArea] = useState(false);
   // Undefined for multi-area classes: the paper form has one total-time field,
   // and the per-area limits do not compare against a total.
-  const [isOneArea, setIsOneArea] = useState(false);
   const [maxTimeSeconds, setMaxTimeSeconds] = useState<number | undefined>(undefined);
   // Registry of the class, for registry-specific scoring help (the DQ trigger rule).
   const [sportKey, setSportKey] = useState<ScoresheetSportType | null>(null);

@@ -10,7 +10,6 @@ import type { PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult } from '../PaymentStep/types';
 import {
   computePaymentTotals,
-  withFormHeld,
   countPanelLines,
   formatAmountDue,
   sumPanelFeeCents,
@@ -58,8 +57,6 @@ export interface EntriesPanelProps {
   staffWorkflow?: boolean | undefined;
   /** Injectable for tests; defaults to the live platform-fee rates. */
   rates?: PlatformFeeRates | undefined;
-  /** MYK9-2149: money the exhibitor's form already holds (desk only), or null. */
-  formHeldCents?: number | null | undefined;
 }
 
 /**
@@ -89,7 +86,6 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   removingLineKey,
   rates,
   staffWorkflow = false,
-  formHeldCents,
 }) => {
   // One pair for every money read this panel makes. Two different unresolved
   // reads (class availability, the show's timezone) blank the same figures, so
@@ -113,15 +109,12 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
 
   const isPayment = variant === 'payment' && !!feeCalculation;
   const totals = isPayment
-    ? withFormHeld(
-        computePaymentTotals({
-          paymentMethod,
-          feeCalculation,
-          capacityReady,
-          rates: resolvedRates,
-        }),
-        formHeldCents
-      )
+    ? computePaymentTotals({
+        paymentMethod,
+        feeCalculation,
+        capacityReady,
+        rates: resolvedRates,
+      })
     : undefined;
 
   const classCount = countPanelLines(groups);

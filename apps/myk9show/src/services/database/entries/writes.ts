@@ -339,18 +339,13 @@ export async function submitShowEntries(params: {
     classId: string;
     handlerId?: string | undefined;
     handlerName: string;
-    /** Null only for an add-on onto a form that holds money (MYK9-2149): no channel. */
-    paymentMethod: string | null;
+    paymentMethod: string;
     clientFeeCents: number;
     /** MYK9-878: a secretary / site admin charges the show's junior handler fee. */
     juniorFeeOverride?: boolean | undefined;
   }>;
   submissionId: string;
-  /**
-   * MYK9-2149: null for an add-on onto a form that already holds money. No money changed
-   * hands, so no channel is named; the server settles what the money held covers.
-   */
-  paymentMethod: string | null;
+  paymentMethod: string;
   submissionSource: EntrySubmissionSource;
   /**
    * MYK9-677: cash or check a secretary already received for these entries.

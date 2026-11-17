@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, CircleDollarSign, FileCheck, FileText, Tag, Users, Wallet } from 'lucide-react';
+import { Banknote, CircleDollarSign, FileCheck, FileText, Tag, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -12,30 +12,14 @@ import { UserRole } from '@/types/auth-types';
 import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
 import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PaymentOptionCard } from './PaymentOptionCard';
-import { usePaymentDetailsFields, type PaymentDetailsFields } from './usePaymentDetailsFields';
-import {
-  CHECKING_FORM_MONEY,
-  FORM_HOLDS_HINT,
-  FORM_MONEY_UNCHECKED,
-  formHoldsLabel,
-  heldCentsOf,
-  type DeskFormMoney,
-} from '@/features/registration/deskFormDue';
+import { usePaymentDetailsFields } from './usePaymentDetailsFields';
 import type { PaymentMethodSelectorProps } from './types';
 
 /** One secretary choice: a payment method, and for money in hand how it came. */
 type StaffChoice =
-  | 'check_received'
-  | 'cash_received'
-  | 'group_payment'
-  | 'check'
-  | 'cash'
-  | 'waived'
-  | 'form_holds_money';
+  'check_received' | 'cash_received' | 'group_payment' | 'check' | 'cash' | 'waived';
 
 const CHOICE_METHOD: Record<StaffChoice, PaymentMethod> = {
-  // MYK9-2149: carried as secretary_paid in the wizard; submitted with no method at all.
-  form_holds_money: 'secretary_paid',
   check_received: 'secretary_paid',
   cash_received: 'secretary_paid',
   group_payment: 'group_payment',
@@ -93,10 +77,7 @@ type StaffPaymentChoicesProps = Pick<
   | 'acceptedMethods'
   | 'juniorFee'
   | 'allowFreeEntry'
-> & {
-  /** MYK9-2149: what the page read about the exhibitor's form's money. */
-  formMoney?: DeskFormMoney | undefined;
-};
+>;
 
 /**
  * MYK9-2020: the payment step when a secretary keys in someone else's entry
@@ -112,16 +93,6 @@ type StaffPaymentChoicesProps = Pick<
  * - Free entry.
  *
  * The exhibitor's own list (`PaymentMethodSelector`) is untouched.
- *
- * MYK9-2149 (owner decision: collect after submit): the form's money is read each time this
- * step opens, and the cash and check choices wait for it ("Checking the money on this
- * form..."), so no money is taken on a screen that is about to say the form holds some.
- * When the read CONFIRMS the form holds money, no cash or check is taken here: the choice is
- * "This form already holds $X.", the entry is submitted with no payment, and what is still
- * owed (if anything) is shown after submit, to be recorded on the entry form. "Paid by a club
- * or group" and Free entry stay available beside it, and every choice can be un-chosen. When
- * the read fails, the step is the normal one with a note, and anything taken is recorded in
- * full, as it always was.
  */
 export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   paymentMethod,
@@ -131,55 +102,20 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   acceptedMethods,
   juniorFee = null,
   allowFreeEntry = false,
-  formMoney = { status: 'unknown' },
 }) => {
   const { fields, update } = usePaymentDetailsFields(getInitialDetails, onPaymentDetailsChange);
-  const formHeldCents = heldCentsOf(formMoney);
-  const formHolds = formHeldCents !== null;
-  const holdsSelected = paymentMethod === 'secretary_paid' && fields.formHoldsMoney;
-
-  // The form's money is read after the step opens. When it is first read as holding money,
-  // the one choice is taken (unless the secretary already made it a Free entry), once: after
-  // that her own clicks decide, so Free entry can be chosen and un-chosen. A form no longer
-  // read as holding money drops the choice, so the method asks for cash or check again.
-  const autoSelected = useRef(false);
-  useEffect(() => {
-    if (formHolds) {
-      if (autoSelected.current) return;
-      autoSelected.current = true;
-      if (!holdsSelected && paymentMethod !== 'waived' && paymentMethod !== 'group_payment') {
-        update({ formHoldsMoney: true, receivedMethod: undefined });
-        onPaymentMethodChange('secretary_paid');
-      }
-      return;
-    }
-    autoSelected.current = false;
-    if (fields.formHoldsMoney) update({ formHoldsMoney: false });
-    // `update` and the change handler are recreated each render; the read and the
-    // selection are what this follows.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formHolds, holdsSelected, paymentMethod, fields.formHoldsMoney]);
   const showCheck = acceptedMethods?.check ?? true;
   const showCash = acceptedMethods?.cash ?? true;
 
   const isSelected = (choice: StaffChoice) => {
-    if (choice === 'form_holds_money') return holdsSelected;
     const received = CHOICE_RECEIVED[choice];
     if (received) return paymentMethod === 'secretary_paid' && fields.receivedMethod === received;
     return paymentMethod === CHOICE_METHOD[choice];
   };
 
   const handleSelect = (choice: StaffChoice) => {
-    // One patch, so a cleared form flag and a received method are sent together.
-    const patch: Partial<PaymentDetailsFields> = {};
-    if (choice === 'form_holds_money') {
-      Object.assign(patch, { formHoldsMoney: true, receivedMethod: undefined });
-    } else if (fields.formHoldsMoney) {
-      patch.formHoldsMoney = false;
-    }
     const received = CHOICE_RECEIVED[choice];
-    if (received && received !== fields.receivedMethod) patch.receivedMethod = received;
-    if (Object.keys(patch).length > 0) update(patch);
+    if (received && received !== fields.receivedMethod) update({ receivedMethod: received });
     onPaymentMethodChange(CHOICE_METHOD[choice]);
   };
 
@@ -246,104 +182,77 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
     </ChoiceDetails>
   );
 
-  // A club or group may pay for an entry whatever the form holds (MYK9-2149).
-  const groupChoice = (
-    <>
-      {card(
-        'group_payment',
-        Users,
-        'Paid by a club or group',
-        'A club or group organizer paid for this entry.',
-        PAID_BADGE
-      )}
-      {isSelected('group_payment') && (
-        <ChoiceDetails>
-          <div>
-            <Label htmlFor="group-reference">Club or group reference</Label>
-            <Input
-              id="group-reference"
-              value={fields.groupReference}
-              onChange={e => update({ groupReference: e.target.value })}
-              placeholder="Club payment batch #123"
-            />
-          </div>
-        </ChoiceDetails>
-      )}
-    </>
-  );
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">How was this entry paid?</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {formMoney.status === 'checking' ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {CHECKING_FORM_MONEY}
-          </p>
-        ) : formHolds ? (
-          <ChoiceGroup id="staff-payment-form-holds" title="Money already on this form">
-            {card('form_holds_money', Wallet, formHoldsLabel(formHeldCents), FORM_HOLDS_HINT)}
-            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
-              {groupChoice}
-            </PermissionGuard>
-          </ChoiceGroup>
-        ) : (
-          <>
-            {formMoney.status === 'failed' && (
+        <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
+          <ChoiceGroup id="staff-payment-paid" title="Paid with the entry">
+            {paymentMethod === 'secretary_paid' && !fields.receivedMethod && (
               <p role="status" className="text-sm text-muted-foreground">
-                {FORM_MONEY_UNCHECKED}
+                Choose whether a check or cash came with this entry.
               </p>
             )}
-            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
-              <ChoiceGroup id="staff-payment-paid" title="Paid with the entry">
-                {paymentMethod === 'secretary_paid' && !fields.receivedMethod && (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    Choose whether a check or cash came with this entry.
-                  </p>
-                )}
-                {card(
-                  'check_received',
-                  FileCheck,
-                  'Check received',
-                  'A check came with the entry form.',
-                  PAID_BADGE
-                )}
-                {isSelected('check_received') && receivedDetails('Check number', '1234')}
-                {card(
-                  'cash_received',
-                  Banknote,
-                  'Cash received',
-                  'Cash came with the entry form.',
-                  PAID_BADGE
-                )}
-                {isSelected('cash_received') && receivedDetails('Receipt #', 'Receipt #123')}
-                {groupChoice}
-              </ChoiceGroup>
-            </PermissionGuard>
-
-            {(showCheck || showCash) && (
-              <ChoiceGroup id="staff-payment-unpaid" title="Not paid yet">
-                {showCheck &&
-                  card(
-                    'check',
-                    FileText,
-                    'Check (pay at show)',
-                    'The exhibitor pays by check at the show.',
-                    UNPAID_BADGE
-                  )}
-                {showCash &&
-                  card(
-                    'cash',
-                    CircleDollarSign,
-                    'Cash (pay at show)',
-                    'The exhibitor pays cash at the show.',
-                    UNPAID_BADGE
-                  )}
-              </ChoiceGroup>
+            {card(
+              'check_received',
+              FileCheck,
+              'Check received',
+              'A check came with the entry form.',
+              PAID_BADGE
             )}
-          </>
+            {isSelected('check_received') && receivedDetails('Check number', '1234')}
+            {card(
+              'cash_received',
+              Banknote,
+              'Cash received',
+              'Cash came with the entry form.',
+              PAID_BADGE
+            )}
+            {isSelected('cash_received') && receivedDetails('Receipt #', 'Receipt #123')}
+            {card(
+              'group_payment',
+              Users,
+              'Paid by a club or group',
+              'A club or group organizer paid for this entry.',
+              PAID_BADGE
+            )}
+            {isSelected('group_payment') && (
+              <ChoiceDetails>
+                <div>
+                  <Label htmlFor="group-reference">Club or group reference</Label>
+                  <Input
+                    id="group-reference"
+                    value={fields.groupReference}
+                    onChange={e => update({ groupReference: e.target.value })}
+                    placeholder="Club payment batch #123"
+                  />
+                </div>
+              </ChoiceDetails>
+            )}
+          </ChoiceGroup>
+        </PermissionGuard>
+
+        {(showCheck || showCash) && (
+          <ChoiceGroup id="staff-payment-unpaid" title="Not paid yet">
+            {showCheck &&
+              card(
+                'check',
+                FileText,
+                'Check (pay at show)',
+                'The exhibitor pays by check at the show.',
+                UNPAID_BADGE
+              )}
+            {showCash &&
+              card(
+                'cash',
+                CircleDollarSign,
+                'Cash (pay at show)',
+                'The exhibitor pays cash at the show.',
+                UNPAID_BADGE
+              )}
+          </ChoiceGroup>
         )}
 
         {allowFreeEntry && (

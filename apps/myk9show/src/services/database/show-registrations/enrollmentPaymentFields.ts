@@ -14,23 +14,32 @@
 import type { PaymentDetails } from '@/types/show-registration-types';
 import type { TablesUpdate } from '@/types/supabase';
 
+/** A detail the secretary actually typed: set and not blank. */
+const typed = (value: string | undefined): value is string =>
+  value !== undefined && value.trim() !== '';
+
+/**
+ * MYK9-2149 (Codex P2): the payment step sends every detail field, blank ones included,
+ * whichever choice the secretary switched to, so a blank field is "not typed", never "clear
+ * it": blank never overwrites a check number, date, reference or notes the form already has.
+ */
 export function buildEnrollmentPaymentDetailFields(
   paymentDetails: PaymentDetails | undefined
 ): TablesUpdate<'enrollments'> {
   const fields: TablesUpdate<'enrollments'> = {};
-  if (paymentDetails?.paymentReference !== undefined) {
+  if (typed(paymentDetails?.paymentReference)) {
     fields.payment_reference = paymentDetails.paymentReference;
   }
-  if (paymentDetails?.checkNumber !== undefined) {
+  if (typed(paymentDetails?.checkNumber)) {
     fields.check_number = paymentDetails.checkNumber;
   }
-  if (paymentDetails?.paymentDate !== undefined) {
+  if (typed(paymentDetails?.paymentDate)) {
     fields.payment_date = paymentDetails.paymentDate;
   }
-  if (paymentDetails?.groupReference !== undefined) {
+  if (typed(paymentDetails?.groupReference)) {
     fields.group_reference = paymentDetails.groupReference;
   }
-  if (paymentDetails?.paymentNotes !== undefined) {
+  if (typed(paymentDetails?.paymentNotes)) {
     fields.payment_notes = paymentDetails.paymentNotes;
   }
   return fields;

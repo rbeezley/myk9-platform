@@ -1,7 +1,7 @@
 /**
- * MYK9-2149 (collect after submit): after an entry goes in against money the form held, the
- * wizard reads what the form still owes and hands it to the receipt; a failed read says it
- * could not be read, never "covered". Other submissions carry no such outcome.
+ * MYK9-2149 (inform only): after an entry is added to a form the Payment step confirmed held
+ * money, the wizard reads what the form still owes and hands it to the receipt; a failed read
+ * says it could not be read, never "covered". Other submissions carry no such outcome.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,12 +21,14 @@ vi.mock('@/lib/notifications', () => ({
 import { submitPaymentStep } from './submitPaymentStep';
 import { makeContextAndOrder } from './submitPaymentStep.testHelpers';
 
-function deskContext(formHoldsMoney: boolean) {
+function deskContext(heldBeforeSubmit: boolean) {
   const setDeskFormOutcome = vi.fn();
+  // Whatever the secretary chose: the notice follows only what the form held before submit.
   const { ctx } = makeContextAndOrder({
     currentWorkflowMode: 'secretary_new',
-    paymentMethod: formHoldsMoney ? 'secretary_paid' : 'check',
-    paymentDetails: formHoldsMoney ? { formHoldsMoney: true } : {},
+    paymentMethod: 'secretary_paid',
+    paymentDetails: { receivedMethod: 'cash' },
+    deskFormHeldBeforeSubmit: heldBeforeSubmit,
     setDeskFormOutcome,
   });
   return { ctx, setDeskFormOutcome };
@@ -91,7 +93,7 @@ describe('submitPaymentStep reads what the form still owes (MYK9-2149)', () => {
     expect(setDeskFormOutcome).toHaveBeenCalledWith(null);
   });
 
-  it('carries no outcome for an ordinary submission', async () => {
+  it('carries no outcome when the form held no money before submit', async () => {
     const { ctx, setDeskFormOutcome } = deskContext(false);
 
     await submitPaymentStep(ctx);

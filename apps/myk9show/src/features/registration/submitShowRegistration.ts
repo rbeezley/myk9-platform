@@ -144,22 +144,13 @@ export async function submitShowRegistration({
     (sum, entry) => sum + (entry.registrationData.entryFee ?? 0),
     0
   );
-  // MYK9-2149: the exhibitor's form already holds money, so the desk took none: no
-  // payment and no method are sent (cash or check would be stamped on a settled entry as
-  // "Paid by cash" or "Paid by check"). The entries go in unpaid, the server settles
-  // whatever the held money covers, and anything still owed is shown after submit to be
-  // recorded on the entry form. Nothing is recorded as received that was not.
-  const formHoldsMoney =
-    paymentMethod === 'secretary_paid' && paymentDetails?.formHoldsMoney === true;
   // MYK9-677: money a secretary says was already received is recorded as cash
   // or check (entries, enrollment and ledger alike), so it must name one
   // before anything is written.
-  if (!formHoldsMoney) assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
+  assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
   const receivedMethod =
-    feeTotal > 0 && !formHoldsMoney ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
-  const submitMethod: PaymentMethod | null = formHoldsMoney
-    ? null
-    : (receivedMethod ?? paymentMethod);
+    feeTotal > 0 ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
+  const submitMethod: PaymentMethod = receivedMethod ?? paymentMethod;
 
   await resolvedDeps.submitRegistration(registrationId, paymentDetails);
   if (!isStillActive(isActive)) return { aborted: true };
@@ -213,9 +204,7 @@ export async function submitShowRegistration({
     // same transaction as the entries. All that is left is the payment details a
     // secretary typed (reference, check number, date, notes); an exhibitor's own
     // submit has none to write.
-    // MYK9-2149: no money changed hands on a form that held money, so its existing check
-    // number, date and notes are left exactly as they are (blank fields would overwrite them).
-    if (createdAny && submissionSource !== 'self_service' && paymentDetails && !formHoldsMoney) {
+    if (createdAny && submissionSource !== 'self_service' && paymentDetails) {
       await recordEnrollmentPaymentDetails({
         showId,
         ownerResolution,

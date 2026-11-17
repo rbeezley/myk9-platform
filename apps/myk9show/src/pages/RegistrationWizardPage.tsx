@@ -41,7 +41,6 @@ import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff'
 import { useOnlyDogPreselect } from './RegistrationWizardPage/useOnlyDogPreselect';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 import { usePaymentAmountDueCents } from './RegistrationWizardPage/usePaymentAmountDue';
-import { heldCentsOf } from '@/features/registration/deskFormDue';
 import { EMPTY_ENTRY_NOTICE } from './RegistrationWizardPage/proceedGating';
 import {
   buildAddAnotherEntrySearch,
@@ -83,7 +82,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     registrationNumber,
     liveTotalFees,
     liveFeeCalculation,
-    formMoney,
+    formHeldCents,
     deskFormOutcome,
     entryWindowTimezoneState,
     paymentDetailsRef,
@@ -220,7 +219,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,
               feeCalculation: liveFeeCalculation,
-              formHeldCents: heldCentsOf(formMoney),
               onRemoveLine: removeLine,
               removingLineKey,
             }
@@ -418,7 +416,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               registrationId={registrationId}
               registrationNumber={registrationNumber}
               currentRegistrationTotalFees={liveTotalFees}
-              desk={{ formMoney, outcome: deskFormOutcome }}
+              desk={{ formHeldCents, outcome: deskFormOutcome }}
               capacityReady={capacityReady}
               capacityError={capacityError}
               capacityUnavailable={capacityUnavailable}

@@ -56,7 +56,7 @@ import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
-import { useDeskFormMoney } from '@/components/shows/RegistrationWorkflow/PaymentStep/useDeskFormMoney';
+import { useDeskFormHeldCents } from '@/components/shows/RegistrationWorkflow/PaymentStep/useDeskFormHeldCents';
 import type { DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { resolveWizardTitles } from './wizardTitles';
 import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../RegistrationWizardPage.routes';
@@ -586,10 +586,10 @@ export function useRegistrationWizardState() {
     ]
   );
   const liveTotalFees = liveFeeCalculation.total;
-  // MYK9-2149: whether the exhibitor's form already holds money, read by the server each time
-  // the desk's online Payment step opens. Page-owned, like `paymentResolution`, so the entries
-  // panel and the payment step say the same thing. Only a confirmed read changes the step.
-  const formMoney = useDeskFormMoney({
+  // MYK9-2149 (inform only): the money the exhibitor's form already holds, read by the server
+  // each time the desk's online Payment step opens. It only feeds a banner and the receipt's
+  // "still owed" notice; it never changes a payment choice or the submit.
+  const formHeldCents = useDeskFormHeldCents({
     enabled: currentWorkflowMode !== 'exhibitor' && !isLateEntryMode && currentStepId === 'payment',
     showId,
     handlerId: ownerResolution.ok ? ownerResolution.ownerId : undefined,
@@ -764,7 +764,7 @@ export function useRegistrationWizardState() {
     completedSteps,
     liveTotalFees,
     liveFeeCalculation,
-    formMoney,
+    formHeldCents,
     deskFormOutcome,
     setDeskFormOutcome,
     noEntryFeeClassIds,

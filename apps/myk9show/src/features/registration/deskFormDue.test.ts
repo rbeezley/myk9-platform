@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import {
   deskFormOutcomeLabel,
   fetchDeskFormDueCents,
-  formHoldsLabel,
+  formHoldsBannerLabel,
   heldCentsFromDue,
 } from './deskFormDue';
 
@@ -41,7 +41,9 @@ describe('deskFormDue (MYK9-2149)', () => {
   });
 
   it('words what the form holds and what is still owed, without dashes', () => {
-    expect(formHoldsLabel(4000)).toBe('This form already holds $40.00.');
+    expect(formHoldsBannerLabel(4000)).toBe(
+      'This form already holds $40.00. Take only what is still owed.'
+    );
     expect(deskFormOutcomeLabel(2000)).toBe(
       'Still owed on this form: $20.00. Record it on the entry form when you take it.'
     );

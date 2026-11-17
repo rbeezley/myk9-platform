@@ -285,27 +285,6 @@ export interface PaymentTotals {
   amountDueCents: number;
   /** Payment is due but no method is chosen yet. */
   requiresPaymentMethod: boolean;
-  /**
-   * MYK9-2149: money the exhibitor's form already holds beyond what it owes (the server's
-   * figure), when the desk is submitting against it. Shown as it is, never subtracted from
-   * the fees here: what is still owed is the server's answer after submit.
-   */
-  formHeldCents?: number | undefined;
-}
-
-/**
- * MYK9-2149: the desk's totals when the exhibitor's form already holds money. No money is
- * taken at submission then, so the fees are never quoted as received. Card totals
- * (exhibitors) and a form holding nothing are returned as they are.
- */
-export function withFormHeld(
-  totals: PaymentTotals,
-  formHeldCents: number | null | undefined
-): PaymentTotals {
-  if (!formHeldCents || formHeldCents <= 0 || totals.isPayableCard || totals.isWaived) {
-    return totals;
-  }
-  return { ...totals, isSecretaryReceived: false, formHeldCents };
 }
 
 /**
@@ -378,9 +357,6 @@ export function formatAmountDue({
   // Capacity next: with lines on the entry, no figure is trustworthy until read.
   if (!capacityReady) return placeholder ?? availabilityPlaceholder(capacityUnavailable);
   if (totals?.isWaived) return FREE_ENTRY_AMOUNT_LABEL;
-  if (totals?.formHeldCents) {
-    return `${formatCartCurrency(totals.amountDueCents)} (before money on this form)`;
-  }
   const amount = formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
   // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as
   // still owed once the secretary marked it Already Received.

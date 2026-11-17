@@ -110,6 +110,8 @@ export interface SubmitPaymentStepContext {
   setArmbandAssignments: (value: ArmbandAssignment[]) => void;
   setEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
   setCreatedEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
+  /** MYK9-2149: the Payment step confirmed the form held money before this submission. */
+  deskFormHeldBeforeSubmit?: boolean | undefined;
   /** MYK9-2149: what a form that held money still owes after this submission. */
   setDeskFormOutcome?: ((value: DeskFormOutcome | null) => void) | undefined;
   markStepComplete: (stepIndex: number) => void;
@@ -126,18 +128,16 @@ export interface SubmitPaymentStepContext {
 }
 
 /**
- * MYK9-2149 (owner decision: collect after submit): an entry added to a form that held money
- * went in with no payment. Read what the form still owes now, so the receipt can say so and
- * link to the entry form. A failed read says it could not be read, never "covered". Only
- * when an entry was created: a submission that was all waitlisted or denied added nothing.
+ * MYK9-2149 (inform only): an entry was added to a form the Payment step confirmed held money.
+ * Read what the form still owes now, so the receipt can say so and link to the entry form. A
+ * failed read says it could not be read, never "covered". Only when an entry was created: a
+ * submission that was all waitlisted or denied added nothing. Read-only.
  */
 async function readDeskFormOutcome(
   ctx: SubmitPaymentStepContext,
   formId: string
 ): Promise<DeskFormOutcome | null> {
-  if (ctx.paymentMethod !== 'secretary_paid' || ctx.paymentDetails.formHoldsMoney !== true) {
-    return null;
-  }
+  if (ctx.deskFormHeldBeforeSubmit !== true) return null;
   if (!ctx.ownerResolution.ok) return { formId, owedCents: null };
   try {
     const due = await fetchDeskFormDueCents(ctx.showId, ctx.ownerResolution.ownerId);

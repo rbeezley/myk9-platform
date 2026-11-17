@@ -45,7 +45,7 @@ export function buildPrintedSheetDescriptor(input: {
   });
 }
 
-/** Whether the sheet lists at least one entry (a class that lost its last dog has class subjects only). */
-export function hasPrintedEntries(descriptor: PaperworkDescriptor): boolean {
-  return Object.keys(descriptor.coverage.subjectFingerprints).some(key => key.startsWith('entry:'));
+/** A sheet that prints nothing: no subjects. It compares against a record but is never recorded. */
+export function isEmptyDescriptor(descriptor: PaperworkDescriptor): boolean {
+  return Object.keys(descriptor.coverage.subjectFingerprints).length === 0;
 }

@@ -9,7 +9,6 @@ import {
 import { withPaperworkJudge } from './paperworkClassJudge';
 import {
   buildPrintedSheetDescriptor,
-  hasPrintedEntries,
   isPrintedSheetReportId,
   type PrintedSheetRows,
 } from './printedSheetDescriptor';
@@ -40,24 +39,17 @@ export function buildReportPaperworkDescriptor(input: {
    * `classes` and `entries`.
    */
   printedSheets?: PrintedSheetRows | undefined;
-  /**
-   * Keep a check-in/scoresheet descriptor whose class has no printable entries left (class
-   * subjects only). Read-only status surfaces set it, so a print of dogs that have since left
-   * reads changed; anything that RECORDS a print leaves it off and gets null, as there is no
-   * sheet to record (MYK9-2103).
-   */
-  keepEmptySheet?: boolean;
 }): PaperworkDescriptor | null {
   if (isPrintedSheetReportId(input.reportId)) {
-    if (!input.printedSheets) return null;
-    const descriptor = buildPrintedSheetDescriptor({
-      reportId: input.reportId,
-      scope: input.scope,
-      rows: input.printedSheets,
-      assignedJudges: input.assignedJudges,
-    });
-    return descriptor && (input.keepEmptySheet || hasPrintedEntries(descriptor))
-      ? descriptor
+    // An empty descriptor (nothing prints) is returned as is: it compares against a record, and
+    // the paths that record refuse it (`isEmptyDescriptor`).
+    return input.printedSheets
+      ? buildPrintedSheetDescriptor({
+          reportId: input.reportId,
+          scope: input.scope,
+          rows: input.printedSheets,
+          assignedJudges: input.assignedJudges,
+        })
       : null;
   }
   const classes = withPaperworkJudge(input.classes, input.assignedJudges);

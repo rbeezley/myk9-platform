@@ -21,6 +21,7 @@ import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewU
 import { NO_HOSTED_REPORT_DATA } from '@/pages/secretary/ReportsPage/useHostedReportData';
 import { MergedSheetsPreview, unmergeableReportIds } from './MergedSheetsPreview';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
+import { isEmptyDescriptor } from './printedSheetDescriptor';
 import { recordPaperworkPrinted } from './paperworkPrintActions';
 import type { PaperworkDescriptor } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
@@ -128,8 +129,8 @@ function ClassPrintPanelBody({
     ? null
     : readiness.blockedMessage;
   // The rows the preview renders are the rows the record is fingerprinted from.
-  const describe = (reportId: string): PaperworkDescriptor | null =>
-    buildReportPaperworkDescriptor({
+  const describe = (reportId: string): PaperworkDescriptor | null => {
+    const descriptor = buildReportPaperworkDescriptor({
       reportId,
       scope,
       classes: (classes ?? []) as unknown as Parameters<
@@ -145,6 +146,9 @@ function ClassPrintPanelBody({
         entries: (entries ?? []) as unknown as ReportDbEntry[],
       },
     });
+    // A sheet that prints nothing is never recorded.
+    return descriptor && isEmptyDescriptor(descriptor) ? null : descriptor;
+  };
   // A freshly opened panel never prints cached rows: the class's report data is re-read on open
   // (a run-order change does not invalidate the cached `['reports', ...]` entries).
   useEffect(() => {

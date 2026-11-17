@@ -13,7 +13,7 @@ import { buildPrintedLabelIndex, labelPrintStatus } from '@/lib/labels/armbandPr
 import { getCockpitReportHref } from './cockpitRoutes';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import {
-  hasPrintedEntries,
+  isEmptyDescriptor,
   isPrintedSheetReportId,
   type PrintedSheetRows,
 } from './printedSheetDescriptor';
@@ -95,7 +95,6 @@ export function buildClassPaperworkMap(input: {
               entries: input.entries,
               assignedJudges: input.assignedJudges,
               printedSheets: input.printedSheets,
-              keepEmptySheet: true,
             });
       const withhold =
         Boolean(input.withholdConfirmation) ||
@@ -178,11 +177,10 @@ export function buildClassPaperworkMap(input: {
       }
       if (!descriptor) return [];
       const derived = derivePaperworkPrintState(input.records, descriptor);
-      // A class with nothing left to print has no sheet to offer, unless one was printed: then the
-      // recorded paper lists dogs that are gone and the row must say it changed (MYK9-2103).
-      if (printedSheet && !derived.record && !hasPrintedEntries(descriptor)) {
-        return [];
-      }
+      // Nothing prints for this class now. With no recorded print to compare against there is no
+      // sheet to offer; with one, the row stays only while the record lists dogs that are gone
+      // (stale). A covering show-wide print that never listed this class gives it no row.
+      if (printedSheet && isEmptyDescriptor(descriptor) && derived.state !== 'stale') return [];
       return [
         {
           reportId: report.id,

@@ -104,8 +104,19 @@ describe('buildSheetDescriptorFromPrinted', () => {
     expect(d?.coverage.subjectScopes['entry:e1']).toEqual({ classIds: ['c1'], trialIds: ['t1'] });
   });
 
-  it('returns null for an empty scope or a report that is not a printed sheet', () => {
-    expect(fingerprint('check-in-sheet', { classes: [] })).toBeUndefined();
+  it('returns an empty descriptor, not null, when nothing in scope prints', () => {
+    for (const patch of [{ entries: [] }, { classes: [] }]) {
+      const d = buildSheetDescriptorFromPrinted({
+        reportId: 'scoresheet',
+        scope: classScope,
+        trials,
+        classes,
+        entries,
+        ...patch,
+      });
+      expect(Object.keys(d?.coverage.subjectFingerprints ?? { x: 1 })).toEqual([]);
+      expect(d?.fingerprint).toMatch(/^fnv1a64:/);
+    }
     expect(
       buildSheetDescriptorFromPrinted({
         reportId: 'results-sheet',
@@ -117,15 +128,19 @@ describe('buildSheetDescriptorFromPrinted', () => {
     ).toBeNull();
   });
 
-  it('keeps the class subject, with no entry subjects, when the last printed entry leaves', () => {
+  it('gives a class with no printed entry no class subject, in a show-wide print too', () => {
     const d = buildSheetDescriptorFromPrinted({
-      reportId: 'check-in-sheet',
-      scope: classScope,
+      reportId: 'scoresheet',
+      scope: { kind: 'show', showId: 's1' },
       trials,
       classes,
-      entries: [entries[2]!],
+      entries: entries.filter(entry => entry.classId === 'c1'),
     });
-    expect(Object.keys(d?.coverage.subjectFingerprints ?? {})).toEqual(['class:c1']);
+    expect(Object.keys(d?.coverage.subjectFingerprints ?? {})).toEqual([
+      'class:c1',
+      'entry:e1',
+      'entry:e2',
+    ]);
   });
 
   it('gives the same subject fingerprints for one class whatever the scope', () => {

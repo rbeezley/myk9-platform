@@ -5,7 +5,7 @@ import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { buildReportPaperworkDescriptor } from '../buildReportPaperworkDescriptor';
 import { recordPaperworkPrinted } from '../paperworkPrintActions';
-import type { PrintedSheetRows } from '../printedSheetDescriptor';
+import { isEmptyDescriptor, type PrintedSheetRows } from '../printedSheetDescriptor';
 import { PACKET_REPORT_IDS } from './packetReports';
 
 export interface TrialPacketPrintRecords {
@@ -54,7 +54,7 @@ export async function recordTrialPacketPrint(input: {
           assignedJudges: input.assignedJudges,
           printedSheets: input.printedSheets,
         });
-        if (!descriptor) continue;
+        if (!descriptor || isEmptyDescriptor(descriptor)) continue;
         const record = await recordPaperworkPrinted({
           descriptor,
           user: input.user,

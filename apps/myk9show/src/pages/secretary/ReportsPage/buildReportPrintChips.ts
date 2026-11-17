@@ -4,6 +4,7 @@ import {
   type PaperworkPrintEvidence,
 } from '@/features/show-map/cockpit/paperworkPrintState';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
+import { isEmptyDescriptor } from '@/features/show-map/cockpit/printedSheetDescriptor';
 import type { ReportDbEntry, ReportScope } from '@/lib/reports/types';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 
@@ -79,14 +80,17 @@ export function buildReportPrintChips(input: {
       classes: input.classes,
       entries: input.entries,
       assignedJudges: input.assignedJudges,
-      keepEmptySheet: true,
       printedSheets: {
         trials: input.trials,
         classes: input.classes as unknown as DbClass[],
         entries: input.entries as unknown as ReportDbEntry[],
       },
     });
-    if (descriptor) chips[reportId] = chipFor(input.records, descriptor, input.timeZone);
+    if (!descriptor) continue;
+    // A sheet that prints nothing has a chip only while a print of it has gone stale.
+    const chip = chipFor(input.records, descriptor, input.timeZone);
+    if (isEmptyDescriptor(descriptor) && chip.label !== 'Changed since printed') continue;
+    chips[reportId] = chip;
   }
   if (input.armband?.selected && input.armband.descriptor) {
     chips['armband-labels'] = chipFor(input.records, input.armband.descriptor, input.timeZone);

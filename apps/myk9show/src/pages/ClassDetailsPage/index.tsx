@@ -33,9 +33,7 @@ import { resolveEntryToRemove } from './resolveEntryToRemove';
 import { DeleteObjectDialog, classDeleteDetail, entryDeleteDetail } from '@/features/delete';
 import { getTrialTimezone } from '@/features/registries';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
-import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { ClassReadinessStrip } from './ClassReadinessStrip';
-import { useMyEntriesInClass } from './useMyEntriesInClass';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -84,8 +82,6 @@ const ClassDetailsPage: React.FC = () => {
   // Dialog state
   const dialogs = useClassDetailsDialogs();
   const [requirementsPanelOpen, setRequirementsPanelOpen] = useState(false);
-  const { myEntries } = useMyEntriesInClass(classId);
-  const myEntryIds = useMemo(() => new Set(myEntries.map(entry => entry.entryId)), [myEntries]);
 
   // Operational gate for this page's class-lifecycle controls (Edit Class,
   // Delete Class). This route is PUBLIC — exhibitors land here from a show
@@ -97,25 +93,18 @@ const ClassDetailsPage: React.FC = () => {
   // Reuse the page's single ownership gate rather than recomputing it — the two
   // copies drifted apart repeatedly while this was two independent calls.
   const canManageClass = manageScope.canManage;
-  // The OPERATIONAL surface (run sheet) is a narrower question than the
-  // lifecycle gate above: a club admin of this club keeps Edit/Delete but is
-  // not show-day staff, so they read the public class entries. Operational
-  // staff are held on the staff surface while the scope is still settling (and
-  // when it is unavailable) so a legitimate secretary never flashes the
-  // exhibitor view; cross-club staff resolve to `false` and correctly receive
-  // the released-results view rather than an empty RLS-limited run sheet.
+  // Staff see the same class page an exhibitor sees (MYK9-2119); a class is run on Show Desk, and
+  // `isStaff` only decides whether the Show Desk link and the readiness strip render. Operational
+  // staff are held as staff while the scope is still settling so a legitimate secretary never
+  // flashes the exhibitor-only callout; cross-club staff resolve to `false`.
   const isStaff =
     manageScope.canOperate ||
     (manageScope.hasOperationalStaffRole && manageScope.status !== 'resolved');
-  // A SCOPE failure is not an entry-load failure. The row-count escape below
-  // exists so a transient entry error does not blank a run sheet that still
-  // has usable rows — but when ownership was never verified, `useStaffEntrySource`
-  // is false, so any rows present came from the PUBLIC query. Rendering the
-  // staff surface over them shows non-staff data as a run sheet. Suppress it on
-  // the state, independently of how many rows arrived.
+  // A SCOPE failure is not an entry-load failure: when ownership was never verified, any rows
+  // present came from the PUBLIC query, so the readiness strip must not report them as staff data.
   const scopeUnverified = manageScope.status === 'unavailable';
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
-  const showReleasedResults = !isStaff && releasedResults.isReleased;
+  const showReleasedResults = releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;
   const exhibitorRawEntries = showReleasedResults ? releasedResults.rawEntries : dbRawEntries;
 
@@ -185,10 +174,6 @@ const ClassDetailsPage: React.FC = () => {
     });
     return crumbs;
   }, [parentShow, parentTrial, currentClass, classId]);
-
-  // INTENT: Secretary scoring has one canonical path: the paper-scoring split panel.
-  // Keep class management and run-order work on this page, but route result entry
-  // through the dedicated scoring flow so secretaries do not choose between tools.
 
   // Every action on this class is in the header Actions menu (CRUD standard decision 6).
   // Requirements stays on the page as a plain button: it shows the class's rules to
@@ -339,37 +324,19 @@ const ClassDetailsPage: React.FC = () => {
           />
         )}
 
-        {isStaff && !entriesLoading ? (
-          entriesError && (scopeUnverified || dbRawEntries.length === 0) ? (
-            <div role="alert" className="rounded-md border border-destructive/30 p-4 text-sm">
-              {entriesError}
-            </div>
-          ) : (
-            <SecretaryRunSheet
-              currentClass={currentClass}
-              dbRawEntries={dbRawEntries}
-              userId={user?.id ?? ''}
-              myEntryIds={myEntryIds}
-              dogs={dogs}
-              organization={parentShow?.organization ?? null}
-              parentShowId={parentShow?.id ?? null}
-              classDay={parentTrial?.trialDate ?? null}
-            />
-          )
-        ) : !isStaff ? (
-          <ClassDetailsMain
-            classData={currentClass}
-            classEntries={exhibitorClassEntries}
-            rawEntries={exhibitorRawEntries}
-            parentShow={parentShow}
-            onAddEntry={() => {
-              if (parentShow?.id) {
-                navigate(`/shows/${parentShow.id}/register`);
-              }
-            }}
-            onDeleteEntry={handleDeleteEntry}
-          />
-        ) : null}
+        <ClassDetailsMain
+          classData={currentClass}
+          classEntries={exhibitorClassEntries}
+          rawEntries={exhibitorRawEntries}
+          parentShow={parentShow}
+          onAddEntry={() => {
+            if (parentShow?.id) {
+              navigate(`/shows/${parentShow.id}/register`);
+            }
+          }}
+          onDeleteEntry={handleDeleteEntry}
+          readOnly={isStaff}
+        />
       </PageShell>
 
       {/* Outside PageShell: SlideOverPanel is not portaled, so inside the shell's `space-y-6` a

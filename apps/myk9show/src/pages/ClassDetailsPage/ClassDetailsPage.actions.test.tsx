@@ -60,11 +60,9 @@ vi.mock('@/components/classes/ClassCompactHeader', () => ({
 }));
 
 vi.mock('@/components/classes/ClassDetailsMain', () => ({
-  default: () => <div data-testid="class-details-main" />,
-}));
-
-vi.mock('./SecretaryRunSheet', () => ({
-  SecretaryRunSheet: () => <div data-testid="secretary-run-sheet" />,
+  default: ({ readOnly }: { readOnly?: boolean }) => (
+    <div data-testid="class-details-main" data-read-only={String(Boolean(readOnly))} />
+  ),
 }));
 
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
@@ -469,8 +467,9 @@ describe('ClassDetailsPage header actions', () => {
     });
   });
 
-  // MYK9-2119: staff get a link to run the class on Show Desk, on the class's own day.
-  it('offers operational staff an Open on Show Desk link, and an exhibitor none', () => {
+  // MYK9-2119: a class is run on Show Desk. Staff open the exhibitor's class page, read-only, with
+  // a link to the class on Show Desk; the run sheet is gone.
+  it('shows operational staff the read-only class page and a link to the class on Show Desk', () => {
     mockUseClassDetailsData.mockReturnValue({
       ...mockUseClassDetailsData(),
       parentTrial: {
@@ -481,80 +480,28 @@ describe('ClassDetailsPage header actions', () => {
       },
     });
 
-    const { unmount } = renderClassDetailsPage();
+    renderClassDetailsPage();
+
+    expect(screen.getByTestId('class-details-main')).toHaveAttribute('data-read-only', 'true');
+    expect(screen.queryByTestId('secretary-run-sheet')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open on Show Desk' })).toHaveAttribute(
       'href',
       '/shows/show-1?day=2026-05-22&focus=class-1'
     );
-    unmount();
+  });
 
+  it('shows the class page for a signed-in exhibitor with no Show Desk link and editable by no one', () => {
     mockManageScope({
       status: 'resolved',
       canManage: false,
       canOperate: false,
       hasOperationalStaffRole: false,
     });
+
     renderClassDetailsPage();
+
+    expect(screen.getByTestId('class-details-main')).toHaveAttribute('data-read-only', 'false');
     expect(screen.queryByRole('link', { name: 'Open on Show Desk' })).not.toBeInTheDocument();
-  });
-
-  // Positive control for the assertion below: without this, a fixture that
-  // simply left the viewer off the staff surface would satisfy the absence
-  // check for the wrong reason.
-  it('renders the run sheet for operational staff when entries load', () => {
-    renderClassDetailsPage();
-
-    expect(screen.getByTestId('secretary-run-sheet')).toBeInTheDocument();
-  });
-
-  // The case the row-count escape was letting through: ownership could not be
-  // verified, so the rows on hand came from the PUBLIC query. Rendering them as
-  // a run sheet shows non-staff data on the staff surface.
-  it('does not render the run sheet over public rows when show scope is unavailable', () => {
-    mockUseClassDetailsData.mockReturnValue({
-      ...mockUseClassDetailsData(),
-      manageScope: {
-        status: 'unavailable',
-        canManage: false,
-        canOperate: false,
-        hasOperationalStaffRole: true,
-        clubId: undefined,
-      },
-      // Rows ARE present — this is what defeated the `length === 0` guard.
-      dbRawEntries: [{ id: 'entry-1', armband: '101', is_scored: false }],
-      entriesLoading: false,
-      entriesError: 'We could not verify this show’s ownership. Please retry.',
-    });
-
-    renderClassDetailsPage();
-
-    expect(screen.queryByTestId('secretary-run-sheet')).not.toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent(/could not verify/i);
-  });
-
-  it('still renders the run sheet when scope is fine and rows are present', () => {
-    mockUseClassDetailsData.mockReturnValue({
-      ...mockUseClassDetailsData(),
-      dbRawEntries: [{ id: 'entry-1', armband: '101', is_scored: false }],
-      entriesLoading: false,
-      entriesError: null,
-    });
-
-    renderClassDetailsPage();
-
-    expect(screen.getByTestId('secretary-run-sheet')).toBeInTheDocument();
-  });
-
-  it('does not render a confident empty run sheet when staff entries are unavailable', () => {
-    mockUseClassDetailsData.mockReturnValue({
-      ...mockUseClassDetailsData(),
-      entriesLoading: false,
-      entriesError: "We couldn't load entries for this show. Please retry.",
-    });
-
-    renderClassDetailsPage();
-
-    expect(screen.queryByTestId('secretary-run-sheet')).not.toBeInTheDocument();
   });
 });
 

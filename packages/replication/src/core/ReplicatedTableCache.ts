@@ -578,6 +578,9 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         ...(existing?.expectedRemoteRows !== undefined && {
           expectedRemoteRows: existing.expectedRemoteRows,
         }),
+        ...(existing?.lastSyncedPrincipalId !== undefined && {
+          lastSyncedPrincipalId: existing.lastSyncedPrincipalId,
+        }),
         ...atomicUpdates,
         ...(tableSyncedBy !== undefined && { syncedByAuthUserId: tableSyncedBy }),
       };

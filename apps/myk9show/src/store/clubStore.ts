@@ -21,6 +21,23 @@ export interface ClubReadinessResult {
 let clubSessionIsFresh = false;
 let clubSyncInFlight: Promise<{ success: boolean }> | null = null;
 
+// MYK9-2153: the incremental club sync never delivers a club that has not
+// changed since the watermark, so a club page for a row the replica still lacks
+// asks the server for that one row (RLS decides; nothing back stays not-found).
+async function fetchRequestedClubIfMissing(
+  requestedClubId: string,
+  clubs: Club[],
+  reload: () => Promise<void>
+): Promise<void> {
+  if (clubs.some(club => club.id === requestedClubId)) return;
+  try {
+    const fetched = await replicatedClubsTable.fetchClubById(requestedClubId);
+    if (fetched) await reload();
+  } catch {
+    logger.warn('Requested club fetch unavailable', 'clubs');
+  }
+}
+
 function isOnline(): boolean {
   return typeof navigator === 'undefined' || navigator.onLine;
 }
@@ -279,6 +296,9 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
 
     try {
       const result = await withTimeout(clubSyncInFlight, DEFAULT_TIMEOUT_MS, 'Club data refresh');
+      if (result.success && requestedClubId !== undefined) {
+        await fetchRequestedClubIfMissing(requestedClubId, get().clubs, get().loadClubs);
+      }
       const clubs = get().clubs;
       if (result.success) {
         set({ clubReadiness: 'fresh' });

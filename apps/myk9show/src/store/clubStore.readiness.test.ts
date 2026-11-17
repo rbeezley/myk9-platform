@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const replication = vi.hoisted(() => ({
   getAllClubs: vi.fn(),
   sync: vi.fn(),
+  fetchClubById: vi.fn(),
   subscribe: vi.fn(),
   createClub: vi.fn(),
   updateClub: vi.fn(),
@@ -47,6 +48,7 @@ describe('clubStore.ensureClubsReady', () => {
     localRows = [];
     replication.getAllClubs.mockImplementation(async () => localRows);
     replication.sync.mockResolvedValue({ success: true });
+    replication.fetchClubById.mockResolvedValue(null);
     useClubStore.setState({
       clubs: [],
       isLoading: false,
@@ -99,6 +101,54 @@ describe('clubStore.ensureClubsReady', () => {
 
     expect(result.status).toBe('fresh');
     expect(replication.sync).toHaveBeenCalledTimes(2);
+  });
+
+  // MYK9-2153: a sync that did not deliver the requested club (an unchanged row
+  // an earlier, narrower sign-in never pulled) falls back to that one row by id.
+  it('fetches the requested club by id when the sync did not deliver it', async () => {
+    const pending = { ...clubRow, id: 'club-pending', name: 'Pending Club' };
+    replication.fetchClubById.mockImplementation(async () => {
+      localRows = [...localRows, pending];
+      return pending;
+    });
+
+    const result = await useClubStore
+      .getState()
+      .ensureClubsReady({ requestedClubId: 'club-pending' });
+
+    expect(replication.fetchClubById).toHaveBeenCalledWith('club-pending');
+    expect(result.status).toBe('fresh');
+    expect(result.clubs.map(club => club.id)).toEqual(['club-pending']);
+  });
+
+  it('leaves the club missing when the server returns nothing for it', async () => {
+    const result = await useClubStore
+      .getState()
+      .ensureClubsReady({ requestedClubId: 'club-hidden' });
+
+    expect(replication.fetchClubById).toHaveBeenCalledWith('club-hidden');
+    expect(result.status).toBe('fresh');
+    expect(result.clubs).toEqual([]);
+  });
+
+  it('does not fetch by id when the sync already delivered the requested club', async () => {
+    replication.sync.mockImplementation(async () => {
+      localRows = [clubRow];
+      return { success: true };
+    });
+
+    await useClubStore.getState().ensureClubsReady({ requestedClubId: 'club-a' });
+
+    expect(replication.fetchClubById).not.toHaveBeenCalled();
+  });
+
+  it('stays settled when the by-id fetch throws', async () => {
+    replication.fetchClubById.mockRejectedValue(new Error('network'));
+
+    const result = await useClubStore.getState().ensureClubsReady({ requestedClubId: 'club-x' });
+
+    expect(result.status).toBe('fresh');
+    expect(result.clubs).toEqual([]);
   });
 
   it('deduplicates concurrent remote refreshes', async () => {

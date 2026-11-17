@@ -140,6 +140,14 @@ export interface SyncMetadata {
   expectedRemoteRows?: number;
   /** Scoped reads only: {@link ScopeSyncState.syncedByAuthUserId} of the projected scope. */
   syncedByAuthUserId?: string;
+  /**
+   * The principal a table-global sync last COMPLETED for: a user id, or null for
+   * signed out / anonymous. Absent means never recorded. Unlike
+   * `syncedByAuthUserId` this is not row ownership: it only lets a table whose
+   * visibility differs per sign-in notice, after a reload, that the watermark was
+   * earned under another principal and must be re-fetched in full (MYK9-2153).
+   */
+  lastSyncedPrincipalId?: string | null;
   syncStatus?: 'idle' | 'syncing' | 'error';
   errorMessage?: string | undefined;
   conflictCount?: number;

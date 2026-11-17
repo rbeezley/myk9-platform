@@ -119,16 +119,15 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   // since`), so without this a pruned club would not come back until a
   // background full sync happened to run anyway (up to 24h later).
   private _forceFullSyncNext = false;
-  // Tracks the LAST sync() call's principal (the non-anonymous user id, or
-  // null for anon/signed-out), so ANY principal change — null->user
-  // (sign-in), or userA->userB (a device shared between accounts) — can
-  // force a full re-sync too. A device that pruned clubs while a prior bug
-  // let anon reads prune (or that simply cached a narrow anon view before
-  // sign-in) needs the same healing as a fresh prune. `_principalKnown`
-  // guards the first-ever call, which never counts as a "change" even
-  // though `_lastPrincipalId` starts at null (a legitimate anon value).
-  private _lastPrincipalId: string | null = null;
-  private _principalKnown = false;
+  // The last sync() principal (the non-anonymous user id, or null for
+  // anon/signed-out) is PERSISTED in the table's sync metadata
+  // (`lastSyncedPrincipalId`), so ANY principal change, including one that
+  // happened before a reload (MYK9-2153), forces a full re-sync: null->user,
+  // or userA->userB on a shared device. An incremental pull only sees rows
+  // changed since the watermark, so a club a later principal can see but that
+  // has not changed since never arrives without a full pull. Nothing persisted
+  // (a device that synced before this was recorded) counts as unknown: one
+  // full pull, then it is recorded.
 
   constructor() {
     super('clubs', { logger });
@@ -212,8 +211,9 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       session?.user && session.user.is_anonymous !== true ? session.user.id : null;
     const isAuthenticated = principalId !== null;
     // Any principal change forces a full resync — see the field comment
-    // above for why, and why `_principalKnown` gates the first-ever call.
-    const principalChanged = this._principalKnown && this._lastPrincipalId !== principalId;
+    // above for why. An unreadable record reads as unknown, so it forces too.
+    const lastSyncedPrincipalId = (await this.getSyncMetadata())?.lastSyncedPrincipalId;
+    const principalChanged = lastSyncedPrincipalId !== principalId;
 
     const forceFullSync = this._forceFullSyncNext || principalChanged;
 
@@ -260,8 +260,11 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     // incremental against a principal change (or prune) it never healed.
     if (result.success) {
       this._forceFullSyncNext = false;
-      this._lastPrincipalId = principalId;
-      this._principalKnown = true;
+      try {
+        await this.updateSyncMetadata({ lastSyncedPrincipalId: principalId });
+      } catch (err) {
+        logger.warn(`[${this.getTableName()}] could not record the synced principal`, err);
+      }
     }
 
     // MYK9-572: reconcile against RLS visibility. The incremental pull above
@@ -365,6 +368,22 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     const removed = await cache.removeStale(liveIds);
     if (!cache.aborted) markIdScanCompleted(idScanKey(this.getTableName()), startedEpoch);
     return removed;
+  }
+
+  /**
+   * Fetch one club by id and write it to the replica (MYK9-2153). The
+   * incremental pull never delivers a club that has not changed since the
+   * watermark, so a club page for a row the replica lacks asks for it by id;
+   * RLS decides visibility, and an empty answer leaves the replica untouched.
+   * @returns the club, or null when the server returned nothing for this caller.
+   */
+  async fetchClubById(clubId: string): Promise<ReplicatedClub | null> {
+    const rows = await this.getRowRefetchAdapter().fetchRowsById([clubId]);
+    const row = rows.find(r => String(r.id) === clubId);
+    if (!row) return null;
+    const club = rowToClub(row);
+    await this.batchSet([club]);
+    return club;
   }
 
   /**

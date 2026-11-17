@@ -4,7 +4,7 @@
 
 > **Scope note:** Started as "secretary payment link + refund parity"; grew (via design review with the owner, 2026-06-20) to cover the full unpaid-entry → payment story: secretary payment links, waitlist pay-to-claim with auto-cascade, and judge-day capacity gating with self-service split checkout. These are sequenced phases of one coherent payment/waitlist workflow, not separate features.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. This touches payment/Stripe code — run `/codex:review` alongside `/review` before merge.
+> **For agentic workers:** Implement this plan task by task with the `ship-it` skill. Steps use checkbox (`- [ ]`) syntax for tracking. This touches payment/Stripe code — run `/codex:review` alongside `/review` before merge.
 
 **Goal:** Give a secretary one button — **"Request payment"** — that generates a Stripe-hosted payment link for an existing _unpaid_ entry, sends it to the exhibitor, and lets the existing `stripe-webhook` reconcile the payment back onto that entry. This single primitive closes two gaps at once:
 

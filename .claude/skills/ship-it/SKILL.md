@@ -33,7 +33,7 @@ Read the plan file in full. Create a TodoWrite with one item per plan task — m
 git worktree list | grep "$WORKTREE"
 ```
 
-If not inside a worktree under `.claude/worktrees/`, invoke `superpowers:using-git-worktrees` to create one before proceeding. Never implement on `main`.
+If not inside a worktree under `.claude/worktrees/`, create one before proceeding (`EnterWorktree`, or `git worktree add .claude/worktrees/<name> -b <branch> origin/main` then `bash scripts/bootstrap-worktree.sh`; mechanics in `docs/reference/git-workflow.md`). Never implement on `main`.
 
 **Then re-capture `BRANCH` and `WORKTREE`, and do not skip this.** Step 0 read
 them from wherever you started — usually the primary checkout on `main`. If a

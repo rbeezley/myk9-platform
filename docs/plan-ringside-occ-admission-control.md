@@ -34,7 +34,7 @@
 >    `select public.ringside_containment_rearm('<reason>')` (site-admin gated) once the load
 >    harness is confirmed stopped — the conflict sequence has been flat at 34,421,500 for 25h+.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Implement this plan task by task with the `ship-it` skill. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Bound the rate at which a wedged ringside client can burn database CPU with OCC conflicts, with a persisted, operator-visible, operator-rearmed containment state.
 

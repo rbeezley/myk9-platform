@@ -20,8 +20,8 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 
 ## 2. New feature (small, no spec needed — a component, a bugfix-sized addition)
 
-1. `superpowers:brainstorming` — explore intent/requirements before implementation (required before creative work).
-2. `superpowers:test-driven-development` — write the test first.
+1. Settle intent and requirements before implementation: read `docs/INTENT.md` for UX-facing work, run the duplication check above, and ask the owner when the behavior is a product decision.
+2. Write the test first and watch it fail for the right reason.
 3. Implement.
 4. `/simplify` — constructive cleanup pass (3 parallel agents: efficiency, quality, reuse). Auto-fixes safe wins.
 5. `/harden` — adversarial stress-test (3 parallel agents try to break it: edge cases, state corruption, security holes). **Skip it when the review floor is `independent`**: Codex hunts the same class of defect at the gate, so harden there is three agents of latency ahead of a stronger reviewer (MYK9-1789). Nothing is committed yet, so read the floor from the working diff: `{ git diff --name-only "$(git merge-base origin/main HEAD)"; git ls-files --others --exclude-standard; } | sort -u | pnpm --silent qa:review-tier --files-stdin`. Run harden when it prints `adversarial` or `none` (which covers optional review), or prints nothing. If the gate later ends on an `owner` override because Codex is unavailable, run harden before posting the override.
@@ -31,9 +31,9 @@ This is the canonical loop: implement → simplify → harden (unless Codex revi
 
 ## 3. Bug / troubleshooting
 
-1. `superpowers:systematic-debugging` — the default entry point for any bug, test failure, or unexpected behavior, before proposing fixes.
-2. `debugging-patterns` — pattern lookup table (React, Zustand, Supabase, TypeScript) to use alongside systematic-debugging in Phase 1 (root cause) and Phase 2 (pattern analysis) to quickly categorize the symptom.
-3. **Seed-data / RBAC / config bugs specifically:** collapse the ceremony — go straight to Phase 1 Step 4 (gather evidence across all layers at once). Query every related table in one batch: role table(s), permission/config table(s), join/link table(s) — for RBAC: `roles`, `permissions`, `role_permissions` together, before writing any `INSERT`.
+1. **Root cause before any fix**, for every bug, test failure or unexpected behavior: reproduce it, gather evidence at each layer the data crosses, compare with a working path, then state one hypothesis and test it with the smallest change. Fix the cause, not the symptom; after three failed fixes, stop and question the design.
+2. `debugging-patterns` — pattern lookup table (React, Zustand, Supabase, TypeScript) to use while gathering evidence, to quickly categorize the symptom.
+3. **Seed-data / RBAC / config bugs specifically:** collapse the ceremony — go straight to gathering evidence across all layers at once. Query every related table in one batch: role table(s), permission/config table(s), join/link table(s) — for RBAC: `roles`, `permissions`, `role_permissions` together, before writing any `INSERT`.
 4. **Value-sensitive bugs** (an enum string landing in a DB column, a key in a response object, a header in an HTTP call): write the `expect(...).toHaveBeenCalledWith(...)` assertion first, run it red, then fix — proves the wrong value, catches silent overwrites that visual inspection misses.
 5. If it's production/staging actively misbehaving (not a local dev bug): use `incident-triage` instead — errors spiking, `/admin/health` red, high CPU, sign-in/scoring/payment failures, especially during a live show weekend.
 6. After the fix: run the colocated test for the file you edited, then grep all callers by function name (not just filename) for anything else the behavior change touches.

@@ -1,6 +1,6 @@
 # Entry Management Layout Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Implement this plan task by task with the `ship-it` skill. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Refactor Entry Management in place so it uses the shared search/filter/view controls, defaults to a denser table-first workflow, replaces status tabs with filters, and keeps card view grouped by enrollment with dog subgroups.
 

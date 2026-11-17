@@ -1,11 +1,11 @@
 ---
 name: code-review-extensions
-description: 'Supplementary checklists for superpowers:requesting-code-review. Use when dispatching code-reviewer subagent on PRs touching package.json (dependency/license review), auth/RLS (security review), supabase/migrations (migration safety review), or list views and subscriptions (performance review). Adds dependency, security, migration, and performance sections not covered by the base code-reviewer template.'
+description: 'Supplementary checklists for `/code-review` and reviewer subagents. Use when reviewing PRs touching package.json (dependency/license review), auth/RLS (security review), supabase/migrations (migration safety review), or list views and subscriptions (performance review). Adds dependency, security, migration, and performance sections not covered by the base code-review checklist.'
 ---
 
 # Code Review Extensions
 
-Supplementary checklists for `superpowers:requesting-code-review`. These sections extend the base code-reviewer template with areas the default checklist doesn't cover.
+Supplementary checklists for `/code-review` and reviewer subagents. These sections extend the base review checklist with areas the default checklist doesn't cover.
 
 ## When to Use
 

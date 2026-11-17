@@ -4,7 +4,7 @@
 
 > **Depends on:** [`docs/plan-entry-payment-request.md`](plan-entry-payment-request.md). This plan reuses that plan's pay-to-claim primitive (payment links for unpaid entries, webhook reconciliation, waitlist cascade, offline-for-mail-in promotion, transparency surfaces). Do NOT start draw implementation until the pay-to-claim spine exists.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development or superpowers:executing-plans. Checkbox (`- [ ]`) steps. Touches payment/Stripe + a fairness-critical randomization path — run `/codex:review` alongside `/review`, and treat the draw's auditability as load-bearing.
+> **For agentic workers:** Implement this plan task by task with the `ship-it` skill. Checkbox (`- [ ]`) steps. Touches payment/Stripe + a fairness-critical randomization path — run `/codex:review` alongside `/review`, and treat the draw's auditability as load-bearing.
 
 **Goal:** Offer clubs a **random-draw (lottery) entry mode** as an alternative to first-come-first-served for over-subscribed shows. Every entry received by the closing date — online _and_ secretary-keyed mail-in — has equal odds; a seeded, auditable draw fills capacity and orders the waitlist. This neutralizes both the online-opening-rush and the mail-delay disadvantage in one mechanism.
 

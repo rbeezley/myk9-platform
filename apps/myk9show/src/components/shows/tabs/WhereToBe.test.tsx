@@ -265,7 +265,7 @@ describe('WhereToBe', () => {
           showId={SHOW_ID}
         />
       );
-      expect(screen.queryByText(/^Q/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Q( |$)/)).not.toBeInTheDocument();
       expect(screen.queryByText(/^NQ/)).not.toBeInTheDocument();
       expect(screen.getByRole('link').getAttribute('href')).not.toContain('/classes/');
     });

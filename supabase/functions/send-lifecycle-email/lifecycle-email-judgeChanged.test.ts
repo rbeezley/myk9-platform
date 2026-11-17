@@ -99,7 +99,7 @@ describe('judge changed email wording', () => {
     expect(body).toContain(
       'Interior Novice A (Saturday Trial, Saturday, November 21, 2026): was the previous judge'
     );
-    expect(body).toContain('before judging of that class starts');
+    expect(body).toContain('before judging of each class starts');
     expect(body).toContain('Hi there,');
   });
 });

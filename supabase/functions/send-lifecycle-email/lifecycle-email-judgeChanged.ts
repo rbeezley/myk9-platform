@@ -193,7 +193,7 @@ export function judgeChangeRefundLine(
     case 'ASCA':
       return 'Contact the trial secretary with questions.';
     default: {
-      const subject = changes.length === 1 ? changes[0].className : 'that class';
+      const subject = changes.length === 1 ? changes[0].className : 'each class';
       return `You may withdraw for a full refund. Ask the trial secretary in writing before judging of ${subject} starts.`;
     }
   }

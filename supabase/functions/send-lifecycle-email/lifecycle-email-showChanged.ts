@@ -14,6 +14,7 @@ export interface ShowChangedShow {
   id: string;
   name: string | null;
   status: string | null;
+  deleted_at?: string | null;
   venue_name: string | null;
   address: string | null;
   city: string | null;
@@ -25,7 +26,8 @@ export interface ShowChangedShow {
 /** The statuses that count as published, the same set the confirmation email uses. */
 const PUBLISHED_SHOW_STATUSES = ['published', 'upcoming', 'in_progress'];
 
-export function isPublishedShow(show: Pick<ShowChangedShow, 'status'>): boolean {
+export function isPublishedShow(show: Pick<ShowChangedShow, 'status' | 'deleted_at'>): boolean {
+  if (show.deleted_at) return false;
   return PUBLISHED_SHOW_STATUSES.includes((show.status ?? '').toLowerCase());
 }
 

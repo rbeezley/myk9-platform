@@ -16,6 +16,10 @@ export function makeAutoSendSupabase(
   const tables: Record<string, Row[]> = Object.fromEntries(
     Object.entries(initial).map(([name, rows]) => [name, rows.map(row => ({ ...row }))])
   );
+  // The step is switched on unless a test says otherwise.
+  tables.show_lifecycle_email_steps ??= [
+    { show_id: 'show-1', step_type: 'show_changed', is_enabled: true },
+  ];
   let nextId = 0;
   let nextAttempt = 0;
 
@@ -62,6 +66,7 @@ export function makeAutoSendSupabase(
           ? { data: row, error: null }
           : { data: null, error: { code: 'PGRST116', message: 'no rows' } };
       }),
+      maybeSingle: vi.fn(async () => ({ data: exec()[0] ?? null, error: null })),
       then: <TResult1 = { data: Row[]; error: null }, TResult2 = never>(
         resolve?:
           ((value: { data: Row[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
@@ -99,6 +104,7 @@ export const publishedShow = {
   id: 'show-1',
   name: 'Spring Scent Trial',
   status: 'published',
+  deleted_at: null,
   venue_name: 'Riverside Barn',
   address: '12 River Road',
   city: 'Fairfield',

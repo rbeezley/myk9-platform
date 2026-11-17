@@ -204,7 +204,8 @@ DECLARE
 BEGIN
   SELECT sh.name, sh.status INTO v_show_name, v_status
     FROM public.shows sh
-   WHERE sh.id = p_show_id;
+   WHERE sh.id = p_show_id
+     AND sh.deleted_at IS NULL;
 
   -- Only a published show: a draft is still being set up, and a finished or cancelled
   -- show has nothing left to tell exhibitors.

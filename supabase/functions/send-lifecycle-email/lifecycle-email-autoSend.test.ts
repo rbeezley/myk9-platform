@@ -144,6 +144,39 @@ describe('drainAutoEmailJobs', () => {
     expect(fixture.tables.email_log ?? []).toEqual([]);
   });
 
+  it('skips the job when the show was deleted during the quiet minutes', async () => {
+    const fixture = makeAutoSendSupabase(
+      {
+        shows: [{ ...publishedShow, deleted_at: '2026-11-17T11:58:00.000Z' }],
+        show_lifecycle_email_jobs: [autoJob()],
+      },
+      { liveEntryPeople: ['person-1'] }
+    );
+    const fetch = okFetch();
+
+    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 1, skipped: 1, sent: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(job(fixture).status).toBe('skipped');
+  });
+
+  it('skips the job when the secretary switched the step off during the quiet minutes', async () => {
+    const fixture = makeAutoSendSupabase(
+      {
+        shows: [publishedShow],
+        show_lifecycle_email_jobs: [autoJob()],
+        show_lifecycle_email_steps: [
+          { show_id: 'show-1', step_type: 'show_changed', is_enabled: false },
+        ],
+      },
+      { liveEntryPeople: ['person-1'] }
+    );
+    const fetch = okFetch();
+
+    expect(await drain(fixture, fetch)).toMatchObject({ claimed: 1, skipped: 1, sent: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(job(fixture).status).toBe('skipped');
+  });
+
   it('skips the job when the person no longer has a live entry', async () => {
     const fixture = makeAutoSendSupabase(
       { shows: [publishedShow], show_lifecycle_email_jobs: [autoJob()] },

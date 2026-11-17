@@ -38,7 +38,7 @@ export const AUTO_SEND_LEASE_MS = 10 * 60 * 1000;
 export const AUTO_SEND_MAX_FAILED_ATTEMPTS = 3;
 
 const SHOW_SELECT =
-  'id, name, status, venue_name, address, city, state, zip_code, trials(name, date, deleted_at)';
+  'id, name, status, deleted_at, venue_name, address, city, state, zip_code, trials(name, date, deleted_at)';
 
 interface ClaimedJob {
   job_id: string;
@@ -163,6 +163,11 @@ async function processClaimedJob(args: {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
+  // The secretary may switch the step off during the quiet minutes: honour it at send time.
+  if (!(await stepIsEnabled(supabase, job.show_id, job.step_type))) {
+    await finishJob(args, { status: 'skipped' });
+    return 'skipped';
+  }
   if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
@@ -228,6 +233,22 @@ async function loadShow(
     throw new Error('Failed to load show');
   }
   return data;
+}
+
+async function stepIsEnabled(
+  supabase: LifecycleEmailSupabaseClient,
+  showId: string,
+  stepType: string
+): Promise<boolean> {
+  const { data, error } = (await supabase
+    .from('show_lifecycle_email_steps')
+    .select('is_enabled')
+    .eq('show_id', showId)
+    .eq('step_type', stepType)
+    .maybeSingle()) as QueryResult<{ is_enabled: boolean } | null>;
+  // A failed read must not read as "switched off": leave the job for the next drain.
+  if (error) throw new Error('Failed to load email step');
+  return data?.is_enabled === true;
 }
 
 async function personHasLiveEntry(

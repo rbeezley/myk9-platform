@@ -122,7 +122,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
   });
 
-  it('writes focus and anchor into owner-page return links (All days leaves day unset)', async () => {
+  it('writes focus and anchor into the scoring return link (All days leaves day unset)', async () => {
     const { user } = render(
       <ShowDeskPanel
         show={show}
@@ -139,11 +139,9 @@ describe('ShowDeskPanel cockpit', () => {
     );
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for/ }))[0]!);
-    const entriesLink = await screen.findAllByRole('menuitem', {
-      name: /view entries and results/i,
-    });
-    expect(decodeURIComponent(entriesLink[0]?.getAttribute('href') ?? '')).toContain(
-      'returnTo=/shows/show-1/show-day?focus=class-2&anchor=class-2'
+    const scoreLink = await screen.findAllByRole('menuitem', { name: /score this class/i });
+    expect(decodeURIComponent(scoreLink[0]?.getAttribute('href') ?? '')).toContain(
+      'returnTo=/shows/show-1?focus=class-2'
     );
   });
 

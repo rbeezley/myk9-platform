@@ -61,6 +61,7 @@ vi.mock('@/components/classes/ClassCompactHeader', () => ({
   ClassCompactHeader: ({ actions }: { actions?: ReactNode }) => <div>{actions}</div>,
 }));
 vi.mock('@/components/classes/ClassDetailsMain', () => ({ default: () => null }));
+vi.mock('./SecretaryRunSheet', () => ({ SecretaryRunSheet: () => null }));
 vi.mock('@/components/classes/ClassRequirementsPanel', () => ({
   ClassRequirementsPanel: () => null,
 }));

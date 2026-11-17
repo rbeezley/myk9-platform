@@ -35,7 +35,7 @@ export function entryInvalidationKeys(change: EntryChange): ReadonlyArray<readon
   }
   if (change.classId) {
     keys.push(queryKeys.classEntries(change.classId));
-    // Raw string-key form used by ClassDetailsPage / useRunOrderPreset
+    // Raw string-key form used by ClassDetailsPage / useRunSheetState / useRunOrderPreset
     keys.push(['classes', change.classId, 'entries']);
   }
   if (change.dogId) {

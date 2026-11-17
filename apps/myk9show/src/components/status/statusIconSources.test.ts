@@ -54,6 +54,7 @@ const MIGRATED_RENDERERS = [
   'features/at-show/slots/CheckinStatusDialog.tsx',
   'features/at-show/slots/ClassDetailsPopoverSlot.tsx',
   'pages/ClassDetailsPage/ClassReadinessStrip.tsx',
+  'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
   'pages/MyEntriesPage/modules/entryTabDefs.ts',
   'pages/TrialDetailsPage.tsx',
   'pages/secretary/WaitlistManagementPage/JudgeDayStatsCards.tsx',

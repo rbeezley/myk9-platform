@@ -36,7 +36,6 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   onAddEntry,
   onDeleteEntry,
   onOpenRequirements,
-  readOnly = false,
 }) => {
   useCheckInStatusSubscription(parentShow?.id, classData?.id);
 
@@ -51,9 +50,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   const userPermissions: UserPermissions = React.useMemo(() => {
     const displayName = user?.email || 'Unknown User';
 
-    if (readOnly) {
-      return createUserPermissions('exhibitor', user?.id, displayName);
-    } else if (hasRole(UserRole.SITE_ADMIN)) {
+    if (hasRole(UserRole.SITE_ADMIN)) {
       return createUserPermissions('admin', user?.id, displayName);
     } else if (hasRole(UserRole.SECRETARY)) {
       return createUserPermissions('secretary', user?.id, displayName);
@@ -62,7 +59,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
     } else {
       return createUserPermissions('exhibitor', user?.id, displayName);
     }
-  }, [user, hasRole, readOnly]);
+  }, [user, hasRole]);
 
   // Build class configuration and entries for results table
   const classConfig = React.useMemo(() => buildClassConfig(classData), [classData]);
@@ -73,6 +70,11 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   );
 
   return (
+    // The non-staff counterpart to SecretaryRunSheet: ClassDetailsPage renders
+    // exactly one of the two. This hook lets an e2e absence assertion WAIT for
+    // the surface that did render instead of racing it — `toHaveCount(0)` on the
+    // run sheet passes while the page is still settling, so without a positive
+    // marker it reports "absent" for a surface that is merely late (MYK9-464).
     <div className="space-y-6" data-testid="class-details-main">
       {/* Statistics Cards — only when there are entries */}
       {classEntries.length > 0 && (

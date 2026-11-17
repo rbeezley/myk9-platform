@@ -14,7 +14,7 @@
  * @module MyEntriesPage/modules/MyShowClassRow
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { PlacementPill } from '@/components/base/PlacementPill';
@@ -27,6 +27,7 @@ import {
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from '@myk9/core';
+import { ClassRequirementsDialog } from '@/features/at-show/slots/RequirementsDialog';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { canLeaveClass } from './leaveClassRow';
 import { canChangeClass } from './changeClassRow';
@@ -111,6 +112,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   onClassChanged,
   onResultRevealClick,
 }) => {
+  const [requirementsOpen, setRequirementsOpen] = useState(false);
   const state = classRowDisplay(cls, checkInContext);
   const word = state.word;
 
@@ -232,6 +234,24 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           canChange={canChange}
           onChanged={onClassChanged}
         />
+        {/* MYK9-2137: the same read-only Requirements view Ringside's class card opens. */}
+        {cls.classId && !cls.unresolved && (
+          <>
+            {/* First child of the row means nothing precedes it: no dangling dot. */}
+            <span aria-hidden="true" className="text-muted-foreground first:hidden">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={() => setRequirementsOpen(true)}
+              aria-label={`Requirements for ${cls.name}`}
+              aria-haspopup="dialog"
+              className={LINK_CLASS}
+            >
+              requirements
+            </button>
+          </>
+        )}
         {canLeave && (
           <>
             <span aria-hidden="true" className="text-muted-foreground">
@@ -257,6 +277,22 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           </>
         )}
       </span>
+      {requirementsOpen && cls.classId && (
+        <ClassRequirementsDialog
+          isOpen
+          onClose={() => setRequirementsOpen(false)}
+          showEntryCount={false}
+          perAreaFromClass
+          {...(cls.trialTimezone ? { timeZone: cls.trialTimezone } : {})}
+          classData={{
+            id: cls.classId,
+            element: '',
+            level: '',
+            class_name: cls.name,
+            entry_count: 0,
+          }}
+        />
+      )}
     </div>
   );
 

@@ -10,6 +10,7 @@ import {
   RequirementCard,
 } from '@/components/classes/ClassRequirementsPanel';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import { formatTimeLimitSetAt } from '@/features/show-map/cockpit/timeLimitSetAt';
 import { classRequirementsFromClass, setMaxTimeText } from './classRequirementsFromClass';
 
 export function ClassRequirementsContent({
@@ -18,6 +19,7 @@ export function ClassRequirementsContent({
   registry,
   perAreaTimes,
   onSetMaxTime,
+  timeZone,
 }: {
   /** The live replicated class; null when the read found none. */
   cls: ReplicatedClass | null;
@@ -26,15 +28,23 @@ export function ClassRequirementsContent({
   perAreaTimes: boolean;
   /** Makes the max time card a button; omitted where Set Max Time is not offered. */
   onSetMaxTime?: (() => void) | undefined;
+  /** The show's zone: when given, the card says when the max time was set (MYK9-2120). */
+  timeZone?: string | undefined;
 }) {
   const requirements = cls ? classRequirementsFromClass(cls, registry) : null;
+  const maxTimeText = setMaxTimeText(cls, perAreaTimes);
+  const setAt =
+    timeZone && maxTimeText !== 'Not set'
+      ? formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone)
+      : null;
+  const subtitle = [setAt, onSetMaxTime ? 'Tap to set' : null].filter(Boolean).join(' · ');
   const maxTime = (
     <RequirementCard
       icon={<Clock className="h-4 w-4" />}
       colorClass="bg-blue-500/15 text-blue-500"
       label="Max Time (this class)"
-      value={setMaxTimeText(cls, perAreaTimes)}
-      subtitle={onSetMaxTime ? 'Tap to set' : undefined}
+      value={maxTimeText}
+      subtitle={subtitle || undefined}
     />
   );
   const maxTimeCard = onSetMaxTime ? (

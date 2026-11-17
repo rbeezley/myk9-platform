@@ -372,6 +372,92 @@ describe('useNotificationMonitor', () => {
     expect(buildYourTurnPayload).toHaveBeenCalledOnce();
   });
 
+  describe('where an alert opens (MYK9-2134)', () => {
+    const trial = (date: string) => ({
+      show_id: 'show-1',
+      date,
+      timezone: 'America/Los_Angeles',
+      show: { uses_device_scoring: true },
+    });
+
+    async function classStartedOn(date: string) {
+      mockRefetch.mockResolvedValue({
+        data: {
+          classes: [classRow({ status: 'In Progress', trial: trial(date) })],
+          entries: [entry({ check_in_status: 'no-status' })],
+        },
+      });
+      mountWithBaseline({ classes: [classRow({ trial: trial(date) })], entries: [entry()] });
+      await emitShowChange();
+    }
+
+    it.each([
+      ['class_starting', 'class_starting'],
+      ['check_in_reminder', 'check_in_reminder'],
+    ])('sends %s to Ringside on the trial day, in the trial zone', async type => {
+      // 03:00 UTC on 2026-06-20 is still June 19 evening in Los Angeles.
+      vi.setSystemTime(new Date('2026-06-20T03:00:00Z'));
+      await classStartedOn('2026-06-19');
+      expect(mockDeliver).toHaveBeenCalledWith(
+        expect.objectContaining({ type, actionUrl: '/at-show/show-1' })
+      );
+    });
+
+    it('sends the alert to My Shows when the trial day is not today', async () => {
+      vi.setSystemTime(new Date('2026-06-18T20:00:00Z'));
+      await classStartedOn('2026-06-19');
+      expect(mockDeliver).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'class_starting', actionUrl: '/exhibitor/entries' })
+      );
+    });
+
+    it('sends your_turn to Ringside on the trial day', async () => {
+      vi.setSystemTime(new Date('2026-06-19T20:00:00Z'));
+      mockRefetch.mockResolvedValue({
+        data: {
+          classes: [classRow({ status: 'In Progress', trial: trial('2026-06-19') })],
+          entries: [
+            entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+            entry(),
+          ],
+        },
+      });
+      mountWithBaseline({
+        classes: [classRow({ status: 'In Progress', trial: trial('2026-06-19') })],
+        entries: [entry()],
+      });
+      await emitShowChange();
+      expect(mockDeliver).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'your_turn', actionUrl: '/at-show/show-1' })
+      );
+    });
+
+    it('keeps a private result private: an unreleased result opens My Shows, never the class page', async () => {
+      vi.setSystemTime(new Date('2026-06-20T20:00:00Z'));
+      mockRefetch.mockResolvedValue({
+        data: {
+          classes: [
+            classRow({
+              status: 'Complete',
+              is_scoring_finalized: true,
+              results_released_at: null,
+              trial: trial('2026-06-19'),
+            }),
+          ],
+          entries: [entry({ is_scored: true, result_status: 'qualified' })],
+        },
+      });
+      mountWithBaseline({
+        classes: [classRow({ trial: trial('2026-06-19') })],
+        entries: [entry()],
+      });
+      await emitShowChange();
+      expect(mockDeliver).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'results_posted', actionUrl: '/exhibitor/entries' })
+      );
+    });
+  });
+
   it('builds a released qualified result URL from the refreshed snapshot', async () => {
     mockRefetch.mockResolvedValue({
       data: {

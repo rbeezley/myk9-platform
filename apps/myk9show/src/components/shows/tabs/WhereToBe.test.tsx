@@ -218,10 +218,57 @@ describe('WhereToBe', () => {
     expect(screen.queryByText(/fault/)).not.toBeInTheDocument();
   });
 
-  it('links to the correct class detail URL', () => {
-    render(<WhereToBe entries={[makeEntry()]} showId={SHOW_ID} />);
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/shows/show-1/trials/t1/classes/c1');
+  describe('where each row links (MYK9-2134)', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+    const at = (iso: string) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(iso));
+      mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
+    };
+
+    it('links to My Shows before the trial day', () => {
+      at('2026-05-09T15:00:00Z');
+      render(<WhereToBe entries={[makeEntry()]} showId={SHOW_ID} />);
+      expect(screen.getByRole('link')).toHaveAttribute('href', '/exhibitor/entries');
+    });
+
+    it('links to Ringside on the trial day in the trial zone', () => {
+      // 03:00 UTC May 11 is still May 10 evening in Chicago.
+      at('2026-05-11T03:00:00Z');
+      render(<WhereToBe entries={[makeEntry()]} showId={SHOW_ID} />);
+      expect(screen.getByRole('link')).toHaveAttribute('href', '/at-show/show-1');
+    });
+
+    it('links each day by its own date', () => {
+      at('2026-05-10T15:00:00Z');
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({ entryId: 'e1' }),
+            makeEntry({ entryId: 'e2', trialDate: '2026-05-11', dayLabel: 'Monday, May 11' }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      const [today, tomorrow] = screen.getAllByRole('link');
+      expect(today).toHaveAttribute('href', '/at-show/show-1');
+      expect(tomorrow).toHaveAttribute('href', '/exhibitor/entries');
+    });
+
+    it('keeps a private entry private: no result shown and no link to the class page', () => {
+      at('2026-05-10T15:00:00Z');
+      render(
+        <WhereToBe
+          entries={[makeEntry({ hasResult: false, result: undefined })]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.queryByText(/^Q/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^NQ/)).not.toBeInTheDocument();
+      expect(screen.getByRole('link').getAttribute('href')).not.toContain('/classes/');
+    });
   });
 
   it('shows start time in each row', () => {

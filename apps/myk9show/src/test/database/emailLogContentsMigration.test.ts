@@ -29,7 +29,7 @@ describe('MYK9-2115 email_log_contents migration', () => {
     expect(sql).toContain("USING ERRCODE = '42501'");
   });
 
-  it('returns no row for an unknown id and raises 42501 for another show's email', () => {
+  it('returns no row for an unknown id and raises 42501 for another show email', () => {
     const body = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.get_show_email_content'));
     const notFound = body.indexOf('IF NOT COALESCE(v_found, false) THEN');
     const notAllowed = body.indexOf('NOT public.can_manage_show_lifecycle_email(v_show_id)');

@@ -7,7 +7,6 @@ import type {
   ConfirmationJob,
   ConfirmationJobAttempt,
   ConfirmationJobStore,
-  EnqueueOutcome,
   Generations,
 } from './entryConfirmationJobs';
 import { sameText } from './entryConfirmationJobs';
@@ -106,12 +105,8 @@ export interface FakeJobRow {
   show_id: string;
   group_key: string;
   registration_id: string | null;
-  entry_ids: string[];
-  generations: Generations;
+  handler_id: string | null;
   recipient_email: string;
-  /** The payload a send began with (null until one does, and after a definite refusal). */
-  begun: { to: string; subject: string; html: string } | null;
-  idempotency_key: string;
   status: 'ready' | 'sent' | 'failed' | 'skipped';
   due_at: string;
   claimed_until: string | null;
@@ -121,6 +116,7 @@ export interface FakeJobRow {
 
 export interface FakeAttempt extends ConfirmationJobAttempt {
   jobId: string;
+  error: string | null;
 }
 
 export interface FakeDepsArgs {
@@ -189,12 +185,7 @@ export function makeDeps(args: FakeDepsArgs) {
     showId: row.show_id,
     groupKey: row.group_key,
     registrationId: row.registration_id,
-    anchorEntryId: row.entry_ids[0]!,
-    entryIds: row.entry_ids,
-    generations: row.generations,
-    recipientEmail: row.recipient_email,
-    begun: row.begun,
-    idempotencyKey: row.idempotency_key,
+    handlerId: row.handler_id,
     dueAt: row.due_at,
   });
   const currentGeneration = (entryId: string) =>
@@ -204,53 +195,32 @@ export function makeDeps(args: FakeDepsArgs) {
   const byId = (id: string) => jobRows.find(row => row.id === id)!;
 
   const jobs: ConfirmationJobStore = {
-    enqueue: async (job): Promise<EnqueueOutcome> => {
-      const text = {
-        entry_ids: job.entryIds,
-        generations: job.generations,
-        recipient_email: job.recipientEmail,
-        begun: null,
-      };
-      // One READY job per exhibitor per show, whatever its key (the partial unique index).
-      const holdsSlot = (row: FakeJobRow) =>
-        row.status === 'ready' &&
-        row.show_id === job.showId &&
-        sameText(row.group_key, job.groupKey);
-      const existing = jobRows.find(row => sameText(row.idempotency_key, job.idempotencyKey));
-      if (existing) {
-        if (existing.status === 'sent') {
-          return {
-            outcome: 'sent',
-            messageId:
-              attempts.find(a => a.jobId === existing.id && a.resendMessageId)?.resendMessageId ??
-              null,
-          };
-        }
-        if (existing.status === 'ready') return { outcome: 'open' };
-        if (jobRows.some(holdsSlot)) return { outcome: 'open' };
-        Object.assign(existing, text, {
-          status: 'ready',
-          due_at: job.nowIso,
-          claimed_until: null,
-          attempt_id: null,
-        });
-        return { outcome: 'revived' };
+    enqueue: async job => {
+      // One READY ticket per exhibitor group per show (the partial unique index).
+      if (
+        jobRows.some(
+          row =>
+            row.status === 'ready' &&
+            row.show_id === job.showId &&
+            sameText(row.group_key, job.groupKey)
+        )
+      ) {
+        return 'open';
       }
-      if (jobRows.some(holdsSlot)) return { outcome: 'open' };
       jobRows.push({
-        ...text,
         id: `job-${++idSeq}`,
         show_id: job.showId,
         group_key: job.groupKey,
         registration_id: job.registrationId,
-        idempotency_key: job.idempotencyKey,
+        handler_id: job.handlerId,
+        recipient_email: job.recipientEmail,
         status: 'ready',
         due_at: job.nowIso,
         claimed_until: null,
         attempt_id: null,
         email_log_id: null,
       });
-      return { outcome: 'created' };
+      return 'created';
     },
     loadReadyGroupKeys: async showIds =>
       new Set(
@@ -274,37 +244,62 @@ export function makeDeps(args: FakeDepsArgs) {
           return toJob(row);
         });
     },
-    beginSend: async (job, payload) => {
+    loadAttempts: async jobId => attempts.filter(attempt => attempt.jobId === jobId),
+    beginAttempt: async (job, payload) => {
       const row = byId(job.id);
       if (row.attempt_id !== job.attemptId) throw new Error('The confirmation lease was lost');
-      row.recipient_email = payload.to;
-      row.begun = payload;
-    },
-    loadAttempts: async jobId => attempts.filter(attempt => attempt.jobId === jobId),
-    recordAttempt: async (job, attempt) => {
+      const id = `att-${++idSeq}`;
       attempts.push({
+        id,
         jobId: job.id,
         attemptedAt: current.toISOString(),
         emailLogId: null,
-        resendMessageId: attempt.messageId,
-        status: attempt.status,
+        resendMessageId: null,
+        status: 'started',
+        payload,
+        error: null,
+      });
+      return id;
+    },
+    resolveAttempt: async (attemptId, outcome) => {
+      const attempt = attempts.find(row => row.id === attemptId)!;
+      attempt.status = outcome.status;
+      attempt.resendMessageId = outcome.messageId;
+      attempt.error = outcome.error;
+    },
+    recordFailedAttempt: async (job, error) => {
+      attempts.push({
+        id: `att-${++idSeq}`,
+        jobId: job.id,
+        attemptedAt: current.toISOString(),
+        emailLogId: null,
+        resendMessageId: null,
+        status: 'failed',
+        payload: null,
+        error,
       });
     },
     finish: async (job, outcome) => {
       const row = byId(job.id);
-      // Compare-and-set on the attempt id: an abandoned attempt finishing late changes nothing.
+      // Compare-and-set on the lease: an abandoned attempt finishing late changes nothing.
       if (row.attempt_id !== job.attemptId) return;
       row.status = outcome.status;
       row.attempt_id = null;
       row.claimed_until = null;
       if (outcome.emailLogId) row.email_log_id = outcome.emailLogId;
     },
-    releaseLease: async (job, untilIso, keepBegun) => {
+    releaseLease: async (job, untilIso) => {
       const row = byId(job.id);
       if (row.attempt_id !== job.attemptId) return;
-      if (!keepBegun) row.begun = null;
       row.attempt_id = null;
       row.claimed_until = untilIso;
+    },
+    defer: async (job, dueIso) => {
+      const row = byId(job.id);
+      if (row.attempt_id !== job.attemptId) return;
+      row.attempt_id = null;
+      row.claimed_until = null;
+      row.due_at = dueIso;
     },
   };
 
@@ -344,15 +339,6 @@ export function makeDeps(args: FakeDepsArgs) {
       );
     },
     jobs,
-    loadEntries: async ids =>
-      args.entries.filter(
-        row =>
-          ids.includes(row.id) &&
-          row.entry_status === 'confirmed' &&
-          row.armband !== null &&
-          row.deleted_at === null &&
-          row.confirmation_email_sent_at === null
-      ),
     markSent: async (generations, messageId, nowIso) => {
       for (const row of args.entries) {
         if (

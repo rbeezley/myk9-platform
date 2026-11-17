@@ -63,7 +63,7 @@ const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 const SHOW_SELECT =
   'id, name, status, start_date, end_date, venue_name, address, city, state, zip_code, latitude, longitude, organization, confirmation_message, style, brand_color, experience_is_published, experience_published_style, experience_published_content, trials(id, name, trial_number, display_order, date, timezone, registry_id, planned_start_time, deleted_at)';
 const ENTRY_SELECT =
-  'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, confirmation_email_status, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
+  'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, confirmation_email_status, updated_at, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
 
 /** Asks send-registration-email to re-send a failed receipt, as the sweep caller (same secret). */
 async function resendReceipt(
@@ -265,18 +265,6 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       return latestAcceptanceGenerations((data ?? []) as AcceptanceHistoryRow[]);
     },
     jobs: createConfirmationJobStore(supabase),
-    loadEntries: async entryIds => {
-      const { data, error } = await supabase
-        .from('entries')
-        .select(ENTRY_SELECT)
-        .in('id', entryIds)
-        .eq('entry_status', 'confirmed')
-        .not('armband', 'is', null)
-        .is('deleted_at', null)
-        .is('confirmation_email_sent_at', null);
-      if (error) throw new Error(`Could not read the confirmation entries: ${error.message}`);
-      return (data ?? []) as unknown as ConfirmationEntry[];
-    },
     markSent: async (generations, messageId, nowIso) => {
       // The marker is written when the job succeeds, never before the send (MYK9-2088), in one
       // update fenced by acceptance generation: an entry accepted again since is not stamped.

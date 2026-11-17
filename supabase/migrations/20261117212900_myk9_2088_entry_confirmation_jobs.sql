@@ -10,61 +10,86 @@
 -- send, and the candidate read needs it null. A function stopped between the stamp and the
 -- send left the entries stamped and never emailed, with nothing to expire or recover it.
 --
--- After: the scheduled run writes one job per exhibitor per show (rendered subject and
--- body stored on the job, the covered entry ids, the Resend idempotency key already derived
--- from those entries and their acceptance generations) and sends it under a lease. The
--- entries' confirmation_email_sent_at / status / message id are written when the job
--- SUCCEEDS, so the historical marker keeps its meaning for every reader (admin diagnostics,
--- the re-acceptance trigger of MYK9-2040, the candidate read). Nothing already stamped is
--- touched: genuine prior sends and first-run historical markers stay as they are.
+-- After: the scheduled run writes one TICKET per exhibitor group per show (batch_key is the
+-- run's own group key, enrollment_id her registration, recipient_person_id the handler of a
+-- handler-only group) and sends it under a lease. A ticket freezes nothing: when it is sent,
+-- the worker re-runs the run's gather for that one group (confirmed, unmarked, outside the
+-- ten-minute quiet period, still in the group), so grouping and the quiet period cannot
+-- drift from the run's. What is actually sent (the entry ids with their acceptance
+-- generations, the address, the body, the provider key) is recorded on the ATTEMPT row
+-- before the provider is called; an unresolved attempt is replayed from that record, and a
+-- sent one is reconciled from it. The entries' confirmation_email_sent_at / status / message
+-- id are written when the send SUCCEEDS, so the historical marker keeps its meaning for every
+-- reader (admin diagnostics, the re-acceptance trigger of MYK9-2040, the candidate read).
+-- Nothing already stamped is touched: genuine prior sends and first-run historical markers
+-- stay as they are.
 --
---   1. show_lifecycle_email_jobs.entry_ids uuid[]: the entries one confirmation covers.
---      Server-written only (the column-level UPDATE ACL of 20261018031700 does not list it).
+--   1. show_lifecycle_email_attempts.payload jsonb, and the attempt status CHECK gains
+--      'started' (the send began, the provider has not answered). Server-written only.
 --   2. The JOBS step_type CHECK gains 'entry_confirmation'. The STEPS CHECK does not: the
 --      secretary's switch for this email is the existing 'accepted' step (the run already
 --      honours it, and Scheduled emails shows it), so a second switch would be two controls
 --      for one email. A confirmation job's step_id points at the show's 'accepted' step.
 --      The Scheduled emails panel ignores a job whose step type it does not list, so these
 --      automatic jobs never show up as something to review.
---   3. A partial UNIQUE index: one READY confirmation job per exhibitor per show
---      (batch_key is the run's group key, show:registration|handler:id). Two overlapping
---      runs cannot both queue the same exhibitor's email.
+--   3. A partial UNIQUE index: one READY confirmation ticket per exhibitor group per show.
+--      Two overlapping runs cannot both queue the same exhibitor's email.
 --   4. claim_due_auto_email_jobs gains p_step_types, so the show-changed drain and the
 --      confirmation drain each claim only their own kind with the one lease mechanism. The
 --      parameter has NO default: a caller must name what it can render. The result also
---      returns the begun payload (rendered_subject/body, null until a send begins),
---      batch_key, entry_id, entry_ids, enrollment_id and entry_generations. A two-argument
---      wrapper (show_changed only) stays for the rollout window; a follow-up drops it.
---   4b. entry_generations jsonb on the job, and mark_entry_confirmation: the one fenced UPDATE
---      every marker write goes through (see its comment).
---
+--      returns batch_key, entry_id and enrollment_id. A two-argument wrapper (show_changed
+--      only) stays for the rollout window; a follow-up drops it.
+--   4b. mark_entry_confirmation: the one fenced UPDATE every marker write goes through (see
+--      its comment).
 --   5. get_show_email_delivery_history (copied from 20261117044900, its latest definition) no
---      longer lists a refused attempt of an entry_confirmation job as a failure: refusals are
---      retries of one email. The job's final failure still shows once, through its
---      heritage_confirmation email_log row; a refused-then-sent job shows only the sent email.
---      Other step types are unchanged.
+--      longer lists each refused attempt of an entry_confirmation job as a failure: refusals
+--      are retries of one email. A job that ended failed shows once (its latest refused
+--      attempt); a refused-then-sent job shows only the sent email. Other step types are
+--      unchanged.
 --
 -- Rollback: delete entry_confirmation jobs; DROP FUNCTION mark_entry_confirmation; restore the
 -- two-argument claim_due_auto_email_jobs from 20261117094700 (and redeploy the previous
 -- send-lifecycle-email and send-confirmation-email); DROP INDEX
 -- show_lifecycle_email_jobs_one_ready_entry_confirmation; restore the jobs step_type CHECK
--- without 'entry_confirmation'; ALTER TABLE public.show_lifecycle_email_jobs DROP COLUMN
--- entry_ids.
+-- without 'entry_confirmation' and the attempts status CHECK without 'started'; ALTER TABLE
+-- public.show_lifecycle_email_attempts DROP COLUMN payload.
 -- =============================================================================
 
 BEGIN;
 
-ALTER TABLE public.show_lifecycle_email_jobs
-  ADD COLUMN IF NOT EXISTS entry_ids uuid[] NOT NULL DEFAULT '{}'::uuid[];
+ALTER TABLE public.show_lifecycle_email_attempts
+  ADD COLUMN IF NOT EXISTS payload jsonb;
 
-ALTER TABLE public.show_lifecycle_email_jobs
-  ADD COLUMN IF NOT EXISTS entry_generations jsonb NOT NULL DEFAULT '{}'::jsonb;
+COMMENT ON COLUMN public.show_lifecycle_email_attempts.payload IS
+  'MYK9-2088: what an entry_confirmation attempt sent or is about to send (address, subject, body, entry ids with acceptance generations, provider key). Recorded before the provider is called; a started attempt is replayed from it, a sent one reconciled from it. Written by the server only.';
 
-COMMENT ON COLUMN public.show_lifecycle_email_jobs.entry_generations IS
-  'MYK9-2088: entry id to the acceptance generation (latest entry_status_history row into confirmed, or none) the job covered. mark_entry_confirmation only touches an entry whose current generation still matches. Written by the server only.';
+DO $$
+DECLARE
+  v_constraint text;
+  v_dropped integer := 0;
+BEGIN
+  FOR v_constraint IN
+    SELECT c.conname
+      FROM pg_constraint c
+     WHERE c.conrelid = 'public.show_lifecycle_email_attempts'::regclass
+       AND c.contype = 'c'
+       AND pg_get_constraintdef(c.oid) LIKE '%status%'
+       AND pg_get_constraintdef(c.oid) LIKE '%delayed%'
+  LOOP
+    EXECUTE format('ALTER TABLE public.show_lifecycle_email_attempts DROP CONSTRAINT %I', v_constraint);
+    v_dropped := v_dropped + 1;
+  END LOOP;
+  IF v_dropped <> 1 THEN
+    RAISE EXCEPTION 'MYK9-2088: expected to drop exactly one status CHECK on show_lifecycle_email_attempts, dropped %',
+      v_dropped;
+  END IF;
+END
+$$;
 
-COMMENT ON COLUMN public.show_lifecycle_email_jobs.entry_ids IS
-  'MYK9-2088: the entries one entry_confirmation job covers (one email per exhibitor per show). Written by the server only.';
+ALTER TABLE public.show_lifecycle_email_attempts
+  ADD CONSTRAINT show_lifecycle_email_attempts_status_check CHECK (
+    status IN ('started', 'sent', 'failed', 'delivered', 'bounced', 'complained', 'delayed')
+  );
 
 DO $$
 DECLARE
@@ -127,11 +152,7 @@ RETURNS TABLE (
   due_at timestamptz,
   batch_key text,
   entry_id uuid,
-  entry_ids uuid[],
-  enrollment_id uuid,
-  entry_generations jsonb,
-  rendered_subject text,
-  rendered_body text
+  enrollment_id uuid
 )
 LANGUAGE sql
 SECURITY DEFINER
@@ -157,8 +178,7 @@ AS $$
      AND p_lease_until > now()
   RETURNING j.id, j.attempt_id, j.show_id, j.step_type, j.recipient_person_id,
             j.recipient_email, j.recipient_name, j.idempotency_key, j.due_at,
-            j.batch_key, j.entry_id, j.entry_ids, j.enrollment_id, j.entry_generations,
-            j.rendered_subject, j.rendered_body;
+            j.batch_key, j.entry_id, j.enrollment_id;
 $$;
 
 REVOKE ALL ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz, text[])

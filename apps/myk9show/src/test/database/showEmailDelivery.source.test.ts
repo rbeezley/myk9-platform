@@ -106,8 +106,11 @@ describe('MYK9-180 show email delivery source contract', () => {
     expect(source('supabase/functions/send-confirmation-email/index.ts')).toContain(
       "from('email_log')"
     );
+    // The missing-recipient log is the run's; the sent log is the drain's (it knows the job's show).
     const run = source('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
-    expect(run.match(/show_id: show\.id/g)).toHaveLength(2);
+    expect(run.match(/show_id: show\.id/g)).toHaveLength(1);
+    const jobs = source('supabase/functions/send-confirmation-email/entryConfirmationJobs.ts');
+    expect(jobs).toContain('show_id: job.showId');
   });
 
   it('records a failed full confirmation when the recipient address is missing', () => {

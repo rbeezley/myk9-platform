@@ -187,6 +187,11 @@ export function groupConfirmationsByExhibitor(entries: ConfirmationEntry[]): Con
   return [...groups.values()];
 }
 
+/** Plain equality for identifiers (idempotency and group keys are not secrets). */
+export function sameText(a: string, b: string): boolean {
+  return a === b;
+}
+
 /** The generation an entry with no 'confirmed' history row carries. */
 export const NO_ACCEPTANCE_GENERATION = 'none';
 

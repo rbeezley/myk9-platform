@@ -95,7 +95,7 @@ describe('a run stopped after the claim', () => {
 describe('a run stopped after the provider accepted', () => {
   it('before the attempt was recorded: the retry reuses the key, so the provider delivers once', async () => {
     const { deps, sends, deliveries, logs, entries, advance } = setup();
-    stopOnce(deps.jobs, 'recordAttempt');
+    stopOnce(deps.jobs, 'resolveAttempt'); // the provider accepted; the answer is never recorded
 
     await runEntryConfirmations(deps, 'new');
     expect(sends).toHaveLength(1);
@@ -151,29 +151,6 @@ describe('a run stopped after the provider accepted', () => {
     expect(entries[0]).toMatchObject({ confirmation_email_status: 'sent' });
     expect(entries[0]!.confirmation_email_sent_at).not.toBeNull();
   });
-
-  it('after the job was sent, before the entries were marked: the entries are marked without a send', async () => {
-    const { deps, sends, entries, jobRows, advance } = setup();
-    // The job ends sent while the write to the entries never landed (the marker lags the job).
-    let marked = false;
-    const markSent = deps.markSent;
-    deps.markSent = async (...args) => {
-      if (!marked) {
-        marked = true;
-        return; // the write never reached the entries
-      }
-      return markSent(...args);
-    };
-    await runEntryConfirmations(deps, 'new');
-    expect(jobRows[0]!.status).toBe('sent');
-    expect(entries[0]!.confirmation_email_sent_at).toBeNull();
-
-    advance(DAY);
-    await runEntryConfirmations(deps, 'all');
-    expect(sends).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ confirmation_email_status: 'sent' });
-    expect(entries[0]!.confirmation_email_sent_at).not.toBeNull();
-  });
 });
 
 describe('overlapping runs', () => {
@@ -192,7 +169,7 @@ describe('overlapping runs', () => {
 });
 
 describe('refusals', () => {
-  it('end at failed after the fifth, mark the entries failed, and the daily run revives the job', async () => {
+  it('end at failed after the fifth, mark the entries failed, and the daily run writes a new ticket', async () => {
     let refuse = true;
     const { deps, sends, logs, entries, jobRows, attempts, advance } = setup({
       sendResult: () =>
@@ -224,8 +201,8 @@ describe('refusals', () => {
     expect(sends).toHaveLength(CONFIRMATION_MAX_FAILED_ATTEMPTS + 1);
     expect(sends.at(-1)!.idempotencyKey).toBe(sends[0]!.idempotencyKey);
     expect(entries[0]).toMatchObject({ confirmation_email_status: 'sent' });
-    expect(jobRows).toHaveLength(1);
-    expect(jobRows[0]!.status).toBe('sent');
+    // The failed ticket stays as the record; the daily run wrote a new one for the same group.
+    expect(jobRows.map(row => row.status)).toEqual(['failed', 'sent']);
   });
 });
 
@@ -246,7 +223,7 @@ describe('what the entries are now (re-acceptance and genuine prior sends)', () 
     });
   });
 
-  it('skips a waiting job whose entry was returned to review and accepted again, and sends the new acceptance once', async () => {
+  it('holds a waiting ticket while a re-accepted entry is quiet, then sends the new acceptance under its own key', async () => {
     const accepted = entry();
     const history: AcceptanceHistoryRow[] = [
       { id: 'hist-1', entry_id: accepted.id, changed_at: '2026-11-20T13:00:00Z' },
@@ -256,36 +233,31 @@ describe('what the entries are now (re-acceptance and genuine prior sends)', () 
       entries: [accepted],
       history,
     });
-    stopOnce(deps.jobs, 'loadAttempts'); // the first job is written and leased, never sent
+    stopOnce(deps.jobs, 'loadAttempts'); // the ticket is written and leased, never sent
 
     await runEntryConfirmations(deps, 'new');
     expect(sends).toHaveLength(0);
     expect(jobRows).toHaveLength(1);
 
-    // Back to review and accepted again: the trigger resets the markers, history gains a row.
-    history.push({ id: 'hist-2', entry_id: accepted.id, changed_at: '2026-11-20T14:30:00Z' });
+    // Back to review and accepted again: the trigger resets the markers and bumps updated_at,
+    // history gains a row. The change is recent, so the quiet period holds the email back.
     advance(CONFIRMATION_LEASE_MS + MINUTE);
-    accepted.updated_at = '2026-11-20T14:30:00Z';
-    await runEntryConfirmations(deps, 'new');
+    history.push({ id: 'hist-2', entry_id: accepted.id, changed_at: '2026-11-20T15:05:00Z' });
+    accepted.updated_at = '2026-11-20T15:11:00Z';
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, deferred: 1 });
+    expect(sends).toHaveLength(0);
+    expect(jobRows[0]!.status).toBe('ready');
 
-    expect(jobRows.map(row => row.status).sort()).toEqual(['sent', 'skipped']);
+    advance(15 * MINUTE);
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
     expect(sends).toHaveLength(1);
-    expect(
-      sends[0]!.idempotencyKey.startsWith(
-        jobRows.find(row => row.status === 'sent')!.idempotency_key
-      )
-    ).toBe(true);
-    expect(
-      sends[0]!.idempotencyKey.startsWith(
-        jobRows.find(row => row.status === 'skipped')!.idempotency_key
-      )
-    ).toBe(false);
+    expect(jobRows).toHaveLength(1);
 
-    // A third acceptance after the second went out is a new confirmation again.
+    // A third acceptance after that went out is a new confirmation again, under another key.
     accepted.confirmation_email_sent_at = null;
     accepted.confirmation_email_status = 'pending';
     accepted.updated_at = '2026-11-20T14:31:00Z';
-    history.push({ id: 'hist-3', entry_id: accepted.id, changed_at: '2026-11-20T14:31:00Z' });
+    history.push({ id: 'hist-3', entry_id: accepted.id, changed_at: '2026-11-20T16:00:00Z' });
     advance(DAY);
     await runEntryConfirmations(deps, 'new');
     expect(sends).toHaveLength(2);
@@ -311,7 +283,7 @@ describe('what the entries are now (re-acceptance and genuine prior sends)', () 
     advance(MINUTE);
     expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
     expect(sends).toHaveLength(1);
-    expect(jobRows).toHaveLength(1);
+    expect(jobRows.map(row => row.status)).toEqual(['skipped', 'sent']);
   });
 });
 
@@ -324,8 +296,8 @@ describe('the email is worked out when it is sent (not when the job was written)
 
     await runEntryConfirmations(deps, 'new');
     expect(sends).toHaveLength(0);
-    // Nothing was rendered yet, so nothing stale is stored.
-    expect(jobRows[0]).toMatchObject({ begun: null });
+    // Nothing is stored on the ticket: no body, no entry set.
+    expect(Object.keys(jobRows[0]!)).not.toContain('html');
 
     venue.address = '77 New Venue Lane';
     people['reg-ada'] = { email: 'ada.new@example.com', firstName: 'Ada', lastName: 'L' };
@@ -336,41 +308,50 @@ describe('the email is worked out when it is sent (not when the job was written)
     expect(sends[0]!.to).toBe('ada.new@example.com');
     expect(sends[0]!.html).toContain('77 New Venue Lane');
     expect(sends[0]!.html).not.toContain('1200 Fairgrounds Rd');
-    // The key carries the address: the same address always repeats it, another gets its own.
-    expect(sends[0]!.idempotencyKey.startsWith(jobRows[0]!.idempotency_key + ':')).toBe(true);
+    expect(sends[0]!.idempotencyKey).toMatch(/^entry-confirmation:[0-9a-f]+:[0-9a-f]{12}$/);
   });
 
-  it('skips, and marks the entries failed, when the exhibitor has no usable address', async () => {
+  it('ends the ticket failed with a visible missing_recipient attempt when the address is gone, once', async () => {
     const people: Record<string, { email: string | null; firstName: string; lastName: null }> = {
       'reg-ada': { email: 'ada@example.com', firstName: 'Ada', lastName: null },
     };
-    const { deps, sends, jobRows, entries, advance } = setup({ people });
+    const { deps, sends, jobRows, attempts, logs, entries, advance } = setup({ people });
     stopOnce(deps.jobs, 'loadAttempts');
     await runEntryConfirmations(deps, 'new');
 
     people['reg-ada'] = { email: 'not an address', firstName: 'Ada', lastName: null };
     advance(CONFIRMATION_LEASE_MS + MINUTE);
-    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, skipped: 1 });
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, failed: 1 });
     expect(sends).toHaveLength(0);
-    expect(jobRows[0]!.status).toBe('skipped');
-
-    // The next run's writer notices: nothing to send to, entries marked for the daily look.
-    await runEntryConfirmations(deps, 'new');
+    // Delivery history lists a job that ended failed through its latest failed attempt: one line.
+    expect(jobRows[0]!.status).toBe('failed');
+    expect(
+      attempts.filter(a => a.status === 'failed' && a.error === 'missing_recipient')
+    ).toHaveLength(1);
     expect(entries[0]).toMatchObject({ confirmation_email_status: 'failed' });
-    expect(sends).toHaveLength(0);
+
+    // Later runs add nothing: the entries wait for the daily run, which logs nothing new either.
+    await runEntryConfirmations(deps, 'new');
+    advance(DAY);
+    await runEntryConfirmations(deps, 'all');
+    expect(attempts.filter(a => a.error === 'missing_recipient')).toHaveLength(1);
+    expect(logs).toHaveLength(0);
   });
 
   it('repeats exactly the payload a send began with when the provider answer was lost, so it dedupes', async () => {
     const venue = show();
     let lose = true;
-    const { deps, sends, deliveries, logs, jobRows, advance } = setup({
+    const { deps, sends, deliveries, logs, attempts, advance } = setup({
       shows: [venue],
       loseResponse: () => lose,
     });
 
     expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, retrying: 1 });
     expect(deliveries.size).toBe(1); // the provider did accept it
-    expect(jobRows[0]!.begun).not.toBeNull();
+    // The attempt record, not the ticket, holds what was sent; it is still unresolved.
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0]).toMatchObject({ status: 'started' });
+    expect(attempts[0]!.payload!.html).toContain('1200 Fairgrounds Rd');
 
     // Data changes before the retry; the retry must still be the very same message.
     venue.address = '77 New Venue Lane';
@@ -477,5 +458,79 @@ describe('the run limit', () => {
     await runEntryConfirmations(deps, 'new');
     expect(sends.filter(email => email.to === 'new@example.com')).toHaveLength(1);
     expect(sends).toHaveLength(56);
+  });
+});
+
+describe('a ticket re-gathers its group when it is sent', () => {
+  it('after the anchor entry is reassigned to another handler, each handler gets only their own entries', async () => {
+    const handlers = {
+      'person-hal': { email: 'hal@example.com', firstName: 'Hal', lastName: null },
+      'person-bea': { email: 'bea@example.com', firstName: 'Bea', lastName: null },
+    };
+    const moved = entry({
+      registration_id: null,
+      handler_id: 'person-hal',
+      dog: { name: 'Moved Dog', call_name: 'Moved', breed: 'Lab', sex: 'F' },
+    });
+    const stays = entry({
+      registration_id: null,
+      handler_id: 'person-hal',
+      dog_id: 'dog-stays',
+      dog: { name: 'Stays Dog', call_name: 'Stays', breed: 'Lab', sex: 'M' },
+    });
+    const { deps, sends, jobRows, advance } = makeDeps({
+      shows: [show()],
+      entries: [moved, stays],
+      people: {},
+      handlers,
+    });
+    stopOnce(deps.jobs, 'loadAttempts'); // Hal's ticket is written and leased, never sent
+    await runEntryConfirmations(deps, 'new');
+    expect(jobRows).toHaveLength(1);
+
+    // The secretary reassigns the first entry to Bea while the ticket waits.
+    moved.handler_id = 'person-bea';
+    moved.updated_at = LONG_AGO;
+    advance(CONFIRMATION_LEASE_MS + MINUTE);
+    await runEntryConfirmations(deps, 'new');
+
+    const toHal = sends.filter(email => email.to === 'hal@example.com');
+    const toBea = sends.filter(email => email.to === 'bea@example.com');
+    expect(toHal).toHaveLength(1);
+    expect(toHal[0]!.html).toContain('Stays Dog');
+    expect(toHal[0]!.html).not.toContain('Moved Dog');
+    expect(toBea).toHaveLength(1);
+    expect(toBea[0]!.html).toContain('Moved Dog');
+    expect(toBea[0]!.html).not.toContain('Stays Dog');
+    expect(moved).toMatchObject({ confirmation_email_status: 'sent' });
+    expect(stays).toMatchObject({ confirmation_email_status: 'sent' });
+  });
+
+  it('does not email an armband edited during backoff until it is quiet, then sends the corrected number', async () => {
+    let refuse = true;
+    const entries = [entry({ armband: '101' })];
+    const { deps, sends, advance } = makeDeps({
+      shows: [show()],
+      entries,
+      sendResult: () =>
+        refuse ? { ok: false, error: 'provider_http_500' } : { ok: true, messageId: '' },
+    });
+    await runEntryConfirmations(deps, 'new'); // refused: the ticket waits 5 minutes
+    expect(sends).toHaveLength(1);
+    expect(sends[0]!.html).toContain('101');
+
+    // The secretary corrects the armband during the backoff; updated_at moves to now.
+    refuse = false;
+    entries[0]!.armband = '202';
+    entries[0]!.updated_at = new Date(deps.now().getTime() + 2 * MINUTE).toISOString();
+    advance(6 * MINUTE); // the retry is due, the edit is only four minutes old
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, deferred: 1 });
+    expect(sends).toHaveLength(1);
+
+    advance(10 * MINUTE); // quiet again
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 1 });
+    expect(sends).toHaveLength(2);
+    expect(sends[1]!.html).toContain('202');
+    expect(sends[1]!.html).not.toContain('101');
   });
 });

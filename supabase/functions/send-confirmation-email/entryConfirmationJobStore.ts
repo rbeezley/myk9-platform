@@ -8,7 +8,7 @@ import {
   type ConfirmationJob,
   type ConfirmationJobAttempt,
   type ConfirmationJobStore,
-  type EnqueueOutcome,
+  type SentPayload,
 } from './entryConfirmationJobs.ts';
 
 /** The slice of the Supabase service client the store touches (the real client satisfies it). */
@@ -23,14 +23,8 @@ interface ClaimedRow {
   attempt_id: string;
   show_id: string;
   batch_key: string | null;
-  entry_id: string | null;
-  entry_ids: string[] | null;
   enrollment_id: string | null;
-  entry_generations: Record<string, string> | null;
-  recipient_email: string | null;
-  rendered_subject: string | null;
-  rendered_body: string | null;
-  idempotency_key: string;
+  recipient_person_id: string | null;
   due_at: string;
 }
 
@@ -62,76 +56,29 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
   }
 
   return {
-    async enqueue(args): Promise<EnqueueOutcome> {
-      const { data: existing, error: readError } = await supabase
-        .from(JOBS)
-        .select('id, status')
-        .eq('idempotency_key', args.idempotencyKey)
-        .maybeSingle();
-      if (readError) fail('Could not read the confirmation job', readError);
-
-      // No text is stored: the body is worked out when the job is sent.
-      const text = {
-        recipient_email: args.recipientEmail,
-        recipient_name: args.recipientName,
-        rendered_subject: null,
-        rendered_body: null,
-        entry_ids: args.entryIds,
-        entry_generations: args.generations,
-      };
-
-      if (existing) {
-        if (existing.status === 'sent') {
-          const { data: attempts } = await supabase
-            .from(ATTEMPTS)
-            .select('resend_message_id')
-            .eq('job_id', existing.id)
-            .not('resend_message_id', 'is', null)
-            .limit(1);
-          return { outcome: 'sent', messageId: attempts?.[0]?.resend_message_id ?? null };
-        }
-        if (existing.status !== 'failed' && existing.status !== 'skipped') {
-          return { outcome: 'open' };
-        }
-        // Ended failed or skipped under the same key (the daily run, or the show's switch back
-        // on): due now again, with the lease cleared and the text refreshed.
-        const { data, error } = await supabase
-          .from(JOBS)
-          .update({
-            ...text,
-            status: 'ready',
-            due_at: args.nowIso,
-            claimed_until: null,
-            attempt_id: null,
-            skipped_at: null,
-          })
-          .eq('id', existing.id)
-          .eq('status', existing.status)
-          .select('id');
-        // Another job holds this exhibitor's one ready slot: it goes first.
-        if (isUniqueViolation(error)) return { outcome: 'open' };
-        if (error) fail('Could not revive the confirmation job', error);
-        return (data ?? []).length > 0 ? { outcome: 'revived' } : { outcome: 'open' };
-      }
-
+    async enqueue(args) {
       const { error } = await supabase.from(JOBS).insert({
-        ...text,
         show_id: args.showId,
         step_id: await acceptedStepId(args.showId),
         step_type: CONFIRMATION_JOB_STEP_TYPE,
         status: 'ready',
         recipient_scope: 'show_recipient',
-        entry_id: args.entryIds[0] ?? null,
-        enrollment_id: args.registrationId,
-        idempotency_key: args.idempotencyKey,
+        // The ticket's grouping inputs: the run's own group key, her registration, or the handler
+        // of a handler-only group. No entry set and no text: both are worked out when it is sent.
         batch_key: args.groupKey,
+        enrollment_id: args.registrationId,
+        recipient_person_id: args.handlerId,
+        entry_id: args.anchorEntryId,
+        recipient_email: args.recipientEmail,
+        recipient_name: args.recipientName,
+        idempotency_key: `entry-confirmation-job:${crypto.randomUUID()}`,
         due_at: args.nowIso,
         auto_send: true,
       });
-      // The same key written by a racing run, or another ready job for this exhibitor.
-      if (isUniqueViolation(error)) return { outcome: 'open' };
+      // Another ready ticket already holds this exhibitor's slot (a racing run, or one in backoff).
+      if (isUniqueViolation(error)) return 'open';
       if (error) fail('Could not write the confirmation job', error);
-      return { outcome: 'created' };
+      return 'created';
     },
 
     async loadReadyGroupKeys(showIds) {
@@ -163,19 +110,7 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
         showId: row.show_id,
         groupKey: row.batch_key ?? '',
         registrationId: row.enrollment_id,
-        anchorEntryId: row.entry_id ?? row.entry_ids?.[0] ?? '',
-        entryIds: row.entry_ids ?? [],
-        generations: row.entry_generations ?? {},
-        recipientEmail: row.recipient_email ?? '',
-        begun:
-          row.rendered_body === null
-            ? null
-            : {
-                to: row.recipient_email ?? '',
-                subject: row.rendered_subject ?? '',
-                html: row.rendered_body,
-              },
-        idempotencyKey: row.idempotency_key,
+        handlerId: row.recipient_person_id,
         dueAt: row.due_at,
       }));
     },
@@ -183,49 +118,59 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
     async loadAttempts(jobId): Promise<ConfirmationJobAttempt[]> {
       const { data, error } = await supabase
         .from(ATTEMPTS)
-        .select('attempted_at, email_log_id, resend_message_id, status')
-        .eq('job_id', jobId);
+        .select('id, attempted_at, email_log_id, resend_message_id, status, payload')
+        .eq('job_id', jobId)
+        .order('attempted_at', { ascending: true })
+        .order('id', { ascending: true });
       if (error) fail('Could not read the confirmation attempts', error);
       return (
         (data ?? []) as Array<{
+          id: string;
           attempted_at: string;
           email_log_id: string | null;
           resend_message_id: string | null;
           status: string;
+          payload: SentPayload | null;
         }>
       ).map(row => ({
+        id: row.id,
         attemptedAt: row.attempted_at,
         emailLogId: row.email_log_id,
         resendMessageId: row.resend_message_id,
         status: row.status,
+        payload: row.payload,
       }));
     },
 
-    async beginSend(job, payload) {
+    async beginAttempt(job, payload) {
       const { data, error } = await supabase
-        .from(JOBS)
-        .update({
-          recipient_email: payload.to,
-          rendered_subject: payload.subject,
-          rendered_body: payload.html,
-        })
-        .eq('id', job.id)
-        .eq('attempt_id', job.attemptId)
-        .select('id');
-      if (error) fail('Could not store the confirmation about to be sent', error);
-      // The lease was lost: another run owns the job now, so this one must not send.
-      if ((data ?? []).length === 0) throw new Error('The confirmation lease was lost');
+        .from(ATTEMPTS)
+        .insert({ job_id: job.id, status: 'started', payload })
+        .select('id')
+        .single();
+      // Not swallowed: without the record an ambiguous provider answer could not be replayed.
+      if (error || !data?.id) fail('Could not record the confirmation about to be sent', error);
+      return data.id as string;
     },
 
-    async recordAttempt(job, attempt) {
-      const { error } = await supabase.from(ATTEMPTS).insert({
-        job_id: job.id,
-        resend_message_id: attempt.messageId,
-        status: attempt.status,
-        error_message: attempt.error,
-      });
-      // Not swallowed: an accepted send with no attempt row cannot be reconciled by message id.
+    async resolveAttempt(attemptId, outcome) {
+      const { error } = await supabase
+        .from(ATTEMPTS)
+        .update({
+          status: outcome.status,
+          resend_message_id: outcome.messageId,
+          error_message: outcome.error,
+        })
+        .eq('id', attemptId);
+      // Not swallowed: an accepted send with no recorded message id cannot be reconciled.
       if (error) fail('Could not record the confirmation attempt', error);
+    },
+
+    async recordFailedAttempt(job, error) {
+      const { error: writeError } = await supabase
+        .from(ATTEMPTS)
+        .insert({ job_id: job.id, status: 'failed', error_message: error });
+      if (writeError) fail('Could not record the confirmation attempt', writeError);
     },
 
     async finish(job, outcome) {
@@ -244,17 +189,22 @@ export function createConfirmationJobStore(supabase: Client): ConfirmationJobSto
       if (error) fail('Could not record the confirmation outcome', error);
     },
 
-    async releaseLease(job, untilIso, keepBegun) {
+    async releaseLease(job, untilIso) {
       const { error } = await supabase
         .from(JOBS)
-        .update({
-          attempt_id: null,
-          claimed_until: untilIso,
-          ...(keepBegun ? {} : { rendered_subject: null, rendered_body: null }),
-        })
+        .update({ attempt_id: null, claimed_until: untilIso })
         .eq('id', job.id)
         .eq('attempt_id', job.attemptId);
       if (error) fail('Could not release the confirmation lease', error);
+    },
+
+    async defer(job, dueIso) {
+      const { error } = await supabase
+        .from(JOBS)
+        .update({ attempt_id: null, claimed_until: null, due_at: dueIso })
+        .eq('id', job.id)
+        .eq('attempt_id', job.attemptId);
+      if (error) fail('Could not defer the confirmation job', error);
     },
   };
 }

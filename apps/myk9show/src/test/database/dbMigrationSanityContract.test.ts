@@ -69,9 +69,11 @@ describe('DB migration sanity contracts', () => {
 
     const run = readRepoFile('supabase/functions/send-confirmation-email/entryConfirmationRun.ts');
     expect(run).toContain("scope === 'all' ? ['pending', 'failed'] : ['pending']");
-    expect(run).toContain(
-      'idempotencyKey = await confirmationIdempotencyKey(group, entryIds, read)'
+    // The provider key is worked out at send time, from the live set the drain gathered.
+    const drain = readRepoFile(
+      'supabase/functions/send-confirmation-email/entryConfirmationJobs.ts'
     );
+    expect(drain).toContain('confirmationIdempotencyKey({ key: job.groupKey }, entryIds, read)');
   });
 
   it('keeps the final people_insert_secretary policy role-gated', () => {

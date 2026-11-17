@@ -7,11 +7,11 @@
 --   C. the claim takes only the step types it is given (no default), leases the job, hands
 --      an expired lease out again with a new attempt (an interrupted send is recoverable),
 --      and never takes a sent, non-automatic or not-yet-due job
---   D. the claim returns what the drain needs to send without rendering
+--   D. the claim returns the ticket's grouping inputs
 --   F. Delivery history lists a confirmation job only when the JOB ended failed, once, and a
 --      refused-then-sent job lists no failure; another step type's failed attempts still list
 --   E. the claim is service_role only, the old two-argument claim is gone, and an API role
---      cannot write entry_ids
+--      cannot write an attempt payload
 --
 --   G. mark_entry_confirmation stamps an entry only while its CURRENT acceptance generation is the
 --      covered one, never clears a sent marker, and is service_role only
@@ -39,12 +39,10 @@ declare
 begin
   insert into public.show_lifecycle_email_jobs (
     show_id, step_id, step_type, status, recipient_scope, recipient_email, recipient_name,
-    subject, rendered_subject, rendered_body, idempotency_key, batch_key, entry_ids, due_at, auto_send
+    idempotency_key, batch_key, due_at, auto_send
   )
   select s.show_id, s.id, p_step_type, 'ready', 'show_recipient', 'ada@example.test', 'Ada',
-         'Your entry is accepted', 'Your entry is accepted', '<p>Armband 101</p>', p_key, p_batch_key,
-         array['00000000-0000-0000-0000-000002088341', '00000000-0000-0000-0000-000002088342']::uuid[],
-         p_due, p_auto
+         p_key, p_batch_key, p_due, p_auto
     from public.show_lifecycle_email_steps s
    where s.show_id = '00000000-0000-0000-0000-000002088302' and s.step_type = 'accepted'
   returning id into v_id;
@@ -59,11 +57,16 @@ declare
 begin
   v_job := pg_temp.add_job('00000000-0000-0000-0000-000002088302:registration:reg-ada', 'entry_confirmation', 'entry-confirmation:a');
   select * into v_row from public.show_lifecycle_email_jobs where id = v_job;
-  if v_row.step_type <> 'entry_confirmation' or array_length(v_row.entry_ids, 1) <> 2
-     or v_row.rendered_body <> '<p>Armband 101</p>' then
+  if v_row.step_type <> 'entry_confirmation' or v_row.batch_key is null then
     raise exception 'FAIL A the confirmation job is wrong: %', row_to_json(v_row);
   end if;
-  raise notice 'PASS A an entry_confirmation job is accepted and keeps its entry ids and text';
+  -- An attempt can be recorded as started, with the payload it is about to send.
+  insert into public.show_lifecycle_email_attempts (job_id, status, payload)
+  values (v_job, 'started', jsonb_build_object('to', 'ada@example.test', 'entryIds', jsonb_build_array()));
+  if (select payload ->> 'to' from public.show_lifecycle_email_attempts where job_id = v_job) <> 'ada@example.test' then
+    raise exception 'FAIL A the started attempt payload was not kept';
+  end if;
+  raise notice 'PASS A an entry_confirmation job is accepted and an attempt can start with a payload';
 end $$;
 
 -- B
@@ -112,10 +115,8 @@ begin
 
   select * into v_first from public.claim_due_auto_email_jobs(1, now() + interval '10 minutes', array['entry_confirmation']);
   if v_first.step_type <> 'entry_confirmation' or v_first.attempt_id is null
-     or v_first.recipient_email <> 'ada@example.test' or v_first.rendered_subject <> 'Your entry is accepted'
-     or v_first.rendered_body <> '<p>Armband 101</p>' or array_length(v_first.entry_ids, 1) <> 2
-     or v_first.batch_key is null then
-    raise exception 'FAIL D the claim did not return what the drain sends: %', row_to_json(v_first);
+     or v_first.recipient_email <> 'ada@example.test' or v_first.batch_key is null then
+    raise exception 'FAIL D the claim did not return the ticket: %', row_to_json(v_first);
   end if;
   if exists (select 1 from public.show_lifecycle_email_jobs
               where id in (v_changed, v_not_auto, v_future) and (attempt_id is not null or claimed_until is not null)) then
@@ -147,7 +148,7 @@ begin
   if v_count <> 0 then
     raise exception 'FAIL C a sent job was claimed again (% jobs)', v_count;
   end if;
-  raise notice 'PASS C and D the claim is per step type, leased, recoverable after an expired lease and returns the stored email';
+  raise notice 'PASS C and D the claim is per step type, leased, recoverable after an expired lease and returns the ticket';
 end $$;
 
 -- E
@@ -169,11 +170,11 @@ begin
      or not has_function_privilege('service_role', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute') then
     raise exception 'FAIL E the rollout wrapper claim is not service_role only';
   end if;
-  if has_column_privilege('authenticated', 'public.show_lifecycle_email_jobs', 'entry_ids', 'update')
-     or has_column_privilege('anon', 'public.show_lifecycle_email_jobs', 'entry_ids', 'update') then
-    raise exception 'FAIL E an API role can write entry_ids';
+  if has_column_privilege('authenticated', 'public.show_lifecycle_email_attempts', 'payload', 'insert')
+     or has_column_privilege('anon', 'public.show_lifecycle_email_attempts', 'payload', 'insert') then
+    raise exception 'FAIL E an API role can write an attempt payload';
   end if;
-  raise notice 'PASS E the claim is service_role only and entry_ids is server-written';
+  raise notice 'PASS E the claim is service_role only and the attempt payload is server-written';
 end $$;
 
 -- F

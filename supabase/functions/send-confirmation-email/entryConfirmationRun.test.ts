@@ -407,14 +407,14 @@ describe('runEntryConfirmations (MYK9-1999)', () => {
     expect(sends[1]!.idempotencyKey).not.toBe(sends[0]!.idempotencyKey);
   });
 
-  it('sends nothing, and releases the group for retry, when the acceptance history cannot be read', async () => {
+  it('sends nothing, and leaves the ticket for the next run, when the acceptance history cannot be read', async () => {
     const entries = [entry()];
     const { deps, sends } = makeDeps({ shows: [show()], entries, historyReadFails: true });
-    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, failed: 1 });
+    expect(await runEntryConfirmations(deps, 'new')).toMatchObject({ sent: 0, errors: 1 });
     expect(sends).toHaveLength(0);
     expect(entries[0]).toMatchObject({
       confirmation_email_sent_at: null,
-      confirmation_email_status: 'failed',
+      confirmation_email_status: 'pending',
     });
   });
 

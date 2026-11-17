@@ -6,8 +6,6 @@
 import {
   CONFIRMATION_MAX_EMAILS_PER_RUN,
   CONFIRMATION_QUIET_MS,
-  confirmationIdempotencyKey,
-  generationRecord,
   groupConfirmationsByExhibitor,
   showTakesConfirmations,
   type ConfirmationEntry,
@@ -18,13 +16,12 @@ import {
 import {
   drainConfirmationJobs,
   emptyDrainTotals,
-  type ConfirmationDrainDeps,
   type ConfirmationJobStore,
   type ConfirmationLogEntry,
   type Generations,
   type ConfirmationSendOutcome,
 } from './entryConfirmationJobs.ts';
-import { prepareSend, resolveRecipient, usableAddress } from './entryConfirmationSend.ts';
+import { resolveRecipient, usableAddress } from './entryConfirmationSend.ts';
 import type { HeritageEmailData } from './heritage-email.ts';
 
 /** One email_log row; related_id is the first entry the email covers. */
@@ -96,8 +93,6 @@ export interface EntryConfirmationDeps {
    * will email.
    */
   jobs: ConfirmationJobStore;
-  /** Of these entries, those still accepted, with an armband, not deleted and unmarked (current rows). */
-  loadEntries(entryIds: string[]): Promise<ConfirmationEntry[]>;
   /**
    * Writes the historical marker once the email is out: confirmation_email_sent_at, status
    * 'sent' and the message id, in ONE update that only touches an entry whose current acceptance
@@ -160,22 +155,11 @@ export async function runEntryConfirmations(
   const shows = liveShows.filter(show => !switchedOff.has(show.id));
   const showById = new Map(shows.map(show => [show.id, show]));
 
-  // The drain works the email out at send time, so it takes the run's own dependencies.
-  const drainDeps: ConfirmationDrainDeps = {
-    ...deps,
-    prepare: (job, show, entries) =>
-      prepareSend(deps, {
-        show,
-        entries,
-        registrationId: job.registrationId,
-        anchorEntryId: job.anchorEntryId,
-      }),
-  };
   const drained = emptyDrainTotals();
-  await drainConfirmationJobs(drainDeps, showById, drained);
+  await drainConfirmationJobs(deps, showById, drained);
 
   const written = await writeJobs(deps, scope, shows, showById);
-  await drainConfirmationJobs(drainDeps, showById, drained);
+  await drainConfirmationJobs(deps, showById, drained);
 
   if (drained.errors > 0) {
     console.warn('Confirmation jobs left for the next run', { errors: drained.errors });
@@ -184,10 +168,10 @@ export async function runEntryConfirmations(
     sent: drained.sent,
     reconciled: drained.reconciled,
     retrying: drained.retrying,
+    deferred: drained.deferred + written.deferred,
     failed: drained.failed + written.failed,
     errors: drained.errors,
     skipped: drained.skipped + written.skipped,
-    deferred: written.deferred,
   };
 }
 
@@ -300,46 +284,18 @@ async function writeJobs(
       continue;
     }
 
-    let idempotencyKey: string;
-    let generations: Generations;
-    try {
-      const read = await deps.loadAcceptanceGenerations(entryIds);
-      generations = generationRecord(entryIds, read);
-      idempotencyKey = await confirmationIdempotencyKey(group, entryIds, read);
-    } catch {
-      // The acceptance history could not be read: nothing is written, and the group is released
-      // for the daily run rather than sent under a key that could repeat an earlier acceptance's.
-      await deps.markFailed(entryIds);
-      await deps.log({
-        recipient_email: address,
-        email_type: 'heritage_confirmation',
-        related_id: anchor.id,
-        show_id: show.id,
-        resend_message_id: null,
-        status: 'failed',
-        error_message: 'email_delivery_error',
-      });
-      failed++;
-      continue;
-    }
-
+    // A ticket, not a snapshot: what it covers and says is worked out when it is sent.
     const enqueued = await deps.jobs.enqueue({
       showId: show.id,
       groupKey: group.key,
       registrationId: group.registrationId,
-      entryIds,
-      generations,
+      handlerId: group.handlerId,
+      anchorEntryId: anchor.id,
       recipientEmail: address,
       recipientName: [recipient.firstName, recipient.lastName].filter(Boolean).join(' ') || null,
-      idempotencyKey,
       nowIso: now.toISOString(),
     });
-    if (enqueued.outcome === 'sent') {
-      // The email already went out; only the entries' marker lagged behind the job.
-      await deps.markSent(generations, enqueued.messageId, now.toISOString());
-    } else if (enqueued.outcome === 'open') {
-      deferred++;
-    }
+    if (enqueued === 'open') deferred++;
   }
 
   return { failed, skipped, deferred };

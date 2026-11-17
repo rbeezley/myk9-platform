@@ -53,18 +53,22 @@ interrupted send is retried and a provider-accepted send is reconciled. The hist
 `confirmation_email_sent_at` marker stays, and is now written when the job succeeds.
 
 As built (MYK9-2088): job step type `entry_confirmation` (jobs CHECK only; the secretary's
-switch stays the `accepted` step, and the job's `step_id` points at it), one ready job per
-exhibitor per show (unique on `show_id, batch_key`), the covered ids in `entry_ids` and each one's
-acceptance generation in `entry_generations`. **No text is stored when the job is written**: the
-worker works out the subject, body and address at send time from current data, like the
-show_changed drain. The only stored payload is the one a send began with (`rendered_*`), repeated
-verbatim under the same key when the provider's answer was lost. The Resend key is the job's key
-plus the address, so the same address always dedupes and a changed address is its own message.
-Every marker write goes through `mark_entry_confirmation`, one UPDATE fenced by generation.
-`claim_due_auto_email_jobs` takes `p_step_types` (a two-argument wrapper stays for the rollout
-window), so each drain claims only what it can render; the confirmation drain lives in
-`send-confirmation-email` (it owns the heritage renderers) and every scheduled run drains first,
-which is the recovery.
+switch stays the `accepted` step, and the job's `step_id` points at it). A job is a **ticket** for
+one exhibitor group in one show (`batch_key` is the run's own group key, `enrollment_id` her
+registration, `recipient_person_id` the handler of a handler-only group; one ready ticket per
+group, unique on `show_id, batch_key`). It stores no entry set and no text. When it is sent, the
+worker re-runs the run's own gather for that group (confirmed, unmarked, outside the quiet period,
+still in the group), works out the address and body from current data, and records what it is about
+to send (entry ids with acceptance generations, address, body, provider key) on the attempt row
+(`payload`, status `started`) before calling the provider. A `started` attempt is replayed from that
+record; a `sent` one is reconciled from it. Entries still in the quiet period defer the ticket
+(not a failure); nothing qualifying skips it; no usable address ends it `failed` with a
+`missing_recipient` attempt, which Delivery history lists once. The Resend key is the covered
+entries' key plus the address. Every marker write goes through `mark_entry_confirmation`, one
+UPDATE fenced by generation. `claim_due_auto_email_jobs` takes `p_step_types` (a two-argument
+wrapper stays for the rollout window), so each drain claims only what it can render; the
+confirmation drain lives in `send-confirmation-email` (it owns the heritage renderers) and every
+scheduled run drains first, which is the recovery.
 
 ## Phase 3: the secretary's entry edits (MYK9-2126)
 

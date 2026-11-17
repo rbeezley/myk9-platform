@@ -103,6 +103,10 @@ function toRecipient(person: PersonRow | null | undefined): ConfirmationRecipien
   return { email: person.email, firstName: person.first_name, lastName: person.last_name };
 }
 
+/** No live lease: never claimed, or the lease ran out (an interrupted run). */
+const unleasedAt = (nowIso: string) =>
+  `confirmation_claimed_until.is.null,confirmation_claimed_until.lt.${nowIso}`;
+
 type ServiceClient = HandlerCtx<unknown>['supabase'];
 
 function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryConfirmationDeps {
@@ -137,7 +141,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       if (error) throw new Error(`Could not read the acceptance email switch: ${error.message}`);
       return new Set(((data ?? []) as Array<{ show_id: string }>).map(row => row.show_id));
     },
-    loadCandidates: async ({ showIds, statuses, quietSince }) => {
+    loadCandidates: async ({ showIds, statuses, quietSince, nowIso }) => {
       const { data, error } = await supabase
         .from('entries')
         .select(ENTRY_SELECT)
@@ -146,6 +150,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
         .not('armband', 'is', null)
         .is('deleted_at', null)
         .is('confirmation_email_sent_at', null)
+        .or(unleasedAt(nowIso))
         .in('confirmation_email_status', statuses)
         .lt('updated_at', quietSince)
         // Oldest change first: a failed attempt bumps updated_at, so retries rotate.
@@ -161,6 +166,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       handlerIds,
       statuses,
       quietSince,
+      nowIso,
     }) => {
       // Same filters as loadCandidates and no row limit, paged past PostgREST's max_rows.
       const eligible = () =>
@@ -172,6 +178,7 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
           .not('armband', 'is', null)
           .is('deleted_at', null)
           .is('confirmation_email_sent_at', null)
+          .or(unleasedAt(nowIso))
           .in('confirmation_email_status', statuses)
           .lt('updated_at', quietSince);
       const readAll = (
@@ -261,12 +268,14 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       if (error) throw new Error(`Could not read acceptance history: ${error.message}`);
       return latestAcceptanceGenerations((data ?? []) as AcceptanceHistoryRow[]);
     },
-    claim: async (entryIds, statuses, nowIso) => {
+    claim: async (entryIds, statuses, nowIso, leaseUntilIso) => {
+      // One atomic update: of two overlapping runs only one matches the unleased predicate.
       const { data, error } = await supabase
         .from('entries')
-        .update({ confirmation_email_sent_at: nowIso })
+        .update({ confirmation_claimed_until: leaseUntilIso })
         .in('id', entryIds)
         .is('confirmation_email_sent_at', null)
+        .or(unleasedAt(nowIso))
         .in('confirmation_email_status', statuses)
         .eq('entry_status', 'confirmed')
         .not('armband', 'is', null)
@@ -275,20 +284,46 @@ function confirmationDeps(supabase: ServiceClient, resendApiKey: string): EntryC
       if (error) throw new Error(`Could not claim confirmations: ${error.message}`);
       return ((data ?? []) as Array<{ id: string }>).map(row => row.id);
     },
-    markSent: async (entryIds, messageId) => {
-      const { error } = await supabase
+    markSent: async (entryIds, messageId, leaseUntilIso) => {
+      // Fenced on the lease this run wrote: a re-acceptance voids it (any entry_status change
+      // clears confirmation_claimed_until), so that entry is not marked and is sent its own email.
+      const { data, error } = await supabase
         .from('entries')
-        .update({ confirmation_email_status: 'sent', confirmation_email_message_id: messageId })
-        .in('id', entryIds);
-      // The claim already stands, so the entries are not sent again; only the status lags.
-      if (error) console.error('Could not mark confirmations sent', { message: error.message });
+        .update({
+          confirmation_email_sent_at: new Date().toISOString(),
+          confirmation_email_status: 'sent',
+          confirmation_email_message_id: messageId,
+          confirmation_claimed_until: null,
+        })
+        .in('id', entryIds)
+        .eq('confirmation_claimed_until', leaseUntilIso)
+        .eq('entry_status', 'confirmed')
+        .select('id');
+      if (error) {
+        // The provider has the email. The lease still stands, so after it expires the next run
+        // sends under the same idempotency key (deduplicated) and stamps then.
+        console.error('Could not mark confirmations sent', {
+          message: error.message,
+          entries: entryIds.length,
+        });
+        return [];
+      }
+      return ((data ?? []) as Array<{ id: string }>).map(row => row.id);
     },
-    markFailed: async entryIds => {
-      const { error } = await supabase
+    markFailed: async (entryIds, leaseUntilIso) => {
+      const query = supabase
         .from('entries')
-        .update({ confirmation_email_sent_at: null, confirmation_email_status: 'failed' })
+        .update({ confirmation_claimed_until: null, confirmation_email_status: 'failed' })
         .in('id', entryIds);
-      if (error) console.error('Could not release confirmations', { message: error.message });
+      const { error } = await (leaseUntilIso
+        ? query.eq('confirmation_claimed_until', leaseUntilIso)
+        : query);
+      if (error) {
+        console.error('Could not release confirmations', {
+          message: error.message,
+          entries: entryIds.length,
+        });
+      }
     },
     render: (data, show) => renderConfirmationEmail(data, show, showRegistry(show)),
     send: async ({ to, subject, html, idempotencyKey }) => {

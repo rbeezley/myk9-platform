@@ -5,6 +5,7 @@
 
 import {
   buildConfirmationEmailData,
+  CONFIRMATION_LEASE_MS,
   CONFIRMATION_MAX_EMAILS_PER_RUN,
   CONFIRMATION_QUIET_MS,
   confirmationIdempotencyKey,
@@ -48,13 +49,15 @@ export interface EntryConfirmationDeps {
   /**
    * Accepted ('confirmed'), not deleted entries with an armband and no confirmation yet, in
    * these shows, whose confirmation_email_status is one of `statuses` and that have not changed
-   * since `quietSince`. Oldest updated_at first: a failed attempt bumps updated_at, so the
+   * since `quietSince`, and that no live lease holds (`confirmation_claimed_until` is null or
+   * before `nowIso`). Oldest updated_at first: a failed attempt bumps updated_at, so the
    * daily retry rotates through failures instead of taking the same ones every day.
    */
   loadCandidates(args: {
     showIds: string[];
     statuses: Array<'pending' | 'failed'>;
     quietSince: string;
+    nowIso: string;
   }): Promise<ConfirmationEntry[]>;
   /**
    * byRegistration: a registration that was read maps to its person, or to null when it has
@@ -73,6 +76,7 @@ export interface EntryConfirmationDeps {
     handlerIds: string[];
     statuses: Array<'pending' | 'failed'>;
     quietSince: string;
+    nowIso: string;
   }): Promise<ConfirmationEntry[]>;
   loadRecipients(args: { registrationIds: string[]; handlerIds: string[] }): Promise<{
     byRegistration: Map<string, ConfirmationRecipient | null>;
@@ -88,15 +92,29 @@ export interface EntryConfirmationDeps {
    * sent under a key that could repeat an earlier acceptance's.
    */
   loadAcceptanceGenerations(entryIds: string[]): Promise<Map<string, string>>;
-  /** Stamps the entries still unclaimed and still confirmed; returns the ids it stamped. */
+  /**
+   * Leases the entries still unsent, still confirmed and not under a live lease (never claimed,
+   * or `confirmation_claimed_until` before `nowIso`): sets confirmation_claimed_until to
+   * `leaseUntilIso` in one atomic update and returns the ids it leased. Nothing is stamped sent.
+   */
   claim(
     entryIds: string[],
     statuses: Array<'pending' | 'failed'>,
-    nowIso: string
+    nowIso: string,
+    leaseUntilIso: string
   ): Promise<string[]>;
-  markSent(entryIds: string[], messageId: string): Promise<void>;
-  /** Releases a claim after a failed send: unstamped, 'failed', so the daily run retries it. */
-  markFailed(entryIds: string[]): Promise<void>;
+  /**
+   * After the provider accepted: stamps sent_at, 'sent' and the message id and clears the lease,
+   * but only on entries whose lease is still the one this run wrote (`leaseUntilIso`) and that
+   * are still confirmed. A re-acceptance in between voided the lease (any status change does),
+   * so that entry stays unmarked and gets its own email. Returns the ids it stamped.
+   */
+  markSent(entryIds: string[], messageId: string, leaseUntilIso: string): Promise<string[]>;
+  /**
+   * A failed send: marks 'failed' so the daily run retries it. With `leaseUntilIso` it also
+   * releases that lease (only entries still holding it); without, the entries were never leased.
+   */
+  markFailed(entryIds: string[], leaseUntilIso?: string): Promise<void>;
   render(data: HeritageEmailData, show: ConfirmationShow): string;
   send(email: {
     to: string;
@@ -141,10 +159,12 @@ export async function runEntryConfirmations(
 
   const quietSince = new Date(now.getTime() - CONFIRMATION_QUIET_MS).toISOString();
   const eligible = (entry: ConfirmationEntry) => !!entry.armband && showById.has(entry.show_id);
+  const nowIso = now.toISOString();
   const candidates = await deps.loadCandidates({
     showIds: shows.map(show => show.id),
     statuses,
     quietSince,
+    nowIso,
   });
   // The candidates choose WHICH exhibitors go this run (oldest first); each chosen exhibitor's
   // email is then built from all of her eligible entries, never from the part the limit let in.
@@ -164,6 +184,7 @@ export async function runEntryConfirmations(
           handlerIds: unique(chosen.map(group => group.handlerId)),
           statuses,
           quietSince,
+          nowIso,
         })
       ).filter(eligible)
     ).map(group => [group.key, group])
@@ -227,7 +248,10 @@ export async function runEntryConfirmations(
       continue;
     }
 
-    const claimed = await deps.claim(entryIds, statuses, now.toISOString());
+    // The lease outlives any run, so a live one is never overtaken; a dead run's expires and the
+    // next run sends the same email under the same idempotency key.
+    const leaseUntilIso = new Date(now.getTime() + CONFIRMATION_LEASE_MS).toISOString();
+    const claimed = await deps.claim(entryIds, statuses, nowIso, leaseUntilIso);
     if (claimed.length === 0) continue;
     const entries = group.entries.filter(entry => claimed.includes(entry.id));
     const claimedAnchor = entries[0]!;
@@ -260,10 +284,19 @@ export async function runEntryConfirmations(
     }
 
     if (result.ok) {
-      await deps.markSent(claimed, result.messageId);
+      const stamped = await deps.markSent(claimed, result.messageId, leaseUntilIso);
+      if (stamped.length < claimed.length) {
+        // Not an error: a re-accepted entry is left for its own email, and an entry the stamp
+        // could not reach keeps its lease and is retried under the same key after it expires.
+        console.warn('Confirmation sent; some entries were not marked sent', {
+          claimed: claimed.length,
+          stamped: stamped.length,
+          relatedId: claimedAnchor.id,
+        });
+      }
       sent++;
     } else {
-      await deps.markFailed(claimed);
+      await deps.markFailed(claimed, leaseUntilIso);
       failed++;
     }
     await deps.log({

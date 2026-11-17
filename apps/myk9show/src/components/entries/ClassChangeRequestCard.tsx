@@ -27,6 +27,10 @@ export interface ClassChangeRequestView {
   reasonLabel: string | null;
   /** When the exhibitor asked; the row's creation time for a legacy request. */
   askedAt: string | null;
+  /** "asked 12 minutes before start", only for a request inside the deadline. */
+  lateNote: string | null;
+  /** "4 of 12 entered" for the class asked for; null when its count is unknown. */
+  enteredNote: string | null;
 }
 
 interface ClassChangeRequestCardProps {
@@ -78,12 +82,19 @@ export const ClassChangeRequestCard: React.FC<ClassChangeRequestCardProps> = ({
             )}
           </div>
           <div className="text-sm text-muted-foreground">
-            {[request.trialLabel, request.reasonLabel].filter(Boolean).join(' · ')}
+            {[request.trialLabel, request.reasonLabel, request.enteredNote]
+              .filter(Boolean)
+              .join(' · ')}
           </div>
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" aria-hidden />
             {request.askedAt ? `Asked ${formatEntryDateTime(request.askedAt)}` : 'Not recorded'}
           </div>
+          {request.lateNote && (
+            <Badge variant="outline" data-testid="class-change-late-note">
+              Late: {request.lateNote}
+            </Badge>
+          )}
           <div className="flex items-center gap-2">
             <Button
               size="sm"

@@ -44,7 +44,7 @@ const REQUESTS = vi.hoisted(() => [
 
 vi.mock('@/services/database/day-of-operations', () => ({
   getPendingMoveUpRequests: vi.fn().mockResolvedValue({ data: REQUESTS, error: null }),
-  getClassesWithCapacity: vi.fn().mockResolvedValue({ data: [], error: null }),
+  getClassesWithCapacity: (...args: unknown[]) => mocks.capacity(...args),
 }));
 const mocks = vi.hoisted(() => ({
   accept: vi.fn(),
@@ -52,6 +52,8 @@ const mocks = vi.hoisted(() => ({
   deny: vi.fn(),
   details: vi.fn(),
   names: vi.fn(),
+  capacity: vi.fn(),
+  trials: vi.fn(),
   undo: vi.fn(),
   showUndoToast: vi.fn(),
 }));
@@ -69,11 +71,13 @@ vi.mock('@/services/database/entries/classChangeRequests', async importActual =>
 vi.mock('@/features/show-map/showMapActionMutations', () => ({ undoShowMapMoveUp: mocks.undo }));
 vi.mock('@/lib/undoToast', () => ({ showUndoToast: mocks.showUndoToast }));
 vi.mock('@/services/database/trials', () => ({
-  getTrialsByShow: vi.fn().mockResolvedValue({ data: [], error: null }),
+  getTrialsByShow: (...args: unknown[]) => mocks.trials(...args),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.capacity.mockResolvedValue({ data: [], error: null });
+  mocks.trials.mockResolvedValue({ data: [], error: null });
   // req-1 asked for a class and a reason; req-2 is a legacy move-up with no stored class.
   mocks.details.mockResolvedValue({
     'req-1': {
@@ -212,11 +216,10 @@ describe('MoveUpRequestsTab', () => {
   });
 
   it("says which trial a request's class is in", async () => {
-    const { getTrialsByShow } = await import('@/services/database/trials');
-    vi.mocked(getTrialsByShow).mockResolvedValue({
+    mocks.trials.mockResolvedValue({
       data: [{ id: 'trial-1', date: '2026-11-09', trial_number: 'Trial 1' }],
       error: null,
-    } as unknown as Awaited<ReturnType<typeof getTrialsByShow>>);
+    });
 
     render(<MoveUpRequestsTab showId="show-1" />);
 
@@ -233,5 +236,72 @@ describe('MoveUpRequestsTab', () => {
     expect(
       screen.queryByPlaceholderText('Search by dog, handler, or class...')
     ).not.toBeInTheDocument();
+  });
+
+  describe('late note and entered count (MYK9-2122)', () => {
+    // Trial 2 starts 9:00 AM UTC on 2026-11-16; req-1 asked at 12:12Z in the seed, so move it.
+    const trialRow = {
+      id: 'trial-2',
+      date: '2026-11-16',
+      trial_number: '2',
+      planned_start_time: '9:00 AM',
+      timezone: 'UTC',
+    };
+    const targetClass = (maxEntries: number | null) => ({
+      id: 'class-adv',
+      name: 'Open C',
+      class_number: '3',
+      max_entries: maxEntries,
+      trial_id: 'trial-2',
+      accepted_count: 4,
+      available_spots: 8,
+      element: null,
+      level: null,
+      section: null,
+    });
+    const askedAt = (requestedAt: string) =>
+      mocks.details.mockResolvedValue({
+        'req-1': {
+          entryId: 'req-1',
+          targetClassId: 'class-adv',
+          reason: 'finished_level',
+          requestedAt,
+        },
+        'req-2': { entryId: 'req-2', targetClassId: null, reason: null, requestedAt: null },
+      });
+
+    it('carries a late note when asked inside 30 minutes of the requested trial start', async () => {
+      mocks.trials.mockResolvedValue({ data: [trialRow], error: null });
+      mocks.capacity.mockResolvedValue({ data: [targetClass(12)], error: null });
+      askedAt('2026-11-16T08:48:00Z');
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByTestId('class-change-late-note')).toHaveTextContent(
+        'Late: asked 12 minutes before start'
+      );
+    });
+
+    it('carries no late note when asked 30 minutes or more before the start', async () => {
+      mocks.trials.mockResolvedValue({ data: [trialRow], error: null });
+      mocks.capacity.mockResolvedValue({ data: [targetClass(12)], error: null });
+      askedAt('2026-11-16T08:30:00Z');
+      render(<MoveUpRequestsTab showId="show-1" />);
+      await screen.findAllByTestId('class-change-line');
+      expect(screen.queryByTestId('class-change-late-note')).not.toBeInTheDocument();
+    });
+
+    it('says N of M entered for the class asked for', async () => {
+      mocks.trials.mockResolvedValue({ data: [trialRow], error: null });
+      mocks.capacity.mockResolvedValue({ data: [targetClass(12)], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByText(/4 of 12 entered/)).toBeInTheDocument();
+    });
+
+    it('leaves out "of M" when the class has no limit', async () => {
+      mocks.trials.mockResolvedValue({ data: [trialRow], error: null });
+      mocks.capacity.mockResolvedValue({ data: [targetClass(null)], error: null });
+      render(<MoveUpRequestsTab showId="show-1" />);
+      expect(await screen.findByText(/4 entered/)).toBeInTheDocument();
+      expect(screen.queryByText(/of \d+ entered/)).not.toBeInTheDocument();
+    });
   });
 });

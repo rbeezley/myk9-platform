@@ -37,6 +37,12 @@ import {
   classChangeErrorMessage,
 } from '@/services/database/entries/classChangeErrorMessage';
 import { logger } from '@/services/LoggingService';
+import { trialStartInstant } from '@/features/show-map/trialStartInstant';
+import {
+  CLASS_CHANGE_SOON_MINUTES,
+  isLateClassChange,
+  minutesBeforeStart,
+} from '@/features/show-map/classChangeLateness';
 import { listChangeClassOptions } from './changeClassRow';
 
 export interface ChangeClassSheetProps {
@@ -78,6 +84,21 @@ export const ChangeClassSheet: React.FC<ChangeClassSheetProps> = ({
     dogClassIds,
   });
   const chosen = options.find(option => option.classId === targetClassId);
+  // Asked inside the deadline still sends; the club is told it may not be accepted.
+  const chosenClass = availability.classes.find(cls => cls.classId === targetClassId);
+  const isLate =
+    chosenClass !== undefined &&
+    isLateClassChange(
+      minutesBeforeStart(
+        new Date(),
+        trialStartInstant({
+          id: chosenClass.trialId,
+          trialDate: chosenClass.trialDate,
+          plannedStartTime: chosenClass.trialPlannedStartTime,
+          timezone: chosenClass.trialTimezone,
+        })
+      )
+    );
 
   const send = async () => {
     if (!targetClassId || !reason) return;
@@ -153,6 +174,15 @@ export const ChangeClassSheet: React.FC<ChangeClassSheetProps> = ({
               ))}
             </RadioGroup>
           </fieldset>
+
+          {isLate && (
+            <Alert role="status">
+              <AlertDescription>
+                This is less than {CLASS_CHANGE_SOON_MINUTES} minutes before the trial starts. The
+                club may not be able to accept it.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Why</legend>

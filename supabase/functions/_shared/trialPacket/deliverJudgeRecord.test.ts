@@ -440,16 +440,10 @@ describe('sendJudgeRecord', () => {
     expect(logRows).toHaveLength(5);
   });
 
-  it('keeps a copy of the email text beside the delivery row', async () => {
+  it('keeps no copy of the email text, because it carries a signed link', async () => {
     const { supabase, contents } = makeStub();
     await sendJudgeRecord(supabase, SHOW, sendPayload(), deps());
-    expect(contents).toEqual([
-      expect.objectContaining({
-        email_log_id: 'log-1',
-        subject: `${SHOW.name}: your judge's record for ${DAY}`,
-        html: expect.stringContaining('https://storage.example/signed?t=x'),
-      }),
-    ]);
+    expect(contents).toEqual([]);
   });
 
   it('refuses a file that is not a PDF before storing or sending', async () => {

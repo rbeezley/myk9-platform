@@ -134,30 +134,6 @@ describe('recordEmailLog', () => {
     consoleError.mockRestore();
   });
 
-  it('keeps the email text beside its row when a copy is passed (MYK9-2115)', async () => {
-    const contents: unknown[] = [];
-    const supabase = {
-      from: (table: string) => ({
-        insert: (rows: unknown) => {
-          if (table === 'email_log_contents') {
-            contents.push(rows);
-            return Promise.resolve({ error: null });
-          }
-          return {
-            select: () => Promise.resolve({ data: [{ id: 'log-9' }], error: null }),
-          };
-        },
-      }),
-    } as never;
-
-    await recordEmailLog(supabase, [{ recipient: 'a@example.com', messageId: 'm', error: null }], {
-      ...CONTEXT,
-      content: { subject: 'Hello', html: '<p>Hi</p>' },
-    });
-
-    expect(contents).toEqual([[{ email_log_id: 'log-9', subject: 'Hello', html: '<p>Hi</p>' }]]);
-  });
-
   it('does not touch the database when there is nothing to record', async () => {
     const { supabase, calls } = makeStub();
 

@@ -1,7 +1,5 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-import { storeEmailContents, type EmailContentClient } from '../emailLogContent.ts';
-
 /**
  * Delivery bookkeeping for trial-packet mail.
  *
@@ -31,8 +29,6 @@ export interface EmailLogContext {
   showId: string;
   /** The snapshot the mail refers to, so a row can be traced to its PDF. */
   relatedId: string;
-  /** MYK9-2115: the text of the email, kept beside the row for the delivery history. */
-  content?: { subject: string; html: string };
 }
 
 /**
@@ -60,29 +56,18 @@ export async function recordEmailLog(
   // AFTER the mail has left, so any escape here is a delivered email reported
   // as a failure.
   try {
-    const rows = attempts.map(attempt => ({
-      recipient_email: attempt.recipient,
-      email_type: context.emailType,
-      related_id: context.relatedId,
-      show_id: context.showId,
-      resend_message_id: attempt.messageId,
-      status: attempt.messageId ? 'sent' : 'failed',
-      error_message: attempt.error,
-    }));
-    if (!context.content) {
-      const { error } = await supabase.from('email_log').insert(rows);
-      if (error) throw error;
-      return;
-    }
-    const { data, error } = await supabase.from('email_log').insert(rows).select('id');
+    const { error } = await supabase.from('email_log').insert(
+      attempts.map(attempt => ({
+        recipient_email: attempt.recipient,
+        email_type: context.emailType,
+        related_id: context.relatedId,
+        show_id: context.showId,
+        resend_message_id: attempt.messageId,
+        status: attempt.messageId ? 'sent' : 'failed',
+        error_message: attempt.error,
+      }))
+    );
     if (error) throw error;
-    // A copy is kept only for a single sent row: the id is then certain to be that email's.
-    const logged = (data ?? []) as { id: string }[];
-    if (rows.length === 1 && rows[0]!.resend_message_id && logged.length === 1) {
-      await storeEmailContents(supabase as unknown as EmailContentClient, [
-        { emailLogId: logged[0]!.id, ...context.content },
-      ]);
-    }
   } catch (error) {
     console.error('recordEmailLog: delivery bookkeeping insert failed', {
       emailType: context.emailType,

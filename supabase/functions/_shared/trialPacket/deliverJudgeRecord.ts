@@ -263,12 +263,12 @@ export async function sendJudgeRecord(
       subject,
       html,
     });
-    // MYK9-2115: keep the text of the email beside its delivery-history row.
+    // No stored copy (MYK9-2115): the body carries a signed link to the PDF, and stored
+    // email copies never keep links.
     await recordEmailLog(supabase, [{ recipient: recipient.email, messageId, error: null }], {
       emailType: EMAIL_TYPE,
       showId: show.id,
       relatedId,
-      content: { subject, html },
     });
   } catch (error) {
     const providerStatus =

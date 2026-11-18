@@ -1,4 +1,7 @@
 import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOfShowEntry';
+import { deskStatusEditableFor } from '@/components/entries/management/checkInDesk/deskEditable';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { mapClassEntryStatus } from '@/utils/entryManagementUtils';
 import {
   classifyEntryRemoval,
   emptyEntryRemovalCounts,
@@ -29,6 +32,8 @@ export interface ShowDayReconciliationEntry {
   entry_fee?: number | string | null;
   entry_status?: string | null;
   check_in_status?: string | null;
+  /** A scored run is finished: its flag is not one the Check-in desk can confirm. */
+  is_scored?: boolean | null;
   /** 'in_season' | 'judge_change' on a withdrawal; null on a pull or a secretary removal. */
   withdrawal_reason_code?: string | null;
   payment_status?: string | null;
@@ -86,7 +91,8 @@ export interface ShowDayReconciliationSummary {
   removalCount: number;
   /**
    * MYK9-2145: dogs with a check-in "pulled" flag (Ringside's Pull, the exhibitor's own check-in
-   * pull) that the secretary has not confirmed at the Check-in desk. A flag is not a removal and
+   * pull) that the secretary has not confirmed at the Check-in desk, counting only the flags the
+   * desk offers Confirm on (`isDeskConfirmableFlag`). A flag is not a removal and
    * owes no refund decision until confirmed (docs/INTENT.md, Withdraw vs Pull), so these are
    * counted apart from `removals`.
    */
@@ -188,6 +194,22 @@ function applyLedger(
   }
 }
 
+/**
+ * MYK9-2145: a check-in "pulled" flag the Check-in desk would offer to confirm, by the desk's own
+ * rule (`deskStatusEditableFor`, mapped as the Show Desk class table maps a raw entry). A flag on
+ * a scored, pending, waitlisted, rejected, cancelled or already-removed entry is not listed: it
+ * is neither a pull nor something the secretary can act on there.
+ */
+function isDeskConfirmableFlag(entry: ShowDayReconciliationEntry): boolean {
+  if (entry.check_in_status?.toLowerCase() !== 'pulled') return false;
+  return deskStatusEditableFor({
+    entryStatus: mapEntryStatus(entry.entry_status),
+    classStatus: mapClassEntryStatus(entry.entry_status),
+    checkInStatus: 'pulled',
+    isScored: entry.is_scored,
+  });
+}
+
 export function summarizeShowDayReconciliation(
   entries: ShowDayReconciliationEntry[],
   deskWindow: DeskCollectionWindow | null,
@@ -227,7 +249,7 @@ export function summarizeShowDayReconciliation(
       entryStatus: entry.entry_status,
       withdrawalReasonCode: entry.withdrawal_reason_code,
     });
-    if (!removal && entry.check_in_status?.toLowerCase() === 'pulled') {
+    if (!removal && isDeskConfirmableFlag(entry)) {
       flaggedDogs.add(entry.dog_id ?? `entry:${entry.id ?? index}`);
     }
     if (removal) {

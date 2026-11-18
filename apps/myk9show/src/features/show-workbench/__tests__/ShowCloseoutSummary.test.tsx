@@ -157,7 +157,7 @@ describe('ShowCloseoutSummary', () => {
       id,
       dog_id: dogId,
       entry_fee: 35,
-      entry_status: 'entered',
+      entry_status: 'confirmed',
       check_in_status: 'pulled',
       payment_status: 'paid',
       payment_method: 'online',
@@ -170,7 +170,7 @@ describe('ShowCloseoutSummary', () => {
       />
     );
 
-    expect(await screen.findByText('2 flagged')).toBeInTheDocument();
+    expect(await screen.findByText('2 flagged pulled')).toBeInTheDocument();
     expect(
       screen.getByText('2 dogs flagged as pulled at the show, not confirmed.')
     ).toBeInTheDocument();
@@ -195,7 +195,7 @@ describe('ShowCloseoutSummary', () => {
           {
             id: 'e1',
             dog_id: 'dog-1',
-            entry_status: 'entered',
+            entry_status: 'confirmed',
             check_in_status: 'pulled',
             payment_status: 'paid',
             payment_method: 'online',

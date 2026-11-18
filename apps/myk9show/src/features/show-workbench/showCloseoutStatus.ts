@@ -34,7 +34,7 @@ export function summarizeCloseoutStatus(input: CloseoutStatusInput): CloseoutSta
     );
   }
   if ((input.flaggedPullDogCount ?? 0) > 0) {
-    segments.push(`${input.flaggedPullDogCount} flagged`);
+    segments.push(`${input.flaggedPullDogCount} flagged pulled`);
   }
   if (input.incidents.state === 'ready' && input.incidents.reportableCount > 0) {
     segments.push(`${input.incidents.reportableCount} reportable`);

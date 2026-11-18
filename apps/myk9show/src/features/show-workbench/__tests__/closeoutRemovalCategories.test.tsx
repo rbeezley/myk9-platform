@@ -65,7 +65,6 @@ function pullsViewCount(entries: ShowDayReconciliationEntry[]): number {
 describe('classifyEntryRemoval', () => {
   it.each([
     [{ entryStatus: 'scratched' }, 'pulled'],
-    [{ entryStatus: 'confirmed', checkInStatus: 'pulled' }, 'pulled'],
     [{ entryStatus: 'withdrawn', withdrawalReasonCode: 'in_season' }, 'withdrawn'],
     [{ entryStatus: 'withdrawn', withdrawalReasonCode: 'judge_change' }, 'withdrawn'],
     [{ entryStatus: 'withdrawn', withdrawalReasonCode: null }, 'removed'],

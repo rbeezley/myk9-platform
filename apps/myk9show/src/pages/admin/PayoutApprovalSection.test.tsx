@@ -1,17 +1,11 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { LedgerPayoutDetail, LedgerRow } from '@/features/payments/payoutLedger';
-import type { PayoutBrakeState } from '@/features/payments/usePayoutBrake';
 
 const approveMutate = vi.hoisted(() => vi.fn());
 const holdMutate = vi.hoisted(() => vi.fn());
-const brakeMutate = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
-const brakeState = vi.hoisted(() => ({
-  data: undefined as PayoutBrakeState | undefined,
-  isLoading: false,
-  isError: false,
-}));
+const online = vi.hoisted(() => ({ value: true }));
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }));
 vi.mock('@/features/payments/usePayoutApprovalActions', () => ({
@@ -19,10 +13,7 @@ vi.mock('@/features/payments/usePayoutApprovalActions', () => ({
   useApprovePayout: () => ({ mutate: approveMutate, isPending: false }),
   useHoldPayout: () => ({ mutate: holdMutate, isPending: false }),
 }));
-vi.mock('@/features/payments/usePayoutBrake', () => ({
-  usePayoutBrake: () => brakeState,
-  useSetPayoutBrake: () => ({ mutate: brakeMutate, isPending: false }),
-}));
+vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => online.value }));
 
 import { PayoutApprovalSection } from './PayoutApprovalSection';
 
@@ -66,9 +57,7 @@ function waiting(overrides: Partial<LedgerRow> = {}): LedgerRow {
 describe('PayoutApprovalSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    brakeState.data = { on: true, changedAt: null, changedByName: null };
-    brakeState.isLoading = false;
-    brakeState.isError = false;
+    online.value = true;
   });
 
   it('lists a waiting payout with the figures it came from and its bank', () => {
@@ -91,10 +80,10 @@ describe('PayoutApprovalSection', () => {
 
   it('approves exactly the amount and Stripe account shown, after a confirm', () => {
     render(<PayoutApprovalSection rows={[waiting()]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Approve $45.00' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve up to $45.00' }));
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent('You will be asked for your password.');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve $45.00' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve up to $45.00' }));
     expect(approveMutate).toHaveBeenCalledWith(
       { payoutId: 'payout-1', amountCents: 4500, stripeAccountId: 'acct_club1' },
       expect.any(Object)
@@ -103,7 +92,7 @@ describe('PayoutApprovalSection', () => {
 
   it('approves what the dialog showed even if the ledger reloads behind it', () => {
     const { rerender } = render(<PayoutApprovalSection rows={[waiting()]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Approve $45.00' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve up to $45.00' }));
     // A reload lands while the confirm is open: new amount, new account.
     rerender(
       <PayoutApprovalSection
@@ -118,7 +107,7 @@ describe('PayoutApprovalSection', () => {
       />
     );
     fireEvent.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Approve $45.00' })
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Approve up to $45.00' })
     );
     expect(approveMutate).toHaveBeenCalledWith(
       { payoutId: 'payout-1', amountCents: 4500, stripeAccountId: 'acct_club1' },
@@ -128,7 +117,7 @@ describe('PayoutApprovalSection', () => {
 
   it('offers no Approve while the payout has no Stripe account', () => {
     render(<PayoutApprovalSection rows={[waiting({ payout: detail({ destination: null }) })]} />);
-    expect(screen.getByRole('button', { name: 'Approve $45.00' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Approve up to $45.00' })).toBeDisabled();
     expect(screen.getByText(/No Stripe account to send to/)).toBeInTheDocument();
   });
 
@@ -155,9 +144,9 @@ describe('PayoutApprovalSection', () => {
       options.onError({ code: '22023', message: 'The amount is now 5000 cents; review it again' })
     );
     render(<PayoutApprovalSection rows={[waiting()]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Approve $45.00' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve up to $45.00' }));
     fireEvent.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Approve $45.00' })
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Approve up to $45.00' })
     );
     expect(toastError).toHaveBeenCalledWith(
       'Nothing was approved. The amount changed since you looked. The new amount is shown; review it again.'
@@ -188,61 +177,23 @@ describe('PayoutApprovalSection', () => {
       />
     );
     expect(screen.getByText('Club asked')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Approve $45.00' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Approve up to $45.00' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Hold' })).not.toBeInTheDocument();
   });
 
-  it('shows the running tally', () => {
-    render(
-      <PayoutApprovalSection
-        rows={[
-          waiting({
-            showId: 'show-2',
-            payoutStatus: 'completed',
-            stripeTransferId: 'tr_1',
-            payout: detail({
-              approvedAt: '2026-11-18T10:00:00Z',
-              approvedAmountCents: 4500,
-              approvedStripeAccountId: 'acct_club1',
-            }),
-          }),
-        ]}
-      />
+  it('blocks Approve and Hold while offline', () => {
+    online.value = false;
+    render(<PayoutApprovalSection rows={[waiting()]} />);
+    expect(screen.getByText('You are offline. Payout decisions need a connection.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Approve up to $45.00' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Hold' })).toBeDisabled();
+  });
+
+  it('describes the approved amount as a ceiling the nightly run recalculates', () => {
+    render(<PayoutApprovalSection rows={[waiting({ computedNetCents: 4000 })]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve up to $45.00' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Up to $45.00 goes to Club One, Spring Trial on the next nightly run. The run recalculates first'
     );
-    expect(screen.getByTestId('payout-approval-tally')).toHaveTextContent(
-      '1 payout approved, 1 matched Stripe'
-    );
-    expect(screen.getByText('No payout is waiting for approval.')).toBeInTheDocument();
-  });
-
-  it('turns the brake off only after a confirm that says what it leaves waiting', () => {
-    render(<PayoutApprovalSection rows={[]} />);
-    expect(screen.getByText(/No change has been recorded/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Turn the brake off' }));
-    expect(brakeMutate).not.toHaveBeenCalled();
-    const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Payouts already waiting or held still need Approve.');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Turn the brake off' }));
-    expect(brakeMutate).toHaveBeenCalledWith(false, expect.any(Object));
-  });
-
-  it('shows who switched the brake and when', () => {
-    brakeState.data = {
-      on: false,
-      changedAt: '2026-11-18T18:00:00Z',
-      changedByName: 'Pat Operator',
-    };
-    render(<PayoutApprovalSection rows={[]} />);
-    expect(screen.getByText(/Switched off by Pat Operator on/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Turn the brake on' }));
-    expect(brakeMutate).toHaveBeenCalledWith(true, expect.any(Object));
-  });
-
-  it('does not offer the switch when the brake could not be read', () => {
-    brakeState.data = undefined;
-    brakeState.isError = true;
-    render(<PayoutApprovalSection rows={[]} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not read the payout brake');
-    expect(screen.queryByRole('button', { name: /Turn the brake/ })).not.toBeInTheDocument();
   });
 });

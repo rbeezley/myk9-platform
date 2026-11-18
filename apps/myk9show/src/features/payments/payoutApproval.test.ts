@@ -1,4 +1,10 @@
-import type { LedgerPayoutDetail, LedgerRow, PayoutStatus } from './payoutLedger';
+import type {
+  LedgerPayout,
+  LedgerPayoutDetail,
+  LedgerRow,
+  PayoutApprovalState,
+  PayoutStatus,
+} from './payoutLedger';
 import {
   canApprovePayout,
   describePayoutActionError,
@@ -84,27 +90,78 @@ describe('approval queue', () => {
 });
 
 describe('tallyApprovals', () => {
-  it('counts a completed transfer for the approved amount as matched', () => {
+  function attempt(
+    status: PayoutStatus,
+    amount: number,
+    approval: Partial<PayoutApprovalState> | null,
+    transferId: string | null = null
+  ): LedgerPayout {
+    return {
+      id: `p-${Math.random()}`,
+      show_id: 's',
+      amount_cents: amount,
+      status,
+      stripe_transfer_id: transferId,
+      completed_at: null,
+      created_at: null,
+      approval: approval
+        ? {
+            approvedAt: '2026-11-18T10:00:00Z',
+            approvedAmountCents: 10000,
+            approvedStripeAccountId: 'acct_1',
+            holdReason: null,
+            approvalResetReason: null,
+            destination: { stripeAccountId: 'acct_1', payoutsEnabled: true },
+            ...approval,
+          }
+        : undefined,
+    };
+  }
+
+  it('matches only a completed transfer for the approved amount to the approved account', () => {
     const tally = tallyApprovals([
-      row('completed', approvedDetail(10000, 10000), 'tr_1'),
-      row('completed', approvedDetail(9000, 10000), 'tr_2'),
-      row('approved', approvedDetail(10000, 10000)),
-      row('completed', payout(), 'tr_3'),
-      row('awaiting_approval', payout()),
+      attempt('completed', 10000, {}, 'tr_1'),
+      attempt('completed', 9000, {}, 'tr_2'),
+      attempt('approved', 10000, {}),
+      attempt('completed', 10000, null, 'tr_3'),
+      attempt('awaiting_approval', 10000, null),
     ]);
     // Approved: the three carrying an approval. Matched: only the one Stripe sent
     // for the approved amount; a lower send and an unsent approval are not.
     expect(tally).toEqual({ approved: 3, matchedStripe: 1 });
   });
 
+  it('does not count a transfer to another account, or an unknown one, as matched', () => {
+    expect(
+      tallyApprovals([
+        attempt(
+          'completed',
+          10000,
+          { destination: { stripeAccountId: 'acct_other', payoutsEnabled: true } },
+          'tr_1'
+        ),
+        attempt('completed', 10000, { destination: null }, 'tr_2'),
+      ])
+    ).toEqual({ approved: 2, matchedStripe: 0 });
+  });
+
+  it('keeps counting a failed approved send after its replacement is created', () => {
+    expect(
+      tallyApprovals([
+        attempt('failed', 10000, {}),
+        attempt('awaiting_approval', 10000, null),
+      ])
+    ).toEqual({ approved: 1, matchedStripe: 0 });
+  });
+
   it('does not count a row with an approval time but no approved amount', () => {
     expect(
-      tallyApprovals([row('completed', payout({ approvedAt: '2026-11-18T10:00:00Z' }), 'tr_1')])
+      tallyApprovals([attempt('completed', 10000, { approvedAmountCents: null }, 'tr_1')])
     ).toEqual({ approved: 0, matchedStripe: 0 });
   });
 
   it('does not count a completed row with no transfer id as matched', () => {
-    expect(tallyApprovals([row('completed', approvedDetail(10000, 10000), null)])).toEqual({
+    expect(tallyApprovals([attempt('completed', 10000, {}, null)])).toEqual({
       approved: 1,
       matchedStripe: 0,
     });

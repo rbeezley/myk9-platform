@@ -190,6 +190,13 @@ export const PAYOUT_LEDGER_QUERY_KEY = ['admin', 'payout-ledger'] as const;
 
 export interface PayoutLedgerResult {
   rows: LedgerRow[];
+  /**
+   * Every payout row read, failed attempts included. The approval tally counts
+   * from this history, not the canonical row per show: a failed approved send
+   * followed by a replacement must still count as one approval that did not
+   * match Stripe (MYK9-2171 review).
+   */
+  payouts: LedgerPayout[];
 }
 
 export function usePlatformPayoutLedger() {
@@ -227,7 +234,7 @@ export function usePlatformPayoutLedger() {
       }
 
       const showIds = [...entriesByShow.keys()];
-      if (showIds.length === 0) return { rows: [] };
+      if (showIds.length === 0) return { rows: [], payouts: [] };
 
       // BOTH joined reads must be paginated, and this became load-bearing the
       // moment a missing `shows` row started MEANING something. PostgREST caps a
@@ -258,14 +265,15 @@ export function usePlatformPayoutLedger() {
       // history alongside one live row. Collect them all per show and let
       // buildLedgerRows → pickCanonicalPayout choose the canonical one, so an
       // old failed row can't overwrite the current completed/pending row.
+      const payouts = payoutRows.map(toLedgerPayout);
       const payoutsByShow = new Map<string, LedgerPayout[]>();
-      for (const p of payoutRows) {
+      for (const p of payouts) {
         const list = payoutsByShow.get(p.show_id) ?? [];
-        list.push(toLedgerPayout(p));
+        list.push(p);
         payoutsByShow.set(p.show_id, list);
       }
 
-      return { rows: buildLedgerRows(shows, entriesByShow, payoutsByShow) };
+      return { rows: buildLedgerRows(shows, entriesByShow, payoutsByShow), payouts };
     },
     ...cacheStrategies.moderate,
   });

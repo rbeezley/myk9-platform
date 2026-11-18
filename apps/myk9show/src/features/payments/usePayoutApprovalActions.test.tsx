@@ -1,5 +1,5 @@
-import { renderHook, act } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
 const rpc = vi.hoisted(() => vi.fn());
@@ -49,6 +49,62 @@ describe('the ledger reloads after every approve and hold', () => {
         .catch(() => undefined);
     });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'payout-ledger'] });
+  });
+});
+
+/**
+ * The app's real defaults retry a mutation once and pause it offline to replay
+ * on reconnect. Neither may apply to a payout decision: a cancelled password
+ * prompt would open a second one, and an offline click would land later.
+ */
+describe('payout decisions under the app default mutation policy', () => {
+  function appDefaultWrapper() {
+    queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: 3, networkMode: 'online' } },
+    });
+    return ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  }
+
+  beforeEach(() => {
+    rpc.mockReset();
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
+
+  it('runs a refused approve once, never again on its own', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: 'MKAUT', message: 'Recent sign-in' } });
+    const { result } = renderHook(() => useApprovePayout(), { wrapper: appDefaultWrapper() });
+    await act(async () => {
+      await result.current
+        .mutateAsync({ payoutId: 'p', amountCents: 1, stripeAccountId: 'acct_1' })
+        .catch(() => undefined);
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs (and so fails) at once while offline instead of waiting to replay', async () => {
+    onlineManager.setOnline(false);
+    rpc.mockRejectedValue(new TypeError('Failed to fetch'));
+    const { result } = renderHook(() => useHoldPayout(), { wrapper: appDefaultWrapper() });
+    await act(async () => {
+      await result.current.mutateAsync({ payoutId: 'p', reason: 'Wait' }).catch(() => undefined);
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+
+  it('keeps the hold reason out of the error log', async () => {
+    rpc.mockResolvedValue({ data: 'held', error: null });
+    const { result } = renderHook(() => useHoldPayout(), { wrapper: appDefaultWrapper() });
+    await act(async () => {
+      await result.current.mutateAsync({ payoutId: 'p', reason: 'Bank dispute' });
+    });
+    const [mutation] = queryClient.getMutationCache().getAll();
+    expect(mutation.meta).toEqual({ sensitiveVariables: true });
   });
 });
 

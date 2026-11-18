@@ -40,6 +40,7 @@ import {
 import { getPayoutStatusPresentation } from './adminStatusPresentation';
 import { formatCents, formatDeductionCents } from '@/lib/format/cents';
 import { PayoutApprovalSection } from './PayoutApprovalSection';
+import { PayoutBrakeCard } from './PayoutBrakeCard';
 
 /* Warning tone for a payout past its settle date. Uses the shared admin status
    classes rather than a one-off so it stays consistent with the other badges,
@@ -774,6 +775,9 @@ export default function PayoutLedgerPage() {
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Payout ledger</h2>
+        {/* Outside the ledger's states on purpose: the brake must stay
+            reachable when the ledger cannot load (MYK9-2171). */}
+        <PayoutBrakeCard payouts={ledger?.payouts} />
         {isLoading ? (
           <div className="space-y-3" role="status" aria-label="Loading payout ledger">
             <Skeleton className="h-24 w-full" />

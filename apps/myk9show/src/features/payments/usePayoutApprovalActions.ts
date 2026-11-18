@@ -11,6 +11,17 @@ import { supabase } from '@/lib/supabase';
 import { holdReasonProblem } from './payoutApproval';
 import { PAYOUT_LEDGER_QUERY_KEY } from './usePlatformPayoutLedger';
 
+/**
+ * Payout decisions run once, now, or not at all. The app's default mutation
+ * policy retries once (so a cancelled password prompt would open a second one)
+ * and pauses offline writes to replay on reconnect (so a decision could land
+ * long after the operator left the screen). Neither is acceptable for money.
+ */
+export const PAYOUT_DECISION_MUTATION_OPTIONS = {
+  retry: false,
+  networkMode: 'always',
+} as const;
+
 export interface ApprovePayoutInput {
   payoutId: string;
   /** The amount the operator was shown: show_payouts.amount_cents as read. */
@@ -22,6 +33,7 @@ export interface ApprovePayoutInput {
 export function useApprovePayout() {
   const queryClient = useQueryClient();
   return useMutation({
+    ...PAYOUT_DECISION_MUTATION_OPTIONS,
     mutationFn: async ({ payoutId, amountCents, stripeAccountId }: ApprovePayoutInput) => {
       const { data, error } = await supabase.rpc('approve_show_payout', {
         p_payout_id: payoutId,
@@ -43,6 +55,9 @@ export interface HoldPayoutInput {
 export function useHoldPayout() {
   const queryClient = useQueryClient();
   return useMutation({
+    ...PAYOUT_DECISION_MUTATION_OPTIONS,
+    // The reason is free text about a club's money; keep it out of the error log.
+    meta: { sensitiveVariables: true },
     mutationFn: async ({ payoutId, reason }: HoldPayoutInput) => {
       const problem = holdReasonProblem(reason);
       if (problem) throw new Error(problem);

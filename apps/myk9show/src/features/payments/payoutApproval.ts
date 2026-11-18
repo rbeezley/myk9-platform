@@ -6,7 +6,7 @@
  * the brake off, and turns the server's refusals into plain copy.
  */
 import { STEP_UP_SQLSTATE } from '@/features/step-up/stepUpFetch';
-import type { LedgerPayoutDetail, LedgerRow, PayoutStatus } from './payoutLedger';
+import type { LedgerPayout, LedgerPayoutDetail, LedgerRow, PayoutStatus } from './payoutLedger';
 
 export const HOLD_REASON_MAX = 500;
 
@@ -50,24 +50,32 @@ export interface ApprovalTally {
 }
 
 /**
- * "N payouts approved, M matched Stripe" (owner decision, 2026-11-18): a
- * payout counts as approved when it carries an approval; it matched Stripe when
- * it completed with a Stripe transfer id AND the amount recorded for that
- * transfer equals the amount approved. The reconciliation job records Stripe's
- * actual amount on the row (MYK9-2183), so a transfer for a different amount
- * shows up here as approved but not matched.
+ * "N payouts approved, M matched Stripe" (owner decision, 2026-11-18), counted
+ * over EVERY payout row, failed attempts included: a failed approved send
+ * keeps its approval, so it stays counted as approved and unmatched after the
+ * next run creates a replacement.
+ *
+ * A payout matched Stripe only when it completed with a Stripe transfer id,
+ * the amount recorded for that transfer equals the amount approved, AND the
+ * account it went to is the account approved. Reconciliation records what
+ * Stripe actually did (MYK9-2183), including a different account or none, and
+ * an unknown destination is not a verified match.
  */
-export function tallyApprovals(rows: LedgerRow[]): ApprovalTally {
+export function tallyApprovals(payouts: LedgerPayout[]): ApprovalTally {
   let approved = 0;
   let matchedStripe = 0;
-  for (const row of rows) {
-    const payout = row.payout;
-    if (!payout || payout.approvedAt === null || payout.approvedAmountCents === null) continue;
+  for (const payout of payouts) {
+    const approval = payout.approval;
+    if (!approval || approval.approvedAt === null || approval.approvedAmountCents === null) {
+      continue;
+    }
     approved += 1;
     if (
-      row.payoutStatus === 'completed' &&
-      row.stripeTransferId !== null &&
-      payout.amountCents === payout.approvedAmountCents
+      payout.status === 'completed' &&
+      payout.stripe_transfer_id !== null &&
+      payout.amount_cents === approval.approvedAmountCents &&
+      approval.approvedStripeAccountId !== null &&
+      approval.destination?.stripeAccountId === approval.approvedStripeAccountId
     ) {
       matchedStripe += 1;
     }

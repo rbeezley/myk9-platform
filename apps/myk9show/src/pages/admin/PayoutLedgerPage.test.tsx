@@ -36,7 +36,7 @@ vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
   usePlatformPayoutLedger: () => ({
     // The hook returns { rows }; `data: undefined` still has to be
     // representable, so the wrapper is built conditionally.
-    data: ledgerState.data === undefined ? undefined : { rows: ledgerState.data },
+    data: ledgerState.data === undefined ? undefined : { rows: ledgerState.data, payouts: [] },
     isLoading: ledgerState.isLoading,
     isError: ledgerState.isError,
     refetch: refetchLedger,
@@ -93,6 +93,13 @@ vi.mock('@/features/financial/components/PlatformIncomeCard', () => ({
 vi.mock('./PayoutApprovalSection', () => ({
   PayoutApprovalSection: () => <div data-testid="payout-approval-section-stub" />,
 }));
+vi.mock('./PayoutBrakeCard', () => ({
+  PayoutBrakeCard: ({ payouts }: { payouts: unknown[] | undefined }) => (
+    <div data-testid="payout-brake-card-stub">
+      {payouts === undefined ? 'unread' : `${payouts.length} payouts`}
+    </div>
+  ),
+}));
 
 import PayoutLedgerPage from './PayoutLedgerPage';
 
@@ -129,6 +136,22 @@ describe('PayoutLedgerPage', () => {
     overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
+  });
+
+  // MYK9-2171 review: the brake reads platform_settings, not the ledger, and
+  // must stay reachable (to turn it back on) when the ledger cannot load.
+  it('keeps the payout brake on screen while the ledger loads or fails', () => {
+    ledgerState.isError = true;
+    ledgerState.data = undefined;
+    const { unmount } = render(<PayoutLedgerPage />);
+    expect(screen.getByText('Could not load the payout ledger.')).toBeInTheDocument();
+    expect(screen.getByTestId('payout-brake-card-stub')).toHaveTextContent('unread');
+    unmount();
+
+    ledgerState.isError = false;
+    ledgerState.isLoading = true;
+    render(<PayoutLedgerPage />);
+    expect(screen.getByTestId('payout-brake-card-stub')).toHaveTextContent('unread');
   });
 
   it('renders the platform fee card with the current rate', () => {

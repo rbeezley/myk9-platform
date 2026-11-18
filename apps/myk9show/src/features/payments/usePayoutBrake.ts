@@ -8,6 +8,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { personName } from '@/hooks/entryDisplayNames';
+import { PAYOUT_DECISION_MUTATION_OPTIONS } from './usePayoutApprovalActions';
 
 export const PAYOUT_BRAKE_QUERY_KEY = ['admin', 'payout-brake'] as const;
 
@@ -57,6 +58,7 @@ export function usePayoutBrake() {
 export function useSetPayoutBrake() {
   const queryClient = useQueryClient();
   return useMutation({
+    ...PAYOUT_DECISION_MUTATION_OPTIONS,
     mutationFn: async (on: boolean): Promise<PayoutBrakeState> => {
       const { data, error } = await supabase
         .from('platform_settings')

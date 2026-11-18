@@ -44,6 +44,36 @@ function renderClass(overrides: Partial<EntryClass>) {
   );
 }
 
+describe('My Shows list asks once (MYK9-1944)', () => {
+  it('two placed, released rows render exactly one prompt', () => {
+    const placed = { isScored: true, resultStatus: 'qualified', finalPlacement: 1 } as const;
+    const released = '2026-10-24T18:00:00Z';
+    const rows = [
+      makeRow({
+        dogName: 'Scout',
+        classes: [
+          makeClass({ id: 'c1', ...placed, resultsReleasedAt: released }),
+          makeClass({ id: 'c2', name: 'Container Open A', ...placed, resultsReleasedAt: released }),
+        ],
+      }),
+    ];
+    render(
+      <MyShowsList
+        filteredEntries={toOrders(rows)}
+        source="confirmed"
+        seenResultReleaseKeys={new Set<string>()}
+        now={NOW}
+        onCheckInDay={vi.fn()}
+        onOpenCheckIn={vi.fn()}
+        onOpenEdit={vi.fn()}
+        onOpenReceipts={vi.fn()}
+        onLeaveClass={vi.fn()}
+      />
+    );
+    expect(screen.getAllByTestId('prompt')).toHaveLength(1);
+  });
+});
+
 describe('My Shows class row results-public prompt (MYK9-1944)', () => {
   it('renders the prompt on a released, placed result', () => {
     renderClass({ finalPlacement: 1, resultsReleasedAt: '2026-10-24T18:00:00Z' });

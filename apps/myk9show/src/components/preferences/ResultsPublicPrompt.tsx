@@ -30,6 +30,12 @@ export interface ResultsPublicPromptProps {
   placement: number | null | undefined;
   /** True once the class's results are released. */
   isReleased: boolean;
+  /**
+   * The entry's handler as the row names them, when it does. A handler who is not the viewer is
+   * the only "someone else on the entry" the client can see (owner and co-owner are not on the
+   * row); without it the note is hedged rather than asserted.
+   */
+  handlerName?: string | null | undefined;
 }
 
 type Outcome = 'idle' | 'shown-publicly';
@@ -40,6 +46,7 @@ export function ResultsPublicPrompt({
   className,
   placement,
   isReleased,
+  handlerName,
 }: ResultsPublicPromptProps) {
   const { profile, profileSettled, answerResultsPublicPrompt, isAnsweringResultsPublicPrompt } =
     useExhibitorProfile();
@@ -47,6 +54,18 @@ export function ResultsPublicPrompt({
   const isOnline = useIsOnline();
   const [outcome, setOutcome] = useState<Outcome>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // A handler who is not the viewer is the one other person the row can name. The viewer's own
+  // name matching means a sole handler, which proves nothing about a co-owner: hedge then.
+  const viewerName = [profile?.person?.first_name, profile?.person?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+    .toLowerCase();
+  const otherPersonKnown =
+    Boolean(handlerName?.trim()) &&
+    viewerName !== '' &&
+    handlerName?.trim().toLowerCase() !== viewerName;
 
   // After a yes the profile already reads as answered; this row stays so the
   // exhibitor still hears what a co-owner or handler could change.
@@ -57,9 +76,10 @@ export function ResultsPublicPrompt({
         role="status"
         data-testid="results-public-note"
       >
-        Your results are now public. A result shows publicly only when everyone on the entry (owner,
-        co-owner and handler) has turned on Show my results publicly, so it stays private until they
-        do.
+        Your results are now public.{' '}
+        {otherPersonKnown
+          ? "Someone else on this entry hasn't turned this on yet, so this result stays private until they do."
+          : "If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."}
       </p>
     );
   }
@@ -70,6 +90,8 @@ export function ResultsPublicPrompt({
   const shouldAsk =
     isPlaced &&
     isReleased &&
+    // Not offered offline; a drop mid-tap keeps the question up with its not-saved message.
+    (isOnline || saveError != null) &&
     profileSettled &&
     profile != null &&
     !profile.results_public &&
@@ -85,8 +107,9 @@ export function ResultsPublicPrompt({
       if (showPublicly) setOutcome('shown-publicly');
     } catch (error) {
       // Nothing was saved: the question stays and says so.
+      const droppedOffline = !isOnline || (typeof navigator !== 'undefined' && !navigator.onLine);
       setSaveError(
-        isOnline
+        !droppedOffline
           ? getUserFriendlyError(error)
           : 'You are offline, so this was not saved. Answer again when you are back online.'
       );

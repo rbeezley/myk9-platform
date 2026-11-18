@@ -100,6 +100,8 @@ export interface MyShowClassRowProps {
    */
   showId: string;
   seenResultReleaseKeys: Set<string>;
+  /** This row is the page's one place to ask the results-public question (MYK9-1944). */
+  showResultsPrompt?: boolean | undefined;
   onCheckInClass: (cls: MyShowClass) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   /**
@@ -126,6 +128,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   showTrialNumber,
   showId,
   seenResultReleaseKeys,
+  showResultsPrompt = false,
   onCheckInClass,
   onOpenCheckIn,
   onLeaveClass,
@@ -383,12 +386,13 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             Result card
           </Button>
         )}
-        {showId !== '' && cls.resultsReleasedAt && (cls.finalPlacement ?? 0) > 0 && (
+        {showResultsPrompt && showId !== '' && (
           <ResultsPublicPrompt
             showId={showId}
             dogName={dogName}
             className={cls.name}
             placement={cls.finalPlacement}
+            handlerName={cls.handler}
             isReleased={Boolean(cls.resultsReleasedAt)}
           />
         )}

@@ -28,6 +28,7 @@ function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
 
 export function MyEntryRow({
   showId,
+  showResultsPrompt = false,
   detail,
   place,
   placeUpdatedAt,
@@ -37,6 +38,8 @@ export function MyEntryRow({
   checkInPending,
 }: {
   showId: string;
+  /** This row is the list's one place to ask the results-public question (MYK9-1944). */
+  showResultsPrompt?: boolean | undefined;
   detail: AtShowEntryDetail;
   /** The server-counted place in line, when known (`useMyEntryQueuePlaces`). */
   place: QueuePlace | undefined;
@@ -136,7 +139,7 @@ export function MyEntryRow({
             {detail.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
           </div>
         )}
-        {detail.releasedPlacement != null && detail.className && (
+        {showResultsPrompt && detail.releasedPlacement != null && detail.className && (
           <ResultsPublicPrompt
             showId={showId}
             dogName={detail.dogName}

@@ -31,7 +31,7 @@ const SCORED: OwnShowResult = {
   serverConfirmed: true,
 };
 
-function renderRow(own: OwnShowResult) {
+function renderRow(own: OwnShowResult, showResultsPrompt = true) {
   const entry: ReplicatedEntry = {
     id: 'e1',
     classId: 'class-1',
@@ -53,6 +53,7 @@ function renderRow(own: OwnShowResult) {
     <ul>
       <MyEntryRow
         showId="show-1"
+        showResultsPrompt={showResultsPrompt}
         detail={detail}
         place={undefined}
         placeUpdatedAt={null}
@@ -69,6 +70,11 @@ describe('MyEntryRow results-public prompt (MYK9-1944)', () => {
   it('renders the prompt on a released, placed result', () => {
     renderRow(SCORED);
     expect(screen.getByTestId('prompt')).toHaveTextContent('show-1|Scout|1');
+  });
+
+  it('renders nothing on a row the list did not pick', () => {
+    renderRow(SCORED, false);
+    expect(screen.queryByTestId('prompt')).not.toBeInTheDocument();
   });
 
   it('renders nothing for a result that is not placed', () => {

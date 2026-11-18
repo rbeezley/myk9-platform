@@ -8,6 +8,7 @@ interface ProfileState {
     id: string;
     results_public: boolean;
     results_public_prompt_answered_at: string | null;
+    person?: { first_name: string; last_name: string };
   } | null;
   profileSettled: boolean;
   answerResultsPublicPrompt: ReturnType<typeof vi.fn>;
@@ -50,6 +51,7 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
       id: 'profile-1',
       results_public: false,
       results_public_prompt_answered_at: null,
+      person: { first_name: 'Sam', last_name: 'Owner' },
     };
     profileState.profileSettled = true;
     profileState.answerResultsPublicPrompt.mockReset().mockResolvedValue('2026-11-18T00:00:00Z');
@@ -125,7 +127,7 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
     await user.click(screen.getByRole('button', { name: 'Show publicly' }));
     expect(profileState.answerResultsPublicPrompt).toHaveBeenCalledWith(true);
     expect(screen.getByTestId('results-public-note')).toHaveTextContent(
-      /everyone on the entry \(owner, co-owner and handler\)/
+      /If a co-owner or handler on this entry hasn't turned this on/
     );
     expect(screen.queryByTestId('results-public-prompt')).not.toBeInTheDocument();
   });
@@ -138,14 +140,42 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
     expect(screen.queryByTestId('results-public-note')).not.toBeInTheDocument();
   });
 
-  it('keeps the question and says nothing was saved when offline', async () => {
-    const user = userEvent.setup();
+  it('is not offered while offline', () => {
     networkState.isOnline = false;
-    profileState.answerResultsPublicPrompt.mockRejectedValue(new Error('Failed to fetch'));
+    render(<ResultsPublicPrompt {...baseProps} />);
+    expect(screen.queryByTestId('results-public-prompt')).not.toBeInTheDocument();
+  });
+
+  it('keeps the question and says nothing was saved when the connection drops mid-tap', async () => {
+    const user = userEvent.setup();
+    const onLine = vi.spyOn(window.navigator, 'onLine', 'get');
+    profileState.answerResultsPublicPrompt.mockImplementation(async () => {
+      onLine.mockReturnValue(false);
+      throw new Error('Failed to fetch');
+    });
     render(<ResultsPublicPrompt {...baseProps} />);
     await user.click(screen.getByRole('button', { name: 'Show publicly' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/offline, so this was not saved/);
     expect(screen.getByTestId('results-public-prompt')).toBeInTheDocument();
     expect(screen.queryByTestId('results-public-note')).not.toBeInTheDocument();
+    onLine.mockRestore();
+  });
+
+  it('after a yes with a different handler on the row, says someone else is on the entry', async () => {
+    const user = userEvent.setup();
+    render(<ResultsPublicPrompt {...baseProps} handlerName="Pat Handler" />);
+    await user.click(screen.getByRole('button', { name: 'Show publicly' }));
+    expect(screen.getByTestId('results-public-note')).toHaveTextContent(
+      "Someone else on this entry hasn't turned this on yet, so this result stays private until they do."
+    );
+  });
+
+  it('after a yes with nothing known about others, hedges and never asserts', async () => {
+    const user = userEvent.setup();
+    render(<ResultsPublicPrompt {...baseProps} handlerName="Sam Owner" />);
+    await user.click(screen.getByRole('button', { name: 'Show publicly' }));
+    expect(screen.getByTestId('results-public-note')).toHaveTextContent(
+      "If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."
+    );
   });
 });

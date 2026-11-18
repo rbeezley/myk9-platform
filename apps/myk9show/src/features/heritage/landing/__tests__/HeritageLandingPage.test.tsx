@@ -68,7 +68,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -83,7 +83,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -98,7 +98,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -107,5 +107,22 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
     for (const link of links) {
       expect(link).toHaveAttribute('href', baseData.entryWizardUrl);
     }
+  });
+});
+
+describe('HeritageLandingPage: developer comments', () => {
+  it('renders no INTENT comment text for visitors', () => {
+    mockViewportWidth(1280);
+    render(
+      <HeritageLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryPendingReason={undefined}
+      />
+    );
+
+    expect(screen.queryByText(/INTENT/)).toBeNull();
   });
 });

@@ -1,3 +1,4 @@
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { getShowStyle } from '@/features/registries';
@@ -50,8 +51,8 @@ export interface ShowPublicLandingProps {
    * explicit.
    */
   hasEntryClassInventory: boolean | null;
-  /** True when the entry window has not opened yet, or was never set (MYK9-649). */
-  entryWindowNotOpen: boolean;
+  /** Why entries are not open yet (MYK9-649), from `entryPendingReasonFor(status)`. */
+  entryPendingReason: EntryPendingReason | undefined;
   /** True when a cached show is being shown because the refresh failed. */
   refreshFailed?: boolean | undefined;
   onRetry?: (() => void) | undefined;
@@ -75,7 +76,7 @@ export function ShowPublicLanding({
   offeredClasses = [],
   resultClasses,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
   refreshFailed,
   onRetry,
   styleMode = 'public',
@@ -257,7 +258,9 @@ export function ShowPublicLanding({
             trial={landingTrials[0] ?? null}
             allTrials={landingTrials}
             hasEntryClassInventory={hasEntryClassInventory}
-            entryWindowNotOpen={entryWindowNotOpen || !onlineEntriesOpen}
+            entryPendingReason={
+              entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown')
+            }
           />
         </ShowHasHappenedContext.Provider>
       </LateEntryContactContext.Provider>

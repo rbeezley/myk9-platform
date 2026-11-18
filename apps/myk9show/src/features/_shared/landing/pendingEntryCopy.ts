@@ -1,4 +1,5 @@
-import { formatShowDate } from './calendarDate';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
+import { formatShowDate, getCalendarDayParts } from './calendarDate';
 
 /**
  * Why a published show's online entry is not available, in the words each
@@ -26,11 +27,13 @@ export interface PendingEntryCopy {
 export interface PendingEntryCopyInput {
   /** `false` only when the show is confirmed to have no classes; `null` is unknown. */
   hasEntryClassInventory?: boolean | null | undefined;
-  /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  /** Why entries are pending, from `getEntryStatus`; undefined when not pending. */
+  entryPendingReason?: EntryPendingReason | undefined;
   /** Raw `entry_open_date` value, when known. */
   entryOpenDate?: string | null | undefined;
   timezone: string;
+  /** Injected for tests. */
+  now?: Date;
 }
 
 export const NO_CLASSES_COPY: PendingEntryCopy = {
@@ -51,24 +54,51 @@ export const NOT_OPEN_NO_DATE: PendingEntryCopy = {
   sub: 'Online entry is not available yet.',
 };
 
+/** True when the open date (a calendar day or an instant) is still ahead of `now`. */
+function isFutureOpenDate(iso: string, timezone: string, now: Date): boolean {
+  const day = getCalendarDayParts(iso);
+  if (day) {
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now);
+    const open = `${day.year}-${String(day.month).padStart(2, '0')}-${String(day.day).padStart(2, '0')}`;
+    return open > today;
+  }
+  const instant = new Date(iso).getTime();
+  return !Number.isNaN(instant) && instant > now.getTime();
+}
+
 export function pendingEntryCopy({
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
   entryOpenDate,
   timezone,
+  now = new Date(),
 }: PendingEntryCopyInput): PendingEntryCopy {
-  if (entryWindowNotOpen) {
-    const short = formatShowDate(entryOpenDate, timezone, { month: 'short', day: 'numeric' });
-    const long = formatShowDate(entryOpenDate, timezone, { month: 'long', day: 'numeric' });
-    if (short && long) {
-      return {
-        kind: 'not-open',
-        nav: `Opens ${short}`,
-        sentence: `Entries open ${long}.`,
-        headlineLead: 'Entries open',
-        headlineAccent: short,
-        sub: 'Online entry is not available until then.',
-      };
+  if (entryPendingReason) {
+    // Only `not_yet_open` with a date still ahead can say "opens <date>". The
+    // other reasons (no window, unknown online setting) say nothing about when,
+    // and a stale or past date would read as a lie.
+    if (
+      entryPendingReason === 'not_yet_open' &&
+      entryOpenDate &&
+      isFutureOpenDate(entryOpenDate, timezone, now)
+    ) {
+      const short = formatShowDate(entryOpenDate, timezone, { month: 'short', day: 'numeric' });
+      const long = formatShowDate(entryOpenDate, timezone, { month: 'long', day: 'numeric' });
+      if (short && long) {
+        return {
+          kind: 'not-open',
+          nav: `Opens ${short}`,
+          sentence: `Entries open ${long}.`,
+          headlineLead: 'Entries open',
+          headlineAccent: short,
+          sub: 'Online entry is not available until then.',
+        };
+      }
     }
     return NOT_OPEN_NO_DATE;
   }

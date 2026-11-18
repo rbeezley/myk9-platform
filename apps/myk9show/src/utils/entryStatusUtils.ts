@@ -168,30 +168,44 @@ export function getEntryStatus(
 }
 
 /**
- * Whether the public landing must withhold its Enter CTA because entries are
- * not open YET: the window has not opened, or nobody set one (MYK9-649).
- * `closed` is false on purpose: the landing's countdown judges closing in the
- * show's own zone. `setup_incomplete` is gated separately by class inventory.
+ * Why a public landing is withholding its Enter CTA before entries are open,
+ * or `undefined` when entries are not pending. Landings use the reason to word
+ * the copy: only `not_yet_open` means a dated "opens" claim can be true.
+ * `online_setting_unknown` is added by the landing caller, not by status.
  */
-export function isEntryWindowNotOpen(status: EntryStatus): boolean {
+export type EntryPendingReason =
+  Extract<EntryStatus, 'not_yet_open' | 'window_unknown'> | 'online_setting_unknown';
+
+/**
+ * The reason entries are not open YET: the window has not opened, or nobody set
+ * one (MYK9-649). `closed` is undefined on purpose: the landing's countdown
+ * judges closing in the show's own zone. `setup_incomplete` is gated separately
+ * by class inventory.
+ */
+export function entryPendingReasonFor(status: EntryStatus): EntryPendingReason | undefined {
   switch (status) {
     case 'not_yet_open':
     case 'window_unknown':
-      return true;
+      return status;
     case 'accepting':
     case 'closing_soon':
     case 'closed':
     case 'submitted':
     case 'setup_incomplete':
-      return false;
+      return undefined;
     default:
-      return unknownStatusNotOpen(status);
+      return unknownStatusPendingReason(status);
   }
 }
 
-function unknownStatusNotOpen(status: never): boolean {
+/** Whether the public landing must withhold its Enter CTA (MYK9-649). */
+export function isEntryWindowNotOpen(status: EntryStatus): boolean {
+  return entryPendingReasonFor(status) !== undefined;
+}
+
+function unknownStatusPendingReason(status: never): EntryPendingReason {
   void status;
-  return true;
+  return 'window_unknown';
 }
 
 /**

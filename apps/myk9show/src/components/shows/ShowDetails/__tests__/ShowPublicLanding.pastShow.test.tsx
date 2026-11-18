@@ -80,7 +80,7 @@ function renderLanding(startDate: string, endDate: string) {
       show={show}
       landingTrials={[]}
       hasEntryClassInventory
-      entryWindowNotOpen={false}
+      entryPendingReason={undefined}
     />
   );
 }

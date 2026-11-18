@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { pendingEntryCopy } from '../pendingEntryCopy';
 
 const tz = 'America/Chicago';
+const now = new Date('2026-11-18T18:00:00Z');
 
 describe('pendingEntryCopy', () => {
-  it('names the opening date when the window has not opened, even with classes assigned', () => {
+  it('names a future opening date for not_yet_open, even with classes assigned', () => {
     const copy = pendingEntryCopy({
       hasEntryClassInventory: true,
-      entryWindowNotOpen: true,
+      entryPendingReason: 'not_yet_open',
       entryOpenDate: '2027-01-05T00:00:00+00:00',
       timezone: tz,
+      now,
     });
     expect(copy.kind).toBe('not-open');
     expect(copy.nav).toBe('Opens Jan 5');
@@ -18,39 +20,78 @@ describe('pendingEntryCopy', () => {
     expect(copy.headlineAccent).toBe('Jan 5');
   });
 
-  it('is neutral when the window has not opened and no date is known', () => {
-    const copy = pendingEntryCopy({ entryWindowNotOpen: true, entryOpenDate: null, timezone: tz });
-    expect(copy.kind).toBe('not-open');
+  it('is neutral for not_yet_open when no date is known', () => {
+    const copy = pendingEntryCopy({
+      entryPendingReason: 'not_yet_open',
+      entryOpenDate: null,
+      timezone: tz,
+      now,
+    });
     expect(copy.nav).toBe('Not open yet');
     expect(copy.sentence).toBe('Entries are not open yet.');
   });
 
-  it('prefers the opening date over missing classes while the window is unopened', () => {
+  it('is neutral for not_yet_open when the open date has already passed', () => {
     const copy = pendingEntryCopy({
-      hasEntryClassInventory: false,
-      entryWindowNotOpen: true,
+      entryPendingReason: 'not_yet_open',
+      entryOpenDate: '2026-11-01T00:00:00+00:00',
+      timezone: tz,
+      now,
+    });
+    expect(copy.nav).toBe('Not open yet');
+  });
+
+  it('treats an open date of today as not in the future', () => {
+    const copy = pendingEntryCopy({
+      entryPendingReason: 'not_yet_open',
+      entryOpenDate: '2026-11-18',
+      timezone: tz,
+      now,
+    });
+    expect(copy.nav).toBe('Not open yet');
+  });
+
+  it('never dates window_unknown, with a past or a future date', () => {
+    for (const entryOpenDate of ['2026-01-05', '2027-01-05']) {
+      const copy = pendingEntryCopy({
+        entryPendingReason: 'window_unknown',
+        entryOpenDate,
+        timezone: tz,
+        now,
+      });
+      expect(copy.nav).toBe('Not open yet');
+    }
+  });
+
+  it('never dates online_setting_unknown', () => {
+    const copy = pendingEntryCopy({
+      entryPendingReason: 'online_setting_unknown',
       entryOpenDate: '2027-01-05',
       timezone: tz,
+      now,
+    });
+    expect(copy.nav).toBe('Not open yet');
+  });
+
+  it('prefers a pending reason over missing classes', () => {
+    const copy = pendingEntryCopy({
+      hasEntryClassInventory: false,
+      entryPendingReason: 'not_yet_open',
+      entryOpenDate: '2027-01-05',
+      timezone: tz,
+      now,
     });
     expect(copy.kind).toBe('not-open');
   });
 
-  it('uses missing-class copy only for a confirmed empty inventory', () => {
-    const copy = pendingEntryCopy({
-      hasEntryClassInventory: false,
-      entryWindowNotOpen: false,
-      timezone: tz,
-    });
+  it('uses missing-class copy only for a confirmed empty inventory with no reason', () => {
+    const copy = pendingEntryCopy({ hasEntryClassInventory: false, timezone: tz, now });
     expect(copy.kind).toBe('no-classes');
     expect(copy.nav).toBe('Classes pending');
   });
 
   it('does not claim missing classes when inventory is unknown', () => {
-    const copy = pendingEntryCopy({
-      hasEntryClassInventory: null,
-      entryWindowNotOpen: false,
-      timezone: tz,
-    });
+    const copy = pendingEntryCopy({ hasEntryClassInventory: null, timezone: tz, now });
     expect(copy.kind).toBe('not-open');
   });
 });

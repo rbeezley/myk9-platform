@@ -1,4 +1,5 @@
 import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
@@ -32,7 +33,7 @@ interface HeritageLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 /**
@@ -46,7 +47,7 @@ export function HeritageLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: HeritageLandingPageProps) {
   // Lazy-load Heritage fonts on first render — preconnect + <link> injected once.
   useEffect(() => {
@@ -60,22 +61,22 @@ export function HeritageLandingPage({
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
 
   const pendingCopy = pendingEntryCopy({
     hasEntryClassInventory,
-    entryWindowNotOpen,
+    entryPendingReason,
     entryOpenDate: data.entryOpenDate,
     timezone: data.timezone,
   });
 
+  // INTENT: Heritage is a deliberately fixed-light public style. It keeps the
+  // warm paper surface in dark app theme, while ink-band sections use separate
+  // AA-safe dark-surface tokens guarded by heritagePaletteContrast tests.
   return (
     <PendingEntryCopyProvider value={pendingCopy}>
-      // INTENT: Heritage is a deliberately fixed-light public style. It keeps the // warm paper
-      surface in dark app theme, while ink-band sections use separate // AA-safe dark-surface tokens
-      guarded by heritagePaletteContrast tests.
       <div
         data-heritage
         className="min-h-screen"

@@ -106,7 +106,7 @@ function renderLanding(
       show={show}
       landingTrials={[]}
       hasEntryClassInventory
-      entryWindowNotOpen={false}
+      entryPendingReason={undefined}
     />
   );
 }

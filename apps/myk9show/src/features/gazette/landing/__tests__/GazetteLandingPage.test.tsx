@@ -20,7 +20,7 @@ const baseData: GazetteLandingData = {
   welcomeText: null,
   trialChairName: null,
   trialChairTitle: null,
-  entryOpenDate: '2026-04-01',
+  entryOpenDate: '2098-04-01',
   entryCloseDate: '2099-01-01',
   confirmationDate: null,
   trialStartDate: '2026-08-01',
@@ -75,7 +75,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -90,7 +90,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -105,7 +105,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -130,7 +130,7 @@ describe('GazetteLandingPage: entries not open yet with classes assigned', () =>
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen
+        entryPendingReason="not_yet_open"
       />
     );
 
@@ -143,6 +143,41 @@ describe('GazetteLandingPage: entries not open yet with classes assigned', () =>
     expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(0);
   });
 
+  it.each(['not_yet_open', 'window_unknown', 'online_setting_unknown'] as const)(
+    'withholds the Enter CTA for %s exactly as before',
+    reason => {
+      mockViewportWidth(1280);
+      const { container } = render(
+        <GazetteLandingPage
+          show={{ id: 'show-1', name: baseData.showName } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory
+          entryPendingReason={reason}
+        />
+      );
+      expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(0);
+    }
+  );
+
+  it.each(['window_unknown', 'online_setting_unknown'] as const)(
+    'never claims an opening date or missing classes for %s',
+    reason => {
+      mockViewportWidth(1280);
+      const { container } = render(
+        <GazetteLandingPage
+          show={{ id: 'show-1', name: baseData.showName } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory
+          entryPendingReason={reason}
+        />
+      );
+      expect(screen.getAllByText('Not open yet').length).toBeGreaterThan(0);
+      expect(container.textContent).not.toMatch(/Opens |Entries open |classes are assigned/);
+    }
+  );
+
   it('keeps the missing-classes copy for a show confirmed to have none', () => {
     mockViewportWidth(1280);
     const { container } = render(
@@ -151,7 +186,7 @@ describe('GazetteLandingPage: entries not open yet with classes assigned', () =>
         trial={null}
         allTrials={[]}
         hasEntryClassInventory={false}
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 

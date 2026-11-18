@@ -136,6 +136,8 @@ export interface AtShowEntryDetail {
   resultLine?: string | null | undefined;
   /** True while the class is unreleased: the row labels the result "preliminary". */
   isPreliminary: boolean;
+  /** The own placement, only once the class is released (MYK9-1944); null otherwise. */
+  releasedPlacement?: number | null | undefined;
   /** Scored, but the release preset withholds the result: the row says it is not released (MYK9-1519). */
   isResultWithheld?: boolean | undefined;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
@@ -259,6 +261,10 @@ export function buildMyAtShowEntryDetails(
       resultFaults: hasVisibleResult ? (own?.totalFaults ?? null) : null,
       resultLine: line?.text ?? null,
       isPreliminary,
+      releasedPlacement:
+        hasVisibleResult && !isPreliminary && (own?.finalPlacement ?? 0) > 0
+          ? (own?.finalPlacement ?? null)
+          : null,
       isResultWithheld,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,

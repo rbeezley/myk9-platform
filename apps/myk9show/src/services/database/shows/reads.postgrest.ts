@@ -1,4 +1,4 @@
-import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 import { formatDateLocal } from '@/utils/dateLocal';
 import { supabase, createDatabaseError } from '../supabaseClient';
 
@@ -228,9 +228,7 @@ export async function postgrestSearchShows(searchTerm: string) {
   const { data, error } = await supabase
     .from('shows')
     .select('*')
-    .or(
-      `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,location.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-    )
+    .or(`name.ilike.${ilikeContains(searchTerm)},location.ilike.${ilikeContains(searchTerm)}`)
     .is('deleted_at', null)
     .order('start_date', { ascending: true });
 

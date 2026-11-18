@@ -1,9 +1,11 @@
 /**
  * PostgREST filter text for `searchAllDogs`, the system-wide dog search.
  *
- * Every term passed in here is already escaped by `sanitizePostgRESTFilter`, so
- * commas, parentheses, dots and asterisks in it are literal text.
+ * Every term passed in here is raw text; `ilikeContains` quotes and escapes it,
+ * so commas, parentheses, dots, quotes and asterisks in it are literal text.
  */
+
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 
 /** Most first-name / last-name splits tried for a typed full name. */
 const OWNER_NAME_MAX_SPLITS = 3;
@@ -24,20 +26,26 @@ export const SEARCH_MAX_WORDS = 8;
  * Jane". At most three splits (four words); later words stay in the last name.
  */
 export function ownerNameFilter(term: string): string {
-  const filters = [`first_name.ilike.%${term}%`, `last_name.ilike.%${term}%`];
+  const filters = [
+    `first_name.ilike.${ilikeContains(term)}`,
+    `last_name.ilike.${ilikeContains(term)}`,
+  ];
   const words = term.split(/\s+/).filter(Boolean);
   const splits = Math.min(words.length - 1, OWNER_NAME_MAX_SPLITS);
   for (let k = 1; k <= splits; k += 1) {
     const first = words.slice(0, k).join(' ');
     const last = words.slice(k).join(' ');
-    filters.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
+    filters.push(
+      `and(first_name.ilike.${ilikeContains(first)},last_name.ilike.${ilikeContains(last)})`
+    );
   }
   return filters.join(',');
 }
 
 /** PostgREST `.or(...)` body matching a registration by number, registered name or breed. */
 export function registrationFilter(term: string): string {
-  return `registration_number.ilike.%${term}%,registered_name.ilike.%${term}%,breed.ilike.%${term}%`;
+  const value = ilikeContains(term);
+  return `registration_number.ilike.${value},registered_name.ilike.${value},breed.ilike.${value}`;
 }
 
 /**
@@ -66,7 +74,7 @@ export function searchWords(term: string): string[] {
  * dog that matches every word (MYK9-2026 review).
  */
 export interface SearchTermEmbed {
-  /** The term, already escaped by `sanitizePostgRESTFilter`. */
+  /** The term as typed; quoted and escaped where it is placed in a filter. */
   term: string;
   /** Alias of the registrations embed filtered by this term. */
   registrations: string;
@@ -93,8 +101,8 @@ export function searchEmbedSelect(embeds: readonly SearchTermEmbed[]): string {
 /** One term against one dog: its own name columns, or a registration or owner it matched. */
 function dogTermClauses(embed: SearchTermEmbed): string[] {
   return [
-    `name.ilike.%${embed.term}%`,
-    `call_name.ilike.%${embed.term}%`,
+    `name.ilike.${ilikeContains(embed.term)}`,
+    `call_name.ilike.${ilikeContains(embed.term)}`,
     `${embed.registrations}.not.is.null`,
     `${embed.owner}.not.is.null`,
   ];

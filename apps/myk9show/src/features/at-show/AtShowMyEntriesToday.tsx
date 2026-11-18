@@ -143,6 +143,10 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
     () => filterByDog(orderedEntries, activeDog),
     [orderedEntries, activeDog]
   );
+  // MYK9-1944: one results-public prompt for the list, on the first placed, released row.
+  const resultsPromptEntryId =
+    visibleEntries.find(detail => detail.releasedPlacement != null && detail.className)?.entryId ??
+    null;
   // The notice follows the server place the row already shows: this account
   // holds only its own entries, so counting dogs ahead locally would call a
   // dog with 30 ahead "next". No confirmed places, no notice.
@@ -279,6 +283,8 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           <ul className="mt-3 space-y-2">
             {visibleEntries.map(detail => (
               <MyEntryRow
+                showId={showId}
+                showResultsPrompt={detail.entryId === resultsPromptEntryId}
                 key={detail.entryId}
                 detail={detail}
                 place={places.get(detail.entryId)}

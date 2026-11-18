@@ -11,6 +11,7 @@ import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
 import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
+import { useLedgerDialogSave } from './useLedgerDialogSave';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +66,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [refundDialog, setRefundDialog] = useState<RefundDialog>(EMPTY_REFUND_DIALOG);
+  const refundSave = useLedgerDialogSave();
   // Standalone fallback: unused when the parent passes `dialogControls`. Called
   // unconditionally on purpose (hook rules); do not make it conditional.
   const ownControls = useEnrollmentDialogControls(group, paymentLedger);
@@ -79,8 +81,10 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     today,
     fullDialog,
     setFullDialog,
+    fullSaveStatus,
     partialDialog,
     setPartialDialog,
+    partialSaveStatus,
     askMarkPaidOnline,
     askMarkPaymentDue,
     ledgerConfirm,
@@ -102,13 +106,23 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const isPartiallyPaid = !amountUnknown && paidDollars > 0 && paidDollars < totalDollars;
 
   const openRefundDialog = (isPartial: boolean) => {
+    refundSave.reset();
     setRefundDialog({
       ...EMPTY_REFUND_DIALOG,
       open: true,
-      amount: isPartial ? '' : refundableDollars.toFixed(2),
+      // MYK9-2152: no pre-fill from a figure that is not the form's money.
+      amount: isPartial || amountUnknown ? '' : refundableDollars.toFixed(2),
       isPartial,
     });
   };
+  // MYK9-2152: a full refund opened before the payment record loaded pre-fills once it does.
+  const [refundAmountWasUnknown, setRefundAmountWasUnknown] = useState(amountUnknown);
+  if (refundAmountWasUnknown !== amountUnknown) {
+    setRefundAmountWasUnknown(amountUnknown);
+    if (!amountUnknown && refundDialog.open && !refundDialog.isPartial && !refundDialog.amount) {
+      setRefundDialog({ ...refundDialog, amount: refundableDollars.toFixed(2) });
+    }
+  }
 
   const confirmRefund = () => {
     const result = resolveRefund(
@@ -118,9 +132,12 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       refundDialog.notes,
       today
     );
-    if (!result || !enrollmentId) return;
-    void paymentLedger.record(enrollmentId, result);
-    setRefundDialog(EMPTY_REFUND_DIALOG);
+    if (amountUnknown || !result || !enrollmentId) return;
+    // MYK9-2156: closes only once the write succeeds; a failure keeps what was typed.
+    void refundSave.save(
+      () => paymentLedger.record(enrollmentId, result),
+      () => setRefundDialog(EMPTY_REFUND_DIALOG)
+    );
   };
 
   return (
@@ -354,6 +371,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         balanceDollars={fullPaymentDollars}
         amountUnknown={amountUnknown}
         todayInShowZone={today}
+        saveStatus={fullSaveStatus}
         onClose={() => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)}
         onConfirm={confirmFullPayment}
       />
@@ -365,6 +383,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         paidDollars={paidDollars}
         amountUnknown={amountUnknown}
         todayInShowZone={today}
+        saveStatus={partialSaveStatus}
         onClose={() => setPartialDialog(EMPTY_PARTIAL_DIALOG)}
         onConfirm={confirmPartialPayment}
       />
@@ -373,6 +392,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         state={refundDialog}
         onChange={setRefundDialog}
         refundableDollars={refundableDollars}
+        amountUnknown={amountUnknown}
+        saveStatus={refundSave.status}
         onClose={() => setRefundDialog(EMPTY_REFUND_DIALOG)}
         onConfirm={confirmRefund}
       />

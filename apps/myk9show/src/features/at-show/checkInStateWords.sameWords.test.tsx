@@ -50,6 +50,7 @@ describe('one set of check-in words', () => {
       render(
         <ul>
           <MyEntryRow
+            showId="show-1"
             detail={detail(state as AtShowEntryDetail['checkInStatus'])}
             place={undefined}
             placeUpdatedAt={null}

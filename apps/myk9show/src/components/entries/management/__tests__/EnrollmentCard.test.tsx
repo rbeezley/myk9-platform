@@ -79,7 +79,7 @@ const defaultProps = {
   onEntryRemoved: vi.fn(),
   onBulkStatusChange: vi.fn(),
   paymentLedger: {
-    record: vi.fn().mockResolvedValue(true),
+    record: vi.fn().mockResolvedValue('saved'),
     markPaidOnline: vi.fn().mockResolvedValue(true),
     todayInShowZone: '2026-09-17',
   },
@@ -222,7 +222,7 @@ describe('EnrollmentCard', () => {
   it('Paid in Full: Online goes to the server, never as a ledger payment (MYK9-773)', () => {
     // Online money is not the desk's (no ledger row), but the server still runs
     // the entries cascade, so an entry the enrollment refunded follows it.
-    const record = vi.fn().mockResolvedValue(true);
+    const record = vi.fn().mockResolvedValue('saved');
     const markPaidOnline = vi.fn().mockResolvedValue(true);
     render(
       <EnrollmentCard
@@ -243,7 +243,7 @@ describe('EnrollmentCard', () => {
   // MYK9-1841: the two one-click items in this menu ask first, like the rest of it.
   describe('Paid in Full: Online and Payment Due ask before they change the form', () => {
     function renderMenu() {
-      const record = vi.fn().mockResolvedValue(true);
+      const record = vi.fn().mockResolvedValue('saved');
       const markPaidOnline = vi.fn().mockResolvedValue(true);
       render(
         <EnrollmentCard
@@ -309,7 +309,7 @@ describe('EnrollmentCard', () => {
   });
 
   describe('cash and check money goes through the payments ledger (MYK9-677)', () => {
-    function renderPending(record = vi.fn().mockResolvedValue(true), paidAmount = 0) {
+    function renderPending(record = vi.fn().mockResolvedValue('saved'), paidAmount = 0) {
       const markPaidOnline = vi.fn().mockResolvedValue(true);
       render(
         <EnrollmentCard
@@ -379,7 +379,7 @@ describe('EnrollmentCard', () => {
     });
 
     it('offers a refund of what is still held after an earlier refund, not the gross paid', () => {
-      const record = vi.fn().mockResolvedValue(true);
+      const record = vi.fn().mockResolvedValue('saved');
       render(
         <EnrollmentCard
           {...defaultProps}
@@ -399,7 +399,7 @@ describe('EnrollmentCard', () => {
     });
 
     it('Payment Due records a reversal, not a blind zero', () => {
-      const { record, markPaidOnline } = renderPending(vi.fn().mockResolvedValue(true), 35);
+      const { record, markPaidOnline } = renderPending(vi.fn().mockResolvedValue('saved'), 35);
       fireEvent.click(screen.getByText('Payment Due…'));
       fireEvent.click(screen.getByRole('button', { name: 'Mark as Unpaid' }));
 
@@ -430,7 +430,7 @@ describe('EnrollmentCard', () => {
         <EnrollmentCard
           {...defaultProps}
           paymentLedger={{
-            record: vi.fn().mockResolvedValue(true),
+            record: vi.fn().mockResolvedValue('saved'),
             markPaidOnline: vi.fn(),
             todayInShowZone: '2026-09-17',
           }}

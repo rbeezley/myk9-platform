@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { LedgerNotSavedNote } from './LedgerNotSavedNote';
+import type { LedgerSaveStatus } from './useLedgerDialogSave';
 import {
   Select,
   SelectContent,
@@ -16,13 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { REFUND_METHODS, type RefundDialog } from './enrollmentPayment';
+import { AMOUNT_NOT_AVAILABLE, REFUND_METHODS, type RefundDialog } from './enrollmentPayment';
 
 interface EnrollmentRefundDialogProps {
   state: RefundDialog;
   onChange: (next: RefundDialog) => void;
   /** Desk money held: a desk refund can hand back no more (card money goes back through Stripe). */
   refundableDollars: number;
+  /**
+   * MYK9-2152: the payment record is not loaded (`formMoneyUnknown`), so the desk money is not
+   * known: no figure is quoted or pre-filled and the refund waits for the record.
+   */
+  amountUnknown?: boolean | undefined;
+  /** MYK9-2156: the ledger write's state; confirm is disabled while it is pending. */
+  saveStatus?: LedgerSaveStatus | undefined;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -36,6 +45,8 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
   state,
   onChange,
   refundableDollars,
+  amountUnknown = false,
+  saveStatus = 'idle',
   onClose,
   onConfirm,
 }) => (
@@ -45,17 +56,32 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
         <DialogTitle>{state.isPartial ? 'Record Partial Refund' : 'Record Refund'}</DialogTitle>
       </DialogHeader>
       <div className="space-y-3 py-2">
-        {refundableDollars > 0 && (
-          <div className="text-sm text-muted-foreground">
-            Paid at the desk:{' '}
-            <span className="font-medium text-foreground">${refundableDollars.toFixed(2)}</span>
-          </div>
+        {amountUnknown ? (
+          <>
+            <div className="text-sm text-muted-foreground">
+              Paid at the desk:{' '}
+              <span className="font-medium text-foreground">{AMOUNT_NOT_AVAILABLE}</span>
+            </div>
+            {/* A refund is capped by the desk money, which is not known here, so it waits rather
+                than take an amount nothing can check. */}
+            <p className="text-sm text-muted-foreground" data-testid="refund-amount-unknown-note">
+              A refund needs the amount paid, which has not loaded. Record this refund once the
+              form&rsquo;s payment record loads.
+            </p>
+          </>
+        ) : (
+          refundableDollars > 0 && (
+            <div className="text-sm text-muted-foreground">
+              Paid at the desk:{' '}
+              <span className="font-medium text-foreground">${refundableDollars.toFixed(2)}</span>
+            </div>
+          )
         )}
 
         <div className="space-y-1.5">
           <Label htmlFor="refund-amount">
             Refund Amount{' '}
-            {!state.isPartial && (
+            {!state.isPartial && !amountUnknown && (
               <span className="text-muted-foreground font-normal">(pre-filled from paid)</span>
             )}
           </Label>
@@ -65,7 +91,8 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
             min="0.01"
             step="0.01"
             placeholder="Amount ($)"
-            value={state.amount}
+            value={amountUnknown ? '' : state.amount}
+            disabled={amountUnknown}
             onChange={e => onChange({ ...state, amount: e.target.value })}
             autoFocus
           />
@@ -102,17 +129,26 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
           />
         </div>
 
-        {(!state.amount || !(parseFloat(state.amount) > 0)) && (
+        {!amountUnknown && (!state.amount || !(parseFloat(state.amount) > 0)) && (
           <p className="text-xs text-muted-foreground">
             Enter a refund amount greater than $0 to record this refund.
           </p>
         )}
+        <LedgerNotSavedNote status={saveStatus} />
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={onConfirm} disabled={!state.amount || !(parseFloat(state.amount) > 0)}>
+        <Button
+          onClick={onConfirm}
+          disabled={
+            amountUnknown ||
+            !state.amount ||
+            !(parseFloat(state.amount) > 0) ||
+            saveStatus === 'saving'
+          }
+        >
           Record Refund
         </Button>
       </DialogFooter>

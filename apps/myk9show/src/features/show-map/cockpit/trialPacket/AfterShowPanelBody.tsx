@@ -82,7 +82,10 @@ export function AfterShowPanelBody({ showId, trialId }: { showId: string; trialI
           entries: (inputs.entries ?? []) as DbEntry[],
           trialId,
           officials: officials.data ?? null,
-          recordingFeeRates: recordingFeeRatesForReport(ratesQuery),
+          recordingFeeRates: recordingFeeRatesForReport(
+            ratesQuery,
+            ids.forms.includes('trial-secretary-report')
+          ),
           ukcTrialReportContext: ukcContext.data ?? null,
           catalogProfilesReadComplete,
         });

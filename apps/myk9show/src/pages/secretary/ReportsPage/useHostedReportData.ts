@@ -262,9 +262,9 @@ export function useHostedReportData({
   const ratesFailed = ratesQuery.isError || ratesQuery.fetchStatus === 'paused';
   // Memoized: the preview rewrites its frame whenever this identity changes.
   const recordingFeeRates = useMemo(
-    () => recordingFeeRatesForReport(ratesQuery),
+    () => recordingFeeRatesForReport(ratesQuery, needsRates),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ratesData, ratesSettled, ratesFailed]
+    [ratesData, ratesSettled, ratesFailed, needsRates]
   );
 
   return {

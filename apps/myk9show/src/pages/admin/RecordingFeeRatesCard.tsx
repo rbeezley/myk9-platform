@@ -15,10 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRecordingFeeRates } from '@/hooks/queries/useRecordingFeeRates';
+import { recordingFeeRatesLive, useRecordingFeeRates } from '@/hooks/queries/useRecordingFeeRates';
 import {
   DUPLICATE_RECORDING_FEE_CODE,
+  MAX_RECORDING_FEE_YEAR,
+  MIN_RECORDING_FEE_YEAR,
   RECORDING_FEE_REGISTRIES,
+  isPlausibleRecordingFeeDate,
   parseRecordingFeeDollars,
   useAddRecordingFeeRate,
   type RecordingFeeRegistry,
@@ -41,19 +44,28 @@ export function RecordingFeeRatesCard() {
     null
   );
 
-  // The list is read as fact only when this read succeeded: a copy cached on this device, or a
-  // paused read, must not let an admin add a row against a list they cannot see.
+  // The list is read as fact only when the server answered in this session and no refetch is in
+  // flight: a copy cached on this device (seeded stale), a paused read or a read still running
+  // must not let an admin add a row against a list they have not seen.
   const unavailable = query.isError || query.fetchStatus === 'paused';
-  const loading = !unavailable && (query.isPending || query.isFetching) && query.data === undefined;
-  const rates = !unavailable && query.data ? sortedNewestFirst(query.data) : null;
+  const live = recordingFeeRatesLive(query);
+  const loading = !unavailable && !live;
+  const rates = live && query.data ? sortedNewestFirst(query.data) : null;
 
   const amountCents = parseRecordingFeeDollars(dollars);
-  const dateInvalid = !/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom);
+  const dateInvalid = !isPlausibleRecordingFeeDate(effectiveFrom);
   const amountInvalid = amountCents === null;
-  const canAdd = rates !== null && !dateInvalid && !amountInvalid && !addRate.isPending;
+  const formReady = rates !== null && !dateInvalid && !amountInvalid && !addRate.isPending;
+  // Adding is a two-step: the first press states exactly what will be written, the second saves.
+  const [confirming, setConfirming] = useState(false);
+  const edited = () => {
+    setFeedback(null);
+    setConfirming(false);
+  };
 
   const handleAdd = () => {
     if (amountCents === null) return;
+    setConfirming(false);
     addRate.mutate(
       { registry, effectiveFrom, amountCents },
       {
@@ -78,7 +90,7 @@ export function RecordingFeeRatesCard() {
   };
 
   const guidance = dateInvalid
-    ? 'Pick the date the new rate takes effect.'
+    ? `Pick the date the new rate takes effect (${MIN_RECORDING_FEE_YEAR} to ${MAX_RECORDING_FEE_YEAR}).`
     : amountInvalid
       ? 'Enter the per-entry amount in dollars and cents, such as 5.50.'
       : null;
@@ -142,7 +154,7 @@ export function RecordingFeeRatesCard() {
               value={registry}
               onChange={event => {
                 setRegistry(event.target.value as RecordingFeeRegistry);
-                setFeedback(null);
+                edited();
               }}
               disabled={rates === null}
               className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base"
@@ -162,7 +174,7 @@ export function RecordingFeeRatesCard() {
               value={effectiveFrom}
               onChange={event => {
                 setEffectiveFrom(event.target.value);
-                setFeedback(null);
+                edited();
               }}
               aria-describedby="recording-fee-guidance"
               disabled={rates === null}
@@ -180,7 +192,7 @@ export function RecordingFeeRatesCard() {
                 value={dollars}
                 onChange={event => {
                   setDollars(event.target.value);
-                  setFeedback(null);
+                  edited();
                 }}
                 aria-invalid={dollars !== '' && amountInvalid}
                 aria-describedby="recording-fee-guidance"
@@ -189,10 +201,32 @@ export function RecordingFeeRatesCard() {
               />
             </div>
           </div>
-          <Button className="min-h-11" onClick={handleAdd} disabled={!canAdd}>
+          <Button
+            className="min-h-11"
+            onClick={() => setConfirming(true)}
+            disabled={!formReady || confirming}
+          >
             {addRate.isPending ? 'Adding rate…' : 'Add rate'}
           </Button>
         </div>
+        {confirming && formReady && amountCents !== null && (
+          <div
+            role="group"
+            aria-label="Confirm the new rate"
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3"
+          >
+            <p className="text-sm font-medium">
+              Add ${formatRecordingFeeAmount(amountCents)} per entry for {registry} from{' '}
+              {formatLongDate(effectiveFrom)}?
+            </p>
+            <Button className="min-h-11" onClick={handleAdd}>
+              Confirm
+            </Button>
+            <Button className="min-h-11" variant="outline" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+          </div>
+        )}
         <p id="recording-fee-guidance" className="text-sm text-muted-foreground">
           {rates === null ? '' : guidance}
         </p>

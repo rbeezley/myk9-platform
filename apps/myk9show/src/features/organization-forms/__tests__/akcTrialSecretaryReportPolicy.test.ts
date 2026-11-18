@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { ReportEntry } from '@/lib/reports/types';
 import type { RecordingFeeRate } from '@myk9/core';
 import type { ReportAsyncData } from '@/lib/reports/types';
+import { SEEDED_AKC_RECORDING_FEE_RATES } from '@/test/fixtures/recordingFeeRates';
+// The same dates the premium's edge test uses, so the two cannot be tested apart.
+import { NEW_YEAR_SHOW_TRIAL_DATES } from '../../../../../../supabase/functions/generate-premium/newYearShowFixture';
 import {
   readAKCRecordingFeeRates,
   resolveAKCTrialSecretaryReportPolicy as resolvePolicy,
@@ -169,6 +172,19 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
     expect(resolveAKCTrialSecretaryReportPolicy('2028-02-01', [entry()], rates)).toMatchObject({
       ok: true,
       formattedRate: '6.25',
+    });
+  });
+});
+
+describe('a show that crosses New Year (the premium is tested with the same dates)', () => {
+  it.each([
+    [NEW_YEAR_SHOW_TRIAL_DATES[0], 4.5, '4.50'],
+    [NEW_YEAR_SHOW_TRIAL_DATES[1], 5.5, '5.50'],
+  ])('bills the trial dated %s at its own rate', (trialDate, feeRate, formattedRate) => {
+    expect(resolvePolicy(trialDate, [entry()], SEEDED_AKC_RECORDING_FEE_RATES)).toMatchObject({
+      ok: true,
+      feeRate,
+      formattedRate,
     });
   });
 });

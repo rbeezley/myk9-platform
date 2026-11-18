@@ -105,7 +105,7 @@ handle<GeneratePremiumPayload>(
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
-          id, name, date, planned_start_time, event_number, trial_type, registry_id,
+          id, name, date, planned_start_time, event_number, trial_type, registry_id, status, deleted_at,
           classes(id, name, level, element, section, deleted_at)
         )
       `
@@ -176,8 +176,17 @@ handle<GeneratePremiumPayload>(
         recordingFeeRows = (feeRows ?? []) as unknown as RecordingFeeRateRow[];
       }
     }
+    // Priced per trial date, like the Trial Secretary Report, so a show that crosses a rate change
+    // states both rates. Cancelled and deleted trials do not count; with none left it is the show's
+    // start date.
+    const recordingFeeTrialDates = (
+      show.trials as Array<{ date: string; status?: string | null; deleted_at?: string | null }>
+    )
+      .filter(t => !t.deleted_at && (t.status ?? '').toLowerCase() !== 'cancelled')
+      .map(t => t.date);
     const recordingFee = buildPremiumRecordingFee(
       showOrg,
+      recordingFeeTrialDates,
       show.start_date as string | null,
       recordingFeeRatesFromRows(recordingFeeRows)
     );

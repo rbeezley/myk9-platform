@@ -79,7 +79,12 @@ describe('useOfficialReportDownload officials (MYK9-1386)', () => {
     useTrialOfficialsMock.mockReset();
     actionMock.mockReset();
     useRecordingFeeRatesMock.mockReset();
-    useRecordingFeeRatesMock.mockReturnValue({ data: [], isError: false, fetchStatus: 'idle' });
+    // As the real hook behaves: a disabled query has no data and sits idle forever.
+    useRecordingFeeRatesMock.mockImplementation((enabled: boolean) =>
+      enabled
+        ? { data: [], isError: false, fetchStatus: 'idle' }
+        : { data: undefined, isError: false, fetchStatus: 'idle' }
+    );
   });
 
   it.each(['trial-chairman-report', 'trial-secretary-report'])(
@@ -98,6 +103,22 @@ describe('useOfficialReportDownload officials (MYK9-1386)', () => {
     useTrialOfficialsMock.mockReturnValue({ data: undefined, isLoading: true });
     expect(run('trial-chairman-report', 'AKC').officialsLoading).toBe(true);
   });
+
+  it.each([
+    ['another official report', 'akc-judge-report', 'AKC', 'trial-1'],
+    ['the chairman report', 'trial-chairman-report', 'AKC', 'trial-1'],
+    ['the UKC trial secretary report', 'trial-secretary-report', 'UKC', 'trial-1'],
+    ['the secretary report with every trial chosen', 'trial-secretary-report', 'AKC', 'all'],
+  ])(
+    'does not hold the download for a disabled rates read: %s (MYK9-2044)',
+    (_label, reportType, registry, trialId) => {
+      useTrialOfficialsMock.mockReturnValue({ data: officials, isLoading: false });
+      const input = run(reportType, registry, trialId);
+
+      expect(useRecordingFeeRatesMock).toHaveBeenLastCalledWith(false);
+      expect(input.officialsLoading).toBe(false);
+    }
+  );
 
   it('does not read officials for a UKC trial', () => {
     useTrialOfficialsMock.mockReturnValue({ data: undefined, isLoading: false });

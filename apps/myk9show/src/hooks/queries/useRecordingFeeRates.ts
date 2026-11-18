@@ -1,5 +1,6 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { RecordingFeeRate } from '@myk9/core';
+import { toCalendarDate } from '@myk9/core';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
 import type { ReportAsyncData } from '@/lib/reports/types';
@@ -43,17 +44,21 @@ function isRate(value: unknown): value is RecordingFeeRate {
   return (
     typeof rate.registry === 'string' &&
     typeof rate.effectiveFrom === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(rate.effectiveFrom) &&
+    toCalendarDate(rate.effectiveFrom) === rate.effectiveFrom &&
     typeof rate.amountCents === 'number' &&
-    Number.isInteger(rate.amountCents)
+    Number.isInteger(rate.amountCents) &&
+    rate.amountCents > 0
   );
 }
 
-function readCachedRates(): RecordingFeeRate[] | undefined {
+/** The cached list with any row that is not a real dated, positive rate dropped. */
+export function readCachedRecordingFeeRates(): RecordingFeeRate[] | undefined {
   try {
     const raw = window.localStorage.getItem(CACHE_STORAGE_KEY);
     if (!raw) return undefined;
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.every(isRate) ? parsed : undefined;
+    return Array.isArray(parsed) ? parsed.filter(isRate) : undefined;
   } catch {
     return undefined;
   }
@@ -90,7 +95,7 @@ export function useRecordingFeeRates(enabled: boolean): UseQueryResult<Recording
     enabled,
     ...cacheStrategies.static,
     refetchOnMount: 'always',
-    initialData: enabled ? readCachedRates : undefined,
+    initialData: enabled ? readCachedRecordingFeeRates : undefined,
     // Epoch: whatever this device cached is stale the moment it can be checked.
     initialDataUpdatedAt: 0,
   });
@@ -102,12 +107,30 @@ export function recordingFeeRatesSettled(query: UseQueryResult<RecordingFeeRate[
 }
 
 /**
+ * True only when the list on hand came from the server in this session and no refetch is in
+ * flight: a copy cached on the device (seeded as already stale) or a read still running does
+ * not count. For the editor, which must not act on a list it has not confirmed.
+ */
+export function recordingFeeRatesLive(query: UseQueryResult<RecordingFeeRate[]>): boolean {
+  return (
+    query.data !== undefined &&
+    query.dataUpdatedAt > 0 &&
+    !query.isFetching &&
+    !query.isError &&
+    query.fetchStatus !== 'paused'
+  );
+}
+
+/**
  * The query as the report host hands it to a report: rates only when there is a list to read,
- * else `isError` (never an empty list standing in for "not read").
+ * else `isError` (never an empty list standing in for "not read"). A disabled query is not
+ * pending, whatever it reports: nothing is waiting on it, so it never holds the report.
  */
 export function recordingFeeRatesForReport(
-  query: UseQueryResult<RecordingFeeRate[]>
+  query: UseQueryResult<RecordingFeeRate[]>,
+  enabled: boolean
 ): ReportAsyncData<RecordingFeeRate[]> {
+  if (!enabled) return { data: [], isLoading: false, isError: false };
   if (query.data !== undefined) return { data: query.data, isLoading: false, isError: false };
   const settledWithoutData = query.isError || query.fetchStatus === 'paused';
   return { data: [], isLoading: !settledWithoutData, isError: settledWithoutData };

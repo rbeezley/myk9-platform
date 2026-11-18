@@ -11,7 +11,7 @@ import type { GeneratedPremium } from '@/types/premium-types';
 
 const FEE_2027 = {
   registry: 'AKC' as const,
-  amountCents: 550,
+  amountsCents: [550],
   text: 'AKC recording fee: $5.50 per entry',
 };
 

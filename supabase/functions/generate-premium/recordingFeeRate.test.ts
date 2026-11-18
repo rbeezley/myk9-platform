@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
+import { NEW_YEAR_SHOW_TRIAL_DATES } from './newYearShowFixture';
 import {
   formatRecordingFeeAmount as coreFormat,
   recordingFeeRateInForce as coreInForce,
@@ -23,28 +24,58 @@ const RATES = recordingFeeRatesFromRows(ROWS);
 
 describe('premium recording fee statement (MYK9-2044)', () => {
   it('prints the 2027 rate for an AKC show dated 2027', () => {
-    expect(buildPremiumRecordingFee('AKC', '2027-01-15', RATES)).toEqual({
+    expect(buildPremiumRecordingFee('AKC', ['2027-01-15'], '2027-01-15', RATES)).toEqual({
       registry: 'AKC',
-      amountCents: 550,
+      amountsCents: [550],
       text: 'AKC recording fee: $5.50 per entry',
     });
   });
 
   it('prints the 2026 rate for a 2026 show, including the last day of the year', () => {
-    expect(buildPremiumRecordingFee('AKC', '2026-06-12', RATES)?.text).toBe(
+    expect(buildPremiumRecordingFee('AKC', ['2026-06-12'], null, RATES)?.text).toBe(
       'AKC recording fee: $4.50 per entry'
     );
-    expect(buildPremiumRecordingFee('AKC', '2026-12-31', RATES)?.text).toBe(
+    expect(buildPremiumRecordingFee('AKC', ['2026-12-31'], null, RATES)?.text).toBe(
       'AKC recording fee: $4.50 per entry'
     );
   });
 
-  it('prints no line when no rate is in force, the date is unusable, or the show is not AKC', () => {
-    expect(buildPremiumRecordingFee('AKC', '2024-12-31', RATES)).toBeNull();
-    expect(buildPremiumRecordingFee('AKC', null, RATES)).toBeNull();
-    expect(buildPremiumRecordingFee('AKC', '2027-01-15', [])).toBeNull();
-    expect(buildPremiumRecordingFee('UKC', '2027-01-15', RATES)).toBeNull();
-    expect(buildPremiumRecordingFee(null, '2027-01-15', RATES)).toBeNull();
+  it('falls back to the show start date when there are no trial dates', () => {
+    expect(buildPremiumRecordingFee('AKC', [], '2027-01-15', RATES)?.text).toBe(
+      'AKC recording fee: $5.50 per entry'
+    );
+    expect(buildPremiumRecordingFee('AKC', [null, undefined], '2026-03-01', RATES)?.text).toBe(
+      'AKC recording fee: $4.50 per entry'
+    );
+  });
+
+  it('prints one line when every trial falls under one rate', () => {
+    expect(
+      buildPremiumRecordingFee('AKC', ['2027-01-15', '2027-01-16'], '2027-01-15', RATES)?.text
+    ).toBe('AKC recording fee: $5.50 per entry');
+  });
+
+  it('states both rates, naming the date the later one applies from, across New Year', () => {
+    // The same dates the Trial Secretary Report is tested with (NEW_YEAR_SHOW_TRIAL_DATES).
+    expect(
+      buildPremiumRecordingFee('AKC', [...NEW_YEAR_SHOW_TRIAL_DATES].reverse(), '2026-12-31', RATES)
+    ).toEqual({
+      registry: 'AKC',
+      amountsCents: [450, 550],
+      text: 'AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027',
+    });
+  });
+
+  it('prints no line when any trial date has no rate in force, or the date is unusable', () => {
+    expect(buildPremiumRecordingFee('AKC', ['2024-12-31'], null, RATES)).toBeNull();
+    expect(buildPremiumRecordingFee('AKC', ['2026-12-31', '2024-12-31'], null, RATES)).toBeNull();
+    expect(buildPremiumRecordingFee('AKC', [], null, RATES)).toBeNull();
+    expect(buildPremiumRecordingFee('AKC', ['2027-01-15'], null, [])).toBeNull();
+  });
+
+  it('prints no line for a show that is not AKC', () => {
+    expect(buildPremiumRecordingFee('UKC', ['2027-01-15'], null, RATES)).toBeNull();
+    expect(buildPremiumRecordingFee(null, ['2027-01-15'], null, RATES)).toBeNull();
   });
 });
 

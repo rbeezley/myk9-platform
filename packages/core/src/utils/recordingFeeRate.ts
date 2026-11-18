@@ -10,7 +10,8 @@
  * timezone shift: a show dated 2027-01-01 is 2027-01-01 everywhere.
  *
  * MIRRORED BY supabase/functions/generate-premium/recordingFeeRate.ts, which cannot import
- * this package. recordingFeeRateParity.test.ts fails if the two drift.
+ * this package. supabase/functions/generate-premium/recordingFeeRate.test.ts imports both and fails if the
+ * two drift (it runs under the app's vitest config and the edge-tests tsconfig).
  */
 
 export interface RecordingFeeRate {

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.registry_recording_fee_rates (
   CONSTRAINT registry_recording_fee_rates_registry_check
     CHECK (registry IN ('AKC', 'UKC', 'ASCA')),
   CONSTRAINT registry_recording_fee_rates_amount_check
-    CHECK (amount_cents >= 0 AND amount_cents <= 100000),
+    CHECK (amount_cents > 0 AND amount_cents <= 100000),
   CONSTRAINT registry_recording_fee_rates_registry_effective_from_key
     UNIQUE (registry, effective_from)
 );

@@ -380,7 +380,7 @@ describe('premium public page facts parity (8 styles)', () => {
 describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
   const FEE_2027 = {
     registry: 'AKC' as const,
-    amountCents: 550,
+    amountsCents: [550],
     text: 'AKC recording fee: $5.50 per entry',
   };
 
@@ -394,7 +394,7 @@ describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
     const premium = sparsePremium('AKC', style);
     premium.recordingFee = {
       ...FEE_2027,
-      amountCents: 450,
+      amountsCents: [450],
       text: 'AKC recording fee: $4.50 per entry',
     };
     expect(pdfText('AKC', premium)).toContain('AKC recording fee: $4.50 per entry');

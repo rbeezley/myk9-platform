@@ -7,8 +7,19 @@ import { RECORDING_FEE_RATES_QUERY_KEY } from '@/hooks/queries/useRecordingFeeRa
 export const RECORDING_FEE_REGISTRIES = ['AKC', 'UKC', 'ASCA'] as const;
 export type RecordingFeeRegistry = (typeof RECORDING_FEE_REGISTRIES)[number];
 
-/** Mirrors the amount CHECK on the table: whole cents, 0 to $1,000.00. */
+/** Mirrors the amount CHECK on the table: whole cents, $0.01 to $1,000.00 (never free). */
 export const MAX_RECORDING_FEE_CENTS = 100_000;
+
+/** A typo guard, not a rule the table enforces: an effective date outside these years is refused. */
+export const MIN_RECORDING_FEE_YEAR = 2020;
+export const MAX_RECORDING_FEE_YEAR = 2100;
+
+/** True for a real `YYYY-MM-DD` calendar date whose year is in the accepted range. */
+export function isPlausibleRecordingFeeDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || toCalendarDate(value) !== value) return false;
+  const year = Number(value.slice(0, 4));
+  return year >= MIN_RECORDING_FEE_YEAR && year <= MAX_RECORDING_FEE_YEAR;
+}
 
 /** Postgres unique_violation: the (registry, effective_from) pair is already a row. */
 export const DUPLICATE_RECORDING_FEE_CODE = '23505';
@@ -21,7 +32,7 @@ export function parseRecordingFeeDollars(value: string): number | null {
   const match = /^(\d{1,4})(?:\.(\d{1,2}))?$/.exec(value.trim());
   if (!match) return null;
   const cents = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
-  return cents <= MAX_RECORDING_FEE_CENTS ? cents : null;
+  return cents > 0 && cents <= MAX_RECORDING_FEE_CENTS ? cents : null;
 }
 
 export interface NewRecordingFeeRate {
@@ -50,15 +61,17 @@ export function useAddRecordingFeeRate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (rate: NewRecordingFeeRate): Promise<RecordingFeeRate> => {
-      if (toCalendarDate(rate.effectiveFrom) !== rate.effectiveFrom) {
-        throw new Error('Enter a valid effective date.');
+      if (!isPlausibleRecordingFeeDate(rate.effectiveFrom)) {
+        throw new Error(
+          `Enter a valid effective date between ${MIN_RECORDING_FEE_YEAR} and ${MAX_RECORDING_FEE_YEAR}.`
+        );
       }
       if (
         !Number.isInteger(rate.amountCents) ||
-        rate.amountCents < 0 ||
+        rate.amountCents <= 0 ||
         rate.amountCents > MAX_RECORDING_FEE_CENTS
       ) {
-        throw new Error('Enter a per-entry amount between $0.00 and $1,000.00.');
+        throw new Error('Enter a per-entry amount between $0.01 and $1,000.00.');
       }
       const { error } = await ratesClient.from('registry_recording_fee_rates').insert({
         registry: rate.registry,

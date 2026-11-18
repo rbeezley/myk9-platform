@@ -8,11 +8,10 @@ const mocks = vi.hoisted(() => ({
   is: vi.fn(),
 }));
 
-vi.mock('../supabaseClient', () => ({
-  supabase: { from: mocks.from },
-  logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => error,
-}));
+vi.mock('../supabaseClient', async importOriginal => {
+  const actual = await importOriginal<typeof import('../supabaseClient')>();
+  return { ...actual, supabase: { from: mocks.from }, logQuery: vi.fn() };
+});
 
 const ROW = {
   id: 'e1',
@@ -45,6 +44,9 @@ describe('getRefundEntryForms (MYK9-1862)', () => {
 
   it('throws on a failed read, so the page can offer Try again', async () => {
     mocks.inFilter.mockResolvedValue({ data: null, error: { message: 'offline' } });
-    await expect(getRefundEntryForms(['e1'])).rejects.toEqual({ message: 'offline' });
+    await expect(getRefundEntryForms(['e1'])).rejects.toMatchObject({
+      name: 'DatabaseError',
+      message: expect.stringContaining('offline'),
+    });
   });
 });

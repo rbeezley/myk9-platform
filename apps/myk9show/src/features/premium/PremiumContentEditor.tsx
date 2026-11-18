@@ -114,6 +114,17 @@ export function PremiumContentEditor({
     onPendingChangeRef.current?.(isGenerating && original !== null);
   }, [isGenerating, original]);
 
+  // The Premium tab unmounts its panel when the secretary switches tabs. A request still in
+  // flight then belongs to no one: drop its result and release Save, or the whole show edit
+  // panel would stay held until closed.
+  useEffect(
+    () => () => {
+      latestRequestRef.current = 0;
+      onPendingChangeRef.current?.(false);
+    },
+    []
+  );
+
   // INTENT: Toast at most once per distinct PDF render error message. The
   // PDFDownloadLink render-prop re-fires on every internal state tick, so the
   // toast must live outside that body.

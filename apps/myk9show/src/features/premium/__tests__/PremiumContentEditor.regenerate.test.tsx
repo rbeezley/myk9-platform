@@ -88,6 +88,30 @@ describe('PremiumContentEditor while Regenerate is pending', () => {
     expect(onPendingChange).toHaveBeenLastCalledWith(false);
   });
 
+  it('releases Save when the editor unmounts mid-request (the tab panel unmounts on a tab switch)', async () => {
+    const pending = deferredGenerate();
+    const onPendingChange = vi.fn();
+    const { unmount } = render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="AKC"
+        active
+        initialPremium={premiumWith('Old hours')}
+        onPendingChange={onPendingChange}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Regenerate' }));
+    expect(onPendingChange).toHaveBeenLastCalledWith(true);
+
+    unmount();
+    expect(onPendingChange).toHaveBeenLastCalledWith(false);
+
+    const callsAfterUnmount = onPendingChange.mock.calls.length;
+    await act(async () => pending[0]?.(premiumWith('New hours')));
+    expect(onPendingChange).toHaveBeenCalledTimes(callsAfterUnmount);
+  });
+
   it('stays pending when the saved premium is handed in again mid-request', async () => {
     deferredGenerate();
     const props = { showId: 'show-1', clubId: 'club-1', showOrg: 'AKC' as const, active: true };

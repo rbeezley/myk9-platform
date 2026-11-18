@@ -7,7 +7,7 @@
 -- approve_show_payout / hold_show_payout are site-admin only; two approvals
 -- change the row once and the payout is claimed once.
 -- Money owed and the health probe count the new statuses as not yet sent.
--- Migration: 20261118211700_myk9_2170_payout_brake.sql.
+-- Migration: 20261119041300_myk9_2170_payout_brake.sql.
 
 BEGIN;
 

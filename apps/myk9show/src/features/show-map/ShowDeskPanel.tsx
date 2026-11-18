@@ -14,6 +14,7 @@ import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { useShowDeskWaiting } from '@/features/waiting-for-you/useShowDeskWaiting';
 import { getTrialTimezone } from '@/features/registries';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
+import { useQueryOnlineStatus } from '@/hooks/guestServerRead';
 import { payoutsKnownOff } from '@/features/payments/cardPausedCopy';
 import {
   clubPaymentsHref,
@@ -95,6 +96,7 @@ export default function ShowDeskPanel({
     enabled: canManageShow,
   });
   // MYK9-2166: only a current, successful answer of "not ready" on a published show counts.
+  const isOnline = useQueryOnlineStatus();
   const readiness = useClubStripePaymentReadiness(canManageShow ? show.clubId : undefined);
   const canOpenClubPayments = useCanOpenClubPayments(show.clubId);
   const paymentsHref = canOpenClubPayments ? clubPaymentsHref(show.clubId) : null;
@@ -102,7 +104,7 @@ export default function ShowDeskPanel({
     canManageShow &&
     isPublicShowStatus(show.status) &&
     show.status !== 'completed' &&
-    payoutsKnownOff(readiness);
+    payoutsKnownOff(readiness, isOnline);
   const pendingSignals = useMemo(
     () =>
       canManageShow

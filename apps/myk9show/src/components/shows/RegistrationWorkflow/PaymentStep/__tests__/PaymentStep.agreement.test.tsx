@@ -175,6 +175,7 @@ describe('PaymentStep — entry agreement integration', () => {
       isFetching: false,
       isError: false,
       isSuccess: true,
+      fetchStatus: 'idle',
     } as ReturnType<typeof useClubStripePaymentReadiness>);
     vi.mocked(useShowStore).mockReturnValue({
       shows: [

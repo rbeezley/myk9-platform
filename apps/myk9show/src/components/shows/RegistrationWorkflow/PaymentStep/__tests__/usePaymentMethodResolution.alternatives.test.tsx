@@ -17,7 +17,7 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: mocks.useRegistrationPermissions,
 }));
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripePaymentReadiness: () => ({ isSuccess: true, data: false }),
+  useClubStripePaymentReadiness: () => ({ isSuccess: true, data: false, fetchStatus: 'idle' }),
 }));
 
 import { usePaymentMethodResolution } from '../usePaymentMethodResolution';

@@ -46,10 +46,11 @@ interface ReadinessQueryState {
 }
 
 /**
- * True only for a current, successful answer of "not ready". A query that is erroring, offline
- * (paused) or has not answered keeps stale or empty `data`, and none of those is evidence the
- * club's payouts are off.
+ * True only for a settled, successful, ONLINE answer of "not ready". A query that is refetching
+ * keeps its previous `data`, and going offline after a read leaves `fetchStatus` at "idle", so
+ * neither a cached false nor an errored, paused or unread query is evidence the club's payouts
+ * are off. `isOnline` is the app's own signal (`useQueryOnlineStatus`), passed in to stay pure.
  */
-export function payoutsKnownOff(query: ReadinessQueryState): boolean {
-  return query.isSuccess && query.fetchStatus !== 'paused' && query.data === false;
+export function payoutsKnownOff(query: ReadinessQueryState, isOnline: boolean): boolean {
+  return isOnline && query.isSuccess && query.fetchStatus === 'idle' && query.data === false;
 }

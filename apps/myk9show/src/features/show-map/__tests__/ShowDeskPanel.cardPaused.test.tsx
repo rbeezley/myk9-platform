@@ -58,6 +58,11 @@ const readiness = vi.hoisted(() => ({
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripePaymentReadiness: () => readiness.value,
 }));
+const online = vi.hoisted(() => ({ value: true }));
+vi.mock('@/hooks/guestServerRead', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/guestServerRead')>()),
+  useQueryOnlineStatus: () => online.value,
+}));
 const canOpen = vi.hoisted(() => ({ value: true }));
 vi.mock('@/features/payments/useCanOpenClubPayments', () => ({
   useCanOpenClubPayments: () => canOpen.value,
@@ -112,6 +117,7 @@ describe('Show Desk card-payment-paused item (MYK9-2166)', () => {
   beforeEach(() => {
     readiness.value = { isSuccess: true, data: false, isError: false, fetchStatus: 'idle' };
     canOpen.value = true;
+    online.value = true;
   });
 
   it('says why and links to the club Payments tab when she can open it', () => {
@@ -144,6 +150,18 @@ describe('Show Desk card-payment-paused item (MYK9-2166)', () => {
     ],
   ])('shows nothing when %s', (_name, value) => {
     readiness.value = value;
+    renderDesk();
+    expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
+  });
+
+  it('shows nothing while the answer is being refetched, with a cached false', () => {
+    readiness.value = { isSuccess: true, data: false, isError: false, fetchStatus: 'fetching' };
+    renderDesk();
+    expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
+  });
+
+  it('shows nothing on an offline device, with a cached false and nothing fetching', () => {
+    online.value = false;
     renderDesk();
     expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
   });

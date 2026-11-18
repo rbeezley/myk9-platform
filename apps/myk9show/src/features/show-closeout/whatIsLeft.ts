@@ -427,7 +427,7 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
   lines.push({
     key: 'flagged-pulls',
     kind: 'flagged-pulls',
-    label: flaggedPullText(flaggedCount).slice(0, -1),
+    label: flaggedPullText(flaggedCount),
     count: flaggedCount,
     classIds: [],
     open: flaggedCount > 0,

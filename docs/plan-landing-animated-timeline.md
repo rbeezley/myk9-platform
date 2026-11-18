@@ -2,7 +2,9 @@
 
 > **Status:** Active
 >
-> **Hold:** do not start until the owner says the current round of page fixes is finished. The scenes are captures of product screens, so capturing while those screens are still changing means capturing twice.
+> **Hold:** do not capture a scene until the owner says its screens are settled. The scenes are captures of product screens, so capturing while those screens are still changing means capturing twice.
+>
+> **Lifted for the ring scene only (owner, 2026-11-17).** No unbuilt issue touches the judge's ring screens, so "Show day, at the ring" is built first. Entries open still has open work on its screens (MYK9-2155, MYK9-1965, MYK9-1935, MYK9-1930) and stays on hold, as do the desk and Results scenes and the three stills.
 
 Linear: [MYK9-1894](https://linear.app/myk9-platform/issue/MYK9-1894). Predecessor: [`archive/plan-landing-lifecycle.md`](archive/plan-landing-lifecycle.md) (MYK9-1141), which built the current timeline.
 
@@ -132,7 +134,8 @@ Facts the copy must respect:
 - Scoring is not gated on the date. The exhibitor's "Show day is here" banner is, and by the server's clock, so it cannot be staged by changing a browser clock.
 - While the tablet is offline the exhibitor's phone does not change.
 - There is no auto-advance after a score. The judge chooses a dog from the list.
-- The reconnect ("Scores sent") was not captured, because capturing it would send a real score.
+- The reconnect ("Scores sent") is captured without sending a score: the capture script answers the upload inside the browser and gives the confirming read the same fields, so the tablet shows what it shows when the server has accepted a score. The request never leaves the machine.
+- Only seed fixtures are in the captures. Armbands 106 to 111 on the seed show belong to accounts made after the seed, so the capture leaves them out of every list the tablet receives. The class therefore reads 2 of 3 scored, not 3 of 5.
 - Per-judge access codes now scope each code to that judge's classes (MYK9-1950). Sign-in is not a line in this scene.
 
 ### The "Show day, at the desk" scene (re-verified in code 2026-11-15, not captured)
@@ -179,7 +182,10 @@ Facts the copy must respect:
 - **Never write to the shared database to stage a state.** The prototype blocked every data-API write and produced the three states of one seeded entry (not there yet, needs review, accepted) by patching the responses the browser received. Use a fresh browser context per state, because the app caches rows locally.
 - Seeded fixture names only. The live list also holds non-seed names lower down; keep them out of frame.
 - Desktop captures at 1440×900, phone at 390×844 at 2× density.
-- Commit the capture script so the images can be regenerated when the UI changes. The prototype's scripts are a starting point, not production code: they hard-code a Windows path and use the installed Edge.
+- The tablet is captured at 768×1024 at 1.5× density.
+- The capture scripts are committed in `apps/myk9show/scripts/landing-capture/`, so the images can be regenerated when the UI changes: `lib.ts` (sign-in, the write guard, measuring) and one script per scene. Run one with the dev server up, for example `pnpm --filter @myk9/show capture:landing:ring`. Each writes its images to `public/landing/scenes/<scene>/` and its measured regions to `src/components/landing/lifecycle/scenes/<scene>Regions.json`.
+- **A capture signs fixture accounts in, and each sign-in runs a full sync.** Against the production project the scripts refuse to run unless the shell sets `MYK9_ALLOW_PROD_E2E=1`, the same opt-in the Playwright config asks for (MYK9-1454). Prefer an isolated stack (`pnpm qa:isolated-e2e:prepare`) once real users are on the site. The ring captures of 2026-11-17 were taken against the production project before this check was added: about a dozen judge sign-ins, no writes.
+- **The write guard refuses every request that leaves localhost unless it is a read.** RPCs are POSTs and some write, so only RPCs with a read name pass; opening a ringside scoresheet online calls `ringside_update_entry` and moves the dog to "In ring" for everyone, so a scoring walk is cut off from the backend before the scoresheet opens. After a run, compare `entries.updated_at` for the show with its value before.
 
 ## Phases
 
@@ -193,9 +199,13 @@ Each phase ends with its own checks passing. One pull request per phase.
 - **Tests:** `lifecycleStories.test.ts` covers the new lines (a heading and a sentence each, five per scene and four for Results, none repeated) and runs them through `BANNED_COPY`.
 - The frame shape (capture, region, ring per line) is not added yet: it needs the captures, so it arrives with Phase 1.
 
-### Phase 1: the scene component and the Entries open scene
+### Phase 1: the scene component, the ring scene, then the Entries open scene
 
-- Build `TimelineScene` and the frame data type, with both modes (autoplay and step-through) and no app dependencies. Move the capture script into the repo.
+Reordered on 2026-11-17: the ring scene goes first, because its screens are settled and the Entries open screens are not.
+
+- Build `TimelineScene` and the frame data type, with both modes (autoplay and step-through) and no app dependencies. Done (#4008).
+- **Ring scene (built 2026-11-17).** The capture scripts are in the repo. "Show day, at the ring" plays on the show-day step: in the club story above the practice scoresheet, and in the exhibitor story on the meanwhile side, where the judge's still (`j-04.png`, deleted) was. Eight captures, nine frames; every camera is worked out from a measured region (`cameraAround`).
+- **Phone page length (owner, 2026-11-17):** the scene adds about one phone screen. At 390×844 the club page is 14.9 screens and the exhibitor page 14.0, so the limit in `landing-lifecycle.spec.ts` is raised from 14 to 15 and nothing is taken off the show-day step. Phase 2 brings it back to 14 when the two-column stills go. The club page has 0.1 of a screen to spare, so the next scene will not fit until then.
 - Capture the Entries open images and regions. Replace that step in both audience stories.
 - Delete `ScreenshotExplainer` and its test once nothing imports it.
 - **Tests:** unit tests for frame-to-style math (region and ring to percentages), line-to-frame mapping, pause, jump, Next and Back in step-through mode (nothing advances by itself), reduced motion and "plays only in view". Render the component on the real story data, not a hand-made prop. Run the landing E2E specs.

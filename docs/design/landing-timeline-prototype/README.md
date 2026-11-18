@@ -4,10 +4,7 @@ Reference material for [`docs/plan-landing-animated-timeline.md`](../../plan-lan
 
 The approved prototype page for the "Entries open" step is linked from the Linear issue (a private artifact).
 
-Three working files sit in this folder on the machine that built the prototype and are **not committed yet**, because the docs-only path to `main` takes Markdown only. They go in with the Phase 1 pull request:
-
-- `entries-open-prototype.html`: the prototype page. It expects its captures in an `img/` folder beside it.
-- `capture.cjs` and `lib.cjs`: capture the real screens from a local dev server.
+The committed capture scripts are in `apps/myk9show/scripts/landing-capture/` (`lib.ts` and one script per scene, the ring scene first). They replace the prototype's `capture.cjs` and `lib.cjs`, which stayed on the machine that built the prototype and are not committed: they hard-code a Windows path, use the installed Edge, and their write guard let every RPC through. `entries-open-prototype.html` is also uncommitted; the approved page is the artifact linked from the issue.
 
 How the capture works, for whoever rebuilds it:
 

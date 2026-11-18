@@ -358,14 +358,17 @@ for (const vp of VIEWPORTS) {
       expect(result.failures, `minimum ratio observed ${result.min.toFixed(2)}`).toEqual([]);
     });
 
-    test('page length is 8 to 14 screens on phone', async ({ page }) => {
+    // 15, not 14, while the animated scenes sit beside the stills they will replace (owner,
+    // 2026-11-17, MYK9-1894): the ring scene adds about one phone screen. Bring this back to
+    // 14 when Phase 2 of docs/plan-landing-animated-timeline.md removes the two-column stills.
+    test('page length is 8 to 15 screens on phone', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);
       const screens = await page.evaluate(
         () => document.documentElement.scrollHeight / window.innerHeight
       );
       expect(screens).toBeGreaterThanOrEqual(8);
-      expect(screens).toBeLessThanOrEqual(14);
+      expect(screens).toBeLessThanOrEqual(15);
     });
   });
 }

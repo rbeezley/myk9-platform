@@ -19,12 +19,12 @@ export type SceneShot = {
 export type SceneDeviceData = {
   /** Small caption above the device, e.g. "Your screen" or "Meanwhile, an exhibitor". */
   label: string;
-  /** The page size the regions were measured in (1440x900 desk, 390x844 phone). */
+  /** The page size the regions were measured in (1440x900 desk, 390x844 phone, 768x1024 tablet). */
   space: { width: number; height: number };
   shots: Readonly<Record<string, SceneShot>>;
 };
 
-/** What one device shows in one frame. Every capture of a device shares one camera. */
+/** What one device shows in one frame. Within a frame, one camera moves every capture of the device. */
 export type DeviceView = {
   shot: string;
   camera: Region;
@@ -79,6 +79,33 @@ export function ringStyle(ring: Region, camera: Region) {
     top: pct((ring.y - camera.y) / camera.h),
     width: pct(ring.w / camera.w),
     height: pct(ring.h / camera.h),
+  };
+}
+
+/**
+ * A camera of the page's own shape that holds `region` with `pad` pixels around it, kept
+ * inside the page. Never narrower than `minWidth`, so a small control is not blown up until
+ * its text blurs. Every camera of a device has the page's shape, so the frame never changes
+ * shape between frames.
+ */
+export function cameraAround(
+  space: SceneDeviceData['space'],
+  region: Region,
+  { pad = 32, minWidth = 0 }: { pad?: number; minWidth?: number } = {}
+): Region {
+  const aspect = space.width / space.height;
+  const w = Math.min(
+    space.width,
+    Math.max(minWidth, region.w + pad * 2, (region.h + pad * 2) * aspect)
+  );
+  const h = w / aspect;
+  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), Math.max(max, 0));
+  const round = (v: number) => Math.round(v * 100) / 100;
+  return {
+    x: round(clamp(region.x + region.w / 2 - w / 2, space.width - w)),
+    y: round(clamp(region.y + region.h / 2 - h / 2, space.height - h)),
+    w: round(w),
+    h: round(h),
   };
 }
 

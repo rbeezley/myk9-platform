@@ -232,7 +232,9 @@
   width: 100%;
   background: var(--tl-ivory);
 }
-.tl-scene-shot {
+/* Two classes, to beat the landing page's `.landing-v2 img { max-width: 100% }`: a zoomed
+   capture is wider than its frame, and capped at 100% the camera never zooms. */
+.tl-scene .tl-scene-shot {
   position: absolute;
   display: block;
   max-width: none;

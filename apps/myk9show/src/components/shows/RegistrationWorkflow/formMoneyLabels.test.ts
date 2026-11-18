@@ -29,6 +29,16 @@ describe('the form-money choice is never "received" or "paid" (MYK9-2149)', () =
     expect(
       formatAmountDue({ capacityReady: true, totals, entryFeeCents: 3000, classCount: 1 })
     ).toBe('$30.00 in fees');
+    // The desktop row is labelled "Entry fees" instead, so its amount drops the suffix.
+    expect(
+      formatAmountDue({
+        capacityReady: true,
+        totals,
+        entryFeeCents: 3000,
+        classCount: 1,
+        omitFormMoneySuffix: true,
+      })
+    ).toBe('$30.00');
   });
 
   it('submits with a plain "Submit entry"', () => {

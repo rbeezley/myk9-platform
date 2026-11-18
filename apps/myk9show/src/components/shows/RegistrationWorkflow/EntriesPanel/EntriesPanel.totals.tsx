@@ -82,6 +82,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
     totals,
     entryFeeCents: totals?.amountDueCents ?? 0,
     classCount,
+    omitFormMoneySuffix: true,
   });
 
   return (
@@ -145,7 +146,8 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
           )}
           <Separator />
           <div className="flex items-baseline justify-between gap-2 text-lg font-semibold">
-            <span>Total due</span>
+            {/* MYK9-1966: with the form's money chosen nothing may be owed, so the row names the fees. */}
+            <span>{totals?.isFormMoney ? 'Entry fees' : 'Total due'}</span>
             <span className="tabular-nums">{amountDue}</span>
           </div>
           {totals?.requiresPaymentMethod && (

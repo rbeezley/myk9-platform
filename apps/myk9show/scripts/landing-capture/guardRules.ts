@@ -19,8 +19,10 @@ const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 export const FONT_HOSTS: readonly string[] = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-const HOSTED_DOMAINS = ['supabase.co', 'supabase.in', 'supabase.net'];
+const HOSTED_DOMAINS = ['supabase.co', 'supabase.in', 'supabase.net', 'supabase.com'];
 const isWeb = (url: URL) => url.protocol === 'http:' || url.protocol === 'https:';
+/** Lower case, and without the trailing dot a fully qualified name may carry. */
+const bareHost = (hostname: string) => hostname.toLowerCase().replace(/\.+$/, '');
 
 /** True when a host is this machine. `hostname` is what `new URL(...).hostname` returns. */
 export function isLoopbackHost(hostname: string): boolean {
@@ -29,13 +31,52 @@ export function isLoopbackHost(hostname: string): boolean {
 
 /** True when a host is the production Supabase project, on any of its subdomains. */
 export function isProductionHost(hostname: string): boolean {
-  return hostname.toLowerCase().split('.').includes(PRODUCTION_PROJECT_REF);
+  return bareHost(hostname).split('.').includes(PRODUCTION_PROJECT_REF);
 }
 
 /** True when a host is a hosted Supabase project: production, or any other one. */
 export function isHostedBackendHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
+  const host = bareHost(hostname);
   return isProductionHost(host) || HOSTED_DOMAINS.some(d => host === d || host.endsWith(`.${d}`));
+}
+
+/**
+ * Throws unless the backend the app is built against is on this machine. `origin` is the
+ * app's own statement of it (the `myk9-supabase-origin` meta in index.html, filled from
+ * VITE_SUPABASE_URL): a missing or unreadable one fails, so "the page made no request yet"
+ * is never taken as proof.
+ */
+export function assertLocalBackend(origin: string | null | undefined): void {
+  let url: URL | undefined;
+  try {
+    url = origin ? new URL(origin) : undefined;
+  } catch {
+    url = undefined;
+  }
+  if (!url || !isWeb(url) || !isLoopbackHost(url.hostname)) {
+    throw new Error(stopMessage(`the backend "${origin ?? 'not stated by the page'}"`));
+  }
+}
+
+export type SecretDeps = {
+  /** Throws when the run has been stopped (guard.assertIsolated). */
+  assertIsolated(): void;
+  /** The backend origin the page states, or null. */
+  backendOrigin(): Promise<string | null>;
+  /** Types the password and submits it. */
+  type(): Promise<void>;
+};
+
+/**
+ * The only way a capture types a password: after the page has said its backend is on this
+ * machine and with no request to a hosted project so far. The sign-in request it then makes
+ * still goes through decideRequest.
+ */
+export async function typeSecretChecked(deps: SecretDeps): Promise<void> {
+  deps.assertIsolated();
+  assertLocalBackend(await deps.backendOrigin());
+  deps.assertIsolated();
+  await deps.type();
 }
 
 /**
@@ -60,14 +101,45 @@ export function hostResolverRules(): string {
   return ['MAP * ~NOTFOUND', ...open.map(host => `EXCLUDE ${host}`)].join(', ');
 }
 
+/**
+ * The arguments every capture browser is launched with: the resolver lock, and no proxy,
+ * because a proxy would resolve names itself and so step around the lock. selfcheck.ts
+ * proves the lock in a real browser.
+ */
+export function launchArgs(): string[] {
+  return [`--host-resolver-rules=${hostResolverRules()}`, '--no-proxy-server'];
+}
+
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const READ_RPC = /^(get_|is_|list_|has_|can_|tv_|find_)/;
-// Reads whose names do not say so. Both are declared STABLE in their migrations
-// (20261031014300 and 20261113224300); check the definition before adding a name here.
-const READ_RPC_NAMES = new Set([
+/** RPC names that read, by prefix. A name alone proves nothing: see NOT_READ_RPC_NAMES. */
+export const READ_RPC_PREFIX = /^(get_|is_|list_|has_|can_|tv_|find_)/;
+/** Reads whose names do not say so. */
+export const READ_RPC_NAMES: ReadonlySet<string> = new Set([
   'entry_results_changed_since',
   'ringside_claim_generation_current',
 ]);
+/**
+ * RPCs with a read prefix that the database does not declare STABLE or IMMUTABLE, so they
+ * may write (`get_show_access_codes` syncs judge passcodes). Refused like any other write.
+ * landingCaptureGuardRpc.test.ts reads supabase/migrations and fails unless this list is
+ * exactly those functions, and unless every name that passes is declared read-only there,
+ * which Postgres enforces: a STABLE function cannot change data.
+ */
+export const NOT_READ_RPC_NAMES: ReadonlySet<string> = new Set([
+  'get_admin_user_list',
+  'get_judge_day_capacity',
+  'get_judge_day_capacity_live',
+  'get_show_access_codes',
+  'get_show_email_content',
+  'get_show_email_delivery_history',
+  'list_retryable_waitlist_notification_events',
+]);
+
+/** Whether an RPC is a read: named as one, and not on the list of those that may write. */
+export function isReadRpc(name: string): boolean {
+  if (NOT_READ_RPC_NAMES.has(name)) return false;
+  return READ_RPC_PREFIX.test(name) || READ_RPC_NAMES.has(name);
+}
 
 /** The RPC a PostgREST path calls, if it calls one. */
 export function rpcName(pathname: string): string | undefined {
@@ -89,7 +161,7 @@ export function isReadRequest(method: string, pathname: string): boolean {
   if (method !== 'POST') return false;
   if (pathname === '/auth/v1/token') return true;
   const rpc = rpcName(pathname);
-  return rpc !== undefined && (READ_RPC.test(rpc) || READ_RPC_NAMES.has(rpc));
+  return rpc !== undefined && isReadRpc(rpc);
 }
 
 type RequestDecision =
@@ -258,31 +330,49 @@ export function strangerArmbands(
   return [...new Set(seen)].filter(shown => !fixtures.has(Number(shown)));
 }
 
-type ShotDeps = {
+/**
+ * Finds every element that shows an armband: Ringside's dog card, scoresheet header and
+ * score confirmation (`dog-card-armband`, `scoresheet-armband`, `confirmation-armband`).
+ * landingCaptureGuardWiring.test.ts fails if one of those components stops carrying its id.
+ */
+export const ARMBAND_SELECTOR = '[data-testid$="armband"]';
+
+type ShotDeps<T> = {
   /** Throws when the run has been stopped (guard.assertIsolated). */
   assertIsolated(): void;
   /** What is on screen now: the visible text and the armband elements' texts. */
   read(): Promise<{ text: string; labels: readonly string[] }>;
-  /** Writes the image. */
-  write(): Promise<void>;
+  /** Takes the pixels, in memory. */
+  take(): Promise<T>;
+  /** Writes the image file. */
+  save(shot: T): Promise<void> | void;
 };
 
 /**
- * The only way a capture writes an image: after the stop check and the on-screen armband
- * check, and with the stop check again once the pixels are taken, so a request that stopped
- * the run while the screenshot was being made still fails it.
+ * The only way a capture writes an image. `minLabels` is how many armband elements the
+ * screen is known to show, so a screen where the check found nothing to check cannot pass
+ * as clean. The file is written last: after the stop check, the on-screen armband check,
+ * and the stop check again once the pixels are taken, so a request that stopped the run
+ * while the screenshot was being made leaves no file.
  */
-export async function writeCheckedShot(
-  name: string,
-  fixtures: ReadonlySet<number>,
-  deps: ShotDeps
+export async function writeCheckedShot<T>(
+  shot: { name: string; fixtures: ReadonlySet<number>; minLabels: number },
+  deps: ShotDeps<T>
 ): Promise<void> {
   deps.assertIsolated();
   const { text, labels } = await deps.read();
-  const strangers = strangerArmbands(text, labels, fixtures);
-  if (strangers.length > 0) {
-    throw new Error(`${name}: armband ${strangers.join(', ')} on screen is not a seed fixture`);
+  if (labels.length < shot.minLabels) {
+    throw new Error(
+      `${shot.name}: ${labels.length} armband element(s) on screen, at least ${shot.minLabels} expected; the armband check has nothing to read`
+    );
   }
-  await deps.write();
+  const strangers = strangerArmbands(text, labels, shot.fixtures);
+  if (strangers.length > 0) {
+    throw new Error(
+      `${shot.name}: armband ${strangers.join(', ')} on screen is not a seed fixture`
+    );
+  }
+  const pixels = await deps.take();
   deps.assertIsolated();
+  await deps.save(pixels);
 }

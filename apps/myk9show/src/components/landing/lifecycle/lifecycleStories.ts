@@ -158,11 +158,11 @@ export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
     },
     {
       head: 'The score is read back before it saves',
-      text: 'The judge confirms, and the list of dogs shows it saved on this device.',
+      text: 'The judge checks the dog, the result and the time, then confirms.',
     },
     {
       head: 'The signal returns',
-      text: 'The score sends itself, and the screen says Scores sent.',
+      text: 'The saved score sends itself, and the screen says Scores sent.',
     },
   ],
   'showday-desk': [
@@ -238,7 +238,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'showday',
       peak: true,
       title: 'Show day',
-      body: 'Judges score at the ring on a tablet, even with no signal. Scores catch up on their own when the connection comes back.',
+      body: 'Judges score at the ring on a phone or tablet, even with no signal. Scores catch up on their own when the connection comes back.',
       shot: null,
       scene: 'showday-ring',
       scoresheetDemo: true,
@@ -296,7 +296,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Check in where the club allows it, and follow your classes from your phone.',
       shot: SHOTS['e-13'],
       explainer: EXHIBITOR_SHOW_DAY,
-      meanwhile: 'Judges score at the ring on a tablet, even with no signal at all.',
+      meanwhile: 'Judges score at the ring on a phone or tablet, even with no signal at all.',
       meanwhileShot: null,
       meanwhileScene: 'showday-ring',
     },

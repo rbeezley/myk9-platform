@@ -3,6 +3,10 @@
 // wiring can be driven by fakes in src/test/scripts/landingCaptureGuard.test.ts.
 import { decideRequest, decideSocket, rangeHeaders, rpcName, stopMessage } from './guardRules.ts';
 
+// route.fetch runs in Node, outside the browser's resolver lock, so it never follows a
+// redirect: the answer to a read of the local stack is whatever the local stack said.
+const NO_REDIRECTS = { maxRedirects: 0 };
+
 type FetchedResponse = { headers(): Record<string, string>; json(): Promise<unknown> };
 
 /** The part of Playwright's Route the guard uses. */
@@ -10,7 +14,7 @@ export type GuardRoute<R extends FetchedResponse = FetchedResponse> = {
   request(): { url(): string; method(): string; postDataJSON(): unknown };
   abort(errorCode?: string): Promise<void>;
   fallback(): Promise<void>;
-  fetch(options?: { url?: string; method?: string }): Promise<R>;
+  fetch(options?: { url?: string; method?: string; maxRedirects?: number }): Promise<R>;
   fulfill(options: {
     status?: number;
     json?: unknown;
@@ -65,8 +69,8 @@ async function patchedCount<R extends FetchedResponse>(
   const rowsUrl = new URL(url);
   rowsUrl.searchParams.set('select', '*');
   const [res, all] = await Promise.all([
-    route.fetch(),
-    route.fetch({ url: rowsUrl.toString(), method: 'GET' }),
+    route.fetch(NO_REDIRECTS),
+    route.fetch({ url: rowsUrl.toString(), method: 'GET', ...NO_REDIRECTS }),
   ]);
   const before: unknown = await all.json().catch(() => null);
   return route.fulfill({
@@ -79,7 +83,7 @@ async function patchedRead<R extends FetchedResponse>(
   route: GuardRoute<R>,
   rows: JsonPatch['rows']
 ) {
-  const res = await route.fetch();
+  const res = await route.fetch(NO_REDIRECTS);
   let body: unknown;
   try {
     body = await res.json();

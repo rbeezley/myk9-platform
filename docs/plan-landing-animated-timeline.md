@@ -118,13 +118,13 @@ One device: the judge's, shown larger, with no dimmed desk beside it (owner, 202
 1. **The judge opens the ring's classes.** Each class shows how many dogs are scored.
 2. **The signal drops.** The screen says changes are saved on this device, and the run order stays.
 3. **The judge times and scores the run.** Start, Stop, then Qualified, NQ, Absent, Excused or DQ.
-4. **The score is read back before it saves.** The judge confirms, and the list of dogs shows it saved on this device.
-5. **The signal returns.** The score sends itself, and the screen says Scores sent.
+4. **The score is read back before it saves.** The judge checks the dog, the result and the time, then confirms.
+5. **The signal returns.** The saved score sends itself, and the screen says Scores sent.
 
 Changed from the 2026-11-12 wording (the judge's flow changed on 2026-11-14, MYK9-2012, MYK9-1991, MYK9-2011):
 
 - Line 1 said "how many dogs are left". The card shows a scored count; "remaining" only appears on a live class.
-- Line 2's wording holds only before the first score is saved offline. After it the header reads "Offline · 1 score not sent yet", so the frame comes before any score.
+- Line 2's frame comes before any score is saved offline. On a phone it is the message "You're offline. Changes are saved on this device and will be sent when you are back online."; from tablet width up the header reads "Offline · scores saved on this device", and after the first offline score "Offline · 1 score not sent yet".
 - Line 4 said the tablet says "Saved on this device. It will send when you're back online." That is gone: after Save the judge is back on the entry list with the "Saved:" line and a "Correct" button.
 - **Line 5 (the exhibitor's My Entries row shows "New result") was wrong and is replaced.** "New result" appears only after the club releases a Qualified result, so it belongs to the Results scene. The ring scene has no second device after line 1; the exhibitor phone is the second device in the Results scene. If a phone frame is wanted here, the only honest one is the dog's "In ring" chip after Start, and it needs the tablet online, so it does not fit an offline scene.
 - The "Time" and "Resume" pills on the class cards, the Saved screen and the next-dog chips are gone. The app never picks the next dog.
@@ -135,7 +135,7 @@ Facts the copy must respect:
 - While the tablet is offline the exhibitor's phone does not change.
 - There is no auto-advance after a score. The judge chooses a dog from the list.
 - The reconnect ("Scores sent") is captured without sending a score: the capture script answers the upload inside the browser and gives the confirming read the same fields, so the phone shows what it shows when the server has accepted a score. The request never leaves the machine.
-- **The scene is the judge's phone, captured 390 wide (owner, 2026-11-18; MYK9-2181).** Two things follow from the phone, and lines 2 and 5 were reworded for them (the owner has not yet read the new wording): on a phone the header shows an amber no-signal icon and a message says "You're offline. Changes are saved on this device…", where a wider screen prints "Offline · scores saved on this device" in the header; and line 5 says "the screen", not "the tablet".
+- **The scene is the judge's phone, captured 390 wide (owner, 2026-11-18; MYK9-2181).** Lines 2, 4 and 5 and the show-day step's own sentence were reworded for it (the owner has not yet read the new wording): line 4 now ends at the read-back and line 5 opens on the saved list, so each line's text is what its frames show; the step says judges score "on a phone or tablet"; on a phone the header shows an amber no-signal icon and a message says "You're offline. Changes are saved on this device…", where a wider screen prints "Offline · scores saved on this device" in the header; and line 5 says "the screen", not "the tablet".
 - **The scene is Juni (102) in Exterior Excellent**, not Cooper in Container Novice A. On the seed as an isolated stack holds it, Container Novice A is complete with its results released, and Exterior Excellent is the judge's unscored class with a single timer. Only the demo seed's own armbands (100 to 105) are in the captures: the load fixture's dogs (2001 to 2063) are left out of every list the phone receives, so the class reads 0 of 1 scored.
 - Per-judge access codes now scope each code to that judge's classes (MYK9-1950). Sign-in is not a line in this scene.
 

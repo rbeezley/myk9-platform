@@ -11,7 +11,13 @@ import { chromium } from '@playwright/test';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { installGuard } from './guard.ts';
 import type { Guard, JsonPatch } from './guard.ts';
-import { devServerOrigin, hostResolverRules } from './guardRules.ts';
+import {
+  ARMBAND_SELECTOR,
+  assertLocalBackend,
+  devServerOrigin,
+  launchArgs,
+  typeSecretChecked,
+} from './guardRules.ts';
 import { parseEnvFile, resolveAccounts } from '../../src/test/e2e-helpers/resetE2ePasswords.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -42,7 +48,7 @@ export function launch(): Promise<Browser> {
     channel: process.env.CAPTURE_CHANNEL || undefined,
     headless: true,
     // The browser itself resolves no name but this machine and the font hosts.
-    args: [`--host-resolver-rules=${hostResolverRules()}`],
+    args: launchArgs(),
   });
 }
 
@@ -89,14 +95,23 @@ export async function signIn(page: Page, guard: Guard, role: Role): Promise<void
   const credential = page.locator('#credential');
   await credential.waitFor({ state: 'visible', timeout: 30_000 });
   await settle(page, 1000);
+  const backendOrigin = () =>
+    page.locator('meta[name="myk9-supabase-origin"]').getAttribute('content', { timeout: 5000 });
+  // Before the address is entered too: submitting it already asks the backend about it.
   guard.assertIsolated();
+  assertLocalBackend(await backendOrigin());
   await credential.fill(email);
   await credential.press('Enter');
   const pw = page.locator('input[type="password"]:visible').first();
   await pw.waitFor({ state: 'visible', timeout: 15_000 });
-  guard.assertIsolated();
-  await pw.fill(password);
-  await pw.press('Enter');
+  await typeSecretChecked({
+    assertIsolated: guard.assertIsolated,
+    backendOrigin,
+    type: async () => {
+      await pw.fill(password);
+      await pw.press('Enter');
+    },
+  });
   await page
     .waitForURL(u => !u.href.includes('/sign-in'), { timeout: 30_000 })
     .catch((err: unknown) => {
@@ -166,7 +181,7 @@ export function visibleText(page: Page): Promise<string> {
 /** The text of every visible element that shows an armband (data-testid ending "armband"). */
 export function armbandLabels(page: Page): Promise<string[]> {
   return page
-    .locator('[data-testid$="armband"]:visible')
+    .locator(`${ARMBAND_SELECTOR}:visible`)
     .evaluateAll(els => els.map(el => (el as HTMLElement).innerText));
 }
 

@@ -8,12 +8,14 @@
 // machine and a hosted Supabase host. The check passes only when the backend saw the read and
 // nothing else, no WebSocket upgrade, and the run was stopped by the hosted host.
 //
-// A control runs first: the same writes and WebSocket from a page with no guard must reach
-// the stand-in backend, or the check would pass whether or not the guard works.
+// Controls run first: the same writes and WebSocket from a page with no guard must reach
+// the stand-in backend, and a browser launched without the resolver lock must reach it by a
+// name the lock refuses, or the check would pass whether or not the guard works.
 //
 // The hosted host is a project ref that does not exist; the production ref is never used.
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { chromium } from '@playwright/test';
 
 const seen: string[] = [];
 let upgrades = 0;
@@ -83,6 +85,49 @@ try {
   );
   seen.length = 0;
   upgrades = 0;
+
+  // The resolver lock, on its own: no route is installed in either context. Chromium maps
+  // any *.localhost name to this machine, so the name below reaches the stand-in backend
+  // from a browser launched without the lock, and must not resolve at all with it. This is
+  // the only defense for what a route never sees (a redirect hop, a preconnect, a worker's
+  // socket), so it gets a known answer of its own.
+  const lockProbe = `http://capture-selfcheck.localhost:${backendPort}/resolver-lock`;
+  const reaches = async (from: typeof browser) => {
+    const context = await from.newContext();
+    const probePage = await context.newPage();
+    await probePage.goto(BASE);
+    const reached = await probePage.evaluate(
+      url =>
+        fetch(url, { mode: 'no-cors' }).then(
+          () => true,
+          () => false
+        ),
+      lockProbe
+    );
+    await context.close();
+    return reached;
+  };
+  const unlocked = await chromium.launch({
+    channel: process.env.CAPTURE_CHANNEL || undefined,
+    headless: true,
+  });
+  let reachedUnlocked = false;
+  try {
+    reachedUnlocked = await reaches(unlocked);
+  } finally {
+    await unlocked.close();
+  }
+  expect(
+    reachedUnlocked && seen.includes('GET /resolver-lock'),
+    'control: a browser without the resolver lock reaches the stand-in by a *.localhost name'
+  );
+  seen.length = 0;
+  const reachedLocked = await reaches(browser);
+  expect(
+    !reachedLocked && seen.length === 0,
+    'the resolver lock refuses a name that is not on its list, with no route installed'
+  );
+  seen.length = 0;
 
   const { ctx, guard } = await guardedContext(browser, {
     viewport: { width: 390, height: 844 },

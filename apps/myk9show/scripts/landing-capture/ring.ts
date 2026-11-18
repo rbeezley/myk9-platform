@@ -90,9 +90,13 @@ try {
   try {
     const button = (name: string | RegExp) => page.getByRole('button', { name, exact: true });
 
-    /** Measure, then write the image through the one checked path (writeCheckedShot). */
+    /**
+     * Measure, then write the image through the one checked path (writeCheckedShot).
+     * `minLabels` is how many armband elements this screen shows at least.
+     */
     const shoot = async (
       name: string,
+      minLabels: number,
       regions: Record<string, Locator | [Locator, number, number]>
     ) => {
       const measured: Record<string, Box> = {};
@@ -100,16 +104,18 @@ try {
         measured[key] = Array.isArray(target) ? await box(...target) : await box(target);
       }
       const file = `${name}.png`;
-      await writeCheckedShot(name, FIXTURE_ARMBANDS, {
-        assertIsolated: guard.assertIsolated,
-        read: async () => {
-          const [text, labels] = await Promise.all([visibleText(page), armbandLabels(page)]);
-          return { text, labels };
-        },
-        write: async () => {
-          await page.screenshot({ path: join(IMG_DIR, file) });
-        },
-      });
+      await writeCheckedShot(
+        { name, fixtures: FIXTURE_ARMBANDS, minLabels },
+        {
+          assertIsolated: guard.assertIsolated,
+          read: async () => {
+            const [text, labels] = await Promise.all([visibleText(page), armbandLabels(page)]);
+            return { text, labels };
+          },
+          take: () => page.screenshot(),
+          save: pixels => writeFileSync(join(IMG_DIR, file), pixels),
+        }
+      );
       shots[name] = { file, regions: measured };
       console.log(`${name} :: ${await pageText(page, 260)}`);
     };
@@ -123,7 +129,8 @@ try {
     await page.getByText('Your ring').first().waitFor();
     const card = page.locator('li[data-class-id]').filter({ hasText: CLASS_NAME }).first();
     await card.scrollIntoViewIfNeeded();
-    await shoot('classes', { card });
+    // `row` is the card's tap row alone, measured so a test can tell the whole card from it.
+    await shoot('classes', 0, { card, row: card.getByRole('button').first() });
 
     // Line 2: the signal drops. At phone width the header shows an amber no-signal icon, and a
     // message says the changes are saved on this device. (Wider screens print "Offline ·
@@ -139,7 +146,7 @@ try {
       .or(page.getByText("You're offline. Changes are saved on this device"));
     await offline.first().waitFor();
     await page.waitForTimeout(800);
-    await shoot('offline', { status: [offline, 300, 60] });
+    await shoot('offline', 1, { status: [offline, 300, 60] });
     await page
       .getByRole('button', { name: 'Close toast' })
       .click()
@@ -149,29 +156,34 @@ try {
     await page.getByTestId('dog-card').filter({ hasText: DOG }).first().click();
     await button('Start').waitFor();
     await page.waitForTimeout(600);
-    await shoot('sheet', { start: button('Start') });
+    await shoot('sheet', 1, { start: button('Start') });
     await button('Start').click();
     await page.waitForTimeout(RUN_MS);
-    await shoot('running', {
+    await shoot('running', 1, {
       timer: [button('Stop'), 300, 120],
       time: page.getByText(/^\d:\d\d\.\d\d$/).first(),
     });
     await button('Stop').click();
     await button('Qualified').click();
     await page.waitForTimeout(600);
-    await shoot('result', { result: [button('Qualified'), 300, 80] });
+    // `timer` is the stopped time's card, so the frame can hold the time and the result.
+    await shoot('result', 1, {
+      result: [button('Qualified'), 300, 80],
+      timer: [button('Resume'), 300, 120],
+    });
 
     // Line 4: the read-back, then the list of dogs with the saved line.
     await button('Save').click();
     const dialog = page.getByRole('dialog').filter({ hasText: 'Score Confirmation' });
     await dialog.waitFor();
     await page.waitForTimeout(600);
-    await shoot('confirm', { dialog });
+    await shoot('confirm', 1, { dialog });
     await button('Confirm & Submit').click();
     const saved = page.getByText('Saved:').first();
     await saved.waitFor();
     await page.waitForTimeout(1200);
-    await shoot('saved', { text: [saved, 240, 0] });
+    // The saved line names the dog in plain text; the list under it is empty.
+    await shoot('saved', 0, { text: [saved, 240, 0] });
 
     // Line 5: the signal returns and the score sends itself.
     let version = 100_000;
@@ -186,7 +198,7 @@ try {
     const sent = page.getByText('Scores sent').first();
     await sent.waitFor({ timeout: 45_000 });
     await page.waitForTimeout(500);
-    await shoot('sent', {
+    await shoot('sent', 0, {
       toast: [sent, 200, 40],
       text: [saved, 240, 0],
     });
@@ -194,8 +206,7 @@ try {
     guard.assertIsolated();
     writeFileSync(
       REGIONS_FILE,
-      `${JSON.stringify({ space: SPACE, scale: SCALE, shots }, null, 2)}
-`
+      `${JSON.stringify({ space: SPACE, scale: SCALE, shots }, null, 2)}\n`
     );
   } catch (err) {
     // Words, not a picture: an image is only ever written through writeCheckedShot.

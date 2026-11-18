@@ -8,7 +8,7 @@ import type {
   GuardSocket,
   JsonPatch,
 } from '../../../scripts/landing-capture/guard';
-import { patchFixtureRows } from '../../../scripts/landing-capture/guardRules';
+import { ARMBAND_SELECTOR, patchFixtureRows } from '../../../scripts/landing-capture/guardRules';
 import { PRODUCTION_PROJECT_REF } from '../productionFixtureGuard';
 
 const DEV = 'http://localhost:5173';
@@ -184,7 +184,44 @@ describe('the capture scripts', () => {
     expect(code('ring.ts')).not.toMatch(/newContext|\.route\(|routeWebSocket/);
     expect(code('ring.ts').match(/\.screenshot\(/g)).toHaveLength(1);
     expect(code('ring.ts')).toMatch(/writeCheckedShot\(/);
+    expect(code('ring.ts')).not.toMatch(/chromium|\.launch\(/);
     expect(code('lib.ts')).toMatch(/serviceWorkers: 'block'/);
-    expect(code('lib.ts')).toMatch(/--host-resolver-rules=\$\{hostResolverRules\(\)\}/);
+    // One launch, with the tested arguments (selfcheck.ts proves the lock in a real browser).
+    expect(code('lib.ts').match(/chromium\.launch\(/g)).toHaveLength(1);
+    expect(code('lib.ts')).toMatch(/args: launchArgs\(\),/);
+  });
+
+  it('types a password only through the checked step', () => {
+    const lib = code('lib.ts');
+    expect(lib.match(/\.fill\(password\)/g)).toHaveLength(1);
+    const step = lib.slice(lib.indexOf('await typeSecretChecked({'));
+    expect(step.slice(0, step.indexOf('});'))).toMatch(/\.fill\(password\)/);
+    // The address is entered after the same two checks.
+    const beforeEmail = lib.slice(0, lib.indexOf('credential.fill(email)'));
+    expect(beforeEmail).toMatch(
+      /guard\.assertIsolated\(\);\s+assertLocalBackend\(await backendOrigin\(\)\);\s+await $/
+    );
+  });
+
+  it('reads armbands from the elements Ringside really renders them in', () => {
+    expect(ARMBAND_SELECTOR).toBe('[data-testid$="armband"]');
+    expect(code('lib.ts')).toMatch(/\.locator\(`\$\{ARMBAND_SELECTOR\}:visible`\)/);
+    const packages = resolve(dir, '../../../../packages');
+    for (const [file, id] of [
+      ['ringside/src/components/DogCard.tsx', 'dog-card-armband'],
+      ['scoring-ui/src/components/ScoresheetHeader.tsx', 'scoresheet-armband'],
+      ['scoring-ui/src/components/ScoreConfirmationDialog.tsx', 'confirmation-armband'],
+    ] as const) {
+      expect(readFileSync(resolve(packages, file), 'utf8'), file).toContain(`data-testid="${id}"`);
+    }
+  });
+
+  it('never follows a redirect when it fetches a read itself', () => {
+    const guard = code('guard.ts');
+    expect(guard).toMatch(/const NO_REDIRECTS = \{ maxRedirects: 0 \};/);
+    // Every fetch names NO_REDIRECTS before its own closing semicolon or the next fetch.
+    const fetches = guard.split('route.fetch(').slice(1);
+    expect(fetches).toHaveLength(3);
+    for (const call of fetches) expect(call.split(/;|\n {4}route/)[0]).toMatch(/NO_REDIRECTS/);
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   FONT_HOSTS,
   decideRequest,
@@ -14,7 +14,6 @@ import {
   rangeHeaders,
   stopMessage,
   strangerArmbands,
-  writeCheckedShot,
 } from '../../../scripts/landing-capture/guardRules';
 import type { RequestFacts } from '../../../scripts/landing-capture/guardRules';
 import { PRODUCTION_PROJECT_REF } from '../productionFixtureGuard';
@@ -53,6 +52,10 @@ describe('isReadRequest', () => {
   it.each([
     ['POST', '/rest/v1/rpc/ringside_update_entry'],
     ['POST', '/rest/v1/rpc/update_get_things'],
+    // Named like reads, but not declared read-only in the database.
+    ['POST', '/rest/v1/rpc/get_show_access_codes'],
+    ['POST', '/rest/v1/rpc/get_judge_day_capacity_live'],
+    ['POST', '/rest/v1/rpc/list_retryable_waitlist_notification_events'],
     ['POST', '/rest/v1/entries'],
     ['POST', '/rest/v1/analytics_events'],
     ['PATCH', '/rest/v1/entries'],
@@ -82,6 +85,9 @@ describe('hosts', () => {
     `${PRODUCTION_PROJECT_REF}.functions.supabase.co`,
     'someotherproject.supabase.co',
     'someotherproject.supabase.in',
+    'someotherproject.supabase.com',
+    'someotherproject.supabase.co.',
+    `${PRODUCTION_PROJECT_REF}.supabase.co.`,
     'supabase.co',
     `${PRODUCTION_PROJECT_REF}.example.com`,
   ])('%s is a hosted backend', host => {
@@ -348,46 +354,5 @@ describe('strangerArmbands', () => {
 
   it('never passes an armband element it cannot read', () => {
     expect(strangerArmbands('', ['—'], FIXTURES)).toEqual(['"—"']);
-  });
-});
-
-describe('writeCheckedShot', () => {
-  const deps = (screen: { text: string; labels: string[] }, stopped = false) => {
-    const order: string[] = [];
-    return {
-      order,
-      assertIsolated: vi.fn(() => {
-        order.push('assertIsolated');
-        if (stopped) throw new Error('Capture stopped');
-      }),
-      read: vi.fn(async () => {
-        order.push('read');
-        return screen;
-      }),
-      write: vi.fn(async () => {
-        order.push('write');
-      }),
-    };
-  };
-
-  it('writes only after the stop check and the armband check, then checks again', async () => {
-    const d = deps({ text: '#105', labels: ['105'] });
-    await writeCheckedShot('sheet', FIXTURES, d);
-    expect(d.order).toEqual(['assertIsolated', 'read', 'write', 'assertIsolated']);
-  });
-
-  it('writes nothing when a stranger is on screen', async () => {
-    const d = deps({ text: '', labels: ['105', '2001'] });
-    await expect(writeCheckedShot('offline', FIXTURES, d)).rejects.toThrow(
-      'offline: armband 2001 on screen is not a seed fixture'
-    );
-    expect(d.write).not.toHaveBeenCalled();
-  });
-
-  it('writes nothing, and reads nothing, once the run is stopped', async () => {
-    const d = deps({ text: '', labels: [] }, true);
-    await expect(writeCheckedShot('classes', FIXTURES, d)).rejects.toThrow('Capture stopped');
-    expect(d.read).not.toHaveBeenCalled();
-    expect(d.write).not.toHaveBeenCalled();
   });
 });

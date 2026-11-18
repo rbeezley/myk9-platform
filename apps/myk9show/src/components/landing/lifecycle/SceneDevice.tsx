@@ -21,7 +21,7 @@ export const SceneDevice = memo(function SceneDevice({
     <div
       className="tl-scene-frame"
       data-kind={kind}
-      // The camera fills the frame, so the frame takes the camera's shape (a tablet is 3:4).
+      // The camera fills the frame, so the frame takes the camera's shape (the ring scene's window is 3:4).
       style={{ aspectRatio: `${view.camera.w} / ${view.camera.h}` }}
     >
       {Object.entries(data.shots).map(([key, shot]) => {

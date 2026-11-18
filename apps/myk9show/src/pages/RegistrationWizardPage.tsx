@@ -26,6 +26,7 @@ import HorizontalProgressIndicator from '@/components/shows/wizard/components/Ho
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import { ReceiptExits } from '@/components/shows/wizard/components/ReceiptExits';
 import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/WorkflowStepContent';
+import { CardPausedNotice } from '@/components/shows/RegistrationWorkflow/CardPausedNotice';
 import { RegistrationWizardShell } from '@/components/shows/RegistrationWorkflow/RegistrationWizardShell';
 import { EntriesPanel } from '@/components/shows/RegistrationWorkflow/EntriesPanel';
 import {
@@ -405,6 +406,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
                 gives a screen-reader user the current step by name at the point
                 the step's own content begins. */}
             {/* Step content */}
+            <CardPausedNotice resolution={paymentResolution} stepId={currentStepId} />
             <WorkflowStepContent
               paymentResolution={paymentResolution}
               currentStepId={currentStepId}

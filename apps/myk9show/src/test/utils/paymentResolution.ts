@@ -31,6 +31,7 @@ export function makePaymentResolution(
     }),
     acceptedMethods,
     cardCheckoutAvailable,
+    cardPaused: false,
     accountCheckPending: false,
     cardCheckoutUnavailableReason: undefined,
     isOnBehalf: false,

@@ -191,9 +191,7 @@ describe('PaymentStep — entry agreement integration', () => {
     cleanup();
     render(<PaymentStepHarness {...baseProps} showId="show-no-stripe" />);
     expect(screen.queryByText('Credit/Debit Card')).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/Online card payment isn't available for this club/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Card payment is paused for this show/)).toBeInTheDocument();
     expect(screen.getByText('Check (pay at show)')).toBeInTheDocument();
     expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
   });

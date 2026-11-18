@@ -22,7 +22,8 @@ vi.mock('@/features/payments/useClubStripeAccount', () => ({
 
 import { usePaymentMethodResolution } from '../usePaymentMethodResolution';
 
-const FIRST = "Online card payment isn't available for this club.";
+// MYK9-2166: a current answer of "not ready" reads as paused, not as unavailable.
+const FIRST = "Card payment is paused for this show. The club's bank account needs attention.";
 
 function reasonFor(show: { acceptCheckPayments: boolean; acceptCashPayments: boolean }) {
   mocks.useAuthContext.mockReturnValue({ hasRole: () => false, userWithRoles: { scopes: [] } });

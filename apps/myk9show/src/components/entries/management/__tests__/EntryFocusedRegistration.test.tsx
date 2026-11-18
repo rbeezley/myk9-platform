@@ -304,7 +304,7 @@ describe('EntryFocusedRegistration', () => {
       onEntryRemoved: vi.fn(),
       onBulkStatusChange: vi.fn(),
       paymentLedger: {
-        record: vi.fn().mockResolvedValue(true),
+        record: vi.fn().mockResolvedValue('saved'),
         markPaidOnline: vi.fn().mockResolvedValue(true),
         todayInShowZone: '2026-09-17',
       },

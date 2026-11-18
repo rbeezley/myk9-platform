@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
-import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
-import { buildRefundEntryNames, refundGroupLabels } from './refundResultNames';
+import { NAMES_LOADING, NAMES_LOOKUP_FAILED, refundGroupLabels } from './refundResultNames';
+import { useRefundEntryNames } from './useRefundEntryNames';
 
 // Server-side skip reasons (apps/myk9show/supabase/functions/_shared/showRefundPlan.ts
 // ShowRefundSkipReason, plus 'intent_spans_shows' from stripe-refund-show/index.ts).
@@ -42,11 +43,28 @@ export function RefundResultDetail({ result, showId }: RefundResultDetailProps) 
   const [supportOpen, setSupportOpen] = useState(false);
   const { skipped, failed } = result;
   const hasDetail = skipped.length > 0 || failed.length > 0;
-  // MYK9-1862: name each line from the show's entries as Entry Management reads them
-  // (replica first), so the secretary sees exhibitors and dogs, not ids.
-  const showEntries = useSecretaryShowEntriesQuery(showId, hasDetail);
-  const names = buildRefundEntryNames(showEntries.data);
-  const namesLoading = showEntries.data === undefined && showEntries.isPending;
+  // MYK9-1862: name each line by exhibitor and dog, not id. A failed lookup only re-reads names.
+  const resultEntryIds = [
+    ...skipped.map(entry => entry.entryId),
+    ...failed.flatMap(f => f.entryIds),
+  ];
+  const { names, status, retry } = useRefundEntryNames(showId, resultEntryIds, hasDetail);
+
+  const groupBadges = (ids: readonly string[], variant: 'secondary' | 'destructive') => (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {status === 'loading' ? (
+        <Badge variant={variant} className="text-xs">
+          {NAMES_LOADING}
+        </Badge>
+      ) : (
+        refundGroupLabels(ids, names, status === 'failed').map(({ key, label }) => (
+          <Badge key={key} variant={variant} className="text-xs">
+            {label}
+          </Badge>
+        ))
+      )}
+    </div>
+  );
 
   if (!hasDetail) {
     return null;
@@ -67,29 +85,26 @@ export function RefundResultDetail({ result, showId }: RefundResultDetailProps) 
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-3">
-          {[...skippedByReason.entries()].map(([reason, entryIds]) => (
+          {status === 'failed' && (
+            <div role="alert" className="flex flex-wrap items-center gap-2 text-sm">
+              <p>{NAMES_LOOKUP_FAILED}.</p>
+              <Button type="button" variant="outline" size="sm" onClick={retry}>
+                Try again
+              </Button>
+            </div>
+          )}
+
+          {[...skippedByReason.entries()].map(([reason, ids]) => (
             <div key={reason}>
               <p className="text-sm font-medium">{skipReasonLabel(reason)}</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {refundGroupLabels(entryIds, names, namesLoading).map(label => (
-                  <Badge key={label} variant="secondary" className="text-xs">
-                    {label}
-                  </Badge>
-                ))}
-              </div>
+              {groupBadges(ids, 'secondary')}
             </div>
           ))}
 
           {failed.map(failure => (
             <div key={failure.paymentIntentId}>
               <p className="text-sm font-medium text-destructive">{FAILED_PAYMENT_LINE}</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {refundGroupLabels(failure.entryIds, names, namesLoading).map(label => (
-                  <Badge key={label} variant="destructive" className="text-xs">
-                    {label}
-                  </Badge>
-                ))}
-              </div>
+              {groupBadges(failure.entryIds, 'destructive')}
             </div>
           ))}
 

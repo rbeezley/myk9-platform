@@ -10,19 +10,12 @@ import {
 } from './publishReadiness';
 import { resolveShowUses } from './showUses';
 import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
-import {
-  clubPaymentsHref,
-  clubPayoutsBlockPublish,
-  clubPayoutsShortLabel,
-  type ClubPayoutsState,
-} from '@/features/payments/clubPayoutsState';
 
 export type SetupReadinessSignalId =
   | 'show-details-missing'
   | 'no-trials'
   | 'no-classes'
   | 'judges-missing'
-  | 'payouts-not-ready'
   | 'show-not-visible'
   | 'exhibitor-materials-unpublished'
   | 'premium-facts-missing'
@@ -78,12 +71,6 @@ export interface SetupReadinessInput {
    * usePremiumRequirements). Unset or 0 means none, or not known: no signal either way.
    */
   premiumMissingFacts?: number;
-  /**
-   * Where the host club stands on payouts (MYK9-2164, useClubPayoutsState). Publishing needs
-   * them for every show. Unset or 'unknown' (not loaded, offline) gives no signal: an unread
-   * state is never reported as "not connected".
-   */
-  payouts?: ClubPayoutsState;
 }
 
 function hasText(value: string | null | undefined): boolean {
@@ -139,14 +126,6 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   }
   if (!judgesAssigned(input)) {
     signals.push({ id: 'judges-missing', label: 'Judges not assigned', href: classWorkHref });
-  }
-  // The reason and the link are the same ones the Publish menu shows when the server refuses.
-  if (input.payouts && clubPayoutsBlockPublish(input.payouts) && input.show.clubId) {
-    signals.push({
-      id: 'payouts-not-ready',
-      label: clubPayoutsShortLabel(input.payouts),
-      href: clubPaymentsHref(input.show.clubId),
-    });
   }
   if (!isShowListingLive(input.show.status)) {
     signals.push({

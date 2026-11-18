@@ -3,9 +3,9 @@ import { toLocalDateOnly } from '@/utils/date-format';
 
 // Entry fees can only be paid out to clubs with a working Stripe Connect
 // account, so every show needs the club's payouts before it is published
-// (MYK9-2164; the readiness line and the Publish refusal read
-// clubPayoutsState.ts). Fail closed: no account row, or a row without
-// payouts_enabled, blocks it; demo clubs are exempt on the server. Shows that
+// (MYK9-2164). The server decides: enforce_show_publish_gate() refuses
+// a club without payouts_enabled (demo clubs are exempt) and the app shows that
+// refusal as written. Shows that
 // are already public are never un-published by this gate.
 
 // MYK9-979: the gate fires when a show BECOMES PUBLICLY VISIBLE — any move
@@ -14,8 +14,7 @@ import { toLocalDateOnly } from '@/utils/date-format';
 
 /** MYK9-2163: enforce_show_publish_gate()'s payouts refusal (MK003) verbatim.
  * Publishing needs the club's payouts whatever online_entries_enabled says. Kept to recognise
- * the refusal; when the app already knows the club's payouts state the Publish menu shows
- * clubPayoutsMessage instead, with the same reason and a link. */
+ * the refusal so the Publish menu can add the Payments link. */
 export const PUBLISH_BLOCKED_MESSAGE =
   "This club's payouts aren't enabled yet, so the show can't be published. A club admin connects the bank account on the club's Payments tab. If Stripe is reviewing the account, that usually takes a day or two.";
 

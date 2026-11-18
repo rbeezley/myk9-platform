@@ -10,14 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
-import { useClubPayoutsState } from '@/features/payments/useClubPayoutsState';
-import { useCanOpenClubPayments } from '@/features/payments/useCanOpenClubPayments';
 import {
   CLUB_PAYMENTS_LINK_LABEL,
   clubPaymentsHref,
-  clubPayoutsBlockPublish,
-  clubPayoutsMessage,
-} from '@/features/payments/clubPayoutsState';
+  useCanOpenClubPayments,
+} from '@/features/payments/useCanOpenClubPayments';
 import {
   becomesPublic,
   isPublishGateDbError,
@@ -89,7 +86,6 @@ export function ShowStatusPill({
 }: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
-  const payouts = useClubPayoutsState(clubId);
   const clubAuthQuery = useClubAuthorization(clubId);
   // MYK9-1387: only a loaded, explicitly unauthorized club greys the item. While the lookup
   // loads or errors it stays enabled so handleTransition's own branches give their truthful toasts.
@@ -115,15 +111,11 @@ export function ShowStatusPill({
     : undefined;
 
   async function handleTransition(next: string) {
-    // Publishing opens online entries; fail closed unless the club's Stripe
-    // payouts are enabled. Already-published shows are unaffected (the gate
-    // only fires on a transition INTO 'published' from a different status —
-    // this pill can publish only from draft, upcoming, or in_progress, per
-    // MYK9-579 round 6). This is a UX convenience, not the enforcement
-    // boundary: enforce_show_publish_gate()
-    // (supabase/migrations/20260916003500) is the DB-side backstop that
-    // actually refuses the write on both INSERT and UPDATE OF status — see
-    // the catch block below.
+    // Already-published shows are unaffected (the gate only fires on a transition INTO
+    // 'published' from a different status — this pill can publish only from draft, upcoming, or
+    // in_progress, per MYK9-579 round 6). The club-authorization and entry-window checks below
+    // are a UX convenience. The club's Stripe payouts are NOT predicted here (MYK9-2164):
+    // enforce_show_publish_gate() decides, and its refusal text is shown in the catch block.
     // MYK9-979: the gate runs on any move that makes the show publicly
     // visible (becomesPublic), the same transition the DB triggers check.
     if (becomesPublic(status, next)) {
@@ -135,17 +127,16 @@ export function ShowStatusPill({
         toast.error(CLUB_REQUIRED_MESSAGE);
         return;
       }
-      if (clubAuthQuery.isLoading || payouts.isLoading) {
+      if (clubAuthQuery.isLoading) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
         toast.info('Still checking the club’s status. Try again in a moment.');
         return;
       }
-      if (clubAuthQuery.isError || payouts.isAccountError) {
+      if (clubAuthQuery.isError) {
         // A failed lookup is not "not connected" — fail closed with the
         // truthful message instead of blaming the club's setup. Kick off a
         // refetch so "try again" can actually succeed (an errored query
         // inside staleTime would otherwise serve the same error forever).
-        payouts.refetch();
         void clubAuthQuery.refetch();
         toast.error(SHOW_ADMIN_COPY.clubCheckFailed);
         return;
@@ -161,12 +152,6 @@ export function ShowStatusPill({
         // mirroring the isError branch above.
         void clubAuthQuery.refetch();
         toast.error(CLUB_UNAUTHORIZED_MESSAGE);
-        return;
-      }
-      // MYK9-2164: every show needs the club's payouts before it is published (demo clubs
-      // excepted, as on the server). An unknown state goes to the server, which decides.
-      if (clubPayoutsBlockPublish(payouts.state)) {
-        toast.error(clubPayoutsMessage(payouts.state), paymentsOptions);
         return;
       }
       // MYK9-716: checked last, the same order as enforce_show_publish_gate.
@@ -198,10 +183,7 @@ export function ShowStatusPill({
         if (message === CLUB_REQUIRED_MESSAGE || code === PUBLISH_GATE_ERRCODE_UNAUTHORIZED) {
           toast.error(message);
         } else {
-          if (clubPayoutsBlockPublish(payouts.state)) {
-            // Same reason and link as the readiness line.
-            toast.error(clubPayoutsMessage(payouts.state), paymentsOptions);
-          } else if (isPayoutsRefusalMessage(message)) {
+          if (isPayoutsRefusalMessage(message)) {
             toast.error(message, paymentsOptions);
           } else {
             // Another refusal (for example "a published show always takes online entries").

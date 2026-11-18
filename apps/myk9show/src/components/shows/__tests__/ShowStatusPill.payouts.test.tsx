@@ -1,31 +1,29 @@
 /**
- * MYK9-2164: online entries are always on, so publishing always needs the club's payouts (a
- * demo club excepted, as on the server). The refusal reads the same reason, and links to the
- * same club Payments tab, as the readiness line. The gate still runs on a move that makes the
- * show public, not on a move between two public statuses.
+ * MYK9-2164: the server decides whether a club's payouts allow Publish (enforce_show_publish_gate,
+ * MYK9-2163). The pill sends the move and shows the server's refusal as written, with a link to
+ * the club's Payments tab only for someone who can open it. It never reads the Stripe account.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
-import {
-  useClubStripeAccount,
-  useClubAuthorization,
-} from '@/features/payments/useClubStripeAccount';
-import { useClubIsDemo } from '@/features/payments/useClubIsDemo';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import {
+  CLUB_REQUIRED_MESSAGE,
   CLUB_UNAUTHORIZED_MESSAGE,
+  ONLINE_ENTRIES_BLOCKED_MESSAGE,
+  ONLINE_ENTRIES_REQUIRED_MESSAGE,
   PUBLISH_BLOCKED_MESSAGE,
 } from '@/features/payments/onlineEntryGate';
-import { clubPayoutsMessage } from '@/features/payments/clubPayoutsState';
 import { toast } from 'sonner';
 
 const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
 
 const canOpen = vi.hoisted(() => ({ value: true }));
-vi.mock('@/features/payments/useCanOpenClubPayments', () => ({
+vi.mock('@/features/payments/useCanOpenClubPayments', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/payments/useCanOpenClubPayments')>()),
   useCanOpenClubPayments: () => canOpen.value,
 }));
 vi.mock('react-router-dom', async importOriginal => ({
@@ -33,11 +31,7 @@ vi.mock('react-router-dom', async importOriginal => ({
   useNavigate: () => navigate,
 }));
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripeAccount: vi.fn(),
   useClubAuthorization: vi.fn(),
-}));
-vi.mock('@/features/payments/useClubIsDemo', () => ({
-  useClubIsDemo: vi.fn(),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
@@ -51,24 +45,6 @@ const WINDOW = {
   entryCloseDate: '2026-10-20T04:59:00.000Z',
 };
 
-type Account = { onboarding_complete: boolean; payouts_enabled: boolean } | null;
-
-function mockStripe(state: { data: Account; isError?: boolean }) {
-  vi.mocked(useClubStripeAccount).mockReturnValue({
-    data: state.data,
-    isLoading: false,
-    isError: state.isError ?? false,
-    refetch: vi.fn(),
-  } as unknown as ReturnType<typeof useClubStripeAccount>);
-}
-
-function mockDemo(isDemo: boolean | undefined) {
-  vi.mocked(useClubIsDemo).mockReturnValue({
-    data: isDemo,
-    isLoading: false,
-  } as unknown as ReturnType<typeof useClubIsDemo>);
-}
-
 function mockAuthorized(authorizedAt: string | null) {
   vi.mocked(useClubAuthorization).mockReturnValue({
     data: { authorized_at: authorizedAt },
@@ -78,10 +54,11 @@ function mockAuthorized(authorizedAt: string | null) {
   } as unknown as ReturnType<typeof useClubAuthorization>);
 }
 
-async function choose(trigger: RegExp, item: RegExp) {
+async function publish() {
+  render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: trigger }));
-  await user.click(await screen.findByText(item));
+  await user.click(screen.getByRole('button', { name: /draft/i }));
+  await user.click(await screen.findByText(/publish show/i));
 }
 
 function paymentsAction() {
@@ -89,7 +66,7 @@ function paymentsAction() {
   return (call?.[1] as { action: { label: string; onClick: () => void } }).action;
 }
 
-describe('ShowStatusPill: publishing needs the club payouts (MYK9-2164)', () => {
+describe('ShowStatusPill: the server decides on payouts (MYK9-2164)', () => {
   let mutateAsync: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -100,105 +77,74 @@ describe('ShowStatusPill: publishing needs the club payouts (MYK9-2164)', () => 
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
     mockAuthorized('2026-01-01T00:00:00Z');
-    mockDemo(false);
     canOpen.value = true;
   });
 
-  it('refuses a club with no bank account, with the reason and a link to its Payments tab', async () => {
-    mockStripe({ data: null });
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+  it('sends Publish to the server with no payouts precheck', async () => {
+    await publish();
 
-    await choose(/draft/i, /publish show/i);
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+    expect(toast.error).not.toHaveBeenCalled();
+  });
 
-    expect(mutateAsync).not.toHaveBeenCalled();
+  it('shows the server payouts refusal as written, with a link to the Payments tab', async () => {
+    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: PUBLISH_BLOCKED_MESSAGE });
+
+    await publish();
+
     expect(toast.error).toHaveBeenCalledWith(
-      clubPayoutsMessage('not-connected'),
+      PUBLISH_BLOCKED_MESSAGE,
       expect.objectContaining({ action: expect.objectContaining({ label: 'Open Payments' }) })
     );
     paymentsAction().onClick();
     expect(navigate).toHaveBeenCalledWith('/clubs/club-1?tab=payments');
   });
 
-  it('says a club under review is waiting, usually a day or two', async () => {
-    mockStripe({ data: { onboarding_complete: true, payouts_enabled: false } });
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+  it('links the other payouts refusal to the Payments tab too', async () => {
+    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: ONLINE_ENTRIES_BLOCKED_MESSAGE });
 
-    await choose(/draft/i, /publish show/i);
-
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(
-      expect.stringMatching(/reviewing your club's bank account, usually a day or two/i),
-      expect.anything()
-    );
-  });
-
-  it('publishes a demo club with no bank account, as the server does', async () => {
-    mockStripe({ data: null });
-    mockDemo(true);
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await choose(/draft/i, /publish show/i);
-
-    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
-    expect(toast.error).not.toHaveBeenCalled();
-  });
-
-  it('leaves it to the server when the demo flag cannot be read for a club without payouts', async () => {
-    mockStripe({ data: null });
-    mockDemo(undefined);
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await choose(/draft/i, /publish show/i);
-
-    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
-  });
-
-  it('publishes when payouts are enabled', async () => {
-    mockStripe({ data: { onboarding_complete: true, payouts_enabled: true } });
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await choose(/draft/i, /publish show/i);
-
-    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
-  });
-
-  it('shows the reason without a link to someone who cannot open the club Payments tab', async () => {
-    canOpen.value = false;
-    mockStripe({ data: null });
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await choose(/draft/i, /publish show/i);
-
-    expect(toast.error).toHaveBeenCalledWith(clubPayoutsMessage('not-connected'), undefined);
-  });
-
-  it('keeps the server text, with the link, for a payouts refusal when the state looks ready', async () => {
-    mockStripe({ data: { onboarding_complete: true, payouts_enabled: true } });
-    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: PUBLISH_BLOCKED_MESSAGE });
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await choose(/draft/i, /publish show/i);
+    await publish();
 
     expect(toast.error).toHaveBeenCalledWith(
-      PUBLISH_BLOCKED_MESSAGE,
+      ONLINE_ENTRIES_BLOCKED_MESSAGE,
       expect.objectContaining({ action: expect.objectContaining({ label: 'Open Payments' }) })
     );
   });
 
-  it('shows another MK003 refusal as the server wrote it, with no Payments link', async () => {
-    mockStripe({ data: { onboarding_complete: true, payouts_enabled: true } });
-    const other =
-      'A published show always takes online entries. Turn online entries on, or keep this show as a draft.';
-    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: other });
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+  it('shows the server payouts refusal with no link to someone who cannot open the Payments tab', async () => {
+    canOpen.value = false;
+    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: PUBLISH_BLOCKED_MESSAGE });
 
-    await choose(/draft/i, /publish show/i);
+    await publish();
 
-    expect(toast.error).toHaveBeenCalledWith(other);
+    expect(toast.error).toHaveBeenCalledWith(PUBLISH_BLOCKED_MESSAGE, undefined);
+  });
+
+  it('shows another MK003 refusal as the server wrote it, with no link', async () => {
+    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: ONLINE_ENTRIES_REQUIRED_MESSAGE });
+
+    await publish();
+
+    expect(toast.error).toHaveBeenCalledWith(ONLINE_ENTRIES_REQUIRED_MESSAGE);
+  });
+
+  it('shows the missing-club refusal with no link', async () => {
+    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: CLUB_REQUIRED_MESSAGE });
+
+    await publish();
+
+    expect(toast.error).toHaveBeenCalledWith(CLUB_REQUIRED_MESSAGE);
+  });
+
+  it('shows the MK004 refusal with no link', async () => {
+    mutateAsync.mockRejectedValueOnce({ code: 'MK004', message: CLUB_UNAUTHORIZED_MESSAGE });
+
+    await publish();
+
+    expect(toast.error).toHaveBeenCalledWith(CLUB_UNAUTHORIZED_MESSAGE);
   });
 
   it('still needs club authorization first', async () => {
-    mockStripe({ data: null });
     mockAuthorized(null);
     render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
@@ -207,14 +153,5 @@ describe('ShowStatusPill: publishing needs the club payouts (MYK9-2164)', () => 
     expect(item).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByText(CLUB_UNAUTHORIZED_MESSAGE)).toBeInTheDocument();
     expect(mutateAsync).not.toHaveBeenCalled();
-  });
-
-  it('does not re-gate a move between two public statuses (upcoming -> published)', async () => {
-    mockStripe({ data: null });
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" clubId="club-1" />);
-
-    await choose(/upcoming/i, /publish show/i);
-
-    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
   });
 });

@@ -5,6 +5,13 @@ import {
   hasClubAdminScope,
 } from '@/components/clubs/ClubDetails/clubPermissions';
 
+/** The club's Payments tab (the old /club-admin/payments page now lives there). */
+export function clubPaymentsHref(clubId: string): string {
+  return `/clubs/${clubId}?tab=payments`;
+}
+
+export const CLUB_PAYMENTS_LINK_LABEL = 'Open Payments';
+
 /**
  * Whether the signed-in person can open this club's Payments tab: the same rule the club page
  * uses to show it (`canManageMembers`, i.e. club admin for THIS club, or a site admin). A show

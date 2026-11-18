@@ -100,48 +100,6 @@ describe('computeSetupReadinessSignals', () => {
     });
   });
 
-  describe('payouts-not-ready (MYK9-2164)', () => {
-    const base = {
-      show: show({ clubId: 'club-9' }),
-      trials: [trial()],
-      classes: [cls()],
-      judges: ['j1'],
-    };
-
-    it.each(['not-connected', 'incomplete'] as const)(
-      'links the club Payments tab for %s with a short label',
-      payouts => {
-        const signal = computeSetupReadinessSignals({ ...base, payouts }).find(
-          s => s.id === 'payouts-not-ready'
-        );
-        expect(signal?.href).toBe('/clubs/club-9?tab=payments');
-        expect(signal?.label).toBe(
-          payouts === 'incomplete'
-            ? 'bank account setup not finished'
-            : "club's bank account not set up"
-        );
-      }
-    );
-
-    it('reads a club under review as waiting', () => {
-      const signal = computeSetupReadinessSignals({ ...base, payouts: 'in-review' }).find(
-        s => s.id === 'payouts-not-ready'
-      );
-      expect(signal?.label).toBe('Stripe is reviewing the bank account');
-    });
-
-    it.each(['ready', 'demo', 'unknown', undefined] as const)(
-      'says nothing for %s (unknown is never "not connected")',
-      payouts => {
-        const signals = computeSetupReadinessSignals({
-          ...base,
-          ...(payouts === undefined ? {} : { payouts }),
-        });
-        expect(signals).toEqual([]);
-      }
-    );
-  });
-
   it('emits show-details-missing when a required show field is blank', () => {
     const signals = computeSetupReadinessSignals({
       show: show({ location: '' }),

@@ -278,52 +278,6 @@ const statusOf = (result: ReturnType<typeof buildReadyForShowDay>, id: string) =
   result.lines.find(line => line.id === id)?.status;
 
 describe('buildReadyForShowDay', () => {
-  describe('club payouts line (MYK9-2164)', () => {
-    const withPayouts = (payouts: NonNullable<ReadyForShowDayInput['setup']['payouts']>) =>
-      buildReadyForShowDay(
-        allGood({
-          setup: {
-            show: show({ clubId: 'club-9' }),
-            trials: [trial],
-            classes: [{ judgeName: 'Jane Smith' }],
-            payouts,
-          },
-        })
-      );
-    const line = (result: ReturnType<typeof buildReadyForShowDay>) =>
-      result.lines.find(l => l.id === 'payouts');
-
-    it('adds no line when the state was not supplied', () => {
-      expect(line(buildReadyForShowDay(allGood()))).toBeUndefined();
-    });
-
-    it('adds no line for a demo club', () => {
-      expect(line(withPayouts('demo'))).toBeUndefined();
-    });
-
-    it.each(['ready'] as const)('passes for %s', state => {
-      expect(line(withPayouts(state))?.status).toBe('pass');
-    });
-
-    it.each(['not-connected', 'incomplete', 'in-review'] as const)(
-      'fails for %s, linking the club Payments tab',
-      state => {
-        expect(line(withPayouts(state))).toMatchObject({
-          status: 'fail',
-          href: '/clubs/club-9?tab=payments',
-        });
-        expect(withPayouts(state).allClear).toBe(false);
-      }
-    );
-
-    it('is "can\'t check", not a failure, while the state is unknown', () => {
-      expect(line(withPayouts('unknown'))).toMatchObject({
-        status: 'unknown',
-        detail: "Can't check right now",
-      });
-    });
-  });
-
   it('is all clear when every check passes', () => {
     const result = buildReadyForShowDay(allGood());
     expect(result.allClear).toBe(true);

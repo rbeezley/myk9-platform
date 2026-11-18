@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { clubPayoutsMessage } from '@/features/payments/clubPayoutsState';
 import { PublishAttentionChip } from '../PublishAttentionChip';
 
 const control = vi.hoisted(() => ({
@@ -9,18 +8,6 @@ const control = vi.hoisted(() => ({
     hasPublishedPremium: false,
     landingUnpublished: false,
   },
-}));
-
-const canOpen = vi.hoisted(() => ({ value: true }));
-vi.mock('@/features/payments/useCanOpenClubPayments', () => ({
-  useCanOpenClubPayments: () => canOpen.value,
-}));
-vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
-const payouts = vi.hoisted(() => ({ state: 'ready' as string }));
-const navigate = vi.hoisted(() => vi.fn());
-vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
-vi.mock('@/features/payments/useClubPayoutsState', () => ({
-  useClubPayoutsState: () => ({ state: payouts.state }),
 }));
 
 const store = vi.hoisted(() => ({
@@ -42,86 +29,6 @@ describe('PublishAttentionChip', () => {
   beforeEach(() => {
     control.value = { infoState: 'ready', hasPublishedPremium: false, landingUnpublished: false };
     store.shows = [{ id: 'show-1', usesLandingPage: true, publishesOwnPremium: false }];
-    payouts.state = 'ready';
-    navigate.mockClear();
-    canOpen.value = true;
-  });
-
-  describe('club payouts nudge (MYK9-2164)', () => {
-    const draft = (overrides: Record<string, unknown> = {}) => {
-      store.shows = [
-        {
-          id: 'show-1',
-          clubId: 'club-9',
-          status: 'draft',
-          usesLandingPage: true,
-          publishesOwnPremium: false,
-          ...overrides,
-        },
-      ];
-    };
-
-    it.each([
-      ['not-connected', "club's bank account not set up"],
-      ['incomplete', 'bank account setup not finished'],
-      ['in-review', 'Stripe is reviewing the bank account'],
-    ])('shows "%s" nudge on a draft, linking the Payments tab', (state, label) => {
-      draft();
-      payouts.state = state;
-      control.value = {
-        infoState: 'loading',
-        hasPublishedPremium: false,
-        landingUnpublished: false,
-      };
-      render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: label }));
-      expect(navigate).toHaveBeenCalledWith('/clubs/club-9?tab=payments');
-    });
-
-    it('shows the full reason instead of navigating when she cannot open the Payments tab', async () => {
-      const { toast } = await import('sonner');
-      draft();
-      canOpen.value = false;
-      payouts.state = 'not-connected';
-      render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
-      fireEvent.click(screen.getByRole('button', { name: "club's bank account not set up" }));
-      expect(navigate).not.toHaveBeenCalled();
-      expect(toast.info).toHaveBeenCalledWith(clubPayoutsMessage('not-connected'));
-    });
-
-    it('comes before the premium nudge', () => {
-      draft();
-      payouts.state = 'not-connected';
-      render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: 'premium list not yet published' })).toBeNull();
-      expect(screen.getByRole('button', { name: "club's bank account not set up" })).toBeVisible();
-    });
-
-    it.each(['unknown', 'ready', 'demo'])('says nothing about payouts for %s', state => {
-      draft();
-      payouts.state = state;
-      control.value = { infoState: 'ready', hasPublishedPremium: true, landingUnpublished: false };
-      const { container } = render(
-        <PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />
-      );
-      expect(container).toBeEmptyDOMElement();
-    });
-
-    it('says nothing about payouts once the show is public', () => {
-      draft({ status: 'published' });
-      payouts.state = 'not-connected';
-      control.value = { infoState: 'ready', hasPublishedPremium: true, landingUnpublished: false };
-      const { container } = render(
-        <PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />
-      );
-      expect(container).toBeEmptyDOMElement();
-    });
-
-    it('still shows the premium nudge when payouts are fine', () => {
-      draft();
-      render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
-      expect(screen.getByRole('button', { name: 'premium list not yet published' })).toBeVisible();
-    });
   });
 
   it('says the premium list is not published, and opens About on the premium card on click', () => {

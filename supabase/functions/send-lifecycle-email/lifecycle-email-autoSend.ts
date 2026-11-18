@@ -18,6 +18,8 @@
  *   judge_changed (MYK9-2125)                 same drain; the email names each class whose judge
  *                                             changed, rendered at send time. A class with no
  *                                             judge named yet is told as "not named yet"
+ *   entry_changed (MYK9-2126)                 same drain; the email lists what the secretary changed
+ *                                             on the person's own entries, as it stands at send time
  */
 import {
   deliverViaResend,
@@ -31,6 +33,7 @@ import {
   type SendLifecycleEmailDeps,
 } from './lifecycle-email-shared.ts';
 import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
+import { planEntryChangedEmail, renderEntryChangedEmail } from './lifecycle-email-entryChanged.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -230,6 +233,23 @@ async function processClaimedJob(args: {
       recipientName: job.recipient_name,
       registryId: plan.registryId,
       changes: plan.changes,
+    });
+  } else if (job.step_type === 'entry_changed') {
+    // MYK9-2126: told only what still stands on the person's own entries.
+    const plan = await planEntryChangedEmail({
+      supabase,
+      jobId: job.job_id,
+      personId: job.recipient_person_id,
+    });
+    if (plan.kind === 'skip') {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderEntryChangedEmail({
+      showId: job.show_id,
+      showName: show.name,
+      recipientName: job.recipient_name,
+      lines: plan.lines,
     });
   } else {
     if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {

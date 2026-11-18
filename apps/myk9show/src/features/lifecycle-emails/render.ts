@@ -214,6 +214,18 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
           showLine,
         ]),
       };
+    // MYK9-2126: written and sent by the server from the entries' current state at send time
+    // (send-lifecycle-email, lifecycle-email-entryChanged.ts); no screen drafts it.
+    case 'entry_changed':
+      return {
+        subject: `Change to your entry at ${showName}`,
+        body: joinLines([
+          greeting,
+          '',
+          `The trial secretary made a change to your entry at ${showName}.`,
+          showLine,
+        ]),
+      };
     case 'registration_number_needed': {
       const dogName = input.entry?.dogName?.trim() || 'your dog';
       const registry = input.entry?.registryName?.trim();

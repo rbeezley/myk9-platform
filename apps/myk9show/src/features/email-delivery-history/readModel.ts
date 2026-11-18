@@ -129,6 +129,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
     if (lifecycleStepType === 'show_changed') return 'Date or venue changed';
     // MYK9-2125: the same, when a class's judge changes.
     if (lifecycleStepType === 'judge_changed') return 'Judge changed';
+    // MYK9-2126: and when the secretary edits, moves or pulls her entry.
+    if (lifecycleStepType === 'entry_changed') return 'Entry changed';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {

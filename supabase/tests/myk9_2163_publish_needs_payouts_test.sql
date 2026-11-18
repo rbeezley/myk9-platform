@@ -421,6 +421,10 @@ BEGIN
   --     would strand every show published before its club lost payouts.
   UPDATE public.shows SET status = 'upcoming'
    WHERE id = '00000000-0000-0000-0000-000002163112';
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000002163112';
+  IF v_status IS DISTINCT FROM 'upcoming' THEN
+    RAISE EXCEPTION 'FAIL 5d published -> upcoming did not land at a club without payouts (status %)', v_status;
+  END IF;
   UPDATE public.shows SET status = 'published'
    WHERE id = '00000000-0000-0000-0000-000002163112';
   UPDATE public.shows SET entry_close_date = (current_date + 3)::timestamptz

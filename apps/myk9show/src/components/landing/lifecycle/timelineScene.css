@@ -290,7 +290,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tl-scene-shot,
+  .tl-scene .tl-scene-shot,
   .tl-scene-ring,
   .tl-scene-device,
   .tl-scene-num,

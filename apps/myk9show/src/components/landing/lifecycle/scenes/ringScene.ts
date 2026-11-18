@@ -26,7 +26,7 @@ const ALT: Record<ShotName, string> = {
   confirm:
     'Score Confirmation reading back armband 105, Cooper, Qualified and the time, with Confirm and Submit',
   saved: 'Back on the list of dogs: Saved, 105 Cooper, Qualified, on this device, not sent yet',
-  sent: 'The list of dogs with the header back online and a Scores sent message',
+  sent: 'The list of dogs: the Saved line no longer says not sent yet, and a Scores sent message shows',
 };
 
 const shot = (name: ShotName): SceneShot => ({
@@ -65,12 +65,13 @@ export const RING_SCENE: TimelineSceneData = {
   // a phone. A small control is held to a camera no narrower than its `minWidth`.
   frames: [
     frame(0, 4200, 'classes', classes.regions.card, around(classes.regions.card)),
-    frame(1, 4200, 'offline', offline.regions.status, around(offline.regions.status, 520)),
+    // Whole page: the dog up next, with its armband and check-in, is the run order that stays.
+    frame(1, 4200, 'offline', offline.regions.status),
     frame(2, 2400, 'sheet', sheet.regions.start, around(sheet.regions.start)),
     frame(2, 2600, 'running', running.regions.time, around(running.regions.timer)),
     frame(2, 3200, 'result', result.regions.result, around(result.regions.result)),
     frame(3, 3600, 'confirm', confirm.regions.dialog, around(confirm.regions.dialog, 0, 48)),
-    frame(3, 3600, 'saved', saved.regions.text, around(saved.regions.text, 600)),
+    frame(3, 3600, 'saved', saved.regions.text),
     // The same line once the score is sent: "not sent yet" is gone.
     frame(4, 2600, 'sent', sent.regions.text),
     frame(4, 3600, 'sent', sent.regions.toast, around(sent.regions.toast, 480)),

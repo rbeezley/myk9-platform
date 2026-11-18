@@ -1,19 +1,29 @@
 // Shared helpers for capturing the landing page's timeline scenes from the running app
 // (docs/plan-landing-animated-timeline.md, MYK9-1894).
 //
-// A capture run must never change shared data. Three rules, all enforced here:
+// A capture run must never change shared data. Four rules, all enforced here:
 //   1. Only a local dev server is driven (CAPTURE_BASE_URL must be localhost).
-//   2. Every request that leaves localhost is refused unless it is a read: GET/HEAD/OPTIONS,
-//      the auth endpoints needed to sign in, and RPCs whose name starts with a read prefix.
-//      RPCs are POSTs and some write (opening a ringside scoresheet calls
+//   2. Every request to any origin but that dev server is refused unless it is a read
+//      (guardRules.ts). RPCs are POSTs and some write (opening a ringside scoresheet calls
 //      ringside_update_entry), so "/rpc/" is never exempt as a whole.
-//   3. A state the seed data does not hold is staged by changing what the browser is shown
+//   3. Nothing at all goes to the production project unless the shell running the capture
+//      sets MYK9_ALLOW_PROD_E2E=1, the opt-in src/test/productionFixtureGuard.ts asks of a
+//      Playwright run (MYK9-1454): a fixture sign-in runs a full sync on the live database.
+//      The host is read from the requests the app really makes, not from an env file.
+//   4. A state the seed data does not hold is staged by changing what the browser is shown
 //      (a patched response, or a staged answer to a refused write), never by writing it.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import type { Browser, BrowserContext, Locator, Page, Route } from '@playwright/test';
+import {
+  isProductionHost,
+  isReadMethod,
+  isReadRequest,
+  rangeHeaders,
+  rpcName,
+} from './guardRules.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const APP_DIR = join(HERE, '..', '..');
@@ -22,19 +32,15 @@ export const BASE = process.env.CAPTURE_BASE_URL ?? 'http://localhost:5173';
 /** Heartland Scent Work Classic, the canonical seed show. */
 export const SHOW = 'dededede-0000-0000-0000-000000000010';
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-const READ_RPC = /^(get_|is_|list_|has_|can_|tv_|find_)/;
-// Reads whose names do not say so. Both are declared STABLE in their migrations
-// (20261031014300 and 20261113224300); check the definition before adding a name here.
-const READ_RPC_NAMES = new Set([
-  'entry_results_changed_since',
-  'ringside_claim_generation_current',
-]);
-const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-if (!LOCAL_HOSTS.has(new URL(BASE).hostname)) {
+const BASE_URL = new URL(BASE);
+if (!['localhost', '127.0.0.1', '[::1]'].includes(BASE_URL.hostname)) {
   throw new Error(`Capture runs drive a local dev server only; CAPTURE_BASE_URL is ${BASE}`);
 }
+const PRODUCTION_ALLOWED = process.env.MYK9_ALLOW_PROD_E2E === '1';
+const PRODUCTION_REFUSAL =
+  'Capture: nothing was sent, because the dev server points at the production project. ' +
+  'Point VITE_SUPABASE_URL at an isolated stack (pnpm qa:isolated-e2e:prepare) and restart ' +
+  'the dev server, or set MYK9_ALLOW_PROD_E2E=1 in the shell for this run.';
 
 function loadEnv(): Record<string, string> {
   const env: Record<string, string> = {};
@@ -65,6 +71,11 @@ export function launch(): Promise<Browser> {
 export type Guard = {
   /** Writes that were refused, for the run's log. An unexpected name here is worth reading. */
   refused: string[];
+  /**
+   * Sign a seeded account in. Throws, with nothing sent, when the backend is the production
+   * project and the run has not opted in.
+   */
+  signIn(page: Page, role: Role): Promise<void>;
   /** Cut the browser off from the backend entirely and tell the app it is offline. */
   goOffline(page: Page): Promise<void>;
   /** Let reads through again and tell the app it is back online. Writes stay refused. */
@@ -77,50 +88,34 @@ export type Guard = {
   stageRpcAnswer(name: string, answer: (args: unknown) => unknown): void;
 };
 
-/**
- * A patch that drops rows must also shrink Content-Range ("0-48/49"), or the app's sync sees
- * fewer rows than the server promised and treats its copy of the show as incomplete.
- */
-function rangeHeaders(
-  headers: Record<string, string>,
-  before: unknown,
-  after: unknown
-): Record<string, string> {
-  const range = headers['content-range']?.match(/^(?:(\d+)-(\d+)|\*)\/(\d+|\*)$/);
-  if (!range || !Array.isArray(before) || !Array.isArray(after)) return headers;
-  const dropped = before.length - after.length;
-  if (dropped === 0) return headers;
-  const [, from, to, total] = range;
-  const count = total === '*' ? '*' : String(Number(total) - dropped);
-  const end = Number(to) - dropped;
-  const rows = from === undefined || end < Number(from) ? '*' : `${from}-${end}`;
-  return { ...headers, 'content-range': `${rows}/${count}` };
-}
+/** Rewrites the rows of the reads whose path matches `paths`; every other read is untouched. */
+export type JsonPatch = { paths: RegExp; rows: (body: unknown) => unknown };
 
 /**
  * A count probe is a HEAD with no body to patch. Read the same rows with a GET, run them
  * through the patch, and report the count the patched list would have.
  */
-async function patchedCount(route: Route, url: URL, patch: JsonPatch) {
+async function patchedCount(route: Route, url: URL, rows: JsonPatch['rows']) {
   const rowsUrl = new URL(url);
   rowsUrl.searchParams.set('select', '*');
-  const [res, rows] = await Promise.all([
+  const [res, all] = await Promise.all([
     route.fetch(),
     route.fetch({ url: rowsUrl.toString(), method: 'GET' }),
   ]);
-  const before: unknown = await rows.json().catch(() => null);
-  const after = patch(before);
-  return route.fulfill({ response: res, headers: rangeHeaders(res.headers(), before, after) });
+  const before: unknown = await all.json().catch(() => null);
+  return route.fulfill({
+    response: res,
+    headers: rangeHeaders(res.headers(), before, rows(before)),
+  });
 }
 
-export type JsonPatch = (body: unknown) => unknown;
-
 /**
- * Install the write guard on a context. `patch`, when given, rewrites the JSON of every read
- * the guard lets through, which is how a state is staged without writing it.
+ * Install the write guard on a context. `patch`, when given, rewrites the JSON of the reads
+ * it names, which is how a state is staged without writing it.
  */
 export async function guardBackend(ctx: BrowserContext, patch?: JsonPatch): Promise<Guard> {
   let cutOff = false;
+  let productionRefused = false;
   const staged = new Map<string, (args: unknown) => unknown>();
   const refused: string[] = [];
 
@@ -132,33 +127,37 @@ export async function guardBackend(ctx: BrowserContext, patch?: JsonPatch): Prom
     });
   });
 
+  // Everything but the dev server itself, so a Supabase stack on 127.0.0.1 is guarded too.
   await ctx.route(
-    url => !LOCAL_HOSTS.has(url.hostname),
+    url => url.origin !== BASE_URL.origin,
     async (route: Route) => {
       const req = route.request();
       const url = new URL(req.url());
       const method = req.method();
-      const rpc = url.pathname.match(/\/rest\/v1\/rpc\/([^/?]+)/)?.[1];
 
+      if (isProductionHost(url.hostname) && !PRODUCTION_ALLOWED) {
+        productionRefused = true;
+        return route.abort('blockedbyclient');
+      }
+
+      const rpc = rpcName(url.pathname);
       const answer = rpc ? staged.get(rpc) : undefined;
-      if (answer && !READ_METHODS.has(method)) {
+      if (answer && !isReadMethod(method)) {
         // Answered here: the request never leaves the machine.
         return route.fulfill({ status: 200, json: answer(req.postDataJSON()) });
       }
       if (cutOff) return route.abort('internetdisconnected');
 
-      const isRead =
-        READ_METHODS.has(method) ||
-        (method === 'POST' && url.pathname.startsWith('/auth/v1/')) ||
-        (method === 'POST' && rpc !== undefined && (READ_RPC.test(rpc) || READ_RPC_NAMES.has(rpc)));
-      if (!isRead) {
+      if (!isReadRequest(method, url.pathname)) {
         refused.push(`${method} ${url.pathname}`);
         return route.abort('failed');
       }
-      if (!patch || !url.pathname.startsWith('/rest/v1/')) return route.fallback();
+      if (!patch || !url.pathname.startsWith('/rest/v1/') || !patch.paths.test(url.pathname)) {
+        return route.fallback();
+      }
 
       if (method === 'HEAD') {
-        return patchedCount(route, url, patch).catch(() => route.abort('failed'));
+        return patchedCount(route, url, patch.rows).catch(() => route.abort('failed'));
       }
       let res;
       try {
@@ -172,7 +171,7 @@ export async function guardBackend(ctx: BrowserContext, patch?: JsonPatch): Prom
       } catch {
         return route.fulfill({ response: res });
       }
-      const patched = patch(body);
+      const patched = patch.rows(body);
       return route.fulfill({
         response: res,
         json: patched,
@@ -190,6 +189,30 @@ export async function guardBackend(ctx: BrowserContext, patch?: JsonPatch): Prom
 
   return {
     refused,
+    async signIn(page, role) {
+      const keys = CREDENTIALS[role];
+      const email = ENV[keys.email];
+      const password = ENV[keys.password];
+      if (!email || !password) {
+        throw new Error(`${keys.email} / ${keys.password} are not set in apps/myk9show/.env`);
+      }
+      await page.goto(`${BASE}/sign-in`);
+      const credential = page.locator('#credential');
+      await credential.waitFor({ state: 'visible', timeout: 30_000 });
+      await credential.fill(email);
+      await credential.press('Enter');
+      const pw = page.locator('input[type="password"]:visible').first();
+      await pw.waitFor({ state: 'visible', timeout: 15_000 });
+      await pw.fill(password);
+      await pw.press('Enter');
+      await page
+        .waitForURL(u => !u.href.includes('/sign-in'), { timeout: 30_000 })
+        .catch((err: unknown) => {
+          // The guard dropped the sign-in request itself, so the page never left /sign-in.
+          throw productionRefused ? new Error(PRODUCTION_REFUSAL) : err;
+        });
+      await settle(page, 2000);
+    },
     async goOffline(page) {
       cutOff = true;
       await setOnline(page, false);
@@ -202,45 +225,6 @@ export async function guardBackend(ctx: BrowserContext, patch?: JsonPatch): Prom
       staged.set(name, answer);
     },
   };
-}
-
-/**
- * The rule src/test/productionFixtureGuard.ts applies to Playwright runs (MYK9-1454), applied
- * here too: a fixture account is not signed in to the production project unless the shell
- * running the capture says so. Every fixture sign-in runs a full sync against the live
- * database. That module cannot be imported from a script run by node, so the project ref and
- * the variable's name are repeated; keep them the same as PRODUCTION_PROJECT_REF and
- * ALLOW_PRODUCTION_FIXTURE_SIGN_IN there.
- */
-function assertFixtureSignInAllowed(): void {
-  const url = process.env.VITE_SUPABASE_URL ?? ENV.VITE_SUPABASE_URL ?? '';
-  if (!url.includes('sojmvhhwsjxmfistvzbe') || process.env.MYK9_ALLOW_PROD_E2E === '1') return;
-  throw new Error(
-    'Capture: refusing to sign a test account in, because the dev server points at the ' +
-      'production project. Point VITE_SUPABASE_URL at an isolated stack ' +
-      '(pnpm qa:isolated-e2e:prepare), or set MYK9_ALLOW_PROD_E2E=1 in the shell for this run.'
-  );
-}
-
-export async function signIn(page: Page, role: Role): Promise<void> {
-  assertFixtureSignInAllowed();
-  const keys = CREDENTIALS[role];
-  const email = ENV[keys.email];
-  const password = ENV[keys.password];
-  if (!email || !password) {
-    throw new Error(`${keys.email} / ${keys.password} are not set in apps/myk9show/.env`);
-  }
-  await page.goto(`${BASE}/sign-in`);
-  const credential = page.locator('#credential');
-  await credential.waitFor({ state: 'visible', timeout: 30_000 });
-  await credential.fill(email);
-  await credential.press('Enter');
-  const pw = page.locator('input[type="password"]:visible').first();
-  await pw.waitFor({ state: 'visible', timeout: 15_000 });
-  await pw.fill(password);
-  await pw.press('Enter');
-  await page.waitForURL(u => !u.href.includes('/sign-in'), { timeout: 30_000 });
-  await settle(page, 2000);
 }
 
 export async function settle(page: Page, ms = 2500): Promise<void> {
@@ -273,10 +257,14 @@ export async function box(loc: Locator, minW = 0, minH = 0): Promise<Box> {
   );
 }
 
+/** Visible text of the page, one line per rendered line. */
+export function visibleText(page: Page): Promise<string> {
+  return page.evaluate(() => document.body.innerText);
+}
+
 /** Visible text of the page on one line, for the run's log. */
 export async function pageText(page: Page, max = 600): Promise<string> {
-  const text = await page.evaluate(() => document.body.innerText);
-  return text
+  return (await visibleText(page))
     .split(/\s*[\r\n]+\s*/)
     .join(' | ')
     .slice(0, max);

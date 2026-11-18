@@ -120,6 +120,9 @@ describe('the ring scene on the page', () => {
     const scene = sceneIn(container, 'lc-main');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-solo', 'true');
+    const demo = container.querySelector('#showday .lc-demo');
+    expect(demo).not.toBeNull();
+    expect(scene!.compareDocumentPosition(demo!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(1);
     expect(screen.getByRole('button', { name: /The signal drops/ })).toBeInTheDocument();
   });

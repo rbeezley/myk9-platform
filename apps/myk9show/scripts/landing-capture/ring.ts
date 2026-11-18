@@ -16,15 +16,28 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
-import { APP_DIR, BASE, SHOW, box, guardBackend, launch, pageText, settle, signIn } from './lib.ts';
+import {
+  APP_DIR,
+  BASE,
+  SHOW,
+  box,
+  guardBackend,
+  launch,
+  pageText,
+  settle,
+  visibleText,
+} from './lib.ts';
 import type { Box } from './lib.ts';
 
 const SPACE = { width: 768, height: 1024 };
 const SCALE = 1.5;
 const CLASS_NAME = 'Container Novice A';
 const DOG = 'Cooper';
-/** Armbands on the seed show that belong to accounts created after the seed. */
-const NOT_FIXTURES = new Set([106, 107, 108, 109, 110, 111]);
+/**
+ * The seed's own armbands on this show. Anything else was entered by an account made after
+ * the seed (106 to 111 so far) and is left out, so a new entry never reaches a capture.
+ */
+const FIXTURE_ARMBANDS = new Set([100, 101, 102, 103, 104, 105]);
 /** How long the judge's timer runs before Stop, so the time on screen looks like a search. */
 const RUN_MS = 38_000;
 
@@ -45,14 +58,19 @@ const isRow = (v: unknown): v is Row => typeof v === 'object' && v !== null && !
 /** Fields the app "sent", keyed by entry id, laid over what the server says on later reads. */
 const accepted = new Map<string, Row>();
 
-function patch(body: unknown): unknown {
+/** A row that carries an armband is kept only when the armband is a fixture's. */
+function isFixtureRow(row: unknown): boolean {
+  if (!isRow(row)) return true;
+  const key = 'armband' in row ? 'armband' : 'armband_number' in row ? 'armband_number' : null;
+  return key === null || FIXTURE_ARMBANDS.has(Number(row[key]));
+}
+
+function patchRows(body: unknown): unknown {
   if (!Array.isArray(body)) return body;
-  return body
-    .filter(row => !(isRow(row) && NOT_FIXTURES.has(Number(row.armband))))
-    .map(row => {
-      const sent = isRow(row) && typeof row.id === 'string' ? accepted.get(row.id) : undefined;
-      return sent ? { ...row, ...sent } : row;
-    });
+  return body.filter(isFixtureRow).map(row => {
+    const sent = isRow(row) && typeof row.id === 'string' ? accepted.get(row.id) : undefined;
+    return sent ? { ...row, ...sent } : row;
+  });
 }
 
 const shots: Record<string, { file: string; regions: Record<string, Box> }> = {};
@@ -65,6 +83,14 @@ async function shoot(
   const measured: Record<string, Box> = {};
   for (const [key, target] of Object.entries(regions)) {
     measured[key] = Array.isArray(target) ? await box(...target) : await box(target);
+  }
+  // Last check before an image is written: every armband on screen is a fixture's. Armbands
+  // on this show are 1xx, and nothing else on these screens is a bare three-digit 1xx number.
+  const strangers = [...(await visibleText(page)).matchAll(/\b1\d\d\b/g)]
+    .map(m => Number(m[0]))
+    .filter(n => !FIXTURE_ARMBANDS.has(n));
+  if (strangers.length > 0) {
+    throw new Error(`${name}: armband ${strangers.join(', ')} on screen is not a seed fixture`);
   }
   const file = `${name}.png`;
   await page.screenshot({ path: join(IMG_DIR, file) });
@@ -80,17 +106,17 @@ try {
     deviceScaleFactor: SCALE,
     hasTouch: true,
   });
-  const guard = await guardBackend(ctx, patch);
+  const guard = await guardBackend(ctx, { paths: /entr|armband/i, rows: patchRows });
   const page = await ctx.newPage();
   const button = (name: string | RegExp) => page.getByRole('button', { name, exact: true });
 
-  await signIn(page, 'judge');
+  await guard.signIn(page, 'judge');
 
   // Line 1: the ring's classes, each with how many dogs are scored.
   await page.goto(`${BASE}/at-show/${SHOW}`);
   await settle(page, 5000);
   await page.getByText('Your ring').first().waitFor();
-  await shoot(page, 'classes', { card: [page.getByText(CLASS_NAME).first(), 560, 120] });
+  await shoot(page, 'classes', { card: [page.getByText(CLASS_NAME).first(), 560, 170] });
 
   // Line 2: the signal drops. Nothing has been scored offline yet, so the header reads
   // "Offline · scores saved on this device".

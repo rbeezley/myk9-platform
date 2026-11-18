@@ -163,13 +163,16 @@ for (const vp of VIEWPORTS) {
       await peak.scrollIntoViewIfNeeded();
       const sw = peak.getByRole('switch', { name: 'Venue signal' });
       await sw.click();
-      await peak.getByRole('button', { name: 'Start' }).click();
+      // The ring scene's numbered lines sit in the same step and are buttons whose names hold
+      // these words ("Start, Stop, then Qualified..."), so the lookups stay inside the scoresheet.
+      const demo = peak.locator('.lc-demo');
+      await demo.getByRole('button', { name: 'Start', exact: true }).click();
       await page.waitForTimeout(600);
-      await peak.getByRole('button', { name: 'Stop' }).click();
-      await peak.getByRole('button', { name: 'Qualified' }).click();
-      await peak.getByRole('button', { name: 'Save' }).click();
-      await peak.getByRole('button', { name: 'Absent' }).click();
-      await peak.getByRole('button', { name: 'Save' }).click();
+      await demo.getByRole('button', { name: 'Stop', exact: true }).click();
+      await demo.getByRole('button', { name: 'Qualified', exact: true }).click();
+      await demo.getByRole('button', { name: 'Save', exact: true }).click();
+      await demo.getByRole('button', { name: 'Absent', exact: true }).click();
+      await demo.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(peak.getByText('No signal · 2 waiting')).toBeVisible();
       await sw.click();
       await expect(peak.getByText('All sent')).toBeVisible({ timeout: 4000 });

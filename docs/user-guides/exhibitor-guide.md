@@ -60,6 +60,8 @@ If this is your first time, you'll need an account before entering a show.
 
 ## Section 3 — Add Your Dog
 
+> **Watch:** [How to add your dog (1 min 18 s)](https://youtu.be/3LBeFqQrNGg)
+
 Before entering a show, your dog needs a profile in your account.
 
 1. Go to **My Dogs** in the navigation.
@@ -84,6 +86,8 @@ Your dog now appears in your list and is ready to enter shows. The confirmation 
 ---
 
 ## Section 4 — Enter a Show
+
+> **Watch:** [How to enter a show (1 min 24 s)](https://youtu.be/J2gw-w8I2gE)
 
 > **Before you start:** Make sure you've added your dog first (Section 3). You pick the dog on the first step, and the wizard has nothing to enter without one.
 
@@ -304,6 +308,8 @@ If the club denies a request, you cannot send the same request again from this p
 ---
 
 ## Still need help?
+
+More videos for exhibitors: [myK9Show - Exhibitors](https://www.youtube.com/playlist?list=PLf1-NSG71E4o).
 
 - [Enter a show](#section-4--enter-a-show) — step-by-step for the entry form
 - [Track your entry](#section-5--track-your-entry) — what each status badge means

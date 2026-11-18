@@ -70,6 +70,8 @@ Tapping a class opens its entry list — the dogs in run order, on the **Pending
 
 ## Score a dog
 
+> **Watch before show day:** [How to score a dog (1 min 40 s)](https://youtu.be/1d6sVXNVDak) It starts at signing in with a passcode. The video needs a signal. Scoring at the ring does not.
+
 This section is for the judge, or anyone the secretary has given scoring access. Record the result as soon as the dog finishes. It saves on your device first, then sends to the secretary.
 
 1. Tap the entry to open the scoresheet.
@@ -132,6 +134,8 @@ Show venues often have weak signal. The app is built for it.
 ---
 
 ## Still need help?
+
+More videos for judges and stewards: [myK9Show - Judges and Stewards](https://www.youtube.com/playlist?list=PLNz_qO-RIZtg).
 
 Find the trial secretary at the show desk. They control access codes, the run order, and results.
 

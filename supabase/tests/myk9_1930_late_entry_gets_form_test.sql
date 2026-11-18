@@ -126,9 +126,6 @@ VALUES
    now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000001930b04', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-1930-outsider@example.test', '', now(), now(),
-   now(), '{}', '{}', false, false, false),
-  ('00000000-0000-0000-0000-000001930b12', '00000000-0000-0000-0000-000000000000',
-   'authenticated', 'authenticated', 'myk9-1930-exhibitor-12@example.test', '', now(), now(),
    now(), '{}', '{}', false, false, false);
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000001930b03'
  WHERE id = '00000000-0000-0000-0000-000001930c03';
@@ -151,6 +148,18 @@ GRANT EXECUTE ON FUNCTION pg_temp.e(int), pg_temp.d(int), pg_temp.en(int) TO aut
 INSERT INTO public.people (id, first_name, last_name, email)
 SELECT pg_temp.e(n), 'MYK9-1930', 'Exhibitor ' || n, 'myk9-1930-exhibitor-' || n || '@example.test'
   FROM generate_series(1, 40) AS n;
+-- Exhibitor 12 signs in (the waitlist case needs a real account). Her person row comes
+-- first, as for the secretary above: a sign-up whose email has no person yet makes one,
+-- and that row would collide with the person just inserted (people_email_unique).
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES
+  ('00000000-0000-0000-0000-000001930b12', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-1930-exhibitor-12@example.test', '', now(), now(),
+   now(), '{}', '{}', false, false, false);
 INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
 SELECT pg_temp.d(n), 'MYK9-1930 Dog ' || n, 'Cap', 'Beagle', 'active',
        CASE WHEN n = 10 THEN NULL ELSE pg_temp.e(n) END
@@ -462,7 +471,8 @@ SELECT last_value, is_called FROM public.registration_confirmation_seq;
 
 -- A waitlist offer the secretary makes by hand: 'pending-payment', paid by card later.
 INSERT INTO public.exhibitor_profiles (person_id, auth_user_id)
-VALUES (pg_temp.e(12), '00000000-0000-0000-0000-000001930b12');
+VALUES (pg_temp.e(12), '00000000-0000-0000-0000-000001930b12')
+ON CONFLICT DO NOTHING;  -- a sign-up that links an existing person may already have made it
 INSERT INTO public.waitlist_entries (id, class_id, exhibitor_id, dog_id, position, status, joined_via)
 SELECT '00000000-0000-0000-0000-000001930912', '00000000-0000-0000-0000-000001930c32', ep.id,
        pg_temp.d(12), 1, 'waiting', 'online'

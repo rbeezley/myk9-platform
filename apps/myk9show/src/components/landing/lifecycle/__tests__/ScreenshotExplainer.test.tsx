@@ -5,11 +5,11 @@ import { ScreenshotExplainer } from '../ScreenshotExplainer';
 import type { ExplainerStep, Shot } from '../lifecycleStories';
 
 const shot: Shot = {
-  src: '/landing/stages/j-04.png',
-  alt: 'Judge scoresheet on a tablet',
-  width: 768,
-  height: 1024,
-  shape: 'tablet',
+  src: '/landing/stages/e-13.png',
+  alt: 'My Entries on a phone',
+  width: 390,
+  height: 844,
+  shape: 'phone',
 };
 const steps: ExplainerStep[] = [
   {
@@ -150,6 +150,6 @@ describe('ScreenshotExplainer', () => {
     render(<ScreenshotExplainer shot={shot} steps={steps} />);
     const img = screen.getByRole('img', { name: shot.alt });
     expect(img).toHaveAttribute('loading', 'lazy');
-    expect(img).toHaveAttribute('width', '768');
+    expect(img).toHaveAttribute('width', '390');
   });
 });

@@ -73,6 +73,7 @@ describe('captureStartProblem', () => {
     inWorkflow: true,
     productionOptIn: false,
     supabaseUrl: 'http://127.0.0.1:54321',
+    bundleFound: true,
     bundleFilesNamingProduction: 0,
     outbound: 'refused',
   };
@@ -90,6 +91,7 @@ describe('captureStartProblem', () => {
     [{ supabaseUrl: 'http://127.0.0.1.example.com:54321' }, /isolated Supabase stack/],
     [{ supabaseUrl: 'not a url' }, /isolated Supabase stack/],
     [{ supabaseUrl: undefined }, /isolated Supabase stack/],
+    [{ bundleFound: false }, /No built bundle was found/],
     [{ bundleFilesNamingProduction: 1 }, /built against the production project/],
     [{ outbound: 'connected' as const }, /can reach the internet/],
     [{ outbound: 'unknown' as const }, /not proved closed/],
@@ -115,14 +117,14 @@ describe('captureStartProblem', () => {
 // the way the plan says. These pin both, so loosening either fails here.
 describe('the capture spec and its job', () => {
   const app = resolve(__dirname, '../../..');
-  const spec = readFileSync(
-    resolve(app, 'src/test/e2e/capture/landingRingCapture.spec.ts'),
-    'utf8'
-  );
-  const workflow = readFileSync(
-    resolve(app, '../../.github/workflows/landing-capture.yml'),
-    'utf8'
-  );
+  /** A file without its comment lines, so a rule that is only commented out does not pass. */
+  const code = (file: string, marks: string[]) =>
+    readFileSync(resolve(app, file), 'utf8')
+      .split('\n')
+      .filter(line => !marks.some(mark => line.trim().startsWith(mark)))
+      .join('\n');
+  const spec = code('src/test/e2e/capture/landingRingCapture.spec.ts', ['//', '/*', '*']);
+  const workflow = code('../../.github/workflows/landing-capture.yml', ['#']);
 
   it('skips outside the capture job and asks every start condition before any test', () => {
     expect(spec).toMatch(/test\.skip\(\s*process\.env\.PLAYWRIGHT_LANDING_CAPTURE !== 'true',/);
@@ -135,7 +137,8 @@ describe('the capture spec and its job', () => {
       "inWorkflow: process.env.GITHUB_ACTIONS === 'true'",
       'productionOptIn: process.env[ALLOW_PRODUCTION_FIXTURE_SIGN_IN] !== undefined',
       'supabaseUrl: process.env.VITE_SUPABASE_URL',
-      'bundleFilesNamingProduction: bundleFilesNamingProduction(',
+      "bundleFound: existsSync(join(APP_DIR, 'dist', 'index.html'))",
+      "bundleFilesNamingProduction: bundleFilesNamingProduction(join(APP_DIR, 'dist')).length",
       'outbound: await probeOutbound(OUTBOUND_PROBE.host, OUTBOUND_PROBE.port)',
     ]) {
       expect(beforeAll, fact).toContain(fact);
@@ -158,6 +161,14 @@ describe('the capture spec and its job', () => {
     );
     const capture = workflow.indexOf("'pnpm exec playwright test --config=playwright.ci.config.ts");
     expect(workflow).toMatch(/for firewall in iptables ip6tables; do/);
+    // The one thing the group is let through to is the loopback interface.
+    const accepts = workflow.split('\n').filter(line => line.includes('-j ACCEPT'));
+    expect(accepts.map(line => line.trim())).toEqual([
+      'sudo "$firewall" -A OUTPUT -m owner --gid-owner landing-capture -o lo -j ACCEPT',
+    ]);
+    // The job makes its own account passwords and is given none of the repository's.
+    expect(workflow).not.toMatch(/secrets\.E2E_/);
+    expect(workflow).toMatch(/value="Job-\$\(openssl rand -hex 16\)-9a"/);
     expect(rule).toBeGreaterThan(0);
     expect(control).toBeGreaterThan(rule);
     expect(confined).toBeGreaterThan(control);

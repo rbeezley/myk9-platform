@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
@@ -44,8 +44,6 @@ const SCALE = 2;
 // times two areas.
 const CLASS_NAME = 'Exterior Excellent';
 const DOG = 'Juni';
-/** How long the judge's timer runs before Stop, so the time on screen looks like a search. */
-const RUN_MS = 38_000;
 
 const APP_DIR = process.cwd();
 const IMG_DIR = join(APP_DIR, 'public', 'landing', 'scenes', 'ring');
@@ -115,6 +113,7 @@ test.beforeAll(async () => {
     inWorkflow: process.env.GITHUB_ACTIONS === 'true',
     productionOptIn: process.env[ALLOW_PRODUCTION_FIXTURE_SIGN_IN] !== undefined,
     supabaseUrl: process.env.VITE_SUPABASE_URL,
+    bundleFound: existsSync(join(APP_DIR, 'dist', 'index.html')),
     bundleFilesNamingProduction: bundleFilesNamingProduction(join(APP_DIR, 'dist')).length,
     outbound: await probeOutbound(OUTBOUND_PROBE.host, OUTBOUND_PROBE.port),
   });
@@ -142,11 +141,14 @@ test('no WebSocket the capture opens reaches a server', async ({ browser, baseUR
         }),
       url
     );
+  // A document from the preview server that runs none of the app's code, so the only socket
+  // either context opens is the one this test opens.
+  const plainPage = `${baseURL}/manifest.json`;
   try {
     // Control: without the hold, the same socket reaches the server.
     const bare = await browser.newContext();
     const barePage = await bare.newPage();
-    await barePage.goto(`${baseURL}/sign-in`);
+    await barePage.goto(plainPage);
     await open(barePage);
     await bare.close();
     expect(upgrades, 'control: an unheld socket reaches the server').toBe(1);
@@ -155,7 +157,7 @@ test('no WebSocket the capture opens reaches a server', async ({ browser, baseUR
     const guarded = await browser.newContext();
     const held = await holdWebSockets(guarded);
     const page = await guarded.newPage();
-    await page.goto(`${baseURL}/sign-in`);
+    await page.goto(plainPage);
     await open(page);
     await guarded.close();
     expect(upgrades).toBe(0);
@@ -248,13 +250,22 @@ test('captures the ring scene on the judge’s phone', async ({ page, context })
   await page.waitForTimeout(600);
   await shoot('sheet', { start: button('Start') });
   await button('Start').click();
-  await page.waitForTimeout(RUN_MS);
-  await shoot('running', {
-    timer: [button('Stop'), 300, 120],
-    time: page.getByText(/^\d:\d\d\.\d\d$/).first(),
-  });
+  // The alt text and the evidence doc say 38 seconds, so the walk follows the timer itself,
+  // not a fixed wait: the running shot is taken from 0:37.5 on ("about 38 seconds"), and
+  // Stop is pressed as soon as the time reads 0:38, with only that click in between.
+  const time = page.getByText(/^\d:\d\d\.\d\d$/).first();
+  const timeReads = async (seconds: number) => {
+    const handle = await time.elementHandle();
+    await page.waitForFunction(
+      ([el, min]) => Number((el?.textContent ?? '').split(':')[1]) >= min,
+      [handle, seconds] as const,
+      { timeout: 60_000 }
+    );
+  };
+  await timeReads(37.5);
+  await shoot('running', { timer: [button('Stop'), 300, 120], time });
+  await timeReads(38);
   await button('Stop').click();
-  // The alt text and the evidence doc say 38 seconds; a slow runner fails here instead.
   await expect(page.getByText(/^0:38\.\d\d$/).first()).toBeVisible();
   await button('Qualified').click();
   await page.waitForTimeout(600);

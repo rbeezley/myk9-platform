@@ -40,8 +40,8 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # Secrets are not given to a fork's pull request; without the judge's password there is
-    # nothing to capture.
+    # Not for a fork's pull request: the job runs the pull request's code with sudo and the
+    # build cache token.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.pull_request.head.repo.full_name == github.repository
@@ -68,6 +68,17 @@ jobs:
         with:
           browser: chromium
 
+      # The stack's accounts get passwords made here, for this job only. The repository's
+      # fixture passwords, which also open the fixture accounts on the hosted project, are
+      # never given to this job, so nothing it runs could sign in there.
+      - name: Make this job's own account passwords
+        run: |
+          for name in E2E_SECRETARY_PASSWORD E2E_ADMIN_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
+            value="Job-$(openssl rand -hex 16)-9a"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
       - name: Reserve Supabase host ports
         run: bash scripts/ci/reserve-supabase-ports.sh
 
@@ -82,10 +93,6 @@ jobs:
           MYK9_E2E_APPROVED_PROJECT_REFS: local
           MYK9_E2E_SUPABASE_PROJECT_REF: local
           MYK9_E2E_LOAD_FIXTURE: 'false'
-          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Verify the target is the isolated stack
         run: pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
@@ -134,7 +141,6 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_LANDING_CAPTURE: 'true'
           CAPTURE_FONTS_DIR: ${{ runner.temp }}/landing-capture/fonts
-          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
 
       # Only what the capture wrote, laid out as it sits in the repository, so the artifact
       # unpacks over a checkout.
@@ -146,16 +152,12 @@ jobs:
           cp apps/myk9show/src/components/landing/lifecycle/scenes/ringRegions.json \
             "$out/src/components/landing/lifecycle/scenes/ringRegions.json"
 
-      # This repository's artifacts are public (MYK9-1057): fail before the upload if a
-      # configured password is in the regions file. Prints file names and counts only.
+      # This repository's artifacts are public (MYK9-1057): fail before the upload if one of
+      # the job's passwords (in the environment since the first step) is in the regions file.
+      # Prints file names and counts only.
       - name: Verify no secrets in the capture
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-artifact-secrets.ts "$RUNNER_TEMP/landing-capture/out"
-        env:
-          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Upload the capture
         uses: actions/upload-artifact@v7

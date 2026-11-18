@@ -68,7 +68,9 @@ export type CaptureStart = {
   productionOptIn: boolean;
   /** VITE_SUPABASE_URL as the test process sees it. */
   supabaseUrl: string | undefined;
-  /** How many files of the served bundle name the production project. */
+  /** Whether the built bundle the preview serves was found where it was looked for. */
+  bundleFound: boolean;
+  /** How many script files of that bundle name the production project. */
   bundleFilesNamingProduction: number;
   /** What the outbound probe answered. */
   outbound: OutboundResult;
@@ -94,6 +96,9 @@ export function captureStartProblem(start: CaptureStart): string | null {
   }
   if (host !== '127.0.0.1' && host !== 'localhost') {
     return 'The landing capture runs against an isolated Supabase stack on this machine only.';
+  }
+  if (!start.bundleFound) {
+    return 'No built bundle was found to check; run the capture from apps/myk9show after the build.';
   }
   if (start.bundleFilesNamingProduction > 0) {
     return `The served bundle was built against the production project (${start.bundleFilesNamingProduction} file(s) name it). Rebuild against the isolated stack.`;

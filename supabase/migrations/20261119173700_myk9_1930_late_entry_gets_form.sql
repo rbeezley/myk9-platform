@@ -644,7 +644,7 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SET search_path = ''
-AS $
+AS $$
   SELECT COALESCE((
     SELECT CASE
              WHEN e.payment_status IS DISTINCT FROM 'refunded'
@@ -662,7 +662,7 @@ AS $
          WHERE sp.entry_id = e.id
       ) l
      WHERE e.id = p_entry_id), false);
-$;
+$$;
 
 COMMENT ON FUNCTION private.entry_form_backfill_refund_unknown(uuid) IS
   'MYK9-1930: a refunded entry whose refunded amount neither the desk ledger nor entries.refund_amount establishes; the backfill leaves it formless rather than invent a figure.';
@@ -674,10 +674,10 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SET search_path = ''
-AS $
+AS $$
   SELECT private.entry_form_backfill_eligible(p_entry_id)
          AND NOT private.entry_form_backfill_refund_unknown(p_entry_id);
-$;
+$$;
 
 COMMENT ON FUNCTION private.entry_form_backfill_candidate(uuid) IS
   'MYK9-1930: the one-time backfill''s rule: entry_form_backfill_eligible and not entry_form_backfill_refund_unknown.';

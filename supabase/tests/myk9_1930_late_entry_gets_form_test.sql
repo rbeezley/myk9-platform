@@ -412,7 +412,7 @@ VALUES
    'confirmed', 'pending', 'online', 30, true, now());
 RESET ROLE;
 
-DO $
+DO $$
 DECLARE
   v_case record;
 BEGIN
@@ -452,7 +452,7 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS every attached row of a multi-row statement settles its own money, once';
 END;
-$;
+$$;
 
 -- --- who and what gets a form (review round 1) ----------------------------------
 -- The confirmation-number sequence, before a refused insert.

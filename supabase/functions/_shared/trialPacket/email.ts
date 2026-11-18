@@ -33,6 +33,8 @@ export async function sendTrialPacketEmail(
     from: string;
     subject: string;
     html: string;
+    /** Provider tags; `resend-webhook` reads `myk9_email_type` to retry an event that beats its log row. */
+    tags?: { name: string; value: string }[];
   },
   send: (init: ResendEmailRequestInit) => Promise<Response> = sendResendEmailWithRetry
 ): Promise<string | null> {
@@ -50,6 +52,7 @@ export async function sendTrialPacketEmail(
         to: [input.recipient],
         subject: input.subject,
         html: input.html,
+        ...(input.tags ? { tags: input.tags } : {}),
       }),
     });
   } catch {

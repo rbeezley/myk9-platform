@@ -30,7 +30,8 @@ import type { ShowIncidentSummary } from '@/features/show-workbench/showIncident
 import type { ResultsClassPhase } from '@/features/results-tab/resultsNextAction';
 import { matchesResultsStatusFilter } from '@/features/results-tab/resultsNextAction';
 import type { ResultsStatusFilterId } from '@/features/results-tab/resultsNextAction';
-import { coveredUntil, newestSubmissionAt, SENT_FILE_TEXT } from './submissionTimes';
+import { coveredUntil, newestSubmissionAt } from './submissionTimes';
+import { buildCloseConcerns, flaggedPullText, type CloseConcern } from './closeConcerns';
 import { isCancelledStatus, needsCascade, normalizeCloseoutStatus } from './closeoutStatus';
 
 const SUBMITTED_STATUSES = new Set(['sent', 'submitted']);
@@ -115,6 +116,7 @@ export type WhatIsLeftLineKey =
   | 'judge-sign-off'
   | 'results-submission'
   | 'refund-review'
+  | 'flagged-pulls'
   | 'incidents';
 
 export interface WhatIsLeftLine {
@@ -165,6 +167,8 @@ export interface WhatIsLeft {
   lines: readonly WhatIsLeftLine[];
   /** The close step's sentences, in its order. */
   concerns: readonly string[];
+  /** The same sentences, each with the kind it came from, so the close step can link one. */
+  concernItems: readonly CloseConcern[];
 }
 
 const PHASES: readonly ResultsClassPhase[] = [
@@ -417,6 +421,18 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
       ? 'Saved refund decisions could not be loaded, so the refunds still to decide are unknown.'
       : `${refundCount} paid ${refundCount === 1 ? 'entry' : 'entries'} (${describeEntryRemovals(reconciliation.refundReviewRemovals)}) ${refundCount === 1 ? 'needs' : 'need'} refund review.`,
   });
+  // MYK9-2145: a check-in flag the Check-in desk has not confirmed. Not a removal and not a refund
+  // to decide (docs/INTENT.md, Withdraw vs Pull), but the close step names it.
+  const flaggedCount = reconciliation.flaggedPullDogCount;
+  lines.push({
+    key: 'flagged-pulls',
+    kind: 'flagged-pulls',
+    label: flaggedPullText(flaggedCount),
+    count: flaggedCount,
+    classIds: [],
+    open: flaggedCount > 0,
+    closeConcern: flaggedPullText(flaggedCount),
+  });
   const incidentCount = input.incidents?.reportableCount ?? 0;
   lines.push({
     key: 'incidents',
@@ -431,38 +447,11 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
         : `${incidentCount} reportable ${incidentCount === 1 ? 'incident is' : 'incidents are'} still in the incident log.`,
   });
 
-  // The close step's sentences, in its order. The submission is one show-level sentence, whatever
-  // the registry, and unread is its own concern: it may not claim "nothing submitted".
-  const submissionConcern =
-    input.submissions === null
-      ? 'Result submissions could not be checked, so whether results were sent is unknown.'
-      : hasSubmittedResults
-        ? null
-        : 'No result submission has been recorded for this show.';
-  // A file the app sent that the scores have moved past, or that could not be checked: close warns.
-  const sentFileChecks = lines.flatMap(line =>
-    line.kind === 'results-submission' && line.sentFileCheck ? [line.sentFileCheck] : []
-  );
-  const sentFileConcern = sentFileChecks.includes('changed')
-    ? `${SENT_FILE_TEXT.changed} Send it again before closing.`
-    : sentFileChecks.includes('unknown')
-      ? SENT_FILE_TEXT.unknown
-      : sentFileChecks.includes('checking')
-        ? SENT_FILE_TEXT.checking
-        : null;
-  const concernOf = (kind: WhatIsLeftLineKey): string[] => {
-    const line = lines.find(candidate => candidate.kind === kind);
-    return line?.closeConcern && line.open !== false ? [line.closeConcern] : [];
-  };
-  const concerns = [
-    ...concernOf('unknown-counts'),
-    ...concernOf('unscored'),
-    ...concernOf('pending-review'),
-    ...(submissionConcern ? [submissionConcern] : []),
-    ...(sentFileConcern ? [sentFileConcern] : []),
-    ...concernOf('refund-review'),
-    ...concernOf('incidents'),
-  ];
+  const concernItems = buildCloseConcerns({
+    lines,
+    submissionsUnread: input.submissions === null,
+    hasSubmittedResults: Boolean(hasSubmittedResults),
+  });
 
   return {
     unknownCountClassIds: ids(unknown),
@@ -481,7 +470,8 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
     },
     registryIds,
     lines,
-    concerns,
+    concerns: concernItems.map(item => item.text),
+    concernItems,
   };
 }
 

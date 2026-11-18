@@ -16,6 +16,8 @@ export interface CloseoutStatusInput {
   reconNeedsReview: boolean;
   removals: EntryRemovalCounts;
   refundReviewCount: number;
+  /** Dogs flagged pulled at the show, not confirmed at the Check-in desk (MYK9-2145). */
+  flaggedPullDogCount?: number;
   hasEntries: boolean;
   incidents: IncidentState;
 }
@@ -30,6 +32,9 @@ export function summarizeCloseoutStatus(input: CloseoutStatusInput): CloseoutSta
     segments.push(
       `${describeEntryRemovals(input.removals) || '0 removed'} · ${input.refundReviewCount} review`
     );
+  }
+  if ((input.flaggedPullDogCount ?? 0) > 0) {
+    segments.push(`${input.flaggedPullDogCount} flagged pulled`);
   }
   if (input.incidents.state === 'ready' && input.incidents.reportableCount > 0) {
     segments.push(`${input.incidents.reportableCount} reportable`);

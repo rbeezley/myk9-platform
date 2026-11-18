@@ -200,7 +200,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
                     twice.
                   </p>
                 )}
-                <RefundResultDetail result={result} />
+                <RefundResultDetail result={result} showId={showId} />
               </div>
             )}
           </>

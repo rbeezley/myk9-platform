@@ -40,6 +40,7 @@ const launchCriticalSqlTests = [
   'admin_soft_deleted_show_visibility_test.sql',
   'anonymous_session_read_scope_test.sql',
   'askq_quota_reservation_test.sql',
+  'registry_deadline_reminders_claim_test.sql',
   'class_hide_count_gating_test.sql',
   'class_status_auto_derivation_test.sql',
   'class_actual_times_from_scoring_test.sql',

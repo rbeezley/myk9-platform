@@ -134,8 +134,8 @@ export function isUnresolvedRemovalRefundDecision(entry: PullRefundDecisionEntry
  * surface that counts them (the Entries "Pulls" view, the closeout card, the
  * refund gates). They are never synonyms (LESSONS pull-vs-withdraw):
  *
- * - `pulled`: the exhibitor's choice ('scratched', or a check-in 'pulled');
- *   the club decides the refund.
+ * - `pulled`: the exhibitor's choice ('scratched'); the club decides the
+ *   refund. A check-in 'pulled' flag is not one until the desk confirms it.
  * - `withdrawn`: 'withdrawn' WITH a recognised reason code (In Season / Judge
  *   Change); the premium decides.
  * - `removed`: 'withdrawn' with NO reason code, a secretary removal.
@@ -145,8 +145,6 @@ export type EntryRemovalKind = 'pulled' | 'withdrawn' | 'removed' | 'absent';
 
 export interface EntryRemovalInput {
   entryStatus?: string | null | undefined;
-  /** Only the closeout read carries it; the Entries view passes none. */
-  checkInStatus?: string | null | undefined;
   withdrawalReasonCode?: string | null | undefined;
 }
 
@@ -159,8 +157,7 @@ export function classifyEntryRemoval(input: EntryRemovalInput): EntryRemovalKind
       ? 'withdrawn'
       : 'removed';
   }
-  if (entryStatus === 'absent') return 'absent';
-  return input.checkInStatus?.toLowerCase() === 'pulled' ? 'pulled' : null;
+  return entryStatus === 'absent' ? 'absent' : null;
 }
 
 /**

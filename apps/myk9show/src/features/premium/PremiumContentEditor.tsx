@@ -1,14 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ImageIcon, Loader2, Upload, X } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useGeneratePremium } from './useGeneratePremium';
+import { PremiumEditorFields } from './PremiumEditorFields';
+import { PREMIUM_PENDING_REASON } from './premiumPendingCopy';
 import { useLogPremiumGeneration } from '../../hooks/queries/usePremiumGenerations';
 import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplates';
 import { uploadShowCover } from '../../services/imageUploadService';
@@ -29,6 +28,8 @@ interface PremiumContentEditorProps {
   deferGeneration?: boolean;
   onPremiumChange?: (premium: GeneratedPremium | undefined) => void;
   onInkSaverChange?: (inkSaver: boolean) => void;
+  /** True while a Regenerate is pending, so the parent can hold Save-with-publish. */
+  onPendingChange?: (pending: boolean) => void;
 }
 
 // Loaded on demand: the PDF buttons (and the templates) pull in @react-pdf/renderer.
@@ -65,6 +66,7 @@ export function PremiumContentEditor({
   deferGeneration = false,
   onPremiumChange,
   onInkSaverChange,
+  onPendingChange,
 }: PremiumContentEditorProps) {
   const { generate, isLoading, error, reset } = useGeneratePremium();
   const logMutation = useLogPremiumGeneration(clubId);
@@ -89,6 +91,11 @@ export function PremiumContentEditor({
   const [autoGenerateAttemptedFor, setAutoGenerateAttemptedFor] = useState<string | null>(null);
   const onPremiumChangeRef = useRef(onPremiumChange);
   const onInkSaverChangeRef = useRef(onInkSaverChange);
+  const onPendingChangeRef = useRef(onPendingChange);
+  // MYK9-2144: each request takes the next number; only the latest may apply its result or
+  // clear the pending flag, and 0 means nothing is in flight.
+  const latestRequestRef = useRef(0);
+  const requestCounterRef = useRef(0);
 
   useEffect(() => {
     onPremiumChangeRef.current = onPremiumChange;
@@ -97,6 +104,15 @@ export function PremiumContentEditor({
   useEffect(() => {
     onInkSaverChangeRef.current = onInkSaverChange;
   }, [onInkSaverChange]);
+
+  useEffect(() => {
+    onPendingChangeRef.current = onPendingChange;
+  }, [onPendingChange]);
+
+  useEffect(() => {
+    // Only regenerating an existing draft holds Save: a first generation has no old premium.
+    onPendingChangeRef.current?.(isGenerating && original !== null);
+  }, [isGenerating, original]);
 
   // INTENT: Toast at most once per distinct PDF render error message. The
   // PDFDownloadLink render-prop re-fires on every internal state tick, so the
@@ -116,29 +132,36 @@ export function PremiumContentEditor({
     setGenerationError(null);
     setIsGenerating(true);
     setAutoGenerateAttemptedFor(showId);
+    const requestId = ++requestCounterRef.current;
+    latestRequestRef.current = requestId;
     try {
       const result = await withGenerationTimeout(generate(showId));
+      if (latestRequestRef.current !== requestId) return;
       const cleaned = { ...result, narratives: stripPlaceholderNarratives(result.narratives) };
       setOriginal(cleaned);
       setSupplemental(cleaned.supplemental);
       setNarratives(cleaned.narratives);
       setHasNarrativeError(narrativeGenerationFailed(cleaned));
     } catch (err) {
+      if (latestRequestRef.current !== requestId) return;
       setGenerationError(
         err instanceof Error ? err.message : 'We could not generate that content.'
       );
     } finally {
-      setIsGenerating(false);
+      if (latestRequestRef.current === requestId) {
+        latestRequestRef.current = 0;
+        setIsGenerating(false);
+      }
     }
   }, [generate, showId]);
 
   useEffect(() => {
-    if (!active || original || !initialPremium) return;
+    // A request in flight owns the draft; this must not populate over it or clear its flag.
+    if (!active || original || !initialPremium || latestRequestRef.current !== 0) return;
     setOriginal(initialPremium);
     setSupplemental(initialPremium.supplemental);
     setNarratives(stripPlaceholderNarratives(initialPremium.narratives));
     setGenerationError(null);
-    setIsGenerating(false);
   }, [active, initialPremium, original]);
 
   useEffect(() => {
@@ -168,6 +191,7 @@ export function PremiumContentEditor({
 
   useEffect(() => {
     if (active) return;
+    latestRequestRef.current = 0;
     reset();
     setOriginal(null);
     setSupplemental(null);
@@ -330,8 +354,15 @@ export function PremiumContentEditor({
         )}
 
         {(isLoading || isGenerating) && (
-          <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
+          <div
+            role="status"
+            className={
+              original
+                ? 'flex items-center gap-2 text-sm text-muted-foreground'
+                : 'flex flex-col items-center gap-3 py-8 text-muted-foreground'
+            }
+          >
+            <Loader2 className={original ? 'h-4 w-4 animate-spin' : 'h-6 w-6 animate-spin'} />
             <p className="text-sm">Generating narratives... (~5-10 seconds)</p>
           </div>
         )}
@@ -357,13 +388,8 @@ export function PremiumContentEditor({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      setOriginal(null);
-                      setSupplemental(null);
-                      setNarratives(null);
-                      setPdfUrl(null);
-                      void handleGenerate();
-                    }}
+                    disabled={isGenerating}
+                    onClick={() => void handleGenerate()}
                   >
                     Try narrative generation again
                   </Button>
@@ -380,159 +406,17 @@ export function PremiumContentEditor({
               </Alert>
             )}
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Supplemental Fields</Label>
-              <div className="space-y-2 rounded-md border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2">
-                    <ImageIcon className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Cover Image</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Used on Gazette and Magazine covers.
-                      </p>
-                    </div>
-                  </div>
-                  {supplemental.coverImageUrl && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={isUploadingCover}
-                      onClick={() => void handleCoverRemove()}
-                    >
-                      <X className="mr-1 h-3.5 w-3.5" />
-                      Remove
-                    </Button>
-                  )}
-                </div>
-                {supplemental.coverImageUrl && (
-                  <img
-                    src={supplemental.coverImageUrl}
-                    alt="Premium cover"
-                    className="h-24 w-full rounded-md object-cover"
-                  />
-                )}
-                {supplemental.coverImageUrl && coverImageResolveFailed && (
-                  <p className="text-xs text-destructive">
-                    Saved cover image could not be loaded for the PDF. The cover will use the At a
-                    Glance panel until the image is replaced.
-                  </p>
-                )}
-                <Label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">
-                  <Upload className="h-4 w-4" />
-                  {isUploadingCover ? 'Uploading...' : 'Upload cover image'}
-                  <Input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    disabled={isUploadingCover}
-                    onChange={e => {
-                      const file = e.target.files?.[0] ?? null;
-                      void handleCoverUpload(file);
-                      e.target.value = '';
-                    }}
-                  />
-                </Label>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Vet Clinic Name</Label>
-                <Input
-                  value={supplemental.vetClinic?.name ?? ''}
-                  onChange={e =>
-                    setSupplemental(s => ({
-                      ...s!,
-                      vetClinic: {
-                        ...(s!.vetClinic ?? { address: '', phone: '' }),
-                        name: e.target.value,
-                      },
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Address</Label>
-                  <Input
-                    value={supplemental.vetClinic?.address ?? ''}
-                    onChange={e =>
-                      setSupplemental(s => ({
-                        ...s!,
-                        vetClinic: {
-                          ...(s!.vetClinic ?? { name: '', phone: '' }),
-                          address: e.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Phone</Label>
-                  <Input
-                    value={supplemental.vetClinic?.phone ?? ''}
-                    onChange={e =>
-                      setSupplemental(s => ({
-                        ...s!,
-                        vetClinic: {
-                          ...(s!.vetClinic ?? { name: '', address: '' }),
-                          phone: e.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Hospitality Notes</Label>
-                <Textarea
-                  rows={2}
-                  value={supplemental.hospitalityNotes ?? ''}
-                  onChange={e =>
-                    setSupplemental(s => ({ ...s!, hospitalityNotes: e.target.value || null }))
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Awards Description</Label>
-                <Textarea
-                  rows={2}
-                  value={supplemental.awardsDescription ?? ''}
-                  onChange={e =>
-                    setSupplemental(s => ({ ...s!, awardsDescription: e.target.value || null }))
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Additional Notes</Label>
-                <Textarea
-                  rows={2}
-                  value={supplemental.additionalNotes ?? ''}
-                  onChange={e =>
-                    setSupplemental(s => ({ ...s!, additionalNotes: e.target.value || null }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Generated Narratives (editable)</Label>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Show Hours</Label>
-                <Textarea
-                  rows={3}
-                  value={narratives.showHours}
-                  onChange={e => setNarratives(n => ({ ...n!, showHours: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Trial Information</Label>
-                <Textarea
-                  rows={4}
-                  value={narratives.trialInformation}
-                  onChange={e => setNarratives(n => ({ ...n!, trialInformation: e.target.value }))}
-                />
-              </div>
-            </div>
+            <PremiumEditorFields
+              supplemental={supplemental}
+              narratives={narratives}
+              setSupplemental={setSupplemental}
+              setNarratives={setNarratives}
+              isUploadingCover={isUploadingCover}
+              coverImageResolveFailed={coverImageResolveFailed}
+              readOnly={isGenerating}
+              onCoverUpload={file => void handleCoverUpload(file)}
+              onCoverRemove={() => void handleCoverRemove()}
+            />
 
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox
@@ -543,7 +427,14 @@ export function PremiumContentEditor({
             </label>
 
             <div className="mt-4 flex flex-col gap-3">
-              {finalPremium ? (
+              {isGenerating ? (
+                <div className="space-y-1">
+                  <Button variant="outline" className="w-full" disabled>
+                    Download PDF
+                  </Button>
+                  <p className="text-xs text-muted-foreground">{PREMIUM_PENDING_REASON}</p>
+                </div>
+              ) : finalPremium ? (
                 <Suspense
                   fallback={
                     <Button variant="outline" className="w-full" disabled>
@@ -570,16 +461,8 @@ export function PremiumContentEditor({
                 variant="ghost"
                 size="sm"
                 className="w-full"
-                onClick={() => {
-                  setOriginal(null);
-                  setSupplemental(null);
-                  setNarratives(null);
-                  setPdfUrl(null);
-                  setPdfCoverImageSrc(null);
-                  setPdfCoverImageRemoteUrl(null);
-                  setCoverImageResolveFailed(false);
-                  void handleGenerate();
-                }}
+                disabled={isGenerating}
+                onClick={() => void handleGenerate()}
               >
                 Regenerate
               </Button>

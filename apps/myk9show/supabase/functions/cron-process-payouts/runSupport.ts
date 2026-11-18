@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
+import { parseBrakeSetting, type BrakeSetting } from '../_shared/payoutApproval.ts';
 
 type Alert = (subject: string, html: string, opts?: { dedupeKey?: string }) => Promise<unknown>;
 
@@ -104,7 +105,25 @@ export interface EligibleShow {
   end_date: string;
 }
 
-/** Shows whose payout is due: ended at least PAYOUT_DELAY_DAYS ago. */
+/** The payout brake (MYK9-2170) as the run starts; the claim re-reads it. */
+export async function loadPayoutBrake(supabase: SupabaseClient): Promise<BrakeSetting> {
+  const result = await supabase
+    .from('platform_settings')
+    .select('payouts_require_approval')
+    .eq('id', true)
+    .maybeSingle();
+  return parseBrakeSetting(result);
+}
+
+/** Live payout statuses that still need the run: not yet sent. */
+const OUTSTANDING_STATUSES = ['pending', 'awaiting_approval', 'approved', 'held'];
+
+/**
+ * Shows whose payout is due: ended at least PAYOUT_DELAY_DAYS ago (newest
+ * 1000), plus every show with an outstanding live payout row however old.
+ * The second set matters since MYK9-2170: a payout can wait or be held
+ * indefinitely, and must not fall off the end of the newest-shows cap.
+ */
 export async function loadEligibleShows(
   supabase: SupabaseClient
 ): Promise<{ shows: EligibleShow[] } | { error: string }> {
@@ -117,8 +136,7 @@ export async function loadEligibleShows(
   // Newest-first with an explicit cap: eligibility is permanent, so without
   // ordering PostgREST's max-rows would someday truncate ARBITRARY rows and
   // silently drop new shows. Ordered, the rows that fall off the end are the
-  // oldest — long-settled shows whose live payout row makes processShow a
-  // one-query no-op anyway.
+  // oldest; any of those still owed money comes back through the second query.
   const { data: shows, error: showsError } = await supabase
     .from('shows')
     .select('id, name, club_id, end_date')
@@ -131,5 +149,27 @@ export async function loadEligibleShows(
     console.error('Eligible-shows query failed:', showsError);
     return { error: showsError.message };
   }
-  return { shows: (shows ?? []) as EligibleShow[] };
+
+  const PAGE = 1000;
+  const byId = new Map<string, EligibleShow>();
+  for (const show of (shows ?? []) as EligibleShow[]) byId.set(show.id, show);
+  for (let from = 0; ; from += PAGE) {
+    const { data: rows, error } = await supabase
+      .from('show_payouts')
+      .select('show_id, shows(id, name, club_id, end_date)')
+      .in('status', OUTSTANDING_STATUSES)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error('Outstanding-payouts query failed:', error);
+      return { error: error.message };
+    }
+    for (const row of rows ?? []) {
+      const embedded = row.shows as EligibleShow | EligibleShow[] | null;
+      const show = Array.isArray(embedded) ? embedded[0] : embedded;
+      if (show && !byId.has(show.id)) byId.set(show.id, show);
+    }
+    if ((rows?.length ?? 0) < PAGE) break;
+  }
+  return { shows: [...byId.values()] };
 }

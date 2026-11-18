@@ -10,7 +10,9 @@
 --    (RLS platform_settings_update + trg_guard_platform_settings_write); anon
 --    holds column grants on the fee columns only, so it cannot read this one.
 --    Switching it is recorded in payout_approval_events (who, when) by an
---    AFTER UPDATE trigger, whichever path made the change.
+--    AFTER UPDATE trigger, whichever path made the change. Switching it OFF
+--    from a client session needs a recent sign-in (require_recent_reauth,
+--    MYK9-1208); service_role and SQL-console changes are exempt as there.
 --
 -- 2. show_payouts gains three statuses:
 --      awaiting_approval  cron-process-payouts worked out the amount and the
@@ -19,49 +21,68 @@
 --                         it through the job's one send path (money lock,
 --                         recalculation after the claim, transfer_group guard).
 --      held               a site admin is keeping it waiting, with a reason.
+--                         The run still refreshes its amount.
 --    None is 'failed', so the one-live-row-per-show index
 --    (show_payouts_one_live_per_show, WHERE status <> 'failed') covers them:
 --    a show still has at most one live row.
---    approved_at: stamped by the approve RPC. A transfer attempt that fails
---      after approval for a self-healing reason (a card-clearing balance delay,
---      stale processing recovery, an entries read after the claim) leaves a
---      failed row, and the next run carries this stamp onto the retry row
---      instead of asking for approval again. Any other failure waits for a new
---      approval (carriedApprovalFrom in _shared/payoutApproval.ts).
+--    approved_at / approved_amount_cents / approved_stripe_account_id: what a
+--      site admin approved. An approval covers that destination account and at
+--      most that amount (refunds may lower it); a different destination or a
+--      larger amount sends the payout back to awaiting_approval (section 8).
+--      A transfer attempt that fails after approval for a self-healing reason
+--      (a card-clearing balance delay, stale processing recovery, an entries
+--      read after the claim) carries all three onto the retry row; any other
+--      failure waits for a new approval (carriedApprovalFrom in
+--      _shared/payoutApproval.ts).
 --    last_reminded_at: the cron's once-a-day reminder claim.
 --
 -- 3. payout_approval_events: append-only record of brake switches and of each
---    approve or hold (with the hold reason). Kept off show_payouts because
+--    approve, hold or reopen (with the reason). Kept off show_payouts because
 --    club admins and secretaries read every show_payouts column of their own
 --    shows; a hold reason is the operator's note, not theirs. Site admins read
---    it; nobody writes it directly (the trigger and the two RPCs are SECURITY
+--    it; nobody writes it directly (the trigger and the RPCs are SECURITY
 --    DEFINER). anon gets nothing: explicit REVOKE, because this project's
 --    default privileges grant anon full CRUD on every new table.
 --
--- 4. approve_show_payout(uuid) and hold_show_payout(uuid, text): site admin
---    only. Each is one guarded UPDATE ... WHERE status IN (...) RETURNING, so
---    two approvals at once change the row once and the second reads back
---    'already_approved'. Neither calls Stripe; the payout run does. Both
---    resolve the payout's daily reminder alert (operator_alerts, source
---    'cron-process-payouts', dedupe_key 'payout-awaiting-approval-<id>').
+-- 4. approve_show_payout(uuid, integer) and hold_show_payout(uuid, text): site
+--    admin only; approval also needs a recent sign-in. Each is one guarded
+--    UPDATE ... WHERE status IN (...) RETURNING, so two approvals at once
+--    change the row once and the second reads back 'already_approved'.
+--    Neither calls Stripe; the payout run does.
 --
--- 5. financial_reconciliation_summary: payout_pending_cents (money still owed
---    to clubs) includes the three new statuses (section 7 below).
+-- 5. A payout leaving awaiting_approval by any path (approve, hold, the brake
+--    switched off, fully refunded) resolves its daily reminder alert
+--    (operator_alerts, source 'cron-process-payouts', dedupe_key
+--    'payout-awaiting-approval-<id>') in a trigger.
 --
--- 6. system_health_probe (both overloads): payout_ledger.in_flight includes the
---    three new statuses, so the board reads them as in flight, not settled
---    (section 8 below).
+-- 6. claim_show_payout_for_send: the payout run's claim, service_role only.
+--    It reads the brake in the same transaction as the claim (FOR SHARE, so a
+--    switch waits for the claim or the claim sees the switch): a brake switched
+--    on mid-run stops every transfer not yet claimed. An approved row is claimed
+--    only for its approved destination and at most its approved amount.
 --
--- Deploy order: deploy cron-process-payouts BEFORE pushing this migration.
--- The new function reads payouts_require_approval first and, without the
--- column, stops the run with a 500 before anything is sent or recorded; the old
--- function against the new schema would send without approval.
+-- 7. reopen_show_payout_approval: service_role only. The run sends an approved
+--    payout back to awaiting_approval, with the reason recorded, when its
+--    destination changed or its amount rose since approval.
+--
+-- 8. financial_reconciliation_summary: payout_pending_cents (money still owed
+--    to clubs) includes the three new statuses.
+--
+-- 9. system_health_probe (both overloads): payout_ledger.in_flight includes the
+--    three new statuses, so the board reads them as in flight, not settled.
+--
+-- Deploy order: deploy the frontend (the admin payout ledger labels the new
+-- statuses), cron-health-check (its ACL contract names payout_approval_events)
+-- and cron-process-payouts BEFORE pushing this migration. The new payout
+-- function reads payouts_require_approval first and, without the column, stops
+-- the run with a 500 before anything is sent or recorded; the old function
+-- against the new schema would send without approval.
 --
 -- Behavioral coverage (CI only): supabase/tests/myk9_2170_payout_brake_test.sql
--- Rollback: drop the two functions, the trigger and its function, the table and
--- the three columns, restore the four-status CHECK (after moving any rows in
--- the new statuses back to 'pending'), and re-run the financial summary and
--- probe definitions from 20261004193700 and 20261008124700.
+-- Rollback: drop the functions, triggers and trigger functions added here, the
+-- table and the new columns, restore the four-status CHECK (after moving any
+-- rows in the new statuses back to 'pending'), and re-run the financial summary
+-- and probe definitions from 20261004193700 and 20261008124700.
 -- =============================================================================
 
 BEGIN;
@@ -73,7 +94,7 @@ ALTER TABLE public.platform_settings
   ADD COLUMN IF NOT EXISTS payouts_require_approval boolean NOT NULL DEFAULT true;
 
 COMMENT ON COLUMN public.platform_settings.payouts_require_approval IS
-  'MYK9-2170 payout brake. true (default): cron-process-payouts records every payout it would send as awaiting_approval and sends only rows a site admin approved (approve_show_payout). false: payouts send on the nightly run as before. Every change is recorded in payout_approval_events.';
+  'MYK9-2170 payout brake. true (default): cron-process-payouts records every payout it would send as awaiting_approval and sends only rows a site admin approved (approve_show_payout). false: payouts send on the nightly run as before. Every change is recorded in payout_approval_events; switching it off from a client session needs a recent sign-in.';
 
 -- -----------------------------------------------------------------------------
 -- 2. show_payouts statuses and columns
@@ -88,10 +109,24 @@ ALTER TABLE public.show_payouts
 
 ALTER TABLE public.show_payouts
   ADD COLUMN IF NOT EXISTS approved_at timestamptz,
+  ADD COLUMN IF NOT EXISTS approved_amount_cents integer,
+  ADD COLUMN IF NOT EXISTS approved_stripe_account_id text,
   ADD COLUMN IF NOT EXISTS last_reminded_at timestamptz;
 
+ALTER TABLE public.show_payouts DROP CONSTRAINT IF EXISTS show_payouts_approval_shape;
+ALTER TABLE public.show_payouts
+  ADD CONSTRAINT show_payouts_approval_shape CHECK (
+    (approved_at IS NULL) = (approved_amount_cents IS NULL)
+    AND (approved_at IS NULL) = (approved_stripe_account_id IS NULL)
+    AND (approved_amount_cents IS NULL OR approved_amount_cents >= 0)
+  );
+
 COMMENT ON COLUMN public.show_payouts.approved_at IS
-  'MYK9-2170: when a site admin approved this payout (approve_show_payout). Carried onto the retry row when an approved transfer attempt fails, so a retry is not re-approved.';
+  'MYK9-2170: when a site admin approved this payout (approve_show_payout). Carried onto the retry row when an approved transfer attempt fails for a self-healing reason.';
+COMMENT ON COLUMN public.show_payouts.approved_amount_cents IS
+  'MYK9-2170: the most this approval lets the payout run send. A recalculation above it sends the payout back for approval.';
+COMMENT ON COLUMN public.show_payouts.approved_stripe_account_id IS
+  'MYK9-2170: the Stripe account the approval covers. A different destination at send time sends the payout back for approval.';
 COMMENT ON COLUMN public.show_payouts.last_reminded_at IS
   'MYK9-2170: when cron-process-payouts last reminded the operator that this payout is awaiting approval (at most once a day).';
 
@@ -102,21 +137,21 @@ CREATE TABLE IF NOT EXISTS public.payout_approval_events (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at      timestamptz NOT NULL DEFAULT now(),
   event           text NOT NULL
-    CHECK (event IN ('brake_on', 'brake_off', 'approved', 'held')),
+    CHECK (event IN ('brake_on', 'brake_off', 'approved', 'held', 'reopened')),
   show_payout_id  uuid REFERENCES public.show_payouts (id) ON DELETE CASCADE,
   reason          text,
   actor_person_id uuid REFERENCES public.people (id) ON DELETE SET NULL,
   actor_role      text NOT NULL,
   CONSTRAINT payout_approval_events_payout_shape CHECK (
-    (event IN ('approved', 'held')) = (show_payout_id IS NOT NULL)
+    (event IN ('approved', 'held', 'reopened')) = (show_payout_id IS NOT NULL)
   ),
   CONSTRAINT payout_approval_events_hold_reason CHECK (
-    event <> 'held' OR length(btrim(coalesce(reason, ''))) > 0
+    event NOT IN ('held', 'reopened') OR length(btrim(coalesce(reason, ''))) > 0
   )
 );
 
 COMMENT ON TABLE public.payout_approval_events IS
-  'MYK9-2170: append-only record of payout brake switches (platform_settings.payouts_require_approval) and of each payout approval or hold. Written only by trg_record_payout_brake_change and the approve_show_payout / hold_show_payout RPCs; site admins read it.';
+  'MYK9-2170: append-only record of payout brake switches (platform_settings.payouts_require_approval) and of each payout approval, hold or reopen. Written only by trg_record_payout_brake_change and the approve_show_payout / hold_show_payout / reopen_show_payout_approval RPCs; site admins read it.';
 
 CREATE INDEX IF NOT EXISTS payout_approval_events_show_payout_id_idx
   ON public.payout_approval_events (show_payout_id);
@@ -160,7 +195,7 @@ REVOKE ALL ON FUNCTION public.payout_approval_actor_person_id() FROM anon;
 REVOKE ALL ON FUNCTION public.payout_approval_actor_person_id() FROM authenticated;
 
 -- -----------------------------------------------------------------------------
--- 4. Record every brake switch
+-- 4. Record every brake switch; switching it off needs a recent sign-in
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.record_payout_brake_change()
 RETURNS trigger
@@ -169,6 +204,13 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+  -- Releasing every payout is a release path like approval: a stale session
+  -- may not do it. require_recent_reauth exempts service_role and no-JWT
+  -- (SQL console) callers. Raising here rolls the UPDATE back.
+  IF NOT NEW.payouts_require_approval THEN
+    PERFORM public.require_recent_reauth();
+  END IF;
+
   INSERT INTO public.payout_approval_events (event, actor_person_id, actor_role)
   VALUES (
     CASE WHEN NEW.payouts_require_approval THEN 'brake_on' ELSE 'brake_off' END,
@@ -191,13 +233,50 @@ CREATE TRIGGER trg_record_payout_brake_change
   EXECUTE FUNCTION public.record_payout_brake_change();
 
 -- -----------------------------------------------------------------------------
--- 5. approve_show_payout
---    Returns 'approved' (this call approved it) or 'already_approved' (it was
---    approved, or is being or has been sent, by an earlier call). Anything else
---    raises: 42501 not a site admin, P0002 no such payout, 22023 a payout that
---    is not waiting for approval.
+-- 5. A payout leaving awaiting_approval resolves its daily reminder
 -- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.approve_show_payout(p_payout_id uuid)
+CREATE OR REPLACE FUNCTION public.resolve_payout_approval_reminder()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.operator_alerts a
+     SET resolved_at = now(), resolved_by = auth.uid()
+   WHERE a.source = 'cron-process-payouts'
+     AND a.dedupe_key = 'payout-awaiting-approval-' || NEW.id::text
+     AND a.resolved_at IS NULL;
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.resolve_payout_approval_reminder() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.resolve_payout_approval_reminder() FROM anon;
+REVOKE ALL ON FUNCTION public.resolve_payout_approval_reminder() FROM authenticated;
+
+DROP TRIGGER IF EXISTS trg_resolve_payout_approval_reminder ON public.show_payouts;
+CREATE TRIGGER trg_resolve_payout_approval_reminder
+  AFTER UPDATE OF status ON public.show_payouts
+  FOR EACH ROW
+  WHEN (OLD.status = 'awaiting_approval' AND NEW.status IS DISTINCT FROM 'awaiting_approval')
+  EXECUTE FUNCTION public.resolve_payout_approval_reminder();
+
+-- -----------------------------------------------------------------------------
+-- 6. approve_show_payout
+--    Approves the payout's current amount to its current destination account.
+--    p_amount_cents, when given, is the amount the approver was shown; if the
+--    payout run has refreshed the amount since, the approval is refused so the
+--    approver looks again. Returns 'approved' (this call approved it) or
+--    'already_approved' (it was approved, or is being or has been sent, by an
+--    earlier call). Anything else raises: 42501 not a site admin, MKAUT no
+--    recent sign-in, P0002 no such payout, 22023 a payout that is not waiting
+--    for approval, has no destination account, or whose amount changed.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.approve_show_payout(
+  p_payout_id uuid,
+  p_amount_cents integer DEFAULT NULL
+)
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -205,29 +284,50 @@ SET search_path = ''
 AS $$
 DECLARE
   v_status text;
+  v_amount integer;
+  v_destination text;
 BEGIN
   IF NOT (SELECT public.is_site_admin()) THEN
     RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
   END IF;
+  PERFORM public.require_recent_reauth();
 
   -- One guarded UPDATE: a concurrent second approval waits on the row lock,
   -- re-reads the status as 'approved' and matches nothing.
   UPDATE public.show_payouts sp
      SET status = 'approved',
-         approved_at = now()
+         approved_at = now(),
+         approved_amount_cents = sp.amount_cents,
+         approved_stripe_account_id = csa.stripe_account_id
+    FROM public.club_stripe_accounts csa
    WHERE sp.id = p_payout_id
      AND sp.status IN ('awaiting_approval', 'held')
+     AND csa.id = sp.club_stripe_account_id
+     AND csa.stripe_account_id IS NOT NULL
+     AND (p_amount_cents IS NULL OR sp.amount_cents = p_amount_cents)
   RETURNING sp.status INTO v_status;
 
   IF v_status IS NULL THEN
-    SELECT sp.status INTO v_status FROM public.show_payouts sp WHERE sp.id = p_payout_id;
+    SELECT sp.status, sp.amount_cents, csa.stripe_account_id
+      INTO v_status, v_amount, v_destination
+      FROM public.show_payouts sp
+      LEFT JOIN public.club_stripe_accounts csa ON csa.id = sp.club_stripe_account_id
+     WHERE sp.id = p_payout_id;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Payout not found' USING ERRCODE = 'P0002';
     END IF;
     IF v_status IN ('approved', 'processing', 'completed') THEN
       RETURN 'already_approved';
     END IF;
-    RAISE EXCEPTION 'This payout is %, not waiting for approval', v_status
+    IF v_status NOT IN ('awaiting_approval', 'held') THEN
+      RAISE EXCEPTION 'This payout is %, not waiting for approval', v_status
+        USING ERRCODE = '22023';
+    END IF;
+    IF v_destination IS NULL THEN
+      RAISE EXCEPTION 'This payout has no bank account to send to yet'
+        USING ERRCODE = '22023';
+    END IF;
+    RAISE EXCEPTION 'The amount changed to % cents since you looked; review it again', v_amount
       USING ERRCODE = '22023';
   END IF;
 
@@ -237,26 +337,21 @@ BEGIN
     coalesce(nullif(current_setting('role', true), ''), 'none')
   );
 
-  UPDATE public.operator_alerts a
-     SET resolved_at = now(), resolved_by = auth.uid()
-   WHERE a.source = 'cron-process-payouts'
-     AND a.dedupe_key = 'payout-awaiting-approval-' || p_payout_id::text
-     AND a.resolved_at IS NULL;
-
   RETURN 'approved';
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.approve_show_payout(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.approve_show_payout(uuid) FROM anon;
-GRANT EXECUTE ON FUNCTION public.approve_show_payout(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.approve_show_payout(uuid, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.approve_show_payout(uuid, integer) FROM anon;
+GRANT EXECUTE ON FUNCTION public.approve_show_payout(uuid, integer) TO authenticated;
 
 -- -----------------------------------------------------------------------------
--- 6. hold_show_payout
---    Keeps a waiting (or approved, not yet sent) payout waiting, with a reason.
---    A held payout can be approved later. Holding it again records the new
---    reason. Raises 42501 / P0002 as above, 22023 for a blank reason or a
---    payout already being sent or settled.
+-- 7. hold_show_payout
+--    Keeps a waiting (or approved, not yet sent) payout waiting, with a reason,
+--    and withdraws any approval. A held payout can be approved later. Holding
+--    it again records the new reason. Raises 42501 / P0002 as above, 22023 for
+--    a blank reason or a payout already being sent or settled. Holding stops a
+--    release, so it does not need a recent sign-in.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.hold_show_payout(p_payout_id uuid, p_reason text)
 RETURNS text
@@ -282,7 +377,9 @@ BEGIN
   -- approved row (processing), this matches nothing and the hold is refused.
   UPDATE public.show_payouts sp
      SET status = 'held',
-         approved_at = NULL
+         approved_at = NULL,
+         approved_amount_cents = NULL,
+         approved_stripe_account_id = NULL
    WHERE sp.id = p_payout_id
      AND sp.status IN ('awaiting_approval', 'approved', 'held')
   RETURNING sp.status INTO v_status;
@@ -304,12 +401,6 @@ BEGIN
     coalesce(nullif(current_setting('role', true), ''), 'none')
   );
 
-  UPDATE public.operator_alerts a
-     SET resolved_at = now(), resolved_by = auth.uid()
-   WHERE a.source = 'cron-process-payouts'
-     AND a.dedupe_key = 'payout-awaiting-approval-' || p_payout_id::text
-     AND a.resolved_at IS NULL;
-
   RETURN 'held';
 END;
 $$;
@@ -319,7 +410,161 @@ REVOKE ALL ON FUNCTION public.hold_show_payout(uuid, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.hold_show_payout(uuid, text) TO authenticated;
 
 -- -----------------------------------------------------------------------------
--- 7. Money owed counts payouts waiting on the brake
+-- 8. claim_show_payout_for_send (service_role only; the payout run's claim)
+--    Moves the show's live row (or a new row) to 'processing' for a transfer of
+--    p_amount_cents to p_destination, and returns its id; NULL when the claim
+--    is refused (another run holds the show, the row changed, the brake is on
+--    and the payout is not approved for this destination and amount).
+--    The brake is read FOR SHARE in this transaction, so switching it on waits
+--    for this claim to commit or is seen by it.
+--    p_carried_*: the approval of the show's latest failed attempt, when that
+--    attempt failed for a self-healing reason (carriedApprovalFrom decides).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.claim_show_payout_for_send(
+  p_show_id uuid,
+  p_live_row_id uuid,
+  p_live_status text,
+  p_account_id uuid,
+  p_destination text,
+  p_amount_cents integer,
+  p_carried_approved_at timestamptz DEFAULT NULL,
+  p_carried_amount_cents integer DEFAULT NULL,
+  p_carried_destination text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_brake boolean;
+  v_id uuid;
+BEGIN
+  SELECT ps.payouts_require_approval INTO v_brake
+    FROM public.platform_settings ps
+   WHERE ps.id
+     FOR SHARE;
+  -- No readable setting: treat as on.
+  v_brake := coalesce(v_brake, true);
+
+  IF p_live_row_id IS NOT NULL THEN
+    UPDATE public.show_payouts sp
+       SET status = 'processing',
+           amount_cents = p_amount_cents,
+           club_stripe_account_id = p_account_id
+     WHERE sp.id = p_live_row_id
+       AND sp.show_id = p_show_id
+       AND sp.status = p_live_status
+       AND sp.status IN ('pending', 'awaiting_approval', 'approved')
+       AND CASE
+             WHEN sp.status = 'approved' THEN
+               sp.approved_stripe_account_id = p_destination
+               AND p_amount_cents <= sp.approved_amount_cents
+             ELSE NOT v_brake
+           END
+    RETURNING sp.id INTO v_id;
+    RETURN v_id;
+  END IF;
+
+  IF p_carried_approved_at IS NOT NULL THEN
+    IF p_carried_destination IS DISTINCT FROM p_destination
+       OR p_carried_amount_cents IS NULL
+       OR p_amount_cents > p_carried_amount_cents THEN
+      RETURN NULL;
+    END IF;
+  ELSIF v_brake THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    INSERT INTO public.show_payouts (
+      show_id, club_stripe_account_id, amount_cents, status, scheduled_date,
+      approved_at, approved_amount_cents, approved_stripe_account_id
+    )
+    VALUES (
+      p_show_id, p_account_id, p_amount_cents, 'processing', current_date,
+      p_carried_approved_at,
+      CASE WHEN p_carried_approved_at IS NULL THEN NULL ELSE p_carried_amount_cents END,
+      CASE WHEN p_carried_approved_at IS NULL THEN NULL ELSE p_carried_destination END
+    )
+    RETURNING id INTO v_id;
+  EXCEPTION WHEN unique_violation THEN
+    -- Another run already owns this show.
+    RETURN NULL;
+  END;
+  RETURN v_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_show_payout_for_send(
+  uuid, uuid, text, uuid, text, integer, timestamptz, integer, text
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_show_payout_for_send(
+  uuid, uuid, text, uuid, text, integer, timestamptz, integer, text
+) TO service_role;
+
+-- -----------------------------------------------------------------------------
+-- 9. reopen_show_payout_approval (service_role only)
+--    The payout run found that an approved payout (still 'approved', or just
+--    claimed to 'processing') would go to a different destination or for more
+--    than was approved. Back to awaiting_approval with the fresh facts, the
+--    approval withdrawn and the reason recorded. Returns false if the row was
+--    not in p_from_status.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.reopen_show_payout_approval(
+  p_payout_id uuid,
+  p_from_status text,
+  p_amount_cents integer,
+  p_account_id uuid,
+  p_reason text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  IF p_from_status NOT IN ('approved', 'processing') THEN
+    RAISE EXCEPTION 'Only an approved payout can be reopened' USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.show_payouts sp
+     SET status = 'awaiting_approval',
+         amount_cents = p_amount_cents,
+         club_stripe_account_id = p_account_id,
+         approved_at = NULL,
+         approved_amount_cents = NULL,
+         approved_stripe_account_id = NULL,
+         last_reminded_at = NULL
+   WHERE sp.id = p_payout_id
+     AND sp.status = p_from_status
+  RETURNING sp.id INTO v_id;
+
+  IF v_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  INSERT INTO public.payout_approval_events (
+    event, show_payout_id, reason, actor_person_id, actor_role
+  )
+  VALUES (
+    'reopened', p_payout_id, p_reason, NULL,
+    coalesce(nullif(current_setting('role', true), ''), 'none')
+  );
+  RETURN true;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reopen_show_payout_approval(uuid, text, integer, uuid, text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reopen_show_payout_approval(uuid, text, integer, uuid, text)
+  TO service_role;
+
+
+-- -----------------------------------------------------------------------------
+-- 10. Money owed counts payouts waiting on the brake
 --    financial_reconciliation_summary, COPIED FROM THE LATEST DEFINITION
 --    (20261004193700_myk9_997_platform_income_club_funded_refunds.sql). One
 --    change: payout_pending_cents (not yet sent, still owed to the club) also
@@ -469,7 +714,7 @@ GRANT EXECUTE ON FUNCTION public.financial_reconciliation_summary(text, uuid, uu
   TO authenticated, service_role;
 
 -- -----------------------------------------------------------------------------
--- 8. The health board counts payouts waiting on the brake as in flight
+-- 11. The health board counts payouts waiting on the brake as in flight
 --    Both system_health_probe overloads, COPIED FROM THE LATEST DEFINITIONS
 --    (20261008124700_myk9_1052_health_probe_cron_history_one_pass.sql). One
 --    change in each: payout_ledger.in_flight also counts awaiting_approval,

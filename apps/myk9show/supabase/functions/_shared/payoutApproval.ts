@@ -7,8 +7,12 @@
 // - Only a site admin's approval (approve_show_payout) lets a payout through
 //   while the brake is on, and the run then sends it on its one send path:
 //   money lock, recalculation after the claim, transfer_group guard.
-// - A 'held' payout is left alone until approved.
+// - An approval covers one destination account and at most one amount; a
+//   different destination or a larger amount needs approving again.
+// - A 'held' payout keeps its amount refreshed and is not sent until approved.
 // - Each payout awaiting approval reminds the operator once a day.
+
+import { escapeHtml } from './clubMoneyEmails.ts';
 
 /** show_payouts statuses the brake adds (migration 20261118211700). */
 export type PayoutApprovalStatus = 'awaiting_approval' | 'approved' | 'held';
@@ -32,16 +36,59 @@ export function awaitingApprovalDedupeKey(payoutId: string): string {
 /**
  * Whether the run looks at a show at all, given its live (non-failed) payout
  * row. No row, a parked 'pending' row, a row awaiting approval (its amount is
- * refreshed, or it sends once the brake is off) and an approved row are worked;
- * a row being sent, settled or held is left alone.
+ * refreshed, or it sends once the brake is off), an approved row and a held
+ * row (its amount is refreshed, nothing else) are worked; a row being sent or
+ * settled is left alone.
  */
 export function shouldEvaluateShow(liveStatus: string | null): boolean {
   return (
     liveStatus === null ||
     liveStatus === 'pending' ||
     liveStatus === 'awaiting_approval' ||
-    liveStatus === 'approved'
+    liveStatus === 'approved' ||
+    liveStatus === 'held'
   );
+}
+
+/** What an approval covers (show_payouts.approved_*). */
+export interface PayoutApproval {
+  approvedAt: string;
+  amountCents: number;
+  stripeAccountId: string;
+}
+
+/** The approval stored on a row, or null when it carries none. */
+export function approvalOnRow(row: {
+  approved_at: string | null;
+  approved_amount_cents: number | null;
+  approved_stripe_account_id: string | null;
+}): PayoutApproval | null {
+  if (!row.approved_at || row.approved_amount_cents === null || !row.approved_stripe_account_id) {
+    return null;
+  }
+  return {
+    approvedAt: row.approved_at,
+    amountCents: row.approved_amount_cents,
+    stripeAccountId: row.approved_stripe_account_id,
+  };
+}
+
+/**
+ * Whether an approval still covers the transfer the run is about to make: the
+ * same destination, and no more than was approved (refunds may lower it).
+ * Returns the reason it does not, or null when it does.
+ */
+export function approvalMismatch(
+  approval: PayoutApproval,
+  transfer: { amountCents: number; stripeAccountId: string }
+): string | null {
+  if (transfer.stripeAccountId !== approval.stripeAccountId) {
+    return `the destination account changed from ${approval.stripeAccountId} to ${transfer.stripeAccountId} since approval`;
+  }
+  if (transfer.amountCents > approval.amountCents) {
+    return `the amount rose from ${dollars(approval.amountCents)} to ${dollars(transfer.amountCents)} since approval`;
+  }
+  return null;
 }
 
 /**
@@ -80,14 +127,22 @@ export function approvalSurvivesFailure(failureReason: string | null | undefined
 }
 
 /**
- * The approval a retry row inherits from the show's latest attempt: its
- * approved_at when that attempt failed for a self-healing reason, else null.
+ * The approval a retry row inherits from the show's latest attempt: that
+ * attempt's approval when it failed for a self-healing reason, else null.
  */
 export function carriedApprovalFrom(
-  latest: { status: string; approved_at: string | null; failure_reason: string | null } | null
-): string | null {
-  if (!latest || latest.status !== 'failed' || !latest.approved_at) return null;
-  return approvalSurvivesFailure(latest.failure_reason) ? latest.approved_at : null;
+  latest: {
+    status: string;
+    approved_at: string | null;
+    approved_amount_cents: number | null;
+    approved_stripe_account_id: string | null;
+    failure_reason: string | null;
+  } | null
+): PayoutApproval | null {
+  if (!latest || latest.status !== 'failed') return null;
+  const approval = approvalOnRow(latest);
+  if (!approval) return null;
+  return approvalSurvivesFailure(latest.failure_reason) ? approval : null;
 }
 
 export type BrakeSetting = { ok: true; on: boolean } | { ok: false; message: string };
@@ -121,7 +176,6 @@ export interface AwaitingPayout {
   showId: string;
   showName: string | null;
   amountCents: number;
-  createdAt: string;
 }
 
 function dollars(cents: number): string {
@@ -133,12 +187,14 @@ export function awaitingApprovalAlert(payout: AwaitingPayout): {
   html: string;
   dedupeKey: string;
 } {
+  // The subject is plain text; the show name is the club's own text, so it is
+  // escaped in the HTML body.
   const show = payout.showName ?? payout.showId;
   return {
     subject: `Payout waiting for your approval: ${show}`,
-    html: `<p>The payout of ${dollars(payout.amountCents)} for <strong>${show}</strong>
-      (show <code>${payout.showId}</code>, payout <code>${payout.id}</code>) has been
-      waiting for approval since ${payout.createdAt.slice(0, 10)}.</p>
+    html: `<p>The payout of ${dollars(payout.amountCents)} for <strong>${escapeHtml(show)}</strong>
+      (show <code>${payout.showId}</code>, payout <code>${payout.id}</code>) is waiting
+      for your approval.</p>
       <p>Payouts wait for approval while the payout brake is on. It will not be sent
       until you approve it, and this reminder repeats daily until you approve or hold it.
       The amount is worked out again when it is sent.</p>`,
@@ -155,10 +211,14 @@ export interface ReminderDeps {
 }
 
 /** Remind the operator about each payout awaiting approval, at most once a day
- * each. Returns how many reminders were raised. */
-export async function remindAwaitingApprovals(deps: ReminderDeps, nowMs: number): Promise<number> {
+ * each. Returns how many reminders were raised, or null when the claim failed
+ * (the caller reports that; it is not the same as none being due). */
+export async function remindAwaitingApprovals(
+  deps: ReminderDeps,
+  nowMs: number
+): Promise<number | null> {
   const due = await deps.claimDueReminders(reminderCutoffIso(nowMs));
-  if (!due) return 0;
+  if (!due) return null;
   for (const payout of due) {
     const { subject, html, dedupeKey } = awaitingApprovalAlert(payout);
     await deps.alert(subject, html, dedupeKey);

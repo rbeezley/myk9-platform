@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { formatAlertDetail } from './operatorAlertsSelectors';
 import { summarizeAlertDetail } from '../admin-overview/triageSelectors';
-import payoutWriterSource from '../../../supabase/functions/cron-process-payouts/index.ts?raw';
+// MYK9-2170 moved the per-show flow to processShow.ts and dollars() to runSupport.ts.
+import payoutWriterSource from '../../../supabase/functions/cron-process-payouts/processShow.ts?raw';
+import payoutDollarsSource from '../../../supabase/functions/cron-process-payouts/runSupport.ts?raw';
 
 const html = `<p>Show <code>dededede-0000-0000-0000-000000000010</code> was reconciled to existing transfer
 <code>tr_example</code> for $90.00, but today's recompute from entries says $60.00 is owed.</p>
@@ -15,7 +17,7 @@ describe('payout mismatch summaries', () => {
       /`Reconciled payout amount mismatch:[\s\S]*?`,\s*`([\s\S]*?)`,/
     )?.[1];
     expect(template, 'The payout writer must still expose its mismatch message').toBeDefined();
-    const dollarsExpression = payoutWriterSource.match(
+    const dollarsExpression = payoutDollarsSource.match(
       /function dollars\(cents: number\): string \{\s*return ([\s\S]*?);\s*\}/
     )?.[1];
     expect(dollarsExpression, 'The payout writer must still expose dollars()').toBeDefined();

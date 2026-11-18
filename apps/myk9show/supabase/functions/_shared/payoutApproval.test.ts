@@ -6,6 +6,7 @@ import {
   PAYOUT_REMINDER_INTERVAL_HOURS,
   awaitingApprovalAlert,
   awaitingApprovalDedupeKey,
+  approvalMismatch,
   carriedApprovalFrom,
   parseBrakeSetting,
   remindAwaitingApprovals,
@@ -25,7 +26,6 @@ function payout(id: string, overrides: Partial<AwaitingPayout> = {}): AwaitingPa
     showId: `show-${id}`,
     showName: `Show ${id}`,
     amountCents: 12_345,
-    createdAt: '2026-11-10T02:00:00.000Z',
     ...overrides,
   };
 }
@@ -36,7 +36,7 @@ describe('payout brake: which shows the run works', () => {
     ['pending', true],
     ['awaiting_approval', true],
     ['approved', true],
-    ['held', false],
+    ['held', true],
     ['processing', false],
     ['completed', false],
     ['something_new', false],
@@ -85,17 +85,16 @@ describe('payout brake: send or wait at the send point', () => {
       expect(sendOrWait({ brakeOn: false, liveStatus, carriedApprovalAt: null })).toBe('send');
     }
   });
-
-  it('held: the run never reaches the send point', () => {
-    expect(shouldEvaluateShow('held')).toBe(false);
-  });
 });
 
 describe('payout brake: what a failed approved attempt carries to its retry', () => {
   const approvedAt = '2026-11-15T10:00:00.000Z';
+  const approval = { approvedAt, amountCents: 10_000, stripeAccountId: 'acct_club' };
   const failed = (failure_reason: string | null) => ({
     status: 'failed',
     approved_at: approvedAt,
+    approved_amount_cents: 10_000,
+    approved_stripe_account_id: 'acct_club',
     failure_reason,
   });
 
@@ -104,7 +103,7 @@ describe('payout brake: what a failed approved attempt carries to its retry', ()
     'stale_processing',
     'entries_load_failed_post_claim',
   ])('a self-healing failure (%s) keeps the approval', reason => {
-    expect(carriedApprovalFrom(failed(reason))).toBe(approvedAt);
+    expect(carriedApprovalFrom(failed(reason))).toEqual(approval);
   });
 
   it.each([
@@ -122,19 +121,45 @@ describe('payout brake: what a failed approved attempt carries to its retry', ()
       carriedApprovalFrom({
         status: 'failed',
         approved_at: null,
+        approved_amount_cents: null,
+        approved_stripe_account_id: null,
         failure_reason: 'stale_processing',
       })
     ).toBeNull();
-    expect(
-      carriedApprovalFrom({ status: 'completed', approved_at: approvedAt, failure_reason: null })
-    ).toBeNull();
+    expect(carriedApprovalFrom({ ...failed(null), status: 'completed' })).toBeNull();
     expect(carriedApprovalFrom(null)).toBeNull();
   });
 
   it('a retry that carries nothing waits while the brake is on', () => {
-    const carriedApprovalAt = carriedApprovalFrom(failed('account_closed'));
+    const carriedApprovalAt = carriedApprovalFrom(failed('account_closed'))?.approvedAt ?? null;
     expect(sendOrWait({ brakeOn: true, liveStatus: null, carriedApprovalAt })).toBe(
       'wait_for_approval'
+    );
+  });
+});
+
+describe('payout brake: what an approval covers', () => {
+  const approval = {
+    approvedAt: '2026-11-15T10:00:00.000Z',
+    amountCents: 10_000,
+    stripeAccountId: 'acct_club',
+  };
+
+  it('covers the same destination for the approved amount or less', () => {
+    expect(
+      approvalMismatch(approval, { amountCents: 10_000, stripeAccountId: 'acct_club' })
+    ).toBeNull();
+    expect(
+      approvalMismatch(approval, { amountCents: 6_000, stripeAccountId: 'acct_club' })
+    ).toBeNull();
+  });
+
+  it('does not cover a larger amount or a different destination', () => {
+    expect(approvalMismatch(approval, { amountCents: 10_001, stripeAccountId: 'acct_club' })).toBe(
+      'the amount rose from $100.00 to $100.01 since approval'
+    );
+    expect(approvalMismatch(approval, { amountCents: 10_000, stripeAccountId: 'acct_other' })).toBe(
+      'the destination account changed from acct_club to acct_other since approval'
     );
   });
 });
@@ -191,12 +216,12 @@ describe('payout brake: daily reminders', () => {
     );
   });
 
-  it('raises nothing when no reminder is due or the claim fails', async () => {
+  it('raises nothing when no reminder is due, and reports a failed claim as null, not zero', async () => {
     const alert = vi.fn(async () => {});
     expect(await remindAwaitingApprovals({ claimDueReminders: async () => [], alert }, 0)).toBe(0);
-    expect(await remindAwaitingApprovals({ claimDueReminders: async () => null, alert }, 0)).toBe(
-      0
-    );
+    expect(
+      await remindAwaitingApprovals({ claimDueReminders: async () => null, alert }, 0)
+    ).toBeNull();
     expect(alert).not.toHaveBeenCalled();
   });
 
@@ -206,10 +231,23 @@ describe('payout brake: daily reminders', () => {
     expect(`${subject}${html}`).not.toContain('—');
   });
 
-  it('uses the source and dedupe key the approve and hold RPCs resolve', () => {
+  it('escapes the club-supplied show name in the email body, not the plain-text subject', () => {
+    const { html, subject } = awaitingApprovalAlert(
+      payout('d', { showName: '<a href="https://evil.example">Fall</a> & Co' })
+    );
+    expect(html).toContain(
+      '&lt;a href=&quot;https://evil.example&quot;&gt;Fall&lt;/a&gt; &amp; Co'
+    );
+    expect(html).not.toContain('<a href');
+    expect(subject).toBe(
+      'Payout waiting for your approval: <a href="https://evil.example">Fall</a> & Co'
+    );
+  });
+
+  it('uses the source and dedupe key the reminder-resolution trigger resolves', () => {
     const sql = readFileSync(MIGRATION, 'utf8');
     const resolveClause = `a.source = '${PAYOUT_ALERT_SOURCE}'
-     AND a.dedupe_key = '${awaitingApprovalDedupeKey('')}' || p_payout_id::text`;
-    expect(sql.split(resolveClause)).toHaveLength(3);
+     AND a.dedupe_key = '${awaitingApprovalDedupeKey('')}' || NEW.id::text`;
+    expect(sql.split(resolveClause)).toHaveLength(2);
   });
 });

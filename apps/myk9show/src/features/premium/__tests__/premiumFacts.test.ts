@@ -30,32 +30,27 @@ describe('premiumFacts', () => {
   });
 
   describe('accepted payment methods', () => {
-    const methods = (online: boolean | undefined, checks: boolean, cash: boolean) => {
+    const methods = (checks: boolean, cash: boolean) => {
       const premium = generatedPremium();
-      premium.show.onlineEntriesEnabled = online;
       premium.show.acceptChecks = checks;
       premium.show.acceptCash = cash;
       return buildPremiumFacts(premium).fees.paymentMethods;
     };
 
     it('lists card alone for a card-only show', () => {
-      expect(methods(true, false, false)).toEqual(['Credit/Debit Card']);
+      expect(methods(false, false)).toEqual(['Credit/Debit Card']);
     });
 
     it('lists card with check', () => {
-      expect(methods(true, true, false)).toEqual(['Credit/Debit Card', 'Checks']);
+      expect(methods(true, false)).toEqual(['Credit/Debit Card', 'Checks']);
+    });
+
+    it('lists card with cash', () => {
+      expect(methods(false, true)).toEqual(['Credit/Debit Card', 'Cash']);
     });
 
     it('lists card with check and cash', () => {
-      expect(methods(true, true, true)).toEqual(['Credit/Debit Card', 'Checks', 'Cash']);
-    });
-
-    it('does not list card on a legacy mail-in-only row', () => {
-      expect(methods(false, true, false)).toEqual(['Checks']);
-    });
-
-    it('reads a premium from before the field as offering card', () => {
-      expect(methods(undefined, true, false)).toEqual(['Credit/Debit Card', 'Checks']);
+      expect(methods(true, true)).toEqual(['Credit/Debit Card', 'Checks', 'Cash']);
     });
   });
 

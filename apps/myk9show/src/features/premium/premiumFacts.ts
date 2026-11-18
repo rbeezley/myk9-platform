@@ -371,9 +371,10 @@ export function buildPremiumFacts(
       dayOf: show.dayOfFee,
       hasAny: (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0,
       paymentMethods: [
-        // Same name the entry form and receipts use for card (getPaymentMethodLabel).
-        // Absent means a premium from before MYK9-2164; every show takes online entries now.
-        show.onlineEntriesEnabled !== false && 'Credit/Debit Card',
+        // Every show takes online entries (MYK9-2163: the server never lets one be off), so
+        // card is always listed. Same name the entry form and receipts use for card
+        // (getPaymentMethodLabel).
+        'Credit/Debit Card',
         show.acceptChecks && 'Checks',
         show.acceptCash && 'Cash',
       ].filter((m): m is string => Boolean(m)),

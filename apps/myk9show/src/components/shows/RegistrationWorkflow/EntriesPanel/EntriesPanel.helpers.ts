@@ -368,7 +368,7 @@ export function formatAmountDue({
   // still owed once the secretary marked it Already Received.
   if (totals?.isSecretaryReceived) return `${amount} (Received)`;
   // MYK9-1966: the figure is the entry fees, not what the form holds (the banner and the
-  // receipt carry the server's balance), so it never claims the fee is money on the form.
-  if (totals?.isFormMoney) return `${amount} (before money on this form)`;
+  // receipt carry the server's balance), so it never claims the fee is money on the form. Short, so the phone bar never clips it.
+  if (totals?.isFormMoney) return `${amount} in fees`;
   return amount;
 }

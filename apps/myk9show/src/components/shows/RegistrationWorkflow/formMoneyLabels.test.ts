@@ -1,6 +1,6 @@
 /**
  * MYK9-2149 (Codex P2): "Use the money already on this form" is never shown as money received
- * or paid. The method reads "Money on this form"; the total reads "(before money on this form)".
+ * or paid. The method reads "Money on this form"; the total reads "in fees".
  */
 import { describe, expect, it } from 'vitest';
 import { getPaymentMethodLabel } from './PaymentStep/utils';
@@ -17,7 +17,7 @@ describe('the form-money choice is never "received" or "paid" (MYK9-2149)', () =
     expect(getPaymentMethodDisplay('form_money')).toBe('Money on this form');
   });
 
-  it('labels the total as entry fees "(before money on this form)", never "(Received)"', () => {
+  it('labels the total as entry fees "in fees", never "(Received)"', () => {
     const totals = computePaymentTotals({
       paymentMethod: 'form_money',
       feeCalculation,
@@ -28,7 +28,7 @@ describe('the form-money choice is never "received" or "paid" (MYK9-2149)', () =
     expect(totals.isSecretaryReceived).toBe(false);
     expect(
       formatAmountDue({ capacityReady: true, totals, entryFeeCents: 3000, classCount: 1 })
-    ).toBe('$30.00 (before money on this form)');
+    ).toBe('$30.00 in fees');
   });
 
   it('submits with a plain "Submit entry"', () => {

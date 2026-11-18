@@ -105,8 +105,10 @@ jobs:
         run: pnpm exec tsx src/test/e2e/capture/downloadFonts.ts "$RUNNER_TEMP/landing-capture/fonts"
 
       # Everything the capture runs is started in the group `landing-capture`, and a process
-      # in that group may talk to this machine only. The rule is by group, not for the whole
-      # runner, because the runner itself must keep reporting to GitHub. The control comes
+      # in that group may open connections to this machine only (names are still looked up
+      # by the system resolver, and the stack's containers are outside the rule, as in every
+      # isolated job). The rule is by group, not for the whole runner, because the runner
+      # itself must keep reporting to GitHub. The control comes
       # first: the same probe must connect before it is confined, or a refusal would prove
       # nothing.
       - name: Close the capture's outbound network

@@ -61,6 +61,46 @@ export function outboundProblem(
   return `The control probe did not connect (${result}), so a refusal later would prove nothing.`;
 }
 
+export type CaptureStart = {
+  /** GITHUB_ACTIONS: the capture runs in its workflow and nowhere else. */
+  inWorkflow: boolean;
+  /** MYK9_ALLOW_PROD_E2E is set to anything: the opt-in other suites honor. */
+  productionOptIn: boolean;
+  /** VITE_SUPABASE_URL as the test process sees it. */
+  supabaseUrl: string | undefined;
+  /** How many files of the served bundle name the production project. */
+  bundleFilesNamingProduction: number;
+  /** What the outbound probe answered. */
+  outbound: OutboundResult;
+};
+
+/**
+ * Why the capture may not start, or null when it may. Every condition must hold; none can
+ * be waived. The production opt-in is refused outright, so the switch that lets other suites
+ * sign fixture accounts in to production does nothing for a capture except stop it.
+ */
+export function captureStartProblem(start: CaptureStart): string | null {
+  if (!start.inWorkflow) {
+    return 'The landing capture runs in the Landing capture workflow only.';
+  }
+  if (start.productionOptIn) {
+    return 'MYK9_ALLOW_PROD_E2E is set. A capture never runs against the production project; unset it.';
+  }
+  let host: string | undefined;
+  try {
+    host = start.supabaseUrl ? new URL(start.supabaseUrl).hostname : undefined;
+  } catch {
+    host = undefined;
+  }
+  if (host !== '127.0.0.1' && host !== 'localhost') {
+    return 'The landing capture runs against an isolated Supabase stack on this machine only.';
+  }
+  if (start.bundleFilesNamingProduction > 0) {
+    return `The served bundle was built against the production project (${start.bundleFilesNamingProduction} file(s) name it). Rebuild against the isolated stack.`;
+  }
+  return outboundProblem('refused', start.outbound);
+}
+
 // --- Fonts ---------------------------------------------------------------------------------
 
 const FONT_CSS_HOST = 'fonts.googleapis.com';

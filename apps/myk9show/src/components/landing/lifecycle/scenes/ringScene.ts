@@ -30,8 +30,8 @@ const ALT: Record<ShotName, string> = {
     'The scoresheet stopped at 38 seconds with Qualified chosen from Qualified, NQ, Absent, Excused and DQ',
   confirm:
     'Score Confirmation reading back armband 102, Juni, Qualified and the time, with Confirm and Submit',
-  saved: 'Back on the list of dogs: Saved, 102 Juni, Qualified, on this device, not sent yet',
-  sent: 'The list of dogs: the Saved line no longer says not sent yet, and a Scores sent message shows',
+  saved: 'Back on the class’s page: Saved, 102 Juni, Qualified, on this device, not sent yet',
+  sent: 'The class’s page: the Saved line no longer says not sent yet, and a Scores sent message shows',
 };
 
 const shot = (name: ShotName): SceneShot => ({

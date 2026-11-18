@@ -21,8 +21,9 @@ assertPlaywrightRunAllowed('playwright.ci.config.ts', shellEnv, {
   serverPort: 4173,
 });
 
-// MYK9-2181: the Landing capture workflow's one spec. It is in no other mode's list, and it
-// refuses to start unless the target is isolated and the job has closed its outbound network.
+// MYK9-2181: the Landing capture workflow's one spec. It is in no other mode's list here,
+// every other config skips it, and it refuses to start outside that workflow's conditions
+// (captureStartProblem in src/test/e2e/helpers/landingCapture.ts).
 const isLandingCapture = process.env.PLAYWRIGHT_LANDING_CAPTURE === 'true';
 const LANDING_CAPTURE_SPECS = ['**/capture/landingRingCapture.spec.ts'];
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';

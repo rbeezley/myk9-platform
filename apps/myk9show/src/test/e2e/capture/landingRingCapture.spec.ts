@@ -3,10 +3,13 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
-import { isIsolatedTarget } from '../helpers/isolatedFixtures';
+import {
+  ALLOW_PRODUCTION_FIXTURE_SIGN_IN,
+  bundleFilesNamingProduction,
+} from '../../productionFixtureGuard';
 import {
   OUTBOUND_PROBE,
-  outboundProblem,
+  captureStartProblem,
   probeOutbound,
   serveFontsFrom,
 } from '../helpers/landingCapture';
@@ -101,16 +104,20 @@ test.use({
   trace: 'off',
 });
 
+// Every other Playwright config collects this file too; there it is skipped, not run.
+test.skip(
+  process.env.PLAYWRIGHT_LANDING_CAPTURE !== 'true',
+  'Runs only in the Landing capture workflow (PLAYWRIGHT_LANDING_CAPTURE=true).'
+);
+
 test.beforeAll(async () => {
-  if (!isIsolatedTarget()) {
-    throw new Error(
-      'The landing capture runs against an isolated Supabase stack on this machine only.'
-    );
-  }
-  const problem = outboundProblem(
-    'refused',
-    await probeOutbound(OUTBOUND_PROBE.host, OUTBOUND_PROBE.port)
-  );
+  const problem = captureStartProblem({
+    inWorkflow: process.env.GITHUB_ACTIONS === 'true',
+    productionOptIn: process.env[ALLOW_PRODUCTION_FIXTURE_SIGN_IN] !== undefined,
+    supabaseUrl: process.env.VITE_SUPABASE_URL,
+    bundleFilesNamingProduction: bundleFilesNamingProduction(join(APP_DIR, 'dist')).length,
+    outbound: await probeOutbound(OUTBOUND_PROBE.host, OUTBOUND_PROBE.port),
+  });
   if (problem) throw new Error(problem);
 });
 
@@ -218,7 +225,7 @@ test('captures the ring scene on the judge’s phone', async ({ page, context })
   await shoot('classes', { card, row: card.getByRole('button').first() });
 
   // Line 2: the signal drops. At phone width the header shows an amber no-signal icon and a
-  // message says the changes are saved on this device. (From tablet width up the header
+  // message says the changes are saved on this device. (From 640px up the header
   // prints "Offline · scores saved on this device"; on a phone that sentence is behind a tap
   // on the icon, in a popover that runs off the right edge of a 390px screen.)
   await card.getByRole('button').first().click();
@@ -247,6 +254,8 @@ test('captures the ring scene on the judge’s phone', async ({ page, context })
     time: page.getByText(/^\d:\d\d\.\d\d$/).first(),
   });
   await button('Stop').click();
+  // The alt text and the evidence doc say 38 seconds; a slow runner fails here instead.
+  await expect(page.getByText(/^0:38\.\d\d$/).first()).toBeVisible();
   await button('Qualified').click();
   await page.waitForTimeout(600);
   // `timer` is the stopped time's card, so the frame can hold the time and the result.
@@ -282,5 +291,9 @@ test('captures the ring scene on the judge’s phone', async ({ page, context })
     REGIONS_FILE,
     `${JSON.stringify({ space: SPACE, scale: SCALE, shots }, null, 2)}\n`
   );
-  console.log('sockets held in the browser ::', [...new Set(heldSockets)].join(', ') || 'none');
+  // The app opened its realtime socket and this context held it: the hold was installed on
+  // the capture's own pages, not only proved in the test above.
+  expect(heldSockets.length).toBeGreaterThan(0);
+  expect(heldSockets.every(url => url.endsWith('/realtime/v1/websocket'))).toBe(true);
+  console.log('sockets held in the browser ::', [...new Set(heldSockets)].join(', '));
 });

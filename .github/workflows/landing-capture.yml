@@ -17,13 +17,18 @@ name: Landing capture
 on:
   workflow_dispatch: {}
   # A change to the capture is proved by running it: the artifact of the PR's own run is
-  # what gets committed.
+  # what gets committed. The last three paths are not the capture's own files, but a change
+  # to any of them can break it: the config that lists the spec in capture mode, the script
+  # that builds the job's stack, and the seed that holds the class and the dog in the scene.
   pull_request:
     branches: [main]
     paths:
       - 'apps/myk9show/src/test/e2e/capture/**'
       - 'apps/myk9show/src/test/e2e/helpers/landingCapture.ts'
       - '.github/workflows/landing-capture.yml'
+      - 'apps/myk9show/playwright.ci.config.ts'
+      - 'scripts/qa/isolated-e2e-lifecycle.ts'
+      - 'supabase/seed-demo.sql'
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}

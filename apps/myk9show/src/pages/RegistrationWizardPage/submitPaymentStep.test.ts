@@ -368,6 +368,9 @@ describe('submitPaymentStep', () => {
       expect.objectContaining({ capacityOverride: true, outcome: 'created' }),
     ]);
     expect(order).toEqual(['clearCart', 'triggerSync']);
+    // MYK9-1930: the same pass uploads the entry and pulls the show's entries back, so the
+    // entry form the server gave it reaches this device.
+    expect(ctx.triggerSync).toHaveBeenCalledWith([{ name: 'entries', scopeId: 'show-1' }]);
     expect(ctx.markStepComplete).toHaveBeenCalledWith(ctx.currentStep);
   });
 

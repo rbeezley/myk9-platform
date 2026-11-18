@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { resolve } from 'node:path';
@@ -198,6 +198,27 @@ describe('the capture spec and its job', () => {
     // The captures are set in a font face that really loaded.
     expect(spec).toMatch(/expect\(loadedFaces\)\.toContain\('Montserrat'\);/);
     expect(spec).not.toMatch(/document\.fonts\.check\(/);
+  });
+
+  it('runs on a pull request that changes anything the capture depends on', () => {
+    // MYK9-2188: the capture mode, the stack's lifecycle and the seeded class and dog are
+    // outside the capture's own folder, and each one that exists can break the capture.
+    const filter = workflow.slice(workflow.indexOf('pull_request:'), workflow.indexOf('\nenv:'));
+    const paths = filter
+      .split('\n')
+      .map(line => /^- '(.+)'$/.exec(line.trim())?.[1])
+      .filter((path): path is string => path !== undefined);
+    expect(paths).toEqual([
+      'apps/myk9show/src/test/e2e/capture/**',
+      'apps/myk9show/src/test/e2e/helpers/landingCapture.ts',
+      '.github/workflows/landing-capture.yml',
+      'apps/myk9show/playwright.ci.config.ts',
+      'scripts/qa/isolated-e2e-lifecycle.ts',
+      'supabase/seed-demo.sql',
+    ]);
+    for (const path of paths.filter(path => !path.includes('*'))) {
+      expect(existsSync(resolve(app, '../..', path)), path).toBe(true);
+    }
   });
 
   it('lists the capture spec in the capture mode only', () => {

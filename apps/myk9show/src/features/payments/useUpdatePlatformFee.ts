@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { PlatformFeeRates } from '@/store/cartStore.helpers';
+import { PAYOUT_LEDGER_QUERY_KEY } from './usePlatformPayoutLedger';
 
 /** Mirrors PLATFORM_FEE_LIMITS in supabase/functions/_shared/platformFee.ts and
  *  the CHECK constraints on platform_settings (migration 20260823140000). */
@@ -84,7 +85,7 @@ export function useUpdatePlatformFee() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-settings'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'payout-ledger'] });
+      queryClient.invalidateQueries({ queryKey: PAYOUT_LEDGER_QUERY_KEY });
     },
   });
 }

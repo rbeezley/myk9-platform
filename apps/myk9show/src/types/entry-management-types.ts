@@ -82,6 +82,11 @@ export interface EntryManagementEntry {
   /** MYK9-1162: the server's verdict that this entry awaits a registration number. */
   awaitingRegistrationNumber?: boolean | undefined;
   /**
+   * MYK9-1930: made on this device and not uploaded yet. The server gives the entry its form
+   * when it syncs; until then there is no form to record a payment on.
+   */
+  savedOnDeviceOnly?: boolean | undefined;
+  /**
    * MYK9-639: the entry this row's money was read FROM, stamped once by
    * `withEntryManagementMoneyRoots`. Equal to `id` for everything that was never
    * moved up. A refund, comp or discount must be issued against THIS id — the

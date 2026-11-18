@@ -12,10 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { PlatformIncomeSummary } from '@/features/financial';
 import type { PlatformAttentionSummary } from './platformAttention';
 import { usePlatformFinancialOverview } from './usePlatformFinancialOverview';
-
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
+import { formatCents } from '@/lib/format/cents';
 
 interface FigureProps {
   label: string;

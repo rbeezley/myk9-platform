@@ -49,6 +49,8 @@ import type {
 import { getEntrySubmitBlocker } from './entryCloseGuard';
 import { fetchDeskFormDueCents, type DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { sendSubmittedEntryEmail, submittedEntryIdsToEmail } from './sendSubmittedEntryEmail';
+import { targetsForTables } from '@/providers/showScopeTargets';
+import type { UploadSyncTarget } from '@/providers/ringsideUploadSyncTargets';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
@@ -120,7 +122,8 @@ export interface SubmitPaymentStepContext {
     registrationId: string,
     updates: { status: ShowRegistration['status'] }
   ) => void;
-  triggerSync: () => void;
+  /** No targets: the provider's untargeted pass. Targets: upload, then pull those scopes. */
+  triggerSync: (targets?: UploadSyncTarget[]) => void;
   /** Refresh the exhibitor's account-today-entries cache after their own online filing. */
   invalidateOwnTodayEntries: () => void;
   navigate: (path: string) => void;
@@ -276,7 +279,14 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       );
       ctx.setRegistrationNumber(buildOfflineLateEntryRegistrationNumber(offlineResult.entryIds));
       await ctx.cart.clearCart();
-      ctx.triggerSync();
+      // MYK9-1930: upload the entry and pull this show's entries back in the same pass. The
+      // server gives the entry its form on that upload, and the untargeted pass never downloads
+      // a show's entries, so without this the device keeps the formless copy.
+      const { targets } = await targetsForTables(
+        ctx.showId,
+        new Set<UploadSyncTarget['name']>(['entries'])
+      );
+      ctx.triggerSync(targets);
       ctx.markStepComplete(ctx.currentStep);
       ctx.setCurrentStep(prev => prev + 1);
       return false;

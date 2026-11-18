@@ -307,6 +307,9 @@ export function toSecretaryEntry(
     awaiting_registration_number: booleanFrom(
       replicatedField(entry, 'awaitingRegistrationNumber', 'awaiting_registration_number')
     ),
+    // MYK9-1930: the upload clears `_localOnly`; the server attaches the entry form on that
+    // INSERT and the next pull brings its id.
+    ...(entry._localOnly === true ? { saved_on_device_only: true } : {}),
     comped: booleanFrom(replicatedField(entry, 'comped', 'comped')),
     comped_reason: stringFrom(replicatedField(entry, 'compedReason', 'comped_reason')),
     refund_decision: pullMetadata?.refund_decision ?? null,

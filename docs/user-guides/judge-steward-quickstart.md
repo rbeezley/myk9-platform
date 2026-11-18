@@ -15,21 +15,29 @@
 
 There are three ways in. Use whichever fits you.
 
-**If you signed in with a myK9Show account** (assigned judges, secretaries):
+**If you are signed in, and the show is on your account** (assigned judges, secretaries):
 
 1. Tap **Ringside** in the sidebar.
 2. If one show is running today, it opens. If there is more than one, pick the show.
 3. You're in. No passcode needed.
 
-**If the secretary gave you a show passcode or QR code** (guest judges, stewards, volunteers):
+**If the secretary gave you a show passcode, and you are not signed in** (guest judges, stewards, volunteers):
 
 1. Open myK9Show in your browser.
-2. Type the **show passcode** into **Email or show passcode** and tap **Continue**, or scan the **QR code**.
-3. You're in. No account needed.
+2. Type the **show passcode** the secretary gave you into **Email or show passcode** and tap **Continue**. Type it, do not scan: the QR code on the show flyer and the access-code slip is the exhibitors' code, and it does not open scoring.
+3. **Join the show** asks for **Your name**. It is optional. Others at the show see it, so they know who is at each ring. If a security check shows, complete it. Then tap **Continue**.
+4. You're in. No account needed.
+
+**If you are signed in and the secretary gave you a show passcode:**
+
+1. Open the sign-in page. It says **You are signed in**.
+2. Tap **Join a show with a passcode**.
+3. Type the code into **Show passcode** and tap **Continue**.
+4. **Join this show?** names the show and your role. Tap **Join show**.
 
 ![Passcode entry screen — "Email or show passcode" field with Continue button (mobile)](../screenshots/J-01.png)
 
-![Two access paths into ringside: account holders tap Ringside in the sidebar; guests enter a passcode or scan a QR code](../diagrams/at-show-access-paths.svg)
+![Three ways into ringside. Signed in, and the show is on your account: tap Ringside in the sidebar. Signed in, with a passcode from the secretary: tap Join a show with a passcode on the sign-in page. Not signed in, with a passcode: type it and tap Continue.](../diagrams/at-show-access-paths.svg)
 
 **Don't have a passcode?** Ask the trial secretary before the show starts. Each judge has their own code, listed under their name in **Show Access Codes** on the show's **Overview** and printed on their Judge Supply Checklist. A judge's code opens only the classes assigned to that judge. If you try to score another judge's class, myK9Show tells you whose class it is.
 
@@ -61,6 +69,8 @@ Tapping a class opens its entry list — the dogs in run order, on the **Pending
 ---
 
 ## Score a dog
+
+> **Watch before show day:** [How to score a dog (1 min 40 s)](https://youtu.be/1d6sVXNVDak) It starts at signing in with a passcode. The video needs a signal. Scoring at the ring does not.
 
 This section is for the judge, or anyone the secretary has given scoring access. Record the result as soon as the dog finishes. It saves on your device first, then sends to the secretary.
 
@@ -119,11 +129,13 @@ Show venues often have weak signal. The app is built for it.
 | The passcode doesn't work                 | Ask the secretary for the current code; they can regenerate it                      |
 | Your scores aren't reaching the secretary | Check the sync label — it reads **Not sent yet** until the connection returns       |
 | The timer reset itself                    | Start timing again, then tap **Save** — scores are saved by hand, not automatically |
-| The app stops responding                  | Close the browser tab and reopen it. If you came in by QR code, scan it again       |
+| The app stops responding                  | Close the browser tab and reopen it. If it asks, type your passcode again           |
 
 ---
 
 ## Still need help?
+
+More videos for judges and stewards: [myK9Show - Judges and Stewards](https://www.youtube.com/playlist?list=PLNz_qO-RIZtg).
 
 Find the trial secretary at the show desk. They control access codes, the run order, and results.
 

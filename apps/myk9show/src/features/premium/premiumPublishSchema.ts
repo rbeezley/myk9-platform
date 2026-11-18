@@ -38,6 +38,7 @@ const generatedPremiumSchema = z.object({
     dayOfFee: nullableAmount,
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
+    onlineEntriesEnabled: z.boolean().optional(),
     // MYK9-1976: optional, so a premium generated before it still parses (and prints no
     // policy row). Without it here zod would strip the policy from every new premium.
     withdrawal: z

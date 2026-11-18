@@ -77,6 +77,7 @@ export function applyShowFormDataToPremium(
       dayOfFee: dayOfFee ?? premium.show.dayOfFee,
       acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
       acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
+      onlineEntriesEnabled: formData.onlineEntriesEnabled ?? premium.show.onlineEntriesEnabled,
     },
     trials: premium.trials.map(trial => ({
       ...trial,

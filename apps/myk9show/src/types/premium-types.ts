@@ -101,6 +101,8 @@ export interface GeneratedPremium {
     dayOfFee: number | null;
     acceptChecks: boolean;
     acceptCash: boolean;
+    /** MYK9-2164: online card entry is on. Absent on premiums generated before it, read as on. */
+    onlineEntriesEnabled?: boolean | undefined;
     /** Absent on premiums generated before MYK9-1976 part 2: those print no policy row. */
     withdrawal?: PremiumWithdrawalRow | null;
   };

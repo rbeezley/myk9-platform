@@ -188,6 +188,7 @@ function buildLocalPremiumDraft(
       dayOfFee: currencyToNumber(data.dayOfShowFee),
       acceptChecks: Boolean(data.acceptCheckPayments),
       acceptCash: Boolean(data.acceptCashPayments),
+      onlineEntriesEnabled: data.onlineEntriesEnabled !== false,
     },
     club: {
       name: data.clubName ?? '',

@@ -370,9 +370,13 @@ export function buildPremiumFacts(
       preEntry: show.preEntryFee,
       dayOf: show.dayOfFee,
       hasAny: (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0,
-      paymentMethods: [show.acceptChecks && 'Checks', show.acceptCash && 'Cash'].filter(
-        (m): m is string => Boolean(m)
-      ),
+      paymentMethods: [
+        // Same name the entry form and receipts use for card (getPaymentMethodLabel).
+        // Absent means a premium from before MYK9-2164; every show takes online entries now.
+        show.onlineEntriesEnabled !== false && 'Credit/Debit Card',
+        show.acceptChecks && 'Checks',
+        show.acceptCash && 'Cash',
+      ].filter((m): m is string => Boolean(m)),
     },
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),

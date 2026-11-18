@@ -29,6 +29,8 @@ export interface RefundsToDecideList<T> extends WaitingList<RefundToDecideRow<T>
 export function entryRefundInput(entry: EntryManagementEntry): RefundToDecideInput {
   return {
     entry_status: entry.rawEntryStatus,
+    // MYK9-2145: one entry row per class here, so its check-in flag is the class row's.
+    check_in_status: entry.classes[0]?.checkInStatus ?? null,
     withdrawal_reason_code: entry.withdrawalReasonCode,
     // The raw column; a row built without it falls back to the UI enum, whose paid-online is 'paid'.
     payment_status:
@@ -89,6 +91,7 @@ export function isPullsListEntry(entry: EntryManagementEntry): boolean {
   const input = entryRefundInput(entry);
   const kind = classifyEntryRemoval({
     entryStatus: input.entry_status,
+    checkInStatus: input.check_in_status,
     withdrawalReasonCode: input.withdrawal_reason_code,
   });
   return (

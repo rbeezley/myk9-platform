@@ -22,7 +22,7 @@ import {
  * (descending, `lt` the last id). `fail` answers that page number with an error.
  */
 function fakeMetadataRead(rows: Array<Record<string, unknown>>, fail?: { page: number }) {
-  const calls = { select: [] as string[], in: [] as unknown[], pages: 0 };
+  const calls = { select: [] as string[], in: [] as unknown[], or: [] as string[], pages: 0 };
   mocks.from.mockImplementation(() => {
     let cursor: string | null = null;
     const query = {
@@ -33,6 +33,10 @@ function fakeMetadataRead(rows: Array<Record<string, unknown>>, fail?: { page: n
       eq: vi.fn(() => query),
       in: vi.fn((column: string, values: string[]) => {
         calls.in.push([column, values]);
+        return query;
+      }),
+      or: vi.fn((filters: string) => {
+        calls.or.push(filters);
         return query;
       }),
       order: vi.fn(() => query),
@@ -83,13 +87,17 @@ describe('postgrestGetSecretaryPullMetadataMap', () => {
   });
 
   // MYK9-2099: a no-show can carry a refund decision, so 'absent' is read with the removals.
-  // Without it a denied no-show reads as undecided and stays "to decide" for good.
-  it('reads the decision for pulls, withdrawals, removals and no-shows', async () => {
+  // MYK9-2145: so can a ringside or self check-in pull, whose entry_status stays as entered.
+  // Without either, a denied refund reads as undecided and stays "to decide" for good.
+  it('reads the decision for pulls, check-in pulls, withdrawals, removals and no-shows', async () => {
     const calls = fakeMetadataRead([]);
 
     await postgrestGetSecretaryPullMetadataMap('show-1');
 
-    expect(calls.in).toEqual([['entry_status', ['scratched', 'withdrawn', 'absent']]]);
+    expect(calls.or).toEqual([
+      'entry_status.in.(scratched,withdrawn,absent),check_in_status.eq.pulled',
+    ]);
+    expect(calls.in).toEqual([]);
   });
 
   // MYK9-2099: PostgREST caps one response at 1000 rows. A truncated read would show every
@@ -202,6 +210,7 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
         eq: vi.fn(() => query),
         is: vi.fn(() => query),
         in: vi.fn(() => query),
+        or: vi.fn(() => query),
         lt: vi.fn(() => query),
         // The saved-decision read pages through `range`; that is where it fails.
         range: vi.fn(() => Promise.resolve(answer)),
@@ -431,8 +440,9 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
           heldLookup = true;
           return query;
         }),
-        in: vi.fn((column: string) => {
-          if (column === 'entry_status') metadataLookup = true;
+        in: vi.fn(() => query),
+        or: vi.fn(() => {
+          metadataLookup = true;
           return query;
         }),
         lt: vi.fn(() => query),

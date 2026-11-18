@@ -40,6 +40,8 @@ describe('loadPlatformPayoutLedgerEntryPage', () => {
     expect(selects).toHaveLength(1);
     expect(selects[0]).toContain('refund_decision');
     expect(selects[0]).toContain('withdrawal_reason_code');
+    // MYK9-2145: a ringside or self check-in pull is a refund to decide, so the count reads it.
+    expect(selects[0]).toContain('check_in_status');
   });
 });
 

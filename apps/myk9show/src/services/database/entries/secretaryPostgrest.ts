@@ -229,16 +229,19 @@ export async function postgrestGetSecretaryPullMetadataMap(
   // Every column here is migration-backed and applied (20260722160000,
   // 20260918041700); MYK9-654 retired the per-column compat retries.
   // MYK9-2099: every removal that can carry a refund decision (a no-show is entry_status
-  // 'absent'), read in full: PostgREST caps one response at 1000 rows, and a truncated read
-  // would show a denied refund as undecided. A failed page throws, and the caller then treats
-  // every decision as unknown.
+  // 'absent'; MYK9-2145: a ringside or self check-in pull is check_in_status 'pulled' with
+  // entry_status still entered, the rows `refundToDecideRemoval` counts), read in full:
+  // PostgREST caps one response at 1000 rows, and a truncated read would show a denied refund
+  // as undecided. A failed page throws, and the caller then treats every decision as unknown.
   const data = await readAllEntryPages(
     () =>
       supabase
         .from('entries')
         .select('id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code')
         .eq('show_id', showId)
-        .in('entry_status', ['scratched', 'withdrawn', 'absent']) as unknown as KeysetPageQuery,
+        .or(
+          'entry_status.in.(scratched,withdrawn,absent),check_in_status.eq.pulled'
+        ) as unknown as KeysetPageQuery,
     'get_secretary_pull_metadata'
   );
 

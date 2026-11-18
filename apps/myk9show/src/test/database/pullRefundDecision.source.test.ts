@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  * the audit index — and nothing has superseded those. It no longer owns the
  * BEHAVIOUR: MYK9-632 replaced `set_entry_refund_decision` and the reinstate
  * trigger in `20260917214300`, and MYK9-2099 replaced both again in
- * `20261117152900` (the latest definition), and a source test that keeps reading the older
+ * `20261117152900`, and MYK9-2145 again in `20261118174500` (the latest definition), and a source test that keeps reading the older
  * file certifies a guard that is not what ships. It also stays green while it
  * does so, which is the worst version of that mistake (LESSONS
  * replace-function-latest).
@@ -20,7 +20,7 @@ const shape = readFileSync(
   'utf8'
 );
 const behaviour = readFileSync(
-  resolve(migrationsDir, '20261117152900_myk9_2099_refund_decision_removed_absent.sql'),
+  resolve(migrationsDir, '20261118174500_myk9_2145_refund_decision_check_in_pull.sql'),
   'utf8'
 );
 
@@ -45,10 +45,12 @@ describe('pull refund decision persistence', () => {
   // reason code, so a secretary removal too) and a no-show: the same rows
   // `refundToDecideRemoval` offers the Deny control for. It COALESCEs, because
   // with a NULL entry_status the NOT IN is NULL and the guard would fall through.
-  it('admits pulls, withdrawals, removals and no-shows', () => {
+  // MYK9-2145: a check-in 'pulled' flag (ringside or the exhibitor's check-in) is a pull too.
+  it('admits pulls, check-in pulls, withdrawals, removals and no-shows', () => {
     expect(behaviour).toContain(
-      "COALESCE(v_entry_status, '') NOT IN ('scratched', 'withdrawn', 'absent')"
+      "COALESCE(v_entry_status, '') IN ('scratched', 'withdrawn', 'absent')"
     );
+    expect(behaviour).toContain("OR lower(COALESCE(v_check_in_status, '')) = 'pulled'");
     expect(behaviour).toContain(
       "RAISE EXCEPTION 'entry % is not an unresolved paid-online pull, withdrawal, removal or no-show'"
     );
@@ -70,13 +72,15 @@ describe('pull refund decision persistence', () => {
     expect(behaviour).toContain("IF TG_OP = 'INSERT'");
   });
 
-  // MYK9-632 widened this to withdrawals and MYK9-2099 to no-shows. Behaviour
-  // pinned in supabase/tests/withdraw_or_pull_own_entry_test.sql and
-  // myk9_2099_refund_decision_removed_absent_test.sql; this only checks the
+  // MYK9-632 widened this to withdrawals, MYK9-2099 to no-shows and MYK9-2145 to
+  // check-in pulls. Behaviour pinned in supabase/tests/withdraw_or_pull_own_entry_test.sql,
+  // myk9_2099_refund_decision_removed_absent_test.sql and
+  // myk9_2145_refund_decision_check_in_pull_test.sql; this only checks the
   // shipped file is the one that says it.
   it('clears a saved denial when any decided removal is reinstated', () => {
     expect(behaviour).toContain("old.entry_status IN ('scratched', 'withdrawn', 'absent')");
     expect(behaviour).toContain('new.entry_status IS DISTINCT FROM old.entry_status');
+    expect(behaviour).toContain("AND lower(COALESCE(new.check_in_status, '')) <> 'pulled'");
     expect(behaviour).toContain('new.refund_decision := NULL');
     expect(behaviour).toContain('new.refund_decided_at := NULL');
     expect(behaviour).toContain('new.refund_decided_by := NULL');

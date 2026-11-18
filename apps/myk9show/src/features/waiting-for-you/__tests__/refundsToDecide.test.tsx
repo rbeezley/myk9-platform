@@ -142,6 +142,66 @@ describe('refunds to decide: the pill, the menu and the Pulls list agree (MYK9-2
   });
 });
 
+/** A paid-online entry still entered, flagged pulled at check-in by `pulledBy` (MYK9-2145). */
+function checkInPull(id: string, pulledBy: 'staff' | 'exhibitor'): EntryManagementEntry {
+  return entry(id, {
+    classes: [
+      {
+        id,
+        classId: 'c1',
+        name: 'Novice',
+        number: '1',
+        fee: 25,
+        status: 'entered',
+        checkInStatus: 'pulled',
+        checkInPulledBy: pulledBy,
+      },
+    ],
+  });
+}
+
+// MYK9-2145: ringside's Pull and the exhibitor's own check-in pull set only check_in_status, so
+// entry_status stays 'confirmed'. Each is a refund to decide, exactly as a desk pull is.
+describe('a ringside or self check-in pull is a refund to decide (MYK9-2145)', () => {
+  const ringside = checkInPull('Ringside', 'staff');
+  const selfCheckIn = checkInPull('SelfCheckIn', 'exhibitor');
+  const withPulls = [...entries, ringside, selfCheckIn];
+
+  it('is counted, listed on Pulls, and offered Deny refund', () => {
+    const list = findEntryRefundsToDecide(withPulls);
+    expect(list.rows.map(row => [row.entry.id, row.removal])).toEqual([
+      ['Pulled', 'pulled'],
+      ['Withdrawn', 'withdrawn'],
+      ['Removed', 'removed'],
+      ['Absent', 'absent'],
+      ['Ringside', 'pulled'],
+      ['SelfCheckIn', 'pulled'],
+    ]);
+    expect(withPulls.filter(isPullsListEntry).map(row => row.id)).toEqual([
+      'Pulled',
+      'Withdrawn',
+      'Removed',
+      'Absent',
+      'Denied',
+      'Ringside',
+      'SelfCheckIn',
+    ]);
+
+    render(<PullManagementTab processedEntries={[ringside, selfCheckIn]} />);
+    expect(screen.getAllByRole('button', { name: /deny refund/i })).toHaveLength(2);
+  });
+
+  it('leaves the count once denied, and stays off it when merely checked in', () => {
+    const denied = { ...ringside, refundDecision: 'denied' as const };
+    const checkedIn = entry('CheckedIn', {
+      classes: [{ ...ringside.classes[0]!, id: 'CheckedIn', checkInStatus: 'checked-in' }],
+    });
+    expect(findEntryRefundsToDecide([denied, checkedIn]).count).toBe(0);
+    expect(isPullsListEntry(denied)).toBe(true);
+    expect(isPullsListEntry(checkedIn)).toBe(false);
+  });
+});
+
 describe('payoutDayText', () => {
   const now = new Date('2026-11-17T15:00:00Z');
   it('names the payout day within a week, its date beyond, and nothing once it has passed', () => {

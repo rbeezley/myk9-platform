@@ -90,6 +90,7 @@ export function PullReconciliationCard({
   const kind =
     classifyEntryRemoval({
       entryStatus: entry.rawEntryStatus,
+      checkInStatus: entry.classes[0]?.checkInStatus,
       withdrawalReasonCode: entry.withdrawalReasonCode,
     }) ?? 'pulled';
   const removedAtLabel = REMOVED_AT_LABEL[kind];

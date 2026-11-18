@@ -59,11 +59,18 @@ export interface PullRefundDecisionEntry {
   refund_decision: string | null;
   /** MYK9-632: set only on a WITHDRAWAL, and only to one of the two codes. */
   withdrawal_reason_code?: string | null;
+  /** MYK9-2145: a check-in 'pulled' flag (ringside or self check-in) is a pull too. */
+  check_in_status?: string | null;
 }
 
 /** The entry fields the refund-to-decide question reads, in the database's own names. */
 export interface RefundToDecideInput {
   entry_status?: string | null | undefined;
+  /**
+   * MYK9-2145: ringside's Pull and the exhibitor's own check-in pull write only this, 'pulled',
+   * and leave `entry_status` as entered.
+   */
+  check_in_status?: string | null | undefined;
   withdrawal_reason_code?: string | null | undefined;
   payment_status?: string | null | undefined;
   payment_method?: string | null | undefined;
@@ -84,6 +91,7 @@ function paidOnlineUnrefundedRemoval(entry: RefundToDecideInput): EntryRemovalKi
   if ((Number.isFinite(refunded) && refunded > 0) || entry.refunded_at) return null;
   return classifyEntryRemoval({
     entryStatus: entry.entry_status,
+    checkInStatus: entry.check_in_status,
     withdrawalReasonCode: entry.withdrawal_reason_code,
   });
 }
@@ -99,14 +107,16 @@ function paidOnlineUnrefundedRemoval(entry: RefundToDecideInput): EntryRemovalKi
  * - Already denied or already refunded: decided, never "to decide".
  * - Not paid online: there is no card payment for Issue refund or Deny refund to act on, so the
  *   row could never leave the count.
- * - The removal is read from `entry_status` alone. A check-in "pulled" flag on an entry that is
- *   still entered is not a pull until the secretary makes it one.
+ * - The removal is `classifyEntryRemoval`'s, the same one Finish the show counts removals with:
+ *   `entry_status`, or a check-in 'pulled' flag on an entry still entered (MYK9-2145: ringside's
+ *   Pull and the exhibitor's own check-in pull write only that flag; a desk pull also scratches).
  * - Saved decisions not read: not counted here, but by `refundDecisionUnknownRemoval`, so no
  *   screen presents a denied refund as one to decide.
  *
  * `set_entry_refund_decision` admits exactly these rows
- * (supabase/migrations/20261117152900_myk9_2099_refund_decision_removed_absent.sql). Change both
- * together. Money is never refunded here; a person decides each row.
+ * (supabase/migrations/20261118174500_myk9_2145_refund_decision_check_in_pull.sql), and the
+ * Entries page's saved-decision read (`postgrestGetSecretaryPullMetadataMap`) reads them. Change
+ * all three together. Money is never refunded here; a person decides each row.
  */
 export function refundToDecideRemoval(entry: RefundToDecideInput): EntryRemovalKind | null {
   if (entry.refund_decision_unknown || entry.refund_decision) return null;

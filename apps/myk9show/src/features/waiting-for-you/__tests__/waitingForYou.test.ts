@@ -50,7 +50,8 @@ describe('findRefundsToDecide', () => {
     },
     { ...online, id: 'pulled-unpaid', entry_status: 'scratched', payment_status: 'pending' },
     { ...online, id: 'running-paid', entry_status: 'confirmed', payment_status: 'paid' },
-    // A check-in "pulled" flag on an entry still entered is not a pull yet.
+    // MYK9-2145: a check-in "pulled" flag (ringside's Pull, or the exhibitor's own check-in pull)
+    // on an entry still entered is a pull, the same as a desk pull.
     {
       ...online,
       id: 'flagged-paid',
@@ -68,8 +69,15 @@ describe('findRefundsToDecide', () => {
       'withdrawn-paid',
       'removed-paid',
       'absent-paid',
+      'flagged-paid',
     ]);
-    expect(list.rows.map(row => row.removal)).toEqual(['pulled', 'withdrawn', 'removed', 'absent']);
+    expect(list.rows.map(row => row.removal)).toEqual([
+      'pulled',
+      'withdrawn',
+      'removed',
+      'absent',
+      'pulled',
+    ]);
     expect(list.count).toBe(list.rows.length);
   });
 
@@ -87,7 +95,7 @@ describe('findRefundsToDecide', () => {
       submissions: null,
     });
     const line = left.lines.find(candidate => candidate.kind === 'refund-review');
-    expect(findRefundsToDecide(entries).count).toBe(4);
+    expect(findRefundsToDecide(entries).count).toBe(5);
     expect(line?.count).toBe(findRefundsToDecide(entries).count);
     expect(left.refundReview.count).toBe(findRefundsToDecide(entries).count);
   });

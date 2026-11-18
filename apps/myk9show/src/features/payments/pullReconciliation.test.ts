@@ -3,6 +3,7 @@ import {
   derivePullTiming,
   getSuggestedPullRefundDecision,
   isUnresolvedRemovalRefundDecision,
+  refundDecisionUnknownRemoval,
   refundToDecideRemoval,
 } from './pullReconciliation';
 
@@ -172,5 +173,28 @@ describe('refundToDecideRemoval (MYK9-2099: the one definition)', () => {
     ).toBeNull();
     expect(refundToDecideRemoval({ ...paidOnline, entry_status: 'confirmed' })).toBeNull();
     expect(refundToDecideRemoval({ ...paidOnline, entry_status: null })).toBeNull();
+    expect(
+      refundToDecideRemoval({
+        ...paidOnline,
+        entry_status: 'confirmed',
+        check_in_status: 'checked-in',
+      })
+    ).toBeNull();
+  });
+
+  // MYK9-2145: ringside's Pull and the exhibitor's own check-in pull set only check_in_status, so
+  // a paid entry pulled that way is a pull to decide, the same as a desk pull.
+  it('counts a check-in pull whose entry is still entered, and drops it once decided', () => {
+    const checkInPull = { ...paidOnline, entry_status: 'confirmed', check_in_status: 'pulled' };
+    expect(refundToDecideRemoval(checkInPull)).toBe('pulled');
+    // The payout ledger's unresolved count reads the same predicate.
+    expect(isUnresolvedRemovalRefundDecision(checkInPull)).toBe(true);
+    expect(refundToDecideRemoval({ ...checkInPull, check_in_status: 'Pulled' })).toBe('pulled');
+    expect(refundToDecideRemoval({ ...checkInPull, refund_decision: 'denied' })).toBeNull();
+    expect(refundToDecideRemoval({ ...checkInPull, refund_amount: 25 })).toBeNull();
+    expect(refundToDecideRemoval({ ...checkInPull, payment_method: 'cash' })).toBeNull();
+    expect(refundDecisionUnknownRemoval({ ...checkInPull, refund_decision_unknown: true })).toBe(
+      'pulled'
+    );
   });
 });

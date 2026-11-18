@@ -37,7 +37,7 @@ describe('summarizeShowDayReconciliation', () => {
   });
 
   // MYK9-2099: refund review is `refundToDecideRemoval`, the rows Deny refund can decide.
-  it('leaves out a decided, cash-paid or check-in-flagged removal from refund review', () => {
+  it('leaves out a decided or cash-paid removal from refund review', () => {
     const summary = summarizeShowDayReconciliation(
       [
         {
@@ -50,13 +50,6 @@ describe('summarizeShowDayReconciliation', () => {
         },
         { id: 'cash', entry_fee: 30, entry_status: 'withdrawn', payment_status: 'paid' },
         {
-          id: 'flagged',
-          entry_fee: 25,
-          check_in_status: 'pulled',
-          payment_status: 'paid',
-          payment_method: 'online',
-        },
-        {
           id: 'absent',
           entry_fee: 20,
           entry_status: 'absent',
@@ -67,10 +60,30 @@ describe('summarizeShowDayReconciliation', () => {
       WINDOW
     );
 
-    expect(summary.removalCount).toBe(4);
+    expect(summary.removalCount).toBe(3);
     expect(summary.refundReviewCount).toBe(1);
     expect(summary.refundReviewRemovals.absent).toBe(1);
     expect(summary.refundReviewAmount).toBe(20);
+  });
+
+  // MYK9-2145: ringside's Pull and the exhibitor's own check-in pull leave entry_status as
+  // entered. Finish the show counts each as a pull, so each is a pull to decide too, and the two
+  // totals agree on them.
+  it('counts a paid ringside or self check-in pull as a refund to decide, like a desk pull', () => {
+    const paidOnline = { entry_fee: 25, payment_status: 'paid', payment_method: 'online' };
+    const summary = summarizeShowDayReconciliation(
+      [
+        { id: 'desk', ...paidOnline, entry_status: 'scratched', check_in_status: 'pulled' },
+        { id: 'ringside', ...paidOnline, entry_status: 'confirmed', check_in_status: 'pulled' },
+        { id: 'self', ...paidOnline, entry_status: 'confirmed', check_in_status: 'pulled' },
+      ],
+      WINDOW
+    );
+
+    expect(summary.removals.pulled).toBe(3);
+    expect(summary.refundReviewRemovals.pulled).toBe(3);
+    expect(summary.refundReviewCount).toBe(summary.removalCount);
+    expect(summary.refundReviewAmount).toBe(75);
   });
 
   it('totals already-refunded removals separately', () => {

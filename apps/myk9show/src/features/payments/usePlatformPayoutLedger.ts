@@ -14,9 +14,10 @@ import { chunk } from '@/utils/chunkIds';
 // `refund_decision` (20260722160000) and `withdrawal_reason_code`
 // (20260918041700) are applied; MYK9-654 retired their compat retries. MYK9-632:
 // a paid WITHDRAWAL with a recognised reason code owes the secretary a decision
-// too, so the count has to be able to see the code.
+// too, so the count has to be able to see the code. MYK9-2145: a ringside or self check-in pull
+// leaves entry_status as entered, so the count reads check_in_status too.
 const LEDGER_ENTRY_SELECT =
-  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision, withdrawal_reason_code';
+  'id, show_id, entry_status, check_in_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision, withdrawal_reason_code';
 
 export async function loadPlatformPayoutLedgerEntryPage(
   from: number,

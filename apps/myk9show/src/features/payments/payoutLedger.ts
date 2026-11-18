@@ -36,6 +36,8 @@ export interface LedgerEntryRow {
    * never INVENTS an unresolved decision.
    */
   withdrawal_reason_code?: string | null;
+  /** MYK9-2145: a ringside or self check-in pull is a pull with entry_status still entered. */
+  check_in_status?: string | null;
 }
 
 /**

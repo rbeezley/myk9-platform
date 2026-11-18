@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline } from '../LifecycleTimeline';
 import { BANNED_COPY, SCENE_LINES, STORIES } from '../lifecycleStories';
-import { firstFrameOfLine } from '../sceneFrames';
-import { RING_SCENE } from '../scenes/ringScene';
+import { firstFrameOfLine, lastFrameOfLine, windowOnRing } from '../sceneFrames';
+import { RING_SCENE, RING_WINDOW_HEIGHT } from '../scenes/ringScene';
 import regions from '../scenes/ringRegions.json';
 
 vi.mock('../useTimelineProgress', () => ({
@@ -24,7 +24,11 @@ function pngSize(file: string) {
 }
 
 describe('the ring scene', () => {
-  it('is the judge’s tablet alone, with the plan’s five lines', () => {
+  it('is the judge’s phone alone, with the plan’s five lines', () => {
+    expect(phone!.label).toBe('The judge’s phone');
+    expect(space).toEqual({ width: 390, height: 844 });
+    expect(regions.scale).toBe(2);
+    for (const shot of Object.values(phone!.shots)) expect(shot.alt).not.toMatch(/tablet/i);
     expect(RING_SCENE.desk).toBeUndefined();
     expect(RING_SCENE.lines).toBe(SCENE_LINES['showday-ring']);
     expect(RING_SCENE.lines).toHaveLength(5);
@@ -43,16 +47,66 @@ describe('the ring scene', () => {
     expect(offline).toBeLessThan(frames.findIndex(f => f.phone!.shot === 'saved'));
   });
 
-  it('shows the whole tablet in every frame, with a ring inside the page', () => {
+  it('rests every line on the capture its heading names, which is what reduced motion shows', () => {
+    // Under reduced motion a line shows its last frame and nothing else (sceneState.ts).
+    const resting = RING_SCENE.lines.map((line, i) => [
+      line.head,
+      frames[lastFrameOfLine(frames, i)]!.phone!.shot,
+    ]);
+    expect(resting).toEqual([
+      ['The judge opens the ring’s classes', 'classes'],
+      ['The signal drops', 'offline'],
+      ['The judge times and scores the run', 'result'],
+      ['The score is read back before it saves', 'confirm'],
+      ['The signal returns', 'sent'],
+    ]);
+  });
+
+  it('rings the whole class card on the first line', () => {
+    // The card is at least its 48px tap row plus the status line under it.
+    const card = regions.shots.classes.regions.card;
+    expect(frames[0]!.phone!.ring).toEqual(card);
+    expect(card.w).toBeGreaterThan(space.width * 0.8);
+    expect(card.h).toBeGreaterThanOrEqual(64);
+  });
+
+  it('places a window by one rule: full width, inside the page, centred on the ring', () => {
+    const page = { width: 390, height: 844 };
+    // In the middle of the page the ring is centred.
+    expect(windowOnRing(page, { x: 34, y: 338, w: 322, h: 189 }, 520)).toEqual({
+      x: 0,
+      y: 173,
+      w: 390,
+      h: 520,
+    });
+    // Near the top or the bottom the window stops at the page's edge.
+    expect(windowOnRing(page, { x: 25, y: 157, w: 188, h: 58 }, 520).y).toBe(0);
+    expect(windowOnRing(page, { x: 16, y: 775, w: 358, h: 54 }, 520).y).toBe(324);
+    // A window taller than the page is the whole page.
+    expect(windowOnRing(page, { x: 0, y: 400, w: 10, h: 10 }, 2000)).toEqual({
+      x: 0,
+      y: 0,
+      w: 390,
+      h: 844,
+    });
+  });
+
+  it('shows every frame at the phone’s full width in a 3:4 window that holds its ring', () => {
+    expect(RING_WINDOW_HEIGHT).toBe(520);
     for (const f of frames) {
       const { camera, ring, shot } = f.phone!;
       expect(phone!.shots[shot], shot).toBeDefined();
-      expect(camera, shot).toEqual({ x: 0, y: 0, w: space.width, h: space.height });
       expect(ring, shot).toBeDefined();
-      expect(ring!.x).toBeGreaterThanOrEqual(0);
-      expect(ring!.y).toBeGreaterThanOrEqual(0);
-      expect(ring!.x + ring!.w).toBeLessThanOrEqual(space.width);
-      expect(ring!.y + ring!.h).toBeLessThanOrEqual(space.height);
+      // No zoom and no hand-picked camera: the window is whatever the rule gives for the ring.
+      expect(camera, shot).toEqual(windowOnRing(space, ring!, RING_WINDOW_HEIGHT));
+      expect(camera.w, shot).toBe(space.width);
+      expect(camera.y, shot).toBeGreaterThanOrEqual(0);
+      expect(camera.y + camera.h, shot).toBeLessThanOrEqual(space.height);
+      // The whole ring is inside the window, so nothing a line points at is cut off.
+      expect(ring!.x, shot).toBeGreaterThanOrEqual(0);
+      expect(ring!.x + ring!.w, shot).toBeLessThanOrEqual(space.width);
+      expect(ring!.y, shot).toBeGreaterThanOrEqual(camera.y);
+      expect(ring!.y + ring!.h, shot).toBeLessThanOrEqual(camera.y + camera.h);
     }
   });
 

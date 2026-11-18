@@ -150,7 +150,7 @@ export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
     },
     {
       head: 'The signal drops',
-      text: 'The header says scores are saved on this device, and the run order stays.',
+      text: 'The screen says changes are saved on this device, and the run order stays.',
     },
     {
       head: 'The judge times and scores the run',
@@ -162,7 +162,7 @@ export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
     },
     {
       head: 'The signal returns',
-      text: 'The score sends itself, and the tablet says Scores sent.',
+      text: 'The score sends itself, and the screen says Scores sent.',
     },
   ],
   'showday-desk': [

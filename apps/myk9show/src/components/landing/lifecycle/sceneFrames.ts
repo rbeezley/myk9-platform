@@ -82,6 +82,21 @@ export function ringStyle(ring: Region, camera: Region) {
   };
 }
 
+/**
+ * A window on a capture: the full width of the page and `height` tall, placed so `ring` sits
+ * in its middle and kept inside the page. One rule for every frame of a screen that is taller
+ * than the frame it is drawn in. It never zooms, so the words stay the size they were captured.
+ */
+export function windowOnRing(
+  space: SceneDeviceData['space'],
+  ring: Region,
+  height: number
+): Region {
+  const h = Math.min(height, space.height);
+  const centred = Math.round(ring.y + ring.h / 2 - h / 2);
+  return { x: 0, y: Math.min(Math.max(centred, 0), space.height - h), w: space.width, h };
+}
+
 export function firstFrameOfLine(frames: readonly SceneFrame[], line: number): number {
   const i = frames.findIndex(f => f.line === line);
   return i < 0 ? 0 : i;

@@ -155,7 +155,7 @@ try {
     await page.waitForTimeout(RUN_MS);
     await shoot('running', {
       timer: [button('Stop'), 300, 120],
-      time: page.getByText(/^d:dd.dd$/).first(),
+      time: page.getByText(/^\d:\d\d\.\d\d$/).first(),
     });
     await button('Stop').click();
     await button('Qualified').click();

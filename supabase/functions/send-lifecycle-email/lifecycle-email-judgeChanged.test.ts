@@ -30,6 +30,7 @@ function sentBody(fetch: ReturnType<typeof vi.fn>) {
 }
 
 const change: JudgeChange = {
+  classId: 'class-1',
   className: 'Container Novice A',
   where: 'Saturday Trial, Saturday, November 21, 2026',
   fromJudge: 'Olly Oldjudge',

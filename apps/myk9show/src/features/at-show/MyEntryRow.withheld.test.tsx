@@ -58,6 +58,7 @@ function renderRow(own: OwnShowResult, entryScored = true) {
   render(
     <ul>
       <MyEntryRow
+        showId="show-1"
         detail={detail}
         place={undefined}
         placeUpdatedAt={null}

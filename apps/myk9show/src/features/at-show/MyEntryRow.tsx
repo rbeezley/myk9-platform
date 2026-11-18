@@ -3,6 +3,7 @@
  */
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ResultsPublicPrompt } from '@/components/preferences/ResultsPublicPrompt';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { checkInStateLabel } from '@myk9/ui';
@@ -26,6 +27,8 @@ function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
 }
 
 export function MyEntryRow({
+  showId,
+  showResultsPrompt = false,
   detail,
   place,
   placeUpdatedAt,
@@ -34,6 +37,9 @@ export function MyEntryRow({
   onCheckIn,
   checkInPending,
 }: {
+  showId: string;
+  /** This row is the list's one place to ask the results-public question (MYK9-1944). */
+  showResultsPrompt?: boolean | undefined;
   detail: AtShowEntryDetail;
   /** The server-counted place in line, when known (`useMyEntryQueuePlaces`). */
   place: QueuePlace | undefined;
@@ -132,6 +138,15 @@ export function MyEntryRow({
               )}
             {detail.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
           </div>
+        )}
+        {showResultsPrompt && detail.releasedPlacement != null && detail.className && (
+          <ResultsPublicPrompt
+            showId={showId}
+            dogName={detail.dogName}
+            className={detail.className}
+            placement={detail.releasedPlacement}
+            isReleased
+          />
         )}
         {detail.isResultWithheld && (
           <div

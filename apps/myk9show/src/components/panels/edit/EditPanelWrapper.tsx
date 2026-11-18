@@ -58,6 +58,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   forceHasChanges = false,
   hasUntrackedInput = false,
   successMessage,
+  saveBlockedReason,
   onDataChange,
   onValidationChange,
   onAutoSave,
@@ -375,7 +376,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Save and Close hold still while the delete dialog is open: its server call
   // may be in flight, and a save racing a delete would write to a gone row.
-  const controlsBlocked = isLoading || deleteOpen;
+  const controlsBlocked = isLoading || deleteOpen || Boolean(saveBlockedReason);
 
   // The item is gone, so its unsaved edits are moot: close without the discard
   // prompt or the route guard, then let the caller navigate away.
@@ -415,6 +416,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       nextTab={stepsState.nextTab}
       onNext={stepsState.goNext}
       stepBlockedMessage={stepsState.blockedMessage}
+      saveBlockedReason={saveBlockedReason}
     />
   );
 

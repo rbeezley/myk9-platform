@@ -243,6 +243,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_2124_show_changed_email_jobs_test.sql"
   "$TEST_DIR/myk9_2125_judge_changed_email_jobs_test.sql"
   "$TEST_DIR/myk9_2161_substitute_judge_emails_test.sql"
+  "$TEST_DIR/myk9_2160_show_changed_pending_payment_test.sql"
   "$TEST_DIR/myk9_2131_show_dates_from_trials_test.sql"
   "$TEST_DIR/myk9_2099_refund_decision_removed_absent_test.sql"
   "$TEST_DIR/myk9_2120_class_time_limit_set_at_test.sql"

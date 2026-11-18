@@ -206,7 +206,7 @@ describe('ShowStatusPill', () => {
 
       expect(mutateAsync).not.toHaveBeenCalled();
       expect(toast.error).toHaveBeenCalledWith(
-        expect.stringMatching(/payment account/i),
+        PUBLISH_BLOCKED_MESSAGE,
         expect.objectContaining({ action: expect.anything() })
       );
     });

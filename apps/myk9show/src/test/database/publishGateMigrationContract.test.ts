@@ -16,6 +16,8 @@ import {
   ENTRY_WINDOW_ORDER_MESSAGE,
   ENTRY_WINDOW_PUBLISHED_MESSAGE,
   ONLINE_ENTRIES_BLOCKED_MESSAGE,
+  ONLINE_ENTRIES_REQUIRED_MESSAGE,
+  ONLINE_ENTRIES_ALWAYS_ON_MESSAGE,
   PUBLIC_SHOW_STATUSES,
   PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 } from '@/features/payments/onlineEntryGate';
@@ -77,14 +79,14 @@ function sqlEscaped(text: string): string {
 describe('enforce_show_publish_gate migration text', () => {
   it('resolves the latest enforce_show_publish_gate definition', () => {
     expect(() => migrationSql()).not.toThrow();
-    expect(migrationSql()).toMatch(/MYK9-1887/);
+    expect(migrationSql()).toMatch(/MYK9-2163/);
   });
 
   // MYK9-1887: secretary-facing refusal text carries no em dash. The
   // client constants mirror it, so checking the function body covers both.
   it('raises no message with an em dash', () => {
     const raised = [...gateFunctionBody().matchAll(/RAISE EXCEPTION '((?:[^']|'')*)'/g)];
-    expect(raised).toHaveLength(7);
+    expect(raised).toHaveLength(10);
     for (const [, message] of raised) expect(message).not.toContain('\u2014');
   });
 
@@ -100,22 +102,94 @@ describe('enforce_show_publish_gate migration text', () => {
 
   // MYK9-979: four MK003 raises — the missing club and the Stripe refusal on
   // becoming public, and the same two on turning online entries on for a
-  // show that is already public. Counted inside the function body only (the
-  // migration also rebuilds submit_show_entries).
-  it('raises every club / Stripe refusal with SQLSTATE MK003', () => {
+  // show that is already public. MYK9-2163 adds three more: creating a show
+  // with online entries off or turning them off (any status), and a legacy
+  // off row becoming public or edited while public. Counted inside the
+  // function body only.
+  it('raises every club / Stripe / online-entries refusal with SQLSTATE MK003', () => {
     const mk003Count = (gateFunctionBody().match(/USING ERRCODE = 'MK003'/g) ?? []).length;
-    expect(mk003Count).toBe(4);
+    expect(mk003Count).toBe(7);
   });
 
   it('raises ONLINE_ENTRIES_BLOCKED_MESSAGE verbatim for turning online entries on (MYK9-979)', () => {
     expect(gateFunctionBody()).toContain(sqlEscaped(ONLINE_ENTRIES_BLOCKED_MESSAGE));
   });
 
-  it('checks Stripe readiness on becoming public only when online entries are on (MYK9-979)', () => {
+  // MYK9-2163 reverses MYK9-979's "only when online entries are on": the
+  // payouts check on becoming public is unconditional, through the one
+  // helper that carries the demo-club exemption.
+  it('checks payouts on becoming public whatever online entries say (MYK9-2163)', () => {
     const body = gateFunctionBody();
-    const onlineGuard = body.indexOf('IF NEW.online_entries_enabled IS TRUE THEN');
-    expect(onlineGuard).toBeGreaterThan(-1);
-    expect(body.indexOf(sqlEscaped(PUBLISH_BLOCKED_MESSAGE))).toBeGreaterThan(onlineGuard);
+    expect(body).not.toContain('IF NEW.online_entries_enabled IS TRUE THEN');
+    const payoutsGuard = body.lastIndexOf(
+      'IF NOT private.club_publish_payouts_ok(NEW.club_id) THEN'
+    );
+    expect(payoutsGuard).toBeGreaterThan(-1);
+    const blocked = body.indexOf(sqlEscaped(PUBLISH_BLOCKED_MESSAGE));
+    expect(blocked).toBeGreaterThan(payoutsGuard);
+    expect(body).not.toMatch(/public\.can_accept_online_entry_payment\(/);
+  });
+
+  it('refuses online entries off on a public show, after the payouts check (MYK9-2163)', () => {
+    const body = gateFunctionBody();
+    const required = sqlEscaped(ONLINE_ENTRIES_REQUIRED_MESSAGE);
+    expect(body.split(required)).toHaveLength(3);
+    expect(body.lastIndexOf(required)).toBeGreaterThan(
+      body.indexOf(sqlEscaped(PUBLISH_BLOCKED_MESSAGE))
+    );
+    expect(body.lastIndexOf(required)).toBeLessThan(
+      body.indexOf(sqlEscaped(ENTRY_WINDOW_REQUIRED_MESSAGE))
+    );
+  });
+
+  // MYK9-2163: on ANY status, before the non-public early return, so a draft
+  // can never be created with online entries off or switched off.
+  it('refuses creating a show with online entries off or turning them off, on any status (MYK9-2163)', () => {
+    const body = gateFunctionBody();
+    const alwaysOn = body.indexOf(sqlEscaped(ONLINE_ENTRIES_ALWAYS_ON_MESSAGE));
+    expect(alwaysOn).toBeGreaterThan(-1);
+    expect(body.split(sqlEscaped(ONLINE_ENTRIES_ALWAYS_ON_MESSAGE))).toHaveLength(2);
+    const guard = body.indexOf(
+      "IF (TG_OP = 'INSERT' AND NEW.online_entries_enabled IS NOT TRUE)\n" +
+        "     OR (TG_OP = 'UPDATE' AND OLD.online_entries_enabled IS TRUE\n" +
+        '         AND NEW.online_entries_enabled IS NOT TRUE) THEN'
+    );
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(alwaysOn);
+    expect(alwaysOn).toBeLessThan(
+      body.indexOf('IF NOT private.show_status_is_public(NEW.status) THEN')
+    );
+  });
+
+  it('exempts demo clubs from the payouts check in one helper, in the platform mode (MYK9-2163)', () => {
+    const helper = migrationSql().match(
+      /CREATE OR REPLACE FUNCTION private\.club_publish_payouts_ok\(p_club_id uuid\)[\s\S]*?\$\$;/
+    )?.[0];
+    expect(helper).toBeTruthy();
+    expect(helper).toMatch(/c\.is_demo IS TRUE/);
+    expect(helper).toMatch(
+      /can_accept_online_entry_payment\(\s*p_club_id,\s*\(SELECT ps\.stripe_livemode FROM public\.platform_settings ps WHERE ps\.id = true\)/
+    );
+  });
+
+  it('starts new shows with online entries on and turns every existing show on (MYK9-2163)', () => {
+    const sql = migrationSql();
+    expect(sql).toMatch(/ALTER COLUMN online_entries_enabled SET DEFAULT true;/);
+    // The Add Show RPC ignores p_show.online_entries_enabled: every new show is on.
+    expect(sql).toContain(
+      '    true,  -- MYK9-2163: always on; p_show.online_entries_enabled is ignored.'
+    );
+    expect(sql).not.toMatch(/p_show->>'online_entries_enabled'/);
+    const dataUpdate = sql.match(
+      /UPDATE public\.shows\n {3}SET online_entries_enabled = true,\n {7}updated_at = now\(\)\n WHERE online_entries_enabled IS DISTINCT FROM true;/
+    )?.[0];
+    expect(dataUpdate).toBeTruthy();
+    // The behavioral SQL test replays this exact statement.
+    const sqlTest = readFileSync(
+      resolve(MIGRATIONS_DIR, '../tests/myk9_2163_publish_needs_payouts_test.sql'),
+      'utf8'
+    );
+    expect(sqlTest).toContain(dataUpdate);
   });
 
   it('keys the gate on the one public-status predicate, whose list matches the client mirror', () => {

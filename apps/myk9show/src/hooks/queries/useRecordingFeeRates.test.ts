@@ -9,6 +9,7 @@ vi.mock('@/lib/supabase', () => ({
 
 import {
   fetchRecordingFeeRates,
+  readCachedRates,
   recordingFeeRatesForReport,
   recordingFeeRatesSettled,
 } from './useRecordingFeeRates';
@@ -51,21 +52,25 @@ describe('recordingFeeRatesForReport', () => {
   ];
 
   it('hands a read list over, empty or not, as read', () => {
-    expect(recordingFeeRatesForReport(asQuery({ data: rates }))).toEqual({
+    expect(recordingFeeRatesForReport(asQuery({ data: rates }), true)).toEqual({
       data: rates,
       isLoading: false,
       isError: false,
     });
-    expect(recordingFeeRatesForReport(asQuery({ data: [] })).isError).toBe(false);
+    expect(recordingFeeRatesForReport(asQuery({ data: [] }), true).isError).toBe(false);
   });
 
   it('reports a failed or offline read with no list as an error, never as an empty list', () => {
     expect(
-      recordingFeeRatesForReport(asQuery({ data: undefined, isError: true, fetchStatus: 'idle' }))
+      recordingFeeRatesForReport(
+        asQuery({ data: undefined, isError: true, fetchStatus: 'idle' }),
+        true
+      )
     ).toMatchObject({ isError: true, isLoading: false });
     expect(
       recordingFeeRatesForReport(
-        asQuery({ data: undefined, isError: false, fetchStatus: 'paused' })
+        asQuery({ data: undefined, isError: false, fetchStatus: 'paused' }),
+        true
       )
     ).toMatchObject({ isError: true, isLoading: false });
   });
@@ -73,7 +78,8 @@ describe('recordingFeeRatesForReport', () => {
   it('reports an in-flight first read as loading', () => {
     expect(
       recordingFeeRatesForReport(
-        asQuery({ data: undefined, isError: false, fetchStatus: 'fetching' })
+        asQuery({ data: undefined, isError: false, fetchStatus: 'fetching' }),
+        true
       )
     ).toMatchObject({ isLoading: true, isError: false });
     expect(
@@ -81,5 +87,47 @@ describe('recordingFeeRatesForReport', () => {
         asQuery({ data: undefined, isError: false, fetchStatus: 'fetching' })
       )
     ).toBe(false);
+  });
+
+  it('is never loading for a disabled query, which sits pending and idle forever', () => {
+    expect(
+      recordingFeeRatesForReport(
+        asQuery({ data: undefined, isError: false, isPending: true, fetchStatus: 'idle' }),
+        false
+      )
+    ).toEqual({ data: [], isLoading: false, isError: false });
+  });
+});
+
+describe('readCachedRates', () => {
+  const KEY = 'myk9:registry-recording-fee-rates:v1';
+  const good = { registry: 'AKC', effectiveFrom: '2027-01-01', amountCents: 550 };
+
+  it('returns a well-formed cached list', () => {
+    window.localStorage.setItem(KEY, JSON.stringify([good]));
+    expect(readCachedRates()).toEqual([good]);
+  });
+
+  it.each([
+    { label: 'an impossible date', bad: { ...good, effectiveFrom: '2027-02-30' } },
+    {
+      label: 'a timestamp, not a calendar date',
+      bad: { ...good, effectiveFrom: '2027-01-01T00:00:00Z' },
+    },
+    { label: 'a non-date string', bad: { ...good, effectiveFrom: 'soon' } },
+    { label: 'a zero amount', bad: { ...good, amountCents: 0 } },
+    { label: 'a negative amount', bad: { ...good, amountCents: -550 } },
+    { label: 'a fractional amount', bad: { ...good, amountCents: 5.5 } },
+    { label: 'a string amount', bad: { ...good, amountCents: '550' } },
+  ])('discards the whole copy when a row has $label', ({ bad }) => {
+    window.localStorage.setItem(KEY, JSON.stringify([good, bad]));
+    expect(readCachedRates()).toBeUndefined();
+  });
+
+  it('treats unparseable or non-list storage as nothing cached', () => {
+    window.localStorage.setItem(KEY, '{not json');
+    expect(readCachedRates()).toBeUndefined();
+    window.localStorage.setItem(KEY, JSON.stringify({ rates: [good] }));
+    expect(readCachedRates()).toBeUndefined();
   });
 });

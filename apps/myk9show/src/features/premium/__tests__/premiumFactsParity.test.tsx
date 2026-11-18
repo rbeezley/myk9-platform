@@ -380,8 +380,17 @@ describe('premium public page facts parity (8 styles)', () => {
 describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
   const FEE_2027 = {
     registry: 'AKC' as const,
-    amountCents: 550,
+    rates: [{ amountCents: 550, appliesFrom: null }],
     text: 'AKC recording fee: $5.50 per entry',
+  };
+  const NEW_YEAR_TEXT = 'AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027';
+  const NEW_YEAR_FEE = {
+    registry: 'AKC' as const,
+    rates: [
+      { amountCents: 450, appliesFrom: null },
+      { amountCents: 550, appliesFrom: '2027-01-01' },
+    ],
+    text: NEW_YEAR_TEXT,
   };
 
   it.each(ALL_STYLES)('%s prints the statement generate-premium wrote', style => {
@@ -394,10 +403,17 @@ describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
     const premium = sparsePremium('AKC', style);
     premium.recordingFee = {
       ...FEE_2027,
-      amountCents: 450,
+      rates: [{ amountCents: 450, appliesFrom: null }],
       text: 'AKC recording fee: $4.50 per entry',
     };
     expect(pdfText('AKC', premium)).toContain('AKC recording fee: $4.50 per entry');
+  });
+
+  it.each(ALL_STYLES)('%s prints both rates for a show across a rate change', style => {
+    const premium = fullPremium('AKC', style);
+    premium.recordingFee = NEW_YEAR_FEE;
+    // react-pdf may wrap the long line; the words, in order, are what the reader sees.
+    expect(pdfText('AKC', premium).replace(/\s+/g, ' ')).toContain(NEW_YEAR_TEXT);
   });
 
   it.each(ALL_STYLES)('%s prints no recording fee line when none was stated', style => {

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { useRecordingFeeRates } from '@/hooks/queries/useRecordingFeeRates';
 import {
   DUPLICATE_RECORDING_FEE_CODE,
@@ -24,6 +25,10 @@ import {
   type RecordingFeeRegistry,
 } from '@/features/payments/useAddRecordingFeeRate';
 import { formatLongDate } from '@/lib/format/dates';
+
+/** An effective year outside this range is a typo (2207 for 2027), not a plan. */
+const EARLIEST_EFFECTIVE_YEAR = 2020;
+const LATEST_EFFECTIVE_YEAR = 2100;
 
 function sortedNewestFirst(rates: readonly RecordingFeeRate[]): RecordingFeeRate[] {
   return [...rates].sort(
@@ -40,17 +45,30 @@ export function RecordingFeeRatesCard() {
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(
     null
   );
+  const [confirming, setConfirming] = useState(false);
 
   // The list is read as fact only when this read succeeded: a copy cached on this device, or a
   // paused read, must not let an admin add a row against a list they cannot see.
   const unavailable = query.isError || query.fetchStatus === 'paused';
   const loading = !unavailable && (query.isPending || query.isFetching) && query.data === undefined;
   const rates = !unavailable && query.data ? sortedNewestFirst(query.data) : null;
+  // The cached copy shows at once, but a row is added only against the list this visit read
+  // from the server: the read has landed (an epoch `dataUpdatedAt` is the cached seed) and no
+  // refetch is still in flight.
+  const listIsLive = rates !== null && query.dataUpdatedAt > 0 && !query.isFetching;
 
   const amountCents = parseRecordingFeeDollars(dollars);
   const dateInvalid = !/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom);
+  const year = dateInvalid ? null : Number(effectiveFrom.slice(0, 4));
+  const yearOutOfRange =
+    year !== null && (year < EARLIEST_EFFECTIVE_YEAR || year > LATEST_EFFECTIVE_YEAR);
   const amountInvalid = amountCents === null;
-  const canAdd = rates !== null && !dateInvalid && !amountInvalid && !addRate.isPending;
+  const canAdd =
+    listIsLive && !dateInvalid && !yearOutOfRange && !amountInvalid && !addRate.isPending;
+  const confirmTitle =
+    amountCents === null
+      ? ''
+      : `Add $${formatRecordingFeeAmount(amountCents)} per entry for ${registry} from ${formatLongDate(effectiveFrom)}?`;
 
   const handleAdd = () => {
     if (amountCents === null) return;
@@ -79,9 +97,13 @@ export function RecordingFeeRatesCard() {
 
   const guidance = dateInvalid
     ? 'Pick the date the new rate takes effect.'
-    : amountInvalid
-      ? 'Enter the per-entry amount in dollars and cents, such as 5.50.'
-      : null;
+    : yearOutOfRange
+      ? `The effective date must be in a year from ${EARLIEST_EFFECTIVE_YEAR} to ${LATEST_EFFECTIVE_YEAR}. Check the year.`
+      : amountInvalid
+        ? 'Enter the per-entry amount in dollars and cents, such as 5.50.'
+        : !listIsLive
+          ? 'Checking the current rate list before a rate can be added.'
+          : null;
 
   return (
     <Card>
@@ -92,9 +114,9 @@ export function RecordingFeeRatesCard() {
         </h3>
         <CardDescription className="max-w-3xl leading-relaxed">
           The per-entry fee the registry charges, by the date it takes effect. A premium states the
-          AKC rate in force on its show date, and the AKC Trial Secretary Report bills the rate in
-          force on the trial date. A date with no rate prints no fee line and the report refuses to
-          price. A change is a new row; no deployment is needed.
+          AKC rate in force on each of its trial dates, and the AKC Trial Secretary Report bills the
+          rate in force on the trial date. A date with no rate prints no fee line and the report
+          refuses to price. A change is a new row; no deployment is needed.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -189,7 +211,7 @@ export function RecordingFeeRatesCard() {
               />
             </div>
           </div>
-          <Button className="min-h-11" onClick={handleAdd} disabled={!canAdd}>
+          <Button className="min-h-11" onClick={() => setConfirming(true)} disabled={!canAdd}>
             {addRate.isPending ? 'Adding rate…' : 'Add rate'}
           </Button>
         </div>
@@ -206,6 +228,14 @@ export function RecordingFeeRatesCard() {
             {feedback.message}
           </p>
         )}
+        <ConfirmDialog
+          open={confirming}
+          onOpenChange={setConfirming}
+          title={confirmTitle}
+          description="Premiums and Trial Secretary Reports for dates on or after it use this rate. Rates already listed stay as they are."
+          confirmLabel="Add this rate"
+          onConfirm={handleAdd}
+        />
       </CardContent>
     </Card>
   );

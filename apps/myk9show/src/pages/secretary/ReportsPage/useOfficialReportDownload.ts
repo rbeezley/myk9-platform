@@ -60,13 +60,13 @@ export function useOfficialReportDownload(input: {
   );
 
   // MYK9-2044: the Trial Secretary Report's fee comes from the dated rate list.
-  const ratesQuery = useRecordingFeeRates(
-    reportType === 'trial-secretary-report' && !selectedTrialIsUKC && trialId !== 'all'
-  );
+  const needsRates =
+    reportType === 'trial-secretary-report' && !selectedTrialIsUKC && trialId !== 'all';
+  const ratesQuery = useRecordingFeeRates(needsRates);
   const recordingFeeRates = useMemo(
-    () => recordingFeeRatesForReport(ratesQuery),
+    () => recordingFeeRatesForReport(ratesQuery, needsRates),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ratesQuery.data, ratesQuery.isError, ratesQuery.fetchStatus]
+    [ratesQuery.data, ratesQuery.isError, ratesQuery.fetchStatus, needsRates]
   );
 
   const omitHeldEntries = getReportById(reportType)?.excludesHeldEntries === true;

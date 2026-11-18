@@ -310,9 +310,10 @@ export interface PremiumFacts {
     paymentMethods: string[];
   };
   /**
-   * MYK9-2044: "AKC recording fee: $5.50 per entry", the rate in force on the show's date, as
-   * generate-premium states it. Null (no line in any style) when the show is not AKC, no rate
-   * is in force, or the premium predates it.
+   * MYK9-2044: "AKC recording fee: $5.50 per entry" (or, across a rate change, "...$4.50 per
+   * entry; $5.50 per entry from January 1, 2027"), the rate in force on each trial date, as
+   * generate-premium states it. Null (no line in any style) when the show is not AKC, a trial
+   * date has no rate in force, or the premium predates it.
    */
   recordingFee: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */

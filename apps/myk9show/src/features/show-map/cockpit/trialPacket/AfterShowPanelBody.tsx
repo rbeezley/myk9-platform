@@ -50,9 +50,9 @@ export function AfterShowPanelBody({ showId, trialId }: { showId: string; trialI
   const ids = afterShowReportsFor(registryId);
   const officials = useTrialOfficials(show?.id, ids.forms.length > 0);
   const ukcContext = useUKCTrialReportContext(show?.id, registryId === 'UKC');
-  const ratesQuery = useRecordingFeeRates(ids.forms.includes('trial-secretary-report'));
-  const ratesSettled =
-    !ids.forms.includes('trial-secretary-report') || recordingFeeRatesSettled(ratesQuery);
+  const needsRates = ids.forms.includes('trial-secretary-report');
+  const ratesQuery = useRecordingFeeRates(needsRates);
+  const ratesSettled = !needsRates || recordingFeeRatesSettled(ratesQuery);
   const hostedSettled =
     !officials.isLoading && ratesSettled && (registryId !== 'UKC' || !ukcContext.isLoading);
 
@@ -82,7 +82,7 @@ export function AfterShowPanelBody({ showId, trialId }: { showId: string; trialI
           entries: (inputs.entries ?? []) as DbEntry[],
           trialId,
           officials: officials.data ?? null,
-          recordingFeeRates: recordingFeeRatesForReport(ratesQuery),
+          recordingFeeRates: recordingFeeRatesForReport(ratesQuery, needsRates),
           ukcTrialReportContext: ukcContext.data ?? null,
           catalogProfilesReadComplete,
         });

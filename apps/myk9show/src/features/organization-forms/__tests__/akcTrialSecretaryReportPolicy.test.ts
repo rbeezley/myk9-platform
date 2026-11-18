@@ -6,6 +6,7 @@ import {
   readAKCRecordingFeeRates,
   resolveAKCTrialSecretaryReportPolicy as resolvePolicy,
 } from '../akcTrialSecretaryReportPolicy';
+import { NEW_YEAR_SHOW, SEEDED_AKC_RECORDING_FEE_RATES } from '@/test/fixtures/recordingFeeRates';
 
 // The seeded AKC rows (migration 20261119031700): the only source of the rate now.
 const RATES: RecordingFeeRate[] = [
@@ -161,6 +162,23 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
     expect(resolveAKCTrialSecretaryReportPolicy('2027-03-06', [entry()], [])).toMatchObject({
       ok: false,
       reason: 'unsupported',
+    });
+  });
+
+  it('bills each New Year show trial at the rate the premium states for its date (MYK9-2044)', () => {
+    // Same dates as the premium's New Year case in
+    // supabase/functions/generate-premium/recordingFeeRate.test.ts, which states
+    // "$4.50 per entry; $5.50 per entry from January 1, 2027".
+    const [eve, newYear] = NEW_YEAR_SHOW.trialDates;
+    expect(resolvePolicy(eve, [entry()], SEEDED_AKC_RECORDING_FEE_RATES)).toMatchObject({
+      ok: true,
+      rateEffectiveFrom: '2026-01-01',
+      formattedRate: '4.50',
+    });
+    expect(resolvePolicy(newYear, [entry()], SEEDED_AKC_RECORDING_FEE_RATES)).toMatchObject({
+      ok: true,
+      rateEffectiveFrom: '2027-01-01',
+      formattedRate: '5.50',
     });
   });
 

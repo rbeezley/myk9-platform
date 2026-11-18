@@ -7,7 +7,10 @@ import { RECORDING_FEE_RATES_QUERY_KEY } from '@/hooks/queries/useRecordingFeeRa
 export const RECORDING_FEE_REGISTRIES = ['AKC', 'UKC', 'ASCA'] as const;
 export type RecordingFeeRegistry = (typeof RECORDING_FEE_REGISTRIES)[number];
 
-/** Mirrors the amount CHECK on the table: whole cents, 0 to $1,000.00. */
+/**
+ * Mirrors the amount CHECK on the table: whole cents, $0.01 to $1,000.00. A $0.00 rate is
+ * refused: it would print "$0.00 per entry" and bill nothing, never a real registry fee.
+ */
 export const MAX_RECORDING_FEE_CENTS = 100_000;
 
 /** Postgres unique_violation: the (registry, effective_from) pair is already a row. */
@@ -21,7 +24,7 @@ export function parseRecordingFeeDollars(value: string): number | null {
   const match = /^(\d{1,4})(?:\.(\d{1,2}))?$/.exec(value.trim());
   if (!match) return null;
   const cents = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
-  return cents <= MAX_RECORDING_FEE_CENTS ? cents : null;
+  return cents > 0 && cents <= MAX_RECORDING_FEE_CENTS ? cents : null;
 }
 
 export interface NewRecordingFeeRate {
@@ -55,10 +58,10 @@ export function useAddRecordingFeeRate() {
       }
       if (
         !Number.isInteger(rate.amountCents) ||
-        rate.amountCents < 0 ||
+        rate.amountCents <= 0 ||
         rate.amountCents > MAX_RECORDING_FEE_CENTS
       ) {
-        throw new Error('Enter a per-entry amount between $0.00 and $1,000.00.');
+        throw new Error('Enter a per-entry amount between $0.01 and $1,000.00.');
       }
       const { error } = await ratesClient.from('registry_recording_fee_rates').insert({
         registry: rate.registry,

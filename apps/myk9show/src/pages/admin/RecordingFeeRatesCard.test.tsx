@@ -12,12 +12,14 @@ const queryState: {
   isPending: boolean;
   isFetching: boolean;
   fetchStatus: 'idle' | 'fetching' | 'paused';
+  dataUpdatedAt: number;
 } = {
   data: SEEDED_AKC_RECORDING_FEE_RATES,
   isError: false,
   isPending: false,
   isFetching: false,
   fetchStatus: 'idle',
+  dataUpdatedAt: 1_700_000_000_000,
 };
 vi.mock('@/hooks/queries/useRecordingFeeRates', () => ({
   useRecordingFeeRates: () => queryState,
@@ -40,7 +42,13 @@ beforeEach(() => {
   queryState.isPending = false;
   queryState.isFetching = false;
   queryState.fetchStatus = 'idle';
+  queryState.dataUpdatedAt = 1_700_000_000_000;
 });
+
+async function confirmAdd() {
+  fireEvent.click(screen.getByRole('button', { name: 'Add rate' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Add this rate' }));
+}
 
 describe('RecordingFeeRatesCard', () => {
   it('lists the rates newest first with the amount per entry', () => {
@@ -53,7 +61,7 @@ describe('RecordingFeeRatesCard', () => {
     expect(rows[2]).toContain('$3.50 per entry');
   });
 
-  it('adds a row in integer cents once the date and amount are valid', () => {
+  it('adds a row in integer cents once the date and amount are valid and the admin confirms', async () => {
     render(<RecordingFeeRatesCard />);
     const add = screen.getByRole('button', { name: 'Add rate' });
     expect(add).toBeDisabled();
@@ -62,18 +70,81 @@ describe('RecordingFeeRatesCard', () => {
 
     expect(add).toBeEnabled();
     fireEvent.click(add);
+    expect(mutate).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Add $6.35 per entry for AKC from January 1, 2028?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add this rate' }));
     expect(mutate).toHaveBeenCalledWith(
       { registry: 'AKC', effectiveFrom: '2028-01-01', amountCents: 635 },
       expect.any(Object)
     );
   });
 
-  it.each(['', '5.555', '-1', 'abc', '10001'])('keeps Add disabled for the amount "%s"', amount => {
+  it('writes nothing when the admin cancels the confirm step', async () => {
     render(<RecordingFeeRatesCard />);
-    fill('2028-01-01', amount);
+    fill('2027-01-01', '5.50');
+    fireEvent.click(screen.getByRole('button', { name: 'Add rate' }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'Add $5.50 per entry for AKC from January 1, 2027?'
+    );
 
-    expect(screen.getByRole('button', { name: 'Add rate' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(mutate).not.toHaveBeenCalled();
   });
+
+  it.each(['2019-12-31', '2101-01-01', '2207-01-01'])(
+    'refuses the effective date %s as a likely typo',
+    date => {
+      render(<RecordingFeeRatesCard />);
+      fill(date, '5.50');
+
+      expect(screen.getByRole('button', { name: 'Add rate' })).toBeDisabled();
+      expect(
+        screen.getByText('The effective date must be in a year from 2020 to 2100. Check the year.')
+      ).toBeInTheDocument();
+    }
+  );
+
+  it.each(['2020-01-01', '2100-12-31'])('accepts the boundary year in %s', date => {
+    render(<RecordingFeeRatesCard />);
+    fill(date, '5.50');
+
+    expect(screen.getByRole('button', { name: 'Add rate' })).toBeEnabled();
+  });
+
+  it.each([
+    {
+      label: 'the cached copy while the first read is in flight',
+      dataUpdatedAt: 0,
+      isFetching: true,
+    },
+    { label: 'the cached copy before any read has landed', dataUpdatedAt: 0, isFetching: false },
+    { label: 'a read list while a refetch is in flight', dataUpdatedAt: 1, isFetching: true },
+  ])('keeps Add disabled against $label', ({ dataUpdatedAt, isFetching }) => {
+    queryState.dataUpdatedAt = dataUpdatedAt;
+    queryState.isFetching = isFetching;
+    queryState.fetchStatus = isFetching ? 'fetching' : 'idle';
+    render(<RecordingFeeRatesCard />);
+    fill('2028-01-01', '6.35');
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Add rate' })).toBeDisabled();
+    expect(
+      screen.getByText('Checking the current rate list before a rate can be added.')
+    ).toBeInTheDocument();
+  });
+
+  it.each(['', '0', '0.00', '5.555', '-1', 'abc', '10001'])(
+    'keeps Add disabled for the amount "%s"',
+    amount => {
+      render(<RecordingFeeRatesCard />);
+      fill('2028-01-01', amount);
+
+      expect(screen.getByRole('button', { name: 'Add rate' })).toBeDisabled();
+    }
+  );
 
   it('says an existing effective date is taken, not that the save failed', async () => {
     mutate.mockImplementationOnce((_rate, options) =>
@@ -81,7 +152,7 @@ describe('RecordingFeeRatesCard', () => {
     );
     render(<RecordingFeeRatesCard />);
     fill('2027-01-01', '5.50');
-    fireEvent.click(screen.getByRole('button', { name: 'Add rate' }));
+    await confirmAdd();
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(

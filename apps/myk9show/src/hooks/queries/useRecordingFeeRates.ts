@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import type { RecordingFeeRate } from '@myk9/core';
+import { toCalendarDate, type RecordingFeeRate } from '@myk9/core';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
 import type { ReportAsyncData } from '@/lib/reports/types';
@@ -37,18 +37,27 @@ const ratesClient = supabase as unknown as {
   };
 };
 
+/** A cached row the report can price from: a real calendar date and a positive whole-cent amount. */
 function isRate(value: unknown): value is RecordingFeeRate {
   if (typeof value !== 'object' || value === null) return false;
   const rate = value as Record<string, unknown>;
   return (
     typeof rate.registry === 'string' &&
     typeof rate.effectiveFrom === 'string' &&
+    toCalendarDate(rate.effectiveFrom) === rate.effectiveFrom &&
     typeof rate.amountCents === 'number' &&
-    Number.isInteger(rate.amountCents)
+    Number.isInteger(rate.amountCents) &&
+    rate.amountCents > 0
   );
 }
 
-function readCachedRates(): RecordingFeeRate[] | undefined {
+/**
+ * The list this device last read, or undefined when there is none or any row in it is bad. A
+ * bad row discards the whole copy rather than just itself: dropping only the 2027 row would
+ * quietly price a 2027 trial at the 2026 rate, and a rate is never guessed. Undefined reads as
+ * "not read", so offline the report says it could not load the list.
+ */
+export function readCachedRates(): RecordingFeeRate[] | undefined {
   try {
     const raw = window.localStorage.getItem(CACHE_STORAGE_KEY);
     if (!raw) return undefined;
@@ -104,11 +113,17 @@ export function recordingFeeRatesSettled(query: UseQueryResult<RecordingFeeRate[
 /**
  * The query as the report host hands it to a report: rates only when there is a list to read,
  * else `isError` (never an empty list standing in for "not read").
+ *
+ * `enabled` is the flag the query was built with. A disabled query sits pending and idle with
+ * no data forever, so it is never "loading": a report that does not read the list (every other
+ * official PDF, the UKC report, the all-trials scope) must not wait on it.
  */
 export function recordingFeeRatesForReport(
-  query: UseQueryResult<RecordingFeeRate[]>
+  query: UseQueryResult<RecordingFeeRate[]>,
+  enabled: boolean
 ): ReportAsyncData<RecordingFeeRate[]> {
   if (query.data !== undefined) return { data: query.data, isLoading: false, isError: false };
+  if (!enabled) return { data: [], isLoading: false, isError: false };
   const settledWithoutData = query.isError || query.fetchStatus === 'paused';
   return { data: [], isLoading: !settledWithoutData, isError: settledWithoutData };
 }

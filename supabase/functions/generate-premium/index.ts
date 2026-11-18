@@ -25,7 +25,9 @@ import {
 import {
   buildPremiumRecordingFee,
   PREMIUM_RECORDING_FEE_SELECT,
+  premiumRecordingFeeDates,
   recordingFeeRatesFromRows,
+  type PremiumRecordingFeeTrial,
   type RecordingFeeRateRow,
 } from './recordingFeeRate.ts';
 
@@ -105,7 +107,8 @@ handle<GeneratePremiumPayload>(
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
-          id, name, date, planned_start_time, event_number, trial_type, registry_id,
+          id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
+          deleted_at,
           classes(id, name, level, element, section, deleted_at)
         )
       `
@@ -161,8 +164,9 @@ handle<GeneratePremiumPayload>(
     const secretaryPhone = secretaryOfficial?.phone ?? null;
     const chairman = pickPremiumOfficial(officials, 'chairman');
 
-    // Step 7c: The AKC recording fee (MYK9-2044), the dated rate in force on the show's date.
-    // Only an AKC show states one. A failed read prints no line rather than failing the premium:
+    // Step 7c: The AKC recording fee (MYK9-2044), the dated rate in force on each live trial's
+    // date (the dates the Trial Secretary Report prices), or the show's start date before any
+    // trial is dated. Only an AKC show states one. A failed read prints no line rather than failing the premium:
     // a rate is never guessed.
     let recordingFeeRows: RecordingFeeRateRow[] = [];
     if (showOrg === 'AKC') {
@@ -178,7 +182,10 @@ handle<GeneratePremiumPayload>(
     }
     const recordingFee = buildPremiumRecordingFee(
       showOrg,
-      show.start_date as string | null,
+      premiumRecordingFeeDates(
+        show.trials as PremiumRecordingFeeTrial[] | null,
+        show.start_date as string | null
+      ),
       recordingFeeRatesFromRows(recordingFeeRows)
     );
 
@@ -334,7 +341,7 @@ handle<GeneratePremiumPayload>(
       officials: {
         chairman,
       },
-      // MYK9-2044: null for a non-AKC show or when no rate is in force on the show's date.
+      // MYK9-2044: null for a non-AKC show or when a trial date has no rate in force.
       recordingFee,
       trials,
       supplemental: {

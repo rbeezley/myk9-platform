@@ -141,6 +141,29 @@ describe('useOfficialReportDownload officials (MYK9-1386)', () => {
     expect(run('trial-secretary-report', 'AKC').officialsLoading).toBe(true);
   });
 
+  it.each([
+    ['akc-judge-report', 'AKC', 'trial-1'],
+    ['trial-chairman-report', 'AKC', 'trial-1'],
+    ['trial-secretary-report', 'UKC', 'trial-1'],
+    ['trial-secretary-report', 'AKC', 'all'],
+  ])(
+    'does not wait on the rate list for %s (%s, trial %s) when it is not read (MYK9-2044)',
+    (reportType, registry, trialId) => {
+      useTrialOfficialsMock.mockReturnValue({ data: undefined, isLoading: false });
+      // A disabled TanStack query: pending with no data, never fetching.
+      useRecordingFeeRatesMock.mockReturnValue({
+        data: undefined,
+        isError: false,
+        isPending: true,
+        isLoading: false,
+        fetchStatus: 'idle',
+      });
+
+      expect(run(reportType, registry, trialId).officialsLoading).toBe(false);
+      expect(useRecordingFeeRatesMock).toHaveBeenLastCalledWith(false);
+    }
+  );
+
   it('reads no rates for a UKC trial or another report', () => {
     useTrialOfficialsMock.mockReturnValue({ data: undefined, isLoading: false });
     run('trial-secretary-report', 'UKC');

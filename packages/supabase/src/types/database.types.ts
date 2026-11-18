@@ -7883,7 +7883,7 @@ export type Database = {
           idempotency_key: string
           judge_changes: Json
           substitute_followups: Json
-          unnamed_class_ids: Json
+          class_notices: Json | null
           prepared_at: string
           preview_warnings: Json
           recipient_email: string | null
@@ -7922,7 +7922,7 @@ export type Database = {
           idempotency_key: string
           judge_changes?: Json
           substitute_followups?: Json
-          unnamed_class_ids?: Json
+          class_notices?: Json | null
           prepared_at?: string
           preview_warnings?: Json
           recipient_email?: string | null
@@ -7961,7 +7961,7 @@ export type Database = {
           idempotency_key?: string
           judge_changes?: Json
           substitute_followups?: Json
-          unnamed_class_ids?: Json
+          class_notices?: Json | null
           prepared_at?: string
           preview_warnings?: Json
           recipient_email?: string | null
@@ -15277,7 +15277,7 @@ export type Database = {
         Returns: undefined
       }
       queue_substitute_judge_emails: {
-        Args: { p_class_id: string }
+        Args: { p_class_id: string; p_judge_id: string }
         Returns: number
       }
       queue_unfulfilled_charge_refund: {

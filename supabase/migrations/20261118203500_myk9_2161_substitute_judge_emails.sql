@@ -8,9 +8,16 @@
 -- existing judge_changed job for exactly those people.
 --
 -- Who was told "not named yet". The sender records it: when it plans a judge_changed email it
--- writes the class ids the email calls "not named yet" to show_lifecycle_email_jobs.unnamed_class_ids,
--- BEFORE it delivers (so an interrupted send that a later drain only finishes keeps it). A person was
--- told when their latest SENT judge_changed job lists the class there. They still need a live entry in
+-- writes class_notices = { class id: 'unnamed' | 'named' } to show_lifecycle_email_jobs, one key for
+-- each class the email actually talks about (not the candidates in judge_changes that the plan left
+-- out), BEFORE it delivers, so an interrupted send that a later drain only finishes keeps it. A job
+-- with no record (NULL) is unknown: an email the old sender delivered, or one it delivers before the
+-- edge function is redeployed. For those the saved rendered_body says what was sent (the class name,
+-- and the "has not been named yet" sentence); no body, no evidence, nobody is offered. Judge history
+-- is never consulted: a judge who was named and later replaced must not turn an old email into a
+-- vacancy notice.
+-- A person was told when their LATEST sent judge_changed email that talks about the class called it
+-- "not named yet" (a later email that named a judge supersedes it). They still need a live entry in
 -- the class, an email, and a trial day that is not past (the sender's own rule for a vacancy). A person
 -- whose "was" judge is the current judge (the original judge came back) is not offered: the sender
 -- skips that email as "not news".
@@ -18,36 +25,82 @@
 -- Follow-up state, with no new table: the tap records, on the job it queues or merges into,
 -- substitute_followups = { class id: when }. A person is "pending" until they have a follow-up: a
 -- ready judge_changed job covering the class (the tap's, a bundled waiting job, or the 2125
--- trigger's), one sent since the confirmation, or a tap since the confirmation whose job was skipped
--- (a step switched off before it sent). A person is "sent" once a ready or sent job carries a tap
--- since the confirmation.
+-- trigger's), a job SENT since the confirmation whose email named a judge for the class, or a tap
+-- since the confirmation whose job was skipped (a step switched off before it sent). A person is
+-- "sent" once a ready job, or a sent job that named a judge, carries a tap since the confirmation.
+-- A job already claimed by the sender (leased, or the provider took it and the drain has yet to
+-- record it) is never changed: the person stays pending and the secretary taps again once it is out.
 --
 --   substitute_judge_email_audience(class)  internal, nobody can call it
 --   substitute_judge_email_offer(class)     jsonb { pending_count, sent_count }
---   queue_substitute_judge_emails(class)    queues the jobs, returns how many people
+--   queue_substitute_judge_emails(class, judge)  queues the jobs, returns how many people; refuses
+--                                           (P0001) when the class's confirmed judge is not `judge`
 --
 -- Both public RPCs are SECURITY DEFINER, authorized like set_class_judge (site admin or the
--- show's office manager: secretary, club admin), execute for authenticated only. The queued
+-- show's office manager: secretary, club admin), execute for authenticated only. A class the caller
+-- may not manage answers exactly like a missing one (P0002), so a draft show's class ids do not leak. The queued
 -- jobs are the MYK9-2125 ones: ready, auto_send, due in 5 minutes, one per person (merged
 -- into the person's waiting job when there is one). A draft show or a switched-off step
 -- queues nothing.
 --
--- Rollback: DROP FUNCTION public.queue_substitute_judge_emails(uuid),
+-- Rollback: DROP FUNCTION public.queue_substitute_judge_emails(uuid, uuid),
 -- public.substitute_judge_email_offer(uuid), public.substitute_judge_email_audience(uuid),
--- public.substitute_judge_email_show(uuid); ALTER TABLE public.show_lifecycle_email_jobs DROP COLUMN
--- unnamed_class_ids, DROP COLUMN substitute_followups.
+-- public.substitute_judge_email_show(uuid), public.judge_email_class_notice(jsonb, text, uuid);
+-- ALTER TABLE public.show_lifecycle_email_jobs DROP COLUMN class_notices, DROP COLUMN
+-- substitute_followups.
 -- =============================================================================
 
 BEGIN;
 
 ALTER TABLE public.show_lifecycle_email_jobs
-  ADD COLUMN IF NOT EXISTS unnamed_class_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS class_notices jsonb,
   ADD COLUMN IF NOT EXISTS substitute_followups jsonb NOT NULL DEFAULT '{}'::jsonb;
 
-COMMENT ON COLUMN public.show_lifecycle_email_jobs.unnamed_class_ids IS
-  'MYK9-2161: for a judge_changed job, the class ids its email called "not named yet", written by the sender before delivery. Server-written only.';
+COMMENT ON COLUMN public.show_lifecycle_email_jobs.class_notices IS
+  'MYK9-2161: for a judge_changed job, { class id: ''unnamed'' | ''named'' } for each class its email talks about, written by the sender before delivery. NULL = not recorded (read rendered_body instead). Server-written only.';
 COMMENT ON COLUMN public.show_lifecycle_email_jobs.substitute_followups IS
   'MYK9-2161: for a judge_changed job, { class id: when the secretary asked to tell the exhibitors who the substitute is }. Server-written only.';
+
+-- What a delivered judge_changed email said about one class: 'unnamed' (a judge "has not been named
+-- yet"), 'named', or NULL (it does not talk about the class, or nothing says). The sender's record
+-- wins; without one, the saved body does (the class name as renderJudgeChangedEmail writes it).
+CREATE OR REPLACE FUNCTION public.judge_email_class_notice(
+  p_notices jsonb,
+  p_body text,
+  p_class_id uuid
+)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT CASE
+    WHEN p_notices IS NOT NULL THEN p_notices ->> p_class_id::text
+    WHEN nullif(p_body, '') IS NULL THEN NULL
+    ELSE (
+      SELECT CASE
+        WHEN position(n.name IN p_body) = 0 THEN NULL
+        WHEN position('A new judge for ' || n.name || ' (' IN p_body) > 0
+          OR position('A new judge for ' || n.name || ' has not been named yet' IN p_body) > 0
+          THEN 'unnamed'
+        ELSE 'named'
+      END
+      FROM (
+        SELECT coalesce(
+                 nullif(btrim(c.name), ''),
+                 nullif(btrim(concat_ws(' ', nullif(btrim(c.element), ''), nullif(btrim(c.level), ''), nullif(btrim(c.section), ''))), ''),
+                 'your class'
+               ) AS name
+          FROM public.classes c
+         WHERE c.id = p_class_id
+      ) n
+    )
+  END;
+$$;
+
+REVOKE ALL ON FUNCTION public.judge_email_class_notice(jsonb, text, uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.substitute_judge_email_audience(p_class_id uuid)
 RETURNS TABLE (
@@ -80,19 +133,30 @@ AS $$
        AND t.date::date >= (now() AT TIME ZONE coalesce(nullif(btrim(t.timezone), ''), 'America/New_York'))::date
   ),
   last_sent AS (
-    SELECT DISTINCT ON (j.recipient_person_id)
-           j.recipient_person_id AS person_id,
-           j.sent_at,
-           (j.judge_changes ->> p_class_id::text)::uuid AS from_person_id
-      FROM public.show_lifecycle_email_jobs j
-      JOIN show_of ON show_of.show_id = j.show_id
-      CROSS JOIN cur
-     WHERE j.step_type = 'judge_changed'
-       AND j.status = 'sent'
-       AND j.unnamed_class_ids ? p_class_id::text
-       AND j.recipient_person_id IS NOT NULL
-       AND j.judge_changes ? p_class_id::text
-     ORDER BY j.recipient_person_id, j.sent_at DESC
+    SELECT latest.person_id, latest.sent_at, latest.from_person_id
+      FROM (
+        SELECT DISTINCT ON (j.recipient_person_id)
+               j.recipient_person_id AS person_id,
+               j.sent_at,
+               notice.state,
+               (j.judge_changes ->> p_class_id::text)::uuid AS from_person_id
+          FROM public.show_lifecycle_email_jobs j
+          JOIN show_of ON show_of.show_id = j.show_id
+          CROSS JOIN cur
+          CROSS JOIN LATERAL (
+            SELECT public.judge_email_class_notice(j.class_notices, j.rendered_body, p_class_id) AS state
+          ) notice
+         WHERE j.step_type = 'judge_changed'
+           AND j.status = 'sent'
+           AND j.recipient_person_id IS NOT NULL
+           AND j.judge_changes ? p_class_id::text
+           -- Only an email that talks about the class can supersede an earlier notice.
+           AND notice.state IS NOT NULL
+           -- The secretary's own follow-up is not a notice that supersedes the one it follows.
+           AND NOT coalesce((j.substitute_followups ->> p_class_id::text)::timestamptz > cur.at, false)
+         ORDER BY j.recipient_person_id, j.sent_at DESC
+      ) latest
+     WHERE latest.state = 'unnamed'
   )
   SELECT ls.person_id,
          ls.from_person_id,
@@ -104,9 +168,18 @@ AS $$
               AND r.judge_changes ? p_class_id::text
               AND (
                 r.status = 'ready'
-                OR (r.status = 'sent' AND r.sent_at >= cur.at)
                 OR (
-                  r.status IN ('sent', 'skipped')
+                  r.status = 'sent'
+                  -- Only an email that named a judge for the class is a follow-up: one that was
+                  -- delivered late, still saying "not named yet", is not.
+                  AND public.judge_email_class_notice(r.class_notices, r.rendered_body, p_class_id) = 'named'
+                  AND (
+                    r.sent_at >= cur.at
+                    OR (r.substitute_followups ->> p_class_id::text)::timestamptz > cur.at
+                  )
+                )
+                OR (
+                  r.status = 'skipped'
                   AND (r.substitute_followups ->> p_class_id::text)::timestamptz > cur.at
                 )
               )
@@ -119,6 +192,10 @@ AS $$
               AND r.recipient_person_id = ls.person_id
               AND r.judge_changes ? p_class_id::text
               AND (r.substitute_followups ->> p_class_id::text)::timestamptz > cur.at
+              AND (
+                r.status = 'ready'
+                OR public.judge_email_class_notice(r.class_notices, r.rendered_body, p_class_id) = 'named'
+              )
          ) AS sent_after
     FROM last_sent ls
     CROSS JOIN cur
@@ -139,7 +216,8 @@ $$;
 REVOKE ALL ON FUNCTION public.substitute_judge_email_audience(uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 
--- Shared guard: the class's show, or an error. Same authorization as set_class_judge.
+-- Shared guard: the class's show, or an error. Same authorization as set_class_judge; a class the
+-- caller may not manage reads as missing (P0002).
 CREATE OR REPLACE FUNCTION public.substitute_judge_email_show(p_class_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -155,13 +233,12 @@ BEGIN
     JOIN public.trials tr ON tr.id = c.trial_id
    WHERE c.id = p_class_id
      AND c.deleted_at IS NULL;
-  IF v_show_id IS NULL THEN
+  -- This definer reads past the class SELECT policy, so a class the caller may not manage (a draft
+  -- show's, another club's) must answer exactly like one that does not exist.
+  IF v_show_id IS NULL
+     OR NOT (public.is_site_admin() OR public.is_show_office_manager(v_show_id)) THEN
     RAISE EXCEPTION 'substitute judge emails: class % not found', p_class_id
       USING ERRCODE = 'P0002';
-  END IF;
-  IF NOT (public.is_site_admin() OR public.is_show_office_manager(v_show_id)) THEN
-    RAISE EXCEPTION 'substitute judge emails: not permitted for this show'
-      USING ERRCODE = '42501';
   END IF;
   RETURN v_show_id;
 END;
@@ -203,7 +280,7 @@ $$;
 REVOKE ALL ON FUNCTION public.substitute_judge_email_offer(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.substitute_judge_email_offer(uuid) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.queue_substitute_judge_emails(p_class_id uuid)
+CREATE OR REPLACE FUNCTION public.queue_substitute_judge_emails(p_class_id uuid, p_judge_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -217,6 +294,19 @@ DECLARE
 BEGIN
   -- A double tap waits here; the second sees the first one's ready jobs and queues nothing.
   PERFORM pg_advisory_xact_lock(hashtextextended('queue_substitute_judge_emails:' || p_class_id::text, 0));
+
+  -- The secretary tapped for the judge on their screen; if the class has another judge now, say
+  -- so instead of telling people about a judge who is no longer the one.
+  IF p_judge_id IS DISTINCT FROM (
+    SELECT ja.person_id
+      FROM public.judge_assignments ja
+      JOIN public.people jp ON jp.id = ja.person_id AND jp.deleted_at IS NULL
+     WHERE ja.class_id = p_class_id AND ja.status = 'confirmed'
+     ORDER BY ja.id
+     LIMIT 1
+  ) THEN
+    RAISE EXCEPTION 'The judge for this class changed. Check again.' USING ERRCODE = 'P0001';
+  END IF;
 
   SELECT sh.name, s.id INTO v_show_name, v_step_id
     FROM public.shows sh
@@ -260,15 +350,23 @@ BEGIN
     recipient_email = excluded.recipient_email,
     recipient_name = excluded.recipient_name,
     judge_changes = excluded.judge_changes || j.judge_changes,
-    substitute_followups = j.substitute_followups || excluded.substitute_followups;
+    substitute_followups = j.substitute_followups || excluded.substitute_followups
+  -- Never change a job the sender has claimed: it plans its email from judge_changes at claim time
+  -- and, once the provider took it, only records it as sent, so a class added now would never go out
+  -- and would still read as followed up. That person stays pending for the next tap.
+  WHERE (j.claimed_until IS NULL OR j.claimed_until <= now())
+    AND NOT EXISTS (
+      SELECT 1 FROM public.show_lifecycle_email_attempts att
+       WHERE att.job_id = j.id AND att.resend_message_id IS NOT NULL
+    );
 
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.queue_substitute_judge_emails(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.queue_substitute_judge_emails(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.queue_substitute_judge_emails(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.queue_substitute_judge_emails(uuid, uuid) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
 

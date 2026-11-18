@@ -144,7 +144,7 @@ describe('drainAutoEmailJobs for judge_changed', () => {
     ]);
     expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
       status: 'sent',
-      unnamed_class_ids: [],
+      class_notices: { 'class-1': 'named' },
     });
   });
 
@@ -262,7 +262,7 @@ describe('judge changed email: vacancy, wording, link', () => {
     expect(fixture.tables.show_lifecycle_email_jobs).toHaveLength(1);
     expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
       status: 'sent',
-      unnamed_class_ids: ['class-1'],
+      class_notices: { 'class-1': 'unnamed' },
     });
   });
 

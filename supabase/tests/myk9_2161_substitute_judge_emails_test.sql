@@ -4,7 +4,7 @@
 --   B. after a substitute is confirmed, the offer counts exactly the people whose sent judge
 --      email went out before it (live entry, email on file); not a withdrawn dog's owner
 --   C. only the show's secretary (here) is allowed; another club's secretary and a plain user
---      are refused with 42501 and queue nothing; anon has no EXECUTE
+--      are refused with P0002 (the same answer as a missing class) and queue nothing; anon has no EXECUTE
 --   D. the tap queues one ready, automatic judge_changed job per told person, naming the judge
 --      before the first change; a second tap queues nothing; the offer then reads as sent
 --
@@ -100,6 +100,8 @@ CREATE FUNCTION pg_temp.t2161_call(p_sub text, p_fn text, p_class uuid) RETURNS 
 LANGUAGE plpgsql AS $$
 DECLARE
   v_result jsonb;
+  v_judge uuid := (SELECT person_id FROM public.judge_assignments
+                    WHERE class_id = p_class AND status = 'confirmed' ORDER BY id LIMIT 1);
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', p_sub, true);
   SET LOCAL ROLE authenticated;
@@ -107,7 +109,9 @@ BEGIN
     IF p_fn = 'offer' THEN
       v_result := public.substitute_judge_email_offer(p_class);
     ELSIF p_fn = 'queue' THEN
-      v_result := to_jsonb(public.queue_substitute_judge_emails(p_class));
+      v_result := to_jsonb(public.queue_substitute_judge_emails(p_class, v_judge));
+    ELSIF p_fn = 'queue_wrong' THEN
+      v_result := to_jsonb(public.queue_substitute_judge_emails(p_class, '00000000-0000-0000-0000-000002161099'));
     ELSE
       v_result := to_jsonb(public.set_class_judge(p_class, '00000000-0000-0000-0000-000002161052'));
     END IF;
@@ -130,7 +134,7 @@ $$;
 DELETE FROM public.judge_assignments WHERE id = '00000000-0000-0000-0000-000002161061';
 UPDATE public.show_lifecycle_email_jobs
    SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour',
-       unnamed_class_ids = jsonb_build_array('00000000-0000-0000-0000-000002161004')
+       class_notices = jsonb_build_object('00000000-0000-0000-0000-000002161004', 'unnamed')
  WHERE show_id = '00000000-0000-0000-0000-000002161002' AND step_type = 'judge_changed';
 
 -- A
@@ -177,7 +181,7 @@ DECLARE
 BEGIN
   FOREACH v_who IN ARRAY ARRAY['00000000-0000-0000-0000-000002161102', '00000000-0000-0000-0000-000002161103'] LOOP
     FOREACH v_fn IN ARRAY ARRAY['offer', 'queue'] LOOP
-      IF pg_temp.t2161_call(v_who, v_fn, v_class) IS DISTINCT FROM '{"error":"42501"}'::jsonb THEN
+      IF pg_temp.t2161_call(v_who, v_fn, v_class) IS DISTINCT FROM '{"error":"P0002"}'::jsonb THEN
         RAISE EXCEPTION 'FAIL C % by % was not refused: %', v_fn, v_who, pg_temp.t2161_call(v_who, v_fn, v_class);
       END IF;
     END LOOP;
@@ -185,9 +189,9 @@ BEGIN
   IF pg_temp.t2161_jobs('ready') <> 0 THEN
     RAISE EXCEPTION 'FAIL C a refused caller queued jobs';
   END IF;
-  IF has_function_privilege('anon', 'public.queue_substitute_judge_emails(uuid)', 'EXECUTE')
+  IF has_function_privilege('anon', 'public.queue_substitute_judge_emails(uuid, uuid)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.substitute_judge_email_offer(uuid)', 'EXECUTE')
-     OR has_function_privilege('public', 'public.queue_substitute_judge_emails(uuid)', 'EXECUTE')
+     OR has_function_privilege('public', 'public.queue_substitute_judge_emails(uuid, uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.substitute_judge_email_audience(uuid)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.substitute_judge_email_show(uuid)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.substitute_judge_email_show(uuid)', 'EXECUTE') THEN
@@ -228,8 +232,10 @@ BEGIN
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":0,"sent_count":3}'::jsonb THEN
     RAISE EXCEPTION 'FAIL D.5 the offer should read as sent to 3, got %', pg_temp.t2161_call(v_sec, 'offer', v_class);
   END IF;
-  -- The emails go out; the offer still reads as sent and is not offered again.
-  UPDATE public.show_lifecycle_email_jobs SET status = 'sent', sent_at = now() WHERE status = 'ready';
+  -- The emails go out (the sender records that each one named the judge); the offer still reads as sent and is not offered again.
+  UPDATE public.show_lifecycle_email_jobs
+     SET status = 'sent', sent_at = now(), class_notices = jsonb_build_object(v_class::text, 'named')
+   WHERE status = 'ready';
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":0,"sent_count":3}'::jsonb
      OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
     RAISE EXCEPTION 'FAIL D.6 after sending, the offer came back or was not marked sent';
@@ -251,7 +257,7 @@ INSERT INTO public.judge_assignments (id, person_id, show_id, trial_id, class_id
 DELETE FROM public.judge_assignments WHERE id = '00000000-0000-0000-0000-000002161062';
 UPDATE public.show_lifecycle_email_jobs
    SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour',
-       unnamed_class_ids = jsonb_build_array('00000000-0000-0000-0000-000002161006')
+       class_notices = jsonb_build_object('00000000-0000-0000-0000-000002161006', 'unnamed')
  WHERE status = 'ready' AND judge_changes ? '00000000-0000-0000-0000-000002161006';
 SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161006');
 UPDATE public.judge_assignments SET confirmed_at = now() - interval '10 minutes'
@@ -300,12 +306,12 @@ BEGIN
   UPDATE public.trials SET date = current_date + 7 WHERE id = '00000000-0000-0000-0000-000002161003';
 
   -- A sent job that lists the class in judge_changes but did NOT call it unnamed does not count.
-  UPDATE public.show_lifecycle_email_jobs SET unnamed_class_ids = '[]'::jsonb
+  UPDATE public.show_lifecycle_email_jobs SET class_notices = jsonb_build_object(v_class::text, 'named')
    WHERE status = 'sent' AND judge_changes ? v_class::text;
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_zero THEN
     RAISE EXCEPTION 'FAIL E.4c an email that did not say unnamed was offered';
   END IF;
-  UPDATE public.show_lifecycle_email_jobs SET unnamed_class_ids = jsonb_build_array(v_class)
+  UPDATE public.show_lifecycle_email_jobs SET class_notices = jsonb_build_object(v_class::text, 'unnamed')
    WHERE status = 'sent' AND judge_changes ? v_class::text;
 
   -- The person already has a waiting job for another class: the tap merges into it, and that
@@ -354,6 +360,158 @@ BEGIN
     RAISE EXCEPTION 'FAIL F the original judge coming back still offered: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
   END IF;
   RAISE NOTICE 'PASS F re-confirming the original judge clears the offer';
+END $$;
+
+-- G: a later email that named a judge supersedes an earlier "not named yet"; the tap is refused
+-- when the screen's judge is not the class's judge; an old unrecorded email is read from its body.
+ALTER TABLE public.entries DISABLE TRIGGER trg_entries_require_dog_registration;
+INSERT INTO public.classes (id, trial_id, name, status, element, level, section) VALUES
+  ('00000000-0000-0000-0000-000002161007', '00000000-0000-0000-0000-000002161003', 'Handler Novice A', 'upcoming', 'Handler', 'Novice', 'A');
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) VALUES
+  ('00000000-0000-0000-0000-000002161072', '00000000-0000-0000-0000-000002161031',
+   '00000000-0000-0000-0000-000002161007', '00000000-0000-0000-0000-000002161002',
+   '00000000-0000-0000-0000-000002161003', 'confirmed', '72', 1, 'no-status');
+ALTER TABLE public.entries ENABLE TRIGGER trg_entries_require_dog_registration;
+INSERT INTO public.judge_assignments (id, person_id, show_id, trial_id, class_id, status, confirmed_at) VALUES
+  ('00000000-0000-0000-0000-000002161063', '00000000-0000-0000-0000-000002161051',
+   '00000000-0000-0000-0000-000002161002', NULL, '00000000-0000-0000-0000-000002161007',
+   'confirmed', now() - interval '1 day');
+DELETE FROM public.judge_assignments WHERE id = '00000000-0000-0000-0000-000002161063';
+-- The old sender sent it and recorded nothing (class_notices NULL): the saved body says what it told them.
+UPDATE public.show_lifecycle_email_jobs
+   SET status = 'sent', sent_at = now() - interval '2 hours', created_at = now() - interval '2 hours',
+       class_notices = NULL,
+       rendered_body = E'Hi Ada,\nThe judge for a class you are entered in has changed.\nHandler Novice A (MYK9-2161 Trial, Friday): was Judge Judge A\nA new judge for Handler Novice A (MYK9-2161 Trial, Friday) has not been named yet. The trial secretary will tell you who it is.'
+ WHERE status = 'ready' AND judge_changes ? '00000000-0000-0000-0000-000002161007';
+SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161007');
+UPDATE public.judge_assignments SET confirmed_at = now() - interval '10 minutes'
+ WHERE class_id = '00000000-0000-0000-0000-000002161007';
+
+DO $$
+DECLARE
+  v_class uuid := '00000000-0000-0000-0000-000002161007';
+  v_sec text := '00000000-0000-0000-0000-000002161101';
+BEGIN
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":1,"sent_count":0}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL G.0 the old unrecorded email should be offered, got %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  IF pg_temp.t2161_call(v_sec, 'queue_wrong', v_class) IS DISTINCT FROM '{"error":"P0001"}'::jsonb
+     OR pg_temp.t2161_jobs('ready') <> 0 THEN
+    RAISE EXCEPTION 'FAIL G.1 a tap for another judge was not refused: %', pg_temp.t2161_call(v_sec, 'queue_wrong', v_class);
+  END IF;
+  -- A later email that named a judge (the earlier judge came back and left again, say).
+  INSERT INTO public.show_lifecycle_email_jobs (
+    show_id, step_id, step_type, status, recipient_scope, recipient_person_id, recipient_email,
+    idempotency_key, due_at, auto_send, judge_changes, sent_at, class_notices)
+  SELECT '00000000-0000-0000-0000-000002161002', s.id, 'judge_changed', 'sent', 'show_recipient',
+         '00000000-0000-0000-0000-000002161021', 'ada-2161@example.test', 'myk9-2161-later',
+         now() - interval '1 hour', true,
+         jsonb_build_object(v_class::text, '00000000-0000-0000-0000-000002161051'),
+         now() - interval '1 hour', jsonb_build_object(v_class::text, 'named')
+    FROM public.show_lifecycle_email_steps s
+   WHERE s.show_id = '00000000-0000-0000-0000-000002161002' AND s.step_type = 'judge_changed';
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":0,"sent_count":0}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL G.2 a later email that named a judge did not supersede: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  RAISE NOTICE 'PASS G latest notice wins, wrong judge refused, old sent job read from its saved body';
+END $$;
+
+-- H: what each delivered email actually said, and a job the sender already claimed.
+ALTER TABLE public.entries DISABLE TRIGGER trg_entries_require_dog_registration;
+INSERT INTO public.classes (id, trial_id, name, status, element, level, section) VALUES
+  ('00000000-0000-0000-0000-000002161008', '00000000-0000-0000-0000-000002161003', 'Fetch Novice A', 'upcoming', 'Fetch', 'Novice', 'A');
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) VALUES
+  ('00000000-0000-0000-0000-000002161073', '00000000-0000-0000-0000-000002161032',
+   '00000000-0000-0000-0000-000002161008', '00000000-0000-0000-0000-000002161002',
+   '00000000-0000-0000-0000-000002161003', 'confirmed', '73', 1, 'no-status');
+ALTER TABLE public.entries ENABLE TRIGGER trg_entries_require_dog_registration;
+INSERT INTO public.judge_assignments (id, person_id, show_id, trial_id, class_id, status, confirmed_at) VALUES
+  ('00000000-0000-0000-0000-000002161064', '00000000-0000-0000-0000-000002161051',
+   '00000000-0000-0000-0000-000002161002', NULL, '00000000-0000-0000-0000-000002161008',
+   'confirmed', now() - interval '1 day');
+DELETE FROM public.judge_assignments WHERE id = '00000000-0000-0000-0000-000002161064';
+UPDATE public.show_lifecycle_email_jobs
+   SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour',
+       class_notices = jsonb_build_object('00000000-0000-0000-0000-000002161008', 'unnamed')
+ WHERE status = 'ready' AND judge_changes ? '00000000-0000-0000-0000-000002161008';
+SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161008');
+UPDATE public.judge_assignments SET confirmed_at = now() - interval '10 minutes'
+ WHERE class_id = '00000000-0000-0000-0000-000002161008';
+
+CREATE FUNCTION pg_temp.t2161_job(
+  p_key text, p_status text, p_changes jsonb, p_notices jsonb, p_sent_at timestamptz, p_claimed timestamptz
+) RETURNS uuid LANGUAGE sql AS $$
+  INSERT INTO public.show_lifecycle_email_jobs (
+    show_id, step_id, step_type, status, recipient_scope, recipient_person_id, recipient_email,
+    idempotency_key, due_at, auto_send, judge_changes, sent_at, class_notices, claimed_until)
+  SELECT '00000000-0000-0000-0000-000002161002', s.id, 'judge_changed', p_status, 'show_recipient',
+         '00000000-0000-0000-0000-000002161022', 'ivy-2161@example.test', 'myk9-2161-h-' || p_key,
+         now() - interval '1 minute', true, p_changes, p_sent_at, p_notices, p_claimed
+    FROM public.show_lifecycle_email_steps s
+   WHERE s.show_id = '00000000-0000-0000-0000-000002161002' AND s.step_type = 'judge_changed'
+  RETURNING id
+$$;
+
+DO $$
+DECLARE
+  v_class uuid := '00000000-0000-0000-0000-000002161008';
+  v_other uuid := '00000000-0000-0000-0000-000002161005';
+  v_judge_a text := '00000000-0000-0000-0000-000002161051';
+  v_sec text := '00000000-0000-0000-0000-000002161101';
+  v_pending jsonb := '{"pending_count":1,"sent_count":0}'::jsonb;
+  v_job uuid;
+  v_result jsonb;
+BEGIN
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_pending THEN
+    RAISE EXCEPTION 'FAIL H.0 expected Ivy pending, got %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+
+  -- H.1 an email that omitted this class (it only lists it as a candidate) is not a later notice.
+  PERFORM pg_temp.t2161_job('omit', 'sent',
+    jsonb_build_object(v_class::text, v_judge_a, v_other::text, v_judge_a),
+    jsonb_build_object(v_other::text, 'named'), now() - interval '5 minutes', NULL);
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_pending THEN
+    RAISE EXCEPTION 'FAIL H.1 an email that never named the class changed the offer: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+
+  -- H.2 the vacancy email was delivered AFTER the substitute was confirmed: still "not named yet",
+  -- so it is not the follow-up, and Ivy is still owed one.
+  PERFORM pg_temp.t2161_job('late', 'sent', jsonb_build_object(v_class::text, v_judge_a),
+    jsonb_build_object(v_class::text, 'unnamed'), now(), NULL);
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_pending THEN
+    RAISE EXCEPTION 'FAIL H.2 a late "not named yet" email counted as the follow-up: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+
+  -- H.3 a job the sender holds (leased) is not touched; Ivy stays pending.
+  v_job := pg_temp.t2161_job('claimed', 'ready', jsonb_build_object(v_other::text, v_judge_a), NULL, NULL,
+    now() + interval '10 minutes');
+  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb
+     OR (SELECT judge_changes FROM public.show_lifecycle_email_jobs WHERE id = v_job)
+        <> jsonb_build_object(v_other::text, v_judge_a)
+     OR pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_pending THEN
+    RAISE EXCEPTION 'FAIL H.3 a claimed job was changed or counted: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+
+  -- H.4 lease expired, but the provider already took the email and the drain has not recorded it.
+  UPDATE public.show_lifecycle_email_jobs SET claimed_until = now() - interval '1 minute' WHERE id = v_job;
+  INSERT INTO public.show_lifecycle_email_attempts (job_id, resend_message_id, status)
+  VALUES (v_job, 'resend-2161-h', 'sent');
+  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb
+     OR (SELECT judge_changes FROM public.show_lifecycle_email_jobs WHERE id = v_job)
+        <> jsonb_build_object(v_other::text, v_judge_a) THEN
+    RAISE EXCEPTION 'FAIL H.4 a job the provider accepted was changed';
+  END IF;
+
+  -- H.5 an unclaimed waiting job takes the class.
+  DELETE FROM public.show_lifecycle_email_attempts WHERE job_id = v_job;
+  UPDATE public.show_lifecycle_email_jobs SET claimed_until = NULL WHERE id = v_job;
+  v_result := pg_temp.t2161_call(v_sec, 'queue', v_class);
+  IF v_result IS DISTINCT FROM '1'::jsonb
+     OR NOT (SELECT judge_changes ? v_class::text FROM public.show_lifecycle_email_jobs WHERE id = v_job) THEN
+    RAISE EXCEPTION 'FAIL H.5 an unclaimed waiting job did not take the class: % %', v_result,
+      (SELECT row_to_json(x) FROM public.show_lifecycle_email_jobs x WHERE id = v_job);
+  END IF;
+  RAISE NOTICE 'PASS H omitted classes, late vacancy emails and claimed jobs';
 END $$;
 
 ROLLBACK;

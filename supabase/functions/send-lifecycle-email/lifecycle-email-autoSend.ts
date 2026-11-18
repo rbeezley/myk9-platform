@@ -224,17 +224,19 @@ async function processClaimedJob(args: {
       await finishJob(args, { status: 'skipped' });
       return 'skipped';
     }
-    // MYK9-2161: record which classes this email calls "not named yet", BEFORE it is sent, so the
-    // fact survives an interrupted send that a later drain only finishes. The secretary's
-    // "email the exhibitors who were told no judge yet" is built from it. Rewritten on every
-    // attempt; only a job that ends up sent is ever read.
-    const unnamedClassIds = plan.changes.filter(change => !change.toJudge).map(c => c.classId);
+    // MYK9-2161: record what this email says about each class it names ("not named yet" or a judge),
+    // BEFORE it is sent, so the fact survives an interrupted send that a later drain only finishes.
+    // The secretary's "email the exhibitors who were told no judge yet" is built from it. Rewritten
+    // on every attempt; only a job that ends up sent is ever read.
+    const classNotices = Object.fromEntries(
+      plan.changes.map(change => [change.classId, change.toJudge ? 'named' : 'unnamed'])
+    );
     const recorded = await supabase
       .from('show_lifecycle_email_jobs')
-      .update({ unnamed_class_ids: unnamedClassIds })
+      .update({ class_notices: classNotices })
       .eq('id', job.job_id)
       .eq('attempt_id', job.attempt_id);
-    if (recorded.error) throw new Error('Failed to record the unnamed classes');
+    if (recorded.error) throw new Error('Failed to record the email classes');
     text = renderJudgeChangedEmail({
       showId: job.show_id,
       showName: show.name,

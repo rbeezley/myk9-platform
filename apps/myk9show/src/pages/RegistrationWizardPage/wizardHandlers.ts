@@ -26,6 +26,7 @@ import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { submitPaymentStep } from './submitPaymentStep';
+import { noEntriesAddedMessage } from './noEntriesAddedMessage';
 import {
   everyEntryHandledByOwner,
   wizardStepStride,
@@ -124,9 +125,14 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     // On the last step, complete registration and navigate away
     if (isLastStep) {
       markStepComplete(currentStep);
-      notifications.success(
-        isLateEntryMode ? 'Late entry completed successfully' : 'Entry submitted successfully'
-      );
+      const noEntriesMessage = noEntriesAddedMessage(state.entryOutcomes);
+      if (noEntriesMessage) {
+        notifications.info(noEntriesMessage);
+      } else {
+        notifications.success(
+          isLateEntryMode ? 'Late entry completed successfully' : 'Entry submitted successfully'
+        );
+      }
       navigate(
         resolveRegistrationCompletionPath(
           showId,

@@ -13,6 +13,7 @@ import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-ty
 import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PaymentOptionCard } from './PaymentOptionCard';
 import { usePaymentDetailsFields } from './usePaymentDetailsFields';
+import { useStaffChoiceDrafts, type DetailChoice } from './useStaffChoiceDrafts';
 import type { PaymentMethodSelectorProps } from './types';
 
 /** One secretary choice: a payment method, and for money in hand how it came. */
@@ -31,6 +32,22 @@ const CHOICE_METHOD: Record<StaffChoice, PaymentMethod> = {
 
 const CHOICE_RECEIVED: Partial<Record<StaffChoice, NonNullable<PaymentDetails['receivedMethod']>>> =
   { check_received: 'check', cash_received: 'cash' };
+
+/** The choice a method (and, for money received, how it came) stands for, or null. */
+function choiceFor(
+  method: PaymentMethod | '' | undefined,
+  receivedMethod: PaymentDetails['receivedMethod']
+): StaffChoice | null {
+  if (method === 'secretary_paid') {
+    if (receivedMethod === 'check') return 'check_received';
+    if (receivedMethod === 'cash') return 'cash_received';
+    return null;
+  }
+  const match = (Object.keys(CHOICE_METHOD) as StaffChoice[]).find(
+    choice => !CHOICE_RECEIVED[choice] && CHOICE_METHOD[choice] === method
+  );
+  return match ?? null;
+}
 
 const STAFF_ROLES = [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN];
 
@@ -116,6 +133,12 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   formHeldCents = null,
 }) => {
   const { fields, update } = usePaymentDetailsFields(getInitialDetails, onPaymentDetailsChange);
+  // MYK9-2162: check received, cash received and free entry each keep their own details.
+  const { drafts, patchFor, edit } = useStaffChoiceDrafts(
+    choiceFor(paymentMethod, fields.receivedMethod),
+    fields,
+    update
+  );
   // Offered on a confirmed read; once chosen it stays, whatever a later read says.
   const offerFormMoney = formHeldCents !== null || paymentMethod === 'form_money';
   const showCheck = acceptedMethods?.check ?? true;
@@ -129,7 +152,9 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
 
   const handleSelect = (choice: StaffChoice) => {
     const received = CHOICE_RECEIVED[choice];
-    if (received && received !== fields.receivedMethod) update({ receivedMethod: received });
+    const patch = patchFor(choice);
+    if (received && received !== fields.receivedMethod) patch.receivedMethod = received;
+    if (Object.keys(patch).length > 0) update(patch);
     onPaymentMethodChange(CHOICE_METHOD[choice]);
   };
 
@@ -151,48 +176,44 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
     />
   );
 
-  const receivedOnField = (
-    <div>
-      <Label htmlFor="payment-date">Date received</Label>
-      <Input
-        id="payment-date"
-        type="date"
-        value={fields.paymentDate}
-        onChange={e => update({ paymentDate: e.target.value })}
-      />
-    </div>
-  );
-
-  const notesField = (
-    <div>
-      <Label htmlFor="payment-notes">Payment notes</Label>
-      <Textarea
-        id="payment-notes"
-        value={fields.paymentNotes}
-        onChange={e => update({ paymentNotes: e.target.value })}
-        placeholder="Anything else about this payment"
-        rows={2}
-      />
-    </div>
-  );
-
   // The payment reference is the field "Received as: Check" labelled "Check number"
   // (MYK9-1742), so a check's number lands where it always has.
-  const receivedDetails = (referenceLabel: string, placeholder: string) => (
+  const receivedDetails = (
+    choice: Exclude<DetailChoice, 'waived'>,
+    referenceLabel: string,
+    placeholder: string
+  ) => (
     <ChoiceDetails>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label htmlFor="payment-reference">{referenceLabel}</Label>
           <Input
             id="payment-reference"
-            value={fields.paymentReference}
-            onChange={e => update({ paymentReference: e.target.value })}
+            value={drafts[choice].paymentReference}
+            onChange={e => edit(choice, 'paymentReference', e.target.value)}
             placeholder={placeholder}
           />
         </div>
-        {receivedOnField}
+        <div>
+          <Label htmlFor="payment-date">Date received</Label>
+          <Input
+            id="payment-date"
+            type="date"
+            value={drafts[choice].paymentDate}
+            onChange={e => edit(choice, 'paymentDate', e.target.value)}
+          />
+        </div>
       </div>
-      {notesField}
+      <div>
+        <Label htmlFor="payment-notes">Payment notes</Label>
+        <Textarea
+          id="payment-notes"
+          value={drafts[choice].paymentNotes}
+          onChange={e => edit(choice, 'paymentNotes', e.target.value)}
+          placeholder="Anything else about this payment"
+          rows={2}
+        />
+      </div>
     </ChoiceDetails>
   );
 
@@ -226,7 +247,8 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
               'A check came with the entry form.',
               PAID_BADGE
             )}
-            {isSelected('check_received') && receivedDetails('Check number', '1234')}
+            {isSelected('check_received') &&
+              receivedDetails('check_received', 'Check number', '1234')}
             {card(
               'cash_received',
               Banknote,
@@ -234,7 +256,8 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
               'Cash came with the entry form.',
               PAID_BADGE
             )}
-            {isSelected('cash_received') && receivedDetails('Receipt #', 'Receipt #123')}
+            {isSelected('cash_received') &&
+              receivedDetails('cash_received', 'Receipt #', 'Receipt #123')}
             {card(
               'group_payment',
               Users,
@@ -289,8 +312,8 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
                     <Label htmlFor="waiver-reason">Why is this entry free?</Label>
                     <Textarea
                       id="waiver-reason"
-                      value={fields.paymentNotes}
-                      onChange={e => update({ paymentNotes: e.target.value })}
+                      value={drafts.waived.paymentNotes}
+                      onChange={e => edit('waived', 'paymentNotes', e.target.value)}
                       placeholder="For example, a judge or worker entry"
                       required
                     />

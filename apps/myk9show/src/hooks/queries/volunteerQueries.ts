@@ -4,6 +4,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
 import { VOLUNTEER_COPY } from './volunteerErrorCopy';
 import type { Volunteer, ClassInfo, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
@@ -117,11 +118,12 @@ export function useSearchPeople(query: string) {
   return useQuery({
     queryKey: queryKeys.peopleSearch(query),
     queryFn: async () => {
-      const sanitized = query.replace(/[%_\\]/g, c => `\\${c}`);
+      // MYK9-2148: quoted, so a comma or parenthesis in a name does not break the filter.
+      const value = ilikeContains(query);
       const { data, error } = await supabase
         .from('people')
         .select('id, first_name, last_name, phone')
-        .or(`first_name.ilike.%${sanitized}%,last_name.ilike.%${sanitized}%`)
+        .or(`first_name.ilike.${value},last_name.ilike.${value}`)
         .limit(20);
       if (error) throw error;
       return (data ?? []).map((row): PersonSearchResult => ({

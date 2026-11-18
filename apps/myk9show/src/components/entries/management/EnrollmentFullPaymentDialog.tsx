@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { LedgerNotSavedNote } from './LedgerNotSavedNote';
+import type { LedgerSaveStatus } from './useLedgerDialogSave';
 import { AMOUNT_NOT_AVAILABLE, type FullPaymentDialog } from './enrollmentPayment';
 
 interface ReceivedOnFieldProps {
@@ -39,6 +41,8 @@ interface EnrollmentFullPaymentDialogProps {
   /** MYK9-1968: the payment record is not loaded, so the balance is not quoted. */
   amountUnknown?: boolean | undefined;
   todayInShowZone: string;
+  /** MYK9-2156: the ledger write's state; confirm is disabled while it is pending. */
+  saveStatus?: LedgerSaveStatus | undefined;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -53,6 +57,7 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
   balanceDollars,
   amountUnknown = false,
   todayInShowZone,
+  saveStatus = 'idle',
   onClose,
   onConfirm,
 }) => (
@@ -93,12 +98,16 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
           max={todayInShowZone}
           onChange={receivedOn => onChange({ ...state, receivedOn })}
         />
+        <LedgerNotSavedNote status={saveStatus} />
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={onConfirm} disabled={amountUnknown || !state.receivedOn}>
+        <Button
+          onClick={onConfirm}
+          disabled={amountUnknown || !state.receivedOn || saveStatus === 'saving'}
+        >
           Confirm
         </Button>
       </DialogFooter>

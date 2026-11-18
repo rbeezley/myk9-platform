@@ -50,6 +50,7 @@ function renderRow(overrides: Partial<ReplicatedEntry>) {
   render(
     <ul>
       <MyEntryRow
+        showId="show-1"
         detail={detail}
         place={undefined}
         placeUpdatedAt={null}

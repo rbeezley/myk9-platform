@@ -123,6 +123,7 @@ export function buildFormChecklist(
   const liveCount = entries.filter(live).length;
 
   const unpaid = withReason('payment_due');
+  const balanceDue = !money.amountUnknown && money.remainingDollars > 0;
   const unpaidLine = `${unpaid.length} of ${liveCount} ${entriesWord(liveCount)} unpaid`;
   // Any entry, not only live ones: a run that is over has not settled its fee (round 2).
   if (money.amountUnknown && entries.length > 0) {
@@ -141,15 +142,17 @@ export function buildFormChecklist(
           : 'The payment record has not loaded, so whether anything is due is not known.',
       canRecord: false,
     });
-  } else if (unpaid.length > 0) {
-    const due = money.remainingDollars;
+  } else if (balanceDue || unpaid.length > 0) {
+    // MYK9-2155: the loaded payment record's balance decides "due", whatever the
+    // entries' run or payment status, so the list never says "All set" beside a footer
+    // that shows money owed.
     items.push(
-      due > 0
+      balanceDue
         ? {
             kind: 'payment',
             id: 'payment',
-            title: `${dollars(due)} due`,
-            detail: unpaidLine,
+            title: `${dollars(money.remainingDollars)} due`,
+            detail: unpaid.length > 0 ? unpaidLine : 'The payment record shows a balance.',
             canRecord: Boolean(registration.enrollmentId),
           }
         : {
@@ -220,7 +223,7 @@ export function buildFormChecklist(
       }) === 'accepted'
   );
   if (accepted.length > 0) done.push(`${accepted.length} accepted`);
-  if (unpaid.length === 0 && !money.amountUnknown && money.paidDollars > 0) {
+  if (unpaid.length === 0 && !balanceDue && !money.amountUnknown && money.paidDollars > 0) {
     done.push(`${dollars(money.paidDollars)} paid${PAID_BY[registration.paymentStatus] ?? ''}`);
   }
   const armbands = [

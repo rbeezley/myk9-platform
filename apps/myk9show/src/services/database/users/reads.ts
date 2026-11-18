@@ -18,6 +18,7 @@ import { hydrateVisibleRoles } from './roleLabels';
 import { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
 import type { PersonPrivatePatch } from './personPrivate';
 import type { Json } from '@myk9/supabase';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 
 /**
  * A person update: the `people` columns plus, optionally, the MYK9-664 private
@@ -572,7 +573,7 @@ export const searchUsers = async (searchTerm: string) => {
       .select(PEOPLE_MAPPER_COLUMNS)
       .is('deleted_at', null)
       .or(
-        `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+        `first_name.ilike.${ilikeContains(searchTerm)},last_name.ilike.${ilikeContains(searchTerm)},email.ilike.${ilikeContains(searchTerm)}`
       )
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });

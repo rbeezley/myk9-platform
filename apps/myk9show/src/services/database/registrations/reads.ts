@@ -3,6 +3,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mirrorServerRegistration } from './replicaMirror';
 import type { DbDogRegistrationUpdate } from '../../../types/database-mappings';
+import { escapeLikeTerm } from '@/utils/sanitizePostgRESTFilter';
 // Get registration by ID with full details
 export const getRegistrationById = async (id: string) => {
   const startTime = Date.now();
@@ -168,7 +169,7 @@ export const searchRegistrations = async (searchTerm: string) => {
         )
       `
       )
-      .ilike('registration_number', `%${searchTerm}%`)
+      .ilike('registration_number', `%${escapeLikeTerm(searchTerm)}%`)
       .order('created_at', { ascending: false });
 
     const duration = Date.now() - startTime;

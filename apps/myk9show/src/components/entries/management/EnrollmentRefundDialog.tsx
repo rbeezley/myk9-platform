@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { LedgerNotSavedNote } from './LedgerNotSavedNote';
+import type { LedgerSaveStatus } from './useLedgerDialogSave';
 import {
   Select,
   SelectContent,
@@ -23,6 +25,8 @@ interface EnrollmentRefundDialogProps {
   onChange: (next: RefundDialog) => void;
   /** Desk money held: a desk refund can hand back no more (card money goes back through Stripe). */
   refundableDollars: number;
+  /** MYK9-2156: the ledger write's state; confirm is disabled while it is pending. */
+  saveStatus?: LedgerSaveStatus | undefined;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -36,6 +40,7 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
   state,
   onChange,
   refundableDollars,
+  saveStatus = 'idle',
   onClose,
   onConfirm,
 }) => (
@@ -107,12 +112,16 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
             Enter a refund amount greater than $0 to record this refund.
           </p>
         )}
+        <LedgerNotSavedNote status={saveStatus} />
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={onConfirm} disabled={!state.amount || !(parseFloat(state.amount) > 0)}>
+        <Button
+          onClick={onConfirm}
+          disabled={!state.amount || !(parseFloat(state.amount) > 0) || saveStatus === 'saving'}
+        >
           Record Refund
         </Button>
       </DialogFooter>

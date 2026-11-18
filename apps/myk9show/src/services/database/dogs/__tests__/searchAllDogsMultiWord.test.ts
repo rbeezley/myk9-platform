@@ -50,16 +50,22 @@ const TABLES: Record<string, Row[]> = {
   ],
 };
 
-/** Splits a PostgREST logic list on its top-level commas, honoring `\` escapes. */
+/** Splits a PostgREST logic list on its top-level commas, outside double-quoted values. */
 function splitTopLevel(list: string): string[] {
   const parts: string[] = [];
   let depth = 0;
+  let quoted = false;
   let current = '';
   for (let i = 0; i < list.length; i += 1) {
     const ch = list[i];
     if (ch === '\\') {
       current += ch + (list[i + 1] ?? '');
       i += 1;
+      continue;
+    }
+    if (ch === '"') quoted = !quoted;
+    if (quoted) {
+      current += ch;
       continue;
     }
     if (ch === '(') depth += 1;
@@ -84,9 +90,11 @@ function matches(row: Row, expr: string, embeds: Record<string, boolean> = {}): 
       ? children.every(c => matches(row, c, embeds))
       : children.some(c => matches(row, c, embeds));
   }
-  const ilike = /^(\w+)\.ilike\.%(.*)%$/s.exec(expr);
+  const ilike = /^(\w+)\.ilike\."%(.*)%"$/s.exec(expr);
   if (ilike) {
-    const needle = (ilike[2] ?? '').replace(/\\(.)/g, '$1').toLowerCase();
+    // PostgREST unescapes `\"` and `\\` inside the quotes; LIKE then unescapes `\x`.
+    const unquoted = (ilike[2] ?? '').replace(/\\(["\\])/g, '$1');
+    const needle = unquoted.replace(/\\(.)/g, '$1').toLowerCase();
     return (row[ilike[1] ?? ''] ?? '').toLowerCase().includes(needle);
   }
   const embedKept = /^(\w+)\.not\.is\.null$/.exec(expr);

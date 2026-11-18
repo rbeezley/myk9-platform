@@ -2,8 +2,8 @@ import { useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useClubStore } from '@/store/clubStore';
 import { useDirectoryViewer } from '@/hooks/useDirectoryViewer';
+import { CLUB_LOOKUP_QUERY_OPTIONS, withClubLookupDeadline } from '@/hooks/clubLookupDeadline';
 import {
-  GUEST_READ_QUERY_OPTIONS,
   type GuestReadState,
   resolveGuestRead,
   useQueryOnlineStatus,
@@ -65,9 +65,9 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
   // No row from clubs_select means not found.
   const guestQuery = useQuery({
     queryKey: [...PUBLIC_CLUB_DETAIL_QUERY_KEY, id, principalKey],
-    queryFn: () => getPublicClubById(id as string),
+    queryFn: () => withClubLookupDeadline(() => getPublicClubById(id as string)),
     enabled: isGuest && idUsable,
-    ...GUEST_READ_QUERY_OPTIONS,
+    ...CLUB_LOOKUP_QUERY_OPTIONS,
   });
   const isOnline = useQueryOnlineStatus();
   const guestRead = resolveGuestRead(guestQuery, isOnline);
@@ -82,9 +82,10 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
   // replica, so the next account on this browser cannot see it.
   const fallbackQuery = useQuery({
     queryKey: [...PUBLIC_CLUB_DETAIL_QUERY_KEY, id, principalKey],
-    queryFn: () => getPublicClubById(id as string, { withAuthorization: true }),
+    queryFn: () =>
+      withClubLookupDeadline(() => getPublicClubById(id as string, { withAuthorization: true })),
     enabled: isSignedIn && idUsable && readiness === 'fresh' && !replicaClub,
-    ...GUEST_READ_QUERY_OPTIONS,
+    ...CLUB_LOOKUP_QUERY_OPTIONS,
   });
   const fallbackRead = resolveGuestRead(fallbackQuery, isOnline);
 

@@ -2,7 +2,7 @@
      font-family="Helvetica,Arial,sans-serif" font-size="13"
      fill="#1a1a1a" role="img">
   <title>At-Show Access Paths</title>
-  <desc>Two paths into the at-show ringside view: account holders sign in and tap Ringside; guests enter a show passcode or scan a QR code. Both paths lead to the class list.</desc>
+  <desc>Two paths into the at-show ringside view: account holders sign in and tap Ringside; guests enter the show passcode the secretary gave them. Both paths lead to the class list.</desc>
 
   <defs>
     <marker id="arr" markerWidth="9" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -48,7 +48,7 @@
   <!-- RIGHT step: passcode path -->
   <rect x="360" y="247" width="190" height="56" rx="8" fill="#fdf5ef" stroke="#a8472d" stroke-width="1.5"/>
   <text x="455" y="269" text-anchor="middle" fill="#1a1a1a">Enter show passcode</text>
-  <text x="455" y="288" text-anchor="middle" fill="#1a1a1a">or scan the QR code</text>
+  <text x="455" y="288" text-anchor="middle" fill="#1a1a1a">from the secretary</text>
 
   <!-- END oval -->
   <ellipse cx="300" cy="400" rx="70" ry="24" fill="#eaf3ec" stroke="#2e7d5a" stroke-width="1.5"/>

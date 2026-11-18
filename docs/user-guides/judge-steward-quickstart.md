@@ -21,10 +21,10 @@ There are three ways in. Use whichever fits you.
 2. If one show is running today, it opens. If there is more than one, pick the show.
 3. You're in. No passcode needed.
 
-**If the secretary gave you a show passcode or QR code, and you are not signed in** (guest judges, stewards, volunteers):
+**If the secretary gave you a show passcode, and you are not signed in** (guest judges, stewards, volunteers):
 
 1. Open myK9Show in your browser.
-2. Type the **show passcode** into **Email or show passcode** and tap **Continue**, or scan the **QR code**.
+2. Type the **show passcode** the secretary gave you into **Email or show passcode** and tap **Continue**. Type it, do not scan: the QR code on the show flyer and the access-code slip is the exhibitors' code, and it does not open scoring.
 3. **Join the show** asks for **Your name**. It is optional. Others at the show see it, so they know who is at each ring. If a security check shows, complete it. Then tap **Continue**.
 4. You're in. No account needed.
 
@@ -37,7 +37,7 @@ There are three ways in. Use whichever fits you.
 
 ![Passcode entry screen — "Email or show passcode" field with Continue button (mobile)](../screenshots/J-01.png)
 
-![Two access paths into ringside: account holders tap Ringside in the sidebar; guests enter a passcode or scan a QR code](../diagrams/at-show-access-paths.svg)
+![Two access paths into ringside: account holders tap Ringside in the sidebar; guests enter the passcode the secretary gave them](../diagrams/at-show-access-paths.svg)
 
 **Don't have a passcode?** Ask the trial secretary before the show starts. Each judge has their own code, listed under their name in **Show Access Codes** on the show's **Overview** and printed on their Judge Supply Checklist. A judge's code opens only the classes assigned to that judge. If you try to score another judge's class, myK9Show tells you whose class it is.
 
@@ -127,7 +127,7 @@ Show venues often have weak signal. The app is built for it.
 | The passcode doesn't work                 | Ask the secretary for the current code; they can regenerate it                      |
 | Your scores aren't reaching the secretary | Check the sync label — it reads **Not sent yet** until the connection returns       |
 | The timer reset itself                    | Start timing again, then tap **Save** — scores are saved by hand, not automatically |
-| The app stops responding                  | Close the browser tab and reopen it. If you came in by QR code, scan it again       |
+| The app stops responding                  | Close the browser tab and reopen it. If it asks, type your passcode again           |
 
 ---
 

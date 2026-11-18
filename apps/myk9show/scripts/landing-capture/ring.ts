@@ -128,10 +128,18 @@ try {
     await card.getByRole('button').first().click();
     await settle(page, 4000);
     await goOffline(page, guard);
-    const offline = page.getByText('Offline · scores saved on this device');
+    // At phone width the header shows an amber no-signal icon and says the sentence when it
+    // is tapped (OfflineScoresIndicator); wider screens print the sentence in the header.
+    const noSignal = page.getByRole('button', { name: 'Offline', exact: true }).first();
+    await noSignal.waitFor();
+    await noSignal.click();
+    const offline = page.getByRole('status').filter({
+      hasText: 'Offline · scores saved on this device',
+    });
     await offline.waitFor();
     await page.waitForTimeout(800);
     await shoot('offline', { status: offline });
+    await noSignal.click();
     await page
       .getByRole('button', { name: 'Close toast' })
       .click()

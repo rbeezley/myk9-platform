@@ -30,6 +30,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   preTickAgreement = false,
   staffWorkflow = false,
   formHeldCents = null,
+  choiceDrafts,
   showId,
   capacityReady = true,
   capacityError,
@@ -216,6 +217,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
           allowFreeEntry={canUseDeskPaymentActions}
           formHeldCents={formHeldCents}
+          choiceDrafts={choiceDrafts}
         />
       ) : (
         <PaymentMethodSelector

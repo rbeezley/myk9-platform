@@ -13,7 +13,11 @@ import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-ty
 import { JuniorFeeChoice } from './JuniorFeeChoice';
 import { PaymentOptionCard } from './PaymentOptionCard';
 import { usePaymentDetailsFields } from './usePaymentDetailsFields';
-import { useStaffChoiceDrafts, type DetailChoice } from './useStaffChoiceDrafts';
+import {
+  useStaffChoiceDrafts,
+  type DetailChoice,
+  type StaffChoiceDraftStore,
+} from './useStaffChoiceDrafts';
 import type { PaymentMethodSelectorProps } from './types';
 
 /** One secretary choice: a payment method, and for money in hand how it came. */
@@ -98,6 +102,8 @@ type StaffPaymentChoicesProps = Pick<
 > & {
   /** MYK9-2149: money a confirmed read says the exhibitor's form already holds, or null. */
   formHeldCents?: number | null | undefined;
+  /** MYK9-2162: the wizard's copy of each choice's details, so they outlive this step. */
+  choiceDrafts?: StaffChoiceDraftStore | undefined;
 };
 
 /**
@@ -131,13 +137,15 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   juniorFee = null,
   allowFreeEntry = false,
   formHeldCents = null,
+  choiceDrafts,
 }) => {
   const { fields, update } = usePaymentDetailsFields(getInitialDetails, onPaymentDetailsChange);
   // MYK9-2162: check received, cash received and free entry each keep their own details.
   const { drafts, patchFor, edit } = useStaffChoiceDrafts(
     choiceFor(paymentMethod, fields.receivedMethod),
     fields,
-    update
+    update,
+    choiceDrafts
   );
   // Offered on a confirmed read; once chosen it stays, whatever a later read says.
   const offerFormMoney = formHeldCents !== null || paymentMethod === 'form_money';

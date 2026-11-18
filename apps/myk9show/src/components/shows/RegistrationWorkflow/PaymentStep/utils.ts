@@ -320,6 +320,8 @@ export function getPaymentMethodLabel(method: string): string {
       return 'Payment received';
     case 'group_payment':
       return 'Group Payment';
+    case 'form_money':
+      return 'Money on this form';
     case 'waived':
       return 'Free entry';
     default:

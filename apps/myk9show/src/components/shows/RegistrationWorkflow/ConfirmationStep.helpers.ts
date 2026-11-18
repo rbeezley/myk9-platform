@@ -245,6 +245,9 @@ export function getPaymentMethodDisplay(paymentMethod: string): string {
       return 'Secretary Payment';
     case 'group_payment':
       return 'Group Payment';
+    // MYK9-2149: the form's money, never "received" or "paid".
+    case 'form_money':
+      return 'Money on this form';
     case 'waived':
       return 'Free entry';
     default:

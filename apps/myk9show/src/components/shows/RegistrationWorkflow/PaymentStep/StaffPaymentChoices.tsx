@@ -1,6 +1,6 @@
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, CircleDollarSign, FileCheck, FileText, Tag, Users } from 'lucide-react';
+import { Banknote, CircleDollarSign, FileCheck, FileText, Tag, Users, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -17,9 +17,10 @@ import type { PaymentMethodSelectorProps } from './types';
 
 /** One secretary choice: a payment method, and for money in hand how it came. */
 type StaffChoice =
-  'check_received' | 'cash_received' | 'group_payment' | 'check' | 'cash' | 'waived';
+  'check_received' | 'cash_received' | 'group_payment' | 'check' | 'cash' | 'waived' | 'form_money';
 
 const CHOICE_METHOD: Record<StaffChoice, PaymentMethod> = {
+  form_money: 'form_money',
   check_received: 'secretary_paid',
   cash_received: 'secretary_paid',
   group_payment: 'group_payment',
@@ -77,7 +78,10 @@ type StaffPaymentChoicesProps = Pick<
   | 'acceptedMethods'
   | 'juniorFee'
   | 'allowFreeEntry'
->;
+> & {
+  /** MYK9-2149: money a confirmed read says the exhibitor's form already holds, or null. */
+  formHeldCents?: number | null | undefined;
+};
 
 /**
  * MYK9-2020: the payment step when a secretary keys in someone else's entry
@@ -93,6 +97,13 @@ type StaffPaymentChoicesProps = Pick<
  * - Free entry.
  *
  * The exhibitor's own list (`PaymentMethodSelector`) is untouched.
+ *
+ * MYK9-2149 (inform only): when a confirmed read says the exhibitor's form already holds
+ * money, one more choice is offered, "Use the money already on this form (take nothing now)",
+ * carried as its own method (`form_money`), never as money received. The secretary picks it
+ * herself: it is never preselected, and no later read selects, clears or hides it once chosen
+ * (the page clears it only when the exhibitor, and so the form, changes). It submits with no
+ * payment and no method, so the server settles what the form's money covers.
  */
 export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   paymentMethod,
@@ -102,8 +113,11 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
   acceptedMethods,
   juniorFee = null,
   allowFreeEntry = false,
+  formHeldCents = null,
 }) => {
   const { fields, update } = usePaymentDetailsFields(getInitialDetails, onPaymentDetailsChange);
+  // Offered on a confirmed read; once chosen it stays, whatever a later read says.
+  const offerFormMoney = formHeldCents !== null || paymentMethod === 'form_money';
   const showCheck = acceptedMethods?.check ?? true;
   const showCash = acceptedMethods?.cash ?? true;
 
@@ -188,6 +202,16 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
         <CardTitle className="text-base">How was this entry paid?</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {offerFormMoney && (
+          <ChoiceGroup id="staff-payment-form-money" title="Money already on this form">
+            {card(
+              'form_money',
+              Wallet,
+              'Use the money already on this form (take nothing now)',
+              'Nothing is taken or recorded now. The money on this form pays what it can.'
+            )}
+          </ChoiceGroup>
+        )}
         <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
           <ChoiceGroup id="staff-payment-paid" title="Paid with the entry">
             {paymentMethod === 'secretary_paid' && !fields.receivedMethod && (

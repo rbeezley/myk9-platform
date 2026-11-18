@@ -11,6 +11,7 @@ import {
 } from '@/services/database/entries';
 import { createShowRegistration } from '@/services/database/show-registrations';
 import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
+import { paymentDetailsForMethod } from './paymentDetailsForMethod';
 import type {
   ClassSelectionData,
   HandlerInfo,
@@ -144,13 +145,20 @@ export async function submitShowRegistration({
     (sum, entry) => sum + (entry.registrationData.entryFee ?? 0),
     0
   );
+  // MYK9-2149: "Use the money already on this form (take nothing now)". Nothing changed
+  // hands, so no payment and no method are sent (cash or check would be stamped on a
+  // settled entry as "Paid by cash" or "Paid by check"): the server settles what the
+  // form's money covers, and anything still owed is recorded on the entry form after.
+  const useFormMoney = paymentMethod === 'form_money';
   // MYK9-677: money a secretary says was already received is recorded as cash
   // or check (entries, enrollment and ledger alike), so it must name one
   // before anything is written.
-  assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
+  if (!useFormMoney) assertReceivedMethodChosen(paymentMethod, paymentDetails, feeTotal);
   const receivedMethod =
-    feeTotal > 0 ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
-  const submitMethod: PaymentMethod = receivedMethod ?? paymentMethod;
+    feeTotal > 0 && !useFormMoney ? secretaryReceivedMethod(paymentMethod, paymentDetails) : null;
+  const submitMethod: PaymentMethod | null = useFormMoney
+    ? null
+    : (receivedMethod ?? paymentMethod);
 
   await resolvedDeps.submitRegistration(registrationId, paymentDetails);
   if (!isStillActive(isActive)) return { aborted: true };
@@ -208,7 +216,8 @@ export async function submitShowRegistration({
       await recordEnrollmentPaymentDetails({
         showId,
         ownerResolution,
-        paymentDetails,
+        // MYK9-2149: only the details the final payment choice uses.
+        paymentDetails: paymentDetailsForMethod(paymentMethod, paymentDetails),
         deps: resolvedDeps,
       });
       if (!isStillActive(isActive)) return { aborted: true };

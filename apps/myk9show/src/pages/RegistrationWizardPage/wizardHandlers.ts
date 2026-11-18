@@ -191,6 +191,8 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           paymentMethod: registrationData.paymentMethod,
           paymentStatus,
           paymentDetails: paymentDetailsRef.current,
+          deskFormHeldBeforeSubmit: typeof state.formHeldCents === 'number',
+          setDeskFormOutcome: state.setDeskFormOutcome,
           ownerResolution,
           exhibitorProfileId: exhibitorProfile?.id ?? '',
           classSelections: state.classSelections,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Wallet } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import type { PaymentMethod } from '@/types/show-registration-types';
@@ -12,6 +12,7 @@ import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
 import { StaffPaymentChoices } from './StaffPaymentChoices';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
+import { formHoldsBannerLabel } from '@/features/registration/deskFormDue';
 
 /**
  * Top-level PaymentStep component that composes the sub-components for
@@ -28,6 +29,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   agreedToEntryAgreement = false,
   preTickAgreement = false,
   staffWorkflow = false,
+  formHeldCents = null,
   showId,
   capacityReady = true,
   capacityError,
@@ -192,6 +194,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         </Alert>
       )}
 
+      {/* MYK9-2149 (inform only): the form already holds money. Said, never acted on: no
+          choice is made or cleared by it, and anything taken is recorded in full. */}
+      {staffWorkflow && formHeldCents !== null && (
+        <Alert role="status">
+          <Wallet className="h-4 w-4" />
+          <AlertDescription>{formHoldsBannerLabel(formHeldCents)}</AlertDescription>
+        </Alert>
+      )}
+
       {/* MYK9-2020: a secretary keying in someone's entry gets one set of
           choices in her words (paid / not paid yet / free); the exhibitor's own
           list below is unchanged. */}
@@ -204,6 +215,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           acceptedMethods={acceptedMethods}
           juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
           allowFreeEntry={canUseDeskPaymentActions}
+          formHeldCents={formHeldCents}
         />
       ) : (
         <PaymentMethodSelector

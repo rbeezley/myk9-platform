@@ -56,6 +56,9 @@ import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
+import { useClearFormMoneyOnOwnerChange } from './useClearFormMoneyOnOwnerChange';
+import { useDeskFormHeldCents } from '@/components/shows/RegistrationWorkflow/PaymentStep/useDeskFormHeldCents';
+import type { DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { resolveWizardTitles } from './wizardTitles';
 import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './proceedGating';
@@ -309,6 +312,12 @@ export function useRegistrationWizardState() {
     () => selectedDogsOwner(dogs, registrationData.selectedDogs),
     [dogs, registrationData.selectedDogs]
   );
+  // MYK9-2149: the form's-money choice belongs to this exhibitor's form only.
+  useClearFormMoneyOnOwnerChange(
+    ownerResolution.ok ? ownerResolution.ownerId : undefined,
+    registrationData.paymentMethod,
+    () => setRegistrationData(prev => ({ ...prev, paymentMethod: undefined }))
+  );
 
   const [classSelections, setClassSelections] = useState<ClassSelectionData[]>([]);
   const [handlerAssignments, setHandlerAssignments] = useState<Record<string, HandlerInfo>>({});
@@ -324,6 +333,8 @@ export function useRegistrationWizardState() {
   const [entryOutcomes, setEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const [createdEntryOutcomes, setCreatedEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const paymentDetailsRef = useRef<PaymentDetails>({});
+  // MYK9-2149: what a form that held money still owes after submit (the receipt says so).
+  const [deskFormOutcome, setDeskFormOutcome] = useState<DeskFormOutcome | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
   const submittingRef = useRef(false);
@@ -582,6 +593,14 @@ export function useRegistrationWizardState() {
     ]
   );
   const liveTotalFees = liveFeeCalculation.total;
+  // MYK9-2149 (inform only): the money the exhibitor's form already holds, read by the server
+  // each time the desk's online Payment step opens. It only feeds a banner and the receipt's
+  // "still owed" notice; it never changes a payment choice or the submit.
+  const formHeldCents = useDeskFormHeldCents({
+    enabled: currentWorkflowMode !== 'exhibitor' && !isLateEntryMode && currentStepId === 'payment',
+    showId,
+    handlerId: ownerResolution.ok ? ownerResolution.ownerId : undefined,
+  });
 
   const entryCloseAvailability = useEntryCloseAvailability({
     showId,
@@ -752,6 +771,9 @@ export function useRegistrationWizardState() {
     completedSteps,
     liveTotalFees,
     liveFeeCalculation,
+    formHeldCents,
+    deskFormOutcome,
+    setDeskFormOutcome,
     noEntryFeeClassIds,
     paymentResolution,
     canDeclareJuniorHandler,

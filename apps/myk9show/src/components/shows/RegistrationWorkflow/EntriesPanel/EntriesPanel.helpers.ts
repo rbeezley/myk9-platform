@@ -278,6 +278,11 @@ export interface PaymentTotals {
    * outstanding the way it does for check/cash "pay at show".
    */
   isSecretaryReceived: boolean;
+  /**
+   * MYK9-2149: "Use the money already on this form": nothing was received, so the total is
+   * never quoted as "(Received)"; it is labelled as the form's money.
+   */
+  isFormMoney?: boolean | undefined;
   /** True when the service fee applies: card, payable, and availability known. */
   isPayableCard: boolean;
   entryFeeCents: number;
@@ -312,6 +317,7 @@ export function computePaymentTotals({
   return {
     isWaived,
     isSecretaryReceived,
+    ...(paymentMethod === 'form_money' ? { isFormMoney: true } : {}),
     isPayableCard,
     entryFeeCents,
     serviceFeeCents,
@@ -331,6 +337,11 @@ export interface AmountDueInput {
   entryFeeCents: number;
   /** How many fee lines the entry has. Zero costs $0.00 whatever capacity says. */
   classCount: number;
+  /**
+   * MYK9-1966: the desktop row already reads "Entry fees" when the form's money is chosen,
+   * so it takes the same amount without the "in fees" suffix the phone headline needs.
+   */
+  omitFormMoneySuffix?: boolean | undefined;
 }
 
 /**
@@ -349,6 +360,7 @@ export function formatAmountDue({
   totals,
   entryFeeCents,
   classCount,
+  omitFormMoneySuffix,
 }: AmountDueInput): string {
   // An empty entry costs $0.00 however availability resolves, so the placeholder
   // would be withholding a number that is already known — and the dog-selection
@@ -361,5 +373,8 @@ export function formatAmountDue({
   // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as
   // still owed once the secretary marked it Already Received.
   if (totals?.isSecretaryReceived) return `${amount} (Received)`;
+  // MYK9-1966: the figure is the entry fees, not what the form holds (the banner and the
+  // receipt carry the server's balance), so it never claims the fee is money on the form. Short, so the phone bar never clips it.
+  if (totals?.isFormMoney) return omitFormMoneySuffix ? amount : `${amount} in fees`;
   return amount;
 }

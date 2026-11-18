@@ -82,6 +82,8 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     registrationNumber,
     liveTotalFees,
     liveFeeCalculation,
+    formHeldCents,
+    deskFormOutcome,
     entryWindowTimezoneState,
     paymentDetailsRef,
     paymentResolution,
@@ -414,6 +416,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               registrationId={registrationId}
               registrationNumber={registrationNumber}
               currentRegistrationTotalFees={liveTotalFees}
+              desk={{ formHeldCents, outcome: deskFormOutcome }}
               capacityReady={capacityReady}
               capacityError={capacityError}
               capacityUnavailable={capacityUnavailable}

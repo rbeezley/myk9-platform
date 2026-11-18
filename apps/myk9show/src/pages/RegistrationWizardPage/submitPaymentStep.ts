@@ -47,6 +47,7 @@ import type {
   NewCartItem,
 } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
+import { fetchDeskFormDueCents, type DeskFormOutcome } from '@/features/registration/deskFormDue';
 import { sendSubmittedEntryEmail, submittedEntryIdsToEmail } from './sendSubmittedEntryEmail';
 
 /** Subset of the cart store actions the checkout handoff needs. */
@@ -109,6 +110,10 @@ export interface SubmitPaymentStepContext {
   setArmbandAssignments: (value: ArmbandAssignment[]) => void;
   setEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
   setCreatedEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
+  /** MYK9-2149: the Payment step confirmed the form held money before this submission. */
+  deskFormHeldBeforeSubmit?: boolean | undefined;
+  /** MYK9-2149: what a form that held money still owes after this submission. */
+  setDeskFormOutcome?: ((value: DeskFormOutcome | null) => void) | undefined;
   markStepComplete: (stepIndex: number) => void;
   setCurrentStep: (updater: (prev: number) => number) => void;
   updateShowRegistration: (
@@ -120,6 +125,29 @@ export interface SubmitPaymentStepContext {
   invalidateOwnTodayEntries: () => void;
   navigate: (path: string) => void;
   discardDraftsWithoutFinalSave: (handledClasses: HandledDraftClass[]) => void;
+}
+
+/**
+ * MYK9-2149 (inform only): an entry was added to a form the Payment step confirmed held money.
+ * Read what the form still owes now, so the receipt can say so and link to the entry form. A
+ * failed read says it could not be read, never "covered". Only when an entry was created: a
+ * submission that was all waitlisted or denied added nothing. Read-only.
+ */
+async function readDeskFormOutcome(
+  ctx: SubmitPaymentStepContext,
+  formId: string
+): Promise<DeskFormOutcome | null> {
+  // The form held money before submit, or the secretary used it: either way she is told the
+  // balance, whatever this read finds.
+  if (ctx.deskFormHeldBeforeSubmit !== true && ctx.paymentMethod !== 'form_money') return null;
+  if (!ctx.ownerResolution.ok) return { formId, owedCents: null };
+  try {
+    const due = await fetchDeskFormDueCents(ctx.showId, ctx.ownerResolution.ownerId);
+    return { formId, owedCents: Math.max(0, due) };
+  } catch (error) {
+    console.error('Reading what the entry form still owes failed:', error);
+    return { formId, owedCents: null };
+  }
 }
 
 function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
@@ -284,6 +312,11 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     }
     if (ctx.currentWorkflowMode === 'exhibitor') ctx.invalidateOwnTodayEntries();
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
+    ctx.setDeskFormOutcome?.(
+      (submissionResult.createdEntryOutcomes?.length ?? 0) > 0
+        ? await readDeskFormOutcome(ctx, submissionResult.dbRegistrationId)
+        : null
+    );
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
     ctx.setCreatedEntryOutcomes(submissionResult.createdEntryOutcomes ?? []);
     ctx.discardDraftsWithoutFinalSave(

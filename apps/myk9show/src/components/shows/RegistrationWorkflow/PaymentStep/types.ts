@@ -28,6 +28,11 @@ export interface PaymentStepProps {
    */
   staffWorkflow?: boolean | undefined;
   /**
+   * MYK9-2149 (inform only): money the exhibitor's form already holds, from a read the PAGE
+   * confirmed this visit, or null. Shown as a banner; it never changes a choice or Submit.
+   */
+  formHeldCents?: number | null | undefined;
+  /**
    * Payment-method resolution, owned by the PAGE so the entries panel and these
    * controls read the same effective method in the same render
    * (`usePaymentMethodResolution`). PaymentStep must not re-derive it.

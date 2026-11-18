@@ -162,6 +162,41 @@ describe('createShowRegistration', () => {
     expect(updateQuery.eq).toHaveBeenCalledWith('id', 'enrollment-existing');
   });
 
+  // MYK9-2149 (Codex P2): the payment step sends every detail field, blank ones included,
+  // whatever choice the secretary switched to. Blank never overwrites what the form has.
+  it('never writes blank details over the existing ones', async () => {
+    const existingQuery = makeExistingEnrollmentQuery();
+    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
+    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
+
+    const result = await createShowRegistration('show-1', 'handler-1', {
+      checkNumber: '',
+      paymentDate: '',
+      paymentReference: '  ',
+      groupReference: '',
+      paymentNotes: 'Mailed with the form',
+    });
+
+    expect(result.error).toBeNull();
+    expect(updateQuery.update).toHaveBeenCalledWith({ payment_notes: 'Mailed with the form' });
+  });
+
+  it('makes no write at all when every detail is blank', async () => {
+    const existingQuery = makeExistingEnrollmentQuery();
+    mocks.from.mockReturnValueOnce(existingQuery);
+
+    const result = await createShowRegistration('show-1', 'handler-1', {
+      checkNumber: '',
+      paymentDate: '',
+      paymentReference: '',
+      groupReference: '',
+      paymentNotes: '',
+    });
+
+    expect(result.error).toBeNull();
+    expect(mocks.from).toHaveBeenCalledTimes(1);
+  });
+
   it('makes no write onto an existing enrollment when no details are given', async () => {
     const existingQuery = makeExistingEnrollmentQuery();
     mocks.from.mockReturnValueOnce(existingQuery);

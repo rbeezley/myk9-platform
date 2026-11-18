@@ -1,5 +1,5 @@
 -- MYK9-2163: online entries are always on, and publishing needs the club's
--- payouts (20261118211300_myk9_2163_publish_needs_payouts.sql).
+-- payouts (20261119041300_myk9_2163_publish_needs_payouts.sql).
 --
 --   0. Wiring: shows.online_entries_enabled DEFAULTs true; the helper exists
 --      and no API role can execute it.

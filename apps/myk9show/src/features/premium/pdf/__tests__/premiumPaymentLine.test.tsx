@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import { AKCPremiumTemplate } from '../AKCPremiumTemplate';
 import { generatedPremium } from '../../__tests__/fixtures/generatedPremium';
 import type { PremiumStyle } from '@/types/premium-types';

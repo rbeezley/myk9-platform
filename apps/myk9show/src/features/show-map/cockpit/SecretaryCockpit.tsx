@@ -207,6 +207,7 @@ export function SecretaryCockpit({
                 judgeListStatus={judges.judgeListStatus}
                 lockReason={judgeLockReason(model.focusedClass)}
                 classStatus={sourceClass.status ?? null}
+                offerSubstituteEmails
                 onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
               />
               <FocusedClassJudgeScoring

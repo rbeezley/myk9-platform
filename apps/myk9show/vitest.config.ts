@@ -32,6 +32,8 @@ export default defineConfig({
       'api/*.test.ts',
       // Pure (Deno-free) helper modules colocated with edge functions
       'supabase/functions/_shared/*.test.ts',
+      // MYK9-2170: the payout run's per-show flow with the transfer calls observed.
+      'supabase/functions/cron-process-payouts/*.test.ts',
       // Same, but for the askq tool layer, which lives in the repo-root
       // `supabase/` (not under apps/myk9show). Scoped to askq/ only — sibling
       // `_shared/http` modules use Deno-only `npm:` imports vitest can't load.

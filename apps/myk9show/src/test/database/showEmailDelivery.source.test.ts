@@ -173,6 +173,7 @@ describe('MYK9-180 show email delivery source contract', () => {
     'supabase/functions/admin-invite-user/inviteUserHandler.ts',
     'apps/myk9show/supabase/functions/_shared/alertAdmin.ts',
     'apps/myk9show/supabase/functions/cron-process-payouts/index.ts',
+    'apps/myk9show/supabase/functions/cron-process-payouts/processShow.ts',
     'apps/myk9show/supabase/functions/_shared/clubMoneyEmails.ts',
   ])('%s remains platform-scoped', path => {
     const contents = source(path);

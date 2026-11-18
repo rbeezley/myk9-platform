@@ -70,6 +70,18 @@ describe('resolvePayoutBadge', () => {
     });
   });
 
+  it('a payout waiting on the payout brake reads "Not sent yet", never a failure (MYK9-2170)', () => {
+    for (const status of ['awaiting_approval', 'approved', 'held']) {
+      for (const accountState of ['enabled', 'not-enabled', 'unknown'] as const) {
+        expect(resolvePayoutBadge(row(status), accountState)).toEqual({
+          label: 'Not sent yet',
+          variant: 'secondary',
+          className: NEUTRAL_STATUS_CHIP,
+        });
+      }
+    }
+  });
+
   it('unknown status says so instead of leaking the raw database enum', () => {
     expect(resolvePayoutBadge(row('weird-future-status'), 'enabled')).toEqual({
       label: 'Status unavailable',

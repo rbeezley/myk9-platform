@@ -100,6 +100,12 @@ export function resolvePayoutBadge(
         };
       }
       return { label: 'Not sent yet', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
+    case 'awaiting_approval':
+    case 'approved':
+    case 'held':
+      // MYK9-2170 payout brake: the platform is checking it before it sends.
+      // Not sent yet, and nothing for the treasurer to do.
+      return { label: 'Not sent yet', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
     case 'failed':
       if (payout.superseded) {
         return { label: 'Earlier attempt', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };

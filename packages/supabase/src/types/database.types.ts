@@ -13750,6 +13750,7 @@ export type Database = {
           show_date: string
         }[]
       }
+      class_substitute_judge_offer: { Args: { p_class_id: string }; Returns: Json }
       class_results_push_audience: {
         Args: { p_class_id: string }
         Returns: {
@@ -13943,6 +13944,10 @@ export type Database = {
         }[]
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      dismiss_substitute_judge_email_offer: {
+        Args: { p_class_id: string; p_judge_id: string }
+        Returns: undefined
+      }
       delete_preview: { Args: { p_id: string; p_scope: string }; Returns: Json }
       delete_show_managed_person: {
         Args: { p_person_id: string; p_show_id: string }
@@ -15269,6 +15274,10 @@ export type Database = {
       queue_show_changed_email_for_show: {
         Args: { p_show_id: string }
         Returns: undefined
+      }
+      queue_substitute_judge_emails: {
+        Args: { p_class_id: string; p_judge_id: string }
+        Returns: number
       }
       queue_unfulfilled_charge_refund: {
         Args: {

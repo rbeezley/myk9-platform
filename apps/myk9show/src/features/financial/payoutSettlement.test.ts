@@ -62,6 +62,14 @@ describe('resolvePayoutSettlement', () => {
     expect(row.state).toBe('in_progress');
   });
 
+  it('a payout waiting on the payout brake is in progress, not attention (MYK9-2170)', () => {
+    for (const status of ['awaiting_approval', 'approved', 'held']) {
+      const row = resolvePayoutSettlement(payout({ status }), 'enabled');
+      expect(row.state).toBe('in_progress');
+      expect(row.badgeLabel).not.toBe('Needs attention');
+    }
+  });
+
   it('genuine failure reads as Needs attention', () => {
     const row = resolvePayoutSettlement(
       payout({ status: 'failed', failureReason: 'account_closed' }),

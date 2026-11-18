@@ -10,6 +10,11 @@
 //   refunds may have shrunk the amount since the row was created.
 // - Per-show isolation: one show's failure never blocks the others.
 // - Every 'failed' row alerts the platform admin by email.
+// - Payout brake (MYK9-2170): every move into 'processing' goes through
+//   claim_show_payout_for_send, which reads platform_settings
+//   .payouts_require_approval in the same transaction. While it is on, the run
+//   records the payout as 'awaiting_approval' and sends only rows a site admin
+//   approved, never more than the approved amount nor to another account.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
@@ -32,6 +37,7 @@ import {
   notifyClubOfTransferFailure,
 } from '../_shared/payoutClubNotices.ts';
 import { transferFailureOutcome } from '../_shared/payoutFailureOwner.ts';
+import { claimShowPayoutForSend, exceedsApproval } from '../_shared/payoutSendClaim.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -52,6 +58,9 @@ const stripeLivemode = isStripeLiveMode(stripeSecret);
 const PAYOUT_DELAY_DAYS = 3;
 const STALE_PROCESSING_HOURS = 24;
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
+// Live rows the run still works on. 'held' waits for a site admin; 'processing'
+// and 'completed' are another run's or done.
+const WORKABLE_LIVE_STATUSES = ['pending', 'awaiting_approval', 'approved'];
 
 interface EligibleShow {
   id: string;
@@ -169,8 +178,8 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     .neq('status', 'failed')
     .maybeSingle();
 
-  if (liveRow && liveRow.status !== 'pending') {
-    return; // completed or in-flight
+  if (liveRow && !WORKABLE_LIVE_STATUSES.includes(liveRow.status)) {
+    return; // completed, in flight, or held
   }
 
   // Recompute the amount from entries at this moment — never trust stored
@@ -189,7 +198,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
         .from('show_payouts')
         .update({ amount_cents: 0, status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', liveRow.id)
-        .eq('status', 'pending');
+        .in('status', WORKABLE_LIVE_STATUSES);
     }
     summary.skipped_no_online_money++;
     return;
@@ -281,39 +290,27 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
 
   let rowId: string | null = null;
   try {
-    // Claim: pending → processing with the fresh amount, or insert processing.
-    if (liveRow) {
-      const { data: claimed, error: claimError } = await supabase
-        .from('show_payouts')
-        .update({
-          status: 'processing',
-          amount_cents: amountCents,
-          club_stripe_account_id: account.id,
-        })
-        .eq('id', liveRow.id)
-        .eq('status', 'pending')
-        .select('id');
-      if (claimError || !claimed?.length) return; // raced by another run
-      rowId = claimed[0].id;
-    } else {
-      const { data: inserted, error: insertError } = await supabase
-        .from('show_payouts')
-        .insert({
-          show_id: show.id,
-          club_stripe_account_id: account.id,
-          amount_cents: amountCents,
-          status: 'processing',
-          scheduled_date: new Date().toISOString().slice(0, 10),
-        })
-        .select('id')
-        .single();
-      if (insertError || !inserted) {
-        // Unique-index conflict = another run already owns this show.
-        console.log(`Skipping show ${show.id}: live payout row already exists`);
-        return;
-      }
-      rowId = inserted.id;
+    // Claim through the brake (MYK9-2170): with it on, this records the payout
+    // as awaiting_approval and sends nothing; only an approved row (or, with it
+    // off, a pending or new one) comes back 'claimed', now 'processing'.
+    const claim = await claimShowPayoutForSend(supabase, {
+      showId: show.id,
+      accountId: account.id,
+      destination: account.stripe_account_id,
+      amountCents,
+    });
+    if (!claim) {
+      console.error(`Payout claim failed for show ${show.id}; nothing sent`);
+      return;
     }
+    if (claim.outcome !== 'claimed' || !claim.payoutId) {
+      if (claim.outcome === 'awaiting_approval' || claim.outcome === 'approval_reset') {
+        summary.awaiting_approval++;
+      }
+      console.log(`Show ${show.id}: payout not sent (${claim.outcome})`);
+      return;
+    }
+    rowId = claim.payoutId;
 
     // Authoritative amount: recomputed AFTER the claim. From the moment the
     // row is 'processing', validateRefund rejects new refunds
@@ -340,6 +337,29 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
         .update({ amount_cents: 0, status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', rowId);
       summary.skipped_no_online_money++;
+      return;
+    }
+    if (exceedsApproval(claim, finalAmountCents)) {
+      // More than was approved: nothing sends; it waits for a new approval.
+      const { error: resetError } = await supabase
+        .from('show_payouts')
+        .update({
+          status: 'awaiting_approval',
+          amount_cents: finalAmountCents,
+          approved_at: null,
+          approved_by: null,
+          approved_amount_cents: null,
+          approved_stripe_account_id: null,
+          approval_reset_reason: `The amount rose to ${finalAmountCents} cents after approval`,
+        })
+        .eq('id', rowId)
+        .eq('status', 'processing');
+      if (resetError) {
+        // Nothing was sent either way; the row stays 'processing' until the
+        // stale-processing recovery fails it and the next run asks again.
+        console.error(`Approval reset failed for payout ${rowId}; nothing sent`, resetError);
+      }
+      summary.awaiting_approval++;
       return;
     }
     if (finalAmountCents !== amountCents) {
@@ -499,6 +519,7 @@ Deno.serve(async req => {
     stale_recovered: 0,
     mode_mismatch: 0,
     money_lock_busy: 0,
+    awaiting_approval: 0,
   };
 
   try {

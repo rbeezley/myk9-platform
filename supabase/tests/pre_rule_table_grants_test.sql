@@ -126,6 +126,8 @@ BEGIN
     -- write ringside_containment could switch off the conflict-storm breaker.
     ('ringside_containment','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('ringside_containment_audit','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    -- MYK9-2161 vacancy rows: written by the claim and read by a trigger, both SECURITY DEFINER.
+    ('judge_vacancy_notices','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('ringside_sessions','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('role_permissions','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('role_requests','SELECT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -254,7 +256,7 @@ BEGIN
       'dog_registrations','dogs','email_log','email_log_contents','enrollments','entries','entry_cart_items',
       'entry_carts','entry_form_notes','entry_payment_links','entry_score_audit','entry_status_history','entry_submissions',
       'exhibitor_profiles','fcm_tokens','frontend_logs','genetic_screenings','health_records',
-      'judge_assignments','judge_availability','judge_certifications','judge_qualifications',
+      'judge_assignments','judge_availability','judge_certifications','judge_qualifications','judge_vacancy_notices',
       'login_attempts','manual_results','medications','nationals_advancement',
       'nationals_rankings','nationals_scores','notification_preferences','notification_queue',
       'notifications','ofa_screenings','offline_scoring','onboarding_requests','operator_alerts',

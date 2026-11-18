@@ -143,7 +143,6 @@ AS $$
     (p_show_id, 'registration_number_needed', true),
     (p_show_id, 'show_changed', true),
     (p_show_id, 'judge_changed', true),
-    (p_show_id, 'entry_changed', true),
     (p_show_id, 'entry_changed', true)
   ON CONFLICT (show_id, step_type) DO NOTHING;
 $$;
@@ -329,7 +328,10 @@ BEGIN
     due_at = now() + interval '5 minutes',
     recipient_email = excluded.recipient_email,
     recipient_name = excluded.recipient_name,
-    entry_changes = j.entry_changes || excluded.entry_changes;
+    entry_changes = j.entry_changes || excluded.entry_changes
+  -- The conflict is found through the index, but the row is re-read after its lock: if the
+  -- drain claimed it in that instant, leave the frozen job alone (the 2125 producer's rule).
+  WHERE j.claimed_until IS NULL AND j.status IN ('held', 'ready');
 END;
 $$;
 

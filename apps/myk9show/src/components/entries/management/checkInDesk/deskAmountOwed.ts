@@ -34,7 +34,9 @@ export interface DeskOwedLine {
 const cents = (dollars: number) => Math.round(dollars * 100);
 
 /** The key `groupEntriesByEnrollment` gives an entry's form, for a row it does not group. */
-const formKeyOf = (entry: EntryManagementEntry) =>
+export const formKeyOf = (
+  entry: Pick<EntryManagementEntry, 'id' | 'registrationId' | 'stripePaymentIntentId'>
+) =>
   entry.registrationId ||
   (entry.stripePaymentIntentId ? `pi:${entry.stripePaymentIntentId}` : `entry:${entry.id}`);
 

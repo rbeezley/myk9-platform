@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SEEDED_RECORDING_FEE_RATES_READ } from '@/test/fixtures/recordingFeeRates';
 import type { ReportProps } from '@/lib/reports/types';
 import { buildAKCJudgeReportValues } from '../akcJudgeReport';
 import { AKC_JUDGE_REPORT_REQUIRED_FIELDS } from '../akcJudgeReportFields';
@@ -24,6 +25,7 @@ const reportProps = {
   ],
   clubName: 'Demo Scent Work Club',
   entries: [],
+  recordingFeeRates: SEEDED_RECORDING_FEE_RATES_READ,
   showName: 'Demo Trial',
   sortOrder: '',
   trial: {

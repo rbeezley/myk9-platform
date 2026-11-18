@@ -22,6 +22,12 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
+import {
+  buildPremiumRecordingFee,
+  PREMIUM_RECORDING_FEE_SELECT,
+  recordingFeeRatesFromRows,
+  type RecordingFeeRateRow,
+} from './recordingFeeRate.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -154,6 +160,27 @@ handle<GeneratePremiumPayload>(
     const secretaryEmail = secretaryOfficial?.email ?? null;
     const secretaryPhone = secretaryOfficial?.phone ?? null;
     const chairman = pickPremiumOfficial(officials, 'chairman');
+
+    // Step 7c: The AKC recording fee (MYK9-2044), the dated rate in force on the show's date.
+    // Only an AKC show states one. A failed read prints no line rather than failing the premium:
+    // a rate is never guessed.
+    let recordingFeeRows: RecordingFeeRateRow[] = [];
+    if (showOrg === 'AKC') {
+      const { data: feeRows, error: feeError } = await userClient
+        .from('registry_recording_fee_rates')
+        .select(PREMIUM_RECORDING_FEE_SELECT)
+        .eq('registry', 'AKC');
+      if (feeError) {
+        console.error('Recording fee rate read failed:', { show_id, feeError });
+      } else {
+        recordingFeeRows = (feeRows ?? []) as unknown as RecordingFeeRateRow[];
+      }
+    }
+    const recordingFee = buildPremiumRecordingFee(
+      showOrg,
+      show.start_date as string | null,
+      recordingFeeRatesFromRows(recordingFeeRows)
+    );
 
     // Step 8: Template resolution — find best matching template for this show's trial type
     const { data: templates } = await userClient
@@ -307,6 +334,8 @@ handle<GeneratePremiumPayload>(
       officials: {
         chairman,
       },
+      // MYK9-2044: null for a non-AKC show or when no rate is in force on the show's date.
+      recordingFee,
       trials,
       supplemental: {
         vetClinic,

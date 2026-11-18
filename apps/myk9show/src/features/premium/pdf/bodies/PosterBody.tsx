@@ -105,6 +105,12 @@ export function PosterBody({ data, tokens }: Props) {
         </Text>
       </View>
 
+      {f.recordingFee && (
+        <View style={sectionGap}>
+          <Text style={bodyStyle}>{f.recordingFee}</Text>
+        </View>
+      )}
+
       {f.withdrawalPolicy && (
         <View style={sectionGap}>
           <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>

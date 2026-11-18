@@ -115,6 +115,12 @@ export interface GeneratedPremium {
     chairman: { name: string; email: string | null; phone: string | null } | null;
   };
   /**
+   * MYK9-2044: the registry recording fee in force on the show's date, as generate-premium
+   * states it ("AKC recording fee: $5.50 per entry"). Null for a non-AKC show or when no rate
+   * is in force; absent on a premium generated before it. Either way no line is printed.
+   */
+  recordingFee?: { registry: 'AKC'; amountCents: number; text: string } | null;
+  /**
    * MYK9-2045: the host club's Officers list (position and name). Absent on a premium
    * generated before it, which prints no officers.
    */

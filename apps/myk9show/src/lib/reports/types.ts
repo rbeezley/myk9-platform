@@ -10,6 +10,7 @@ import type { Show } from '@/types/show-types';
 import type { DogRegistrationLike, MappedDogRegistrationLike } from '@/features/dogs/identity';
 import type { HospitalityPlanDay } from '@/features/lunch-orders/hospitalityPlan';
 import type { RegistryId } from '@/features/registries';
+import type { RecordingFeeRate } from '@myk9/core';
 import type { ProjectedEntryHandler } from '@/services/database/entries/entryHandlerProjection';
 
 export const REPORT_ENTRY_SOURCE = {
@@ -301,6 +302,11 @@ export interface ReportProps {
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
   /** Hospitality plan days (MYK9-1695), resolved by the host. */
   hospitalityPlan?: ReportAsyncData<HospitalityPlanDay[]>;
+  /**
+   * The registry recording fee rate list (MYK9-2044), resolved by the host. Populated only for
+   * the AKC Trial Secretary Report; absent or unread makes that report refuse rather than guess.
+   */
+  recordingFeeRates?: ReportAsyncData<RecordingFeeRate[]>;
   /** See `UKCTrialReportContext` — populated only for the UKC Trial Report. */
   ukcTrialReportContext?: UKCTrialReportContext | null;
   /** See `TrialOfficials` — populated only for the AKC Trial Chair's / Secretary's reports. */

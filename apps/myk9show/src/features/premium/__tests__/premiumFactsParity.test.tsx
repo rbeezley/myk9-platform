@@ -376,3 +376,34 @@ describe('premium public page facts parity (8 styles)', () => {
     expect(text).toMatchSnapshot();
   });
 });
+
+describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
+  const FEE_2027 = {
+    registry: 'AKC' as const,
+    amountCents: 550,
+    text: 'AKC recording fee: $5.50 per entry',
+  };
+
+  it.each(ALL_STYLES)('%s prints the statement generate-premium wrote', style => {
+    const premium = fullPremium('AKC', style);
+    premium.recordingFee = FEE_2027;
+    expect(pdfText('AKC', premium)).toContain('AKC recording fee: $5.50 per entry');
+  });
+
+  it.each(ALL_STYLES)('%s prints it on a show with nothing else filled in', style => {
+    const premium = sparsePremium('AKC', style);
+    premium.recordingFee = {
+      ...FEE_2027,
+      amountCents: 450,
+      text: 'AKC recording fee: $4.50 per entry',
+    };
+    expect(pdfText('AKC', premium)).toContain('AKC recording fee: $4.50 per entry');
+  });
+
+  it.each(ALL_STYLES)('%s prints no recording fee line when none was stated', style => {
+    const premium = fullPremium('AKC', style);
+    premium.recordingFee = null;
+    expect(pdfText('AKC', premium)).not.toMatch(/recording fee/i);
+    expect(pdfText('AKC', fullPremium('AKC', style))).not.toMatch(/recording fee/i);
+  });
+});

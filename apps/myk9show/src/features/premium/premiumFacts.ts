@@ -309,6 +309,12 @@ export interface PremiumFacts {
     /** "Checks", "Cash" in that order, only those the show accepts. */
     paymentMethods: string[];
   };
+  /**
+   * MYK9-2044: "AKC recording fee: $5.50 per entry", the rate in force on the show's date, as
+   * generate-premium states it. Null (no line in any style) when the show is not AKC, no rate
+   * is in force, or the premium predates it.
+   */
+  recordingFee: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
   /** The registry's fixed statement about scouting; null for UKC and ASCA. */
@@ -374,6 +380,7 @@ export function buildPremiumFacts(
         (m): m is string => Boolean(m)
       ),
     },
+    recordingFee: data.recordingFee?.text ?? null,
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {

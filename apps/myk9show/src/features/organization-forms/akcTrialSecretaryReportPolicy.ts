@@ -1,13 +1,11 @@
+import { recordingFeeRateInForce, toCalendarDate, type RecordingFeeRate } from '@myk9/core';
 import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
-import type { ReportEntry } from '@/lib/reports/types';
+import type { ReportAsyncData, ReportEntry } from '@/lib/reports/types';
 
-const FEE_RATE_BY_YEAR = {
-  2025: 3.5,
-  2026: 4.5,
-} as const;
-
-type SupportedFeeYear = keyof typeof FEE_RATE_BY_YEAR;
-type DateFailureReason = 'missing' | 'invalid' | 'unsupported';
+// MYK9-2044: the per-entry rate is the dated AKC row in `registry_recording_fee_rates` in force
+// on the trial date (edited by a site admin on /admin/payouts), the same lookup generate-premium
+// uses for the premium's recording fee line. Nothing is hardcoded here.
+type DateFailureReason = 'missing' | 'invalid' | 'unsupported' | 'rates-unavailable';
 
 export const AKC_TRIAL_SECRETARY_CANONICAL_FORM = {
   revision: 'JSW001 (11/25)',
@@ -22,7 +20,8 @@ const AKC_POST_CLOSING_WITHDRAWAL_CODES = new Set(['ais', 'ajc']);
 export type AKCTrialSecretaryReportPolicy =
   | {
       ok: true;
-      feeYear: SupportedFeeYear;
+      /** `YYYY-MM-DD` the rate in force started on. */
+      rateEffectiveFrom: string;
       totalEntries: number;
       excludedRuns: number;
       paidRuns: number;
@@ -53,40 +52,55 @@ function normalize(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
-function readTrialYear(trialDate: string | null | undefined): SupportedFeeYear | DateFailureReason {
-  if (!trialDate?.trim()) return 'missing';
+/**
+ * The AKC rate list the host resolved for this report, or null while it is loading or when it
+ * could not be read. A list that was read and is empty is `[]`, which is a real answer (no rate
+ * is in force), not the same as unread.
+ */
+export function readAKCRecordingFeeRates(
+  rates: ReportAsyncData<RecordingFeeRate[]> | undefined
+): RecordingFeeRate[] | null {
+  if (!rates || rates.isLoading || rates.isError) return null;
+  return rates.data;
+}
 
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trialDate.trim());
-  if (!match) return 'invalid';
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  if (
-    parsed.getUTCFullYear() !== year ||
-    parsed.getUTCMonth() !== month - 1 ||
-    parsed.getUTCDate() !== day
-  ) {
-    return 'invalid';
-  }
-
-  return year in FEE_RATE_BY_YEAR ? (year as SupportedFeeYear) : 'unsupported';
+function readTrialDate(
+  trialDate: string | null | undefined
+): { day: string } | { reason: 'missing' | 'invalid' } {
+  if (!trialDate?.trim()) return { reason: 'missing' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate.trim())) return { reason: 'invalid' };
+  const day = toCalendarDate(trialDate);
+  return day ? { day } : { reason: 'invalid' };
 }
 
 export function resolveAKCTrialSecretaryReportPolicy(
   trialDate: string | null | undefined,
-  entries: ReportEntry[]
+  entries: ReportEntry[],
+  rates: readonly RecordingFeeRate[] | null | undefined
 ): AKCTrialSecretaryReportPolicy {
-  const feeYear = readTrialYear(trialDate);
-  if (typeof feeYear === 'string') {
+  const date = readTrialDate(trialDate);
+  if ('reason' in date) {
     return {
       ok: false,
-      reason: feeYear,
+      reason: date.reason,
+      recovery: 'Set a valid trial date before generating this report.',
+    };
+  }
+  if (!rates) {
+    return {
+      ok: false,
+      reason: 'rates-unavailable',
       recovery:
-        feeYear === 'unsupported'
-          ? 'This fee schedule covers 2025 and 2026 events only. Confirm the current AKC rate before generating this report.'
-          : 'Set a valid trial date before generating this report.',
+        'The AKC recording fee schedule could not be loaded. Reconnect and reopen this report.',
+    };
+  }
+  const rate = recordingFeeRateInForce(rates, 'AKC', date.day);
+  if (!rate) {
+    return {
+      ok: false,
+      reason: 'unsupported',
+      recovery:
+        'No AKC recording fee is set for this trial date. A site admin can add the rate on the Payouts page. Confirm the current AKC rate before generating this report.',
     };
   }
 
@@ -101,12 +115,13 @@ export function resolveAKCTrialSecretaryReportPolicy(
   const totalEntries = countedEntries.length;
   const excludedRuns = countedEntries.filter(isExcludedRun).length;
   const paidRuns = Math.max(0, totalEntries - excludedRuns);
-  const feeRate = FEE_RATE_BY_YEAR[feeYear];
-  const totalFee = paidRuns * feeRate;
+  const feeRate = rate.amountCents / 100;
+  // Integer cents, so a run count times a rate never carries float error into the printed total.
+  const totalFee = (paidRuns * rate.amountCents) / 100;
 
   return {
     ok: true,
-    feeYear,
+    rateEffectiveFrom: rate.effectiveFrom,
     totalEntries,
     excludedRuns,
     paidRuns,

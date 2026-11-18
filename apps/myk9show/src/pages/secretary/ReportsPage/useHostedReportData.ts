@@ -29,6 +29,11 @@ import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { useTrialOfficials } from '@/hooks/queries/useTrialOfficials';
+import {
+  recordingFeeRatesForReport,
+  recordingFeeRatesSettled,
+  useRecordingFeeRates,
+} from '@/hooks/queries/useRecordingFeeRates';
 import { queryKeys } from '@/lib/queryClient';
 import {
   readinessOf,
@@ -37,6 +42,7 @@ import {
   type ReportDataState,
 } from '@/hooks/queries/reportReadiness';
 import { showJudgeSuppliesService } from '@/features/judge-supplies/showJudgeSuppliesService';
+import type { RecordingFeeRate } from '@myk9/core';
 import type {
   ReportAsyncData,
   ReportEntryFormData,
@@ -67,6 +73,9 @@ export const HOSPITALITY_REPORT_IDS = new Set(['hospitality-plan']);
 /** Report ids whose component prints the show's named chairman / secretary (MYK9-1386). */
 export const OFFICIALS_REPORT_IDS = new Set(['trial-chairman-report', 'trial-secretary-report']);
 
+/** Report ids whose component needs the recording fee rate list passed in (MYK9-2044). */
+export const RECORDING_FEE_REPORT_IDS = new Set(['trial-secretary-report']);
+
 export interface HostedReportDataOptions {
   reportType: string;
   showId: string | undefined;
@@ -84,6 +93,7 @@ export interface HostedReportData {
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
   hospitalityPlan?: ReportAsyncData<HospitalityPlanDay[]>;
   officials?: TrialOfficials;
+  recordingFeeRates?: ReportAsyncData<RecordingFeeRate[]>;
   /**
    * Readiness of the hosted reads the selected report needs; `ready` when it
    * needs none. The preview writes markup only at `ready`: writing earlier
@@ -152,6 +162,11 @@ export function useHostedReportData({
     OFFICIALS_REPORT_IDS.has(reportType) && Boolean(showId) && Boolean(trialId);
   const officialsQuery = useTrialOfficials(showId, needsOfficials);
 
+  // MYK9-2044: the dated recording fee list the AKC Trial Secretary Report prices its runs from.
+  const needsRates =
+    RECORDING_FEE_REPORT_IDS.has(reportType) && Boolean(showId) && Boolean(trialId);
+  const ratesQuery = useRecordingFeeRates(needsRates);
+
   const needed: ReadinessQuery[] = [
     ...(needsEntryForm ? [entryForm.readiness] : []),
     ...(needsSupplies ? [readinessOf(supplies)] : []),
@@ -178,6 +193,16 @@ export function useHostedReportData({
               officialsQuery.data !== undefined ||
               officialsQuery.isError ||
               officialsQuery.fetchStatus === 'paused',
+            isError: false,
+          }),
+        ]
+      : []),
+    // An unread list settles too (the report then says it could not load the schedule); only an
+    // in-flight read blocks, so the fee is not printed late.
+    ...(needsRates
+      ? [
+          readinessOf(ratesQuery, {
+            hasData: recordingFeeRatesSettled(ratesQuery),
             isError: false,
           }),
         ]
@@ -232,12 +257,23 @@ export function useHostedReportData({
     [needsHospitality, hospitalityDays, hospitalityLoading, hospitalityError]
   );
 
+  const ratesData = ratesQuery.data;
+  const ratesSettled = recordingFeeRatesSettled(ratesQuery);
+  const ratesFailed = ratesQuery.isError || ratesQuery.fetchStatus === 'paused';
+  // Memoized: the preview rewrites its frame whenever this identity changes.
+  const recordingFeeRates = useMemo(
+    () => recordingFeeRatesForReport(ratesQuery),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ratesData, ratesSettled, ratesFailed]
+  );
+
   return {
     ...(entryFormData ? { entryFormData } : {}),
     ...(judgeSupplies ? { judgeSupplies } : {}),
     ...(waitlist ? { waitlist } : {}),
     ...(hospitalityPlan ? { hospitalityPlan } : {}),
     ...(needsOfficials && officialsQuery.data ? { officials: officialsQuery.data } : {}),
+    ...(needsRates ? { recordingFeeRates } : {}),
     hostedState,
     refetch: () => {
       if (needsEntryForm) {
@@ -248,6 +284,7 @@ export function useHostedReportData({
         void judgeCodes.refetch();
       }
       if (needsOfficials) void officialsQuery.refetch();
+      if (needsRates) void ratesQuery.refetch();
       if (needsHospitality) hospitalityQuery.refetch();
       if (needsWaitlist) {
         void queryClient.invalidateQueries({

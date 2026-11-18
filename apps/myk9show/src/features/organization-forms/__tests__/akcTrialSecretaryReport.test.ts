@@ -7,6 +7,7 @@ import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import { buildAKCTrialSecretaryReportValues } from '../akcTrialSecretaryReport';
 import { AKC_TRIAL_SECRETARY_REPORT_FIELDS } from '../akcTrialSecretaryReportFields';
 import { fillPdfForm } from '../pdfForm';
+import { SEEDED_RECORDING_FEE_RATES_READ } from '@/test/fixtures/recordingFeeRates';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
 
@@ -45,6 +46,7 @@ const reportProps = {
     makeEntry({ id: 'entry-2', resultText: 'WD', withdrawalReason: 'Judge Change' }),
     makeEntry({ id: 'entry-3' }),
   ],
+  recordingFeeRates: SEEDED_RECORDING_FEE_RATES_READ,
   showName: 'Demo Trial',
   sortOrder: '',
   trial: {
@@ -101,7 +103,7 @@ describe('buildAKCTrialSecretaryReportValues', () => {
     });
   });
 
-  it.each([undefined, 'not-a-date', '2027-01-01'])(
+  it.each([undefined, 'not-a-date', '2024-12-31'])(
     'omits fee values for unsupported date %s',
     date => {
       const values = buildAKCTrialSecretaryReportValues({
@@ -113,6 +115,28 @@ describe('buildAKCTrialSecretaryReportValues', () => {
       expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee);
     }
   );
+
+  it('fills the 2027 fee at $5.50 a run from the dated rate list', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      trial: { ...reportProps.trial, date: '2027-01-01' },
+    });
+
+    expect(values.text).toMatchObject({
+      [AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]: 2,
+      [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: '11.00',
+    });
+  });
+
+  it('omits the fee, and keeps the trial date, when the rate list was not read', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      recordingFeeRates: { data: [], isLoading: false, isError: true },
+    });
+
+    expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee);
+    expect(values.text).toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate);
+  });
 
   it('does not write an Invalid Date value for a blank trial date', () => {
     const values = buildAKCTrialSecretaryReportValues({

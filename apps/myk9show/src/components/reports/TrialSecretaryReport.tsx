@@ -4,6 +4,7 @@ import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import {
   AKC_TRIAL_SECRETARY_CANONICAL_FORM,
+  readAKCRecordingFeeRates,
   resolveAKCTrialSecretaryReportPolicy,
 } from '@/features/organization-forms/akcTrialSecretaryReportPolicy';
 
@@ -13,11 +14,16 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
   trial,
   entries,
   officials,
+  recordingFeeRates,
 }) => {
   const secretaryName = officials?.secretary?.name;
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
-  const policy = resolveAKCTrialSecretaryReportPolicy(trial?.date, entries);
+  const policy = resolveAKCTrialSecretaryReportPolicy(
+    trial?.date,
+    entries,
+    readAKCRecordingFeeRates(recordingFeeRates)
+  );
 
   return (
     <div className="report-page">

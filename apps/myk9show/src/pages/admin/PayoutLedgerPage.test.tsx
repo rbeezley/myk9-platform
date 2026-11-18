@@ -17,6 +17,10 @@ const feeState: { rates: PlatformFeeRates | null; state: PlatformFeeRateState } 
 vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
   usePlatformFeeRatesQuery: () => feeState,
 }));
+// MYK9-2044: the recording fee card has its own test (RecordingFeeRatesCard.test.tsx).
+vi.mock('./RecordingFeeRatesCard', () => ({
+  RecordingFeeRatesCard: () => <div data-testid="recording-fee-card" />,
+}));
 vi.mock('@/features/payments/useUpdatePlatformFee', () => ({
   useUpdatePlatformFee: () => ({ mutate, isPending: false }),
 }));

@@ -38,6 +38,7 @@ import {
   type OverviewChargeActivity,
 } from './payoutLedgerEmptyState';
 import { getPayoutStatusPresentation } from './adminStatusPresentation';
+import { RecordingFeeRatesCard } from './RecordingFeeRatesCard';
 
 /* Warning tone for a payout past its settle date. Uses the shared admin status
    classes rather than a one-off so it stays consistent with the other badges,
@@ -810,10 +811,12 @@ export default function PayoutLedgerPage() {
         <div>
           <h2 className="text-xl font-semibold">Checkout settings</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Change the fee added to new online entry checkouts.
+            Change the fee added to new online entry checkouts, and the registry recording fee by
+            date.
           </p>
         </div>
         <PlatformFeeCard />
+        <RecordingFeeRatesCard />
       </section>
     </div>
   );

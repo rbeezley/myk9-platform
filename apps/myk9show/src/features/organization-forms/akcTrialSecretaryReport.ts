@@ -2,11 +2,18 @@ import type { ReportProps } from '@/lib/reports/types';
 import { AKC_TRIAL_SECRETARY_REPORT_FIELDS } from './akcTrialSecretaryReportFields';
 import type { PdfFormFillValues } from './pdfForm';
 import { formattedTrialDate, textOrUndefined, trialEventNumber } from './reportValueHelpers';
-import { resolveAKCTrialSecretaryReportPolicy } from './akcTrialSecretaryReportPolicy';
+import {
+  readAKCRecordingFeeRates,
+  resolveAKCTrialSecretaryReportPolicy,
+} from './akcTrialSecretaryReportPolicy';
 
 export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormFillValues {
   const trialDate = formattedTrialDate(props);
-  const policy = resolveAKCTrialSecretaryReportPolicy(props.trial?.date, props.entries);
+  const policy = resolveAKCTrialSecretaryReportPolicy(
+    props.trial?.date,
+    props.entries,
+    readAKCRecordingFeeRates(props.recordingFeeRates)
+  );
   const text: NonNullable<PdfFormFillValues['text']> = {
     [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalRunsAtClosing]: props.entries.length,
   };
@@ -26,7 +33,8 @@ export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormF
   const eventNumber = trialEventNumber(props);
   if (eventNumber) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.eventNumber] = eventNumber;
 
-  const hasUsableDate = policy.ok || policy.reason === 'unsupported';
+  const hasUsableDate =
+    policy.ok || policy.reason === 'unsupported' || policy.reason === 'rates-unavailable';
   if (trialDate && hasUsableDate) {
     text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate] = trialDate;
   }

@@ -1,6 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import type { ReportEntry } from '@/lib/reports/types';
-import { resolveAKCTrialSecretaryReportPolicy } from '../akcTrialSecretaryReportPolicy';
+import type { RecordingFeeRate } from '@myk9/core';
+import type { ReportAsyncData } from '@/lib/reports/types';
+import {
+  readAKCRecordingFeeRates,
+  resolveAKCTrialSecretaryReportPolicy as resolvePolicy,
+} from '../akcTrialSecretaryReportPolicy';
+
+// The seeded AKC rows (migration 20261119031700): the only source of the rate now.
+const RATES: RecordingFeeRate[] = [
+  { registry: 'AKC', effectiveFrom: '2025-01-01', amountCents: 350 },
+  { registry: 'AKC', effectiveFrom: '2026-01-01', amountCents: 450 },
+  { registry: 'AKC', effectiveFrom: '2027-01-01', amountCents: 550 },
+];
+
+function resolveAKCTrialSecretaryReportPolicy(
+  trialDate: string | null | undefined,
+  entries: ReportEntry[],
+  rates: RecordingFeeRate[] | null = RATES
+) {
+  return resolvePolicy(trialDate, entries, rates);
+}
 
 function entry(overrides: Partial<ReportEntry> = {}): ReportEntry {
   return {
@@ -57,6 +77,8 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
   it.each([
     ['2025-12-31', 3.5, '3.50'],
     ['2026-01-01', 4.5, '4.50'],
+    ['2026-12-31', 4.5, '4.50'],
+    ['2027-01-01', 5.5, '5.50'],
   ])('uses the fee schedule at the %s year boundary', (trialDate, feeRate, formattedRate) => {
     expect(resolveAKCTrialSecretaryReportPolicy(trialDate, [entry()])).toMatchObject({
       ok: true,
@@ -69,10 +91,10 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
     ['missing', undefined, 'missing', 'Set a valid trial date before generating this report.'],
     ['invalid', '2026-02-30', 'invalid', 'Set a valid trial date before generating this report.'],
     [
+      'unsupported (before the first rate)',
+      '2024-12-31',
       'unsupported',
-      '2027-01-01',
-      'unsupported',
-      'This fee schedule covers 2025 and 2026 events only. Confirm the current AKC rate before generating this report.',
+      'No AKC recording fee is set for this trial date. A site admin can add the rate on the Payouts page. Confirm the current AKC rate before generating this report.',
     ],
   ] as const)('fails closed when the trial date is %s', (_label, trialDate, reason, recovery) => {
     expect(resolveAKCTrialSecretaryReportPolicy(trialDate, [entry()])).toEqual({
@@ -112,5 +134,57 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
     ]);
 
     expect(result).toMatchObject({ excludedRuns: 2, paidRuns: 0, formattedTotal: '0.00' });
+  });
+
+  it('prices a 2027 trial at $5.50 a run', () => {
+    expect(
+      resolveAKCTrialSecretaryReportPolicy('2027-03-06', [entry(), entry({ id: 'e2' })])
+    ).toMatchObject({
+      ok: true,
+      rateEffectiveFrom: '2027-01-01',
+      paidRuns: 2,
+      formattedRate: '5.50',
+      formattedTotal: '11.00',
+    });
+  });
+
+  it('refuses, rather than guessing a rate, when the rate list could not be read', () => {
+    expect(resolveAKCTrialSecretaryReportPolicy('2027-03-06', [entry()], null)).toEqual({
+      ok: false,
+      reason: 'rates-unavailable',
+      recovery:
+        'The AKC recording fee schedule could not be loaded. Reconnect and reopen this report.',
+    });
+  });
+
+  it('treats a rate list that was read and is empty as "no rate in force"', () => {
+    expect(resolveAKCTrialSecretaryReportPolicy('2027-03-06', [entry()], [])).toMatchObject({
+      ok: false,
+      reason: 'unsupported',
+    });
+  });
+
+  it('uses a rate a site admin added later without a code change', () => {
+    const rates = [...RATES, { registry: 'AKC', effectiveFrom: '2028-01-01', amountCents: 625 }];
+    expect(resolveAKCTrialSecretaryReportPolicy('2028-02-01', [entry()], rates)).toMatchObject({
+      ok: true,
+      formattedRate: '6.25',
+    });
+  });
+});
+
+describe('readAKCRecordingFeeRates', () => {
+  const read = (rates: ReportAsyncData<RecordingFeeRate[]> | undefined) =>
+    readAKCRecordingFeeRates(rates);
+
+  it('is null while loading, on error, and when the host passed nothing', () => {
+    expect(read(undefined)).toBeNull();
+    expect(read({ data: [], isLoading: true, isError: false })).toBeNull();
+    expect(read({ data: [], isLoading: false, isError: true })).toBeNull();
+  });
+
+  it('keeps a list that was read, empty or not', () => {
+    expect(read({ data: [], isLoading: false, isError: false })).toEqual([]);
+    expect(read({ data: RATES, isLoading: false, isError: false })).toBe(RATES);
   });
 });

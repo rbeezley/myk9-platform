@@ -2,7 +2,9 @@ import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
+import type { RecordingFeeRate } from '@myk9/core';
 import type {
+  ReportAsyncData,
   ReportDbEntry,
   ReportDefinition,
   ReportEntry,
@@ -224,6 +226,8 @@ export function buildTrialReportProps(input: {
   omitHeldEntries?: boolean;
   /** MYK9-1386: the show's named officials, for the reports that print them. */
   officials?: TrialOfficials | null;
+  /** MYK9-2044: the recording fee rate list, for the AKC Trial Secretary Report. */
+  recordingFeeRates?: ReportAsyncData<RecordingFeeRate[]> | undefined;
 }): ReportProps[] {
   const { show, trials, classes, entries, scope, sortOrder } = input;
   const allShowTrials = trials ?? [];
@@ -268,6 +272,7 @@ export function buildTrialReportProps(input: {
       organization: show.organization ?? undefined,
       clubName: show.clubName ?? undefined,
       ...(input.officials ? { officials: input.officials } : {}),
+      ...(input.recordingFeeRates ? { recordingFeeRates: input.recordingFeeRates } : {}),
     };
   });
 }

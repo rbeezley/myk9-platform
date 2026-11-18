@@ -9,6 +9,11 @@ import { getTrialRegistry } from '@/features/registries';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useTrialOfficials } from '@/hooks/queries/useTrialOfficials';
+import {
+  recordingFeeRatesForReport,
+  recordingFeeRatesSettled,
+  useRecordingFeeRates,
+} from '@/hooks/queries/useRecordingFeeRates';
 import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
 import { resolvePrintReadiness } from '@/pages/secretary/ReportsPage/reportReadinessCopy';
 import { writeMarkupIntoFrame } from '@/pages/secretary/ReportsPage/reportPreviewFrame';
@@ -45,7 +50,11 @@ export function AfterShowPanelBody({ showId, trialId }: { showId: string; trialI
   const ids = afterShowReportsFor(registryId);
   const officials = useTrialOfficials(show?.id, ids.forms.length > 0);
   const ukcContext = useUKCTrialReportContext(show?.id, registryId === 'UKC');
-  const hostedSettled = !officials.isLoading && (registryId !== 'UKC' || !ukcContext.isLoading);
+  const ratesQuery = useRecordingFeeRates(ids.forms.includes('trial-secretary-report'));
+  const ratesSettled =
+    !ids.forms.includes('trial-secretary-report') || recordingFeeRatesSettled(ratesQuery);
+  const hostedSettled =
+    !officials.isLoading && ratesSettled && (registryId !== 'UKC' || !ukcContext.isLoading);
 
   const [attempt, setAttempt] = useState(0);
   const inputs = useMemo(
@@ -73,6 +82,7 @@ export function AfterShowPanelBody({ showId, trialId }: { showId: string; trialI
           entries: (inputs.entries ?? []) as DbEntry[],
           trialId,
           officials: officials.data ?? null,
+          recordingFeeRates: recordingFeeRatesForReport(ratesQuery),
           ukcTrialReportContext: ukcContext.data ?? null,
           catalogProfilesReadComplete,
         });

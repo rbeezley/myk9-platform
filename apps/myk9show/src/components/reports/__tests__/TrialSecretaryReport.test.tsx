@@ -1,12 +1,14 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { TrialSecretaryReport } from '../TrialSecretaryReport';
 import type { ReportProps } from '@/lib/reports/types';
+import { SEEDED_RECORDING_FEE_RATES_READ } from '@/test/fixtures/recordingFeeRates';
 
 const baseProps: ReportProps = {
   showName: 'Spring Scent Trial 2026',
   clubName: 'Norwegian Elkhound Association of America',
   organization: 'AKC',
   sortOrder: '',
+  recordingFeeRates: SEEDED_RECORDING_FEE_RATES_READ,
   trial: { date: '2026-04-12', trialNumber: '1', judgeName: 'Dr. Jane Smith' },
   entries: Array.from({ length: 12 }, (_, i) => ({
     id: `e${i}`,
@@ -102,8 +104,8 @@ describe('TrialSecretaryReport', () => {
     [undefined, 'Set a valid trial date before generating this report.'],
     ['not-a-date', 'Set a valid trial date before generating this report.'],
     [
-      '2027-01-01',
-      'This fee schedule covers 2025 and 2026 events only. Confirm the current AKC rate before generating this report.',
+      '2024-12-31',
+      'No AKC recording fee is set for this trial date. A site admin can add the rate on the Payouts page. Confirm the current AKC rate before generating this report.',
     ],
   ] as const)('blocks fee output for date %s and states recovery', (date, recovery) => {
     render(
@@ -114,6 +116,30 @@ describe('TrialSecretaryReport', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent(recovery);
+    expect(screen.queryByText(/Total Service Fees/)).not.toBeInTheDocument();
+  });
+
+  it('prices a 2027 trial at the $5.50 rate in force on its date', () => {
+    render(
+      <TrialSecretaryReport {...baseProps} trial={{ ...baseProps.trial!, date: '2027-01-01' }} />
+    );
+
+    expect(
+      screen.getByText(/\$5\.50 per run × 12 paid runs = \$66\.00 Total Service Fees/)
+    ).toBeInTheDocument();
+  });
+
+  it('refuses to price the report when the rate list could not be read', () => {
+    render(
+      <TrialSecretaryReport
+        {...baseProps}
+        recordingFeeRates={{ data: [], isLoading: false, isError: true }}
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The AKC recording fee schedule could not be loaded. Reconnect and reopen this report.'
+    );
     expect(screen.queryByText(/Total Service Fees/)).not.toBeInTheDocument();
   });
 

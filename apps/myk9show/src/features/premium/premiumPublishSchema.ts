@@ -74,6 +74,11 @@ const generatedPremiumSchema = z.object({
   officials: z.object({
     chairman: z.object({ name: z.string(), email: nullableText, phone: nullableText }).nullable(),
   }),
+  // MYK9-2044: the registry recording fee statement; absent or null prints no line.
+  recordingFee: z
+    .object({ registry: z.literal('AKC'), amountCents: z.number().int(), text: z.string() })
+    .nullable()
+    .optional(),
   officers: z.array(z.object({ position: z.string(), name: z.string() })).optional(),
   committee: z.array(z.string()).optional(),
   trials: z.array(

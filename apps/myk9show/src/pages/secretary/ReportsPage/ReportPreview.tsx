@@ -155,8 +155,15 @@ export function ReportPreview({
 
   // MYK9-280: resolved by the page, where the providers live, because the
   // report components are rendered into a detached tree by renderToStaticMarkup.
-  const { entryFormData, judgeSupplies, waitlist, hospitalityPlan, officials, hostedState } =
-    hosted;
+  const {
+    entryFormData,
+    judgeSupplies,
+    waitlist,
+    hospitalityPlan,
+    officials,
+    recordingFeeRates,
+    hostedState,
+  } = hosted;
   // MYK9-721: an online refetch means the rows on screen are being replaced.
   // The frame stays mounted (so it keeps its ref and scroll) but hidden, so the
   // previous answer is never shown as if it were current.
@@ -211,6 +218,7 @@ export function ReportPreview({
         sortOrder,
         ...(report.excludesHeldEntries ? { omitHeldEntries: true } : {}),
         ...(officials ? { officials } : {}),
+        ...(recordingFeeRates ? { recordingFeeRates } : {}),
       })
         .map(props => {
           const ReportComponent = report.component;
@@ -284,6 +292,7 @@ export function ReportPreview({
     waitlist,
     hospitalityPlan,
     officials,
+    recordingFeeRates,
     hostedState,
     catalogProfilesReadComplete,
     judgeBlock,

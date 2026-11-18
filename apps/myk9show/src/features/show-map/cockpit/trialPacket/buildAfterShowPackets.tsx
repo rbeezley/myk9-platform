@@ -8,7 +8,8 @@ import { buildOfficialPdfBytes } from '@/features/organization-forms/officialPdf
 import { getOfficialPdfReportConfig } from '@/features/organization-forms/officialPdfReports';
 import { renderReportToHtml } from '@/lib/reports/reportRenderer';
 import { getReportById } from '@/lib/reports/reportRegistry';
-import type { TrialOfficials, UKCTrialReportContext } from '@/lib/reports/types';
+import type { RecordingFeeRate } from '@myk9/core';
+import type { ReportAsyncData, TrialOfficials, UKCTrialReportContext } from '@/lib/reports/types';
 import {
   buildShowReportProps,
   buildTrialReportProps,
@@ -28,6 +29,8 @@ export interface AfterShowInput {
   entries: readonly DbEntry[];
   trialId: string;
   officials: TrialOfficials | null;
+  /** MYK9-2044: the recording fee rate list for the Trial Secretary Report; absent = unread. */
+  recordingFeeRates?: ReportAsyncData<RecordingFeeRate[]> | undefined;
   ukcTrialReportContext: UKCTrialReportContext | null;
   catalogProfilesReadComplete: boolean;
 }
@@ -95,6 +98,7 @@ export async function buildAfterShowDocuments(input: AfterShowInput): Promise<Af
               sortOrder: report.defaultSort,
               ...(report.excludesHeldEntries ? { omitHeldEntries: true } : {}),
               ...(input.officials ? { officials: input.officials } : {}),
+              ...(input.recordingFeeRates ? { recordingFeeRates: input.recordingFeeRates } : {}),
             });
       markup.push(
         props.map(item => renderToStaticMarkup(createElement(report.component, item))).join('')
@@ -125,6 +129,7 @@ export async function buildAfterShowDocuments(input: AfterShowInput): Promise<Af
         sortOrder: report.defaultSort,
         ...(report.excludesHeldEntries ? { omitHeldEntries: true } : {}),
         ...(input.officials ? { officials: input.officials } : {}),
+        ...(input.recordingFeeRates ? { recordingFeeRates: input.recordingFeeRates } : {}),
       })[0];
       if (!props) continue;
       const withContext = { ...props, ukcTrialReportContext: input.ukcTrialReportContext };

@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 
 import { useTrialOfficials } from '@/hooks/queries/useTrialOfficials';
+import {
+  recordingFeeRatesForReport,
+  useRecordingFeeRates,
+} from '@/hooks/queries/useRecordingFeeRates';
 import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
 import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
 import { getReportById } from '@/lib/reports/reportRegistry';
@@ -55,6 +59,16 @@ export function useOfficialReportDownload(input: {
     AKC_OFFICIALS_REPORT_TYPES.has(reportType) && !selectedTrialIsUKC && trialId !== 'all'
   );
 
+  // MYK9-2044: the Trial Secretary Report's fee comes from the dated rate list.
+  const ratesQuery = useRecordingFeeRates(
+    reportType === 'trial-secretary-report' && !selectedTrialIsUKC && trialId !== 'all'
+  );
+  const recordingFeeRates = useMemo(
+    () => recordingFeeRatesForReport(ratesQuery),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ratesQuery.data, ratesQuery.isError, ratesQuery.fetchStatus]
+  );
+
   const omitHeldEntries = getReportById(reportType)?.excludesHeldEntries === true;
 
   const officialPdfProps = useMemo(() => {
@@ -76,6 +90,7 @@ export function useOfficialReportDownload(input: {
       ...props,
       ukcTrialReportContext: ukcTrialReportContextQuery.data ?? null,
       officials: officialsQuery.data ?? null,
+      recordingFeeRates,
     };
   }, [
     show,
@@ -87,6 +102,7 @@ export function useOfficialReportDownload(input: {
     omitHeldEntries,
     ukcTrialReportContextQuery.data,
     officialsQuery.data,
+    recordingFeeRates,
   ]);
 
   const officialClassPdfProps = useMemo(() => {
@@ -118,6 +134,6 @@ export function useOfficialReportDownload(input: {
       UKC_TRIAL_REPORT_TYPES.has(reportType) &&
       selectedTrialIsUKC &&
       ukcTrialReportContextQuery.isLoading,
-    officialsLoading: officialsQuery.isLoading,
+    officialsLoading: officialsQuery.isLoading || recordingFeeRates.isLoading,
   });
 }

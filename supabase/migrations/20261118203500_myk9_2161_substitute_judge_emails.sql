@@ -30,7 +30,8 @@
 -- One-step swap: set_class_judge deletes the judge row then inserts the replacement in ONE transaction,
 -- and MYK9-2125 already queued "was A, now B" for every live exhibitor. The departure's left_at (now() in
 -- the delete trigger) then equals the replacement's judge_assignments.created_at (column default now()),
--- because now() is the transaction start. That pairing is never offered and a tap answers 0. A judge
+-- because now() is the transaction start, AND the judge_changed step was on at that moment
+-- (auto_email_enabled, recorded by the trigger), so the notice really was queued. That pairing is never offered and a tap answers 0. A judge
 -- removed and a new one named in later transactions has a later created_at, so it IS offered.
 -- A tap after the offer was resolved for the same judge answers 0, not an error. The job is
 -- the 2125 one (ready, auto_send, due in 5 minutes, one per person; judge_changes names the judge who
@@ -64,7 +65,11 @@ CREATE TABLE public.class_judge_departures (
   left_at timestamptz NOT NULL DEFAULT now(),
   resolved_judge_id uuid REFERENCES public.people (id) ON DELETE SET NULL,
   -- People this departure's offer already queued (plain uuids, no FK). Reset by every new departure.
-  notified_person_ids uuid[] NOT NULL DEFAULT '{}'
+  notified_person_ids uuid[] NOT NULL DEFAULT '{}',
+  -- A fact recorded at departure time: the show's judge_changed email step was ON, so the MYK9-2125
+  -- producer queued the automatic "was A, now B" notice for this change. Same test the producer applies:
+  -- a step row for the show with is_enabled (a missing row counts as off; the producer does not create it).
+  auto_email_enabled boolean NOT NULL DEFAULT false
 );
 
 COMMENT ON TABLE public.class_judge_departures IS
@@ -104,13 +109,26 @@ BEGIN
        AND c.deleted_at IS NULL
        AND sh.status IN ('published', 'upcoming', 'in_progress')
   ) THEN
-    INSERT INTO public.class_judge_departures (class_id, left_person_id, left_at, resolved_judge_id, notified_person_ids)
-    VALUES (old.class_id, old.person_id, now(), NULL, '{}')
+    INSERT INTO public.class_judge_departures (
+      class_id, left_person_id, left_at, resolved_judge_id, notified_person_ids, auto_email_enabled
+    )
+    VALUES (
+      old.class_id, old.person_id, now(), NULL, '{}',
+      EXISTS (
+        SELECT 1
+          FROM public.classes c2
+          JOIN public.trials t2 ON t2.id = c2.trial_id
+          JOIN public.show_lifecycle_email_steps st
+            ON st.show_id = t2.show_id AND st.step_type = 'judge_changed' AND st.is_enabled
+         WHERE c2.id = old.class_id
+      )
+    )
     ON CONFLICT (class_id) DO UPDATE
       SET left_person_id = excluded.left_person_id,
           left_at = excluded.left_at,
           resolved_judge_id = NULL,
-          notified_person_ids = '{}';
+          notified_person_ids = '{}',
+          auto_email_enabled = excluded.auto_email_enabled;
   END IF;
   RETURN NULL;
 EXCEPTION WHEN OTHERS THEN
@@ -239,6 +257,7 @@ AS $$
                                       AND ja.status = 'confirmed'
                                       AND ja.created_at = d.left_at
      WHERE d.class_id = p_class_id
+       AND d.auto_email_enabled
   );
 $$;
 

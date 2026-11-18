@@ -400,12 +400,13 @@ BEGIN
 END $$;
 
 -- I: a one-step swap through set_class_judge, the automatic 2125 jobs left in place and then sent.
-DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
+-- Seed A as the confirmed judge FIRST, then clear the jobs that seeding queued, so the swap's jobs are its own.
 DELETE FROM public.judge_assignments WHERE class_id = '00000000-0000-0000-0000-000002161004';
 DELETE FROM public.class_judge_departures WHERE class_id = '00000000-0000-0000-0000-000002161004';
 INSERT INTO public.judge_assignments (person_id, show_id, class_id, status)
 VALUES ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002',
         '00000000-0000-0000-0000-000002161004', 'confirmed');
+DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
 SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161004');
 
 DO $$
@@ -415,6 +416,11 @@ DECLARE
 BEGIN
   IF pg_temp.t2161_jobs('ready') <> 3 THEN
     RAISE EXCEPTION 'FAIL I.0 the automatic swap email should be queued for 3, found %', pg_temp.t2161_jobs('ready');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.show_lifecycle_email_jobs
+              WHERE step_type = 'judge_changed'
+                AND judge_changes IS DISTINCT FROM jsonb_build_object(v_class::text, '00000000-0000-0000-0000-000002161051')) THEN
+    RAISE EXCEPTION 'FAIL I.0a every automatic job should record A as the previous judge';
   END IF;
   IF NOT (SELECT d.left_at = ja.created_at FROM public.class_judge_departures d
             JOIN public.judge_assignments ja ON ja.class_id = d.class_id AND ja.status = 'confirmed'
@@ -434,6 +440,51 @@ BEGIN
     RAISE EXCEPTION 'FAIL I.3 a sent swap email was queued again';
   END IF;
   RAISE NOTICE 'PASS I a one-step swap is never offered';
+END $$;
+
+-- I2: the same swap with the judge_changed email step OFF: no automatic notice is queued, so the offer is
+-- for everyone once the secretary turns the step on. While it is off the offer and the tap refuse.
+UPDATE public.show_lifecycle_email_steps SET is_enabled = false
+ WHERE show_id = '00000000-0000-0000-0000-000002161002' AND step_type = 'judge_changed';
+DELETE FROM public.judge_assignments WHERE class_id = '00000000-0000-0000-0000-000002161004';
+DELETE FROM public.class_judge_departures WHERE class_id = '00000000-0000-0000-0000-000002161004';
+INSERT INTO public.judge_assignments (person_id, show_id, class_id, status)
+VALUES ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002',
+        '00000000-0000-0000-0000-000002161004', 'confirmed');
+DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
+SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161004');
+
+DO $$
+DECLARE
+  v_class uuid := '00000000-0000-0000-0000-000002161004';
+  v_sec text := '00000000-0000-0000-0000-000002161101';
+  v_first jsonb;
+  v_second jsonb;
+BEGIN
+  IF (SELECT count(*) FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed') <> 0 THEN
+    RAISE EXCEPTION 'FAIL I2.0 a disabled step still queued an automatic notice';
+  END IF;
+  IF (SELECT d.auto_email_enabled FROM public.class_judge_departures d WHERE d.class_id = v_class) THEN
+    RAISE EXCEPTION 'FAIL I2.1 the departure recorded the step as on';
+  END IF;
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{}'::jsonb
+     OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '{"error":"P0001"}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL I2.2 with the step off the offer should be hidden and the tap refused';
+  END IF;
+  UPDATE public.show_lifecycle_email_steps SET is_enabled = true
+   WHERE show_id = '00000000-0000-0000-0000-000002161002' AND step_type = 'judge_changed';
+  IF (pg_temp.t2161_call(v_sec, 'offer', v_class) ->> 'recipient_count') IS DISTINCT FROM '3' THEN
+    RAISE EXCEPTION 'FAIL I2.3 after enabling the step the offer should list all 3: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  v_first := pg_temp.t2161_call(v_sec, 'queue', v_class);
+  v_second := pg_temp.t2161_call(v_sec, 'queue', v_class);
+  IF v_first IS DISTINCT FROM '3'::jsonb OR v_second IS DISTINCT FROM '0'::jsonb
+     OR (SELECT count(*) FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed') <> 3
+     OR (SELECT count(DISTINCT recipient_person_id) FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed') <> 3 THEN
+    RAISE EXCEPTION 'FAIL I2.4 the tap should queue each person exactly once: % % %', v_first, v_second,
+      (SELECT count(*) FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed');
+  END IF;
+  RAISE NOTICE 'PASS I2 a swap with the step off is offered once the step is on';
 END $$;
 
 -- J: a repeat tap after the offer was resolved for the same judge is a quiet 0; a different judge is still refused.

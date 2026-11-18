@@ -80,8 +80,6 @@ export function payoutsTurnedOffAlertHtml(input: {
   livemode: boolean;
   shows: PublicShow[] | null;
   paymentsUrl: string;
-  /** Messages sent to the club for this episode: 0 when none went. */
-  clubEmailsSent: number;
 }): string {
   const showsHtml =
     input.shows === null
@@ -99,22 +97,9 @@ export function payoutsTurnedOffAlertHtml(input: {
      <p>Card entries for this club's shows are paused until the club fixes its Stripe account.
      Money already collected waits. Check and cash entries continue.</p>
      ${showsHtml}
-     ${clubEmailLine(input.clubEmailsSent, input.paymentsUrl)}`;
-}
-/**
- * What this module knows about the club email, so the operator knows whether to follow up.
- * The shared sender logs a failed delivery and does not report it, so a count above zero
- * means the email was handed to the mail service, not that it arrived.
- */
-function clubEmailLine(sent: number, paymentsUrl: string): string {
-  const tab = `<a href="${escapeHtml(paymentsUrl)}">Payments tab</a>`;
-  if (sent > 0) {
-    return `<p>We sent the club's admins the notice (${sent} ${sent === 1 ? 'message' : 'messages'}). Delivery is not
-     confirmed here; a failed send is in the function log.
-     See the club's ${tab}.</p>`;
-  }
-  return `<p>No email was sent to the club's admins. Contact the club and point them to the
-     club's ${tab}.</p>`;
+     <p>This alert does not confirm that the club was notified. Check the function log or
+     contact the club. See the club's
+     <a href="${escapeHtml(input.paymentsUrl)}">Payments tab</a>.</p>`;
 }
 
 /**
@@ -126,18 +111,14 @@ function clubEmailLine(sent: number, paymentsUrl: string): string {
 async function alertOperator(
   deps: PayoutsDisabledDeps,
   clubId: string,
-  club: { name: string } | null,
-  clubEmailsSent: number
+  club: { name: string } | null
 ): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timedOut = new Promise<'timeout'>(resolve => {
     timer = setTimeout(() => resolve('timeout'), OPERATOR_ALERT_TIMEOUT_MS);
   });
   try {
-    const outcome = await Promise.race([
-      raiseOperatorAlert(deps, clubId, club, clubEmailsSent),
-      timedOut,
-    ]);
+    const outcome = await Promise.race([raiseOperatorAlert(deps, clubId, club), timedOut]);
     if (outcome === 'timeout') {
       console.error(
         `Payouts-turned-off operator alert for club ${clubId} gave up after ${OPERATOR_ALERT_TIMEOUT_MS}ms`
@@ -153,8 +134,7 @@ async function alertOperator(
 async function raiseOperatorAlert(
   deps: PayoutsDisabledDeps,
   clubId: string,
-  club: { name: string } | null,
-  clubEmailsSent: number
+  club: { name: string } | null
 ): Promise<'done'> {
   let shows: PublicShow[] | null = null;
   try {
@@ -171,7 +151,6 @@ async function raiseOperatorAlert(
       livemode: deps.operator.livemode,
       shows,
       paymentsUrl: clubPaymentsUrl(deps.siteUrl, clubId),
-      clubEmailsSent,
     }),
     {
       source: 'stripe-webhook',
@@ -203,12 +182,11 @@ export async function notifyPayoutsTurnedOff(
   let sent = 0;
   for (const clubId of clubIds) {
     let club: { name: string; email: string | null } | null = null;
-    let clubSent = 0;
     try {
       club = await deps.loadClub(clubId);
       if (club) {
         const recipients = await deps.loadRecipients(clubId, club.email);
-        clubSent = await sendClubMoneyEmail(
+        sent += await sendClubMoneyEmail(
           recipients,
           payoutsDisabledEmail({
             clubName: club.name,
@@ -220,8 +198,7 @@ export async function notifyPayoutsTurnedOff(
     } catch (err) {
       console.error('Payouts-turned-off club email failed:', err);
     }
-    sent += clubSent;
-    await alertOperator(deps, clubId, club, clubSent);
+    await alertOperator(deps, clubId, club);
   }
   return sent;
 }

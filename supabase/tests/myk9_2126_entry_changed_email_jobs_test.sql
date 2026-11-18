@@ -42,10 +42,10 @@ insert into auth.users (
   is_super_admin, is_sso_user, is_anonymous
 ) values
   ('00000000-0000-0000-0000-000002126101', '00000000-0000-0000-0000-000000000000',
-   'authenticated', 'authenticated', 'myk9-2126-ada@example.test', '', now(), now(), now(),
+   'authenticated', 'authenticated', 'ada@example.test', '', now(), now(), now(),
    '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000002126102', '00000000-0000-0000-0000-000000000000',
-   'authenticated', 'authenticated', 'myk9-2126-sue@example.test', '', now(), now(), now(),
+   'authenticated', 'authenticated', 'sue@example.test', '', now(), now(), now(),
    '{}', '{}', false, false, false);
 update public.people set auth_user_id = '00000000-0000-0000-0000-000002126101'
  where id = '00000000-0000-0000-0000-000002126021';
@@ -175,6 +175,8 @@ begin
 end $$;
 
 -- F
+-- The registration-number guard is not under test here (the fixture dogs have none).
+alter table public.entries disable trigger trg_entries_require_dog_registration;
 do $$
 declare
   v_ada uuid := '00000000-0000-0000-0000-000002126021';
@@ -203,6 +205,7 @@ begin
   end if;
   raise notice 'PASS F a move queues one moved event';
 end $$;
+alter table public.entries enable trigger trg_entries_require_dog_registration;
 
 -- G
 do $$

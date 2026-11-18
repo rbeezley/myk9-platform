@@ -141,16 +141,20 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_LANDING_CAPTURE: 'true'
           CAPTURE_FONTS_DIR: ${{ runner.temp }}/landing-capture/fonts
+          CAPTURE_OUT_DIR: ${{ runner.temp }}/landing-capture/out
 
-      # Only what the capture wrote, laid out as it sits in the repository, so the artifact
-      # unpacks over a checkout.
-      - name: Collect the capture
+      # The spec wrote into an empty folder, laid out as the files sit in the repository, so
+      # the artifact unpacks over a checkout and holds only what this run took. A run that
+      # took no screenshots, or only some, stops here.
+      - name: Check the capture is whole
         run: |
           out="$RUNNER_TEMP/landing-capture/out/apps/myk9show"
-          mkdir -p "$out/public/landing/scenes" "$out/src/components/landing/lifecycle/scenes"
-          cp -R apps/myk9show/public/landing/scenes/ring "$out/public/landing/scenes/ring"
-          cp apps/myk9show/src/components/landing/lifecycle/scenes/ringRegions.json \
-            "$out/src/components/landing/lifecycle/scenes/ringRegions.json"
+          for shot in classes offline sheet running result confirm saved sent; do
+            test -s "$out/public/landing/scenes/ring/$shot.png"
+          done
+          test "$(find "$out/public/landing/scenes/ring" -type f | wc -l)" -eq 8
+          test -s "$out/src/components/landing/lifecycle/scenes/ringRegions.json"
+          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 9
 
       # This repository's artifacts are public (MYK9-1057): fail before the upload if one of
       # the job's passwords (in the environment since the first step) is in the regions file.

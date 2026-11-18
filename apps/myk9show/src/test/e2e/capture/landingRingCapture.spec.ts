@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import {
   ALLOW_PRODUCTION_FIXTURE_SIGN_IN,
@@ -30,8 +30,10 @@ import { signInAsJudge } from '../uat/shared/auth';
  *   - the job has closed the outbound network for this process, the browser and the preview
  *     server, and the first thing the spec does is prove it.
  *
- * It writes the images to public/landing/scenes/ring/ and the measured regions to
- * src/components/landing/lifecycle/scenes/ringRegions.json; the workflow uploads them.
+ * It writes the images (public/landing/scenes/ring/) and the measured regions
+ * (src/components/landing/lifecycle/scenes/ringRegions.json) under CAPTURE_OUT_DIR, laid
+ * out as they sit in the repository; the workflow checks all of them are there and uploads
+ * them.
  */
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
@@ -46,9 +48,13 @@ const CLASS_NAME = 'Exterior Excellent';
 const DOG = 'Juni';
 
 const APP_DIR = process.cwd();
-const IMG_DIR = join(APP_DIR, 'public', 'landing', 'scenes', 'ring');
+// The capture is written under CAPTURE_OUT_DIR, an empty folder the job makes, laid out as
+// the files sit in the repository, never over the checked-in copies: what the job uploads
+// can then only be what this run took.
+const OUT_APP_DIR = join(process.env.CAPTURE_OUT_DIR ?? '', 'apps', 'myk9show');
+const IMG_DIR = join(OUT_APP_DIR, 'public', 'landing', 'scenes', 'ring');
 const REGIONS_FILE = join(
-  APP_DIR,
+  OUT_APP_DIR,
   'src',
   'components',
   'landing',
@@ -195,7 +201,12 @@ test('captures the ring scene on the judge’s phone', async ({ page, context })
     }, on);
   };
 
+  if (!process.env.CAPTURE_OUT_DIR) throw new Error('CAPTURE_OUT_DIR is not set');
+  if (existsSync(OUT_APP_DIR)) {
+    throw new Error(`${OUT_APP_DIR} already exists; the capture writes to an empty folder`);
+  }
   mkdirSync(IMG_DIR, { recursive: true });
+  mkdirSync(dirname(REGIONS_FILE), { recursive: true });
   const shots: Record<string, { file: string; regions: Record<string, Box> }> = {};
   const shoot = async (
     name: string,
@@ -221,8 +232,15 @@ test('captures the ring scene on the judge’s phone', async ({ page, context })
   await card.scrollIntoViewIfNeeded();
   await expect(card.getByText('0 of 1 scored')).toBeAttached();
   // The captures are set in the app's own fonts, served from the job's downloaded copy.
+  // `document.fonts.check` is true when no face is registered at all, so ask for a face of
+  // the app's body font that has really loaded.
   await page.evaluate(() => document.fonts.ready);
-  expect(await page.evaluate(() => document.fonts.check('16px Montserrat'))).toBe(true);
+  const loadedFaces = await page.evaluate(() =>
+    [...document.fonts]
+      .filter(face => face.status === 'loaded')
+      .map(face => face.family.replaceAll('"', ''))
+  );
+  expect(loadedFaces).toContain('Montserrat');
   await page.waitForTimeout(1500);
   await shoot('classes', { card, row: card.getByRole('button').first() });
 

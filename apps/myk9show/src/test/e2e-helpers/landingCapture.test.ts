@@ -180,6 +180,26 @@ describe('the capture spec and its job', () => {
     expect(workflow).toMatch(/MYK9_E2E_LOAD_FIXTURE: 'false'/);
   });
 
+  it('uploads only what this run took: an empty output folder, then all nine files', () => {
+    // The spec never writes over the checked-in copies, and refuses a folder that exists.
+    expect(spec).toMatch(/join\(process\.env\.CAPTURE_OUT_DIR \?\? '', 'apps', 'myk9show'\)/);
+    expect(spec).toMatch(/if \(existsSync\(OUT_APP_DIR\)\) \{\s+throw new Error\(/);
+    expect(spec).not.toMatch(/join\(APP_DIR, '(public|src)'/);
+    // The job copies nothing from the checkout into the artifact, and counts the files.
+    expect(workflow).not.toMatch(/\bcp\b/);
+    expect(workflow).toMatch(/CAPTURE_OUT_DIR: \$\{\{ runner\.temp \}\}\/landing-capture\/out/);
+    expect(workflow).toMatch(
+      /for shot in classes offline sheet running result confirm saved sent; do\s+test -s /
+    );
+    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 9/);
+    expect(workflow.indexOf('Check the capture is whole')).toBeLessThan(
+      workflow.indexOf('Upload the capture')
+    );
+    // The captures are set in a font face that really loaded.
+    expect(spec).toMatch(/expect\(loadedFaces\)\.toContain\('Montserrat'\);/);
+    expect(spec).not.toMatch(/document\.fonts\.check\(/);
+  });
+
   it('lists the capture spec in the capture mode only', () => {
     const config = readFileSync(resolve(app, 'playwright.ci.config.ts'), 'utf8');
     expect(config.match(/landingRingCapture/g)).toHaveLength(1);

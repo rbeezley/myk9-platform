@@ -186,7 +186,7 @@ Facts the copy must respect:
 - **No WebSocket is connected to any server.** Every socket the page opens is held in the browser; the spec's first test proves it, with a control.
 - **Where it runs.** In the workflow only: on a pull request that changes the capture, or on demand (`gh workflow run landing-capture.yml`). The owner's Windows PC cannot run the stack (no Docker, and the Supabase CLI answers "Native artifacts are unsupported on win32/x64"). The run uploads the images and regions as the `landing-capture-ring` artifact, laid out to unpack over a checkout. Commit the artifact's files; the workflow commits nothing.
 - **Staging.** "No signal" is staged for the backend only (the page keeps the code it has loaded): `navigator.onLine` follows a flag and backend requests are dropped while it is set. Nothing else is staged.
-- Each scene writes its images to `public/landing/scenes/<scene>/` and its measured regions to `src/components/landing/lifecycle/scenes/<scene>Regions.json`.
+- Each scene writes its images (`public/landing/scenes/<scene>/`) and its measured regions (`src/components/landing/lifecycle/scenes/<scene>Regions.json`) into an empty output folder, laid out as in the repository, never over the checked-in copies. The job uploads only when every file is there, so an artifact is always one whole run. The spec also requires a loaded face of the app's body font before the first shot.
 - Captured on the canonical seed show (Heartland Scent Work Classic, `dededede-0000-0000-0000-000000000010`), signed in as a seeded account.
 - Desktop captures at 1440×900. Phone captures, the judge's screen in the ring scene included, at 390×844 at 2× density.
 

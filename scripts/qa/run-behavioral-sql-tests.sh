@@ -43,6 +43,7 @@ TEST_FILES=(
   "$TEST_DIR/admin_soft_deleted_show_visibility_test.sql"
   "$TEST_DIR/anonymous_session_read_scope_test.sql"
   "$TEST_DIR/askq_quota_reservation_test.sql"
+  "$TEST_DIR/registry_deadline_reminders_claim_test.sql"
   "$TEST_DIR/class_hide_count_gating_test.sql"
   "$TEST_DIR/class_status_auto_derivation_test.sql"
   "$TEST_DIR/class_actual_times_from_scoring_test.sql"

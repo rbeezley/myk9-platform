@@ -120,6 +120,7 @@ BEGIN
     ('push_subscriptions','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('refund_request_attempts','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('refund_requests','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('registry_deadline_reminders','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('result_submissions','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     -- MYK9-115 breaker state and its audit trail. No client grants by design:
     -- these are read inside SECURITY DEFINER functions, and a client that could
@@ -261,7 +262,7 @@ BEGIN
       'organization_agreements','paperwork_prints','pedigree_ancestors','people','people_private',
       'performance_metrics','permission_audit_log','permissions','platform_settings',
       'platform_waitlist','premium_generation_attempts','premium_generations',
-      'push_notification_queue','push_subscriptions','refund_request_attempts','refund_requests','result_submissions',
+      'push_notification_queue','push_subscriptions','refund_request_attempts','refund_requests','registry_deadline_reminders','result_submissions',
       'ringside_containment','ringside_containment_audit','ringside_sessions',
       'role_permissions','role_requests','roles','rule_organizations','rule_sports','rulebooks',
       'rules','rules_feedback','rules_query_log','secretary_tasks','show_announcement_reads',

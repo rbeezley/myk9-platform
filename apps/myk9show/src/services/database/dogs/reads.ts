@@ -3,7 +3,7 @@
 // Mutation functions (create, update, delete) remain on PostgREST.
 import { supabase, logQuery, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { compareStringAsc, sortedCopy } from '../_shared/read-shape';
-import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { escapeLikeTerm, ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
 import type { TablesUpdate } from '@/types/supabase';
@@ -425,11 +425,11 @@ async function postgrestGetDogsByOwner(ownerId: string) {
  * backend failure to "no breed matches" makes it indistinguishable from "no such
  * dog".
  */
-async function dogIdsMatchingRegistrationBreed(sanitized: string): Promise<string[]> {
+async function dogIdsMatchingRegistrationBreed(term: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('dog_registrations')
     .select('dog_id')
-    .ilike('breed', `%${sanitized}%`);
+    .ilike('breed', `%${escapeLikeTerm(term)}%`);
   if (error) throw createDatabaseError(error, 'dog', 'search_registration_breed');
   return [
     ...new Set(
@@ -441,9 +441,11 @@ async function dogIdsMatchingRegistrationBreed(sanitized: string): Promise<strin
 }
 
 async function postgrestSearchDogs(searchTerm: string, personId: string) {
-  const sanitized = sanitizePostgRESTFilter(searchTerm);
-  const breedDogIds = await dogIdsMatchingRegistrationBreed(sanitized);
-  const orFilters = [`name.ilike.%${sanitized}%`, `call_name.ilike.%${sanitized}%`];
+  const breedDogIds = await dogIdsMatchingRegistrationBreed(searchTerm);
+  const orFilters = [
+    `name.ilike.${ilikeContains(searchTerm)}`,
+    `call_name.ilike.${ilikeContains(searchTerm)}`,
+  ];
   if (breedDogIds.length > 0) {
     orFilters.push(`id.in.(${breedDogIds.join(',')})`);
   }
@@ -805,7 +807,6 @@ export const searchAllDogs = async (
     if (trimmed.length < 2) {
       return { data: [], error: null, hitLimit: false };
     }
-    const sanitized = sanitizePostgRESTFilter(trimmed);
 
     // MYK9-2026: a multi-word search also matches word by word, the rule the
     // picker applies on the device, so "rex lab" finds Rex the Labrador here
@@ -817,10 +818,7 @@ export const searchAllDogs = async (
     // MYK9-90: registration number, registered name and breed live on
     // `dog_registrations`, not on `dogs`. MYK9-2020: the owner's name, over the
     // `people` rows RLS already lets her read (the same rows `owner` returns).
-    const embeds = searchTermEmbeds([
-      sanitized,
-      ...searchWords(trimmed).map(word => sanitizePostgRESTFilter(word)),
-    ]);
+    const embeds = searchTermEmbeds([trimmed, ...searchWords(trimmed)]);
     const [whole, ...words] = embeds;
     if (!whole) return { data: [], error: null, hitLimit: false };
 

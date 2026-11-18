@@ -16,6 +16,7 @@ describe('lifecycle email read model', () => {
       { stepType: 'registration_number_needed', isEnabled: true },
       { stepType: 'show_changed', isEnabled: true },
       { stepType: 'judge_changed', isEnabled: true },
+      { stepType: 'entry_changed', isEnabled: true },
     ]);
   });
 
@@ -39,6 +40,19 @@ describe('lifecycle email read model', () => {
       skippedCount: 1,
       dismissedCount: 1,
       warningCount: 1,
+    });
+  });
+
+  it('counts a held entry-change job as waiting', () => {
+    const summary = buildLifecycleEmailScheduledSummary({
+      jobs: [
+        { stepType: 'entry_changed', status: 'held' },
+        { stepType: 'entry_changed', status: 'ready' },
+      ],
+    });
+
+    expect(summary.steps.find(step => step.stepType === 'entry_changed')).toMatchObject({
+      readyCount: 2,
     });
   });
 

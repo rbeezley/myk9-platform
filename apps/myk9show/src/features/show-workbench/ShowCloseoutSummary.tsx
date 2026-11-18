@@ -5,6 +5,7 @@ import { Chip } from '@/components/base/Chip';
 import { formatCurrency } from '@/lib/utils';
 import { describeEntryRemovals } from '@/features/payments/pullReconciliation';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
+import { flaggedPullText } from '@/features/show-closeout/closeConcerns';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -186,10 +187,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
             (docs/INTENT.md, Withdraw vs Pull), so it is not counted as a removal above. */}
         {recon.flaggedPullDogCount > 0 && (
           <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span>
-              {recon.flaggedPullDogCount} {recon.flaggedPullDogCount === 1 ? 'dog' : 'dogs'} flagged
-              as pulled at the show, not confirmed.
-            </span>
+            <span>{flaggedPullText(recon.flaggedPullDogCount)}</span>
             <Link
               to={getCheckInDeskHref({ showId })}
               className="inline-flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline"

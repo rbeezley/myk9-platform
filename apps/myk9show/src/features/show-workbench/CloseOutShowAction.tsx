@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, LockKeyhole } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -28,6 +29,8 @@ import {
   type ResultSubmissionSummary,
 } from './showCloseOutShow';
 import type { ScoreChangeRead } from '@/features/show-closeout/whatIsLeft';
+import type { CloseConcern } from '@/features/show-closeout/closeConcerns';
+import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
 
@@ -39,6 +42,22 @@ interface CloseOutShowActionProps {
   incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
   submissions: readonly ResultSubmissionSummary[] | null;
   scoreChanges?: ScoreChangeRead | undefined;
+}
+
+/** One close concern; a flag the Check-in desk has not confirmed links there (MYK9-2145). */
+function ConcernItem({ concern, showId }: { concern: CloseConcern; showId: string }) {
+  if (concern.kind !== 'flagged-pulls') return <li>{concern.text}</li>;
+  return (
+    <li>
+      {concern.text}{' '}
+      <Link
+        to={getCheckInDeskHref({ showId })}
+        className="font-medium text-foreground underline underline-offset-4"
+      >
+        Open the Check-in desk
+      </Link>
+    </li>
+  );
 }
 
 export function CloseOutShowAction({
@@ -156,8 +175,8 @@ export function CloseOutShowAction({
                   Review before closing
                 </div>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-                  {readiness.concerns.map(concern => (
-                    <li key={concern}>{concern}</li>
+                  {readiness.concernItems.map(concern => (
+                    <ConcernItem key={concern.text} concern={concern} showId={show.id} />
                   ))}
                 </ul>
               </div>
@@ -180,8 +199,8 @@ export function CloseOutShowAction({
             Review before closing the show
           </div>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-            {readiness.concerns.map(concern => (
-              <li key={concern}>{concern}</li>
+            {readiness.concernItems.map(concern => (
+              <ConcernItem key={concern.text} concern={concern} showId={show.id} />
             ))}
           </ul>
         </div>

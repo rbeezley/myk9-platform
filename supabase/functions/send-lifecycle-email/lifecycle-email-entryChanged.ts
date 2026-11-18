@@ -5,14 +5,18 @@
  *
  * The job stores only ids and pre-edit values: entry_changes is a list of
  *   moved      { entry_id: the new entry, from_entry_id, from_class_id, to_class_id }
- *   withdrawn | pulled | removed   { entry_id }
+ *   pulled | withdrawn | removed | pulled_at_show | deleted   { entry_id }
  *   edited     { entry_id, field: 'handler' | 'jump_height', from }
  * An accepted class change request lands as a move, so it is told here and nowhere else.
+ * Every read is scoped to the job's show.
  */
 import type { LifecycleEmailSupabaseClient, QueryResult } from './lifecycle-email-shared.ts';
 import { formatTrialDate } from './lifecycle-email-showChanged.ts';
 
-export type EntryChangeLineKind = 'moved' | 'withdrawn' | 'pulled' | 'removed' | 'edited';
+/** Each act in its own words (docs/INTENT.md "Withdraw vs Pull"). */
+type OutcomeKind = 'pulled' | 'withdrawn' | 'removed' | 'pulled_at_show' | 'deleted';
+
+export type EntryChangeLineKind = 'moved' | 'edited' | OutcomeKind;
 
 export interface EntryChangeLine {
   kind: EntryChangeLineKind;
@@ -43,8 +47,10 @@ interface EntryRow {
   id: string;
   class_id: string | null;
   entry_status: string | null;
+  withdrawal_reason_code: string | null;
   check_in_status: string | null;
   handler_id: string | null;
+  handler: string | null;
   jump_height: string | null;
   deleted_at: string | null;
   dogs: DogRow | DogRow[] | null;
@@ -68,15 +74,17 @@ interface ClassRow {
 interface TrialRow {
   name: string | null;
   date: string | null;
+  show_id: string | null;
 }
 
-interface PersonRow {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-}
-
-const WITHDRAWN_STATUSES = ['withdrawn', 'scratched'];
+const WITHDRAWAL_REASONS = ['in_season', 'judge_change'];
+const OUTCOME_VERBS: Record<OutcomeKind, (label: string) => string> = {
+  pulled: label => `pulled from ${label}`,
+  withdrawn: label => `withdrawn from ${label}`,
+  removed: label => `removed from ${label}`,
+  pulled_at_show: label => `pulled from ${label} at the show`,
+  deleted: label => `deleted from ${label}`,
+};
 
 function clean(value: string | null | undefined): string {
   return (value ?? '').trim();
@@ -112,9 +120,24 @@ function classLabel(row: ClassRow | undefined): string {
   return where ? `${name} (${where})` : name;
 }
 
-function personName(person: PersonRow | undefined): string | null {
-  if (!person) return null;
-  return [clean(person.first_name), clean(person.last_name)].filter(Boolean).join(' ') || null;
+/** Whether the act an event recorded is still what the entry says now. */
+function outcomeStillStands(kind: string, entry: EntryRow): kind is OutcomeKind {
+  const status = clean(entry.entry_status);
+  const reason = clean(entry.withdrawal_reason_code);
+  switch (kind) {
+    case 'pulled':
+      return status === 'scratched';
+    case 'withdrawn':
+      return status === 'withdrawn' && WITHDRAWAL_REASONS.includes(reason);
+    case 'removed':
+      return status === 'withdrawn' && !WITHDRAWAL_REASONS.includes(reason);
+    case 'pulled_at_show':
+      return entry.check_in_status === 'pulled';
+    case 'deleted':
+      return !!entry.deleted_at;
+    default:
+      return false;
+  }
 }
 
 export type EntryChangedPlan = { kind: 'skip' } | { kind: 'send'; lines: EntryChangeLine[] };
@@ -122,11 +145,12 @@ export type EntryChangedPlan = { kind: 'skip' } | { kind: 'send'; lines: EntryCh
 /**
  * Reads what the email needs and decides whether it still has anything to say: only entries
  * the person owns or handles now, only changes that still stand (a move back, a reinstated
- * entry, an edit changed back are not news).
+ * entry, an edit changed back are not news), and an edit as it stands on the entry it ended on.
  */
 export async function planEntryChangedEmail(args: {
   supabase: LifecycleEmailSupabaseClient;
   jobId: string;
+  showId: string;
   personId: string;
 }): Promise<EntryChangedPlan> {
   const { supabase } = args;
@@ -146,8 +170,9 @@ export async function planEntryChangedEmail(args: {
   const entryRead = (await supabase
     .from('entries')
     .select(
-      'id, class_id, entry_status, check_in_status, handler_id, jump_height, deleted_at, dogs(name, call_name, owner_id)'
+      'id, class_id, entry_status, withdrawal_reason_code, check_in_status, handler_id, handler, jump_height, deleted_at, dogs(name, call_name, owner_id)'
     )
+    .eq('show_id', args.showId)
     .in('id', entryIds)) as QueryResult<EntryRow[]>;
   if (entryRead.error) throw new Error('Failed to load entries');
   const entries = new Map((entryRead.data ?? []).map(row => [row.id, row]));
@@ -156,13 +181,24 @@ export async function planEntryChangedEmail(args: {
     entry.handler_id === args.personId || first(entry.dogs)?.owner_id === args.personId;
   const isLive = (entry: EntryRow) =>
     !entry.deleted_at &&
-    !WITHDRAWN_STATUSES.includes(clean(entry.entry_status)) &&
-    clean(entry.entry_status) !== 'moved';
+    !['withdrawn', 'scratched', 'moved'].includes(clean(entry.entry_status)) &&
+    entry.check_in_status !== 'pulled';
 
   // Moves chain (A to B to C is one move; a round trip is none). Each chain is told once,
   // against the entry it ended on, and only while that entry is live.
   const moves = events.filter(event => event.kind === 'moved' && event.from_entry_id);
   const movedTo = new Set(moves.map(event => event.entry_id));
+  const successor = new Map(moves.map(event => [event.from_entry_id as string, event.entry_id]));
+  /** The entry an entry ended on after this job's moves (a move carries its fields along). */
+  const finalEntryId = (entryId: string) => {
+    let current = entryId;
+    for (let guard = 0; guard < moves.length; guard += 1) {
+      const next = successor.get(current);
+      if (!next || next === entryId) break;
+      current = next;
+    }
+    return current;
+  };
   const chains: Array<{ start: RecordedEvent; end: RecordedEvent }> = [];
   for (const start of moves) {
     if (movedTo.has(start.from_entry_id as string)) continue;
@@ -175,63 +211,46 @@ export async function planEntryChangedEmail(args: {
     chains.push({ start, end });
   }
 
-  // Everything else, deduplicated: one line per entry for its worst outcome, one per edited field.
-  const outcomes = new Map<string, 'withdrawn' | 'pulled' | 'removed'>();
-  const rank = { withdrawn: 3, pulled: 2, removed: 1 } as const;
-  const edits = new Map<string, RecordedEvent>();
+  // One line per entry for the last act that still stands; one per edited field of the entry
+  // it ended on, keeping the value before the FIRST edit.
+  const outcomes = new Map<string, OutcomeKind>();
+  const edits = new Map<string, { entryId: string; event: RecordedEvent }>();
   for (const event of events) {
+    if (event.kind === 'moved') continue;
+    if (event.kind === 'edited') {
+      if (!event.field) continue;
+      const entryId = finalEntryId(event.entry_id);
+      const key = `${entryId}:${event.field}`;
+      if (!edits.has(key)) edits.set(key, { entryId, event });
+      continue;
+    }
     const entry = entries.get(event.entry_id);
-    if (!entry || !isMine(entry)) continue;
-    if (event.kind === 'withdrawn' && WITHDRAWN_STATUSES.includes(clean(entry.entry_status))) {
-      outcomes.set(event.entry_id, 'withdrawn');
-    } else if (event.kind === 'pulled' && entry.check_in_status === 'pulled') {
-      if (rank.pulled > (rank[outcomes.get(event.entry_id) ?? 'removed'] ?? 0)) {
-        outcomes.set(event.entry_id, 'pulled');
-      }
-    } else if (event.kind === 'removed' && entry.deleted_at && !outcomes.has(event.entry_id)) {
-      outcomes.set(event.entry_id, 'removed');
-    } else if (event.kind === 'edited' && event.field) {
-      const key = `${event.entry_id}:${event.field}`;
-      if (!edits.has(key)) edits.set(key, event);
+    if (entry && isMine(entry) && outcomeStillStands(event.kind, entry)) {
+      outcomes.set(event.entry_id, event.kind);
     }
   }
 
   const classIds = new Set<string>();
-  const personIds = new Set<string>();
   for (const { start, end } of chains) {
     if (start.from_class_id) classIds.add(start.from_class_id);
     if (end.to_class_id) classIds.add(end.to_class_id);
   }
-  for (const id of outcomes.keys()) {
+  for (const id of [...outcomes.keys(), ...[...edits.values()].map(edit => edit.entryId)]) {
     const classId = entries.get(id)?.class_id;
     if (classId) classIds.add(classId);
-  }
-  for (const event of edits.values()) {
-    const entry = entries.get(event.entry_id);
-    if (entry?.class_id) classIds.add(entry.class_id);
-    if (event.field === 'handler') {
-      if (event.from) personIds.add(event.from);
-      if (entry?.handler_id) personIds.add(entry.handler_id);
-    }
   }
 
   const classes = new Map<string, ClassRow>();
   if (classIds.size > 0) {
     const classRead = (await supabase
       .from('classes')
-      .select('id, name, element, level, section, trials(name, date)')
+      .select('id, name, element, level, section, trials(name, date, show_id)')
       .in('id', [...classIds])) as QueryResult<ClassRow[]>;
     if (classRead.error) throw new Error('Failed to load classes');
-    for (const row of classRead.data ?? []) classes.set(row.id, row);
-  }
-  const people = new Map<string, PersonRow>();
-  if (personIds.size > 0) {
-    const peopleRead = (await supabase
-      .from('people')
-      .select('id, first_name, last_name')
-      .in('id', [...personIds])) as QueryResult<PersonRow[]>;
-    if (peopleRead.error) throw new Error('Failed to load people');
-    for (const row of peopleRead.data ?? []) people.set(row.id, row);
+    for (const row of classRead.data ?? []) {
+      // A class of another show is never named in this show's email.
+      if (first(row.trials)?.show_id === args.showId) classes.set(row.id, row);
+    }
   }
 
   const dogName = (entry: EntryRow | undefined) => {
@@ -246,8 +265,11 @@ export async function planEntryChangedEmail(args: {
     if (!start.from_class_id || !end.to_class_id || start.from_class_id === end.to_class_id) {
       continue;
     }
-    const from = classLabel(classes.get(start.from_class_id));
-    const to = classLabel(classes.get(end.to_class_id));
+    const fromClass = classes.get(start.from_class_id);
+    const toClass = classes.get(end.to_class_id);
+    if (!fromClass || !toClass) continue;
+    const from = classLabel(fromClass);
+    const to = classLabel(toClass);
     lines.push({
       kind: 'moved',
       dogName: dogName(entry),
@@ -259,26 +281,24 @@ export async function planEntryChangedEmail(args: {
   for (const [entryId, outcome] of outcomes) {
     const entry = entries.get(entryId);
     const label = classLabel(entry?.class_id ? classes.get(entry.class_id) : undefined);
-    const verb = { withdrawn: 'withdrawn from', pulled: 'pulled from', removed: 'removed from' }[
-      outcome
-    ];
     lines.push({
       kind: outcome,
       dogName: dogName(entry),
       classLabel: label,
-      text: `${verb} ${label}`,
+      text: OUTCOME_VERBS[outcome](label),
     });
   }
 
-  for (const event of edits.values()) {
-    const entry = entries.get(event.entry_id);
-    // A withdrawn, pulled or removed entry is told as that, not as an edit as well.
-    if (!entry || outcomes.has(event.entry_id)) continue;
+  for (const { entryId, event } of edits.values()) {
+    const entry = entries.get(entryId);
+    // An edit is told only on an entry still running; a withdrawn, pulled or removed entry
+    // is told as that, not as an edit as well.
+    if (!entry || !isMine(entry) || !isLive(entry) || outcomes.has(entryId)) continue;
     const label = classLabel(entry.class_id ? classes.get(entry.class_id) : undefined);
+    const was = clean(event.from);
     if (event.field === 'handler') {
-      const was = event.from ? personName(people.get(event.from)) : null;
-      const now = entry.handler_id ? personName(people.get(entry.handler_id)) : null;
-      if ((event.from ?? null) === (entry.handler_id ?? null)) continue;
+      const now = clean(entry.handler);
+      if (was === now) continue;
       const text = now
         ? was
           ? `handler changed from ${was} to ${now} in ${label}`
@@ -286,7 +306,6 @@ export async function planEntryChangedEmail(args: {
         : `handler removed in ${label}`;
       lines.push({ kind: 'edited', dogName: dogName(entry), classLabel: label, text });
     } else if (event.field === 'jump_height') {
-      const was = clean(event.from);
       const now = clean(entry.jump_height);
       if (was === now) continue;
       lines.push({

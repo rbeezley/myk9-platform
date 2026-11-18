@@ -25,10 +25,13 @@ const dog = { name: 'Vesper of Fairfield', call_name: 'Vesper', owner_id: 'perso
 function entry(overrides: Row = {}): Row {
   return {
     id: 'entry-1',
+    show_id: 'show-1',
     class_id: 'class-1',
     entry_status: 'confirmed',
+    withdrawal_reason_code: null,
     check_in_status: 'no-status',
     handler_id: null,
+    handler: null,
     jump_height: null,
     deleted_at: null,
     dogs: dog,
@@ -36,14 +39,14 @@ function entry(overrides: Row = {}): Row {
   };
 }
 
-function classRow(id: string, name: string): Row {
+function classRow(id: string, name: string, showId = 'show-1'): Row {
   return {
     id,
     name,
     element: null,
     level: null,
     section: null,
-    trials: { name: 'Saturday Trial', date: '2026-11-21' },
+    trials: { name: 'Saturday Trial', date: '2026-11-21', show_id: showId },
   };
 }
 
@@ -55,10 +58,6 @@ function tables(changes: unknown[], entries: Row[] = [entry()]): Record<string, 
     ],
     entries,
     classes: [classRow('class-1', 'Container Novice A'), classRow('class-2', 'Interior Novice A')],
-    people: [
-      { id: 'person-2', first_name: 'Hal', last_name: 'Handler' },
-      { id: 'person-3', first_name: 'Sue', last_name: 'Secretary' },
-    ],
   };
 }
 
@@ -106,7 +105,7 @@ describe('drainAutoEmailJobs for entry_changed', () => {
           { kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '12' },
           { kind: 'edited', entry_id: 'entry-1', field: 'handler', from: null },
         ],
-        [entry({ jump_height: '16', handler_id: 'person-2' })]
+        [entry({ jump_height: '16', handler: 'Hal Handler' })]
       )
     );
     const { fetch, promise } = drain(fixture);
@@ -122,10 +121,11 @@ describe('drainAutoEmailJobs for entry_changed', () => {
       tables(
         [
           { kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '12' },
-          { kind: 'withdrawn', entry_id: 'entry-1' },
+          { kind: 'pulled', entry_id: 'entry-1' },
           { ...move, to_class_id: 'class-1' },
         ],
-        [entry({ jump_height: '12' }), entry({ id: 'entry-2' })]
+        // A move carries the height along to the entry it makes.
+        [entry({ jump_height: '12' }), entry({ id: 'entry-2', jump_height: '12' })]
       )
     );
     const { fetch, promise } = drain(fixture);
@@ -133,33 +133,137 @@ describe('drainAutoEmailJobs for entry_changed', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('tells a withdrawal and a pull, and one line per entry for the worst outcome', async () => {
+  it('says each act in its own words: pull, withdrawal, removal, pull at the show', async () => {
     const fixture = makeAutoSendSupabase(
       tables(
         [
-          { kind: 'withdrawn', entry_id: 'entry-1' },
-          { kind: 'removed', entry_id: 'entry-1' },
-          { kind: 'pulled', entry_id: 'entry-2' },
+          { kind: 'pulled', entry_id: 'entry-1' },
+          { kind: 'withdrawn', entry_id: 'entry-2' },
+          { kind: 'removed', entry_id: 'entry-3' },
+          { kind: 'pulled_at_show', entry_id: 'entry-4' },
         ],
         [
-          entry({ entry_status: 'withdrawn', deleted_at: '2026-11-17T11:00:00Z' }),
-          entry({ id: 'entry-2', class_id: 'class-2', check_in_status: 'pulled' }),
+          entry({ entry_status: 'scratched', dogs: { ...dog, call_name: 'Ash' } }),
+          entry({
+            id: 'entry-2',
+            entry_status: 'withdrawn',
+            withdrawal_reason_code: 'in_season',
+            dogs: { ...dog, call_name: 'Bea' },
+          }),
+          entry({ id: 'entry-3', entry_status: 'withdrawn', dogs: { ...dog, call_name: 'Cal' } }),
+          entry({
+            id: 'entry-4',
+            class_id: 'class-2',
+            check_in_status: 'pulled',
+            dogs: { ...dog, call_name: 'Dot' },
+          }),
         ]
       )
     );
     const { fetch, promise } = drain(fixture);
     await promise;
     const { html } = sentBody(fetch);
-    expect(html).toContain('withdrawn from Container Novice A');
-    expect(html).toContain('pulled from Interior Novice A');
-    expect(html).not.toContain('removed from');
+    expect(html).toContain('Ash: pulled from Container Novice A');
+    expect(html).toContain('Bea: withdrawn from Container Novice A');
+    expect(html).toContain('Cal: removed from Container Novice A');
+    expect(html).toContain('Dot: pulled from Interior Novice A');
+    expect(html).toContain('at the show');
+    expect(html).not.toContain('Ash: withdrawn');
+  });
+
+  it('does not call a pull a withdrawal when the stored act no longer matches the event', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables([{ kind: 'withdrawn', entry_id: 'entry-1' }], [entry({ entry_status: 'scratched' })])
+    );
+    const { fetch, promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('tells an edit made before a move against the entry it ended on, with the latest value', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        [
+          { kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '8' },
+          move,
+          { kind: 'edited', entry_id: 'entry-2', field: 'jump_height', from: '12' },
+        ],
+        [
+          entry({ id: 'entry-1', entry_status: 'moved', jump_height: '12' }),
+          entry({ id: 'entry-2', class_id: 'class-2', jump_height: '16' }),
+        ]
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    const { html } = sentBody(fetch);
+    expect(html).toContain('jump height changed from 8 to 16 in Interior Novice A');
+    expect(html).not.toContain('in Container Novice A (');
+    expect(html).not.toContain('from 12');
+  });
+
+  it('drops an edit on an entry that has since been pulled', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        [{ kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '8' }],
+        [entry({ entry_status: 'scratched', jump_height: '12' })]
+      )
+    );
+    const { promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+  });
+
+  it('follows the handler name Edit Entry saves, not the identity link', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        [{ kind: 'edited', entry_id: 'entry-1', field: 'handler', from: 'Hal Handlr' }],
+        [entry({ handler: 'Hal Handler', handler_id: null })]
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    expect(sentBody(fetch).html).toContain(
+      'handler changed from Hal Handlr to Hal Handler in Container Novice A'
+    );
+  });
+
+  it('names no entry and no class of another show', async () => {
+    const data = tables(
+      [
+        { kind: 'pulled', entry_id: 'entry-9' },
+        { ...move, from_class_id: 'class-9' },
+      ],
+      [
+        entry({ id: 'entry-9', show_id: 'show-9', entry_status: 'scratched' }),
+        entry({ id: 'entry-1', entry_status: 'moved', class_id: 'class-9' }),
+        entry({ id: 'entry-2', class_id: 'class-2' }),
+      ]
+    );
+    data.classes.push(classRow('class-9', 'Other Show Class', 'show-9'));
+    const fixture = makeAutoSendSupabase(data);
+    const { fetch, promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('sends even when the step row was switched off: a change email has no switch', async () => {
+    const data = tables(
+      [{ kind: 'pulled', entry_id: 'entry-1' }],
+      [entry({ entry_status: 'scratched' })]
+    );
+    data.show_lifecycle_email_steps = [
+      { show_id: 'show-1', step_type: 'entry_changed', is_enabled: false },
+    ];
+    const fixture = makeAutoSendSupabase(data);
+    const { promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ sent: 1, skipped: 0 });
   });
 
   it('says nothing about an entry the recipient no longer owns or handles', async () => {
     const fixture = makeAutoSendSupabase(
       tables(
-        [{ kind: 'withdrawn', entry_id: 'entry-1' }],
-        [entry({ entry_status: 'withdrawn', dogs: { ...dog, owner_id: 'someone-else' } })]
+        [{ kind: 'pulled', entry_id: 'entry-1' }],
+        [entry({ entry_status: 'scratched', dogs: { ...dog, owner_id: 'someone-else' } })]
       )
     );
     const { promise } = drain(fixture);
@@ -168,8 +272,8 @@ describe('drainAutoEmailJobs for entry_changed', () => {
 
   it('skips when the show is no longer published and records nothing as sent', async () => {
     const data = tables(
-      [{ kind: 'withdrawn', entry_id: 'entry-1' }],
-      [entry({ entry_status: 'withdrawn' })]
+      [{ kind: 'pulled', entry_id: 'entry-1' }],
+      [entry({ entry_status: 'scratched' })]
     );
     data.shows = [{ ...publishedShow, status: 'draft' }];
     const fixture = makeAutoSendSupabase(data);

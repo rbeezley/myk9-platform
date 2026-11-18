@@ -14042,6 +14042,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      entry_change_actor: {
+        Args: {
+          p_dog_id: string
+          p_prior_handler_id: string
+          p_show_id: string
+        }
+        Returns: string
+      }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       entry_queue_places_for_classes: {
         Args: { p_class_ids: string[] }
@@ -15234,7 +15242,12 @@ export type Database = {
         Returns: Json
       }
       queue_entry_changed_email: {
-        Args: { p_entry_id: string; p_events: Json }
+        Args: {
+          p_entry_id: string
+          p_events: Json
+          p_only_people?: string[]
+          p_prior_handler_id: string
+        }
         Returns: undefined
       }
       queue_judge_changed_email_for_class: {

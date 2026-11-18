@@ -66,6 +66,10 @@ const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'entry_changed',
 ]);
 
+// Always sent (MYK9-2126): the secretary cannot hold an entry change email back, so its row
+// shows what went out and has no switch.
+const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>(['entry_changed']);
+
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
 
 export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmailsPanelProps) {
@@ -164,12 +168,14 @@ function ScheduledEmailStepRow({
           <p className="truncate text-sm font-medium">{STEP_LABELS[step.stepType]}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{countLabel}</p>
         </div>
-        <Switch
-          aria-label={`${STEP_LABELS[step.stepType]} enabled`}
-          checked={step.isEnabled}
-          disabled={disabled}
-          onCheckedChange={onToggle}
-        />
+        {ALWAYS_ON_STEP_TYPES.has(step.stepType) ? null : (
+          <Switch
+            aria-label={`${STEP_LABELS[step.stepType]} enabled`}
+            checked={step.isEnabled}
+            disabled={disabled}
+            onCheckedChange={onToggle}
+          />
+        )}
       </div>
       {hasReviewableJobs ? (
         <Button

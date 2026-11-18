@@ -208,7 +208,11 @@ async function processClaimedJob(args: {
   }
   row.recipient_email = currentEmail;
   // The secretary may switch the step off during the quiet minutes: honour it at send time.
-  if (!(await stepIsEnabled(supabase, job.show_id, job.step_type))) {
+  // An entry change has no switch (MYK9-2126): she cannot hold one back.
+  if (
+    job.step_type !== 'entry_changed' &&
+    !(await stepIsEnabled(supabase, job.show_id, job.step_type))
+  ) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
@@ -239,6 +243,7 @@ async function processClaimedJob(args: {
     const plan = await planEntryChangedEmail({
       supabase,
       jobId: job.job_id,
+      showId: job.show_id,
       personId: job.recipient_person_id,
     });
     if (plan.kind === 'skip') {

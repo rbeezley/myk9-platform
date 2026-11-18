@@ -302,6 +302,7 @@ describe('operator alert when Stripe turns payouts off', () => {
     expect(html).not.toContain('Deleted Trial');
     expect(html).toContain('href="https://myk9show.com/clubs/club-1?tab=payments"');
     expect(html).toContain('This alert does not confirm that the club was notified.');
+    expect(html).toMatch(/contact the club/);
     expect(html).not.toContain('were emailed');
     expect(html).not.toMatch(/\u2014/);
 
@@ -387,6 +388,7 @@ describe('operator alert when Stripe turns payouts off', () => {
     expect(alert).toHaveBeenCalledTimes(1);
     const html = alert.mock.calls[0][1];
     expect(html).toContain('This alert does not confirm that the club was notified.');
+    expect(html).toMatch(/contact the club/);
     expect(html).not.toContain('were emailed');
     expect(html).toContain('?tab=payments"');
     errorSpy.mockRestore();
@@ -412,6 +414,7 @@ describe('operator alert when Stripe turns payouts off', () => {
     expect(alert.mock.calls[0][0]).toBe('Stripe turned off payouts for Valley KC');
     const html = alert.mock.calls[0][1];
     expect(html).toContain('This alert does not confirm that the club was notified.');
+    expect(html).toMatch(/contact the club/);
     expect(html).not.toContain('were emailed');
   });
 
@@ -433,6 +436,7 @@ describe('operator alert when Stripe turns payouts off', () => {
     expect(alert.mock.calls[0][0]).toBe('Stripe turned off payouts for club club-1');
     const html = alert.mock.calls[0][1];
     expect(html).toContain('This alert does not confirm that the club was notified.');
+    expect(html).toMatch(/contact the club/);
     expect(html).not.toContain('were emailed');
   });
 

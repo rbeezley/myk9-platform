@@ -8,7 +8,8 @@
  * Note: these tables are added by migration 007 and are not yet in the
  * generated Supabase types, so we use `untypedSupabase` to bypass codegen.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
 import { markUnreachableIfTransportFailure } from '@/lib/serverReachability';
@@ -173,6 +174,26 @@ export function useShowSettings(showId: string | null) {
     retry: visibilityQueryRetry,
     ...cacheStrategies.moderate,
   });
+}
+
+/**
+ * Show ids (of those given) whose settings loaded and are not club-private. Same
+ * query key and fetch as useShowSettings, so a show the page already reads costs
+ * nothing extra. A show whose setting is unknown or failed is left out (MYK9-2174).
+ */
+export function useResultsPromptableShowIds(showIds: readonly string[]): ReadonlySet<string> {
+  const results = useQueries({
+    queries: showIds.map(showId => ({
+      queryKey: settingsQueryKeys.show(showId),
+      queryFn: () => fetchShowSettings(showId),
+      retry: visibilityQueryRetry,
+      ...cacheStrategies.moderate,
+    })),
+  });
+  const promptable = showIds.filter((_, i) => results[i]?.data?.resultsPrivate === false);
+  const key = promptable.join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- key is the set's content
+  return useMemo(() => new Set(promptable), [key]);
 }
 
 /** All trial overrides for a show (for the settings page list) */

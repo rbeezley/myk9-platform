@@ -52,7 +52,7 @@ function ConcernItem({ concern, showId }: { concern: CloseConcern; showId: strin
       {concern.text}{' '}
       <Link
         to={getCheckInDeskHref({ showId })}
-        className="font-medium text-foreground underline underline-offset-4"
+        className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4"
       >
         Open the Check-in desk
       </Link>
@@ -159,7 +159,7 @@ export function CloseOutShowAction({
               {isClosing ? 'Closing...' : 'Close the show'}
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-h-[90dvh] overflow-y-auto">
             <AlertDialogHeader>
               <AlertDialogTitle>Close the show?</AlertDialogTitle>
               <AlertDialogDescription>

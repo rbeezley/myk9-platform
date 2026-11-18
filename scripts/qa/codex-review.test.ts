@@ -424,6 +424,16 @@ describe('codex-review.sh', () => {
       expect(r.out).toContain('codex-review: 2 pre-existing defect(s)');
     });
 
+    it('counts location-first unlikely and earlier-round bullets without blocking', () => {
+      const r = run(
+        stubCodex(
+          'codex\nNo actionable defects found.\n\n- `src/a.ts:1` — [unlikely P3] rare.\n- - `src/b.ts:2` — **[earlier-round P2]** read.\n'
+        )
+      );
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('2 finding(s) not actionable this round');
+    });
+
     it('lists doubled unlikely and earlier-round P2/P3 bullets without blocking', () => {
       const r = run(
         stubCodex(

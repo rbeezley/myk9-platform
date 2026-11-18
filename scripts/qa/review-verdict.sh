@@ -36,7 +36,7 @@ REVIEW_FINDING_BULLET='^[[:space:]]*([-*][[:space:]]*)*- ((\*\*)?\[(P[0-9]|(unli
 # `[unlikely P3]` (the likelihood cap) or `[earlier-round P2|P3]` (code a
 # fix-range round already read). Never blocks; listed so the shipper can file
 # the ones worth fixing.
-REVIEW_NOT_THIS_ROUND_BULLET='^[[:space:]]*([-*][[:space:]]*)*- (\*\*)?\[(unlikely|earlier-round) P[23]\]'
+REVIEW_NOT_THIS_ROUND_BULLET='^[[:space:]]*([-*][[:space:]]*)*- ((\*\*)?\[(unlikely|earlier-round) P[23]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[(unlikely|earlier-round) P[23]\])'
 
 # Print the not-this-round bullets; silent when none.
 review_note_not_this_round() {  # LABEL TEXT

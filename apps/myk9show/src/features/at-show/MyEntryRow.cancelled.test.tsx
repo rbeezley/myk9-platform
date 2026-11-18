@@ -36,6 +36,7 @@ function renderRow(isCancelled: boolean) {
   render(
     <ul>
       <MyEntryRow
+        showId="show-1"
         detail={detail}
         place={undefined}
         placeUpdatedAt={null}

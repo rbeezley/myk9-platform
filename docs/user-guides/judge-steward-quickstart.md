@@ -15,7 +15,7 @@
 
 There are three ways in. Use whichever fits you.
 
-**If you signed in with a myK9Show account** (assigned judges, secretaries):
+**If you are signed in, and the show is on your account** (assigned judges, secretaries):
 
 1. Tap **Ringside** in the sidebar.
 2. If one show is running today, it opens. If there is more than one, pick the show.
@@ -37,7 +37,7 @@ There are three ways in. Use whichever fits you.
 
 ![Passcode entry screen — "Email or show passcode" field with Continue button (mobile)](../screenshots/J-01.png)
 
-![Two access paths into ringside: account holders tap Ringside in the sidebar; guests enter the passcode the secretary gave them](../diagrams/at-show-access-paths.svg)
+![Three ways into ringside. Signed in, and the show is on your account: tap Ringside in the sidebar. Signed in, with a passcode from the secretary: tap Join a show with a passcode on the sign-in page. Not signed in, with a passcode: type it and tap Continue.](../diagrams/at-show-access-paths.svg)
 
 **Don't have a passcode?** Ask the trial secretary before the show starts. Each judge has their own code, listed under their name in **Show Access Codes** on the show's **Overview** and printed on their Judge Supply Checklist. A judge's code opens only the classes assigned to that judge. If you try to score another judge's class, myK9Show tells you whose class it is.
 

@@ -1,8 +1,8 @@
-<svg viewBox="0 0 600 460" xmlns="http://www.w3.org/2000/svg"
+<svg viewBox="0 0 720 440" xmlns="http://www.w3.org/2000/svg"
      font-family="Helvetica,Arial,sans-serif" font-size="13"
      fill="#1a1a1a" role="img">
   <title>At-Show Access Paths</title>
-  <desc>Two paths into the at-show ringside view: account holders sign in and tap Ringside; guests enter the show passcode the secretary gave them. Both paths lead to the class list.</desc>
+  <desc>Three ways into the at-show ringside view. Signed in, and the show is on your account: tap Ringside in the sidebar. Signed in, with a passcode from the secretary: on the sign-in page tap Join a show with a passcode, type it, then tap Join show. Not signed in, with a passcode from the secretary: type it, add your name if you like, then tap Continue. All three lead to the class list.</desc>
 
   <defs>
     <marker id="arr" markerWidth="9" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -12,45 +12,58 @@
 
   <!-- Edges drawn first (behind nodes) -->
 
-  <!-- START → DECISION -->
-  <line x1="300" y1="69" x2="300" y2="96" stroke="#6b6560" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- START → the three headings -->
+  <polyline points="360,69 360,96 125,96 125,112" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <line x1="360" y1="69" x2="360" y2="112" stroke="#6b6560" stroke-width="1.5" marker-end="url(#arr)"/>
+  <polyline points="360,69 360,96 595,96 595,112" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
 
-  <!-- DECISION YES (left 175,145) → left step top -->
-  <polyline points="175,145 145,145 145,247" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <!-- Each heading → its step -->
+  <line x1="125" y1="172" x2="125" y2="207" stroke="#6b6560" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="360" y1="172" x2="360" y2="207" stroke="#6b6560" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="595" y1="172" x2="595" y2="207" stroke="#6b6560" stroke-width="1.5" marker-end="url(#arr)"/>
 
-  <!-- DECISION NO (right 425,145) → right step top -->
-  <polyline points="425,145 455,145 455,247" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
-
-  <!-- Left step bottom → END oval left edge -->
-  <polyline points="145,303 145,400 230,400" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
-
-  <!-- Right step bottom → END oval right edge -->
-  <polyline points="455,303 455,400 370,400" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <!-- Each step → END oval -->
+  <polyline points="125,288 125,390 285,390" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <line x1="360" y1="288" x2="360" y2="364" stroke="#6b6560" stroke-width="1.5" marker-end="url(#arr)"/>
+  <polyline points="595,288 595,390 435,390" stroke="#6b6560" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
 
   <!-- START oval -->
-  <ellipse cx="300" cy="45" rx="95" ry="24" fill="#eaf3ec" stroke="#2e7d5a" stroke-width="1.5"/>
-  <text x="300" y="50" text-anchor="middle" font-weight="bold" fill="#1a1a1a">Open myK9Show</text>
+  <ellipse cx="360" cy="45" rx="95" ry="24" fill="#eaf3ec" stroke="#2e7d5a" stroke-width="1.5"/>
+  <text x="360" y="50" text-anchor="middle" font-weight="bold" fill="#1a1a1a">Open myK9Show</text>
 
-  <!-- DECISION diamond -->
-  <polygon points="300,97 425,145 300,193 175,145" fill="#fdf3da" stroke="#b7791f" stroke-width="1.5"/>
-  <text x="300" y="138" text-anchor="middle" fill="#1a1a1a">Have a myK9Show</text>
-  <text x="300" y="156" text-anchor="middle" fill="#1a1a1a">account?</text>
+  <!-- LEFT heading: signed in, show on your account -->
+  <rect x="20" y="114" width="210" height="58" rx="8" fill="#fdf3da" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="125" y="138" text-anchor="middle" fill="#1a1a1a">Signed in, and the show</text>
+  <text x="125" y="156" text-anchor="middle" fill="#1a1a1a">is on your account</text>
 
-  <!-- Branch labels -->
-  <text x="170" y="137" text-anchor="end" font-size="11" fill="#6b6560">Yes</text>
-  <text x="430" y="137" text-anchor="start" font-size="11" fill="#6b6560">No</text>
+  <!-- MIDDLE heading: signed in, with a passcode -->
+  <rect x="255" y="114" width="210" height="58" rx="8" fill="#fdf3da" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="360" y="138" text-anchor="middle" fill="#1a1a1a">Signed in, with a passcode</text>
+  <text x="360" y="156" text-anchor="middle" fill="#1a1a1a">from the secretary</text>
 
-  <!-- LEFT step: signed-in path -->
-  <rect x="50" y="247" width="190" height="56" rx="8" fill="#fdf5ef" stroke="#a8472d" stroke-width="1.5"/>
-  <text x="145" y="269" text-anchor="middle" fill="#1a1a1a">Sign in and tap</text>
-  <text x="145" y="288" text-anchor="middle" fill="#1a1a1a">Ringside in the sidebar</text>
+  <!-- RIGHT heading: not signed in, with a passcode -->
+  <rect x="490" y="114" width="210" height="58" rx="8" fill="#fdf3da" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="595" y="138" text-anchor="middle" fill="#1a1a1a">Not signed in, with a passcode</text>
+  <text x="595" y="156" text-anchor="middle" fill="#1a1a1a">from the secretary</text>
 
-  <!-- RIGHT step: passcode path -->
-  <rect x="360" y="247" width="190" height="56" rx="8" fill="#fdf5ef" stroke="#a8472d" stroke-width="1.5"/>
-  <text x="455" y="269" text-anchor="middle" fill="#1a1a1a">Enter show passcode</text>
-  <text x="455" y="288" text-anchor="middle" fill="#1a1a1a">from the secretary</text>
+  <!-- LEFT step -->
+  <rect x="20" y="209" width="210" height="79" rx="8" fill="#fdf5ef" stroke="#a8472d" stroke-width="1.5"/>
+  <text x="125" y="244" text-anchor="middle" fill="#1a1a1a">Tap Ringside</text>
+  <text x="125" y="262" text-anchor="middle" fill="#1a1a1a">in the sidebar</text>
+
+  <!-- MIDDLE step -->
+  <rect x="255" y="209" width="210" height="79" rx="8" fill="#fdf5ef" stroke="#a8472d" stroke-width="1.5"/>
+  <text x="360" y="235" text-anchor="middle" fill="#1a1a1a">On the sign-in page, tap Join</text>
+  <text x="360" y="253" text-anchor="middle" fill="#1a1a1a">a show with a passcode. Type it,</text>
+  <text x="360" y="271" text-anchor="middle" fill="#1a1a1a">then tap Join show</text>
+
+  <!-- RIGHT step -->
+  <rect x="490" y="209" width="210" height="79" rx="8" fill="#fdf5ef" stroke="#a8472d" stroke-width="1.5"/>
+  <text x="595" y="235" text-anchor="middle" fill="#1a1a1a">Type the passcode. Add your</text>
+  <text x="595" y="253" text-anchor="middle" fill="#1a1a1a">name if you like,</text>
+  <text x="595" y="271" text-anchor="middle" fill="#1a1a1a">then tap Continue</text>
 
   <!-- END oval -->
-  <ellipse cx="300" cy="400" rx="70" ry="24" fill="#eaf3ec" stroke="#2e7d5a" stroke-width="1.5"/>
-  <text x="300" y="405" text-anchor="middle" font-weight="bold" fill="#1a1a1a">You're in</text>
+  <ellipse cx="360" cy="390" rx="74" ry="24" fill="#eaf3ec" stroke="#2e7d5a" stroke-width="1.5"/>
+  <text x="360" y="395" text-anchor="middle" font-weight="bold" fill="#1a1a1a">You're in</text>
 </svg>

@@ -151,7 +151,11 @@ function ScheduledEmailStepRow({
   onToggle: (isEnabled: boolean) => void;
   onReview: () => void;
 }) {
-  const readyLabel = step.readyCount > 0 ? `${step.readyCount} ready` : 'None ready';
+  // An entry-change email waits out a quiet window before it can send, so its count is
+  // "waiting", not "ready" (MYK9-2126).
+  const pendingWord = step.stepType === 'entry_changed' ? 'waiting' : 'ready';
+  const readyLabel =
+    step.readyCount > 0 ? `${step.readyCount} ${pendingWord}` : `None ${pendingWord}`;
   const sentLabel = step.sentCount > 0 ? `${step.sentCount} sent` : null;
   const failedLabel = step.failedCount > 0 ? `${step.failedCount} failed` : null;
   const warningLabel = step.warningCount > 0 ? `${step.warningCount} warning` : null;

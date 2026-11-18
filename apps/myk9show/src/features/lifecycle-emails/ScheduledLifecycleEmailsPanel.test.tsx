@@ -230,7 +230,8 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     expect(
       screen.queryByRole('switch', { name: /entry changed enabled/i })
     ).not.toBeInTheDocument();
-    expect(screen.getAllByText('1 ready · 2 sent')).toHaveLength(2);
+    expect(screen.getByText('1 ready · 2 sent')).toBeInTheDocument();
+    expect(screen.getByText('1 waiting · 2 sent')).toBeInTheDocument();
   });
 
   it('keeps producer-backed review available for accepted entries', async () => {

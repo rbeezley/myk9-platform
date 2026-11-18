@@ -68,20 +68,6 @@ function nameOf(payerId: string | null, entries: readonly EntryManagementEntry[]
 }
 
 /**
- * The name of whose money an entry form is, by this file's payer rule, from the entries loaded;
- * null when no entry names them. Refund all's result lines name a form by it (MYK9-1862).
- */
-export function formPayerName(
-  formEntries: readonly EntryManagementEntry[],
-  loadedEntries: readonly EntryManagementEntry[]
-): string | null {
-  const enrollmentMissing =
-    formEntries.some(entry => entry.registrationId) &&
-    formEntries.every(entry => entry.enrollmentTotalAmount == null);
-  return nameOf(payerOf(formEntries, enrollmentMissing), [...formEntries, ...loadedEntries]);
-}
-
-/**
  * Every entry form on the desk that still owes, or whose money cannot be traced (MYK9-1937).
  * Each form is counted once, at exactly what the entry form's footer shows as due
  * (`paidInFullDollars`, MYK9-1961's rule: its total less everything received, with refunded

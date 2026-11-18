@@ -1,12 +1,8 @@
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { RefundEntryFormRow } from '@/services/database/entries/refundEntryForms';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { mapSecretaryEntryToEntryManagementEntry } from '@/hooks/useEntryManagementData';
 import { personName } from '@/hooks/entryDisplayNames';
-import {
-  formKeyOf,
-  formPayerName,
-} from '@/components/entries/management/checkInDesk/deskAmountOwed';
+import { formKeyOf } from '@/components/entries/management/checkInDesk/deskAmountOwed';
 
 export const NAMES_LOADING = 'Looking up…';
 export const NAMES_OFFLINE = 'Names need a connection.';
@@ -16,7 +12,7 @@ export const NAMES_LOOKUP_FAILED = 'Could not look up names.';
 export interface RefundEntryForm {
   /** Entry Management's form key (`registrationId | pi:<intent> | entry:<id>`). */
   formKey: string;
-  /** "Form MK9-000123 · Pat Lee": the confirmation number and whose form it is. */
+  /** "Form MK9-000123 · Pat Lee": the confirmation number, and the form's own payer when read. */
   label: string;
   /** The dog's call name, only when the entry was already loaded on this device. */
   dogName: string | null;
@@ -29,74 +25,92 @@ export interface RefundFormLine {
   dogs: string | null;
 }
 
-/** "Form <confirmation> · <name>", as Entry Management's form card names the same form. */
-export function refundFormLabel(confirmationNumber: string | null, name: string | null): string {
+/**
+ * "Form <confirmation> · <payer>". A person is named only from the form record's own payer
+ * (`enrollments.handler_id`), never inferred from the dogs' owners or handlers; an online order
+ * has no form record, so it reads "Entry form".
+ */
+export function refundFormLabel(confirmationNumber: string | null, payer: string | null): string {
   const form = confirmationNumber ? `Form ${confirmationNumber}` : 'Entry form';
-  return name ? `${form} · ${name}` : form;
+  return payer ? `${form} · ${payer}` : form;
 }
 
 const trimmed = (value: string | null | undefined) => value?.trim() || null;
 
-/**
- * Forms for the roster's entries, by Entry Management's own rules: the form key, the
- * confirmation number, and the payer's name (the Check-in desk's rule), else the form holder's.
- */
+/** What a source says about one entry's form; the label is resolved per form in `mergeRefundForms`. */
+export interface RefundFormFact {
+  formKey: string;
+  confirmation: string | null;
+  payer: string | null;
+  dogName: string | null;
+}
+
+/** The roster's entries: their form key and confirmation at once, by Entry Management's mapping. */
 export function formsFromRoster(
   roster: readonly SecretaryEntry[] | undefined
-): Map<string, RefundEntryForm> {
-  const entries = (roster ?? []).map(entry => mapSecretaryEntryToEntryManagementEntry(entry));
-  const byForm = new Map<string, EntryManagementEntry[]>();
-  for (const entry of entries) {
-    const key = formKeyOf(entry);
-    byForm.set(key, [...(byForm.get(key) ?? []), entry]);
+): Map<string, RefundFormFact> {
+  const facts = new Map<string, RefundFormFact>();
+  for (const row of roster ?? []) {
+    const entry = mapSecretaryEntryToEntryManagementEntry(row);
+    facts.set(entry.id, {
+      formKey: formKeyOf(entry),
+      confirmation: trimmed(entry.confirmationNumber),
+      payer: null,
+      dogName: trimmed(entry.dogName),
+    });
   }
-  const forms = new Map<string, RefundEntryForm>();
-  for (const [formKey, formEntries] of byForm) {
-    const confirmation =
-      formEntries.find(entry => entry.confirmationNumber)?.confirmationNumber ?? null;
-    const holder = formEntries.map(entry => trimmed(entry.ownerName)).find(Boolean) ?? null;
-    const label = refundFormLabel(confirmation, formPayerName(formEntries, entries) ?? holder);
-    for (const entry of formEntries) {
-      forms.set(entry.id, { formKey, label, dogName: trimmed(entry.dogName) });
-    }
-  }
-  return forms;
+  return facts;
 }
 
-/** Forms for the entries read online by id (soft-deleted, or missing from the replica). */
-export function formsFromRead(rows: readonly RefundEntryFormRow[] | undefined) {
-  const forms = new Map<string, RefundEntryForm>();
+/** The form read: every result entry's form, confirmation and the form's own payer. */
+export function formsFromRead(
+  rows: readonly RefundEntryFormRow[] | undefined
+): Map<string, RefundFormFact> {
+  const facts = new Map<string, RefundFormFact>();
   for (const row of rows ?? []) {
-    const formKey = formKeyOf({
-      id: row.id,
-      registrationId: row.registration_id ?? '',
-      stripePaymentIntentId: row.stripe_payment_intent_id,
+    facts.set(row.id, {
+      formKey: formKeyOf({
+        id: row.id,
+        registrationId: row.registration_id ?? '',
+        stripePaymentIntentId: row.stripe_payment_intent_id,
+      }),
+      confirmation: trimmed(row.registration?.confirmation_number),
+      payer: personName(row.registration?.payer),
+      dogName: null,
     });
-    // The payer is the enrollment's; an online order (no enrollment) is the dog owner's.
-    const name =
-      personName(row.registration?.payer) ??
-      personName(row.dog?.owner) ??
-      trimmed(row.handler) ??
-      null;
-    const label = refundFormLabel(trimmed(row.registration?.confirmation_number), name);
-    forms.set(row.id, { formKey, label, dogName: null });
   }
-  return forms;
+  return facts;
 }
 
 /**
- * The roster's forms and the read's together. An entry read online whose form the roster
- * already names takes the roster's label, so one form never reads two ways.
+ * Both sources together. The form read places an entry when it has it (the form record wins
+ * over a roster row with incomplete enrollment data); the roster places the rest at once and
+ * gives the dog names. Confirmation and payer resolve per form, so one form never reads two ways.
  */
 export function mergeRefundForms(
-  rosterForms: ReadonlyMap<string, RefundEntryForm>,
-  readForms: ReadonlyMap<string, RefundEntryForm>
+  rosterFacts: ReadonlyMap<string, RefundFormFact>,
+  readFacts: ReadonlyMap<string, RefundFormFact>
 ): Map<string, RefundEntryForm> {
-  const labels = new Map([...rosterForms.values()].map(form => [form.formKey, form.label]));
-  const forms = new Map(rosterForms);
-  for (const [entryId, form] of readForms) {
-    if (forms.has(entryId)) continue;
-    forms.set(entryId, { ...form, label: labels.get(form.formKey) ?? form.label });
+  const placed = new Map<string, RefundFormFact>(rosterFacts);
+  for (const [entryId, fact] of readFacts) placed.set(entryId, fact);
+
+  const byForm = new Map<string, { confirmation: string | null; payer: string | null }>();
+  for (const fact of [...readFacts.values(), ...rosterFacts.values()]) {
+    const known = byForm.get(fact.formKey) ?? { confirmation: null, payer: null };
+    byForm.set(fact.formKey, {
+      confirmation: known.confirmation ?? fact.confirmation,
+      payer: known.payer ?? fact.payer,
+    });
+  }
+
+  const forms = new Map<string, RefundEntryForm>();
+  for (const [entryId, fact] of placed) {
+    const form = byForm.get(fact.formKey);
+    forms.set(entryId, {
+      formKey: fact.formKey,
+      label: refundFormLabel(form?.confirmation ?? null, form?.payer ?? null),
+      dogName: rosterFacts.get(entryId)?.dogName ?? null,
+    });
   }
   return forms;
 }

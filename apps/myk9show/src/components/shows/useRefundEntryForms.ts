@@ -9,20 +9,21 @@ import {
   type RefundEntryForm,
 } from './refundResultForms';
 
-/** Where the ids no form is known for stand: being read, waiting for a connection, failed, or done. */
+/** Where the form read stands: running, waiting for a connection, failed, or done. */
 export type RefundFormLookup = 'loading' | 'offline' | 'failed' | 'ready';
 
 export interface RefundEntryForms {
   forms: ReadonlyMap<string, RefundEntryForm>;
   lookup: RefundFormLookup;
-  /** Re-reads only the ids the roster lacks; never re-runs a refund. */
+  /** Re-runs only the form read; never re-runs a refund. */
   retry: () => void;
 }
 
 /**
  * The entry form of every entry id on a Refund all result (MYK9-1862). The show's staff roster
- * (replica first) places most of them at once; the ids it lacks are read online by id, once,
- * under the show's entries key so every show-entries refresh covers it too.
+ * (replica first) places the entries it has at once, by form and confirmation number. One online
+ * read of every result id, under the show's entries key, gives each entry's form record and that
+ * form's own payer, and places the entries the roster lacks (soft-deleted) or holds incompletely.
  */
 export function useRefundEntryForms(
   showId: string,
@@ -30,26 +31,27 @@ export function useRefundEntryForms(
   enabled: boolean
 ): RefundEntryForms {
   const roster = useSecretaryShowEntriesQuery(showId, enabled);
-  const rosterSettled = roster.data !== undefined || roster.isError;
-  const rosterForms = formsFromRoster(roster.data);
-  const unmatched = [...new Set(entryIds)].filter(id => !rosterForms.has(id)).sort();
+  const ids = [...new Set(entryIds)].sort();
 
-  const readEnabled = enabled && rosterSettled && unmatched.length > 0;
   const read = useQuery({
-    queryKey: [...queryKeys.showEntries(showId), 'refund-forms', unmatched],
-    queryFn: () => getRefundEntryForms(unmatched),
-    enabled: readEnabled,
+    queryKey: [...queryKeys.showEntries(showId), 'refund-forms', ids],
+    queryFn: () => getRefundEntryForms(ids),
+    enabled: enabled && ids.length > 0,
     retry: false,
   });
 
-  const forms = mergeRefundForms(rosterForms, formsFromRead(read.data));
-  let lookup: RefundFormLookup = 'ready';
-  if (!rosterSettled) lookup = 'loading';
-  else if (readEnabled && read.data === undefined) {
-    if (read.isError) lookup = 'failed';
-    else if (read.fetchStatus === 'paused') lookup = 'offline';
-    else lookup = 'loading';
-  } else if (readEnabled && read.isError) lookup = 'failed';
+  const forms = mergeRefundForms(formsFromRoster(roster.data), formsFromRead(read.data));
+  // The roster can still place an id the read did not return, so "ready" waits for it too.
+  const rosterSettled = roster.data !== undefined || roster.isError;
+  const lookup: RefundFormLookup = read.isError
+    ? 'failed'
+    : read.data !== undefined
+      ? rosterSettled
+        ? 'ready'
+        : 'loading'
+      : read.fetchStatus === 'paused'
+        ? 'offline'
+        : 'loading';
 
   return {
     forms,

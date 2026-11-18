@@ -1,4 +1,5 @@
 import type { RefundNameRow } from '@/services/database/entries/refundEntryNames';
+import { entryDogName, entryDogRegisteredName, entryOwnerName } from '@/hooks/entryDisplayNames';
 
 export const ENTRY_NOT_ON_DEVICE = 'An entry not on this device';
 export const NAMES_LOADING = 'Looking up names…';
@@ -16,23 +17,12 @@ export interface RefundGroupLabel {
   label: string;
 }
 
-function personName(person: { first_name: string | null; last_name: string | null } | null) {
-  if (!person) return null;
-  const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
-  return name || null;
-}
-
-/**
- * "Exhibitor · Dog" by Entry Management's rule (`mapSecretaryEntryToEntryManagementEntry`'s
- * `ownerName` and `dogName`), so a line here names an entry the way that page does.
- */
+/** "Exhibitor · Dog" by Entry Management's own rule, so a line here names an entry as that page does. */
 export function refundEntryIdentity(row: RefundNameRow): RefundEntryIdentity {
-  const ownerName = personName(row.dog?.owner ?? null) || row.handler || 'Unknown';
-  const dogName = row.dog?.call_name || row.dog?.name || 'Unknown Dog';
   return {
     key: row.dog?.id ? `dog:${row.dog.id}` : `entry:${row.id}`,
-    label: `${ownerName} · ${dogName}`,
-    registeredName: row.dog?.call_name && row.dog.name ? row.dog.name : null,
+    label: `${entryOwnerName(row)} · ${entryDogName(row)}`,
+    registeredName: entryDogRegisteredName(row),
   };
 }
 

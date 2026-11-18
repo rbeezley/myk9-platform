@@ -66,10 +66,10 @@ The wizard creates all three in one pass. **Actions → Add Show** (the Actions 
 
 ![Add Show wizard on Step 1, showing the four steps and the starred required fields](../screenshots/S-02.png)
 
-1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), dates, location, host club, entry fee, and the entry open/close dates. Add your **chairman** and **secretary**.
+1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), host club, time zone, location, dates, entry fee, and the entry open/close dates. The host club and time zone are filled in for you. Change them if they are wrong: the time zone decides when entries close. After you type the location, **Locate address** places the pin on the map. Add your **Chair**. The **Secretary** is filled in as you. Change it if someone else is the secretary.
 2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
 3. **Step 2 — Trials.** One row per trial: date, time, and (for AKC) the event number.
-4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class.
+4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class. If you added only one judge, each class you tick is given to that judge for you.
 5. **Step 4 — Review.** Check the summary, then **Add Show**. The show stays private until you publish it (card 2).
 
 > **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.

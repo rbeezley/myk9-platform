@@ -1,8 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { describeEntryRun, type DogBulkEligibility } from './dogBulkStatusEligibility';
 import type { WithdrawRefundOutcome } from './withdrawRefundOutcome';
+import { formatCents } from '@/lib/format/cents';
 
-const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const dollars = formatCents;
 
 /** One entry's SUGGESTED refund, read-only. Nothing here issues, records or queues a refund. */
 function SuggestedRefund({ outcome }: { outcome: WithdrawRefundOutcome }) {

@@ -5,6 +5,7 @@
  */
 
 import type { CartItemWithDetails } from './cartStore.types';
+import { formatCents } from '@/lib/format/cents';
 
 // ── PLATFORM FEE: THE CLIENT HALF OF A DUPLICATED EXPRESSION ──────────────
 // This is the SECOND implementation of the fee math. The authoritative one is
@@ -98,7 +99,7 @@ export function calculatePlatformFeeCents(subtotalCents: number, rates: Platform
 
 /** `$1.00`-style label for a cent amount used inside fee copy. */
 function formatFeeCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return formatCents(cents);
 }
 
 /**
@@ -154,5 +155,5 @@ export function calculateCartTotals(items: CartItemWithDetails[]): {
  * home, next to the fee math it has to agree with.
  */
 export function formatCartCurrency(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return formatCents(cents);
 }

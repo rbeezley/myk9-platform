@@ -38,6 +38,8 @@ import {
   type OverviewChargeActivity,
 } from './payoutLedgerEmptyState';
 import { getPayoutStatusPresentation } from './adminStatusPresentation';
+import { formatCents, formatDeductionCents } from '@/lib/format/cents';
+import { PayoutApprovalSection } from './PayoutApprovalSection';
 
 /* Warning tone for a payout past its settle date. Uses the shared admin status
    classes rather than a one-off so it stays consistent with the other badges,
@@ -72,15 +74,6 @@ const MAX_PLATFORM_FEE_MIN_CENTS = 2000;
 const PLATFORM_FEE_PERCENT_STEP = 0.5;
 function isPercentOnStep(percent: number): boolean {
   return Number.isInteger(percent / PLATFORM_FEE_PERCENT_STEP);
-}
-
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-/** A refund reduces what the club is owed, so show it as a signed deduction. */
-function formatRefundCents(cents: number): string {
-  return cents > 0 ? `-${formatCents(cents)}` : formatCents(0);
 }
 
 /**
@@ -582,7 +575,7 @@ function PayoutLedgerRow({ row, today }: { row: LedgerRow; today: string }) {
         column="refunds"
         className="tabular-nums text-muted-foreground md:text-right"
       >
-        {formatRefundCents(row.refundedCents)}
+        {formatDeductionCents(row.refundedCents)}
       </LedgerCell>
       <LedgerCell
         showId={row.showId}
@@ -800,6 +793,7 @@ export default function PayoutLedgerPage() {
         ) : (
           <>
             <LedgerSummary rows={rows} />
+            <PayoutApprovalSection rows={rows} />
             <RefundDecisionAdvisory rows={rows} />
             <LedgerTable rows={rows} today={todayIso()} overviewCharges={overviewCharges} />
           </>

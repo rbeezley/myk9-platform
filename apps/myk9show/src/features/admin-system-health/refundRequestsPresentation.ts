@@ -1,6 +1,7 @@
 /** Pure shapes and copy for the refunds-awaiting-approval queue (MYK9-876). */
 
 import { STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
+import { formatCents } from '@/lib/format/cents';
 
 // Cart overflow is queued with its cart latch since MYK9-964; a paid checkout
 // that created nothing, for its full charge, since MYK9-963.
@@ -65,7 +66,7 @@ export function refundKindLabel(kind: string): string {
 }
 
 export function formatRefundAmount(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return formatCents(cents);
 }
 
 /**

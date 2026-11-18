@@ -84,7 +84,7 @@ export async function loadShowsByIds(showIds: string[]): Promise<ShowRow[]> {
   return rows;
 }
 
-type PayoutRow = {
+export type PayoutRow = {
   id: string;
   show_id: string;
   amount_cents: number;
@@ -92,7 +92,49 @@ type PayoutRow = {
   stripe_transfer_id: string | null;
   completed_at: string | null;
   created_at: string | null;
+  approved_at?: string | null;
+  approved_amount_cents?: number | null;
+  approved_stripe_account_id?: string | null;
+  hold_reason?: string | null;
+  approval_reset_reason?: string | null;
+  destination?: { stripe_account_id: string; payouts_enabled: boolean } | null;
 };
+
+/**
+ * MYK9-2171: the approval columns and the club's Stripe account the row points
+ * at, embedded so the destination the operator approves is the one read with
+ * the amount (approve_show_payout refuses if it changed since). Site admins
+ * read club_stripe_accounts under club_stripe_accounts_select.
+ */
+const PAYOUT_SELECT =
+  'id, show_id, amount_cents, status, stripe_transfer_id, completed_at, created_at, ' +
+  'approved_at, approved_amount_cents, approved_stripe_account_id, hold_reason, approval_reset_reason, ' +
+  'destination:club_stripe_accounts!show_payouts_club_stripe_account_id_fkey(stripe_account_id, payouts_enabled)';
+
+export function toLedgerPayout(p: PayoutRow): LedgerPayout {
+  return {
+    id: p.id,
+    show_id: p.show_id,
+    amount_cents: p.amount_cents,
+    status: p.status as PayoutStatus,
+    stripe_transfer_id: p.stripe_transfer_id,
+    completed_at: p.completed_at,
+    created_at: p.created_at,
+    approval: {
+      approvedAt: p.approved_at ?? null,
+      approvedAmountCents: p.approved_amount_cents ?? null,
+      approvedStripeAccountId: p.approved_stripe_account_id ?? null,
+      holdReason: p.hold_reason ?? null,
+      approvalResetReason: p.approval_reset_reason ?? null,
+      destination: p.destination
+        ? {
+            stripeAccountId: p.destination.stripe_account_id,
+            payoutsEnabled: p.destination.payouts_enabled === true,
+          }
+        : null,
+    },
+  };
+}
 
 export async function loadPayoutsByShowIds(showIds: string[]): Promise<PayoutRow[]> {
   const rows: PayoutRow[] = [];
@@ -109,7 +151,7 @@ export async function loadPayoutsByShowIds(showIds: string[]): Promise<PayoutRow
       const from = pageIndex * PAGE;
       const { data, error } = await supabase
         .from('show_payouts')
-        .select('id, show_id, amount_cents, status, stripe_transfer_id, completed_at, created_at')
+        .select(PAYOUT_SELECT)
         .in('show_id', ids)
         // Append-STABLE ordering. `id` alone is a random UUID, so a row the
         // payout cron inserts between two range requests can sort BEFORE the
@@ -144,13 +186,15 @@ export async function loadPayoutsByShowIds(showIds: string[]): Promise<PayoutRow
  * Three reads: online entries (grouped by show) → the shows + their clubs → any
  * existing payout rows, joined by buildLedgerRows.
  */
+export const PAYOUT_LEDGER_QUERY_KEY = ['admin', 'payout-ledger'] as const;
+
 export interface PayoutLedgerResult {
   rows: LedgerRow[];
 }
 
 export function usePlatformPayoutLedger() {
   return useQuery({
-    queryKey: ['admin', 'payout-ledger'],
+    queryKey: PAYOUT_LEDGER_QUERY_KEY,
     queryFn: async (): Promise<PayoutLedgerResult> => {
       // Paginate: PostgREST caps a single response at 1000 rows. An unpaginated
       // read would silently understate collected/refunded/net once online
@@ -217,14 +261,7 @@ export function usePlatformPayoutLedger() {
       const payoutsByShow = new Map<string, LedgerPayout[]>();
       for (const p of payoutRows) {
         const list = payoutsByShow.get(p.show_id) ?? [];
-        list.push({
-          show_id: p.show_id,
-          amount_cents: p.amount_cents,
-          status: p.status as PayoutStatus,
-          stripe_transfer_id: p.stripe_transfer_id,
-          completed_at: p.completed_at,
-          created_at: p.created_at,
-        });
+        list.push(toLedgerPayout(p));
         payoutsByShow.set(p.show_id, list);
       }
 

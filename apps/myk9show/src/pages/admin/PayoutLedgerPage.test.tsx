@@ -89,6 +89,11 @@ vi.mock('@/features/financial/components/PlatformIncomeCard', () => ({
   PlatformIncomeCard: () => <div data-testid="platform-income-card-stub" />,
 }));
 
+// MYK9-2171: the approval section has its own colocated tests.
+vi.mock('./PayoutApprovalSection', () => ({
+  PayoutApprovalSection: () => <div data-testid="payout-approval-section-stub" />,
+}));
+
 import PayoutLedgerPage from './PayoutLedgerPage';
 
 const row: LedgerRow = {
@@ -104,9 +109,11 @@ const row: LedgerRow = {
   unresolvedRefundDecisionCount: 0,
   netOwedCents: 5000,
   netOwedSource: 'transfer',
+  computedNetCents: 5000,
   settleDate: '2026-06-13',
   payoutStatus: 'completed',
   stripeTransferId: 'tr_1',
+  payout: null,
 };
 
 describe('PayoutLedgerPage', () => {

@@ -10,6 +10,7 @@ import {
   registerMountedShow,
   resetMountedShows,
   targetsForTables,
+  targetsForUploadedEntryInserts,
   unregisterMountedShow,
 } from '../showScopeTargets';
 import { useSyncPassScheduler } from '../useSyncPassScheduler';
@@ -134,5 +135,61 @@ describe('targetsForTables (broadcast contract)', () => {
       ],
       fullPass: false,
     });
+  });
+});
+
+// MYK9-1930: an uploaded desk entry pulls its show's entries back (the server attached its form).
+describe('targetsForUploadedEntryInserts', () => {
+  const localRows: Record<string, { showId?: string } | null> = {
+    'late-1': { showId: 'show-1' },
+    'late-2': { showId: 'show-1' },
+    'late-3': { showId: 'show-2' },
+    gone: null,
+  };
+  const getEntry = vi.fn(async (id: string) => localRows[id] ?? null);
+
+  it('names each show of a plain entries INSERT once, entries only', async () => {
+    const targets = await targetsForUploadedEntryInserts(
+      {
+        tables: ['entries', 'dogs'],
+        count: 6,
+        mutations: [
+          { tableName: 'entries', rowId: 'late-1', operation: 'INSERT' },
+          { tableName: 'entries', rowId: 'late-2', operation: 'INSERT' },
+          { tableName: 'entries', rowId: 'late-3', operation: 'INSERT' },
+          { tableName: 'entries', rowId: 'gone', operation: 'INSERT' },
+          { tableName: 'entries', rowId: 'late-1', operation: 'UPDATE' },
+          { tableName: 'dogs', rowId: 'dog-1', operation: 'INSERT' },
+        ],
+      },
+      getEntry
+    );
+
+    expect(targets).toEqual([
+      { name: 'entries', scopeId: 'show-1' },
+      { name: 'entries', scopeId: 'show-2' },
+    ]);
+    expect(replicatedTrialsTable.getTrialsByShow).not.toHaveBeenCalled();
+  });
+
+  it('asks for nothing after an upload with no plain entries INSERT', async () => {
+    const targets = await targetsForUploadedEntryInserts(
+      {
+        tables: ['entries'],
+        count: 2,
+        mutations: [
+          { tableName: 'entries', rowId: 'late-1', operation: 'UPDATE' },
+          {
+            tableName: 'entries',
+            rowId: 'late-2',
+            operation: 'INSERT',
+            rpcName: 'withdraw_own_entry',
+          },
+        ],
+      },
+      getEntry
+    );
+
+    expect(targets).toEqual([]);
   });
 });

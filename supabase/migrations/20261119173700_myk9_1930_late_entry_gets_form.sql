@@ -243,6 +243,11 @@
 -- checkout sync, sync_enrollment_on_payment_success, a SECURITY DEFINER function) never meets
 -- the WHEN clause. Named trg_zz_ so it runs after every other BEFORE UPDATE trigger and sees
 -- the row as they leave it.
+--   Why only registration_id needs this: an entries UPDATE uploads only the columns it changed
+--   plus id and updated_at (ReplicatedEntriesTable.changedColumns.ts), and a rebuilt full row
+--   is narrowed to the mutation's queued keys (packages/replication/src/mutation-queue-rewrite.ts),
+--   so a device does not write a stale payment_status back over the server's; only a legacy
+--   full-row queued mutation could.
 --
 -- PUSH RISK (unproven, fails safe). The backfill writes enrollments.paid_amount /
 -- refund_amount / refunded_at, which trg_restrict_enrollment_money_columns(_insert)

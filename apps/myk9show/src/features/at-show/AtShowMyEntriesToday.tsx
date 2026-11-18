@@ -279,6 +279,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           <ul className="mt-3 space-y-2">
             {visibleEntries.map(detail => (
               <MyEntryRow
+                showId={showId}
                 key={detail.entryId}
                 detail={detail}
                 place={places.get(detail.entryId)}

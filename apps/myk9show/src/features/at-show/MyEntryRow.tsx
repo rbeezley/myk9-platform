@@ -3,6 +3,7 @@
  */
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ResultsPublicPrompt } from '@/components/preferences/ResultsPublicPrompt';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { checkInStateLabel } from '@myk9/ui';
@@ -26,6 +27,7 @@ function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
 }
 
 export function MyEntryRow({
+  showId,
   detail,
   place,
   placeUpdatedAt,
@@ -34,6 +36,7 @@ export function MyEntryRow({
   onCheckIn,
   checkInPending,
 }: {
+  showId: string;
   detail: AtShowEntryDetail;
   /** The server-counted place in line, when known (`useMyEntryQueuePlaces`). */
   place: QueuePlace | undefined;
@@ -132,6 +135,15 @@ export function MyEntryRow({
               )}
             {detail.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
           </div>
+        )}
+        {detail.releasedPlacement != null && detail.className && (
+          <ResultsPublicPrompt
+            showId={showId}
+            dogName={detail.dogName}
+            className={detail.className}
+            placement={detail.releasedPlacement}
+            isReleased
+          />
         )}
         {detail.isResultWithheld && (
           <div

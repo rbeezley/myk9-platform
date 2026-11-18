@@ -16,6 +16,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ResultsPublicPrompt } from '@/components/preferences/ResultsPublicPrompt';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor } from '@/components/status/statusIconGrammar';
 import {
@@ -381,6 +382,15 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           >
             Result card
           </Button>
+        )}
+        {showId !== '' && cls.resultsReleasedAt && (cls.finalPlacement ?? 0) > 0 && (
+          <ResultsPublicPrompt
+            showId={showId}
+            dogName={dogName}
+            className={cls.name}
+            placement={cls.finalPlacement}
+            isReleased={Boolean(cls.resultsReleasedAt)}
+          />
         )}
       </>
     );

@@ -380,6 +380,61 @@ describe('codex-review.sh', () => {
     expect(posted[0]).toContain('No actionable defects found.');
   });
 
+  describe('doubled list marker (`- - [P2]`, MYK9-2169)', () => {
+    const astra = [
+      'codex',
+      '- - [P2] Discard vacancy notices for skipped emails — /path/file.sql:79-80',
+      '  When a secretary disables ...',
+      '- - [P3] Expire notices for vacancies that will never be filled — /path/file.sql:46-52',
+      '  detail',
+    ].join('\n');
+
+    it('reads the exact astra output shape as findings (exit 1) and posts them', () => {
+      const gh = stubGh();
+      const r = runPost(stubCodex(astra), gh);
+      expect(r.code).toBe(1);
+      const posted = bodies(gh.calls);
+      expect(posted[0]).toMatch(/^Codex findings for [0-9a-f]{9} \(not gate evidence\):/);
+      expect(posted[0]).toContain('- - [P2] Discard vacancy notices');
+      expect(posted[0]).toContain('- - [P3] Expire notices');
+    });
+
+    it.each([
+      '- - **[P2]** bold tag — a.ts:1',
+      '- - `a.ts:1` — [P2] tag after a backticked location',
+      '- - [unlikely P1] a P1 can never be parked — a.ts:1',
+    ])('reads %s as a finding', bullet => {
+      expect(run(stubCodex(`codex\n${bullet}\n`)).code).toBe(1);
+    });
+
+    it('never turns a doubled-marker findings list into a clean verdict', () => {
+      const r = run(
+        stubCodex(`codex\nNo actionable defects found.\n\n- - [P1] src/a.ts:1 — real.\n`)
+      );
+      expect(r.code).toBe(1);
+    });
+
+    it('lists doubled pre-existing bullets without blocking', () => {
+      const r = run(
+        stubCodex(
+          'codex\nNo actionable defects found.\n\n- - [pre-existing P2] src/a.ts:1 — old.\n- - `src/b.ts:2` — **[pre-existing P3]** older.\n'
+        )
+      );
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('codex-review: 2 pre-existing defect(s)');
+    });
+
+    it('lists doubled unlikely and earlier-round P2/P3 bullets without blocking', () => {
+      const r = run(
+        stubCodex(
+          'codex\nNo actionable defects found.\n\n- - [unlikely P3] src/a.ts:1 — rare.\n- - [earlier-round P2] src/b.ts:2 — read.\n'
+        )
+      );
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('2 finding(s) not actionable this round');
+    });
+  });
+
   it('--post on findings posts them as a NON-evidence comment and still exits 1', () => {
     const stub = stubCodex(['codex', 'Two problems.', '', '- [P2] Something is wrong'].join('\n'));
     const gh = stubGh();

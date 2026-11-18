@@ -79,14 +79,22 @@
 --
 --   trg_entries_settle_attached_form_money, AFTER INSERT on entries. For an entry the BEFORE
 --   trigger just attached, money the desk already took at the entry goes ONTO THE FORM, counted
---   once. How it knows: the BEFORE trigger sets the transaction-local setting
---   myk9.entry_form_attached to THIS row's id (the per-row pattern of entries_direct_write_gate,
---   20260930214300); the AFTER trigger acts only when the setting equals its own id exactly, and
---   clears it. An entry that arrived with a form never sets it. In a multi-row INSERT every
---   BEFORE runs before any AFTER, so only the last attached row matches: the others are
---   attached with no money recorded (their forms owe the fee), the safe side. No app path
---   inserts several entries in one statement (the upload is one row per request;
---   submit_show_entries inserts one per statement).
+--   once. How it knows: the BEFORE trigger appends the row's id to the transaction-local
+--   setting myk9.entry_form_attached, a comma-separated set of the entry ids this transaction
+--   attached; the AFTER trigger acts only when its own id is an element of that set (split into
+--   an array, compared element by element: no substring match). An entry that arrived with a
+--   form is never in it. The set is left alone: an id is attached once (the entries primary
+--   key), and the set ends with the transaction. So in a multi-row INSERT, where every BEFORE
+--   row trigger runs before any AFTER row trigger, every attached row still settles its own
+--   money. What this relies on: set_config(..., true) is SET LOCAL, which changes the setting
+--   for the rest of the current transaction, so a value written in a BEFORE row trigger is
+--   read by the AFTER row triggers of the same statement (they fire later in the same
+--   transaction; private.entries_direct_write_gate / entries_apply_junior_fee rely on the same
+--   reading). Setting changes are transactional: ROLLBACK TO SAVEPOINT (an exception block in
+--   plpgsql, such as those in submit_show_entries) undoes a set_config made after the
+--   savepoint together with the rows inserted after it, so the set never names a row that is
+--   not there. The trigger function's own SET search_path clause restores only search_path on
+--   exit, not this setting.
 --     * paid by cash or check: private.record_enrollment_payment_core, the one place the form
 --       money rules live. It writes ONE form-parented show_payments row, adds to paid_amount and
 --       moves the status, keyed by client_payment_id = the entry's id, so a second call for the
@@ -173,13 +181,22 @@
 --       row (no method, secretary_paid, or cash/check written by someone who could not record
 --       money) adds its fee to paid_amount with no ledger row, as submit_show_entries does for
 --       secretary_paid. So no form comes out owing money its entries say was paid.
---     * a REFUNDED entry: any ledger money it holds is added to refund_amount as well as to
---       paid_amount, so it nets to zero; a refunded entry with no ledger row adds nothing. Its
---       fee is not owed (MYK9-1961). So no form shows refunded money as paid.
+--     * a REFUNDED entry: its fee is not owed (MYK9-1961). Its ledger money is added to
+--       paid_amount, and what was actually handed back to refund_amount, from the record that
+--       holds it: the entry's own ledger refund rows, else entries.refund_amount (the refund
+--       stamp; never above the money in). $30 in and $10 back leaves $20 held on the form. A
+--       refunded entry with no ledger row and no recorded partial amount adds nothing (nothing
+--       recorded in, a full refund or none recorded out). A refunded entry whose refunded
+--       amount the data does not establish is NOT attached: it stays formless, the backfill's
+--       notice counts it, and the pre-run query below lists it (left_formless_refund_unknown)
+--       (private.entry_form_backfill_refund_unknown says which shapes and why). So no form
+--       shows refunded money as paid, or hides money still held.
 --     * a new form's status is decided once, at its INSERT, from its entries: 'paid' when its
---       money covers what it owes, 'pending' when it owes more; owing nothing: 'paid' if it
---       holds money, else 'refunded' (a refunded entry), 'waived' (a Free one) or 'pending'. An existing form keeps its status and takes refresh_enrollment_money's
---       derived moves as the entries attach (it reopens when it now owes more).
+--       money covers what it owes, 'pending' when it owes more; owing nothing: 'partial_refund'
+--       if it holds money and a refunded entry is on it, 'paid' if it holds money, else
+--       'refunded' (a refunded entry), 'waived' (a Free one) or 'pending'. An existing form
+--       keeps its status and takes refresh_enrollment_money's derived moves as the entries
+--       attach (it reopens when it now owes more).
 --
 --   PRE-RUN (read-only; run before db push to see exactly what this will change; the WHERE is
 --   private.entry_form_backfill_candidate's, inlined because the function does not exist yet):
@@ -188,8 +205,21 @@
 --            (SELECT en.id || ' ' || en.payment_status FROM public.enrollments en
 --              WHERE en.show_id = e.show_id AND en.handler_id = d.owner_id) AS joins_form,
 --            (SELECT string_agg(sp.kind || ' ' || sp.amount || ' ' || sp.method, ', ')
---               FROM public.show_payments sp WHERE sp.entry_id = e.id) AS ledger_rows_moved
+--               FROM public.show_payments sp WHERE sp.entry_id = e.id) AS ledger_rows_moved,
+--            e.refund_amount,
+--            -- private.entry_form_backfill_refund_unknown, inlined: true = left formless.
+--            CASE
+--              WHEN e.payment_status IS DISTINCT FROM 'refunded' THEN false
+--              WHEN l.refund_rows > 0 THEN false
+--              WHEN l.money_in > 0 THEN e.refund_amount IS NULL OR e.refund_amount > l.money_in
+--                                       OR e.refund_amount <= 0
+--              ELSE e.refund_amount IS NOT NULL AND e.refund_amount <> COALESCE(e.entry_fee, 0)
+--            END AS left_formless_refund_unknown
 --       FROM public.entries e
+--       CROSS JOIN LATERAL (
+--         SELECT COALESCE(sum(sp.amount) FILTER (WHERE sp.kind <> 'refund'), 0) AS money_in,
+--                count(*) FILTER (WHERE sp.kind = 'refund') AS refund_rows
+--           FROM public.show_payments sp WHERE sp.entry_id = e.id) l
 --       JOIN public.shows s ON s.id = e.show_id
 --       JOIN public.dogs d ON d.id = e.dog_id
 --      WHERE e.registration_id IS NULL AND e.deleted_at IS NULL AND s.deleted_at IS NULL
@@ -226,9 +256,16 @@
 --      ORDER BY en.show_id;
 --     SELECT count(*) FROM public.entries e
 --      WHERE e.registration_id IS NULL AND private.entry_form_backfill_candidate(e.id);  -- 0
+--     -- the refunded entries left formless because their refunded amount is not recorded:
+--     SELECT e.id, e.show_id, e.entry_fee, e.refund_amount FROM public.entries e
+--      WHERE e.registration_id IS NULL AND private.entry_form_backfill_eligible(e.id)
+--        AND private.entry_form_backfill_refund_unknown(e.id);
 --   The migration itself refuses to commit if the ledger's rows, total, or total per (show,
 --   day, method) change, if an attached entry keeps an entry-parented row, or if any form's
---   amount due moves by anything but the fees of its newly attached entries that still owe.
+--   money held or total owed moves by anything but what a snapshot taken before anything moves
+--   says its new entries hold and owe (the signed sum of their ledger rows less a refund only
+--   entries.refund_amount records, or a paid entry's fee; the fees enrollment_owed_cents
+--   counts), computed separately from the expressions that write the form.
 --
 -- A FORM, ONCE GIVEN, IS KEPT. trg_zz_entries_keep_entry_form, BEFORE UPDATE on entries with
 -- no column list (so no UPDATE OF list can skip it), WHEN the row had a form and the update
@@ -388,9 +425,13 @@ BEGIN
   NEW.registration_id := private.entry_form_for(NEW.show_id, v_owner, v_start.status, v_start.method);
   -- The server changed the row: its own clock, so the device's next pull brings it back.
   NEW.updated_at := now();
-  -- Tell the AFTER trigger THIS row's form is the server's doing (transaction-local, one row;
-  -- the AFTER trigger compares it exactly and clears it).
-  PERFORM pg_catalog.set_config('myk9.entry_form_attached', NEW.id::text, true);
+  -- Tell the AFTER trigger this row's form is the server's doing: add the id to the
+  -- transaction's set (header).
+  PERFORM pg_catalog.set_config(
+    'myk9.entry_form_attached',
+    concat_ws(',', NULLIF(current_setting('myk9.entry_form_attached', true), ''), NEW.id::text),
+    true
+  );
   RETURN NEW;
 END;
 $$;
@@ -427,10 +468,10 @@ DECLARE
   v_received date;
 BEGIN
   IF NEW.registration_id IS NULL
-     OR current_setting('myk9.entry_form_attached', true) IS DISTINCT FROM NEW.id::text THEN
+     OR NOT (NEW.id::text = ANY (string_to_array(
+               COALESCE(current_setting('myk9.entry_form_attached', true), ''), ','))) THEN
     RETURN NULL;
   END IF;
-  PERFORM pg_catalog.set_config('myk9.entry_form_attached', '', true);
 
   v_fee := round(COALESCE(NEW.entry_fee, 0), 2);
   IF NEW.payment_status IS DISTINCT FROM 'paid'
@@ -518,10 +559,14 @@ CREATE TRIGGER trg_zz_entries_keep_entry_form
   EXECUTE FUNCTION private.entries_keep_entry_form();
 
 -- ---------------------------------------------------------------------------
--- The backfill's row rule, kept as a function so the owner's pre/post queries in the header
--- read the very predicate the backfill used. Read-only. Not callable by clients.
+-- The backfill's row rules, kept as functions so the owner's pre/post queries in the header
+-- read the very predicates the backfill used. Read-only. Not callable by clients.
+--   entry_form_backfill_eligible: which entries the backfill is about (header).
+--   entry_form_backfill_refund_unknown: a refunded entry whose refunded amount the data does
+--     not establish (header, "refunded entries"). Left formless, counted and listed.
+--   entry_form_backfill_candidate: eligible and not refund-unknown. These are attached.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION private.entry_form_backfill_candidate(p_entry_id uuid)
+CREATE OR REPLACE FUNCTION private.entry_form_backfill_eligible(p_entry_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -567,8 +612,75 @@ AS $$
   );
 $$;
 
+COMMENT ON FUNCTION private.entry_form_backfill_eligible(uuid) IS
+  'MYK9-1930: the one-time backfill''s scope. A live, non-card entry with no form, on a live show, whose dog has an owner, that is not one of the seed''s own fixtures.';
+
+REVOKE ALL ON FUNCTION private.entry_form_backfill_eligible(uuid) FROM PUBLIC, anon, authenticated;
+
+-- A refunded entry (entries.payment_status has no 'partial_refund': 003's CHECK is pending /
+-- paid / refunded / waived, never widened; the predicate names it anyway, as 1961 does) whose
+-- refunded amount the data does not establish. What records a formless entry's refund amount:
+--   * show_payments rows of kind 'refund' parented by the entry: the desk ledger, the box's own
+--     record. Truthful whenever present (no writer creates them today: only
+--     record_enrollment_payment_core writes refunds, always on a form; the shape is honoured
+--     if one exists).
+--   * entries.refund_amount: the refund stamp only the payment service may write
+--     (trg_restrict_entry_refund_columns); the amount handed back for that entry.
+--   Not sources: refund_requests (card checkouts and payment links only, keyed on a Stripe
+--   intent: card entries are out of the backfill), refund_decision / refund_decided_at (a
+--   pull's yes/no, no amount), refund_notes (free text).
+-- Unknown, so left out:
+--   * desk money came in (ledger rows net positive) and no ledger refund row and no
+--     refund_amount, or a refund_amount above the money in: how much went back is not
+--     recorded;
+--   * no desk money came in (no ledger, or ledger rows netting to zero or less) but a
+--     refund_amount other than the fee is recorded: a partial refund of money the ledger never
+--     saw, so what is still held is not recorded either.
+-- Known: a ledger refund row (refunded = those rows); 0 < refund_amount <= money in
+-- (refunded = refund_amount); nothing in and nothing out recorded, or refund_amount equal to
+-- the fee with no desk money (a full refund: nothing held, nothing to put on the form).
+CREATE OR REPLACE FUNCTION private.entry_form_backfill_refund_unknown(p_entry_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $
+  SELECT COALESCE((
+    SELECT CASE
+             WHEN e.payment_status IS DISTINCT FROM 'refunded'
+              AND e.payment_status IS DISTINCT FROM 'partial_refund' THEN false
+             WHEN l.refund_rows > 0 THEN false
+             WHEN l.money_in > 0 THEN e.refund_amount IS NULL OR e.refund_amount > l.money_in
+                                      OR e.refund_amount <= 0
+             ELSE e.refund_amount IS NOT NULL AND e.refund_amount <> COALESCE(e.entry_fee, 0)
+           END
+      FROM public.entries e
+      CROSS JOIN LATERAL (
+        SELECT COALESCE(sum(sp.amount) FILTER (WHERE sp.kind <> 'refund'), 0) AS money_in,
+               count(*) FILTER (WHERE sp.kind = 'refund') AS refund_rows
+          FROM public.show_payments sp
+         WHERE sp.entry_id = e.id
+      ) l
+     WHERE e.id = p_entry_id), false);
+$;
+
+COMMENT ON FUNCTION private.entry_form_backfill_refund_unknown(uuid) IS
+  'MYK9-1930: a refunded entry whose refunded amount neither the desk ledger nor entries.refund_amount establishes; the backfill leaves it formless rather than invent a figure.';
+
+REVOKE ALL ON FUNCTION private.entry_form_backfill_refund_unknown(uuid) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION private.entry_form_backfill_candidate(p_entry_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $
+  SELECT private.entry_form_backfill_eligible(p_entry_id)
+         AND NOT private.entry_form_backfill_refund_unknown(p_entry_id);
+$;
+
 COMMENT ON FUNCTION private.entry_form_backfill_candidate(uuid) IS
-  'MYK9-1930: the one-time backfill''s rule. A live, non-card entry with no form, on a live show, whose dog has an owner, that is not one of the seed''s own fixtures.';
+  'MYK9-1930: the one-time backfill''s rule: entry_form_backfill_eligible and not entry_form_backfill_refund_unknown.';
 
 REVOKE ALL ON FUNCTION private.entry_form_backfill_candidate(uuid) FROM PUBLIC, anon, authenticated;
 
@@ -598,14 +710,56 @@ DECLARE
   v_form uuid;
   v_attached uuid[] := '{}';
   v_status text;
-  v_due_before integer;
-  v_due_after integer;
+  v_expect jsonb;
+  v_key text;
+  v_net_before integer;
+  v_total_before integer;
+  v_net_after integer;
+  v_total_after integer;
+  v_excluded integer;
 BEGIN
   SELECT count(*), COALESCE(sum(sp.amount), 0) INTO v_rows_before, v_sum_before
     FROM public.show_payments sp;
   SELECT string_agg(g.k, '|' ORDER BY g.k) INTO v_groups_before
     FROM (SELECT sp.show_id::text || ':' || sp.received_on || ':' || sp.method || ':' || sum(sp.amount) AS k
             FROM public.show_payments sp GROUP BY sp.show_id, sp.received_on, sp.method) g;
+
+  -- What each exhibitor's form must gain, read from the data as it stands BEFORE anything
+  -- moves, in its own terms (not the money expressions the loop applies): money held = the
+  -- signed sum of the entry's own ledger rows (payments in, refunds and reversals out), less a
+  -- refund the ledger does not carry but entries.refund_amount records; with no ledger rows,
+  -- a paid entry's fee (recorded paid, outside the ledger) and nothing otherwise. What is owed =
+  -- the fees enrollment_owed_cents counts. Cents, keyed show|exhibitor.
+  SELECT jsonb_object_agg(x.k, jsonb_build_array(x.held, x.owed)) INTO v_expect
+    FROM (
+      SELECT e.show_id::text || '|' || d.owner_id::text AS k,
+             round(sum(CASE
+               WHEN l.n > 0 THEN l.net
+                 - CASE WHEN e.payment_status IN ('refunded', 'partial_refund') AND l.refunds = 0
+                        THEN COALESCE(e.refund_amount, 0) ELSE 0 END
+               WHEN e.payment_status = 'paid' THEN COALESCE(e.entry_fee, 0)
+               ELSE 0 END) * 100)::integer AS held,
+             round(sum(CASE
+               WHEN e.payment_status IN ('waived', 'refunded', 'partial_refund')
+                 OR e.comped IS TRUE OR e.refund_amount IS NOT NULL THEN 0
+               ELSE COALESCE(e.entry_fee, 0) END) * 100)::integer AS owed
+        FROM public.entries e
+        JOIN public.dogs d ON d.id = e.dog_id
+        CROSS JOIN LATERAL (
+          SELECT count(*) AS n, COALESCE(sum(sp.amount), 0) AS net,
+                 count(*) FILTER (WHERE sp.kind = 'refund') AS refunds
+            FROM public.show_payments sp WHERE sp.entry_id = e.id
+        ) l
+       WHERE e.registration_id IS NULL
+         AND private.entry_form_backfill_candidate(e.id)
+       GROUP BY 1
+    ) x;
+
+  SELECT count(*) INTO v_excluded
+    FROM public.entries e
+   WHERE e.registration_id IS NULL
+     AND private.entry_form_backfill_eligible(e.id)
+     AND private.entry_form_backfill_refund_unknown(e.id);
 
   FOR v_group IN
     WITH cand AS (
@@ -626,10 +780,14 @@ BEGIN
              CASE WHEN c.has_ledger THEN c.ledger_in
                   WHEN c.payment_status = 'paid' THEN c.fee
                   ELSE 0 END AS paid_add,
+             -- What went back: the ledger's own refund rows; failing those, for a refunded
+             -- entry whose desk money came in, the recorded entries.refund_amount (never above
+             -- the money in: entry_form_backfill_refund_unknown leaves out every other shape).
              CASE WHEN c.has_ledger
                   THEN c.ledger_out
                        + CASE WHEN c.payment_status IN ('refunded', 'partial_refund')
-                              THEN GREATEST(c.ledger_in - c.ledger_out, 0) ELSE 0 END
+                               AND c.ledger_out = 0 AND c.ledger_in > 0
+                              THEN COALESCE(c.refund_amount, 0) ELSE 0 END
                   ELSE 0 END AS refund_add,
              -- What the entry adds to its form's total (private.enrollment_owed_cents).
              CASE WHEN c.payment_status IS DISTINCT FROM 'waived'
@@ -665,7 +823,10 @@ BEGIN
       -- measures only this group. Then add the money and keep its status;
       -- refresh_enrollment_money makes the derived moves as the entries attach below.
       PERFORM private.refresh_enrollment_money(v_form);
-      v_due_before := private.enrollment_due_cents(v_form);
+      SELECT round((COALESCE(en.paid_amount, 0) - COALESCE(en.refund_amount, 0)) * 100)::integer,
+             COALESCE(en.total_amount, 0)
+        INTO v_net_before, v_total_before
+        FROM public.enrollments en WHERE en.id = v_form;
       IF v_group.paid_add <> 0 OR v_group.refund_add <> 0 THEN
         UPDATE public.enrollments en
            SET paid_amount = COALESCE(en.paid_amount, 0) + v_group.paid_add,
@@ -679,10 +840,14 @@ BEGIN
          WHERE en.id = v_form;
       END IF;
     ELSE
-      v_due_before := 0;
+      v_net_before := 0;
+      v_total_before := 0;
       v_status := CASE
         WHEN v_group.owed > 0 AND v_group.paid_add - v_group.refund_add >= v_group.owed THEN 'paid'
         WHEN v_group.owed > 0 THEN 'pending'
+        -- Owes nothing and still holds money a refund did not hand back.
+        WHEN v_group.paid_add - v_group.refund_add > 0 AND v_group.any_refunded
+          THEN 'partial_refund'
         WHEN v_group.paid_add - v_group.refund_add > 0 THEN 'paid'
         WHEN v_group.any_refunded THEN 'refunded'
         WHEN v_group.any_free THEN 'waived'
@@ -719,15 +884,19 @@ BEGIN
      WHERE e.id = ANY (v_group.entry_ids)
        AND e.registration_id IS NULL;
 
-    -- Exactly what this group should change about what the form is owed: the fees of its
-    -- entries that still owe, less the money it brought. A paid entry brings its fee in both,
-    -- so it changes nothing; a refunded one changes nothing; an owing one adds its fee.
-    v_due_after := private.enrollment_due_cents(v_form);
-    IF v_due_after - v_due_before
-       <> round(v_group.owed * 100) - round((v_group.paid_add - v_group.refund_add) * 100) THEN
-      RAISE EXCEPTION 'MYK9-1930 backfill: form % due moved % -> % cents, expected a change of % cents',
-        v_form, v_due_before, v_due_after,
-        round(v_group.owed * 100) - round((v_group.paid_add - v_group.refund_add) * 100);
+    -- The form gained exactly what the pre-backfill snapshot says these entries hold and owe
+    -- (v_expect, computed before the loop from the ledger rows and entry columns, not from the
+    -- expressions above).
+    v_key := v_group.show_id::text || '|' || v_group.owner_id::text;
+    SELECT round((COALESCE(en.paid_amount, 0) - COALESCE(en.refund_amount, 0)) * 100)::integer,
+           COALESCE(en.total_amount, 0)
+      INTO v_net_after, v_total_after
+      FROM public.enrollments en WHERE en.id = v_form;
+    IF v_net_after - v_net_before IS DISTINCT FROM (v_expect -> v_key ->> 0)::integer
+       OR v_total_after - v_total_before IS DISTINCT FROM (v_expect -> v_key ->> 1)::integer THEN
+      RAISE EXCEPTION 'MYK9-1930 backfill: form % held % -> % and owed % -> % cents; the data recorded % held and % owed',
+        v_form, v_net_before, v_net_after, v_total_before, v_total_after,
+        v_expect -> v_key ->> 0, v_expect -> v_key ->> 1;
     END IF;
 
     v_attached := v_attached || v_group.entry_ids;
@@ -750,8 +919,8 @@ BEGIN
     RAISE EXCEPTION 'MYK9-1930 backfill left an entry-parented ledger row on an attached entry';
   END IF;
 
-  RAISE NOTICE 'MYK9-1930 backfill: % entr(ies) attached to their entry forms; ledger unchanged (% rows, % total)',
-    cardinality(v_attached), v_rows_after, v_sum_after;
+  RAISE NOTICE 'MYK9-1930 backfill: % entr(ies) attached to their entry forms; % refunded entr(ies) left formless because their refunded amount is not recorded (entry_form_backfill_refund_unknown); ledger unchanged (% rows, % total)',
+    cardinality(v_attached), v_excluded, v_rows_after, v_sum_after;
   RETURN cardinality(v_attached);
 END;
 $backfill$;

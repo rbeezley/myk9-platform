@@ -150,14 +150,16 @@ GRANT EXECUTE ON FUNCTION pg_temp.e(int), pg_temp.d(int), pg_temp.en(int) TO aut
 
 INSERT INTO public.people (id, first_name, last_name, email)
 SELECT pg_temp.e(n), 'MYK9-1930', 'Exhibitor ' || n, 'myk9-1930-exhibitor-' || n || '@example.test'
-  FROM generate_series(1, 30) AS n;
+  FROM generate_series(1, 40) AS n;
 INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
 SELECT pg_temp.d(n), 'MYK9-1930 Dog ' || n, 'Cap', 'Beagle', 'active',
        CASE WHEN n = 10 THEN NULL ELSE pg_temp.e(n) END
-  FROM generate_series(1, 30) AS n;
+  FROM generate_series(1, 40) AS n;
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
 SELECT pg_temp.d(n), 'UKC', 'UKC1930' || lpad(n::text, 2, '0'), true
-  FROM generate_series(1, 30) AS n;
+  FROM generate_series(1, 40) AS n;
+-- Dog 35 belongs to exhibitor 34 (two dogs of one exhibitor in one statement, below).
+UPDATE public.dogs SET owner_id = pg_temp.e(34) WHERE id = pg_temp.d(35);
 
 -- One exhibitor's form on the show as a comparable line, or 'none'.
 CREATE FUNCTION pg_temp.form1930(p_n int) RETURNS text LANGUAGE sql AS $$
@@ -366,6 +368,91 @@ BEGIN
   RAISE NOTICE 'PASS desk-paid entries stay paid';
 END;
 $$;
+
+-- --- several entries in ONE statement (review round 3) ---------------------------
+-- Every BEFORE row trigger runs before any AFTER row trigger, so each attached row must find
+-- itself in the transaction's set, not only the last one.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001930b02', true);
+-- M1: two paid cash entries of one exhibitor (dogs 34 and 35, both exhibitor 34).
+INSERT INTO public.entries (id, show_id, trial_id, class_id, dog_id, handler_id, handler,
+                            entry_status, payment_status, payment_method, entry_fee,
+                            is_day_of_show, submitted_at)
+VALUES
+  (pg_temp.en(61), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(34), pg_temp.e(34), 'MYK9-1930 Handler',
+   'confirmed', 'paid', 'cash', 30, true, now()),
+  (pg_temp.en(62), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(35), pg_temp.e(34), 'MYK9-1930 Handler',
+   'confirmed', 'paid', 'cash', 30, true, now());
+-- M2: two exhibitors, cash and check.
+INSERT INTO public.entries (id, show_id, trial_id, class_id, dog_id, handler_id, handler,
+                            entry_status, payment_status, payment_method, entry_fee,
+                            is_day_of_show, submitted_at)
+VALUES
+  (pg_temp.en(63), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(36), pg_temp.e(36), 'MYK9-1930 Handler',
+   'confirmed', 'paid', 'cash', 30, true, now()),
+  (pg_temp.en(64), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(37), pg_temp.e(37), 'MYK9-1930 Handler',
+   'confirmed', 'paid', 'check', 30, true, now());
+-- M3: one paid cash, one unpaid, one card (online method), in one statement.
+INSERT INTO public.entries (id, show_id, trial_id, class_id, dog_id, handler_id, handler,
+                            entry_status, payment_status, payment_method, entry_fee,
+                            is_day_of_show, submitted_at)
+VALUES
+  (pg_temp.en(65), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(38), pg_temp.e(38), 'MYK9-1930 Handler',
+   'confirmed', 'paid', 'cash', 30, true, now()),
+  (pg_temp.en(66), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(39), pg_temp.e(39), 'MYK9-1930 Handler',
+   'confirmed', 'pending', 'cash', 30, true, now()),
+  (pg_temp.en(67), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(40), pg_temp.e(40), 'MYK9-1930 Handler',
+   'confirmed', 'pending', 'online', 30, true, now());
+RESET ROLE;
+
+DO $
+DECLARE
+  v_case record;
+BEGIN
+  FOR v_case IN
+    SELECT * FROM (VALUES
+      (34, 'M1 two paid cash entries of one exhibitor in one statement: both recorded',
+       'status=paid_by_cash total=6000 paid=60.00 refund=0.00 method=cash payments=30.00,30.00'),
+      (36, 'M2 two exhibitors in one statement: the cash one recorded',
+       'status=paid_by_cash total=3000 paid=30.00 refund=0.00 method=cash payments=30.00'),
+      (37, 'M2 two exhibitors in one statement: the check one recorded',
+       'status=paid_by_check total=3000 paid=30.00 refund=0.00 method=check payments=30.00'),
+      (38, 'M3 mixed statement: the paid cash entry recorded',
+       'status=paid_by_cash total=3000 paid=30.00 refund=0.00 method=cash payments=30.00'),
+      (39, 'M3 mixed statement: the unpaid entry owes',
+       'status=pending total=3000 paid=0.00 refund=0.00 method=cash payments=none'),
+      (40, 'M3 mixed statement: the card entry gets no form', 'none')
+    ) AS t(n, label, want)
+  LOOP
+    IF pg_temp.form1930(v_case.n) IS DISTINCT FROM v_case.want THEN
+      RAISE EXCEPTION 'FAIL %: got [%], want [%]', v_case.label, pg_temp.form1930(v_case.n), v_case.want;
+    END IF;
+    RAISE NOTICE 'PASS %', v_case.label;
+  END LOOP;
+
+  -- One ledger row per paid entry, each keyed on its own entry; none for the others.
+  IF (SELECT count(*) FROM public.show_payments
+       WHERE client_payment_id IN (pg_temp.en(61), pg_temp.en(62), pg_temp.en(63),
+                                   pg_temp.en(64), pg_temp.en(65))) <> 5
+     OR EXISTS (SELECT 1 FROM public.show_payments
+                 WHERE client_payment_id IN (pg_temp.en(66), pg_temp.en(67))
+                    OR entry_id IN (pg_temp.en(61), pg_temp.en(62), pg_temp.en(63), pg_temp.en(64),
+                                    pg_temp.en(65), pg_temp.en(66), pg_temp.en(67)))
+     OR (SELECT registration_id FROM public.entries WHERE id = pg_temp.en(67)) IS NOT NULL
+     OR (SELECT count(DISTINCT payment_status) || ':' || min(payment_status) FROM public.entries
+          WHERE id IN (pg_temp.en(61), pg_temp.en(62))) <> '1:paid' THEN
+    RAISE EXCEPTION 'FAIL multi-row statements: ledger rows or entry statuses are wrong';
+  END IF;
+  RAISE NOTICE 'PASS every attached row of a multi-row statement settles its own money, once';
+END;
+$;
 
 -- --- who and what gets a form (review round 1) ----------------------------------
 -- The confirmation-number sequence, before a refused insert.
@@ -603,12 +690,27 @@ INSERT INTO public.entries (id, show_id, trial_id, class_id, dog_id, handler_id,
 VALUES (pg_temp.en(28), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
         '00000000-0000-0000-0000-000001930c31', pg_temp.d(30), pg_temp.e(30), 'paid', 'paid', 'online',
         30, 'pi_myk9_1930_legacy');
+-- B11 $30 received at the desk, $10 handed back (refund_amount is the payment service's
+-- column, so the fixture writes it as service_role). B12 the same, all $30 back. B13 a $10
+-- refund recorded with no desk money on the ledger at all.
+INSERT INTO public.entries (id, show_id, trial_id, class_id, dog_id, handler_id, entry_status,
+                            payment_status, payment_method, entry_fee, refund_amount)
+VALUES
+  (pg_temp.en(51), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(31), pg_temp.e(31), 'confirmed', 'refunded',
+   'cash', 30, 10),
+  (pg_temp.en(52), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(32), pg_temp.e(32), 'confirmed', 'refunded',
+   'cash', 30, 30),
+  (pg_temp.en(53), '00000000-0000-0000-0000-000001930c11', '00000000-0000-0000-0000-000001930c21',
+   '00000000-0000-0000-0000-000001930c31', pg_temp.d(33), pg_temp.e(33), 'confirmed', 'refunded',
+   'check', 30, 10);
 RESET ROLE;
 
 INSERT INTO public.show_payments (show_id, entry_id, kind, amount, method, received_on, note)
 SELECT '00000000-0000-0000-0000-000001930c11', pg_temp.en(n), 'payment', 30, 'cash',
        (now() AT TIME ZONE 'UTC')::date - 5, 'MYK9-1930 legacy desk row'
-  FROM unnest(ARRAY[22, 24, 26]) AS n;
+  FROM unnest(ARRAY[22, 24, 26, 51, 52]) AS n;
 
 -- B7: an existing form paid by check, its entry on it; the legacy owing entry joins it.
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method, paid_amount)
@@ -639,12 +741,13 @@ BEGIN
     RAISE EXCEPTION 'FAIL B7 setup: [%]', pg_temp.form1930(27);
   END IF;
 
-  -- B1-B7 are 8 entries, and the seed-session entry from the live section (dog 9) is a
-  -- legacy formless entry too. At least those 9: an earlier test that committed a formless
-  -- entry would add to the count, not take from it.
+  -- B1-B3, B5, B6 (two), B7, B11 and B12 are 9 entries, and the seed-session entry from the
+  -- live section (dog 9) is a legacy formless entry too. At least those 10: an earlier test
+  -- that committed a formless entry would add to the count, not take from it. B4 and B13 are
+  -- left out (their refunded amount is not recorded).
   v_attached := private.backfill_entry_forms();
-  IF v_attached < 9 THEN
-    RAISE EXCEPTION 'FAIL the backfill attached % entries, want at least 9', v_attached;
+  IF v_attached < 10 THEN
+    RAISE EXCEPTION 'FAIL the backfill attached % entries, want at least 10', v_attached;
   END IF;
 
   FOR v_case IN
@@ -657,8 +760,7 @@ BEGIN
        'status=paid total=3000 paid=30.00 refund=0.00 method=cash payments=30.00'),
       (23, 'B3 paid with no method: paid on the form, no ledger row',
        'status=paid total=3000 paid=30.00 refund=0.00 method=null payments=none'),
-      (24, 'B4 refunded with a desk row: held and handed back, owes nothing',
-       'status=refunded total=0 paid=30.00 refund=30.00 method=cash payments=30.00'),
+      (24, 'B4 refunded with a desk row and no recorded refund amount: left formless', 'none'),
       (25, 'B5 refunded with no row: owes and holds nothing',
        'status=refunded total=0 paid=0.00 refund=0.00 method=check payments=none'),
       (26, 'B6 one paid, one owing: the form owes only the owing fee',
@@ -667,7 +769,12 @@ BEGIN
        'status=pending total=6000 paid=30.00 refund=0.00 method=check payments=none'),
       (28, 'B8 soft-deleted: untouched', 'none'),
       (29, 'B9 seed fixture id: untouched', 'none'),
-      (30, 'B10 card entry: untouched', 'none')
+      (30, 'B10 card entry: untouched', 'none'),
+      (31, 'B11 $30 in, $10 back: the form holds the $20 still held',
+       'status=partial_refund total=0 paid=30.00 refund=10.00 method=cash payments=30.00'),
+      (32, 'B12 $30 in, $30 back: the form nets to zero',
+       'status=refunded total=0 paid=30.00 refund=30.00 method=cash payments=30.00'),
+      (33, 'B13 a partial refund with no desk money on the ledger: left formless', 'none')
     ) AS t(n, label, want)
   LOOP
     IF pg_temp.form1930(v_case.n) IS DISTINCT FROM v_case.want THEN
@@ -707,9 +814,20 @@ BEGIN
   END IF;
   IF (SELECT count(*) FROM public.show_payments
        WHERE note = 'MYK9-1930 legacy desk row' AND entry_id IS NULL AND enrollment_id IS NOT NULL
-         AND received_on = (now() AT TIME ZONE 'UTC')::date - 5) <> 3 THEN
+         AND received_on = (now() AT TIME ZONE 'UTC')::date - 5) <> 4
+     OR NOT EXISTS (SELECT 1 FROM public.show_payments
+                     WHERE note = 'MYK9-1930 legacy desk row' AND entry_id = pg_temp.en(24)) THEN
     RAISE EXCEPTION 'FAIL the legacy desk rows were not moved onto their forms intact';
   END IF;
+  -- The left-out entries are formless and named by the exclusion rule.
+  IF EXISTS (SELECT 1 FROM public.entries
+              WHERE id IN (pg_temp.en(24), pg_temp.en(53)) AND registration_id IS NOT NULL)
+     OR NOT private.entry_form_backfill_refund_unknown(pg_temp.en(24))
+     OR NOT private.entry_form_backfill_refund_unknown(pg_temp.en(53))
+     OR private.entry_form_backfill_refund_unknown(pg_temp.en(25)) THEN
+    RAISE EXCEPTION 'FAIL the refund-unknown entries were attached or not named';
+  END IF;
+  RAISE NOTICE 'PASS refunded entries with no recorded refunded amount are left formless';
   RAISE NOTICE 'PASS the ledger is unchanged; legacy desk rows moved onto their forms intact';
 
   IF private.backfill_entry_forms() <> 0 THEN

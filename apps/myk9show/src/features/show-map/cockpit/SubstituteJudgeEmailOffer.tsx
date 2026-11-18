@@ -74,7 +74,7 @@ export function SubstituteJudgeEmailOffer({
         );
       } else {
         toast.success(
-          `Emails queued for ${recipients === 1 ? '1 exhibitor' : `${recipients} exhibitors`}.`
+          `Emailing ${recipients === 1 ? '1 exhibitor' : `${recipients} exhibitors`} in a few minutes.`
         );
       }
     },

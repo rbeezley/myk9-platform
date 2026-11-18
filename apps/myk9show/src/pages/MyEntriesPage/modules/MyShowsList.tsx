@@ -27,6 +27,7 @@ import { buildShowGroupIndex, groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
 import { firstResultsPromptClassId } from './firstResultsPromptClass';
+import { useResultsPromptableShowIds } from '@/hooks/queries/useShowSettingsDatabase';
 import { useMyShowJudges } from './useMyShowJudges';
 import type { EntryStatusFilter, LeaveClassTarget, MyEntry } from './my-entries-types';
 import { narrowDogsToStatus } from './statusFilterPredicate';
@@ -137,14 +138,18 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
 
   const sections = React.useMemo(() => splitShowsIntoSections(groups, now), [groups, now]);
   // MYK9-1944: one results-public prompt for the whole list, on the first eligible row.
+  const promptableShowIds = useResultsPromptableShowIds(
+    React.useMemo(() => [...new Set(groups.map(group => group.showId).filter(Boolean))], [groups])
+  );
   const resultsPromptClassId = React.useMemo(
     () =>
       firstResultsPromptClassId(
         [...sections.today, ...sections.upcoming, ...sections.past],
         seenResultReleaseKeys,
-        onResultRevealClick != null
+        onResultRevealClick != null,
+        promptableShowIds
       ),
-    [sections, seenResultReleaseKeys, onResultRevealClick]
+    [sections, seenResultReleaseKeys, onResultRevealClick, promptableShowIds]
   );
   const [searchParams] = useSearchParams();
   const requested = searchParams.get(SELECTED_SHOW_PARAM);

@@ -350,7 +350,7 @@ export function useExhibitorProfile() {
   // never disagree. "Keep private" writes only the answer: results_public is
   // left exactly as it was.
   const answerResultsPublicPromptMutation = useMutation({
-    mutationFn: async (showPublicly: boolean): Promise<string> => {
+    mutationFn: async (showPublicly: boolean): Promise<string | null> => {
       if (!user?.id) throw new Error('User not authenticated');
       if (!profile?.id) throw new Error('No exhibitor profile found');
 
@@ -359,12 +359,24 @@ export function useExhibitorProfile() {
         results_public_prompt_answered_at: answeredAt,
         ...(showPublicly ? { results_public: true } : {}),
       };
-      const { error } = await supabase
+      // Conditional on a still-unanswered, still-private profile, so an answer left
+      // open on one device cannot overwrite a setting changed on another (MYK9-2174).
+      const { data: updated, error } = await supabase
         .from('exhibitor_profiles')
         .update(change)
-        .eq('id', profile.id);
+        .eq('id', profile.id)
+        .is('results_public_prompt_answered_at', null)
+        .eq('results_public', false)
+        .select('id');
 
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        // Nothing matched: the profile changed elsewhere. Show what is true now
+        // instead of confirming this answer from the cached profile, and return
+        // null so the prompt does not claim the answer was saved.
+        await refetch();
+        return null;
+      }
       queryClient.setQueryData(['exhibitorProfile', user.id], {
         ...profile,
         ...change,

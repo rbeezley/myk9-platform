@@ -14,10 +14,13 @@ import { formatDollars } from '../_shared/clubMoneyEmails.ts';
 import { payoutRetryNote } from './payoutCopy.ts';
 import {
   alertReconciled,
+  reportAttemptModeHold,
   reportLedgerWriteError,
   reportLookupError,
   reportReconcileError,
   transferFacts,
+  type AttemptMode,
+  type DestinationCheck,
   type FoundTransfer,
   type ShowRef,
 } from './payoutAlerts.ts';
@@ -29,6 +32,32 @@ import type {
 } from './payoutTypes.ts';
 
 export type { FoundTransfer } from './payoutAlerts.ts';
+
+/** The one test for "this account row is in the Stripe mode the run's key is in". */
+export function inStripeMode(account: { livemode: boolean }, stripeLivemode: boolean): boolean {
+  return account.livemode === stripeLivemode;
+}
+
+/**
+ * Whether an earlier attempt's account is in the run's Stripe mode. Stripe
+ * lists transfers only in the key's own mode, so an attempt made in the other
+ * mode (or one whose mode cannot be read) can never be checked with this key:
+ * an empty list would wrongly read as "no money moved".
+ */
+async function checkAttemptMode(
+  deps: ProcessShowDeps,
+  accountId: string | null
+): Promise<AttemptMode> {
+  if (!accountId) return 'no_account';
+  const { data, error } = await deps.supabase
+    .from('club_stripe_accounts')
+    .select('livemode')
+    .eq('id', accountId)
+    .maybeSingle();
+  if (error) return 'read_error';
+  if (!data) return 'no_account';
+  return inStripeMode(data as { livemode: boolean }, deps.stripeLivemode) ? 'match' : 'mismatch';
+}
 
 /** Enough to see every transfer a show should ever have; more is itself suspect. */
 const TRANSFER_PAGE = 10;
@@ -86,18 +115,23 @@ async function recordStripeTransfer(
   fromStatus: string,
   transfer: FoundTransfer,
   clubId: string | null
-): Promise<{ error: string | null; clubAccount: boolean }> {
-  let accountId: string | null = null;
-  if (transfer.destination) {
-    const { data: accounts } = await supabase
+): Promise<{ error: string | null; destination: DestinationCheck }> {
+  // The account column follows Stripe: the club's account when it matches,
+  // NULL on a confirmed mismatch, untouched when the check itself failed.
+  let destination: DestinationCheck = 'unchecked';
+  let account: { club_stripe_account_id: string | null } | Record<string, never> = {};
+  if (transfer.destination && clubId) {
+    const { data: accounts, error: accountError } = await supabase
       .from('club_stripe_accounts')
       .select('id, club_id')
-      .eq('stripe_account_id', transfer.destination)
-      .limit(1);
-    const match = (accounts as Array<{ id: string; club_id: string }> | null)?.[0];
-    if (match && clubId && match.club_id === clubId) accountId = match.id;
+      .eq('stripe_account_id', transfer.destination);
+    if (!accountError) {
+      const rows = (accounts ?? []) as Array<{ id: string; club_id: string }>;
+      const match = rows.find(row => row.club_id === clubId);
+      destination = match ? 'club' : 'other';
+      account = { club_stripe_account_id: match ? match.id : null };
+    }
   }
-  const clubAccount = accountId !== null;
   const { data, error } = await supabase
     .from('show_payouts')
     .update({
@@ -105,19 +139,26 @@ async function recordStripeTransfer(
       stripe_transfer_id: transfer.id,
       amount_cents: transfer.amount,
       completed_at: new Date().toISOString(),
-      ...(accountId ? { club_stripe_account_id: accountId } : {}),
+      ...account,
     })
     .eq('id', rowId)
     .eq('status', fromStatus)
     .select('id');
-  if (error) return { error: error.message ?? 'update failed', clubAccount };
+  if (error) return { error: error.message ?? 'update failed', destination };
   if (!data || (data as unknown[]).length === 0) {
-    return { error: `the payout row was no longer ${fromStatus}`, clubAccount };
+    return { error: `the payout row was no longer ${fromStatus}`, destination };
   }
-  return { error: null, clubAccount };
+  return { error: null, destination };
 }
 
-/** Put a failed row back to 'processing' so refunds are refused; true when it moved. */
+/**
+ * Put a failed row back to 'processing' so refunds are refused; true when it
+ * moved. What brings it back: the stale-processing check, which picks rows by
+ * updated_at, and the set_updated_at trigger stamps updated_at on this very
+ * update, so the day is counted from this move. Until then nothing can claim
+ * or send it: processShow skips a live 'processing' row, the claim RPC answers
+ * 'busy' for one, approve/hold refuse it, and both refund endpoints block on it.
+ */
 async function holdAsProcessing(supabase: SupabaseClient, rowId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('show_payouts')
@@ -156,7 +197,7 @@ export async function settleFoundTransfer(
     await reportReconcileError(deps, summary, show, transfer, record.error, blocked);
     return false;
   }
-  const facts = transferFacts(transfer, liveCount, record.clubAccount);
+  const facts = transferFacts(transfer, liveCount, record.destination);
   if (found.alwaysAlert || facts.length > 0) {
     await alertReconciled(deps, show, transfer, found.ledgerCents, facts);
   }
@@ -178,7 +219,7 @@ export async function checkFailedAttempt(
   const { supabase } = deps;
   const { data: latest, error } = await supabase
     .from('show_payouts')
-    .select('id, status, amount_cents')
+    .select('id, status, amount_cents, club_stripe_account_id')
     .eq('show_id', show.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -206,14 +247,24 @@ export async function checkFailedAttempt(
       .maybeSingle();
     if (liveError || live) return { kind: 'stop' };
 
+    // While Stripe cannot say whether the failed attempt moved money, the row
+    // goes back to 'processing' so refunds are refused (MYK9-2183).
+    const rowId = latest.id as string;
+    const mode = await checkAttemptMode(deps, latest.club_stripe_account_id as string | null);
+    if (mode !== 'match') {
+      const held = await holdAsProcessing(supabase, rowId);
+      await reportAttemptModeHold(deps, summary, show, mode, held ? 'blocked' : 'open');
+      return { kind: 'stop' };
+    }
     const lookup = await lookUpShowTransfer(deps.stripe, show.id);
     if (lookup.kind === 'error') {
-      await reportLookupError(deps, summary, show, lookup.message);
+      const held = await holdAsProcessing(supabase, rowId);
+      await reportLookupError(deps, summary, show, lookup.message, held ? 'blocked' : 'open');
       return { kind: 'stop' };
     }
     if (lookup.kind === 'found') {
       const found = {
-        rowId: latest.id as string,
+        rowId,
         fromStatus: 'failed',
         ledgerCents: latest.amount_cents as number,
         alwaysAlert: true,
@@ -232,6 +283,7 @@ interface StaleRow {
   id: string;
   show_id: string;
   amount_cents: number;
+  club_stripe_account_id: string | null;
   shows: { name: string; club_id: string | null } | null;
 }
 
@@ -249,7 +301,7 @@ export async function recoverStaleProcessing(
   const { supabase } = deps;
   const { data: stale, error } = await supabase
     .from('show_payouts')
-    .select('id, show_id, amount_cents, shows(name, club_id)')
+    .select('id, show_id, amount_cents, club_stripe_account_id, shows(name, club_id)')
     .eq('status', 'processing')
     .lt('updated_at', staleBeforeIso);
   if (error) {
@@ -268,9 +320,15 @@ export async function recoverStaleProcessing(
       continue;
     }
     try {
+      // Another mode's transfers are invisible to this key: never read "none" as proof.
+      const mode = await checkAttemptMode(deps, row.club_stripe_account_id);
+      if (mode !== 'match') {
+        await reportAttemptModeHold(deps, summary, show, mode, 'blocked');
+        continue;
+      }
       const lookup = await lookUpShowTransfer(deps.stripe, row.show_id);
       if (lookup.kind === 'error') {
-        await reportLookupError(deps, summary, show, lookup.message);
+        await reportLookupError(deps, summary, show, lookup.message, 'blocked');
         continue;
       }
       if (lookup.kind === 'found') {

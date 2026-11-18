@@ -113,7 +113,8 @@ describe('what the Stripe list shows', () => {
     });
     await world.go();
     expect(world.list).toHaveBeenCalledWith({ transfer_group: 'show-1', limit: 10 });
-    expect(world.payoutWrites()).toHaveLength(0);
+    // Only the guarded hold that keeps refunds blocked (MYK9-2183 review).
+    expect(world.payoutWrites().map(w => w.values)).toEqual([{ status: 'processing' }]);
     expect(world.rpc).not.toHaveBeenCalled();
     expect(world.summary.transfer_lookup_errors).toBe(1);
   });
@@ -159,7 +160,7 @@ describe('what the Stripe list shows', () => {
     await world.go();
     const done = world.payoutWrites().find(isUpdate('completed'));
     expect(done?.values).toMatchObject({ stripe_transfer_id: 'tr_else', amount_cents: 9000 });
-    expect(done?.values).not.toHaveProperty('club_stripe_account_id');
+    expect(done?.values).toMatchObject({ club_stripe_account_id: null });
     const body = world.alertAdmin.mock.calls.find(c => c[0].startsWith('Payout reconciled'))?.[1];
     expect(body).toContain('not this club’s Stripe account');
   });

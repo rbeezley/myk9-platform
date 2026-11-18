@@ -51,7 +51,8 @@ describe('a show whose last attempt failed is checked with Stripe first', () => 
 
     expect(world.create).not.toHaveBeenCalled();
     expect(world.rpc).not.toHaveBeenCalled();
-    expect(world.payoutWrites()).toHaveLength(0);
+    // Only the guarded hold that keeps refunds blocked (MYK9-2183 review).
+    expect(world.payoutWrites().map(w => w.values)).toEqual([{ status: 'processing' }]);
     expect(world.summary.transfer_lookup_errors).toBe(1);
     expect(world.alertAdmin).toHaveBeenCalledWith(
       'Payout could not be checked with Stripe: Fall Trial',

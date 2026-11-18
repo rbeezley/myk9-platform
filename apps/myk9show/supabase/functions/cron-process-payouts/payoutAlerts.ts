@@ -20,11 +20,17 @@ function transferLine(transfer: FoundTransfer): string {
     <code>${escapeHtml(transfer.destination ?? 'unknown account')}</code>`;
 }
 
+/**
+ * Whether a transfer's destination is the show's club's account: 'other' only
+ * when the account read succeeded and no account of this club matched.
+ */
+export type DestinationCheck = 'club' | 'other' | 'unchecked';
+
 /** What an operator must look at about a transfer found at Stripe; empty when nothing. */
 export function transferFacts(
   transfer: FoundTransfer,
   liveCount: number,
-  clubAccount: boolean
+  destination: DestinationCheck
 ): string[] {
   const facts: string[] = [];
   if (liveCount > 1) {
@@ -37,10 +43,16 @@ export function transferFacts(
   if (transfer.amountReversed > 0) {
     facts.push(`${formatDollars(transfer.amountReversed)} of it was reversed.`);
   }
-  if (!clubAccount) {
+  const where = `<code>${escapeHtml(transfer.destination ?? 'unknown account')}</code>`;
+  if (destination === 'other') {
     facts.push(
-      `It went to <code>${escapeHtml(transfer.destination ?? 'unknown account')}</code>, which is
-       not this club’s Stripe account.`
+      `It went to ${where}, which is not this club’s Stripe account, so the payout record names
+       no account.`
+    );
+  } else if (destination === 'unchecked') {
+    facts.push(
+      `It went to ${where}. Whether that is this club’s account could not be checked; the
+       payout record keeps the account it had.`
     );
   }
   return facts;
@@ -69,11 +81,23 @@ export async function alertReconciled(
   );
 }
 
+/** Where refunds stand for a show whose payout the run could not settle. */
+function refundsLine(refunds: 'blocked' | 'open'): string {
+  return refunds === 'blocked'
+    ? `<p>The payout is marked processing, so refunds are blocked for this show. A payout held
+       this way is checked with Stripe again once it has been processing for a day.</p>`
+    : `<p><strong>Refunds are NOT blocked for this show.</strong> The payout record could not be
+       marked processing. Fix it by hand now: set the show_payouts row to processing, and refund
+       nothing against this show until Stripe confirms whether the club was paid.</p>`;
+}
+
+/** `refunds` is set when the row was (or could not be) held as processing. */
 export async function reportLookupError(
   deps: AlertDeps,
   summary: PayoutSummary,
   show: ShowRef,
-  message: string
+  message: string,
+  refunds?: 'blocked' | 'open'
 ) {
   summary.transfer_lookup_errors++;
   console.error(`Stripe transfer lookup failed for show ${show.id}: ${message}`);
@@ -83,8 +107,42 @@ export async function reportLookupError(
      <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>), so nothing was
      queued or sent this run.</p>
      <pre>${escapeHtml(message)}</pre>
+     ${refunds ? refundsLine(refunds) : ''}
      <p>The next run asks again. If this repeats, check the Stripe status page and key.</p>`,
     { dedupeKey: `payout-transfer-lookup-error-${show.id}`, severity: 'error' }
+  );
+}
+
+export type AttemptMode = 'match' | 'mismatch' | 'no_account' | 'read_error';
+
+const ATTEMPT_MODE_WHY: Record<Exclude<AttemptMode, 'match'>, string> = {
+  mismatch:
+    'The earlier attempt was made to a Stripe account in the other mode (test or live) than the key the run uses now, so Stripe cannot show whether that transfer went out.',
+  no_account:
+    'The earlier attempt has no linked Stripe account, so the run cannot tell which Stripe mode it was made in.',
+  read_error:
+    'The run could not read the Stripe account the earlier attempt was made to, so it cannot tell which Stripe mode it was made in.',
+};
+
+/** An earlier attempt the run cannot check with this Stripe key: never failed, never retried. */
+export async function reportAttemptModeHold(
+  deps: AlertDeps,
+  summary: PayoutSummary,
+  show: ShowRef,
+  mode: Exclude<AttemptMode, 'match'>,
+  refunds: 'blocked' | 'open'
+) {
+  summary.attempt_mode_holds++;
+  console.error(`Payout for show ${show.id} held: attempt Stripe mode ${mode}`);
+  await deps.alertAdmin(
+    `Payout held: Stripe mode not confirmed: ${show.name}`,
+    `<p>${ATTEMPT_MODE_WHY[mode]} Nothing was checked, queued or sent for
+     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>).</p>
+     ${refundsLine(refunds)}
+     <p>Check the show's transfers in the Stripe dashboard in the mode the attempt used, then
+     either record the transfer on the payout or, if there is none, mark the payout failed so
+     the run can ask for it again. Until then every run holds it.</p>`,
+    { dedupeKey: `payout-attempt-mode-${show.id}`, severity: 'error' }
   );
 }
 

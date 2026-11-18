@@ -628,8 +628,10 @@ BEGIN
     FROM public.entries e
     JOIN public.enrollments en ON en.id = e.registration_id
     WHERE (en.id = 'dededede-0000-0000-0000-000000000070'
+           OR en.id = 'dededede-0000-0000-0000-000000000071'
            OR (en.show_id = 'dededede-0000-0000-0000-000000000010'
-               AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')))
+               AND en.handler_id IN (SELECT id FROM public.people
+                                     WHERE lower(email) IN ('exhibitor@myk9t.com', 'secretary@myk9t.com'))))
       AND e.payment_status IN ('paid', 'refunded')
   )
   SELECT count(*),
@@ -676,10 +678,17 @@ BEGIN
 END $$;
 DELETE FROM public.entries
 WHERE registration_id = 'dededede-0000-0000-0000-000000000070'
+   OR registration_id = 'dededede-0000-0000-0000-000000000071'
    OR registration_id IN (
         SELECT id FROM public.enrollments
         WHERE show_id = 'dededede-0000-0000-0000-000000000010'
           AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')
+      )
+   -- MYK9-2190: the secretary's own form (...071) on the demo show, the same way.
+   OR registration_id IN (
+        SELECT id FROM public.enrollments
+        WHERE show_id = 'dededede-0000-0000-0000-000000000010'
+          AND handler_id = (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com')
       );
 -- Delete by the (show, handler) PAIR as well as by id: that pair is uniquely
 -- indexed, so a stray enrollment created by a real Stripe checkout against the
@@ -687,9 +696,11 @@ WHERE registration_id = 'dededede-0000-0000-0000-000000000070'
 -- CONFLICT, and leave section 6b's UPDATE pointing at an id that does not
 -- exist. Clearing both makes the insert unconditional and any collision loud.
 DELETE FROM public.enrollments
-WHERE id = 'dededede-0000-0000-0000-000000000070'
+WHERE id IN ('dededede-0000-0000-0000-000000000070', 'dededede-0000-0000-0000-000000000071')
    OR (show_id = 'dededede-0000-0000-0000-000000000010'
-       AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'));
+       AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'))
+   OR (show_id = 'dededede-0000-0000-0000-000000000010'
+       AND handler_id = (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'));
 DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
   'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
@@ -1690,7 +1701,7 @@ VALUES
    'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Jordan Ellis',
-   'confirmed', 'paid', 30.00, 105, 3, false, 1);
+   'confirmed', 'pending', 30.00, 105, 3, false, 1);
 
 -- Purpose-built preliminary-results class (...040): two paid entries means the
 -- class can be fully scored without touching the 63-dog load fixture.
@@ -1723,7 +1734,7 @@ VALUES
    'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0000-000000000045',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000024',
    (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
-   'confirmed', 'paid', 30.00, 105, 1, false, 1);
+   'confirmed', 'pending', 30.00, 105, 1, false, 1);
 
 -- ---------------------------------------------------------------------------
 -- 6b. MULTI-DOG ORDER FIXTURE — the shape production actually produces.
@@ -1764,7 +1775,7 @@ VALUES (
   'paid',
   'pi_seeddemo_multidog_order',
   'online',
-  12000  -- cents: 4 paid entries x $30.00
+  18000  -- cents: 6 paid entries x $30.00
 );
 
 -- Willow (051/052, Saturday trial) and Scout (055 Saturday + 056 Sunday) — two
@@ -1776,7 +1787,10 @@ WHERE id IN (
   'dededede-0000-0000-0000-000000000051',
   'dededede-0000-0000-0000-000000000052',
   'dededede-0000-0000-0000-000000000055',
-  'dededede-0000-0000-0000-000000000056'
+  'dededede-0000-0000-0000-000000000056',
+  -- MYK9-2190: the purpose-built scoring pair (section 6) is paid by the same exhibitor.
+  'dededede-0000-0000-0000-000000000067',
+  'dededede-0000-0000-0000-000000000068'
 );
 
 -- ---------------------------------------------------------------------------
@@ -1934,6 +1948,39 @@ VALUES
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture (exhibitor-owned).',
    ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), 1);
+
+-- 9b. ENTRY FORMS FOR EVERY OTHER SEEDED ENTRY (MYK9-2190). Every seeded entry that is not
+--    a card entry has an entry form, one per exhibitor per show, as MYK9-1930 gives a desk
+--    entry (its trigger skips this session, which has no signed-in person, so the seed
+--    links them itself, still as service_role so the refund columns of ...059/060 stay
+--    untouched). The exhibitor's form is ...070 (6b); Cooper's owner, the secretary, gets
+--    ...071. No money is invented: ...071 is inserted pending with nothing received, and its
+--    two entries are seeded as owing, so the demo shows "Payment due" with Cash / Check on
+--    the form. The pending exhibitor entries (053/054/057) join ...070, which then owes
+--    them too. The withdrawn, refunded pair (059/060) join ...070 and owe nothing (a
+--    refunded entry is not in what a form owes). Both forms are deleted by section 0.
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+VALUES (
+  'dededede-0000-0000-0000-000000000071',
+  'dededede-0000-0000-0000-000000000010',
+  (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'),
+  'pending'
+);
+UPDATE public.entries
+SET registration_id = 'dededede-0000-0000-0000-000000000070'
+WHERE id IN (
+  'dededede-0000-0000-0000-000000000053',
+  'dededede-0000-0000-0000-000000000054',
+  'dededede-0000-0000-0000-000000000057',
+  'dededede-0000-0000-0000-000000000059',
+  'dededede-0000-0000-0000-000000000060'
+);
+UPDATE public.entries
+SET registration_id = 'dededede-0000-0000-0000-000000000071'
+WHERE id IN (
+  'dededede-0000-0000-0000-000000000058',
+  'dededede-0000-0000-0000-000000000069'
+);
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------

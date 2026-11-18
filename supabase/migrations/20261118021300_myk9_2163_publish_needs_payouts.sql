@@ -128,6 +128,15 @@
 -- the push and the deploy an old client still offers the mail-in switch and
 -- the old payouts text; the server refuses what it must, and the old client
 -- shows the server's new message text.
+-- KNOWN GAP IN THAT WINDOW, closed by MYK9-2164 (PR #4136), which ships in the
+-- same deploy: the old client's Publish precheck (ShowStatusPill) asks for a
+-- payouts-enabled Stripe account whenever online entries are on and knows
+-- nothing of the demo exemption, so a demo club with no Stripe account is
+-- stopped in the app although this gate would let it publish. MYK9-2164
+-- replaces that precheck with one payouts reading that honours is_demo; it
+-- is not duplicated here because both PRs would then rewrite the same file.
+-- Push this migration only when the Deploy myK9Show carrying MYK9-2164
+-- follows at once. Only test clubs exist, so no real club meets the gap.
 --
 -- Behavioral coverage (CI-only): supabase/tests/myk9_2163_publish_needs_payouts_test.sql,
 -- with show_publish_gate_trigger_test.sql and myk9_979_online_entries_switch_test.sql

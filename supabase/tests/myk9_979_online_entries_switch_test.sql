@@ -542,6 +542,11 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
   END;
+  -- Read the row back as the manager: 979103 is a draft since section 6, and
+  -- shows_select hides a draft from the exhibitor, so her read would be NULL.
+  PERFORM set_config('request.jwt.claim.sub', admin_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', admin_auth, 'role', 'authenticated')::text, true);
   IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979103') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 10c a refused non-manager call changed the row';
   END IF;

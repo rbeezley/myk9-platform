@@ -24,7 +24,7 @@ export type SceneDeviceData = {
   shots: Readonly<Record<string, SceneShot>>;
 };
 
-/** What one device shows in one frame. Within a frame, one camera moves every capture of the device. */
+/** What one device shows in one frame. Every capture of a device shares one camera. */
 export type DeviceView = {
   shot: string;
   camera: Region;
@@ -38,11 +38,6 @@ export type SceneFrame = {
   ms: number;
   /** The device this frame is about; the other dims. */
   subject: DeviceId | 'both';
-  /**
-   * Marks the frame that stands for its line under reduced motion, when the line's heading is
-   * about a frame other than its last. At most one per line.
-   */
-  rest?: boolean;
   /** One view per device the scene has. */
   desk?: DeviceView;
   phone?: DeviceView;
@@ -87,52 +82,6 @@ export function ringStyle(ring: Region, camera: Region) {
   };
 }
 
-/**
- * A camera of the page's own shape that holds `region` with `pad` pixels around it, kept
- * inside the page. Never narrower than `minWidth`, so a small control is not blown up until
- * its text blurs. Every camera of a device has the page's shape, so the frame never changes
- * shape between frames.
- */
-export function cameraAround(
-  space: SceneDeviceData['space'],
-  region: Region,
-  { pad = 32, minWidth = 0 }: { pad?: number; minWidth?: number } = {}
-): Region {
-  const aspect = space.width / space.height;
-  const w = Math.min(
-    space.width,
-    Math.max(minWidth, region.w + pad * 2, (region.h + pad * 2) * aspect)
-  );
-  const h = w / aspect;
-  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), Math.max(max, 0));
-  const round = (v: number) => Math.round(v * 100) / 100;
-  return {
-    x: round(clamp(region.x + region.w / 2 - w / 2, space.width - w)),
-    y: round(clamp(region.y + region.h / 2 - h / 2, space.height - h)),
-    w: round(w),
-    h: round(h),
-  };
-}
-
-/**
- * A close view of `region` in a camera `width` wide, the widest at which its words can still
- * be read. A region that fits is ringed. One too wide to fit is not shrunk until it is
- * unreadable: the camera holds its start or its end, and there is no ring, because a ring cut
- * off by the frame points at nothing.
- */
-export function closeView(
-  space: SceneDeviceData['space'],
-  region: Region,
-  { width, align = 'start', pad = 24 }: { width: number; align?: 'start' | 'end'; pad?: number }
-): { camera: Region; ring?: Region } {
-  const inner = width - pad * 2;
-  if (region.w <= inner) {
-    return { camera: cameraAround(space, region, { pad, minWidth: width }), ring: region };
-  }
-  const x = align === 'end' ? region.x + region.w - inner : region.x;
-  return { camera: cameraAround(space, { ...region, x, w: inner }, { pad, minWidth: width }) };
-}
-
 export function firstFrameOfLine(frames: readonly SceneFrame[], line: number): number {
   const i = frames.findIndex(f => f.line === line);
   return i < 0 ? 0 : i;
@@ -141,15 +90,6 @@ export function firstFrameOfLine(frames: readonly SceneFrame[], line: number): n
 export function lastFrameOfLine(frames: readonly SceneFrame[], line: number): number {
   for (let i = frames.length - 1; i >= 0; i--) if (frames[i]!.line === line) return i;
   return 0;
-}
-
-/**
- * The frame that stands for a line when nothing moves (reduced motion): the one marked
- * `rest`, or the line's last frame.
- */
-export function restFrameOfLine(frames: readonly SceneFrame[], line: number): number {
-  const marked = frames.findIndex(f => f.line === line && f.rest);
-  return marked < 0 ? lastFrameOfLine(frames, line) : marked;
 }
 
 /**

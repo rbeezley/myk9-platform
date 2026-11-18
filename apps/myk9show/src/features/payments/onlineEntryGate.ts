@@ -12,10 +12,12 @@ import { toLocalDateOnly } from '@/utils/date-format';
 // from a non-public status into published, upcoming, in_progress or completed
 // (PUBLIC_SHOW_STATUSES below) — not only on 'published'.
 
-/** The trigger's payouts refusal text, kept to recognise it in a sync-failure toast. The Publish
- * menu shows clubPayoutsMessage instead, with the same reason and a link. */
+/** MYK9-2163: enforce_show_publish_gate()'s payouts refusal (MK003) verbatim.
+ * Publishing needs the club's payouts whatever online_entries_enabled says. Kept to recognise
+ * the refusal; when the app already knows the club's payouts state the Publish menu shows
+ * clubPayoutsMessage instead, with the same reason and a link. */
 export const PUBLISH_BLOCKED_MESSAGE =
-  "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.";
+  "This club's payouts aren't enabled yet, so the show can't be published. A club admin connects the bank account on the club's Payments tab. If Stripe is reviewing the account, that usually takes a day or two.";
 
 /** Mirrors enforce_show_publish_gate()'s club_id IS NULL refusal verbatim
  * (latest definition: supabase/migrations/20261113204300, MYK9-1887). Distinct from PUBLISH_BLOCKED_MESSAGE
@@ -29,6 +31,16 @@ export const CLUB_REQUIRED_MESSAGE =
  * text stays because migration 20261003221700 raises it and its contract test reads it. */
 export const ONLINE_ENTRIES_BLOCKED_MESSAGE =
   "Connect your club's payment account before turning on online entries. Online entry fees need somewhere to go. Find it under My Club → Payments.";
+
+/** MYK9-2163: the trigger's refusal (MK003), verbatim, to publish a show with
+ * online entries off or to turn them off on a public show. */
+export const ONLINE_ENTRIES_REQUIRED_MESSAGE =
+  'A published show always takes online entries. Turn online entries on, or keep this show as a draft.';
+
+/** MYK9-2163: the trigger's refusal (MK003), verbatim, to create a show with
+ * online entries off or to turn them off, on any status (drafts included). */
+export const ONLINE_ENTRIES_ALWAYS_ON_MESSAGE =
+  "Every show takes online entries. This can't be turned off.";
 
 /** What exhibitors read on a show that takes no online entries. */
 export const MAIL_IN_ENTRY_NOTE =
@@ -175,6 +187,8 @@ export const PUBLISH_GATE_MESSAGES: readonly string[] = [
   CLUB_REQUIRED_MESSAGE,
   ONLINE_ENTRIES_BLOCKED_MESSAGE,
   CLUB_UNAUTHORIZED_MESSAGE,
+  ONLINE_ENTRIES_REQUIRED_MESSAGE,
+  ONLINE_ENTRIES_ALWAYS_ON_MESSAGE,
   ENTRY_WINDOW_REQUIRED_MESSAGE,
   ENTRY_WINDOW_ORDER_MESSAGE,
   ENTRY_WINDOW_PUBLISHED_MESSAGE,

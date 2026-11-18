@@ -295,8 +295,7 @@ describe('ShowStatusPill', () => {
       mockAccount(true);
       mutateAsync.mockRejectedValueOnce({
         code: 'MK003',
-        message:
-          "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.",
+        message: PUBLISH_BLOCKED_MESSAGE,
       });
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);

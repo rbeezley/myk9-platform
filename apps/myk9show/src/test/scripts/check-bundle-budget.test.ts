@@ -369,6 +369,15 @@ describe('check-bundle-budget — the build measured must be the app', () => {
   });
 });
 
+describe('check-bundle-budget — initial-load ceilings', () => {
+  // MYK9-2140 moved the signed-in app out of the startup file. A change that puts it back
+  // has to raise these on purpose, here, where a reviewer sees it.
+  it('pins the initial-load ceilings', () => {
+    expect(BUDGETS.initialJsKb).toBe(1275);
+    expect(BUDGETS.maxChunkKb).toBe(1360);
+  });
+});
+
 describe('check-bundle-budget — precache rules', () => {
   const within = {
     initialJsKb: 1000,

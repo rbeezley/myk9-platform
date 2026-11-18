@@ -2,9 +2,11 @@ import './services/observability/sentry';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
-import { RouterProvider } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
-import { router } from './router';
+import { RootRouter } from './boot/RootRouter';
+import type { AppRouter } from './boot/GuestLanding';
+import { isGuestLandingBoot } from './boot/isGuestLandingBoot';
+import { startInstallPromptCapture } from './boot/installPromptCapture';
 import './index.css';
 // Ringside page styles — required by the @myk9/ringside EntryList mount at
 // /at-show (Phase 1a). Imported unconditionally; the route itself is flag-gated.
@@ -28,6 +30,19 @@ import {
 // avoid touching browser globals during SSR or module-loading tests.
 if (typeof window !== 'undefined' && import.meta.env.MODE !== 'test') {
   installSupportErrorCapture();
+}
+
+// The browser makes its install offer once per page load, before the install banner has loaded.
+if (typeof window !== 'undefined' && import.meta.env.MODE !== 'test') {
+  startInstallPromptCapture();
+}
+
+// Everyone but a first-time landing visitor needs the full app, so start fetching it now, not
+// after React has mounted (MYK9-2140). RootRouter's own import then resolves from this one; a
+// failure here is left for RootRouter, which retries and reports it.
+const guestBoot = isGuestLandingBoot(window.location);
+if (!guestBoot) {
+  void import('./router').catch(() => undefined);
 }
 
 // Initialize settings (applies accent color, theme, etc. from localStorage)
@@ -65,7 +80,12 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
 
 logger.debug('Starting myK9Show...', 'app', {});
 
-setupRouterPageViewTracking(router, monitoring);
+// The landing page's own router and the full app's router are tracked in turn (MYK9-2140).
+let stopPageViewTracking: (() => void) | undefined;
+const trackRouter = (router: AppRouter) => {
+  stopPageViewTracking?.();
+  stopPageViewTracking = setupRouterPageViewTracking(router, monitoring);
+};
 
 const sentryReactErrorHandler = Sentry.reactErrorHandler();
 
@@ -84,7 +104,7 @@ createRoot(document.getElementById('root')!, {
   <StrictMode>
     <QueryProvider>
       <ThemeProvider>
-        <RouterProvider router={router} />
+        <RootRouter guestBoot={guestBoot} onRouter={trackRouter} />
       </ThemeProvider>
     </QueryProvider>
     {/* Vercel Web Analytics: cookieless page views, same-origin script and

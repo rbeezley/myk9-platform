@@ -47,22 +47,23 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// RAW KB. Baseline measured 2026-11-17 on main 913fea591, built WITH the environment
-// (MYK9-2150): initialJs 2796.1, initialCss 296.8, maxChunk 2163.2 (the startup file),
-// precache 12505.2. Production on the same day: startup file 2,240 KB, initial JS about
-// 2,872 KB. initialJs and maxChunk sit about 10% above the baseline, precache at the next
-// whole megabyte.
+// RAW KB. Baseline measured 2026-11-17 on the MYK9-2140 branch (main 5d50f5992 merged in),
+// built WITH the environment (MYK9-2150): initialJs 1157.1 (startup file 524.2), initialCss
+// 296.8, maxChunk 1233.7 (the router file, which holds the signed-in app), precache 12544.3.
+// initialJs and maxChunk sit about 10% above the baseline, precache at the next whole
+// megabyte.
 //
-// These three are HIGHER than the MYK9-1357 figures (1125, 1345, 12288), and that is a
-// correction, not a relaxation: those were recorded on 2026-10-24 from a build made without
-// the environment, which was missing about 1.7 MB of the app (see the header). The app did
-// not grow; the measure was wrong. From here the rule is unchanged: ratchet down only.
-// MYK9-2140 moves the app out of the startup file; its build measures initialJs at about
-// 1,160 and its largest chunk at about 1,235, so both ceilings come down when it lands.
+// History. MYK9-1357 recorded 1125 / 1345 / 12288 on 2026-10-24 from a build made without
+// the environment, which was missing about 1.7 MB of the app (see the header). MYK9-2150
+// re-recorded them on the real build of main 913fea591 as 3075 / 2380 / 13312 (measured
+// 2796.1 / 2163.2 / 12505.2; production that day: startup file 2,240 KB, initial JS about
+// 2,872 KB). MYK9-2140 then moved the signed-in app out of the startup file, which is what
+// brought initialJs and maxChunk down to the figures below. The total is unchanged, so the
+// precache ceiling stays. Ratchet down only.
 export const BUDGETS = {
-  initialJsKb: 3075, // entry + eager (modulepreload) vendor chunks
+  initialJsKb: 1275, // entry + eager (modulepreload) vendor chunks
   initialCssKb: 325, // stylesheets linked from index.html
-  maxChunkKb: 2380, // ceiling for any single JS chunk (today the startup file)
+  maxChunkKb: 1360, // ceiling for any single JS chunk (today the router file)
   precacheTotalKb: 13312, // 13 MB: everything the service worker fetches on first visit
   precacheNonCodeFileKb: 1024, // any precached file that is not .js/.css (MYK9-1356)
 };

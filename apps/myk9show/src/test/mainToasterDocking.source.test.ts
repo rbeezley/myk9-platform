@@ -19,6 +19,10 @@ const toasterSource = readFileSync(
 );
 const mainSource = readFileSync(join(__dirname, '..', 'main.tsx'), 'utf8');
 const appSource = readFileSync(join(__dirname, '..', 'App.tsx'), 'utf8');
+// MYK9-2140: main.tsx renders RootRouter, which mounts the app's RouterProvider, or the light
+// landing page (GuestLanding) for a first-time visitor. The landing page shows no toasts.
+const rootRouterSource = readFileSync(join(__dirname, '..', 'boot', 'RootRouter.tsx'), 'utf8');
+const guestLandingSource = readFileSync(join(__dirname, '..', 'boot', 'GuestLanding.tsx'), 'utf8');
 
 describe('Sonner toaster docking', () => {
   it('docks Sonner away from the custom top-right notification stack', () => {
@@ -37,9 +41,12 @@ describe('Sonner toaster docking', () => {
     // AppToaster calls useLocation to clear stale toasts on navigation, so a
     // mount outside BrowserRouter would throw at runtime — and a second bare
     // <Toaster> anywhere would reintroduce an un-offset stack.
-    expect(mainSource).toContain('<RouterProvider router={router} />');
-    expect(mainSource).not.toMatch(/<Toaster\b/);
-    expect(mainSource).not.toContain('<BrowserRouter>');
+    expect(mainSource).toContain('<RootRouter guestBoot={guestBoot} onRouter={trackRouter} />');
+    expect(rootRouterSource).toContain('<RouterProvider router={appRouter} />');
+    for (const source of [mainSource, rootRouterSource, guestLandingSource]) {
+      expect(source).not.toMatch(/<Toaster\b/);
+      expect(source).not.toContain('<BrowserRouter>');
+    }
     expect(appSource).toContain('<AppToaster />');
     expect(appSource).toContain('<ToastContainer />');
   });

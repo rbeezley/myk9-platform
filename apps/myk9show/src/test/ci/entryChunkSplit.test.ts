@@ -10,6 +10,10 @@ import { describe, expect, it } from 'vitest';
  * suite notices a static import creeping back, so this walks the import graph
  * Vite follows from src/main.tsx. Dynamic `import()` is a chunk boundary and is
  * not followed; type-only imports are erased and are not followed either.
+ *
+ * MYK9-2140: src/main.tsx is now the light start a first-time landing visitor downloads, and
+ * the app (the signed-in shell and every route) is src/router.tsx, loaded as its own file. The
+ * MYK9-844 checks follow the app; the last test keeps the app out of the light start.
  */
 const srcRoot = resolve(__dirname, '../..');
 
@@ -101,7 +105,8 @@ function chain(graph: Graph, target: string): string {
 }
 
 describe('entry chunk split', () => {
-  const entry = walk(resolve(srcRoot, 'main.tsx'));
+  const entry = walk(resolve(srcRoot, 'router.tsx'));
+  const lightStart = walk(resolve(srcRoot, 'main.tsx'));
 
   it('walks the real graph (positive control)', () => {
     expect(entry.files.size).toBeGreaterThan(500);
@@ -135,6 +140,35 @@ describe('entry chunk split', () => {
       entry.externals.has('@myk9/ringside') ? chain(entry, '@myk9/ringside') : null,
       'static import of the @myk9/ringside barrel'
     ).toBeNull();
+  });
+
+  it('keeps the app out of the light start a landing visitor downloads', () => {
+    // Positive control: the walk reached the landing page through the guest root.
+    expect(lightStart.files.has(resolve(srcRoot, 'pages/Home.tsx'))).toBe(true);
+    expect(lightStart.files.has(resolve(srcRoot, 'boot/GuestLanding.tsx'))).toBe(true);
+
+    const forbiddenFiles = [
+      'router.tsx',
+      'App.tsx',
+      'context/AuthContext.tsx',
+      'providers/ReplicationSyncProvider.tsx',
+      'components/layout/AppHeader.tsx',
+      'services/replication/index.ts',
+    ].map(file => resolve(srcRoot, file));
+    expect(
+      forbiddenFiles
+        .filter(file => lightStart.files.has(file))
+        .map(file => chain(lightStart, file)),
+      'static import of the app from the light start'
+    ).toEqual([]);
+
+    const forbiddenPackages = ['@myk9/replication', 'dexie', 'zod'];
+    expect(
+      forbiddenPackages
+        .filter(spec => lightStart.externals.has(spec))
+        .map(spec => chain(lightStart, spec)),
+      'static import of an app-only package from the light start'
+    ).toEqual([]);
   });
 
   it('keeps the dog detail page a lazy route', () => {

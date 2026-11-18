@@ -1,6 +1,6 @@
 /** Consolidated auth, RBAC, mock-user, and role-administration context. */
 
-import React, { createContext, ReactNode, useCallback, useMemo, useState, useEffect } from 'react';
+import React, { ReactNode, useCallback, useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +22,7 @@ import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
 import { RoleAccessDeniedState } from '@/components/common/RoleAccessDeniedState';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import type { AuthContextType } from './authContextTypes';
+import { AuthContext } from './authContextObject';
 import {
   buildActiveRoleScopes,
   buildDevUserWithMockRoles,
@@ -37,8 +38,7 @@ import { isAccountSession } from '@/hooks/guestServerRead';
 
 export type { AuthContextType, PersonIdentityState, UserRoleWithDetails } from './authContextTypes';
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export { AuthContext };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import {
   LandingHeader,
   LandingHero,
@@ -11,8 +11,16 @@ import {
 } from '@/components/landing/lifecycle';
 import { ctaAudience } from '@/components/landing/lifecycle/landingCtas';
 import { DEFAULT_AUDIENCE, type Audience } from '@/components/landing/lifecycle/lifecycleStories';
-import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+
+// The banner lists the signed-in account's entries for today, so a guest never sees it. Loading
+// it on demand keeps its replicated-table reads out of a first-time visitor's page (MYK9-2140).
+const ShowTodayBanner = lazyWithRetry(() =>
+  import('@/features/show-today/ShowTodayBanner').then(module => ({
+    default: module.ShowTodayBanner,
+  }))
+);
 
 const Home: React.FC = () => {
   const { user } = useAuthContext();
@@ -38,7 +46,11 @@ const Home: React.FC = () => {
   return (
     <div className="landing-v2" data-guest={user ? 'false' : 'true'}>
       <LandingHeader signedIn={signedIn} audience={ctas} />
-      <ShowTodayBanner />
+      {signedIn && (
+        <Suspense fallback={null}>
+          <ShowTodayBanner />
+        </Suspense>
+      )}
       <LandingHero showSignUp={!signedIn} />
       <TrustSection />
       <LifecycleTimeline audience={audience} onAudienceChange={setAudience} />

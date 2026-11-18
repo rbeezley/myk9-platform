@@ -21,13 +21,17 @@
 --   queue_substitute_judge_emails(class, judge)    integer: how many jobs it queued or merged into
 --   dismiss_substitute_judge_email_offer(class, judge)
 --
--- Recipients are the live_entry_person_class_pairs rule (MYK9-2125) with an email on file, MINUS anyone
--- who already has a judge_changed job (ready, which includes leased, or sent) created at or after the
--- departure's left_at whose judge_changes carries this class with the judge who left. That email is
--- rendered at send time as "was <left>, now <current judge>", so it is exactly this one: the automatic
--- one-step swap already sent it, or an earlier tap did. A job the sender skipped (the class had no
--- judge when it was sent, the remove-then-add case), failed or dismissed told nobody, so it does not
--- count. The offer, the count it shows and the queue all use that one rule (substitute_judge_email_recipients).
+-- Recipients are the live_entry_person_class_pairs rule (MYK9-2125) with an email on file, MINUS the
+-- people this offer already queued: notified_person_ids on the departure row holds the ids the queue
+-- actually inserted or merged (a person skipped because their email is leased is NOT recorded, so they
+-- stay offered). A NEW departure resets the array to empty, so a new substitute starts from everyone.
+-- Nothing here reads email jobs to decide who was told (owner: no inference from old emails).
+--
+-- One-step swap: set_class_judge deletes the judge row then inserts the replacement in ONE transaction,
+-- and MYK9-2125 already queued "was A, now B" for every live exhibitor. The departure's left_at (now() in
+-- the delete trigger) then equals the replacement's judge_assignments.created_at (column default now()),
+-- because now() is the transaction start. That pairing is never offered and a tap answers 0. A judge
+-- removed and a new one named in later transactions has a later created_at, so it IS offered.
 -- A tap after the offer was resolved for the same judge answers 0, not an error. The job is
 -- the 2125 one (ready, auto_send, due in 5 minutes, one per person; judge_changes names the judge who
 -- left, so the email reads "was X, now Y" exactly as the automatic one). A job the sender has claimed
@@ -42,7 +46,7 @@
 -- public.queue_substitute_judge_emails(uuid, uuid), public.class_substitute_judge_offer(uuid),
 -- public.substitute_judge_email_show(uuid); DROP TRIGGER trg_record_class_judge_departure_delete
 -- and ..._update ON public.judge_assignments; DROP FUNCTION public.record_class_judge_departure();
--- DROP FUNCTION public.substitute_judge_email_recipients(uuid, uuid); restore hard_delete_show from
+-- DROP FUNCTION public.substitute_judge_email_recipients(uuid, uuid), public.substitute_judge_email_one_step(uuid); restore hard_delete_show from
 -- 20261115231300; DROP TABLE public.class_judge_departures.
 -- =============================================================================
 
@@ -58,7 +62,9 @@ CREATE TABLE public.class_judge_departures (
   -- trigger never inserts that column non-null.
   left_person_id uuid NOT NULL,
   left_at timestamptz NOT NULL DEFAULT now(),
-  resolved_judge_id uuid REFERENCES public.people (id) ON DELETE SET NULL
+  resolved_judge_id uuid REFERENCES public.people (id) ON DELETE SET NULL,
+  -- People this departure's offer already queued (plain uuids, no FK). Reset by every new departure.
+  notified_person_ids uuid[] NOT NULL DEFAULT '{}'
 );
 
 COMMENT ON TABLE public.class_judge_departures IS
@@ -98,12 +104,13 @@ BEGIN
        AND c.deleted_at IS NULL
        AND sh.status IN ('published', 'upcoming', 'in_progress')
   ) THEN
-    INSERT INTO public.class_judge_departures (class_id, left_person_id, left_at, resolved_judge_id)
-    VALUES (old.class_id, old.person_id, now(), NULL)
+    INSERT INTO public.class_judge_departures (class_id, left_person_id, left_at, resolved_judge_id, notified_person_ids)
+    VALUES (old.class_id, old.person_id, now(), NULL, '{}')
     ON CONFLICT (class_id) DO UPDATE
       SET left_person_id = excluded.left_person_id,
           left_at = excluded.left_at,
-          resolved_judge_id = NULL;
+          resolved_judge_id = NULL,
+          notified_person_ids = '{}';
   END IF;
   RETURN NULL;
 EXCEPTION WHEN OTHERS THEN
@@ -198,8 +205,7 @@ $$;
 REVOKE ALL ON FUNCTION public.substitute_judge_email_target(uuid, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 
--- People the tap would still email: live entry in the class, an email on file, and no judge_changed
--- email already carrying this departure (see the header).
+-- People the tap would still email: live entry in the class, an email on file, not yet queued by this offer.
 CREATE OR REPLACE FUNCTION public.substitute_judge_email_recipients(p_class_id uuid, p_show_id uuid)
 RETURNS TABLE (person_id uuid)
 LANGUAGE sql
@@ -214,17 +220,30 @@ AS $$
                         AND nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
     JOIN public.class_judge_departures d ON d.class_id = p_class_id
    WHERE pairs.class_id = p_class_id
-     AND NOT EXISTS (
-       SELECT 1
-         FROM public.show_lifecycle_email_jobs j
-        WHERE j.show_id = p_show_id
-          AND j.step_type = 'judge_changed'
-          AND j.recipient_person_id = p.id
-          AND j.status IN ('ready', 'sent')
-          AND j.created_at >= d.left_at
-          AND j.judge_changes ->> p_class_id::text = d.left_person_id::text
-     );
+     AND p.id <> ALL (d.notified_person_ids);
 $$;
+
+-- True when the current confirmed judge was inserted in the same transaction as the departure: a
+-- one-step swap, already emailed by the automatic MYK9-2125 notice.
+CREATE OR REPLACE FUNCTION public.substitute_judge_email_one_step(p_class_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM public.class_judge_departures d
+      JOIN public.judge_assignments ja ON ja.class_id = d.class_id
+                                      AND ja.status = 'confirmed'
+                                      AND ja.created_at = d.left_at
+     WHERE d.class_id = p_class_id
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.substitute_judge_email_one_step(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
 
 REVOKE ALL ON FUNCTION public.substitute_judge_email_recipients(uuid, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
@@ -241,7 +260,7 @@ DECLARE
   v_judge uuid := public.substitute_judge_email_target(p_class_id, v_show_id);
   v_count integer;
 BEGIN
-  IF v_judge IS NULL THEN
+  IF v_judge IS NULL OR public.substitute_judge_email_one_step(p_class_id) THEN
     RETURN '{}'::jsonb;
   END IF;
   SELECT count(*) INTO v_count FROM public.substitute_judge_email_recipients(p_class_id, v_show_id);
@@ -290,6 +309,12 @@ BEGIN
     RAISE EXCEPTION 'The judge for this class changed. Check again.' USING ERRCODE = 'P0001';
   END IF;
 
+  IF public.substitute_judge_email_one_step(p_class_id) THEN
+    -- The automatic notice already told everyone "was A, now B".
+    UPDATE public.class_judge_departures SET resolved_judge_id = p_judge_id WHERE class_id = p_class_id;
+    RETURN 0;
+  END IF;
+
   SELECT sh.name, s.id INTO v_show_name, v_step_id
     FROM public.shows sh
     JOIN public.show_lifecycle_email_steps s
@@ -299,11 +324,12 @@ BEGIN
 
   SELECT count(*) INTO v_wanted FROM public.substitute_judge_email_recipients(p_class_id, v_show_id);
   IF v_wanted = 0 THEN
-    -- Everyone already has this email (automatic or an earlier tap): the offer is done.
+    -- An earlier tap queued everyone: the offer is done.
     UPDATE public.class_judge_departures SET resolved_judge_id = p_judge_id WHERE class_id = p_class_id;
     RETURN 0;
   END IF;
 
+  WITH ins AS (
   INSERT INTO public.show_lifecycle_email_jobs AS j (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
     recipient_email, recipient_name, subject, idempotency_key, due_at, auto_send,
@@ -335,8 +361,17 @@ BEGIN
     AND NOT EXISTS (
       SELECT 1 FROM public.show_lifecycle_email_attempts att
        WHERE att.job_id = j.id AND att.resend_message_id IS NOT NULL
-    );
-  GET DIAGNOSTICS v_count = ROW_COUNT;
+    )
+  RETURNING j.recipient_person_id
+  ), queued AS (
+    SELECT coalesce(array_agg(ins.recipient_person_id), '{}'::uuid[]) AS ids FROM ins
+  )
+  -- Only people whose job was really inserted or merged are recorded: a leased one stays offered.
+  UPDATE public.class_judge_departures d
+     SET notified_person_ids = d.notified_person_ids || queued.ids
+    FROM queued
+   WHERE d.class_id = p_class_id
+  RETURNING cardinality(queued.ids) INTO v_count;
 
   -- Everyone covered: the offer is done. Someone skipped because their email is going out right now:
   -- it stays up for another tap.

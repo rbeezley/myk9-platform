@@ -9,11 +9,17 @@
 --   E. a job the sender has claimed is never changed: that person is skipped, the offer stays up,
 --      and the next tap (after the lease ends) covers them
 --   F. dismissing hides the offer for that judge only; a later judge change offers again
---   H. a re-tap while one person's email was skipped (leased) never emails the others twice, and a
---      remove-then-add (the automatic email said "no judge yet" and was skipped) still offers everyone
---   I. a one-step swap already queued the automatic "was A, now B" email: no offer, nothing queued
+--   H. remove A, the vacancy notice is SENT, then B is named: everyone is offered; a tap with one person
+--      leased queues the rest, a re-tap queues only the leased one, nobody gets two substitute emails
+--   I. a one-step swap (set_class_judge) is never offered: its automatic email already said it; tap = 0
 --   J. a second tap after the offer was resolved for the same judge answers 0, not an error
 --   K. hard-deleting the confirmed judge's person is not blocked by the departure the delete records
+--   L. an exhibitor in two changed classes is offered each class independently
+--   M. A to B, a tap, then B to C: the offer for C starts from an empty notified set
+--
+-- The whole file is ONE transaction, so now() never moves. t2161_replace stands in for "removed in one
+-- transaction, named in a later one": it backdates the departure's left_at by a minute. set_class_judge
+-- ('pick') is the real one-step swap.
 --   G. a draft show offers nothing and records no departure; a vacancy (judge left, none named) offers nothing
 --
 -- Every fixture rolls back. Runs only in CI (psql -X -v ON_ERROR_STOP=1 after migrations).
@@ -34,7 +40,8 @@ INSERT INTO public.people (id, first_name, last_name, email) VALUES
   ('00000000-0000-0000-0000-000002161023', 'Cy', 'Withdrew', 'cy-2161@example.test'),
   ('00000000-0000-0000-0000-000002161024', 'Nan', 'Never', 'nan-2161@example.test'),
   ('00000000-0000-0000-0000-000002161051', 'Judge', 'A', 'ja-2161@example.test'),
-  ('00000000-0000-0000-0000-000002161052', 'Judge', 'B', 'jb-2161@example.test');
+  ('00000000-0000-0000-0000-000002161052', 'Judge', 'B', 'jb-2161@example.test'),
+  ('00000000-0000-0000-0000-000002161053', 'Judge', 'C', 'jc-2161@example.test');
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -145,6 +152,16 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION pg_temp.t2161_replace(p_class uuid, p_person uuid) RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM public.judge_assignments WHERE class_id = p_class;
+  UPDATE public.class_judge_departures SET left_at = left_at - interval '1 minute' WHERE class_id = p_class;
+  INSERT INTO public.judge_assignments (person_id, show_id, class_id, status)
+  VALUES (p_person, '00000000-0000-0000-0000-000002161002', p_class, 'confirmed');
+END;
+$$;
+
 CREATE FUNCTION pg_temp.t2161_jobs(p_status text) RETURNS integer
 LANGUAGE sql AS $$
   SELECT count(*)::integer FROM public.show_lifecycle_email_jobs
@@ -170,7 +187,7 @@ END $$;
 
 -- B: judge A is replaced by B (set_class_judge). The 2125 job for the change is cleared so the
 -- jobs below are only this feature's.
-SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161004');
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161052');
 DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
 
 DO $$
@@ -250,10 +267,8 @@ END $$;
 
 -- E: Container is replaced again (B to A); one exhibitor's ready job is claimed by the sender.
 DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
-UPDATE public.judge_assignments SET person_id = '00000000-0000-0000-0000-000002161051'
- WHERE class_id = '00000000-0000-0000-0000-000002161004';
-UPDATE public.judge_assignments SET person_id = '00000000-0000-0000-0000-000002161052'
- WHERE class_id = '00000000-0000-0000-0000-000002161004';
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161051');
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161052');
 DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed' AND recipient_person_id <> '00000000-0000-0000-0000-000002161021';
 UPDATE public.show_lifecycle_email_jobs SET claimed_until = now() + interval '10 minutes', attempt_id = gen_random_uuid()
  WHERE step_type = 'judge_changed' AND recipient_person_id = '00000000-0000-0000-0000-000002161021';
@@ -288,15 +303,14 @@ END $$;
 
 -- F: dismiss hides the offer for this judge; a later change offers again.
 DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
-UPDATE public.judge_assignments SET person_id = '00000000-0000-0000-0000-000002161051'
- WHERE class_id = '00000000-0000-0000-0000-000002161004';
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161051');
 DO $$
 DECLARE
   v_class uuid := '00000000-0000-0000-0000-000002161004';
   v_sec text := '00000000-0000-0000-0000-000002161101';
   v_before integer;
 BEGIN
-    UPDATE public.judge_assignments SET person_id = '00000000-0000-0000-0000-000002161052' WHERE class_id = v_class;
+  PERFORM pg_temp.t2161_replace(v_class, '00000000-0000-0000-0000-000002161052');
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) ->> 'judge_id' IS NULL THEN
     RAISE EXCEPTION 'FAIL F.0 the offer should be up for a new change';
   END IF;
@@ -306,9 +320,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL F.1 dismiss did not hide the offer or queued mail';
   END IF;
   -- The judge who left is back (delete, then insert the same person): nothing to tell anyone.
-  DELETE FROM public.judge_assignments WHERE class_id = v_class;
-  INSERT INTO public.judge_assignments (person_id, show_id, class_id, status)
-  VALUES ('00000000-0000-0000-0000-000002161052', '00000000-0000-0000-0000-000002161002', v_class, 'confirmed');
+  PERFORM pg_temp.t2161_replace(v_class, '00000000-0000-0000-0000-000002161052');
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{}'::jsonb THEN
     RAISE EXCEPTION 'FAIL F.2 the original judge returning should offer nothing';
   END IF;
@@ -335,23 +347,21 @@ BEGIN
   RAISE NOTICE 'PASS G draft shows and vacancies offer nothing';
 END $$;
 
--- H: remove-then-add, then a partial tap and a re-tap. Container goes back to judge A with no history.
+-- H: remove A, the automatic vacancy notice is SENT, then B is named. Container starts at A, no history.
 DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
 DELETE FROM public.judge_assignments WHERE class_id = '00000000-0000-0000-0000-000002161004';
 DELETE FROM public.class_judge_departures WHERE class_id = '00000000-0000-0000-0000-000002161004';
 INSERT INTO public.judge_assignments (person_id, show_id, class_id, status)
 VALUES ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002',
         '00000000-0000-0000-0000-000002161004', 'confirmed');
--- Judge A is removed: the automatic email is queued for everyone, then the sender skips it ("no judge yet").
-DELETE FROM public.judge_assignments WHERE class_id = '00000000-0000-0000-0000-000002161004';
-UPDATE public.show_lifecycle_email_jobs SET status = 'skipped', skipped_at = now() WHERE step_type = 'judge_changed';
-INSERT INTO public.judge_assignments (person_id, show_id, class_id, status)
-VALUES ('00000000-0000-0000-0000-000002161052', '00000000-0000-0000-0000-000002161002',
-        '00000000-0000-0000-0000-000002161004', 'confirmed');
--- Nan has another judge_changed email waiting and the sender holds its lease.
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161052');
+-- The sender sent the automatic notice (2125); then the substitute was named (t2161_replace above did both
+-- steps; the notice jobs carry class -> A). Mark them sent.
+UPDATE public.show_lifecycle_email_jobs SET status = 'sent', sent_at = now() WHERE step_type = 'judge_changed';
+CREATE TEMP TABLE t2161_vacancy AS SELECT id FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
+-- Nan has another waiting email and the sender holds its lease.
 UPDATE public.show_lifecycle_email_jobs
-   SET status = 'ready', skipped_at = NULL, claimed_until = now() + interval '10 minutes', attempt_id = gen_random_uuid(),
-       judge_changes = jsonb_build_object('00000000-0000-0000-0000-000002161005', '00000000-0000-0000-0000-000002161051')
+   SET status = 'ready', sent_at = NULL, claimed_until = now() + interval '10 minutes', attempt_id = gen_random_uuid()
  WHERE step_type = 'judge_changed' AND recipient_person_id = '00000000-0000-0000-0000-000002161024';
 
 DO $$
@@ -362,43 +372,40 @@ DECLARE
 BEGIN
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM
      jsonb_build_object('judge_id', '00000000-0000-0000-0000-000002161052', 'recipient_count', 3) THEN
-    RAISE EXCEPTION 'FAIL H.0 remove-then-add should offer all 3, got %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+    RAISE EXCEPTION 'FAIL H.0 a sent vacancy notice must not hide the offer: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
   END IF;
-  -- Tap 1: Ada and Ivy are queued, Nan (leased) is skipped, the offer stays.
+  -- Tap 1: Ada and Ivy queued, Nan (leased) skipped and still offered.
   IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '2'::jsonb
      OR (pg_temp.t2161_call(v_sec, 'offer', v_class) ->> 'recipient_count') IS DISTINCT FROM '1' THEN
-    RAISE EXCEPTION 'FAIL H.1 tap 1 should queue 2 and leave 1 on the offer, offer is %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+    RAISE EXCEPTION 'FAIL H.1 tap 1 should queue 2 and leave 1 offered, offer is %', pg_temp.t2161_call(v_sec, 'offer', v_class);
   END IF;
-  -- Ada's email goes out.
   UPDATE public.show_lifecycle_email_jobs SET status = 'sent', sent_at = now()
    WHERE step_type = 'judge_changed' AND recipient_person_id = v_ada AND status = 'ready';
-  -- Tap 2: Ada and Ivy are never queued again.
-  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
-    RAISE EXCEPTION 'FAIL H.2 tap 2 queued someone again';
-  END IF;
-  IF (SELECT count(*) FROM public.show_lifecycle_email_jobs
-       WHERE step_type = 'judge_changed' AND recipient_person_id = v_ada AND status IN ('ready', 'sent')) <> 1
-     OR (SELECT count(*) FROM public.show_lifecycle_email_jobs
-          WHERE step_type = 'judge_changed' AND recipient_person_id = '00000000-0000-0000-0000-000002161022'
-            AND status IN ('ready', 'sent')) <> 1 THEN
-    RAISE EXCEPTION 'FAIL H.3 Ada or Ivy has more than one email';
-  END IF;
   UPDATE public.show_lifecycle_email_jobs SET claimed_until = now() - interval '1 minute'
    WHERE step_type = 'judge_changed' AND recipient_person_id = '00000000-0000-0000-0000-000002161024';
+  -- Tap 2: only Nan.
   IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '1'::jsonb
      OR pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{}'::jsonb THEN
-    RAISE EXCEPTION 'FAIL H.4 the last tap should cover Nan and resolve the offer';
+    RAISE EXCEPTION 'FAIL H.2 tap 2 should queue only Nan and resolve the offer';
   END IF;
-  RAISE NOTICE 'PASS H a re-tap emails nobody twice; remove-then-add offers everyone';
+  IF (SELECT count(*) FROM public.show_lifecycle_email_jobs
+       WHERE step_type = 'judge_changed' AND recipient_person_id = v_ada
+         AND id NOT IN (SELECT id FROM t2161_vacancy)) <> 1
+     OR (SELECT count(*) FROM public.show_lifecycle_email_jobs
+          WHERE step_type = 'judge_changed' AND recipient_person_id = '00000000-0000-0000-0000-000002161022'
+            AND id NOT IN (SELECT id FROM t2161_vacancy)) <> 1 THEN
+    RAISE EXCEPTION 'FAIL H.3 Ada or Ivy has more than one substitute email';
+  END IF;
+  RAISE NOTICE 'PASS H a sent vacancy notice does not hide the offer; a re-tap emails nobody twice';
 END $$;
 
--- I: a one-step swap (A to B) through set_class_judge, with the automatic 2125 jobs left in place.
+-- I: a one-step swap through set_class_judge, the automatic 2125 jobs left in place and then sent.
+DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
 DELETE FROM public.judge_assignments WHERE class_id = '00000000-0000-0000-0000-000002161004';
 DELETE FROM public.class_judge_departures WHERE class_id = '00000000-0000-0000-0000-000002161004';
 INSERT INTO public.judge_assignments (person_id, show_id, class_id, status)
 VALUES ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002',
         '00000000-0000-0000-0000-000002161004', 'confirmed');
-DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
 SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161004');
 
 DO $$
@@ -409,29 +416,36 @@ BEGIN
   IF pg_temp.t2161_jobs('ready') <> 3 THEN
     RAISE EXCEPTION 'FAIL I.0 the automatic swap email should be queued for 3, found %', pg_temp.t2161_jobs('ready');
   END IF;
+  IF NOT (SELECT d.left_at = ja.created_at FROM public.class_judge_departures d
+            JOIN public.judge_assignments ja ON ja.class_id = d.class_id AND ja.status = 'confirmed'
+           WHERE d.class_id = v_class) THEN
+    RAISE EXCEPTION 'FAIL I.0b the departure and the replacement should share one timestamp';
+  END IF;
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{}'::jsonb THEN
-    RAISE EXCEPTION 'FAIL I.1 the offer appeared for a swap that already emailed everyone: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+    RAISE EXCEPTION 'FAIL I.1 the offer appeared for a one-step swap: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
   END IF;
   IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb OR pg_temp.t2161_jobs('ready') <> 3 THEN
     RAISE EXCEPTION 'FAIL I.2 a tap after the swap queued more mail';
   END IF;
-  -- After the drain sent them, still nothing.
   UPDATE public.show_lifecycle_email_jobs SET status = 'sent', sent_at = now() WHERE step_type = 'judge_changed';
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{}'::jsonb
      OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb
      OR pg_temp.t2161_jobs('ready') <> 0 THEN
     RAISE EXCEPTION 'FAIL I.3 a sent swap email was queued again';
   END IF;
-  RAISE NOTICE 'PASS I a one-step swap does not double-email';
+  RAISE NOTICE 'PASS I a one-step swap is never offered';
 END $$;
 
--- J: a second tap after the offer was resolved for the same judge is a quiet 0; a different judge is still refused.
+-- J: a repeat tap after the offer was resolved for the same judge is a quiet 0; a different judge is still refused.
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161051');
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161052');
 DO $$
 DECLARE
   v_class uuid := '00000000-0000-0000-0000-000002161004';
   v_sec text := '00000000-0000-0000-0000-000002161101';
 BEGIN
-  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
+  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '3'::jsonb
+     OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
     RAISE EXCEPTION 'FAIL J.0 a repeat tap for the resolved judge was not 0';
   END IF;
   IF pg_temp.t2161_call(v_sec, 'queue_wrong', v_class) IS DISTINCT FROM '{"error":"P0001"}'::jsonb THEN
@@ -440,17 +454,83 @@ BEGIN
   RAISE NOTICE 'PASS J a repeat tap is quiet; a different judge is refused';
 END $$;
 
+-- L: Ada is entered in Container (004) and Interior (005). Each class changes in its own sitting.
+ALTER TABLE public.entries DISABLE TRIGGER trg_entries_require_dog_registration;
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status)
+VALUES ('00000000-0000-0000-0000-000002161045', '00000000-0000-0000-0000-000002161031',
+        '00000000-0000-0000-0000-000002161005', '00000000-0000-0000-0000-000002161002',
+        '00000000-0000-0000-0000-000002161003', 'confirmed', '45', 45, 'no-status');
+ALTER TABLE public.entries ENABLE TRIGGER trg_entries_require_dog_registration;
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161005', '00000000-0000-0000-0000-000002161051');
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161005', '00000000-0000-0000-0000-000002161052');
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161051');
+SELECT pg_temp.t2161_replace('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161052');
+DO $$
+DECLARE
+  v_sec text := '00000000-0000-0000-0000-000002161101';
+  v_c4 uuid := '00000000-0000-0000-0000-000002161004';
+  v_c5 uuid := '00000000-0000-0000-0000-000002161005';
+BEGIN
+  IF (pg_temp.t2161_call(v_sec, 'offer', v_c4) ->> 'recipient_count') IS DISTINCT FROM '3'
+     OR (pg_temp.t2161_call(v_sec, 'offer', v_c5) ->> 'recipient_count') IS DISTINCT FROM '1' THEN
+    RAISE EXCEPTION 'FAIL L.0 each class should offer its own people: % / %',
+      pg_temp.t2161_call(v_sec, 'offer', v_c4), pg_temp.t2161_call(v_sec, 'offer', v_c5);
+  END IF;
+  IF pg_temp.t2161_call(v_sec, 'queue', v_c4) IS DISTINCT FROM '3'::jsonb
+     OR (pg_temp.t2161_call(v_sec, 'offer', v_c5) ->> 'recipient_count') IS DISTINCT FROM '1'
+     OR pg_temp.t2161_call(v_sec, 'queue', v_c5) IS DISTINCT FROM '1'::jsonb THEN
+    RAISE EXCEPTION 'FAIL L.1 tapping Container must not use up Ada''s Interior offer';
+  END IF;
+  IF (SELECT jsonb_object_keys_count FROM (SELECT count(*) AS jsonb_object_keys_count
+        FROM public.show_lifecycle_email_jobs j, jsonb_object_keys(j.judge_changes)
+       WHERE j.step_type = 'judge_changed' AND j.status = 'ready'
+         AND j.recipient_person_id = '00000000-0000-0000-0000-000002161021') k) <> 2 THEN
+    RAISE EXCEPTION 'FAIL L.2 Ada''s one waiting email should carry both classes';
+  END IF;
+  RAISE NOTICE 'PASS L an exhibitor in two changed classes is offered each independently';
+END $$;
+
+-- M: A to B, a tap, then B to C: C's offer starts from an empty notified set.
+DELETE FROM public.show_lifecycle_email_jobs WHERE step_type = 'judge_changed';
+DO $$
+DECLARE
+  v_sec text := '00000000-0000-0000-0000-000002161101';
+  v_c4 uuid := '00000000-0000-0000-0000-000002161004';
+BEGIN
+  PERFORM pg_temp.t2161_replace(v_c4, '00000000-0000-0000-0000-000002161051');
+  PERFORM pg_temp.t2161_replace(v_c4, '00000000-0000-0000-0000-000002161052');
+  IF pg_temp.t2161_call(v_sec, 'queue', v_c4) IS DISTINCT FROM '3'::jsonb THEN
+    RAISE EXCEPTION 'FAIL M.0 the first tap should queue 3';
+  END IF;
+  PERFORM pg_temp.t2161_replace(v_c4, '00000000-0000-0000-0000-000002161053');
+  IF pg_temp.t2161_call(v_sec, 'offer', v_c4) IS DISTINCT FROM
+     jsonb_build_object('judge_id', '00000000-0000-0000-0000-000002161053', 'recipient_count', 3) THEN
+    RAISE EXCEPTION 'FAIL M.1 the new substitute should be offered to all 3: %', pg_temp.t2161_call(v_sec, 'offer', v_c4);
+  END IF;
+  IF cardinality((SELECT notified_person_ids FROM public.class_judge_departures WHERE class_id = v_c4)) <> 0 THEN
+    RAISE EXCEPTION 'FAIL M.2 the notified set was not reset by the new departure';
+  END IF;
+  -- Departures with no tap in between: A to B to C straight away.
+  PERFORM pg_temp.t2161_replace(v_c4, '00000000-0000-0000-0000-000002161051');
+  PERFORM pg_temp.t2161_replace(v_c4, '00000000-0000-0000-0000-000002161053');
+  IF (pg_temp.t2161_call(v_sec, 'offer', v_c4) ->> 'recipient_count') IS DISTINCT FROM '3' THEN
+    RAISE EXCEPTION 'FAIL M.3 an untapped A to B to C should offer C to all 3';
+  END IF;
+  RAISE NOTICE 'PASS M a new substitute starts from an empty notified set';
+END $$;
+
 -- K: hard-deleting the person of the class's confirmed judge cascades through judge_assignments; the
 -- departure it records must not make the delete fail.
 DO $$
 BEGIN
-  DELETE FROM public.people WHERE id = '00000000-0000-0000-0000-000002161052';
+  DELETE FROM public.people WHERE id = '00000000-0000-0000-0000-000002161053';
   IF NOT EXISTS (SELECT 1 FROM public.class_judge_departures
                   WHERE class_id = '00000000-0000-0000-0000-000002161004'
-                    AND left_person_id = '00000000-0000-0000-0000-000002161052') THEN
+                    AND left_person_id = '00000000-0000-0000-0000-000002161053') THEN
     RAISE EXCEPTION 'FAIL K.0 the person delete recorded no departure';
   END IF;
   RAISE NOTICE 'PASS K a hard delete of the judge''s person goes through';
 END $$;
+
 
 ROLLBACK;

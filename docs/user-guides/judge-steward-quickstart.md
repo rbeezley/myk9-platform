@@ -21,12 +21,19 @@ There are three ways in. Use whichever fits you.
 2. If one show is running today, it opens. If there is more than one, pick the show.
 3. You're in. No passcode needed.
 
-**If the secretary gave you a show passcode or QR code** (guest judges, stewards, volunteers):
+**If the secretary gave you a show passcode or QR code, and you are not signed in** (guest judges, stewards, volunteers):
 
 1. Open myK9Show in your browser.
-2. Type the **show passcode** into **Email or show passcode** and tap **Continue**. If you scan the **QR code**, the passcode is filled in for you: tap **Continue**.
-3. **Join the show** asks for **Your name**. It is optional. Others at the show see it, so they know who is at each ring. If a security check shows, complete it. Then tap **Continue**. If you were already signed in to myK9Show, you see **Join this show?** instead: tap **Join show**.
+2. Type the **show passcode** into **Email or show passcode** and tap **Continue**, or scan the **QR code**.
+3. **Join the show** asks for **Your name**. It is optional. Others at the show see it, so they know who is at each ring. If a security check shows, complete it. Then tap **Continue**.
 4. You're in. No account needed.
+
+**If you are signed in and the secretary gave you a show passcode:**
+
+1. Open the sign-in page. It says **You are signed in**.
+2. Tap **Join a show with a passcode**.
+3. Type the code into **Show passcode** and tap **Continue**.
+4. **Join this show?** names the show and your role. Tap **Join show**.
 
 ![Passcode entry screen — "Email or show passcode" field with Continue button (mobile)](../screenshots/J-01.png)
 

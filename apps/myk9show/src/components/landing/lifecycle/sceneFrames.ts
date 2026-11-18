@@ -19,7 +19,7 @@ export type SceneShot = {
 export type SceneDeviceData = {
   /** Small caption above the device, e.g. "Your screen" or "Meanwhile, an exhibitor". */
   label: string;
-  /** The page size the regions were measured in (1440x900 desk, 390x844 phone). */
+  /** The page size the regions were measured in (1440x900 desk, 390x844 phone, 768x1024 tablet). */
   space: { width: number; height: number };
   shots: Readonly<Record<string, SceneShot>>;
 };

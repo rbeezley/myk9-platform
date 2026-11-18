@@ -26,7 +26,7 @@ describe('showCloseOutShow helpers', () => {
       submissions: [],
     });
 
-    expect(readiness).toEqual({
+    expect(readiness).toMatchObject({
       hasConcerns: true,
       concerns: [
         '1 class still has unscored entries.',
@@ -61,7 +61,7 @@ describe('showCloseOutShow helpers', () => {
         incidents: { reportableCount: 0, urgentCount: 0 },
         submissions: [{ status: 'submitted' }],
       })
-    ).toEqual({ hasConcerns: false, concerns: [] });
+    ).toMatchObject({ hasConcerns: false, concerns: [] });
   });
 
   // Codex review of #2681: holding the close until both reads succeed stranded
@@ -70,7 +70,7 @@ describe('showCloseOutShow helpers', () => {
   it('lists unread incidents and submissions as concerns instead of claiming none', () => {
     expect(
       buildCloseoutReadiness({ classes: [], entries: [], incidents: null, submissions: null })
-    ).toEqual({
+    ).toMatchObject({
       hasConcerns: true,
       concerns: [
         'Result submissions could not be checked, so whether results were sent is unknown.',

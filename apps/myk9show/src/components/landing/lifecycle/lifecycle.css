@@ -148,26 +148,17 @@
 .landing-v2 .lc-shot[data-side='main'][data-shape='desktop'] {
   max-width: 440px;
 }
-.landing-v2 .lc-shot[data-side='main'][data-shape='tablet'] {
-  max-width: 300px;
-}
 .landing-v2 .lc-shot[data-side='main'][data-shape='phone'] {
   max-width: 220px;
 }
 .landing-v2 .lc-shot[data-side='meanwhile'][data-shape='desktop'] {
   max-width: 75%;
 }
-.landing-v2 .lc-shot[data-side='meanwhile'][data-shape='tablet'] {
-  max-width: 170px;
-}
 .landing-v2 .lc-shot[data-side='meanwhile'][data-shape='phone'] {
   max-width: 140px;
 }
 .landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='desktop'] {
   max-width: 100%;
-}
-.landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='tablet'] {
-  max-width: 240px;
 }
 .landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='phone'] {
   max-width: 200px;

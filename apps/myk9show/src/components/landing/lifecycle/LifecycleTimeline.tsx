@@ -55,6 +55,7 @@ export function LifecycleTimeline({
             step={step}
             number={i + 1}
             lead={PEAK_LEAD[audience]}
+            sceneLead={audience === 'club' ? 'desk' : 'phone'}
             meanwhileLabel={MEANWHILE_LABEL[audience]}
             reached={reached >= i + 1}
             lineFilled={reached >= i + 2}

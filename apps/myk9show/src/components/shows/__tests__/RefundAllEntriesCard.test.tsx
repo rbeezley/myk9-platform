@@ -50,6 +50,16 @@ vi.mock('@/lib/supabase', async importOriginal => {
   };
 });
 
+// The result detail names each line's entry form from the show's entries and a by-id read
+// (MYK9-1862); neither finds any here, so every line falls back to its plain label.
+// RefundResultDetail.test.tsx covers the form names.
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useSecretaryShowEntriesQuery: () => ({ data: [], isError: false, refetch: vi.fn() }),
+}));
+vi.mock('@/services/database/entries/refundEntryForms', () => ({
+  getRefundEntryForms: vi.fn().mockResolvedValue([]),
+}));
+
 const mockedInvoke = vi.mocked(supabase.functions.invoke);
 
 let currentStatus = 'cancelled';
@@ -132,7 +142,7 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     // is available behind a disclosure (secretary INTENT: calm control, detail
     // only when needed).
     await user.click(screen.getByRole('button', { name: /view details/i }));
-    expect(await screen.findByText(/entry c/i)).toBeInTheDocument();
+    expect(await screen.findByText('An entry not named')).toBeInTheDocument();
     expect(screen.getByText(/paid by cash or check/i)).toBeInTheDocument();
   });
 
@@ -162,10 +172,10 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     await user.click(screen.getByRole('button', { name: /view details/i }));
 
     // Skipped entry: identity + plain reason, not just a count.
-    expect(await screen.findByText(/entry skip-entry/i)).toBeInTheDocument();
-    expect(screen.getByText(/paid by cash or check/i)).toBeInTheDocument();
+    expect(await screen.findByText(/paid by cash or check/i)).toBeInTheDocument();
+    expect(screen.queryByText(/skip-entry/)).toBeNull();
 
-    // Failed payment: a plain line plus its entry ids. A "failed" row can be a
+    // Failed payment: a plain line plus who it was for. A "failed" row can be a
     // refund that went through (entry stamp failed), so nothing says it was not
     // refunded, and the raw id/error stay out of the main line.
     expect(
@@ -173,7 +183,8 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
         'This payment may not have been refunded. Run Refund all again: it will not refund anyone twice.'
       )
     ).toBeVisible();
-    expect(screen.getByText(/entry failed-entry/i)).toBeInTheDocument();
+    expect(await screen.findAllByText('An entry not named')).toHaveLength(2);
+    expect(screen.queryByText(/failed-entry/)).toBeNull();
     expect(
       screen.queryByText(
         /payments? (was|were|is|are|has|have) not (been )?refunded|no refunds issued|\d+ failed\b/i
@@ -186,7 +197,7 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     // The exact failure stays available for support.
     await user.click(screen.getByRole('button', { name: /details for support/i }));
     expect(
-      await screen.findByText('pi_bad: card_declined: insufficient funds')
+      await screen.findByText('pi_bad (failed-entry): card_declined: insufficient funds')
     ).toBeInTheDocument();
     expect(screen.getByText('Skipped offline_paid: skip-entry')).toBeInTheDocument();
   });

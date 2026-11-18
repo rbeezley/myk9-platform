@@ -27,6 +27,12 @@ import { getEntryManagementCountSummary } from '@/utils/entryCountSelectors';
 import { derivePullTiming, type PullRefundDecision } from '@/features/payments/pullReconciliation';
 import { getTrialTimezone } from '@/features/registries';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import {
+  entryDogName,
+  entryDogRegisteredName,
+  entryOwnerName,
+  personName,
+} from '@/hooks/entryDisplayNames';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -106,15 +112,6 @@ interface UseEntryManagementDataReturn {
 
 const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
 
-/** "First Last" from a joined person record, or null when absent/blank. */
-function personName(
-  person: { first_name: string | null; last_name: string | null } | null | undefined
-): string | null {
-  if (!person) return null;
-  const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
-  return name || null;
-}
-
 export function mapSecretaryEntryToEntryManagementEntry(
   entry: SecretaryEntry,
   entryCloseDate?: string | null
@@ -132,6 +129,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     assignedHandlerPerson: entry.handler_person,
     ownerPerson: entry.dog?.owner ?? null,
   });
+  const dogRegisteredName = entryDogRegisteredName(entry);
 
   return {
     id: entry.id,
@@ -139,11 +137,9 @@ export function mapSecretaryEntryToEntryManagementEntry(
     entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
     showId: entry.show_id || '',
     dogId: entry.dog_id || '',
-    dogName: entry.dog?.call_name || entry.dog?.name || 'Unknown Dog',
-    ...(entry.dog?.call_name && entry.dog?.name ? { dogRegisteredName: entry.dog.name } : {}),
-    // Online (webhook-created) entries set handler_id/dog.owner FKs but
-    // never the legacy `handler` text; mail-in entries set the text only.
-    ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',
+    dogName: entryDogName(entry),
+    ...(dogRegisteredName ? { dogRegisteredName } : {}),
+    ownerName: entryOwnerName(entry),
     ownerEmail: entry.dog?.owner?.email ?? '',
     handlerName: handlerIdentity.name || 'Not specified',
     handlerPersonName: personName(entry.handler_person),

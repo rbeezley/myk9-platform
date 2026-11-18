@@ -2,7 +2,16 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
+import {
+  NAMES_LOADING,
+  NAMES_LOOKUP_FAILED,
+  NAMES_OFFLINE,
+  refundFormLines,
+  unresolvedLabel,
+} from './refundResultForms';
+import { useRefundEntryForms } from './useRefundEntryForms';
 
 // Server-side skip reasons (apps/myk9show/supabase/functions/_shared/showRefundPlan.ts
 // ShowRefundSkipReason, plus 'intent_spans_shows' from stripe-refund-show/index.ts).
@@ -23,6 +32,7 @@ function skipReasonLabel(reason: string): string {
 
 interface RefundResultDetailProps {
   result: ShowRefundAllResult;
+  showId: string;
 }
 
 // A "failed" row can be a refund that went through at Stripe but whose entry
@@ -34,12 +44,42 @@ const FAILED_PAYMENT_LINE =
 /** Per-entry detail behind a disclosure, so a clean run stays compact and a
  * messy one is actionable (spec: refund-result-transparency). INTENT: secretary
  * surface — calm control, detail only when the secretary asks for it. */
-export function RefundResultDetail({ result }: RefundResultDetailProps) {
+export function RefundResultDetail({ result, showId }: RefundResultDetailProps) {
   const [open, setOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const { skipped, failed } = result;
+  const hasDetail = skipped.length > 0 || failed.length > 0;
+  // MYK9-1862: name each line by its entry form, as Entry Management does, not by entry id.
+  const resultEntryIds = [
+    ...skipped.map(entry => entry.entryId),
+    ...failed.flatMap(f => f.entryIds),
+  ];
+  const { forms, lookup, rosterPending, retry } = useRefundEntryForms(
+    showId,
+    resultEntryIds,
+    hasDetail
+  );
 
-  if (skipped.length === 0 && failed.length === 0) {
+  const groupBadges = (ids: readonly string[], variant: 'secondary' | 'destructive') => {
+    const { lines, unresolved } = refundFormLines(ids, forms);
+    return (
+      <div className="mt-1 flex flex-wrap gap-1">
+        {lines.map(({ key, label, dogs }) => (
+          <Badge key={key} variant={variant} className="gap-1 text-xs">
+            {label}
+            {dogs && <span className="font-normal opacity-80">({dogs})</span>}
+          </Badge>
+        ))}
+        {unresolved > 0 && (
+          <Badge variant={variant} className="text-xs">
+            {lookup === 'loading' || rosterPending ? NAMES_LOADING : unresolvedLabel(unresolved)}
+          </Badge>
+        )}
+      </div>
+    );
+  };
+
+  if (!hasDetail) {
     return null;
   }
 
@@ -58,29 +98,27 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-3">
-          {[...skippedByReason.entries()].map(([reason, entryIds]) => (
+          {lookup === 'failed' && (
+            <div role="alert" className="flex flex-wrap items-center gap-2 text-sm">
+              <p>{NAMES_LOOKUP_FAILED}</p>
+              <Button type="button" variant="outline" size="sm" onClick={retry}>
+                Try again
+              </Button>
+            </div>
+          )}
+          {lookup === 'offline' && <p className="text-sm text-muted-foreground">{NAMES_OFFLINE}</p>}
+
+          {[...skippedByReason.entries()].map(([reason, ids]) => (
             <div key={reason}>
               <p className="text-sm font-medium">{skipReasonLabel(reason)}</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {entryIds.map(entryId => (
-                  <Badge key={entryId} variant="secondary" className="font-mono text-xs">
-                    Entry {entryId}
-                  </Badge>
-                ))}
-              </div>
+              {groupBadges(ids, 'secondary')}
             </div>
           ))}
 
           {failed.map(failure => (
             <div key={failure.paymentIntentId}>
               <p className="text-sm font-medium text-destructive">{FAILED_PAYMENT_LINE}</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {failure.entryIds.map(entryId => (
-                  <Badge key={entryId} variant="destructive" className="font-mono text-xs">
-                    Entry {entryId}
-                  </Badge>
-                ))}
-              </div>
+              {groupBadges(failure.entryIds, 'destructive')}
             </div>
           ))}
 
@@ -100,7 +138,7 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
                 ))}
                 {failed.map(failure => (
                   <li key={`failed-${failure.paymentIntentId}`}>
-                    {failure.paymentIntentId}: {failure.error}
+                    {failure.paymentIntentId} ({failure.entryIds.join(', ')}): {failure.error}
                   </li>
                 ))}
               </ul>

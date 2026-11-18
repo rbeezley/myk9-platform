@@ -103,8 +103,10 @@ export function ResultsPublicPrompt({
   async function answer(showPublicly: boolean) {
     setSaveError(null);
     try {
-      await answerResultsPublicPrompt(showPublicly);
-      if (showPublicly) setOutcome('shown-publicly');
+      // null: another device answered first, so nothing here was saved; the
+      // refetched profile decides what shows (MYK9-2174).
+      const savedAt = await answerResultsPublicPrompt(showPublicly);
+      if (showPublicly && savedAt) setOutcome('shown-publicly');
     } catch (error) {
       // Nothing was saved: the question stays and says so.
       const droppedOffline = !isOnline || (typeof navigator !== 'undefined' && !navigator.onLine);

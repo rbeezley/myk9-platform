@@ -7,6 +7,10 @@
  */
 
 import * as Sentry from '@sentry/react';
+import {
+  selectTrialRegistryId,
+  selectTrialTimeZone,
+} from '../../../../../supabase/functions/_shared/registrySelectors';
 import { getRegistry, listRegistries } from './lookup';
 import type { Registry, RegistryId } from './types';
 
@@ -78,8 +82,11 @@ export function getTrialRegistry(trial: TrialLike | null | undefined): Registry 
   // Accept either shape — snake_case off a raw row, camelCase off the mapped domain Trial.
   // Trim + default so blank/whitespace registry_id falls back to AKC rather than
   // tripping the unknown-registry path.
-  const id = (trial?.registry_id ?? trial?.registryId)?.trim() || 'AKC';
-  if ((listRegistries() as readonly string[]).includes(id)) {
+  const { id, known } = selectTrialRegistryId(
+    trial?.registry_id ?? trial?.registryId,
+    listRegistries()
+  );
+  if (known) {
     return getRegistry(id as RegistryId);
   }
   if (process.env.NODE_ENV !== 'production') {
@@ -132,16 +139,6 @@ export function deriveRegistryId(organization: string | null | undefined): Regis
 /** Module-level, per-session: an invalid timezone value reports to Sentry once, not per render. */
 const reportedInvalidTimezones = new Set<string>();
 
-/** Cheap standards-based probe — throws for any string that isn't a resolvable IANA zone. */
-function isValidIanaTimeZone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function reportInvalidTrialTimezone(rejected: string, trialId: string | null | undefined): void {
   if (reportedInvalidTimezones.has(rejected)) return;
   reportedInvalidTimezones.add(rejected);
@@ -159,11 +156,9 @@ function reportInvalidTrialTimezone(rejected: string, trialId: string | null | u
  * to Sentry once per session so bad data can be repaired.
  */
 export function getTrialTimezone(trial: TrialLike | null | undefined): string {
-  const raw = trial?.timezone;
-  if (!raw) return 'America/New_York';
-  if (isValidIanaTimeZone(raw)) return raw;
-  reportInvalidTrialTimezone(raw, trial?.id);
-  return 'America/New_York';
+  const { timeZone, rejected } = selectTrialTimeZone(trial?.timezone);
+  if (rejected !== null) reportInvalidTrialTimezone(rejected, trial?.id);
+  return timeZone;
 }
 
 /**

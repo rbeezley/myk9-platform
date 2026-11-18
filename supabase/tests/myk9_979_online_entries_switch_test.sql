@@ -3,13 +3,17 @@
 --   0. private.show_status_is_public agrees with the APPLIED shows_anon_select
 --      status list for every status the CHECK constraint permits, and the
 --      publish-gate trigger also fires on UPDATE OF online_entries_enabled.
---   1. Online entries OFF, authorized club, NO Stripe account: publishing
---      succeeds (the Oct 10 check-and-cash show).
+--   1. MYK9-2163 reversed MYK9-979's owner decision: online entries OFF,
+--      authorized club, NO Stripe account is now REFUSED (MK003,
+--      PUBLISH_BLOCKED_MESSAGE); payouts are needed whatever the switch says.
 --   2. Online entries ON, no Stripe payouts: publishing is refused, MK003,
 --      PUBLISH_BLOCKED_MESSAGE.
---   3. Turning online entries ON for a published show without Stripe payouts
+--   3. Turning online entries ON for a public show without Stripe payouts
 --      is refused, MK003, ONLINE_ENTRIES_BLOCKED_MESSAGE; with payouts it is
---      allowed (positive control).
+--      allowed (positive control). Since MYK9-2163 only a row written outside
+--      the API roles can be public with the switch off (these fixtures are),
+--      and turning it OFF on any show is refused (MK003,
+--      ONLINE_ENTRIES_ALWAYS_ON_MESSAGE).
 --   4. An UNAUTHORIZED club cannot make a show public through ANY public
 --      status: published, upcoming, in_progress, completed all refuse MK004,
 --      by UPDATE and by INSERT.
@@ -25,9 +29,12 @@
 --      exhibitor call succeed (positive control proving the refusal came from
 --      the switch).
 --  10. set_show_online_entries: grants; a manager sets only that column; MK003
---      on a public show without Stripe; a non-manager is refused 42501.
---   9. The migration's backfill, replayed verbatim, writes every show with a
---      fresh updated_at (the replica's sync key) and the right value.
+--      when it would turn a show off (MYK9-2163); a non-manager is
+--      refused 42501.
+--   9. The MYK9-979 migration's backfill, replayed verbatim, writes every show
+--      with a fresh updated_at (the replica's sync key) and the right value.
+--      (MYK9-2163's own data UPDATE is replayed in
+--      myk9_2163_publish_needs_payouts_test.sql.)
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 -- Fixture identities follow myk9_841_staff_on_behalf_entries_accepted_test.sql
@@ -78,8 +85,9 @@ BEGIN
 
   IF (SELECT column_default FROM information_schema.columns
        WHERE table_schema = 'public' AND table_name = 'shows'
-         AND column_name = 'online_entries_enabled') IS DISTINCT FROM 'false' THEN
-    RAISE EXCEPTION 'FAIL wiring: shows.online_entries_enabled must DEFAULT false';
+         AND column_name = 'online_entries_enabled') IS DISTINCT FROM 'true' THEN
+    -- MYK9-2163: was DEFAULT false (MYK9-979).
+    RAISE EXCEPTION 'FAIL wiring: shows.online_entries_enabled must DEFAULT true';
   END IF;
 
   RAISE NOTICE 'PASS 0 status list matches shows_anon_select %; trigger and default wired', v_policy_statuses;
@@ -118,21 +126,28 @@ VALUES
   ('00000000-0000-0000-0000-000000979103', 'MYK9-979 Published Off No Stripe', 'UKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979001', 'published',
    (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, false, true, true, 30),
-  ('00000000-0000-0000-0000-000000979104', 'MYK9-979 Published Off Stripe Ready', 'UKC',
+  ('00000000-0000-0000-0000-000000979104', 'MYK9-979 Published On Stripe Ready', 'UKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979002', 'published',
-   (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, false, true, true, 30),
+   (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true, true, true, 30),
   ('00000000-0000-0000-0000-000000979105', 'MYK9-979 Unauthorized Draft', 'UKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979003', 'draft',
    (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, false, true, true, 30),
+  -- MYK9-2163: on the Stripe-ready club with online entries on, so the
+  -- window (MK005) is the only thing it lacks.
   ('00000000-0000-0000-0000-000000979106', 'MYK9-979 Windowless Draft', 'UKC',
-   current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979001', 'draft',
-   NULL, NULL, false, true, true, 30),
+   current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979002', 'draft',
+   NULL, NULL, true, true, true, 30),
   ('00000000-0000-0000-0000-000000979107', 'MYK9-979 Online Draft No Stripe', 'UKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979001', 'draft',
    (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true, true, true, 30),
   ('00000000-0000-0000-0000-000000979108', 'MYK9-979 Service Role Draft', 'UKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979003', 'draft',
-   NULL, NULL, true, true, true, 30);
+   NULL, NULL, true, true, true, 30),
+  -- MYK9-2163: a legacy public row with online entries off, on a Stripe-ready
+  -- club (only a non-API write can make one now).
+  ('00000000-0000-0000-0000-000000979109', 'MYK9-979 Published Off Stripe Ready', 'UKC',
+   current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000979002', 'published',
+   (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, false, true, true, 30);
 
 INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type)
 VALUES (
@@ -218,14 +233,22 @@ BEGIN
   PERFORM set_config('request.jwt.claims',
     jsonb_build_object('sub', admin_auth, 'role', 'authenticated')::text, true);
 
-  -- 1. Online off, authorized club, no Stripe account: publishes.
-  UPDATE public.shows SET status = 'published'
-   WHERE id = '00000000-0000-0000-0000-000000979101';
+  -- 1. MYK9-2163: online off, authorized club, no Stripe account: refused
+  --    with the payouts text (it was allowed under MYK9-979).
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000979101';
+    RAISE EXCEPTION 'FAIL 1 online-off show published without Stripe payouts';
+  EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    IF SQLERRM IS DISTINCT FROM 'This club''s payouts aren''t enabled yet, so the show can''t be published. A club admin connects the bank account on the club''s Payments tab. If Stripe is reviewing the account, that usually takes a day or two.' THEN
+      RAISE EXCEPTION 'FAIL 1 wrong MK003 text: %', SQLERRM;
+    END IF;
+  END;
   SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979101';
-  IF v_status IS DISTINCT FROM 'published' THEN
-    RAISE EXCEPTION 'FAIL 1 online-off show did not publish (status %)', v_status;
+  IF v_status IS DISTINCT FROM 'draft' THEN
+    RAISE EXCEPTION 'FAIL 1 a refused publish changed the row (status %)', v_status;
   END IF;
-  RAISE NOTICE 'PASS 1 online entries off + no Stripe account publishes';
+  RAISE NOTICE 'PASS 1 online entries off + no Stripe account is refused (MYK9-2163)';
 
   -- 2. Online on, no Stripe: MK003 with the publish copy.
   BEGIN
@@ -233,7 +256,7 @@ BEGIN
      WHERE id = '00000000-0000-0000-0000-000000979102';
     RAISE EXCEPTION 'FAIL 2 online-on show published without Stripe payouts';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
-    IF SQLERRM IS DISTINCT FROM 'Connect your club''s payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.' THEN
+    IF SQLERRM IS DISTINCT FROM 'This club''s payouts aren''t enabled yet, so the show can''t be published. A club admin connects the bank account on the club''s Payments tab. If Stripe is reviewing the account, that usually takes a day or two.' THEN
       RAISE EXCEPTION 'FAIL 2 wrong MK003 text: %', SQLERRM;
     END IF;
   END;
@@ -256,16 +279,24 @@ BEGIN
   END IF;
   -- Positive control: a Stripe-ready club may turn it on after publishing.
   UPDATE public.shows SET online_entries_enabled = true
-   WHERE id = '00000000-0000-0000-0000-000000979104';
+   WHERE id = '00000000-0000-0000-0000-000000979109';
   SELECT online_entries_enabled INTO v_online FROM public.shows
-   WHERE id = '00000000-0000-0000-0000-000000979104';
+   WHERE id = '00000000-0000-0000-0000-000000979109';
   IF v_online IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 3 positive control: Stripe-ready published show could not turn online entries on';
   END IF;
-  -- Turning it back off is never gated.
-  UPDATE public.shows SET online_entries_enabled = false
-   WHERE id = '00000000-0000-0000-0000-000000979104';
-  RAISE NOTICE 'PASS 3 false -> true on a public show needs Stripe payouts; off is free';
+  -- MYK9-2163: turning it back off on a public show is refused (it was
+  -- never gated under MYK9-979).
+  BEGIN
+    UPDATE public.shows SET online_entries_enabled = false
+     WHERE id = '00000000-0000-0000-0000-000000979109';
+    RAISE EXCEPTION 'FAIL 3 online entries turned off for a public show';
+  EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    IF SQLERRM IS DISTINCT FROM 'Every show takes online entries. This can''t be turned off.' THEN
+      RAISE EXCEPTION 'FAIL 3 wrong MK003 text for turning off: %', SQLERRM;
+    END IF;
+  END;
+  RAISE NOTICE 'PASS 3 false -> true on a public show needs Stripe payouts; true -> false is refused';
 
   -- 4. Unauthorized club: every public status refuses MK004, by UPDATE ...
   FOREACH v_target IN ARRAY ARRAY['published', 'upcoming', 'in_progress', 'completed'] LOOP
@@ -314,10 +345,10 @@ BEGIN
 
   -- 6. Between two public statuses: not re-gated. Back to draft: always passes.
   UPDATE public.shows SET status = 'upcoming'
-   WHERE id = '00000000-0000-0000-0000-000000979101';
+   WHERE id = '00000000-0000-0000-0000-000000979104';
   UPDATE public.shows SET status = 'published'
-   WHERE id = '00000000-0000-0000-0000-000000979101';
-  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979101';
+   WHERE id = '00000000-0000-0000-0000-000000979104';
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979104';
   IF v_status IS DISTINCT FROM 'published' THEN
     RAISE EXCEPTION 'FAIL 6 public -> public move was refused (status %)', v_status;
   END IF;
@@ -356,6 +387,13 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 8. submit_show_entries on the published, online-OFF show 979101
 -- ---------------------------------------------------------------------------
+-- MYK9-2163: the API can no longer publish a show with online entries off
+-- (section 1), so this legacy state is staged by the superuser session, which
+-- the gate carves out. submit_show_entries' refusal is still the server
+-- boundary for any such row.
+UPDATE public.shows SET status = 'published'
+ WHERE id = '00000000-0000-0000-0000-000000979101';
+
 SET LOCAL ROLE authenticated;
 
 DO $$
@@ -434,8 +472,8 @@ SELECT set_config('request.jwt.claims', '', true);
 -- ---------------------------------------------------------------------------
 -- 10. set_show_online_entries, the switch's only write path (Codex round 4).
 --     Grants: EXECUTE for authenticated only. A manager can set it; a
---     non-manager is refused 42501; turning it on for a public show without
---     Stripe payouts is refused MK003 by the publish gate; only the one column
+--     non-manager is refused 42501; turning it off for a public show is
+--     refused MK003 by the publish gate (MYK9-2163); only the one column
 --     changes, and the row is bumped for replicas.
 -- ---------------------------------------------------------------------------
 DO $$
@@ -482,15 +520,15 @@ BEGIN
     RAISE EXCEPTION 'FAIL 10a set_show_online_entries changed another column';
   END IF;
 
-  -- 10b. A public show of a club with no Stripe: off is free, on is MK003.
-  PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979101', false);
+  -- 10b. MYK9-2163: a public show cannot be turned off through the RPC
+  --      (979101 is public with online entries on since 8c).
   BEGIN
-    PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979101', true);
-    RAISE EXCEPTION 'FAIL 10b online entries turned on for a public show without Stripe payouts';
+    PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979101', false);
+    RAISE EXCEPTION 'FAIL 10b online entries turned off for a public show';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
     NULL;
   END;
-  IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979101') IS DISTINCT FROM false THEN
+  IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979101') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 10b a refused toggle changed the row';
   END IF;
 
@@ -499,16 +537,21 @@ BEGIN
   PERFORM set_config('request.jwt.claims',
     jsonb_build_object('sub', exhibitor_auth, 'role', 'authenticated')::text, true);
   BEGIN
-    PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979104', true);
+    PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979103', false);
     RAISE EXCEPTION 'FAIL 10c a non-manager changed online entries';
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
   END;
-  IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979104') IS DISTINCT FROM false THEN
+  -- Read the row back as the manager: 979103 is a draft since section 6, and
+  -- shows_select hides a draft from the exhibitor, so her read would be NULL.
+  PERFORM set_config('request.jwt.claim.sub', admin_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', admin_auth, 'role', 'authenticated')::text, true);
+  IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979103') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 10c a refused non-manager call changed the row';
   END IF;
 
-  RAISE NOTICE 'PASS 10 set_show_online_entries: manager sets one column, MK003 on a public show without Stripe, non-manager refused';
+  RAISE NOTICE 'PASS 10 set_show_online_entries: manager sets one column, MK003 turning a public show off, non-manager refused';
 END;
 $$;
 

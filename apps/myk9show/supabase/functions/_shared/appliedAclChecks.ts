@@ -100,6 +100,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   // SECURITY DEFINER RPC run as service_role.
   refund_request_attempts: 'SELECT',
   refund_requests: 'SELECT',
+  // MYK9-2044: authenticated reads the dated rate list; site admins write it under RLS.
+  registry_recording_fee_rates: 'SELECT,INSERT,UPDATE,DELETE',
   result_submissions: 'SELECT,INSERT',
   ringside_containment: '',
   ringside_containment_audit: '',

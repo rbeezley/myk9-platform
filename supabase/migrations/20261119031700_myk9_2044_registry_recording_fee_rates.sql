@@ -55,6 +55,7 @@ COMMENT ON COLUMN public.registry_recording_fee_rates.effective_from IS
   'Calendar date (no timezone) the rate starts to apply; compared against the show/trial date as written.';
 
 ALTER TABLE public.registry_recording_fee_rates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.registry_recording_fee_rates FORCE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.registry_recording_fee_rates FROM anon;
 REVOKE ALL ON public.registry_recording_fee_rates FROM authenticated;

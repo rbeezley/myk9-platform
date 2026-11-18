@@ -54,7 +54,11 @@ export function RefundResultDetail({ result, showId }: RefundResultDetailProps) 
     ...skipped.map(entry => entry.entryId),
     ...failed.flatMap(f => f.entryIds),
   ];
-  const { forms, lookup, retry } = useRefundEntryForms(showId, resultEntryIds, hasDetail);
+  const { forms, lookup, rosterPending, retry } = useRefundEntryForms(
+    showId,
+    resultEntryIds,
+    hasDetail
+  );
 
   const groupBadges = (ids: readonly string[], variant: 'secondary' | 'destructive') => {
     const { lines, unresolved } = refundFormLines(ids, forms);
@@ -68,7 +72,7 @@ export function RefundResultDetail({ result, showId }: RefundResultDetailProps) 
         ))}
         {unresolved > 0 && (
           <Badge variant={variant} className="text-xs">
-            {lookup === 'loading' ? NAMES_LOADING : unresolvedLabel(unresolved)}
+            {lookup === 'loading' || rosterPending ? NAMES_LOADING : unresolvedLabel(unresolved)}
           </Badge>
         )}
       </div>

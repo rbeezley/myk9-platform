@@ -15,6 +15,8 @@ export type RefundFormLookup = 'loading' | 'offline' | 'failed' | 'ready';
 export interface RefundEntryForms {
   forms: ReadonlyMap<string, RefundEntryForm>;
   lookup: RefundFormLookup;
+  /** True until the roster has loaded or failed: an entry it may still place is not "unnamed" yet. */
+  rosterPending: boolean;
   /** Re-runs only the form read; never re-runs a refund. */
   retry: () => void;
 }
@@ -56,6 +58,7 @@ export function useRefundEntryForms(
   return {
     forms,
     lookup,
+    rosterPending: !rosterSettled,
     retry: () => {
       void read.refetch();
     },

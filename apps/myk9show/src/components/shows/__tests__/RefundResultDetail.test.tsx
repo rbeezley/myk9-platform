@@ -277,6 +277,16 @@ describe('RefundResultDetail entry forms (MYK9-1862)', () => {
     expect(screen.queryByText('Could not look up names.')).toBeNull();
   });
 
+  it('a failed lookup with the roster still loading says Looking up, not unnamed', async () => {
+    rosterReturns(undefined);
+    mocks.getRefundEntryForms.mockRejectedValueOnce(new Error('boom'));
+    await openDetails();
+
+    expect(await screen.findByText('Could not look up names.')).toBeVisible();
+    expect(screen.queryByText(/not named/)).toBeNull();
+    expect(screen.getAllByText('Looking up…').length).toBeGreaterThan(0);
+  });
+
   it('offline says names need a connection, with no spinner and no Try again', async () => {
     act(() => onlineManager.setOnline(false));
     await openDetails();

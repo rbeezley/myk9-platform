@@ -65,7 +65,8 @@ export function makeSupabaseStore(supabase: SupabaseClient): ReminderStore {
         .is('deleted_at', null);
       if (showsError) throw new HttpError(500, 'Failed to load shows.');
       const live = (shows ?? []).filter(
-        show => !['draft', 'cancelled'].includes(String(show.status ?? '').toLowerCase())
+        show =>
+          !['draft', 'cancelled', 'canceled'].includes(String(show.status ?? '').toLowerCase())
       );
       if (live.length === 0) return [];
       const liveIds = live.map(show => show.id as string);

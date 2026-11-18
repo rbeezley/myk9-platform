@@ -134,7 +134,7 @@ export async function runWithSupabase(supabase: SupabaseClient): Promise<RunSumm
     },
     sendEmail: sendTrialPacketEmail,
     apiKey,
-    appOrigin: Deno.env.get('MYK9SHOW_APP_URL') || 'https://myk9show.com',
+    appOrigin: Deno.env.get('SITE_URL') || 'https://myk9show.com',
     now: new Date(),
   });
 }

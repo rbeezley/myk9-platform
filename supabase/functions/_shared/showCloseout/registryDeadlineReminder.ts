@@ -170,7 +170,7 @@ function whenText(reminder: DueReminder): string {
 
 /** Where the secretary finishes the line: the Finish the show list on the show's Results tab. */
 export function finishListUrl(appOrigin: string, showId: string): string {
-  return `${appOrigin.replace(/\/+$/, '')}/shows/${encodeURIComponent(showId)}/results`;
+  return `${appOrigin.replace(/\/+$/, '')}/shows/${encodeURIComponent(showId)}/results#finish-the-show`;
 }
 
 export function buildRegistryDeadlineSubject(showName: string, reminder: DueReminder): string {

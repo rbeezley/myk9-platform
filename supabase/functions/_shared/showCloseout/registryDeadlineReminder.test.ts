@@ -165,7 +165,7 @@ describe('the reminder email', () => {
 
   it('names the open line, the date and the Finish the show list', () => {
     const url = finishListUrl('https://myk9show.com/', 'show-1');
-    expect(url).toBe('https://myk9show.com/shows/show-1/results');
+    expect(url).toBe('https://myk9show.com/shows/show-1/results#finish-the-show');
     const html = buildRegistryDeadlineHtml({
       showName: 'Fall Scent Trial',
       reminder,
@@ -173,7 +173,7 @@ describe('the reminder email', () => {
     });
     expect(html).toContain('Due at AKC by Tue, Nov 24');
     expect(html).toContain('The results file has not been sent to AKC.');
-    expect(html).toContain('href="https://myk9show.com/shows/show-1/results"');
+    expect(html).toContain('href="https://myk9show.com/shows/show-1/results#finish-the-show"');
     expect(buildRegistryDeadlineSubject('Fall Scent Trial', reminder)).toBe(
       'Fall Scent Trial: AKC results are due in 2 days'
     );

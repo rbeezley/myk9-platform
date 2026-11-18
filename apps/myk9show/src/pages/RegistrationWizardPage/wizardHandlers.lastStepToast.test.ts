@@ -53,7 +53,15 @@ describe('handleNext last step toast (MYK9-2159)', () => {
     await finish([outcome('waitlisted')]);
     expect(notifications.success).not.toHaveBeenCalled();
     expect(notifications.info).toHaveBeenCalledWith(
-      'No entries were added. The selections joined the waitlist.'
+      'Added to the waitlist. No payment is due unless a spot is offered.'
+    );
+  });
+
+  it('names the waitlist when nothing was created but some selections were waitlisted', async () => {
+    await finish([outcome('denied', 1), outcome('waitlisted', 2)]);
+    expect(notifications.success).not.toHaveBeenCalled();
+    expect(notifications.info).toHaveBeenCalledWith(
+      'No entries were added. Some selections joined the waitlist.'
     );
   });
 

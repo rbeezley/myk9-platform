@@ -44,10 +44,11 @@ import type { Box } from './lib.ts';
 const SPACE = { width: 390, height: 844 };
 const SCALE = 2;
 // On the seed, Exterior Excellent is the judge's unscored class with one search area, so the
-// scoresheet is the one timer the scene's lines describe: Juniper (102). Container Novice A is
+// scoresheet is the one timer the scene's lines describe: Juniper, called Juni (102). Container Novice A is
 // seeded complete with its results released, and Interior Advanced times two areas.
 const CLASS_NAME = 'Exterior Excellent';
-const DOG = 'Juniper';
+/** Her call name, which is what Ringside shows. */
+const DOG = 'Juni';
 /**
  * The armbands this scene shows: the demo seed's own entries on this show (seed-demo.sql).
  * Every other row that carries an armband is left out (the load fixture's 2001 to 2063, and

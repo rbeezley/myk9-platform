@@ -6,7 +6,7 @@
  * DogDialogs call makes the whole row vanish from the panel with every other
  * test still green. LESSONS #last-hop-drop.
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
@@ -64,6 +64,14 @@ function renderDialogs(props: Partial<React.ComponentProps<typeof DogDialogs>> =
     />
   );
 }
+
+// DogDialogs lazy-loads the Edit Dog panel behind Suspense. Whichever test ran
+// first paid for the dynamic import inside its 1000ms waitFor and timed out on
+// a loaded machine (MYK9-2151). Pay for it here, outside any test's clock; the
+// module cache makes the component's own import() resolve immediately.
+beforeAll(async () => {
+  await import('@/components/panels/edit/DogEditPanel');
+}, 60_000);
 
 beforeEach(() => {
   vi.clearAllMocks();

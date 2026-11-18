@@ -147,10 +147,7 @@ describe('tallyApprovals', () => {
 
   it('keeps counting a failed approved send after its replacement is created', () => {
     expect(
-      tallyApprovals([
-        attempt('failed', 10000, {}),
-        attempt('awaiting_approval', 10000, null),
-      ])
+      tallyApprovals([attempt('failed', 10000, {}), attempt('awaiting_approval', 10000, null)])
     ).toEqual({ approved: 1, matchedStripe: 0 });
   });
 
@@ -206,7 +203,9 @@ describe('describePayoutActionError', () => {
         code: '22023',
         message: "The club's bank account changed since you looked; review it again",
       })
-    ).toBe("Nothing was approved. The club's bank account changed since you looked. Review it again.");
+    ).toBe(
+      "Nothing was approved. The club's bank account changed since you looked. Review it again."
+    );
     expect(
       describePayoutActionError('approve', {
         code: '22023',

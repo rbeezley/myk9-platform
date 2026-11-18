@@ -190,6 +190,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     // exactly why nobody noticed that neither read path emitted the column.
     movedFromEntryId: entry.moved_from_entry_id ?? null,
     ...(entry.awaiting_registration_number === true && { awaitingRegistrationNumber: true }),
+    ...(entry.saved_on_device_only === true && { savedOnDeviceOnly: true }),
     entryStatus: mapEntryStatus(entry.entry_status),
     rawEntryStatus: entry.entry_status ?? null,
     isScored: entry.is_scored ?? null,

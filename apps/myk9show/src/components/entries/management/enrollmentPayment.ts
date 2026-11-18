@@ -191,6 +191,13 @@ type FormMoneyGroup = Pick<
 export const AMOUNT_NOT_AVAILABLE = 'Amount not available';
 
 /**
+ * MYK9-1930: a desk entry saved on this device only has no entry form yet (the server gives
+ * it one when it syncs), so its payment cannot be recorded until then.
+ */
+export const SAVED_ON_DEVICE_PAYMENT_NOTE =
+  "Saved on this device. You can record the payment once you're back online.";
+
+/**
  * The form has an enrollment row, but the row did not load (MYK9-1968). The enrollments read
  * is online-only and comes back empty offline or on an error, so the group fell back to summing
  * entry fees, which ignores desk money and reads a part-paid form as fully due.

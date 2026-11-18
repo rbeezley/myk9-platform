@@ -92,6 +92,11 @@ export interface SecretaryEntry {
   moved_from_entry_id?: string | null;
   /** MYK9-1162: the server's verdict that this entry awaits a registration number. */
   awaiting_registration_number?: boolean | null;
+  /**
+   * MYK9-1930: made on this device and not uploaded yet (the replica's `_localOnly`), so the
+   * server has not given it its entry form. Only the replicated read sets it.
+   */
+  saved_on_device_only?: boolean | null;
   registration: {
     id: string;
     confirmation_number: string;

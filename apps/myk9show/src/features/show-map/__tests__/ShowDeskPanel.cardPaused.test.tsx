@@ -52,7 +52,10 @@ vi.mock('@/hooks/useElementWidth', () => ({
 
 vi.mock('@/features/payments/useClubStripeAccount', async () => {
   const fake = await import('@/features/payments/__tests__/fakeReadiness');
-  return { useClubStripePaymentReadiness: fake.fakeUseClubStripePaymentReadiness };
+  return {
+    useClubStripePaymentReadiness: fake.useFakeReadiness,
+    useStripeLivemode: () => ({ data: true }),
+  };
 });
 const online = vi.hoisted(() => ({ value: true }));
 vi.mock('@/hooks/guestServerRead', async importOriginal => ({

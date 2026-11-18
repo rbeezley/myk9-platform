@@ -3,12 +3,15 @@ import { waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@/test/utils/testUtils';
-import { fakeUseClubStripePaymentReadiness, readinessKey, readinessServer } from './fakeReadiness';
+import { readinessKey, readinessServer } from './fakeReadiness';
 
 const online = vi.hoisted(() => ({ value: true }));
 vi.mock('../useClubStripeAccount', async () => {
   const fake = await import('./fakeReadiness');
-  return { useClubStripePaymentReadiness: fake.fakeUseClubStripePaymentReadiness };
+  return {
+    useClubStripePaymentReadiness: fake.useFakeReadiness,
+    useStripeLivemode: () => ({ data: true }),
+  };
 });
 vi.mock('@/hooks/guestServerRead', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/guestServerRead')>()),

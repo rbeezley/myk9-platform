@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryOnlineStatus } from '@/hooks/guestServerRead';
 import { payoutsKnownOff } from './cardPausedCopy';
-import { useClubStripePaymentReadiness } from './useClubStripeAccount';
+import { useClubStripePaymentReadiness, useStripeLivemode } from './useClubStripeAccount';
 
 /**
  * MYK9-2166: true only when the club's payouts are known to be off AS OF THIS OPEN. The readiness
@@ -12,10 +12,12 @@ import { useClubStripePaymentReadiness } from './useClubStripeAccount';
  */
 export function useFreshPayoutsKnownOff(clubId: string | undefined): boolean {
   const query = useClubStripePaymentReadiness(clubId);
+  const livemode = useStripeLivemode().data;
   const isOnline = useQueryOnlineStatus();
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const requestedKey = useRef<string | null>(null);
-  const key = clubId ? JSON.stringify(query.queryKey ?? clubId) : null;
+  // The readiness key folds the livemode in, so a change of it is a different query to recheck.
+  const key = clubId ? `${clubId}:${String(livemode)}` : null;
   const refetch = query.refetch;
 
   useEffect(() => {

@@ -23,7 +23,10 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
 }));
 vi.mock('@/features/payments/useClubStripeAccount', async () => {
   const fake = await import('@/features/payments/__tests__/fakeReadiness');
-  return { useClubStripePaymentReadiness: fake.fakeUseClubStripePaymentReadiness };
+  return {
+    useClubStripePaymentReadiness: fake.useFakeReadiness,
+    useStripeLivemode: () => ({ data: true }),
+  };
 });
 
 vi.mock('@/hooks/guestServerRead', async importOriginal => ({

@@ -10,7 +10,7 @@ export const readinessServer = vi.fn<() => Promise<boolean>>();
 
 export const readinessKey = (clubId: string) => ['club-stripe-payment-readiness', clubId, true];
 
-export function fakeUseClubStripePaymentReadiness(clubId: string | undefined) {
+export function useFakeReadiness(clubId: string | undefined) {
   return useQuery({
     queryKey: readinessKey(clubId ?? ''),
     queryFn: () => readinessServer(),

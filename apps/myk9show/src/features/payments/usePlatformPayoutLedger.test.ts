@@ -10,7 +10,97 @@ import {
   loadPlatformPayoutLedgerEntryPage,
   loadShowsByIds,
   loadPayoutsByShowIds,
+  toLedgerPayout,
 } from './usePlatformPayoutLedger';
+import { buildLedgerRows } from './payoutLedger';
+
+/**
+ * MYK9-2171: the approval screen sends back the amount AND the Stripe account it
+ * showed, so both must come from the same read of the payout row.
+ */
+describe('payout approval data', () => {
+  beforeEach(() => {
+    supabaseFrom.mockReset();
+  });
+
+  it('selects the approval columns and embeds the club Stripe account by its key', async () => {
+    const selects: string[] = [];
+    supabaseFrom.mockImplementation(() => {
+      const query = {
+        select: vi.fn((select: string) => {
+          selects.push(select);
+          return query;
+        }),
+        in: vi.fn(() => query),
+        order: vi.fn(() => query),
+        range: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      };
+      return query;
+    });
+    await loadPayoutsByShowIds(['show-1']);
+    for (const column of [
+      'approved_at',
+      'approved_amount_cents',
+      'approved_stripe_account_id',
+      'hold_reason',
+      'approval_reset_reason',
+      'club_stripe_accounts!show_payouts_club_stripe_account_id_fkey(stripe_account_id, payouts_enabled)',
+    ]) {
+      expect(selects[0]).toContain(column);
+    }
+  });
+
+  it('carries the payout id, approval and destination onto the ledger row', () => {
+    const payout = toLedgerPayout({
+      id: 'payout-1',
+      show_id: 'show-1',
+      amount_cents: 4500,
+      status: 'held',
+      stripe_transfer_id: null,
+      completed_at: null,
+      created_at: '2026-11-18T00:00:00Z',
+      approved_at: null,
+      approved_amount_cents: null,
+      approved_stripe_account_id: null,
+      hold_reason: 'Club asked',
+      approval_reset_reason: null,
+      destination: { stripe_account_id: 'acct_1', payouts_enabled: true },
+    });
+    const [row] = buildLedgerRows(
+      [{ id: 'show-1', name: 'Trial', club_id: 'c1', clubName: 'Club', endDate: null }],
+      new Map(),
+      new Map([['show-1', [payout]]])
+    );
+    expect(row.payout).toEqual({
+      id: 'payout-1',
+      amountCents: 4500,
+      approvedAt: null,
+      approvedAmountCents: null,
+      approvedStripeAccountId: null,
+      holdReason: 'Club asked',
+      approvalResetReason: null,
+      destination: { stripeAccountId: 'acct_1', payoutsEnabled: true },
+    });
+    // No entries were read, so the client's own sum is zero, beside the stored 4500.
+    expect(row.computedNetCents).toBe(0);
+    expect(row.netOwedCents).toBe(4500);
+  });
+
+  it('reads a payout with no Stripe account as no destination', () => {
+    expect(
+      toLedgerPayout({
+        id: 'p',
+        show_id: 's',
+        amount_cents: 1,
+        status: 'awaiting_approval',
+        stripe_transfer_id: null,
+        completed_at: null,
+        created_at: null,
+        destination: null,
+      }).approval?.destination
+    ).toBeNull();
+  });
+});
 
 describe('loadPlatformPayoutLedgerEntryPage', () => {
   beforeEach(() => {

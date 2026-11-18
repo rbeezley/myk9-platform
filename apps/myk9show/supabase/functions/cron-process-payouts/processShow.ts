@@ -9,6 +9,7 @@ import {
   bankNeedsAttentionEmail,
   clubPaymentsUrl,
   connectAccountEmail,
+  escapeHtml,
   payoutSentEmail,
 } from '../_shared/clubMoneyEmails.ts';
 import {
@@ -281,7 +282,7 @@ export async function processShow(
       await alertAdmin(
         `Payout could not be checked: ${show.name}`,
         `<p>The payout run could not record or claim the ${dollars(amountCents)} payout for
-         <strong>${show.name}</strong> (show <code>${show.id}</code>). Nothing was sent.</p>
+         <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>). Nothing was sent.</p>
          <p>The next run tries again. If this repeats, check that claim_show_payout_for_send
          exists in the database and read the cron-process-payouts logs.</p>`,
         { dedupeKey: `payout-claim-error-${show.id}` }
@@ -453,8 +454,8 @@ export async function processShow(
     console.error(`Transfer failed for show ${show.id}: ${reason}`);
     await alertAdmin(
       benign ? `Payout deferred (benign): ${show.name}` : `Payout FAILED: ${show.name}`,
-      `<p>Transfer of ${dollars(amountCents)} for <strong>${show.name}</strong> failed:</p>
-       <pre>${reason}</pre>
+      `<p>Transfer of ${dollars(amountCents)} for <strong>${escapeHtml(show.name)}</strong> failed:</p>
+       <pre>${escapeHtml(reason)}</pre>
        ${payoutRetryNote(benign ? 'balance_delay' : 'transfer_failed', deps.brakeOn)}`,
       {
         dedupeKey: benign

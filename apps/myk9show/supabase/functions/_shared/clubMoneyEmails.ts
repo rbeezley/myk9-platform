@@ -20,7 +20,7 @@ export type SendEmail = (to: string, subject: string, html: string) => Promise<v
 
 const DEFAULT_SITE_URL = 'https://myk9show.com';
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

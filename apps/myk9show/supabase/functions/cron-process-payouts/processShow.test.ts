@@ -29,6 +29,7 @@ interface Scenario {
   claim?: { data: unknown; error: { message: string } | null };
   transferError?: Error;
   brakeOn?: boolean;
+  showName?: string;
 }
 
 function run(scenario: Scenario) {
@@ -129,7 +130,7 @@ function run(scenario: Scenario) {
     claim_errors: 0,
   };
   return {
-    go: () => processShow(SHOW, summary, deps),
+    go: () => processShow({ ...SHOW, name: scenario.showName ?? SHOW.name }, summary, deps),
     create,
     rpc,
     alertAdmin,
@@ -237,6 +238,18 @@ describe('processShow: nothing sends without approval', () => {
       expect.stringContaining('Nothing was sent'),
       { dedupeKey: 'payout-claim-error-show-1' }
     );
+  });
+
+  it('escapes a club-written show name in the operator alert body', async () => {
+    const world = run({
+      amounts: [5000],
+      claim: { data: null, error: { message: 'boom' } },
+      showName: '<a href="https://evil.test">Pay here</a>',
+    });
+    await world.go();
+    const body = world.alertAdmin.mock.calls[0]?.[1] as string;
+    expect(body).toContain('&lt;a href=');
+    expect(body).not.toContain('<a href=');
   });
 
   it('an amount above the approval after the claim goes back for approval, not to Stripe', async () => {

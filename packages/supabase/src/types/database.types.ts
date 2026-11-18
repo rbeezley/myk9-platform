@@ -2330,6 +2330,35 @@ export type Database = {
           },
         ]
       }
+      email_log_contents: {
+        Row: {
+          created_at: string
+          email_log_id: string
+          html: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          email_log_id: string
+          html: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          email_log_id?: string
+          html?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_log_contents_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: true
+            referencedRelation: "email_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollments: {
         Row: {
           card_covered_cents: number
@@ -2488,6 +2517,7 @@ export type Database = {
           class_id: string | null
           comped: boolean | null
           comped_reason: string | null
+          confirmation_claimed_until: string | null
           confirmation_email_message_id: string | null
           confirmation_email_sent_at: string | null
           confirmation_email_status: string
@@ -2546,6 +2576,8 @@ export type Database = {
           refund_origin: string | null
           refunded_at: string | null
           registration_id: string | null
+          reminder_email_sent_at: string | null
+          reminder_email_status: string
           result_status: string | null
           ring_entry_time: string | null
           ring_exit_time: string | null
@@ -2601,6 +2633,7 @@ export type Database = {
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
+          confirmation_claimed_until?: string | null
           confirmation_email_message_id?: string | null
           confirmation_email_sent_at?: string | null
           confirmation_email_status?: string
@@ -2659,6 +2692,8 @@ export type Database = {
           refund_origin?: string | null
           refunded_at?: string | null
           registration_id?: string | null
+          reminder_email_sent_at?: string | null
+          reminder_email_status?: string
           result_status?: string | null
           ring_entry_time?: string | null
           ring_exit_time?: string | null
@@ -2714,6 +2749,7 @@ export type Database = {
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
+          confirmation_claimed_until?: string | null
           confirmation_email_message_id?: string | null
           confirmation_email_sent_at?: string | null
           confirmation_email_status?: string
@@ -2772,6 +2808,8 @@ export type Database = {
           refund_origin?: string | null
           refunded_at?: string | null
           registration_id?: string | null
+          reminder_email_sent_at?: string | null
+          reminder_email_status?: string
           result_status?: string | null
           ring_entry_time?: string | null
           ring_exit_time?: string | null
@@ -7826,6 +7864,7 @@ export type Database = {
       show_lifecycle_email_jobs: {
         Row: {
           attempt_id: string | null
+          auto_send: boolean
           batch_key: string | null
           body: string | null
           claimed_until: string | null
@@ -7839,6 +7878,7 @@ export type Database = {
           entry_id: string | null
           id: string
           idempotency_key: string
+          judge_changes: Json
           prepared_at: string
           preview_warnings: Json
           recipient_email: string | null
@@ -7861,6 +7901,7 @@ export type Database = {
         }
         Insert: {
           attempt_id?: string | null
+          auto_send?: boolean
           batch_key?: string | null
           body?: string | null
           claimed_until?: string | null
@@ -7874,6 +7915,7 @@ export type Database = {
           entry_id?: string | null
           id?: string
           idempotency_key: string
+          judge_changes?: Json
           prepared_at?: string
           preview_warnings?: Json
           recipient_email?: string | null
@@ -7896,6 +7938,7 @@ export type Database = {
         }
         Update: {
           attempt_id?: string | null
+          auto_send?: boolean
           batch_key?: string | null
           body?: string | null
           claimed_until?: string | null
@@ -7909,6 +7952,7 @@ export type Database = {
           entry_id?: string | null
           id?: string
           idempotency_key?: string
+          judge_changes?: Json
           prepared_at?: string
           preview_warnings?: Json
           recipient_email?: string | null
@@ -13611,6 +13655,20 @@ export type Database = {
           outcome: string
         }[]
       }
+      claim_due_auto_email_jobs: {
+        Args: { p_lease_until: string; p_limit: number }
+        Returns: {
+          attempt_id: string
+          due_at: string
+          idempotency_key: string
+          job_id: string
+          recipient_email: string
+          recipient_name: string
+          recipient_person_id: string
+          show_id: string
+          step_type: string
+        }[]
+      }
       claim_my_push_subscription: {
         Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
         Returns: undefined
@@ -13764,6 +13822,7 @@ export type Database = {
         Args: { p_ids: string[] }
         Returns: number
       }
+      count_paperwork_prints: { Args: { p_show_id: string }; Returns: number }
       create_dog_with_registrations: {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string
@@ -13899,6 +13958,10 @@ export type Database = {
         Returns: undefined
       }
       derive_registry_id: { Args: { p_organization: string }; Returns: string }
+      desk_form_due_cents: {
+        Args: { p_handler_id: string; p_show_id: string }
+        Returns: number
+      }
       dog_edit_allowed: {
         Args: {
           p_co_owner_id: string
@@ -14327,6 +14390,7 @@ export type Database = {
           time_limit_area2_seconds: number | null
           time_limit_area3_seconds: number | null
           time_limit_seconds: number | null
+          time_limit_set_at: string | null
           timer_mode: string | null
           total_entries_count: number | null
           trial_id: string
@@ -14743,6 +14807,13 @@ export type Database = {
           sort_order: number
         }[]
       }
+      get_show_email_content: {
+        Args: { p_email_log_id: string }
+        Returns: {
+          html: string
+          subject: string
+        }[]
+      }
       get_show_email_delivery_history: {
         Args: {
           p_before_created_at?: string
@@ -15036,6 +15107,13 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      live_entry_person_class_pairs: {
+        Args: { p_show_id: string }
+        Returns: {
+          class_id: string
+          person_id: string
+        }[]
+      }
       lock_club_membership_request_pair: {
         Args: { p_club_id: string; p_person_id: string }
         Returns: undefined
@@ -15122,6 +15200,10 @@ export type Database = {
         Args: { p_person_id: string }
         Returns: Json
       }
+      person_live_entry_class_ids: {
+        Args: { p_person_id: string; p_show_id: string }
+        Returns: string[]
+      }
       promote_waitlist_entry: {
         Args: { p_deadline_hours?: number; p_waitlist_entry_id: string }
         Returns: string
@@ -15148,6 +15230,10 @@ export type Database = {
         }
         Returns: Json
       }
+      queue_judge_changed_email_for_class: {
+        Args: { p_class_id: string; p_from_person_id: string }
+        Returns: undefined
+      }
       queue_payment_link_refund: {
         Args: {
           p_amount_cents?: number
@@ -15172,6 +15258,14 @@ export type Database = {
           request_status: string
           stripe_payment_intent_id: string
         }[]
+      }
+      queue_results_available_for_show: {
+        Args: { p_show_id: string }
+        Returns: undefined
+      }
+      queue_show_changed_email_for_show: {
+        Args: { p_show_id: string }
+        Returns: undefined
       }
       queue_unfulfilled_charge_refund: {
         Args: {
@@ -15527,6 +15621,7 @@ export type Database = {
           time_limit_area2_seconds: number | null
           time_limit_area3_seconds: number | null
           time_limit_seconds: number | null
+          time_limit_set_at: string | null
           timer_mode: string | null
           total_entries_count: number | null
           trial_id: string
@@ -15848,6 +15943,14 @@ export type Database = {
           trial_date: string
           trial_name: string
         }[]
+      }
+      show_live_entry_person_ids: {
+        Args: { p_show_id: string }
+        Returns: string[]
+      }
+      show_person_has_live_entry: {
+        Args: { p_person_id: string; p_show_id: string }
+        Returns: boolean
       }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {

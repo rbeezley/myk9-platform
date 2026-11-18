@@ -9,11 +9,10 @@ import { formatCartCurrency } from '@/store/cartStore.helpers';
  * and money taken is always recorded in full. No client money formula.
  */
 export async function fetchDeskFormDueCents(showId: string, handlerId: string): Promise<number> {
-  // Until the generated types are refreshed after the migration is pushed.
-  const { data, error } = await supabase.rpc(
-    'desk_form_due_cents' as never,
-    { p_show_id: showId, p_handler_id: handlerId } as never
-  );
+  const { data, error } = await supabase.rpc('desk_form_due_cents', {
+    p_show_id: showId,
+    p_handler_id: handlerId,
+  });
   if (error) throw error;
   const due = Number(data);
   if (!Number.isFinite(due)) throw new Error('desk_form_due_cents returned no amount');

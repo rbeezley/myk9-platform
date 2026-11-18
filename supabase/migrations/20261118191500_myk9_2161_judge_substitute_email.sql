@@ -5,14 +5,15 @@
 -- Nothing followed once a substitute was confirmed.
 --
 --   1. public.judge_vacancy_notices: one row per (class, person) who is being told "not named
---      yet". Written by claim_due_auto_email_jobs IN THE SAME STATEMENT (so the same
---      transaction) that claims the job, so it exists BEFORE the first delivery attempt and
+--      yet". Written in the SAME transaction that claims the job (see 2), so it exists BEFORE the first delivery attempt and
 --      survives a failed, reconciled or interrupted send. The row keeps the judge the person
 --      first knew (from_person_id), so the follow-up reads "was X, now Y".
---   2. claim_due_auto_email_jobs (copied from its latest definition, 20261117094700) gains a
---      data-modifying CTE that writes those rows for claimed judge_changed jobs: the class has
---      no confirmed class-level judge now, the person still has a live entry in it, and the
---      trial day is not past (the same three tests the sender uses to say "not named yet").
+--   2. An AFTER UPDATE OF attempt_id trigger on show_lifecycle_email_jobs writes those rows when
+--      the claim stamps a judge_changed job (the claim function itself is unchanged, so the
+--      automatic email claim cannot be broken by this work; the trigger body cannot raise).
+--      It writes a row only when the class has no confirmed class-level judge now, the person
+--      still has a live entry in it, and the trial day is not past (the same three tests the
+--      sender uses to say "not named yet").
 --   3. queue_judge_changed_email_for_class gains an inner twin that can be limited to named
 --      people; the original two-argument function stays as a wrapper with the same ACL.
 --   4. An AFTER INSERT / UPDATE trigger on a confirmed class-level judge_assignments row
@@ -20,13 +21,20 @@
 --      the same producer (published show, step on, one ready job per person, merged). A class
 --      with no row (it never had a judge, or nobody was told "not named yet") queues nothing.
 --      The old judge coming back queues nothing: the sender would skip it as "not news".
+--      A person whose job is claimed and not yet sent (attempt_id set, lease running) is not
+--      queued a second email: that send renders at send time and names the judge by itself.
 --
--- Rollback: DROP TRIGGER trg_queue_judge_substitute_email_insert and
+-- Accepted races (milliseconds wide): the claim writing a row for a class whose judge a
+-- concurrent transaction is confirming (the claim does not see the uncommitted row, and the
+-- trigger does not see the uncommitted notice), and a substitute confirmed after an in-flight
+-- send has rendered "not named yet" but before it is marked sent.
+--
+-- Rollback: DROP TRIGGER trg_record_judge_vacancy_notices ON public.show_lifecycle_email_jobs;
+-- DROP FUNCTION public.record_judge_vacancy_notices_from_claim(); also DROP TRIGGER trg_queue_judge_substitute_email_insert and
 -- trg_queue_judge_substitute_email_update ON public.judge_assignments; DROP FUNCTION
 -- public.queue_judge_substitute_emails_from_assignment(),
 -- public.queue_judge_changed_email_for_people(uuid, uuid, uuid[]); restore
--- queue_judge_changed_email_for_class from 20261117191300 and claim_due_auto_email_jobs from
--- 20261117094700; DROP TABLE public.judge_vacancy_notices.
+-- queue_judge_changed_email_for_class from 20261117191300; DROP TABLE public.judge_vacancy_notices.
 -- =============================================================================
 
 BEGIN;
@@ -34,7 +42,7 @@ BEGIN;
 -- No foreign keys on purpose: hard_delete_show refuses to run when a foreign key into shows
 -- or classes is not in its reviewed manifest, and a row here is transient (consumed by the
 -- next confirmed judge, ignored once its class or show is gone: the claim and the producer
--- both check the class and show are live).
+-- the trigger and the producer both check the class and show are live).
 CREATE TABLE IF NOT EXISTS public.judge_vacancy_notices (
   class_id uuid NOT NULL,
   person_id uuid NOT NULL,
@@ -52,95 +60,79 @@ ALTER TABLE public.judge_vacancy_notices ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.judge_vacancy_notices FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.judge_vacancy_notices TO service_role;
 
--- The claim, as 20261117094700 defined it, plus the vacancy rows. A data-modifying CTE runs
--- to completion even though the final SELECT does not read it, and in the same statement as
--- the claim UPDATE, so a claimed job always has its rows.
-CREATE OR REPLACE FUNCTION public.claim_due_auto_email_jobs(
-  p_limit integer,
-  p_lease_until timestamptz
-)
-RETURNS TABLE (
-  job_id uuid,
-  attempt_id uuid,
-  show_id uuid,
-  step_type text,
-  recipient_person_id uuid,
-  recipient_email text,
-  recipient_name text,
-  idempotency_key text,
-  due_at timestamptz
-)
-LANGUAGE sql
+-- The claim (claim_due_auto_email_jobs, 20261117094700) is NOT touched: a claim stamps
+-- attempt_id on each job it takes, and this trigger watches that stamp, so the rows are written
+-- in the claim's own transaction, before any delivery is attempted. The body can never raise
+-- (the casts are guarded and the whole body has an exception handler that logs and carries on),
+-- so a fault here cannot stall the automatic email claim.
+CREATE OR REPLACE FUNCTION public.record_judge_vacancy_notices_from_claim()
+RETURNS trigger
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  WITH due AS (
-    SELECT j.id
-      FROM public.show_lifecycle_email_jobs j
-     WHERE j.status = 'ready'
-       AND j.auto_send
-       AND j.due_at <= now()
-       AND (j.claimed_until IS NULL OR j.claimed_until <= now())
-     ORDER BY j.due_at
-     LIMIT greatest(coalesce(p_limit, 0), 0)
-       FOR UPDATE SKIP LOCKED
-  ),
-  claimed AS (
-    UPDATE public.show_lifecycle_email_jobs j
-       SET attempt_id = gen_random_uuid(),
-           claimed_until = p_lease_until
-      FROM due
-     WHERE j.id = due.id
-       AND p_lease_until > now()
-    RETURNING j.id AS id, j.attempt_id AS attempt_id, j.show_id AS show_id,
-              j.step_type AS step_type, j.recipient_person_id AS recipient_person_id,
-              j.recipient_email AS recipient_email, j.recipient_name AS recipient_name,
-              j.idempotency_key AS idempotency_key, j.due_at AS due_at,
-              j.judge_changes AS judge_changes
-  ),
-  vacancies AS (
-    INSERT INTO public.judge_vacancy_notices (class_id, person_id, from_person_id, show_id)
-    SELECT cls.class_id, c.recipient_person_id, cls.from_person_id, c.show_id
-      FROM claimed c
-     CROSS JOIN LATERAL (
-       SELECT e.key::uuid AS class_id, e.value::uuid AS from_person_id
-         FROM jsonb_each_text(c.judge_changes) AS e
-     ) AS cls
-      JOIN public.classes k ON k.id = cls.class_id AND k.deleted_at IS NULL
-      JOIN public.trials t ON t.id = k.trial_id AND t.deleted_at IS NULL AND t.show_id = c.show_id
-     WHERE c.step_type = 'judge_changed'
-       AND c.recipient_person_id IS NOT NULL
-       AND NOT EXISTS (
-         SELECT 1
-           FROM public.judge_assignments ja
-          WHERE ja.class_id = cls.class_id
-            AND ja.status = 'confirmed'
+BEGIN
+  IF new.recipient_person_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  INSERT INTO public.judge_vacancy_notices (class_id, person_id, from_person_id, show_id)
+  SELECT cls.class_id, new.recipient_person_id, cls.from_person_id, new.show_id
+    FROM (
+      SELECT
+        CASE WHEN e.key ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+             THEN e.key::uuid END AS class_id,
+        CASE WHEN e.value ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+             THEN e.value::uuid END AS from_person_id
+        FROM jsonb_each_text(
+          CASE WHEN jsonb_typeof(new.judge_changes) = 'object' THEN new.judge_changes ELSE '{}'::jsonb END
+        ) AS e
+    ) AS cls
+    JOIN public.classes k ON k.id = cls.class_id AND k.deleted_at IS NULL
+    JOIN public.trials t ON t.id = k.trial_id AND t.deleted_at IS NULL AND t.show_id = new.show_id
+   WHERE cls.class_id IS NOT NULL
+     AND cls.from_person_id IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+         FROM public.judge_assignments ja
+        WHERE ja.class_id = cls.class_id
+          AND ja.status = 'confirmed'
+     )
+     -- The sender tells nobody about a class whose trial day is past.
+     AND t.date >= (
+       now() AT TIME ZONE coalesce(
+         (SELECT z.name FROM public.timezone_names z WHERE z.name = t.timezone),
+         'America/New_York'
        )
-       -- The sender tells nobody about a class whose trial day is past.
-       AND t.date >= (
-         now() AT TIME ZONE coalesce(
-           (SELECT z.name FROM public.timezone_names z WHERE z.name = t.timezone),
-           'America/New_York'
-         )
-       )::date
-       AND EXISTS (
-         SELECT 1
-           FROM public.live_entry_person_class_pairs(c.show_id) AS pairs
-          WHERE pairs.person_id = c.recipient_person_id
-            AND pairs.class_id = cls.class_id
-       )
-    ON CONFLICT (class_id, person_id) DO NOTHING
-    RETURNING 1
-  )
-  SELECT c.id, c.attempt_id, c.show_id, c.step_type, c.recipient_person_id,
-         c.recipient_email, c.recipient_name, c.idempotency_key, c.due_at
-    FROM claimed c;
+     )::date
+     AND EXISTS (
+       SELECT 1
+         FROM public.live_entry_person_class_pairs(new.show_id) AS pairs
+        WHERE pairs.person_id = new.recipient_person_id
+          AND pairs.class_id = cls.class_id
+     )
+  ON CONFLICT (class_id, person_id) DO NOTHING;
+  RETURN NULL;
+EXCEPTION WHEN OTHERS THEN
+  -- Recording who was told must never stop an email from being claimed.
+  RAISE WARNING 'record_judge_vacancy_notices_from_claim: % (%)', SQLERRM, SQLSTATE;
+  RETURN NULL;
+END;
 $$;
 
-REVOKE ALL ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz)
-  TO service_role;
+REVOKE ALL ON FUNCTION public.record_judge_vacancy_notices_from_claim()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS trg_record_judge_vacancy_notices ON public.show_lifecycle_email_jobs;
+CREATE TRIGGER trg_record_judge_vacancy_notices
+  AFTER UPDATE OF attempt_id ON public.show_lifecycle_email_jobs
+  FOR EACH ROW
+  WHEN (
+    new.step_type = 'judge_changed'
+    AND new.attempt_id IS NOT NULL
+    AND new.attempt_id IS DISTINCT FROM old.attempt_id
+  )
+  EXECUTE FUNCTION public.record_judge_vacancy_notices_from_claim();
 
 -- The producer from 20261117191300, now with an optional list of people to limit it to.
 CREATE OR REPLACE FUNCTION public.queue_judge_changed_email_for_people(
@@ -272,6 +264,17 @@ BEGIN
     )
     SELECT gone.from_person_id, array_agg(gone.person_id) AS person_ids
       FROM gone
+     -- A job claimed and not yet sent renders at send time and names the judge itself.
+     WHERE NOT EXISTS (
+       SELECT 1
+         FROM public.show_lifecycle_email_jobs j
+        WHERE j.step_type = 'judge_changed'
+          AND j.status = 'ready'
+          AND j.recipient_person_id = gone.person_id
+          AND j.attempt_id IS NOT NULL
+          AND j.claimed_until > now()
+          AND j.judge_changes ->> new.class_id::text IS NOT NULL
+     )
      GROUP BY gone.from_person_id
   LOOP
     -- The old judge coming back is not news.

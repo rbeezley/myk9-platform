@@ -11,6 +11,7 @@
 --   D. a person who joined the class after the notice, and an exhibitor never told, get nothing
 --   E. a class that never had a judge (first assignment) queues nothing and writes no rows
 --   F. the old judge coming back queues nothing
+--   H. a judge confirmed while the job is claimed and not yet sent is not emailed a second time
 --   G. the table and functions are not reachable by an API role
 --
 -- Fixtures roll back. Every now() below is the transaction start.
@@ -236,6 +237,64 @@ begin
   raise notice 'PASS F the old judge coming back queues nothing';
 end $$;
 
+-- H: the jobs are claimed (in flight) when the substitute is confirmed: the send names the
+-- judge at render time, so no second email is queued, and the rows are still consumed
+do $$
+declare
+  v_row record;
+begin
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now()
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  delete from public.judge_assignments where class_id = '00000000-0000-0000-0000-000002161004';
+  update public.show_lifecycle_email_jobs set due_at = now() - interval '1 minute'
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  perform 1 from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  if pg_temp.notices('00000000-0000-0000-0000-000002161004') <> 3 then
+    raise exception 'FAIL H expected 3 rows (Ada, Hal, Late), found %', pg_temp.notices('00000000-0000-0000-0000-000002161004');
+  end if;
+  insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status)
+  values ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002',
+          '00000000-0000-0000-0000-000002161003', '00000000-0000-0000-0000-000002161004', 'confirmed');
+  if pg_temp.jobs('ready') <> 3 then
+    raise exception 'FAIL H a second email was queued: % ready jobs', pg_temp.jobs('ready');
+  end if;
+  for v_row in select * from public.show_lifecycle_email_jobs
+                where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready' loop
+    if v_row.attempt_id is null
+       or v_row.judge_changes <> jsonb_build_object('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161052') then
+      raise exception 'FAIL H the in-flight job was changed: %', row_to_json(v_row);
+    end if;
+  end loop;
+  if pg_temp.notices() <> 0 then
+    raise exception 'FAIL H the rows were not consumed';
+  end if;
+  raise notice 'PASS H a claimed job is not followed by a second email';
+end $$;
+
+-- I: a malformed judge_changes can never stop a claim
+do $$
+begin
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  delete from public.judge_assignments where class_id = '00000000-0000-0000-0000-000002161004';
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now()
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  insert into public.show_lifecycle_email_jobs (show_id, step_id, step_type, status, recipient_scope,
+    recipient_person_id, recipient_email, subject, idempotency_key, due_at, auto_send, judge_changes)
+  select '00000000-0000-0000-0000-000002161002', s.id, 'judge_changed', 'ready', 'show_recipient',
+         '00000000-0000-0000-0000-000002161021', 'ada@example.test', 'bad', 'bad-key-2161',
+         now() - interval '1 minute', true, '{"not-a-uuid": "also-not", "00000000-0000-0000-0000-000002161004": "nope"}'::jsonb
+    from public.show_lifecycle_email_steps s
+   where s.show_id = '00000000-0000-0000-0000-000002161002' and s.step_type = 'judge_changed';
+  if (select count(*) from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes')) <> 1 then
+    raise exception 'FAIL I a malformed judge_changes stopped the claim';
+  end if;
+  if pg_temp.notices() <> 0 then
+    raise exception 'FAIL I a malformed row wrote a notice';
+  end if;
+  raise notice 'PASS I a malformed judge_changes cannot stall the claim';
+end $$;
+
 -- G
 do $$
 begin
@@ -254,6 +313,7 @@ begin
   if has_function_privilege('authenticated', 'public.queue_judge_changed_email_for_people(uuid, uuid, uuid[])', 'execute')
      or has_function_privilege('service_role', 'public.queue_judge_changed_email_for_people(uuid, uuid, uuid[])', 'execute')
      or has_function_privilege('authenticated', 'public.queue_judge_substitute_emails_from_assignment()', 'execute')
+     or has_function_privilege('authenticated', 'public.record_judge_vacancy_notices_from_claim()', 'execute')
      or has_function_privilege('authenticated', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute') then
     raise exception 'FAIL G an API role can run a producer or the claim';
   end if;

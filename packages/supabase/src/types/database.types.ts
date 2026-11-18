@@ -15267,6 +15267,10 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: undefined
       }
+      queue_substitute_judge_emails: {
+        Args: { p_class_id: string }
+        Returns: number
+      }
       queue_unfulfilled_charge_refund: {
         Args: {
           p_amount_cents: number
@@ -16017,6 +16021,10 @@ export type Database = {
       stamp_show_refund_entries: {
         Args: { p_entry_ids: string[]; p_notes: string }
         Returns: number
+      }
+      substitute_judge_email_offer: {
+        Args: { p_class_id: string }
+        Returns: Json
       }
       submit_club_access_request:
         | {

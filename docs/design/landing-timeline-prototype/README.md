@@ -4,7 +4,7 @@ Reference material for [`docs/plan-landing-animated-timeline.md`](../../plan-lan
 
 The approved prototype page for the "Entries open" step is linked from the Linear issue (a private artifact).
 
-The committed capture scripts are in `apps/myk9show/scripts/landing-capture/` (`lib.ts` and one script per scene, the ring scene first). They replace the prototype's `capture.cjs` and `lib.cjs`, which stayed on the machine that built the prototype and are not committed: they hard-code a Windows path, use the installed Edge, and their write guard let every RPC through. `entries-open-prototype.html` is also uncommitted; the approved page is the artifact linked from the issue.
+The capture scripts (`lib.ts` and one script per scene, the ring scene first) are parked on branch `claude/myk9-1894-landing-capture` until MYK9-2181 lands them. They replace the prototype's `capture.cjs` and `lib.cjs`, which stayed on the machine that built the prototype and are not committed: they hard-code a Windows path, use the installed Edge, and their write guard let every RPC through. `entries-open-prototype.html` is also uncommitted; the approved page is the artifact linked from the issue.
 
 How the capture works, for whoever rebuilds it:
 

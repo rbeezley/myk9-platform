@@ -5,9 +5,9 @@ import regions from './ringRegions.json';
 
 // "Show day, at the ring": the judge's tablet alone, from the ring's classes to a score that
 // sends itself when the signal returns (docs/plan-landing-animated-timeline.md).
-// The images and every region below come from `pnpm --filter @myk9/show capture:landing:ring`
-// (scripts/landing-capture/ring.ts), which reads the running app on the seed show. Nothing here
-// is typed by eye: a camera is worked out from the measured region it shows.
+// The images and every region below come from a capture script that reads the running app on
+// the seed show (MYK9-2181 lands the script). Nothing here is typed by eye: a camera is worked
+// out from the measured region it shows.
 
 const SPACE = regions.space;
 const WHOLE: Region = { x: 0, y: 0, w: SPACE.width, h: SPACE.height };

@@ -19,7 +19,6 @@
     "lint:changed": "node scripts/lint-changed.js",
     "typecheck": "pnpm run typecheck:app && pnpm run typecheck:tests && pnpm run typecheck:e2e && pnpm run typecheck:edge-tests && pnpm run typecheck:api",
     "typecheck:app": "tsc --noEmit --project tsconfig.app.json",
-    "capture:landing:ring": "node --experimental-strip-types scripts/landing-capture/ring.ts",
     "typecheck:tests": "cross-env NODE_OPTIONS=--max-old-space-size=6144 tsc --noEmit --project tsconfig.test.json",
     "typecheck:e2e": "tsx scripts/typecheck-e2e.ts",
     "typecheck:e2e:update-baseline": "tsx scripts/typecheck-e2e.ts --update-baseline",

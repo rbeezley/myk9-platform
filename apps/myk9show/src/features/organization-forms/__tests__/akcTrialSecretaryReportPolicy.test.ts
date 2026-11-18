@@ -75,7 +75,7 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
       'unsupported (before the first rate)',
       '2024-12-31',
       'unsupported',
-      'This fee schedule covers events from January 1, 2025. Confirm the AKC rate for this trial date before generating this report.',
+      'This fee schedule covers events from January 1, 2025 through December 31, 2027. Confirm the AKC rate for this trial date before generating this report.',
     ],
     [
       'a timestamp',

@@ -32,6 +32,13 @@ export const RECORDING_FEE_RATES: readonly RecordingFeeRate[] = [
   { registry: 'AKC', effectiveFrom: '2027-01-01', amountCents: 550 },
 ];
 
+/**
+ * The last date the table above is known to cover. AKC has announced rates through 2027 only, so a
+ * later date has no rate: the last row is not carried forward. Move this when AKC announces more.
+ * MIRRORS the constant of the same name in packages/core/src/utils/recordingFeeRate.ts.
+ */
+export const RECORDING_FEE_RATES_KNOWN_THROUGH = '2027-12-31';
+
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
 
 export function toCalendarDate(value: string | null | undefined): string | null {
@@ -54,10 +61,14 @@ export function toCalendarDate(value: string | null | undefined): string | null 
 export function recordingFeeRateInForce(
   registry: string,
   date: string | null | undefined,
-  rates: readonly RecordingFeeRate[] = RECORDING_FEE_RATES
+  rates: readonly RecordingFeeRate[] = RECORDING_FEE_RATES,
+  knownThrough: string | null = rates === RECORDING_FEE_RATES
+    ? RECORDING_FEE_RATES_KNOWN_THROUGH
+    : null
 ): RecordingFeeRate | null {
   const day = toCalendarDate(date);
   if (!day) return null;
+  if (knownThrough !== null && day > knownThrough) return null;
   let inForce: RecordingFeeRate | null = null;
   for (const rate of rates) {
     if (rate.registry !== registry || rate.effectiveFrom > day) continue;

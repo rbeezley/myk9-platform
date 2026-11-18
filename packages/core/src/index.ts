@@ -177,6 +177,7 @@ export {
 export {
   formatRecordingFeeAmount,
   RECORDING_FEE_RATES,
+  RECORDING_FEE_RATES_KNOWN_THROUGH,
   recordingFeeRateInForce,
   toCalendarDate,
   type RecordingFeeRate,

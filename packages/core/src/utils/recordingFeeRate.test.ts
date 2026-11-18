@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatRecordingFeeAmount,
   RECORDING_FEE_RATES,
+  RECORDING_FEE_RATES_KNOWN_THROUGH,
   recordingFeeRateInForce,
   toCalendarDate,
   type RecordingFeeRate,
@@ -18,13 +19,19 @@ describe('RECORDING_FEE_RATES', () => {
 });
 
 describe('recordingFeeRateInForce', () => {
+  it('has no rate after the last date AKC has announced: the last row is not carried forward', () => {
+    expect(RECORDING_FEE_RATES_KNOWN_THROUGH).toBe('2027-12-31');
+    expect(recordingFeeRateInForce('AKC', '2028-01-01')).toBeNull();
+    expect(recordingFeeRateInForce('AKC', '2031-06-01')).toBeNull();
+  });
+
   it.each([
     ['2025-01-01', 350],
     ['2025-12-31', 350],
     ['2026-01-01', 450],
     ['2026-12-31', 450],
     ['2027-01-01', 550],
-    ['2031-06-01', 550],
+    ['2027-12-31', 550],
   ])('AKC on %s is %s cents', (date, cents) => {
     expect(recordingFeeRateInForce('AKC', date)?.amountCents).toBe(cents);
   });

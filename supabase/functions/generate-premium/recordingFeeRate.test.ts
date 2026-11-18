@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatRecordingFeeAmount as coreFormat,
   RECORDING_FEE_RATES as CORE_RATES,
+  RECORDING_FEE_RATES_KNOWN_THROUGH as CORE_KNOWN_THROUGH,
   recordingFeeRateInForce as coreInForce,
   toCalendarDate as coreToCalendarDate,
 } from '../../../packages/core/src/utils/recordingFeeRate';
@@ -13,6 +14,7 @@ import {
   formatRecordingFeeAmount,
   premiumRecordingFeeDates,
   RECORDING_FEE_RATES,
+  RECORDING_FEE_RATES_KNOWN_THROUGH,
   recordingFeeRateInForce,
   toCalendarDate,
   type RecordingFeeRate,
@@ -121,6 +123,15 @@ describe('premium recording fee across a rate change (MYK9-2044 New Year show)',
 describe('parity with @myk9/core (the Trial Secretary report reads the core copy)', () => {
   it('carries the same rate table', () => {
     expect(RECORDING_FEE_RATES).toEqual(CORE_RATES);
+    expect(RECORDING_FEE_RATES_KNOWN_THROUGH).toBe(CORE_KNOWN_THROUGH);
+  });
+
+  it('states no fee for a trial dated after the announced rates end, as the report refuses it', () => {
+    expect(feeText('AKC', ['2028-01-01'])).toBeNull();
+    expect(coreInForce('AKC', '2028-01-01')).toBeNull();
+    // One uncovered date leaves the whole line out; half a statement is never printed.
+    expect(feeText('AKC', ['2027-12-31', '2028-01-01'])).toBeNull();
+    expect(feeText('AKC', ['2027-12-31'])).toBe('AKC recording fee: $5.50 per entry');
   });
 
   const EXTRA: RecordingFeeRate[] = [

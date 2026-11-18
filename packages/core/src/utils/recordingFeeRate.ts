@@ -32,6 +32,12 @@ export const RECORDING_FEE_RATES: readonly RecordingFeeRate[] = [
   { registry: 'AKC', effectiveFrom: '2027-01-01', amountCents: 550 },
 ];
 
+/**
+ * The last date the table above is known to cover. AKC has announced rates through 2027 only, so a
+ * later date has no rate: the last row is not carried forward. Move this when AKC announces more.
+ */
+export const RECORDING_FEE_RATES_KNOWN_THROUGH = '2027-12-31';
+
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
 
 /** The leading `YYYY-MM-DD` of a date or timestamp string, or null when it is not a real date. */
@@ -53,16 +59,21 @@ export function toCalendarDate(value: string | null | undefined): string | null 
 }
 
 /**
- * The rate in force for `registry` on `date`, or null when none is. `rates` defaults to the
- * table above; tests pass their own to exercise the rule.
+ * The rate in force for `registry` on `date`, or null when none is, including any date after
+ * the table's known coverage. `rates` defaults to the table above; tests pass their own to
+ * exercise the rule, and a table of their own has no coverage limit unless they pass one.
  */
 export function recordingFeeRateInForce(
   registry: string,
   date: string | null | undefined,
-  rates: readonly RecordingFeeRate[] = RECORDING_FEE_RATES
+  rates: readonly RecordingFeeRate[] = RECORDING_FEE_RATES,
+  knownThrough: string | null = rates === RECORDING_FEE_RATES
+    ? RECORDING_FEE_RATES_KNOWN_THROUGH
+    : null
 ): RecordingFeeRate | null {
   const day = toCalendarDate(date);
   if (!day) return null;
+  if (knownThrough !== null && day > knownThrough) return null;
   let inForce: RecordingFeeRate | null = null;
   for (const rate of rates) {
     if (rate.registry !== registry || rate.effectiveFrom > day) continue;

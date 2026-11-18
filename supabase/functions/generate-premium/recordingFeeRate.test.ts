@@ -8,15 +8,22 @@ import {
   recordingFeeRateInForce as coreInForce,
   toCalendarDate as coreToCalendarDate,
 } from '../../../packages/core/src/utils/recordingFeeRate';
+import {
+  buildPremiumRecordingFee as coreBuild,
+  isLivePremiumTrial as coreIsLive,
+  premiumRecordingFeeDates as coreDates,
+} from '../../../packages/core/src/utils/premiumRecordingFee';
 import { NEW_YEAR_SHOW } from '../../../apps/myk9show/src/test/fixtures/recordingFeeCalendar';
 import {
   buildPremiumRecordingFee,
   formatRecordingFeeAmount,
+  isLivePremiumTrial,
   premiumRecordingFeeDates,
   RECORDING_FEE_RATES,
   RECORDING_FEE_RATES_KNOWN_THROUGH,
   recordingFeeRateInForce,
   toCalendarDate,
+  type PremiumRecordingFeeTrial,
   type RecordingFeeRate,
 } from './recordingFeeRate';
 
@@ -98,6 +105,15 @@ describe('premium recording fee across a rate change (MYK9-2044 New Year show)',
     }
   });
 
+  it('one rule decides which trials the schedule prints and the fee prices', () => {
+    expect(isLivePremiumTrial({ status: 'upcoming', deleted_at: null })).toBe(true);
+    expect(isLivePremiumTrial({})).toBe(true);
+    expect(isLivePremiumTrial({ status: 'cancelled' })).toBe(false);
+    expect(isLivePremiumTrial({ status: 'upcoming', deleted_at: '2026-11-01T00:00:00Z' })).toBe(
+      false
+    );
+  });
+
   it('falls back to the show start date before any trial is dated', () => {
     expect(premiumRecordingFeeDates([], NEW_YEAR_SHOW.startDate)).toEqual(['2026-12-31']);
     expect(premiumRecordingFeeDates(null, '2027-01-01')).toEqual(['2027-01-01']);
@@ -173,5 +189,38 @@ describe('parity with @myk9/core (the Trial Secretary report reads the core copy
 
   it.each([1, 5, 350, 450, 550, 1999, 100_000])('formats %s cents the same', cents => {
     expect(formatRecordingFeeAmount(cents)).toBe(coreFormat(cents));
+  });
+});
+
+describe('premium statement parity with @myk9/core (the edit-and-republish path builds the core copy)', () => {
+  const [eve, newYear] = NEW_YEAR_SHOW.trialDates;
+  const TRIAL_LISTS: Array<[string, PremiumRecordingFeeTrial[], string | null]> = [
+    ['the New Year pair', [{ date: eve }, { date: newYear }], NEW_YEAR_SHOW.startDate],
+    ['one 2026 date', [{ date: '2026-06-12' }], '2026-06-12'],
+    ['one 2025 date', [{ date: '2025-03-01' }], null],
+    ['a date after 2027-12-31', [{ date: '2028-01-01' }], '2028-01-01'],
+    ['2027 then 2028', [{ date: '2027-12-31' }, { date: '2028-01-01' }], null],
+    ['a date before 2025', [{ date: '2024-12-31' }], null],
+    [
+      'a cancelled New Year trial',
+      [{ date: eve }, { date: newYear, status: 'cancelled' }],
+      NEW_YEAR_SHOW.startDate,
+    ],
+    [
+      'a soft-deleted New Year trial',
+      [{ date: eve }, { date: newYear, deleted_at: '2026-11-01T00:00:00Z' }],
+      NEW_YEAR_SHOW.startDate,
+    ],
+    ['no trials, start date only', [], '2027-03-01'],
+    ['nothing dated', [], null],
+  ];
+
+  it.each(TRIAL_LISTS)('builds the same statement for %s', (_label, trials, startDate) => {
+    const dates = premiumRecordingFeeDates(trials, startDate);
+    expect(dates).toEqual(coreDates(trials, startDate));
+    for (const organization of ['AKC', 'UKC', null]) {
+      expect(buildPremiumRecordingFee(organization, dates)).toEqual(coreBuild(organization, dates));
+    }
+    for (const trial of trials) expect(isLivePremiumTrial(trial)).toBe(coreIsLive(trial));
   });
 });

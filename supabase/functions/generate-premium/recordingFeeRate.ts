@@ -102,6 +102,18 @@ export interface PremiumRecordingFeeTrial {
   deleted_at?: string | null;
 }
 
+/**
+ * A trial the premium prints and prices: not cancelled and not soft-deleted. generate-premium
+ * filters `show.trials` with this once and uses the result for both the printed schedule and the
+ * recording fee dates, so a cancelled trial is neither advertised nor priced.
+ */
+export function isLivePremiumTrial(trial: {
+  status?: string | null;
+  deleted_at?: string | null;
+}): boolean {
+  return !trial.deleted_at && trial.status !== 'cancelled';
+}
+
 const MONTHS = [
   'January',
   'February',
@@ -118,7 +130,7 @@ const MONTHS = [
 ];
 
 /** "2027-01-01" -> "January 1, 2027", read from the text (no `Date`, so no timezone shift). */
-function formatCalendarDateLong(day: string): string {
+export function formatCalendarDateLong(day: string): string {
   const [year, month, date] = day.split('-');
   return `${MONTHS[Number(month) - 1]} ${Number(date)}, ${year}`;
 }
@@ -133,7 +145,7 @@ export function premiumRecordingFeeDates(
 ): string[] {
   const days = new Set<string>();
   for (const trial of trials ?? []) {
-    if (trial.deleted_at || trial.status === 'cancelled') continue;
+    if (!isLivePremiumTrial(trial)) continue;
     const day = toCalendarDate(trial.date);
     if (day) days.add(day);
   }

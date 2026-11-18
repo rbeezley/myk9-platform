@@ -24,6 +24,7 @@ import {
 } from './withdrawalPolicyRow.ts';
 import {
   buildPremiumRecordingFee,
+  isLivePremiumTrial,
   premiumRecordingFeeDates,
   type PremiumRecordingFeeTrial,
 } from './recordingFeeRate.ts';
@@ -161,16 +162,20 @@ handle<GeneratePremiumPayload>(
     const secretaryPhone = secretaryOfficial?.phone ?? null;
     const chairman = pickPremiumOfficial(officials, 'chairman');
 
-    // Step 7c: The AKC recording fee (MYK9-2044), the rate in force on each live trial's date
-    // (the dates the Trial Secretary Report prices), or the show's start date before any trial is
-    // dated, from the dated table in ./recordingFeeRate.ts. Only an AKC show states one, and a
-    // date with no rate in force prints no line: a rate is never guessed.
+    // Step 7c: The trials the premium prints and prices (MYK9-2044): cancelled and soft-deleted
+    // trials are dropped once, here, and this one list feeds both the printed schedule (Step 10)
+    // and the recording fee, so the PDF never advertises a trial its fee line does not price.
+    const liveTrials = ((show.trials ?? []) as PremiumRecordingFeeTrial[]).filter(
+      isLivePremiumTrial
+    );
+
+    // The AKC recording fee, the rate in force on each live trial's date (the dates the Trial
+    // Secretary Report prices), or the show's start date before any trial is dated, from the dated
+    // table in ./recordingFeeRate.ts. Only an AKC show states one, and a date with no rate in
+    // force prints no line: a rate is never guessed.
     const recordingFee = buildPremiumRecordingFee(
       showOrg,
-      premiumRecordingFeeDates(
-        show.trials as PremiumRecordingFeeTrial[] | null,
-        show.start_date as string | null
-      )
+      premiumRecordingFeeDates(liveTrials, show.start_date as string | null)
     );
 
     // Step 8: Template resolution — find best matching template for this show's trial type
@@ -229,7 +234,7 @@ handle<GeneratePremiumPayload>(
 
     // Step 10: Assemble and return GeneratedPremium
     const trials = (
-      show.trials as Array<{
+      liveTrials as unknown as Array<{
         id: string;
         name: string;
         date: string;

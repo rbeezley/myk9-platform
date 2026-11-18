@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { premiumRecordingFeeDates } from '@myk9/core';
 import { COMMITTEE_QUERY_KEY, committeeScopeKey } from '@/components/committee/useCommittee';
 import {
   getTrialRegistry,
@@ -22,6 +23,9 @@ interface RequirementTrial {
   name?: string | undefined;
   eventNumber?: string | undefined;
   registryId?: string | null | undefined;
+  /** MYK9-2044: the date and status the recording fee is priced from. */
+  trialDate?: string | undefined;
+  status?: string | undefined;
 }
 
 /** The class fields the checks read; Show Desk class rows and the About tab's both fit. */
@@ -61,6 +65,10 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
     secretary: { name: input.secretaryName },
     chair: input.chairName ? { name: input.chairName } : null,
     committee: input.committee,
+    recordingFeeDates: premiumRecordingFeeDates(
+      input.trials.map(trial => ({ date: trial.trialDate ?? null, status: trial.status ?? null })),
+      show.startDate
+    ),
     trials: input.trials.map(trial => {
       const trialClasses = input.classes.filter(cls => cls.trialId === trial.id);
       const classIds = new Set(trialClasses.map(cls => cls.id));

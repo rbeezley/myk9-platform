@@ -55,3 +55,30 @@ describe('requirementFactsFromShow judges (MYK9-2053)', () => {
     expect(judgeCounts([judge({})])).toEqual([0, 0]);
   });
 });
+
+describe('requirementFactsFromShow recording fee dates (MYK9-2044)', () => {
+  function feeDates(feeTrials: Array<{ id: string; trialDate?: string; status?: string }>) {
+    return requirementFactsFromShow({
+      show,
+      trials: feeTrials,
+      classes: [],
+      judges: [],
+      secretaryName: null,
+      chairName: null,
+      committee: [],
+    }).recordingFeeDates;
+  }
+
+  it('prices each live trial date, leaving out a cancelled trial', () => {
+    expect(
+      feeDates([
+        { id: 't1', trialDate: '2027-12-31', status: 'upcoming' },
+        { id: 't2', trialDate: '2028-01-01', status: 'cancelled' },
+      ])
+    ).toEqual(['2027-12-31']);
+  });
+
+  it("falls back to the show's start date before any trial is dated", () => {
+    expect(feeDates([{ id: 't1' }])).toEqual(['2026-06-01']);
+  });
+});

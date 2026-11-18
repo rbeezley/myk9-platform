@@ -182,3 +182,14 @@ export {
   toCalendarDate,
   type RecordingFeeRate,
 } from './utils/recordingFeeRate';
+
+// The premium's recording fee statement (MYK9-2044)
+export {
+  buildPremiumRecordingFee,
+  formatCalendarDateLong,
+  isLivePremiumTrial,
+  premiumRecordingFeeDates,
+  type PremiumRecordingFee,
+  type PremiumRecordingFeeRate,
+  type PremiumRecordingFeeTrial,
+} from './utils/premiumRecordingFee';

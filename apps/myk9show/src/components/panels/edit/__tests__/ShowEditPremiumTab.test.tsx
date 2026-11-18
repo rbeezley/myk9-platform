@@ -40,6 +40,12 @@ vi.mock('@/hooks/queries/useShowOfficials', () => ({
 
 import { ShowEditPremiumTab } from '../ShowEditPremiumTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
+import { applyShowFormDataToPremium } from '@/components/shows/ShowDetails/showFormPremiumSync';
+import { buildExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+import { buildPremiumFacts } from '@/features/premium/premiumFacts';
+import { NEW_YEAR_SHOW } from '@/test/fixtures/recordingFeeCalendar';
+import type { GeneratedPremium } from '@/types/premium-types';
+import type { ShowTrial } from '@/types/show-types';
 
 const baseData: ShowEditFormData = {
   id: 'show-1',
@@ -302,5 +308,108 @@ describe('ShowEditPremiumTab', () => {
         additionalNotes: 'Bring water.',
       },
     });
+  });
+});
+
+describe('republishing an edited premium without Regenerate keeps the recording fee (MYK9-2044)', () => {
+  const [eve, newYear] = NEW_YEAR_SHOW.trialDates;
+  const SUPPLEMENTAL = {
+    vetClinic: null,
+    accommodations: [],
+    coverImageUrl: null,
+    hospitalityNotes: null,
+    awardsDescription: null,
+    additionalNotes: null,
+  };
+  const trial = (id: string, date: string, status = 'published'): ShowTrial => ({
+    id,
+    name: `Trial ${id}`,
+    date,
+    trialNumber: `AKC-${id}`,
+    status,
+    trialType: 'Scent Work',
+    classes: [],
+  });
+
+  /** What generate-premium published for a single-trial show on New Year's Eve: $4.50. */
+  const PUBLISHED = buildExperienceSnapshot({
+    premium: {
+      style: 'monogram',
+      narratives: { showHours: 'Doors at 7.', trialInformation: 'Bring water.' },
+      supplemental: SUPPLEMENTAL,
+      recordingFee: {
+        registry: 'AKC',
+        rates: [{ amountCents: 450, appliesFrom: null }],
+        text: 'AKC recording fee: $4.50 per entry',
+      },
+    },
+    premiumPath: 'show-1/artifact-1.pdf',
+    premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
+  });
+
+  /** Open the tab, change the wording the way the editor does, and publish as Save does. */
+  function editAndRepublish(trials: ShowTrial[]) {
+    const data: ShowEditFormData = {
+      ...baseData,
+      startDate: NEW_YEAR_SHOW.startDate,
+      endDate: newYear,
+      experiencePublishedContent: PUBLISHED,
+      trials,
+    };
+    render(
+      <ShowEditPremiumTab
+        data={data}
+        clubId="c1"
+        showOrg="AKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+    const draft = premiumEditorProps.at(-1)?.initialPremium as GeneratedPremium;
+    const edited: GeneratedPremium = {
+      ...draft,
+      narratives: { ...draft.narratives, showHours: 'Doors at 6:30.' },
+    };
+    const premium = applyShowFormDataToPremium(edited, data, []);
+    const snapshot = buildExperienceSnapshot({
+      premium,
+      premiumPath: 'show-1/artifact-2.pdf',
+      premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-2.pdf',
+    });
+    return { premium, snapshot };
+  }
+
+  it('keeps the line in the PDF data and in the published snapshot', () => {
+    const { premium, snapshot } = editAndRepublish([trial('1', eve)]);
+
+    expect(premium.narratives.showHours).toBe('Doors at 6:30.');
+    expect(buildPremiumFacts(premium).recordingFee).toBe('AKC recording fee: $4.50 per entry');
+    expect(snapshot.recordingFee?.text).toBe('AKC recording fee: $4.50 per entry');
+  });
+
+  it('states the new rate when the trial moved across a rate change after publishing', () => {
+    const { premium, snapshot } = editAndRepublish([trial('1', newYear)]);
+
+    expect(buildPremiumFacts(premium).recordingFee).toBe('AKC recording fee: $5.50 per entry');
+    expect(snapshot.recordingFee?.text).toBe('AKC recording fee: $5.50 per entry');
+  });
+
+  it('neither prints nor prices a cancelled trial', () => {
+    const { premium, snapshot } = editAndRepublish([
+      trial('1', eve),
+      trial('2', newYear, 'cancelled'),
+    ]);
+
+    expect(premium.trials.map(t => t.date)).toEqual([eve]);
+    expect(snapshot.recordingFee?.text).toBe('AKC recording fee: $4.50 per entry');
+  });
+
+  it('states both rates for a live New Year pair', () => {
+    const { snapshot } = editAndRepublish([trial('1', eve), trial('2', newYear)]);
+
+    expect(snapshot.recordingFee?.text).toBe(
+      'AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027'
+    );
   });
 });

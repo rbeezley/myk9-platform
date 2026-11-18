@@ -36,6 +36,7 @@ export type PremiumFactId =
   | 'fees'
   | 'withdrawalPolicy'
   | 'scoutingStatement'
+  | 'recordingFee'
   | 'classes'
   | 'judges'
   | 'secretary'
@@ -83,6 +84,8 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     source: 'registry',
     requiredBy: ['AKC'],
   },
+  // MYK9-2044: AKC Ch. 3 §15, "AKC recording fee shall be stated"; from the dated table in code.
+  { id: 'recordingFee', label: 'AKC recording fee', source: 'registry', requiredBy: ['AKC'] },
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },

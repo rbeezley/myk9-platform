@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors } from '../../tokens';
 import { formatEntryCount } from '@/features/_shared/landing/entryCount';
@@ -73,6 +74,7 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const pending = usePendingEntryCopy();
   const statusLabel =
     entryCount == null
       ? 'Entries open · count unavailable'
@@ -178,7 +180,7 @@ export function StickyNav({
             color: bannerColors.mute,
           }}
         >
-          {entryClosed ? 'Entries closed' : 'Classes pending'}
+          {entryClosed ? 'Entries closed' : pending.nav}
         </span>
       )}
     </nav>

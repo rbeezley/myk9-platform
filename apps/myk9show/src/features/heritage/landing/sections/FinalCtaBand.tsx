@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { heritageOrnaments } from '../../tokens';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
@@ -8,6 +9,7 @@ interface FinalCtaBandProps {
 }
 
 export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: FinalCtaBandProps) {
+  const pending = usePendingEntryCopy();
   return (
     <section
       className="hl-on-ink px-6 py-20 text-center"
@@ -44,8 +46,8 @@ export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: Fin
             </>
           ) : (
             <>
-              Entries open when{' '}
-              <em style={{ color: 'var(--hl-gold-on-dark)' }}>classes are assigned</em>.
+              {pending.headlineLead}{' '}
+              <em style={{ color: 'var(--hl-gold-on-dark)' }}>{pending.headlineAccent}</em>.
             </>
           )}
         </p>
@@ -105,11 +107,7 @@ export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: Fin
             className="text-sm leading-relaxed"
             style={{ color: 'var(--hl-paper-soft)', fontFamily: "'EB Garamond', Georgia, serif" }}
           >
-            {entryClosed ? (
-              <LateEntryContact />
-            ) : (
-              'The secretary still needs to assign classes before online entry is available.'
-            )}
+            {entryClosed ? <LateEntryContact /> : pending.sub}
           </p>
         )}
       </div>

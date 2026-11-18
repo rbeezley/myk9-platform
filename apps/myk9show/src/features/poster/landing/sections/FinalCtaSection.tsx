@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { PosterInkBlot } from '../../components/PosterInkBlot';
 import { PosterRotatingSquare } from '../../components/PosterRotatingSquare';
@@ -33,6 +34,7 @@ export function FinalCtaSection({
   canEnterOnline = true,
   entryClosed = false,
 }: FinalCtaSectionProps) {
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -114,8 +116,8 @@ export function FinalCtaSection({
             </>
           ) : (
             <>
-              Entries open when <span style={{ color: posterColors.red }}>classes</span> are
-              assigned.
+              {pending.headlineLead}{' '}
+              <span style={{ color: posterColors.red }}>{pending.headlineAccent}</span>.
             </>
           )}
         </h2>
@@ -153,11 +155,7 @@ export function FinalCtaSection({
               margin: 0,
             }}
           >
-            {entryClosed ? (
-              <LateEntryContact />
-            ) : (
-              'The secretary still needs to assign classes before online entry is available.'
-            )}
+            {entryClosed ? <LateEntryContact /> : pending.sub}
           </p>
         )}
         <div style={{ marginTop: 14, position: 'relative', zIndex: 3 }}>

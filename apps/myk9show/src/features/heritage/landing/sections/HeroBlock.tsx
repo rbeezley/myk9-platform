@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '../../hooks/useCountdown';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
@@ -101,6 +102,7 @@ export function HeroBlock({
   canEnterOnline = true,
   entryClosed = false,
 }: HeroBlockProps) {
+  const pending = usePendingEntryCopy();
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>(0.1);
   const { days, hours, minutes, closed } = useCountdown(entryCloseDate, timezone);
 
@@ -228,7 +230,7 @@ export function HeroBlock({
                   <LateEntryContact lead="Entries are closed for this show. " />
                 </>
               ) : (
-                'Entries are not available yet because no classes are assigned yet.'
+                pending.sentence
               )}
             </p>
           )}

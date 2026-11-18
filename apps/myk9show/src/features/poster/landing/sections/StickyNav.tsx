@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors } from '../../tokens';
 import { PosterMonoStrip } from '../../components/PosterMonoStrip';
@@ -40,6 +41,7 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const pending = usePendingEntryCopy();
   const dateLabel = formatDateRange(trialStartDate, trialEndDate, timezone, true);
   const venueLabel = [venueName, venueCity].filter(Boolean).join(', ').toUpperCase();
   const capacityLabel =
@@ -74,7 +76,7 @@ export function StickyNav({
             flexShrink: 0,
           }}
         >
-          {entryClosed ? 'Entries closed' : 'Classes pending'}
+          {entryClosed ? 'Entries closed' : pending.nav}
         </span>
       </PosterMonoStrip>
     );

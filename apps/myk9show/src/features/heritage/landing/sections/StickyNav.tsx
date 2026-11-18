@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
@@ -23,6 +24,7 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const pending = usePendingEntryCopy();
   const [activeId, setActiveId] = useState<string>('overview');
 
   // Track active section via IntersectionObserver
@@ -127,7 +129,7 @@ export function StickyNav({
                 fontFamily: "'EB Garamond', Georgia, serif",
               }}
             >
-              {entryClosed ? 'Entries closed' : 'Classes pending'}
+              {entryClosed ? 'Entries closed' : pending.nav}
             </span>
           )}
         </div>

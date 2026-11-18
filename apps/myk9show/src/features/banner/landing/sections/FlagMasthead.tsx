@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
@@ -46,6 +47,7 @@ export function FlagMasthead({
   canEnterOnline = true,
   entryClosed = false,
 }: FlagMastheadProps) {
+  const pending = usePendingEntryCopy();
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
   const closesLabel = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
@@ -97,7 +99,7 @@ export function FlagMasthead({
                 <LateEntryContact lead="Entries are closed for this show. " />
               </>
             ) : (
-              'Entries are not available yet because no classes are assigned yet.'
+              pending.sentence
             )}
           </p>
         )}

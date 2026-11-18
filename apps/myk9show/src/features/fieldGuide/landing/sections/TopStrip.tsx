@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { FieldGuideDarkBand } from '../../components/FieldGuideDarkBand';
 import { fieldGuideColors } from '../../tokens';
 
@@ -35,6 +36,7 @@ export function TopStrip({
   canEnterOnline = true,
   entryClosed = false,
 }: TopStripProps) {
+  const pending = usePendingEntryCopy();
   return (
     <FieldGuideDarkBand
       style={{
@@ -100,7 +102,7 @@ export function TopStrip({
             color: fieldGuideColors.paperTranslucent,
           }}
         >
-          {entryClosed ? 'Entries closed' : 'Classes pending'}
+          {entryClosed ? 'Entries closed' : pending.nav}
         </span>
       )}
     </FieldGuideDarkBand>

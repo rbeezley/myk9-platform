@@ -120,3 +120,42 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
     expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(2);
   });
 });
+
+describe('GazetteLandingPage: entries not open yet with classes assigned', () => {
+  it('says when entries open and never claims classes are missing', () => {
+    mockViewportWidth(1280);
+    const { container } = render(
+      <GazetteLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryWindowNotOpen
+      />
+    );
+
+    expect(screen.getAllByText('Opens Apr 1').length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('Entries open');
+    expect(container.textContent).toContain('Apr 1');
+    expect(container.textContent).not.toMatch(
+      /classes are assigned|assign classes|Classes pending/
+    );
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(0);
+  });
+
+  it('keeps the missing-classes copy for a show confirmed to have none', () => {
+    mockViewportWidth(1280);
+    const { container } = render(
+      <GazetteLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory={false}
+        entryWindowNotOpen={false}
+      />
+    );
+
+    expect(screen.getAllByText('Classes pending').length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('assign classes');
+  });
+});

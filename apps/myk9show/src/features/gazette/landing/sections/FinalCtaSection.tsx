@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
@@ -24,6 +25,7 @@ export function FinalCtaSection({
   canEnterOnline = true,
   entryClosed = false,
 }: FinalCtaSectionProps) {
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -87,9 +89,9 @@ export function FinalCtaSection({
             </>
           ) : (
             <>
-              Entries open when{' '}
+              {pending.headlineLead}{' '}
               <em style={{ fontStyle: 'italic', fontWeight: 400, color: 'rgba(247,241,227,0.85)' }}>
-                classes are assigned
+                {pending.headlineAccent}
               </em>
               .
             </>
@@ -111,7 +113,7 @@ export function FinalCtaSection({
           ) : entryClosed ? (
             <LateEntryContact />
           ) : (
-            'The secretary still needs to assign classes before online entry is available.'
+            pending.sub
           )}
         </p>
         {/* MYK9-633: the button here duplicated the header nav's "Enter"

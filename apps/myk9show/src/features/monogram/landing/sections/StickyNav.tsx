@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
@@ -26,6 +27,7 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const pending = usePendingEntryCopy();
   return (
     <nav
       aria-label="Show navigation"
@@ -101,7 +103,7 @@ export function StickyNav({
             color: monogramColors.mute,
           }}
         >
-          {entryClosed ? 'Entries closed' : 'Classes pending'}
+          {entryClosed ? 'Entries closed' : pending.nav}
         </span>
       )}
     </nav>

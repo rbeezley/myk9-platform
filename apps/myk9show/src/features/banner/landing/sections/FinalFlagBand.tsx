@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { BannerFlagBar } from '../../components/BannerFlagBar';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors } from '../../tokens';
@@ -27,6 +28,7 @@ export function FinalFlagBand({
   closingLead = 'See you',
   closingAccent = 'ringside',
 }: FinalFlagBandProps) {
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -84,8 +86,8 @@ export function FinalFlagBand({
             </>
           ) : (
             <>
-              Entries open when{' '}
-              <span style={{ color: brandColors.flagBrightOnDeep }}>classes are assigned.</span>
+              {pending.headlineLead}{' '}
+              <span style={{ color: brandColors.flagBrightOnDeep }}>{pending.headlineAccent}.</span>
             </>
           )}
         </h2>
@@ -108,11 +110,7 @@ export function FinalFlagBand({
               opacity: 0.85,
             }}
           >
-            {entryClosed ? (
-              <LateEntryContact />
-            ) : (
-              'The secretary still needs to assign classes before online entry is available.'
-            )}
+            {entryClosed ? <LateEntryContact /> : pending.sub}
           </p>
         )}
       </BannerFlagBar>

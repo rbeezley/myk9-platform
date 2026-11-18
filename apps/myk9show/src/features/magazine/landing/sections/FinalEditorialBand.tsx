@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
@@ -32,6 +33,7 @@ export function FinalEditorialBand({
   canEnterOnline = true,
   entryClosed = false,
 }: FinalEditorialBandProps) {
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -87,9 +89,9 @@ export function FinalEditorialBand({
             </>
           ) : (
             <>
-              Entries open when{' '}
+              {pending.headlineLead}{' '}
               <em style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}>
-                classes are assigned
+                {pending.headlineAccent}
               </em>
               .
             </>
@@ -125,11 +127,7 @@ export function FinalEditorialBand({
               lineHeight: 1.5,
             }}
           >
-            {entryClosed ? (
-              <LateEntryContact />
-            ) : (
-              'The secretary still needs to assign classes before online entry is available.'
-            )}
+            {entryClosed ? <LateEntryContact /> : pending.sub}
           </p>
         )}
 

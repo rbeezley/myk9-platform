@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import type { HeritageLandingData } from '@/features/heritage/landing/types';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { SectionHead } from './HeadlineLandingPrimitives';
@@ -94,6 +95,7 @@ export function FinalCta({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
 
   return (
@@ -122,9 +124,9 @@ export function FinalCta({
               </>
             ) : (
               <>
-                Entries open when
+                {pending.headlineLead}
                 <br />
-                <span className="accent">classes are assigned.</span>
+                <span className="accent">{pending.headlineAccent}.</span>
               </>
             )}
           </h2>
@@ -138,7 +140,7 @@ export function FinalCta({
             ) : entryClosed ? (
               <LateEntryContact />
             ) : (
-              'The secretary still needs to assign classes before online entry is available.'
+              pending.sub
             )}
           </p>
         </div>

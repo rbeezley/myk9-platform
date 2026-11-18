@@ -94,6 +94,8 @@ export function getEmailRecoveryHref(sourceKind: string, showId: string): string
       return `/shows/${showId}/entries?tab=waitlist`;
     case 'registry_results_submission':
       return `/shows/${showId}/results?step=submit`;
+    case 'registry_deadline_reminder':
+      return `/shows/${showId}/results#finish-the-show`;
     default:
       return null;
   }
@@ -129,6 +131,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
     if (lifecycleStepType === 'show_changed') return 'Date or venue changed';
     // MYK9-2125: the same, when a class's judge changes.
     if (lifecycleStepType === 'judge_changed') return 'Judge changed';
+    // MYK9-2126: and when the secretary edits, moves or pulls their entry.
+    if (lifecycleStepType === 'entry_changed') return 'Entry changed';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {
@@ -147,6 +151,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
       return 'Results submission';
     case 'show_message':
       return 'Show message';
+    case 'registry_deadline_reminder':
+      return 'Results deadline reminder';
     default:
       return 'Email';
   }

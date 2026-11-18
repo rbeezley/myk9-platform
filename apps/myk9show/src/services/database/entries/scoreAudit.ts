@@ -1,4 +1,5 @@
 import { getTrialTimezone } from '@/features/registries';
+import { AKC_FILE_SCORE_FIELDS } from '../../../../../../supabase/functions/_shared/showCloseout/submissionCoverage';
 import type { Tables } from '@/types/supabase';
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 
@@ -150,17 +151,7 @@ export async function getClassScoreAudits(
   }
 }
 
-/**
- * The score columns the AKC results file is built from (`AKCScentWorkFormatter` and
- * `akcEntryOutcome`): the result, the search time and the placement. A change to any other audited
- * column (judge notes, signatures, video review, fault counts) leaves the sent file true.
- */
-export const AKC_FILE_SCORE_FIELDS: ReadonlySet<string> = new Set([
-  'result_status',
-  'search_time_seconds',
-  'final_placement',
-  'is_scored',
-]);
+export { AKC_FILE_SCORE_FIELDS };
 
 /**
  * The newest change to a score the results file carries, per class, among changes after `sinceIso`

@@ -45,12 +45,14 @@
 BEGIN;
 
 -- MYK9-979: this file predates the per-show online-entries switch
--- (shows.online_entries_enabled, DEFAULT false) and exercises the online-
--- entries-ON path: exhibitor submit_show_entries calls and/or the Stripe
--- publish refusal. Every fixture show it creates takes online entries.
--- Transaction-local like every other fixture here: the ROLLBACK at the end of
--- this file restores the column default. The switch itself is covered by
--- myk9_979_online_entries_switch_test.sql.
+-- (shows.online_entries_enabled) and exercises the online-entries-ON path:
+-- exhibitor submit_show_entries calls and/or the Stripe publish refusal.
+-- Every fixture show it creates takes online entries. The column has
+-- defaulted to true since MYK9-2163, so this line is now a no-op kept for
+-- clarity; it is transaction-local and the ROLLBACK at the end restores the
+-- default. The switch itself is covered by
+-- myk9_979_online_entries_switch_test.sql and
+-- myk9_2163_publish_needs_payouts_test.sql.
 ALTER TABLE public.shows ALTER COLUMN online_entries_enabled SET DEFAULT true;
 
 -- ---------------------------------------------------------------------------
@@ -303,10 +305,10 @@ BEGIN
   END;
   RESET ROLE;
   PERFORM set_config('request.jwt.claim.sub', '', true);
-  IF v_message !~* 'payment account' THEN
+  IF v_message !~* 'payouts aren''t enabled yet' THEN
     RAISE EXCEPTION 'FAIL no-account: unexpected message %', v_message;
   END IF;
-  RAISE NOTICE 'PASS no-account: refused with MK003 and the payment-account message';
+  RAISE NOTICE 'PASS no-account: refused with MK003 and the payouts-not-enabled message';
 END;
 $$;
 RESET ROLE;
@@ -538,9 +540,9 @@ BEGIN
         'status', 'published',
         'accept_check_payments', true,
         'accept_cash_payments', true,
-        -- MYK9-979: the RPC writes this key itself (absent -> false), so the
-        -- file's ALTER ... SET DEFAULT true does not reach it. Online entries
-        -- on is what makes the Stripe refusal (MK003) apply.
+        -- MYK9-2163: the RPC now creates every show with online entries on
+        -- and ignores this key; it is kept from MYK9-979, when the RPC read
+        -- it (absent meaning false).
         'online_entries_enabled', true
       ),
       '[]'::jsonb,
@@ -552,7 +554,7 @@ BEGIN
     GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
     RESET ROLE;
     PERFORM set_config('request.jwt.claim.sub', '', true);
-    IF v_message !~* 'payment account' THEN
+    IF v_message !~* 'payouts aren''t enabled yet' THEN
       RAISE EXCEPTION 'FAIL insert-bypass-rpc: unexpected message %', v_message;
     END IF;
     RAISE NOTICE 'PASS insert-bypass-rpc: create_show_with_children refused an already-published INSERT with MK003';
@@ -1014,7 +1016,8 @@ RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
 
 -- 12d. The window is checked LAST: a windowless show on a club with no
---      Stripe account still gets MK003 and the payment-account message.
+--      Stripe account still gets MK003 and the payouts-not-enabled message
+--      (MYK9-2163 wording).
 DO $$
 DECLARE
   v_state text;
@@ -1032,8 +1035,8 @@ BEGIN
   END;
   RESET ROLE;
   PERFORM set_config('request.jwt.claim.sub', '', true);
-  IF v_state IS DISTINCT FROM 'MK003' OR v_message !~* 'payment account' THEN
-    RAISE EXCEPTION 'FAIL window-precedence: expected MK003 payment-account, got % %', v_state, v_message;
+  IF v_state IS DISTINCT FROM 'MK003' OR v_message !~* 'payouts aren''t enabled yet' THEN
+    RAISE EXCEPTION 'FAIL window-precedence: expected MK003 payouts-not-enabled, got % %', v_state, v_message;
   END IF;
   RAISE NOTICE 'PASS window-precedence: the Stripe refusal (MK003) still wins over a missing window';
 END;

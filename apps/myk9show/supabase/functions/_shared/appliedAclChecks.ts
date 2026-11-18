@@ -31,6 +31,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   cart_spot_holds: '',
   chatbot_feedback: 'INSERT',
   chatbot_query_log: '',
+  class_judge_departures: '',
   class_visibility_overrides: 'SELECT,INSERT,UPDATE',
   classes: 'INSERT,UPDATE,DELETE',
   club_access_requests: 'SELECT,UPDATE',
@@ -100,6 +101,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   // SECURITY DEFINER RPC run as service_role.
   refund_request_attempts: 'SELECT',
   refund_requests: 'SELECT',
+  registry_deadline_reminders: '',
   result_submissions: 'SELECT,INSERT',
   ringside_containment: '',
   ringside_containment_audit: '',

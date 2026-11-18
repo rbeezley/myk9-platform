@@ -204,6 +204,36 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     });
   });
 
+  it('shows the entry changed email with its counts but no switch to hold it back', async () => {
+    const current = await mockFetchSummary({ supabase: {} as never, showId: 'show-1' });
+    const automatic = {
+      isEnabled: true,
+      readyCount: 1,
+      sentCount: 2,
+      failedCount: 0,
+      skippedCount: 0,
+      dismissedCount: 0,
+      warningCount: 0,
+    };
+    mockFetchSummary.mockResolvedValue({
+      ...current,
+      steps: [
+        ...current.steps,
+        { stepType: 'judge_changed', ...automatic },
+        { stepType: 'entry_changed', ...automatic },
+      ],
+    });
+    render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    expect(await screen.findByText('Entry changed')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /judge changed enabled/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('switch', { name: /entry changed enabled/i })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('1 ready · 2 sent')).toBeInTheDocument();
+    expect(screen.getByText('1 waiting · 2 sent')).toBeInTheDocument();
+  });
+
   it('keeps producer-backed review available for accepted entries', async () => {
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
 

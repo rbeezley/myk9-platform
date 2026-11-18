@@ -80,6 +80,12 @@ export async function handleResendEmailEvent(
     if (isTrackedAuthEvent(event)) {
       throw new Error(`Email log not found for tracked auth message ${event.data.email_id}`);
     }
+    if (isTrackedReminderEvent(event)) {
+      // The sender logs right after the send returns; an event can beat that insert. Retry.
+      throw new Error(
+        `Email log not found for tracked registry reminder message ${event.data.email_id}`
+      );
+    }
     return;
   }
 
@@ -145,4 +151,8 @@ function isDeliveryFailureStatus(value: EmailStatus): value is DeliveryFailureSt
 
 function isTrackedAuthEvent(event: ResendEmailEvent): boolean {
   return isAuthEmailType(event.data.tags?.myk9_email_type ?? '');
+}
+
+function isTrackedReminderEvent(event: ResendEmailEvent): boolean {
+  return event.data.tags?.myk9_email_type === 'registry_deadline_reminder';
 }

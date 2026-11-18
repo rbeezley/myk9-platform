@@ -60,6 +60,24 @@ describe('email delivery history read model', () => {
     expect(row.typeLabel).toBe('Show message');
   });
 
+  it('labels the registry deadline reminder and links to the Finish list (MYK9-2077)', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-3',
+      show_id: 'show-1',
+      source_kind: 'registry_deadline_reminder',
+      lifecycle_step_type: null,
+      related_id: 'show-1',
+      recipient_name: null,
+      recipient_email: 'secretary@example.com',
+      attempted_at: '2026-11-22T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'bounced',
+      failure_summary: 'The recipient mail server rejected this email.',
+    });
+    expect(row.typeLabel).toBe('Results deadline reminder');
+    expect(row.recoveryHref).toBe('/shows/show-1/results#finish-the-show');
+  });
+
   it.each([
     ['registration_confirmation', 'Receipt'],
     ['heritage_confirmation', 'Full confirmation'],
@@ -113,6 +131,23 @@ describe('email delivery history read model', () => {
       failure_summary: null,
     });
     expect(row.typeLabel).toBe('Judge changed');
+  });
+
+  it('labels the automatic entry-changed email in plain words', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-5',
+      show_id: 'show-1',
+      source_kind: 'lifecycle',
+      lifecycle_step_type: 'entry_changed',
+      related_id: 'job-3',
+      recipient_name: 'Ada Lovelace',
+      recipient_email: 'ada@example.com',
+      attempted_at: '2026-11-17T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'sent',
+      failure_summary: null,
+    });
+    expect(row.typeLabel).toBe('Entry changed');
   });
 
   it('routes failures to the existing owner surface', () => {

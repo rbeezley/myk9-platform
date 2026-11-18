@@ -4,6 +4,7 @@ import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
 import { ClassJudgeSelect, UNASSIGNED_JUDGE_VALUE } from '@/components/classes/ClassJudgeSelect';
 import type { JudgeListStatus } from '@/components/classes/useClassJudgeAssignment';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
+import { SubstituteJudgeEmailOffer } from './SubstituteJudgeEmailOffer';
 
 /**
  * The class panel's Judge setting (MYK9-1323): the shared picker and replicated write (also
@@ -21,6 +22,7 @@ export function FocusedClassJudge({
   judgeListStatus,
   lockReason,
   classStatus,
+  offerSubstituteEmails = false,
   onJudgeChange,
 }: {
   showId: string;
@@ -36,6 +38,8 @@ export function FocusedClassJudge({
   lockReason: string | null;
   /** The class's stored status, for the judge-change warning. */
   classStatus?: string | null | undefined;
+  /** MYK9-2161: offer the secretary the email telling the class's exhibitors who the new judge is. */
+  offerSubstituteEmails?: boolean;
   onJudgeChange: (classId: string, judgeId: string) => void;
 }) {
   // MYK9-2015: the picker saves on tap, so remember the judge the first change here replaced;
@@ -63,11 +67,21 @@ export function FocusedClassJudge({
     </span>
   );
 
+  const substituteOffer = offerSubstituteEmails ? (
+    <SubstituteJudgeEmailOffer
+      classId={classId}
+      classLabel={classLabel}
+      assignedJudgeId={assignedJudgeId}
+      judgeName={judgeName}
+    />
+  ) : null;
+
   if (lockReason) {
     return (
       <div className="space-y-1">
         {name}
         <p className="text-xs text-muted-foreground">{lockReason}</p>
+        {substituteOffer}
       </div>
     );
   }
@@ -83,6 +97,7 @@ export function FocusedClassJudge({
             We couldn&apos;t load the judge list. Try again when you&apos;re back online.
           </p>
         )}
+        {substituteOffer}
       </div>
     );
   }
@@ -116,6 +131,7 @@ export function FocusedClassJudge({
           selectedJudgeId={assignedJudgeId}
         />
       )}
+      {substituteOffer}
     </div>
   );
 }

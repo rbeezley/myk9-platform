@@ -9,6 +9,7 @@ import { describeResultsDeadline } from '@/features/registries';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { getResultsStepHref, getFinishLineHref } from '@/features/results-tab/resultsTabRoutes';
 import { writeCockpitScope } from '@/components/entries/management/entryManagementCockpitParams';
+import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import { SENT_FILE_TEXT } from './submissionTimes';
 import type { WhatIsLeft, WhatIsLeftLine } from './whatIsLeft';
 
@@ -47,6 +48,17 @@ function itemFor(
         state: 'open',
         opensClassList: false,
         href: `/shows/${encodeURIComponent(showId)}/entries?${writeCockpitScope(new URLSearchParams(), [], line.classIds).toString()}`,
+        label: line.label,
+      };
+    case 'flagged-pulls':
+      // MYK9-2145: listed only while a flag waits; the secretary confirms or clears it at the
+      // Check-in desk. Not a removal and not a refund to decide until confirmed.
+      if (line.open !== true) return null;
+      return {
+        key: line.key,
+        state: 'open',
+        opensClassList: false,
+        href: getCheckInDeskHref({ showId }),
         label: line.label,
       };
     case 'unreleased':
@@ -124,8 +136,8 @@ function itemFor(
 
 /**
  * The list a secretary works down after the last class: the lines this screen can answer from its
- * classes, then the close step. Lines the screen cannot read (refunds, incidents) are not shown
- * here, and a line of `unknown` never claims a tick.
+ * classes (and, from its entries, unconfirmed pull flags), then the close step. Lines the screen
+ * cannot read (refunds, incidents) are not shown here, and a line of `unknown` never claims a tick.
  */
 export function buildFinishList(showId: string, left: WhatIsLeft): FinishListItem[] {
   const items = left.lines

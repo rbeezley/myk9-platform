@@ -1,5 +1,6 @@
 import { isCompletedStatus, needsCascade } from '@/features/show-closeout/closeoutStatus';
 import { calculateWhatIsLeft, type ScoreChangeRead } from '@/features/show-closeout/whatIsLeft';
+import type { CloseConcern } from '@/features/show-closeout/closeConcerns';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
 
@@ -48,6 +49,8 @@ export interface CloseoutReadinessInput {
 
 export interface CloseoutReadiness {
   concerns: string[];
+  /** `concerns`, each with the kind it came from, so the close step can link one (MYK9-2145). */
+  concernItems: readonly CloseConcern[];
   hasConcerns: boolean;
 }
 
@@ -79,7 +82,11 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     submissions: input.submissions,
     scoreChanges: input.scoreChanges,
   });
-  return { concerns: [...left.concerns], hasConcerns: left.concerns.length > 0 };
+  return {
+    concerns: [...left.concerns],
+    concernItems: left.concernItems,
+    hasConcerns: left.concerns.length > 0,
+  };
 }
 
 export function selectCloseoutCascadeTargets(input: {

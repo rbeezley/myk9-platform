@@ -254,4 +254,51 @@ describe('ResultsFinishRow', () => {
     renderList(SHOW_ROWS, [trialFor('AKC')], [entry('e1', 'p1'), entry('e2')]);
     expect(screen.queryByText(/share a handler/)).not.toBeInTheDocument();
   });
+
+  // MYK9-2145: a flag stays a flag until the secretary confirms it at the Check-in desk.
+  const flagged = (id: string, dogId: string, entryStatus = 'confirmed') =>
+    fromAny<SecretaryEntry, unknown>({
+      id,
+      dog_id: dogId,
+      class_id: 'open-1',
+      entry_status: entryStatus,
+      check_in_status: 'pulled',
+      is_scored: false,
+      payment_status: 'paid',
+      payment_method: 'online',
+    });
+  const FLAG_LABEL = '2 dogs flagged as pulled at the show, not confirmed.';
+
+  it('lists unconfirmed pull flags with a link to the Check-in desk, the other lines unchanged', () => {
+    const list = renderList(
+      SHOW_ROWS,
+      [trialFor('AKC')],
+      [flagged('e1', 'dog-1'), flagged('e2', 'dog-2')]
+    );
+
+    expect(list.getByRole('link', { name: FLAG_LABEL })).toHaveAttribute(
+      'href',
+      '/shows/show-1/entries?tab=exceptions&exception=check-in'
+    );
+    expect(list.getByRole('link', { name: '2 classes to release' })).toBeInTheDocument();
+    expect(list.getByRole('link', { name: '1 class with results to print' })).toBeInTheDocument();
+    expect(list.getByRole('link', { name: 'Close the show' })).toBeInTheDocument();
+  });
+
+  it('lists no flag line once the desk confirmed the pull, or while the entries read is stale', () => {
+    const { unmount } = render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        entries={[flagged('e1', 'dog-1'), flagged('e2', 'dog-2')]}
+        entriesTrusted={false}
+      />
+    );
+    expect(screen.queryByText(/flagged as pulled/)).not.toBeInTheDocument();
+    unmount();
+
+    renderList(SHOW_ROWS, [trialFor('AKC')], [flagged('e1', 'dog-1', 'scratched')]);
+    expect(screen.queryByText(/flagged as pulled/)).not.toBeInTheDocument();
+  });
 });

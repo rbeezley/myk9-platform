@@ -19,7 +19,10 @@ interface ResultsFinishRowProps {
   trials: readonly SyncableTrial[];
   /** Every class in the show, so the list counts what the Results tab itself counts. */
   rows: readonly ResultsClassRow[];
-  /** The show's entries, for dogs that share a handler in a class (MYK9-2031). */
+  /**
+   * The show's entries, for dogs that share a handler in a class (MYK9-2031) and pull flags the
+   * Check-in desk has not confirmed (MYK9-2145).
+   */
   entries: readonly SecretaryEntry[];
   /** False while the entries read is stale (a refresh failed): the line then says nothing. */
   entriesTrusted: boolean;
@@ -53,6 +56,8 @@ export function ResultsFinishRow({
         calculateResultsRowsLeft(rows, trials, {
           ...sent,
           handlerClashes: entriesTrusted ? readHandlerClashes(entries) : undefined,
+          // MYK9-2145: unconfirmed pull flags, only from a read that is not stale.
+          entries: entriesTrusted ? entries : undefined,
         })
       ),
     [entries, entriesTrusted, rows, sent, showId, trials]

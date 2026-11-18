@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
@@ -14,6 +14,8 @@ import type {
 } from '@/features/show-workbench/showCloseOutShow';
 import type { ShowDayReconciliationEntry } from '@/features/show-workbench/showDayReconciliationSummary';
 import { CLASS_STATUS } from '@myk9/core';
+import { queryKeys } from '@/lib/queryClient';
+import { replicatedEntriesTable } from '@/services/replication';
 import {
   EMPTY_ENTRIES,
   getShowDeskEntriesAvailability,
@@ -33,7 +35,20 @@ import { useShowDeskScheduleRead } from './useShowDeskScheduleRead';
 export function useShowCloseoutInputs(showId: string | undefined) {
   const { show, isLoading: showLoading } = useFastShowDetails(showId);
   const schedule = useShowDeskScheduleRead();
-  const entriesQuery = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
+  // MYK9-2145: the Check-in desk writes the replica (offline too), so a pull confirmed there must
+  // reach this step: re-read on mount, and on every replica notice, as the Results tab does
+  // (`useResultsTabData`). Never on the initial emit.
+  const queryClient = useQueryClient();
+  const entriesQuery = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId), {
+    rereadOnMount: true,
+  });
+  useEffect(() => {
+    if (!showId) return;
+    return replicatedEntriesTable.subscribe(
+      () => void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) }),
+      { emitCurrent: false }
+    );
+  }, [queryClient, showId]);
   const incidentsQuery = useQuery({
     queryKey: showIncidentCloseoutQueryKey(showId ?? ''),
     queryFn: () => listShowIncidentCloseout(showId ?? ''),

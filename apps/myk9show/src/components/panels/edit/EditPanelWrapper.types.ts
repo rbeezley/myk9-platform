@@ -114,6 +114,9 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
    */
   successMessage?: string | ((data: T) => string);
 
+  /** Why Save is held right now (shown beside it), or omitted. */
+  saveBlockedReason?: string;
+
   // Callbacks
   onDataChange?: (data: T, hasChanges: boolean) => void;
   onValidationChange?: (isValid: boolean, errors: string[]) => void;

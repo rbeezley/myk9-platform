@@ -89,6 +89,8 @@ passes; one dry run of `orchestrate` over the current backlog groups by surface.
 **Tests:** a fixture diff at each floor shows `/harden` skipped only at `independent`.
 Revert if mean Codex rounds rise above 2.0 over the following two weeks.
 
+**Landed (MYK9-1789).** `ship-it` Step 3c reads the floor and skips `/harden` at `independent`; `docs/PLAYBOOK.md` § 2 is the shortened loop (implement, simplify, harden unless Codex reviews, `ship-pr`). The two-week Codex-round measurement is still open.
+
 ### Phase 4: halve always-loaded instructions (MYK9-1790)
 
 Classify each lesson as universal, domain-specific or already enforced. Domain lessons move

@@ -24,6 +24,8 @@ interface ShowEditPremiumTabProps {
   handleValueChange: <K extends keyof ShowEditFormData>(
     field: K
   ) => (value: ShowEditFormData[K]) => void;
+  /** Told when a Regenerate starts and settles, so the panel can hold Save (MYK9-2144). */
+  onPremiumPendingChange?: (pending: boolean) => void;
 }
 
 export function ShowEditPremiumTab({
@@ -33,6 +35,7 @@ export function ShowEditPremiumTab({
   isActive,
   handleCheckboxChange,
   handleValueChange,
+  onPremiumPendingChange,
 }: ShowEditPremiumTabProps) {
   const hasShowId = typeof data.id === 'string' && data.id.length > 0;
   const showId = hasShowId ? (data.id as string) : undefined;
@@ -143,6 +146,7 @@ export function ShowEditPremiumTab({
               }
               onPremiumChange={handleGeneratedPremiumChange}
               onInkSaverChange={handleInkSaverChange}
+              {...(onPremiumPendingChange ? { onPendingChange: onPremiumPendingChange } : {})}
             />
           ) : (
             <Alert>

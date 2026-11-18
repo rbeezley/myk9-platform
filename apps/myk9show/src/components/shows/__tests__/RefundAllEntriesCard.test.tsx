@@ -50,13 +50,14 @@ vi.mock('@/lib/supabase', async importOriginal => {
   };
 });
 
-// The result detail names entries from the show's entries and a by-id read (MYK9-1862); neither
-// finds any here, so every line falls back to its plain label. RefundResultDetail.test.tsx covers names.
+// The result detail names each line's entry form from the show's entries and a by-id read
+// (MYK9-1862); neither finds any here, so every line falls back to its plain label.
+// RefundResultDetail.test.tsx covers the form names.
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useSecretaryShowEntriesQuery: () => ({ data: [], isError: false, refetch: vi.fn() }),
 }));
-vi.mock('@/services/database/entries/refundEntryNames', () => ({
-  getRefundEntryNames: vi.fn().mockResolvedValue([]),
+vi.mock('@/services/database/entries/refundEntryForms', () => ({
+  getRefundEntryForms: vi.fn().mockResolvedValue([]),
 }));
 
 const mockedInvoke = vi.mocked(supabase.functions.invoke);
@@ -141,7 +142,7 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     // is available behind a disclosure (secretary INTENT: calm control, detail
     // only when needed).
     await user.click(screen.getByRole('button', { name: /view details/i }));
-    expect(await screen.findByText('An entry not on this device')).toBeInTheDocument();
+    expect(await screen.findByText('An entry not named')).toBeInTheDocument();
     expect(screen.getByText(/paid by cash or check/i)).toBeInTheDocument();
   });
 
@@ -182,7 +183,7 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
         'This payment may not have been refunded. Run Refund all again: it will not refund anyone twice.'
       )
     ).toBeVisible();
-    expect(await screen.findAllByText('An entry not on this device')).toHaveLength(2);
+    expect(await screen.findAllByText('An entry not named')).toHaveLength(2);
     expect(screen.queryByText(/failed-entry/)).toBeNull();
     expect(
       screen.queryByText(

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getRefundEntryNames } from './refundEntryNames';
+import { getRefundEntryForms } from './refundEntryForms';
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
@@ -14,29 +14,40 @@ vi.mock('../supabaseClient', () => ({
   createDatabaseError: (error: unknown) => error,
 }));
 
+const ROW = {
+  id: 'e1',
+  handler: null,
+  registration_id: 'enr-1',
+  stripe_payment_intent_id: null,
+  registration: { confirmation_number: 'MK9-000001', payer: null },
+  dog: null,
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   const chain = { select: mocks.select, in: mocks.inFilter, is: mocks.is };
   mocks.from.mockReturnValue(chain);
   mocks.select.mockReturnValue(chain);
-  mocks.inFilter.mockResolvedValue({ data: [{ id: 'e1', handler: null, dog: null }], error: null });
+  mocks.inFilter.mockResolvedValue({ data: [ROW], error: null });
 });
 
-describe('getRefundEntryNames (MYK9-1862)', () => {
-  it('reads exactly the given entry ids, soft-deleted rows included', async () => {
-    const rows = await getRefundEntryNames(['e1', 'e2', 'e1']);
+describe('getRefundEntryForms (MYK9-1862)', () => {
+  it('reads only the form fields of exactly the given entry ids, soft-deleted rows included', async () => {
+    const rows = await getRefundEntryForms(['e1', 'e2', 'e1']);
 
     expect(mocks.from).toHaveBeenCalledWith('entries');
     expect(mocks.select).toHaveBeenCalledWith(
-      'id, handler, dog:dog_id ( id, name, call_name, owner:owner_id ( first_name, last_name ) )'
+      'id, handler, registration_id, stripe_payment_intent_id, ' +
+        'registration:registration_id ( confirmation_number, payer:handler_id ( first_name, last_name ) ), ' +
+        'dog:dog_id ( owner:owner_id ( first_name, last_name ) )'
     );
     expect(mocks.inFilter).toHaveBeenCalledWith('id', ['e1', 'e2']);
     expect(mocks.is).not.toHaveBeenCalled();
-    expect(rows).toEqual([{ id: 'e1', handler: null, dog: null }]);
+    expect(rows).toEqual([ROW]);
   });
 
   it('throws on a failed read, so the page can offer Try again', async () => {
     mocks.inFilter.mockResolvedValue({ data: null, error: { message: 'offline' } });
-    await expect(getRefundEntryNames(['e1'])).rejects.toEqual({ message: 'offline' });
+    await expect(getRefundEntryForms(['e1'])).rejects.toEqual({ message: 'offline' });
   });
 });

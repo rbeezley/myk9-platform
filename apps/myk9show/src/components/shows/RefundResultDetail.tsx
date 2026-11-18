@@ -4,8 +4,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
-import { NAMES_LOADING, NAMES_LOOKUP_FAILED, refundGroupLabels } from './refundResultNames';
-import { useRefundEntryNames } from './useRefundEntryNames';
+import {
+  NAMES_LOADING,
+  NAMES_LOOKUP_FAILED,
+  NAMES_OFFLINE,
+  refundFormLines,
+  unresolvedLabel,
+} from './refundResultForms';
+import { useRefundEntryForms } from './useRefundEntryForms';
 
 // Server-side skip reasons (apps/myk9show/supabase/functions/_shared/showRefundPlan.ts
 // ShowRefundSkipReason, plus 'intent_spans_shows' from stripe-refund-show/index.ts).
@@ -43,28 +49,31 @@ export function RefundResultDetail({ result, showId }: RefundResultDetailProps) 
   const [supportOpen, setSupportOpen] = useState(false);
   const { skipped, failed } = result;
   const hasDetail = skipped.length > 0 || failed.length > 0;
-  // MYK9-1862: name each line by exhibitor and dog, not id. A failed lookup only re-reads names.
+  // MYK9-1862: name each line by its entry form, as Entry Management does, not by entry id.
   const resultEntryIds = [
     ...skipped.map(entry => entry.entryId),
     ...failed.flatMap(f => f.entryIds),
   ];
-  const { names, status, retry } = useRefundEntryNames(showId, resultEntryIds, hasDetail);
+  const { forms, lookup, retry } = useRefundEntryForms(showId, resultEntryIds, hasDetail);
 
-  const groupBadges = (ids: readonly string[], variant: 'secondary' | 'destructive') => (
-    <div className="mt-1 flex flex-wrap gap-1">
-      {status === 'loading' ? (
-        <Badge variant={variant} className="text-xs">
-          {NAMES_LOADING}
-        </Badge>
-      ) : (
-        refundGroupLabels(ids, names, status === 'failed').map(({ key, label }) => (
-          <Badge key={key} variant={variant} className="text-xs">
+  const groupBadges = (ids: readonly string[], variant: 'secondary' | 'destructive') => {
+    const { lines, unresolved } = refundFormLines(ids, forms);
+    return (
+      <div className="mt-1 flex flex-wrap gap-1">
+        {lines.map(({ key, label, dogs }) => (
+          <Badge key={key} variant={variant} className="gap-1 text-xs">
             {label}
+            {dogs && <span className="font-normal opacity-80">({dogs})</span>}
           </Badge>
-        ))
-      )}
-    </div>
-  );
+        ))}
+        {unresolved > 0 && (
+          <Badge variant={variant} className="text-xs">
+            {lookup === 'loading' ? NAMES_LOADING : unresolvedLabel(unresolved)}
+          </Badge>
+        )}
+      </div>
+    );
+  };
 
   if (!hasDetail) {
     return null;
@@ -85,14 +94,15 @@ export function RefundResultDetail({ result, showId }: RefundResultDetailProps) 
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-3">
-          {status === 'failed' && (
+          {lookup === 'failed' && (
             <div role="alert" className="flex flex-wrap items-center gap-2 text-sm">
-              <p>{NAMES_LOOKUP_FAILED}.</p>
+              <p>{NAMES_LOOKUP_FAILED}</p>
               <Button type="button" variant="outline" size="sm" onClick={retry}>
                 Try again
               </Button>
             </div>
           )}
+          {lookup === 'offline' && <p className="text-sm text-muted-foreground">{NAMES_OFFLINE}</p>}
 
           {[...skippedByReason.entries()].map(([reason, ids]) => (
             <div key={reason}>

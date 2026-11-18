@@ -34,7 +34,9 @@ export interface DeskOwedLine {
 const cents = (dollars: number) => Math.round(dollars * 100);
 
 /** The key `groupEntriesByEnrollment` gives an entry's form, for a row it does not group. */
-const formKeyOf = (entry: EntryManagementEntry) =>
+export const formKeyOf = (
+  entry: Pick<EntryManagementEntry, 'id' | 'registrationId' | 'stripePaymentIntentId'>
+) =>
   entry.registrationId ||
   (entry.stripePaymentIntentId ? `pi:${entry.stripePaymentIntentId}` : `entry:${entry.id}`);
 
@@ -63,6 +65,20 @@ function nameOf(payerId: string | null, entries: readonly EntryManagementEntry[]
     }
   }
   return null;
+}
+
+/**
+ * The name of whose money an entry form is, by this file's payer rule, from the entries loaded;
+ * null when no entry names them. Refund all's result lines name a form by it (MYK9-1862).
+ */
+export function formPayerName(
+  formEntries: readonly EntryManagementEntry[],
+  loadedEntries: readonly EntryManagementEntry[]
+): string | null {
+  const enrollmentMissing =
+    formEntries.some(entry => entry.registrationId) &&
+    formEntries.every(entry => entry.enrollmentTotalAmount == null);
+  return nameOf(payerOf(formEntries, enrollmentMissing), [...formEntries, ...loadedEntries]);
 }
 
 /**

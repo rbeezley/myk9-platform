@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { getTrialTimezone } from '@/features/registries';
 import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePromptWindow';
 import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineReadiness';
+import { useClubPayoutsState } from '@/features/payments/useClubPayoutsState';
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
 import { resolveShowUses } from '@/features/show-workbench/showUses';
@@ -103,6 +104,10 @@ function ReadyForShowDayContent({
     !resolveShowUses(show).publishesOwnPremium
   ).items.length;
   const { readiness } = useOfflineReadiness(show.id);
+  // MYK9-2164: publishing needs the club's bank account; an unread state reads as "can't check".
+  const payoutsRead = useClubPayoutsState(show.clubId).state;
+  // A show with no club has no payouts to read; its missing club is its own problem.
+  const payouts = show.clubId ? payoutsRead : null;
 
   const result = useMemo(() => {
     // Only a resolved, online read counts: a paused query keeps stale `data`, and a disabled or
@@ -110,7 +115,7 @@ function ReadyForShowDayContent({
     const info =
       publishInfo.fetchStatus === 'paused' || publishInfo.isError ? undefined : publishInfo.data;
     return buildReadyForShowDay({
-      setup: { show, trials, classes, premiumMissingFacts },
+      setup: { show, trials, classes, premiumMissingFacts, ...(payouts ? { payouts } : {}) },
       premiumInfo: info
         ? {
             publishedPremiumUrl: info.publishedLocator || info.publishedPath,
@@ -139,6 +144,7 @@ function ReadyForShowDayContent({
     paperwork.byClassId,
     printTrackingInUse,
     premiumMissingFacts,
+    payouts,
     publishInfo.data,
     publishInfo.fetchStatus,
     publishInfo.isError,

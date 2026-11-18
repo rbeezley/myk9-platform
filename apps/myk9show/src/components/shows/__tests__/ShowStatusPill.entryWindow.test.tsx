@@ -31,6 +31,9 @@ vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripeAccount: vi.fn(),
   useClubAuthorization: vi.fn(),
 }));
+vi.mock('@/features/payments/useClubIsDemo', () => ({
+  useClubIsDemo: () => ({ data: false, isLoading: false }),
+}));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
 }));
@@ -83,7 +86,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate=""
@@ -106,7 +108,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate={CLOSE}
@@ -124,7 +125,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate={OPEN}
@@ -143,7 +143,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="published"
         clubId="club-1"
         entryOpenDate={null}
@@ -164,7 +163,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate={OPEN}

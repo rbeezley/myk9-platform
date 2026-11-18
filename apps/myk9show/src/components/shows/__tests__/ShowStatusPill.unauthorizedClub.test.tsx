@@ -14,6 +14,9 @@ vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripeAccount: vi.fn(),
   useClubAuthorization: vi.fn(),
 }));
+vi.mock('@/features/payments/useClubIsDemo', () => ({
+  useClubIsDemo: () => ({ data: false, isLoading: false }),
+}));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
 }));
@@ -26,7 +29,6 @@ vi.mock('sonner', () => ({
 const WINDOW = {
   entryOpenDate: '2026-10-01T12:00:00.000Z',
   entryCloseDate: '2026-10-20T04:59:00.000Z',
-  onlineEntriesEnabled: true,
 };
 
 function mockAuth(state: 'unauthorized' | 'authorized' | 'loading') {

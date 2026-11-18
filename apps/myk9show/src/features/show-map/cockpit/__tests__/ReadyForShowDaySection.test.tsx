@@ -11,6 +11,10 @@ import { ReadyForShowDaySection } from '../ReadyForShowDaySection';
 
 const publishInfo = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 const offline = vi.hoisted(() => ({ current: null as unknown }));
+const payouts = vi.hoisted(() => ({ state: 'ready' as string }));
+vi.mock('@/features/payments/useClubPayoutsState', () => ({
+  useClubPayoutsState: () => ({ state: payouts.state }),
+}));
 
 vi.mock('@/features/premium/usePublishInfo', () => ({
   usePublishInfo: () => publishInfo.current,
@@ -97,6 +101,7 @@ describe('ReadyForShowDaySection', () => {
     };
     offline.current = { ready: true, missing: [], asOf: 1 };
     premiumMissing.count = 0;
+    payouts.state = 'ready';
   });
 
   it('collapses to one calm line when every check passes', () => {
@@ -112,6 +117,35 @@ describe('ReadyForShowDaySection', () => {
     expect(
       screen.getByRole('link', { name: /Premium list is missing required facts/ })
     ).toHaveAttribute('href', expect.stringContaining('#setup-publish-premium'));
+  });
+
+  it('links a club that has no bank account to its Payments tab, and says a club admin can do it (MYK9-2164)', () => {
+    payouts.state = 'not-connected';
+    renderSection('2026-10-19T16:00:00Z', { show: { ...show, clubId: 'club-9' } as Show });
+    expect(screen.queryByText('Everything is handled.')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /Club's bank account is set up for payouts/ });
+    expect(link).toHaveAttribute('href', '/clubs/club-9?tab=payments');
+    expect(link).toHaveTextContent(/A club admin can do it if you can't/);
+  });
+
+  it('reads a club under Stripe review as waiting, usually a day or two (MYK9-2164)', () => {
+    payouts.state = 'in-review';
+    renderSection('2026-10-19T16:00:00Z', { show: { ...show, clubId: 'club-9' } as Show });
+    expect(screen.getByText(/usually a day or two/)).toBeInTheDocument();
+  });
+
+  it("says it can't check, never not connected, while the payouts state is unknown (MYK9-2164)", () => {
+    payouts.state = 'unknown';
+    renderSection('2026-10-19T16:00:00Z', { show: { ...show, clubId: 'club-9' } as Show });
+    expect(screen.queryByText('Everything is handled.')).not.toBeInTheDocument();
+    expect(screen.getByText("Can't check right now")).toBeInTheDocument();
+    expect(screen.queryByText(/needs a bank account/)).not.toBeInTheDocument();
+  });
+
+  it('adds no payouts line for a show with no club (MYK9-2164)', () => {
+    payouts.state = 'unknown';
+    renderSection('2026-10-19T16:00:00Z');
+    expect(screen.getByText('Everything is handled.')).toBeInTheDocument();
   });
 
   it('renders nothing outside the window', () => {

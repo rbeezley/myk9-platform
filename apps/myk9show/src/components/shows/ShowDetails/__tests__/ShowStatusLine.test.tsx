@@ -25,6 +25,10 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/features/premium/usePremiumPublishControl', () => ({
   usePremiumPublishControl: () => control.value,
 }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('@/features/payments/useClubPayoutsState', () => ({
+  useClubPayoutsState: () => ({ state: 'ready' }),
+}));
 // The real pill (its status menu is covered by ShowStatusPill tests) needs the router and club
 // queries; this test is about how the line composes, so a faithful stand-in prints the same label.
 vi.mock('@/components/shows/ShowStatusPill', () => ({

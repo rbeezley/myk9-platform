@@ -9,14 +9,15 @@ import {
 } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { toast } from 'sonner';
-import {
-  CLUB_UNAUTHORIZED_MESSAGE,
-  PUBLISH_BLOCKED_MESSAGE,
-} from '@/features/payments/onlineEntryGate';
+import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import { clubPayoutsMessage } from '@/features/payments/clubPayoutsState';
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripeAccount: vi.fn(),
   useClubAuthorization: vi.fn(),
+}));
+vi.mock('@/features/payments/useClubIsDemo', () => ({
+  useClubIsDemo: () => ({ data: false, isLoading: false }),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
@@ -28,12 +29,11 @@ vi.mock('sonner', () => ({
 // MYK9-716: publishing requires an entry window. Every case here is about
 // another gate, so every render carries a valid one; the missing-window cases
 // live in ShowStatusPill.entryWindow.test.tsx.
-// MYK9-979: and online entries ON, the only case in which publishing needs
-// the club's Stripe payouts; ShowStatusPill.onlineEntries.test.tsx covers off.
+// MYK9-2164: publishing always needs the club's payouts; ShowStatusPill.payouts.test.tsx covers
+// the in-review, demo and unknown cases.
 const WINDOW = {
   entryOpenDate: '2026-10-01T12:00:00.000Z',
   entryCloseDate: '2026-10-20T04:59:00.000Z',
-  onlineEntriesEnabled: true,
 };
 
 const mockedUseAccount = vi.mocked(useClubStripeAccount);
@@ -206,7 +206,7 @@ describe('ShowStatusPill', () => {
 
       expect(mutateAsync).not.toHaveBeenCalled();
       expect(toast.error).toHaveBeenCalledWith(
-        expect.stringMatching(/payment account/i),
+        expect.stringMatching(/bank account/i),
         expect.objectContaining({ action: expect.anything() })
       );
     });
@@ -298,9 +298,10 @@ describe('ShowStatusPill', () => {
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
 
+      // MYK9-2164: the same reason and link as the readiness line, not the raw server text.
       expect(toast.error).toHaveBeenCalledWith(
-        "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.",
-        expect.objectContaining({ action: expect.anything() })
+        clubPayoutsMessage('not-connected'),
+        expect.objectContaining({ action: expect.objectContaining({ label: 'Open Payments' }) })
       );
     });
 
@@ -411,7 +412,10 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
 
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledWith(CLUB_UNAUTHORIZED_MESSAGE);
-    expect(toast.error).not.toHaveBeenCalledWith(PUBLISH_BLOCKED_MESSAGE, expect.anything());
+    expect(toast.error).not.toHaveBeenCalledWith(
+      clubPayoutsMessage('incomplete'),
+      expect.anything()
+    );
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 

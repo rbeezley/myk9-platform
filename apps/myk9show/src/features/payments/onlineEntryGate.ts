@@ -1,18 +1,19 @@
 import { getErrorMessage } from '@myk9/core';
 import { toLocalDateOnly } from '@/utils/date-format';
 
-// Online entry fees can only be paid out to clubs with a working Stripe
-// Connect account. A show takes online entries only when its secretary turns
-// them on (shows.online_entries_enabled, MYK9-979); publishing such a show,
-// or turning the switch on once it is public, needs the club's payouts. Fail
-// closed: no account row, or a row without payouts_enabled, blocks it. A
-// mail-in show (switch off) publishes without a payment account. Shows that
+// Entry fees can only be paid out to clubs with a working Stripe Connect
+// account, so every show needs the club's payouts before it is published
+// (MYK9-2164; the readiness line and the Publish refusal read
+// clubPayoutsState.ts). Fail closed: no account row, or a row without
+// payouts_enabled, blocks it; demo clubs are exempt on the server. Shows that
 // are already public are never un-published by this gate.
 
 // MYK9-979: the gate fires when a show BECOMES PUBLICLY VISIBLE — any move
 // from a non-public status into published, upcoming, in_progress or completed
 // (PUBLIC_SHOW_STATUSES below) — not only on 'published'.
 
+/** The trigger's payouts refusal text, kept to recognise it in a sync-failure toast. The Publish
+ * menu shows clubPayoutsMessage instead, with the same reason and a link. */
 export const PUBLISH_BLOCKED_MESSAGE =
   "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.";
 
@@ -23,38 +24,9 @@ export const PUBLISH_BLOCKED_MESSAGE =
 export const CLUB_REQUIRED_MESSAGE =
   'Assign a club to this show before publishing. Entry fees are paid out to the club.';
 
-export function canEnableOnlineEntries(
-  account: { payouts_enabled: boolean } | null | undefined
-): boolean {
-  return account?.payouts_enabled === true;
-}
-
-// ---------------------------------------------------------------------------
-// MYK9-979: the per-show "Accept online entries" switch
-// (shows.online_entries_enabled). Publishing needs the club's Stripe payouts
-// ONLY when the show takes online entries; a mail-in show publishes without a
-// payment account. Turning the switch on for an already-public show needs the
-// payouts too. Mirrors enforce_show_publish_gate()
-// (supabase/migrations/20261003221700; its refusal text last changed in
-// 20261113204300, MYK9-1887).
-// ---------------------------------------------------------------------------
-
-/** Help text under the switch, in the wizard and the show edit panel. */
-export const ONLINE_ENTRIES_HELP_TEXT =
-  "Needs your club's bank account. Off: exhibitors see the premium and mail in their entries.";
-
-/** Under a disabled switch while the show's value is not known yet. */
-export const ONLINE_ENTRIES_UNKNOWN_HINT =
-  'Loading this setting… refresh the page to change online entries.';
-
-/** Under the switch while offline: it saves through an online-only RPC. */
-export const ONLINE_ENTRIES_OFFLINE_HINT = 'Connect to the internet to change online entries.';
-
-/** Under a disabled switch where this surface does not own the setting. */
-export const ONLINE_ENTRIES_LOCKED_HINT = "Change online entries from the show's Edit panel.";
-
-/** The trigger's refusal to turn online entries on for a public show without
- * Stripe payouts (MK003), verbatim. */
+/** The trigger's refusal to turn online entries on for a public show without Stripe payouts
+ * (MK003), verbatim. Nothing in the app turns online entries on or off any more (MYK9-2164); the
+ * text stays because migration 20261003221700 raises it and its contract test reads it. */
 export const ONLINE_ENTRIES_BLOCKED_MESSAGE =
   "Connect your club's payment account before turning on online entries. Online entry fees need somewhere to go. Find it under My Club → Payments.";
 
@@ -114,11 +86,6 @@ export function isPublicShowStatus(status: string | null | undefined): boolean {
  * transition the DB publish gates check. */
 export function becomesPublic(from: string | null | undefined, to: string): boolean {
   return isPublicShowStatus(to) && !isPublicShowStatus(from);
-}
-
-/** Publishing (becoming public) needs Stripe payouts only with online entries on. */
-export function publishNeedsStripe(onlineEntriesEnabled: boolean | null | undefined): boolean {
-  return onlineEntriesEnabled === true;
 }
 
 // MYK9-579: the client-side checks above are a UX convenience, not the
@@ -200,8 +167,8 @@ export function entryWindowPublishError(
 export const PUBLISH_GATE_MESSAGES: readonly string[] = [
   PUBLISH_BLOCKED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
-  CLUB_UNAUTHORIZED_MESSAGE,
   ONLINE_ENTRIES_BLOCKED_MESSAGE,
+  CLUB_UNAUTHORIZED_MESSAGE,
   ENTRY_WINDOW_REQUIRED_MESSAGE,
   ENTRY_WINDOW_ORDER_MESSAGE,
   ENTRY_WINDOW_PUBLISHED_MESSAGE,

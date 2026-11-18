@@ -57,50 +57,62 @@ describe('wizard store migration', () => {
     expect(migrateWizardState(persisted, WIZARD_STORE_VERSION)).toBe(persisted);
   });
 
-  describe('v3: check and cash on for a new show (MYK9-1799)', () => {
-    const offShow = { name: '', acceptCheckPayments: false, acceptCashPayments: false };
+  describe('v4: online entries always on (MYK9-2164)', () => {
+    it('turns online entries on in a draft that held them off, and touches nothing else', () => {
+      const show = {
+        name: 'Fall Classic',
+        acceptCheckPayments: false,
+        acceptCashPayments: false,
+        onlineEntriesEnabled: false,
+      };
+      const migrated = migrateWizardState({ show, trials: [] }, 3) as { show: typeof show };
 
-    it('gives a still-blank saved draft the new defaults', () => {
-      const migrated = migrateWizardState({ show: offShow, trials: [] }, 2) as {
-        show: typeof offShow;
+      expect(migrated.show).toEqual({ ...show, onlineEntriesEnabled: true });
+    });
+
+    it('turns it on for a draft from before the column was stored', () => {
+      const migrated = migrateWizardState({ show: { name: '' }, trials: [] }, 2) as {
+        show: { onlineEntriesEnabled: boolean };
       };
 
-      expect(migrated.show.acceptCheckPayments).toBe(true);
-      expect(migrated.show.acceptCashPayments).toBe(true);
+      expect(migrated.show.onlineEntriesEnabled).toBe(true);
     });
 
-    it('leaves a draft she has named exactly as she left it', () => {
-      const persisted = { show: { ...offShow, name: 'Fall Classic' }, trials: [] };
+    it('never flips check or cash a draft holds, on or off', () => {
+      const on = migrateWizardState(
+        { show: { acceptCheckPayments: true, acceptCashPayments: true }, trials: [] },
+        3
+      ) as { show: Record<string, boolean> };
+      const off = migrateWizardState(
+        { show: { acceptCheckPayments: false, acceptCashPayments: false }, trials: [] },
+        2
+      ) as { show: Record<string, boolean> };
 
-      expect(migrateWizardState(persisted, 2)).toBe(persisted);
+      expect(on.show).toMatchObject({ acceptCheckPayments: true, acceptCashPayments: true });
+      expect(off.show).toMatchObject({ acceptCheckPayments: false, acceptCashPayments: false });
     });
 
-    it('leaves an unnamed draft set to online entries only exactly as she left it', () => {
-      const persisted = { show: { ...offShow, onlineEntriesEnabled: true }, trials: [] };
+    it('returns a draft that already has it on as the same object', () => {
+      const persisted = { show: { onlineEntriesEnabled: true }, trials: [] };
 
-      expect(migrateWizardState(persisted, 2)).toBe(persisted);
+      expect(migrateWizardState(persisted, 3)).toBe(persisted);
     });
 
-    it('leaves an unnamed draft that already has dates or a location as she left it', () => {
-      const dated = { show: { ...offShow, startDate: '2026-10-10T05:00:00.000Z' }, trials: [] };
-      const placed = { show: { ...offShow, location: 'Fairgrounds' }, trials: [] };
+    it('leaves a state with no show alone', () => {
+      const persisted = { trials: [] };
 
-      expect(migrateWizardState(dated, 2)).toBe(dated);
-      expect(migrateWizardState(placed, 2)).toBe(placed);
-    });
-
-    it('leaves a draft that already has a trial exactly as she left it', () => {
-      const persisted = { show: offShow, trials: [{ id: 'one', trialDate: '2026-10-10' }] };
-
-      expect(migrateWizardState(persisted, 2)).toBe(persisted);
+      expect(migrateWizardState(persisted, 3)).toBe(persisted);
     });
 
     it('applies after the older trial-name migration, in one pass from v0', () => {
-      const migrated = migrateWizardState({ show: offShow, trials: [] }, 0) as {
-        show: typeof offShow;
+      const migrated = migrateWizardState(
+        { show: { onlineEntriesEnabled: false }, trials: [] },
+        0
+      ) as {
+        show: { onlineEntriesEnabled: boolean };
       };
 
-      expect(migrated.show.acceptCheckPayments).toBe(true);
+      expect(migrated.show.onlineEntriesEnabled).toBe(true);
     });
   });
 });

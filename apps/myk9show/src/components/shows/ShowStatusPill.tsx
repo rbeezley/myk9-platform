@@ -9,17 +9,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
+import { useClubPayoutsState } from '@/features/payments/useClubPayoutsState';
 import {
-  useClubStripeAccount,
-  useClubAuthorization,
-} from '@/features/payments/useClubStripeAccount';
+  CLUB_PAYMENTS_LINK_LABEL,
+  clubPaymentsHref,
+  clubPayoutsBlockPublish,
+  clubPayoutsMessage,
+} from '@/features/payments/clubPayoutsState';
 import {
   becomesPublic,
-  canEnableOnlineEntries,
   isPublishGateDbError,
-  publishNeedsStripe,
   publishGateDbErrorMessage,
-  PUBLISH_BLOCKED_MESSAGE,
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
@@ -45,11 +46,6 @@ interface ShowStatusPillProps {
    * a null or empty value fails closed. */
   entryOpenDate: string | null | undefined;
   entryCloseDate: string | null | undefined;
-  /** MYK9-979: publishing needs the club's Stripe payouts only when the show
-   * takes online entries. Required, so a caller cannot drop it; anything but
-   * an explicit true reads as off, matching the server (the trigger refuses a
-   * show whose stored value is true either way). */
-  onlineEntriesEnabled: boolean | null | undefined;
   /** Render the status as plain text in a sentence (the header's status line, MYK9-1282) instead
    * of a coloured pill. The status-change menu is the same either way. */
   plain?: boolean;
@@ -87,12 +83,11 @@ export function ShowStatusPill({
   clubId,
   entryOpenDate,
   entryCloseDate,
-  onlineEntriesEnabled,
   plain = false,
 }: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
-  const clubAccountQuery = useClubStripeAccount(clubId);
+  const payouts = useClubPayoutsState(clubId);
   const clubAuthQuery = useClubAuthorization(clubId);
   // MYK9-1387: only a loaded, explicitly unauthorized club greys the item. While the lookup
   // loads or errors it stays enabled so handleTransition's own branches give their truthful toasts.
@@ -104,6 +99,11 @@ export function ShowStatusPill({
   const setEntryWindowAction = {
     label: 'Set entry window',
     onClick: () => navigate(getShowEditHref(showId)),
+  };
+
+  const paymentsAction = {
+    label: CLUB_PAYMENTS_LINK_LABEL,
+    onClick: () => navigate(clubId ? clubPaymentsHref(clubId) : '/clubs'),
   };
 
   async function handleTransition(next: string) {
@@ -127,18 +127,17 @@ export function ShowStatusPill({
         toast.error(CLUB_REQUIRED_MESSAGE);
         return;
       }
-      const needsStripe = publishNeedsStripe(onlineEntriesEnabled);
-      if (clubAuthQuery.isLoading || (needsStripe && clubAccountQuery.isLoading)) {
+      if (clubAuthQuery.isLoading || payouts.isLoading) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
         toast.info('Still checking the club’s status. Try again in a moment.');
         return;
       }
-      if (clubAuthQuery.isError || (needsStripe && clubAccountQuery.isError)) {
+      if (clubAuthQuery.isError || payouts.isAccountError) {
         // A failed lookup is not "not connected" — fail closed with the
         // truthful message instead of blaming the club's setup. Kick off a
         // refetch so "try again" can actually succeed (an errored query
         // inside staleTime would otherwise serve the same error forever).
-        void clubAccountQuery.refetch();
+        payouts.refetch();
         void clubAuthQuery.refetch();
         toast.error(SHOW_ADMIN_COPY.clubCheckFailed);
         return;
@@ -156,11 +155,10 @@ export function ShowStatusPill({
         toast.error(CLUB_UNAUTHORIZED_MESSAGE);
         return;
       }
-      // MYK9-979: a mail-in show (online entries off) needs no payout account.
-      if (needsStripe && !canEnableOnlineEntries(clubAccountQuery.data)) {
-        toast.error(PUBLISH_BLOCKED_MESSAGE, {
-          action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-        });
+      // MYK9-2164: every show needs the club's payouts before it is published (demo clubs
+      // excepted, as on the server). An unknown state goes to the server, which decides.
+      if (clubPayoutsBlockPublish(payouts.state)) {
+        toast.error(clubPayoutsMessage(payouts.state), { action: paymentsAction });
         return;
       }
       // MYK9-716: checked last, the same order as enforce_show_publish_gate.
@@ -180,23 +178,25 @@ export function ShowStatusPill({
       // (enforce_show_publish_gate, MYK9-579). Its refusal text IS the
       // friendly copy, so surface it instead of the generic fallback.
       if (isPublishGateDbError(error)) {
-        const message = publishGateDbErrorMessage(error) ?? PUBLISH_BLOCKED_MESSAGE;
+        const message = publishGateDbErrorMessage(error) ?? SHOW_ADMIN_COPY.statusChangeFailed;
         const code = (error as { code?: string }).code;
         if (code === PUBLISH_GATE_ERRCODE_ENTRY_WINDOW) {
           toast.error(message, { action: setEntryWindowAction });
           return;
         }
-        // "Open Payments" only makes sense for the Stripe-readiness refusal.
-        // The missing-club refusal shares MK003 but needs "assign a club",
-        // not a trip to the payments page; MK004 (club not authorized) has
-        // no Stripe setup to send the admin to either — both would be dead
-        // ends.
+        // The payments link only makes sense for the payouts refusal. The missing-club
+        // refusal shares MK003 but needs "assign a club", not a trip to the payments page;
+        // MK004 (club not authorized) has no Stripe setup to send the admin to either.
         if (message === CLUB_REQUIRED_MESSAGE || code === PUBLISH_GATE_ERRCODE_UNAUTHORIZED) {
           toast.error(message);
         } else {
-          toast.error(message, {
-            action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-          });
+          // Same reason and link as the readiness line, never the raw server text.
+          toast.error(
+            clubPayoutsMessage(
+              clubPayoutsBlockPublish(payouts.state) ? payouts.state : 'not-connected'
+            ),
+            { action: paymentsAction }
+          );
         }
         return;
       }

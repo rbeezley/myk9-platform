@@ -40,7 +40,7 @@ type TrialKey = keyof CloneHydrationSnapshot['trials'][number];
 
 type FieldRule =
   /** Copied from the source and listed under `label` (fields sharing a label list once). */
-  | { kind: 'carried'; label: string; whenDefined?: true }
+  | { kind: 'carried'; label: string }
   /** Not copied; the secretary fills it in or it takes the default. Listed under `label`. */
   | { kind: 'cleared'; label: string }
   /** Copied, but worth a second look; handled by a dedicated rule below. */
@@ -72,7 +72,8 @@ export const CLONE_SHOW_FIELD_RULES: Record<ShowKey, FieldRule> = {
   startingArmbandNumber: { kind: 'carried', label: 'Starting armband number' },
   acceptCheckPayments: { kind: 'carried', label: 'Payment options' },
   acceptCashPayments: { kind: 'carried', label: 'Payment options' },
-  onlineEntriesEnabled: { kind: 'carried', label: 'Online entries setting', whenDefined: true },
+  // Not carried: every new show, a clone included, takes online entries (MYK9-2164).
+  onlineEntriesEnabled: { kind: 'handled' },
   judgeIds: { kind: 'confirm' },
   startDate: { kind: 'cleared', label: 'Show dates' },
   endDate: { kind: 'cleared', label: 'Show dates' },
@@ -136,7 +137,7 @@ function carriedItems(source: CloneSummarySource): CloneSummaryItem[] {
     const rule = CLONE_SHOW_FIELD_RULES[key];
     if (rule.kind !== 'carried') continue;
     const value = source.show[key];
-    if (rule.whenDefined ? value !== undefined : hasValue(value)) labels.add(rule.label);
+    if (hasValue(value)) labels.add(rule.label);
   }
   return [...labels].map(item);
 }

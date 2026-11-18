@@ -6,6 +6,11 @@ export interface ShowExperienceSnapshot {
   generatedAt: string;
   narratives: GeneratedPremium['narratives'];
   supplemental: PremiumSupplemental;
+  /**
+   * MYK9-2044: the recording fee statement the published premium PDF prints, so the public page
+   * states the same words. Absent on a snapshot published before it, which shows no line.
+   */
+  recordingFee?: GeneratedPremium['recordingFee'];
   outputs: {
     /** New snapshots persist both values committed together by PostgreSQL. */
     premiumPath?: string | null;
@@ -20,7 +25,7 @@ export function buildExperienceSnapshot({
   premiumUrl,
   publishedAt,
 }: {
-  premium: Pick<GeneratedPremium, 'style' | 'narratives' | 'supplemental'>;
+  premium: Pick<GeneratedPremium, 'style' | 'narratives' | 'supplemental' | 'recordingFee'>;
   premiumPath: string | null;
   premiumUrl: string;
   publishedAt?: string;
@@ -30,6 +35,7 @@ export function buildExperienceSnapshot({
     generatedAt: publishedAt ?? '',
     narratives: premium.narratives,
     supplemental: premium.supplemental,
+    recordingFee: premium.recordingFee ?? null,
     outputs: { premiumPath, premiumUrl },
   };
 }

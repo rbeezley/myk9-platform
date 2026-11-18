@@ -22,6 +22,11 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
+import {
+  buildPremiumRecordingFee,
+  premiumRecordingFeeDates,
+  type PremiumRecordingFeeTrial,
+} from './recordingFeeRate.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -99,7 +104,8 @@ handle<GeneratePremiumPayload>(
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
-          id, name, date, planned_start_time, event_number, trial_type, registry_id,
+          id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
+          deleted_at,
           classes(id, name, level, element, section, deleted_at)
         )
       `
@@ -154,6 +160,18 @@ handle<GeneratePremiumPayload>(
     const secretaryEmail = secretaryOfficial?.email ?? null;
     const secretaryPhone = secretaryOfficial?.phone ?? null;
     const chairman = pickPremiumOfficial(officials, 'chairman');
+
+    // Step 7c: The AKC recording fee (MYK9-2044), the rate in force on each live trial's date
+    // (the dates the Trial Secretary Report prices), or the show's start date before any trial is
+    // dated, from the dated table in ./recordingFeeRate.ts. Only an AKC show states one, and a
+    // date with no rate in force prints no line: a rate is never guessed.
+    const recordingFee = buildPremiumRecordingFee(
+      showOrg,
+      premiumRecordingFeeDates(
+        show.trials as PremiumRecordingFeeTrial[] | null,
+        show.start_date as string | null
+      )
+    );
 
     // Step 8: Template resolution — find best matching template for this show's trial type
     const { data: templates } = await userClient
@@ -307,6 +325,8 @@ handle<GeneratePremiumPayload>(
       officials: {
         chairman,
       },
+      // MYK9-2044: null for a non-AKC show or when a trial date has no rate in force.
+      recordingFee,
       trials,
       supplemental: {
         vetClinic,

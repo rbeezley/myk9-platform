@@ -172,3 +172,12 @@ export {
   type NationalsScoringConstants,
   type NationalsValidationConstants,
 } from './constants/nationals';
+
+// Registry recording fee in force on a date, a dated table in code (MYK9-2044)
+export {
+  formatRecordingFeeAmount,
+  RECORDING_FEE_RATES,
+  recordingFeeRateInForce,
+  toCalendarDate,
+  type RecordingFeeRate,
+} from './utils/recordingFeeRate';

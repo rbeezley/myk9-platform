@@ -59,6 +59,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
     f.entry.closes ||
     f.fees.preEntry ||
     f.fees.dayOf ||
+    f.recordingFee ||
     f.withdrawalPolicy ||
     f.scoutingStatement
   );
@@ -218,6 +219,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>
                 Pre-entry ${f.fees.preEntry ?? '—'} · Day-of ${f.fees.dayOf ?? '—'}
               </Text>
+            </View>
+          )}
+          {f.recordingFee && (
+            <View style={rowStyle}>
+              <Text style={labelStyle}>Recording fee</Text>
+              <Text style={valueStyle}>{f.recordingFee}</Text>
             </View>
           )}
           {f.withdrawalPolicy && (

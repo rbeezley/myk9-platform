@@ -115,6 +115,19 @@ export interface GeneratedPremium {
     chairman: { name: string; email: string | null; phone: string | null } | null;
   };
   /**
+   * MYK9-2044: the registry recording fee in force on each of the show's trial dates, as
+   * generate-premium states it ("AKC recording fee: $5.50 per entry", or across a rate change
+   * "AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027"). `rates` is
+   * oldest first; `appliesFrom` is null on the first and the effective date on any later one.
+   * Null for a non-AKC show or when a trial date has no rate in force; absent on a premium
+   * generated before it. Either way no line is printed.
+   */
+  recordingFee?: {
+    registry: 'AKC';
+    rates: Array<{ amountCents: number; appliesFrom: string | null }>;
+    text: string;
+  } | null;
+  /**
    * MYK9-2045: the host club's Officers list (position and name). Absent on a premium
    * generated before it, which prints no officers.
    */

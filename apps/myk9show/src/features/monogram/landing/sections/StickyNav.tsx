@@ -1,7 +1,6 @@
 import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
-import { pendingNavLabel, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface StickyNavProps {
   clubName: string;
@@ -27,7 +26,6 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
-  const mailInOnly = useLandingMailInOnly();
   return (
     <nav
       aria-label="Show navigation"
@@ -103,7 +101,7 @@ export function StickyNav({
             color: monogramColors.mute,
           }}
         >
-          {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
         </span>
       )}
     </nav>

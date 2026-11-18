@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
 import { heritageOrnaments } from '../../tokens';
-import { pendingNavLabel, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface StickyNavProps {
   clubName: string;
@@ -24,7 +23,6 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
-  const mailInOnly = useLandingMailInOnly();
   const [activeId, setActiveId] = useState<string>('overview');
 
   // Track active section via IntersectionObserver
@@ -129,7 +127,7 @@ export function StickyNav({
                 fontFamily: "'EB Garamond', Georgia, serif",
               }}
             >
-              {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
+              {entryClosed ? 'Entries closed' : 'Classes pending'}
             </span>
           )}
         </div>

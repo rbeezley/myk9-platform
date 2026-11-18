@@ -1,7 +1,6 @@
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors } from '../../tokens';
 import { formatEntryCount } from '@/features/_shared/landing/entryCount';
-import { pendingNavLabel, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface StickyNavProps {
   entryWizardUrl: string;
@@ -74,7 +73,6 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
-  const mailInOnly = useLandingMailInOnly();
   const statusLabel =
     entryCount == null
       ? 'Entries open · count unavailable'
@@ -180,7 +178,7 @@ export function StickyNav({
             color: bannerColors.mute,
           }}
         >
-          {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
         </span>
       )}
     </nav>

@@ -1,16 +1,13 @@
 /**
- * MYK9-979: a show with online entries off is published for its premium only.
- * Its public page has no "Enter this show" anywhere and says how to enter
- * instead. Renders the REAL monogram landing (the committed default style)
- * through ShowPublicLanding, stubbing only the landing's data hook and fonts,
- * so the CTA gate is exercised on the real prop path.
+ * The public page's Enter CTA and service-fee line. Renders the REAL monogram
+ * landing (the committed default style) through ShowPublicLanding, stubbing only
+ * the landing's data hook and fonts, so the CTA gate is exercised on the real
+ * prop path.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ShowPublicLanding } from '../ShowPublicLanding';
-import { MAIL_IN_ENTRY_NOTE } from '@/features/payments/onlineEntryGate';
-import { MAIL_IN_NAV_LABEL } from '@/features/_shared/landing/landingMailIn';
 import type { Show } from '@/types/show-types';
 import type { MonogramLandingData } from '@/features/monogram/landing/types';
 
@@ -114,45 +111,24 @@ function renderLanding(
   );
 }
 
-describe('ShowPublicLanding — online entries off (MYK9-979)', () => {
+describe('ShowPublicLanding — Enter CTA gate (MYK9-979)', () => {
   afterEach(() => {
     mockViewport(false);
   });
 
-  it.each([
-    ['desktop', false],
-    ['mobile', true],
-  ])('has no "Enter this show" at %s width and says how to enter', (_label, mobile) => {
-    mockViewport(mobile);
-    renderLanding(false);
-
-    expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('note', { name: /how to enter/i })).toHaveTextContent(
-      MAIL_IN_ENTRY_NOTE
-    );
-    // The landing's own "why no Enter button" copy must not blame missing classes.
-    expect(screen.queryByText(/no classes are assigned/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/assign classes/i)).not.toBeInTheDocument();
-    // Codex round 4: the navigation's status label is accurate too.
-    expect(screen.getAllByText(MAIL_IN_NAV_LABEL).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/classes pending/i)).not.toBeInTheDocument();
-  });
-
-  it('positive control: the same show with online entries on offers "Enter this show" and no note', () => {
+  it('positive control: a show with online entries on offers "Enter this show"', () => {
     mockViewport(false);
     renderLanding(true);
 
     expect(screen.getAllByRole('link', { name: /enter this show/i }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('note', { name: /how to enter/i })).not.toBeInTheDocument();
   });
 
-  it('withholds "Enter this show" while the switch is unknown, without a mail-in claim', () => {
+  it('withholds "Enter this show" while the switch is unknown', () => {
     // Codex P2 on #2707: a cached row from before the column existed.
     mockViewport(false);
     renderLanding(undefined);
 
     expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('note', { name: /how to enter/i })).not.toBeInTheDocument();
   });
 });
 
@@ -175,9 +151,9 @@ describe('ShowPublicLanding — service fee line (MYK9-1963)', () => {
     );
   });
 
-  it.each([false, undefined])('says nothing about a fee when online entries are %s', enabled => {
+  it('says nothing about a fee while the switch is unknown', () => {
     mockViewport(false);
-    renderLanding(enabled);
+    renderLanding(undefined);
 
     expect(screen.queryByRole('note', { name: /service fee/i })).not.toBeInTheDocument();
   });

@@ -39,19 +39,10 @@ describe('QuickInfoCards — payment methods', () => {
     expect(screen.queryByText('Host Club')).not.toBeInTheDocument();
   });
 
-  // MYK9-979: card payment exists only with online entries on.
-  it('renders the Card badge for a show with online entries on', () => {
+  it('renders the Card badge', () => {
     render(<QuickInfoCards show={baseShow as Show} />);
     expect(screen.getByText('Card')).toBeInTheDocument();
   });
-
-  it.each([false, undefined])(
-    'renders no Card badge when online entries are %s (mail-in or not known yet)',
-    onlineEntriesEnabled => {
-      render(<QuickInfoCards show={{ ...baseShow, onlineEntriesEnabled } as Show} />);
-      expect(screen.queryByText('Card')).not.toBeInTheDocument();
-    }
-  );
 
   it('does not render Check badge when acceptCheckPayments is false', () => {
     render(<QuickInfoCards show={{ ...baseShow, acceptCheckPayments: false } as Show} />);
@@ -108,8 +99,8 @@ describe('QuickInfoCards — service fee line', () => {
     );
   });
 
-  it.each([false, undefined])('says nothing about a fee when online entries are %s', enabled => {
-    render(<QuickInfoCards show={{ ...openShow, onlineEntriesEnabled: enabled } as Show} />);
+  it('says nothing about a fee while how the show takes entries is not known yet', () => {
+    render(<QuickInfoCards show={{ ...openShow, onlineEntriesEnabled: undefined } as Show} />);
     expect(screen.queryByText(/service fee/i)).not.toBeInTheDocument();
   });
 

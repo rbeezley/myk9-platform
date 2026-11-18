@@ -11,7 +11,6 @@ import {
 } from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
 import { formatDateInTimezone, formatDateRange } from '../utils/dateFormat';
-import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeroBlockProps {
@@ -82,7 +81,6 @@ export function HeroBlock({
   classesHref,
   canEnterOnline = true,
 }: HeroBlockProps) {
-  const mailInOnly = useLandingMailInOnly();
   const countdown = useCountdown(entryCloseDate, timezone);
   const entryClosed = countdown.closed;
   const canShowEntryCta = canEnterOnline && !entryClosed;
@@ -288,10 +286,7 @@ export function HeroBlock({
                 <LateEntryContact lead="Entries are closed for this show. " />
               </>
             ) : (
-              pendingEntryCopy(
-                mailInOnly,
-                'Entries are not available yet because no classes are assigned yet.'
-              )
+              'Entries are not available yet because no classes are assigned yet.'
             )}
           </p>
         )}

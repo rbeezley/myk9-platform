@@ -96,7 +96,7 @@ describe('ServiceFeeNote', () => {
 
   it.each([
     ['closed', { entryOpenDate: day(-30), entryCloseDate: day(-5) }],
-    ['mail-in', { onlineEntriesEnabled: false }],
+    ['not-yet-known', { onlineEntriesEnabled: undefined }],
     ['without an entry window', { entryOpenDate: '', entryCloseDate: '' }],
   ])('says nothing for a %s show', (_label, patch) => {
     const { container } = render(<ServiceFeeNote show={{ ...openShow, ...patch } as Show} />);

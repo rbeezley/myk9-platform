@@ -21,11 +21,6 @@ import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
 import '../headline.css';
 import '../headline-detail.css';
-import {
-  pendingEntryCopy,
-  pendingNavLabel,
-  useLandingMailInOnly,
-} from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeadlineLandingPageProps {
@@ -76,7 +71,6 @@ function HeadlineNav({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
-  const mailInOnly = useLandingMailInOnly();
   return (
     <>
       <div className="hd-topbar" />
@@ -102,9 +96,7 @@ function HeadlineNav({
               Enter this show
             </a>
           ) : (
-            <span className="hd-nav-cta">
-              {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
-            </span>
+            <span className="hd-nav-cta">{entryClosed ? 'Entries closed' : 'Classes pending'}</span>
           )}
         </div>
       </nav>
@@ -123,7 +115,6 @@ function Hero({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
-  const mailInOnly = useLandingMailInOnly();
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
   const totalRuns = formatEntryLimit(data.entryLimit);
   const title = getHeroTitleParts(data.showName);
@@ -179,10 +170,7 @@ function Hero({
                   <LateEntryContact lead="Entries are closed for this show. " />
                 </>
               ) : (
-                pendingEntryCopy(
-                  mailInOnly,
-                  'Entries are not available yet because no classes are assigned yet.'
-                )
+                'Entries are not available yet because no classes are assigned yet.'
               )}
             </span>
           )}

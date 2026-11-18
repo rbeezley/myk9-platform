@@ -78,7 +78,7 @@ export function ResultsPublicPrompt({
       >
         Your results are now public.{' '}
         {otherPersonKnown
-          ? "Someone else on this entry hasn't turned this on yet, so this result stays private until they do."
+          ? `This result shows publicly only once everyone on the entry has turned this on, including ${handlerName?.trim()}.`
           : "If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."}
       </p>
     );

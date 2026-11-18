@@ -161,12 +161,12 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
     onLine.mockRestore();
   });
 
-  it('after a yes with a different handler on the row, says someone else is on the entry', async () => {
+  it('after a yes with a different handler on the row, names them without claiming their setting', async () => {
     const user = userEvent.setup();
     render(<ResultsPublicPrompt {...baseProps} handlerName="Pat Handler" />);
     await user.click(screen.getByRole('button', { name: 'Show publicly' }));
     expect(screen.getByTestId('results-public-note')).toHaveTextContent(
-      "Someone else on this entry hasn't turned this on yet, so this result stays private until they do."
+      'This result shows publicly only once everyone on the entry has turned this on, including Pat Handler.'
     );
   });
 

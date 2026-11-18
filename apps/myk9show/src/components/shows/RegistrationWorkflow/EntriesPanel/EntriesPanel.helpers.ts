@@ -367,6 +367,8 @@ export function formatAmountDue({
   // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as
   // still owed once the secretary marked it Already Received.
   if (totals?.isSecretaryReceived) return `${amount} (Received)`;
-  if (totals?.isFormMoney) return `${amount} (Money on this form)`;
+  // MYK9-1966: the figure is the entry fees, not what the form holds (the banner and the
+  // receipt carry the server's balance), so it never claims the fee is money on the form.
+  if (totals?.isFormMoney) return `${amount} (before money on this form)`;
   return amount;
 }

@@ -45,6 +45,8 @@ interface ShowEditFormProps {
   initialStatus?: string | undefined;
   /** Closes the panel; the Basic Info tab's trial-days link calls it before it navigates. */
   onClose?: (() => void) | undefined;
+  /** Passed to the Premium tab: true while a Regenerate is pending (MYK9-2144). */
+  onPremiumPendingChange?: ((pending: boolean) => void) | undefined;
 }
 
 export const ShowEditForm: React.FC<ShowEditFormProps> = ({
@@ -52,6 +54,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   onTabChange,
   initialStatus,
   onClose,
+  onPremiumPendingChange,
 }) => {
   const { data, form } = useEditPanel<ShowEditFormData>();
 
@@ -475,6 +478,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           isActive={activeTab === 'premium'}
           handleCheckboxChange={handleCheckboxChange}
           handleValueChange={handleValueChange}
+          {...(onPremiumPendingChange ? { onPremiumPendingChange } : {})}
         />
       </Tabs>
       {judgeCreate.supportedOrg && (

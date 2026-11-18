@@ -3666,6 +3666,7 @@ export type Database = {
           onboarding_completed_at: string | null
           person_id: string
           results_public: boolean
+          results_public_prompt_answered_at: string | null
           stripe_customer_id: string | null
           subscription_expires_at: string | null
           subscription_tier: string | null
@@ -3680,6 +3681,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           person_id: string
           results_public?: boolean
+          results_public_prompt_answered_at?: string | null
           stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_tier?: string | null
@@ -3694,6 +3696,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           person_id?: string
           results_public?: boolean
+          results_public_prompt_answered_at?: string | null
           stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_tier?: string | null

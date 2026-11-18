@@ -70,6 +70,8 @@ export interface MyShowGroupProps {
   /** classId -> judge name; a class missing here has no judge we know of. */
   judgeByClassId?: JudgeByClassId | undefined;
   seenResultReleaseKeys: Set<string>;
+  /** The one class row (MYK9-1944) that may ask the results-public question. */
+  resultsPromptClassId?: string | null | undefined;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   /** One editable order opens directly; several open the picker (design D9). */
@@ -93,6 +95,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   selfCheckinByClassId,
   judgeByClassId,
   seenResultReleaseKeys,
+  resultsPromptClassId,
   onCheckInDay,
   onOpenCheckIn,
   onOpenEdit,
@@ -411,6 +414,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                 (dog.entryStatusKind ?? 'pending') === 'pending'
               }
               seenResultReleaseKeys={seenResultReleaseKeys}
+              resultsPromptClassId={resultsPromptClassId}
               onCheckInDay={onCheckInDay}
               onOpenCheckIn={onOpenCheckIn}
               // The show id lives on the GROUP, not the class row, so the

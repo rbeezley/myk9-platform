@@ -27,6 +27,8 @@ interface EditPanelFooterProps {
   onNext: () => void;
   /** Why Next refused to move on, or null. */
   stepBlockedMessage: string | null;
+  /** Why Save is held (a pending Regenerate), or undefined. */
+  saveBlockedReason?: string | undefined;
 }
 
 const ACTION_BUTTON_CLASS =
@@ -52,10 +54,20 @@ export function EditPanelFooter({
   nextTab,
   onNext,
   stepBlockedMessage,
+  saveBlockedReason,
 }: EditPanelFooterProps) {
   return (
     <div className="flex w-full flex-col gap-3">
       <EditPanelErrorSummary errors={errors} />
+      {saveBlockedReason && (
+        <p
+          role="status"
+          data-testid="edit-panel-save-blocked"
+          className="text-sm text-muted-foreground"
+        >
+          {saveBlockedReason}
+        </p>
+      )}
       {stepBlockedMessage && (
         <div
           role="alert"

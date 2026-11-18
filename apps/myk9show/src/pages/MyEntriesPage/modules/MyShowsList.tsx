@@ -26,6 +26,7 @@ import type { ShowMoneyKind } from './showMoneyState';
 import { buildShowGroupIndex, groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
+import { firstResultsPromptClassId } from './firstResultsPromptClass';
 import { useMyShowJudges } from './useMyShowJudges';
 import type { EntryStatusFilter, LeaveClassTarget, MyEntry } from './my-entries-types';
 import { narrowDogsToStatus } from './statusFilterPredicate';
@@ -135,6 +136,16 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   const judgeByClassId = useMyShowJudges(judgeTargets);
 
   const sections = React.useMemo(() => splitShowsIntoSections(groups, now), [groups, now]);
+  // MYK9-1944: one results-public prompt for the whole list, on the first eligible row.
+  const resultsPromptClassId = React.useMemo(
+    () =>
+      firstResultsPromptClassId(
+        [...sections.today, ...sections.upcoming, ...sections.past],
+        seenResultReleaseKeys,
+        onResultRevealClick != null
+      ),
+    [sections, seenResultReleaseKeys, onResultRevealClick]
+  );
   const [searchParams] = useSearchParams();
   const requested = searchParams.get(SELECTED_SHOW_PARAM);
   // Past shows stay folded away unless the exhibitor is being sent to one (`?show=`, or a receipt
@@ -174,6 +185,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
         selfCheckinByClassId={selfCheckinByClassId}
         judgeByClassId={judgeByClassId}
         seenResultReleaseKeys={seenResultReleaseKeys}
+        resultsPromptClassId={resultsPromptClassId}
         onCheckInDay={onCheckInDay}
         onOpenCheckIn={onOpenCheckIn}
         onOpenEdit={onOpenEdit}

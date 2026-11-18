@@ -24,6 +24,11 @@ export interface ExhibitorProfile {
    * also when the column is not there yet (migration not applied).
    */
   results_public: boolean;
+  /**
+   * When the account answered the one-time "Show your results publicly?" prompt
+   * (MYK9-1944). Null = never answered, or the column is not there yet.
+   */
+  results_public_prompt_answered_at: string | null;
   created_at: string;
   updated_at: string;
   person?: {
@@ -101,6 +106,10 @@ function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile 
       ? (data.onboarded_roles as string[])
       : null,
     results_public: data.results_public === true,
+    results_public_prompt_answered_at:
+      typeof data.results_public_prompt_answered_at === 'string'
+        ? data.results_public_prompt_answered_at
+        : null,
     created_at: (data.created_at as string) || new Date().toISOString(),
     updated_at: (data.updated_at as string) || new Date().toISOString(),
     ...(personData !== undefined && { person: personData }),
@@ -336,6 +345,34 @@ export function useExhibitorProfile() {
     },
   });
 
+  // The one-time "Show your results publicly?" prompt (MYK9-1944). One write
+  // records the answer and, for a yes, turns the account setting on, so the two
+  // never disagree. "Keep private" writes only the answer: results_public is
+  // left exactly as it was.
+  const answerResultsPublicPromptMutation = useMutation({
+    mutationFn: async (showPublicly: boolean): Promise<string> => {
+      if (!user?.id) throw new Error('User not authenticated');
+      if (!profile?.id) throw new Error('No exhibitor profile found');
+
+      const answeredAt = new Date().toISOString();
+      const change = {
+        results_public_prompt_answered_at: answeredAt,
+        ...(showPublicly ? { results_public: true } : {}),
+      };
+      const { error } = await supabase
+        .from('exhibitor_profiles')
+        .update(change)
+        .eq('id', profile.id);
+
+      if (error) throw error;
+      queryClient.setQueryData(['exhibitorProfile', user.id], {
+        ...profile,
+        ...change,
+      } satisfies ExhibitorProfile);
+      return answeredAt;
+    },
+  });
+
   return {
     profile,
     isLoading,
@@ -366,5 +403,7 @@ export function useExhibitorProfile() {
     isCompletingOnboarding: completeOnboardingMutation.isPending,
     setResultsPublic: setResultsPublicMutation.mutateAsync,
     isSettingResultsPublic: setResultsPublicMutation.isPending,
+    answerResultsPublicPrompt: answerResultsPublicPromptMutation.mutateAsync,
+    isAnsweringResultsPublicPrompt: answerResultsPublicPromptMutation.isPending,
   };
 }

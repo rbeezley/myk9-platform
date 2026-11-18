@@ -69,7 +69,6 @@ import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
 import { getRegistrationCapacityState } from './registrationCapacity';
-import { createStaffChoiceDraftStore } from '@/components/shows/RegistrationWorkflow/PaymentStep/useStaffChoiceDrafts';
 
 const EMPTY_CLASS_IDS: ReadonlySet<string> = new Set();
 
@@ -334,8 +333,6 @@ export function useRegistrationWizardState() {
   const [entryOutcomes, setEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const [createdEntryOutcomes, setCreatedEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const paymentDetailsRef = useRef<PaymentDetails>({});
-  // MYK9-2162: each desk payment choice's typed details, so going Back to Classes keeps them.
-  const [staffChoiceDrafts] = useState(createStaffChoiceDraftStore);
   // MYK9-2149: what a form that held money still owes after submit (the receipt says so).
   const [deskFormOutcome, setDeskFormOutcome] = useState<DeskFormOutcome | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -750,7 +747,6 @@ export function useRegistrationWizardState() {
     createdEntryOutcomes,
     setCreatedEntryOutcomes,
     paymentDetailsRef,
-    staffChoiceDrafts,
     isSubmitting,
     setIsSubmitting,
     agreedToEntryAgreement,

@@ -86,7 +86,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     deskFormOutcome,
     entryWindowTimezoneState,
     paymentDetailsRef,
-    staffChoiceDrafts,
     paymentResolution,
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
@@ -417,7 +416,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               registrationId={registrationId}
               registrationNumber={registrationNumber}
               currentRegistrationTotalFees={liveTotalFees}
-              desk={{ formHeldCents, outcome: deskFormOutcome, choiceDrafts: staffChoiceDrafts }}
+              desk={{ formHeldCents, outcome: deskFormOutcome }}
               capacityReady={capacityReady}
               capacityError={capacityError}
               capacityUnavailable={capacityUnavailable}

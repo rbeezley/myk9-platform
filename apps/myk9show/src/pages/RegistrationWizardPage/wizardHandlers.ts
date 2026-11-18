@@ -82,7 +82,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setEntryOutcomes,
     setCreatedEntryOutcomes,
     paymentDetailsRef,
-    staffChoiceDrafts,
     juniorHandlerDogIds,
     setJuniorHandlerDogs,
     setIsSubmitting,
@@ -307,7 +306,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       setPaymentStatus(PaymentStatus.PENDING);
       setEntryStatus(EntryStatus.PENDING);
       paymentDetailsRef.current = {};
-      staffChoiceDrafts.reset();
       setAgreedToEntryAgreement(false);
       const dogStep = currentWorkflowConfig.steps.indexOf('dog-selection');
       setCurrentStep(dogStep >= 0 ? dogStep : 0);

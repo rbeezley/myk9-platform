@@ -1,18 +1,6 @@
 import type { PaymentMethodResolution } from './usePaymentMethodResolution';
 import type { JuniorHandlerDeclaration } from './JuniorHandlerDeclaration';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
-import type { DeskFormOutcome } from '@/features/registration/deskFormDue';
-import type { StaffChoiceDraftStore } from './useStaffChoiceDrafts';
-
-/** MYK9-2149: the desk's view of the entry form, handed from the page to the steps. */
-export interface WorkflowDesk {
-  /** Money the form holds before submit, or null. */
-  formHeldCents: number | null;
-  /** What the form still owes after submit, or null. */
-  outcome: DeskFormOutcome | null;
-  /** MYK9-2162: each payment choice's typed details, kept by the wizard for this entry. */
-  choiceDrafts?: StaffChoiceDraftStore | undefined;
-}
 
 /** Props for the top-level PaymentStep component. */
 export interface PaymentStepProps {
@@ -44,8 +32,6 @@ export interface PaymentStepProps {
    * confirmed this visit, or null. Shown as a banner; it never changes a choice or Submit.
    */
   formHeldCents?: number | null | undefined;
-  /** MYK9-2162: the wizard's copy of each payment choice's details, so Back and Next keep them. */
-  choiceDrafts?: StaffChoiceDraftStore | undefined;
   /**
    * Payment-method resolution, owned by the PAGE so the entries panel and these
    * controls read the same effective method in the same render

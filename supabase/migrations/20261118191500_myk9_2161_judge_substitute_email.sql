@@ -14,6 +14,11 @@
 --      It writes a row only when the class has no confirmed class-level judge now, the person
 --      still has a live entry in it, and the trial day is not past (the same three tests the
 --      sender uses to say "not named yet").
+--      Each row carries the job whose email said "not named yet"; a job that ends skipped or
+--      failed clears its rows (nobody was told), a retry does not. Rows for a class that was
+--      deleted or cancelled, or whose trial is over, are dropped by the same claim trigger.
+--      The live-entry check is scoped to the one person and class (live_entry_person_class_pairs_scoped,
+--      the one copy of the rule; the show-wide function now calls it).
 --   3. queue_judge_changed_email_for_class gains an inner twin that can be limited to named
 --      people; the original two-argument function stays as a wrapper with the same ACL.
 --   4. An AFTER INSERT / UPDATE trigger on a confirmed class-level judge_assignments row
@@ -29,7 +34,7 @@
 -- trigger does not see the uncommitted notice), and a substitute confirmed after an in-flight
 -- send has rendered "not named yet" but before it is marked sent.
 --
--- Rollback: DROP TRIGGER trg_record_judge_vacancy_notices ON public.show_lifecycle_email_jobs;
+-- Rollback: DROP TRIGGER trg_clear_judge_vacancy_notices ON public.show_lifecycle_email_jobs; DROP FUNCTION public.clear_judge_vacancy_notices_for_unsent_job(), public.live_entry_person_class_pairs_scoped(uuid, uuid, uuid[]) (restore live_entry_person_class_pairs from 20261117191300 first); DROP TRIGGER trg_record_judge_vacancy_notices ON public.show_lifecycle_email_jobs;
 -- DROP FUNCTION public.record_judge_vacancy_notices_from_claim(); also DROP TRIGGER trg_queue_judge_substitute_email_insert and
 -- trg_queue_judge_substitute_email_update ON public.judge_assignments; DROP FUNCTION
 -- public.queue_judge_substitute_emails_from_assignment(),
@@ -48,6 +53,8 @@ CREATE TABLE IF NOT EXISTS public.judge_vacancy_notices (
   person_id uuid NOT NULL,
   from_person_id uuid NOT NULL,
   show_id uuid NOT NULL,
+  -- The job whose email said "not named yet": cleared if that job is definitively skipped or fails.
+  job_id uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (class_id, person_id)
 );
@@ -59,6 +66,64 @@ ALTER TABLE public.judge_vacancy_notices ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.judge_vacancy_notices FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.judge_vacancy_notices TO service_role;
+
+-- One "live entry" rule at (person, class) grain, copied from live_entry_person_class_pairs
+-- (20261117191300) with optional person and class filters pushed into the entries scan, so a
+-- caller that cares about one person does not enumerate the whole show. The show-wide function
+-- below now calls this one, so there is a single copy of the rule.
+CREATE OR REPLACE FUNCTION public.live_entry_person_class_pairs_scoped(
+  p_show_id uuid,
+  p_person_id uuid,
+  p_class_ids uuid[]
+)
+RETURNS TABLE (person_id uuid, class_id uuid)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT DISTINCT r.person_id, c.id
+    FROM public.entries e
+    JOIN public.dogs d ON d.id = e.dog_id
+    JOIN public.classes c ON c.id = e.class_id
+    JOIN public.trials t ON t.id = c.trial_id
+    CROSS JOIN LATERAL (VALUES (d.owner_id), (e.handler_id)) AS r(person_id)
+   WHERE e.show_id = p_show_id
+     AND (p_class_ids IS NULL OR e.class_id = ANY (p_class_ids))
+     AND (p_person_id IS NULL OR r.person_id = p_person_id)
+     AND t.show_id = p_show_id
+     AND t.deleted_at IS NULL
+     AND c.deleted_at IS NULL
+     AND lower(btrim(coalesce(c.status, ''))) NOT IN ('cancelled', 'canceled')
+     AND e.deleted_at IS NULL
+     AND e.entry_status IN (
+       'confirmed', 'accepted', 'scheduled', 'checked-in', 'at-gate',
+       'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested',
+       'submitted', 'paid', 'pending', 'promotion-expired', 'waitlisted',
+       -- A waitlist offer awaiting payment (MYK9-1988): the spot is theirs for now.
+       'pending-payment'
+     )
+     AND e.check_in_status IS DISTINCT FROM 'pulled'
+     AND r.person_id IS NOT NULL
+     AND d.deleted_at IS NULL;
+$$;
+
+REVOKE ALL ON FUNCTION public.live_entry_person_class_pairs_scoped(uuid, uuid, uuid[])
+  FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.live_entry_person_class_pairs(p_show_id uuid)
+RETURNS TABLE (person_id uuid, class_id uuid)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT pairs.person_id, pairs.class_id
+    FROM public.live_entry_person_class_pairs_scoped(p_show_id, NULL, NULL) AS pairs;
+$$;
+
+REVOKE ALL ON FUNCTION public.live_entry_person_class_pairs(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
 
 -- The claim (claim_due_auto_email_jobs, 20261117094700) is NOT touched: a claim stamps
 -- attempt_id on each job it takes, and this trigger watches that stamp, so the rows are written
@@ -76,8 +141,22 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  INSERT INTO public.judge_vacancy_notices (class_id, person_id, from_person_id, show_id)
-  SELECT cls.class_id, new.recipient_person_id, cls.from_person_id, new.show_id
+  -- Notices for vacancies that can no longer be filled (class gone or cancelled, trial over a
+  -- day ago) would live forever: drop them here, on the way past. Cheap: the table holds only
+  -- classes currently told "not named yet".
+  DELETE FROM public.judge_vacancy_notices n
+   WHERE NOT EXISTS (
+     SELECT 1
+       FROM public.classes k
+       JOIN public.trials t ON t.id = k.trial_id AND t.deleted_at IS NULL
+      WHERE k.id = n.class_id
+        AND k.deleted_at IS NULL
+        AND lower(btrim(coalesce(k.status, ''))) NOT IN ('cancelled', 'canceled')
+        AND t.date >= current_date - 1
+   );
+
+  INSERT INTO public.judge_vacancy_notices (class_id, person_id, from_person_id, show_id, job_id)
+  SELECT cls.class_id, new.recipient_person_id, cls.from_person_id, new.show_id, new.id
     FROM (
       SELECT
         CASE WHEN e.key ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
@@ -107,9 +186,10 @@ BEGIN
      )::date
      AND EXISTS (
        SELECT 1
-         FROM public.live_entry_person_class_pairs(new.show_id) AS pairs
-        WHERE pairs.person_id = new.recipient_person_id
-          AND pairs.class_id = cls.class_id
+         FROM public.live_entry_person_class_pairs_scoped(
+                new.show_id, new.recipient_person_id, ARRAY[cls.class_id]
+              ) AS pairs
+        WHERE pairs.class_id = cls.class_id
      )
   ON CONFLICT (class_id, person_id) DO NOTHING;
   RETURN NULL;
@@ -133,6 +213,38 @@ CREATE TRIGGER trg_record_judge_vacancy_notices
     AND new.attempt_id IS DISTINCT FROM old.attempt_id
   )
   EXECUTE FUNCTION public.record_judge_vacancy_notices_from_claim();
+
+-- The email these notices belong to was never sent (skipped at send time, or failed for good):
+-- nobody was told "not named yet", so nobody gets a follow-up. A retry or release does not
+-- change status, so it leaves the notices.
+CREATE OR REPLACE FUNCTION public.clear_judge_vacancy_notices_for_unsent_job()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  DELETE FROM public.judge_vacancy_notices n WHERE n.job_id = new.id;
+  RETURN NULL;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'clear_judge_vacancy_notices_for_unsent_job: % (%)', SQLERRM, SQLSTATE;
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.clear_judge_vacancy_notices_for_unsent_job()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS trg_clear_judge_vacancy_notices ON public.show_lifecycle_email_jobs;
+CREATE TRIGGER trg_clear_judge_vacancy_notices
+  AFTER UPDATE OF status ON public.show_lifecycle_email_jobs
+  FOR EACH ROW
+  WHEN (
+    new.step_type = 'judge_changed'
+    AND new.status IN ('skipped', 'failed')
+    AND old.status IS DISTINCT FROM new.status
+  )
+  EXECUTE FUNCTION public.clear_judge_vacancy_notices_for_unsent_job();
 
 -- The producer from 20261117191300, now with an optional list of people to limit it to.
 CREATE OR REPLACE FUNCTION public.queue_judge_changed_email_for_people(

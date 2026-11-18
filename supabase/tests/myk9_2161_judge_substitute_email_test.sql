@@ -222,9 +222,9 @@ begin
   update public.show_lifecycle_email_jobs
      set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
    where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
-  insert into public.judge_vacancy_notices (class_id, person_id, from_person_id, show_id) values
+  insert into public.judge_vacancy_notices (class_id, person_id, from_person_id, show_id, job_id) values
     ('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161021',
-     '00000000-0000-0000-0000-000002161052', '00000000-0000-0000-0000-000002161002');
+     '00000000-0000-0000-0000-000002161052', '00000000-0000-0000-0000-000002161002', gen_random_uuid());
   delete from public.judge_assignments where class_id = '00000000-0000-0000-0000-000002161004';
   update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now()
    where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
@@ -261,6 +261,7 @@ begin
   for v_row in select * from public.show_lifecycle_email_jobs
                 where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready' loop
     if v_row.attempt_id is null
+       or v_row.due_at <> now() - interval '1 minute'
        or v_row.judge_changes <> jsonb_build_object('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161052') then
       raise exception 'FAIL H the in-flight job was changed: %', row_to_json(v_row);
     end if;
@@ -295,6 +296,93 @@ begin
   raise notice 'PASS I a malformed judge_changes cannot stall the claim';
 end $$;
 
+-- J: a job that ends skipped or failed took its notices with it; a retry release keeps them
+do $$
+declare
+  v_job uuid;
+begin
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status)
+  values ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002',
+          '00000000-0000-0000-0000-000002161003', '00000000-0000-0000-0000-000002161004', 'confirmed');
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  delete from public.judge_assignments where class_id = '00000000-0000-0000-0000-000002161004';
+  update public.show_lifecycle_email_jobs set due_at = now() - interval '1 minute'
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  perform 1 from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  if pg_temp.notices('00000000-0000-0000-0000-000002161004') <> 3 then
+    raise exception 'FAIL J expected 3 rows, found %', pg_temp.notices('00000000-0000-0000-0000-000002161004');
+  end if;
+  -- Ada's send is released for a retry: her row stays.
+  update public.show_lifecycle_email_jobs set attempt_id = null, claimed_until = now() + interval '5 minutes'
+   where recipient_person_id = '00000000-0000-0000-0000-000002161021' and status = 'ready';
+  if pg_temp.notices('00000000-0000-0000-0000-000002161004') <> 3 then
+    raise exception 'FAIL J a retry release cleared a row';
+  end if;
+  -- Hal's job is skipped and Late's fails for good: their rows go.
+  update public.show_lifecycle_email_jobs set status = 'skipped', skipped_at = now(), attempt_id = null, claimed_until = null
+   where recipient_person_id = '00000000-0000-0000-0000-000002161025' and status = 'ready';
+  update public.show_lifecycle_email_jobs set status = 'failed', attempt_id = null, claimed_until = null
+   where recipient_person_id = '00000000-0000-0000-0000-000002161028' and status = 'ready';
+  if pg_temp.notices('00000000-0000-0000-0000-000002161004') <> 1
+     or not exists (select 1 from public.judge_vacancy_notices
+                     where person_id = '00000000-0000-0000-0000-000002161021') then
+    raise exception 'FAIL J expected only Ada''s row to remain, found %', pg_temp.notices('00000000-0000-0000-0000-000002161004');
+  end if;
+  raise notice 'PASS J skipped and failed jobs clear their notices, a retry keeps them';
+end $$;
+
+-- K: notices that can never be filled are dropped on the next claim; the scoped live-entry
+-- check agrees with the show-wide one
+do $$
+begin
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  delete from public.judge_vacancy_notices;
+  insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status)
+  values ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002',
+          '00000000-0000-0000-0000-000002161003', '00000000-0000-0000-0000-000002161004', 'confirmed');
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  -- The past trial's class (14) and a cancelled class (6) each hold a notice for Ada.
+  update public.classes set status = 'cancelled' where id = '00000000-0000-0000-0000-000002161006';
+  insert into public.judge_vacancy_notices (class_id, person_id, from_person_id, show_id, job_id) values
+    ('00000000-0000-0000-0000-000002161014', '00000000-0000-0000-0000-000002161021', '00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002', gen_random_uuid()),
+    ('00000000-0000-0000-0000-000002161006', '00000000-0000-0000-0000-000002161021', '00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002', gen_random_uuid());
+  -- Any judge_changed claim runs the cleanup.
+  delete from public.judge_assignments where class_id = '00000000-0000-0000-0000-000002161004';
+  update public.show_lifecycle_email_jobs set due_at = now() - interval '1 minute'
+   where show_id = '00000000-0000-0000-0000-000002161002' and status = 'ready';
+  perform 1 from public.claim_due_auto_email_jobs(10, now() + interval '10 minutes');
+  if exists (select 1 from public.judge_vacancy_notices
+              where class_id in ('00000000-0000-0000-0000-000002161014', '00000000-0000-0000-0000-000002161006')) then
+    raise exception 'FAIL K a notice for a cancelled class or a past trial survived';
+  end if;
+  if pg_temp.notices('00000000-0000-0000-0000-000002161004') <> 3 then
+    raise exception 'FAIL K the cleanup removed live notices';
+  end if;
+  -- One rule, two entry points.
+  if exists (
+       (select * from public.live_entry_person_class_pairs('00000000-0000-0000-0000-000002161002')
+         where person_id = '00000000-0000-0000-0000-000002161021'
+        except
+        select * from public.live_entry_person_class_pairs_scoped(
+          '00000000-0000-0000-0000-000002161002', '00000000-0000-0000-0000-000002161021',
+          array['00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161014']::uuid[]))
+       union all
+       (select * from public.live_entry_person_class_pairs_scoped(
+          '00000000-0000-0000-0000-000002161002', '00000000-0000-0000-0000-000002161021',
+          array['00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161014']::uuid[])
+        except
+        select * from public.live_entry_person_class_pairs('00000000-0000-0000-0000-000002161002')
+         where person_id = '00000000-0000-0000-0000-000002161021')) then
+    raise exception 'FAIL K the scoped and show-wide live-entry checks disagree';
+  end if;
+  raise notice 'PASS K dead notices are dropped, and the scoped live-entry check agrees with the show-wide one';
+end $$;
+
 -- G
 do $$
 begin
@@ -313,6 +401,8 @@ begin
   if has_function_privilege('authenticated', 'public.queue_judge_changed_email_for_people(uuid, uuid, uuid[])', 'execute')
      or has_function_privilege('service_role', 'public.queue_judge_changed_email_for_people(uuid, uuid, uuid[])', 'execute')
      or has_function_privilege('authenticated', 'public.queue_judge_substitute_emails_from_assignment()', 'execute')
+     or has_function_privilege('authenticated', 'public.live_entry_person_class_pairs_scoped(uuid, uuid, uuid[])', 'execute')
+     or has_function_privilege('authenticated', 'public.clear_judge_vacancy_notices_for_unsent_job()', 'execute')
      or has_function_privilege('authenticated', 'public.record_judge_vacancy_notices_from_claim()', 'execute')
      or has_function_privilege('authenticated', 'public.claim_due_auto_email_jobs(integer, timestamptz)', 'execute') then
     raise exception 'FAIL G an API role can run a producer or the claim';

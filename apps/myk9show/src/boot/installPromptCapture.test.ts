@@ -52,6 +52,21 @@ describe('install offer kept from boot (MYK9-2140)', () => {
     expect(getCapturedInstallPrompt()).toBeNull();
   });
 
+  it('never shows a kept offer, even for one render, to someone who dismissed the banner', () => {
+    localStorage.setItem('pwa_install_dismissed', JSON.stringify({ timestamp: Date.now() }));
+    stop = startInstallPromptCapture();
+    window.dispatchEvent(installOffer());
+
+    const renders: Array<{ canInstall: boolean; isDismissed: boolean }> = [];
+    renderHook(() => {
+      const { canInstall, isDismissed } = usePWAInstall();
+      renders.push({ canInstall, isDismissed });
+    });
+
+    expect(renders[0]).toEqual({ canInstall: true, isDismissed: true });
+    expect(renders.every(render => render.isDismissed)).toBe(true);
+  });
+
   it('lets a banner that mounts after the offer still make it', async () => {
     stop = startInstallPromptCapture();
     const offer = installOffer();

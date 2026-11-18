@@ -46,23 +46,43 @@ function detectIOSSafari(): boolean {
   return isIOSSafariUA(navigator.userAgent);
 }
 
+function readStandalone(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as NavigatorStandalone).standalone === true ||
+    document.referrer.includes('android-app://')
+  );
+}
+
+/** Whether a dismissal inside the 7-day window is stored. Reads only; the effect tidies up. */
+function readDismissed(): boolean {
+  try {
+    const dismissedData = localStorage.getItem(DISMISS_KEY);
+    if (!dismissedData) return false;
+    const { timestamp } = JSON.parse(dismissedData);
+    return Date.now() - timestamp < DISMISS_DURATION;
+  } catch {
+    return false;
+  }
+}
+
 export function usePWAInstall(): UsePWAInstallReturn {
-  const [isInstalled, setIsInstalled] = useState(false);
+  // Installed and dismissed are read for the FIRST render. The offer below can be present from
+  // the first render too, so reading these later would show the banner for one frame to someone
+  // who dismissed it or already runs the installed app.
+  const [isInstalled, setIsInstalled] = useState(readStandalone);
   const [wasInstalledBefore, setWasInstalledBefore] = useState(false);
   // The browser offers once per page load, often before this hook mounts (MYK9-2140), so start
   // from the offer kept at boot.
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
     getCapturedInstallPrompt
   );
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(readDismissed);
   const [isIOSSafari] = useState(detectIOSSafari);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as NavigatorStandalone).standalone === true ||
-      document.referrer.includes('android-app://');
+    const isStandalone = readStandalone();
 
     setIsInstalled(isStandalone);
 

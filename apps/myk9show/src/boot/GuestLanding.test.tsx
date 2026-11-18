@@ -40,10 +40,12 @@ describe('GuestLanding', () => {
     expect(onLeave).not.toHaveBeenCalled();
   });
 
-  it('shows the install banner above the landing page, as the app shell does', async () => {
+  it('shows a guest no install banner (owner decision, MYK9-2140)', async () => {
     render(<GuestLanding onLeave={vi.fn()} onRouter={vi.fn()} />);
+    // Long enough for a lazily fetched banner to have appeared.
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-    expect(await screen.findByText('install banner')).toBeInTheDocument();
+    expect(screen.queryByText('install banner')).toBeNull();
   });
 
   it('hands its router to the caller for page-view tracking', () => {

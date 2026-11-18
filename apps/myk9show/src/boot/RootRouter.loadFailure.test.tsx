@@ -61,16 +61,18 @@ describe('RootRouter when the app file cannot be fetched', () => {
   });
 
   it('reports to a visitor whose page is the app itself', async () => {
-    window.history.replaceState({}, '', '/shows');
+    // A sign-in return: the query and fragment carry tokens and must never reach the log.
+    window.history.replaceState({}, '', '/auth/callback?code=secret-code#access_token=secret');
     render(<RootRouter guestBoot={false} onRouter={vi.fn()} />);
     await act(() => vi.advanceTimersByTimeAsync(ONE_ATTEMPT_MS));
 
     expect(logging.logger.error).toHaveBeenCalledWith(
       'The app file failed to load',
       'boot',
-      { data: { url: '/shows', failure: expect.any(String) } },
+      { data: { path: '/auth/callback', failure: expect.any(String) } },
       expect.any(Error)
     );
+    expect(JSON.stringify(logging.logger.error.mock.calls)).not.toContain('secret');
     expect(recovery.recoverFromChunkLoadError).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('alert')).toHaveTextContent('myK9Show could not finish loading');
   });

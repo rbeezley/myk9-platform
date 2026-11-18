@@ -1,19 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Home from '@/pages/Home';
 import { AuthContext } from '@/context/authContextObject';
 import { PageLoadingFallback } from '@/components/common/PageLoadingFallback';
 import { GUEST_AUTH_VALUE } from './guestAuthValue';
-
-/**
- * The "Install myK9Show" banner, as the app shell shows it, fetched after the page. If its file
- * cannot be fetched the landing page simply has no banner: never an error, never a reload.
- */
-const InstallBanner = lazy(() =>
-  import('@/components/pwa/PWAInstallBanner')
-    .then(module => ({ default: module.PWAInstallBanner }))
-    .catch(() => ({ default: () => null }))
-);
 
 /** The visitor is leaving the light landing page: hand over to the full app. */
 function LeaveGuestLanding({ onLeave }: { onLeave: () => void }) {
@@ -31,6 +21,11 @@ export type AppRouter = ReturnType<typeof createBrowserRouter>;
  * It has its own two-route router: `/` is the landing page, and anything else means the visitor
  * followed a link off it. Either that or a crash on the page calls `onLeave`, so the caller can
  * show the full app at the current URL (which renders `/` as it always has).
+ *
+ * No "Install myK9Show" banner here, by the owner's decision (2026-11-17): it would bring the
+ * database client and a dialog into every guest's first load. `installPromptCapture` keeps the
+ * browser's offer, so the app shell's banner shows as soon as the visitor signs in or opens any
+ * other page.
  */
 export function GuestLanding({
   onLeave,
@@ -53,9 +48,6 @@ export function GuestLanding({
 
   return (
     <AuthContext.Provider value={GUEST_AUTH_VALUE}>
-      <Suspense fallback={null}>
-        <InstallBanner />
-      </Suspense>
       <RouterProvider router={router} />
     </AuthContext.Provider>
   );

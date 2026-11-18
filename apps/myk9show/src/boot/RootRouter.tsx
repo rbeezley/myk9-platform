@@ -65,7 +65,8 @@ export function RootRouter({
           logger.error(
             'The app file failed to load',
             'boot',
-            { data: { url: currentUrl(), failure: String(failure) } },
+            // The path only: on a sign-in return the query and fragment carry tokens.
+            { data: { path: window.location.pathname, failure: String(failure) } },
             failure instanceof Error ? failure : undefined
           );
           if (!recoverFromChunkLoadError(failure)) setFailed(true);

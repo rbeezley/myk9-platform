@@ -1,23 +1,28 @@
 # Landing capture — takes the landing page's timeline screenshots from the running app
 # (docs/plan-landing-animated-timeline.md § "Capturing the screens", MYK9-2181).
 #
-# A capture signs a seeded account in and walks the app, so it runs against a disposable
-# local Supabase stack only, never a hosted project. The owner's Windows PC cannot run that
-# stack (no Docker, and the Supabase CLI has no native runtime for win32), so this job is
-# where captures are taken: it builds the stack, serves the app against it, runs the capture,
-# and uploads the images and measured regions as an artifact for a person to commit.
+# A capture signs a seeded account in and walks the app. It is safe by where it runs:
+#   - the backend is this job's own Supabase stack, seeded from the repository's demo seed
+#     and destroyed with the job, so every row is a fixture and nothing shared is touched;
+#   - before the capture starts, the job closes the outbound network for the capture's
+#     processes (the browser, the preview server and the spec) and proves it, with a control.
+# The capture is one spec in the isolated e2e suite and refuses to start anywhere else.
 #
-# Nothing here writes to the repository or to any shared system.
+# The owner's Windows PC cannot run the stack (no Docker, and the Supabase CLI has no native
+# runtime for win32), so this job is where captures are taken. It uploads the images and
+# measured regions as an artifact for a person to commit. Nothing here writes to the
+# repository or to any shared system.
 name: Landing capture
 
 on:
   workflow_dispatch: {}
-  # A change to the capture scripts is proved by running them: the artifact of the PR's own
-  # run is what gets committed.
+  # A change to the capture is proved by running it: the artifact of the PR's own run is
+  # what gets committed.
   pull_request:
     branches: [main]
     paths:
-      - 'apps/myk9show/scripts/landing-capture/**'
+      - 'apps/myk9show/src/test/e2e/capture/**'
+      - 'apps/myk9show/src/test/e2e/helpers/landingCapture.ts'
       - '.github/workflows/landing-capture.yml'
 
 env:
@@ -63,16 +68,12 @@ jobs:
         with:
           browser: chromium
 
-      # Before anything is signed in: the guard is proved in the real browser, with a control
-      # that fails the step if the proof could pass without the guard.
-      - name: Prove the capture guard
-        run: pnpm --filter @myk9/show capture:landing:selfcheck
-
       - name: Reserve Supabase host ports
         run: bash scripts/ci/reserve-supabase-ports.sh
 
       # Writes the local stack's URL and keys to GITHUB_ENV (VITE_SUPABASE_URL among them),
-      # so the build below is pointed at this job's own stack and nothing else.
+      # so the build below is pointed at this job's own stack and nothing else. The load
+      # fixture is left out: the scene shows the demo show as a small trial reads.
       - name: Prepare isolated Supabase target
         run: pnpm qa:isolated-e2e:prepare
         env:
@@ -80,6 +81,7 @@ jobs:
           MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
           MYK9_E2E_APPROVED_PROJECT_REFS: local
           MYK9_E2E_SUPABASE_PROJECT_REF: local
+          MYK9_E2E_LOAD_FIXTURE: 'false'
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
@@ -96,26 +98,40 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
 
-      # The built app, not the dev server: no hot-reload socket and no on-demand compile, so
-      # what is captured is what a visitor's browser runs.
-      - name: Serve the built app
+      # While the network is still open: the fonts the page links, so the captures are set
+      # in the app's own type once the browser can no longer fetch them.
+      - name: Download the app's web fonts
+        working-directory: apps/myk9show
+        run: pnpm exec tsx src/test/e2e/capture/downloadFonts.ts "$RUNNER_TEMP/landing-capture/fonts"
+
+      # Everything the capture runs is started in the group `landing-capture`, and a process
+      # in that group may talk to this machine only. The rule is by group, not for the whole
+      # runner, because the runner itself must keep reporting to GitHub. The control comes
+      # first: the same probe must connect before it is confined, or a refusal would prove
+      # nothing.
+      - name: Close the capture's outbound network
         working-directory: apps/myk9show
         run: |
-          mkdir -p "$RUNNER_TEMP/landing-capture"
-          nohup pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort \
-            > "$RUNNER_TEMP/landing-capture/preview.log" 2>&1 &
-          for _ in $(seq 1 60); do
-            if curl -fsS -o /dev/null http://127.0.0.1:4173/; then exit 0; fi
-            sleep 1
+          sudo groupadd --force landing-capture
+          sudo usermod -aG landing-capture "$(id -un)"
+          for firewall in iptables ip6tables; do
+            sudo "$firewall" -A OUTPUT -m owner --gid-owner landing-capture -o lo -j ACCEPT
+            sudo "$firewall" -A OUTPUT -m owner --gid-owner landing-capture -j REJECT
           done
-          echo 'The preview server did not answer within 60 seconds' >&2
-          cat "$RUNNER_TEMP/landing-capture/preview.log" >&2
-          exit 1
+          pnpm exec tsx src/test/e2e/capture/egressProbe.ts open
+          sg landing-capture -c 'pnpm exec tsx src/test/e2e/capture/egressProbe.ts closed'
 
+      # The spec proves the closed network again before it signs in. No retries: the walk
+      # scores a dog for real, so a second attempt would start from a different database.
       - name: Capture the ring scene
-        run: pnpm --filter @myk9/show capture:landing:ring
+        working-directory: apps/myk9show
+        run: >-
+          sg landing-capture -c
+          'pnpm exec playwright test --config=playwright.ci.config.ts --retries=0 --workers=1'
         env:
-          CAPTURE_BASE_URL: http://127.0.0.1:4173
+          CI: 'true'
+          PLAYWRIGHT_LANDING_CAPTURE: 'true'
+          CAPTURE_FONTS_DIR: ${{ runner.temp }}/landing-capture/fonts
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
 
       # Only what the capture wrote, laid out as it sits in the repository, so the artifact

@@ -19,12 +19,7 @@ import {
   reportReconcileError,
   type FoundTransfer,
 } from './payoutAlerts.ts';
-import {
-  checkFailedAttempt,
-  inStripeMode,
-  lookUpShowTransfer,
-  settleFoundTransfer,
-} from './payoutReconcile.ts';
+import { checkFailedAttempt, lookUpShowTransfer, settleFoundTransfer } from './payoutReconcile.ts';
 import { handleTransferError } from './payoutTransferError.ts';
 import type { EligibleShow, HeldMoneyLock, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
 
@@ -159,11 +154,11 @@ async function payShow(
     .select('id, stripe_account_id, payouts_enabled, onboarding_complete, livemode')
     .eq('club_id', show.club_id)
     .limit(2);
-  const account = ((accounts ?? []) as ClubStripeAccount[]).find(row =>
-    inStripeMode(row, stripeLivemode)
+  const account = ((accounts ?? []) as ClubStripeAccount[]).find(
+    row => row.livemode === stripeLivemode
   );
   const mismatchedAccount = ((accounts ?? []) as ClubStripeAccount[]).find(
-    row => !inStripeMode(row, stripeLivemode)
+    row => row.livemode !== stripeLivemode
   );
 
   const { data: club } = await supabase

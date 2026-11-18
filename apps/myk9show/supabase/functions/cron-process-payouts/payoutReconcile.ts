@@ -14,12 +14,10 @@ import { formatDollars } from '../_shared/clubMoneyEmails.ts';
 import { payoutRetryNote } from './payoutCopy.ts';
 import {
   alertReconciled,
-  reportAttemptModeHold,
   reportLedgerWriteError,
   reportLookupError,
   reportReconcileError,
   transferFacts,
-  type AttemptMode,
   type DestinationCheck,
   type FoundTransfer,
   type ShowRef,
@@ -33,32 +31,6 @@ import type {
 
 export type { FoundTransfer } from './payoutAlerts.ts';
 
-/** The one test for "this account row is in the Stripe mode the run's key is in". */
-export function inStripeMode(account: { livemode: boolean }, stripeLivemode: boolean): boolean {
-  return account.livemode === stripeLivemode;
-}
-
-/**
- * Whether an earlier attempt's account is in the run's Stripe mode. Stripe
- * lists transfers only in the key's own mode, so an attempt made in the other
- * mode (or one whose mode cannot be read) can never be checked with this key:
- * an empty list would wrongly read as "no money moved".
- */
-async function checkAttemptMode(
-  deps: ProcessShowDeps,
-  accountId: string | null
-): Promise<AttemptMode> {
-  if (!accountId) return 'no_account';
-  const { data, error } = await deps.supabase
-    .from('club_stripe_accounts')
-    .select('livemode')
-    .eq('id', accountId)
-    .maybeSingle();
-  if (error) return 'read_error';
-  if (!data) return 'no_account';
-  return inStripeMode(data as { livemode: boolean }, deps.stripeLivemode) ? 'match' : 'mismatch';
-}
-
 /** Enough to see every transfer a show should ever have; more is itself suspect. */
 const TRANSFER_PAGE = 10;
 
@@ -68,7 +40,11 @@ export type TransferLookup =
   | { kind: 'found'; transfer: FoundTransfer; liveCount: number }
   | { kind: 'error'; message: string };
 
-/** What Stripe has for this show's transfer_group. Never throws. */
+/**
+ * What Stripe has for this show's transfer_group. Never throws. The lookup
+ * trusts the job's current Stripe mode: an attempt made under the other mode's
+ * key is invisible here. The mode check is MYK9-2187.
+ */
 export async function lookUpShowTransfer(
   stripe: StripeTransfers,
   showId: string
@@ -219,7 +195,7 @@ export async function checkFailedAttempt(
   const { supabase } = deps;
   const { data: latest, error } = await supabase
     .from('show_payouts')
-    .select('id, status, amount_cents, club_stripe_account_id')
+    .select('id, status, amount_cents')
     .eq('show_id', show.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -250,12 +226,6 @@ export async function checkFailedAttempt(
     // While Stripe cannot say whether the failed attempt moved money, the row
     // goes back to 'processing' so refunds are refused (MYK9-2183).
     const rowId = latest.id as string;
-    const mode = await checkAttemptMode(deps, latest.club_stripe_account_id as string | null);
-    if (mode !== 'match') {
-      const held = await holdAsProcessing(supabase, rowId);
-      await reportAttemptModeHold(deps, summary, show, mode, held ? 'blocked' : 'open');
-      return { kind: 'stop' };
-    }
     const lookup = await lookUpShowTransfer(deps.stripe, show.id);
     if (lookup.kind === 'error') {
       const held = await holdAsProcessing(supabase, rowId);
@@ -283,7 +253,6 @@ interface StaleRow {
   id: string;
   show_id: string;
   amount_cents: number;
-  club_stripe_account_id: string | null;
   shows: { name: string; club_id: string | null } | null;
 }
 
@@ -301,7 +270,7 @@ export async function recoverStaleProcessing(
   const { supabase } = deps;
   const { data: stale, error } = await supabase
     .from('show_payouts')
-    .select('id, show_id, amount_cents, club_stripe_account_id, shows(name, club_id)')
+    .select('id, show_id, amount_cents, shows(name, club_id)')
     .eq('status', 'processing')
     .lt('updated_at', staleBeforeIso);
   if (error) {
@@ -320,12 +289,6 @@ export async function recoverStaleProcessing(
       continue;
     }
     try {
-      // Another mode's transfers are invisible to this key: never read "none" as proof.
-      const mode = await checkAttemptMode(deps, row.club_stripe_account_id);
-      if (mode !== 'match') {
-        await reportAttemptModeHold(deps, summary, show, mode, 'blocked');
-        continue;
-      }
       const lookup = await lookUpShowTransfer(deps.stripe, row.show_id);
       if (lookup.kind === 'error') {
         await reportLookupError(deps, summary, show, lookup.message, 'blocked');

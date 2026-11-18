@@ -113,39 +113,6 @@ export async function reportLookupError(
   );
 }
 
-export type AttemptMode = 'match' | 'mismatch' | 'no_account' | 'read_error';
-
-const ATTEMPT_MODE_WHY: Record<Exclude<AttemptMode, 'match'>, string> = {
-  mismatch:
-    'The earlier attempt was made to a Stripe account in the other mode (test or live) than the key the run uses now, so Stripe cannot show whether that transfer went out.',
-  no_account:
-    'The earlier attempt has no linked Stripe account, so the run cannot tell which Stripe mode it was made in.',
-  read_error:
-    'The run could not read the Stripe account the earlier attempt was made to, so it cannot tell which Stripe mode it was made in.',
-};
-
-/** An earlier attempt the run cannot check with this Stripe key: never failed, never retried. */
-export async function reportAttemptModeHold(
-  deps: AlertDeps,
-  summary: PayoutSummary,
-  show: ShowRef,
-  mode: Exclude<AttemptMode, 'match'>,
-  refunds: 'blocked' | 'open'
-) {
-  summary.attempt_mode_holds++;
-  console.error(`Payout for show ${show.id} held: attempt Stripe mode ${mode}`);
-  await deps.alertAdmin(
-    `Payout held: Stripe mode not confirmed: ${show.name}`,
-    `<p>${ATTEMPT_MODE_WHY[mode]} Nothing was checked, queued or sent for
-     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>).</p>
-     ${refundsLine(refunds)}
-     <p>Check the show's transfers in the Stripe dashboard in the mode the attempt used, then
-     either record the transfer on the payout or, if there is none, mark the payout failed so
-     the run can ask for it again. Until then every run holds it.</p>`,
-    { dedupeKey: `payout-attempt-mode-${show.id}`, severity: 'error' }
-  );
-}
-
 /**
  * Stripe moved money but the payout record could not say so. `refundsBlocked`
  * says whether the row is in a state the refund endpoints refuse.

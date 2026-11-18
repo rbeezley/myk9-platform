@@ -10,10 +10,15 @@ import type { SendLifecycleEmailPayload } from './lifecycle-email-handler.ts';
 // lifecycle-email-route.ts), so the browser path is unchanged.
 //
 // Deploy: supabase functions deploy send-lifecycle-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+const route = createLifecycleEmailRoute({
+  fetch,
+  resendApiKey: Deno.env.get('RESEND_API_KEY'),
+});
+
 handle<SendLifecycleEmailPayload>(
   { auth: 'none', origins: MYK9SHOW_ORIGINS },
-  createLifecycleEmailRoute({
-    fetch,
-    resendApiKey: Deno.env.get('RESEND_API_KEY'),
-  })
+  // MYK9-2124 origin: the real SupabaseClient is wider than the route's narrow structural
+  // client (its Query type is a hand-written subset), so adapt at this one boundary.
+  ctx =>
+    route({ ...ctx, supabase: ctx.supabase as unknown as Parameters<typeof route>[0]['supabase'] })
 );

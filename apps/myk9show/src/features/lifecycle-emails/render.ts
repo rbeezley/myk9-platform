@@ -202,6 +202,18 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
           showLine,
         ]),
       };
+    // MYK9-2125: written and sent by the server from the classes' judges at send time
+    // (send-lifecycle-email, lifecycle-email-judgeChanged.ts); no screen drafts it.
+    case 'judge_changed':
+      return {
+        subject: `Judge change for ${showName}`,
+        body: joinLines([
+          greeting,
+          '',
+          `The judge for a class you are entered in at ${showName} has changed.`,
+          showLine,
+        ]),
+      };
     case 'registration_number_needed': {
       const dogName = input.entry?.dogName?.trim() || 'your dog';
       const registry = input.entry?.registryName?.trim();

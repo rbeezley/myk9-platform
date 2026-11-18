@@ -74,6 +74,33 @@ describe('drainAutoEmailJobs', () => {
     });
   });
 
+  it('sends show_changed to the current address and skips when none is left', async () => {
+    const moved = makeAutoSendSupabase(
+      {
+        shows: [publishedShow],
+        show_lifecycle_email_jobs: [autoJob()],
+        people: [{ id: 'person-1', email: 'jamie.new@example.com', deleted_at: null }],
+      },
+      { liveEntryPeople: ['person-1'] }
+    );
+    const movedFetch = okFetch();
+    await drain(moved, movedFetch);
+    const [, init] = movedFetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect((JSON.parse(String(init.body)) as { to: string }).to).toBe('jamie.new@example.com');
+
+    const gone = makeAutoSendSupabase(
+      {
+        shows: [publishedShow],
+        show_lifecycle_email_jobs: [autoJob()],
+        people: [{ id: 'person-1', email: null, deleted_at: null }],
+      },
+      { liveEntryPeople: ['person-1'] }
+    );
+    const goneFetch = okFetch();
+    await expect(drain(gone, goneFetch)).resolves.toMatchObject({ skipped: 1, sent: 0 });
+    expect(goneFetch).not.toHaveBeenCalled();
+  });
+
   it('marks a job sent without sending again when an earlier attempt was accepted by the provider', async () => {
     const fixture = makeAutoSendSupabase(
       {
@@ -183,7 +210,15 @@ describe('drainAutoEmailJobs', () => {
       })
     );
     const fixture = makeAutoSendSupabase(
-      { shows: [publishedShow], show_lifecycle_email_jobs: jobs },
+      {
+        shows: [publishedShow],
+        show_lifecycle_email_jobs: jobs,
+        people: jobs.map(entry => ({
+          id: entry.recipient_person_id,
+          email: entry.recipient_email,
+          deleted_at: null,
+        })),
+      },
       { liveEntryPeople: jobs.map(entry => String(entry.recipient_person_id)) }
     );
     const fetch = okFetch();
@@ -205,7 +240,15 @@ describe('drainAutoEmailJobs', () => {
       })
     );
     const fixture = makeAutoSendSupabase(
-      { shows: [publishedShow], show_lifecycle_email_jobs: jobs },
+      {
+        shows: [publishedShow],
+        show_lifecycle_email_jobs: jobs,
+        people: jobs.map(entry => ({
+          id: entry.recipient_person_id,
+          email: entry.recipient_email,
+          deleted_at: null,
+        })),
+      },
       { liveEntryPeople: jobs.map(entry => String(entry.recipient_person_id)) }
     );
     // Every send takes a minute of the fake clock.

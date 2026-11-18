@@ -15,6 +15,9 @@
  *                                             refusal ends the job at `failed`, which stays
  *                                             visible in Delivery history
  *   show unpublished, or no live entry left   the job is skipped
+ *   judge_changed (MYK9-2125)                 same drain; the email names each class whose judge
+ *                                             changed, rendered at send time. A class with no
+ *                                             judge named yet is told as "not named yet"
  */
 import {
   deliverViaResend,
@@ -27,6 +30,7 @@ import {
   type QueryResult,
   type SendLifecycleEmailDeps,
 } from './lifecycle-email-shared.ts';
+import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -187,21 +191,53 @@ async function processClaimedJob(args: {
   }
 
   const show = await loadShow(supabase, job.show_id);
-  if (!show || !isPublishedShow(show) || !job.recipient_person_id || !job.recipient_email) {
+  if (!show || !isPublishedShow(show) || !job.recipient_person_id) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
+  // The address on the job is a snapshot from when it was queued: send to the person's
+  // CURRENT one, and skip when they have none now.
+  const currentEmail = await resolveCurrentEmail(supabase, job.recipient_person_id);
+  if (!currentEmail) {
+    console.warn('drain_auto: skipped, the recipient has no email now', job.job_id);
+    await finishJob(args, { status: 'skipped' });
+    return 'skipped';
+  }
+  row.recipient_email = currentEmail;
   // The secretary may switch the step off during the quiet minutes: honour it at send time.
   if (!(await stepIsEnabled(supabase, job.show_id, job.step_type))) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
-  if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
-    await finishJob(args, { status: 'skipped' });
-    return 'skipped';
-  }
 
-  const text = renderShowChangedEmail({ show, recipientName: job.recipient_name });
+  let text: { subject: string; body: string };
+  if (job.step_type === 'judge_changed') {
+    // MYK9-2125: still a recipient means a live entry in a class whose judge really changed.
+    const plan = await planJudgeChangedEmail({
+      supabase,
+      jobId: job.job_id,
+      showId: job.show_id,
+      personId: job.recipient_person_id,
+      now: args.now(),
+    });
+    if (plan.kind === 'skip') {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderJudgeChangedEmail({
+      showId: job.show_id,
+      showName: show.name,
+      recipientName: job.recipient_name,
+      registryId: plan.registryId,
+      changes: plan.changes,
+    });
+  } else {
+    if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderShowChangedEmail({ show, recipientName: job.recipient_name });
+  }
   const delivery = await deliverViaResend(args.deps, row, { ...text, secretaryNote: '' });
 
   if (!delivery.ok) {
@@ -278,6 +314,21 @@ async function stepIsEnabled(
   // A failed read must not read as "switched off": leave the job for the next drain.
   if (error) throw new Error('Failed to load email step');
   return data?.[0]?.is_enabled === true;
+}
+
+async function resolveCurrentEmail(
+  supabase: LifecycleEmailSupabaseClient,
+  personId: string
+): Promise<string | null> {
+  const { data, error } = (await supabase
+    .from('people')
+    .select('email, deleted_at')
+    .eq('id', personId)) as QueryResult<Array<{ email: string | null; deleted_at: string | null }>>;
+  // A failed read must not read as "no email": leave the job for the next drain.
+  if (error) throw new Error('Failed to load the recipient');
+  const person = data?.[0];
+  if (!person || person.deleted_at) return null;
+  return person.email?.trim() || null;
 }
 
 async function personHasLiveEntry(

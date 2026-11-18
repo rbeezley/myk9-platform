@@ -275,9 +275,18 @@ function paragraphs(value: string): string {
     .filter(Boolean)
     .map(
       line =>
-        `<p style="margin:0 0 12px;line-height:1.6;">${escapeHtml(line).replace(/\n/g, '<br>')}</p>`
+        `<p style="margin:0 0 12px;line-height:1.6;">${linkify(escapeHtml(line)).replace(/\n/g, '<br>')}</p>`
     )
     .join('');
+}
+
+/** Our own links (already HTML-escaped) become anchors; the plain text keeps the bare URL. */
+function linkify(escaped: string): string {
+  return escaped.replace(/https:\/\/myk9show\.com\/[^\s<]*/g, match => {
+    // Sentence punctuation (and the &amp; of an escaped ampersand is kept) is not part of the link.
+    const url = match.replace(/(?:[).,;:!?]|&(?:quot|#039);)+$/, '');
+    return `<a href="${url}" style="color:#1d4ed8;">${url}</a>${match.slice(url.length)}`;
+  });
 }
 
 function escapeHtml(value: string): string {

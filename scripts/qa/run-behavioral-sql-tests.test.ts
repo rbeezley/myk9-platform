@@ -237,6 +237,7 @@ const launchCriticalSqlTests = [
   'myk9_1254_lifecycle_jobs_column_acl_test.sql',
   'myk9_2076_results_available_email_test.sql',
   'myk9_2124_show_changed_email_jobs_test.sql',
+  'myk9_2125_judge_changed_email_jobs_test.sql',
   'myk9_2131_show_dates_from_trials_test.sql',
   'myk9_2099_refund_decision_removed_absent_test.sql',
   'myk9_2120_class_time_limit_set_at_test.sql',

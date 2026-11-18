@@ -127,6 +127,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
   if (sourceKind === 'lifecycle' && lifecycleStepType) {
     // MYK9-2124: sent by the server on its own, so it names what happened to the show.
     if (lifecycleStepType === 'show_changed') return 'Date or venue changed';
+    // MYK9-2125: the same, when a class's judge changes.
+    if (lifecycleStepType === 'judge_changed') return 'Judge changed';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {

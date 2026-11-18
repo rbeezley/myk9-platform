@@ -2511,6 +2511,7 @@ export type Database = {
           check_in_pulled_by: string | null
           check_in_status: string | null
           check_in_status_before_pull: string | null
+          class_change_is_late: boolean | null
           class_change_reason: string | null
           class_change_requested_at: string | null
           class_change_target_class_id: string | null
@@ -2627,6 +2628,7 @@ export type Database = {
           check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
+          class_change_is_late?: boolean | null
           class_change_reason?: string | null
           class_change_requested_at?: string | null
           class_change_target_class_id?: string | null
@@ -2743,6 +2745,7 @@ export type Database = {
           check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
+          class_change_is_late?: boolean | null
           class_change_reason?: string | null
           class_change_requested_at?: string | null
           class_change_target_class_id?: string | null

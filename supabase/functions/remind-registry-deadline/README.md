@@ -30,9 +30,10 @@ Authorization: Bearer $PACKET_CRON_SECRET
 ## Deploy
 
 1. `supabase db push` (creates the table and the cron; the cron is scheduled only if the Vault secret `packet_cron_secret` exists).
-2. Deploy the function:
+2. Deploy the updated webhook first, then the sender. The webhook change makes a delivery or bounce event that arrives before the reminder's `email_log` row be retried, so Delivery history does not stay at "Sent":
 
 ```bash
+supabase functions deploy resend-webhook --no-verify-jwt --project-ref sojmvhhwsjxmfistvzbe
 supabase functions deploy remind-registry-deadline --no-verify-jwt --project-ref sojmvhhwsjxmfistvzbe
 ```
 

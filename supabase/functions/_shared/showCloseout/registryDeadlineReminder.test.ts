@@ -195,6 +195,19 @@ describe('dueRegistryReminders', () => {
       expect(due.map(item => item.registryId)).not.toContain('AKC');
     });
 
+    it('ignores a FastCAT correction on a mixed show: the scent file would be the same', () => {
+      const trials = [trial({ id: 't1' }), trial({ id: 't2', trialType: 'FastCAT' })];
+      const dueFor = (trialId: string) =>
+        dueRegistryReminders({
+          trials,
+          submissions: sent('2026-11-18T12:00:00Z'),
+          scoreChanges: [{ trialId, changedAt: '2026-11-19T12:00:00Z' }],
+          now: NOON('2026-11-22'),
+        });
+      expect(dueFor('t2')).toEqual([]);
+      expect(dueFor('t1')[0]).toMatchObject({ registryId: 'AKC', corrected: true });
+    });
+
     it('never reopens a registry whose file the secretary files herself', () => {
       const due = dueRegistryReminders({
         trials: [trial({ id: 't1', registryId: 'ASCA', date: '2026-11-10' })],

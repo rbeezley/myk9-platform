@@ -179,7 +179,11 @@ export function dueRegistryReminders(input: {
   const showRegistries = new Set<string>();
   for (const trial of input.trials) {
     showRegistries.add(registryOf(trial));
-    if (trial.id) registryByTrial.set(trial.id, registryOf(trial));
+    // Only trials the results file carries: a score change in another discipline's trial
+    // (FastCAT on a mixed show) would resend an identical file.
+    if (trial.id && resultsDeadlineCoversTrialType(trial.trialType)) {
+      registryByTrial.set(trial.id, registryOf(trial));
+    }
   }
   for (const registryId of REGISTRY_IDS) {
     const window = registryWindow(input.trials, registryId, input.now);

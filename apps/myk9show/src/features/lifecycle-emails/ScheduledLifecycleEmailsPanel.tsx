@@ -35,6 +35,7 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   registration_number_needed: 'Registration number needed',
   show_changed: 'Date or venue changed',
   judge_changed: 'Judge changed',
+  entry_changed: 'Entry changed',
 };
 
 // The reminder batches remain deferred until a producer exists (MYK9-318; follow-up tracked
@@ -48,6 +49,7 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
   'registration_number_needed',
   'show_changed',
   'judge_changed',
+  'entry_changed',
 ]);
 
 // Sent one at a time from the Registration number needed list, never as a batch: the toggle
@@ -61,7 +63,12 @@ const SEND_ON_DEMAND_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>
 const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'show_changed',
   'judge_changed',
+  'entry_changed',
 ]);
+
+// Always sent (MYK9-2126): the secretary cannot hold an entry change email back, so its row
+// shows what went out and has no switch.
+const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>(['entry_changed']);
 
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
 
@@ -144,7 +151,11 @@ function ScheduledEmailStepRow({
   onToggle: (isEnabled: boolean) => void;
   onReview: () => void;
 }) {
-  const readyLabel = step.readyCount > 0 ? `${step.readyCount} ready` : 'None ready';
+  // An entry-change email waits out a quiet window before it can send, so its count is
+  // "waiting", not "ready" (MYK9-2126).
+  const pendingWord = step.stepType === 'entry_changed' ? 'waiting' : 'ready';
+  const readyLabel =
+    step.readyCount > 0 ? `${step.readyCount} ${pendingWord}` : `None ${pendingWord}`;
   const sentLabel = step.sentCount > 0 ? `${step.sentCount} sent` : null;
   const failedLabel = step.failedCount > 0 ? `${step.failedCount} failed` : null;
   const warningLabel = step.warningCount > 0 ? `${step.warningCount} warning` : null;
@@ -161,12 +172,14 @@ function ScheduledEmailStepRow({
           <p className="truncate text-sm font-medium">{STEP_LABELS[step.stepType]}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{countLabel}</p>
         </div>
-        <Switch
-          aria-label={`${STEP_LABELS[step.stepType]} enabled`}
-          checked={step.isEnabled}
-          disabled={disabled}
-          onCheckedChange={onToggle}
-        />
+        {ALWAYS_ON_STEP_TYPES.has(step.stepType) ? null : (
+          <Switch
+            aria-label={`${STEP_LABELS[step.stepType]} enabled`}
+            checked={step.isEnabled}
+            disabled={disabled}
+            onCheckedChange={onToggle}
+          />
+        )}
       </div>
       {hasReviewableJobs ? (
         <Button

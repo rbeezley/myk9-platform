@@ -79,7 +79,8 @@ export function buildLifecycleEmailScheduledSummary(input: {
   for (const job of input.jobs ?? []) {
     const summary = stepMap.get(job.stepType);
     if (!summary) continue;
-    if (job.status === 'ready') summary.readyCount += 1;
+    // A held entry-change job is waiting out its quiet window, so it counts as waiting too.
+    if (job.status === 'ready' || job.status === 'held') summary.readyCount += 1;
     if (job.status === 'sent') summary.sentCount += 1;
     if (job.status === 'failed') summary.failedCount += 1;
     if (job.status === 'skipped') summary.skippedCount += 1;

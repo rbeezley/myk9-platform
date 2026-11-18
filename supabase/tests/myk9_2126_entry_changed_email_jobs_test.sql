@@ -1,0 +1,427 @@
+-- MYK9-2126: a secretary's edit, move or confirmed Pull of an entry on a published show
+-- queues one automatic job per exhibitor. Owner decision 2026-11-18: only the change itself.
+--
+--   A. a staff edit queues one HELD, automatic job for the dog's owner, recording the old value
+--   B. a second edit in the same sitting is the SAME job (one per person), its due time pushed
+--      out and its events appended; the entry's new handler gets a job of his own
+--   C. an exhibitor's own edit queues nothing; a change with no acting user queues nothing
+--   D. an unpublished show queues nothing
+--   E. a ringside check-in flag alone queues nothing
+--   F. a move (a successor entry, which is how an accepted class change request lands) queues
+--      exactly one "moved" event, and the original's status flip to 'moved' adds none
+--   G. a withdrawal, a removal and a soft delete queue nothing (not told in this email)
+--   H. the desk's Pull (status 'scratched', with or without the flag) queues one "pulled" event
+--   I. the producer functions are not callable by an API role
+--   J. a successor whose source is another show's (or another dog's) entry records no move
+--   K. the handler NAME Edit Entry saves is tracked; an identity-link change alone is not
+--   L. a co-owner's own pull queues nothing
+--   M. a job the drain has claimed is frozen: the next edit is a new job
+--   N. a job that already went out: a later change is a new job (a move back is a move)
+--   O. held jobs are invisible to the claim; once released (ready) the claim takes them
+--
+-- Fixtures roll back. Every now() below is the transaction start, so due times compare exactly.
+
+begin;
+
+insert into public.clubs (id, name) values ('00000000-0000-0000-0000-000002126001', 'MYK9-2126 Club');
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status) values
+  ('00000000-0000-0000-0000-000002126002', 'MYK9-2126 Show', 'AKC', current_date, current_date,
+   '00000000-0000-0000-0000-000002126001', 'published'),
+  ('00000000-0000-0000-0000-000002126012', 'MYK9-2126 Draft Show', 'AKC', current_date, current_date,
+   '00000000-0000-0000-0000-000002126001', 'draft');
+insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
+  ('00000000-0000-0000-0000-000002126003', '00000000-0000-0000-0000-000002126002', 'MYK9-2126 Trial', current_date, 'AKC', 'Scent Work'),
+  ('00000000-0000-0000-0000-000002126013', '00000000-0000-0000-0000-000002126012', 'MYK9-2126 Draft Trial', current_date, 'AKC', 'Scent Work');
+insert into public.classes (id, trial_id, name, status, element, level, section) values
+  ('00000000-0000-0000-0000-000002126004', '00000000-0000-0000-0000-000002126003', 'Container Novice A', 'upcoming', 'Container', 'Novice', 'A'),
+  ('00000000-0000-0000-0000-000002126005', '00000000-0000-0000-0000-000002126003', 'Interior Novice A', 'upcoming', 'Interior', 'Novice', 'A'),
+  ('00000000-0000-0000-0000-000002126014', '00000000-0000-0000-0000-000002126013', 'Container Novice A', 'upcoming', 'Container', 'Novice', 'A');
+
+insert into public.people (id, first_name, last_name, email) values
+  ('00000000-0000-0000-0000-000002126021', 'Ada', 'Owner', 'ada@example.test'),
+  ('00000000-0000-0000-0000-000002126025', 'Hal', 'Handler', 'hal@example.test'),
+  ('00000000-0000-0000-0000-000002126026', 'Sue', 'Secretary', 'sue@example.test'),
+  ('00000000-0000-0000-0000-000002126027', 'Cora', 'Coowner', 'cora@example.test');
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+) values
+  ('00000000-0000-0000-0000-000002126101', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'ada@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000002126102', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'sue@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000002126103', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'cora@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false);
+update public.people set auth_user_id = '00000000-0000-0000-0000-000002126101'
+ where id = '00000000-0000-0000-0000-000002126021';
+update public.people set auth_user_id = '00000000-0000-0000-0000-000002126102'
+ where id = '00000000-0000-0000-0000-000002126026';
+update public.people set auth_user_id = '00000000-0000-0000-0000-000002126103'
+ where id = '00000000-0000-0000-0000-000002126027';
+
+insert into public.dogs (id, name, call_name, breed, owner_id) values
+  ('00000000-0000-0000-0000-000002126031', 'Ada Dog One', 'One', 'Beagle', '00000000-0000-0000-0000-000002126021'),
+  ('00000000-0000-0000-0000-000002126032', 'Ada Dog Two', 'Two', 'Beagle', '00000000-0000-0000-0000-000002126021');
+insert into public.dogs (id, name, call_name, breed, owner_id) values
+  ('00000000-0000-0000-0000-000002126034', 'Ada Dog Four', 'Four', 'Beagle', '00000000-0000-0000-0000-000002126021');
+insert into public.dogs (id, name, call_name, breed, owner_id, co_owner_id) values
+  ('00000000-0000-0000-0000-000002126033', 'Ada Dog Three', 'Three', 'Beagle',
+   '00000000-0000-0000-0000-000002126021', '00000000-0000-0000-0000-000002126027');
+
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000002126041', '00000000-0000-0000-0000-000002126031', '00000000-0000-0000-0000-000002126004', '00000000-0000-0000-0000-000002126002', '00000000-0000-0000-0000-000002126003', null, 'confirmed', '1', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000002126042', '00000000-0000-0000-0000-000002126032', '00000000-0000-0000-0000-000002126004', '00000000-0000-0000-0000-000002126002', '00000000-0000-0000-0000-000002126003', '00000000-0000-0000-0000-000002126025', 'confirmed', '2', 2, 'no-status'),
+  ('00000000-0000-0000-0000-000002126043', '00000000-0000-0000-0000-000002126031', '00000000-0000-0000-0000-000002126014', '00000000-0000-0000-0000-000002126012', '00000000-0000-0000-0000-000002126013', null, 'confirmed', '1', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000002126051', '00000000-0000-0000-0000-000002126034', '00000000-0000-0000-0000-000002126004', '00000000-0000-0000-0000-000002126002', '00000000-0000-0000-0000-000002126003', null, 'confirmed', '9', 9, 'no-status');
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000002126045', '00000000-0000-0000-0000-000002126033', '00000000-0000-0000-0000-000002126004', '00000000-0000-0000-0000-000002126002', '00000000-0000-0000-0000-000002126003', null, 'Hal Handlr', 'confirmed', '4', 3, 'no-status');
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+-- Act as a signed-in user ('' = nobody: the service role, a cron job).
+create or replace function pg_temp.act(p_auth text) returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claim.sub', p_auth, true);
+  perform set_config('request.jwt.claims',
+    case when p_auth = '' then '' else json_build_object('sub', p_auth, 'role', 'authenticated')::text end, true);
+end $$;
+
+create or replace function pg_temp.jobs(p_show uuid, p_status text default null) returns integer
+language sql as $$
+  select count(*)::integer from public.show_lifecycle_email_jobs
+   where show_id = p_show and step_type = 'entry_changed' and (p_status is null or status = p_status or (p_status = 'waiting' and status in ('held', 'ready')))
+$$;
+
+-- How many recorded events of a kind a person's ready job holds (any entry when p_entry is null).
+create or replace function pg_temp.events(p_person uuid, p_kind text, p_entry uuid default null) returns integer
+language sql as $$
+  select count(*)::integer
+    from public.show_lifecycle_email_jobs j,
+         jsonb_array_elements(j.entry_changes) ev
+   where j.step_type = 'entry_changed' and j.status in ('held', 'ready') and j.recipient_person_id = p_person
+     and ev->>'kind' = p_kind and (p_entry is null or ev->>'entry_id' = p_entry::text)
+$$;
+
+-- A
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002126002';
+  v_job record;
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  update public.entries set jump_height = '12' where id = '00000000-0000-0000-0000-000002126041';
+  if pg_temp.jobs(v_show) <> 1 then
+    raise exception 'FAIL A expected 1 job, found %', pg_temp.jobs(v_show);
+  end if;
+  select * into v_job from public.show_lifecycle_email_jobs where show_id = v_show and step_type = 'entry_changed';
+  if v_job.recipient_person_id <> '00000000-0000-0000-0000-000002126021' or v_job.status <> 'held'
+     or not v_job.auto_send or v_job.recipient_scope <> 'show_recipient'
+     or v_job.due_at <> now() + interval '5 minutes' or v_job.recipient_email <> 'ada@example.test' then
+    raise exception 'FAIL A the job is wrong: %', row_to_json(v_job);
+  end if;
+  if v_job.entry_changes <> jsonb_build_array(jsonb_build_object(
+       'kind', 'edited', 'entry_id', '00000000-0000-0000-0000-000002126041', 'field', 'jump_height', 'from', null)) then
+    raise exception 'FAIL A the events are wrong: %', v_job.entry_changes;
+  end if;
+  raise notice 'PASS A a staff edit queues one held automatic job for the owner';
+end $$;
+
+-- B
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002126002';
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  update public.show_lifecycle_email_jobs set due_at = now() - interval '1 minute'
+   where show_id = v_show and step_type = 'entry_changed';
+  -- A new handler: the name and the identity link together.
+  update public.entries set handler_id = '00000000-0000-0000-0000-000002126025', handler = 'Hal Handler'
+   where id = '00000000-0000-0000-0000-000002126041';
+  if pg_temp.jobs(v_show, 'waiting') <> 2 then
+    raise exception 'FAIL B expected Ada once and Hal once, found %', pg_temp.jobs(v_show, 'waiting');
+  end if;
+  if (select jsonb_array_length(entry_changes) from public.show_lifecycle_email_jobs
+       where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002126021') <> 2 then
+    raise exception 'FAIL B Ada''s one job should hold both edits';
+  end if;
+  if (select due_at from public.show_lifecycle_email_jobs
+       where show_id = v_show and recipient_person_id = '00000000-0000-0000-0000-000002126021') <> now() + interval '5 minutes' then
+    raise exception 'FAIL B the second edit should push the due time out';
+  end if;
+  raise notice 'PASS B several edits are one job per person and wait again';
+end $$;
+
+-- C
+do $$
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126101');
+  update public.entries set jump_height = '16' where id = '00000000-0000-0000-0000-000002126042';
+  perform pg_temp.act('');
+  update public.entries set jump_height = '20' where id = '00000000-0000-0000-0000-000002126042';
+  if pg_temp.events('00000000-0000-0000-0000-000002126021', 'edited', '00000000-0000-0000-0000-000002126042') <> 0
+     or pg_temp.events('00000000-0000-0000-0000-000002126025', 'edited', '00000000-0000-0000-0000-000002126042') <> 0 then
+    raise exception 'FAIL C an exhibitor''s own edit, or one with no acting user, queued an event';
+  end if;
+  raise notice 'PASS C an exhibitor''s own change and a change with no actor send nothing';
+end $$;
+
+-- D
+do $$
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  update public.entries set jump_height = '8' where id = '00000000-0000-0000-0000-000002126043';
+  if pg_temp.jobs('00000000-0000-0000-0000-000002126012') <> 0 then
+    raise exception 'FAIL D an unpublished show queued a job';
+  end if;
+  raise notice 'PASS D an unpublished show queues nothing';
+end $$;
+
+-- E
+do $$
+declare
+  v_before integer;
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  select count(*) into v_before from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+   where j.step_type = 'entry_changed';
+  update public.entries set check_in_status = 'pulled' where id = '00000000-0000-0000-0000-000002126042';
+  if (select count(*) from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+       where j.step_type = 'entry_changed') <> v_before then
+    raise exception 'FAIL E a check-in flag alone queued an event';
+  end if;
+  update public.entries set check_in_status = 'no-status' where id = '00000000-0000-0000-0000-000002126042';
+  raise notice 'PASS E a ringside flag alone sends nothing';
+end $$;
+
+-- F
+-- The registration-number guard is not under test here (the fixture dogs have none).
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+do $$
+declare
+  v_ada uuid := '00000000-0000-0000-0000-000002126021';
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  -- move_up_entry: a successor entry in the new class, then the original becomes 'moved'.
+  insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband, run_order, check_in_status, moved_from_entry_id)
+  values ('00000000-0000-0000-0000-000002126044', '00000000-0000-0000-0000-000002126031',
+          '00000000-0000-0000-0000-000002126005', '00000000-0000-0000-0000-000002126002',
+          '00000000-0000-0000-0000-000002126003', '00000000-0000-0000-0000-000002126025',
+          'confirmed', '3', 1, 'no-status', '00000000-0000-0000-0000-000002126041');
+  update public.entries set entry_status = 'moved' where id = '00000000-0000-0000-0000-000002126041';
+  if pg_temp.events(v_ada, 'moved') <> 1 then
+    raise exception 'FAIL F a move should queue exactly one moved event, found %', pg_temp.events(v_ada, 'moved');
+  end if;
+  if pg_temp.events(v_ada, 'pulled') <> 0 then
+    raise exception 'FAIL F the original becoming moved must not read as a pull';
+  end if;
+  if not exists (
+       select 1 from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+        where j.recipient_person_id = v_ada and j.status in ('held', 'ready') and ev->>'kind' = 'moved'
+          and ev->>'from_class_id' = '00000000-0000-0000-0000-000002126004'
+          and ev->>'to_class_id' = '00000000-0000-0000-0000-000002126005'
+          and ev->>'from_entry_id' = '00000000-0000-0000-0000-000002126041') then
+    raise exception 'FAIL F the moved event names the wrong classes';
+  end if;
+  raise notice 'PASS F a move queues one moved event';
+end $$;
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+-- G
+do $$
+declare
+  v_before integer;
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  select count(*) into v_before from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+   where j.step_type = 'entry_changed';
+  update public.entries set entry_status = 'withdrawn' where id = '00000000-0000-0000-0000-000002126042';
+  update public.entries set entry_status = 'confirmed' where id = '00000000-0000-0000-0000-000002126042';
+  update public.entries set deleted_at = now() where id = '00000000-0000-0000-0000-000002126042';
+  update public.entries set deleted_at = null where id = '00000000-0000-0000-0000-000002126042';
+  if (select count(*) from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+       where j.step_type = 'entry_changed') <> v_before then
+    raise exception 'FAIL G a withdrawal or a soft delete queued an event';
+  end if;
+  raise notice 'PASS G a withdrawal, a removal and a soft delete send nothing';
+end $$;
+
+-- H
+do $$
+declare
+  v_ada uuid := '00000000-0000-0000-0000-000002126021';
+  v_entry uuid := '00000000-0000-0000-0000-000002126051';
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  -- The desk's Pull writes the status and the flag together: one event.
+  update public.entries set entry_status = 'scratched', check_in_status = 'pulled' where id = v_entry;
+  if pg_temp.events(v_ada, 'pulled', v_entry) <> 1 then
+    raise exception 'FAIL H a confirmed Pull should queue exactly one pulled event, found %', pg_temp.events(v_ada, 'pulled', v_entry);
+  end if;
+  -- A ringside flag the desk then confirms is the same single event on the status change.
+  update public.entries set entry_status = 'scratched' where id = v_entry;
+  if pg_temp.events(v_ada, 'pulled', v_entry) <> 1 then
+    raise exception 'FAIL H a status write that changes nothing queued a second event';
+  end if;
+  raise notice 'PASS H a confirmed Pull queues one pulled event';
+end $$;
+
+-- I
+do $$
+begin
+  if has_function_privilege('authenticated', 'public.queue_entry_changed_email(uuid, jsonb, uuid)', 'execute')
+     or has_function_privilege('service_role', 'public.queue_entry_changed_email(uuid, jsonb, uuid)', 'execute')
+     or has_function_privilege('anon', 'public.queue_entry_changed_email(uuid, jsonb, uuid)', 'execute')
+     or has_function_privilege('authenticated', 'public.entry_change_actor(uuid, uuid, uuid)', 'execute')
+     or has_function_privilege('anon', 'public.entry_change_actor(uuid, uuid, uuid)', 'execute')
+     or has_function_privilege('authenticated', 'public.queue_entry_changed_email_from_insert()', 'execute')
+     or has_function_privilege('authenticated', 'public.queue_entry_changed_email_from_update()', 'execute') then
+    raise exception 'FAIL I an API role can run a producer function';
+  end if;
+  raise notice 'PASS I the producer functions are not callable by an API role';
+end $$;
+
+-- J
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+do $$
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  -- moved_from_entry_id names the DRAFT show's entry of another dog.
+  insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband, run_order, check_in_status, moved_from_entry_id)
+  values ('00000000-0000-0000-0000-000002126047', '00000000-0000-0000-0000-000002126033',
+          '00000000-0000-0000-0000-000002126005', '00000000-0000-0000-0000-000002126002',
+          '00000000-0000-0000-0000-000002126003', null,
+          'withdrawn', '7', 7, 'no-status', '00000000-0000-0000-0000-000002126043');
+  if pg_temp.events('00000000-0000-0000-0000-000002126021', 'moved', '00000000-0000-0000-0000-000002126047') <> 0 then
+    raise exception 'FAIL J a successor of another show''s entry recorded a move';
+  end if;
+  raise notice 'PASS J a move is recorded only within the entry''s show and dog';
+end $$;
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+-- K
+do $$
+declare
+  v_ada uuid := '00000000-0000-0000-0000-000002126021';
+  v_entry uuid := '00000000-0000-0000-0000-000002126045';
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  -- Edit Entry corrects the name and keeps the identity link (MYK9-665).
+  update public.entries set handler = 'Hal Handler' where id = v_entry;
+  if not exists (
+       select 1 from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+        where j.recipient_person_id = v_ada and j.status in ('held', 'ready') and ev->>'kind' = 'edited'
+          and ev->>'entry_id' = v_entry::text and ev->>'field' = 'handler'
+          and ev->>'from' = 'Hal Handlr') then
+    raise exception 'FAIL K a handler name correction was not recorded with the old name';
+  end if;
+  update public.entries set handler_id = '00000000-0000-0000-0000-000002126025' where id = v_entry;
+  update public.entries set handler_id = null where id = v_entry;
+  if (select count(*) from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+       where j.status in ('held', 'ready') and ev->>'entry_id' = v_entry::text and ev->>'field' = 'handler') <> 1 then
+    raise exception 'FAIL K an identity-link change alone recorded a handler edit';
+  end if;
+  raise notice 'PASS K the handler name is tracked, the identity link alone is not';
+end $$;
+
+-- L
+do $$
+declare
+  v_entry uuid := '00000000-0000-0000-0000-000002126045';
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002126103');
+  update public.entries set entry_status = 'scratched' where id = v_entry;
+  if exists (
+       select 1 from public.show_lifecycle_email_jobs j, jsonb_array_elements(j.entry_changes) ev
+        where j.status in ('held', 'ready') and ev->>'entry_id' = v_entry::text and ev->>'kind' = 'pulled') then
+    raise exception 'FAIL L a co-owner''s own pull was queued';
+  end if;
+  update public.entries set entry_status = 'confirmed' where id = v_entry;
+  raise notice 'PASS L a co-owner''s own pull sends nothing';
+end $$;
+
+-- M
+create or replace function pg_temp.mark_sent() returns void language sql as $$
+  update public.show_lifecycle_email_jobs
+     set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where step_type = 'entry_changed' and status in ('held', 'ready')
+$$;
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002126002';
+  v_ada uuid := '00000000-0000-0000-0000-000002126021';
+  v_first uuid;
+begin
+  perform pg_temp.mark_sent();
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  update public.entries set jump_height = '10' where id = '00000000-0000-0000-0000-000002126051';
+  select id into v_first from public.show_lifecycle_email_jobs
+   where show_id = v_show and step_type = 'entry_changed' and status = 'held' and recipient_person_id = v_ada;
+  -- The new sender released it and the drain claimed it (lease, attempt).
+  update public.show_lifecycle_email_jobs
+     set status = 'ready', attempt_id = gen_random_uuid(), claimed_until = now() + interval '10 minutes'
+   where id = v_first;
+  update public.entries set jump_height = '12' where id = '00000000-0000-0000-0000-000002126051';
+  if pg_temp.jobs(v_show, 'waiting') <> 2 then
+    raise exception 'FAIL M the edit after the claim should be a second job, found %', pg_temp.jobs(v_show, 'waiting');
+  end if;
+  if (select jsonb_array_length(entry_changes) from public.show_lifecycle_email_jobs where id = v_first) <> 1 then
+    raise exception 'FAIL M the claimed job was changed';
+  end if;
+  if not exists (
+       select 1 from public.show_lifecycle_email_jobs j
+        where j.show_id = v_show and j.step_type = 'entry_changed' and j.status = 'held'
+          and j.id <> v_first and j.claimed_until is null and j.recipient_person_id = v_ada
+          and j.due_at = now() + interval '5 minutes'
+          and j.entry_changes = jsonb_build_array(jsonb_build_object(
+                'kind', 'edited', 'entry_id', '00000000-0000-0000-0000-000002126051',
+                'field', 'jump_height', 'from', '10'))
+          and j.idempotency_key <> (select idempotency_key from public.show_lifecycle_email_jobs where id = v_first)) then
+    raise exception 'FAIL M the new edit should wait in a job of its own with its own key and due time';
+  end if;
+  raise notice 'PASS M a claimed job is frozen and a new edit is a new job';
+end $$;
+
+-- N
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002126002';
+  v_ada uuid := '00000000-0000-0000-0000-000002126021';
+begin
+  perform pg_temp.mark_sent();
+  perform pg_temp.act('00000000-0000-0000-0000-000002126102');
+  update public.entries set jump_height = '14' where id = '00000000-0000-0000-0000-000002126051';
+  if pg_temp.jobs(v_show, 'waiting') <> 1 or pg_temp.jobs(v_show, 'sent') < 1
+     or pg_temp.events(v_ada, 'edited', '00000000-0000-0000-0000-000002126051') <> 1 then
+    raise exception 'FAIL N a change after a send should be a new waiting job beside the sent ones';
+  end if;
+  raise notice 'PASS N a change after a send is a new job';
+end $$;
+
+-- O
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002126002';
+  v_claimed integer;
+begin
+  update public.show_lifecycle_email_jobs set due_at = now() - interval '1 minute'
+   where show_id = v_show and step_type = 'entry_changed' and status = 'held';
+  select count(*) into v_claimed from public.claim_due_auto_email_jobs(25, now() + interval '10 minutes')
+   where step_type = 'entry_changed';
+  if v_claimed <> 0 then
+    raise exception 'FAIL O the claim handed out % held entry_changed job(s)', v_claimed;
+  end if;
+  update public.show_lifecycle_email_jobs set status = 'ready'
+   where show_id = v_show and step_type = 'entry_changed' and status = 'held';
+  select count(*) into v_claimed from public.claim_due_auto_email_jobs(25, now() + interval '10 minutes')
+   where step_type = 'entry_changed';
+  if v_claimed <> 1 then
+    raise exception 'FAIL O a released job should be claimed, found %', v_claimed;
+  end if;
+  raise notice 'PASS O the claim never sees a held job and takes it once released';
+end $$;
+
+rollback;

@@ -7878,6 +7878,7 @@ export type Database = {
           due_at: string
           email_log_id: string | null
           enrollment_id: string | null
+          entry_changes: Json
           entry_id: string | null
           id: string
           idempotency_key: string
@@ -7915,6 +7916,7 @@ export type Database = {
           due_at?: string
           email_log_id?: string | null
           enrollment_id?: string | null
+          entry_changes?: Json
           entry_id?: string | null
           id?: string
           idempotency_key: string
@@ -7952,6 +7954,7 @@ export type Database = {
           due_at?: string
           email_log_id?: string | null
           enrollment_id?: string | null
+          entry_changes?: Json
           entry_id?: string | null
           id?: string
           idempotency_key?: string
@@ -14047,6 +14050,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      entry_change_actor: {
+        Args: {
+          p_dog_id: string
+          p_prior_handler_id: string
+          p_show_id: string
+        }
+        Returns: string
+      }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       entry_queue_places_for_classes: {
         Args: { p_class_ids: string[] }
@@ -15237,6 +15248,14 @@ export type Database = {
           p_storage_path: string
         }
         Returns: Json
+      }
+      queue_entry_changed_email: {
+        Args: {
+          p_entry_id: string
+          p_events: Json
+          p_prior_handler_id: string
+        }
+        Returns: undefined
       }
       queue_judge_changed_email_for_class: {
         Args: { p_class_id: string; p_from_person_id: string }

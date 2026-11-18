@@ -4,9 +4,9 @@ import { summarizeEntrySubmissionOutcomes } from '@/components/shows/Registratio
 /**
  * MYK9-2159: the notice for a finished submission that created no entries, or
  * null when at least one entry was created (or no outcomes were surfaced, which
- * means a normal all-created submission). Wording mirrors the receipt hero in
- * ConfirmationStep: "No entries were added" when everything was denied, and the
- * receipt's own waitlist title when every selection was waitlisted.
+ * means a normal all-created submission). All denied and all waitlisted use the
+ * receipt hero's own words (ConfirmationStep); a denied-and-waitlisted mix says
+ * nothing was added and names the waitlist.
  */
 export function noEntriesAddedMessage(
   outcomes: EntrySubmissionOutcome[] | undefined

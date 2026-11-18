@@ -283,16 +283,22 @@ export function seedsLoadFixture(env: NodeJS.ProcessEnv): boolean {
 /** Whether the post-seed counts ("show|classes|assignments|roles|entries") are the fixture's. */
 export function postSeedCountsOk(output: string, withLoadFixture: boolean): boolean {
   const [showCount, classCount, assignmentCount, roleGrantCount, entryCount] = output.split('|');
+  if (
+    showCount !== '1' ||
+    Number(classCount) <= 0 ||
+    Number(assignmentCount) <= 0 ||
+    Number(roleGrantCount) <= 0
+  ) {
+    return false;
+  }
+  // The canonical count is required of every caller that seeds the load fixture, which is
+  // every caller but the landing capture (isolated-e2e-migration-chain.test.ts pins this).
+  if (withLoadFixture) {
+    if (entryCount !== String(LOAD_SHOW_ENTRY_COUNT)) return false;
+    return true;
+  }
   const entries = Number(entryCount);
-  return (
-    showCount === '1' &&
-    Number(classCount) > 0 &&
-    Number(assignmentCount) > 0 &&
-    Number(roleGrantCount) > 0 &&
-    (withLoadFixture
-      ? entryCount === String(LOAD_SHOW_ENTRY_COUNT)
-      : entries > 0 && entries < LOAD_SHOW_ENTRY_COUNT)
-  );
+  return entries > 0 && entries < LOAD_SHOW_ENTRY_COUNT;
 }
 
 function runPostSeedAssertions(local: LocalSupabaseEnvironment, env: NodeJS.ProcessEnv) {

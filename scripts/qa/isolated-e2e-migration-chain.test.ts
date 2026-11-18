@@ -125,6 +125,8 @@ describe('isolated E2E migration chain', () => {
       `(SELECT count(*) FROM public.entries WHERE show_id = '\${DEMO_SHOW_ID}')`
     );
     expect(lifecycleSource).toContain('entryCount !== String(LOAD_SHOW_ENTRY_COUNT)');
+    // MYK9-2181: the load fixture is left out only when a caller says so in as many words.
+    expect(lifecycleSource).toContain("return env.MYK9_E2E_LOAD_FIXTURE !== 'false';");
     expect(lifecycleSource).toContain(
       "import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture'"
     );

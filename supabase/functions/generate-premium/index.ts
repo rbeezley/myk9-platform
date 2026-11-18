@@ -22,12 +22,7 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
-import {
-  buildPremiumRecordingFee,
-  isLivePremiumTrial,
-  premiumRecordingFeeDates,
-  type PremiumRecordingFeeTrial,
-} from './recordingFeeRate.ts';
+import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -162,22 +157,6 @@ handle<GeneratePremiumPayload>(
     const secretaryPhone = secretaryOfficial?.phone ?? null;
     const chairman = pickPremiumOfficial(officials, 'chairman');
 
-    // Step 7c: The trials the premium prints and prices (MYK9-2044): cancelled and soft-deleted
-    // trials are dropped once, here, and this one list feeds both the printed schedule (Step 10)
-    // and the recording fee, so the PDF never advertises a trial its fee line does not price.
-    const liveTrials = ((show.trials ?? []) as PremiumRecordingFeeTrial[]).filter(
-      isLivePremiumTrial
-    );
-
-    // The AKC recording fee, the rate in force on each live trial's date (the dates the Trial
-    // Secretary Report prices), or the show's start date before any trial is dated, from the dated
-    // table in ./recordingFeeRate.ts. Only an AKC show states one, and a date with no rate in
-    // force prints no line: a rate is never guessed.
-    const recordingFee = buildPremiumRecordingFee(
-      showOrg,
-      premiumRecordingFeeDates(liveTrials, show.start_date as string | null)
-    );
-
     // Step 8: Template resolution — find best matching template for this show's trial type
     const { data: templates } = await userClient
       .from('club_premium_templates')
@@ -232,9 +211,10 @@ handle<GeneratePremiumPayload>(
       narratives = publishedNarratives(show.experience_published_content);
     }
 
-    // Step 10: Assemble and return GeneratedPremium
+    // Step 10: Assemble and return GeneratedPremium. The schedule prints live trials only
+    // (MYK9-2044): a cancelled or soft-deleted trial is not advertised.
     const trials = (
-      liveTrials as unknown as Array<{
+      livePremiumTrials(show.trials as PremiumScheduleTrialRow[] | null) as unknown as Array<{
         id: string;
         name: string;
         date: string;
@@ -330,8 +310,6 @@ handle<GeneratePremiumPayload>(
       officials: {
         chairman,
       },
-      // MYK9-2044: null for a non-AKC show or when a trial date has no rate in force.
-      recordingFee,
       trials,
       supplemental: {
         vetClinic,

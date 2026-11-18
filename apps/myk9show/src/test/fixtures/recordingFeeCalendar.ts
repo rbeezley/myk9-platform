@@ -1,10 +1,8 @@
 /**
- * MYK9-2044: the New Year show both the app and the generate-premium edge tests price.
- * No imports, so the edge tests (tsconfig.edge-tests.json) can read it without pulling in app
- * modules.
+ * MYK9-2044: the New Year show the report and the premium both price.
  *
  * A show that starts on the last day of the $4.50 year with a trial on the first day of the $5.50
- * year. The premium test (supabase/functions/generate-premium/recordingFeeRate.test.ts) and the
+ * year. The premium test (src/features/premium/__tests__/premiumRecordingFee.test.tsx) and the
  * Trial Secretary Report test (akcTrialSecretaryReportPolicy.test.ts) both price these dates, so
  * the premium's statement and the report's bill are checked against the same calendar.
  */

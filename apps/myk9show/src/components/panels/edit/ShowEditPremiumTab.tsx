@@ -10,7 +10,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TabsContent } from '@/components/ui/tabs';
 import { usePublishedExperienceContent } from '@/features/experience/usePublishedExperienceContent';
 import { PremiumContentEditor } from '@/features/premium/PremiumContentEditor';
-import { withCurrentRecordingFee } from '@/features/premium/premiumRecordingFeeSync';
 import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
@@ -175,10 +174,11 @@ function buildLocalPremiumDraft(
 ): GeneratedPremium | undefined {
   if (!showOrg || !publishedContent) return undefined;
 
-  // MYK9-2044: the live trials, filtered once; the schedule and the recording fee both read them.
+  // MYK9-2044: a cancelled trial is not printed, so the recording fee derived from this schedule
+  // does not price it either.
   const liveTrials = (data.trials ?? []).filter(trial => isLivePremiumTrial(trial));
 
-  return withCurrentRecordingFee({
+  return {
     org: showOrg,
     style: (data.style || 'monogram') as PremiumStyle,
     templateId: null,
@@ -226,5 +226,5 @@ function buildLocalPremiumDraft(
     })),
     supplemental: publishedContent.supplemental,
     narratives: publishedContent.narratives,
-  });
+  };
 }

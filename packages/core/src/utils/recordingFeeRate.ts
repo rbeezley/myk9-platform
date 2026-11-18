@@ -9,9 +9,8 @@
  * Dates are calendar dates (`YYYY-MM-DD`) compared as written, with no `Date` arithmetic and so
  * no timezone shift: a show dated 2027-01-01 is 2027-01-01 everywhere.
  *
- * MIRRORED BY supabase/functions/generate-premium/recordingFeeRate.ts, which cannot import
- * this package. supabase/functions/generate-premium/recordingFeeRate.test.ts imports both copies,
- * compares the tables and replays both lookups over the same date grid, so it fails if they drift.
+ * This is the only copy: the Trial Secretary Report and the premium's recording fee line (derived
+ * in the app from the premium document) both read it.
  */
 
 export interface RecordingFeeRate {

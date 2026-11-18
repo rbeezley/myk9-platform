@@ -1,12 +1,9 @@
 /**
  * MYK9-2044: the registry recording fee statement a premium prints (AKC Ch. 3 s.15: "AKC
- * recording fee shall be stated"), canonical copy. generate-premium builds it from the show's
- * live trial dates, and the client builds it again when a published premium is edited and
- * republished without a Regenerate, so the two always state the same line.
- *
- * MIRRORED BY supabase/functions/generate-premium/recordingFeeRate.ts, which cannot import this
- * package. supabase/functions/generate-premium/recordingFeeRate.test.ts builds the statement with
- * both copies over the same date lists, so it fails if they drift.
+ * recording fee shall be stated"). It is derived, never stored: the app builds it from the
+ * premium document being rendered or published (its organization and the trial dates its
+ * schedule prints), so the statement cannot disagree with the schedule beside it. The same date
+ * rule feeds the pre-publication checklist.
  */
 import {
   formatRecordingFeeAmount,
@@ -37,12 +34,7 @@ export interface PremiumRecordingFeeTrial {
   deleted_at?: string | null;
 }
 
-/**
- * A trial the premium prints and prices: not cancelled and not soft-deleted. generate-premium and
- * the client's edit-and-republish path each filter their trials with this once and use the result
- * for both the printed schedule and the recording fee dates, so a cancelled trial is neither
- * advertised nor priced.
- */
+/** A trial a premium prints and prices: not cancelled and not soft-deleted. */
 export function isLivePremiumTrial(trial: {
   status?: string | null;
   deleted_at?: string | null;

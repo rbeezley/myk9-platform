@@ -3,8 +3,8 @@ import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
 import type { ReportEntry } from '@/lib/reports/types';
 
 // MYK9-2044: the per-entry rate is the AKC row of the dated table in @myk9/core
-// (RECORDING_FEE_RATES) in force on the trial date, the same table generate-premium mirrors for
-// the premium's recording fee line. Synchronous and in code, so it works offline.
+// (RECORDING_FEE_RATES) in force on the trial date, the same table the premium's recording fee
+// line is derived from. Synchronous and in code, so it works offline.
 type DateFailureReason = 'missing' | 'invalid' | 'unsupported';
 
 export const AKC_TRIAL_SECRETARY_CANONICAL_FORM = {

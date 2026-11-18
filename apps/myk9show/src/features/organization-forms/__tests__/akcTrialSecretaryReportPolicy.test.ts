@@ -139,7 +139,7 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
 
   it('bills each New Year show trial at the rate the premium states for its date (MYK9-2044)', () => {
     // Same dates as the premium's New Year case in
-    // supabase/functions/generate-premium/recordingFeeRate.test.ts, which states
+    // src/features/premium/__tests__/premiumRecordingFee.test.tsx, which states
     // "AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027".
     const [eve, newYear] = NEW_YEAR_SHOW.trialDates;
     expect(resolveAKCTrialSecretaryReportPolicy(eve, [entry()])).toMatchObject({

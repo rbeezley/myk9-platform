@@ -2,7 +2,6 @@ import type { ShowInput } from '@/store/showStore';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { premiumTrialKey } from '@/features/premium/premiumClassLabel';
-import { withCurrentRecordingFee } from '@/features/premium/premiumRecordingFeeSync';
 
 type PremiumJudge = NonNullable<GeneratedPremium['trials'][number]['judges']>[number];
 
@@ -63,9 +62,7 @@ export function applyShowFormDataToPremium(
   const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
   const premiumKeys = new Set(premium.trials.map(t => premiumTrialKey(t.name, t.date)));
 
-  // MYK9-2044: the recording fee is resolved again for the dates being published, so a premium
-  // edited and republished without Regenerate still states it, at the rate for today's dates.
-  return withCurrentRecordingFee({
+  return {
     ...premium,
     style: (formData.style ?? premium.style) as GeneratedPremium['style'],
     show: {
@@ -85,5 +82,5 @@ export function applyShowFormDataToPremium(
       ...trial,
       judges: judgesForTrial(judges, trial, premiumKeys),
     })),
-  });
+  };
 }

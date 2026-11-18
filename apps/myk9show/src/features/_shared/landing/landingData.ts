@@ -396,7 +396,8 @@ export function buildLandingData(
     licenseLanguage: registry.licenseLanguage,
     memberClubLanguage: registry.memberClubLanguage,
     scoutingStatement: buildScoutingStatementFact(registry.id),
-    recordingFee: liveExperience?.recordingFee?.text ?? null,
+    recordingFee:
+      typeof liveExperience?.recordingFee === 'string' ? liveExperience.recordingFee : null,
     clubOfficers: [...buildOfficerFacts(clubOfficers), ...committeeAsOfficerFacts(committee)],
     journeySteps: buildJourneySteps(
       show?.entryOpenDate ?? null,

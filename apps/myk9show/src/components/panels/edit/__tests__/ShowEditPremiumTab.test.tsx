@@ -331,24 +331,22 @@ describe('republishing an edited premium without Regenerate keeps the recording 
     classes: [],
   });
 
-  /** What generate-premium published for a single-trial show on New Year's Eve: $4.50. */
+  /** A premium published for a single-trial show on New Year's Eve, stating $4.50. */
   const PUBLISHED = buildExperienceSnapshot({
     premium: {
+      org: 'AKC',
       style: 'monogram',
+      show: { startDate: eve },
+      trials: [{ date: eve }],
       narratives: { showHours: 'Doors at 7.', trialInformation: 'Bring water.' },
       supplemental: SUPPLEMENTAL,
-      recordingFee: {
-        registry: 'AKC',
-        rates: [{ amountCents: 450, appliesFrom: null }],
-        text: 'AKC recording fee: $4.50 per entry',
-      },
     },
     premiumPath: 'show-1/artifact-1.pdf',
     premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
   });
 
   /** Open the tab, change the wording the way the editor does, and publish as Save does. */
-  function editAndRepublish(trials: ShowTrial[]) {
+  function editAndRepublish(trials: ShowTrial[], showOrg: 'AKC' | 'UKC' = 'AKC') {
     const data: ShowEditFormData = {
       ...baseData,
       startDate: NEW_YEAR_SHOW.startDate,
@@ -360,7 +358,7 @@ describe('republishing an edited premium without Regenerate keeps the recording 
       <ShowEditPremiumTab
         data={data}
         clubId="c1"
-        showOrg="AKC"
+        showOrg={showOrg}
         isActive
         handleCheckboxChange={vi.fn(() => vi.fn())}
         handleValueChange={vi.fn(() => vi.fn())}
@@ -380,19 +378,30 @@ describe('republishing an edited premium without Regenerate keeps the recording 
     return { premium, snapshot };
   }
 
+  it('starts from a published snapshot that states the line', () => {
+    expect(PUBLISHED.recordingFee).toBe('AKC recording fee: $4.50 per entry');
+  });
+
   it('keeps the line in the PDF data and in the published snapshot', () => {
     const { premium, snapshot } = editAndRepublish([trial('1', eve)]);
 
     expect(premium.narratives.showHours).toBe('Doors at 6:30.');
     expect(buildPremiumFacts(premium).recordingFee).toBe('AKC recording fee: $4.50 per entry');
-    expect(snapshot.recordingFee?.text).toBe('AKC recording fee: $4.50 per entry');
+    expect(snapshot.recordingFee).toBe('AKC recording fee: $4.50 per entry');
   });
 
   it('states the new rate when the trial moved across a rate change after publishing', () => {
     const { premium, snapshot } = editAndRepublish([trial('1', newYear)]);
 
     expect(buildPremiumFacts(premium).recordingFee).toBe('AKC recording fee: $5.50 per entry');
-    expect(snapshot.recordingFee?.text).toBe('AKC recording fee: $5.50 per entry');
+    expect(snapshot.recordingFee).toBe('AKC recording fee: $5.50 per entry');
+  });
+
+  it('states no line once the show is no longer AKC', () => {
+    const { premium, snapshot } = editAndRepublish([trial('1', eve)], 'UKC');
+
+    expect(buildPremiumFacts(premium).recordingFee).toBeNull();
+    expect(snapshot.recordingFee).toBeNull();
   });
 
   it('neither prints nor prices a cancelled trial', () => {
@@ -402,13 +411,13 @@ describe('republishing an edited premium without Regenerate keeps the recording 
     ]);
 
     expect(premium.trials.map(t => t.date)).toEqual([eve]);
-    expect(snapshot.recordingFee?.text).toBe('AKC recording fee: $4.50 per entry');
+    expect(snapshot.recordingFee).toBe('AKC recording fee: $4.50 per entry');
   });
 
   it('states both rates for a live New Year pair', () => {
     const { snapshot } = editAndRepublish([trial('1', eve), trial('2', newYear)]);
 
-    expect(snapshot.recordingFee?.text).toBe(
+    expect(snapshot.recordingFee).toBe(
       'AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027'
     );
   });

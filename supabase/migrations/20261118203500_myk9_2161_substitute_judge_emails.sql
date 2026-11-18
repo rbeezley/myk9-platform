@@ -11,6 +11,7 @@
 --   offer shows  =  a departure row exists
 --               AND the class has a confirmed judge now, who is not the one who left
 --               AND resolved_judge_id is not that judge
+--               AND at least one recipient is left (see below)
 --               AND the show is published (published, upcoming, in_progress) with the
 --                   judge_changed step on
 -- A class that never had a judge has no departure row, so it offers nothing and emails nobody. A
@@ -20,7 +21,14 @@
 --   queue_substitute_judge_emails(class, judge)    integer: how many jobs it queued or merged into
 --   dismiss_substitute_judge_email_offer(class, judge)
 --
--- Recipients are the live_entry_person_class_pairs rule (MYK9-2125) with an email on file. The job is
+-- Recipients are the live_entry_person_class_pairs rule (MYK9-2125) with an email on file, MINUS anyone
+-- who already has a judge_changed job (ready, which includes leased, or sent) created at or after the
+-- departure's left_at whose judge_changes carries this class with the judge who left. That email is
+-- rendered at send time as "was <left>, now <current judge>", so it is exactly this one: the automatic
+-- one-step swap already sent it, or an earlier tap did. A job the sender skipped (the class had no
+-- judge when it was sent, the remove-then-add case), failed or dismissed told nobody, so it does not
+-- count. The offer, the count it shows and the queue all use that one rule (substitute_judge_email_recipients).
+-- A tap after the offer was resolved for the same judge answers 0, not an error. The job is
 -- the 2125 one (ready, auto_send, due in 5 minutes, one per person; judge_changes names the judge who
 -- left, so the email reads "was X, now Y" exactly as the automatic one). A job the sender has claimed
 -- (leased, or the provider took it) is never changed: the unique index allows one ready job per
@@ -30,20 +38,25 @@
 -- manager). A class the caller may not manage answers like a missing one (P0002), so a draft show's
 -- class ids do not leak.
 --
--- hard_delete_show is restated from 20261115231300 with the new table's edge in its FK manifest.
---
 -- Rollback: DROP FUNCTION public.dismiss_substitute_judge_email_offer(uuid, uuid),
 -- public.queue_substitute_judge_emails(uuid, uuid), public.class_substitute_judge_offer(uuid),
 -- public.substitute_judge_email_show(uuid); DROP TRIGGER trg_record_class_judge_departure_delete
 -- and ..._update ON public.judge_assignments; DROP FUNCTION public.record_class_judge_departure();
--- DROP TABLE public.class_judge_departures; restore hard_delete_show from 20261115231300.
+-- DROP FUNCTION public.substitute_judge_email_recipients(uuid, uuid); restore hard_delete_show from
+-- 20261115231300; DROP TABLE public.class_judge_departures.
 -- =============================================================================
 
 BEGIN;
 
 CREATE TABLE public.class_judge_departures (
   class_id uuid PRIMARY KEY REFERENCES public.classes (id) ON DELETE CASCADE,
-  left_person_id uuid NOT NULL REFERENCES public.people (id) ON DELETE CASCADE,
+  -- Plain uuid, no FK (as judge_changes in MYK9-2125): a hard delete of a person cascades through
+  -- judge_assignments, this table's trigger would insert a row naming the person being deleted, and an
+  -- FK would fail the delete at end of statement. class_id keeps its FK: when a class is deleted the
+  -- cascade has already removed the class, so the trigger's published-class check finds nothing and
+  -- inserts nothing. resolved_judge_id keeps its FK: ON DELETE SET NULL only updates this table and the
+  -- trigger never inserts that column non-null.
+  left_person_id uuid NOT NULL,
   left_at timestamptz NOT NULL DEFAULT now(),
   resolved_judge_id uuid REFERENCES public.people (id) ON DELETE SET NULL
 );
@@ -52,8 +65,18 @@ COMMENT ON TABLE public.class_judge_departures IS
   'MYK9-2161: the judge who last stopped being a class''s confirmed judge on a published show, and the judge the secretary''s "email the exhibitors" offer was last sent or dismissed for. Server-written only.';
 
 ALTER TABLE public.class_judge_departures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.class_judge_departures FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON public.class_judge_departures FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.class_judge_departures TO service_role;
+
+-- Deny-all disposition: no API role reads or writes this table directly. The trigger and the three
+-- SECURITY DEFINER functions below are the only way in.
+CREATE POLICY class_judge_departures_deny_all
+  ON public.class_judge_departures
+  FOR ALL
+  TO anon, authenticated
+  USING (false)
+  WITH CHECK (false);
 
 CREATE OR REPLACE FUNCTION public.record_class_judge_departure()
 RETURNS trigger
@@ -175,6 +198,37 @@ $$;
 REVOKE ALL ON FUNCTION public.substitute_judge_email_target(uuid, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 
+-- People the tap would still email: live entry in the class, an email on file, and no judge_changed
+-- email already carrying this departure (see the header).
+CREATE OR REPLACE FUNCTION public.substitute_judge_email_recipients(p_class_id uuid, p_show_id uuid)
+RETURNS TABLE (person_id uuid)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT DISTINCT p.id
+    FROM public.live_entry_person_class_pairs(p_show_id) pairs
+    JOIN public.people p ON p.id = pairs.person_id
+                        AND p.deleted_at IS NULL
+                        AND nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
+    JOIN public.class_judge_departures d ON d.class_id = p_class_id
+   WHERE pairs.class_id = p_class_id
+     AND NOT EXISTS (
+       SELECT 1
+         FROM public.show_lifecycle_email_jobs j
+        WHERE j.show_id = p_show_id
+          AND j.step_type = 'judge_changed'
+          AND j.recipient_person_id = p.id
+          AND j.status IN ('ready', 'sent')
+          AND j.created_at >= d.left_at
+          AND j.judge_changes ->> p_class_id::text = d.left_person_id::text
+     );
+$$;
+
+REVOKE ALL ON FUNCTION public.substitute_judge_email_recipients(uuid, uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.class_substitute_judge_offer(p_class_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -190,12 +244,10 @@ BEGIN
   IF v_judge IS NULL THEN
     RETURN '{}'::jsonb;
   END IF;
-  SELECT count(DISTINCT p.id) INTO v_count
-    FROM public.live_entry_person_class_pairs(v_show_id) pairs
-    JOIN public.people p ON p.id = pairs.person_id
-                        AND p.deleted_at IS NULL
-                        AND nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
-   WHERE pairs.class_id = p_class_id;
+  SELECT count(*) INTO v_count FROM public.substitute_judge_email_recipients(p_class_id, v_show_id);
+  IF v_count = 0 THEN
+    RETURN '{}'::jsonb;
+  END IF;
   RETURN jsonb_build_object('judge_id', v_judge, 'recipient_count', v_count);
 END;
 $$;
@@ -221,6 +273,17 @@ BEGIN
   -- A double tap waits here; the second finds the offer already resolved.
   PERFORM pg_advisory_xact_lock(hashtextextended('queue_substitute_judge_emails:' || p_class_id::text, 0));
 
+  -- Already sent or dismissed for this very judge (a second tap, a second secretary): nothing to do.
+  IF EXISTS (
+    SELECT 1
+      FROM public.class_judge_departures d
+      JOIN public.judge_assignments ja ON ja.class_id = d.class_id AND ja.status = 'confirmed'
+                                       AND ja.person_id = p_judge_id
+     WHERE d.class_id = p_class_id AND d.resolved_judge_id = p_judge_id
+  ) THEN
+    RETURN 0;
+  END IF;
+
   v_target := public.substitute_judge_email_target(p_class_id, v_show_id);
   IF v_target IS NULL OR v_target IS DISTINCT FROM p_judge_id THEN
     -- Nothing to send, or the class has another judge than the one on the secretary's screen.
@@ -234,12 +297,12 @@ BEGIN
    WHERE sh.id = v_show_id;
   SELECT d.left_person_id INTO v_from FROM public.class_judge_departures d WHERE d.class_id = p_class_id;
 
-  SELECT count(DISTINCT p.id) INTO v_wanted
-    FROM public.live_entry_person_class_pairs(v_show_id) pairs
-    JOIN public.people p ON p.id = pairs.person_id
-                        AND p.deleted_at IS NULL
-                        AND nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
-   WHERE pairs.class_id = p_class_id;
+  SELECT count(*) INTO v_wanted FROM public.substitute_judge_email_recipients(p_class_id, v_show_id);
+  IF v_wanted = 0 THEN
+    -- Everyone already has this email (automatic or an earlier tap): the offer is done.
+    UPDATE public.class_judge_departures SET resolved_judge_id = p_judge_id WHERE class_id = p_class_id;
+    RETURN 0;
+  END IF;
 
   INSERT INTO public.show_lifecycle_email_jobs AS j (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
@@ -257,13 +320,7 @@ BEGIN
     true,
     jsonb_build_object(p_class_id::text, v_from::text)
   FROM public.people p
-  WHERE p.deleted_at IS NULL
-    AND nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
-    AND p.id IN (
-      SELECT pairs.person_id
-        FROM public.live_entry_person_class_pairs(v_show_id) pairs
-       WHERE pairs.class_id = p_class_id
-    )
+  WHERE p.id IN (SELECT r.person_id FROM public.substitute_judge_email_recipients(p_class_id, v_show_id) r)
   ON CONFLICT (show_id, recipient_person_id)
     WHERE step_type = 'judge_changed' AND status = 'ready' AND recipient_person_id IS NOT NULL
   DO UPDATE SET
@@ -308,8 +365,8 @@ $$;
 REVOKE ALL ON FUNCTION public.dismiss_substitute_judge_email_offer(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.dismiss_substitute_judge_email_offer(uuid, uuid) TO authenticated;
 
--- hard_delete_show: restated from its latest definition (20261115231300, MYK9-2064) with one added
--- manifest row, class_judge_departures_class_id_fkey, disposable (planning data, cascades from classes).
+-- hard_delete_show, restated from its latest definition (20261115231300, MYK9-2064) with one manifest row
+-- added: class_judge_departures_class_id_fkey (derived state, swept by the class cascade: disposable).
 CREATE OR REPLACE FUNCTION public.hard_delete_show(p_show_id UUID)
 RETURNS void
 LANGUAGE plpgsql
@@ -382,8 +439,8 @@ DECLARE
     {"constraint_schema" : "public", "constraint_name" : "trial_lunch_orders_trial_id_fkey", "child_schema" : "public", "child_table" : "trial_lunch_orders", "child_column" : "trial_id", "parent_schema" : "public", "parent_table" : "trials", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "disposable"},
     {"constraint_schema" : "public", "constraint_name" : "trial_visibility_overrides_trial_id_fkey", "child_schema" : "public", "child_table" : "trial_visibility_overrides", "child_column" : "trial_id", "parent_schema" : "public", "parent_table" : "trials", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "disposable"},
     {"constraint_schema" : "public", "constraint_name" : "volunteer_general_assignments_trial_id_fkey", "child_schema" : "public", "child_table" : "volunteer_general_assignments", "child_column" : "trial_id", "parent_schema" : "public", "parent_table" : "trials", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "retain"},
-    {"constraint_schema" : "public", "constraint_name" : "class_judge_departures_class_id_fkey", "child_schema" : "public", "child_table" : "class_judge_departures", "child_column" : "class_id", "parent_schema" : "public", "parent_table" : "classes", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "disposable"},
     {"constraint_schema" : "public", "constraint_name" : "cart_spot_holds_class_id_fkey", "child_schema" : "public", "child_table" : "cart_spot_holds", "child_column" : "class_id", "parent_schema" : "public", "parent_table" : "classes", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "retain"},
+    {"constraint_schema" : "public", "constraint_name" : "class_judge_departures_class_id_fkey", "child_schema" : "public", "child_table" : "class_judge_departures", "child_column" : "class_id", "parent_schema" : "public", "parent_table" : "classes", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "disposable"},
     {"constraint_schema" : "public", "constraint_name" : "class_visibility_overrides_class_id_fkey", "child_schema" : "public", "child_table" : "class_visibility_overrides", "child_column" : "class_id", "parent_schema" : "public", "parent_table" : "classes", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "disposable"},
     {"constraint_schema" : "public", "constraint_name" : "entries_class_id_fkey", "child_schema" : "public", "child_table" : "entries", "child_column" : "class_id", "parent_schema" : "public", "parent_table" : "classes", "parent_column" : "id", "delete_action" : "CASCADE", "disposition" : "retain"},
     {"constraint_schema" : "public", "constraint_name" : "entry_cart_items_class_id_fkey", "child_schema" : "public", "child_table" : "entry_cart_items", "child_column" : "class_id", "parent_schema" : "public", "parent_table" : "classes", "parent_column" : "id", "delete_action" : "NO ACTION", "disposition" : "retain"},
@@ -672,7 +729,6 @@ $$;
 
 REVOKE ALL ON FUNCTION public.hard_delete_show(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.hard_delete_show(UUID) TO authenticated;
-
 
 NOTIFY pgrst, 'reload schema';
 

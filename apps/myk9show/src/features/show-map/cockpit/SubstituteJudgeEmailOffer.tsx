@@ -68,6 +68,17 @@ export function SubstituteJudgeEmailOffer({
     mutationFn: () => queueSubstituteJudgeEmails(classId, assignedJudgeId ?? ''),
     onSuccess: async queued => {
       await queryClient.invalidateQueries({ queryKey: key });
+      if (queued === 0) {
+        // Another tap or another secretary already sent it: nothing alarming, and the offer is gone.
+        // If the offer is still up, everyone left has an email going out right now.
+        const left = queryClient.getQueryData<{ recipientCount: number }>(key)?.recipientCount ?? 0;
+        if (left > 0) {
+          toast.info(
+            'Some exhibitors already have an email going out. Tap again in a few minutes to email them too.'
+          );
+        }
+        return;
+      }
       if (queued < recipients) {
         toast.info(
           'Some exhibitors already have an email going out. Tap again in a few minutes to email them too.'

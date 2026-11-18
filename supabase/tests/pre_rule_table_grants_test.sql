@@ -50,6 +50,7 @@ BEGIN
     ('cart_spot_holds','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_feedback','INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_query_log','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('class_judge_departures','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('class_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     -- No table-level SELECT for authenticated: 20260731160000 replaced it with a
     -- column allowlist withholding num_hides (MYK9-127; 55 columns since
@@ -249,7 +250,7 @@ BEGIN
       'access_request_email_jobs','achievements','activity_log','allergies','analytics_events','announcement_reads',
       'announcements','armbands','calendar_feed_tokens','cart_checkout_leases','cart_fulfillment_lines','cart_fulfillments','cart_spot_holds',
       'chatbot_feedback','chatbot_query_log',
-      'class_visibility_overrides','classes','club_access_requests','club_committee_members','club_members','club_membership_requests',
+      'class_judge_departures','class_visibility_overrides','classes','club_access_requests','club_committee_members','club_members','club_membership_requests',
       'club_officers','club_premium_templates','club_registry_numbers','club_stripe_accounts','clubs','dog_favorites',
       'dog_registrations','dogs','email_log','email_log_contents','enrollments','entries','entry_cart_items',
       'entry_carts','entry_form_notes','entry_payment_links','entry_score_audit','entry_status_history','entry_submissions',

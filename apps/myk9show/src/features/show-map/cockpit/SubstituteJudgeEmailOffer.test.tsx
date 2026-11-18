@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   queue: vi.fn(),
   dismiss: vi.fn(),
   toastInfo: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
   online: true,
 }));
 
@@ -19,7 +21,7 @@ vi.mock('./substituteJudgeEmails', () => ({
   dismissSubstituteJudgeEmailOffer: mocks.dismiss,
 }));
 vi.mock('sonner', () => ({
-  toast: { info: mocks.toastInfo, error: vi.fn(), success: vi.fn() },
+  toast: { info: mocks.toastInfo, error: mocks.toastError, success: mocks.toastSuccess },
 }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 
@@ -113,6 +115,24 @@ describe('SubstituteJudgeEmailOffer (MYK9-2161)', () => {
         'Some exhibitors already have an email going out. Tap again in a few minutes to email them too.'
       )
     );
+  });
+
+  it('stays quiet when someone else already sent it (the server queued nothing and the offer is gone)', async () => {
+    const user = userEvent.setup();
+    mocks.fetchOffer
+      .mockResolvedValueOnce({ judgeId: 'judge-b', recipientCount: 3 })
+      .mockResolvedValue(null);
+    mocks.queue.mockResolvedValue(0);
+    renderOffer();
+
+    await user.click(await screen.findByRole('button', { name: SEND }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: SEND })).not.toBeInTheDocument()
+    );
+    expect(mocks.toastInfo).not.toHaveBeenCalled();
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(mocks.toastError).not.toHaveBeenCalled();
   });
 
   it('looks again when the server says the class has another judge now', async () => {

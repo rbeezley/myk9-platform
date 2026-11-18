@@ -1,9 +1,10 @@
 import { createDatabaseError } from '@/services/database/databaseError';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
-import { render } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { readinessKey, readinessServer } from '@/features/payments/__tests__/fakeReadiness';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { Show } from '@/types/show-types';
 
@@ -49,15 +50,10 @@ vi.mock('@/hooks/useElementWidth', () => ({
   useElementWidth: () => ({ ref: { current: null }, width: cockpitWidth.value }),
 }));
 
-const readiness = vi.hoisted(() => ({
-  value: { isSuccess: true, data: false, isError: false, fetchStatus: 'idle' } as Record<
-    string,
-    unknown
-  >,
-}));
-vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripePaymentReadiness: () => readiness.value,
-}));
+vi.mock('@/features/payments/useClubStripeAccount', async () => {
+  const fake = await import('@/features/payments/__tests__/fakeReadiness');
+  return { useClubStripePaymentReadiness: fake.fakeUseClubStripePaymentReadiness };
+});
 const online = vi.hoisted(() => ({ value: true }));
 vi.mock('@/hooks/guestServerRead', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/guestServerRead')>()),
@@ -96,7 +92,13 @@ const trial = fromAny<SyncableTrial, unknown>({
   _syncStatus: 'synced',
 });
 
-function renderDesk(overrides: Partial<Show> = {}, canManageShow = true) {
+function renderDesk(
+  overrides: Partial<Show> = {},
+  canManageShow = true,
+  cached: boolean | undefined = true
+) {
+  const queryClient = createTestQueryClient();
+  if (cached !== undefined) queryClient.setQueryData(readinessKey('club-1'), cached);
   return render(
     <ShowDeskPanel
       show={{ ...show, ...overrides }}
@@ -106,73 +108,79 @@ function renderDesk(overrides: Partial<Show> = {}, canManageShow = true) {
       canManageShow={canManageShow}
       scopeNow={new Date('2026-06-12T15:00:00.000Z')}
     />,
-    { initialRoute: '/shows/show-1/show-day' }
+    { initialRoute: '/shows/show-1/show-day', queryClient }
   );
 }
 
 const WHY = "Card payment is paused. The club's bank account needs attention.";
 const WHO = "Card payment is paused. A club admin needs to fix the club's bank account.";
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('Show Desk card-payment-paused item (MYK9-2166)', () => {
   beforeEach(() => {
-    readiness.value = { isSuccess: true, data: false, isError: false, fetchStatus: 'idle' };
+    readinessServer.mockReset();
+    readinessServer.mockResolvedValue(false);
     canOpen.value = true;
     online.value = true;
   });
 
-  it('says why and links to the club Payments tab when she can open it', () => {
+  it('says why and links to the club Payments tab when she can open it', async () => {
     renderDesk();
-    const link = screen.getByRole('link', { name: /Card payment is paused/ });
+    const link = await screen.findByRole('link', { name: /Card payment is paused/ });
     expect(link).toHaveTextContent(WHY);
     expect(link.getAttribute('href')).toContain('/clubs/club-1?tab=payments');
   });
 
-  it('names a club admin and offers no link when she cannot open the tab', () => {
+  it('names a club admin and offers no link when she cannot open the tab', async () => {
     canOpen.value = false;
     renderDesk();
-    expect(screen.getByText(WHO)).toBeInTheDocument();
+    expect(await screen.findByText(WHO)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Card payment is paused/ })).not.toBeInTheDocument();
   });
 
-  it.each([
-    ['payouts on', { isSuccess: true, data: true, isError: false, fetchStatus: 'idle' }],
-    [
-      'not read yet',
-      { isSuccess: false, data: undefined, isError: false, fetchStatus: 'fetching' },
-    ],
-    [
-      'read failed, stale false kept',
-      { isSuccess: false, data: false, isError: true, fetchStatus: 'idle' },
-    ],
-    [
-      'offline, stale false kept',
-      { isSuccess: true, data: false, isError: false, fetchStatus: 'paused' },
-    ],
-  ])('shows nothing when %s', (_name, value) => {
-    readiness.value = value;
-    renderDesk();
+  it('warm cache true, server now false: nothing at first, the item after the recheck', async () => {
+    renderDesk({}, true, true);
+    expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
+    expect(await screen.findByText(WHY)).toBeInTheDocument();
+    expect(readinessServer).toHaveBeenCalledTimes(1);
+  });
+
+  it('warm cache false, server now true: the item never appears', async () => {
+    readinessServer.mockResolvedValue(true);
+    renderDesk({}, true, false);
+    expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
+    await waitFor(() => expect(readinessServer).toHaveBeenCalledTimes(1));
+    await settle();
     expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
   });
 
-  it('shows nothing while the answer is being refetched, with a cached false', () => {
-    readiness.value = { isSuccess: true, data: false, isError: false, fetchStatus: 'fetching' };
-    renderDesk();
+  it('shows nothing when the recheck fails, even with a warm false', async () => {
+    readinessServer.mockRejectedValue(new Error('network'));
+    renderDesk({}, true, false);
+    await waitFor(() => expect(readinessServer).toHaveBeenCalledTimes(1));
+    await settle();
     expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
   });
 
-  it('shows nothing on an offline device, with a cached false and nothing fetching', () => {
+  it('shows nothing on an offline device, with a warm false', async () => {
     online.value = false;
     renderDesk();
+    await settle();
+    expect(readinessServer).not.toHaveBeenCalled();
     expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
   });
 
-  it('shows nothing on a show that is not published', () => {
+  it('shows nothing on a show that is not published', async () => {
     renderDesk({ status: 'draft' });
+    await waitFor(() => expect(readinessServer).toHaveBeenCalledTimes(1));
+    await settle();
     expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
   });
 
-  it('shows nothing to someone who cannot manage the show', () => {
+  it('shows nothing to someone who cannot manage the show, and does not recheck', async () => {
     renderDesk({}, false);
+    await settle();
+    expect(readinessServer).not.toHaveBeenCalled();
     expect(screen.queryByText(/Card payment is paused/)).not.toBeInTheDocument();
   });
 });

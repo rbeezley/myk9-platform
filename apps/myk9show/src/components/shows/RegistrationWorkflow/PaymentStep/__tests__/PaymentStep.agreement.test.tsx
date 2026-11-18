@@ -9,6 +9,12 @@ import { useShowStore } from '@/store/showStore';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
 
 // Mock hooks used by PaymentStep
+// MYK9-2166: the open-time recheck of payouts readiness is covered in useFreshPayoutsKnownOff.test.tsx.
+const payoutsOff = vi.hoisted(() => ({ value: false }));
+vi.mock('@/features/payments/useFreshPayoutsKnownOff', () => ({
+  useFreshPayoutsKnownOff: () => payoutsOff.value,
+}));
+
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => ({ dogs: [] }),
 }));
@@ -84,6 +90,7 @@ const baseProps = {
 
 describe('PaymentStep — entry agreement integration', () => {
   beforeEach(() => {
+    payoutsOff.value = false;
     vi.clearAllMocks();
     vi.mocked(useClubStripePaymentReadiness).mockReturnValue({
       data: true,
@@ -189,6 +196,7 @@ describe('PaymentStep — entry agreement integration', () => {
       ],
     } as ReturnType<typeof useShowStore>);
 
+    payoutsOff.value = true;
     cleanup();
     render(<PaymentStepHarness {...baseProps} showId="show-no-stripe" />);
     expect(screen.queryByText('Credit/Debit Card')).not.toBeInTheDocument();

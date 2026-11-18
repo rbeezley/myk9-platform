@@ -1,15 +1,18 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@/test/utils/testUtils';
+import { readinessKey, readinessServer } from '@/features/payments/__tests__/fakeReadiness';
 
 /**
- * MYK9-2166: `cardPaused` is true only for a current, successful "not ready" answer, only for
- * someone who would pay by card. An unread, errored or offline answer is never "paused".
+ * MYK9-2166: `cardPaused` is true only for an answer fetched since this surface opened, only for
+ * someone who would pay by card. A cached, unread, errored or offline answer is never "paused".
  */
 const mocks = vi.hoisted(() => ({
   useAuthContext: vi.fn(),
   useShowStore: vi.fn(),
   useRegistrationPermissions: vi.fn(),
-  readiness: { value: {} as Record<string, unknown> },
   online: { value: true },
 }));
 
@@ -18,9 +21,10 @@ vi.mock('@/store/showStore', () => ({ useShowStore: mocks.useShowStore }));
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: mocks.useRegistrationPermissions,
 }));
-vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripePaymentReadiness: () => mocks.readiness.value,
-}));
+vi.mock('@/features/payments/useClubStripeAccount', async () => {
+  const fake = await import('@/features/payments/__tests__/fakeReadiness');
+  return { useClubStripePaymentReadiness: fake.fakeUseClubStripePaymentReadiness };
+});
 
 vi.mock('@/hooks/guestServerRead', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/guestServerRead')>()),
@@ -29,8 +33,12 @@ vi.mock('@/hooks/guestServerRead', async importOriginal => ({
 
 import { usePaymentMethodResolution } from '../usePaymentMethodResolution';
 
-function resolve(readiness: Record<string, unknown>, staff = false) {
-  mocks.readiness.value = readiness;
+function resolve(cached: boolean | undefined, staff = false) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  if (cached !== undefined) client.setQueryData(readinessKey('c1'), cached);
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
   mocks.useAuthContext.mockReturnValue({ hasRole: () => false, userWithRoles: { scopes: [] } });
   mocks.useRegistrationPermissions.mockReturnValue({
     isSecretary: staff,
@@ -40,81 +48,57 @@ function resolve(readiness: Record<string, unknown>, staff = false) {
   mocks.useShowStore.mockReturnValue({
     shows: [{ id: 's1', clubId: 'c1', acceptCheckPayments: true, acceptCashPayments: true }],
   });
-  return renderHook(() => usePaymentMethodResolution('s1', 'credit_card')).result.current;
+  return renderHook(() => usePaymentMethodResolution('s1', 'credit_card'), { wrapper });
 }
+
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('cardPaused', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    readinessServer.mockReset();
     mocks.online.value = true;
   });
 
-  it('is true for a current answer of not ready, and the payment step says paused', () => {
-    const resolution = resolve({ isSuccess: true, data: false, fetchStatus: 'idle' });
-    expect(resolution.cardPaused).toBe(true);
-    expect(resolution.cardCheckoutUnavailableReason).toBe(
+  it('warm cache true, server now false: not paused at first, paused once rechecked', async () => {
+    readinessServer.mockResolvedValue(false);
+    const { result } = resolve(true);
+    expect(result.current.cardPaused).toBe(false);
+    await waitFor(() => expect(result.current.cardPaused).toBe(true));
+    expect(result.current.cardCheckoutUnavailableReason).toBe(
       "Card payment is paused for this show. The club's bank account needs attention. Choose check or cash instead."
     );
+    expect(readinessServer).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ['ready', { isSuccess: true, data: true, fetchStatus: 'idle' }],
-    ['unread', { isSuccess: false, isPending: true, data: undefined, fetchStatus: 'fetching' }],
-    [
-      'errored with stale false',
-      { isSuccess: false, isError: true, data: false, fetchStatus: 'idle' },
-    ],
-    ['offline with stale false', { isSuccess: true, data: false, fetchStatus: 'paused' }],
-  ])('is false when %s', (_name, readiness) => {
-    expect(resolve(readiness).cardPaused).toBe(false);
+  it('warm cache false, server now true: never paused, card is offered', async () => {
+    readinessServer.mockResolvedValue(true);
+    const { result } = resolve(false);
+    expect(result.current.cardPaused).toBe(false);
+    await waitFor(() => expect(result.current.cardCheckoutAvailable).toBe(true));
+    expect(result.current.cardPaused).toBe(false);
   });
 
-  it('says checking, never paused, while the answer is being refetched', () => {
-    const resolution = resolve({
-      isSuccess: true,
-      isPending: false,
-      isFetching: true,
-      data: false,
-      fetchStatus: 'fetching',
-    });
-    expect(resolution.cardPaused).toBe(false);
-    expect(resolution.cardCheckoutUnavailableReason).toBe(
-      'Checking online payment availability for this club.'
-    );
+  it('refetch fails with a warm false: not paused', async () => {
+    readinessServer.mockRejectedValue(new Error('network'));
+    const { result } = resolve(false);
+    await waitFor(() => expect(readinessServer).toHaveBeenCalledTimes(1));
+    await settle();
+    expect(result.current.cardPaused).toBe(false);
   });
 
-  it('never says paused offline, even with a cached false and nothing fetching', () => {
+  it('never says paused offline, even with a warm false', async () => {
     mocks.online.value = false;
-    const resolution = resolve({
-      isSuccess: true,
-      isPending: false,
-      isFetching: false,
-      data: false,
-      fetchStatus: 'idle',
-    });
-    expect(resolution.cardPaused).toBe(false);
-    expect(resolution.cardCheckoutUnavailableReason).toBe(
-      "Online card payment isn't available for this club. Choose check or cash instead."
-    );
+    const { result } = resolve(false);
+    await settle();
+    expect(readinessServer).not.toHaveBeenCalled();
+    expect(result.current.cardPaused).toBe(false);
   });
 
-  it('keeps the old sentence when the answer errored, because that is not "paused"', () => {
-    const resolution = resolve({
-      isSuccess: false,
-      isError: true,
-      isPending: false,
-      isFetching: false,
-      data: undefined,
-      fetchStatus: 'idle',
-    });
-    expect(resolution.cardCheckoutUnavailableReason).toBe(
-      "Online card payment isn't available for this club. Choose check or cash instead."
-    );
-  });
-
-  it('is false for staff keying an entry, who do not pay by card', () => {
-    expect(resolve({ isSuccess: true, data: false, fetchStatus: 'idle' }, true).cardPaused).toBe(
-      false
-    );
+  it('is false for staff keying an entry, who do not pay by card', async () => {
+    readinessServer.mockResolvedValue(false);
+    const { result } = resolve(true, true);
+    await waitFor(() => expect(readinessServer).toHaveBeenCalledTimes(1));
+    await settle();
+    expect(result.current.cardPaused).toBe(false);
   });
 });

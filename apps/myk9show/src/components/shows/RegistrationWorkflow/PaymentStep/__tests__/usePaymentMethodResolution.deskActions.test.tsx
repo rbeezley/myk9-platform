@@ -14,6 +14,11 @@ const mocks = vi.hoisted(() => ({
   useRegistrationPermissions: vi.fn(),
 }));
 
+// MYK9-2166: the open-time recheck of payouts readiness is covered in useFreshPayoutsKnownOff.test.tsx.
+vi.mock('@/features/payments/useFreshPayoutsKnownOff', () => ({
+  useFreshPayoutsKnownOff: () => false,
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: mocks.useAuthContext }));
 vi.mock('@/store/showStore', () => ({ useShowStore: mocks.useShowStore }));
 vi.mock('@/hooks/useRegistrationPermissions', () => ({

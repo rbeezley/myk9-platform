@@ -13,9 +13,7 @@ import { buildMoveUpClassLabeler, classIdsEnteredByDog } from './buildMoveUpTarg
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { useShowDeskWaiting } from '@/features/waiting-for-you/useShowDeskWaiting';
 import { getTrialTimezone } from '@/features/registries';
-import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
-import { useQueryOnlineStatus } from '@/hooks/guestServerRead';
-import { payoutsKnownOff } from '@/features/payments/cardPausedCopy';
+import { useFreshPayoutsKnownOff } from '@/features/payments/useFreshPayoutsKnownOff';
 import {
   clubPaymentsHref,
   useCanOpenClubPayments,
@@ -96,15 +94,14 @@ export default function ShowDeskPanel({
     enabled: canManageShow,
   });
   // MYK9-2166: only a current, successful answer of "not ready" on a published show counts.
-  const isOnline = useQueryOnlineStatus();
-  const readiness = useClubStripePaymentReadiness(canManageShow ? show.clubId : undefined);
+  const payoutsOffThisOpen = useFreshPayoutsKnownOff(canManageShow ? show.clubId : undefined);
   const canOpenClubPayments = useCanOpenClubPayments(show.clubId);
   const paymentsHref = canOpenClubPayments ? clubPaymentsHref(show.clubId) : null;
   const payoutsOff =
     canManageShow &&
     isPublicShowStatus(show.status) &&
     show.status !== 'completed' &&
-    payoutsKnownOff(readiness, isOnline);
+    payoutsOffThisOpen;
   const pendingSignals = useMemo(
     () =>
       canManageShow

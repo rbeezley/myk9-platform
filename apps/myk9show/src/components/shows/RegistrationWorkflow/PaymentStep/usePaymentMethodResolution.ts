@@ -17,8 +17,8 @@ import { hasScopedClubRole, hasClubAdminGrant } from '@/utils/roleScopes';
 import { UserRole } from '@/types/auth-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
-import { cardPausedMessage, payoutsKnownOff } from '@/features/payments/cardPausedCopy';
-import { useQueryOnlineStatus } from '@/hooks/guestServerRead';
+import { cardPausedMessage } from '@/features/payments/cardPausedCopy';
+import { useFreshPayoutsKnownOff } from '@/features/payments/useFreshPayoutsKnownOff';
 import type { Show } from '@/types/show-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import {
@@ -86,7 +86,6 @@ export function usePaymentMethodResolution(
   const isOnBehalf = isSecretary || isClubAdmin || isSiteAdmin;
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
-  const isOnline = useQueryOnlineStatus();
   const clubStripeAccountQuery = useClubStripePaymentReadiness(show?.clubId);
   // Zero is never a price (MYK9-1931): checkout refuses a $0 line, so card is not offered.
   const cardCheckoutAvailable =
@@ -94,8 +93,8 @@ export function usePaymentMethodResolution(
     !noEntryFeeSet &&
     clubStripeAccountQuery.isSuccess &&
     clubStripeAccountQuery.data === true;
-  const cardPaused =
-    !isOnBehalf && !noEntryFeeSet && payoutsKnownOff(clubStripeAccountQuery, isOnline);
+  const payoutsOffThisOpen = useFreshPayoutsKnownOff(show?.clubId);
+  const cardPaused = !isOnBehalf && !noEntryFeeSet && payoutsOffThisOpen;
   const accountCheckPending =
     !isOnBehalf &&
     !noEntryFeeSet &&

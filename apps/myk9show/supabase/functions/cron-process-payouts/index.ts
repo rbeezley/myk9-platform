@@ -3,9 +3,11 @@
 //
 // Money-safety properties (see docs/plans/2026-06-09-stripe-connect-implementation.md):
 // - Caller auth via x-function-secret (pg_cron / manual curl), never JWT.
-// - Stale 'processing' rows are failed for retry FIRST each run; the per-show
-//   idempotency key makes the retry safe even if the original transfer
-//   actually succeeded (Stripe returns the cached transfer for ~24h).
+// - Stale 'processing' rows are checked with Stripe FIRST each run (MYK9-2183):
+//   a transfer Stripe has is recorded as sent with Stripe's amount; none means
+//   the row is failed for retry; a lookup error leaves it 'processing', which
+//   keeps refunds blocked. A show whose last attempt failed is checked the same
+//   way before anything is queued for it (payoutReconcile.ts).
 // - 'pending' rows (club not onboarded) are RECOMPUTED before sending —
 //   refunds may have shrunk the amount since the row was created.
 // - Per-show isolation: one show's failure never blocks the others.
@@ -24,13 +26,10 @@ import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import { alertAdmin as sharedAlertAdmin } from '../_shared/alertAdmin.ts';
 import { loadClubMoneyRecipients } from '../_shared/clubMoneyRecipients.ts';
 import { createResendSender } from '../_shared/clubMoneyEmails.ts';
-import {
-  dollars,
-  payoutRetryNote,
-  processShow,
-  type EligibleShow,
-  type ProcessShowDeps,
-} from './processShow.ts';
+import { processShow, type ProcessShowDeps } from './processShow.ts';
+import { recoverStaleProcessing } from './payoutReconcile.ts';
+import { loadEligibleShows } from './eligibleShows.ts';
+import type { PayoutAlertOptions } from './payoutTypes.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -70,43 +69,12 @@ function clubNoticeDeps(clubId: string, contactEmail: string | null | undefined)
 // DB's partial unique index so a persistent condition (e.g. a show's balance
 // staying insufficient for days) updates nothing on re-runs instead of
 // inserting a fresh unresolved row every day.
-function alertAdmin(subject: string, html: string, opts: { dedupeKey?: string } = {}) {
+function alertAdmin(subject: string, html: string, opts: PayoutAlertOptions = {}) {
   return sharedAlertAdmin(subject, html, {
     source: 'cron-process-payouts',
     dedupeKey: opts.dedupeKey,
+    severity: opts.severity,
   });
-}
-
-/** Fail processing rows older than the stale threshold so the unique index
- * reopens for a retry row. Double-pay is prevented by the transfers.list
- * (transfer_group) check before any send, not by the idempotency key.
- * Staleness keys on updated_at (touched by the set_updated_at trigger on the
- * pending→processing claim) — created_at would false-flag a row that sat
- * pending for days before being claimed minutes ago (review finding #1). */
-async function recoverStaleProcessing(summary: Record<string, number>, brakeOn: boolean) {
-  const cutoff = new Date(Date.now() - STALE_PROCESSING_HOURS * 3600 * 1000).toISOString();
-  const { data: stale, error } = await supabase
-    .from('show_payouts')
-    .update({ status: 'failed', failure_reason: 'stale_processing' })
-    .eq('status', 'processing')
-    .lt('updated_at', cutoff)
-    .select('id, show_id, amount_cents');
-
-  if (error) {
-    console.error('Stale-processing recovery failed:', error);
-    return;
-  }
-  for (const row of stale ?? []) {
-    summary.stale_recovered++;
-    console.error(`Stale processing payout ${row.id} (show ${row.show_id}) failed for retry`);
-    await alertAdmin(
-      'Stale payout recovered for retry',
-      `<p>Payout row ${row.id} for show ${row.show_id} (${dollars(row.amount_cents)}) was stuck
-       in 'processing' for over ${STALE_PROCESSING_HOURS}h and has been failed for retry.</p>
-       ${payoutRetryNote('stale_processing', brakeOn)}`,
-      { dedupeKey: `payout-stale-recovered-${row.id}` }
-    );
-  }
 }
 
 // Constant-time secret check: hash both sides so the comparison cost is
@@ -144,6 +112,14 @@ Deno.serve(async req => {
     money_lock_busy: 0,
     awaiting_approval: 0,
     claim_errors: 0,
+    // MYK9-2183: a transfer Stripe already had, recorded as sent.
+    reconciled: 0,
+    // Stripe could not be asked; nothing was queued for the show.
+    transfer_lookup_errors: 0,
+    // Stripe moved money but the payout record could not say so.
+    reconciliation_errors: 0,
+    // A payout record write failed before any money moved.
+    ledger_write_errors: 0,
   };
 
   try {
@@ -170,35 +146,25 @@ Deno.serve(async req => {
       siteUrl,
     };
 
-    await recoverStaleProcessing(summary, brakeOn);
+    const staleBefore = new Date(Date.now() - STALE_PROCESSING_HOURS * 3600 * 1000).toISOString();
+    await recoverStaleProcessing(deps, summary, staleBefore);
 
     const cutoff = new Date(Date.now() - PAYOUT_DELAY_DAYS * 24 * 3600 * 1000)
       .toISOString()
       .slice(0, 10);
 
-    // Date-driven eligibility: shows rarely get flipped to a terminal status,
-    // so the trigger is end_date + 3 days, excluding only draft/cancelled.
-    // Newest-first with an explicit cap: eligibility is permanent, so without
-    // ordering PostgREST's max-rows would someday truncate ARBITRARY rows and
-    // silently drop new shows. Ordered, the rows that fall off the end are the
-    // oldest — long-settled shows whose live payout row makes processShow a
-    // one-query no-op anyway.
-    const { data: shows, error: showsError } = await supabase
-      .from('shows')
-      .select('id, name, club_id, end_date')
-      .lte('end_date', cutoff)
-      .not('status', 'in', '("draft","cancelled")')
-      .order('end_date', { ascending: false })
-      .limit(1000);
-
-    if (showsError) {
-      console.error('Eligible-shows query failed:', showsError);
-      return Response.json({ error: showsError.message }, { status: 500 });
+    // Newest 1,000 date-eligible shows plus every show still owed a payout
+    // (eligibleShows.ts), so none falls past the cutoff (MYK9-2183).
+    const loaded = await loadEligibleShows(supabase, cutoff);
+    if (!loaded.ok) {
+      console.error('Eligible-shows query failed:', loaded.error);
+      return Response.json({ error: loaded.error }, { status: 500 });
     }
+    const shows = loaded.shows;
 
-    summary.eligible_shows = shows?.length ?? 0;
-    for (const show of shows ?? []) {
-      await processShow(show as EligibleShow, summary, deps);
+    summary.eligible_shows = shows.length;
+    for (const show of shows) {
+      await processShow(show, summary, deps);
     }
 
     console.log('Payout run summary:', JSON.stringify(summary));

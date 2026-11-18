@@ -4,7 +4,6 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
-import type { ShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import {
   bankNeedsAttentionEmail,
   clubPaymentsUrl,
@@ -16,22 +15,30 @@ import {
   emailClub,
   loadPreviousPayoutAttempt,
   notifyClubOfTransferFailure,
-  type ClubNoticeDeps,
 } from '../_shared/payoutClubNotices.ts';
 import { transferFailureOutcome } from '../_shared/payoutFailureOwner.ts';
 import { claimShowPayoutForSend, exceedsApproval } from '../_shared/payoutSendClaim.ts';
+import { payoutRetryNote } from './payoutCopy.ts';
+import {
+  checkFailedAttempt,
+  lookUpShowTransfer,
+  recordStripeTransfer,
+  reportLedgerWriteError,
+  reportReconcileError,
+} from './payoutReconcile.ts';
+import type { EligibleShow, HeldMoneyLock, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
+
+export { payoutRetryNote } from './payoutCopy.ts';
+export type { EligibleShow, ProcessShowDeps, StripeTransfers } from './payoutTypes.ts';
+
+export function dollars(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 // Live rows the run still works on. 'held' is included so its amount stays
 // current (the claim refreshes it and keeps the hold, MYK9-2170); 'processing'
 // and 'completed' are another run's or done.
 const WORKABLE_LIVE_STATUSES = ['pending', 'awaiting_approval', 'approved', 'held'];
-
-export interface EligibleShow {
-  id: string;
-  name: string;
-  club_id: string | null;
-  end_date: string;
-}
 
 interface ClubStripeAccount {
   id: string;
@@ -39,74 +46,6 @@ interface ClubStripeAccount {
   payouts_enabled: boolean;
   onboarding_complete: boolean;
   livemode: boolean;
-}
-
-/** The two Stripe calls this flow makes. */
-export interface StripeTransfers {
-  transfers: {
-    list(params: {
-      transfer_group: string;
-      limit: number;
-    }): PromiseLike<{ data: Array<{ id: string; amount: number }> }>;
-    create(
-      params: {
-        amount: number;
-        currency: string;
-        destination: string;
-        transfer_group: string;
-        metadata: Record<string, string>;
-      },
-      options: { idempotencyKey: string }
-    ): PromiseLike<{ id: string }>;
-  };
-}
-
-export interface ProcessShowDeps {
-  supabase: SupabaseClient;
-  stripe: StripeTransfers;
-  stripeLivemode: boolean;
-  /** platform_settings.payouts_require_approval, read once per run (alert copy only). */
-  brakeOn: boolean;
-  alertAdmin: (subject: string, html: string, opts?: { dedupeKey?: string }) => Promise<unknown>;
-  clubNoticeDeps: (clubId: string, contactEmail: string | null | undefined) => ClubNoticeDeps;
-  acquireMoneyLock: (showId: string) => Promise<ShowMoneyLock>;
-  siteUrl: string | undefined;
-}
-
-const WAITS_AGAIN =
-  'The next run recalculates this payout and it waits for approval again; nothing is sent until a site admin approves it.';
-
-/**
- * What happens after a failed attempt, true in both brake modes: with the
- * brake on, the retry row is recalculated and waits for approval again.
- */
-export function payoutRetryNote(
-  kind: 'balance_delay' | 'transfer_failed' | 'stale_processing',
-  brakeOn: boolean
-): string {
-  if (kind === 'balance_delay') {
-    const delay =
-      'This is the expected card-clearing delay. Show-day payments take ~2 business days to become available.';
-    return brakeOn
-      ? `<p>${delay} ${WAITS_AGAIN}</p>`
-      : `<p>${delay} Tomorrow’s run retries automatically; no action needed.</p>`;
-  }
-  if (kind === 'transfer_failed') {
-    const look =
-      'A non-balance failure usually needs a look: check the show_payouts row and the Stripe dashboard.';
-    return brakeOn
-      ? `<p>${WAITS_AGAIN} ${look}</p>`
-      : '<p>This will retry tomorrow, but a non-balance failure usually needs a look: check the show_payouts row and the Stripe dashboard.</p>';
-  }
-  const reconcile =
-    'checks Stripe for an existing transfer for this show (transfer_group) and reconciles instead of paying twice.';
-  return brakeOn
-    ? `<p>${WAITS_AGAIN} Before any send, the run ${reconcile}</p>`
-    : `<p>Before re-sending, the next run ${reconcile} No action needed unless it recurs.</p>`;
-}
-
-export function dollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 /** Sum the show's payable online entry money from entries, in cents.
@@ -140,26 +79,50 @@ async function computePayoutCents(
 
 export async function processShow(
   show: EligibleShow,
-  summary: Record<string, number>,
+  summary: PayoutSummary,
   deps: ProcessShowDeps
 ): Promise<void> {
-  const { supabase, stripe, stripeLivemode, alertAdmin, clubNoticeDeps, siteUrl } = deps;
   // Existing live row decides the path: completed/processing → done elsewhere,
   // pending → reuse the row (recompute), none → create. Checked BEFORE the
   // entries fetch: eligibility is date-driven, so every settled show stays
   // eligible forever — without this early exit each historical show would
   // re-pay the full entries query nightly, unbounded (review finding #2).
-  const { data: liveRow } = await supabase
+  const { data: liveRow, error: liveRowError } = await deps.supabase
     .from('show_payouts')
     .select('id, status')
     .eq('show_id', show.id)
     .neq('status', 'failed')
     .maybeSingle();
 
-  if (liveRow && !WORKABLE_LIVE_STATUSES.includes(liveRow.status)) {
-    return; // completed, in flight, or held
+  if (liveRowError) {
+    console.error(`Payout row read failed for show ${show.id}; nothing queued`, liveRowError);
+    return;
   }
+  if (liveRow && !WORKABLE_LIVE_STATUSES.includes(liveRow.status)) {
+    return; // completed or in flight
+  }
+  if (liveRow) return payShow(show, summary, deps, liveRow, null);
 
+  // MYK9-2183: the last attempt failed, so money may have moved. Ask Stripe
+  // under the money lock before anything is queued, parked or skipped.
+  const check = await checkFailedAttempt(deps, summary, show);
+  if (check.kind === 'stop') return;
+  if (!check.lock) return payShow(show, summary, deps, null, null);
+  try {
+    await payShow(show, summary, deps, null, check.lock);
+  } finally {
+    await check.lock.release();
+  }
+}
+
+async function payShow(
+  show: EligibleShow,
+  summary: PayoutSummary,
+  deps: ProcessShowDeps,
+  liveRow: { id: string; status: string } | null,
+  heldLock: HeldMoneyLock | null
+): Promise<void> {
+  const { supabase, stripe, stripeLivemode, alertAdmin, clubNoticeDeps, siteUrl } = deps;
   // Recompute the amount from entries at this moment — never trust stored
   // figures. This PRE-claim figure only decides routing (skip / park /
   // proceed); the amount actually transferred is recomputed again after the
@@ -172,11 +135,14 @@ export async function processShow(
     if (liveRow) {
       // A parked pending row whose show has since been fully refunded would
       // otherwise show the club money that will never arrive — close it out.
-      await supabase
+      const { error } = await supabase
         .from('show_payouts')
         .update({ amount_cents: 0, status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', liveRow.id)
         .in('status', WORKABLE_LIVE_STATUSES);
+      if (error) {
+        return reportLedgerWriteError(deps, summary, show, 'close out a $0 payout', error.message);
+      }
     }
     summary.skipped_no_online_money++;
     return;
@@ -226,10 +192,19 @@ export async function processShow(
   // Club can't receive money yet: park (or keep) a pending row; nudge only on creation.
   if (!account?.payouts_enabled) {
     if (liveRow) {
-      await supabase
+      const { error } = await supabase
         .from('show_payouts')
         .update({ amount_cents: amountCents })
         .eq('id', liveRow.id);
+      if (error) {
+        return reportLedgerWriteError(
+          deps,
+          summary,
+          show,
+          'refresh a parked amount',
+          error.message
+        );
+      }
     } else {
       const { error: insertError } = await supabase.from('show_payouts').insert({
         show_id: show.id,
@@ -238,7 +213,10 @@ export async function processShow(
         status: 'pending',
         scheduled_date: new Date().toISOString().slice(0, 10),
       });
-      if (!insertError && club) {
+      if (insertError) {
+        return reportLedgerWriteError(deps, summary, show, 'park a payout', insertError.message);
+      }
+      if (club) {
         // An onboarded account with payouts off needs fixing, not connecting (MYK9-1986).
         const notice = account?.onboarding_complete ? bankNeedsAttentionEmail : connectAccountEmail;
         await emailClub(
@@ -256,7 +234,7 @@ export async function processShow(
     return;
   }
 
-  const moneyLock = await deps.acquireMoneyLock(show.id);
+  const moneyLock = heldLock ?? (await deps.acquireMoneyLock(show.id));
   if (!moneyLock.ok) {
     summary.money_lock_busy++;
     console.log(`Skipping show ${show.id}: money lock ${moneyLock.reason}`);
@@ -264,6 +242,8 @@ export async function processShow(
   }
 
   let rowId: string | null = null;
+  // Set once Stripe has the money: from then on nothing may mark the row failed.
+  let sentTransferId: string | null = null;
   try {
     // Claim through the brake (MYK9-2170): with it on, this records the payout
     // as awaiting_approval and sends nothing; only an approved row (or, with it
@@ -309,19 +289,31 @@ export async function processShow(
     const finalAmountCents = await computePayoutCents(supabase, show.id);
     if (finalAmountCents === null) {
       // Can't verify the amount — release the claim for tomorrow's run.
-      await supabase
+      const { error } = await supabase
         .from('show_payouts')
         .update({ status: 'failed', failure_reason: 'entries_load_failed_post_claim' })
         .eq('id', rowId);
+      if (error) {
+        return reportLedgerWriteError(
+          deps,
+          summary,
+          show,
+          'release a claimed payout',
+          error.message
+        );
+      }
       summary.failed++;
       return;
     }
     if (finalAmountCents <= 0) {
       // Fully refunded since routing: nothing to send, close the row out.
-      await supabase
+      const { error } = await supabase
         .from('show_payouts')
         .update({ amount_cents: 0, status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', rowId);
+      if (error) {
+        return reportLedgerWriteError(deps, summary, show, 'close out a $0 payout', error.message);
+      }
       summary.skipped_no_online_money++;
       return;
     }
@@ -341,18 +333,24 @@ export async function processShow(
         .eq('id', rowId)
         .eq('status', 'processing');
       if (resetError) {
-        // Nothing was sent either way; the row stays 'processing' until the
-        // stale-processing recovery fails it and the next run asks again.
-        console.error(`Approval reset failed for payout ${rowId}; nothing sent`, resetError);
+        // Nothing was sent; the row stays 'processing' until the stale check
+        // finds no transfer at Stripe, fails it, and the next run asks again.
+        const step = 'send a payout back for approval';
+        return reportLedgerWriteError(deps, summary, show, step, resetError.message);
       }
       summary.awaiting_approval++;
       return;
     }
     if (finalAmountCents !== amountCents) {
-      await supabase
+      const { error } = await supabase
         .from('show_payouts')
         .update({ amount_cents: finalAmountCents })
         .eq('id', rowId);
+      if (error) {
+        // Never send an amount the record does not show; the stale check
+        // releases the row once Stripe confirms nothing went out.
+        return reportLedgerWriteError(deps, summary, show, 'update the amount', error.message);
+      }
     }
 
     // Double-pay guard (PR #625 HIGH finding): a row stuck in 'processing'
@@ -360,17 +358,15 @@ export async function processShow(
     // idempotency keys expire (~24h) BEFORE the stale recovery fires, so the
     // key alone cannot prevent a re-send. Ask Stripe directly: at most one
     // transfer per show, ever (transfer_group = show id).
-    const existing = await stripe.transfers.list({ transfer_group: show.id, limit: 1 });
-    if (existing.data.length > 0) {
-      const priorTransfer = existing.data[0];
-      await supabase
-        .from('show_payouts')
-        .update({
-          status: 'completed',
-          stripe_transfer_id: priorTransfer.id,
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', rowId);
+    const lookup = await lookUpShowTransfer(stripe, show.id);
+    if (lookup.kind === 'error') throw new Error(lookup.message);
+    if (lookup.kind === 'found') {
+      // Record what Stripe actually sent (MYK9-2183), not today's recompute.
+      const priorTransfer = lookup.transfer;
+      const writeError = await recordStripeTransfer(supabase, rowId, 'processing', priorTransfer);
+      if (writeError) {
+        return reportReconcileError(deps, summary, show, priorTransfer, writeError);
+      }
       summary.completed++;
       console.log(
         `Reconciled existing transfer ${priorTransfer.id} for show ${show.id} — no new transfer sent`
@@ -410,7 +406,9 @@ export async function processShow(
       { idempotencyKey: `show-payout-row-${rowId}` }
     );
 
-    await supabase
+    sentTransferId = transfer.id;
+
+    const { error: doneError } = await supabase
       .from('show_payouts')
       .update({
         status: 'completed',
@@ -418,9 +416,19 @@ export async function processShow(
         completed_at: new Date().toISOString(),
       })
       .eq('id', rowId);
-
-    summary.completed++;
-    console.log(`Paid out ${dollars(finalAmountCents)} for show ${show.id} (${transfer.id})`);
+    if (doneError) {
+      // Money moved but the record still says 'processing', which keeps refunds
+      // blocked; the stale check records it from Stripe within a day.
+      const sent = {
+        id: transfer.id,
+        amount: finalAmountCents,
+        destination: account.stripe_account_id,
+      };
+      await reportReconcileError(deps, summary, show, sent, doneError.message);
+    } else {
+      summary.completed++;
+      console.log(`Paid out ${dollars(finalAmountCents)} for show ${show.id} (${transfer.id})`);
+    }
 
     if (club) {
       await emailClub(
@@ -430,15 +438,26 @@ export async function processShow(
     }
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'Unknown Stripe error';
+    if (sentTransferId) {
+      // The transfer went out; a later step (the club email) failed. Never fail the row.
+      console.error(`After transfer ${sentTransferId} for show ${show.id}: ${reason}`);
+      return;
+    }
     const benign = /insufficient.*balance|balance.*insufficient/i.test(reason);
     // MYK9-1986: whose failure this is; only the club's own emails the club, once per episode.
     const { owner, failureReason } = transferFailureOutcome(err, reason, benign);
+    let stamped = true;
     if (rowId) {
       const failedRowId = rowId;
-      await supabase
+      const { error: stampError } = await supabase
         .from('show_payouts')
         .update({ status: 'failed', failure_reason: failureReason })
         .eq('id', failedRowId);
+      if (stampError) {
+        stamped = false;
+        const step = 'mark a failed transfer failed';
+        await reportLedgerWriteError(deps, summary, show, step, stampError.message);
+      }
       if (club) {
         await notifyClubOfTransferFailure(clubNoticeDeps(clubId, club.email), {
           owner,
@@ -450,7 +469,7 @@ export async function processShow(
         });
       }
     }
-    summary.failed++;
+    if (stamped) summary.failed++;
     console.error(`Transfer failed for show ${show.id}: ${reason}`);
     await alertAdmin(
       benign ? `Payout deferred (benign): ${show.name}` : `Payout FAILED: ${show.name}`,
@@ -464,6 +483,7 @@ export async function processShow(
       }
     );
   } finally {
-    await moneyLock.release();
+    // A lock handed in by processShow is released there.
+    if (!heldLock) await moneyLock.release();
   }
 }

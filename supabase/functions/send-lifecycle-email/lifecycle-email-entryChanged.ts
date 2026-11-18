@@ -35,6 +35,7 @@ interface DogRow {
   name: string | null;
   call_name: string | null;
   owner_id: string | null;
+  deleted_at?: string | null;
 }
 
 interface EntryRow {
@@ -62,6 +63,7 @@ interface ClassRow {
   element: string | null;
   level: string | null;
   section: string | null;
+  status?: string | null;
   deleted_at: string | null;
   trials: TrialRow | TrialRow[] | null;
 }
@@ -109,8 +111,22 @@ function parseEvents(value: unknown): RecordedEvent[] {
   );
 }
 
-function classLabel(row: ClassRow | undefined): string {
-  if (!row) return 'your class';
+/**
+ * The same related-row rules as live_entry_person_class_pairs: a class that is deleted or
+ * cancelled, or whose trial is deleted or of another show, is not one to tell anyone about.
+ */
+function classIsLive(row: ClassRow, showId: string): boolean {
+  const trial = first(row.trials);
+  return (
+    !!trial &&
+    trial.show_id === showId &&
+    !trial.deleted_at &&
+    !row.deleted_at &&
+    !['cancelled', 'canceled'].includes(clean(row.status).toLowerCase())
+  );
+}
+
+function classLabel(row: ClassRow): string {
   const name =
     clean(row.name) ||
     [clean(row.element), clean(row.level), clean(row.section)].filter(Boolean).join(' ') ||
@@ -128,6 +144,7 @@ function classLabel(row: ClassRow | undefined): string {
 function entryRuns(entry: EntryRow): boolean {
   return (
     !entry.deleted_at &&
+    !first(entry.dogs)?.deleted_at &&
     LIVE_ENTRY_STATUSES.includes(clean(entry.entry_status)) &&
     entry.check_in_status !== 'pulled'
   );
@@ -163,7 +180,7 @@ export async function planEntryChangedEmail(args: {
   const entryRead = (await supabase
     .from('entries')
     .select(
-      'id, class_id, entry_status, check_in_status, handler_id, handler, jump_height, deleted_at, dogs(name, call_name, owner_id)'
+      'id, class_id, entry_status, check_in_status, handler_id, handler, jump_height, deleted_at, dogs(name, call_name, owner_id, deleted_at)'
     )
     .eq('show_id', args.showId)
     .in('id', entryIds)) as QueryResult<EntryRow[]>;
@@ -180,14 +197,23 @@ export async function planEntryChangedEmail(args: {
       .filter(event => event.kind === 'moved' && event.from_entry_id)
       .map(event => [event.from_entry_id as string, event.entry_id])
   );
+  // ...unless that move was undone: the restored source entry is the one that survives, and
+  // the successor is soft-deleted, so the edit is read on the last entry in the chain that
+  // still stands (not deleted, not left behind by a move).
+  const survives = (id: string) => {
+    const entry = entries.get(id);
+    return !!entry && !entry.deleted_at && clean(entry.entry_status) !== 'moved';
+  };
   const finalEntryId = (entryId: string) => {
     let current = entryId;
+    let surviving = survives(entryId) ? entryId : null;
     for (let guard = 0; guard < successor.size; guard += 1) {
       const next = successor.get(current);
       if (!next || next === entryId) break;
       current = next;
+      if (survives(current)) surviving = current;
     }
-    return current;
+    return surviving ?? current;
   };
 
   const moves = events.filter(event => event.kind === 'moved' && event.to_class_id);
@@ -224,17 +250,20 @@ export async function planEntryChangedEmail(args: {
     const classRead = (await supabase
       .from('classes')
       .select(
-        'id, name, element, level, section, deleted_at, trials(name, date, show_id, deleted_at)'
+        'id, name, element, level, section, status, deleted_at, trials(name, date, show_id, deleted_at)'
       )
       .in('id', [...classIds])) as QueryResult<ClassRow[]>;
     if (classRead.error) throw new Error('Failed to load classes');
     for (const row of classRead.data ?? []) {
       // A class of another show is never named in this show's email.
-      if (first(row.trials)?.show_id === args.showId) classes.set(row.id, row);
+      if (classIsLive(row, args.showId)) classes.set(row.id, row);
     }
   }
-  const labelFor = (entry: EntryRow) =>
-    classLabel(entry.class_id ? classes.get(entry.class_id) : undefined);
+  // A line is told only with a class that is still live; there is no fallback wording.
+  const labelFor = (entry: EntryRow) => {
+    const row = entry.class_id ? classes.get(entry.class_id) : undefined;
+    return row ? classLabel(row) : null;
+  };
   const dogName = (entry: EntryRow) => {
     const dog = first(entry.dogs);
     return clean(dog?.call_name) || clean(dog?.name) || 'Your dog';
@@ -247,18 +276,22 @@ export async function planEntryChangedEmail(args: {
     // Told only while the entry the move produced still runs in the class it was moved to.
     if (!entry || !isMine(entry) || !entryRuns(entry)) continue;
     if (entry.class_id !== event.to_class_id) continue;
+    const label = labelFor(entry);
+    if (!label) continue;
     lines.push({
       dog: dogName(entry),
-      text: `You are now entered in ${labelFor(entry)} with ${dogName(entry)}.`,
+      text: `You are now entered in ${label} with ${dogName(entry)}.`,
     });
   }
 
   for (const entryId of pulledIds) {
     const entry = entries.get(entryId);
-    if (!entry) continue;
+    if (!entry || first(entry.dogs)?.deleted_at) continue;
+    const label = labelFor(entry);
+    if (!label) continue;
     lines.push({
       dog: dogName(entry),
-      text: `${dogName(entry)} has been pulled from ${labelFor(entry)}.`,
+      text: `${dogName(entry)} has been pulled from ${label}.`,
     });
   }
 
@@ -267,6 +300,7 @@ export async function planEntryChangedEmail(args: {
     // An edit is told only on an entry still running; a pulled entry is told as pulled.
     if (!entry || !isMine(entry) || !entryRuns(entry) || pulledIds.has(entryId)) continue;
     const label = labelFor(entry);
+    if (!label) continue;
     const was = clean(event.from);
     if (event.field === 'handler') {
       const now = clean(entry.handler);

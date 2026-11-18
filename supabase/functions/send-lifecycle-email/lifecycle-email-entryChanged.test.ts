@@ -247,6 +247,103 @@ describe('drainAutoEmailJobs for entry_changed', () => {
   });
 });
 
+describe('drainAutoEmailJobs for entry_changed, related rows and Undo', () => {
+  const edit = { kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '8' };
+
+  it('keeps a field edit and drops the move after the move was undone', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        [edit, move],
+        [
+          entry({ id: 'entry-1', jump_height: '12' }),
+          entry({
+            id: 'entry-2',
+            class_id: 'class-2',
+            entry_status: 'moved',
+            jump_height: '12',
+            deleted_at: '2026-11-18T12:00:00Z',
+          }),
+        ]
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ sent: 1 });
+    const { html } = sentBody(fetch);
+    expect(html).toContain('The jump height for Vesper in Container Novice A');
+    expect(html).not.toContain('You are now entered');
+  });
+
+  it('drops a move into a cancelled class and skips the job', async () => {
+    const tableSet = movedTables();
+    tableSet.classes = [
+      classRow('class-1', 'Container Novice A'),
+      classRow('class-2', 'Interior Novice A', 'show-1', { status: 'cancelled' }),
+    ];
+    const fixture = makeAutoSendSupabase(tableSet);
+    const { fetch, promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ skipped: 1, sent: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'skipped' });
+  });
+
+  it('drops a line whose class or trial was deleted', async () => {
+    for (const overrides of [
+      { deleted_at: '2026-11-18T12:00:00Z' },
+      {
+        trials: { name: 'Saturday Trial', date: '2026-11-21', show_id: 'show-1', deleted_at: 'x' },
+      },
+    ]) {
+      const tableSet = movedTables();
+      tableSet.classes = [
+        classRow('class-1', 'Container Novice A'),
+        classRow('class-2', 'Interior Novice A', 'show-1', overrides),
+      ];
+      const { fetch, promise } = drain(makeAutoSendSupabase(tableSet));
+      await expect(promise).resolves.toMatchObject({ skipped: 1, sent: 0 });
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  });
+
+  it('drops the lines of a dog that was deleted while the job waited', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables([edit], [entry({ jump_height: '12', dogs: { ...dog, deleted_at: 'x' } })])
+    );
+    const { fetch, promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ skipped: 1, sent: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('sends the surviving line when one of two lines is no longer live', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        [
+          { kind: 'edited', entry_id: 'entry-3', field: 'jump_height', from: '8' },
+          { kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '8' },
+        ],
+        [
+          entry({ id: 'entry-1', jump_height: '12' }),
+          entry({
+            id: 'entry-3',
+            class_id: 'class-3',
+            jump_height: '12',
+            dogs: { ...dog, call_name: 'Juniper' },
+          }),
+        ]
+      )
+    );
+    fixture.tables.classes.push(
+      classRow('class-3', 'Buried Novice A', 'show-1', { status: 'cancelled' })
+    );
+    const { fetch, promise } = drain(fixture);
+    await expect(promise).resolves.toMatchObject({ sent: 1 });
+    const { html } = sentBody(fetch);
+    expect(html).toContain('made a change to your entry');
+    expect(html).toContain('Container Novice A');
+    expect(html).not.toContain('Buried Novice A');
+    expect(html).not.toContain('your class');
+  });
+});
+
 describe('renderEntryChangedEmail', () => {
   it('says one change in the singular and many in the plural, with a link and no dash', () => {
     const one = renderEntryChangedEmail({

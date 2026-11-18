@@ -43,6 +43,19 @@ describe('lifecycle email read model', () => {
     });
   });
 
+  it('counts a held entry-change job as waiting', () => {
+    const summary = buildLifecycleEmailScheduledSummary({
+      jobs: [
+        { stepType: 'entry_changed', status: 'held' },
+        { stepType: 'entry_changed', status: 'ready' },
+      ],
+    });
+
+    expect(summary.steps.find(step => step.stepType === 'entry_changed')).toMatchObject({
+      readyCount: 2,
+    });
+  });
+
   it('shows automatic receipts only for online exhibitor submissions', () => {
     expect(
       shouldShowAutomaticReceiptForEntry({

@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { embedGuideVideos } from '../../../../docs/scripts/videoEmbed.mjs';
+import { embedGuideVideos } from '../../../../docs/scripts/videoEmbed.mts';
 
 /**
  * A guide marks a how-to video with a plain "Watch:" line holding a youtu.be link (MYK9-2189).
@@ -84,6 +84,18 @@ describe('the guides carry each how-to video in its own section', () => {
     const print = css.slice(css.indexOf('@media print'));
     expect(print).toMatch(/\.guide-video iframe \{\s*display: none;/);
     expect(print).toContain("content: ' (' attr(href) ')';");
+  });
+
+  // YouTube's newer playlist ids are short: PL plus 11 characters, not the older 34. Each of
+  // these was opened signed out on 2026-11-18 and its page title is the playlist's name.
+  it.each([
+    ['judge-steward-quickstart.md', 'myK9Show - Judges and Stewards', 'PLNz_qO-RIZtg'],
+    ['secretary-guide.md', 'myK9Show - Secretaries', 'PLPE_AEgvi2AU'],
+    ['exhibitor-guide.md', 'myK9Show - Exhibitors', 'PLf1-NSG71E4o'],
+  ])('%s links the "%s" playlist', (file, name, id) => {
+    expect(sectionOf(guide(file), '## Still need help?')).toContain(
+      `[${name}](https://www.youtube.com/playlist?list=${id})`
+    );
   });
 
   it('tells a judge the scoring video is for before show day', () => {

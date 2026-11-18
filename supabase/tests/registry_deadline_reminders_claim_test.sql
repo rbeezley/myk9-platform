@@ -57,6 +57,22 @@ BEGIN
     RAISE EXCEPTION 'a second registry should claim one row, got %', v_claimed;
   END IF;
 
+  -- A partly delivered reminder keeps who was reached, so a later run can finish the rest.
+  UPDATE public.registry_deadline_reminders
+     SET accepted_recipients = ARRAY['a@example.com']
+   WHERE show_id = v_show AND registry_id = 'AKC' AND deadline_date = DATE '2026-11-24';
+  IF NOT EXISTS (
+    SELECT 1 FROM public.registry_deadline_reminders
+     WHERE show_id = v_show AND registry_id = 'AKC' AND deadline_date = DATE '2026-11-24'
+       AND accepted_recipients = ARRAY['a@example.com'] AND sent_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'accepted_recipients should be stored on an unsent row';
+  END IF;
+  IF (SELECT accepted_recipients FROM public.registry_deadline_reminders
+       WHERE show_id = v_show AND registry_id = 'ASCA') <> '{}'::text[] THEN
+    RAISE EXCEPTION 'a new claim starts with nobody accepted';
+  END IF;
+
   -- Only AKC, UKC and ASCA are registries.
   BEGIN
     INSERT INTO public.registry_deadline_reminders (show_id, registry_id, deadline_date)

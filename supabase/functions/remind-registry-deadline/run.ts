@@ -7,30 +7,34 @@ import {
   dueRegistryReminders,
   finishListUrl,
 } from '../_shared/showCloseout/registryDeadlineReminder.ts';
-import {
-  loadPacketRoleRows,
-  loadPacketShow,
-  resolveRecipients,
-} from '../_shared/trialPacket/deliverStoredPacket.ts';
-import { sendTrialPacketEmail } from '../_shared/trialPacket/email.ts';
+import { recordEmailLog, type EmailAttempt } from '../_shared/trialPacket/emailLog.ts';
+import { sendTrialPacketEmail, TrialPacketProviderError } from '../_shared/trialPacket/email.ts';
+import { resolveNamedSecretaryEmails } from './recipients.ts';
 import { makeSupabaseStore, type ClaimKey, type ReminderStore } from './store.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 export interface RunDeps {
   store: ReminderStore;
-  /** The show's secretary and club admins with an email; empty when none can be reached. */
+  /**
+   * The show's named secretary with an email; `[]` only for a lookup that succeeded and found
+   * nobody. A failed lookup must throw.
+   */
   recipientsFor: (showId: string) => Promise<string[]>;
   sendEmail: typeof sendTrialPacketEmail;
+  /** One `email_log` row per attempt, so `resend-webhook` can mark a bounce. Never throws. */
+  logAttempts: (showId: string, attempts: readonly EmailAttempt[]) => Promise<void>;
   apiKey: string;
   appOrigin: string;
   now: Date;
 }
 
 export interface RunSummary {
+  /** Reminders every intended recipient has now been accepted for. */
   sent: number;
   alreadyReminded: number;
   noRecipients: number;
+  /** A failed lookup, or a reminder with an address the provider has not accepted yet. */
   failed: number;
 }
 
@@ -42,6 +46,7 @@ export async function runRegistryDeadlineReminders(deps: RunDeps): Promise<RunSu
     const due = dueRegistryReminders({
       trials: candidate.trials,
       submissions: candidate.submissions,
+      scoreChanges: candidate.scoreChanges,
       now: deps.now,
     });
     for (const reminder of due) {
@@ -52,58 +57,94 @@ export async function runRegistryDeadlineReminders(deps: RunDeps): Promise<RunSu
           registryId: reminder.registryId,
           deadline: reminder.deadline,
         };
-        const token = await deps.store.claim(key, deps.now);
-        if (!token) {
+        const claim = await deps.store.claim(key, deps.now);
+        if (!claim) {
           summary.alreadyReminded += 1;
           continue;
         }
+        const accepted = new Set(claim.accepted.map(address => address.toLowerCase()));
 
-        const recipients = await deps.recipientsFor(candidate.showId).catch(() => [] as string[]);
+        let recipients: string[];
+        try {
+          recipients = await deps.recipientsFor(candidate.showId);
+        } catch (error) {
+          // A lookup that failed is not "nobody to tell": release so the next run asks again.
+          console.error('remind-registry-deadline: recipient lookup failed', {
+            showId: candidate.showId,
+            error,
+          });
+          if (accepted.size === 0) await deps.store.release(key, claim.token);
+          summary.failed += 1;
+          continue;
+        }
         if (recipients.length === 0) {
-          // A show with no reachable official today may have one tomorrow: keep the slot open.
-          await deps.store.release(key, token);
+          // A show with no reachable secretary today may have one tomorrow: keep the slot open.
+          if (accepted.size === 0) await deps.store.release(key, claim.token);
           summary.noRecipients += 1;
           continue;
         }
 
-        const subject = buildRegistryDeadlineSubject(candidate.showName, reminder);
-        const html = buildRegistryDeadlineHtml({
-          showName: candidate.showName,
-          reminder,
-          finishUrl: finishListUrl(deps.appOrigin, candidate.showId),
-        });
-
-        let delivered = 0;
-        for (const recipient of recipients) {
-          try {
-            await deps.sendEmail({
-              apiKey: deps.apiKey,
-              // Show, registry, deadline AND recipient: a shared key would make the provider
-              // answer every later address with a replay of the first.
-              idempotencyKey: `registry-deadline-${key.showId}-${key.registryId}-${key.deadline}-${recipient.toLowerCase()}`,
-              from: FROM_EMAIL,
-              recipient,
-              subject,
-              html,
-            });
-            delivered += 1;
-          } catch (error) {
-            console.error('remind-registry-deadline: send failed', { showId: key.showId, error });
+        const outstanding = recipients.filter(address => !accepted.has(address.toLowerCase()));
+        const attempts: EmailAttempt[] = [];
+        if (outstanding.length > 0) {
+          const subject = buildRegistryDeadlineSubject(candidate.showName, reminder);
+          const html = buildRegistryDeadlineHtml({
+            showName: candidate.showName,
+            reminder,
+            finishUrl: finishListUrl(deps.appOrigin, candidate.showId),
+          });
+          for (const recipient of outstanding) {
+            try {
+              const messageId = await deps.sendEmail({
+                apiKey: deps.apiKey,
+                // Show, registry, deadline AND recipient: a shared key would make the provider
+                // answer every later address with a replay of the first.
+                idempotencyKey: `registry-deadline-${key.showId}-${key.registryId}-${key.deadline}-${recipient.toLowerCase()}`,
+                from: FROM_EMAIL,
+                recipient,
+                subject,
+                html,
+              });
+              if (!messageId) {
+                // A 2xx with no message id is not an acceptance the webhook could ever confirm.
+                attempts.push({ recipient, messageId: null, error: 'provider_no_message_id' });
+                continue;
+              }
+              attempts.push({ recipient, messageId, error: null });
+              accepted.add(recipient.toLowerCase());
+              // Saved per address: a run that dies mid-loop must not mail these again.
+              const saved = await deps.store.recordAccepted(key, claim.token, [...accepted]);
+              if (!saved) console.error('remind-registry-deadline: accepted list not saved', key);
+            } catch (error) {
+              const status = error instanceof TrialPacketProviderError ? error.status : null;
+              attempts.push({
+                recipient,
+                messageId: null,
+                error:
+                  status === null || status === 'network_error'
+                    ? 'email_delivery_error'
+                    : `provider_http_${status}`,
+              });
+              console.error('remind-registry-deadline: send failed', { showId: key.showId, error });
+            }
           }
+          await deps.logAttempts(candidate.showId, attempts);
         }
 
-        if (delivered === 0) {
-          // Nobody was reached: release, so a later run in the window tries again.
-          await deps.store.release(key, token);
-          summary.failed += 1;
+        const everyoneReached = recipients.every(address => accepted.has(address.toLowerCase()));
+        if (everyoneReached) {
+          // The mail is gone. A failed stamp must not throw (a retry would email everyone again).
+          let stamped = await deps.store.stampSent(key, claim.token, deps.now, accepted.size);
+          if (!stamped)
+            stamped = await deps.store.stampSent(key, claim.token, deps.now, accepted.size);
+          if (!stamped) console.error('remind-registry-deadline: could not stamp sent_at', key);
+          summary.sent += 1;
           continue;
         }
-
-        // The mail is gone. A failed stamp must not throw (a retry would email everyone again).
-        let stamped = await deps.store.stampSent(key, token, deps.now, delivered);
-        if (!stamped) stamped = await deps.store.stampSent(key, token, deps.now, delivered);
-        if (!stamped) console.error('remind-registry-deadline: could not stamp sent_at', key);
-        summary.sent += 1;
+        // Someone is still outstanding. Nobody reached at all: release. Otherwise keep the claim
+        // with its accepted list, and a later run (after the lease) mails only the rest.
+        if (accepted.size === 0) await deps.store.release(key, claim.token);
+        summary.failed += 1;
       } catch (error) {
         console.error('remind-registry-deadline: reminder failed', {
           showId: candidate.showId,
@@ -122,17 +163,14 @@ export async function runWithSupabase(supabase: SupabaseClient): Promise<RunSumm
   if (!apiKey) throw new HttpError(503, 'Email service not configured.');
   return await runRegistryDeadlineReminders({
     store: makeSupabaseStore(supabase),
-    recipientsFor: async showId => {
-      const show = await loadPacketShow(supabase, showId);
-      try {
-        return await resolveRecipients(supabase, show, await loadPacketRoleRows(supabase, show));
-      } catch (error) {
-        // `resolveRecipients` says "nobody to email" as a 422; anything else is a real failure.
-        if (error instanceof HttpError && error.status === 422) return [];
-        throw error;
-      }
-    },
+    recipientsFor: showId => resolveNamedSecretaryEmails(supabase, showId),
     sendEmail: sendTrialPacketEmail,
+    logAttempts: (showId, attempts) =>
+      recordEmailLog(supabase, attempts, {
+        emailType: 'registry_deadline_reminder',
+        showId,
+        relatedId: showId,
+      }),
     apiKey,
     appOrigin: Deno.env.get('SITE_URL') || 'https://myk9show.com',
     now: new Date(),

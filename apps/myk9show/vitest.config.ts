@@ -114,6 +114,7 @@ export default defineConfig({
       '../../supabase/functions/remind-print-trial-packet/*.test.ts',
       '../../supabase/functions/remind-registry-deadline/*.test.ts',
       '../../supabase/functions/_shared/showCloseout/*.test.ts',
+      '../../supabase/functions/_shared/registrySelectors.test.ts',
       '../../supabase/functions/send-access-request-emails/*.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
       'supabase/functions/cron-waitlist-expiration/*.test.ts',

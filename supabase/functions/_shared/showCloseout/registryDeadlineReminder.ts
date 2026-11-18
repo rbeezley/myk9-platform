@@ -4,8 +4,10 @@
  * Pure and Deno-safe: no Supabase, no clock of its own. The date is NEVER calculated here. It comes
  * from `resultsDeadlineFor` and `lastTrialDay` in `resultsDeadline.ts`, the same functions the
  * Finish the show list calls, so the email and the list name the same day. The only things this
- * file adds are the rules for reading a raw trial row the way the app does (registry fallback, time
- * zone fallback, cancelled trials, scent-work trials) and for "is this line still open".
+ * file adds are the rules for reading a raw trial row the way the app does (registry and time zone
+ * through `registrySelectors.ts`, which the app calls too; cancelled trials, scent-work trials) and
+ * for "is this line still open", which is the Finish list's rule: a file sent before a score
+ * changed reads as open again (`submissionCoverage.ts`).
  */
 import {
   RESULTS_DEADLINE_RULES,
@@ -15,15 +17,22 @@ import {
   resultsDeadlineCoversTrialType,
   resultsDeadlineFor,
 } from './resultsDeadline.ts';
+import {
+  FALLBACK_TRIAL_TIME_ZONE,
+  selectTrialRegistryId,
+  selectTrialTimeZone,
+} from '../registrySelectors.ts';
+import { APP_SENT_REGISTRIES, coveredUntil, newestSubmissionAt } from './submissionCoverage.ts';
 
 /** One reminder, this many calendar days before the deadline (the deadline day is the last). */
 export const REMIND_DAYS_BEFORE = 2;
 
 const REGISTRY_IDS = ['AKC', 'UKC', 'ASCA'] as const;
-const FALLBACK_TIME_ZONE = 'America/New_York';
 const SUBMITTED_STATUSES = new Set(['sent', 'submitted']);
 
 export interface ReminderTrial {
+  /** `trials.id`; lets a score change be traced to its trial's registry. */
+  id?: string | null;
   /** `trials.date`. */
   date: string | null;
   /** `trials.timezone`. */
@@ -41,6 +50,17 @@ export interface ReminderSubmission {
   organization: string | null;
   /** `result_submissions.status`. */
   status: string | null;
+  /** `result_submissions.submitted_at`: when the file went. */
+  submittedAt?: string | null;
+}
+
+/**
+ * The newest change to a score the AKC results file carries, for one class, after the file was
+ * sent (`entry_score_audit`). `trialId` is the class's trial, `null` when it names none.
+ */
+export interface ReminderScoreChange {
+  trialId: string | null;
+  changedAt: string;
 }
 
 export interface DueReminder {
@@ -51,31 +71,23 @@ export interface DueReminder {
   daysUntil: number;
   /** The open line, as a sentence. */
   openLine: string;
+  /** The file was sent, then a score changed: the corrected file is what is owed. */
+  corrected: boolean;
 }
 
 function normalizeStatus(status: string | null | undefined): string {
   return status?.trim().toLowerCase().replace(/\s+/g, '_') ?? '';
 }
 
-/** `getTrialRegistry`: a blank or unknown registry reads as AKC. */
+/** `getTrialRegistry`: a blank or unknown registry reads as AKC (the same selector the app calls). */
 function registryOf(trial: ReminderTrial): string {
-  const id = trial.registryId?.trim() || 'AKC';
-  return (REGISTRY_IDS as readonly string[]).includes(id) ? id : 'AKC';
+  const { id, known } = selectTrialRegistryId(trial.registryId, REGISTRY_IDS);
+  return known ? id : 'AKC';
 }
 
-function isValidTimeZone(zone: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: zone });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** `getTrialTimezone`: a blank or invalid zone reads as America/New_York. */
+/** `getTrialTimezone`: a blank or invalid zone reads as America/New_York (the same selector). */
 function zoneOf(trial: ReminderTrial): string {
-  const raw = trial.timeZone?.trim();
-  return raw && isValidTimeZone(raw) ? raw : FALLBACK_TIME_ZONE;
+  return selectTrialTimeZone(trial.timeZone).timeZone;
 }
 
 /** The calendar day (`YYYY-MM-DD`) an instant falls on in a time zone. */
@@ -101,7 +113,10 @@ function daysBetween(from: string, to: string): number | null {
   return Number.isNaN(start) || Number.isNaN(end) ? null : Math.round((end - start) / 86_400_000);
 }
 
-function openLineFor(registryId: string): string {
+function openLineFor(registryId: string, corrected: boolean): string {
+  if (corrected) {
+    return `Scores changed after the results file was sent to ${registryId}. The corrected file has not been sent.`;
+  }
   return registryId === 'AKC'
     ? 'The results file has not been sent to AKC.'
     : `The results are not marked as submitted to ${registryId}.`;
@@ -116,9 +131,22 @@ function openLineFor(registryId: string): string {
 export function dueRegistryReminders(input: {
   trials: readonly ReminderTrial[];
   submissions: readonly ReminderSubmission[];
+  /** `undefined` = the score history was not read: the file reads as current, as on the list. */
+  scoreChanges?: readonly ReminderScoreChange[] | undefined;
   now: Date;
 }): DueReminder[] {
   const due: DueReminder[] = [];
+  const coverageRows = input.submissions.map(row => ({
+    status: row.status,
+    organization: row.organization,
+    submitted_at: row.submittedAt ?? null,
+  }));
+  const registryByTrial = new Map<string, string>();
+  const showRegistries = new Set<string>();
+  for (const trial of input.trials) {
+    showRegistries.add(registryOf(trial));
+    if (trial.id) registryByTrial.set(trial.id, registryOf(trial));
+  }
   for (const registryId of REGISTRY_IDS) {
     if (!RESULTS_DEADLINE_RULES[registryId]) continue;
     const trials = input.trials.filter(
@@ -133,22 +161,46 @@ export function dueRegistryReminders(input: {
     const deadline = resultsDeadlineFor(registryId, lastDay);
     if (!deadline || !lastDay) continue;
 
-    const closed = input.submissions.some(
+    // A submission names the registry it went to; one that names none covers every registry.
+    const submitted = input.submissions.some(
       row =>
         SUBMITTED_STATUSES.has(normalizeStatus(row.status)) &&
-        (!row.organization || row.organization.trim().toUpperCase() === registryId)
+        (!row.organization || row.organization.toUpperCase() === registryId)
     );
-    if (closed) continue;
+    let corrected = false;
+    if (submitted) {
+      // The Finish list's rule (whatIsLeft.ts): an app-sent file stays true only until a score it
+      // carries changes after the newest send or recorded filing.
+      const sentAt = APP_SENT_REGISTRIES.includes(registryId)
+        ? newestSubmissionAt(coverageRows, registryId, 'sent')
+        : null;
+      if (sentAt === null) continue;
+      const coveredAt = coveredUntil(coverageRows, registryId) ?? sentAt;
+      corrected = (input.scoreChanges ?? []).some(change => {
+        const belongs =
+          change.trialId === null
+            ? showRegistries.size === 1
+            : registryByTrial.get(change.trialId) === registryId;
+        return belongs && Date.parse(change.changedAt) > coveredAt;
+      });
+      if (!corrected) continue;
+    }
 
     // "Today" is the show's own calendar day: the zone of the trial that holds the last day.
     const lastTrial = trials.find(
       trial => calendarDayInZone(trial.date, zoneOf(trial)) === lastDay
     );
-    const today = todayInZone(input.now, lastTrial ? zoneOf(lastTrial) : FALLBACK_TIME_ZONE);
+    const today = todayInZone(input.now, lastTrial ? zoneOf(lastTrial) : FALLBACK_TRIAL_TIME_ZONE);
     const daysUntil = today ? daysBetween(today, deadline) : null;
     if (daysUntil === null || daysUntil < 0 || daysUntil > REMIND_DAYS_BEFORE) continue;
 
-    due.push({ registryId, deadline, daysUntil, openLine: openLineFor(registryId) });
+    due.push({
+      registryId,
+      deadline,
+      daysUntil,
+      corrected,
+      openLine: openLineFor(registryId, corrected),
+    });
   }
   return due;
 }

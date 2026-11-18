@@ -22,6 +22,9 @@ create table public.registry_deadline_reminders (
   claimed_at timestamptz not null default now(),
   sent_at timestamptz,
   recipient_count integer,
+  -- Lower-cased addresses the mail provider has ACCEPTED for this reminder. sent_at is stamped only
+  -- once every intended recipient is in here; a later run mails just the addresses still missing.
+  accepted_recipients text[] not null default '{}'::text[],
   constraint registry_deadline_reminders_one_per_deadline
     unique (show_id, registry_id, deadline_date)
 );
@@ -29,7 +32,9 @@ create table public.registry_deadline_reminders (
 comment on table public.registry_deadline_reminders is
   'MYK9-2077: one row per (show, registry, deadline date) so a re-run cannot email the same reminder twice. Written only by the remind-registry-deadline edge function (service role).';
 comment on column public.registry_deadline_reminders.sent_at is
-  'Null means claimed but not yet sent. The function releases the row when every send fails.';
+  'Null means claimed but not yet sent to everyone. The function releases the row when no send was accepted; a partly accepted row is kept and finished by a later run (accepted_recipients).';
+comment on column public.registry_deadline_reminders.accepted_recipients is
+  'Lower-cased addresses the provider accepted. A later run sends only to intended recipients not listed here.';
 
 alter table public.registry_deadline_reminders enable row level security;
 alter table public.registry_deadline_reminders force row level security;

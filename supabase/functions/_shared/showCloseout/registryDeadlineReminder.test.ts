@@ -131,6 +131,83 @@ describe('dueRegistryReminders', () => {
     expect(due[0]?.registryId).toBe('AKC');
   });
 
+  it('reads a padded zone the way the app does: refused, so New York', () => {
+    // " America/Los_Angeles" is invalid, so its day is counted in New York. At 07:30Z it is 02:30
+    // on Nov 22 in New York (two days out) but 23:30 on Nov 21 in Los Angeles (three days out).
+    const at = (timeZone: string) =>
+      dueRegistryReminders({
+        trials: [trial({ timeZone })],
+        submissions: [],
+        now: new Date('2026-11-22T07:30:00Z'),
+      }).length;
+    expect(at('America/Los_Angeles')).toBe(0);
+    expect(at(' America/Los_Angeles')).toBe(1);
+  });
+
+  describe('a corrected results file', () => {
+    const sent = (at: string) => [{ organization: 'AKC', status: 'sent', submittedAt: at }];
+    const run = (
+      submissions: ReturnType<typeof sent>,
+      scoreChanges: { trialId: string | null; changedAt: string }[] | undefined
+    ) =>
+      dueRegistryReminders({
+        trials: [trial({ id: 't1' })],
+        submissions,
+        scoreChanges,
+        now: NOON('2026-11-22'),
+      });
+
+    it('reopens the line when a score changed after the send, and names the corrected file', () => {
+      const due = run(sent('2026-11-18T12:00:00Z'), [
+        { trialId: 't1', changedAt: '2026-11-19T12:00:00Z' },
+      ]);
+      expect(due).toHaveLength(1);
+      expect(due[0]).toMatchObject({ corrected: true, deadline: '2026-11-24' });
+      expect(due[0]?.openLine).toBe(
+        'Scores changed after the results file was sent to AKC. The corrected file has not been sent.'
+      );
+    });
+
+    it('stays ticked when the change came before the send, or the history was not read', () => {
+      expect(
+        run(sent('2026-11-19T12:00:00Z'), [{ trialId: 't1', changedAt: '2026-11-18T12:00:00Z' }])
+      ).toEqual([]);
+      expect(run(sent('2026-11-18T12:00:00Z'), undefined)).toEqual([]);
+      expect(run(sent('2026-11-18T12:00:00Z'), [])).toEqual([]);
+    });
+
+    it('is covered by a later recorded filing, like the list', () => {
+      const rows = [
+        ...sent('2026-11-18T12:00:00Z'),
+        { organization: 'AKC', status: 'submitted', submittedAt: '2026-11-20T12:00:00Z' },
+      ];
+      expect(run(rows, [{ trialId: 't1', changedAt: '2026-11-19T12:00:00Z' }])).toEqual([]);
+    });
+
+    it("ignores a change in another registry's trial", () => {
+      const trials = [trial({ id: 't1' }), trial({ id: 't2', registryId: 'ASCA' })];
+      const due = dueRegistryReminders({
+        trials,
+        submissions: sent('2026-11-18T12:00:00Z'),
+        scoreChanges: [{ trialId: 't2', changedAt: '2026-11-19T12:00:00Z' }],
+        now: NOON('2026-11-22'),
+      });
+      expect(due.map(item => item.registryId)).not.toContain('AKC');
+    });
+
+    it('never reopens a registry whose file the secretary files herself', () => {
+      const due = dueRegistryReminders({
+        trials: [trial({ id: 't1', registryId: 'ASCA', date: '2026-11-10' })],
+        submissions: [
+          { organization: 'ASCA', status: 'submitted', submittedAt: '2026-11-11T12:00:00Z' },
+        ],
+        scoreChanges: [{ trialId: 't1', changedAt: '2026-11-12T12:00:00Z' }],
+        now: NOON('2026-11-23'),
+      });
+      expect(due).toEqual([]);
+    });
+  });
+
   describe('time zone edge at midnight', () => {
     const open = (nowIso: string, timeZone: string) =>
       dueRegistryReminders({
@@ -161,6 +238,7 @@ describe('the reminder email', () => {
     deadline: '2026-11-24',
     daysUntil: 2,
     openLine: 'The results file has not been sent to AKC.',
+    corrected: false,
   };
 
   it('names the open line, the date and the Finish the show list', () => {

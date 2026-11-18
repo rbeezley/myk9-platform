@@ -5,6 +5,8 @@ import { readFile, writeFile, mkdir, readdir, copyFile, rm } from 'node:fs/promi
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// A typed module: Node (>=22.23.4, see package.json engines) strips the types as it loads it.
+import { embedGuideVideos } from './videoEmbed.mts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '../../..');
@@ -64,6 +66,8 @@ function transform(md) {
   // Point images at the public screenshots / diagrams dirs.
   out = out.replace(/\.\.\/screenshots\//g, '/screenshots/');
   out = out.replace(/\.\.\/diagrams\//g, '/diagrams/');
+  // A "Watch:" line with a youtu.be link becomes the player (videoEmbed.mts).
+  out = embedGuideVideos(out);
   return out.replace(/^\s+/, '');
 }
 

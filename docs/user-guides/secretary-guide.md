@@ -62,6 +62,8 @@ Once you use the paperwork tracking (print a sheet from the app, or record a jud
 
 ## 1 · Create a show, its trials, and its classes
 
+> **Watch:** [How to create a show (2 min 11 s)](https://youtu.be/IAltmLZVG9A)
+
 The wizard creates all three in one pass. **Actions → Add Show** (the Actions button is in the top bar, on any page).
 
 ![Add Show wizard on Step 1, showing the four steps and the starred required fields](../screenshots/S-02.png)
@@ -277,6 +279,8 @@ In the week before the show (from seven days out to the day before), **Show Desk
 
 ## 11 · Set the run order
 
+> **Watch:** [Show day: run order and check-in (1 min 28 s)](https://youtu.be/mKj5PIHfAmY)
+
 **Show Desk → click the class → ⋯ (Actions) → Auto-sort run order.**
 
 ![Show Desk with a class selected: Status, Judge and Expected start under the class name, the ⋯ menu, and the entries in run order with a drag handle on each waiting dog](../screenshots/S-15.png)
@@ -350,6 +354,8 @@ The **⋯** button at the top right of the class opens **Actions for** that clas
 **Announce a delay** appears before a class starts when it is running late; it opens the delay message already filled in with the class and the minutes.
 
 ## 18 · Check dogs in
+
+> **Watch:** [Show day: run order and check-in (1 min 28 s)](https://youtu.be/mKj5PIHfAmY) Check-in is the second half.
 
 The **Check-in desk** is the one list of exhibitors, with armband, class, time and check-in state for every dog:
 
@@ -494,5 +500,7 @@ Honest list, so nothing surprises you mid-show.
 ---
 
 ## Still need help?
+
+More videos for secretaries: [myK9Show - Secretaries](https://www.youtube.com/playlist?list=PLPE_AEgvi2AU).
 
 Full findings behind this guide, including anything fixed recently: `docs/audits/2026-08-28-secretary-task-walk.md`.

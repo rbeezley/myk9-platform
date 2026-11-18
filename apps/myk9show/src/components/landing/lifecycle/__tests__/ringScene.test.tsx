@@ -60,6 +60,10 @@ describe('the ring scene', () => {
       ['The score is read back before it saves', 'confirm'],
       ['The signal returns', 'sent'],
     ]);
+    // Two frames show `sent`; the one the last line rests on rings the Scores sent message.
+    expect(frames[lastFrameOfLine(frames, 4)]!.phone!.ring).toEqual(
+      regions.shots.sent.regions.toast
+    );
   });
 
   it('rings the whole class card on the first line', () => {

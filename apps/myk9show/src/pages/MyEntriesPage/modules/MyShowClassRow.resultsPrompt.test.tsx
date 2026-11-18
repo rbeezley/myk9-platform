@@ -9,6 +9,12 @@ import { makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtur
 import { MyShowsList } from './MyShowsList';
 import type { EntryClass } from './my-entries-types';
 
+// Every show is club-public here; the private-show skip is covered in firstResultsPromptClass.test.ts.
+vi.mock('@/hooks/queries/useShowSettingsDatabase', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/queries/useShowSettingsDatabase')>()),
+  useResultsPromptableShowIds: (ids: readonly string[]) => new Set(ids),
+}));
+
 vi.mock('@/components/preferences/ResultsPublicPrompt', () => ({
   ResultsPublicPrompt: (props: { showId: string; dogName: string; placement: number }) => (
     <div data-testid="prompt">{`${props.showId}|${props.dogName}|${props.placement}`}</div>

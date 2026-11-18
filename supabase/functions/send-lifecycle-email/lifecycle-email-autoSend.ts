@@ -18,6 +18,11 @@
  *   judge_changed (MYK9-2125)                 same drain; the email names each class whose judge
  *                                             changed, rendered at send time. A class with no
  *                                             judge named yet is told as "not named yet"
+ *   entry_changed (MYK9-2126)                 same drain; the email lists what the secretary changed
+ *                                             on the person's own entries, as it stands at send time.
+ *                                             Producers make these jobs `held` so a sender deployed
+ *                                             before this one never mails them as show_changed; the
+ *                                             drain releases them (held to ready) before it claims
  */
 import {
   deliverViaResend,
@@ -31,6 +36,7 @@ import {
   type SendLifecycleEmailDeps,
 } from './lifecycle-email-shared.ts';
 import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
+import { planEntryChangedEmail, renderEntryChangedEmail } from './lifecycle-email-entryChanged.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -107,6 +113,15 @@ export async function drainAutoEmailJobs(args: {
     errors: 0,
   };
   if (!args.deps.resendApiKey) throw new Error('Email service not configured');
+
+  // MYK9-2126: this sender can send an entry change, so it frees the jobs the producers held.
+  const released = await args.supabase
+    .from('show_lifecycle_email_jobs')
+    .update({ status: 'ready' })
+    .eq('step_type', 'entry_changed')
+    .eq('status', 'held');
+  // A failed release leaves them held for the next drain; it must not stop the other emails.
+  if (released.error) console.error('drain_auto: release failed', getErrorMessage(released.error));
 
   // Batch after batch until nothing is due or the time budget is spent; whatever is left is
   // claimed by the next run, five minutes later.
@@ -205,7 +220,11 @@ async function processClaimedJob(args: {
   }
   row.recipient_email = currentEmail;
   // The secretary may switch the step off during the quiet minutes: honour it at send time.
-  if (!(await stepIsEnabled(supabase, job.show_id, job.step_type))) {
+  // An entry change has no switch (MYK9-2126): the secretary cannot hold one back.
+  if (
+    job.step_type !== 'entry_changed' &&
+    !(await stepIsEnabled(supabase, job.show_id, job.step_type))
+  ) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
@@ -230,6 +249,24 @@ async function processClaimedJob(args: {
       recipientName: job.recipient_name,
       registryId: plan.registryId,
       changes: plan.changes,
+    });
+  } else if (job.step_type === 'entry_changed') {
+    // MYK9-2126: told only what still stands on the person's own entries.
+    const plan = await planEntryChangedEmail({
+      supabase,
+      jobId: job.job_id,
+      showId: job.show_id,
+      personId: job.recipient_person_id,
+    });
+    if (plan.kind === 'skip') {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderEntryChangedEmail({
+      showId: job.show_id,
+      showName: show.name,
+      recipientName: job.recipient_name,
+      lines: plan.lines,
     });
   } else {
     if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {

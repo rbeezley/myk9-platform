@@ -154,6 +154,13 @@ describe('PayoutLedgerPage', () => {
     expect(screen.getByTestId('payout-brake-card-stub')).toHaveTextContent('unread');
   });
 
+  it('treats the tally as unread after a failed refetch, even with cached data', () => {
+    ledgerState.isError = true;
+    ledgerState.data = [row];
+    render(<PayoutLedgerPage />);
+    expect(screen.getByTestId('payout-brake-card-stub')).toHaveTextContent('unread');
+  });
+
   it('renders the platform fee card with the current rate', () => {
     render(<PayoutLedgerPage />);
     expect(screen.getByText('Platform fee')).toBeInTheDocument();

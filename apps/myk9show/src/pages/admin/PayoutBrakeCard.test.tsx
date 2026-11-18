@@ -50,8 +50,11 @@ describe('PayoutBrakeCard', () => {
   it('shows the running tally from the payout history', () => {
     render(<PayoutBrakeCard payouts={[matched]} />);
     expect(screen.getByTestId('payout-approval-tally')).toHaveTextContent(
-      '1 payout approved, 1 matched Stripe'
+      '1 payout approved, 1 sent for the approved amount'
     );
+    expect(
+      screen.getByText('Which Stripe account received each payout is not checked here yet.')
+    ).toBeInTheDocument();
   });
 
   it('turns the brake off only after a confirm that says what it leaves waiting', () => {
@@ -87,6 +90,16 @@ describe('PayoutBrakeCard', () => {
     brakeState.data = { on: false, changedAt: null, changedByName: null };
     render(<PayoutBrakeCard payouts={undefined} />);
     expect(screen.getByRole('button', { name: 'Turn the brake on' })).toBeEnabled();
+  });
+
+  it('refuses to switch off if the tally became unreadable while the confirm was open', () => {
+    const { rerender } = render(<PayoutBrakeCard payouts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Turn the brake off' }));
+    rerender(<PayoutBrakeCard payouts={undefined} />);
+    fireEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Turn the brake off' })
+    );
+    expect(brakeMutate).not.toHaveBeenCalled();
   });
 
   it('does not offer the switch when the brake could not be read', () => {

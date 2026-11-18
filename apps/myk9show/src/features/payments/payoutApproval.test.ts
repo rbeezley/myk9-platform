@@ -118,7 +118,7 @@ describe('tallyApprovals', () => {
     };
   }
 
-  it('matches only a completed transfer for the approved amount to the approved account', () => {
+  it('counts a completed transfer for the approved amount as sent for it', () => {
     const tally = tallyApprovals([
       attempt('completed', 10000, {}, 'tr_1'),
       attempt('completed', 9000, {}, 'tr_2'),
@@ -126,12 +126,15 @@ describe('tallyApprovals', () => {
       attempt('completed', 10000, null, 'tr_3'),
       attempt('awaiting_approval', 10000, null),
     ]);
-    // Approved: the three carrying an approval. Matched: only the one Stripe sent
+    // Approved: the three carrying an approval. Sent: only the one Stripe sent
     // for the approved amount; a lower send and an unsent approval are not.
-    expect(tally).toEqual({ approved: 3, matchedStripe: 1 });
+    expect(tally).toEqual({ approved: 3, sentForApprovedAmount: 1 });
   });
 
-  it('does not count a transfer to another account, or an unknown one, as matched', () => {
+  // The account is not checked by this count (owner decision, MYK9-2195): the
+  // row cannot say whether reconciliation checked it, so the label says so
+  // rather than the count pretending to.
+  it('makes no claim about which account was paid', () => {
     expect(
       tallyApprovals([
         attempt(
@@ -140,36 +143,35 @@ describe('tallyApprovals', () => {
           { destination: { stripeAccountId: 'acct_other', payoutsEnabled: true } },
           'tr_1'
         ),
-        attempt('completed', 10000, { destination: null }, 'tr_2'),
       ])
-    ).toEqual({ approved: 2, matchedStripe: 0 });
+    ).toEqual({ approved: 1, sentForApprovedAmount: 1 });
   });
 
   it('keeps counting a failed approved send after its replacement is created', () => {
     expect(
       tallyApprovals([attempt('failed', 10000, {}), attempt('awaiting_approval', 10000, null)])
-    ).toEqual({ approved: 1, matchedStripe: 0 });
+    ).toEqual({ approved: 1, sentForApprovedAmount: 0 });
   });
 
   it('does not count a row with an approval time but no approved amount', () => {
     expect(
       tallyApprovals([attempt('completed', 10000, { approvedAmountCents: null }, 'tr_1')])
-    ).toEqual({ approved: 0, matchedStripe: 0 });
+    ).toEqual({ approved: 0, sentForApprovedAmount: 0 });
   });
 
   it('does not count a completed row with no transfer id as matched', () => {
     expect(tallyApprovals([attempt('completed', 10000, {}, null)])).toEqual({
       approved: 1,
-      matchedStripe: 0,
+      sentForApprovedAmount: 0,
     });
   });
 
   it('reads as one sentence', () => {
-    expect(formatApprovalTally({ approved: 14, matchedStripe: 14 })).toBe(
-      '14 payouts approved, 14 matched Stripe'
+    expect(formatApprovalTally({ approved: 14, sentForApprovedAmount: 14 })).toBe(
+      '14 payouts approved, 14 sent for the approved amount'
     );
-    expect(formatApprovalTally({ approved: 1, matchedStripe: 0 })).toBe(
-      '1 payout approved, 0 matched Stripe'
+    expect(formatApprovalTally({ approved: 1, sentForApprovedAmount: 0 })).toBe(
+      '1 payout approved, 0 sent for the approved amount'
     );
   });
 });

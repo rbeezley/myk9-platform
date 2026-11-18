@@ -17,6 +17,7 @@ import type { LedgerPayout } from '@/features/payments/payoutLedger';
 import {
   describePayoutActionError,
   formatApprovalTally,
+  TALLY_ACCOUNT_CAVEAT,
   tallyApprovals,
 } from '@/features/payments/payoutApproval';
 import { usePayoutBrake, useSetPayoutBrake } from '@/features/payments/usePayoutBrake';
@@ -36,6 +37,12 @@ export function PayoutBrakeCard({ payouts }: { payouts: LedgerPayout[] | undefin
   // server may ask for is the only dialog on screen.
   const change = (on: boolean) => {
     setConfirmOff(false);
+    // Checked again at confirm time: the tally can become unreadable while the
+    // confirm dialog is open (a refetch fails behind it).
+    if (!on && !payouts) {
+      toast.error('The brake was not changed. The approval tally could not be read.');
+      return;
+    }
     setBrake.mutate(on, {
       onSuccess: () => {
         toast.success(on ? 'The payout brake is on.' : 'The payout brake is off.');
@@ -59,11 +66,14 @@ export function PayoutBrakeCard({ payouts }: { payouts: LedgerPayout[] | undefin
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="font-medium" data-testid="payout-approval-tally">
-          {payouts
-            ? formatApprovalTally(tallyApprovals(payouts))
-            : 'The approval tally could not be read yet.'}
-        </p>
+        <div className="space-y-1">
+          <p className="font-medium" data-testid="payout-approval-tally">
+            {payouts
+              ? formatApprovalTally(tallyApprovals(payouts))
+              : 'The approval tally could not be read yet.'}
+          </p>
+          {payouts && <p className="text-sm text-muted-foreground">{TALLY_ACCOUNT_CAVEAT}</p>}
+        </div>
         {!online && (
           <p className="text-sm text-warning" role="status">
             {OFFLINE_PAYOUT_NOTE}

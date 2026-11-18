@@ -777,7 +777,9 @@ export default function PayoutLedgerPage() {
         <h2 className="text-xl font-semibold">Payout ledger</h2>
         {/* Outside the ledger's states on purpose: the brake must stay
             reachable when the ledger cannot load (MYK9-2171). */}
-        <PayoutBrakeCard payouts={ledger?.payouts} />
+        {/* A failed refetch keeps the last good data beside isError; the tally
+            is evidence for switching the brake off, so a failed read hides it. */}
+        <PayoutBrakeCard payouts={isError ? undefined : ledger?.payouts} />
         {isLoading ? (
           <div className="space-y-3" role="status" aria-label="Loading payout ledger">
             <Skeleton className="h-24 w-full" />

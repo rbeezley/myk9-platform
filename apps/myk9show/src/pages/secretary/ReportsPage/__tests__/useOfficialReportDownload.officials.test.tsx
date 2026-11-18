@@ -12,6 +12,11 @@ const actionMock = vi.fn();
 vi.mock('@/hooks/queries/useTrialOfficials', () => ({
   useTrialOfficials: (...args: unknown[]) => useTrialOfficialsMock(...args),
 }));
+const useRecordingFeeRatesMock = vi.fn();
+vi.mock('@/hooks/queries/useRecordingFeeRates', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/queries/useRecordingFeeRates')>()),
+  useRecordingFeeRates: (...args: unknown[]) => useRecordingFeeRatesMock(...args),
+}));
 vi.mock('@/hooks/queries/useUKCTrialReportContext', () => ({
   useUKCTrialReportContext: () => ({ data: undefined, isLoading: false }),
 }));
@@ -73,6 +78,8 @@ describe('useOfficialReportDownload officials (MYK9-1386)', () => {
   beforeEach(() => {
     useTrialOfficialsMock.mockReset();
     actionMock.mockReset();
+    useRecordingFeeRatesMock.mockReset();
+    useRecordingFeeRatesMock.mockReturnValue({ data: [], isError: false, fetchStatus: 'idle' });
   });
 
   it.each(['trial-chairman-report', 'trial-secretary-report'])(
@@ -110,5 +117,35 @@ describe('useOfficialReportDownload officials (MYK9-1386)', () => {
     useTrialOfficialsMock.mockReturnValue({ data: undefined, isLoading: false });
     run('akc-judge-report', 'AKC');
     expect(useTrialOfficialsMock).toHaveBeenLastCalledWith('show-1', false);
+  });
+
+  it('hands the Trial Secretary Report its rate list and waits while it is in flight (MYK9-2044)', () => {
+    const rates = [{ registry: 'AKC', effectiveFrom: '2027-01-01', amountCents: 550 }];
+    useTrialOfficialsMock.mockReturnValue({ data: officials, isLoading: false });
+    useRecordingFeeRatesMock.mockReturnValue({ data: rates, isError: false, fetchStatus: 'idle' });
+    const ready = run('trial-secretary-report', 'AKC');
+
+    expect(useRecordingFeeRatesMock).toHaveBeenLastCalledWith(true);
+    expect(ready.officialPdfProps?.recordingFeeRates).toEqual({
+      data: rates,
+      isLoading: false,
+      isError: false,
+    });
+    expect(ready.officialsLoading).toBe(false);
+
+    useRecordingFeeRatesMock.mockReturnValue({
+      data: undefined,
+      isError: false,
+      fetchStatus: 'fetching',
+    });
+    expect(run('trial-secretary-report', 'AKC').officialsLoading).toBe(true);
+  });
+
+  it('reads no rates for a UKC trial or another report', () => {
+    useTrialOfficialsMock.mockReturnValue({ data: undefined, isLoading: false });
+    run('trial-secretary-report', 'UKC');
+    expect(useRecordingFeeRatesMock).toHaveBeenLastCalledWith(false);
+    run('trial-chairman-report', 'AKC');
+    expect(useRecordingFeeRatesMock).toHaveBeenLastCalledWith(false);
   });
 });

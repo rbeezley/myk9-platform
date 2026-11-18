@@ -23,6 +23,11 @@ const mockPrintState = vi.hoisted(() => ({
 // The test renderer mounts no <Toaster/>, so a toast never reaches the DOM.
 // Assert on what the page asked for instead.
 const toastSpy = vi.hoisted(() => ({ called: vi.fn() }));
+vi.mock('@/hooks/queries/useRecordingFeeRates', () => ({
+  useRecordingFeeRates: () => ({ data: [], isError: false, fetchStatus: 'idle' }),
+  recordingFeeRatesSettled: () => true,
+  recordingFeeRatesForReport: () => ({ data: [], isLoading: false, isError: false }),
+}));
 vi.mock('sonner', () => {
   const toast = Object.assign((...args: unknown[]) => toastSpy.called(...args), {
     error: vi.fn(),

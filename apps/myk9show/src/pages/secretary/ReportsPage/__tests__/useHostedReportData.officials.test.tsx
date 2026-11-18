@@ -11,6 +11,11 @@ const useTrialOfficialsMock = vi.fn();
 vi.mock('@/hooks/queries/useTrialOfficials', () => ({
   useTrialOfficials: (...args: unknown[]) => useTrialOfficialsMock(...args),
 }));
+vi.mock('@/hooks/queries/useRecordingFeeRates', () => ({
+  useRecordingFeeRates: () => ({ data: [], isError: false, fetchStatus: 'idle' }),
+  recordingFeeRatesSettled: () => true,
+  recordingFeeRatesForReport: () => ({ data: [], isLoading: false, isError: false }),
+}));
 vi.mock('@/hooks/queries/useEntryFormData', () => ({
   useEntryFormData: () => ({ readiness: {}, dogs: [], trials: [] }),
 }));

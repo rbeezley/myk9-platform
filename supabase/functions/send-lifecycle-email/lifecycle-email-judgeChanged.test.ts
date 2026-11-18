@@ -141,7 +141,10 @@ describe('drainAutoEmailJobs for judge_changed', () => {
         status: 'sent',
       }),
     ]);
-    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'sent' });
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
+      status: 'sent',
+      unnamed_class_ids: [],
+    });
   });
 
   it('puts every changed class the exhibitor is in into one email, and only those', async () => {
@@ -256,7 +259,10 @@ describe('judge changed email: vacancy, wording, link', () => {
     );
     expect(html).not.toMatch(/\u2014/);
     expect(fixture.tables.show_lifecycle_email_jobs).toHaveLength(1);
-    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'sent' });
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
+      status: 'sent',
+      unnamed_class_ids: ['class-1'],
+    });
   });
 
   it('skips a judge-less class once the trial day has passed in the show time zone', async () => {

@@ -92,6 +92,7 @@ export function FocusedClassJudge({
             We couldn&apos;t load the judge list. Try again when you&apos;re back online.
           </p>
         )}
+        {substituteOffer}
       </div>
     );
   }

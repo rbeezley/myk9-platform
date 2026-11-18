@@ -18,6 +18,8 @@ import type { LifecycleEmailSupabaseClient, QueryResult } from './lifecycle-emai
 import { formatTrialDate } from './lifecycle-email-showChanged.ts';
 
 export interface JudgeChange {
+  /** The class's id; the sender records which classes the email called "not named yet". */
+  classId: string;
   className: string;
   /** "Saturday Trial, Saturday, November 21, 2026", or whatever of it is known. */
   where: string;
@@ -192,6 +194,7 @@ export async function planJudgeChangedEmail(args: {
     }
     registryId ??= trial.registry_id;
     changes.push({
+      classId,
       className: className(row),
       where: [clean(trial.name), clean(trial.date) ? formatTrialDate(clean(trial.date)) : '']
         .filter(Boolean)

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,15 @@ export function SubstituteJudgeEmailOffer({
     staleTime: 0,
     retry: false,
   });
+  // The pick is a queued upload: the server only knows the substitute once it lands, so ask again
+  // whenever an upload completes (the secretary's phone may have been offline for minutes).
+  const { refetch } = offer;
+  useEffect(() => {
+    if (!assignedJudgeId) return;
+    const onUpload = () => void refetch();
+    window.addEventListener('replication:upload-complete', onUpload);
+    return () => window.removeEventListener('replication:upload-complete', onUpload);
+  }, [assignedJudgeId, refetch]);
   const send = useMutation({
     mutationFn: () => queueSubstituteJudgeEmails(classId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
@@ -44,12 +54,24 @@ export function SubstituteJudgeEmailOffer({
 
   const pending = offer.data?.pendingCount ?? 0;
   const sent = offer.data?.sentCount ?? 0;
+  if (assignedJudgeId && offer.isError && !offer.data) {
+    return (
+      <div className="space-y-1">
+        <p role="status" className="text-sm text-muted-foreground">
+          We couldn&apos;t check whether any exhibitors still need to hear who the judge is.
+        </p>
+        <Button type="button" size="sm" variant="outline" onClick={() => void offer.refetch()}>
+          Check again
+        </Button>
+      </div>
+    );
+  }
   if (!assignedJudgeId || !offer.data || (pending === 0 && sent === 0)) return null;
 
   if (pending === 0) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
-        Queued email to {people(sent)} who were told no judge yet.
+        Email is on its way to {people(sent)} who were told no judge yet.
       </p>
     );
   }

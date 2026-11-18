@@ -129,7 +129,8 @@ $$;
 -- ago while the class has no judge ("not named yet").
 DELETE FROM public.judge_assignments WHERE id = '00000000-0000-0000-0000-000002161061';
 UPDATE public.show_lifecycle_email_jobs
-   SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour'
+   SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour',
+       unnamed_class_ids = jsonb_build_array('00000000-0000-0000-0000-000002161004')
  WHERE show_id = '00000000-0000-0000-0000-000002161002' AND step_type = 'judge_changed';
 
 -- A
@@ -249,7 +250,8 @@ INSERT INTO public.judge_assignments (id, person_id, show_id, trial_id, class_id
    'confirmed', now() - interval '1 day');
 DELETE FROM public.judge_assignments WHERE id = '00000000-0000-0000-0000-000002161062';
 UPDATE public.show_lifecycle_email_jobs
-   SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour'
+   SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour',
+       unnamed_class_ids = jsonb_build_array('00000000-0000-0000-0000-000002161006')
  WHERE status = 'ready' AND judge_changes ? '00000000-0000-0000-0000-000002161006';
 SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161006');
 UPDATE public.judge_assignments SET confirmed_at = now() - interval '10 minutes'
@@ -289,17 +291,50 @@ BEGIN
   END IF;
   UPDATE public.shows SET status = 'published' WHERE id = v_show;
 
-  -- The tap, then the step is switched off before the email sends and the job is skipped.
-  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '1'::jsonb THEN
-    RAISE EXCEPTION 'FAIL E.5 the tap should queue 1';
-  END IF;
-  UPDATE public.show_lifecycle_email_jobs SET status = 'skipped', skipped_at = now()
-   WHERE status = 'ready' AND judge_changes ? v_class::text;
+  -- A trial day already past: nothing offered or queued.
+  UPDATE public.trials SET date = current_date - 3 WHERE id = '00000000-0000-0000-0000-000002161003';
   IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_zero
      OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
-    RAISE EXCEPTION 'FAIL E.6 a skipped follow-up looped: offer %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+    RAISE EXCEPTION 'FAIL E.4b a past trial day offered or queued';
   END IF;
-  RAISE NOTICE 'PASS E site admin, missing class, switched-off step, draft show and a skipped follow-up';
+  UPDATE public.trials SET date = current_date + 7 WHERE id = '00000000-0000-0000-0000-000002161003';
+
+  -- A sent job that lists the class in judge_changes but did NOT call it unnamed does not count.
+  UPDATE public.show_lifecycle_email_jobs SET unnamed_class_ids = '[]'::jsonb
+   WHERE status = 'sent' AND judge_changes ? v_class::text;
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_zero THEN
+    RAISE EXCEPTION 'FAIL E.4c an email that did not say unnamed was offered';
+  END IF;
+  UPDATE public.show_lifecycle_email_jobs SET unnamed_class_ids = jsonb_build_array(v_class)
+   WHERE status = 'sent' AND judge_changes ? v_class::text;
+
+  -- The person already has a waiting job for another class: the tap merges into it, and that
+  -- still reads as queued (sent_count 1), not as the offer vanishing.
+  INSERT INTO public.show_lifecycle_email_jobs (
+    show_id, step_id, step_type, status, recipient_scope, recipient_person_id, recipient_email,
+    idempotency_key, due_at, auto_send, judge_changes)
+  SELECT v_show, s.id, 'judge_changed', 'ready', 'show_recipient', '00000000-0000-0000-0000-000002161021',
+         'ada-2161@example.test', 'myk9-2161-bundled', now() + interval '5 minutes', true,
+         jsonb_build_object('00000000-0000-0000-0000-000002161005', '00000000-0000-0000-0000-000002161051')
+    FROM public.show_lifecycle_email_steps s WHERE s.show_id = v_show AND s.step_type = 'judge_changed';
+  -- (a ready job for another class does not cover this one, so Ada is still pending)
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":1,"sent_count":0}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.4d bundled: expected pending 1, got %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '1'::jsonb
+     OR (SELECT count(*) FROM public.show_lifecycle_email_jobs
+          WHERE status = 'ready' AND step_type = 'judge_changed'
+            AND recipient_person_id = '00000000-0000-0000-0000-000002161021') <> 1
+     OR pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":0,"sent_count":1}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.4e the merged tap did not read as queued: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  -- The merged job is skipped: still followed up, not offered again.
+  UPDATE public.show_lifecycle_email_jobs SET status = 'skipped', skipped_at = now()
+   WHERE status = 'ready' AND recipient_person_id = '00000000-0000-0000-0000-000002161021';
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_zero THEN
+    RAISE EXCEPTION 'FAIL E.4f a skipped merged job was offered again';
+  END IF;
+  RAISE NOTICE 'PASS E site admin, missing class, switched-off step, draft show, past trial day, unnamed record, bundled and skipped follow-ups';
 END $$;
 
 -- F: the original judge comes back to a class whose exhibitors were told "not named yet".

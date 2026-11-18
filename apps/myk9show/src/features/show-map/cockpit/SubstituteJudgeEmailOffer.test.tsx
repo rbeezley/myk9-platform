@@ -37,7 +37,7 @@ describe('SubstituteJudgeEmailOffer (MYK9-2161)', () => {
 
     expect(mocks.queue).toHaveBeenCalledWith('class-1');
     expect(
-      await screen.findByText('Queued email to 3 exhibitors who were told no judge yet.')
+      await screen.findByText('Email is on its way to 3 exhibitors who were told no judge yet.')
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /email the/i })).not.toBeInTheDocument();
   });
@@ -60,5 +60,29 @@ describe('SubstituteJudgeEmailOffer (MYK9-2161)', () => {
     render(<SubstituteJudgeEmailOffer classId="class-1" assignedJudgeId="judge-b" />);
     expect(mocks.fetchOffer).not.toHaveBeenCalled();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('says so when the count could not be read, and checks again on tap', async () => {
+    const user = userEvent.setup();
+    mocks.fetchOffer
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValue({ pendingCount: 3, sentCount: 0 });
+    render(<SubstituteJudgeEmailOffer classId="class-1" assignedJudgeId="judge-b" />);
+
+    expect(await screen.findByText(/couldn't check whether any exhibitors/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Check again' }));
+    expect(await screen.findByRole('button', { name: BUTTON })).toBeInTheDocument();
+  });
+
+  it('asks again when an upload completes, because the pick may have just reached the server', async () => {
+    mocks.fetchOffer
+      .mockResolvedValueOnce({ pendingCount: 0, sentCount: 0 })
+      .mockResolvedValue({ pendingCount: 3, sentCount: 0 });
+    render(<SubstituteJudgeEmailOffer classId="class-1" assignedJudgeId="judge-b" />);
+    await waitFor(() => expect(mocks.fetchOffer).toHaveBeenCalledTimes(1));
+
+    window.dispatchEvent(new CustomEvent('replication:upload-complete'));
+
+    expect(await screen.findByRole('button', { name: BUTTON })).toBeInTheDocument();
   });
 });

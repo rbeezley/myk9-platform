@@ -7,21 +7,20 @@
 -- class panel offers "Email the N exhibitors who were told no judge yet"; the tap queues the
 -- existing judge_changed job for exactly those people.
 --
--- Who was told "not named yet". The sent job does not record what its email said (it stores
--- ids only; the sender renders at send time), so it is derived. A person was told when their
--- latest judge_changed job covering the class that was sent BEFORE the class's current
--- confirmed judge was confirmed (judge_assignments.confirmed_at) went out while the class had
--- no judge of that name in place. They still need a live entry in the class and an email. A
--- person whose "was" judge is the current judge (the original judge came back) is not offered:
--- the sender skips that email as "not news".
+-- Who was told "not named yet". The sender records it: when it plans a judge_changed email it
+-- writes the class ids the email calls "not named yet" to show_lifecycle_email_jobs.unnamed_class_ids,
+-- BEFORE it delivers (so an interrupted send that a later drain only finishes keeps it). A person was
+-- told when their latest SENT judge_changed job lists the class there. They still need a live entry in
+-- the class, an email, and a trial day that is not past (the sender's own rule for a vacancy). A person
+-- whose "was" judge is the current judge (the original judge came back) is not offered: the sender
+-- skips that email as "not news".
 --
--- Follow-up state, with no new table: a person is "pending" until they have a follow-up: a
--- ready judge_changed job covering the class (queued by the tap or the 2125 trigger; the 2125
--- merge keeps "was <judge before the first change>"), one sent since the confirmation, or one
--- skipped since the confirmation (a step switched off before it sent). A person
--- is "sent" once a ready or sent job covering the class was created AFTER the current judge
--- was confirmed (the tap), and an earlier sent job covering it had gone out before. A trigger
--- job from the same transaction as the confirmation has an equal created_at and is not counted.
+-- Follow-up state, with no new table: the tap records, on the job it queues or merges into,
+-- substitute_followups = { class id: when }. A person is "pending" until they have a follow-up: a
+-- ready judge_changed job covering the class (the tap's, a bundled waiting job, or the 2125
+-- trigger's), one sent since the confirmation, or a tap since the confirmation whose job was skipped
+-- (a step switched off before it sent). A person is "sent" once a ready or sent job carries a tap
+-- since the confirmation.
 --
 --   substitute_judge_email_audience(class)  internal, nobody can call it
 --   substitute_judge_email_offer(class)     jsonb { pending_count, sent_count }
@@ -34,10 +33,21 @@
 -- queues nothing.
 --
 -- Rollback: DROP FUNCTION public.queue_substitute_judge_emails(uuid),
--- public.substitute_judge_email_offer(uuid), public.substitute_judge_email_audience(uuid).
+-- public.substitute_judge_email_offer(uuid), public.substitute_judge_email_audience(uuid),
+-- public.substitute_judge_email_show(uuid); ALTER TABLE public.show_lifecycle_email_jobs DROP COLUMN
+-- unnamed_class_ids, DROP COLUMN substitute_followups.
 -- =============================================================================
 
 BEGIN;
+
+ALTER TABLE public.show_lifecycle_email_jobs
+  ADD COLUMN IF NOT EXISTS unnamed_class_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS substitute_followups jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+COMMENT ON COLUMN public.show_lifecycle_email_jobs.unnamed_class_ids IS
+  'MYK9-2161: for a judge_changed job, the class ids its email called "not named yet", written by the sender before delivery. Server-written only.';
+COMMENT ON COLUMN public.show_lifecycle_email_jobs.substitute_followups IS
+  'MYK9-2161: for a judge_changed job, { class id: when the secretary asked to tell the exhibitors who the substitute is }. Server-written only.';
 
 CREATE OR REPLACE FUNCTION public.substitute_judge_email_audience(p_class_id uuid)
 RETURNS TABLE (
@@ -66,6 +76,8 @@ AS $$
       FROM public.classes c
       JOIN public.trials t ON t.id = c.trial_id
      WHERE c.id = p_class_id
+       -- The trial day is not past in its own time zone (the sender skips a vacancy email then).
+       AND t.date::date >= (now() AT TIME ZONE coalesce(nullif(btrim(t.timezone), ''), 'America/New_York'))::date
   ),
   last_sent AS (
     SELECT DISTINCT ON (j.recipient_person_id)
@@ -77,7 +89,7 @@ AS $$
       CROSS JOIN cur
      WHERE j.step_type = 'judge_changed'
        AND j.status = 'sent'
-       AND j.sent_at < cur.at
+       AND j.unnamed_class_ids ? p_class_id::text
        AND j.recipient_person_id IS NOT NULL
        AND j.judge_changes ? p_class_id::text
      ORDER BY j.recipient_person_id, j.sent_at DESC
@@ -93,7 +105,10 @@ AS $$
               AND (
                 r.status = 'ready'
                 OR (r.status = 'sent' AND r.sent_at >= cur.at)
-                OR (r.status = 'skipped' AND r.created_at > cur.at)
+                OR (
+                  r.status IN ('sent', 'skipped')
+                  AND (r.substitute_followups ->> p_class_id::text)::timestamptz > cur.at
+                )
               )
          ) AS followed_up,
          EXISTS (
@@ -103,7 +118,7 @@ AS $$
               AND r.status IN ('ready', 'sent')
               AND r.recipient_person_id = ls.person_id
               AND r.judge_changes ? p_class_id::text
-              AND r.created_at > cur.at
+              AND (r.substitute_followups ->> p_class_id::text)::timestamptz > cur.at
          ) AS sent_after
     FROM last_sent ls
     CROSS JOIN cur
@@ -217,7 +232,7 @@ BEGIN
   INSERT INTO public.show_lifecycle_email_jobs AS j (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
     recipient_email, recipient_name, subject, idempotency_key, due_at, auto_send,
-    judge_changes
+    judge_changes, substitute_followups
   )
   SELECT
     v_show_id,
@@ -233,7 +248,8 @@ BEGIN
       || ':' || gen_random_uuid()::text,
     now() + interval '5 minutes',
     true,
-    jsonb_build_object(p_class_id::text, a.from_person_id::text)
+    jsonb_build_object(p_class_id::text, a.from_person_id::text),
+    jsonb_build_object(p_class_id::text, now())
   FROM public.substitute_judge_email_audience(p_class_id) a
   JOIN public.people p ON p.id = a.person_id
   WHERE NOT a.followed_up
@@ -243,7 +259,8 @@ BEGIN
     due_at = now() + interval '5 minutes',
     recipient_email = excluded.recipient_email,
     recipient_name = excluded.recipient_name,
-    judge_changes = excluded.judge_changes || j.judge_changes;
+    judge_changes = excluded.judge_changes || j.judge_changes,
+    substitute_followups = j.substitute_followups || excluded.substitute_followups;
 
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;

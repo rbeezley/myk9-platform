@@ -7879,6 +7879,8 @@ export type Database = {
           id: string
           idempotency_key: string
           judge_changes: Json
+          substitute_followups: Json
+          unnamed_class_ids: Json
           prepared_at: string
           preview_warnings: Json
           recipient_email: string | null
@@ -7916,6 +7918,8 @@ export type Database = {
           id?: string
           idempotency_key: string
           judge_changes?: Json
+          substitute_followups?: Json
+          unnamed_class_ids?: Json
           prepared_at?: string
           preview_warnings?: Json
           recipient_email?: string | null
@@ -7953,6 +7957,8 @@ export type Database = {
           id?: string
           idempotency_key?: string
           judge_changes?: Json
+          substitute_followups?: Json
+          unnamed_class_ids?: Json
           prepared_at?: string
           preview_warnings?: Json
           recipient_email?: string | null
@@ -16021,6 +16027,19 @@ export type Database = {
       stamp_show_refund_entries: {
         Args: { p_entry_ids: string[]; p_notes: string }
         Returns: number
+      }
+      substitute_judge_email_audience: {
+        Args: { p_class_id: string }
+        Returns: {
+          followed_up: boolean
+          from_person_id: string
+          person_id: string
+          sent_after: boolean
+        }[]
+      }
+      substitute_judge_email_show: {
+        Args: { p_class_id: string }
+        Returns: string
       }
       substitute_judge_email_offer: {
         Args: { p_class_id: string }

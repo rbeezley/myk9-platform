@@ -28,8 +28,9 @@
 --    approval_reset_reason: why the payout run sent an approved payout back to
 --    awaiting_approval (amount rose or destination changed since approval).
 --
--- 3. approve_show_payout(uuid, integer): site admin, recent sign-in, amount
---    required and must equal the stored amount. Locks the row first, so a
+-- 3. approve_show_payout(uuid, integer, text): site admin, recent sign-in;
+--    the amount and the Stripe destination the approver reviewed are both
+--    required and must equal the stored ones. Locks the row first, so a
 --    second approval at the same time waits and reads back 'already_approved'.
 --    hold_show_payout(uuid, text): site admin, reason required. Neither calls
 --    Stripe.
@@ -42,7 +43,7 @@
 --      awaiting_approval               -> stays waiting (amount refreshed),
 --                                         whatever the brake says: a waiting
 --                                         payout never sends without approval
---      held                            -> untouched
+--      held                            -> stays held, amount refreshed
 --      approved, binding holds         -> processing
 --      approved, amount above the approval or a different destination
 --                                      -> back to awaiting_approval, approval
@@ -173,11 +174,13 @@ COMMENT ON COLUMN public.show_payouts.approval_reset_reason IS
 --    Returns 'approved' (this call approved it) or 'already_approved' (an
 --    earlier call did). Raises 42501 not a site admin or no person record,
 --    MKAUT no recent sign-in, P0002 no such payout, 22023 not waiting for
---    approval, no destination account, or an amount other than the stored one.
+--    approval, no destination account, or an amount or destination other than
+--    the one the approver reviewed (p_expected_stripe_account_id).
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.approve_show_payout(
   p_payout_id uuid,
-  p_amount_cents integer
+  p_amount_cents integer,
+  p_expected_stripe_account_id text
 )
 RETURNS text
 LANGUAGE plpgsql
@@ -196,6 +199,9 @@ BEGIN
 
   IF p_amount_cents IS NULL THEN
     RAISE EXCEPTION 'Say which amount you are approving' USING ERRCODE = '22023';
+  END IF;
+  IF nullif(btrim(coalesce(p_expected_stripe_account_id, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'Say which bank account you are approving' USING ERRCODE = '22023';
   END IF;
 
   SELECT p.id INTO v_person
@@ -216,8 +222,10 @@ BEGIN
   IF v_row.approved_at IS NOT NULL AND v_row.status IN ('approved', 'processing') THEN
     -- A second approval of the SAME amount is a no-op. A different amount is
     -- refused, so nobody is told they approved a figure that was never bound.
-    IF v_row.approved_amount_cents IS DISTINCT FROM p_amount_cents THEN
-      RAISE EXCEPTION 'This payout is already approved for % cents', v_row.approved_amount_cents
+    IF v_row.approved_amount_cents IS DISTINCT FROM p_amount_cents
+       OR v_row.approved_stripe_account_id IS DISTINCT FROM p_expected_stripe_account_id THEN
+      RAISE EXCEPTION 'This payout is already approved for % cents to %',
+        v_row.approved_amount_cents, v_row.approved_stripe_account_id
         USING ERRCODE = '22023';
     END IF;
     RETURN 'already_approved';
@@ -232,6 +240,11 @@ BEGIN
    WHERE csa.id = v_row.club_stripe_account_id;
   IF v_destination IS NULL THEN
     RAISE EXCEPTION 'This payout has no bank account to send to yet' USING ERRCODE = '22023';
+  END IF;
+  -- Bind what the approver reviewed, never a destination looked up now.
+  IF v_destination <> p_expected_stripe_account_id THEN
+    RAISE EXCEPTION 'The club''s bank account changed since you looked; review it again'
+      USING ERRCODE = '22023';
   END IF;
   IF v_row.amount_cents <> p_amount_cents OR v_row.amount_cents <= 0 THEN
     RAISE EXCEPTION 'The amount is now % cents; review it again', v_row.amount_cents
@@ -252,8 +265,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.approve_show_payout(uuid, integer) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.approve_show_payout(uuid, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.approve_show_payout(uuid, integer, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.approve_show_payout(uuid, integer, text) TO authenticated;
 
 -- -----------------------------------------------------------------------------
 -- 3b. hold_show_payout
@@ -312,7 +325,7 @@ GRANT EXECUTE ON FUNCTION public.hold_show_payout(uuid, text) TO authenticated;
 --      claimed            the row is 'processing'; send p_amount_cents
 --      awaiting_approval  recorded or kept waiting; send nothing
 --      approval_reset     an approval no longer covers this send; send nothing
---      held               a site admin is holding it; send nothing
+--      held               a site admin is holding it (amount refreshed); send nothing
 --      busy               another run owns the show, or it is already settled
 --      account_mismatch   p_account_id is not this show's club's account with
 --                         destination p_destination; send nothing
@@ -435,6 +448,11 @@ BEGIN
   END IF;
 
   IF v_row.status = 'held' THEN
+    -- Keep the hold and its reason; only the amount follows refunds, so the
+    -- figure owed and the figure a site admin approves later stay current.
+    UPDATE public.show_payouts sp
+       SET amount_cents = p_amount_cents
+     WHERE sp.id = v_row.id;
     RETURN jsonb_build_object('outcome', 'held', 'payout_id', v_row.id);
   END IF;
 

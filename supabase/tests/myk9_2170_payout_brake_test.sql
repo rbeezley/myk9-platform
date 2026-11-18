@@ -166,9 +166,9 @@ BEGIN
   RAISE NOTICE 'PASS MYK9-2170 the brake is on by default and hidden from anon';
 
   -- 2. Grants: approve/hold are not anon's; the claim is service_role only.
-  IF pg_catalog.has_function_privilege('anon', 'public.approve_show_payout(uuid, integer)', 'EXECUTE')
+  IF pg_catalog.has_function_privilege('anon', 'public.approve_show_payout(uuid, integer, text)', 'EXECUTE')
      OR pg_catalog.has_function_privilege('anon', 'public.hold_show_payout(uuid, text)', 'EXECUTE')
-     OR NOT pg_catalog.has_function_privilege('authenticated', 'public.approve_show_payout(uuid, integer)', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('authenticated', 'public.approve_show_payout(uuid, integer, text)', 'EXECUTE')
      OR NOT pg_catalog.has_function_privilege('authenticated', 'public.hold_show_payout(uuid, text)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL MYK9-2170: approve/hold grants are wrong';
   END IF;
@@ -288,7 +288,7 @@ BEGIN
   PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170110');
   SET LOCAL ROLE authenticated;
   PERFORM pg_temp.expect_refusal(
-    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000)$q$,
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000, 'acct_myk9_2170')$q$,
     '42501', 'non-admin approval'
   );
   PERFORM pg_temp.expect_refusal(
@@ -297,20 +297,24 @@ BEGIN
   );
   PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170109', 3600);
   PERFORM pg_temp.expect_refusal(
-    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000)$q$,
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000, 'acct_myk9_2170')$q$,
     'MKAUT', 'approval from a stale session'
   );
   PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170109');
   PERFORM pg_temp.expect_refusal(
-    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171024', 40000)$q$,
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171024', 40000, 'acct_myk9_2170')$q$,
     '22023', 'approval of an amount that has changed'
   );
   PERFORM pg_temp.expect_refusal(
-    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171027', 1000)$q$,
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171024', 41000, 'acct_reviewed_before_change')$q$,
+    '22023', 'approval after the destination changed since review'
+  );
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171027', 1000, 'acct_myk9_2170')$q$,
     '22023', 'approval with no destination account'
   );
   PERFORM pg_temp.expect_refusal(
-    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171029', 9000)$q$,
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171029', 9000, 'acct_myk9_2170')$q$,
     '22023', 'approval of a payout that is not waiting'
   );
   RESET ROLE;
@@ -321,7 +325,7 @@ BEGIN
 
   -- 7. Approve twice: the row changes once; the payout is claimed once.
   SET LOCAL ROLE authenticated;
-  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000);
+  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000, 'acct_myk9_2170');
   RESET ROLE;
   IF v_result <> 'approved' THEN
     RAISE EXCEPTION 'FAIL MYK9-2170 approve: returned %', v_result;
@@ -337,14 +341,18 @@ BEGIN
   v_approved_at := v_row.approved_at;
 
   SET LOCAL ROLE authenticated;
-  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000);
+  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000, 'acct_myk9_2170');
   RESET ROLE;
   IF v_result <> 'already_approved' OR (pg_temp.live(2170020)).approved_at <> v_approved_at THEN
     RAISE EXCEPTION 'FAIL MYK9-2170 approve twice: second call returned % or re-stamped', v_result;
   END IF;
   PERFORM pg_temp.expect_refusal(
-    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020', 9000)$q$,
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020', 9000, 'acct_myk9_2170')$q$,
     '22023', 'second approval with a different amount'
+  );
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000, 'acct_elsewhere')$q$,
+    '22023', 'second approval with a different destination'
   );
 
   v_claim := pg_temp.claim(2170020, 10000);
@@ -357,7 +365,7 @@ BEGIN
   END IF;
   v_claim := pg_temp.claim(2170020, 10000);
   SET LOCAL ROLE authenticated;
-  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000);
+  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020', 10000, 'acct_myk9_2170');
   RESET ROLE;
   IF v_claim ->> 'outcome' <> 'busy' OR v_result <> 'already_approved'
      OR (SELECT count(*) FROM public.show_payouts sp
@@ -383,23 +391,46 @@ BEGIN
      OR v_row.hold_reason IS DISTINCT FROM 'Check the club''s bank change' THEN
     RAISE EXCEPTION 'FAIL MYK9-2170 hold: % / % / %', v_result, v_row.status, v_row.hold_reason;
   END IF;
-  v_claim := pg_temp.claim(2170021, 20000);
-  IF v_claim ->> 'outcome' <> 'held' OR (pg_temp.live(2170021)).status <> 'held' THEN
-    RAISE EXCEPTION 'FAIL MYK9-2170 a held payout was claimed: %', v_claim;
+  -- A refund during the hold: the run refreshes the amount, keeps the hold.
+  v_claim := pg_temp.claim(2170021, 15000);
+  v_row := pg_temp.live(2170021);
+  IF v_claim ->> 'outcome' <> 'held' OR v_row.status <> 'held' OR v_row.amount_cents <> 15000
+     OR v_row.hold_reason IS DISTINCT FROM 'Check the club''s bank change' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 held refresh: % / % / % / %',
+      v_claim, v_row.status, v_row.amount_cents, v_row.hold_reason;
   END IF;
+  PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170109');
   SET LOCAL ROLE authenticated;
-  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171021', 20000);
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171021', 20000, 'acct_myk9_2170')$q$,
+    '22023', 'approval of a held payout at its pre-refund amount'
+  );
+  RESET ROLE;
+  SET LOCAL ROLE authenticated;
+  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171021', 15000, 'acct_myk9_2170');
   RESET ROLE;
   v_row := pg_temp.live(2170021);
   IF v_result <> 'approved' OR v_row.status <> 'approved' OR v_row.hold_reason IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL MYK9-2170 approve after hold: % / % / %', v_result, v_row.status, v_row.hold_reason;
   END IF;
-  RAISE NOTICE 'PASS MYK9-2170 a held payout stays waiting with its reason and can be approved later';
+  -- Fully refunded during a hold: the run closes it out as it does any live row.
+  SET LOCAL ROLE authenticated;
+  PERFORM public.hold_show_payout('00000000-0000-0000-0000-000002171023', 'Waiting on the club');
+  RESET ROLE;
+  UPDATE public.show_payouts
+     SET amount_cents = 0, status = 'completed', completed_at = now()
+   WHERE id = '00000000-0000-0000-0000-000002171023'
+     AND status IN ('pending', 'awaiting_approval', 'approved', 'held');
+  IF (SELECT sp.status FROM public.show_payouts sp
+       WHERE sp.id = '00000000-0000-0000-0000-000002171023') <> 'completed' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 a fully refunded held payout could not be closed out';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 a held payout stays waiting with its reason, its amount stays current, and it can be approved later';
 
   -- 9. An approval covers its amount and destination only.
   SET LOCAL ROLE authenticated;
-  PERFORM public.approve_show_payout('00000000-0000-0000-0000-000002171025', 5000);
-  PERFORM public.approve_show_payout('00000000-0000-0000-0000-000002171026', 7000);
+  PERFORM public.approve_show_payout('00000000-0000-0000-0000-000002171025', 5000, 'acct_myk9_2170');
+  PERFORM public.approve_show_payout('00000000-0000-0000-0000-000002171026', 7000, 'acct_myk9_2170');
   RESET ROLE;
   v_claim := pg_temp.claim(2170025, 6000);
   v_row := pg_temp.live(2170025);

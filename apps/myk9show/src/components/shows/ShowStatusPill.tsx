@@ -9,17 +9,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import {
-  useClubStripeAccount,
-  useClubAuthorization,
-} from '@/features/payments/useClubStripeAccount';
+  CLUB_PAYMENTS_LINK_LABEL,
+  clubPaymentsHref,
+  useCanOpenClubPayments,
+} from '@/features/payments/useCanOpenClubPayments';
 import {
   becomesPublic,
-  canEnableOnlineEntries,
   isPublishGateDbError,
-  publishNeedsStripe,
+  isPayoutsRefusalMessage,
   publishGateDbErrorMessage,
-  PUBLISH_BLOCKED_MESSAGE,
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
@@ -45,11 +45,6 @@ interface ShowStatusPillProps {
    * a null or empty value fails closed. */
   entryOpenDate: string | null | undefined;
   entryCloseDate: string | null | undefined;
-  /** MYK9-979: publishing needs the club's Stripe payouts only when the show
-   * takes online entries. Required, so a caller cannot drop it; anything but
-   * an explicit true reads as off, matching the server (the trigger refuses a
-   * show whose stored value is true either way). */
-  onlineEntriesEnabled: boolean | null | undefined;
   /** Render the status as plain text in a sentence (the header's status line, MYK9-1282) instead
    * of a coloured pill. The status-change menu is the same either way. */
   plain?: boolean;
@@ -87,12 +82,10 @@ export function ShowStatusPill({
   clubId,
   entryOpenDate,
   entryCloseDate,
-  onlineEntriesEnabled,
   plain = false,
 }: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
-  const clubAccountQuery = useClubStripeAccount(clubId);
   const clubAuthQuery = useClubAuthorization(clubId);
   // MYK9-1387: only a loaded, explicitly unauthorized club greys the item. While the lookup
   // loads or errors it stays enabled so handleTransition's own branches give their truthful toasts.
@@ -106,16 +99,23 @@ export function ShowStatusPill({
     onClick: () => navigate(getShowEditHref(showId)),
   };
 
+  // Only someone who can open the club's Payments tab is sent there; others read the reason.
+  const canOpenPayments = useCanOpenClubPayments(clubId);
+  const paymentsOptions = canOpenPayments
+    ? {
+        action: {
+          label: CLUB_PAYMENTS_LINK_LABEL,
+          onClick: () => navigate(clubId ? clubPaymentsHref(clubId) : '/clubs'),
+        },
+      }
+    : undefined;
+
   async function handleTransition(next: string) {
-    // Publishing opens online entries; fail closed unless the club's Stripe
-    // payouts are enabled. Already-published shows are unaffected (the gate
-    // only fires on a transition INTO 'published' from a different status —
-    // this pill can publish only from draft, upcoming, or in_progress, per
-    // MYK9-579 round 6). This is a UX convenience, not the enforcement
-    // boundary: enforce_show_publish_gate()
-    // (supabase/migrations/20260916003500) is the DB-side backstop that
-    // actually refuses the write on both INSERT and UPDATE OF status — see
-    // the catch block below.
+    // Already-published shows are unaffected (the gate only fires on a transition INTO
+    // 'published' from a different status — this pill can publish only from draft, upcoming, or
+    // in_progress, per MYK9-579 round 6). The club-authorization and entry-window checks below
+    // are a UX convenience. The club's Stripe payouts are NOT predicted here (MYK9-2164):
+    // enforce_show_publish_gate() decides, and its refusal text is shown in the catch block.
     // MYK9-979: the gate runs on any move that makes the show publicly
     // visible (becomesPublic), the same transition the DB triggers check.
     if (becomesPublic(status, next)) {
@@ -127,18 +127,16 @@ export function ShowStatusPill({
         toast.error(CLUB_REQUIRED_MESSAGE);
         return;
       }
-      const needsStripe = publishNeedsStripe(onlineEntriesEnabled);
-      if (clubAuthQuery.isLoading || (needsStripe && clubAccountQuery.isLoading)) {
+      if (clubAuthQuery.isLoading) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
         toast.info('Still checking the club’s status. Try again in a moment.');
         return;
       }
-      if (clubAuthQuery.isError || (needsStripe && clubAccountQuery.isError)) {
+      if (clubAuthQuery.isError) {
         // A failed lookup is not "not connected" — fail closed with the
         // truthful message instead of blaming the club's setup. Kick off a
         // refetch so "try again" can actually succeed (an errored query
         // inside staleTime would otherwise serve the same error forever).
-        void clubAccountQuery.refetch();
         void clubAuthQuery.refetch();
         toast.error(SHOW_ADMIN_COPY.clubCheckFailed);
         return;
@@ -154,13 +152,6 @@ export function ShowStatusPill({
         // mirroring the isError branch above.
         void clubAuthQuery.refetch();
         toast.error(CLUB_UNAUTHORIZED_MESSAGE);
-        return;
-      }
-      // MYK9-979: a mail-in show (online entries off) needs no payout account.
-      if (needsStripe && !canEnableOnlineEntries(clubAccountQuery.data)) {
-        toast.error(PUBLISH_BLOCKED_MESSAGE, {
-          action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-        });
         return;
       }
       // MYK9-716: checked last, the same order as enforce_show_publish_gate.
@@ -180,23 +171,24 @@ export function ShowStatusPill({
       // (enforce_show_publish_gate, MYK9-579). Its refusal text IS the
       // friendly copy, so surface it instead of the generic fallback.
       if (isPublishGateDbError(error)) {
-        const message = publishGateDbErrorMessage(error) ?? PUBLISH_BLOCKED_MESSAGE;
+        const message = publishGateDbErrorMessage(error) ?? SHOW_ADMIN_COPY.statusChangeFailed;
         const code = (error as { code?: string }).code;
         if (code === PUBLISH_GATE_ERRCODE_ENTRY_WINDOW) {
           toast.error(message, { action: setEntryWindowAction });
           return;
         }
-        // "Open Payments" only makes sense for the Stripe-readiness refusal.
-        // The missing-club refusal shares MK003 but needs "assign a club",
-        // not a trip to the payments page; MK004 (club not authorized) has
-        // no Stripe setup to send the admin to either — both would be dead
-        // ends.
+        // The payments link only makes sense for the payouts refusal. The missing-club
+        // refusal shares MK003 but needs "assign a club", not a trip to the payments page;
+        // MK004 (club not authorized) has no Stripe setup to send the admin to either.
         if (message === CLUB_REQUIRED_MESSAGE || code === PUBLISH_GATE_ERRCODE_UNAUTHORIZED) {
           toast.error(message);
         } else {
-          toast.error(message, {
-            action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-          });
+          if (isPayoutsRefusalMessage(message)) {
+            toast.error(message, paymentsOptions);
+          } else {
+            // Another refusal (for example "a published show always takes online entries").
+            toast.error(message);
+          }
         }
         return;
       }

@@ -24,7 +24,6 @@ export const ShowStatusLine: React.FC<{
       clubId={show.clubId}
       entryOpenDate={show.entryOpenDate}
       entryCloseDate={show.entryCloseDate}
-      onlineEntriesEnabled={show.onlineEntriesEnabled}
     />
     {showPublishing && (
       <PublishAttentionChip

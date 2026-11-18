@@ -335,6 +335,22 @@ export interface AcceptedPaymentMethods {
   cash: boolean;
 }
 
+/**
+ * Finishes the "card is not available" message with only the methods this show offers.
+ * Reads the same `AcceptedPaymentMethods` the selector uses to show or hide check and
+ * cash, so the message and the choices cannot disagree.
+ */
+export function withOfferedAlternatives(
+  reason: string,
+  acceptedMethods: AcceptedPaymentMethods
+): string {
+  if (acceptedMethods.check && acceptedMethods.cash)
+    return `${reason} Choose check or cash instead.`;
+  if (acceptedMethods.check) return `${reason} Choose check instead.`;
+  if (acceptedMethods.cash) return `${reason} Choose cash instead.`;
+  return `${reason} Payment isn't available for this show right now. Please contact the show secretary.`;
+}
+
 export interface EffectivePaymentMethodInput {
   /** What the wizard currently holds in parent state. */
   paymentMethod: PaymentMethod | '';

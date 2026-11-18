@@ -381,9 +381,14 @@ export function buildPremiumFacts(
       preEntry: show.preEntryFee,
       dayOf: show.dayOfFee,
       hasAny: (show.preEntryFee ?? 0) > 0 || (show.dayOfFee ?? 0) > 0,
-      paymentMethods: [show.acceptChecks && 'Checks', show.acceptCash && 'Cash'].filter(
-        (m): m is string => Boolean(m)
-      ),
+      paymentMethods: [
+        // Every show takes online entries (MYK9-2163: the server never lets one be off), so
+        // card is always listed. Same name the entry form and receipts use for card
+        // (getPaymentMethodLabel).
+        'Credit/Debit Card',
+        show.acceptChecks && 'Checks',
+        show.acceptCash && 'Cash',
+      ].filter((m): m is string => Boolean(m)),
     },
     recordingFee: premiumRecordingFeeText(data),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),

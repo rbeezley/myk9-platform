@@ -60,8 +60,8 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
 // Convert form data back to Show
 // Empty strings are omitted so the store skips them — prevents sending ''
 // to Postgres DATE/numeric columns which would fail the entire mutation.
-// MYK9-979: online entries are deliberately absent. The switch saves itself
-// (useOnlineEntriesSwitch), so no form save can resend a stale copy of it.
+// Online entries are deliberately absent: they are always on and the column is RPC-owned
+// (MYK9-979, MYK9-2164), so no form save can resend a stale copy of it.
 export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   name: formData.name,
   status: formData.status,

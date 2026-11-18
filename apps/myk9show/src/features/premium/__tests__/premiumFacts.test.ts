@@ -23,10 +23,35 @@ describe('premiumFacts', () => {
     premium.show.acceptCash = true;
     premium.secretary.phone = '9185550000';
     const facts = buildPremiumFacts(premium);
-    expect(facts.fees.paymentMethods).toEqual(['Checks', 'Cash']);
+    expect(facts.fees.paymentMethods).toEqual(['Credit/Debit Card', 'Checks', 'Cash']);
     expect(facts.secretary.phone).toBe(formatPhone('9185550000'));
     expect(facts.dateRange).toContain('–');
     expect(facts.club).toBe('Bluegrass KC');
+  });
+
+  describe('accepted payment methods', () => {
+    const methods = (checks: boolean, cash: boolean) => {
+      const premium = generatedPremium();
+      premium.show.acceptChecks = checks;
+      premium.show.acceptCash = cash;
+      return buildPremiumFacts(premium).fees.paymentMethods;
+    };
+
+    it('lists card alone for a card-only show', () => {
+      expect(methods(false, false)).toEqual(['Credit/Debit Card']);
+    });
+
+    it('lists card with check', () => {
+      expect(methods(true, false)).toEqual(['Credit/Debit Card', 'Checks']);
+    });
+
+    it('lists card with cash', () => {
+      expect(methods(false, true)).toEqual(['Credit/Debit Card', 'Cash']);
+    });
+
+    it('lists card with check and cash', () => {
+      expect(methods(true, true)).toEqual(['Credit/Debit Card', 'Checks', 'Cash']);
+    });
   });
 
   it('falls back to Host Club and an empty venue when the show has neither', () => {

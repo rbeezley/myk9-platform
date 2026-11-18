@@ -3,19 +3,12 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
-import {
-  useClubStripeAccount,
-  useClubAuthorization,
-} from '@/features/payments/useClubStripeAccount';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { toast } from 'sonner';
-import {
-  CLUB_UNAUTHORIZED_MESSAGE,
-  PUBLISH_BLOCKED_MESSAGE,
-} from '@/features/payments/onlineEntryGate';
+import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripeAccount: vi.fn(),
   useClubAuthorization: vi.fn(),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
@@ -28,35 +21,15 @@ vi.mock('sonner', () => ({
 // MYK9-716: publishing requires an entry window. Every case here is about
 // another gate, so every render carries a valid one; the missing-window cases
 // live in ShowStatusPill.entryWindow.test.tsx.
-// MYK9-979: and online entries ON, the only case in which publishing needs
-// the club's Stripe payouts; ShowStatusPill.onlineEntries.test.tsx covers off.
+// MYK9-2164: the server decides on the club's payouts; ShowStatusPill.payouts.test.tsx covers
+// its refusals.
 const WINDOW = {
   entryOpenDate: '2026-10-01T12:00:00.000Z',
   entryCloseDate: '2026-10-20T04:59:00.000Z',
-  onlineEntriesEnabled: true,
 };
 
-const mockedUseAccount = vi.mocked(useClubStripeAccount);
 const mockedUseAuth = vi.mocked(useClubAuthorization);
 const mockedUseMutation = vi.mocked(useUpdateShowMutation);
-
-function mockAccount(payoutsEnabled: boolean | null) {
-  mockedUseAccount.mockReturnValue({
-    data:
-      payoutsEnabled === null
-        ? null
-        : {
-            id: 'csa-1',
-            club_id: 'club-1',
-            stripe_account_id: 'acct_x',
-            onboarding_complete: payoutsEnabled,
-            payouts_enabled: payoutsEnabled,
-          },
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  } as unknown as ReturnType<typeof useClubStripeAccount>);
-}
 
 // MYK9-572: defaults every test to an authorized club so the pre-existing
 // Stripe-only gate tests below are unaffected; the dedicated describe block
@@ -80,9 +53,6 @@ describe('ShowStatusPill', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    // Default: payouts enabled so tests that don't care about the gate
-    // (labels, non-publish transitions) don't have to mock it themselves.
-    mockAccount(true);
     mockAuthorization('2026-01-01T00:00:00Z');
   });
 
@@ -196,23 +166,7 @@ describe('ShowStatusPill', () => {
   });
 
   describe('publish gate', () => {
-    it('blocks publishing when the club has no payout-enabled account', async () => {
-      mockAccount(null);
-      const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-      await user.click(screen.getByRole('button', { name: /draft/i }));
-      await user.click(await screen.findByText(/publish show/i));
-
-      expect(mutateAsync).not.toHaveBeenCalled();
-      expect(toast.error).toHaveBeenCalledWith(
-        PUBLISH_BLOCKED_MESSAGE,
-        expect.objectContaining({ action: expect.anything() })
-      );
-    });
-
-    it('publishes when payouts are enabled', async () => {
-      mockAccount(true);
+    it('publishes an authorized club', async () => {
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
@@ -234,8 +188,7 @@ describe('ShowStatusPill', () => {
       );
     });
 
-    it('an upcoming show publishes when Stripe-ready', async () => {
-      mockAccount(true);
+    it('an upcoming show publishes', async () => {
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" clubId="club-1" />);
 
@@ -250,7 +203,6 @@ describe('ShowStatusPill', () => {
       // in the #615 merge) silently disabled the gate. A clubless show also
       // cannot receive payouts, so publishing it would collect money with
       // nowhere to go.
-      mockAccount(null);
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
 
@@ -262,7 +214,6 @@ describe('ShowStatusPill', () => {
     });
 
     it('moving a published show back to draft is never gated', async () => {
-      mockAccount(null);
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" clubId="club-1" />);
 
@@ -281,34 +232,10 @@ describe('ShowStatusPill', () => {
       );
     });
 
-    it('surfaces the DB publish-gate trigger refusal (MYK9-579 backstop) with its own copy', async () => {
-      // The client-side check above passed (payouts enabled here), but a
-      // stale cache or race let the write reach enforce_show_publish_gate()
-      // anyway. Its SQLSTATE (MK003) must map to the trigger's own friendly
-      // text, not the generic "We couldn't change this show's status" fallback.
-      mockAccount(true);
-      mutateAsync.mockRejectedValueOnce({
-        code: 'MK003',
-        message:
-          "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.",
-      });
-      const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-      await user.click(screen.getByRole('button', { name: /draft/i }));
-      await user.click(await screen.findByText(/publish show/i));
-
-      expect(toast.error).toHaveBeenCalledWith(
-        "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.",
-        expect.objectContaining({ action: expect.anything() })
-      );
-    });
-
     it('surfaces the DB missing-club refusal WITHOUT an "Open Payments" action (MYK9-579)', async () => {
       // Same SQLSTATE (MK003) as the Stripe-readiness refusal, but a trip to
       // /club-admin/payments does not fix a clubless show -- only assigning a
       // club does. Only the message text tells the two refusals apart.
-      mockAccount(true);
       mutateAsync.mockRejectedValueOnce({
         code: 'MK003',
         message:
@@ -328,7 +255,6 @@ describe('ShowStatusPill', () => {
     });
 
     it('an unrelated mutation failure still shows the generic fallback, not the gate copy', async () => {
-      mockAccount(true);
       mutateAsync.mockRejectedValueOnce(new Error('Network error'));
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
@@ -364,7 +290,6 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    mockAccount(true);
     refetchAuth = vi.fn();
   });
 
@@ -393,10 +318,8 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
   });
 
   // MYK9-1403: the greying is fail-open (an undefined club row leaves the item enabled),
-  // so this click reaches handleTransition with a club that is NOT Stripe-ready. A client
-  // that checked Stripe first would send the club to a Payments dead end.
-  it('checks club authorization before Stripe readiness', async () => {
-    mockAccount(false);
+  // so this click reaches handleTransition with a club the server would refuse.
+  it('names the authorization wait, and nothing about payouts, for an unreadable club row', async () => {
     mockedUseAuth.mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -411,13 +334,12 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
 
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledWith(CLUB_UNAUTHORIZED_MESSAGE);
-    expect(toast.error).not.toHaveBeenCalledWith(PUBLISH_BLOCKED_MESSAGE, expect.anything());
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
   // P3-5: pin the exact loading/error copy strings — a future edit could
   // change the wording without anything else catching it.
-  it('shows the exact "checking" copy while either query is still loading', async () => {
+  it('shows the exact "checking" copy while the authorization query is still loading', async () => {
     mockedUseAuth.mockReturnValue({
       data: { authorized_at: '2026-01-01T00:00:00Z' },
       isLoading: true,
@@ -436,18 +358,11 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     );
   });
 
-  it('shows the exact error copy and refetches both queries when either query errors', async () => {
-    const refetchAccount = vi.fn();
-    mockedUseAccount.mockReturnValue({
-      data: null,
-      isLoading: false,
-      isError: true,
-      refetch: refetchAccount,
-    } as unknown as ReturnType<typeof useClubStripeAccount>);
+  it('shows the exact error copy and refetches when the authorization query errors', async () => {
     mockedUseAuth.mockReturnValue({
       data: { authorized_at: '2026-01-01T00:00:00Z' },
       isLoading: false,
-      isError: false,
+      isError: true,
       refetch: refetchAuth,
     } as unknown as ReturnType<typeof useClubAuthorization>);
     const user = userEvent.setup();
@@ -460,11 +375,10 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     expect(toast.error).toHaveBeenCalledWith(
       "We couldn't check the club's status, so the show was not published. Try again."
     );
-    expect(refetchAccount).toHaveBeenCalled();
     expect(refetchAuth).toHaveBeenCalled();
   });
 
-  it('publishes once the club is authorized and Stripe-ready', async () => {
+  it('publishes once the club is authorized', async () => {
     mockAuthorization('2026-01-01T00:00:00Z');
     const user = userEvent.setup();
     render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);

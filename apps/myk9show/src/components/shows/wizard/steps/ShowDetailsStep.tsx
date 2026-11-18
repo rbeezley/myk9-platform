@@ -252,7 +252,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
             show={show}
             onUpdate={updateShowData}
             juniorHandlerFeeEditable={!isExistingShow}
-            onlineEntriesEditable={!isExistingShow}
           />
 
           <MoreOptionsSection show={show} onUpdate={updateShowData} />

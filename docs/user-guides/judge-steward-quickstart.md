@@ -24,7 +24,7 @@ There are three ways in. Use whichever fits you.
 **If the secretary gave you a show passcode or QR code** (guest judges, stewards, volunteers):
 
 1. Open myK9Show in your browser.
-2. Type the **show passcode** into **Email or show passcode** and tap **Continue**, or scan the **QR code**.
+2. Type the **show passcode** into **Email or show passcode** and tap **Continue**. If you scan the **QR code**, the passcode is filled in for you: tap **Continue**.
 3. **Join the show** asks for **Your name**. It is optional. Others at the show see it, so they know who is at each ring. Tap **Continue**.
 4. You're in. No account needed.
 

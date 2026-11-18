@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, FileText } from 'lucide-react';
+import { AlertTriangle, ArrowRight, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Chip } from '@/components/base/Chip';
 import { formatCurrency } from '@/lib/utils';
 import { describeEntryRemovals } from '@/features/payments/pullReconciliation';
+import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -76,6 +78,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
     reconNeedsReview,
     removals: recon.removals,
     refundReviewCount: recon.refundReviewCount,
+    flaggedPullDogCount: recon.flaggedPullDogCount,
     hasEntries: recon.totalEntryCount > 0,
     incidents: incidentState,
   });
@@ -177,6 +180,24 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
                 </span>
               ))}
           </div>
+        )}
+
+        {/* MYK9-2145: a flag stays a flag until the secretary confirms it at the Check-in desk
+            (docs/INTENT.md, Withdraw vs Pull), so it is not counted as a removal above. */}
+        {recon.flaggedPullDogCount > 0 && (
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <span>
+              {recon.flaggedPullDogCount} {recon.flaggedPullDogCount === 1 ? 'dog' : 'dogs'} flagged
+              as pulled at the show, not confirmed.
+            </span>
+            <Link
+              to={getCheckInDeskHref({ showId })}
+              className="inline-flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline"
+            >
+              Open the Check-in desk
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </p>
         )}
 
         {recon.refundedCount > 0 && (

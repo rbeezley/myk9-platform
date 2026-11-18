@@ -147,6 +147,66 @@ describe('ShowCloseoutSummary', () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText('Cash')).toBeInTheDocument();
+    expect(screen.queryByText(/flagged as pulled at the show/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Check-in desk/ })).not.toBeInTheDocument();
+  });
+
+  // MYK9-2145: a flag stays a flag until the secretary confirms it at the Check-in desk.
+  it('lists a paid check-in flag as flagged, not pulled, and links to the Check-in desk', async () => {
+    const flagged = (id: string, dogId: string) => ({
+      id,
+      dog_id: dogId,
+      entry_fee: 35,
+      entry_status: 'entered',
+      check_in_status: 'pulled',
+      payment_status: 'paid',
+      payment_method: 'online',
+    });
+    render(
+      <ShowCloseoutSummary
+        showId="show-1"
+        deskWindow={null}
+        entries={[flagged('e1', 'dog-1'), flagged('e2', 'dog-1'), flagged('e3', 'dog-2')]}
+      />
+    );
+
+    expect(await screen.findByText('2 flagged')).toBeInTheDocument();
+    expect(
+      screen.getByText('2 dogs flagged as pulled at the show, not confirmed.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the Check-in desk' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/entries?tab=exceptions&exception=check-in'
+    );
+    expect(
+      within(screen.getByRole('group', { name: 'Pulled or withdrawn entries' })).getByText('0')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Manual refund review' })).getByText('0')
+    ).toBeInTheDocument();
+  });
+
+  it('says "1 dog" for a single flagged dog', () => {
+    render(
+      <ShowCloseoutSummary
+        showId="show-1"
+        deskWindow={null}
+        entries={[
+          {
+            id: 'e1',
+            dog_id: 'dog-1',
+            entry_status: 'entered',
+            check_in_status: 'pulled',
+            payment_status: 'paid',
+            payment_method: 'online',
+          },
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByText('1 dog flagged as pulled at the show, not confirmed.')
+    ).toBeInTheDocument();
   });
 
   it('says the desk total is unavailable when the ledger cannot be read', async () => {

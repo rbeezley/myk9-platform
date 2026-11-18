@@ -145,7 +145,10 @@ export type EntryRemovalKind = 'pulled' | 'withdrawn' | 'removed' | 'absent';
 
 export interface EntryRemovalInput {
   entryStatus?: string | null | undefined;
-  /** Only the closeout read carries it; the Entries view passes none. */
+  /**
+   * No surface passes it since MYK9-2145: Finish the show counts an unconfirmed check-in flag
+   * apart from the removals (`flaggedPullDogCount`), as refunds to decide do.
+   */
   checkInStatus?: string | null | undefined;
   withdrawalReasonCode?: string | null | undefined;
 }

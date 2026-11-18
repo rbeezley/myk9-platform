@@ -24,6 +24,8 @@ export const DESK_PAYMENT_METHODS = [
  */
 export interface ShowDayReconciliationEntry {
   id?: string | null;
+  /** Counts a dog flagged in two classes once in `flaggedPullDogCount`. */
+  dog_id?: string | null;
   entry_fee?: number | string | null;
   entry_status?: string | null;
   check_in_status?: string | null;
@@ -82,6 +84,13 @@ export interface ShowDayReconciliationSummary {
   removals: EntryRemovalCounts;
   /** Sum of `removals`: the closeout review gate. */
   removalCount: number;
+  /**
+   * MYK9-2145: dogs with a check-in "pulled" flag (Ringside's Pull, the exhibitor's own check-in
+   * pull) that the secretary has not confirmed at the Check-in desk. A flag is not a removal and
+   * owes no refund decision until confirmed (docs/INTENT.md, Withdraw vs Pull), so these are
+   * counted apart from `removals`.
+   */
+  flaggedPullDogCount: number;
   /** Of those, the ones whose fee is marked refunded, by category. */
   refundedRemovals: EntryRemovalCounts;
   refundReviewCount: number;
@@ -193,6 +202,7 @@ export function summarizeShowDayReconciliation(
     byMethod: { cash: { count: 0, amount: 0 }, check: { count: 0, amount: 0 } },
     removals: emptyEntryRemovalCounts(),
     removalCount: 0,
+    flaggedPullDogCount: 0,
     refundedRemovals: emptyEntryRemovalCounts(),
     refundReviewCount: 0,
     refundReviewAmount: 0,
@@ -204,17 +214,22 @@ export function summarizeShowDayReconciliation(
   const days = windowDays(deskWindow);
 
   applyLedger(summary, payments, days);
+  const flaggedDogs = new Set<string>();
 
-  for (const entry of entries) {
+  for (const [index, entry] of entries.entries()) {
     const fee = amount(entry.entry_fee);
     const paymentStatus = entry.payment_status?.toLowerCase();
     summary.totalEntryCount += 1;
 
+    // MYK9-2145: the removal is read from `entry_status` alone, as refunds to decide read it, so
+    // the removal total and the refund count agree. A check-in flag is counted on its own below.
     const removal = classifyEntryRemoval({
       entryStatus: entry.entry_status,
-      checkInStatus: entry.check_in_status,
       withdrawalReasonCode: entry.withdrawal_reason_code,
     });
+    if (!removal && entry.check_in_status?.toLowerCase() === 'pulled') {
+      flaggedDogs.add(entry.dog_id ?? `entry:${entry.id ?? index}`);
+    }
     if (removal) {
       summary.removals[removal] += 1;
       summary.removalCount += 1;
@@ -237,5 +252,6 @@ export function summarizeShowDayReconciliation(
     }
   }
 
+  summary.flaggedPullDogCount = flaggedDogs.size;
   return summary;
 }

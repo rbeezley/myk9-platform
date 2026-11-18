@@ -10,11 +10,13 @@
 //   refunds may have shrunk the amount since the row was created.
 // - Per-show isolation: one show's failure never blocks the others.
 // - Every 'failed' row alerts the platform admin by email.
+// - Payout brake (MYK9-2170, platform_settings.payouts_require_approval): while
+//   on, a payout the run would send is recorded as 'awaiting_approval' instead,
+//   reminds the operator daily, and sends only once a site admin approves it.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { calculateShowPayoutCents } from '../_shared/payoutCalc.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import { alertAdmin as sharedAlertAdmin } from '../_shared/alertAdmin.ts';
@@ -32,6 +34,26 @@ import {
   notifyClubOfTransferFailure,
 } from '../_shared/payoutClubNotices.ts';
 import { transferFailureOutcome } from '../_shared/payoutFailureOwner.ts';
+import {
+  PAYOUT_ALERT_SOURCE,
+  remindAwaitingApprovals,
+  sendOrWait,
+  shouldEvaluateShow,
+} from '../_shared/payoutApproval.ts';
+import {
+  claimDueReminders,
+  loadCarriedApproval,
+  loadPayoutBrake,
+  recordAwaitingApproval,
+} from './approvalGate.ts';
+import {
+  computePayoutCents,
+  dollars,
+  loadEligibleShows,
+  recoverStaleProcessing,
+  secretMatches,
+  type EligibleShow,
+} from './runSupport.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -49,16 +71,7 @@ const stripe = new Stripe(stripeSecret, {
 });
 const stripeLivemode = isStripeLiveMode(stripeSecret);
 
-const PAYOUT_DELAY_DAYS = 3;
-const STALE_PROCESSING_HOURS = 24;
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
-
-interface EligibleShow {
-  id: string;
-  name: string;
-  club_id: string | null;
-  end_date: string;
-}
 
 interface ClubStripeAccount {
   id: string;
@@ -88,77 +101,15 @@ function clubNoticeDeps(clubId: string, contactEmail: string | null | undefined)
 // inserting a fresh unresolved row every day.
 function alertAdmin(subject: string, html: string, opts: { dedupeKey?: string } = {}) {
   return sharedAlertAdmin(subject, html, {
-    source: 'cron-process-payouts',
+    source: PAYOUT_ALERT_SOURCE,
     dedupeKey: opts.dedupeKey,
   });
 }
 
-function dollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-/** Fail processing rows older than the stale threshold so the unique index
- * reopens for a retry row. Double-pay is prevented by the transfers.list
- * (transfer_group) check before any send, not by the idempotency key.
- * Staleness keys on updated_at (touched by the set_updated_at trigger on the
- * pending→processing claim) — created_at would false-flag a row that sat
- * pending for days before being claimed minutes ago (review finding #1). */
-async function recoverStaleProcessing(summary: Record<string, number>) {
-  const cutoff = new Date(Date.now() - STALE_PROCESSING_HOURS * 3600 * 1000).toISOString();
-  const { data: stale, error } = await supabase
-    .from('show_payouts')
-    .update({ status: 'failed', failure_reason: 'stale_processing' })
-    .eq('status', 'processing')
-    .lt('updated_at', cutoff)
-    .select('id, show_id, amount_cents');
-
-  if (error) {
-    console.error('Stale-processing recovery failed:', error);
-    return;
-  }
-  for (const row of stale ?? []) {
-    summary.stale_recovered++;
-    console.error(`Stale processing payout ${row.id} (show ${row.show_id}) failed for retry`);
-    await alertAdmin(
-      'Stale payout recovered for retry',
-      `<p>Payout row ${row.id} for show ${row.show_id} (${dollars(row.amount_cents)}) was stuck
-       in 'processing' for over ${STALE_PROCESSING_HOURS}h and has been failed for automatic retry.
-       Before re-sending, the next run checks Stripe for an existing transfer for this show
-       (transfer_group) and reconciles instead of paying twice. No action needed unless it recurs.</p>`,
-      { dedupeKey: `payout-stale-recovered-${row.id}` }
-    );
-  }
-}
-
-/** Sum the show's payable online entry money from entries, in cents.
- * Returns null on a load error (caller skips the show this run).
- * Paginated: PostgREST caps responses at max_rows (1000, config.toml) — an
- * unpaginated select would silently TRUNCATE a big show's entries and
- * underpay the club with no error (round-11 review). */
-async function computePayoutCents(showId: string): Promise<number | null> {
-  const PAGE = 1000;
-  let totalCents = 0;
-  for (let from = 0; ; from += PAGE) {
-    const { data: entries, error } = await supabase
-      .from('entries')
-      .select('entry_fee, payment_method, payment_status, refund_amount')
-      .eq('show_id', showId)
-      .order('id')
-      .range(from, from + PAGE - 1);
-
-    if (error) {
-      console.error(`Entries load failed for show ${showId}:`, error);
-      return null;
-    }
-    totalCents += calculateShowPayoutCents(entries ?? []);
-    if ((entries?.length ?? 0) < PAGE) break;
-  }
-  return totalCents;
-}
-
-async function processShow(show: EligibleShow, summary: Record<string, number>) {
-  // Existing live row decides the path: completed/processing → done elsewhere,
-  // pending → reuse the row (recompute), none → create. Checked BEFORE the
+async function processShow(show: EligibleShow, summary: Record<string, number>, brakeOn: boolean) {
+  // Existing live row decides the path: completed/processing/held → done
+  // elsewhere, pending/awaiting_approval/approved → reuse the row (recompute),
+  // none → create (shouldEvaluateShow, MYK9-2170). Checked BEFORE the
   // entries fetch: eligibility is date-driven, so every settled show stays
   // eligible forever — without this early exit each historical show would
   // re-pay the full entries query nightly, unbounded (review finding #2).
@@ -169,8 +120,8 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     .neq('status', 'failed')
     .maybeSingle();
 
-  if (liveRow && liveRow.status !== 'pending') {
-    return; // completed or in-flight
+  if (liveRow && !shouldEvaluateShow(liveRow.status)) {
+    return; // completed, in-flight or held
   }
 
   // Recompute the amount from entries at this moment — never trust stored
@@ -178,7 +129,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   // proceed); the amount actually transferred is recomputed again after the
   // claim below, when validateRefund's payout_in_progress check is already
   // rejecting new refunds.
-  const amountCents = await computePayoutCents(show.id);
+  const amountCents = await computePayoutCents(supabase, show.id);
   if (amountCents === null) return;
 
   if (amountCents <= 0) {
@@ -189,7 +140,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
         .from('show_payouts')
         .update({ amount_cents: 0, status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', liveRow.id)
-        .eq('status', 'pending');
+        .eq('status', liveRow.status);
     }
     summary.skipped_no_online_money++;
     return;
@@ -269,6 +220,18 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     return;
   }
 
+  // MYK9-2170 payout brake: where the run would send, an unapproved payout is
+  // recorded as waiting for approval instead. Approved rows go on to the one
+  // send path below.
+  const carriedApprovalAt =
+    liveRow || !brakeOn ? null : await loadCarriedApproval(supabase, show.id);
+  const liveStatus = liveRow?.status ?? null;
+  if (sendOrWait({ brakeOn, liveStatus, carriedApprovalAt }) === 'wait_for_approval') {
+    const input = { liveRow, showId: show.id, accountId: account.id, amountCents };
+    if (await recordAwaitingApproval(supabase, input)) summary.awaiting_approval++;
+    return;
+  }
+
   const moneyLock = await acquireShowMoneyLock(supabase, show.id, {
     holder: 'cron-process-payouts',
     ttlMs: 15 * 60 * 1000,
@@ -281,7 +244,8 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
 
   let rowId: string | null = null;
   try {
-    // Claim: pending → processing with the fresh amount, or insert processing.
+    // Claim: the live row (pending, approved, or awaiting with the brake off)
+    // → processing with the fresh amount, or insert processing.
     if (liveRow) {
       const { data: claimed, error: claimError } = await supabase
         .from('show_payouts')
@@ -291,7 +255,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
           club_stripe_account_id: account.id,
         })
         .eq('id', liveRow.id)
-        .eq('status', 'pending')
+        .eq('status', liveRow.status)
         .select('id');
       if (claimError || !claimed?.length) return; // raced by another run
       rowId = claimed[0].id;
@@ -304,6 +268,8 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
           amount_cents: amountCents,
           status: 'processing',
           scheduled_date: new Date().toISOString().slice(0, 10),
+          // A retry of an approved attempt keeps its approval (MYK9-2170).
+          ...(carriedApprovalAt ? { approved_at: carriedApprovalAt } : {}),
         })
         .select('id')
         .single();
@@ -323,7 +289,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
     // claim and whose stamp lands after this read can still slip through —
     // that residual window is the duration of one Stripe refund call,
     // accepted for v1.)
-    const finalAmountCents = await computePayoutCents(show.id);
+    const finalAmountCents = await computePayoutCents(supabase, show.id);
     if (finalAmountCents === null) {
       // Can't verify the amount — release the claim for tomorrow's run.
       await supabase
@@ -466,27 +432,11 @@ async function processShow(show: EligibleShow, summary: Record<string, number>) 
   }
 }
 
-// Constant-time secret check: hash both sides so the comparison cost is
-// independent of how many leading bytes match (SA-002).
-async function secretMatches(provided: string | null): Promise<boolean> {
-  if (!provided) return false;
-  const enc = new TextEncoder();
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest('SHA-256', enc.encode(provided)),
-    crypto.subtle.digest('SHA-256', enc.encode(cronSecret)),
-  ]);
-  const av = new Uint8Array(a);
-  const bv = new Uint8Array(b);
-  let diff = 0;
-  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
-  return diff === 0;
-}
-
 Deno.serve(async req => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
-  if (!(await secretMatches(req.headers.get('x-function-secret')))) {
+  if (!(await secretMatches(req.headers.get('x-function-secret'), cronSecret))) {
     return new Response('Forbidden', { status: 403 });
   }
 
@@ -499,39 +449,38 @@ Deno.serve(async req => {
     stale_recovered: 0,
     mode_mismatch: 0,
     money_lock_busy: 0,
+    awaiting_approval: 0,
+    approval_reminders: 0,
   };
 
   try {
-    await recoverStaleProcessing(summary);
-
-    const cutoff = new Date(Date.now() - PAYOUT_DELAY_DAYS * 24 * 3600 * 1000)
-      .toISOString()
-      .slice(0, 10);
-
-    // Date-driven eligibility: shows rarely get flipped to a terminal status,
-    // so the trigger is end_date + 3 days, excluding only draft/cancelled.
-    // Newest-first with an explicit cap: eligibility is permanent, so without
-    // ordering PostgREST's max-rows would someday truncate ARBITRARY rows and
-    // silently drop new shows. Ordered, the rows that fall off the end are the
-    // oldest — long-settled shows whose live payout row makes processShow a
-    // one-query no-op anyway.
-    const { data: shows, error: showsError } = await supabase
-      .from('shows')
-      .select('id, name, club_id, end_date')
-      .lte('end_date', cutoff)
-      .not('status', 'in', '("draft","cancelled")')
-      .order('end_date', { ascending: false })
-      .limit(1000);
-
-    if (showsError) {
-      console.error('Eligible-shows query failed:', showsError);
-      return Response.json({ error: showsError.message }, { status: 500 });
+    // Fail closed: without a clear reading of the brake, nothing is sent or parked.
+    const brake = await loadPayoutBrake(supabase);
+    if (!brake.ok) {
+      console.error('Payout brake read failed:', brake.message);
+      return Response.json({ error: brake.message, ...summary }, { status: 500 });
     }
 
-    summary.eligible_shows = shows?.length ?? 0;
-    for (const show of shows ?? []) {
-      await processShow(show as EligibleShow, summary);
+    await recoverStaleProcessing(supabase, alertAdmin, summary);
+
+    const eligible = await loadEligibleShows(supabase);
+    if ('error' in eligible) {
+      return Response.json({ error: eligible.error }, { status: 500 });
     }
+    const shows = eligible.shows;
+
+    summary.eligible_shows = shows.length;
+    for (const show of shows) {
+      await processShow(show, summary, brake.on);
+    }
+
+    summary.approval_reminders = await remindAwaitingApprovals(
+      {
+        claimDueReminders: cutoffIso => claimDueReminders(supabase, cutoffIso),
+        alert: (subject, html, dedupeKey) => alertAdmin(subject, html, { dedupeKey }),
+      },
+      Date.now()
+    );
 
     console.log('Payout run summary:', JSON.stringify(summary));
     return Response.json(summary);

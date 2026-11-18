@@ -1,0 +1,336 @@
+-- MYK9-2170: the payout brake, server side.
+-- platform_settings.payouts_require_approval defaults on and every switch is
+-- recorded (who, when); the three new show_payouts statuses are live rows the
+-- health probe does not count as failed; approve_show_payout and
+-- hold_show_payout are site-admin only, change a row at most once (a second
+-- approval reads back 'already_approved' and records nothing), keep a hold
+-- reason, let a held payout be approved later, and resolve the daily reminder.
+-- Migration: 20261118211700_myk9_2170_payout_brake.sql.
+
+BEGIN;
+
+INSERT INTO public.clubs (id, name)
+VALUES ('00000000-0000-0000-0000-000002170001', 'MYK9-2170 fixture club');
+
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-000002170009', 'MYK9', 'Admin', 'myk9-2170-admin@example.test', NULL),
+  ('00000000-0000-0000-0000-000002170010', 'MYK9', 'NoAdmin', 'myk9-2170-noadmin@example.test', NULL);
+
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES
+  ('00000000-0000-0000-0000-000002170109', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-2170-admin@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000002170110', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-2170-noadmin@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false);
+
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002170109'
+WHERE id = '00000000-0000-0000-0000-000002170009';
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002170110'
+WHERE id = '00000000-0000-0000-0000-000002170010';
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000002170009'::uuid, roles.id, NULL::uuid, true,
+       '00000000-0000-0000-0000-000002170109'::uuid
+FROM public.roles WHERE roles.name = 'site_admin';
+
+-- Shows 2170020..2170026, one payout each.
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+SELECT ('00000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid,
+       'MYK9-2170 fixture ' || n, 'AKC', DATE '2026-09-01', DATE '2026-09-02',
+       '00000000-0000-0000-0000-000002170001', 'draft'
+FROM generate_series(2170020, 2170026) AS n;
+
+INSERT INTO public.show_payouts (id, show_id, amount_cents, status)
+VALUES
+  -- awaiting: approved twice
+  ('00000000-0000-0000-0000-000002171020', '00000000-0000-0000-0000-000002170020', 10000, 'awaiting_approval'),
+  -- awaiting: held, then approved
+  ('00000000-0000-0000-0000-000002171021', '00000000-0000-0000-0000-000002170021', 20000, 'awaiting_approval'),
+  -- not waiting for approval
+  ('00000000-0000-0000-0000-000002171022', '00000000-0000-0000-0000-000002170022', 30000, 'pending'),
+  ('00000000-0000-0000-0000-000002171023', '00000000-0000-0000-0000-000002170023', 40000, 'processing'),
+  ('00000000-0000-0000-0000-000002171024', '00000000-0000-0000-0000-000002170024', 50000, 'completed'),
+  -- awaiting: approved, then held before the run sent it
+  ('00000000-0000-0000-0000-000002171025', '00000000-0000-0000-0000-000002170025', 60000, 'awaiting_approval');
+
+-- The daily reminders the cron raised for the three awaiting payouts.
+INSERT INTO public.operator_alerts (source, severity, title, dedupe_key)
+VALUES
+  ('cron-process-payouts', 'error', 'Payout waiting 020', 'payout-awaiting-approval-00000000-0000-0000-0000-000002171020'),
+  ('cron-process-payouts', 'error', 'Payout waiting 021', 'payout-awaiting-approval-00000000-0000-0000-0000-000002171021'),
+  ('cron-process-payouts', 'error', 'Payout waiting 025', 'payout-awaiting-approval-00000000-0000-0000-0000-000002171025');
+
+CREATE FUNCTION pg_temp.as_user(p_auth_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', p_auth_user_id::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', p_auth_user_id, 'role', 'authenticated')::text, true);
+END;
+$function$;
+
+CREATE FUNCTION pg_temp.expect_refusal(p_sql text, p_state text, p_case text)
+RETURNS void
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_state text;
+  v_message text;
+BEGIN
+  BEGIN
+    EXECUTE p_sql;
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_state = RETURNED_SQLSTATE, v_message = MESSAGE_TEXT;
+  END;
+  IF v_state IS DISTINCT FROM p_state THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 %: expected SQLSTATE %, got % (%)',
+      p_case, p_state, coalesce(v_state, 'no error'), v_message;
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 % refused: %', p_case, v_message;
+END;
+$function$;
+
+DO $$
+DECLARE
+  v_result text;
+  v_count integer;
+  v_failed_before integer;
+  v_failed_after integer;
+  v_row public.show_payouts;
+BEGIN
+  -- 1. The setting: on by default, readable by the service role's select.
+  IF NOT (SELECT ps.payouts_require_approval FROM public.platform_settings ps WHERE ps.id) THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: payouts_require_approval is not on by default';
+  END IF;
+  IF (SELECT a.attnotnull FROM pg_attribute a
+       WHERE a.attrelid = 'public.platform_settings'::regclass
+         AND a.attname = 'payouts_require_approval') IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: payouts_require_approval is nullable';
+  END IF;
+  IF pg_catalog.has_column_privilege('anon', 'public.platform_settings', 'payouts_require_approval', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: anon can read payouts_require_approval';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 the brake is on by default and hidden from anon';
+
+  -- 2. Access: anon gets nothing, the RPCs are not anon's, events are site-admin reads.
+  IF pg_catalog.has_table_privilege('anon', 'public.payout_approval_events', 'SELECT')
+     OR pg_catalog.has_table_privilege('anon', 'public.payout_approval_events', 'INSERT')
+     OR pg_catalog.has_table_privilege('authenticated', 'public.payout_approval_events', 'INSERT')
+     OR pg_catalog.has_table_privilege('authenticated', 'public.payout_approval_events', 'UPDATE')
+     OR pg_catalog.has_table_privilege('authenticated', 'public.payout_approval_events', 'DELETE') THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: payout_approval_events is writable by a client role or readable by anon';
+  END IF;
+  IF pg_catalog.has_function_privilege('anon', 'public.approve_show_payout(uuid)', 'EXECUTE')
+     OR pg_catalog.has_function_privilege('anon', 'public.hold_show_payout(uuid, text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: anon can execute a payout approval RPC';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 grants';
+
+  -- 3. Switching the brake is recorded, with who; a non-admin cannot switch it.
+  PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170110');
+  SET LOCAL ROLE authenticated;
+  UPDATE public.platform_settings SET payouts_require_approval = false WHERE id;
+  RESET ROLE;
+  IF NOT (SELECT ps.payouts_require_approval FROM public.platform_settings ps WHERE ps.id)
+     OR EXISTS (SELECT 1 FROM public.payout_approval_events e WHERE e.event IN ('brake_on', 'brake_off')) THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: a non-admin switched the brake, or a switch was recorded';
+  END IF;
+
+  PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170109');
+  SET LOCAL ROLE authenticated;
+  UPDATE public.platform_settings SET payouts_require_approval = false WHERE id;
+  -- A save that leaves the value alone records nothing.
+  UPDATE public.platform_settings SET payouts_require_approval = false WHERE id;
+  RESET ROLE;
+  SELECT count(*) INTO v_count FROM public.payout_approval_events e
+   WHERE e.event = 'brake_off'
+     AND e.actor_person_id = '00000000-0000-0000-0000-000002170009'
+     AND e.actor_role = 'authenticated'
+     AND e.created_at IS NOT NULL;
+  IF v_count <> 1 OR (SELECT count(*) FROM public.payout_approval_events) <> 1 THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: switching the brake off recorded % matching events', v_count;
+  END IF;
+
+  SET LOCAL ROLE authenticated;
+  UPDATE public.platform_settings SET payouts_require_approval = true WHERE id;
+  RESET ROLE;
+  IF NOT EXISTS (SELECT 1 FROM public.payout_approval_events e
+                  WHERE e.event = 'brake_on'
+                    AND e.actor_person_id = '00000000-0000-0000-0000-000002170009') THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: switching the brake back on was not recorded';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 brake switches are recorded with who and when';
+
+  -- 4. New statuses are live rows: still one per show, and not failures to the health probe.
+  BEGIN
+    INSERT INTO public.show_payouts (show_id, amount_cents, status)
+    VALUES ('00000000-0000-0000-0000-000002170020', 1, 'awaiting_approval');
+    RAISE EXCEPTION 'FAIL MYK9-2170: a second live payout row was accepted';
+  EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'PASS MYK9-2170 one live payout per show still holds';
+  END;
+  PERFORM pg_temp.expect_refusal(
+    $q$INSERT INTO public.show_payouts (show_id, amount_cents, status)
+       VALUES ('00000000-0000-0000-0000-000002170026', 1, 'bogus')$q$,
+    '23514', 'unknown status'
+  );
+
+  -- 5. Approval is a site admin's.
+  PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170110');
+  SET LOCAL ROLE authenticated;
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171020')$q$,
+    '42501', 'non-admin approval'
+  );
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.hold_show_payout('00000000-0000-0000-0000-000002171020', 'no')$q$,
+    '42501', 'non-admin hold'
+  );
+  IF EXISTS (SELECT 1 FROM public.payout_approval_events) THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: a non-admin can read payout_approval_events';
+  END IF;
+  RESET ROLE;
+
+  PERFORM pg_temp.as_user('00000000-0000-0000-0000-000002170109');
+  SET LOCAL ROLE authenticated;
+
+  -- 6. Approve, then approve again: the row changes once, one event, alert resolved.
+  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020');
+  IF v_result <> 'approved' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 approve: returned %', v_result;
+  END IF;
+  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171020');
+  IF v_result <> 'already_approved' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 approve twice: second call returned %', v_result;
+  END IF;
+  RESET ROLE;
+
+  SELECT * INTO v_row FROM public.show_payouts WHERE id = '00000000-0000-0000-0000-000002171020';
+  IF v_row.status <> 'approved' OR v_row.approved_at IS NULL OR v_row.amount_cents <> 10000 THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 approve: row is % / % / %',
+      v_row.status, v_row.approved_at, v_row.amount_cents;
+  END IF;
+  SELECT count(*) INTO v_count FROM public.payout_approval_events e
+   WHERE e.event = 'approved'
+     AND e.show_payout_id = '00000000-0000-0000-0000-000002171020'
+     AND e.actor_person_id = '00000000-0000-0000-0000-000002170009';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 approve twice: % approval events, expected 1', v_count;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.operator_alerts a
+              WHERE a.dedupe_key = 'payout-awaiting-approval-00000000-0000-0000-0000-000002171020'
+                AND (a.resolved_at IS NULL
+                     OR a.resolved_by IS DISTINCT FROM '00000000-0000-0000-0000-000002170109')) THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 approve: the daily reminder alert is still unresolved';
+  END IF;
+  -- Another payout's reminder is untouched.
+  IF NOT EXISTS (SELECT 1 FROM public.operator_alerts a
+                  WHERE a.dedupe_key = 'payout-awaiting-approval-00000000-0000-0000-0000-000002171021'
+                    AND a.resolved_at IS NULL) THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 approve: resolved another payout''s reminder';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 approve and approve-twice';
+
+  -- 7. Hold with a reason; it stays waiting and can be approved later.
+  SET LOCAL ROLE authenticated;
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.hold_show_payout('00000000-0000-0000-0000-000002171021', '   ')$q$,
+    '22023', 'blank hold reason'
+  );
+  v_result := public.hold_show_payout('00000000-0000-0000-0000-000002171021', '  Club bank details under review  ');
+  RESET ROLE;
+  IF v_result <> 'held'
+     OR (SELECT sp.status FROM public.show_payouts sp
+          WHERE sp.id = '00000000-0000-0000-0000-000002171021') <> 'held' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 hold: returned %', v_result;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.payout_approval_events e
+                  WHERE e.event = 'held'
+                    AND e.show_payout_id = '00000000-0000-0000-0000-000002171021'
+                    AND e.reason = 'Club bank details under review'
+                    AND e.actor_person_id = '00000000-0000-0000-0000-000002170009') THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 hold: the reason was not recorded';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.operator_alerts a
+              WHERE a.dedupe_key = 'payout-awaiting-approval-00000000-0000-0000-0000-000002171021'
+                AND a.resolved_at IS NULL) THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 hold: the daily reminder alert is still unresolved';
+  END IF;
+
+  SET LOCAL ROLE authenticated;
+  v_result := public.approve_show_payout('00000000-0000-0000-0000-000002171021');
+  RESET ROLE;
+  IF v_result <> 'approved'
+     OR (SELECT sp.status FROM public.show_payouts sp
+          WHERE sp.id = '00000000-0000-0000-0000-000002171021') <> 'approved' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 approve after hold: returned %', v_result;
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 hold with a reason, then approve';
+
+  -- 8. An approved payout not yet sent can be held again; its approval is withdrawn.
+  SET LOCAL ROLE authenticated;
+  PERFORM public.approve_show_payout('00000000-0000-0000-0000-000002171025');
+  v_result := public.hold_show_payout('00000000-0000-0000-0000-000002171025', 'Second look');
+  RESET ROLE;
+  SELECT * INTO v_row FROM public.show_payouts WHERE id = '00000000-0000-0000-0000-000002171025';
+  IF v_result <> 'held' OR v_row.status <> 'held' OR v_row.approved_at IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170 hold after approve: % / % / %',
+      v_result, v_row.status, v_row.approved_at;
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 hold after approve withdraws the approval';
+
+  -- 9. Rows that are not waiting for approval.
+  SET LOCAL ROLE authenticated;
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002171022')$q$,
+    '22023', 'approve a pending payout'
+  );
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.hold_show_payout('00000000-0000-0000-0000-000002171023', 'too late')$q$,
+    '22023', 'hold a payout being sent'
+  );
+  PERFORM pg_temp.expect_refusal(
+    $q$SELECT public.approve_show_payout('00000000-0000-0000-0000-000002179999')$q$,
+    'P0002', 'approve a missing payout'
+  );
+  IF public.approve_show_payout('00000000-0000-0000-0000-000002171024') <> 'already_approved' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: approving a sent payout did not read back already_approved';
+  END IF;
+  RESET ROLE;
+  IF (SELECT sp.status FROM public.show_payouts sp
+       WHERE sp.id = '00000000-0000-0000-0000-000002171022') <> 'pending'
+     OR (SELECT sp.status FROM public.show_payouts sp
+          WHERE sp.id = '00000000-0000-0000-0000-000002171023') <> 'processing'
+     OR (SELECT sp.status FROM public.show_payouts sp
+          WHERE sp.id = '00000000-0000-0000-0000-000002171024') <> 'completed' THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: a refused approval or hold changed a row';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 only waiting payouts are approved or held';
+
+  -- 10. The health probe does not read the brake statuses as failed.
+  SELECT count(*) INTO v_failed_before FROM (
+    SELECT DISTINCT ON (p.show_id) p.status
+      FROM public.show_payouts p ORDER BY p.show_id, p.created_at DESC
+  ) latest WHERE latest.status = 'failed';
+  v_failed_after := (public.system_health_probe() -> 'payout_ledger' ->> 'failed')::integer;
+  IF v_failed_after <> v_failed_before THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: health probe reports % failed payouts, the ledger has %',
+      v_failed_after, v_failed_before;
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 health probe does not count waiting, approved or held payouts as failed';
+
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  PERFORM set_config('request.jwt.claims', '', true);
+END;
+$$;
+
+ROLLBACK;

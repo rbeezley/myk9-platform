@@ -83,6 +83,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   operator_alerts: 'SELECT',
   organization_agreements: 'SELECT,INSERT,UPDATE,DELETE',
   paperwork_prints: 'SELECT,INSERT',
+  // MYK9-2170: site-admin read under RLS; the brake trigger and the approve/hold RPCs write.
+  payout_approval_events: 'SELECT',
   pedigree_ancestors: 'SELECT,INSERT,UPDATE,DELETE',
   people: 'SELECT,INSERT,UPDATE,DELETE',
   // MYK9-664: self/site-admin read under RLS; writes only via update_person_details().

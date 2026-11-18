@@ -51,6 +51,10 @@ const PAYOUT_STATUS: Record<PayoutStatus, { label: string; tone: AdminStatusTone
   processing: { label: 'Processing', tone: 'progress' },
   completed: { label: 'Paid', tone: 'success' },
   failed: { label: 'Failed', tone: 'danger' },
+  // MYK9-2170 payout brake: waiting on the operator, never a failure.
+  awaiting_approval: { label: 'Waiting for approval', tone: 'pending' },
+  approved: { label: 'Approved', tone: 'progress' },
+  held: { label: 'Held', tone: 'pending' },
 };
 
 function toPresentation(config: { label: string; tone: AdminStatusTone }): AdminStatusPresentation {

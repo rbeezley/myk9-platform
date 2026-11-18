@@ -30,13 +30,13 @@
 # A P0/P1 can never be parked (MYK9-1613): `[unlikely P1]` or `[earlier-round P0]`
 # is a finding for every consumer (both wrappers and the poster), whatever the
 # reviewer called it. Only P2/P3 take the not-this-round tags below.
-REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[(P[0-9]|(unlikely|earlier-round) P[01])\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[(P[0-9]|(unlikely|earlier-round) P[01])\])'
+REVIEW_FINDING_BULLET='^[[:space:]]*([-*][[:space:]]*)*- ((\*\*)?\[(P[0-9]|(unlikely|earlier-round) P[01])\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[(P[0-9]|(unlikely|earlier-round) P[01])\])'
 
 # A finding the contract says is not actionable this round (MYK9-1590, 1613):
 # `[unlikely P3]` (the likelihood cap) or `[earlier-round P2|P3]` (code a
 # fix-range round already read). Never blocks; listed so the shipper can file
 # the ones worth fixing.
-REVIEW_NOT_THIS_ROUND_BULLET='^[[:space:]]*- (\*\*)?\[(unlikely|earlier-round) P[23]\]'
+REVIEW_NOT_THIS_ROUND_BULLET='^[[:space:]]*([-*][[:space:]]*)*- ((\*\*)?\[(unlikely|earlier-round) P[23]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[(unlikely|earlier-round) P[23]\])'
 
 # Print the not-this-round bullets; silent when none.
 review_note_not_this_round() {  # LABEL TEXT
@@ -56,7 +56,7 @@ review_note_not_this_round() {  # LABEL TEXT
 # these so the shipper files them; the evidence comment carries them verbatim.
 # Same shapes as REVIEW_FINDING_BULLET (tag first, or after a backticked
 # location), matched case-insensitively.
-REVIEW_PREEXISTING_BULLET='^[[:space:]]*- ((\*\*)?\[pre-existing P[0-9]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[pre-existing P[0-9]\])'
+REVIEW_PREEXISTING_BULLET='^[[:space:]]*([-*][[:space:]]*)*- ((\*\*)?\[pre-existing P[0-9]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[pre-existing P[0-9]\])'
 
 # Print the pre-existing bullets with a filing instruction; silent when none.
 review_note_preexisting() {  # LABEL TEXT

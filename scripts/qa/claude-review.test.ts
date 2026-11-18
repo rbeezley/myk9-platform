@@ -294,6 +294,18 @@ describe('claude-review.sh', () => {
     expect(posted[0]).toContain('[P1] Something is broken');
   });
 
+  it('--post reads a doubled-marker findings list (`- - [P2]`) as findings, exit 1 (MYK9-2169)', () => {
+    const stub = stubClaude(
+      'No actionable defects found.\n\n- - [P2] Discard notices — /p/a.sql:79\n  detail\n- - **[P3]** Expire notices — /p/a.sql:46\n'
+    );
+    const gh = stubGh();
+    const r = run(stub, gh);
+    expect(r.code).toBe(1);
+    const posted = bodies(gh.calls);
+    expect(posted[0]).toMatch(/^Claude findings for [0-9a-f]{9} \(not gate evidence\):/);
+    expect(posted[0]).toContain('- - [P2] Discard notices');
+  });
+
   it('--post on findings also WITHDRAWS any clean evidence already on this head', () => {
     const stub = stubClaude('- [P1] one\n- [P3] two\n');
     const gh = stubGh();

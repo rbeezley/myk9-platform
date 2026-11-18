@@ -43,10 +43,11 @@ import type { Box } from './lib.ts';
 /** A phone: the page draws the scene about 235px wide on one, and 390 reads at that size. */
 const SPACE = { width: 390, height: 844 };
 const SCALE = 2;
-// On the seed, Interior Advanced is the judge's first class with nothing scored: Willow (100)
-// and Ranger (101). Container Novice A is seeded complete, with its results released.
-const CLASS_NAME = 'Interior Advanced';
-const DOG = 'Willow';
+// On the seed, Exterior Excellent is the judge's unscored class with one search area, so the
+// scoresheet is the one timer the scene's lines describe: Juniper (102). Container Novice A is
+// seeded complete with its results released, and Interior Advanced times two areas.
+const CLASS_NAME = 'Exterior Excellent';
+const DOG = 'Juniper';
 /**
  * The armbands this scene shows: the demo seed's own entries on this show (seed-demo.sql).
  * Every other row that carries an armband is left out (the load fixture's 2001 to 2063, and

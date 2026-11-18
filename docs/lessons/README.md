@@ -368,6 +368,12 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 **An anchored text edit written from the text you WROTE, not the text on disk, misses after the formatter runs — and a chained script then carries on past the miss.** Prettier rewraps long signatures and `(e) =>` parens, so a python/sed replacement keyed on the pre-format string finds zero matches and the script asserts; when that edit is one step of `edit && test && commit && push && review`, everything after it silently does not happen while the log still shows the earlier steps' success. Fired three times on 2026-09-05 in PR #2058: one round shipped a trust filter with none of its fixtures (7 red tests), and a Codex round reviewed a half-applied working tree. Re-read the file after any format step before anchoring, or anchor on structure with a regex (`re.sub(r"function comment\([\s\S]*?\n\}\n", …)`), and make a chained script stop at the first failed step instead of proceeding to commit and review.
 
+## heredoc-backslashes
+
+**Guard:** human-only: concerns an agent's own edit sequence
+
+**A script passed to `node` or `python` through a shell heredoc loses one level of backslashes in this harness, and the edit it makes still reports success.** On 2026-11-18 (MYK9-2181) a node heredoc rewrote a Playwright script and its pattern for a running time reached the file with every backslash gone; a later heredoc "fix" replaced the broken pattern with the same broken pattern, because its own backslashes were stripped too, and the chained commit and push went ahead. Each miss cost a ten-minute CI capture run. Write any text that holds backslashes (regexes, Windows paths, escapes) with the Edit or Write tool, never from a heredoc script, and grep the file for the pattern before committing.
+
 ## guard-word-split
 
 **Guard:** human-only: tokenizing correctness is verified per guard with fixtures

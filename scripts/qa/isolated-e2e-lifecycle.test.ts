@@ -4,10 +4,12 @@ import {
   buildGithubEnvLines,
   buildJobEnvironment,
   formatLifecycleFailure,
-  localSupabaseStartArgs,
   localSupabaseEnvironmentFromStatus,
+  localSupabaseStartArgs,
   parseSupabaseStatusEnv,
+  postSeedCountsOk,
   resolveSupabaseCliCommand,
+  seedsLoadFixture,
 } from './isolated-e2e-lifecycle';
 
 const local = {
@@ -125,5 +127,26 @@ describe('lifecycle safety', () => {
     expect(message).toContain('DB_URL=[redacted]');
     expect(message).not.toContain('local-service-role-secret');
     expect(message).not.toContain('postgres:postgres');
+  });
+});
+
+describe('demo-only seed (MYK9-2181)', () => {
+  it('seeds the load fixture unless the caller turns it off', () => {
+    expect(seedsLoadFixture({})).toBe(true);
+    expect(seedsLoadFixture({ MYK9_E2E_LOAD_FIXTURE: 'true' })).toBe(true);
+    expect(seedsLoadFixture({ MYK9_E2E_LOAD_FIXTURE: '' })).toBe(true);
+    expect(seedsLoadFixture({ MYK9_E2E_LOAD_FIXTURE: 'false' })).toBe(false);
+  });
+
+  it('expects the full fixture count with the load fixture and a small show without it', () => {
+    expect(postSeedCountsOk('1|12|9|6|517', true)).toBe(true);
+    expect(postSeedCountsOk('1|12|9|6|13', true)).toBe(false);
+    expect(postSeedCountsOk('1|12|9|6|13', false)).toBe(true);
+    // Without the load fixture, the full count means it was seeded after all.
+    expect(postSeedCountsOk('1|12|9|6|517', false)).toBe(false);
+    expect(postSeedCountsOk('1|12|9|6|0', false)).toBe(false);
+    expect(postSeedCountsOk('0|12|9|6|13', false)).toBe(false);
+    expect(postSeedCountsOk('1|0|9|6|517', true)).toBe(false);
+    expect(postSeedCountsOk('', false)).toBe(false);
   });
 });

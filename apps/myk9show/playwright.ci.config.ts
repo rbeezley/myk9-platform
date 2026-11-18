@@ -21,6 +21,11 @@ assertPlaywrightRunAllowed('playwright.ci.config.ts', shellEnv, {
   serverPort: 4173,
 });
 
+// MYK9-2181: the Landing capture workflow's one spec. It is in no other mode's list here,
+// every other config skips it, and it refuses to start outside that workflow's conditions
+// (captureStartProblem in src/test/e2e/helpers/landingCapture.ts).
+const isLandingCapture = process.env.PLAYWRIGHT_LANDING_CAPTURE === 'true';
+const LANDING_CAPTURE_SPECS = ['**/capture/landingRingCapture.spec.ts'];
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
 const isRegression =
   process.env.PLAYWRIGHT_REGRESSION === 'true' || process.env.PLAYWRIGHT_NIGHTLY === 'true';
@@ -300,19 +305,21 @@ const PR_SMOKE_SPECS = [
  * Runs E2E tests against a built preview of the app.
  * Chromium only to keep CI fast.
  *
- * Mode precedence: a11y > regression > pr-smoke.
+ * Mode precedence: landing capture > a11y > regression > pr-smoke.
  *
  * Run with: npx playwright test --config=playwright.ci.config.ts
  * Regression: PLAYWRIGHT_REGRESSION=true npx playwright test --config=playwright.ci.config.ts
  */
 export default defineConfig({
   testDir: './src/test/e2e',
-  testMatch: isA11ySmoke
-    ? ['**/a11y-smoke.spec.ts']
-    : isRegression
-      ? REGRESSION_SPECS
-      : PR_SMOKE_SPECS,
-  grep: isA11ySmoke ? /has no serious\/critical violations/ : undefined,
+  testMatch: isLandingCapture
+    ? LANDING_CAPTURE_SPECS
+    : isA11ySmoke
+      ? ['**/a11y-smoke.spec.ts']
+      : isRegression
+        ? REGRESSION_SPECS
+        : PR_SMOKE_SPECS,
+  grep: isA11ySmoke && !isLandingCapture ? /has no serious\/critical violations/ : undefined,
   fullyParallel: false,
   forbidOnly: true,
   retries: 2,

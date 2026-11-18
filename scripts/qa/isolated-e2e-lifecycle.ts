@@ -271,6 +271,36 @@ function writeJobEnvironment(local: LocalSupabaseEnvironment) {
   }
 }
 
+/**
+ * MYK9-2181: the landing capture wants the demo show as a small trial reads, so its job sets
+ * MYK9_E2E_LOAD_FIXTURE=false and the 63-dog load fixture is not seeded. Every other caller
+ * leaves it unset and gets the full fixture, as before.
+ */
+export function seedsLoadFixture(env: NodeJS.ProcessEnv): boolean {
+  return env.MYK9_E2E_LOAD_FIXTURE !== 'false';
+}
+
+/** Whether the post-seed counts ("show|classes|assignments|roles|entries") are the fixture's. */
+export function postSeedCountsOk(output: string, withLoadFixture: boolean): boolean {
+  const [showCount, classCount, assignmentCount, roleGrantCount, entryCount] = output.split('|');
+  if (
+    showCount !== '1' ||
+    Number(classCount) <= 0 ||
+    Number(assignmentCount) <= 0 ||
+    Number(roleGrantCount) <= 0
+  ) {
+    return false;
+  }
+  // The canonical count is required of every caller that seeds the load fixture, which is
+  // every caller but the landing capture (isolated-e2e-migration-chain.test.ts pins this).
+  if (withLoadFixture) {
+    if (entryCount !== String(LOAD_SHOW_ENTRY_COUNT)) return false;
+    return true;
+  }
+  const entries = Number(entryCount);
+  return entries > 0 && entries < LOAD_SHOW_ENTRY_COUNT;
+}
+
 function runPostSeedAssertions(local: LocalSupabaseEnvironment, env: NodeJS.ProcessEnv) {
   const output = captureCommand(
     'Post-seed fixture verification',
@@ -279,16 +309,13 @@ function runPostSeedAssertions(local: LocalSupabaseEnvironment, env: NodeJS.Proc
     env
   ).trim();
 
-  const [showCount, classCount, assignmentCount, roleGrantCount, entryCount] = output.split('|');
-  if (
-    showCount !== '1' ||
-    Number(classCount) <= 0 ||
-    Number(assignmentCount) <= 0 ||
-    Number(roleGrantCount) <= 0 ||
-    entryCount !== String(LOAD_SHOW_ENTRY_COUNT)
-  ) {
+  const withLoadFixture = seedsLoadFixture(env);
+  if (!postSeedCountsOk(output, withLoadFixture)) {
+    const entries = withLoadFixture
+      ? `${LOAD_SHOW_ENTRY_COUNT} entries`
+      : `the demo seed's own entries (fewer than ${LOAD_SHOW_ENTRY_COUNT})`;
     throw new Error(
-      `Post-seed fixture verification failed for MYK9-109: expected show/classes/assignments/roles and ${LOAD_SHOW_ENTRY_COUNT} entries; received ${output}`
+      `Post-seed fixture verification failed for MYK9-109: expected show/classes/assignments/roles and ${entries}; received ${output}`
     );
   }
 }
@@ -345,12 +372,14 @@ export function resetAndSeed(
   // The MYK9-109 load fixture is opt-in since MYK9-558, so a staging reseed
   // stays lean. This local, throwaway database keeps the full fixture the
   // isolated suite has always run against (asserted below).
-  runCommand(
-    'Load fixture seed',
-    'psql',
-    [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-load-fixture.sql'],
-    jobEnv
-  );
+  if (seedsLoadFixture(jobEnv)) {
+    runCommand(
+      'Load fixture seed',
+      'psql',
+      [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-load-fixture.sql'],
+      jobEnv
+    );
+  }
   seedIsolatedAccounts(local, jobEnv);
   runPostSeedAssertions(local, jobEnv);
   runCommand(

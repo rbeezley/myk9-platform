@@ -1,0 +1,176 @@
+# Landing capture — takes the landing page's timeline screenshots from the running app
+# (docs/plan-landing-animated-timeline.md § "Capturing the screens", MYK9-2181).
+#
+# A capture signs a seeded account in and walks the app. It is safe by where it runs:
+#   - the backend is this job's own Supabase stack, seeded from the repository's demo seed
+#     and destroyed with the job, so every row is a fixture and nothing shared is touched;
+#   - before the capture starts, the job closes the outbound network for the capture's
+#     processes (the browser, the preview server and the spec) and proves it, with a control.
+# The capture is one spec in the isolated e2e suite and refuses to start anywhere else.
+#
+# The owner's Windows PC cannot run the stack (no Docker, and the Supabase CLI has no native
+# runtime for win32), so this job is where captures are taken. It uploads the images and
+# measured regions as an artifact for a person to commit. Nothing here writes to the
+# repository or to any shared system.
+name: Landing capture
+
+on:
+  workflow_dispatch: {}
+  # A change to the capture is proved by running it: the artifact of the PR's own run is
+  # what gets committed.
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/myk9show/src/test/e2e/capture/**'
+      - 'apps/myk9show/src/test/e2e/helpers/landingCapture.ts'
+      - '.github/workflows/landing-capture.yml'
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+concurrency:
+  group: landing-capture-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture landing scenes
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Not for a fork's pull request: the job runs the pull request's code with sudo and the
+    # build cache token.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.4'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
+
+      # The stack's accounts get passwords made here, for this job only. The repository's
+      # fixture passwords, which also open the fixture accounts on the hosted project, are
+      # never given to this job, so nothing it runs could sign in there.
+      - name: Make this job's own account passwords
+        run: |
+          for name in E2E_SECRETARY_PASSWORD E2E_ADMIN_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
+            value="Job-$(openssl rand -hex 16)-9a"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
+      # Writes the local stack's URL and keys to GITHUB_ENV (VITE_SUPABASE_URL among them),
+      # so the build below is pointed at this job's own stack and nothing else. The load
+      # fixture is left out: the scene shows the demo show as a small trial reads.
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          MYK9_E2E_APPROVED_PROJECT_REFS: local
+          MYK9_E2E_SUPABASE_PROJECT_REF: local
+          MYK9_E2E_LOAD_FIXTURE: 'false'
+
+      - name: Verify the target is the isolated stack
+        run: pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      # While the network is still open: the fonts the page links, so the captures are set
+      # in the app's own type once the browser can no longer fetch them.
+      - name: Download the app's web fonts
+        working-directory: apps/myk9show
+        run: pnpm exec tsx src/test/e2e/capture/downloadFonts.ts "$RUNNER_TEMP/landing-capture/fonts"
+
+      # Everything the capture runs is started in the group `landing-capture`, and a process
+      # in that group may open connections to this machine only (names are still looked up
+      # by the system resolver, and the stack's containers are outside the rule, as in every
+      # isolated job). The rule is by group, not for the whole runner, because the runner
+      # itself must keep reporting to GitHub. The control comes
+      # first: the same probe must connect before it is confined, or a refusal would prove
+      # nothing.
+      - name: Close the capture's outbound network
+        working-directory: apps/myk9show
+        run: |
+          sudo groupadd --force landing-capture
+          sudo usermod -aG landing-capture "$(id -un)"
+          for firewall in iptables ip6tables; do
+            sudo "$firewall" -A OUTPUT -m owner --gid-owner landing-capture -o lo -j ACCEPT
+            sudo "$firewall" -A OUTPUT -m owner --gid-owner landing-capture -j REJECT
+          done
+          pnpm exec tsx src/test/e2e/capture/egressProbe.ts open
+          sg landing-capture -c 'pnpm exec tsx src/test/e2e/capture/egressProbe.ts closed'
+
+      # The spec proves the closed network again before it signs in. No retries: the walk
+      # scores a dog for real, so a second attempt would start from a different database.
+      - name: Capture the ring scene
+        working-directory: apps/myk9show
+        run: >-
+          sg landing-capture -c
+          'pnpm exec playwright test --config=playwright.ci.config.ts --retries=0 --workers=1'
+        env:
+          CI: 'true'
+          PLAYWRIGHT_LANDING_CAPTURE: 'true'
+          CAPTURE_FONTS_DIR: ${{ runner.temp }}/landing-capture/fonts
+          CAPTURE_OUT_DIR: ${{ runner.temp }}/landing-capture/out
+
+      # The spec wrote into an empty folder, laid out as the files sit in the repository, so
+      # the artifact unpacks over a checkout and holds only what this run took. A run that
+      # took no screenshots, or only some, stops here.
+      - name: Check the capture is whole
+        run: |
+          out="$RUNNER_TEMP/landing-capture/out/apps/myk9show"
+          for shot in classes offline sheet running result confirm saved sent; do
+            test -s "$out/public/landing/scenes/ring/$shot.png"
+          done
+          test "$(find "$out/public/landing/scenes/ring" -type f | wc -l)" -eq 8
+          test -s "$out/src/components/landing/lifecycle/scenes/ringRegions.json"
+          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 9
+
+      # This repository's artifacts are public (MYK9-1057): fail before the upload if one of
+      # the job's passwords (in the environment since the first step) is in the regions file.
+      # Prints file names and counts only.
+      - name: Verify no secrets in the capture
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts "$RUNNER_TEMP/landing-capture/out"
+
+      - name: Upload the capture
+        uses: actions/upload-artifact@v7
+        with:
+          name: landing-capture-ring
+          path: ${{ runner.temp }}/landing-capture/out/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop

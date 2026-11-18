@@ -140,9 +140,11 @@ describe('useExhibitorProfile.answerResultsPublicPrompt (MYK9-1944)', () => {
       results_public: true,
       results_public_prompt_answered_at: '2026-11-17T00:00:00Z',
     };
+    let saved: string | null = 'unset';
     await act(async () => {
-      await result.current.answerResultsPublicPrompt(false);
+      saved = await result.current.answerResultsPublicPrompt(false);
     });
+    expect(saved).toBeNull();
     expect(db.fetches).toBe(fetchesBefore + 1);
     await waitFor(() => expect(result.current.profile?.results_public).toBe(true));
     expect(result.current.profile?.results_public_prompt_answered_at).toBe('2026-11-17T00:00:00Z');

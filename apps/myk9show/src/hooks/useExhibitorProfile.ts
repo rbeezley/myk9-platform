@@ -350,7 +350,7 @@ export function useExhibitorProfile() {
   // never disagree. "Keep private" writes only the answer: results_public is
   // left exactly as it was.
   const answerResultsPublicPromptMutation = useMutation({
-    mutationFn: async (showPublicly: boolean): Promise<string> => {
+    mutationFn: async (showPublicly: boolean): Promise<string | null> => {
       if (!user?.id) throw new Error('User not authenticated');
       if (!profile?.id) throw new Error('No exhibitor profile found');
 
@@ -372,9 +372,10 @@ export function useExhibitorProfile() {
       if (error) throw error;
       if (!updated || updated.length === 0) {
         // Nothing matched: the profile changed elsewhere. Show what is true now
-        // instead of confirming this answer from the cached profile.
+        // instead of confirming this answer from the cached profile, and return
+        // null so the prompt does not claim the answer was saved.
         await refetch();
-        return answeredAt;
+        return null;
       }
       queryClient.setQueryData(['exhibitorProfile', user.id], {
         ...profile,

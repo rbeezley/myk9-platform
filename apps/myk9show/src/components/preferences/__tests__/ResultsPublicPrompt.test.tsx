@@ -132,6 +132,15 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
     expect(screen.queryByTestId('results-public-prompt')).not.toBeInTheDocument();
   });
 
+  it('Show publicly says nothing was made public when another device answered first', async () => {
+    profileState.answerResultsPublicPrompt.mockResolvedValue(null);
+    const user = userEvent.setup();
+    render(<ResultsPublicPrompt {...baseProps} />);
+    await user.click(screen.getByRole('button', { name: 'Show publicly' }));
+    expect(profileState.answerResultsPublicPrompt).toHaveBeenCalledWith(true);
+    expect(screen.queryByTestId('results-public-note')).not.toBeInTheDocument();
+  });
+
   it('Keep private answers no and leaves nothing behind', async () => {
     const user = userEvent.setup();
     render(<ResultsPublicPrompt {...baseProps} />);

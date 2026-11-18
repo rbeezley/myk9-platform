@@ -125,23 +125,21 @@ try {
     await card.scrollIntoViewIfNeeded();
     await shoot('classes', { card });
 
-    // Line 2: the signal drops. Nothing has been scored offline yet, so the header reads
-    // "Offline · scores saved on this device".
+    // Line 2: the signal drops. At phone width the header shows an amber no-signal icon, and a
+    // message says the changes are saved on this device. (Wider screens print "Offline ·
+    // scores saved on this device" in the header. On a phone that sentence is behind a tap on
+    // the icon, in a popover that runs off the right edge of a 390px screen, so the message
+    // is the frame.)
     await card.getByRole('button').first().click();
     await settle(page, 4000);
     await goOffline(page, guard);
-    // At phone width the header shows an amber no-signal icon and says the sentence when it
-    // is tapped (OfflineScoresIndicator); wider screens print the sentence in the header.
-    const noSignal = page.getByRole('button', { name: 'Offline', exact: true }).first();
-    await noSignal.waitFor();
-    await noSignal.click();
-    const offline = page.getByRole('status').filter({
-      hasText: 'Offline · scores saved on this device',
-    });
-    await offline.waitFor();
+    await page.getByRole('button', { name: 'Offline', exact: true }).first().waitFor();
+    const offline = page
+      .getByText('You’re offline. Changes are saved on this device')
+      .or(page.getByText("You're offline. Changes are saved on this device"));
+    await offline.first().waitFor();
     await page.waitForTimeout(800);
-    await shoot('offline', { status: offline });
-    await noSignal.click();
+    await shoot('offline', { status: [offline, 300, 60] });
     await page
       .getByRole('button', { name: 'Close toast' })
       .click()

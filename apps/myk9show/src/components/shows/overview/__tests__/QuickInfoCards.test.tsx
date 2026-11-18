@@ -44,6 +44,12 @@ describe('QuickInfoCards — payment methods', () => {
     expect(screen.getByText('Card')).toBeInTheDocument();
   });
 
+  it('renders no Card badge while how the show takes entries is not known yet', () => {
+    // A partial or stale row: the fee note and the Enter button are withheld too.
+    render(<QuickInfoCards show={{ ...baseShow, onlineEntriesEnabled: undefined } as Show} />);
+    expect(screen.queryByText('Card')).not.toBeInTheDocument();
+  });
+
   it('does not render Check badge when acceptCheckPayments is false', () => {
     render(<QuickInfoCards show={{ ...baseShow, acceptCheckPayments: false } as Show} />);
     expect(screen.queryByText('Check')).not.toBeInTheDocument();

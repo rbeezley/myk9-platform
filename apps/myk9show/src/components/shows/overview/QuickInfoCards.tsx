@@ -4,6 +4,7 @@ import { formatFee } from '@/utils/format';
 import { toLocalDate } from '@/utils/date-format';
 import { FactCell } from '@/components/common/FactCell';
 import { ServiceFeeNote } from '@/features/payments/ServiceFeeNote';
+import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
@@ -61,9 +62,13 @@ export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCar
           Payment Methods
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
-            Card
-          </Badge>
+          {/* Every show takes card, but a row whose value is not known yet (a partial or
+              stale read) claims nothing, like the fee note and the Enter button. */}
+          {acceptsOnlineEntries(show) && (
+            <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
+              Card
+            </Badge>
+          )}
           {show.acceptCheckPayments && (
             <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
               Check

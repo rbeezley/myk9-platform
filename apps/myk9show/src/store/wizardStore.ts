@@ -209,12 +209,12 @@ const initialState: WizardState = {
       steward: [],
     },
     judgeIds: [],
-    // A new show takes check and cash unless she says otherwise (owner decision, MYK9-1799):
-    // every club so far does, and a show accepting nothing cannot be entered. Online entries
-    // stay off; they need the club's payout account.
-    acceptCheckPayments: true,
-    acceptCashPayments: true,
-    onlineEntriesEnabled: false,
+    // A new show takes online entries, and check and cash only if she adds them (owner
+    // decision 2026-11-13 on MYK9-1965, reversing MYK9-1799). Nothing in the app turns online
+    // off; the server refuses publishing without the club's payouts instead.
+    acceptCheckPayments: false,
+    acceptCashPayments: false,
+    onlineEntriesEnabled: true,
     timezone: resolveBrowserTrialTimezone(),
     style: DEFAULT_PREMIUM_STYLE,
   },

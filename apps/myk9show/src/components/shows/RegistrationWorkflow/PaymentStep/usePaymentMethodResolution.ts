@@ -22,6 +22,7 @@ import type { PaymentMethod } from '@/types/show-registration-types';
 import {
   getEffectivePaymentMethod,
   NO_ENTRY_FEE_MESSAGE,
+  withOfferedAlternatives,
   type AcceptedPaymentMethods,
 } from './utils';
 
@@ -121,9 +122,15 @@ export function usePaymentMethodResolution(
       : noEntryFeeSet
         ? NO_ENTRY_FEE_MESSAGE
         : !show?.clubId
-          ? "Online card payment isn't available because this show has no hosting club bank account. Choose check or cash instead."
+          ? withOfferedAlternatives(
+              "Online card payment isn't available because this show has no hosting club bank account.",
+              acceptedMethods
+            )
           : clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching
             ? 'Checking online payment availability for this club.'
-            : "Online card payment isn't available for this club. Choose check or cash instead.",
+            : withOfferedAlternatives(
+                "Online card payment isn't available for this club.",
+                acceptedMethods
+              ),
   };
 }

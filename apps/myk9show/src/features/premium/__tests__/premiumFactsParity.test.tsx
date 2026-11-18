@@ -376,3 +376,36 @@ describe('premium public page facts parity (8 styles)', () => {
     expect(text).toMatchSnapshot();
   });
 });
+
+describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
+  const NEW_YEAR_TEXT = 'AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027';
+  const redate = (premium: GeneratedPremium, dates: string[]) => {
+    premium.show.startDate = dates[0]!;
+    premium.trials = premium.trials.map((trial, i) => ({ ...trial, date: dates[i] ?? trial.date }));
+    return premium;
+  };
+
+  it.each(ALL_STYLES)('%s prints the rate for the dates its schedule prints', style => {
+    expect(pdfText('AKC', fullPremium('AKC', style))).toContain(
+      'AKC recording fee: $4.50 per entry'
+    );
+  });
+
+  it.each(ALL_STYLES)('%s prints it on a show with nothing else filled in', style => {
+    expect(pdfText('AKC', sparsePremium('AKC', style))).toContain(
+      'AKC recording fee: $4.50 per entry'
+    );
+  });
+
+  it.each(ALL_STYLES)('%s prints both rates for a show across a rate change', style => {
+    const premium = redate(fullPremium('AKC', style), ['2026-12-31', '2027-01-01']);
+    // react-pdf may wrap the long line; the words, in order, are what the reader sees.
+    expect(pdfText('AKC', premium).replace(/\s+/g, ' ')).toContain(NEW_YEAR_TEXT);
+  });
+
+  it.each(ALL_STYLES)('%s prints no line for a UKC show or a date with no known rate', style => {
+    expect(pdfText('UKC', fullPremium('UKC', style))).not.toMatch(/recording fee/i);
+    const unknown = redate(fullPremium('AKC', style), ['2028-01-08', '2028-01-09']);
+    expect(pdfText('AKC', unknown)).not.toMatch(/recording fee/i);
+  });
+});

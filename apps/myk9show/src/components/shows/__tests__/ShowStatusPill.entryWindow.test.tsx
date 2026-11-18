@@ -10,10 +10,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
-import {
-  useClubStripeAccount,
-  useClubAuthorization,
-} from '@/features/payments/useClubStripeAccount';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import {
   ENTRY_WINDOW_ORDER_MESSAGE,
@@ -28,7 +25,6 @@ vi.mock('react-router-dom', async importOriginal => ({
   useNavigate: () => navigate,
 }));
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripeAccount: vi.fn(),
   useClubAuthorization: vi.fn(),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
@@ -53,13 +49,7 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    // Authorized and Stripe-ready: the entry window is the only thing missing.
-    vi.mocked(useClubStripeAccount).mockReturnValue({
-      data: { payouts_enabled: true },
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    } as unknown as ReturnType<typeof useClubStripeAccount>);
+    // Authorized: the entry window is the only thing missing.
     vi.mocked(useClubAuthorization).mockReturnValue({
       data: { authorized_at: '2026-01-01T00:00:00Z' },
       isLoading: false,
@@ -83,7 +73,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate=""
@@ -106,7 +95,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate={CLOSE}
@@ -124,7 +112,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate={OPEN}
@@ -143,7 +130,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="published"
         clubId="club-1"
         entryOpenDate={null}
@@ -164,7 +150,6 @@ describe('ShowStatusPill entry-window publish gate (MYK9-716)', () => {
     render(
       <ShowStatusPill
         showId="show-1"
-        onlineEntriesEnabled
         status="draft"
         clubId="club-1"
         entryOpenDate={OPEN}

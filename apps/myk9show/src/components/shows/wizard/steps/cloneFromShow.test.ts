@@ -52,6 +52,24 @@ describe('buildCloneSnapshot timezone', () => {
   });
 });
 
+describe('buildCloneSnapshot online entries (MYK9-2164)', () => {
+  const clone = (overrides: Partial<Show>) =>
+    buildCloneSnapshot({ show: show(overrides), sourceTrials: [], people: [], templates: [] });
+
+  it.each([false, true, undefined])(
+    'a clone of a show with online entries %s has them on',
+    onlineEntriesEnabled => {
+      expect(clone({ onlineEntriesEnabled }).show.onlineEntriesEnabled).toBe(true);
+    }
+  );
+
+  it('still carries check and cash from the source', () => {
+    const { show: cloned } = clone({ acceptCheckPayments: true, acceptCashPayments: false });
+    expect(cloned.acceptCheckPayments).toBe(true);
+    expect(cloned.acceptCashPayments).toBe(false);
+  });
+});
+
 describe('buildCloneSnapshot junior handler fee', () => {
   const clone = (overrides: Partial<Show>) =>
     buildCloneSnapshot({ show: show(overrides), sourceTrials: [], people: [], templates: [] });

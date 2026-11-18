@@ -1,8 +1,7 @@
 /**
- * MYK9-979 (Codex round 3 on #2707): "Accept online entries" is not part of
- * the show edit form. The switch saves itself (useOnlineEntriesSwitch), so a
- * form save never carries online_entries_enabled, not even when another
- * device changed it while this panel held an unrelated dirty edit.
+ * MYK9-979 (Codex round 3 on #2707), kept after MYK9-2164: online entries are not part of
+ * the show edit form (they are always on and the column is RPC-owned), so a form save never
+ * carries online_entries_enabled, not even when the value changes underneath a dirty form.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';

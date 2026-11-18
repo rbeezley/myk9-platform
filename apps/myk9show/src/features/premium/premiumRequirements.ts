@@ -6,6 +6,7 @@
  * the same shapes `buildPremiumFacts` produces, so this list and the printed PDF agree (a fact
  * missing here is a fact the PDF leaves out, and the PDF prints no placeholder for it).
  */
+import { formatCalendarDateLong, recordingFeeRateInForce } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
@@ -26,6 +27,11 @@ export interface PremiumRequirementFacts {
   secretary: Pick<PremiumFacts['secretary'], 'name'>;
   chair: Pick<NonNullable<PremiumFacts['chair']>, 'name'> | null;
   committee: PremiumFacts['committee'];
+  /**
+   * MYK9-2044: the calendar dates the recording fee is priced on (each live trial's date, else
+   * the show's start date). Absent means not known here, and nothing is said about the fee.
+   */
+  recordingFeeDates?: readonly string[];
   trials: Array<
     Pick<PremiumFacts['trials'][number], 'name' | 'eventNumber' | 'classLabels'> & {
       /** The trial's id when known; it scopes the link to that trial. */
@@ -184,6 +190,17 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
         ? `${r} requires when entries open and close. Add both dates in Edit show.`
         : null,
     href: editShow('basic'),
+  },
+  // Warns only: the premium simply omits a fee the app does not know, and never guesses one.
+  recordingFee: {
+    missing: (f, r) =>
+      (f.recordingFeeDates ?? [])
+        .filter(day => !recordingFeeRateInForce(r, day))
+        .map(day => ({
+          key: `recordingFee:${day}`,
+          message: `The ${r} recording fee for ${formatCalendarDateLong(day)} is not known to the app yet, so the premium will not state it. Confirm the fee with ${r} before you publish.`,
+        })),
+    href: () => null,
   },
   committee: {
     missing: (f, r, minimum) => committeeMessage(r, f.committee.length, minimum),

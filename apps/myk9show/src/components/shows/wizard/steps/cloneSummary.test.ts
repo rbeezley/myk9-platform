@@ -208,9 +208,18 @@ describe('summarizeClone reads the snapshot, live state only removes items', () 
     expect(cleared).toContain('Officials');
   });
 
-  it('labels online entries separately from payment options', () => {
-    const carried = texts(summarize(snapshotOf({ onlineEntriesEnabled: false })).carried);
-    expect(carried).toContain('Online entries setting');
+  it('does not list online entries as a carried choice, whatever the source held (MYK9-2164)', () => {
+    for (const onlineEntriesEnabled of [true, false]) {
+      const carried = texts(summarize(snapshotOf({ onlineEntriesEnabled })).carried);
+      expect(carried).not.toContain('Online entries setting');
+    }
+  });
+
+  it('still carries check and cash as payment options', () => {
+    const carried = texts(
+      summarize(snapshotOf({ acceptCheckPayments: true, acceptCashPayments: false })).carried
+    );
+    expect(carried).toContain('Payment options');
   });
 });
 

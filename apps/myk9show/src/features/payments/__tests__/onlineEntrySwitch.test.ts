@@ -5,7 +5,6 @@ import {
   onlineEntryMode,
   isMailInOnlyShow,
   isPublicShowStatus,
-  publishNeedsStripe,
   PUBLIC_SHOW_STATUSES,
   PUBLISH_GATE_MESSAGES,
   ONLINE_ENTRIES_BLOCKED_MESSAGE,
@@ -37,15 +36,6 @@ describe('online entries switch — client mirror of the publish gate', () => {
     expect(becomesPublic('published', 'in_progress')).toBe(false);
     expect(becomesPublic('published', 'draft')).toBe(false);
     expect(becomesPublic('draft', 'cancelled')).toBe(false);
-  });
-
-  it('needs Stripe payouts to publish only when online entries are on', () => {
-    expect(publishNeedsStripe(true)).toBe(true);
-    expect(publishNeedsStripe(false)).toBe(false);
-    // Unknown is not "on": the trigger reads the stored value, which is
-    // NOT NULL, so the client never blocks on a value it cannot see.
-    expect(publishNeedsStripe(undefined)).toBe(false);
-    expect(publishNeedsStripe(null)).toBe(false);
   });
 
   // Codex P2 on #2707: an unknown value (a replica row cached before the

@@ -36,7 +36,7 @@ export interface ShowRpcPayload {
   junior_handler_fee?: number;
   accept_check_payments: boolean | null;
   accept_cash_payments: boolean | null;
-  online_entries_enabled?: boolean;
+  online_entries_enabled: boolean;
   style: PremiumStyle;
 }
 
@@ -234,9 +234,8 @@ export function buildCreateShowPayload(
     ...(juniorHandlerFee !== undefined ? { juniorHandlerFee } : {}),
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
-    ...(show.onlineEntriesEnabled !== undefined
-      ? { onlineEntriesEnabled: show.onlineEntriesEnabled }
-      : {}),
+    // MYK9-2164: a new show always takes online entries, whatever a draft or clone held.
+    onlineEntriesEnabled: true,
     style: showStyle,
     _version: 1,
     _lastModified: new Date(),
@@ -316,10 +315,8 @@ export function buildCreateShowPayload(
         ...(juniorHandlerFee !== undefined ? { junior_handler_fee: juniorHandlerFee } : {}),
         accept_check_payments: show.acceptCheckPayments,
         accept_cash_payments: show.acceptCashPayments,
-        // MYK9-979: omitted when unknown; create_show_with_children defaults it to false.
-        ...(show.onlineEntriesEnabled !== undefined
-          ? { online_entries_enabled: show.onlineEntriesEnabled }
-          : {}),
+        // MYK9-2164: always true for a new show, so it is right before the server default is.
+        online_entries_enabled: true,
         style: showStyle,
       },
       p_trials: trialPayloads,

@@ -74,6 +74,7 @@ describe('transferFailureOutcome', () => {
       owner: 'club',
       failureReason:
         'club_account:insufficient_capabilities_for_transfer: Destination lacks transfers',
+      definite: true,
     });
     expect(isClubFailureReason(outcome.failureReason)).toBe(true);
   });
@@ -83,19 +84,47 @@ describe('transferFailureOutcome', () => {
     expect(transferFailureOutcome(err, err.message, true)).toEqual({
       owner: 'platform',
       failureReason: 'insufficient_balance: Insufficient balance',
+      definite: true,
     });
   });
 
   it('any other failure is the platform’s and stores the message unchanged', () => {
-    const err = Object.assign(new Error('Too many requests'), { code: 'rate_limit' });
+    const err = Object.assign(new Error('Too many requests'), {
+      code: 'rate_limit',
+      type: 'StripeRateLimitError',
+    });
     expect(transferFailureOutcome(err, err.message, false)).toEqual({
       owner: 'platform',
       failureReason: 'Too many requests',
+      definite: true,
     });
     expect(transferFailureOutcome(new Error('socket hang up'), 'socket hang up', false)).toEqual({
       owner: 'platform',
       failureReason: 'socket hang up',
+      definite: false,
     });
+  });
+
+  // MYK9-2183: only a request Stripe definitely rejected may mark a payout
+  // failed; anything else may have moved money.
+  it.each([
+    ['StripeInvalidRequestError', 'invalid_request_error'],
+    ['StripeCardError', 'card_error'],
+    ['StripePermissionError', undefined],
+    ['StripeAuthenticationError', undefined],
+  ])('a %s is a definite rejection', (type, rawType) => {
+    const err = Object.assign(new Error('rejected'), { type, rawType });
+    expect(transferFailureOutcome(err, err.message, false).definite).toBe(true);
+  });
+
+  it.each([
+    { label: 'a network error', type: 'StripeConnectionError' },
+    { label: 'a Stripe server error', type: 'StripeAPIError' },
+    { label: 'an idempotency error', type: 'StripeIdempotencyError' },
+    { label: 'a plain error', type: undefined },
+  ])('$label is not a definite rejection', ({ type }) => {
+    const err = Object.assign(new Error('no answer'), { type });
+    expect(transferFailureOutcome(err, err.message, false).definite).toBe(false);
   });
 });
 

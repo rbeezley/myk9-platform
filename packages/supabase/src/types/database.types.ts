@@ -1070,6 +1070,76 @@ export type Database = {
         }
         Relationships: []
       }
+      class_judge_departures: {
+        Row: {
+          auto_email_enabled: boolean
+          class_id: string
+          left_at: string
+          left_person_id: string
+          notified_person_ids: string[]
+          resolved_judge_id: string | null
+        }
+        Insert: {
+          auto_email_enabled?: boolean
+          class_id: string
+          left_at?: string
+          left_person_id: string
+          notified_person_ids?: string[]
+          resolved_judge_id?: string | null
+        }
+        Update: {
+          auto_email_enabled?: boolean
+          class_id?: string
+          left_at?: string
+          left_person_id?: string
+          notified_person_ids?: string[]
+          resolved_judge_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_judge_departures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: true
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_judge_departures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: true
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "class_judge_departures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: true
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "class_judge_departures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: true
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "class_judge_departures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: true
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "class_judge_departures_resolved_judge_id_fkey"
+            columns: ["resolved_judge_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_visibility_overrides: {
         Row: {
           class_id: string
@@ -5691,6 +5761,9 @@ export type Database = {
       platform_settings: {
         Row: {
           id: boolean
+          payouts_require_approval: boolean
+          payouts_require_approval_changed_at: string | null
+          payouts_require_approval_changed_by: string | null
           platform_fee_flat_cents: number
           platform_fee_min_cents: number
           platform_fee_percent: number
@@ -5700,6 +5773,9 @@ export type Database = {
         }
         Insert: {
           id?: boolean
+          payouts_require_approval?: boolean
+          payouts_require_approval_changed_at?: string | null
+          payouts_require_approval_changed_by?: string | null
           platform_fee_flat_cents?: number
           platform_fee_min_cents?: number
           platform_fee_percent?: number
@@ -5709,6 +5785,9 @@ export type Database = {
         }
         Update: {
           id?: boolean
+          payouts_require_approval?: boolean
+          payouts_require_approval_changed_at?: string | null
+          payouts_require_approval_changed_by?: string | null
           platform_fee_flat_cents?: number
           platform_fee_min_cents?: number
           platform_fee_percent?: number
@@ -5717,6 +5796,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "platform_settings_payouts_require_approval_changed_by_fkey"
+            columns: ["payouts_require_approval_changed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "platform_settings_updated_by_fkey"
             columns: ["updated_by"]
@@ -6210,6 +6296,39 @@ export type Database = {
             referencedColumns: ["show_id"]
           },
         ]
+      }
+      registry_deadline_reminders: {
+        Row: {
+          accepted_recipients: string[]
+          claimed_at: string
+          deadline_date: string
+          id: string
+          recipient_count: number | null
+          registry_id: string
+          sent_at: string | null
+          show_id: string
+        }
+        Insert: {
+          accepted_recipients?: string[]
+          claimed_at?: string
+          deadline_date: string
+          id?: string
+          recipient_count?: number | null
+          registry_id: string
+          sent_at?: string | null
+          show_id: string
+        }
+        Update: {
+          accepted_recipients?: string[]
+          claimed_at?: string
+          deadline_date?: string
+          id?: string
+          recipient_count?: number | null
+          registry_id?: string
+          sent_at?: string | null
+          show_id?: string
+        }
+        Relationships: []
       }
       result_submissions: {
         Row: {
@@ -8785,10 +8904,16 @@ export type Database = {
       show_payouts: {
         Row: {
           amount_cents: number
+          approval_reset_reason: string | null
+          approved_amount_cents: number | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_stripe_account_id: string | null
           club_stripe_account_id: string | null
           completed_at: string | null
           created_at: string
           failure_reason: string | null
+          hold_reason: string | null
           id: string
           scheduled_date: string | null
           show_id: string
@@ -8798,10 +8923,16 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          approval_reset_reason?: string | null
+          approved_amount_cents?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_stripe_account_id?: string | null
           club_stripe_account_id?: string | null
           completed_at?: string | null
           created_at?: string
           failure_reason?: string | null
+          hold_reason?: string | null
           id?: string
           scheduled_date?: string | null
           show_id: string
@@ -8811,10 +8942,16 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          approval_reset_reason?: string | null
+          approved_amount_cents?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_stripe_account_id?: string | null
           club_stripe_account_id?: string | null
           completed_at?: string | null
           created_at?: string
           failure_reason?: string | null
+          hold_reason?: string | null
           id?: string
           scheduled_date?: string | null
           show_id?: string
@@ -13504,6 +13641,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      approve_show_payout: {
+        Args: {
+          p_amount_cents: number
+          p_expected_stripe_account_id: string
+          p_payout_id: string
+        }
+        Returns: string
+      }
       assign_armband: {
         Args: { p_dog_id: string; p_show_id: string }
         Returns: number
@@ -13696,6 +13841,15 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_show_payout_for_send: {
+        Args: {
+          p_account_id: string
+          p_amount_cents: number
+          p_destination: string
+          p_show_id: string
+        }
+        Returns: Json
+      }
       claim_sms_opt_in_attempt: {
         Args: { p_auth_user_id: string; p_phone_e164: string }
         Returns: boolean
@@ -13753,7 +13907,6 @@ export type Database = {
           show_date: string
         }[]
       }
-      class_substitute_judge_offer: { Args: { p_class_id: string }; Returns: Json }
       class_results_push_audience: {
         Args: { p_class_id: string }
         Returns: {
@@ -13764,6 +13917,10 @@ export type Database = {
         }[]
       }
       class_results_push_health: { Args: never; Returns: Json }
+      class_substitute_judge_offer: {
+        Args: { p_class_id: string }
+        Returns: Json
+      }
       cleanup_stale_ringside_anon_users: {
         Args: {
           p_claimless_ttl?: string
@@ -13947,10 +14104,6 @@ export type Database = {
         }[]
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
-      dismiss_substitute_judge_email_offer: {
-        Args: { p_class_id: string; p_judge_id: string }
-        Returns: undefined
-      }
       delete_preview: { Args: { p_id: string; p_scope: string }; Returns: Json }
       delete_show_managed_person: {
         Args: { p_person_id: string; p_show_id: string }
@@ -13972,6 +14125,10 @@ export type Database = {
       desk_form_due_cents: {
         Args: { p_handler_id: string; p_show_id: string }
         Returns: number
+      }
+      dismiss_substitute_judge_email_offer: {
+        Args: { p_class_id: string; p_judge_id: string }
+        Returns: undefined
       }
       dog_edit_allowed: {
         Args: {
@@ -15006,6 +15163,10 @@ export type Database = {
           outcome: string
         }[]
       }
+      hold_show_payout: {
+        Args: { p_payout_id: string; p_reason: string }
+        Returns: string
+      }
       insert_club_access_request_from_signup: {
         Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
         Returns: undefined
@@ -15510,6 +15671,10 @@ export type Database = {
           p_target_class_id: string
         }
         Returns: number
+      }
+      request_registry_deadline_reminders: {
+        Args: { p_base_url: string; p_secret: string }
+        Returns: undefined
       }
       request_trial_packet_generation: {
         Args: { p_base_url: string; p_secret: string }
@@ -16095,6 +16260,24 @@ export type Database = {
       submit_signup_role_requests: {
         Args: { p_intended_roles: Json }
         Returns: undefined
+      }
+      substitute_judge_email_one_step: {
+        Args: { p_class_id: string }
+        Returns: boolean
+      }
+      substitute_judge_email_recipients: {
+        Args: { p_class_id: string; p_show_id: string }
+        Returns: {
+          person_id: string
+        }[]
+      }
+      substitute_judge_email_show: {
+        Args: { p_class_id: string }
+        Returns: string
+      }
+      substitute_judge_email_target: {
+        Args: { p_class_id: string; p_show_id: string }
+        Returns: string
       }
       support_triage_send_operator_reply: {
         Args: {

@@ -188,6 +188,12 @@ export function GazetteBody({ data, tokens }: Props) {
         )}
       </View>
 
+      {f.recordingFee && (
+        <View style={{ marginTop: 16 }} wrap={false}>
+          <Text style={bodyTextStyle}>{f.recordingFee}</Text>
+        </View>
+      )}
+
       {/* MYK9-1976: full-width and free to break across pages, so the policy is never cut. */}
       {f.withdrawalPolicy && (
         <View style={{ marginTop: 16 }}>

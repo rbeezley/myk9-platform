@@ -101,7 +101,19 @@ describe('buildAKCTrialSecretaryReportValues', () => {
     });
   });
 
-  it.each([undefined, 'not-a-date', '2027-01-01'])(
+  it('uses the $5.50 rate from January 1, 2027 (MYK9-2044)', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      trial: { ...reportProps.trial, date: '2027-01-01' },
+    });
+
+    expect(values.text).toMatchObject({
+      [AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]: 2,
+      [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: '11.00',
+    });
+  });
+
+  it.each([undefined, 'not-a-date', '2024-12-31'])(
     'omits fee values for unsupported date %s',
     date => {
       const values = buildAKCTrialSecretaryReportValues({

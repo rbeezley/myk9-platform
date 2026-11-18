@@ -105,10 +105,9 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_show.status).toBe('published');
   });
 
-  // MYK9-979: the wizard switch reaches create_show_with_children, which
-  // writes it on the row (absent -> false).
-  it.each([true, false])(
-    'passes the online-entries switch (%s) to the show RPC payload and local show',
+  // MYK9-2164: every new show takes online entries, whatever a draft or clone held.
+  it.each([true, false, undefined])(
+    'always sends online entries on (draft held %s) to the show RPC payload and local show',
     onlineEntriesEnabled => {
       const { rpcInput, localEntities } = buildCreateShowPayload(
         { ...baseShow, onlineEntriesEnabled },
@@ -117,8 +116,8 @@ describe('buildCreateShowPayload', () => {
         new Map(),
         'unpublished'
       );
-      expect(rpcInput.p_show.online_entries_enabled).toBe(onlineEntriesEnabled);
-      expect(localEntities.show.onlineEntriesEnabled).toBe(onlineEntriesEnabled);
+      expect(rpcInput.p_show.online_entries_enabled).toBe(true);
+      expect(localEntities.show.onlineEntriesEnabled).toBe(true);
     }
   );
 

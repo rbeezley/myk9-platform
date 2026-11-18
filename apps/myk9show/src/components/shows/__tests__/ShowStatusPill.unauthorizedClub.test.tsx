@@ -3,15 +3,11 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
-import {
-  useClubStripeAccount,
-  useClubAuthorization,
-} from '@/features/payments/useClubStripeAccount';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripeAccount: vi.fn(),
   useClubAuthorization: vi.fn(),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
@@ -26,7 +22,6 @@ vi.mock('sonner', () => ({
 const WINDOW = {
   entryOpenDate: '2026-10-01T12:00:00.000Z',
   entryCloseDate: '2026-10-20T04:59:00.000Z',
-  onlineEntriesEnabled: true,
 };
 
 function mockAuth(state: 'unauthorized' | 'authorized' | 'loading') {
@@ -58,12 +53,6 @@ describe('ShowStatusPill — unauthorized club (MYK9-1387)', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    vi.mocked(useClubStripeAccount).mockReturnValue({
-      data: { payouts_enabled: true, onboarding_complete: true },
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    } as unknown as ReturnType<typeof useClubStripeAccount>);
   });
 
   it('disables Publish Show and shows the authorization reason in the open menu', async () => {
@@ -105,23 +94,5 @@ describe('ShowStatusPill — unauthorized club (MYK9-1387)', () => {
 
     expect(item).not.toHaveAttribute('aria-disabled', 'true');
     expect(screen.queryByText(CLUB_UNAUTHORIZED_MESSAGE)).not.toBeInTheDocument();
-  });
-
-  // Moved from ShowStatusPill.test.tsx (MYK9-572): authorization wins over Stripe readiness.
-  it('names the authorization wait, not the Stripe one, when the club is both unauthorized and not Stripe-ready', async () => {
-    mockAuth('unauthorized');
-    vi.mocked(useClubStripeAccount).mockReturnValue({
-      data: null,
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    } as unknown as ReturnType<typeof useClubStripeAccount>);
-    render(<ShowStatusPill {...WINDOW} showId="s1" status="draft" clubId="club-1" />);
-    const { user, item } = await openMenu();
-
-    expect(screen.getByText(CLUB_UNAUTHORIZED_MESSAGE)).toBeInTheDocument();
-    expect(screen.queryByText(/payment account/i)).not.toBeInTheDocument();
-    await user.click(item);
-    expect(mutateAsync).not.toHaveBeenCalled();
   });
 });

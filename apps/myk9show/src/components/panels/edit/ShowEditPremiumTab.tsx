@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { isLivePremiumTrial } from '@myk9/core';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { applyOfficialsToPremium } from '@/features/premium/premiumOfficials';
 import { Link } from 'react-router-dom';
@@ -173,6 +174,10 @@ function buildLocalPremiumDraft(
 ): GeneratedPremium | undefined {
   if (!showOrg || !publishedContent) return undefined;
 
+  // MYK9-2044: a cancelled trial is not printed, so the recording fee derived from this schedule
+  // does not price it either.
+  const liveTrials = (data.trials ?? []).filter(trial => isLivePremiumTrial(trial));
+
   return {
     org: showOrg,
     style: (data.style || 'monogram') as PremiumStyle,
@@ -202,7 +207,7 @@ function buildLocalPremiumDraft(
     officials: {
       chairman: null,
     },
-    trials: (data.trials ?? []).map(trial => ({
+    trials: liveTrials.map(trial => ({
       name: trial.name,
       date: trial.date,
       startTime: null,

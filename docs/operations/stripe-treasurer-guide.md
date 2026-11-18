@@ -159,8 +159,8 @@ Stripe sends you back to the Payments tab automatically. You will see one of the
 
 You can stop partway and come back later. Nothing you typed is lost.
 
-**Do this well before your show opens for entries.** A show cannot take card payments until the
-box says **Payouts enabled**, and Stripe's review can take a day or two.
+**Do this before you publish your show.** A show cannot be published until the box says
+**Payouts enabled**, and Stripe's review can take a day or two.
 
 ---
 

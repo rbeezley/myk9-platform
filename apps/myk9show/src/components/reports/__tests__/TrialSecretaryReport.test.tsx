@@ -102,8 +102,8 @@ describe('TrialSecretaryReport', () => {
     [undefined, 'Set a valid trial date before generating this report.'],
     ['not-a-date', 'Set a valid trial date before generating this report.'],
     [
-      '2027-01-01',
-      'This fee schedule covers 2025 and 2026 events only. Confirm the current AKC rate before generating this report.',
+      '2024-12-31',
+      'This fee schedule covers events from January 1, 2025 through December 31, 2027. Confirm the AKC rate for this trial date before generating this report.',
     ],
   ] as const)('blocks fee output for date %s and states recovery', (date, recovery) => {
     render(

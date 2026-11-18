@@ -3,7 +3,7 @@ import { storeClockTime } from '@myk9/core';
 const LEGACY_GENERATED_NAME =
   /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) Trial [1-9]\d*$/;
 
-export const WIZARD_STORE_VERSION = 3;
+export const WIZARD_STORE_VERSION = 4;
 
 /** Legacy inputs were formatted as local wall-clock ISO, never as UTC instants. */
 function recoverSchedule(trial: Record<string, unknown>): Record<string, unknown> {
@@ -33,30 +33,17 @@ function recoverSchedule(trial: Record<string, unknown>): Record<string, unknown
   };
 }
 
-const filled = (value: unknown) => typeof value === 'string' && value.trim() !== '';
-
 /**
- * v3 (MYK9-1799): a new show accepts check and cash by default. A saved draft nobody has
- * worked on was written from the old all-off defaults, not chosen by anyone, so it takes the
- * new ones. "Nobody has worked on" is read narrowly: no name, dates, location or trial, and
- * all three payment methods still off. A draft with online entries on, or with check or
- * cash already on, carries a choice and keeps exactly what it holds.
+ * v4 (MYK9-2164): online entries are always on, so a saved draft ends with it on whatever it
+ * held. Check and cash are left exactly as stored: a draft written under the v3 defaults holds
+ * check and cash on, which cannot be told apart from her choosing them, so nothing flips.
+ * The v3 rule that turned check and cash on for a blank draft is gone with its defaults.
  */
-function withNewShowPaymentDefaults(state: Record<string, unknown>): Record<string, unknown> {
+function withOnlineEntriesOn(state: Record<string, unknown>): Record<string, unknown> {
   if (!state.show || typeof state.show !== 'object') return state;
   const show = state.show as Record<string, unknown>;
-  const started =
-    filled(show.name) ||
-    filled(show.startDate) ||
-    filled(show.endDate) ||
-    filled(show.location) ||
-    (Array.isArray(state.trials) && state.trials.length > 0);
-  const paymentChosen =
-    show.onlineEntriesEnabled === true ||
-    show.acceptCheckPayments === true ||
-    show.acceptCashPayments === true;
-  if (started || paymentChosen) return state;
-  return { ...state, show: { ...show, acceptCheckPayments: true, acceptCashPayments: true } };
+  if (show.onlineEntriesEnabled === true) return state;
+  return { ...state, show: { ...show, onlineEntriesEnabled: true } };
 }
 
 export function migrateWizardState(persistedState: unknown, version: number): unknown {
@@ -64,9 +51,7 @@ export function migrateWizardState(persistedState: unknown, version: number): un
     return persistedState;
   }
   const state = persistedState as Record<string, unknown>;
-  return withNewShowPaymentDefaults(
-    version < 2 ? migrateTrialNamesAndSchedule(state, version) : state
-  );
+  return withOnlineEntriesOn(version < 2 ? migrateTrialNamesAndSchedule(state, version) : state);
 }
 
 /** Convert persisted generated labels to derived defaults and retain custom names as overrides. */

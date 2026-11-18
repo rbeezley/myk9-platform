@@ -87,11 +87,11 @@ Your dog now appears in your list and is ready to enter shows. The confirmation 
 
 ## Section 4 — Enter a Show
 
-> **Watch:** [How to enter a show (1 min 24 s)](https://youtu.be/J2gw-w8I2gE)
-
 > **Before you start:** Make sure you've added your dog first (Section 3). You pick the dog on the first step, and the wizard has nothing to enter without one.
 
 > **Entering an AKC show?** Add your street address, city, state and ZIP code to your account first. AKC prints the owner's address in the catalog, so an AKC class cannot be ticked until the address is there. If it is missing, each class shows an **Add your address** link. It opens your account in a new tab. Save the address there, then come back to the tab with your entry. If the dog's registration number for this show is missing too, the class shows **Add required registration** first, and the address link appears once that is added.
+
+> **Watch:** [How to enter a show (1 min 24 s)](https://youtu.be/J2gw-w8I2gE)
 
 1. Open the show you want to enter → click **Enter This Show**.
 2. The registration wizard opens. Its steps run **Dogs**, **Classes**, **Payment**, **Receipt**.

@@ -46,6 +46,10 @@ describe('embedGuideVideos', () => {
     ['another kind of note', '> **Tip:** [Video](https://youtu.be/J2gw-w8I2gE)'],
     ['an id of the wrong length', '> **Watch:** [Video](https://youtu.be/short)'],
     ['a playlist', '[Playlist](https://www.youtube.com/playlist?list=PLf1-NSG71E4o)'],
+    ['a Watch line inside a list', '- > **Watch:** [Video](https://youtu.be/J2gw-w8I2gE)'],
+    ['a nested blockquote', '> > **Watch:** [Video](https://youtu.be/J2gw-w8I2gE)'],
+    ['an http link', '> **Watch:** [Video](http://youtu.be/J2gw-w8I2gE)'],
+    ['a title holding a bracket', '> **Watch:** [Video [new]](https://youtu.be/J2gw-w8I2gE)'],
   ])('leaves %s as written', (_case, markdown) => {
     expect(embedGuideVideos(markdown)).toBe(markdown);
   });
@@ -70,6 +74,16 @@ describe('the guides carry each how-to video in its own section', () => {
     const html = embedGuideVideos(sectionOf(guide(file), heading));
     expect(html).toContain(`https://www.youtube-nocookie.com/embed/${id}`);
     expect(html.match(/<iframe /g)).toHaveLength(1);
+  });
+
+  it('prints the address in place of the player', () => {
+    const css = readFileSync(
+      resolve(import.meta.dirname, '../../../../docs/src/styles/global.css'),
+      'utf8'
+    );
+    const print = css.slice(css.indexOf('@media print'));
+    expect(print).toMatch(/\.guide-video iframe \{\s*display: none;/);
+    expect(print).toContain("content: ' (' attr(href) ')';");
   });
 
   it('tells a judge the scoring video is for before show day', () => {

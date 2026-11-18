@@ -100,6 +100,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   // SECURITY DEFINER RPC run as service_role.
   refund_request_attempts: 'SELECT',
   refund_requests: 'SELECT',
+  registry_deadline_reminders: '',
   result_submissions: 'SELECT,INSERT',
   ringside_containment: '',
   ringside_containment_audit: '',

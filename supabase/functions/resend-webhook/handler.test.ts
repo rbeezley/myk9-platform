@@ -153,6 +153,17 @@ describe('handleResendEmailEvent', () => {
     ).rejects.toThrow('Email log not found for tracked auth message email-1');
   });
 
+  it('retries a tagged registry reminder event when its email log has not been inserted yet', async () => {
+    const deps = dependencies(null);
+
+    await expect(
+      handleResendEmailEvent(
+        event('email.bounced', { tags: { myk9_email_type: 'registry_deadline_reminder' } }),
+        deps
+      )
+    ).rejects.toThrow('Email log not found for tracked registry reminder message email-1');
+  });
+
   it('acknowledges untracked email events that have no email log', async () => {
     const deps = dependencies(null);
 

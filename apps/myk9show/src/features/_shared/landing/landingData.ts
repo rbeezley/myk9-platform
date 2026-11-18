@@ -126,6 +126,11 @@ export interface LandingData<
    */
   scoutingStatement?: PremiumRegistryStatementFact | null;
   /**
+   * MYK9-2044: "AKC recording fee: $5.50 per entry", read from the published snapshot so the
+   * public page states what the published premium PDF prints. Null when none was stated.
+   */
+  recordingFee?: string | null;
+  /**
    * MYK9-2045: the club's Officers list as "Title: Name" facts, the same the premium PDF
    * prints, then (MYK9-2064) one "Event Committee: A, B" line. [] when none is listed or the
    * read has not finished.
@@ -391,6 +396,8 @@ export function buildLandingData(
     licenseLanguage: registry.licenseLanguage,
     memberClubLanguage: registry.memberClubLanguage,
     scoutingStatement: buildScoutingStatementFact(registry.id),
+    recordingFee:
+      typeof liveExperience?.recordingFee === 'string' ? liveExperience.recordingFee : null,
     clubOfficers: [...buildOfficerFacts(clubOfficers), ...committeeAsOfficerFacts(committee)],
     journeySteps: buildJourneySteps(
       show?.entryOpenDate ?? null,

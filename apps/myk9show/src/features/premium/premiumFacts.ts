@@ -23,6 +23,7 @@ import { buildWithdrawalDisclosure } from '@/features/payments/withdrawalPolicyT
 import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
+import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -36,6 +37,7 @@ export type PremiumFactId =
   | 'fees'
   | 'withdrawalPolicy'
   | 'scoutingStatement'
+  | 'recordingFee'
   | 'classes'
   | 'judges'
   | 'secretary'
@@ -83,6 +85,8 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     source: 'registry',
     requiredBy: ['AKC'],
   },
+  // MYK9-2044: AKC Ch. 3 §15, "AKC recording fee shall be stated"; from the dated table in code.
+  { id: 'recordingFee', label: 'AKC recording fee', source: 'registry', requiredBy: ['AKC'] },
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
@@ -309,6 +313,13 @@ export interface PremiumFacts {
     /** "Checks", "Cash" in that order, only those the show accepts. */
     paymentMethods: string[];
   };
+  /**
+   * MYK9-2044: "AKC recording fee: $5.50 per entry" (or, across a rate change, "...$4.50 per
+   * entry; $5.50 per entry from January 1, 2027"), derived from this premium: the rate in force
+   * on each trial date its schedule prints. Null (no line in any style) when the premium is not
+   * AKC or a printed date has no rate in force.
+   */
+  recordingFee: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
   /** The registry's fixed statement about scouting; null for UKC and ASCA. */
@@ -374,6 +385,7 @@ export function buildPremiumFacts(
         (m): m is string => Boolean(m)
       ),
     },
+    recordingFee: premiumRecordingFeeText(data),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {

@@ -1,12 +1,10 @@
+import { recordingFeeRateInForce, toCalendarDate, type RecordingFeeRate } from '@myk9/core';
 import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
 import type { ReportEntry } from '@/lib/reports/types';
 
-const FEE_RATE_BY_YEAR = {
-  2025: 3.5,
-  2026: 4.5,
-} as const;
-
-type SupportedFeeYear = keyof typeof FEE_RATE_BY_YEAR;
+// MYK9-2044: the per-entry rate is the AKC row of the dated table in @myk9/core
+// (RECORDING_FEE_RATES) in force on the trial date, the same table the premium's recording fee
+// line is derived from. Synchronous and in code, so it works offline.
 type DateFailureReason = 'missing' | 'invalid' | 'unsupported';
 
 export const AKC_TRIAL_SECRETARY_CANONICAL_FORM = {
@@ -22,7 +20,8 @@ const AKC_POST_CLOSING_WITHDRAWAL_CODES = new Set(['ais', 'ajc']);
 export type AKCTrialSecretaryReportPolicy =
   | {
       ok: true;
-      feeYear: SupportedFeeYear;
+      /** `YYYY-MM-DD` the rate in force started on. */
+      rateEffectiveFrom: string;
       totalEntries: number;
       excludedRuns: number;
       paidRuns: number;
@@ -53,39 +52,29 @@ function normalize(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
-function readTrialYear(trialDate: string | null | undefined): SupportedFeeYear | DateFailureReason {
+function readTrialRate(trialDate: string | null | undefined): RecordingFeeRate | DateFailureReason {
   if (!trialDate?.trim()) return 'missing';
 
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trialDate.trim());
-  if (!match) return 'invalid';
+  // A bare calendar date only: a timestamp or an impossible day (2026-02-30) is not a trial date.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate.trim())) return 'invalid';
+  const day = toCalendarDate(trialDate);
+  if (!day) return 'invalid';
 
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  if (
-    parsed.getUTCFullYear() !== year ||
-    parsed.getUTCMonth() !== month - 1 ||
-    parsed.getUTCDate() !== day
-  ) {
-    return 'invalid';
-  }
-
-  return year in FEE_RATE_BY_YEAR ? (year as SupportedFeeYear) : 'unsupported';
+  return recordingFeeRateInForce('AKC', day) ?? 'unsupported';
 }
 
 export function resolveAKCTrialSecretaryReportPolicy(
   trialDate: string | null | undefined,
   entries: ReportEntry[]
 ): AKCTrialSecretaryReportPolicy {
-  const feeYear = readTrialYear(trialDate);
-  if (typeof feeYear === 'string') {
+  const rate = readTrialRate(trialDate);
+  if (typeof rate === 'string') {
     return {
       ok: false,
-      reason: feeYear,
+      reason: rate,
       recovery:
-        feeYear === 'unsupported'
-          ? 'This fee schedule covers 2025 and 2026 events only. Confirm the current AKC rate before generating this report.'
+        rate === 'unsupported'
+          ? 'This fee schedule covers events from January 1, 2025 through December 31, 2027. Confirm the AKC rate for this trial date before generating this report.'
           : 'Set a valid trial date before generating this report.',
     };
   }
@@ -101,12 +90,13 @@ export function resolveAKCTrialSecretaryReportPolicy(
   const totalEntries = countedEntries.length;
   const excludedRuns = countedEntries.filter(isExcludedRun).length;
   const paidRuns = Math.max(0, totalEntries - excludedRuns);
-  const feeRate = FEE_RATE_BY_YEAR[feeYear];
-  const totalFee = paidRuns * feeRate;
+  const feeRate = rate.amountCents / 100;
+  // Integer cents, so a run count times a rate never carries float error into the printed total.
+  const totalFee = (paidRuns * rate.amountCents) / 100;
 
   return {
     ok: true,
-    feeYear,
+    rateEffectiveFrom: rate.effectiveFrom,
     totalEntries,
     excludedRuns,
     paidRuns,

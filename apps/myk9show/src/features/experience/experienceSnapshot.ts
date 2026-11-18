@@ -1,4 +1,8 @@
 import type { ShowStyle } from '@/features/registries';
+import {
+  premiumRecordingFeeText,
+  type PremiumRecordingFeeDocument,
+} from '@/features/premium/premiumRecordingFeeStatement';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 
 export interface ShowExperienceSnapshot {
@@ -6,6 +10,12 @@ export interface ShowExperienceSnapshot {
   generatedAt: string;
   narratives: GeneratedPremium['narratives'];
   supplemental: PremiumSupplemental;
+  /**
+   * MYK9-2044: the recording fee statement the published premium PDF prints, derived from the same
+   * premium, so the public page states the same words. Null when the premium states none; absent
+   * on a snapshot published before it, which shows no line.
+   */
+  recordingFee?: string | null;
   outputs: {
     /** New snapshots persist both values committed together by PostgreSQL. */
     premiumPath?: string | null;
@@ -20,7 +30,8 @@ export function buildExperienceSnapshot({
   premiumUrl,
   publishedAt,
 }: {
-  premium: Pick<GeneratedPremium, 'style' | 'narratives' | 'supplemental'>;
+  premium: Pick<GeneratedPremium, 'style' | 'narratives' | 'supplemental'> &
+    PremiumRecordingFeeDocument;
   premiumPath: string | null;
   premiumUrl: string;
   publishedAt?: string;
@@ -30,6 +41,7 @@ export function buildExperienceSnapshot({
     generatedAt: publishedAt ?? '',
     narratives: premium.narratives,
     supplemental: premium.supplemental,
+    recordingFee: premiumRecordingFeeText(premium),
     outputs: { premiumPath, premiumUrl },
   };
 }

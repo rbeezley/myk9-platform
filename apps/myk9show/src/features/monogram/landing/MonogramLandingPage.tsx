@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { RecordingFeeSection } from '@/features/_shared/landing/RecordingFeeSection';
 import { ScoutingStatementSection } from '@/features/_shared/landing/ScoutingStatementSection';
 import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
@@ -120,6 +121,7 @@ export function MonogramLandingPage({
           timezone={data.timezone}
         />
         <WithdrawalPolicySection showId={show?.id} className="mg-section" />
+        <RecordingFeeSection statement={data.recordingFee} className="mg-section" />
         <ScoutingStatementSection statement={data.scoutingStatement} className="mg-section" />
         <PremiumDownloadSection show={show} className="mg-section" />
 

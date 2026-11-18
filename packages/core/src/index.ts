@@ -172,3 +172,24 @@ export {
   type NationalsScoringConstants,
   type NationalsValidationConstants,
 } from './constants/nationals';
+
+// Registry recording fee in force on a date, a dated table in code (MYK9-2044)
+export {
+  formatRecordingFeeAmount,
+  RECORDING_FEE_RATES,
+  RECORDING_FEE_RATES_KNOWN_THROUGH,
+  recordingFeeRateInForce,
+  toCalendarDate,
+  type RecordingFeeRate,
+} from './utils/recordingFeeRate';
+
+// The premium's recording fee statement (MYK9-2044)
+export {
+  buildPremiumRecordingFee,
+  formatCalendarDateLong,
+  isLivePremiumTrial,
+  premiumRecordingFeeDates,
+  type PremiumRecordingFee,
+  type PremiumRecordingFeeRate,
+  type PremiumRecordingFeeTrial,
+} from './utils/premiumRecordingFee';

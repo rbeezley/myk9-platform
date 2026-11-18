@@ -22,6 +22,7 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
+import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -99,7 +100,8 @@ handle<GeneratePremiumPayload>(
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
-          id, name, date, planned_start_time, event_number, trial_type, registry_id,
+          id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
+          deleted_at,
           classes(id, name, level, element, section, deleted_at)
         )
       `
@@ -209,9 +211,10 @@ handle<GeneratePremiumPayload>(
       narratives = publishedNarratives(show.experience_published_content);
     }
 
-    // Step 10: Assemble and return GeneratedPremium
+    // Step 10: Assemble and return GeneratedPremium. The schedule prints live trials only
+    // (MYK9-2044): a cancelled or soft-deleted trial is not advertised.
     const trials = (
-      show.trials as Array<{
+      livePremiumTrials(show.trials as PremiumScheduleTrialRow[] | null) as unknown as Array<{
         id: string;
         name: string;
         date: string;

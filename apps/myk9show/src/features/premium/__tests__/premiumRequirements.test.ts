@@ -255,3 +255,31 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
     expect(uncheckedRequiredFactIds()).toEqual([]);
   });
 });
+
+describe('recording fee warning (MYK9-2044)', () => {
+  const withDates = (...recordingFeeDates: string[]) => ({ ...completeFacts(), recordingFeeDates });
+
+  it('warns, without guessing an amount or a link, when an AKC trial date has no known rate', () => {
+    expect(missingPremiumFacts(withDates('2028-03-04'), 'AKC', targets)).toEqual([
+      {
+        id: 'recordingFee',
+        key: 'recordingFee:2028-03-04',
+        message:
+          'The AKC recording fee for March 4, 2028 is not known to the app yet, so the premium will not state it. Confirm the fee with AKC before you publish.',
+        href: null,
+      },
+    ]);
+  });
+
+  it('names only the dates with no rate, and none for a 2027 show', () => {
+    expect(idsFor(withDates('2027-06-12'))).toEqual([]);
+    expect(
+      missingPremiumFacts(withDates('2027-12-31', '2028-01-01'), 'AKC', targets).map(i => i.key)
+    ).toEqual(['recordingFee:2028-01-01']);
+  });
+
+  it('says nothing for a UKC show, or when the dates are not known here', () => {
+    expect(idsFor(withDates('2028-03-04'), 'UKC')).toEqual([]);
+    expect(idsFor(completeFacts())).toEqual([]);
+  });
+});

@@ -5,7 +5,10 @@ describe('experienceSnapshot', () => {
   it('builds a published snapshot from generated premium data and trusted path', () => {
     const snapshot = buildExperienceSnapshot({
       premium: {
+        org: 'UKC',
         style: 'heritage',
+        show: { startDate: '2026-05-01' },
+        trials: [],
         narratives: {
           showHours: 'Doors open at 7:00 AM.',
           trialInformation: 'Trial briefing at 8:00 AM.',
@@ -29,6 +32,8 @@ describe('experienceSnapshot', () => {
       'https://trusted.example/premium-published/show-1/artifact-1.pdf'
     );
     expect(snapshot.narratives.showHours).toBe('Doors open at 7:00 AM.');
+    // MYK9-2044: a UKC premium states no recording fee.
+    expect(snapshot.recordingFee).toBeNull();
   });
 
   it('returns published snapshot only when the show is published', () => {

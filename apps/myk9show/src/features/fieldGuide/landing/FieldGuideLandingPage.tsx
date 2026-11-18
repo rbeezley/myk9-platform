@@ -4,6 +4,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { WithdrawalPolicySection } from '@/features/_shared/landing/WithdrawalPolicySection';
+import { RecordingFeeSection } from '@/features/_shared/landing/RecordingFeeSection';
 import { ScoutingStatementSection } from '@/features/_shared/landing/ScoutingStatementSection';
 import { PremiumDownloadSection } from '@/features/_shared/landing/PremiumDownloadSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
@@ -125,6 +126,11 @@ export function FieldGuideLandingPage({
         />
         <WithdrawalPolicySection
           showId={show?.id}
+          className="fg-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <RecordingFeeSection
+          statement={data.recordingFee}
           className="fg-section"
           style={SHARED_SECTION_STYLE}
         />

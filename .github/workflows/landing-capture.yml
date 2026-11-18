@@ -1,0 +1,152 @@
+# Landing capture — takes the landing page's timeline screenshots from the running app
+# (docs/plan-landing-animated-timeline.md § "Capturing the screens", MYK9-2181).
+#
+# A capture signs a seeded account in and walks the app, so it runs against a disposable
+# local Supabase stack only, never a hosted project. The owner's Windows PC cannot run that
+# stack (no Docker, and the Supabase CLI has no native runtime for win32), so this job is
+# where captures are taken: it builds the stack, serves the app against it, runs the capture,
+# and uploads the images and measured regions as an artifact for a person to commit.
+#
+# Nothing here writes to the repository or to any shared system.
+name: Landing capture
+
+on:
+  workflow_dispatch: {}
+  # A change to the capture scripts is proved by running them: the artifact of the PR's own
+  # run is what gets committed.
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/myk9show/scripts/landing-capture/**'
+      - '.github/workflows/landing-capture.yml'
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+concurrency:
+  group: landing-capture-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture landing scenes
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Secrets are not given to a fork's pull request; without the judge's password there is
+    # nothing to capture.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.4'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
+
+      # Before anything is signed in: the guard is proved in the real browser, with a control
+      # that fails the step if the proof could pass without the guard.
+      - name: Prove the capture guard
+        run: pnpm --filter @myk9/show capture:landing:selfcheck
+
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
+      # Writes the local stack's URL and keys to GITHUB_ENV (VITE_SUPABASE_URL among them),
+      # so the build below is pointed at this job's own stack and nothing else.
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          MYK9_E2E_APPROVED_PROJECT_REFS: local
+          MYK9_E2E_SUPABASE_PROJECT_REF: local
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Verify the target is the isolated stack
+        run: pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      # The built app, not the dev server: no hot-reload socket and no on-demand compile, so
+      # what is captured is what a visitor's browser runs.
+      - name: Serve the built app
+        working-directory: apps/myk9show
+        run: |
+          mkdir -p "$RUNNER_TEMP/landing-capture"
+          nohup pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort \
+            > "$RUNNER_TEMP/landing-capture/preview.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://127.0.0.1:4173/; then exit 0; fi
+            sleep 1
+          done
+          echo 'The preview server did not answer within 60 seconds' >&2
+          cat "$RUNNER_TEMP/landing-capture/preview.log" >&2
+          exit 1
+
+      - name: Capture the ring scene
+        run: pnpm --filter @myk9/show capture:landing:ring
+        env:
+          CAPTURE_BASE_URL: http://127.0.0.1:4173
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+
+      # Only what the capture wrote, laid out as it sits in the repository, so the artifact
+      # unpacks over a checkout.
+      - name: Collect the capture
+        run: |
+          out="$RUNNER_TEMP/landing-capture/out/apps/myk9show"
+          mkdir -p "$out/public/landing/scenes" "$out/src/components/landing/lifecycle/scenes"
+          cp -R apps/myk9show/public/landing/scenes/ring "$out/public/landing/scenes/ring"
+          cp apps/myk9show/src/components/landing/lifecycle/scenes/ringRegions.json \
+            "$out/src/components/landing/lifecycle/scenes/ringRegions.json"
+
+      # This repository's artifacts are public (MYK9-1057): fail before the upload if a
+      # configured password is in the regions file. Prints file names and counts only.
+      - name: Verify no secrets in the capture
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts "$RUNNER_TEMP/landing-capture/out"
+        env:
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Upload the capture
+        uses: actions/upload-artifact@v7
+        with:
+          name: landing-capture-ring
+          path: ${{ runner.temp }}/landing-capture/out/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop

@@ -20,6 +20,7 @@ INSERT INTO public.people (id, first_name, last_name, email) VALUES
   ('00000000-0000-0000-0000-000002161011', 'Sam', 'Secretary', 'myk9-2161-secretary@example.test'),
   ('00000000-0000-0000-0000-000002161012', 'Olga', 'Other', 'myk9-2161-other@example.test'),
   ('00000000-0000-0000-0000-000002161013', 'Pat', 'Plain', 'myk9-2161-plain@example.test'),
+  ('00000000-0000-0000-0000-000002161014', 'Sia', 'SiteAdmin', 'myk9-2161-site@example.test'),
   ('00000000-0000-0000-0000-000002161021', 'Ada', 'Owner', 'ada-2161@example.test'),
   ('00000000-0000-0000-0000-000002161022', 'Ivy', 'Owner', 'ivy-2161@example.test'),
   ('00000000-0000-0000-0000-000002161023', 'Cy', 'Withdrew', 'cy-2161@example.test'),
@@ -37,7 +38,13 @@ INSERT INTO auth.users (
   ('00000000-0000-0000-0000-000002161102', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-2161-other@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000002161103', '00000000-0000-0000-0000-000000000000',
-   'authenticated', 'authenticated', 'myk9-2161-plain@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
+   'authenticated', 'authenticated', 'myk9-2161-plain@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000002161104', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-2161-site@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
+
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000002161014', id, true, '00000000-0000-0000-0000-000002161104'
+FROM public.roles WHERE name = 'site_admin';
 
 INSERT INTO public.club_members (club_id, person_id, membership_status) VALUES
   ('00000000-0000-0000-0000-000002161001', '00000000-0000-0000-0000-000002161011', 'active'),
@@ -60,7 +67,8 @@ INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type) VAL
    current_date + 7, 'AKC', 'Scent Work');
 INSERT INTO public.classes (id, trial_id, name, status, element, level, section) VALUES
   ('00000000-0000-0000-0000-000002161004', '00000000-0000-0000-0000-000002161003', 'Container Novice A', 'upcoming', 'Container', 'Novice', 'A'),
-  ('00000000-0000-0000-0000-000002161005', '00000000-0000-0000-0000-000002161003', 'Interior Novice A', 'upcoming', 'Interior', 'Novice', 'A');
+  ('00000000-0000-0000-0000-000002161005', '00000000-0000-0000-0000-000002161003', 'Interior Novice A', 'upcoming', 'Interior', 'Novice', 'A'),
+  ('00000000-0000-0000-0000-000002161006', '00000000-0000-0000-0000-000002161003', 'Buried Novice A', 'upcoming', 'Buried', 'Novice', 'A');
 
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id) VALUES
   ('00000000-0000-0000-0000-000002161031', 'Ada Dog', 'Ada', 'Beagle', '00000000-0000-0000-0000-000002161021'),
@@ -179,7 +187,9 @@ BEGIN
   IF has_function_privilege('anon', 'public.queue_substitute_judge_emails(uuid)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.substitute_judge_email_offer(uuid)', 'EXECUTE')
      OR has_function_privilege('public', 'public.queue_substitute_judge_emails(uuid)', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'public.substitute_judge_email_audience(uuid)', 'EXECUTE') THEN
+     OR has_function_privilege('authenticated', 'public.substitute_judge_email_audience(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.substitute_judge_email_show(uuid)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.substitute_judge_email_show(uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL C an API role can execute where it should not';
   END IF;
   RAISE NOTICE 'PASS C only the show secretary can offer or queue';
@@ -224,6 +234,91 @@ BEGIN
     RAISE EXCEPTION 'FAIL D.6 after sending, the offer came back or was not marked sent';
   END IF;
   RAISE NOTICE 'PASS D the tap queues the told people once and the offer then says sent';
+END $$;
+
+-- E: a second class, Ada told "not named yet", a substitute confirmed ten minutes ago.
+ALTER TABLE public.entries DISABLE TRIGGER trg_entries_require_dog_registration;
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) VALUES
+  ('00000000-0000-0000-0000-000002161071', '00000000-0000-0000-0000-000002161031',
+   '00000000-0000-0000-0000-000002161006', '00000000-0000-0000-0000-000002161002',
+   '00000000-0000-0000-0000-000002161003', 'confirmed', '71', 1, 'no-status');
+ALTER TABLE public.entries ENABLE TRIGGER trg_entries_require_dog_registration;
+INSERT INTO public.judge_assignments (id, person_id, show_id, trial_id, class_id, status, confirmed_at) VALUES
+  ('00000000-0000-0000-0000-000002161062', '00000000-0000-0000-0000-000002161051',
+   '00000000-0000-0000-0000-000002161002', NULL, '00000000-0000-0000-0000-000002161006',
+   'confirmed', now() - interval '1 day');
+DELETE FROM public.judge_assignments WHERE id = '00000000-0000-0000-0000-000002161062';
+UPDATE public.show_lifecycle_email_jobs
+   SET status = 'sent', sent_at = now() - interval '1 hour', created_at = now() - interval '1 hour'
+ WHERE status = 'ready' AND judge_changes ? '00000000-0000-0000-0000-000002161006';
+SELECT pg_temp.t2161_call('00000000-0000-0000-0000-000002161101', 'pick', '00000000-0000-0000-0000-000002161006');
+UPDATE public.judge_assignments SET confirmed_at = now() - interval '10 minutes'
+ WHERE class_id = '00000000-0000-0000-0000-000002161006';
+
+DO $$
+DECLARE
+  v_class uuid := '00000000-0000-0000-0000-000002161006';
+  v_sec text := '00000000-0000-0000-0000-000002161101';
+  v_show uuid := '00000000-0000-0000-0000-000002161002';
+  v_zero jsonb := '{"pending_count":0,"sent_count":0}'::jsonb;
+BEGIN
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":1,"sent_count":0}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.0 expected an offer of 1, got %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  IF pg_temp.t2161_call('00000000-0000-0000-0000-000002161104', 'offer', v_class) IS DISTINCT FROM '{"pending_count":1,"sent_count":0}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.1 a site admin was not allowed: %', pg_temp.t2161_call('00000000-0000-0000-0000-000002161104', 'offer', v_class);
+  END IF;
+  IF pg_temp.t2161_call(v_sec, 'offer', '00000000-0000-0000-0000-000002161999') IS DISTINCT FROM '{"error":"P0002"}'::jsonb
+     OR pg_temp.t2161_call(v_sec, 'queue', '00000000-0000-0000-0000-000002161999') IS DISTINCT FROM '{"error":"P0002"}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.2 a missing class was not P0002';
+  END IF;
+
+  -- The step switched off: nothing offered or queued.
+  UPDATE public.show_lifecycle_email_steps SET is_enabled = false WHERE show_id = v_show AND step_type = 'judge_changed';
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_zero
+     OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.3 a switched-off step offered or queued';
+  END IF;
+  UPDATE public.show_lifecycle_email_steps SET is_enabled = true WHERE show_id = v_show AND step_type = 'judge_changed';
+
+  -- A draft show: nothing offered or queued.
+  UPDATE public.shows SET status = 'draft' WHERE id = v_show;
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_zero
+     OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.4 a draft show offered or queued';
+  END IF;
+  UPDATE public.shows SET status = 'published' WHERE id = v_show;
+
+  -- The tap, then the step is switched off before the email sends and the job is skipped.
+  IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '1'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.5 the tap should queue 1';
+  END IF;
+  UPDATE public.show_lifecycle_email_jobs SET status = 'skipped', skipped_at = now()
+   WHERE status = 'ready' AND judge_changes ? v_class::text;
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM v_zero
+     OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
+    RAISE EXCEPTION 'FAIL E.6 a skipped follow-up looped: offer %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  RAISE NOTICE 'PASS E site admin, missing class, switched-off step, draft show and a skipped follow-up';
+END $$;
+
+-- F: the original judge comes back to a class whose exhibitors were told "not named yet".
+-- The sender skips that email as not news, so the offer must not appear.
+DO $$
+DECLARE
+  v_class uuid := '00000000-0000-0000-0000-000002161004';
+  v_sec text := '00000000-0000-0000-0000-000002161101';
+BEGIN
+  DELETE FROM public.judge_assignments WHERE class_id = v_class;
+  INSERT INTO public.judge_assignments (person_id, show_id, trial_id, class_id, status, confirmed_at)
+  VALUES ('00000000-0000-0000-0000-000002161051', '00000000-0000-0000-0000-000002161002', NULL, v_class,
+          'confirmed', now() - interval '5 minutes');
+  UPDATE public.show_lifecycle_email_jobs SET status = 'skipped', skipped_at = now() WHERE status = 'ready';
+  IF pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{"pending_count":0,"sent_count":0}'::jsonb
+     OR pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '0'::jsonb THEN
+    RAISE EXCEPTION 'FAIL F the original judge coming back still offered: %', pg_temp.t2161_call(v_sec, 'offer', v_class);
+  END IF;
+  RAISE NOTICE 'PASS F re-confirming the original judge clears the offer';
 END $$;
 
 ROLLBACK;

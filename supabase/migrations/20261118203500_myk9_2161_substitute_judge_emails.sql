@@ -9,13 +9,16 @@
 --
 -- Who was told "not named yet". The sent job does not record what its email said (it stores
 -- ids only; the sender renders at send time), so it is derived. A person was told when their
--- LATEST judge_changed job covering the class that was SENT BEFORE the class's current
--- confirmed judge was confirmed (judge_assignments.confirmed_at): at that moment the class
--- had no judge of that name in place. They still need a live entry in the class and an email.
+-- latest judge_changed job covering the class that was sent BEFORE the class's current
+-- confirmed judge was confirmed (judge_assignments.confirmed_at) went out while the class had
+-- no judge of that name in place. They still need a live entry in the class and an email. A
+-- person whose "was" judge is the current judge (the original judge came back) is not offered:
+-- the sender skips that email as "not news".
 --
 -- Follow-up state, with no new table: a person is "pending" until they have a follow-up: a
 -- ready judge_changed job covering the class (queued by the tap or the 2125 trigger; the 2125
--- merge keeps "was <judge before the first change>") or one sent since the confirmation. A person
+-- merge keeps "was <judge before the first change>"), one sent since the confirmation, or one
+-- skipped since the confirmation (a step switched off before it sent). A person
 -- is "sent" once a ready or sent job covering the class was created AFTER the current judge
 -- was confirmed (the tap), and an earlier sent job covering it had gone out before. A trigger
 -- job from the same transaction as the confirmation has an equal created_at and is not counted.
@@ -49,7 +52,8 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
   WITH cur AS (
-    SELECT coalesce(ja.confirmed_at, ja.created_at) AS at
+    SELECT ja.person_id AS judge_id,
+           coalesce(ja.confirmed_at, ja.created_at) AS at
       FROM public.judge_assignments ja
       JOIN public.people jp ON jp.id = ja.person_id AND jp.deleted_at IS NULL
      WHERE ja.class_id = p_class_id
@@ -86,7 +90,11 @@ AS $$
               AND r.step_type = 'judge_changed'
               AND r.recipient_person_id = ls.person_id
               AND r.judge_changes ? p_class_id::text
-              AND (r.status = 'ready' OR (r.status = 'sent' AND r.sent_at >= cur.at))
+              AND (
+                r.status = 'ready'
+                OR (r.status = 'sent' AND r.sent_at >= cur.at)
+                OR (r.status = 'skipped' AND r.created_at > cur.at)
+              )
          ) AS followed_up,
          EXISTS (
            SELECT 1 FROM public.show_lifecycle_email_jobs r
@@ -105,6 +113,7 @@ AS $$
      AND p.deleted_at IS NULL
      AND nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
    WHERE ls.from_person_id IS NOT NULL
+     AND ls.from_person_id <> cur.judge_id
      AND ls.person_id IN (
        SELECT pairs.person_id
          FROM public.live_entry_person_class_pairs(show_of.show_id) AS pairs

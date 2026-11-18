@@ -37,7 +37,7 @@ describe('SubstituteJudgeEmailOffer (MYK9-2161)', () => {
 
     expect(mocks.queue).toHaveBeenCalledWith('class-1');
     expect(
-      await screen.findByText('Emailed 3 exhibitors who were told no judge yet.')
+      await screen.findByText('Queued email to 3 exhibitors who were told no judge yet.')
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /email the/i })).not.toBeInTheDocument();
   });

@@ -49,7 +49,7 @@ export function SubstituteJudgeEmailOffer({
   if (pending === 0) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
-        Emailed {people(sent)} who were told no judge yet.
+        Queued email to {people(sent)} who were told no judge yet.
       </p>
     );
   }

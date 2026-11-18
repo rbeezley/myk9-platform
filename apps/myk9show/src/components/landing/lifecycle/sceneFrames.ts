@@ -38,6 +38,11 @@ export type SceneFrame = {
   ms: number;
   /** The device this frame is about; the other dims. */
   subject: DeviceId | 'both';
+  /**
+   * Marks the frame that stands for its line under reduced motion, when the line's heading is
+   * about a frame other than its last. At most one per line.
+   */
+  rest?: boolean;
   /** One view per device the scene has. */
   desk?: DeviceView;
   phone?: DeviceView;
@@ -109,6 +114,25 @@ export function cameraAround(
   };
 }
 
+/**
+ * A close view of `region` in a camera `width` wide, the widest at which its words can still
+ * be read. A region that fits is ringed. One too wide to fit is not shrunk until it is
+ * unreadable: the camera holds its start or its end, and there is no ring, because a ring cut
+ * off by the frame points at nothing.
+ */
+export function closeView(
+  space: SceneDeviceData['space'],
+  region: Region,
+  { width, align = 'start', pad = 24 }: { width: number; align?: 'start' | 'end'; pad?: number }
+): { camera: Region; ring?: Region } {
+  const inner = width - pad * 2;
+  if (region.w <= inner) {
+    return { camera: cameraAround(space, region, { pad, minWidth: width }), ring: region };
+  }
+  const x = align === 'end' ? region.x + region.w - inner : region.x;
+  return { camera: cameraAround(space, { ...region, x, w: inner }, { pad, minWidth: width }) };
+}
+
 export function firstFrameOfLine(frames: readonly SceneFrame[], line: number): number {
   const i = frames.findIndex(f => f.line === line);
   return i < 0 ? 0 : i;
@@ -117,6 +141,15 @@ export function firstFrameOfLine(frames: readonly SceneFrame[], line: number): n
 export function lastFrameOfLine(frames: readonly SceneFrame[], line: number): number {
   for (let i = frames.length - 1; i >= 0; i--) if (frames[i]!.line === line) return i;
   return 0;
+}
+
+/**
+ * The frame that stands for a line when nothing moves (reduced motion): the one marked
+ * `rest`, or the line's last frame.
+ */
+export function restFrameOfLine(frames: readonly SceneFrame[], line: number): number {
+  const marked = frames.findIndex(f => f.line === line && f.rest);
+  return marked < 0 ? lastFrameOfLine(frames, line) : marked;
 }
 
 /**

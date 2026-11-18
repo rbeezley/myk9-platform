@@ -1,4 +1,4 @@
-import { firstFrameOfLine, lastFrameOfLine } from './sceneFrames';
+import { firstFrameOfLine, lastFrameOfLine, restFrameOfLine } from './sceneFrames';
 import type { SceneFrame, SceneMode } from './sceneFrames';
 
 // The play / pause / jump / next / back state machine for TimelineScene, kept free of React so
@@ -35,13 +35,15 @@ export function initialSceneState({ frames, mode, reducedMotion }: SceneConfig):
 }
 
 /**
- * Landing on a line. Reduced motion shows its finished frame. Otherwise the line starts over:
+ * Landing on a line. Reduced motion shows the frame that stands for it. Otherwise the line starts over:
  * autoplay keeps going, and step-through plays the line's own frames and then waits.
  */
 function arrive(cfg: SceneConfig, line: number): SceneState {
   const first = firstFrameOfLine(cfg.frames, line);
   const last = lastFrameOfLine(cfg.frames, line);
-  if (cfg.reducedMotion) return { frame: last, elapsed: 0, playing: false };
+  if (cfg.reducedMotion) {
+    return { frame: restFrameOfLine(cfg.frames, line), elapsed: 0, playing: false };
+  }
   return { frame: first, elapsed: 0, playing: cfg.mode === 'autoplay' || first !== last };
 }
 

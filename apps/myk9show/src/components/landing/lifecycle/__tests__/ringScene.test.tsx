@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline } from '../LifecycleTimeline';
 import { BANNED_COPY, SCENE_LINES, STORIES } from '../lifecycleStories';
-import { cameraAround, firstFrameOfLine } from '../sceneFrames';
+import { cameraAround, closeView, firstFrameOfLine, restFrameOfLine } from '../sceneFrames';
 import { RING_SCENE } from '../scenes/ringScene';
 import regions from '../scenes/ringRegions.json';
 
@@ -55,7 +55,54 @@ describe('cameraAround', () => {
   });
 });
 
+describe('closeView', () => {
+  const page = { width: 768, height: 1024 };
+
+  it('rings a region that fits a readable camera', () => {
+    const status = { x: 217, y: 38, w: 256, h: 20 };
+    expect(closeView(page, status, { width: 440 })).toEqual({
+      camera: { x: 125, y: 0, w: 440, h: 586.67 },
+      ring: status,
+    });
+  });
+
+  it('holds the end of a line too wide to read whole, without a ring', () => {
+    const line = { x: 48, y: 143, w: 523, h: 24 };
+    // The last 392 pixels of the line, 24 of padding each side: 179 + 392 = 571, its end.
+    expect(closeView(page, line, { width: 440, align: 'end' })).toEqual({
+      camera: { x: 155, y: 0, w: 440, h: 586.67 },
+    });
+    expect(closeView(page, line, { width: 440 }).camera.x).toBe(24);
+  });
+});
+
 describe('the ring scene', () => {
+  it('opens every line on the whole page, then reads its words close', () => {
+    const whole = { x: 0, y: 0, w: space.width, h: space.height };
+    for (const line of [0, 1, 2, 3, 4]) {
+      const own = frames.filter(f => f.line === line);
+      expect(own.length, `line ${line + 1}`).toBeGreaterThanOrEqual(2);
+      // Line 4 opens on the read-back dialog, which sits over the page it came from.
+      if (line !== 3) expect(own[0]!.phone!.camera, `line ${line + 1}`).toEqual(whole);
+      expect(own.at(-1)!.phone!.camera.w, `line ${line + 1}`).toBeLessThan(space.width);
+    }
+  });
+
+  it('reads the small words at a size a phone can show', () => {
+    // The solo tablet is 235px wide on a 375px phone and the app's small text is 15 to 17px: a
+    // camera no wider than 320 draws it at 11 to 12px.
+    const small = (shot: string) =>
+      frames.filter(f => f.phone!.shot === shot).map(f => f.phone!.camera.w);
+    expect(Math.min(...small('offline'))).toBeLessThanOrEqual(320);
+    expect(Math.min(...small('saved'))).toBeLessThanOrEqual(320);
+    expect(Math.min(...small('sent'))).toBeLessThanOrEqual(320);
+  });
+
+  it('stands still on the read-back for line 4', () => {
+    expect(frames[restFrameOfLine(frames, 3)]!.phone!.shot).toBe('confirm');
+    expect(frames[restFrameOfLine(frames, 1)]!.phone!.camera.w).toBeLessThanOrEqual(320);
+  });
+
   it('is the judge’s tablet alone, with the plan’s five lines', () => {
     expect(RING_SCENE.desk).toBeUndefined();
     expect(RING_SCENE.lines).toBe(SCENE_LINES['showday-ring']);
@@ -84,11 +131,12 @@ describe('the ring scene', () => {
       expect(camera.x + camera.w).toBeLessThanOrEqual(space.width + 0.01);
       expect(camera.y + camera.h).toBeLessThanOrEqual(space.height + 0.01);
       expect(camera.w / camera.h).toBeCloseTo(space.width / space.height, 2);
-      expect(ring, shot).toBeDefined();
-      expect(ring!.x).toBeGreaterThanOrEqual(camera.x);
-      expect(ring!.y).toBeGreaterThanOrEqual(camera.y);
-      expect(ring!.x + ring!.w).toBeLessThanOrEqual(camera.x + camera.w);
-      expect(ring!.y + ring!.h).toBeLessThanOrEqual(camera.y + camera.h);
+      // A close view of a line too wide to read whole has no ring; a ring is never cut off.
+      if (!ring) continue;
+      expect(ring.x).toBeGreaterThanOrEqual(camera.x);
+      expect(ring.y).toBeGreaterThanOrEqual(camera.y);
+      expect(ring.x + ring.w).toBeLessThanOrEqual(camera.x + camera.w);
+      expect(ring.y + ring.h).toBeLessThanOrEqual(camera.y + camera.h);
     }
   });
 

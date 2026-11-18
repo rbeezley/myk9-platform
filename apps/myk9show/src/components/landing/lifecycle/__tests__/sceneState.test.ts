@@ -108,6 +108,19 @@ describe('step-through', () => {
     expect(s).toEqual({ frame: 5, elapsed: 0, playing: false });
   });
 
+  it('under reduced motion a line shows the frame marked to stand for it, not its last', () => {
+    // Line 5 owns frames 4 and 5; mark the first as the one that stands for the line.
+    const marked = frames.map((f, i) => (i === 4 ? { ...f, rest: true } : f));
+    const cfg: SceneConfig = { frames: marked, mode: 'step', reducedMotion: true };
+    expect(
+      reduceScene({ frame: 0, elapsed: 0, playing: false }, { type: 'jump', line: 4 }, cfg)
+    ).toEqual({
+      frame: 4,
+      elapsed: 0,
+      playing: false,
+    });
+  });
+
   it('jump goes to the line and stays put', () => {
     expect(reduceScene(initialSceneState(step), { type: 'jump', line: 2 }, step)).toEqual({
       frame: 2,

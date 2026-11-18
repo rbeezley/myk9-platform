@@ -29,6 +29,8 @@ export interface StripeTransferRow {
   id: string;
   amount: number;
   destination: string | null;
+  reversed?: boolean;
+  amount_reversed?: number;
 }
 
 export interface Scenario {
@@ -44,8 +46,14 @@ export interface Scenario {
   /** What Stripe already has for the show's transfer_group. */
   transfers?: StripeTransferRow[];
   listError?: Error;
+  /** Stripe says more transfers exist past the listed page. */
+  transfersHasMore?: boolean;
+  /** The club email after a send throws. */
+  clubEmailError?: Error;
   /** A database write this returns true for fails. */
   failWrite?: (q: Query) => boolean;
+  /** A database write this returns true for throws (a dropped connection). */
+  throwWrite?: (q: Query) => boolean;
   brakeOn?: boolean;
   showName?: string;
   /** The club's Stripe account can receive money (default true). */
@@ -91,7 +99,7 @@ export function run(scenario: Scenario) {
         return {
           data: [ACCOUNT]
             .filter(a => a.stripe_account_id === byStripeId[2])
-            .map(a => ({ id: a.id })),
+            .map(a => ({ id: a.id, club_id: SHOW.club_id })),
           error: null,
         };
       }
@@ -142,6 +150,9 @@ export function run(scenario: Scenario) {
     };
     builder.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) => {
       if (q.op !== 'select') writes.push(q);
+      if (q.op !== 'select' && scenario.throwWrite?.(q)) {
+        return Promise.reject(new Error('connection reset')).then(resolve, reject);
+      }
       return Promise.resolve(respond(q)).then(resolve, reject);
     };
     return builder;
@@ -156,7 +167,7 @@ export function run(scenario: Scenario) {
   });
   const list = vi.fn<ProcessShowDeps['stripe']['transfers']['list']>(async () => {
     if (scenario.listError) throw scenario.listError;
-    return { data: scenario.transfers ?? [] };
+    return { data: scenario.transfers ?? [], has_more: scenario.transfersHasMore ?? false };
   });
   const alertAdmin = vi.fn<ProcessShowDeps['alertAdmin']>(async () => undefined);
   const release = vi.fn(async () => undefined);
@@ -172,7 +183,13 @@ export function run(scenario: Scenario) {
     stripeLivemode: false,
     brakeOn: scenario.brakeOn ?? true,
     alertAdmin,
-    clubNoticeDeps: () => ({ loadRecipients: async () => [], send: vi.fn(async () => undefined) }),
+    clubNoticeDeps: () => ({
+      loadRecipients: async () => {
+        if (scenario.clubEmailError) throw scenario.clubEmailError;
+        return [];
+      },
+      send: vi.fn(async () => undefined),
+    }),
     acquireMoneyLock,
     siteUrl: 'https://example.test',
   };
@@ -186,6 +203,7 @@ export function run(scenario: Scenario) {
     money_lock_busy: 0,
     awaiting_approval: 0,
     claim_errors: 0,
+    uncertain_transfers: 0,
     reconciled: 0,
     transfer_lookup_errors: 0,
     reconciliation_errors: 0,

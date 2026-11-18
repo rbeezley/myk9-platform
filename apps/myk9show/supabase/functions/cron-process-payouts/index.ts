@@ -120,6 +120,8 @@ Deno.serve(async req => {
     reconciliation_errors: 0,
     // A payout record write failed before any money moved.
     ledger_write_errors: 0,
+    // Stripe gave no clear answer to a transfer request; the row stays processing.
+    uncertain_transfers: 0,
   };
 
   try {

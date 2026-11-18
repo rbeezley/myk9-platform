@@ -1,0 +1,164 @@
+// The payout run's operator alerts for Stripe reconciliation and ledger
+// writes (MYK9-2183). Every club- or Stripe-supplied value is HTML-escaped.
+
+import { escapeHtml, formatDollars } from '../_shared/clubMoneyEmails.ts';
+import type { EligibleShow, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
+
+export type ShowRef = Pick<EligibleShow, 'id' | 'name' | 'club_id'>;
+type AlertDeps = Pick<ProcessShowDeps, 'alertAdmin'>;
+
+export interface FoundTransfer {
+  id: string;
+  amount: number;
+  destination: string | null;
+  /** How much of it Stripe shows as reversed (0 when none). */
+  amountReversed: number;
+}
+
+function transferLine(transfer: FoundTransfer): string {
+  return `transfer <code>${escapeHtml(transfer.id)}</code> of ${formatDollars(transfer.amount)} to
+    <code>${escapeHtml(transfer.destination ?? 'unknown account')}</code>`;
+}
+
+/** What an operator must look at about a transfer found at Stripe; empty when nothing. */
+export function transferFacts(
+  transfer: FoundTransfer,
+  liveCount: number,
+  clubAccount: boolean
+): string[] {
+  const facts: string[] = [];
+  if (liveCount > 1) {
+    facts.push(
+      `Stripe lists ${liveCount} transfers for this show that are not reversed:
+       a possible double payment. The newest is recorded and nothing more was sent; reverse the
+       extra transfer in the Stripe dashboard.`
+    );
+  }
+  if (transfer.amountReversed > 0) {
+    facts.push(`${formatDollars(transfer.amountReversed)} of it was reversed.`);
+  }
+  if (!clubAccount) {
+    facts.push(
+      `It went to <code>${escapeHtml(transfer.destination ?? 'unknown account')}</code>, which is
+       not this club’s Stripe account.`
+    );
+  }
+  return facts;
+}
+
+export async function alertReconciled(
+  deps: AlertDeps,
+  show: ShowRef,
+  transfer: FoundTransfer,
+  ledgerCents: number | null,
+  facts: string[]
+) {
+  const ledger =
+    ledgerCents !== null && ledgerCents !== transfer.amount
+      ? `<p>The payout record said ${formatDollars(ledgerCents)}; it now shows Stripe's amount.</p>`
+      : '';
+  await deps.alertAdmin(
+    `Payout reconciled with Stripe: ${show.name}`,
+    `<p>Stripe already has ${transferLine(transfer)} for
+     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>). The payout is
+     now recorded as sent and nothing new was queued or sent.</p>${ledger}
+     ${facts.map(fact => `<p>${fact}</p>`).join('')}
+     <p>Check the transfer in the Stripe dashboard. If a refund was issued after it was sent,
+     the club was overpaid: recover the difference with a transfer reversal.</p>`,
+    { dedupeKey: `payout-reconciled-${show.id}`, severity: 'warn' }
+  );
+}
+
+export async function reportLookupError(
+  deps: AlertDeps,
+  summary: PayoutSummary,
+  show: ShowRef,
+  message: string
+) {
+  summary.transfer_lookup_errors++;
+  console.error(`Stripe transfer lookup failed for show ${show.id}: ${message}`);
+  await deps.alertAdmin(
+    `Payout could not be checked with Stripe: ${show.name}`,
+    `<p>The payout run could not tell from Stripe whether money already went out for
+     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>), so nothing was
+     queued or sent this run.</p>
+     <pre>${escapeHtml(message)}</pre>
+     <p>The next run asks again. If this repeats, check the Stripe status page and key.</p>`,
+    { dedupeKey: `payout-transfer-lookup-error-${show.id}`, severity: 'error' }
+  );
+}
+
+/**
+ * Stripe moved money but the payout record could not say so. `refundsBlocked`
+ * says whether the row is in a state the refund endpoints refuse.
+ */
+export async function reportReconcileError(
+  deps: AlertDeps,
+  summary: PayoutSummary,
+  show: ShowRef,
+  transfer: FoundTransfer,
+  message: string,
+  refundsBlocked: boolean
+) {
+  summary.reconciliation_errors++;
+  console.error(`Payout for show ${show.id} sent as ${transfer.id} but not recorded: ${message}`);
+  const refunds = refundsBlocked
+    ? `<p>The payout is marked processing, so refunds are blocked for this show, and a later
+       run records the transfer from Stripe once it has been processing for a day. Nothing will
+       be sent again: the run checks Stripe first.</p>`
+    : `<p><strong>Refunds are NOT blocked for this show.</strong> The payout record could not be
+       marked processing either. Fix it by hand now: mark the show_payouts row completed with
+       this transfer id and amount, and refund nothing against this show until it is.</p>`;
+  await deps.alertAdmin(
+    `Payout sent but not recorded: ${show.name}`,
+    `<p>Stripe has ${transferLine(transfer)} for <strong>${escapeHtml(show.name)}</strong>
+     (show <code>${show.id}</code>), but the payout record could not be updated:</p>
+     <pre>${escapeHtml(message)}</pre>
+     ${refunds}`,
+    { dedupeKey: `payout-reconcile-error-${show.id}`, severity: 'error' }
+  );
+}
+
+/** A payout record write failed before any money moved. */
+export async function reportLedgerWriteError(
+  deps: AlertDeps,
+  summary: PayoutSummary,
+  show: ShowRef,
+  step: string,
+  message: string
+) {
+  summary.ledger_write_errors++;
+  console.error(`Payout record write failed for show ${show.id} (${step}): ${message}`);
+  await deps.alertAdmin(
+    `Payout record could not be saved: ${show.name}`,
+    `<p>The payout run could not save the payout record for
+     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>) while it was
+     trying to ${escapeHtml(step)}. No money moved in this step.</p>
+     <pre>${escapeHtml(message)}</pre>
+     <p>The next run tries again. If this repeats, read the cron-process-payouts logs.</p>`,
+    { dedupeKey: `payout-ledger-write-${show.id}`, severity: 'error' }
+  );
+}
+
+/** Stripe gave no clear answer to a transfer request; the row stays processing. */
+export async function reportUncertainTransfer(
+  deps: AlertDeps,
+  summary: PayoutSummary,
+  show: ShowRef,
+  amountCents: number,
+  message: string
+) {
+  summary.uncertain_transfers++;
+  console.error(`Transfer outcome unknown for show ${show.id}: ${message}`);
+  await deps.alertAdmin(
+    `Payout outcome unknown: ${show.name}`,
+    `<p>The ${formatDollars(amountCents)} transfer request for
+     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>) got no clear
+     answer from Stripe, so the money may or may not have gone out:</p>
+     <pre>${escapeHtml(message)}</pre>
+     <p>The payout stays processing, so refunds stay blocked. Once it has been processing for a
+     day, the next run checks Stripe: a transfer Stripe has is recorded as sent, and only if
+     there is none is the payout failed and asked for again. Nothing is sent twice.</p>`,
+    { dedupeKey: `payout-outcome-unknown-${show.id}`, severity: 'warn' }
+  );
+}

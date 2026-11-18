@@ -17,7 +17,7 @@ describe('a show whose last attempt failed is checked with Stripe first', () => 
     });
     await world.go();
 
-    expect(world.list).toHaveBeenCalledWith({ transfer_group: 'show-1', limit: 1 });
+    expect(world.list).toHaveBeenCalledWith({ transfer_group: 'show-1', limit: 10 });
     expect(world.create).toHaveBeenCalledTimes(0);
     expect(world.rpc).not.toHaveBeenCalled();
     const writes = world.payoutWrites();
@@ -90,7 +90,12 @@ describe('a show whose last attempt failed is checked with Stripe first', () => 
 
 describe('a payout stuck in processing stays blocked until Stripe answers', () => {
   const stale = [
-    { id: 'row-9', show_id: 'show-1', amount_cents: 5000, shows: { name: 'Fall Trial' } },
+    {
+      id: 'row-9',
+      show_id: 'show-1',
+      amount_cents: 5000,
+      shows: { name: 'Fall Trial', club_id: 'club-1' },
+    },
   ];
 
   it('a transfer Stripe has is recorded as sent with Stripe’s amount, never failed', async () => {
@@ -222,7 +227,9 @@ describe('a ledger write that fails is reported, not counted', () => {
     const world = run({
       amounts: [5000],
       brakeOn: false,
-      transferError: new Error('No such destination'),
+      transferError: Object.assign(new Error('No such destination'), {
+        type: 'StripeInvalidRequestError',
+      }),
       failWrite: isUpdate('failed'),
     });
     await world.go();

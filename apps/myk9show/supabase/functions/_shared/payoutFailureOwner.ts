@@ -71,7 +71,31 @@ export function isClubFailureReason(reason: string | null | undefined): boolean 
 }
 
 /**
- * Whose failure a thrown transfer error is, and the `failure_reason` to store.
+ * Stripe error classes (stripe-node `type`, or the API's `rawType`) that mean
+ * Stripe answered and refused the request, so no transfer was made (MYK9-2183).
+ * A connection error, a Stripe server error, an idempotency conflict or
+ * anything unrecognised may have moved money and is not on this list.
+ */
+const DEFINITE_REJECTION_TYPES: ReadonlySet<string> = new Set([
+  'StripeCardError',
+  'card_error',
+  'StripeInvalidRequestError',
+  'invalid_request_error',
+  'StripePermissionError',
+  'StripeAuthenticationError',
+  'StripeRateLimitError',
+]);
+
+function isDefiniteRejection(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const { type, rawType } = err as { type?: unknown; rawType?: unknown };
+  return [type, rawType].some(t => typeof t === 'string' && DEFINITE_REJECTION_TYPES.has(t));
+}
+
+/**
+ * Whose failure a thrown transfer error is, the `failure_reason` to store, and
+ * whether Stripe definitely refused it (`definite`). Only a definite refusal
+ * may mark a payout failed; otherwise money may have moved (MYK9-2183).
  * A card-clearing balance delay (`benign`) keeps its `insufficient_balance:`
  * marker and is always the platform's; a club-fixable code is stamped with the
  * club prefix; anything else stores the message unchanged, as before.
@@ -80,13 +104,15 @@ export function transferFailureOutcome(
   err: unknown,
   message: string,
   benign: boolean
-): { owner: PayoutFailureOwner; failureReason: string } {
-  if (benign) return { owner: 'platform', failureReason: `insufficient_balance: ${message}` };
+): { owner: PayoutFailureOwner; failureReason: string; definite: boolean } {
+  if (benign) {
+    return { owner: 'platform', failureReason: `insufficient_balance: ${message}`, definite: true };
+  }
   const code = stripeErrorCode(err);
   if (code && classifyPayoutFailure(code) === 'club') {
-    return { owner: 'club', failureReason: clubFailureReason(code, message) };
+    return { owner: 'club', failureReason: clubFailureReason(code, message), definite: true };
   }
-  return { owner: 'platform', failureReason: message };
+  return { owner: 'platform', failureReason: message, definite: isDefiniteRejection(err) };
 }
 
 export interface PayoutAttempt {

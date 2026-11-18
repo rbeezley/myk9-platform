@@ -17,6 +17,8 @@ export interface StripeTransferListItem {
   id: string;
   amount: number;
   destination: string | { id: string } | null;
+  reversed?: boolean;
+  amount_reversed?: number;
 }
 
 /** The two Stripe calls the payout run makes. */
@@ -25,7 +27,7 @@ export interface StripeTransfers {
     list(params: {
       transfer_group: string;
       limit: number;
-    }): PromiseLike<{ data: StripeTransferListItem[] }>;
+    }): PromiseLike<{ data: StripeTransferListItem[]; has_more?: boolean }>;
     create(
       params: {
         amount: number;

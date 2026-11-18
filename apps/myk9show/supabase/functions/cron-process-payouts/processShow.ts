@@ -11,21 +11,16 @@ import {
   escapeHtml,
   payoutSentEmail,
 } from '../_shared/clubMoneyEmails.ts';
-import {
-  emailClub,
-  loadPreviousPayoutAttempt,
-  notifyClubOfTransferFailure,
-} from '../_shared/payoutClubNotices.ts';
-import { transferFailureOutcome } from '../_shared/payoutFailureOwner.ts';
+import { emailClub } from '../_shared/payoutClubNotices.ts';
 import { claimShowPayoutForSend, exceedsApproval } from '../_shared/payoutSendClaim.ts';
-import { payoutRetryNote } from './payoutCopy.ts';
 import {
-  checkFailedAttempt,
-  lookUpShowTransfer,
-  recordStripeTransfer,
   reportLedgerWriteError,
+  reportLookupError,
   reportReconcileError,
-} from './payoutReconcile.ts';
+  type FoundTransfer,
+} from './payoutAlerts.ts';
+import { checkFailedAttempt, lookUpShowTransfer, settleFoundTransfer } from './payoutReconcile.ts';
+import { handleTransferError } from './payoutTransferError.ts';
 import type { EligibleShow, HeldMoneyLock, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
 
 export { payoutRetryNote } from './payoutCopy.ts';
@@ -244,6 +239,8 @@ async function payShow(
   let rowId: string | null = null;
   // Set once Stripe has the money: from then on nothing may mark the row failed.
   let sentTransferId: string | null = null;
+  // Set while Stripe has the money and the record does not say so yet.
+  let unrecorded: FoundTransfer | null = null;
   try {
     // Claim through the brake (MYK9-2170): with it on, this records the payout
     // as awaiting_approval and sends nothing; only an approved row (or, with it
@@ -359,14 +356,20 @@ async function payShow(
     // key alone cannot prevent a re-send. Ask Stripe directly: at most one
     // transfer per show, ever (transfer_group = show id).
     const lookup = await lookUpShowTransfer(stripe, show.id);
-    if (lookup.kind === 'error') throw new Error(lookup.message);
+    if (lookup.kind === 'error') {
+      // Money may have moved: the row stays 'processing' (refunds blocked) for the stale check.
+      return reportLookupError(deps, summary, show, lookup.message);
+    }
     if (lookup.kind === 'found') {
       // Record what Stripe actually sent (MYK9-2183), not today's recompute.
       const priorTransfer = lookup.transfer;
-      const writeError = await recordStripeTransfer(supabase, rowId, 'processing', priorTransfer);
-      if (writeError) {
-        return reportReconcileError(deps, summary, show, priorTransfer, writeError);
-      }
+      const found = {
+        rowId,
+        fromStatus: 'processing',
+        ledgerCents: finalAmountCents,
+        alwaysAlert: false,
+      };
+      if (!(await settleFoundTransfer(deps, summary, show, found, lookup))) return;
       summary.completed++;
       console.log(
         `Reconciled existing transfer ${priorTransfer.id} for show ${show.id} — no new transfer sent`
@@ -407,6 +410,12 @@ async function payShow(
     );
 
     sentTransferId = transfer.id;
+    unrecorded = {
+      id: transfer.id,
+      amount: finalAmountCents,
+      destination: account.stripe_account_id,
+      amountReversed: 0,
+    };
 
     const { error: doneError } = await supabase
       .from('show_payouts')
@@ -416,15 +425,12 @@ async function payShow(
         completed_at: new Date().toISOString(),
       })
       .eq('id', rowId);
+    const sent = unrecorded;
+    unrecorded = null;
     if (doneError) {
       // Money moved but the record still says 'processing', which keeps refunds
       // blocked; the stale check records it from Stripe within a day.
-      const sent = {
-        id: transfer.id,
-        amount: finalAmountCents,
-        destination: account.stripe_account_id,
-      };
-      await reportReconcileError(deps, summary, show, sent, doneError.message);
+      await reportReconcileError(deps, summary, show, sent, doneError.message, true);
     } else {
       summary.completed++;
       console.log(`Paid out ${dollars(finalAmountCents)} for show ${show.id} (${transfer.id})`);
@@ -437,51 +443,18 @@ async function payShow(
       );
     }
   } catch (err) {
-    const reason = err instanceof Error ? err.message : 'Unknown Stripe error';
+    const reason = err instanceof Error ? err.message : 'Unknown error';
+    if (unrecorded) {
+      // The transfer went out and recording it threw: the row stays 'processing'.
+      await reportReconcileError(deps, summary, show, unrecorded, reason, true);
+      return;
+    }
     if (sentTransferId) {
-      // The transfer went out; a later step (the club email) failed. Never fail the row.
+      // Sent and recorded; a later step (the club email) failed. Never fail the row.
       console.error(`After transfer ${sentTransferId} for show ${show.id}: ${reason}`);
       return;
     }
-    const benign = /insufficient.*balance|balance.*insufficient/i.test(reason);
-    // MYK9-1986: whose failure this is; only the club's own emails the club, once per episode.
-    const { owner, failureReason } = transferFailureOutcome(err, reason, benign);
-    let stamped = true;
-    if (rowId) {
-      const failedRowId = rowId;
-      const { error: stampError } = await supabase
-        .from('show_payouts')
-        .update({ status: 'failed', failure_reason: failureReason })
-        .eq('id', failedRowId);
-      if (stampError) {
-        stamped = false;
-        const step = 'mark a failed transfer failed';
-        await reportLedgerWriteError(deps, summary, show, step, stampError.message);
-      }
-      if (club) {
-        await notifyClubOfTransferFailure(clubNoticeDeps(clubId, club.email), {
-          owner,
-          clubName: club.name,
-          showName: show.name,
-          amountCents,
-          paymentsUrl: clubPaymentsUrl(siteUrl, clubId),
-          loadPreviousAttempt: () => loadPreviousPayoutAttempt(supabase, show.id, failedRowId),
-        });
-      }
-    }
-    if (stamped) summary.failed++;
-    console.error(`Transfer failed for show ${show.id}: ${reason}`);
-    await alertAdmin(
-      benign ? `Payout deferred (benign): ${show.name}` : `Payout FAILED: ${show.name}`,
-      `<p>Transfer of ${dollars(amountCents)} for <strong>${escapeHtml(show.name)}</strong> failed:</p>
-       <pre>${escapeHtml(reason)}</pre>
-       ${payoutRetryNote(benign ? 'balance_delay' : 'transfer_failed', deps.brakeOn)}`,
-      {
-        dedupeKey: benign
-          ? `payout-insufficient-balance-${show.id}`
-          : `payout-transfer-failed-${show.id}`,
-      }
-    );
+    await handleTransferError(deps, summary, { show, err, rowId, amountCents, club });
   } finally {
     // A lock handed in by processShow is released there.
     if (!heldLock) await moneyLock.release();

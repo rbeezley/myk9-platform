@@ -5,32 +5,38 @@
 // with Stripe's own amount and destination, and nothing new is queued.
 //
 // Reconciling needs no approval; only a NEW transfer does (the brake's claim).
-// A payout stuck in 'processing' stays 'processing' (the state both refund
-// endpoints block on) until Stripe answers, so a refund can never be issued
-// against money the club may already have.
+// While it is uncertain whether money moved, the row stays 'processing' (the
+// state both refund endpoints block on); 'failed' is only for a definite
+// "no money moved".
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { escapeHtml, formatDollars } from '../_shared/clubMoneyEmails.ts';
+import { formatDollars } from '../_shared/clubMoneyEmails.ts';
 import { payoutRetryNote } from './payoutCopy.ts';
+import {
+  alertReconciled,
+  reportLedgerWriteError,
+  reportLookupError,
+  reportReconcileError,
+  transferFacts,
+  type FoundTransfer,
+  type ShowRef,
+} from './payoutAlerts.ts';
 import type {
-  EligibleShow,
   HeldMoneyLock,
   PayoutSummary,
   ProcessShowDeps,
   StripeTransfers,
 } from './payoutTypes.ts';
 
-type ShowRef = Pick<EligibleShow, 'id' | 'name'>;
+export type { FoundTransfer } from './payoutAlerts.ts';
 
-export interface FoundTransfer {
-  id: string;
-  amount: number;
-  destination: string | null;
-}
+/** Enough to see every transfer a show should ever have; more is itself suspect. */
+const TRANSFER_PAGE = 10;
 
 export type TransferLookup =
   | { kind: 'none' }
-  | { kind: 'found'; transfer: FoundTransfer }
+  /** The newest transfer not fully reversed, and how many such transfers exist. */
+  | { kind: 'found'; transfer: FoundTransfer; liveCount: number }
   | { kind: 'error'; message: string };
 
 /** What Stripe has for this show's transfer_group. Never throws. */
@@ -39,14 +45,31 @@ export async function lookUpShowTransfer(
   showId: string
 ): Promise<TransferLookup> {
   try {
-    const existing = await stripe.transfers.list({ transfer_group: showId, limit: 1 });
-    const transfer = existing.data[0];
-    if (!transfer) return { kind: 'none' };
+    const page = await stripe.transfers.list({ transfer_group: showId, limit: TRANSFER_PAGE });
+    if (page.has_more) {
+      return {
+        kind: 'error',
+        message: `Stripe lists more than ${TRANSFER_PAGE} transfers for this show; check them by hand`,
+      };
+    }
+    // A fully reversed transfer returned the money: it is not a payout.
+    const live = page.data.filter(t => !t.reversed && (t.amount_reversed ?? 0) < t.amount);
+    const newest = live[0]; // Stripe lists newest first.
+    if (!newest) return { kind: 'none' };
     const destination =
-      typeof transfer.destination === 'string'
-        ? transfer.destination
-        : (transfer.destination?.id ?? null);
-    return { kind: 'found', transfer: { id: transfer.id, amount: transfer.amount, destination } };
+      typeof newest.destination === 'string'
+        ? newest.destination
+        : (newest.destination?.id ?? null);
+    return {
+      kind: 'found',
+      transfer: {
+        id: newest.id,
+        amount: newest.amount,
+        destination,
+        amountReversed: newest.amount_reversed ?? 0,
+      },
+      liveCount: live.length,
+    };
   } catch (err) {
     return { kind: 'error', message: err instanceof Error ? err.message : String(err) };
   }
@@ -54,24 +77,27 @@ export async function lookUpShowTransfer(
 
 /**
  * Record a transfer Stripe already made on the payout row, with Stripe's
- * amount and destination (MYK9-2183). Only moves the row from `fromStatus`.
- * Returns an error message when the row could not be written.
+ * amount and destination. Only moves the row from `fromStatus`. The account
+ * column is set only when the destination is the show's club's account.
  */
-export async function recordStripeTransfer(
+async function recordStripeTransfer(
   supabase: SupabaseClient,
   rowId: string,
   fromStatus: string,
-  transfer: FoundTransfer
-): Promise<string | null> {
+  transfer: FoundTransfer,
+  clubId: string | null
+): Promise<{ error: string | null; clubAccount: boolean }> {
   let accountId: string | null = null;
   if (transfer.destination) {
     const { data: accounts } = await supabase
       .from('club_stripe_accounts')
-      .select('id')
+      .select('id, club_id')
       .eq('stripe_account_id', transfer.destination)
       .limit(1);
-    accountId = (accounts as Array<{ id: string }> | null)?.[0]?.id ?? null;
+    const match = (accounts as Array<{ id: string; club_id: string }> | null)?.[0];
+    if (match && clubId && match.club_id === clubId) accountId = match.id;
   }
+  const clubAccount = accountId !== null;
   const { data, error } = await supabase
     .from('show_payouts')
     .update({
@@ -84,98 +110,57 @@ export async function recordStripeTransfer(
     .eq('id', rowId)
     .eq('status', fromStatus)
     .select('id');
-  if (error) return error.message ?? 'update failed';
-  if (!data || (data as unknown[]).length === 0)
-    return `the payout row was no longer ${fromStatus}`;
-  return null;
+  if (error) return { error: error.message ?? 'update failed', clubAccount };
+  if (!data || (data as unknown[]).length === 0) {
+    return { error: `the payout row was no longer ${fromStatus}`, clubAccount };
+  }
+  return { error: null, clubAccount };
 }
 
-function transferLine(transfer: FoundTransfer): string {
-  return `transfer <code>${escapeHtml(transfer.id)}</code> of ${formatDollars(transfer.amount)} to
-    <code>${escapeHtml(transfer.destination ?? 'unknown account')}</code>`;
+/** Put a failed row back to 'processing' so refunds are refused; true when it moved. */
+async function holdAsProcessing(supabase: SupabaseClient, rowId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('show_payouts')
+    .update({ status: 'processing' })
+    .eq('id', rowId)
+    .eq('status', 'failed')
+    .select('id');
+  return !error && !!data && (data as unknown[]).length > 0;
 }
 
-async function alertReconciled(
-  deps: Pick<ProcessShowDeps, 'alertAdmin'>,
-  show: ShowRef,
-  transfer: FoundTransfer,
-  ledgerCents: number | null
-) {
-  const ledger =
-    ledgerCents !== null && ledgerCents !== transfer.amount
-      ? `<p>The payout record said ${formatDollars(ledgerCents)}; it now shows Stripe's amount.</p>`
-      : '';
-  await deps.alertAdmin(
-    `Payout reconciled with Stripe: ${show.name}`,
-    `<p>Stripe already has ${transferLine(transfer)} for
-     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>). The payout is
-     now recorded as sent and nothing new was queued or sent.</p>${ledger}
-     <p>Check the transfer in the Stripe dashboard. If a refund was issued after it was sent,
-     the club was overpaid: recover the difference with a transfer reversal.</p>`,
-    { dedupeKey: `payout-reconciled-${show.id}`, severity: 'warn' }
-  );
-}
-
-export async function reportLookupError(
-  deps: Pick<ProcessShowDeps, 'alertAdmin'>,
+/**
+ * Record a transfer Stripe already has on `rowId` and tell the operator.
+ * Returns true when it was recorded. On a failed write it is a reconciliation
+ * error; a row that was 'failed' is first moved to 'processing' so refunds
+ * stay blocked. `alwaysAlert` sends the warn alert even with nothing unusual.
+ */
+export async function settleFoundTransfer(
+  deps: ProcessShowDeps,
   summary: PayoutSummary,
   show: ShowRef,
-  message: string
-) {
-  summary.transfer_lookup_errors++;
-  console.error(`Stripe transfer lookup failed for show ${show.id}: ${message}`);
-  await deps.alertAdmin(
-    `Payout could not be checked with Stripe: ${show.name}`,
-    `<p>The payout run could not ask Stripe whether money already went out for
-     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>), so nothing was
-     queued or sent this run.</p>
-     <pre>${escapeHtml(message)}</pre>
-     <p>The next run asks again. If this repeats, check the Stripe status page and key.</p>`,
-    { dedupeKey: `payout-transfer-lookup-error-${show.id}`, severity: 'error' }
+  found: { rowId: string; fromStatus: string; ledgerCents: number | null; alwaysAlert: boolean },
+  lookup: Extract<TransferLookup, { kind: 'found' }>
+): Promise<boolean> {
+  const { supabase } = deps;
+  const { transfer, liveCount } = lookup;
+  const record = await recordStripeTransfer(
+    supabase,
+    found.rowId,
+    found.fromStatus,
+    transfer,
+    show.club_id
   );
-}
-
-/** Stripe moved money but the payout record could not say so. */
-export async function reportReconcileError(
-  deps: Pick<ProcessShowDeps, 'alertAdmin'>,
-  summary: PayoutSummary,
-  show: ShowRef,
-  transfer: FoundTransfer,
-  message: string
-) {
-  summary.reconciliation_errors++;
-  console.error(`Payout for show ${show.id} sent as ${transfer.id} but not recorded: ${message}`);
-  await deps.alertAdmin(
-    `Payout sent but not recorded: ${show.name}`,
-    `<p>Stripe has ${transferLine(transfer)} for <strong>${escapeHtml(show.name)}</strong>
-     (show <code>${show.id}</code>), but the payout record could not be updated:</p>
-     <pre>${escapeHtml(message)}</pre>
-     <p>Nothing will be sent again for this show: the run checks Stripe first. Mark the
-     show_payouts row completed with this transfer id and amount, and do not refund
-     against this show until it is.</p>`,
-    { dedupeKey: `payout-reconcile-error-${show.id}`, severity: 'error' }
-  );
-}
-
-/** A payout record write failed before any money moved. */
-export async function reportLedgerWriteError(
-  deps: Pick<ProcessShowDeps, 'alertAdmin'>,
-  summary: PayoutSummary,
-  show: ShowRef,
-  step: string,
-  message: string
-) {
-  summary.ledger_write_errors++;
-  console.error(`Payout record write failed for show ${show.id} (${step}): ${message}`);
-  await deps.alertAdmin(
-    `Payout record could not be saved: ${show.name}`,
-    `<p>The payout run could not save the payout record for
-     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>) while it was
-     trying to ${escapeHtml(step)}. No money moved in this step.</p>
-     <pre>${escapeHtml(message)}</pre>
-     <p>The next run tries again. If this repeats, read the cron-process-payouts logs.</p>`,
-    { dedupeKey: `payout-ledger-write-${show.id}`, severity: 'error' }
-  );
+  if (record.error) {
+    const blocked =
+      found.fromStatus === 'failed' ? await holdAsProcessing(supabase, found.rowId) : true;
+    await reportReconcileError(deps, summary, show, transfer, record.error, blocked);
+    return false;
+  }
+  const facts = transferFacts(transfer, liveCount, record.clubAccount);
+  if (found.alwaysAlert || facts.length > 0) {
+    await alertReconciled(deps, show, transfer, found.ledgerCents, facts);
+  }
+  return true;
 }
 
 export type FailedAttemptCheck = { kind: 'proceed'; lock: HeldMoneyLock | null } | { kind: 'stop' };
@@ -227,18 +212,13 @@ export async function checkFailedAttempt(
       return { kind: 'stop' };
     }
     if (lookup.kind === 'found') {
-      const writeError = await recordStripeTransfer(
-        supabase,
-        latest.id as string,
-        'failed',
-        lookup.transfer
-      );
-      if (writeError) {
-        await reportReconcileError(deps, summary, show, lookup.transfer, writeError);
-      } else {
-        summary.reconciled++;
-        await alertReconciled(deps, show, lookup.transfer, latest.amount_cents as number);
-      }
+      const found = {
+        rowId: latest.id as string,
+        fromStatus: 'failed',
+        ledgerCents: latest.amount_cents as number,
+        alwaysAlert: true,
+      };
+      if (await settleFoundTransfer(deps, summary, show, found, lookup)) summary.reconciled++;
       return { kind: 'stop' };
     }
     handedOff = true;
@@ -252,14 +232,14 @@ interface StaleRow {
   id: string;
   show_id: string;
   amount_cents: number;
-  shows: { name: string } | null;
+  shows: { name: string; club_id: string | null } | null;
 }
 
 /**
  * Payouts stuck in 'processing' past the stale threshold: a run died between
- * claim and record, so money may or may not have moved. Each stays
- * 'processing' (refunds blocked) until Stripe answers: a transfer it has is
- * recorded as sent; none means it failed and the show may be retried.
+ * claim and record, or Stripe gave no clear answer, so money may or may not
+ * have moved. Each stays 'processing' (refunds blocked) until Stripe answers:
+ * a transfer it has is recorded as sent; none means it failed for retry.
  */
 export async function recoverStaleProcessing(
   deps: ProcessShowDeps,
@@ -269,7 +249,7 @@ export async function recoverStaleProcessing(
   const { supabase } = deps;
   const { data: stale, error } = await supabase
     .from('show_payouts')
-    .select('id, show_id, amount_cents, shows(name)')
+    .select('id, show_id, amount_cents, shows(name, club_id)')
     .eq('status', 'processing')
     .lt('updated_at', staleBeforeIso);
   if (error) {
@@ -277,7 +257,11 @@ export async function recoverStaleProcessing(
     return;
   }
   for (const row of (stale ?? []) as unknown as StaleRow[]) {
-    const show = { id: row.show_id, name: row.shows?.name ?? row.show_id };
+    const show = {
+      id: row.show_id,
+      name: row.shows?.name ?? row.show_id,
+      club_id: row.shows?.club_id ?? null,
+    };
     const lock = await deps.acquireMoneyLock(row.show_id);
     if (!lock.ok) {
       summary.money_lock_busy++;
@@ -290,18 +274,13 @@ export async function recoverStaleProcessing(
         continue;
       }
       if (lookup.kind === 'found') {
-        const writeError = await recordStripeTransfer(
-          supabase,
-          row.id,
-          'processing',
-          lookup.transfer
-        );
-        if (writeError) {
-          await reportReconcileError(deps, summary, show, lookup.transfer, writeError);
-        } else {
-          summary.reconciled++;
-          await alertReconciled(deps, show, lookup.transfer, row.amount_cents);
-        }
+        const found = {
+          rowId: row.id,
+          fromStatus: 'processing',
+          ledgerCents: row.amount_cents,
+          alwaysAlert: true,
+        };
+        if (await settleFoundTransfer(deps, summary, show, found, lookup)) summary.reconciled++;
         continue;
       }
       const { error: failError } = await supabase
@@ -310,13 +289,8 @@ export async function recoverStaleProcessing(
         .eq('id', row.id)
         .eq('status', 'processing');
       if (failError) {
-        await reportLedgerWriteError(
-          deps,
-          summary,
-          show,
-          'mark a stuck payout failed',
-          failError.message
-        );
+        const step = 'mark a stuck payout failed';
+        await reportLedgerWriteError(deps, summary, show, step, failError.message);
         continue;
       }
       summary.stale_recovered++;

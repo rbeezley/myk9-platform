@@ -10,6 +10,7 @@ import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import { locateShowField } from './ShowEditPanel.validationTab';
 import { DEFAULT_SHOW_EDIT_TAB, type ShowEditTab } from '@/components/shows/showEditRoutes';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
+import { PREMIUM_PENDING_REASON } from '@/features/premium/premiumPendingCopy';
 import { EditingBadge } from '@/features/show-presence/EditingBadge';
 
 // Cast needed: Zod's .optional() outputs `T | undefined` in its _output type,
@@ -66,6 +67,9 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
     [onDelete, setActiveTab]
   );
 
+  // MYK9-2144: while the Premium tab regenerates, Save holds so the old premium cannot go out.
+  const [premiumPending, setPremiumPending] = useState(false);
+
   // Convert show data to form data
   const initialFormData = useMemo(() => showToFormData(initialShowData), [initialShowData]);
 
@@ -107,6 +111,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
       onDelete={deleteOption}
       successMessage={data => savedMessage(data.name || showName)}
       onValidationFail={handleValidationFail}
+      {...(premiumPending ? { saveBlockedReason: PREMIUM_PENDING_REASON } : {})}
     >
       {/* Advisory heads-up if another staff member already has this show open. */}
       <EditingBadge entityType="show" entityId={showId} className="mb-3" />
@@ -115,6 +120,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
         onTabChange={setActiveTab}
         initialStatus={initialShowData?.status}
         onClose={onClose}
+        onPremiumPendingChange={setPremiumPending}
       />
     </EditPanelWrapper>
   );

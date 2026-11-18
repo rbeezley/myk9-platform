@@ -422,7 +422,9 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
             // still shows when the capacity read fails.
             const targetTrialId = requested?.trialId ?? targetClass?.trial_id;
             // Lateness is measured against the trial the dog is asking to move into.
-            const startTrial = trialStarts[targetTrialId ?? trialId];
+            // When that trial cannot be determined there is no note, never one
+            // measured against the source trial.
+            const startTrial = targetTrialId ? trialStarts[targetTrialId] : undefined;
             const trialLabels = requestTrialLabels(trialFacts, trialId, targetTrialId);
             const lateNote = lateRequestNote(
               minutesBeforeStart(stored?.requestedAt, trialStartInstant(startTrial))

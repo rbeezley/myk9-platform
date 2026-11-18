@@ -487,9 +487,9 @@ SELECT set_config('request.jwt.claims',
 INSERT INTO t1930_offer
 SELECT public.promote_waitlist_entry('00000000-0000-0000-0000-000001930912');
 
--- Paid with no method at all (entries_payment_method_check allows no method outside its list,
--- so "none" is the only shape besides the named ones): nothing is recorded, the form owes.
-SELECT pg_temp.desk_insert(13, 13, '31', 'paid', NULL, 30);
+-- Paid with a method the CHECK allows that is neither box money nor secretary_paid /
+-- group_payment (waived), and with no method at all: nothing is recorded, the form owes.
+SELECT pg_temp.desk_insert(13, 13, '31', 'paid', 'waived', 30);
 SELECT pg_temp.desk_insert(14, 14, '31', 'paid', NULL, 30);
 
 -- submit_show_entries with no form (an official calling the RPC directly): desk entries, so
@@ -543,7 +543,7 @@ BEGIN
   RAISE NOTICE 'PASS a manual waitlist offer (awaiting card payment) stays formless';
 
   IF pg_temp.form1930(13) IS DISTINCT FROM
-       'status=pending total=3000 paid=0.00 refund=0.00 method=null payments=none'
+       'status=pending total=3000 paid=0.00 refund=0.00 method=waived payments=none'
      OR pg_temp.form1930(14) IS DISTINCT FROM
        'status=pending total=3000 paid=0.00 refund=0.00 method=null payments=none' THEN
     RAISE EXCEPTION 'FAIL a paid entry with another or no method invented money: [%] [%]',

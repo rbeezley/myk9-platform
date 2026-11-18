@@ -268,7 +268,7 @@ async function processShow(show: EligibleShow, summary: Record<string, number>, 
           amount_cents: amountCents,
           status: 'processing',
           scheduled_date: new Date().toISOString().slice(0, 10),
-          // A retry of an approved attempt keeps its approval (MYK9-2170).
+          // A self-healing retry of an approved attempt keeps its approval (MYK9-2170).
           ...(carriedApprovalAt ? { approved_at: carriedApprovalAt } : {}),
         })
         .select('id')

@@ -3,6 +3,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
+  carriedApprovalFrom,
   parseBrakeSetting,
   type AwaitingPayout,
   type BrakeSetting,
@@ -19,9 +20,10 @@ export async function loadPayoutBrake(supabase: SupabaseClient): Promise<BrakeSe
 
 /**
  * The approval stamp of the show's latest attempt when that attempt failed
- * after a site admin approved it: the retry row inherits it instead of waiting
- * for a second approval. null otherwise, including on a read error (the payout
- * then waits for approval, the safe side).
+ * for a self-healing reason after a site admin approved it: the retry row
+ * inherits it instead of waiting for a second approval (carriedApprovalFrom).
+ * null otherwise, including on a read error (the payout then waits for
+ * approval, the safe side).
  */
 export async function loadCarriedApproval(
   supabase: SupabaseClient,
@@ -29,13 +31,17 @@ export async function loadCarriedApproval(
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from('show_payouts')
-    .select('status, approved_at')
+    .select('status, approved_at, failure_reason')
     .eq('show_id', showId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error || !data || data.status !== 'failed') return null;
-  return (data.approved_at as string | null) ?? null;
+  if (error || !data) return null;
+  return carriedApprovalFrom({
+    status: data.status as string,
+    approved_at: (data.approved_at as string | null) ?? null,
+    failure_reason: (data.failure_reason as string | null) ?? null,
+  });
 }
 
 /**

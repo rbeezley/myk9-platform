@@ -47,7 +47,8 @@ export function shouldEvaluateShow(liveStatus: string | null): boolean {
 /**
  * At the point the run would send: send, or record the payout as waiting.
  * An approved row sends whatever the brake says, because a person approved it.
- * So does a retry of an approved attempt that failed (`carriedApprovalAt`).
+ * So does a retry of an approved attempt that failed for a self-healing
+ * reason (`carriedApprovalAt`, see carriedApprovalFrom).
  * With the brake off nothing waits, including a row recorded while it was on.
  */
 export function sendOrWait(input: {
@@ -58,6 +59,35 @@ export function sendOrWait(input: {
   if (input.liveStatus === 'approved') return 'send';
   if (input.carriedApprovalAt) return 'send';
   return input.brakeOn ? 'wait_for_approval' : 'send';
+}
+
+/**
+ * Whether an approved attempt that failed keeps its approval for the retry.
+ * Only the run's self-healing failures do: a card-clearing balance delay, a
+ * stale 'processing' row reopened for retry, or an entries read that failed
+ * after the claim (nothing reached Stripe). Any other failure (a closed or
+ * changed bank account, a Stripe rejection) means the facts the approval was
+ * given on may have changed, so the retry waits for approval again.
+ * Same set as payoutBadge.ts's isSelfHealingFailure.
+ */
+export function approvalSurvivesFailure(failureReason: string | null | undefined): boolean {
+  if (!failureReason) return false;
+  return (
+    failureReason.startsWith('insufficient_balance') ||
+    failureReason === 'stale_processing' ||
+    failureReason === 'entries_load_failed_post_claim'
+  );
+}
+
+/**
+ * The approval a retry row inherits from the show's latest attempt: its
+ * approved_at when that attempt failed for a self-healing reason, else null.
+ */
+export function carriedApprovalFrom(
+  latest: { status: string; approved_at: string | null; failure_reason: string | null } | null
+): string | null {
+  if (!latest || latest.status !== 'failed' || !latest.approved_at) return null;
+  return approvalSurvivesFailure(latest.failure_reason) ? latest.approved_at : null;
 }
 
 export type BrakeSetting = { ok: true; on: boolean } | { ok: false; message: string };

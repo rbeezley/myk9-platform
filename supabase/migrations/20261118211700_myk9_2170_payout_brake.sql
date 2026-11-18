@@ -23,9 +23,11 @@
 --    (show_payouts_one_live_per_show, WHERE status <> 'failed') covers them:
 --    a show still has at most one live row.
 --    approved_at: stamped by the approve RPC. A transfer attempt that fails
---      after approval (a card-clearing balance delay) leaves a failed row, and
---      the next run carries this stamp onto the retry row instead of asking for
---      approval again.
+--      after approval for a self-healing reason (a card-clearing balance delay,
+--      stale processing recovery, an entries read after the claim) leaves a
+--      failed row, and the next run carries this stamp onto the retry row
+--      instead of asking for approval again. Any other failure waits for a new
+--      approval (carriedApprovalFrom in _shared/payoutApproval.ts).
 --    last_reminded_at: the cron's once-a-day reminder claim.
 --
 -- 3. payout_approval_events: append-only record of brake switches and of each
@@ -43,10 +45,23 @@
 --    resolve the payout's daily reminder alert (operator_alerts, source
 --    'cron-process-payouts', dedupe_key 'payout-awaiting-approval-<id>').
 --
+-- 5. financial_reconciliation_summary: payout_pending_cents (money still owed
+--    to clubs) includes the three new statuses (section 7 below).
+--
+-- 6. system_health_probe (both overloads): payout_ledger.in_flight includes the
+--    three new statuses, so the board reads them as in flight, not settled
+--    (section 8 below).
+--
+-- Deploy order: deploy cron-process-payouts BEFORE pushing this migration.
+-- The new function reads payouts_require_approval first and, without the
+-- column, stops the run with a 500 before anything is sent or recorded; the old
+-- function against the new schema would send without approval.
+--
 -- Behavioral coverage (CI only): supabase/tests/myk9_2170_payout_brake_test.sql
 -- Rollback: drop the two functions, the trigger and its function, the table and
--- the three columns, and restore the four-status CHECK (after moving any rows
--- in the new statuses back to 'pending').
+-- the three columns, restore the four-status CHECK (after moving any rows in
+-- the new statuses back to 'pending'), and re-run the financial summary and
+-- probe definitions from 20261004193700 and 20261008124700.
 -- =============================================================================
 
 BEGIN;
@@ -302,6 +317,552 @@ $$;
 REVOKE ALL ON FUNCTION public.hold_show_payout(uuid, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.hold_show_payout(uuid, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.hold_show_payout(uuid, text) TO authenticated;
+
+-- -----------------------------------------------------------------------------
+-- 7. Money owed counts payouts waiting on the brake
+--    financial_reconciliation_summary, COPIED FROM THE LATEST DEFINITION
+--    (20261004193700_myk9_997_platform_income_club_funded_refunds.sql). One
+--    change: payout_pending_cents (not yet sent, still owed to the club) also
+--    sums awaiting_approval, approved and held, so the outstanding figure
+--    (pending + failed, financialSummary.ts) no longer drops them. Same return
+--    type, so CREATE OR REPLACE; grants restated as that migration did.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.financial_reconciliation_summary(
+  p_scope   text,
+  p_club_id uuid DEFAULT NULL,
+  p_show_id uuid DEFAULT NULL
+)
+RETURNS TABLE (
+  -- Charge verification side (stripe_orders, ENTRY orders only)
+  order_count                  bigint,
+  gross_charged_cents          bigint,
+  entry_subtotal_cents         bigint,
+  platform_fee_cents           bigint,
+  processing_fee_cents         bigint,  -- SUM of CAPTURED fees only (NULLs excluded)
+  processing_fee_pending_count bigint,  -- orders whose fee is not yet captured (pending, not zero)
+  -- PENDING-FEE RESIDUAL inputs: the entry totals restricted to the orders whose
+  -- processing fee is NOT captured (see 20260717130000 for the derivation).
+  pending_fee_platform_fee_cents bigint,
+  pending_fee_refunded_cents     bigint,
+  refunded_cents               bigint,  -- every POST-HOC refund (club- and platform-funded)
+  make_whole_refunded_cents    bigint,  -- cart-overflow make-whole: returned, but NOT a platform loss
+  snapshot_missing_count       bigint,  -- legacy ENTRY orders missing EITHER snapshot column
+  non_entry_order_count        bigint,
+  non_entry_gross_cents        bigint,
+  non_entry_refunded_cents     bigint,
+  non_entry_make_whole_refunded_cents bigint,
+  -- Payout settlement side (show_payouts) — kept independent of charge facts
+  payout_count                 bigint,
+  payout_completed_cents       bigint,
+  payout_pending_cents         bigint,
+  payout_failed_cents          bigint,
+  payout_failed_count          bigint,
+  -- MYK9-997 (appended)
+  club_funded_refunded_cents             bigint,
+  pending_fee_club_funded_refunded_cents bigint
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM public._financial_reconciliation_authorize(p_scope, p_club_id, p_show_id);
+
+  RETURN QUERY
+  WITH scoped_charges AS (
+    SELECT o.order_type,
+           o.amount_cents,
+           o.entry_subtotal_cents,
+           o.platform_fee_cents,
+           o.stripe_processing_fee_cents,
+           o.refunded_cents,
+           o.make_whole_refunded_cents,
+           o.club_funded_refunded_cents
+    FROM public.stripe_orders o
+    WHERE (
+        o.status IN ('succeeded', 'refunded')
+        OR o.refunded_cents > 0
+        OR o.make_whole_refunded_cents > 0
+      )
+      AND (
+        p_scope = 'platform'
+        OR (p_scope = 'show' AND o.show_id = p_show_id)
+        OR (p_scope = 'club' AND o.show_id IN (
+              SELECT s.id FROM public.shows s WHERE s.club_id = p_club_id))
+      )
+  ),
+  -- Entry accounting covers ENTRY orders only (see ORDER-TYPE SCOPING in
+  -- 20260717130000).
+  scoped_orders AS (
+    SELECT * FROM scoped_charges WHERE order_type = 'entry'
+  ),
+  scoped_non_entry AS (
+    SELECT * FROM scoped_charges WHERE order_type IS DISTINCT FROM 'entry'
+  ),
+  -- SUPERSEDED FAILED PAYOUTS: see 20260717130000. A failed row is
+  -- outstanding only when its show has no live payout row and it is the
+  -- show's latest failed attempt.
+  scoped_payouts AS (
+    SELECT sp.amount_cents,
+           sp.status,
+           EXISTS (
+             SELECT 1 FROM public.show_payouts live
+             WHERE live.show_id = sp.show_id
+               AND live.status <> 'failed'
+           ) AS has_live_payout,
+           NOT EXISTS (
+             SELECT 1 FROM public.show_payouts newer
+             WHERE newer.show_id = sp.show_id
+               AND newer.status = 'failed'
+               AND (newer.created_at, newer.id) > (sp.created_at, sp.id)
+           ) AS is_latest_failed
+    FROM public.show_payouts sp
+    WHERE (
+        p_scope = 'platform'
+        OR (p_scope = 'show' AND sp.show_id = p_show_id)
+        OR (p_scope = 'club' AND sp.show_id IN (
+              SELECT s.id FROM public.shows s WHERE s.club_id = p_club_id))
+      )
+  )
+  -- EVERY column reference below is qualified with a CTE alias: the RETURNS
+  -- TABLE output columns are PL/pgSQL variables, and an unqualified reference
+  -- raises "column reference ... is ambiguous" at RUNTIME.
+  SELECT
+    (SELECT count(*)                                            FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.amount_cents), 0)                   FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.entry_subtotal_cents), 0)           FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.platform_fee_cents), 0)             FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.stripe_processing_fee_cents), 0)    FROM scoped_orders so),
+    (SELECT count(*) FROM scoped_orders so WHERE so.stripe_processing_fee_cents IS NULL),
+    (SELECT COALESCE(SUM(so.platform_fee_cents), 0) FROM scoped_orders so
+      WHERE so.stripe_processing_fee_cents IS NULL),
+    (SELECT COALESCE(SUM(so.refunded_cents), 0)     FROM scoped_orders so
+      WHERE so.stripe_processing_fee_cents IS NULL),
+    (SELECT COALESCE(SUM(so.refunded_cents), 0)                 FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.make_whole_refunded_cents), 0)      FROM scoped_orders so),
+    (SELECT count(*) FROM scoped_orders so
+      WHERE so.platform_fee_cents IS NULL OR so.entry_subtotal_cents IS NULL),
+    (SELECT count(*)                                            FROM scoped_non_entry ne),
+    (SELECT COALESCE(SUM(ne.amount_cents), 0)                   FROM scoped_non_entry ne),
+    (SELECT COALESCE(SUM(ne.refunded_cents), 0)                 FROM scoped_non_entry ne),
+    (SELECT COALESCE(SUM(ne.make_whole_refunded_cents), 0)      FROM scoped_non_entry ne),
+    (SELECT count(*)                                            FROM scoped_payouts sp),
+    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status = 'completed'),
+    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp WHERE sp.status IN ('pending', 'processing', 'awaiting_approval', 'approved', 'held')),
+    (SELECT COALESCE(SUM(sp.amount_cents), 0) FROM scoped_payouts sp
+      WHERE sp.status = 'failed' AND NOT sp.has_live_payout AND sp.is_latest_failed),
+    (SELECT count(*) FROM scoped_payouts sp
+      WHERE sp.status = 'failed' AND NOT sp.has_live_payout AND sp.is_latest_failed),
+    -- MYK9-997: the club-funded share of the post-hoc refunds above, overall
+    -- and on the not-yet-captured orders. Net income subtracts only the rest.
+    (SELECT COALESCE(SUM(so.club_funded_refunded_cents), 0)     FROM scoped_orders so),
+    (SELECT COALESCE(SUM(so.club_funded_refunded_cents), 0)     FROM scoped_orders so
+      WHERE so.stripe_processing_fee_cents IS NULL);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.financial_reconciliation_summary(text, uuid, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.financial_reconciliation_summary(text, uuid, uuid)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.financial_reconciliation_summary(text, uuid, uuid)
+  TO authenticated, service_role;
+
+-- -----------------------------------------------------------------------------
+-- 8. The health board counts payouts waiting on the brake as in flight
+--    Both system_health_probe overloads, COPIED FROM THE LATEST DEFINITIONS
+--    (20261008124700_myk9_1052_health_probe_cron_history_one_pass.sql). One
+--    change in each: payout_ledger.in_flight also counts awaiting_approval,
+--    approved and held, so the payout ledger check reports them as in flight
+--    instead of "all N payouts settled". stale_in_flight still counts only
+--    'processing': a payout waiting for a person is not a stalled run.
+-- -----------------------------------------------------------------------------
+create or replace function public.system_health_probe()
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  return jsonb_build_object(
+    'probed_at', now(),
+    'latest_migration', (
+      select version
+      from supabase_migrations.schema_migrations
+      order by version desc
+      limit 1
+    ),
+    'migration_count', (
+      select count(*)
+      from supabase_migrations.schema_migrations
+    ),
+    'ringside_conflict_counter', (
+      select coalesce(last_value, 0)
+      from pg_sequences
+      where schemaname = 'public' and sequencename = 'ringside_conflict_seq'
+    ),
+    'ringside_containment', (
+      select jsonb_build_object(
+        'state',                     c.state,
+        'tripped_at',                c.tripped_at,
+        'trip_conflict_delta',       c.trip_conflict_delta,
+        'trip_reason',               c.trip_reason,
+        'trip_conflicts_per_minute', c.trip_conflicts_per_minute,
+        'backpressure_ms',           c.backpressure_ms,
+        'calibrated',                c.calibrated,
+        'last_sample_at',            c.last_sample_at
+      )
+      from public.ringside_containment c
+    ),
+    -- One row per show: its most recent payout attempt.
+    'payout_ledger', (
+      with latest as (
+        select distinct on (p.show_id) p.*
+        from public.show_payouts p
+        order by p.show_id, p.created_at desc
+      )
+      select jsonb_build_object(
+        'total',               count(*),
+        'failed',              count(*) filter (where l.status = 'failed'),
+        'failed_amount_cents', coalesce(sum(l.amount_cents) filter (where l.status = 'failed'), 0),
+        'in_flight',           count(*) filter (where l.status in ('pending', 'processing', 'awaiting_approval', 'approved', 'held')),
+        'stale_in_flight',     count(*) filter (
+                                 where l.status = 'processing'
+                                   and l.updated_at < now() - interval '26 hours'
+                               ),
+        'oldest_in_flight_at', min(l.updated_at) filter (where l.status = 'processing'),
+        'last_completed_at',   max(l.completed_at) filter (where l.status = 'completed'),
+        'failure_reasons', (
+          select coalesce(jsonb_agg(distinct f.failure_reason), '[]'::jsonb)
+          from latest f
+          where f.status = 'failed' and f.failure_reason is not null
+        )
+      )
+      from latest l
+    ),
+    'anon_grants', jsonb_build_object(
+      'tables', (
+        select coalesce(jsonb_agg(t order by t->>'name'), '[]'::jsonb)
+        from (
+          select jsonb_build_object(
+            'name',  c.relname,
+            'kind',  c.relkind::text,
+            'privs', split_part(split_part(acl::text, '=', 2), '/', 1)
+          ) as t
+          from pg_class c
+          cross join lateral unnest(coalesce(c.relacl, '{}'::aclitem[])) as acl
+          where c.relnamespace = 'public'::regnamespace
+            and c.relkind in ('r', 'p', 'v', 'm')
+            and split_part(acl::text, '=', 1) = 'anon'
+        ) sub
+      ),
+      'columns', (
+        select coalesce(jsonb_agg(x order by x->>'name', x->>'column'), '[]'::jsonb)
+        from (
+          select jsonb_build_object(
+            'name',   c.relname,
+            'column', a.attname,
+            'privs',  split_part(split_part(acl::text, '=', 2), '/', 1)
+          ) as x
+          from pg_class c
+          join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+          cross join lateral unnest(coalesce(a.attacl, '{}'::aclitem[])) as acl
+          where c.relnamespace = 'public'::regnamespace
+            and split_part(acl::text, '=', 1) = 'anon'
+        ) sub
+      ),
+      'defaults', (
+        select coalesce(jsonb_agg(d order by d->>'grantor', d->>'objtype'), '[]'::jsonb)
+        from (
+          select jsonb_build_object(
+            'grantor', da.defaclrole::regrole::text,
+            'objtype', da.defaclobjtype::text,
+            'privs',   split_part(split_part(acl::text, '=', 2), '/', 1)
+          ) as d
+          from pg_default_acl da
+          join pg_namespace n on n.oid = da.defaclnamespace
+          cross join lateral unnest(coalesce(da.defaclacl, '{}'::aclitem[])) as acl
+          where n.nspname = 'public'
+            and split_part(acl::text, '=', 1) = 'anon'
+        ) sub
+      )
+    ),
+    'applied_acl_grants', jsonb_build_object(
+      -- Every public table is emitted, including the empty-grant rows, so a
+      -- missing authenticated grant cannot disappear from the snapshot.
+      'tables', (
+        select coalesce(jsonb_agg(t order by t->>'name'), '[]'::jsonb)
+        from (
+          select jsonb_build_object(
+            'name', c.relname,
+            'privs', array_to_string(
+              array(
+                select p.privilege
+                from unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE']) as p(privilege)
+                where has_table_privilege(
+                  'authenticated', format('public.%I', c.relname), p.privilege
+                )
+              ), ','
+            )
+          ) as t
+          from pg_class c
+          where c.relnamespace = 'public'::regnamespace
+            and c.relkind = 'r'
+        ) sub
+      ),
+      -- These privileges are not constrained by RLS. Emit any occurrence for
+      -- either API role; the runner turns it red regardless of CRUD status.
+      'forbidden_tables', (
+        select coalesce(jsonb_agg(x order by x->>'role', x->>'name'), '[]'::jsonb)
+        from (
+          select jsonb_build_object(
+            'name', c.relname,
+            'role', r.role_name,
+            'privs', array_to_string(
+              array(
+                select p.privilege
+                from unnest(array['TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN']) as p(privilege)
+                where has_table_privilege(
+                  r.role_name, format('public.%I', c.relname), p.privilege
+                )
+              ), ','
+            )
+          ) as x
+          from pg_class c
+          cross join (values ('anon'), ('authenticated')) as r(role_name)
+          where c.relnamespace = 'public'::regnamespace
+            and c.relkind = 'r'
+            and exists (
+              select 1
+              from unnest(array['TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN']) as p(privilege)
+              where has_table_privilege(
+                r.role_name, format('public.%I', c.relname), p.privilege
+              )
+            )
+        ) sub
+      ),
+      -- Include all three API roles for every public sequence. This captures
+      -- service_role's intentional grants and authenticated's withheld UPDATE
+      -- on registration_confirmation_seq as applied privileges, not text.
+      'sequences', (
+        select coalesce(jsonb_agg(s order by s->>'name', s->>'role'), '[]'::jsonb)
+        from (
+          select jsonb_build_object(
+            'name', c.relname,
+            'role', r.role_name,
+            'privs', array_to_string(
+              array(
+                select p.privilege
+                from unnest(array['SELECT', 'UPDATE', 'USAGE']) as p(privilege)
+                where has_sequence_privilege(
+                  r.role_name, format('public.%I', c.relname), p.privilege
+                )
+              ), ','
+            )
+          ) as s
+          from pg_class c
+          cross join (values ('anon'), ('authenticated'), ('service_role')) as r(role_name)
+          where c.relnamespace = 'public'::regnamespace
+            and c.relkind = 'S'
+        ) sub
+      ),
+      -- `supabase_admin` defaults are the known hosted-role exception. Any
+      -- PUBLIC/anon/authenticated sequence default under another grantor means
+      -- a revoked default has regrown and must fail the daily snapshot.
+      'defaults', (
+        select coalesce(jsonb_agg(d order by d->>'grantor', d->>'role'), '[]'::jsonb)
+        from (
+          select jsonb_build_object(
+            'grantor', da.defaclrole::regrole::text,
+            'role', coalesce(nullif(split_part(acl::text, '=', 1), ''), 'PUBLIC'),
+            'objtype', da.defaclobjtype::text,
+            'privs', split_part(split_part(acl::text, '=', 2), '/', 1)
+          ) as d
+          from pg_default_acl da
+          join pg_namespace n on n.oid = da.defaclnamespace
+          cross join lateral unnest(coalesce(da.defaclacl, '{}'::aclitem[])) as acl
+          where n.nspname = 'public'
+            and da.defaclobjtype = 'S'
+            and coalesce(nullif(split_part(acl::text, '=', 1), ''), 'PUBLIC')
+              in ('PUBLIC', 'anon', 'authenticated')
+        ) sub
+      )
+    ),
+    'cron_jobs', (
+      select coalesce(jsonb_agg(j order by j->>'jobname'), '[]'::jsonb)
+      from (
+        select jsonb_build_object(
+          'jobname',          job.jobname,
+          'active',           job.active,
+          'dispatches_http',  (position('net.http_post' in coalesce(job.command, '')) > 0),
+          'last_status',      lr.status,
+          'last_start',       lr.start_time,
+          'last_end',         lr.end_time,
+          'last_message',     lr.return_message
+        ) as j
+        from cron.job job
+        -- One pass over the run history for every job. A lateral lookup per job seq-scanned
+        -- cron.job_run_details once per job (there is no usable index and the table belongs
+        -- to supabase_admin), about 1 GB of reads per probe once the history reached 144k rows.
+        -- The last 8 days only bounds the sort; every job runs at least daily, so its latest run is in it.
+        left join (
+          select distinct on (d.jobid) d.jobid, d.status, d.start_time, d.end_time, d.return_message
+          from cron.job_run_details d
+          where d.start_time > now() - interval '8 days' or d.start_time is null
+          order by d.jobid, d.start_time desc nulls last, d.runid desc
+        ) lr on lr.jobid = job.jobid
+      ) sub
+    )
+  );
+end;
+$$;
+
+comment on function public.system_health_probe() is
+  'Read-only health facts (scheduled cron jobs + last-run outcome, newest applied migration, ringside OCC conflict counter, MYK9-115 containment breaker state, payout-ledger outcomes as the latest attempt per show, applied anon ACLs, and applied authenticated/table/sequence ACLs) for the cron-health-check runner. SECURITY DEFINER so service_role can read cron.* / supabase_migrations.* / pg_default_acl which PostgREST does not expose. Runs no health logic; the ok/warn/fail mapping lives in the runner.';
+
+revoke all on function public.system_health_probe() from public;
+revoke all on function public.system_health_probe() from anon;
+revoke all on function public.system_health_probe() from authenticated;
+grant execute on function public.system_health_probe() to service_role;
+
+-- 1b.
+create or replace function public.system_health_probe(p_include_expensive boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_facts jsonb;
+begin
+  if p_include_expensive then
+    v_facts := public.system_health_probe();
+
+    return v_facts || jsonb_build_object(
+      'sign_in_email_drift', public.sign_in_email_drift(),
+      'applied_acl_grants', coalesce(v_facts->'applied_acl_grants', '{}'::jsonb)
+        || jsonb_build_object(
+          'service_role_tables', (
+            select coalesce(jsonb_agg(t order by t->>'name'), '[]'::jsonb)
+            from (
+              select jsonb_build_object(
+                'name', c.relname,
+                'privs', array_to_string(
+                  array(
+                    select p.privilege
+                    from unnest(
+                      array[
+                        'SELECT', 'INSERT', 'UPDATE', 'DELETE',
+                        'TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN'
+                      ]
+                    ) as p(privilege)
+                    where has_table_privilege(
+                      'service_role', format('public.%I', c.relname), p.privilege
+                    )
+                  ), ','
+                )
+              ) as t
+              from pg_class c
+              where c.relnamespace = 'public'::regnamespace
+                and c.relkind = 'r'
+            ) sub
+          )
+        )
+    );
+  end if;
+
+  return jsonb_build_object(
+    'probed_at', now(),
+    'latest_migration', (
+      select version
+      from supabase_migrations.schema_migrations
+      order by version desc
+      limit 1
+    ),
+    'migration_count', (
+      select count(*)
+      from supabase_migrations.schema_migrations
+    ),
+    'ringside_conflict_counter', (
+      select coalesce(last_value, 0)
+      from pg_sequences
+      where schemaname = 'public' and sequencename = 'ringside_conflict_seq'
+    ),
+    'sign_in_email_drift', public.sign_in_email_drift(),
+    'ringside_containment', (
+      select jsonb_build_object(
+        'state',                     c.state,
+        'tripped_at',                c.tripped_at,
+        'trip_conflict_delta',       c.trip_conflict_delta,
+        'trip_reason',               c.trip_reason,
+        'trip_conflicts_per_minute', c.trip_conflicts_per_minute,
+        'backpressure_ms',           c.backpressure_ms,
+        'calibrated',                c.calibrated,
+        'last_sample_at',            c.last_sample_at
+      )
+      from public.ringside_containment c
+    ),
+    'payout_ledger', (
+      with latest as (
+        select distinct on (p.show_id) p.*
+        from public.show_payouts p
+        order by p.show_id, p.created_at desc
+      )
+      select jsonb_build_object(
+        'total',               count(*),
+        'failed',              count(*) filter (where l.status = 'failed'),
+        'failed_amount_cents', coalesce(sum(l.amount_cents) filter (where l.status = 'failed'), 0),
+        'in_flight',           count(*) filter (where l.status in ('pending', 'processing', 'awaiting_approval', 'approved', 'held')),
+        'stale_in_flight',     count(*) filter (
+                                 where l.status = 'processing'
+                                   and l.updated_at < now() - interval '26 hours'
+                               ),
+        'oldest_in_flight_at', min(l.updated_at) filter (where l.status = 'processing'),
+        'last_completed_at',   max(l.completed_at) filter (where l.status = 'completed'),
+        'failure_reasons', (
+          select coalesce(jsonb_agg(distinct f.failure_reason), '[]'::jsonb)
+          from latest f
+          where f.status = 'failed' and f.failure_reason is not null
+        )
+      )
+      from latest l
+    ),
+    'cron_jobs', (
+      select coalesce(jsonb_agg(j order by j->>'jobname'), '[]'::jsonb)
+      from (
+        select jsonb_build_object(
+          'jobname',          job.jobname,
+          'active',           job.active,
+          'dispatches_http',  (position('net.http_post' in coalesce(job.command, '')) > 0),
+          'last_status',      lr.status,
+          'last_start',       lr.start_time,
+          'last_end',         lr.end_time,
+          'last_message',     lr.return_message
+        ) as j
+        from cron.job job
+        -- One pass over the run history for every job. A lateral lookup per job seq-scanned
+        -- cron.job_run_details once per job (there is no usable index and the table belongs
+        -- to supabase_admin), about 1 GB of reads per probe once the history reached 144k rows.
+        -- The last 8 days only bounds the sort; every job runs at least daily, so its latest run is in it.
+        left join (
+          select distinct on (d.jobid) d.jobid, d.status, d.start_time, d.end_time, d.return_message
+          from cron.job_run_details d
+          where d.start_time > now() - interval '8 days' or d.start_time is null
+          order by d.jobid, d.start_time desc nulls last, d.runid desc
+        ) lr on lr.jobid = job.jobid
+      ) sub
+    )
+  );
+end;
+$$;
+
+comment on function public.system_health_probe(boolean) is
+  'Read-only health facts for MYK9-157 and MYK9-236. The cheap path omits catalog-wide ACL scans; the full path adds applied service_role table privileges to applied_acl_grants and preserves sign-in email drift facts.';
+
+revoke all on function public.system_health_probe(boolean) from public;
+revoke all on function public.system_health_probe(boolean) from anon;
+revoke all on function public.system_health_probe(boolean) from authenticated;
+grant execute on function public.system_health_probe(boolean) to service_role;
 
 NOTIFY pgrst, 'reload schema';
 

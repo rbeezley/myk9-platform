@@ -5,6 +5,8 @@
 -- hold_show_payout are site-admin only, change a row at most once (a second
 -- approval reads back 'already_approved' and records nothing), keep a hold
 -- reason, let a held payout be approved later, and resolve the daily reminder.
+-- Money owed (financial_reconciliation_summary) and the health probe's
+-- in-flight count include payouts waiting on the brake.
 -- Migration: 20261118211700_myk9_2170_payout_brake.sql.
 
 BEGIN;
@@ -39,6 +41,12 @@ INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_i
 SELECT '00000000-0000-0000-0000-000002170009'::uuid, roles.id, NULL::uuid, true,
        '00000000-0000-0000-0000-000002170109'::uuid
 FROM public.roles WHERE roles.name = 'site_admin';
+-- Also the fixture club's admin, so the club-scoped money summary covers only these rows.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000002170009'::uuid, roles.id,
+       '00000000-0000-0000-0000-000002170001'::uuid, true,
+       '00000000-0000-0000-0000-000002170109'::uuid
+FROM public.roles WHERE roles.name = 'club_admin';
 
 -- Shows 2170020..2170026, one payout each.
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
@@ -59,6 +67,10 @@ VALUES
   ('00000000-0000-0000-0000-000002171024', '00000000-0000-0000-0000-000002170024', 50000, 'completed'),
   -- awaiting: approved, then held before the run sent it
   ('00000000-0000-0000-0000-000002171025', '00000000-0000-0000-0000-000002170025', 60000, 'awaiting_approval');
+-- An earlier failed attempt for show 020, superseded by its live brake row.
+INSERT INTO public.show_payouts (id, show_id, amount_cents, status, failure_reason, created_at)
+VALUES ('00000000-0000-0000-0000-000002171030', '00000000-0000-0000-0000-000002170020', 5000,
+        'failed', 'account_closed', now() - interval '2 days');
 
 -- The daily reminders the cron raised for the three awaiting payouts.
 INSERT INTO public.operator_alerts (source, severity, title, dedupe_key)
@@ -105,6 +117,10 @@ DECLARE
   v_count integer;
   v_failed_before integer;
   v_failed_after integer;
+  v_in_flight integer;
+  v_pending_cents bigint;
+  v_failed_cents bigint;
+  v_completed_cents bigint;
   v_row public.show_payouts;
 BEGIN
   -- 1. The setting: on by default, readable by the service role's select.
@@ -316,7 +332,23 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS MYK9-2170 only waiting payouts are approved or held';
 
-  -- 10. The health probe does not read the brake statuses as failed.
+  -- 10. Money owed counts every payout not yet sent, the brake statuses included:
+  --     020 approved 10000, 021 approved 20000, 022 pending 30000,
+  --     023 processing 40000, 025 held 60000, 026 awaiting 70000.
+  INSERT INTO public.show_payouts (id, show_id, amount_cents, status)
+  VALUES ('00000000-0000-0000-0000-000002171026', '00000000-0000-0000-0000-000002170026', 70000, 'awaiting_approval');
+  SET LOCAL ROLE authenticated;
+  SELECT f.payout_pending_cents, f.payout_failed_cents, f.payout_completed_cents
+    INTO v_pending_cents, v_failed_cents, v_completed_cents
+    FROM public.financial_reconciliation_summary('club', '00000000-0000-0000-0000-000002170001') f;
+  RESET ROLE;
+  IF v_pending_cents <> 230000 OR v_failed_cents <> 0 OR v_completed_cents <> 50000 THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: money summary pending/failed/completed = %/%/%, expected 230000/0/50000',
+      v_pending_cents, v_failed_cents, v_completed_cents;
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 money owed includes payouts awaiting approval, approved or held';
+
+  -- 11. The health probe reads the brake statuses as in flight, never as failed.
   SELECT count(*) INTO v_failed_before FROM (
     SELECT DISTINCT ON (p.show_id) p.status
       FROM public.show_payouts p ORDER BY p.show_id, p.created_at DESC
@@ -327,6 +359,25 @@ BEGIN
       v_failed_after, v_failed_before;
   END IF;
   RAISE NOTICE 'PASS MYK9-2170 health probe does not count waiting, approved or held payouts as failed';
+
+  SELECT count(*) INTO v_in_flight FROM (
+    SELECT DISTINCT ON (p.show_id) p.status, p.show_id
+      FROM public.show_payouts p ORDER BY p.show_id, p.created_at DESC
+  ) latest
+   WHERE latest.status IN ('pending', 'processing', 'awaiting_approval', 'approved', 'held');
+  IF (SELECT count(*) FROM public.show_payouts sp
+       WHERE sp.show_id IN (SELECT s.id FROM public.shows s
+                             WHERE s.club_id = '00000000-0000-0000-0000-000002170001')
+         AND sp.status IN ('awaiting_approval', 'approved', 'held')) <> 4 THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: fixture does not hold the four brake-status rows the in-flight check needs';
+  END IF;
+  IF (public.system_health_probe() -> 'payout_ledger' ->> 'in_flight')::integer <> v_in_flight
+     OR (public.system_health_probe(false) -> 'payout_ledger' ->> 'in_flight')::integer <> v_in_flight THEN
+    RAISE EXCEPTION 'FAIL MYK9-2170: health probe in_flight is %/%, the ledger has % not yet sent',
+      public.system_health_probe() -> 'payout_ledger' ->> 'in_flight',
+      public.system_health_probe(false) -> 'payout_ledger' ->> 'in_flight', v_in_flight;
+  END IF;
+  RAISE NOTICE 'PASS MYK9-2170 health probe counts waiting, approved and held payouts as in flight';
 
   PERFORM set_config('request.jwt.claim.sub', '', true);
   PERFORM set_config('request.jwt.claims', '', true);

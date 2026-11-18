@@ -6,6 +6,7 @@ import {
   PAYOUT_REMINDER_INTERVAL_HOURS,
   awaitingApprovalAlert,
   awaitingApprovalDedupeKey,
+  carriedApprovalFrom,
   parseBrakeSetting,
   remindAwaitingApprovals,
   sendOrWait,
@@ -87,6 +88,54 @@ describe('payout brake: send or wait at the send point', () => {
 
   it('held: the run never reaches the send point', () => {
     expect(shouldEvaluateShow('held')).toBe(false);
+  });
+});
+
+describe('payout brake: what a failed approved attempt carries to its retry', () => {
+  const approvedAt = '2026-11-15T10:00:00.000Z';
+  const failed = (failure_reason: string | null) => ({
+    status: 'failed',
+    approved_at: approvedAt,
+    failure_reason,
+  });
+
+  it.each([
+    'insufficient_balance: Your available balance is too low',
+    'stale_processing',
+    'entries_load_failed_post_claim',
+  ])('a self-healing failure (%s) keeps the approval', reason => {
+    expect(carriedApprovalFrom(failed(reason))).toBe(approvedAt);
+  });
+
+  it.each([
+    'account_closed',
+    'Destination account changed',
+    'insufficient_capabilities_for_transfer: payouts disabled',
+    null,
+    '',
+  ])('any other failure (%s) waits for approval again', reason => {
+    expect(carriedApprovalFrom(failed(reason))).toBeNull();
+  });
+
+  it('carries nothing from an attempt that was never approved, is not failed, or does not exist', () => {
+    expect(
+      carriedApprovalFrom({
+        status: 'failed',
+        approved_at: null,
+        failure_reason: 'stale_processing',
+      })
+    ).toBeNull();
+    expect(
+      carriedApprovalFrom({ status: 'completed', approved_at: approvedAt, failure_reason: null })
+    ).toBeNull();
+    expect(carriedApprovalFrom(null)).toBeNull();
+  });
+
+  it('a retry that carries nothing waits while the brake is on', () => {
+    const carriedApprovalAt = carriedApprovalFrom(failed('account_closed'));
+    expect(sendOrWait({ brakeOn: true, liveStatus: null, carriedApprovalAt })).toBe(
+      'wait_for_approval'
+    );
   });
 });
 

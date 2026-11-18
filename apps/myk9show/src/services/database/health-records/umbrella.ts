@@ -8,7 +8,7 @@
 // across vaccination/medication/allergy/vet-visit/screening files.
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 import type {
   HealthFilters,
   HealthOverview,
@@ -238,7 +238,7 @@ export const searchDogHealth = async (
         .select('*')
         .eq('dog_id', dogId)
         .or(
-          `vaccine_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,administered_by.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+          `vaccine_name.ilike.${ilikeContains(searchTerm)},administered_by.ilike.${ilikeContains(searchTerm)},notes.ilike.${ilikeContains(searchTerm)}`
         );
 
       vaccinations?.forEach(vaccination => {
@@ -259,7 +259,7 @@ export const searchDogHealth = async (
         .select('*')
         .eq('dog_id', dogId)
         .or(
-          `medication_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,prescribing_vet.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,reason.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+          `medication_name.ilike.${ilikeContains(searchTerm)},prescribing_vet.ilike.${ilikeContains(searchTerm)},reason.ilike.${ilikeContains(searchTerm)},notes.ilike.${ilikeContains(searchTerm)}`
         );
 
       medications?.forEach(medication => {
@@ -280,7 +280,7 @@ export const searchDogHealth = async (
         .select('*')
         .eq('dog_id', dogId)
         .or(
-          `allergen.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,reaction.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+          `allergen.ilike.${ilikeContains(searchTerm)},reaction.ilike.${ilikeContains(searchTerm)},notes.ilike.${ilikeContains(searchTerm)}`
         );
 
       allergies?.forEach(allergy => {
@@ -301,7 +301,7 @@ export const searchDogHealth = async (
         .select('*')
         .eq('dog_id', dogId)
         .or(
-          `reason.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,diagnosis.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,treatment.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,vet_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,clinic_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+          `reason.ilike.${ilikeContains(searchTerm)},diagnosis.ilike.${ilikeContains(searchTerm)},treatment.ilike.${ilikeContains(searchTerm)},vet_name.ilike.${ilikeContains(searchTerm)},clinic_name.ilike.${ilikeContains(searchTerm)},notes.ilike.${ilikeContains(searchTerm)}`
         );
 
       vetVisits?.forEach(visit => {

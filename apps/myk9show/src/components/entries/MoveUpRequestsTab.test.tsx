@@ -301,6 +301,19 @@ describe('MoveUpRequestsTab', () => {
       );
     });
 
+    it('carries no late note, never one from the source trial, when the requested class cannot be found (MYK9-2147)', async () => {
+      // The source trial (trial-1) starts 9:00 AM; the request was asked 12 minutes before it.
+      mocks.trials.mockResolvedValue({
+        data: [{ ...trialRow, id: 'trial-1', trial_number: '1' }],
+        error: null,
+      });
+      mocks.names.mockResolvedValue({});
+      askedAt('2026-11-16T08:48:00Z');
+      render(<MoveUpRequestsTab showId="show-1" />);
+      await screen.findAllByTestId('class-change-line');
+      expect(screen.queryByTestId('class-change-late-note')).not.toBeInTheDocument();
+    });
+
     it('carries no late note when asked 30 minutes or more before the start', async () => {
       mocks.trials.mockResolvedValue({ data: [trialRow], error: null });
       mocks.capacity.mockResolvedValue({ data: [targetClass(12)], error: null });

@@ -1,5 +1,5 @@
 -- MYK9-2163: online entries are always on, and publishing needs the club's
--- payouts (20261118021300_myk9_2163_publish_needs_payouts.sql).
+-- payouts (20261118211300_myk9_2163_publish_needs_payouts.sql).
 --
 --   0. Wiring: shows.online_entries_enabled DEFAULTs true; the helper exists
 --      and no API role can execute it.
@@ -105,7 +105,12 @@ VALUES
   -- A legacy draft with online entries off, staged outside the API roles.
   ('00000000-0000-0000-0000-000002163109', 'MYK9-2163 Legacy Off Draft', 'UKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002163001', 'draft',
-   NULL, NULL, false);
+   NULL, NULL, false),
+  -- Already public with online entries on, at a club with NO payouts: the
+  -- state of a show published before its club lost (or never had) payouts.
+  ('00000000-0000-0000-0000-000002163112', 'MYK9-2163 Public, No Payouts', 'UKC',
+   current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002163001', 'published',
+   (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true);
 
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES ('00000000-0000-0000-0000-000002163011', 'MYK9-2163', 'ClubAdmin', 'myk9-2163-admin@example.test');
@@ -409,7 +414,31 @@ BEGIN
   IF v_status IS DISTINCT FROM 'draft' OR v_online IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 5c back to draft did not land (% / %)', v_status, v_online;
   END IF;
-  RAISE NOTICE 'PASS 5 online entries cannot be turned off on a public show (UPDATE and RPC), and a legacy off draft cannot be published while off';
+
+  -- 5d. An ALREADY-public show is never re-gated on payouts: at a club with
+  --     no payouts it still moves between public statuses and keeps its
+  --     entry window editable. A trigger that re-ran the publish gate here
+  --     would strand every show published before its club lost payouts.
+  UPDATE public.shows SET status = 'upcoming'
+   WHERE id = '00000000-0000-0000-0000-000002163112';
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000002163112';
+  IF v_status IS DISTINCT FROM 'upcoming' THEN
+    RAISE EXCEPTION 'FAIL 5d published -> upcoming did not land at a club without payouts (status %)', v_status;
+  END IF;
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000002163112';
+  UPDATE public.shows SET entry_close_date = (current_date + 3)::timestamptz
+   WHERE id = '00000000-0000-0000-0000-000002163112';
+  SELECT status, online_entries_enabled INTO v_status, v_online
+    FROM public.shows WHERE id = '00000000-0000-0000-0000-000002163112';
+  IF v_status IS DISTINCT FROM 'published' OR v_online IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL 5d a public show at a club without payouts was re-gated (% / %)', v_status, v_online;
+  END IF;
+  IF (SELECT entry_close_date FROM public.shows WHERE id = '00000000-0000-0000-0000-000002163112')
+     IS DISTINCT FROM (current_date + 3)::timestamptz THEN
+    RAISE EXCEPTION 'FAIL 5d the entry window edit on a public show without payouts did not land';
+  END IF;
+  RAISE NOTICE 'PASS 5 online entries cannot be turned off on a public show (UPDATE and RPC), a legacy off draft cannot be published while off, and a public show without payouts is not re-gated';
 END;
 $$;
 

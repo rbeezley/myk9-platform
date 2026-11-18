@@ -1,37 +1,38 @@
 /**
- * PostgREST filter sanitization.
+ * PostgREST filter value helpers for user-typed search text.
  *
- * PostgREST uses a custom filter syntax where certain characters have
- * special meaning (`.` separates column/operator, `,` separates clauses,
- * `(` / `)` group expressions, `%` and `*` are wildcards). When user
- * input is interpolated into `.or()` / `.filter()` strings without
- * escaping, an attacker can manipulate the query logic.
+ * Inside an `.or(...)` / `.and(...)` string, `,` `(` `)` and `.` are syntax and
+ * PostgREST does not accept backslash escapes for them (MYK9-2148:
+ * `name.ilike.*Rex\, Jr*` is a PGRST100 parse error). The way to carry them is
+ * to wrap the value in double quotes, with the wildcards inside the quotes.
  *
- * This utility escapes those special characters so user-supplied search
- * terms are treated as literal text inside `ilike` patterns.
+ * Checked against a real PostgREST (see the live block in the test file):
+ * inside the quotes PostgREST unescapes `\"` to a quote and `\\` to one
+ * backslash, so the LIKE escape (`\%`) must be doubled once more to reach the
+ * `ilike` as `\%`. PostgREST also rewrites every `*` in a like value to `%`, even
+ * after a backslash, so a literal `*` cannot be matched; it becomes `_`.
  */
 
 /**
- * Escapes characters that have special meaning in PostgREST filter syntax.
- *
- * Use this around any user-supplied value before interpolating it into a
- * PostgREST `.or()` / `.filter()` string:
+ * Escapes a term for a LIKE pattern: a typed `\`, `%` and `_` match
+ * themselves, and a typed `*` (which PostgREST would turn into `%`) matches
+ * any one character. Use alone for a value handed to a supabase-js method such
+ * as `.ilike('breed', ...)`, which URL-encodes it.
+ */
+export function escapeLikeTerm(input: string): string {
+  if (!input) return '';
+  return input.replace(/[\\%_]/g, ch => `\\${ch}`).replace(/\*/g, '_');
+}
+
+/**
+ * The quoted, wildcard-wrapped value for an `ilike` inside a PostgREST filter
+ * string (contains match), e.g. `"%Rex, Jr (CH)%"`.
  *
  * ```ts
- * const safe = sanitizePostgRESTFilter(searchTerm);
- * query.or(`name.ilike.%${safe}%,location.ilike.%${safe}%`);
+ * query.or(`name.ilike.${ilikeContains(term)},location.ilike.${ilikeContains(term)}`);
  * ```
  */
-export function sanitizePostgRESTFilter(input: string): string {
-  if (!input) return '';
-
-  // Backslash-escape characters that PostgREST interprets as syntax
-  return input
-    .replace(/\\/g, '\\\\') // escape existing backslashes first
-    .replace(/\./g, '\\.')
-    .replace(/,/g, '\\,')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)')
-    .replace(/%/g, '\\%')
-    .replace(/\*/g, '\\*');
+export function ilikeContains(input: string): string {
+  const quoted = escapeLikeTerm(input).replace(/[\\"]/g, ch => `\\${ch}`);
+  return `"%${quoted}%"`;
 }

@@ -6,6 +6,7 @@ import type { UserRole } from '@/types/auth-types';
 import type { DbUserInsert, DbUserUpdate, DbJudgeAvailability } from '@/types/database-mappings';
 import type { UserInput } from '@/store/userStore';
 import { toYYYYMMDD } from '@/utils/dateFormat';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 
 /**
  * Extract roles from DB data. Supports two shapes:
@@ -263,7 +264,8 @@ export const getUserFullName = (dbUser: Record<string, unknown>): string => {
  * Helper to create user search filters
  */
 export const createUserSearchFilters = (searchTerm: string): string => {
-  return `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`;
+  const value = ilikeContains(searchTerm);
+  return `first_name.ilike.${value},last_name.ilike.${value},email.ilike.${value}`;
 };
 
 /**

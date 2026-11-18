@@ -1,7 +1,7 @@
 // Club-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { formatDateLocal } from '@/utils/dateLocal';
-import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
 import type { Json } from '@/types/supabase';
 import { translateClubIdentityError } from '@/utils/duplicateIdentityErrors';
@@ -112,9 +112,7 @@ export const searchClubsByLocation = async (searchTerm: string) => {
       .from('clubs')
       .select('*')
       .is('deleted_at', null)
-      .or(
-        `address.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-      )
+      .or(`address.ilike.${ilikeContains(searchTerm)},name.ilike.${ilikeContains(searchTerm)}`)
       .order('name', { ascending: true });
 
     const duration = Date.now() - startTime;
@@ -341,9 +339,7 @@ export const searchClubs = async (searchTerm: string) => {
       .from('clubs')
       .select('*')
       .is('deleted_at', null)
-      .or(
-        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,address.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-      )
+      .or(`name.ilike.${ilikeContains(searchTerm)},address.ilike.${ilikeContains(searchTerm)}`)
       .order('name', { ascending: true });
 
     const duration = Date.now() - startTime;

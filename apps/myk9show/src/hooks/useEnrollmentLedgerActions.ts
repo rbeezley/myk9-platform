@@ -91,25 +91,39 @@ const LEDGER_REFUSED_TECHNICAL =
   'Payment not recorded. Something went wrong with this request. Restart the app and try again.';
 
 /**
+ * MYK9-2156: how a ledger write ended. `failed` is a refusal raised before the
+ * RPC writes anything, so nothing was recorded; `unconfirmed` is anything else
+ * (a lost connection, a timeout), where the server may have saved it and a
+ * retry could record the payment twice.
+ */
+export type LedgerWriteOutcome = 'saved' | 'failed' | 'unconfirmed';
+
+/**
  * MYK9-1824: what the secretary reads when a payment write fails. The RPCs'
  * refusals written for a person keep their reason (MYK9-677, MYK9-773: "says
  * why"); nothing else is shown raw, and the logger keeps the raw error.
  */
-function ledgerFailureMessage(err: unknown): string {
+function ledgerFailure(err: unknown): {
+  outcome: Exclude<LedgerWriteOutcome, 'saved'>;
+  message: string;
+} {
   const code =
     typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined;
   if (code === RPC_REFUSAL_CODE && err instanceof Error) {
-    return FRIENDLY_REFUSALS.some(pattern => pattern.test(err.message))
-      ? `Payment not recorded: ${err.message}`
-      : LEDGER_REFUSED_TECHNICAL;
+    return {
+      outcome: 'failed',
+      message: FRIENDLY_REFUSALS.some(pattern => pattern.test(err.message))
+        ? `Payment not recorded: ${err.message}`
+        : LEDGER_REFUSED_TECHNICAL,
+    };
   }
-  if (code === NOT_AUTHORIZED_CODE) return LEDGER_NOT_AUTHORIZED;
-  return LEDGER_UNCONFIRMED;
+  if (code === NOT_AUTHORIZED_CODE) return { outcome: 'failed', message: LEDGER_NOT_AUTHORIZED };
+  return { outcome: 'unconfirmed', message: LEDGER_UNCONFIRMED };
 }
 
 export interface EnrollmentLedgerControls {
-  /** Records one cash/check payment, refund or "Payment Due" reset. */
-  record: (enrollmentId: string, action: EnrollmentLedgerAction) => Promise<boolean>;
+  /** Records one cash/check payment, refund or "Payment Due" reset (MYK9-2156: says how it ended). */
+  record: (enrollmentId: string, action: EnrollmentLedgerAction) => Promise<LedgerWriteOutcome>;
   /** "Paid in Full: Online" (MYK9-773): no ledger row, the same server cascade. */
   markPaidOnline: (enrollmentId: string) => Promise<boolean>;
   /** Today on the show's calendar: what a received-date input starts at. */
@@ -138,7 +152,10 @@ export function useEnrollmentLedgerActions({
   const todayInShowZone = currentCalendarDate(new Date(), showTimeZone);
 
   const apply = useCallback(
-    async (enrollmentId: string, write: () => Promise<RecordedEnrollmentPayment>) => {
+    async (
+      enrollmentId: string,
+      write: () => Promise<RecordedEnrollmentPayment>
+    ): Promise<LedgerWriteOutcome> => {
       try {
         const recorded = await write();
         setEntries(prev =>
@@ -149,11 +166,12 @@ export function useEnrollmentLedgerActions({
           )
         );
         void queryClient.invalidateQueries({ queryKey: ['show-payments'] });
-        return true;
+        return 'saved';
       } catch (err) {
-        toast.error(ledgerFailureMessage(err));
+        const failure = ledgerFailure(err);
+        toast.error(failure.message);
         logger.error('Error recording enrollment payment:', 'secretary', {}, err as Error);
-        return false;
+        return failure.outcome;
       }
     },
     [queryClient, setEntries]
@@ -166,7 +184,8 @@ export function useEnrollmentLedgerActions({
   );
 
   const markPaidOnline = useCallback(
-    (enrollmentId: string) => apply(enrollmentId, () => markEnrollmentPaidOnline(enrollmentId)),
+    async (enrollmentId: string) =>
+      (await apply(enrollmentId, () => markEnrollmentPaidOnline(enrollmentId))) === 'saved',
     [apply]
   );
 

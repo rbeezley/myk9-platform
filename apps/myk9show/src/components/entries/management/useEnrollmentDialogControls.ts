@@ -16,6 +16,7 @@ import {
   type LedgerConfirmState,
   type PartialDialog,
 } from './enrollmentPayment';
+import { useLedgerDialogSave } from './useLedgerDialogSave';
 
 /**
  * The form-level dialogs (full payment, partial payment, the paid-online and
@@ -35,6 +36,8 @@ export function useEnrollmentDialogControls(
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailMessage, setEmailMessage] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const fullSave = useLedgerDialogSave();
+  const partialSave = useLedgerDialogSave();
 
   const enrollmentId = group.enrollmentId ?? '';
   const totalDollars = formTotalDollars(group);
@@ -73,10 +76,13 @@ export function useEnrollmentDialogControls(
 
   // MYK9-677: cash and check money goes through the payments ledger, one row
   // per payment with the day it was received.
-  const openFullPayment = (method: FullPaymentDialog['method']) =>
+  const openFullPayment = (method: FullPaymentDialog['method']) => {
+    fullSave.reset();
     setFullDialog({ open: true, method, checkNumber: '', receivedOn: today });
+  };
 
-  const openPartialPayment = () =>
+  const openPartialPayment = () => {
+    partialSave.reset();
     setPartialDialog({
       open: true,
       amountPaid: '',
@@ -84,17 +90,23 @@ export function useEnrollmentDialogControls(
       checkNumber: '',
       receivedOn: today,
     });
+  };
 
+  // MYK9-2156: each dialog closes only once its write succeeds; a failed write
+  // keeps it open with what was typed (useLedgerDialogSave).
   const confirmFullPayment = () => {
     if (!enrollmentId || !fullDialog.receivedOn) return;
-    void paymentLedger.record(enrollmentId, {
+    const action = {
       kind: 'payment',
       method: fullDialog.method,
       amount: null,
       receivedOn: fullDialog.receivedOn,
       reference: fullDialog.method === 'check' ? fullDialog.checkNumber : null,
-    });
-    setFullDialog(EMPTY_FULL_PAYMENT_DIALOG);
+    } as const;
+    void fullSave.save(
+      () => paymentLedger.record(enrollmentId, action),
+      () => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)
+    );
   };
 
   const confirmPartialPayment = () => {
@@ -105,8 +117,10 @@ export function useEnrollmentDialogControls(
       partialDialog.receivedOn
     );
     if (!result || !enrollmentId) return;
-    void paymentLedger.record(enrollmentId, result);
-    setPartialDialog(EMPTY_PARTIAL_DIALOG);
+    void partialSave.save(
+      () => paymentLedger.record(enrollmentId, result),
+      () => setPartialDialog(EMPTY_PARTIAL_DIALOG)
+    );
   };
 
   return {
@@ -120,8 +134,10 @@ export function useEnrollmentDialogControls(
     today,
     fullDialog,
     setFullDialog,
+    fullSaveStatus: fullSave.status,
     partialDialog,
     setPartialDialog,
+    partialSaveStatus: partialSave.status,
     askMarkPaidOnline,
     askMarkPaymentDue,
     ledgerConfirm,

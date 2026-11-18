@@ -208,7 +208,8 @@ describe('EntryFocusedRegistration', () => {
       ]);
 
       expect(screen.getAllByRole('button', { name: /Assign armband to Poppy/ })).toHaveLength(1);
-      expect(screen.queryByRole('region', { name: 'To finish this form' })).toBeNull();
+      // The form still shows its $25.00 balance (MYK9-2155), but no armband item for Poppy.
+      expect(screen.queryByText(/Poppy has no armband/)).toBeNull();
     });
   });
 
@@ -303,7 +304,7 @@ describe('EntryFocusedRegistration', () => {
       onEntryRemoved: vi.fn(),
       onBulkStatusChange: vi.fn(),
       paymentLedger: {
-        record: vi.fn().mockResolvedValue(true),
+        record: vi.fn().mockResolvedValue('saved'),
         markPaidOnline: vi.fn().mockResolvedValue(true),
         todayInShowZone: '2026-09-17',
       },

@@ -25,6 +25,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import { buildMapFromArray } from '../_shared/maps';
 import { joinRowsOrEmpty } from '../_shared/readRows';
 import { overrideRpcArgs, type OverrideOptions } from '../overrideRpcArgs';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -349,9 +350,9 @@ async function postgrestSearchClasses(searchTerm: string, limit: number) {
     `
     )
     .or(
-      `name.ilike.%${searchTerm}%,` +
-        `level.ilike.%${searchTerm}%,` +
-        `description.ilike.%${searchTerm}%`
+      `name.ilike.${ilikeContains(searchTerm)},` +
+        `level.ilike.${ilikeContains(searchTerm)},` +
+        `description.ilike.${ilikeContains(searchTerm)}`
     )
     .is('deleted_at', null)
     .order('start_time', { ascending: true })

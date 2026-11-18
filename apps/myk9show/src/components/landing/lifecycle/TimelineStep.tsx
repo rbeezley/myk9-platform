@@ -1,7 +1,17 @@
 import { ScreenshotExplainer } from './ScreenshotExplainer';
 import { NightBeforeCard } from './NightBeforeCard';
 import { ScoresheetDemo } from './ScoresheetDemo';
-import type { Shot, StoryStep } from './lifecycleStories';
+import { TimelineScene } from './TimelineScene';
+import { SCENES } from './scenes';
+import type { DeviceId } from './sceneFrames';
+import type { SceneId, Shot, StoryStep } from './lifecycleStories';
+
+// A scene of real captures. A scene with no captures yet renders nothing, so its step keeps
+// whatever still it has.
+function StepScene({ id, lead }: { id: SceneId | undefined; lead: DeviceId }) {
+  const scene = id && SCENES[id];
+  return scene ? <TimelineScene scene={scene} lead={lead} /> : null;
+}
 
 function Screenshot({ shot, side }: { shot: Shot; side: 'main' | 'meanwhile' }) {
   return (
@@ -22,6 +32,7 @@ export function TimelineStep({
   step,
   number,
   lead,
+  sceneLead,
   meanwhileLabel,
   reached,
   lineFilled,
@@ -31,6 +42,8 @@ export function TimelineStep({
   step: StoryStep;
   number: number;
   lead: string;
+  /** The device that leads a two-device scene: the desk for clubs, the phone for exhibitors. */
+  sceneLead: DeviceId;
   meanwhileLabel: string;
   reached: boolean;
   /** The line down to the next step fills once the reader reaches that step. */
@@ -54,6 +67,7 @@ export function TimelineStep({
           // key by image: a new screenshot starts its explainer from step 1, unpaused.
           <ScreenshotExplainer key={step.shot.src} shot={step.shot} steps={step.explainer} />
         )}
+        <StepScene id={step.scene} lead={sceneLead} />
         {step.scoresheetDemo && <ScoresheetDemo />}
         {step.nightBefore && <NightBeforeCard active={revealed} />}
         {step.shot && !step.explainer && !step.scoresheetDemo && !step.nightBefore && (
@@ -79,6 +93,7 @@ export function TimelineStep({
           {step.meanwhile}
         </p>
         {step.meanwhileShot && <Screenshot shot={step.meanwhileShot} side="meanwhile" />}
+        <StepScene id={step.meanwhileScene} lead={sceneLead} />
       </div>
     </div>
   );

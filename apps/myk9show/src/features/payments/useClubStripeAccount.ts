@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { clubAuthorizationQueryKey } from '@/features/clubs/refreshClubAuthorization';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import type { PayoutStatus } from './payoutLedger';
 
 export interface ClubStripeAccount {
   id: string;
@@ -202,7 +203,7 @@ export function useClubAuthorization(clubId: string | undefined) {
 export interface ShowPayoutRow {
   id: string;
   amount_cents: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: PayoutStatus;
   // Set by cron-process-payouts on every 'failed' row. Benign markers
   // (insufficient_balance / stale_processing / entries_load_failed_post_claim)
   // self-heal on the next daily run; any other reason needs a human. Drives the

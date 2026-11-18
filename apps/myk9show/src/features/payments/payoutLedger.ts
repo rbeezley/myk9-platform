@@ -162,7 +162,9 @@ export function resolveUnsettledState(
   return settleDate < today ? 'overdue' : 'scheduled';
 }
 
-export type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
+// awaiting_approval / approved / held: the payout brake (MYK9-2170).
+export type PayoutStatus =
+  'pending' | 'processing' | 'completed' | 'failed' | 'awaiting_approval' | 'approved' | 'held';
 
 export interface LedgerShow {
   id: string;
@@ -182,7 +184,7 @@ export interface LedgerPayout {
   created_at: string | null;
 }
 
-// completed > processing > pending > failed. The cron keeps exactly one
+// completed > processing > the not-yet-sent live states > failed. The cron keeps exactly one
 // non-failed row per show (its liveRow query is `.neq('status','failed')`);
 // failed rows accumulate as history. So a non-failed row always wins, and
 // failed is shown only when it's the sole outcome.
@@ -190,6 +192,9 @@ const PAYOUT_STATUS_PRIORITY: Record<PayoutStatus, number> = {
   completed: 3,
   processing: 2,
   pending: 1,
+  awaiting_approval: 1,
+  approved: 1,
+  held: 1,
   failed: 0,
 };
 

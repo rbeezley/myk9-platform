@@ -22,10 +22,15 @@ const paymentLinkSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-payment-link/index.ts'),
   'utf8'
 );
-const payoutSource = readFileSync(
-  resolve(__dirname, '../../../supabase/functions/cron-process-payouts/index.ts'),
-  'utf8'
-);
+// MYK9-2170 moved the per-show flow from index.ts to processShow.ts.
+const payoutSource = ['index.ts', 'processShow.ts']
+  .map(file =>
+    readFileSync(
+      resolve(__dirname, '../../../supabase/functions/cron-process-payouts', file),
+      'utf8'
+    )
+  )
+  .join('\n');
 
 function requireSlice(source: string, start: string, end: string) {
   const startIndex = source.indexOf(start);

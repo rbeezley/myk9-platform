@@ -199,9 +199,20 @@ describe('the column set the anonymous-session trade-off was judged against', ()
   // exists for; the anon COLUMN grant below stays at exactly the three fee
   // columns, because stripe_livemode is read only by genuinely signed-in
   // (non-anonymous-session) callers via the existing table-level grant.
-  const ADDED_COLUMNS = ['platform_fee_flat_cents', 'platform_fee_min_cents', 'stripe_livemode'];
+  // MYK9-2170: the payout brake and its change stamp are re-decided the same
+  // way. An anonymous session can learn whether payouts wait for approval and
+  // when and by whom (a people.id, as updated_by already shows) that last
+  // changed: no club, show or amount. anon's column grant stays at the fees.
+  const ADDED_COLUMNS = [
+    'platform_fee_flat_cents',
+    'platform_fee_min_cents',
+    'stripe_livemode',
+    'payouts_require_approval',
+    'payouts_require_approval_changed_at',
+    'payouts_require_approval_changed_by',
+  ];
 
-  it('is exactly the seven columns reviewed in MYK9-229 (plus stripe_livemode)', () => {
+  it('is exactly the seven columns reviewed in MYK9-229 (plus stripe_livemode and the payout brake)', () => {
     const added = ALL_STATEMENTS.flatMap(({ statement }) => {
       if (!/^ALTER\s+TABLE\s+(?:public\.)?platform_settings\b/i.test(statement)) return [];
       return [...statement.matchAll(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z_]+)"?/gi)].map(
@@ -223,6 +234,9 @@ describe('the column set the anonymous-session trade-off was judged against', ()
         'platform_fee_flat_cents',
         'platform_fee_min_cents',
         'platform_fee_percent',
+        'payouts_require_approval',
+        'payouts_require_approval_changed_at',
+        'payouts_require_approval_changed_by',
         'stripe_livemode',
         'updated_at',
         'updated_by',

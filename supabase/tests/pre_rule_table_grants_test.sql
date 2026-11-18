@@ -50,6 +50,7 @@ BEGIN
     ('cart_spot_holds','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_feedback','INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_query_log','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('class_judge_departures','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('class_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     -- No table-level SELECT for authenticated: 20260731160000 replaced it with a
     -- column allowlist withholding num_hides (MYK9-127; 55 columns since
@@ -120,6 +121,7 @@ BEGIN
     ('push_subscriptions','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('refund_request_attempts','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('refund_requests','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('registry_deadline_reminders','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('result_submissions','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     -- MYK9-115 breaker state and its audit trail. No client grants by design:
     -- these are read inside SECURITY DEFINER functions, and a client that could
@@ -249,7 +251,7 @@ BEGIN
       'access_request_email_jobs','achievements','activity_log','allergies','analytics_events','announcement_reads',
       'announcements','armbands','calendar_feed_tokens','cart_checkout_leases','cart_fulfillment_lines','cart_fulfillments','cart_spot_holds',
       'chatbot_feedback','chatbot_query_log',
-      'class_visibility_overrides','classes','club_access_requests','club_committee_members','club_members','club_membership_requests',
+      'class_judge_departures','class_visibility_overrides','classes','club_access_requests','club_committee_members','club_members','club_membership_requests',
       'club_officers','club_premium_templates','club_registry_numbers','club_stripe_accounts','clubs','dog_favorites',
       'dog_registrations','dogs','email_log','email_log_contents','enrollments','entries','entry_cart_items',
       'entry_carts','entry_form_notes','entry_payment_links','entry_score_audit','entry_status_history','entry_submissions',
@@ -261,7 +263,7 @@ BEGIN
       'organization_agreements','paperwork_prints','pedigree_ancestors','people','people_private',
       'performance_metrics','permission_audit_log','permissions','platform_settings',
       'platform_waitlist','premium_generation_attempts','premium_generations',
-      'push_notification_queue','push_subscriptions','refund_request_attempts','refund_requests','result_submissions',
+      'push_notification_queue','push_subscriptions','refund_request_attempts','refund_requests','registry_deadline_reminders','result_submissions',
       'ringside_containment','ringside_containment_audit','ringside_sessions',
       'role_permissions','role_requests','roles','rule_organizations','rule_sports','rulebooks',
       'rules','rules_feedback','rules_query_log','secretary_tasks','show_announcement_reads',

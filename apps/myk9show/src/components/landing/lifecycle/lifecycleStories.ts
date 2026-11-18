@@ -5,7 +5,7 @@
 
 export type Audience = 'club' | 'exhibitor';
 export type StepId = 'setup' | 'entries' | 'before' | 'showday' | 'results' | 'after';
-export type ShotShape = 'phone' | 'tablet' | 'desktop';
+export type ShotShape = 'phone' | 'desktop';
 export type Shot = {
   src: `/landing/stages/${string}.png`;
   alt: string;
@@ -29,6 +29,10 @@ export type StoryStep = {
   explainer?: readonly ExplainerStep[];
   scoresheetDemo?: true; // club show day: the working practice scoresheet (D9)
   nightBefore?: true; // club before show day: the night-before checklist (D11)
+  /** An animated scene of real captures, on this side of the step (MYK9-1894). */
+  scene?: SceneId;
+  /** The same, on the meanwhile side, in place of a still. */
+  meanwhileScene?: SceneId;
   meanwhile: string;
   meanwhileShot: Shot | null;
   peak?: true;
@@ -77,13 +81,6 @@ const phone = (id: string, alt: string): Shot => ({
   height: 844,
   shape: 'phone',
 });
-const tablet = (id: string, alt: string): Shot => ({
-  src: `/landing/stages/${id}.png`,
-  alt,
-  width: 768,
-  height: 1024,
-  shape: 'tablet',
-});
 
 const SHOTS = {
   's-02': desktop('s-02', 'Create Show wizard, first step'),
@@ -93,7 +90,6 @@ const SHOTS = {
     's-20',
     'Results tab for Container Novice A, with Released and Needs checking chips and the placement table'
   ),
-  'j-04': tablet('j-04', 'Judge scoresheet on a tablet with the timer running'),
   'e-01': desktop('e-01', 'Upcoming shows list with entry status'),
   'e-02': desktop('e-02', 'Public show page with the Enter this show button'),
   'e-12': phone(
@@ -243,7 +239,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       peak: true,
       title: 'Show day',
       body: 'Judges score at the ring on a tablet, even with no signal. Scores catch up on their own when the connection comes back.',
-      shot: SHOTS['j-04'],
+      shot: null,
+      scene: 'showday-ring',
       scoresheetDemo: true,
       meanwhile:
         'Exhibitors follow their classes from their phones, and check in where you allow it.',
@@ -300,7 +297,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       shot: SHOTS['e-13'],
       explainer: EXHIBITOR_SHOW_DAY,
       meanwhile: 'Judges score at the ring on a tablet, even with no signal at all.',
-      meanwhileShot: SHOTS['j-04'],
+      meanwhileShot: null,
+      meanwhileScene: 'showday-ring',
     },
     {
       id: 'results',

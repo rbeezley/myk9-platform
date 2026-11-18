@@ -100,7 +100,8 @@ VALUES
   ('00000000-0000-0000-0000-000000180202', 'show-b@example.test', 'registry_results_submission', '00000000-0000-0000-0000-000000180003', 'delivered', '2026-08-17T12:00:00Z'),
   ('00000000-0000-0000-0000-000000180203', 'registration@example.test', 'registration_confirmation', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z'),
   ('00000000-0000-0000-0000-000000180204', 'orphan@example.test', 'entry_decision', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z'),
-  ('00000000-0000-0000-0000-000000180205', 'malformed@example.test', 'show_lifecycle_email', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z');
+  ('00000000-0000-0000-0000-000000180205', 'malformed@example.test', 'show_lifecycle_email', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z'),
+  ('00000000-0000-0000-0000-000000180206', 'secretary@example.test', 'registry_deadline_reminder', '00000000-0000-0000-0000-000000180002', 'bounced', '2026-08-16T12:00:00Z');
 RESET ROLE;
 
 DO $$
@@ -126,8 +127,17 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', manager::text, true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', manager, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO row_count FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL);
-  IF row_count <> 3 THEN
-    RAISE EXCEPTION 'FAIL same-show secretary received % rows (expected 3)', row_count;
+  IF row_count <> 4 THEN
+    RAISE EXCEPTION 'FAIL same-show secretary received % rows (expected 4)', row_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL)
+    WHERE id = '00000000-0000-0000-0000-000000180206'
+      AND source_kind = 'registry_deadline_reminder'
+      AND delivery_status = 'bounced'
+  ) THEN
+    RAISE EXCEPTION 'FAIL registry deadline reminder history missing';
   END IF;
 
   IF NOT EXISTS (

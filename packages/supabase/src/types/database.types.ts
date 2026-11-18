@@ -7874,6 +7874,7 @@ export type Database = {
           correction_for_job_id: string | null
           created_at: string
           created_by: string | null
+          delivered_changes: Json
           dismissed_at: string | null
           due_at: string
           email_log_id: string | null
@@ -7912,6 +7913,7 @@ export type Database = {
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
+          delivered_changes?: Json
           dismissed_at?: string | null
           due_at?: string
           email_log_id?: string | null
@@ -7950,6 +7952,7 @@ export type Database = {
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
+          delivered_changes?: Json
           dismissed_at?: string | null
           due_at?: string
           email_log_id?: string | null
@@ -13662,7 +13665,13 @@ export type Database = {
         }[]
       }
       claim_due_auto_email_jobs: {
-        Args: { p_lease_until: string; p_limit: number }
+        Args:
+          | { p_lease_until: string; p_limit: number }
+          | {
+              p_include_entry_changed: boolean
+              p_lease_until: string
+              p_limit: number
+            }
         Returns: {
           attempt_id: string
           due_at: string

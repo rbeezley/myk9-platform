@@ -14,15 +14,23 @@
 --      list of what happened to the person's entries while the job waited:
 --        {"kind":"moved","entry_id":<new entry>,"from_entry_id":<old entry>,
 --         "from_class_id":..,"to_class_id":..}
---        {"kind":"pulled"|"withdrawn"|"removed"|"pulled_at_show"|"deleted","entry_id":..}
+--        {"kind":"pulled"|"withdrawn"|"removed"|"pulled_at_show"|"pull_flagged"|"deleted"|
+--         "restored","entry_id":..}
 --        {"kind":"edited","entry_id":..,"field":"handler"|"jump_height","from":<value or null>}
 --      Ids and the pre-edit value only, never rendered text: the sender renders at send time
 --      and drops whatever was undone (a change back to what it was is not news). Server-written
 --      only: the column-level UPDATE ACL (20261018031700) does not list it.
---   3. A partial UNIQUE index on (show_id, recipient_person_id) for the one unsent
---      entry_changed job. Several edits in one sitting upsert that one row, append their
---      events and push due_at out five minutes: the 8 second Undo toast has long closed by
---      then, and the quiet minutes are the same ones show_changed and judge_changed wait.
+--      show_lifecycle_email_jobs.delivered_changes jsonb NOT NULL DEFAULT '[]' is what the
+--      sender actually TOLD, written when it marks the job sent: {"kind":"moved","entry_id":<the
+--      entry the move ended on>,"from_class_id":..,"to_class_id":..} and {"kind":<outcome>,
+--      "entry_id":..}. A move put back, or a removal reversed, is told only to whoever the
+--      latest delivered line says was told, never to someone whose email merely held the event.
+--   3. A partial UNIQUE index on (show_id, recipient_person_id) for the one unsent AND
+--      UNCLAIMED entry_changed job (claimed_until IS NULL). Several edits in one sitting upsert
+--      that one row, append their events and push due_at out five minutes: the 8 second Undo
+--      toast has long closed by then, and the quiet minutes are the same ones show_changed and
+--      judge_changed wait. A job the drain has claimed (a lease, held or waiting out a retry) is
+--      never mutated: a newer edit is a new job with its own due time and key.
 --   4. Producers. Who acted decides everything (entry_change_actor, the write RPCs' own rule):
 --      a manager of the show is staff; otherwise the entry's handler before the change, the
 --      dog's owner or co-owner is the exhibitor, whose own change sends nothing and drops a
@@ -42,16 +50,24 @@
 --      Only a published show (published, upcoming, in_progress); recipients are the dog's
 --      owner and the entry's handler with an email (the MYK9-2124 rule), minus the actor.
 --      Triggers never block the edit.
---   5. Nothing new in the claim or the drain's cron: ready, due, auto_send jobs of any step
---      are already taken.
+--   5. The drain's cron is unchanged, but claim_due_auto_email_jobs gains p_include_entry_changed
+--      (the two-argument one stays and passes false). The sender deployed before this migration calls it with two arguments and
+--      so is never handed an entry_changed job (it would send it as a show_changed email); the new
+--      sender passes true. Either deploy order is safe: until the new sender is live, the jobs
+--      simply wait, ready.
+--   6. A move's successor carries the source's confirmation_email_* state (a BEFORE INSERT
+--      trigger), so send-confirmation-email does not also send "accepted" for the move.
 --
 -- Rollback: DROP TRIGGER trg_queue_entry_changed_email_insert, _update ON public.entries;
 -- DROP FUNCTION public.queue_entry_changed_email_from_insert(),
 -- public.queue_entry_changed_email_from_update(),
--- public.queue_entry_changed_email(uuid, jsonb, uuid, uuid[]), public.entry_change_actor(uuid, uuid, uuid);
+-- public.queue_entry_changed_email(uuid, jsonb, uuid, uuid[]), public.entry_change_actor(uuid, uuid, uuid),
+-- public.carry_move_confirmation_state(); DROP TRIGGER trg_carry_move_confirmation_state ON public.entries;
 -- DROP INDEX show_lifecycle_email_jobs_one_ready_entry_changed; delete entry_changed jobs and
--- steps, restore the eight-value CHECKs and ensure_show_lifecycle_email_steps from
--- 20261117191300, ALTER TABLE public.show_lifecycle_email_jobs DROP COLUMN entry_changes.
+-- steps, restore the eight-value CHECKs, ensure_show_lifecycle_email_steps from
+-- 20261117191300 and claim_due_auto_email_jobs(integer, timestamptz) from 20261117094700
+-- (DROP the three-argument one after), ALTER TABLE public.show_lifecycle_email_jobs DROP COLUMN
+-- entry_changes, DROP COLUMN delivered_changes.
 -- =============================================================================
 
 BEGIN;
@@ -61,6 +77,12 @@ ALTER TABLE public.show_lifecycle_email_jobs
 
 COMMENT ON COLUMN public.show_lifecycle_email_jobs.entry_changes IS
   'MYK9-2126: for an entry_changed job, the list of changes to the recipient''s entries while it waited (kind, entry ids, from-values). Ids only; the email is rendered at send time. Written by the server only.';
+
+ALTER TABLE public.show_lifecycle_email_jobs
+  ADD COLUMN IF NOT EXISTS delivered_changes jsonb NOT NULL DEFAULT '[]'::jsonb;
+
+COMMENT ON COLUMN public.show_lifecycle_email_jobs.delivered_changes IS
+  'MYK9-2126: for a sent entry_changed job, the moves and outcomes the email actually told (kind, entry id, classes). Written by the sender when it marks the job sent; read to decide who a reversal must be told to.';
 
 DO $$
 DECLARE
@@ -146,7 +168,87 @@ SELECT public.ensure_show_lifecycle_email_steps(s.id) FROM public.shows s;
 
 CREATE UNIQUE INDEX IF NOT EXISTS show_lifecycle_email_jobs_one_ready_entry_changed
   ON public.show_lifecycle_email_jobs (show_id, recipient_person_id)
-  WHERE step_type = 'entry_changed' AND status = 'ready' AND recipient_person_id IS NOT NULL;
+  WHERE step_type = 'entry_changed' AND status = 'ready' AND claimed_until IS NULL
+    AND recipient_person_id IS NOT NULL;
+
+-- The drain's claim, with one new argument. Copied from its LATEST definition (20261117094700).
+-- An entry_changed job is handed out only to a sender that says it can send one. The
+-- two-argument function, which the sender deployed before this migration calls, stays and now
+-- passes false, so that sender never mails an entry change as a show_changed email; the new
+-- sender calls the three-argument one with true.
+CREATE OR REPLACE FUNCTION public.claim_due_auto_email_jobs(
+  p_limit integer,
+  p_lease_until timestamptz,
+  p_include_entry_changed boolean
+)
+RETURNS TABLE (
+  job_id uuid,
+  attempt_id uuid,
+  show_id uuid,
+  step_type text,
+  recipient_person_id uuid,
+  recipient_email text,
+  recipient_name text,
+  idempotency_key text,
+  due_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  WITH due AS (
+    SELECT j.id
+      FROM public.show_lifecycle_email_jobs j
+     WHERE j.status = 'ready'
+       AND j.auto_send
+       AND j.due_at <= now()
+       AND (j.claimed_until IS NULL OR j.claimed_until <= now())
+       AND (j.step_type <> 'entry_changed' OR coalesce(p_include_entry_changed, false))
+     ORDER BY j.due_at
+     LIMIT greatest(coalesce(p_limit, 0), 0)
+       FOR UPDATE SKIP LOCKED
+  )
+  UPDATE public.show_lifecycle_email_jobs j
+     SET attempt_id = gen_random_uuid(),
+         claimed_until = p_lease_until
+    FROM due
+   WHERE j.id = due.id
+     AND p_lease_until > now()
+  RETURNING j.id, j.attempt_id, j.show_id, j.step_type, j.recipient_person_id,
+            j.recipient_email, j.recipient_name, j.idempotency_key, j.due_at;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz, boolean)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz, boolean)
+  TO service_role;
+
+CREATE OR REPLACE FUNCTION public.claim_due_auto_email_jobs(
+  p_limit integer,
+  p_lease_until timestamptz
+)
+RETURNS TABLE (
+  job_id uuid,
+  attempt_id uuid,
+  show_id uuid,
+  step_type text,
+  recipient_person_id uuid,
+  recipient_email text,
+  recipient_name text,
+  idempotency_key text,
+  due_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT * FROM public.claim_due_auto_email_jobs(p_limit, p_lease_until, false);
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_due_auto_email_jobs(integer, timestamptz)
+  TO service_role;
 
 -- Who made this change, by the write path's own rules (withdraw_own_entry and
 -- update_own_entry_jump_height, steps 3 and 4): a manager of the show (can_manage_show) is
@@ -285,8 +387,11 @@ BEGIN
   -- Another edit in the same sitting: the one waiting job stays, waits again and adds the
   -- events. The sender keeps the FIRST "from" of each field, so "was" is the value before
   -- the first edit.
+  -- A job the drain has claimed is not in the index: it is frozen, and the new edit becomes a
+  -- job of its own.
   ON CONFLICT (show_id, recipient_person_id)
-    WHERE step_type = 'entry_changed' AND status = 'ready' AND recipient_person_id IS NOT NULL
+    WHERE step_type = 'entry_changed' AND status = 'ready' AND claimed_until IS NULL
+      AND recipient_person_id IS NOT NULL
   DO UPDATE SET
     due_at = now() + interval '5 minutes',
     recipient_email = excluded.recipient_email,
@@ -347,13 +452,17 @@ DECLARE
   v_actor text;
   v_fields text[] := '{}';
   v_source public.entries%ROWTYPE;
-  v_cancelled uuid[];
   v_told uuid[];
+  v_was_gone boolean;
+  v_is_gone boolean;
+  v_removal_kinds constant text[] :=
+    ARRAY['pulled', 'withdrawn', 'removed', 'pulled_at_show', 'pull_flagged', 'deleted'];
 BEGIN
   -- A move put back (reverse_move_up_entry, from the Undo toast or the Move back action)
-  -- restores the original and then removes the successor. Whoever has not been emailed yet
-  -- loses the move from the waiting job; whoever was already told of it is told of the move
-  -- back, or her last email still names the wrong class.
+  -- restores the original and then removes the successor. A move still waiting (a job nobody
+  -- has claimed) is taken out of it; whoever the sender actually TOLD of the move
+  -- (delivered_changes) is told of the move back, or her last email still names the wrong
+  -- class. What a waiting job merely held is not what she was told.
   IF new.deleted_at IS NOT NULL AND old.deleted_at IS NULL AND new.moved_from_entry_id IS NOT NULL THEN
     SELECT * INTO v_source
       FROM public.entries src
@@ -363,20 +472,17 @@ BEGIN
        AND src.deleted_at IS NULL
        AND src.entry_status IS DISTINCT FROM 'moved';
     IF FOUND THEN
-      WITH cancelled AS (
-        UPDATE public.show_lifecycle_email_jobs j
-           SET entry_changes = coalesce((
-                 SELECT jsonb_agg(ev ORDER BY ord)
-                   FROM jsonb_array_elements(j.entry_changes) WITH ORDINALITY AS t(ev, ord)
-                  WHERE ev->>'entry_id' IS DISTINCT FROM new.id::text
-               ), '[]'::jsonb)
-         WHERE j.show_id = new.show_id
-           AND j.step_type = 'entry_changed'
-           AND j.status = 'ready'
-           AND j.entry_changes @> jsonb_build_array(jsonb_build_object('entry_id', new.id))
-        RETURNING j.recipient_person_id
-      )
-      SELECT array_agg(recipient_person_id) INTO v_cancelled FROM cancelled;
+      UPDATE public.show_lifecycle_email_jobs j
+         SET entry_changes = coalesce((
+               SELECT jsonb_agg(ev ORDER BY ord)
+                 FROM jsonb_array_elements(j.entry_changes) WITH ORDINALITY AS t(ev, ord)
+                WHERE ev->>'entry_id' IS DISTINCT FROM new.id::text
+             ), '[]'::jsonb)
+       WHERE j.show_id = new.show_id
+         AND j.step_type = 'entry_changed'
+         AND j.status = 'ready'
+         AND (j.claimed_until IS NULL OR j.claimed_until <= now())
+         AND j.entry_changes @> jsonb_build_array(jsonb_build_object('entry_id', new.id));
 
       SELECT array_agg(DISTINCT j.recipient_person_id) INTO v_told
         FROM public.show_lifecycle_email_jobs j
@@ -384,9 +490,8 @@ BEGIN
          AND j.step_type = 'entry_changed'
          AND j.status = 'sent'
          AND j.recipient_person_id IS NOT NULL
-         AND j.entry_changes @> jsonb_build_array(
-               jsonb_build_object('kind', 'moved', 'entry_id', new.id))
-         AND NOT (j.recipient_person_id = ANY (coalesce(v_cancelled, '{}'::uuid[])));
+         AND j.delivered_changes @> jsonb_build_array(
+               jsonb_build_object('kind', 'moved', 'entry_id', new.id));
 
       IF v_told IS NOT NULL AND v_source.class_id IS NOT NULL AND new.class_id IS NOT NULL THEN
         PERFORM public.queue_entry_changed_email(v_source.id, jsonb_build_array(jsonb_build_object(
@@ -445,6 +550,7 @@ BEGIN
        WHERE j.show_id = new.show_id
          AND j.step_type = 'entry_changed'
          AND j.status = 'ready'
+         AND (j.claimed_until IS NULL OR j.claimed_until <= now())
          AND EXISTS (
            SELECT 1 FROM jsonb_array_elements(j.entry_changes) ev
             WHERE ev->>'kind' = 'edited'
@@ -455,13 +561,69 @@ BEGIN
     RETURN NULL;
   END IF;
 
+  -- An entry put back (Put back after a Pull, a ringside flag cleared, a removed entry
+  -- restored). A removal still waiting is taken out of its job; whoever the sender actually told
+  -- of it (the latest thing delivered about this entry says "gone") is told it is back, or her
+  -- last email still says the dog is out and she can miss the run.
+  v_was_gone := old.entry_status IN ('scratched', 'withdrawn')
+    OR old.check_in_status = 'pulled' OR old.deleted_at IS NOT NULL;
+  v_is_gone := new.entry_status IN ('scratched', 'withdrawn', 'moved')
+    OR new.check_in_status = 'pulled' OR new.deleted_at IS NOT NULL;
+  IF v_was_gone AND NOT v_is_gone THEN
+    UPDATE public.show_lifecycle_email_jobs j
+       SET entry_changes = coalesce((
+             SELECT jsonb_agg(ev ORDER BY ord)
+               FROM jsonb_array_elements(j.entry_changes) WITH ORDINALITY AS t(ev, ord)
+              WHERE NOT (
+                ev->>'entry_id' = new.id::text AND ev->>'kind' = ANY (v_removal_kinds)
+              )
+           ), '[]'::jsonb)
+     WHERE j.show_id = new.show_id
+       AND j.step_type = 'entry_changed'
+       AND j.status = 'ready'
+       AND (j.claimed_until IS NULL OR j.claimed_until <= now())
+       AND EXISTS (
+         SELECT 1 FROM jsonb_array_elements(j.entry_changes) ev
+          WHERE ev->>'entry_id' = new.id::text AND ev->>'kind' = ANY (v_removal_kinds)
+       );
+
+    SELECT array_agg(latest.person_id) INTO v_told
+      FROM (
+        SELECT DISTINCT ON (j.recipient_person_id)
+               j.recipient_person_id AS person_id, ev->>'kind' AS kind
+          FROM public.show_lifecycle_email_jobs j
+         CROSS JOIN LATERAL jsonb_array_elements(j.delivered_changes) ev
+         WHERE j.show_id = new.show_id
+           AND j.step_type = 'entry_changed'
+           AND j.status = 'sent'
+           AND j.recipient_person_id IS NOT NULL
+           AND ev->>'entry_id' = new.id::text
+           AND (ev->>'kind' = ANY (v_removal_kinds) OR ev->>'kind' = 'restored')
+         ORDER BY j.recipient_person_id, j.sent_at DESC NULLS LAST, j.created_at DESC
+      ) latest
+     WHERE latest.kind = ANY (v_removal_kinds);
+
+    IF v_told IS NOT NULL THEN
+      PERFORM public.queue_entry_changed_email(
+        new.id,
+        jsonb_build_array(jsonb_build_object('kind', 'restored', 'entry_id', new.id)),
+        old.handler_id,
+        v_told);
+    END IF;
+  END IF;
+
   -- Which act, in its own words (docs/INTENT.md "Withdraw vs Pull", classifyEntryRemoval):
-  -- 'scratched' is a pull, 'withdrawn' with a recognised reason is a withdrawal, a reasonless
-  -- 'withdrawn' is the secretary removing the entry, and a day-of check_in_status 'pulled' is
-  -- a pull at the show.
+  -- 'scratched' is a Pull, 'withdrawn' with a recognised reason is a withdrawal, a reasonless
+  -- 'withdrawn' is the secretary removing the entry. The day-of ringside check-in flag
+  -- (check_in_status 'pulled') is NOT a confirmed Pull: alone it is only a flag the desk may
+  -- still clear. The desk's Pull writes the status and the flag together: that is one Pull
+  -- ('pulled'), unless the dog was already flagged at the show, which makes it pulled at the show.
   IF new.entry_status IS DISTINCT FROM old.entry_status THEN
     IF new.entry_status = 'scratched' THEN
-      v_events := v_events || jsonb_build_object('kind', 'pulled', 'entry_id', new.id);
+      v_events := v_events || jsonb_build_object(
+        'kind',
+        CASE WHEN old.check_in_status = 'pulled' THEN 'pulled_at_show' ELSE 'pulled' END,
+        'entry_id', new.id);
     ELSIF new.entry_status = 'withdrawn' THEN
       v_events := v_events || jsonb_build_object(
         'kind',
@@ -471,8 +633,9 @@ BEGIN
     END IF;
   END IF;
   IF new.check_in_status = 'pulled' AND old.check_in_status IS DISTINCT FROM 'pulled'
-     AND new.check_in_pulled_by IS DISTINCT FROM 'exhibitor' THEN
-    v_events := v_events || jsonb_build_object('kind', 'pulled_at_show', 'entry_id', new.id);
+     AND new.check_in_pulled_by IS DISTINCT FROM 'exhibitor'
+     AND new.entry_status NOT IN ('scratched', 'withdrawn') THEN
+    v_events := v_events || jsonb_build_object('kind', 'pull_flagged', 'entry_id', new.id);
   END IF;
   IF new.deleted_at IS NOT NULL AND old.deleted_at IS NULL THEN
     v_events := v_events || jsonb_build_object('kind', 'deleted', 'entry_id', new.id);
@@ -488,6 +651,50 @@ $$;
 
 REVOKE ALL ON FUNCTION public.queue_entry_changed_email_from_update()
   FROM PUBLIC, anon, authenticated, service_role;
+
+-- A move writes a successor that is a brand new row, so it would look unconfirmed to
+-- send-confirmation-email, which would send "accepted" again beside the move email. The
+-- successor keeps the source's confirmation state, so it is one email for one move.
+CREATE OR REPLACE FUNCTION public.carry_move_confirmation_state()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_sent_at timestamptz;
+  v_status text;
+  v_message_id text;
+BEGIN
+  IF new.confirmation_email_sent_at IS NULL THEN
+    SELECT src.confirmation_email_sent_at, src.confirmation_email_status, src.confirmation_email_message_id
+      INTO v_sent_at, v_status, v_message_id
+      FROM public.entries src
+     WHERE src.id = new.moved_from_entry_id
+       AND src.show_id = new.show_id
+       AND src.dog_id = new.dog_id;
+    IF v_sent_at IS NOT NULL THEN
+      new.confirmation_email_sent_at := v_sent_at;
+      new.confirmation_email_status := v_status;
+      new.confirmation_email_message_id := v_message_id;
+    END IF;
+  END IF;
+  RETURN new;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'carry_move_confirmation_state: % (%)', SQLERRM, SQLSTATE;
+  RETURN new;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.carry_move_confirmation_state()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS trg_carry_move_confirmation_state ON public.entries;
+CREATE TRIGGER trg_carry_move_confirmation_state
+  BEFORE INSERT ON public.entries
+  FOR EACH ROW
+  WHEN (new.moved_from_entry_id IS NOT NULL)
+  EXECUTE FUNCTION public.carry_move_confirmation_state();
 
 DROP TRIGGER IF EXISTS trg_queue_entry_changed_email_insert ON public.entries;
 CREATE TRIGGER trg_queue_entry_changed_email_insert
@@ -506,6 +713,7 @@ CREATE TRIGGER trg_queue_entry_changed_email_update
     OR old.entry_status IS DISTINCT FROM new.entry_status
     OR old.check_in_status IS DISTINCT FROM new.check_in_status
     OR (old.deleted_at IS NULL AND new.deleted_at IS NOT NULL)
+    OR (old.deleted_at IS NOT NULL AND new.deleted_at IS NULL)
   )
   EXECUTE FUNCTION public.queue_entry_changed_email_from_update();
 

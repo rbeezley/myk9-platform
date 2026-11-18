@@ -5,7 +5,7 @@
  *
  * The job stores only ids and pre-edit values: entry_changes is a list of
  *   moved      { entry_id: the new entry, from_entry_id, from_class_id, to_class_id }
- *   pulled | withdrawn | removed | pulled_at_show | deleted   { entry_id }
+ *   pulled | withdrawn | removed | pulled_at_show | pull_flagged | deleted | restored   { entry_id }
  *   edited     { entry_id, field: 'handler' | 'jump_height', from }
  * An accepted class change request lands as a move, so it is told here and nowhere else.
  * Every read is scoped to the job's show.
@@ -14,7 +14,8 @@ import type { LifecycleEmailSupabaseClient, QueryResult } from './lifecycle-emai
 import { formatTrialDate } from './lifecycle-email-showChanged.ts';
 
 /** Each act in its own words (docs/INTENT.md "Withdraw vs Pull"). */
-type OutcomeKind = 'pulled' | 'withdrawn' | 'removed' | 'pulled_at_show' | 'deleted';
+type OutcomeKind =
+  'pulled' | 'withdrawn' | 'removed' | 'pulled_at_show' | 'pull_flagged' | 'deleted' | 'restored';
 
 export type EntryChangeLineKind = 'moved' | 'edited' | OutcomeKind;
 
@@ -26,6 +27,16 @@ export interface EntryChangeLine {
   classLabel: string;
   /** Plain words for the part after the dog: "moved from X to Y". */
   text: string;
+  /** What this line tells, kept on the job once sent so a reversal reaches whoever read it. */
+  delivered?: DeliveredChange;
+}
+
+/** A move or an outcome the email told (stored as show_lifecycle_email_jobs.delivered_changes). */
+export interface DeliveredChange {
+  kind: 'moved' | OutcomeKind;
+  entry_id: string;
+  from_class_id?: string;
+  to_class_id?: string;
 }
 
 export interface RenderedEntryChangedEmail {
@@ -68,6 +79,8 @@ interface ClassRow {
   element: string | null;
   level: string | null;
   section: string | null;
+  status: string | null;
+  deleted_at: string | null;
   trials: TrialRow | TrialRow[] | null;
 }
 
@@ -75,6 +88,7 @@ interface TrialRow {
   name: string | null;
   date: string | null;
   show_id: string | null;
+  deleted_at: string | null;
 }
 
 const WITHDRAWAL_REASONS = ['in_season', 'judge_change'];
@@ -83,8 +97,36 @@ const OUTCOME_VERBS: Record<OutcomeKind, (label: string) => string> = {
   withdrawn: label => `withdrawn from ${label}`,
   removed: label => `removed from ${label}`,
   pulled_at_show: label => `pulled from ${label} at the show`,
+  // A ringside flag is not a confirmed Pull: the desk may still clear it (docs/INTENT.md).
+  pull_flagged: label =>
+    `marked as pulled at check-in for ${label}; the trial secretary has not confirmed it yet`,
   deleted: label => `deleted from ${label}`,
+  restored: label => `put back in ${label}; your entry is active again`,
 };
+
+/**
+ * Entry statuses that still run: the same list as live_entry_person_class_pairs (the rule
+ * the show and judge change emails use), so a dog marked absent or declined is not sent to a
+ * class it will not run.
+ */
+const LIVE_ENTRY_STATUSES = [
+  'confirmed',
+  'accepted',
+  'scheduled',
+  'checked-in',
+  'at-gate',
+  'in-ring',
+  'competing',
+  'completed',
+  'move-up-requested',
+  'move_up_requested',
+  'submitted',
+  'paid',
+  'pending',
+  'promotion-expired',
+  'waitlisted',
+  'pending-payment',
+];
 
 function clean(value: string | null | undefined): string {
   return (value ?? '').trim();
@@ -120,6 +162,15 @@ function classLabel(row: ClassRow | undefined): string {
   return where ? `${name} (${where})` : name;
 }
 
+/** Not deleted, not pulled or flagged, and in a status that still runs. */
+function entryRuns(entry: EntryRow): boolean {
+  return (
+    !entry.deleted_at &&
+    LIVE_ENTRY_STATUSES.includes(clean(entry.entry_status)) &&
+    entry.check_in_status !== 'pulled'
+  );
+}
+
 /** Whether the act an event recorded is still what the entry says now. */
 function outcomeStillStands(kind: string, entry: EntryRow): kind is OutcomeKind {
   const status = clean(entry.entry_status);
@@ -132,15 +183,20 @@ function outcomeStillStands(kind: string, entry: EntryRow): kind is OutcomeKind 
     case 'removed':
       return status === 'withdrawn' && !WITHDRAWAL_REASONS.includes(reason);
     case 'pulled_at_show':
-      return entry.check_in_status === 'pulled';
+      return status === 'scratched';
+    case 'pull_flagged':
+      return entry.check_in_status === 'pulled' && status !== 'scratched' && status !== 'withdrawn';
     case 'deleted':
       return !!entry.deleted_at;
+    case 'restored':
+      return entryRuns(entry);
     default:
       return false;
   }
 }
 
-export type EntryChangedPlan = { kind: 'skip' } | { kind: 'send'; lines: EntryChangeLine[] };
+export type EntryChangedPlan =
+  { kind: 'skip' } | { kind: 'send'; lines: EntryChangeLine[]; delivered: DeliveredChange[] };
 
 /**
  * Reads what the email needs and decides whether it still has anything to say: only entries
@@ -179,10 +235,6 @@ export async function planEntryChangedEmail(args: {
 
   const isMine = (entry: EntryRow) =>
     entry.handler_id === args.personId || first(entry.dogs)?.owner_id === args.personId;
-  const isLive = (entry: EntryRow) =>
-    !entry.deleted_at &&
-    !['withdrawn', 'scratched', 'moved'].includes(clean(entry.entry_status)) &&
-    entry.check_in_status !== 'pulled';
 
   // Moves chain (A to B to C is one move; a round trip is none). Each chain is told once,
   // against the entry it ended on, and only while that entry is live.
@@ -235,7 +287,11 @@ export async function planEntryChangedEmail(args: {
     if (start.from_class_id) classIds.add(start.from_class_id);
     if (end.to_class_id) classIds.add(end.to_class_id);
   }
-  for (const id of [...outcomes.keys(), ...[...edits.values()].map(edit => edit.entryId)]) {
+  for (const id of [
+    ...outcomes.keys(),
+    ...[...edits.values()].map(edit => edit.entryId),
+    ...chains.map(chain => chain.end.entry_id),
+  ]) {
     const classId = entries.get(id)?.class_id;
     if (classId) classIds.add(classId);
   }
@@ -244,7 +300,9 @@ export async function planEntryChangedEmail(args: {
   if (classIds.size > 0) {
     const classRead = (await supabase
       .from('classes')
-      .select('id, name, element, level, section, trials(name, date, show_id)')
+      .select(
+        'id, name, element, level, section, status, deleted_at, trials(name, date, show_id, deleted_at)'
+      )
       .in('id', [...classIds])) as QueryResult<ClassRow[]>;
     if (classRead.error) throw new Error('Failed to load classes');
     for (const row of classRead.data ?? []) {
@@ -252,6 +310,14 @@ export async function planEntryChangedEmail(args: {
       if (first(row.trials)?.show_id === args.showId) classes.set(row.id, row);
     }
   }
+
+  /** The entry still runs, and so does its class (not cancelled, not deleted, trial not deleted). */
+  const isLive = (entry: EntryRow) => {
+    if (!entryRuns(entry) || !entry.class_id) return false;
+    const row = classes.get(entry.class_id);
+    if (!row || row.deleted_at || first(row.trials)?.deleted_at) return false;
+    return !['cancelled', 'canceled'].includes(clean(row.status).toLowerCase());
+  };
 
   const dogName = (entry: EntryRow | undefined) => {
     const dog = first(entry?.dogs);
@@ -275,17 +341,26 @@ export async function planEntryChangedEmail(args: {
       dogName: dogName(entry),
       classLabel: to,
       text: `moved from ${from} to ${to}`,
+      delivered: {
+        kind: 'moved',
+        entry_id: end.entry_id,
+        from_class_id: start.from_class_id,
+        to_class_id: end.to_class_id,
+      },
     });
   }
 
   for (const [entryId, outcome] of outcomes) {
     const entry = entries.get(entryId);
+    // An entry put back is news only while it and its class still run.
+    if (outcome === 'restored' && (!entry || !isLive(entry))) continue;
     const label = classLabel(entry?.class_id ? classes.get(entry.class_id) : undefined);
     lines.push({
       kind: outcome,
       dogName: dogName(entry),
       classLabel: label,
       text: OUTCOME_VERBS[outcome](label),
+      delivered: { kind: outcome, entry_id: entryId },
     });
   }
 
@@ -319,7 +394,8 @@ export async function planEntryChangedEmail(args: {
 
   if (lines.length === 0) return skip;
   lines.sort((a, b) => a.dogName.localeCompare(b.dogName) || a.text.localeCompare(b.text));
-  return { kind: 'send', lines };
+  const delivered = lines.flatMap(line => (line.delivered ? [line.delivered] : []));
+  return { kind: 'send', lines, delivered };
 }
 
 export function renderEntryChangedEmail(args: {

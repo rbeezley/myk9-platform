@@ -117,6 +117,8 @@ export async function drainAutoEmailJobs(args: {
     const { data, error } = await args.supabase.rpc('claim_due_auto_email_jobs', {
       p_limit: AUTO_SEND_BATCH_SIZE,
       p_lease_until: new Date(now().getTime() + AUTO_SEND_LEASE_MS).toISOString(),
+      // MYK9-2126: this sender can send an entry change; an older one is never handed one.
+      p_include_entry_changed: true,
     });
     if (error) {
       console.error('drain_auto: claim failed', getErrorMessage(error));
@@ -218,6 +220,7 @@ async function processClaimedJob(args: {
   }
 
   let text: { subject: string; body: string };
+  let delivered: unknown[] | undefined;
   if (job.step_type === 'judge_changed') {
     // MYK9-2125: still a recipient means a live entry in a class whose judge really changed.
     const plan = await planJudgeChangedEmail({
@@ -256,6 +259,7 @@ async function processClaimedJob(args: {
       recipientName: job.recipient_name,
       lines: plan.lines,
     });
+    delivered = plan.delivered;
   } else {
     if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
       await finishJob(args, { status: 'skipped' });
@@ -292,7 +296,12 @@ async function processClaimedJob(args: {
     ...text,
     secretaryNote: '',
   });
-  await finishJob(args, { status: 'sent', emailLogId: emailLogId ?? null, rendered: text });
+  await finishJob(args, {
+    status: 'sent',
+    emailLogId: emailLogId ?? null,
+    rendered: text,
+    delivered,
+  });
   return 'sent';
 }
 
@@ -376,6 +385,8 @@ async function finishJob(
     status: 'sent' | 'failed' | 'skipped';
     emailLogId?: string | null;
     rendered?: { subject: string; body: string };
+    /** What an entry_changed email actually told, kept so a later reversal reaches the right people. */
+    delivered?: unknown[];
   }
 ) {
   const at = args.now().toISOString();
@@ -385,6 +396,9 @@ async function finishJob(
       status: outcome.status,
       ...(outcome.status === 'sent' ? { sent_at: at } : {}),
       ...(outcome.status === 'skipped' ? { skipped_at: at } : {}),
+      ...(outcome.status === 'sent' && outcome.delivered
+        ? { delivered_changes: outcome.delivered }
+        : {}),
       ...(outcome.emailLogId ? { email_log_id: outcome.emailLogId } : {}),
       ...(outcome.rendered
         ? { rendered_subject: outcome.rendered.subject, rendered_body: outcome.rendered.body }

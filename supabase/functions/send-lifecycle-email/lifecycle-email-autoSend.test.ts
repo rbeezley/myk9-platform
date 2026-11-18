@@ -39,6 +39,7 @@ describe('drainAutoEmailJobs', () => {
     expect(fixture.rpc).toHaveBeenCalledWith('claim_due_auto_email_jobs', {
       p_limit: 25,
       p_lease_until: '2026-11-17T12:10:00.000Z',
+      p_include_entry_changed: true,
     });
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://api.resend.com/emails');

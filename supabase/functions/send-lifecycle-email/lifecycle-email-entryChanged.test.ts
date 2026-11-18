@@ -39,14 +39,17 @@ function entry(overrides: Row = {}): Row {
   };
 }
 
-function classRow(id: string, name: string, showId = 'show-1'): Row {
+function classRow(id: string, name: string, showId = 'show-1', overrides: Row = {}): Row {
   return {
     id,
     name,
     element: null,
     level: null,
     section: null,
-    trials: { name: 'Saturday Trial', date: '2026-11-21', show_id: showId },
+    status: 'upcoming',
+    deleted_at: null,
+    trials: { name: 'Saturday Trial', date: '2026-11-21', show_id: showId, deleted_at: null },
+    ...overrides,
   };
 }
 
@@ -151,9 +154,11 @@ describe('drainAutoEmailJobs for entry_changed', () => {
             dogs: { ...dog, call_name: 'Bea' },
           }),
           entry({ id: 'entry-3', entry_status: 'withdrawn', dogs: { ...dog, call_name: 'Cal' } }),
+          // The dog was flagged at check-in and the desk then confirmed the Pull.
           entry({
             id: 'entry-4',
             class_id: 'class-2',
+            entry_status: 'scratched',
             check_in_status: 'pulled',
             dogs: { ...dog, call_name: 'Dot' },
           }),
@@ -169,6 +174,121 @@ describe('drainAutoEmailJobs for entry_changed', () => {
     expect(html).toContain('Dot: pulled from Interior Novice A');
     expect(html).toContain('at the show');
     expect(html).not.toContain('Ash: withdrawn');
+  });
+
+  it('calls a ringside flag a flag, never a confirmed Pull', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        [{ kind: 'pull_flagged', entry_id: 'entry-1' }],
+        [entry({ check_in_status: 'pulled' })]
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+    await promise;
+    const { html } = sentBody(fetch);
+    expect(html).toContain(
+      'Vesper: marked as pulled at check-in for Container Novice A (Saturday Trial, Saturday, November 21, 2026); the trial secretary has not confirmed it yet'
+    );
+    expect(html).not.toContain('pulled from');
+  });
+
+  it('drops a flag the desk has since cleared, and one confirmed as a Pull is told as that', async () => {
+    const cleared = makeAutoSendSupabase(
+      tables([{ kind: 'pull_flagged', entry_id: 'entry-1' }], [entry()])
+    );
+    const first = drain(cleared);
+    await expect(first.promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+
+    const confirmed = makeAutoSendSupabase(
+      tables(
+        [
+          { kind: 'pull_flagged', entry_id: 'entry-1' },
+          { kind: 'pulled_at_show', entry_id: 'entry-1' },
+        ],
+        [entry({ entry_status: 'scratched', check_in_status: 'pulled' })]
+      )
+    );
+    const second = drain(confirmed);
+    await second.promise;
+    const { html } = sentBody(second.fetch);
+    expect(html).toContain('pulled from Container Novice A');
+    expect(html).toContain('at the show');
+    expect(html).not.toContain('not confirmed');
+  });
+
+  it('tells an entry put back is active again, and nothing if it was pulled again since', async () => {
+    const back = makeAutoSendSupabase(tables([{ kind: 'restored', entry_id: 'entry-1' }]));
+    const first = drain(back);
+    await first.promise;
+    expect(sentBody(first.fetch).html).toContain(
+      'Vesper: put back in Container Novice A (Saturday Trial, Saturday, November 21, 2026); your entry is active again'
+    );
+
+    const pulledAgain = makeAutoSendSupabase(
+      tables([{ kind: 'restored', entry_id: 'entry-1' }], [entry({ entry_status: 'scratched' })])
+    );
+    const second = drain(pulledAgain);
+    await expect(second.promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+  });
+
+  it('does not send a dog to a class it no longer runs: absent, declined or a cancelled class', async () => {
+    for (const row of [entry({ entry_status: 'absent' }), entry({ entry_status: 'declined' })]) {
+      const fixture = makeAutoSendSupabase(
+        tables(
+          [{ kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '8' }],
+          [{ ...row, jump_height: '12' }]
+        )
+      );
+      const run = drain(fixture);
+      await expect(run.promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+    }
+
+    const cancelled = tables(
+      [
+        { kind: 'edited', entry_id: 'entry-1', field: 'jump_height', from: '8' },
+        { ...move, entry_id: 'entry-1', from_entry_id: 'entry-0' },
+      ],
+      [entry({ jump_height: '12' })]
+    );
+    cancelled.classes = [
+      classRow('class-1', 'Container Novice A', 'show-1', { status: 'cancelled' }),
+      classRow('class-2', 'Interior Novice A'),
+    ];
+    const run = drain(makeAutoSendSupabase(cancelled));
+    await expect(run.promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+    expect(run.fetch).not.toHaveBeenCalled();
+  });
+
+  it('records the moves and outcomes it told on the job, for a later reversal', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        [
+          move,
+          { kind: 'edited', entry_id: 'entry-2', field: 'jump_height', from: '8' },
+          {
+            kind: 'pulled',
+            entry_id: 'entry-3',
+          },
+        ],
+        [
+          entry({ id: 'entry-1', entry_status: 'moved' }),
+          entry({ id: 'entry-2', class_id: 'class-2', jump_height: '12' }),
+          entry({ id: 'entry-3', entry_status: 'scratched' }),
+        ]
+      )
+    );
+    const { promise } = drain(fixture);
+    await promise;
+    expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({
+      status: 'sent',
+      delivered_changes: expect.arrayContaining([
+        { kind: 'moved', entry_id: 'entry-2', from_class_id: 'class-1', to_class_id: 'class-2' },
+        { kind: 'pulled', entry_id: 'entry-3' },
+      ]),
+    });
+    expect(
+      (fixture.tables.show_lifecycle_email_jobs[0].delivered_changes as unknown[]).length
+    ).toBe(2);
   });
 
   it('does not call a pull a withdrawal when the stored act no longer matches the event', async () => {

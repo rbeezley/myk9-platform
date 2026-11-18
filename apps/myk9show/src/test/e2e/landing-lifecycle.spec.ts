@@ -163,13 +163,16 @@ for (const vp of VIEWPORTS) {
       await peak.scrollIntoViewIfNeeded();
       const sw = peak.getByRole('switch', { name: 'Venue signal' });
       await sw.click();
-      await peak.getByRole('button', { name: 'Start' }).click();
+      // The ring scene's numbered lines sit in the same step and are buttons whose names hold
+      // these words ("Start, Stop, then Qualified..."), so the lookups stay inside the scoresheet.
+      const demo = peak.locator('.lc-demo');
+      await demo.getByRole('button', { name: 'Start', exact: true }).click();
       await page.waitForTimeout(600);
-      await peak.getByRole('button', { name: 'Stop' }).click();
-      await peak.getByRole('button', { name: 'Qualified' }).click();
-      await peak.getByRole('button', { name: 'Save' }).click();
-      await peak.getByRole('button', { name: 'Absent' }).click();
-      await peak.getByRole('button', { name: 'Save' }).click();
+      await demo.getByRole('button', { name: 'Stop', exact: true }).click();
+      await demo.getByRole('button', { name: 'Qualified', exact: true }).click();
+      await demo.getByRole('button', { name: 'Save', exact: true }).click();
+      await demo.getByRole('button', { name: 'Absent', exact: true }).click();
+      await demo.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(peak.getByText('No signal · 2 waiting')).toBeVisible();
       await sw.click();
       await expect(peak.getByText('All sent')).toBeVisible({ timeout: 4000 });
@@ -358,14 +361,17 @@ for (const vp of VIEWPORTS) {
       expect(result.failures, `minimum ratio observed ${result.min.toFixed(2)}`).toEqual([]);
     });
 
-    test('page length is 8 to 14 screens on phone', async ({ page }) => {
+    // 15, not 14, while the animated scenes sit beside the stills they will replace (owner,
+    // 2026-11-17, MYK9-1894): the ring scene adds about one phone screen. Bring this back to
+    // 14 when Phase 2 of docs/plan-landing-animated-timeline.md removes the two-column stills.
+    test('page length is 8 to 15 screens on phone', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);
       const screens = await page.evaluate(
         () => document.documentElement.scrollHeight / window.innerHeight
       );
       expect(screens).toBeGreaterThanOrEqual(8);
-      expect(screens).toBeLessThanOrEqual(14);
+      expect(screens).toBeLessThanOrEqual(15);
     });
   });
 }

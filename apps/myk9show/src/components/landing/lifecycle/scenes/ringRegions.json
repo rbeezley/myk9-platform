@@ -1,0 +1,109 @@
+{
+  "space": {
+    "width": 768,
+    "height": 1024
+  },
+  "scale": 1.5,
+  "shots": {
+    "classes": {
+      "file": "classes.png",
+      "regions": {
+        "card": {
+          "x": 83,
+          "y": 337,
+          "w": 602,
+          "h": 124
+        }
+      }
+    },
+    "offline": {
+      "file": "offline.png",
+      "regions": {
+        "status": {
+          "x": 217,
+          "y": 38,
+          "w": 256,
+          "h": 20
+        }
+      }
+    },
+    "sheet": {
+      "file": "sheet.png",
+      "regions": {
+        "start": {
+          "x": 73,
+          "y": 214,
+          "w": 622,
+          "h": 80
+        }
+      }
+    },
+    "running": {
+      "file": "running.png",
+      "regions": {
+        "timer": {
+          "x": 60,
+          "y": 123,
+          "w": 648,
+          "h": 184
+        },
+        "time": {
+          "x": 73,
+          "y": 137,
+          "w": 185,
+          "h": 58
+        }
+      }
+    },
+    "result": {
+      "file": "result.png",
+      "regions": {
+        "result": {
+          "x": 73,
+          "y": 406,
+          "w": 622,
+          "h": 104
+        }
+      }
+    },
+    "confirm": {
+      "file": "confirm.png",
+      "regions": {
+        "dialog": {
+          "x": 160,
+          "y": 319,
+          "w": 448,
+          "h": 387
+        }
+      }
+    },
+    "saved": {
+      "file": "saved.png",
+      "regions": {
+        "text": {
+          "x": 48,
+          "y": 143,
+          "w": 523,
+          "h": 24
+        }
+      }
+    },
+    "sent": {
+      "file": "sent.png",
+      "regions": {
+        "toast": {
+          "x": 396,
+          "y": 955,
+          "w": 356,
+          "h": 54
+        },
+        "text": {
+          "x": 12,
+          "y": 128,
+          "w": 744,
+          "h": 53
+        }
+      }
+    }
+  }
+}

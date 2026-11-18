@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
 import type { ExplainerStep, Shot } from './lifecycleStories';
 
-const MAX_W = { phone: '300px', tablet: '420px', desktop: '640px' } as const;
+const MAX_W = { phone: '300px', desktop: '640px' } as const;
 
 // Explainer slide over one screenshot: a highlight box and caption per step, cross-faded
 // by opacity (no layout animation). Auto-advances only while on screen and not paused.

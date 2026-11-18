@@ -7,6 +7,7 @@ import {
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
+import { resultsDeadlineCoversTrialType } from '@/features/registries/closeoutDuties';
 import { parseAKCResultStatus } from '@myk9/secretary';
 import type {
   AKCSubmissionData,
@@ -32,7 +33,7 @@ export function useAKCSubmissionData(showId: string) {
           .maybeSingle(),
         supabase
           .from('trials')
-          .select('id, event_number, date, trial_number, name')
+          .select('id, event_number, date, trial_number, name, trial_type')
           .eq('show_id', showId)
           .is('deleted_at', null)
           .order('date'),
@@ -58,6 +59,7 @@ export function useAKCSubmissionData(showId: string) {
         date: string;
         trial_number: string | null;
         name: string;
+        trial_type?: string | null;
       }>;
 
       const show: SubmissionShow = {
@@ -72,7 +74,12 @@ export function useAKCSubmissionData(showId: string) {
         secretaryEmail: secretaryRow?.email ?? null,
       };
 
-      const trials: SubmissionTrial[] = trialRows.map(t => ({
+      // MYK9-2157: the AKC Scent Work export covers Scent Work trials only. Same discipline
+      // rule as the closeout finish list, so the two never disagree. Classes are read only for
+      // these trials, so entries of any other discipline (FastCAT, ...) drop out below.
+      const scentTrialRows = trialRows.filter(t => resultsDeadlineCoversTrialType(t.trial_type));
+
+      const trials: SubmissionTrial[] = scentTrialRows.map(t => ({
         id: t.id,
         trialNumber: t.trial_number ?? 1,
         date: t.date,
@@ -82,7 +89,7 @@ export function useAKCSubmissionData(showId: string) {
         eventNumber: t.event_number,
       }));
 
-      const trialIds = trialRows.map(t => t.id);
+      const trialIds = scentTrialRows.map(t => t.id);
 
       if (trialIds.length === 0) {
         return { show, trials, entries: [] };

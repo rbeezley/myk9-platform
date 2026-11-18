@@ -223,9 +223,12 @@ export function PremiumContentEditor({
 
   function buildFinalPremium(): GeneratedPremium | null {
     if (!original || !supplemental || !narratives) return null;
+    // MYK9-2173: the resolved image counts only for the URL it was resolved from.
+    const resolvedCover =
+      pdfCoverImageRemoteUrl === supplemental.coverImageUrl ? pdfCoverImageSrc : null;
     const finalSupplemental = {
       ...supplemental,
-      coverImageUrl: pdfCoverImageSrc ?? supplemental.coverImageUrl,
+      coverImageUrl: resolvedCover ?? supplemental.coverImageUrl,
     };
     return {
       ...original,
@@ -342,7 +345,7 @@ export function PremiumContentEditor({
   const finalPremium = useMemo(
     () => (original ? buildFinalPremium() : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [original, supplemental, narratives, style]
+    [original, supplemental, narratives, style, pdfCoverImageSrc, pdfCoverImageRemoteUrl]
   );
   useEffect(() => {
     onPremiumChangeRef.current?.(finalPremium ?? undefined);

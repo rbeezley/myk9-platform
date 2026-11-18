@@ -225,6 +225,38 @@ describe('stripe-payment-link caller authentication (MYK9-1394)', () => {
     expect(h.sessionsCreate).toHaveBeenCalledTimes(1);
   });
 
+  it('answers a failed club account lookup with a retryable 500 and makes no link (MYK9-2193)', async () => {
+    h.tableResults.set('club_stripe_accounts', () => ({
+      data: null,
+      error: { message: 'connection reset', code: '08006' },
+    }));
+
+    const res = await run(post({ Authorization: `Bearer ${SECRETARY_TOKEN}` }));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({
+      error: "We could not check the club's payment account. Please try again.",
+    });
+    expect(h.sessionsCreate).not.toHaveBeenCalled();
+    expect(h.inserts).toEqual([]);
+  });
+
+  it('keeps the payouts-off 403 when the lookup worked and payouts are off (MYK9-2193)', async () => {
+    h.tableResults.set('club_stripe_accounts', () => ({
+      data: { payouts_enabled: false },
+      error: null,
+    }));
+
+    const res = await run(post({ Authorization: `Bearer ${SECRETARY_TOKEN}` }));
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "This club's payment account is not set up to receive online entry fees.",
+    });
+    expect(h.sessionsCreate).not.toHaveBeenCalled();
+    expect(h.inserts).toEqual([]);
+  });
+
   it('refuses a JWT caller who holds no role and no waitlist offer, even with the cron secret', async () => {
     h.rpc.mockResolvedValue({ data: false, error: null });
     h.tableResults.set('exhibitor_profiles', () => ({ data: null, error: null }));

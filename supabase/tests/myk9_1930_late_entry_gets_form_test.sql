@@ -487,9 +487,9 @@ SELECT set_config('request.jwt.claims',
 INSERT INTO t1930_offer
 SELECT public.promote_waitlist_entry('00000000-0000-0000-0000-000001930912');
 
--- Paid with a method that is neither box money nor secretary_paid / group_payment, and with
--- no method at all: nothing is recorded, the form owes.
-SELECT pg_temp.desk_insert(13, 13, '31', 'paid', 'venmo', 30);
+-- Paid with no method at all (entries_payment_method_check allows no method outside its list,
+-- so "none" is the only shape besides the named ones): nothing is recorded, the form owes.
+SELECT pg_temp.desk_insert(13, 13, '31', 'paid', NULL, 30);
 SELECT pg_temp.desk_insert(14, 14, '31', 'paid', NULL, 30);
 
 -- submit_show_entries with no form (an official calling the RPC directly): desk entries, so

@@ -106,7 +106,7 @@
 --     * paid as secretary_paid or group_payment (exactly those two): paid_amount grows by the
 --       fee and the form is 'paid' once covered, exactly what submit_show_entries does for those
 --       methods. No ledger row: the cash box never held that money.
---     * paid with any other method, or none (entries.payment_method has no CHECK): nothing is
+--     * paid with no method, or any other the CHECK allows (entries_payment_method_check): nothing is
 --       recorded. The form owes the fee, as in case (a), and the money is recorded on it with
 --       Cash / Check like any owing form. Nothing is invented from a label.
 --     Only for a caller who may record money on the show (private.can_record_show_payment: a

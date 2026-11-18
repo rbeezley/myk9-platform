@@ -146,12 +146,12 @@ describe('useEnrollmentLedgerActions', () => {
       receivedOn: '2026-09-17',
     };
 
-    let ok = false;
+    let outcome = '';
     await act(async () => {
-      ok = await result.current.record('enr-1', action);
+      outcome = await result.current.record('enr-1', action);
     });
 
-    expect(ok).toBe(true);
+    expect(outcome).toBe('saved');
     expect(mocks.record).toHaveBeenCalledTimes(1);
     expect(mocks.record).toHaveBeenCalledWith('enr-1', action);
     expect(entries[0]!.enrollmentPaymentStatus).toBe(PaymentStatus.PAID_BY_CASH);
@@ -265,12 +265,12 @@ describe('useEnrollmentLedgerActions', () => {
       { wrapper }
     );
 
-    let ok = true;
+    let outcome = '';
     await act(async () => {
-      ok = await result.current.record('enr-1', { kind: 'reversal' });
+      outcome = await result.current.record('enr-1', { kind: 'reversal' });
     });
 
-    expect(ok).toBe(false);
+    expect(outcome).toBe('failed');
     expect(setEntries).not.toHaveBeenCalled();
     expect(mocks.toastError).toHaveBeenCalledWith(
       "Payment not recorded: received date 2026-11-20 is after today (2026-11-13) on the show's calendar"
@@ -278,18 +278,19 @@ describe('useEnrollmentLedgerActions', () => {
   });
 
   // MYK9-1824: only the RPCs' own refusals (22023) are shown with their reason.
-  async function failRecord(error: unknown) {
+  // MYK9-2156: a refusal is `failed` (nothing written); anything else is `unconfirmed`.
+  async function failRecord(error: unknown, expected: 'failed' | 'unconfirmed') {
     mocks.record.mockRejectedValue(error);
     const setEntries = vi.fn();
     const { result } = renderHook(
       () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
       { wrapper }
     );
-    let ok = true;
+    let outcome = '';
     await act(async () => {
-      ok = await result.current.record('enr-1', { kind: 'reversal' });
+      outcome = await result.current.record('enr-1', { kind: 'reversal' });
     });
-    expect(ok).toBe(false);
+    expect(outcome).toBe(expected);
     expect(setEntries).not.toHaveBeenCalled();
   }
 
@@ -305,7 +306,7 @@ describe('useEnrollmentLedgerActions', () => {
   ])('a technical 22023 (%s) shows a fixed sentence, not its text, and logs it raw', async text => {
     const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     const raw = refusal(text);
-    await failRecord(raw);
+    await failRecord(raw, 'failed');
 
     expect(mocks.toastError).toHaveBeenCalledWith(
       'Payment not recorded. Something went wrong with this request. Restart the app and try again.'
@@ -326,14 +327,14 @@ describe('useEnrollmentLedgerActions', () => {
     'refund 80 exceeds the 50.00 still held (50.00 paid, 0.00 already refunded)',
   ])('keeps the reason for the desk refusal: %s', async text => {
     vi.spyOn(logger, 'error').mockImplementation(() => {});
-    await failRecord(refusal(text));
+    await failRecord(refusal(text), 'failed');
     expect(mocks.toastError).toHaveBeenCalledWith(`Payment not recorded: ${text}`);
   });
 
   it('an error with no code shows the check-first sentence, not the raw text, and logs it', async () => {
     const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     const raw = new Error('TypeError: Failed to fetch');
-    await failRecord(raw);
+    await failRecord(raw, 'unconfirmed');
 
     expect(mocks.toastError).toHaveBeenCalledWith(UNCONFIRMED);
     expect(mocks.toastError).not.toHaveBeenCalledWith(expect.stringContaining('Failed to fetch'));
@@ -348,7 +349,8 @@ describe('useEnrollmentLedgerActions', () => {
   it('a code other than the RPC refusal shows the check-first sentence, not the raw text', async () => {
     vi.spyOn(logger, 'error').mockImplementation(() => {});
     await failRecord(
-      Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })
+      Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' }),
+      'unconfirmed'
     );
 
     expect(mocks.toastError).toHaveBeenCalledWith(UNCONFIRMED);
@@ -360,7 +362,8 @@ describe('useEnrollmentLedgerActions', () => {
     await failRecord(
       Object.assign(new Error('not authorized to record payments for enrollment enr-1'), {
         code: '42501',
-      })
+      }),
+      'failed'
     );
 
     expect(mocks.toastError).toHaveBeenCalledWith(

@@ -25,7 +25,7 @@ There are three ways in. Use whichever fits you.
 
 1. Open myK9Show in your browser.
 2. Type the **show passcode** into **Email or show passcode** and tap **Continue**. If you scan the **QR code**, the passcode is filled in for you: tap **Continue**.
-3. **Join the show** asks for **Your name**. It is optional. Others at the show see it, so they know who is at each ring. Tap **Continue**.
+3. **Join the show** asks for **Your name**. It is optional. Others at the show see it, so they know who is at each ring. If a security check shows, complete it. Then tap **Continue**. If you were already signed in to myK9Show, you see **Join this show?** instead: tap **Join show**.
 4. You're in. No account needed.
 
 ![Passcode entry screen — "Email or show passcode" field with Continue button (mobile)](../screenshots/J-01.png)

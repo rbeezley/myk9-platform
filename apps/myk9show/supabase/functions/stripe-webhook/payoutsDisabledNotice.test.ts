@@ -4,6 +4,8 @@ import type { SendEmail } from '../_shared/clubMoneyEmails';
 import {
   createPayoutsDisabledDeps,
   notifyPayoutsTurnedOff,
+  ALERT_SHOW_LIMIT,
+  OPERATOR_ALERT_TIMEOUT_MS,
   type OperatorAlert,
 } from './payoutsDisabledNotice';
 
@@ -57,7 +59,7 @@ function operator(alert: OperatorAlert = vi.fn<OperatorAlert>(async () => {})) {
  * behaves like the real conditional UPDATE: it returns the row only while
  * payouts_enabled is still true, then flips it.
  */
-function fakeDatabase(options: { showsFail?: boolean } = {}) {
+function fakeDatabase(options: { showsFail?: boolean; shows?: FakeShow[] } = {}) {
   const state = { payoutsEnabled: true };
   const accountUpdates: Array<Record<string, unknown>> = [];
   const accountFilters: Array<[string, unknown]> = [];
@@ -101,6 +103,7 @@ function fakeDatabase(options: { showsFail?: boolean } = {}) {
     }
     if (table === 'shows') {
       const filters: Array<(row: FakeShow) => boolean> = [];
+      let rowLimit = Infinity;
       const builder = {
         select: () => builder,
         eq(column: string, value: unknown) {
@@ -116,14 +119,20 @@ function fakeDatabase(options: { showsFail?: boolean } = {}) {
           return builder;
         },
         order: () => builder,
+        limit(count: number) {
+          rowLimit = count;
+          return builder;
+        },
         then: (resolve: (value: unknown) => unknown) =>
           resolve(
             options.showsFail
               ? { data: null, error: { message: 'shows read failed' } }
               : {
-                  data: SHOWS.filter(row => filters.every(keep => keep(row))).map(
-                    ({ name, start_date, end_date }) => ({ name, start_date, end_date })
-                  ),
+                  data: (options.shows ?? SHOWS)
+                    .filter(row => filters.every(keep => keep(row)))
+                    .sort((a, b) => a.start_date.localeCompare(b.start_date))
+                    .slice(0, rowLimit)
+                    .map(({ name, start_date, end_date }) => ({ name, start_date, end_date })),
                   error: null,
                 }
           ),
@@ -362,5 +371,93 @@ describe('operator alert when Stripe turns payouts off', () => {
     );
     expect(alert).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
+  });
+
+  it('lists at most ALERT_SHOW_LIMIT shows and says there are more', async () => {
+    const many: FakeShow[] = Array.from({ length: ALERT_SHOW_LIMIT + 5 }, (_, index) => ({
+      name: `Trial ${String(index + 1).padStart(2, '0')}`,
+      start_date: `2027-01-${String(index + 1).padStart(2, '0')}`,
+      end_date: `2027-01-${String(index + 1).padStart(2, '0')}`,
+      status: 'published',
+      deleted_at: null,
+    }));
+    const db = fakeDatabase({ shows: many });
+    const alert = vi.fn<OperatorAlert>(async () => {});
+
+    await notifyPayoutsTurnedOff(
+      createPayoutsDisabledDeps(
+        db.client,
+        'acct_x',
+        vi.fn<SendEmail>(async () => {}),
+        undefined,
+        operator(alert)
+      ),
+      { payouts_enabled: false }
+    );
+
+    const html = alert.mock.calls[0][1];
+    expect(html.match(/<li>/g)).toHaveLength(ALERT_SHOW_LIMIT);
+    expect(html).toContain(`Trial ${ALERT_SHOW_LIMIT}, `);
+    expect(html).not.toContain(`Trial ${ALERT_SHOW_LIMIT + 1}, `);
+    expect(html).toContain('And more: see the club page.');
+  });
+
+  it('exactly ALERT_SHOW_LIMIT shows lists them all with no "and more"', async () => {
+    const exact: FakeShow[] = Array.from({ length: ALERT_SHOW_LIMIT }, (_, index) => ({
+      name: `Trial ${index + 1}`,
+      start_date: '2027-02-01',
+      end_date: '2027-02-01',
+      status: 'upcoming',
+      deleted_at: null,
+    }));
+    const alert = vi.fn<OperatorAlert>(async () => {});
+    await notifyPayoutsTurnedOff(
+      createPayoutsDisabledDeps(
+        fakeDatabase({ shows: exact }).client,
+        'acct_x',
+        vi.fn<SendEmail>(async () => {}),
+        undefined,
+        operator(alert)
+      ),
+      { payouts_enabled: false }
+    );
+
+    const html = alert.mock.calls[0][1];
+    expect(html.match(/<li>/g)).toHaveLength(ALERT_SHOW_LIMIT);
+    expect(html).not.toContain('And more');
+  });
+
+  it('an alert that never settles is abandoned after the bound, and the club email still went', async () => {
+    vi.useFakeTimers();
+    try {
+      const db = fakeDatabase();
+      const send = vi.fn<SendEmail>(async () => {});
+      const alert = vi.fn<OperatorAlert>(() => new Promise<void>(() => {}));
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      let settled = false;
+      const run = notifyPayoutsTurnedOff(
+        createPayoutsDisabledDeps(db.client, 'acct_x', send, undefined, operator(alert)),
+        { payouts_enabled: false }
+      ).then(sent => {
+        settled = true;
+        return sent;
+      });
+
+      await vi.advanceTimersByTimeAsync(OPERATOR_ALERT_TIMEOUT_MS - 1);
+      expect(alert).toHaveBeenCalledTimes(1);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(run).resolves.toBe(3);
+      expect(send).toHaveBeenCalledTimes(3);
+      expect(errorSpy).toHaveBeenCalledWith(
+        `Payouts-turned-off operator alert for club club-1 gave up after ${OPERATOR_ALERT_TIMEOUT_MS}ms`
+      );
+      expect(vi.getTimerCount()).toBe(0);
+      errorSpy.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

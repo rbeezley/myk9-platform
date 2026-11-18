@@ -22,6 +22,19 @@ import {
 /** The shows.status values a visitor can see, less 'completed' (no entries left to pause). */
 const OPEN_SHOW_STATUSES = ['published', 'upcoming', 'in_progress'] as const;
 
+/** The alert lists at most this many shows; the lookup fetches one more to know there are more. */
+export const ALERT_SHOW_LIMIT = 20;
+
+/**
+ * Upper bound on the operator alert (shows lookup, operator_alerts insert,
+ * alert email). It runs before the account row patch and the webhook's 200,
+ * and Stripe gives a delivery about 10 seconds before it calls it failed and
+ * retries; the club email already spends part of that. A healthy alert is
+ * well under a second, so 3 seconds leaves room for one slow call without
+ * letting a hung connection hold the webhook.
+ */
+export const OPERATOR_ALERT_TIMEOUT_MS = 3000;
+
 export interface PublicShow {
   name: string;
   start_date: string;
@@ -47,7 +60,7 @@ export interface PayoutsDisabledDeps {
   claimPayoutsTurnedOff: () => Promise<string[]>;
   loadClub: (clubId: string) => Promise<{ name: string; email: string | null } | null>;
   loadRecipients: (clubId: string, contactEmail: string | null) => Promise<string[]>;
-  /** The club's publicly visible shows; throws when the read fails. */
+  /** Up to ALERT_SHOW_LIMIT + 1 of the club's public shows by start date; throws when the read fails. */
   loadPublicShows: (clubId: string) => Promise<PublicShow[]>;
   send: SendEmail;
   siteUrl: string | null | undefined;
@@ -73,7 +86,12 @@ export function payoutsTurnedOffAlertHtml(input: {
       ? `<p>We could not load this club's shows. Check them on the club page.</p>`
       : input.shows.length === 0
         ? `<p>The club has no shows open to the public right now.</p>`
-        : `<p>Shows open to the public:</p><ul>${input.shows.map(showLine).join('')}</ul>`;
+        : `<p>Shows open to the public:</p><ul>${input.shows
+            .slice(0, ALERT_SHOW_LIMIT)
+            .map(showLine)
+            .join('')}</ul>${
+            input.shows.length > ALERT_SHOW_LIMIT ? '<p>And more: see the club page.</p>' : ''
+          }`;
   return `<p>Stripe turned off payouts for <strong>${escapeHtml(input.clubName)}</strong>
      (account <code>${escapeHtml(input.stripeAccountId)}</code>, ${input.livemode ? 'live mode' : 'test mode'}).</p>
      <p>Card entries for this club's shows are paused until the club fixes its Stripe account.
@@ -83,38 +101,63 @@ export function payoutsTurnedOffAlertHtml(input: {
      <a href="${escapeHtml(input.paymentsUrl)}">Payments tab</a>.</p>`;
 }
 
-/** Best-effort: logs and swallows every failure, so the webhook's own work goes on. */
+/**
+ * Best-effort and bounded: logs and swallows every failure, and gives up
+ * waiting after OPERATOR_ALERT_TIMEOUT_MS, so the webhook's own work goes on.
+ * Awaited, not fire-and-forget: the edge runtime may stop un-awaited work
+ * once the response is sent.
+ */
 async function alertOperator(
   deps: PayoutsDisabledDeps,
   clubId: string,
   club: { name: string } | null
 ): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<'timeout'>(resolve => {
+    timer = setTimeout(() => resolve('timeout'), OPERATOR_ALERT_TIMEOUT_MS);
+  });
   try {
-    let shows: PublicShow[] | null = null;
-    try {
-      shows = await deps.loadPublicShows(clubId);
-    } catch (err) {
-      console.error(`Payouts-turned-off alert: shows lookup failed for club ${clubId}:`, err);
+    const outcome = await Promise.race([raiseOperatorAlert(deps, clubId, club), timedOut]);
+    if (outcome === 'timeout') {
+      console.error(
+        `Payouts-turned-off operator alert for club ${clubId} gave up after ${OPERATOR_ALERT_TIMEOUT_MS}ms`
+      );
     }
-    const clubName = club?.name ?? `club ${clubId}`;
-    await deps.operator.alert(
-      `Stripe turned off payouts for ${clubName}`,
-      payoutsTurnedOffAlertHtml({
-        clubName,
-        stripeAccountId: deps.stripeAccountId,
-        livemode: deps.operator.livemode,
-        shows,
-        paymentsUrl: clubPaymentsUrl(deps.siteUrl, clubId),
-      }),
-      {
-        source: 'stripe-webhook',
-        severity: 'warn',
-        dedupeKey: `payouts-turned-off-${clubId}-${deps.operator.eventId}`,
-      }
-    );
   } catch (err) {
     console.error(`Payouts-turned-off operator alert failed for club ${clubId}:`, err);
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+async function raiseOperatorAlert(
+  deps: PayoutsDisabledDeps,
+  clubId: string,
+  club: { name: string } | null
+): Promise<'done'> {
+  let shows: PublicShow[] | null = null;
+  try {
+    shows = await deps.loadPublicShows(clubId);
+  } catch (err) {
+    console.error(`Payouts-turned-off alert: shows lookup failed for club ${clubId}:`, err);
+  }
+  const clubName = club?.name ?? `club ${clubId}`;
+  await deps.operator.alert(
+    `Stripe turned off payouts for ${clubName}`,
+    payoutsTurnedOffAlertHtml({
+      clubName,
+      stripeAccountId: deps.stripeAccountId,
+      livemode: deps.operator.livemode,
+      shows,
+      paymentsUrl: clubPaymentsUrl(deps.siteUrl, clubId),
+    }),
+    {
+      source: 'stripe-webhook',
+      severity: 'warn',
+      dedupeKey: `payouts-turned-off-${clubId}-${deps.operator.eventId}`,
+    }
+  );
+  return 'done';
 }
 
 /**
@@ -198,7 +241,8 @@ export function createPayoutsDisabledDeps(
         .eq('club_id', clubId)
         .in('status', [...OPEN_SHOW_STATUSES])
         .is('deleted_at', null)
-        .order('start_date');
+        .order('start_date')
+        .limit(ALERT_SHOW_LIMIT + 1);
       if (error) throw new Error(error.message);
       return (data ?? []) as PublicShow[];
     },

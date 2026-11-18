@@ -1,5 +1,5 @@
 import { SCENE_LINES } from '../lifecycleStories';
-import { windowOnRing } from '../sceneFrames';
+import { unionRegion, windowOnRing } from '../sceneFrames';
 import type { Region, SceneFrame, SceneShot, TimelineSceneData } from '../sceneFrames';
 import regions from './ringRegions.json';
 
@@ -23,7 +23,7 @@ const ALT: Record<ShotName, string> = {
   classes:
     'Ringside on the judge’s phone: the classes in this ring, with Exterior Excellent not started and 0 of 1 dogs scored',
   offline:
-    'The class’s list of dogs with a no-signal icon in the header, Juni up next, and a message that changes are saved on this device',
+    'The class’s list of dogs with Juni up next, and a message: You’re offline, changes are saved on this device and will be sent when you are back online',
   sheet: 'Juni’s scoresheet with the timer at zero and a Start button',
   running: 'The scoresheet timer running at about 38 seconds, with a Stop button',
   result:
@@ -43,9 +43,19 @@ const shot = (name: ShotName): SceneShot => ({
 
 const SHOT_NAMES = Object.keys(regions.shots) as ShotName[];
 
-/** One capture with the part its line is about ringed, in the window that rule gives. */
-function frame(line: number, ms: number, name: ShotName, ring: Region): SceneFrame {
-  const camera = windowOnRing(SPACE, ring, RING_WINDOW_HEIGHT);
+/**
+ * One capture with the part its line is about ringed, in the window that rule gives. `alsoShow`
+ * is a second measured region the window must also hold, when the line is about two things.
+ */
+function frame(
+  line: number,
+  ms: number,
+  name: ShotName,
+  ring: Region,
+  alsoShow?: Region
+): SceneFrame {
+  const subject = alsoShow ? unionRegion(ring, alsoShow) : ring;
+  const camera = windowOnRing(SPACE, subject, RING_WINDOW_HEIGHT);
   return { line, ms, subject: 'phone', phone: { shot: name, camera, ring } };
 }
 
@@ -69,7 +79,8 @@ export const RING_SCENE: TimelineSceneData = {
     frame(1, 4200, 'offline', offline.regions.status),
     frame(2, 2400, 'sheet', sheet.regions.start),
     frame(2, 2600, 'running', running.regions.time),
-    frame(2, 3200, 'result', result.regions.result),
+    // The line is about the time and the result, so the window holds the stopped timer too.
+    frame(2, 3200, 'result', result.regions.result, result.regions.timer),
     frame(3, 3600, 'confirm', confirm.regions.dialog),
     // Saved on the device and not sent yet, the same line once it is sent, then the message
     // that says it went.

@@ -82,18 +82,31 @@ export function ringStyle(ring: Region, camera: Region) {
   };
 }
 
+/** The smallest region that holds both. */
+export function unionRegion(a: Region, b: Region): Region {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    w: Math.max(a.x + a.w, b.x + b.w) - x,
+    h: Math.max(a.y + a.h, b.y + b.h) - y,
+  };
+}
+
 /**
- * A window on a capture: the full width of the page and `height` tall, placed so `ring` sits
- * in its middle and kept inside the page. One rule for every frame of a screen that is taller
- * than the frame it is drawn in. It never zooms, so the words stay the size they were captured.
+ * A window on a capture: the full width of the page and `height` tall, placed so `subject`
+ * (the ring, or the ring and something measured that belongs with it) sits in its middle, and
+ * kept inside the page. One rule for every frame of a screen that is taller than the frame it
+ * is drawn in. It never zooms, so the words stay the size they were captured.
  */
 export function windowOnRing(
   space: SceneDeviceData['space'],
-  ring: Region,
+  subject: Region,
   height: number
 ): Region {
   const h = Math.min(height, space.height);
-  const centred = Math.round(ring.y + ring.h / 2 - h / 2);
+  const centred = Math.round(subject.y + subject.h / 2 - h / 2);
   return { x: 0, y: Math.min(Math.max(centred, 0), space.height - h), w: space.width, h };
 }
 

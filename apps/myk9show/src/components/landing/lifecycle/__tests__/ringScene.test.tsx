@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline } from '../LifecycleTimeline';
 import { BANNED_COPY, SCENE_LINES, STORIES } from '../lifecycleStories';
-import { firstFrameOfLine, lastFrameOfLine, windowOnRing } from '../sceneFrames';
+import { firstFrameOfLine, lastFrameOfLine, unionRegion, windowOnRing } from '../sceneFrames';
 import { RING_SCENE, RING_WINDOW_HEIGHT } from '../scenes/ringScene';
 import regions from '../scenes/ringRegions.json';
 
@@ -63,11 +63,32 @@ describe('the ring scene', () => {
   });
 
   it('rings the whole class card on the first line', () => {
-    // The card is at least its 48px tap row plus the status line under it.
-    const card = regions.shots.classes.regions.card;
+    // The capture measures the card and, separately, its tap row (the class name and judge).
+    // The whole card starts where the row starts and goes on below it, to the status line and
+    // the card's controls; a ring on the row alone is the defect this replaced.
+    const { card, row } = regions.shots.classes.regions;
     expect(frames[0]!.phone!.ring).toEqual(card);
-    expect(card.w).toBeGreaterThan(space.width * 0.8);
-    expect(card.h).toBeGreaterThanOrEqual(64);
+    expect(card.x).toBeLessThanOrEqual(row.x);
+    expect(card.x + card.w).toBeGreaterThanOrEqual(row.x + row.w);
+    expect(card.y).toBeLessThanOrEqual(row.y);
+    expect(card.y + card.h).toBeGreaterThanOrEqual(row.y + row.h + 40);
+  });
+
+  it('keeps the stopped time in view on the frame that rings the result', () => {
+    const { timer, result } = regions.shots.result.regions;
+    const view = frames.find(f => f.phone!.shot === 'result')!.phone!;
+    expect(view.ring).toEqual(result);
+    expect(view.camera).toEqual(
+      windowOnRing(space, unionRegion(result, timer), RING_WINDOW_HEIGHT)
+    );
+    expect(timer.y).toBeGreaterThanOrEqual(view.camera.y);
+    expect(timer.y + timer.h).toBeLessThanOrEqual(view.camera.y + view.camera.h);
+    expect(unionRegion({ x: 10, y: 20, w: 30, h: 40 }, { x: 0, y: 50, w: 100, h: 50 })).toEqual({
+      x: 0,
+      y: 20,
+      w: 100,
+      h: 80,
+    });
   });
 
   it('places a window by one rule: full width, inside the page, centred on the ring', () => {
@@ -97,8 +118,13 @@ describe('the ring scene', () => {
       const { camera, ring, shot } = f.phone!;
       expect(phone!.shots[shot], shot).toBeDefined();
       expect(ring, shot).toBeDefined();
-      // No zoom and no hand-picked camera: the window is whatever the rule gives for the ring.
-      expect(camera, shot).toEqual(windowOnRing(space, ring!, RING_WINDOW_HEIGHT));
+      // No zoom and no hand-picked camera: the window is what the rule gives for the ring, or
+      // on the one frame about two things, for the ring and the stopped timer (tested above).
+      if (shot !== 'result') {
+        expect(camera, shot).toEqual(windowOnRing(space, ring!, RING_WINDOW_HEIGHT));
+      }
+      expect(camera.x, shot).toBe(0);
+      expect(camera.h, shot).toBe(RING_WINDOW_HEIGHT);
       expect(camera.w, shot).toBe(space.width);
       expect(camera.y, shot).toBeGreaterThanOrEqual(0);
       expect(camera.y + camera.h, shot).toBeLessThanOrEqual(space.height);

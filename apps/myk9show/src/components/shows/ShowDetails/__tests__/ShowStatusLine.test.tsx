@@ -25,6 +25,9 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/features/premium/usePremiumPublishControl', () => ({
   usePremiumPublishControl: () => control.value,
 }));
+vi.mock('@/features/payments/useCanOpenClubPayments', () => ({
+  useCanOpenClubPayments: () => true,
+}));
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('@/features/payments/useClubPayoutsState', () => ({
   useClubPayoutsState: () => ({ state: 'ready' }),

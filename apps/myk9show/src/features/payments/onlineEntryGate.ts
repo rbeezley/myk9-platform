@@ -133,6 +133,12 @@ export const ENTRY_WINDOW_ORDER_MESSAGE =
 export const ENTRY_WINDOW_PUBLISHED_MESSAGE =
   'A published show has to keep its entry window: both dates set, and the close on or after the open. Discard this change or fix the dates.';
 
+/** True when a server refusal's text is one of the payouts refusals the app mirrors. Compared
+ * against the exported mirror constants, never by wording. */
+export function isPayoutsRefusalMessage(message: string): boolean {
+  return message === PUBLISH_BLOCKED_MESSAGE || message === ONLINE_ENTRIES_BLOCKED_MESSAGE;
+}
+
 /** The calendar day the save stores for this value (YYYY-MM-DD), or null. */
 function storedEntryDate(value: string | null | undefined): string | null {
   if (!value?.trim()) return null;

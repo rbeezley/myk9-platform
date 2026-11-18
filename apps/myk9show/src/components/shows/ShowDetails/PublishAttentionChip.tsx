@@ -1,9 +1,12 @@
 import React from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useCanOpenClubPayments } from '@/features/payments/useCanOpenClubPayments';
 import { useClubPayoutsState } from '@/features/payments/useClubPayoutsState';
 import {
   clubPaymentsHref,
   clubPayoutsBlockPublish,
+  clubPayoutsMessage,
   clubPayoutsShortLabel,
 } from '@/features/payments/clubPayoutsState';
 import { isPublicShowStatus } from '@/features/payments/onlineEntryGate';
@@ -49,7 +52,8 @@ export const PublishAttentionChip: React.FC<PublishAttentionChipProps> = ({
   const show = useShowStore(state => state.shows.find(candidate => candidate.id === showId));
   const uses = resolveShowUses(show);
   const navigate = useNavigate();
-  const payouts = useClubPayoutsState(show?.clubId).state;
+  const payouts = useClubPayoutsState(canManageShow ? show?.clubId : undefined).state;
+  const canOpenPayments = useCanOpenClubPayments(show?.clubId);
   if (!canManageShow) return null;
   if (show?.clubId && !isPublicShowStatus(show.status) && clubPayoutsBlockPublish(payouts)) {
     const clubId = show.clubId;
@@ -58,7 +62,11 @@ export const PublishAttentionChip: React.FC<PublishAttentionChipProps> = ({
         <span aria-hidden="true">·</span>
         <button
           type="button"
-          onClick={() => navigate(clubPaymentsHref(clubId))}
+          onClick={() =>
+            canOpenPayments
+              ? navigate(clubPaymentsHref(clubId))
+              : toast.info(clubPayoutsMessage(payouts))
+          }
           className={NUDGE_CLASS}
         >
           {clubPayoutsShortLabel(payouts)}

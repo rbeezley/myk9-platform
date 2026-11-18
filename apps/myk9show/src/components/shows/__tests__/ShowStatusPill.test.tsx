@@ -9,7 +9,10 @@ import {
 } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { toast } from 'sonner';
-import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import {
+  CLUB_UNAUTHORIZED_MESSAGE,
+  PUBLISH_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 import { clubPayoutsMessage } from '@/features/payments/clubPayoutsState';
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
@@ -18,6 +21,9 @@ vi.mock('@/features/payments/useClubStripeAccount', () => ({
 }));
 vi.mock('@/features/payments/useClubIsDemo', () => ({
   useClubIsDemo: () => ({ data: false, isLoading: false }),
+}));
+vi.mock('@/features/payments/useCanOpenClubPayments', () => ({
+  useCanOpenClubPayments: () => true,
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
@@ -298,9 +304,9 @@ describe('ShowStatusPill', () => {
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
 
-      // MYK9-2164: the same reason and link as the readiness line, not the raw server text.
+      // MYK9-2164: a payouts refusal keeps the server's own text and gets the Payments link.
       expect(toast.error).toHaveBeenCalledWith(
-        clubPayoutsMessage('not-connected'),
+        PUBLISH_BLOCKED_MESSAGE,
         expect.objectContaining({ action: expect.objectContaining({ label: 'Open Payments' }) })
       );
     });

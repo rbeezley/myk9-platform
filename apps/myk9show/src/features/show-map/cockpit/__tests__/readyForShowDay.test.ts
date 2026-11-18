@@ -297,7 +297,11 @@ describe('buildReadyForShowDay', () => {
       expect(line(buildReadyForShowDay(allGood()))).toBeUndefined();
     });
 
-    it.each(['ready', 'demo'] as const)('passes for %s', state => {
+    it('adds no line for a demo club', () => {
+      expect(line(withPayouts('demo'))).toBeUndefined();
+    });
+
+    it.each(['ready'] as const)('passes for %s', state => {
       expect(line(withPayouts(state))?.status).toBe('pass');
     });
 

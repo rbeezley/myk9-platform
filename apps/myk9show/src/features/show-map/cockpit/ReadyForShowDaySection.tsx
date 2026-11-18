@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import { getTrialTimezone } from '@/features/registries';
 import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePromptWindow';
 import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineReadiness';
+import { isPublicShowStatus } from '@/features/payments/onlineEntryGate';
+import { useCanOpenClubPayments } from '@/features/payments/useCanOpenClubPayments';
 import { useClubPayoutsState } from '@/features/payments/useClubPayoutsState';
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
@@ -107,7 +109,9 @@ function ReadyForShowDayContent({
   // MYK9-2164: publishing needs the club's bank account; an unread state reads as "can't check".
   const payoutsRead = useClubPayoutsState(show.clubId).state;
   // A show with no club has no payouts to read; its missing club is its own problem.
-  const payouts = show.clubId ? payoutsRead : null;
+  // Before Publish only: once the show is public the "before you publish" copy is wrong.
+  const payouts = show.clubId && !isPublicShowStatus(show.status) ? payoutsRead : null;
+  const canOpenClubPayments = useCanOpenClubPayments(show.clubId);
 
   const result = useMemo(() => {
     // Only a resolved, online read counts: a paused query keeps stale `data`, and a disabled or
@@ -136,6 +140,7 @@ function ReadyForShowDayContent({
       printTrackingInUse: printTrackingInUse || entryBreakdownByClassId === undefined,
       offline: readiness,
       offlinePromptOpen,
+      canOpenClubPayments,
     });
   }, [
     classes,
@@ -145,6 +150,7 @@ function ReadyForShowDayContent({
     printTrackingInUse,
     premiumMissingFacts,
     payouts,
+    canOpenClubPayments,
     publishInfo.data,
     publishInfo.fetchStatus,
     publishInfo.isError,

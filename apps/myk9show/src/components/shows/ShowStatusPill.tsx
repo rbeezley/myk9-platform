@@ -11,6 +11,7 @@ import {
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import { useClubPayoutsState } from '@/features/payments/useClubPayoutsState';
+import { useCanOpenClubPayments } from '@/features/payments/useCanOpenClubPayments';
 import {
   CLUB_PAYMENTS_LINK_LABEL,
   clubPaymentsHref,
@@ -20,6 +21,7 @@ import {
 import {
   becomesPublic,
   isPublishGateDbError,
+  isPayoutsRefusalMessage,
   publishGateDbErrorMessage,
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
@@ -101,10 +103,16 @@ export function ShowStatusPill({
     onClick: () => navigate(getShowEditHref(showId)),
   };
 
-  const paymentsAction = {
-    label: CLUB_PAYMENTS_LINK_LABEL,
-    onClick: () => navigate(clubId ? clubPaymentsHref(clubId) : '/clubs'),
-  };
+  // Only someone who can open the club's Payments tab is sent there; others read the reason.
+  const canOpenPayments = useCanOpenClubPayments(clubId);
+  const paymentsOptions = canOpenPayments
+    ? {
+        action: {
+          label: CLUB_PAYMENTS_LINK_LABEL,
+          onClick: () => navigate(clubId ? clubPaymentsHref(clubId) : '/clubs'),
+        },
+      }
+    : undefined;
 
   async function handleTransition(next: string) {
     // Publishing opens online entries; fail closed unless the club's Stripe
@@ -158,7 +166,7 @@ export function ShowStatusPill({
       // MYK9-2164: every show needs the club's payouts before it is published (demo clubs
       // excepted, as on the server). An unknown state goes to the server, which decides.
       if (clubPayoutsBlockPublish(payouts.state)) {
-        toast.error(clubPayoutsMessage(payouts.state), { action: paymentsAction });
+        toast.error(clubPayoutsMessage(payouts.state), paymentsOptions);
         return;
       }
       // MYK9-716: checked last, the same order as enforce_show_publish_gate.
@@ -190,13 +198,15 @@ export function ShowStatusPill({
         if (message === CLUB_REQUIRED_MESSAGE || code === PUBLISH_GATE_ERRCODE_UNAUTHORIZED) {
           toast.error(message);
         } else {
-          // Same reason and link as the readiness line, never the raw server text.
-          toast.error(
-            clubPayoutsMessage(
-              clubPayoutsBlockPublish(payouts.state) ? payouts.state : 'not-connected'
-            ),
-            { action: paymentsAction }
-          );
+          if (clubPayoutsBlockPublish(payouts.state)) {
+            // Same reason and link as the readiness line.
+            toast.error(clubPayoutsMessage(payouts.state), paymentsOptions);
+          } else if (isPayoutsRefusalMessage(message)) {
+            toast.error(message, paymentsOptions);
+          } else {
+            // Another refusal (for example "a published show always takes online entries").
+            toast.error(message);
+          }
         }
         return;
       }

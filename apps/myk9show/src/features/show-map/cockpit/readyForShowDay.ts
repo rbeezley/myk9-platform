@@ -104,6 +104,8 @@ export interface ReadyForShowDayInput {
    * an unsaved device is not a failure. Defaults to true.
    */
   offlinePromptOpen?: boolean;
+  /** False when she cannot open the club's Payments tab: the payouts line then has no link. */
+  canOpenClubPayments?: boolean;
 }
 
 const CANT_CHECK = "Can't check right now";
@@ -157,7 +159,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
   const payoutsBase = { id: 'payouts', label: "Club's bank account is set up for payouts" };
   const payoutsState = input.setup.payouts;
   const payoutsLines: ReadyLine[] =
-    payoutsState === undefined
+    payoutsState === undefined || payoutsState === 'demo'
       ? []
       : payoutsState === 'unknown'
         ? [{ ...payoutsBase, status: 'unknown', detail: CANT_CHECK }]
@@ -167,7 +169,9 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
                 ...payoutsBase,
                 status: 'fail' as const,
                 detail: clubPayoutsMessage(payoutsState),
-                href: signals.find(signal => signal.id === 'payouts-not-ready')!.href,
+                ...(input.canOpenClubPayments === false
+                  ? {}
+                  : { href: signals.find(signal => signal.id === 'payouts-not-ready')!.href }),
               },
             ]
           : [{ ...payoutsBase, status: 'pass' as const }];

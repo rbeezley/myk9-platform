@@ -15,12 +15,19 @@ import {
 } from '@/features/payments/useClubStripeAccount';
 import { useClubIsDemo } from '@/features/payments/useClubIsDemo';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
-import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import {
+  CLUB_UNAUTHORIZED_MESSAGE,
+  PUBLISH_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 import { clubPayoutsMessage } from '@/features/payments/clubPayoutsState';
 import { toast } from 'sonner';
 
 const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
 
+const canOpen = vi.hoisted(() => ({ value: true }));
+vi.mock('@/features/payments/useCanOpenClubPayments', () => ({
+  useCanOpenClubPayments: () => canOpen.value,
+}));
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => navigate,
@@ -94,6 +101,7 @@ describe('ShowStatusPill: publishing needs the club payouts (MYK9-2164)', () => 
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
     mockAuthorized('2026-01-01T00:00:00Z');
     mockDemo(false);
+    canOpen.value = true;
   });
 
   it('refuses a club with no bank account, with the reason and a link to its Payments tab', async () => {
@@ -154,18 +162,39 @@ describe('ShowStatusPill: publishing needs the club payouts (MYK9-2164)', () => 
     expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
   });
 
-  it('turns a server MK003 payouts refusal into the same reason and link', async () => {
+  it('shows the reason without a link to someone who cannot open the club Payments tab', async () => {
+    canOpen.value = false;
+    mockStripe({ data: null });
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+
+    await choose(/draft/i, /publish show/i);
+
+    expect(toast.error).toHaveBeenCalledWith(clubPayoutsMessage('not-connected'), undefined);
+  });
+
+  it('keeps the server text, with the link, for a payouts refusal when the state looks ready', async () => {
     mockStripe({ data: { onboarding_complete: true, payouts_enabled: true } });
-    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: 'raw server wording' });
+    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: PUBLISH_BLOCKED_MESSAGE });
     render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
 
     await choose(/draft/i, /publish show/i);
 
     expect(toast.error).toHaveBeenCalledWith(
-      clubPayoutsMessage('not-connected'),
+      PUBLISH_BLOCKED_MESSAGE,
       expect.objectContaining({ action: expect.objectContaining({ label: 'Open Payments' }) })
     );
-    expect(toast.error).not.toHaveBeenCalledWith('raw server wording', expect.anything());
+  });
+
+  it('shows another MK003 refusal as the server wrote it, with no Payments link', async () => {
+    mockStripe({ data: { onboarding_complete: true, payouts_enabled: true } });
+    const other =
+      'A published show always takes online entries. Turn online entries on, or keep this show as a draft.';
+    mutateAsync.mockRejectedValueOnce({ code: 'MK003', message: other });
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+
+    await choose(/draft/i, /publish show/i);
+
+    expect(toast.error).toHaveBeenCalledWith(other);
   });
 
   it('still needs club authorization first', async () => {

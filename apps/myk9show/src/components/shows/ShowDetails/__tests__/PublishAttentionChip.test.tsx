@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { clubPayoutsMessage } from '@/features/payments/clubPayoutsState';
 import { PublishAttentionChip } from '../PublishAttentionChip';
 
 const control = vi.hoisted(() => ({
@@ -10,6 +11,11 @@ const control = vi.hoisted(() => ({
   },
 }));
 
+const canOpen = vi.hoisted(() => ({ value: true }));
+vi.mock('@/features/payments/useCanOpenClubPayments', () => ({
+  useCanOpenClubPayments: () => canOpen.value,
+}));
+vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
 const payouts = vi.hoisted(() => ({ state: 'ready' as string }));
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
@@ -38,6 +44,7 @@ describe('PublishAttentionChip', () => {
     store.shows = [{ id: 'show-1', usesLandingPage: true, publishesOwnPremium: false }];
     payouts.state = 'ready';
     navigate.mockClear();
+    canOpen.value = true;
   });
 
   describe('club payouts nudge (MYK9-2164)', () => {
@@ -69,6 +76,17 @@ describe('PublishAttentionChip', () => {
       render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
       fireEvent.click(screen.getByRole('button', { name: label }));
       expect(navigate).toHaveBeenCalledWith('/clubs/club-9?tab=payments');
+    });
+
+    it('shows the full reason instead of navigating when she cannot open the Payments tab', async () => {
+      const { toast } = await import('sonner');
+      draft();
+      canOpen.value = false;
+      payouts.state = 'not-connected';
+      render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: "club's bank account not set up" }));
+      expect(navigate).not.toHaveBeenCalled();
+      expect(toast.info).toHaveBeenCalledWith(clubPayoutsMessage('not-connected'));
     });
 
     it('comes before the premium nudge', () => {

@@ -81,4 +81,19 @@ describe('adminStatusPresentation', () => {
       className: expect.stringContaining('text-destructive'),
     });
   });
+
+  it('presents the payout brake statuses as waiting, never as failed (MYK9-2170)', () => {
+    expect(getPayoutStatusPresentation('awaiting_approval')).toMatchObject({
+      label: 'Waiting for approval',
+      className: expect.stringContaining('text-warning'),
+    });
+    expect(getPayoutStatusPresentation('approved')).toMatchObject({
+      label: 'Approved',
+      className: expect.stringContaining('text-info'),
+    });
+    expect(getPayoutStatusPresentation('held')).toMatchObject({
+      label: 'Held',
+      className: expect.stringContaining('text-warning'),
+    });
+  });
 });

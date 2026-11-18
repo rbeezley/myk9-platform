@@ -407,6 +407,16 @@ describe('pickCanonicalPayout', () => {
     ).toBe('completed');
   });
 
+  it('prefers a payout waiting for approval over failed retries (MYK9-2170)', () => {
+    for (const status of ['awaiting_approval', 'approved', 'held'] as const) {
+      const chosen = pickCanonicalPayout([
+        payout({ status: 'failed', amount_cents: 1, created_at: '2026-06-05T00:00:00Z' }),
+        payout({ status, amount_cents: 2, created_at: '2026-06-01T00:00:00Z' }),
+      ]);
+      expect(chosen?.status).toBe(status);
+    }
+  });
+
   it('falls back to the most recent failed row when all failed', () => {
     const chosen = pickCanonicalPayout([
       payout({ status: 'failed', amount_cents: 1, created_at: '2026-06-01T00:00:00Z' }),

@@ -20,6 +20,7 @@ export function makeAutoSendSupabase(
   tables.show_lifecycle_email_steps ??= [
     { show_id: 'show-1', step_type: 'show_changed', is_enabled: true },
     { show_id: 'show-1', step_type: 'judge_changed', is_enabled: true },
+    { show_id: 'show-1', step_type: 'entry_changed', is_enabled: true },
   ];
   // person-1's current address, unless a test says otherwise.
   tables.people ??= [];

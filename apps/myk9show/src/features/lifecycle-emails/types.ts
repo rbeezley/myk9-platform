@@ -7,12 +7,14 @@ export const LIFECYCLE_EMAIL_STEP_TYPES = [
   'registration_number_needed',
   'show_changed',
   'judge_changed',
+  'entry_changed',
 ] as const;
 
 export type LifecycleEmailStepType = (typeof LIFECYCLE_EMAIL_STEP_TYPES)[number];
 
 export const LIFECYCLE_EMAIL_JOB_STATUSES = [
   'ready',
+  'held',
   'sent',
   'failed',
   'skipped',

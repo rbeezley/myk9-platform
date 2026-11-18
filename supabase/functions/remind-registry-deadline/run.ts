@@ -85,7 +85,6 @@ export async function runRegistryDeadlineReminders(deps: RunDeps): Promise<RunSu
         }
 
         const outstanding = recipients.filter(address => !accepted.has(address.toLowerCase()));
-        const attempts: EmailAttempt[] = [];
         if (outstanding.length > 0) {
           const subject = buildRegistryDeadlineSubject(candidate.showName, reminder);
           const html = buildRegistryDeadlineHtml({
@@ -94,6 +93,9 @@ export async function runRegistryDeadlineReminders(deps: RunDeps): Promise<RunSu
             finishUrl: finishListUrl(deps.appOrigin, candidate.showId),
           });
           for (const recipient of outstanding) {
+            // Logged the moment this address is settled, not after the loop: a delivery or bounce
+            // event for the first message can arrive while the next is still being sent.
+            const log = (attempt: EmailAttempt) => deps.logAttempts(candidate.showId, [attempt]);
             try {
               const messageId = await deps.sendEmail({
                 apiKey: deps.apiKey,
@@ -104,20 +106,23 @@ export async function runRegistryDeadlineReminders(deps: RunDeps): Promise<RunSu
                 recipient,
                 subject,
                 html,
+                // resend-webhook retries an event for this type that beats its email_log row.
+                tags: [{ name: 'myk9_email_type', value: 'registry_deadline_reminder' }],
               });
               if (!messageId) {
                 // A 2xx with no message id is not an acceptance the webhook could ever confirm.
-                attempts.push({ recipient, messageId: null, error: 'provider_no_message_id' });
+                await log({ recipient, messageId: null, error: 'provider_no_message_id' });
                 continue;
               }
-              attempts.push({ recipient, messageId, error: null });
+              await log({ recipient, messageId, error: null });
               accepted.add(recipient.toLowerCase());
               // Saved per address: a run that dies mid-loop must not mail these again.
               const saved = await deps.store.recordAccepted(key, claim.token, [...accepted]);
               if (!saved) console.error('remind-registry-deadline: accepted list not saved', key);
             } catch (error) {
               const status = error instanceof TrialPacketProviderError ? error.status : null;
-              attempts.push({
+              console.error('remind-registry-deadline: send failed', { showId: key.showId, error });
+              await log({
                 recipient,
                 messageId: null,
                 error:
@@ -125,10 +130,8 @@ export async function runRegistryDeadlineReminders(deps: RunDeps): Promise<RunSu
                     ? 'email_delivery_error'
                     : `provider_http_${status}`,
               });
-              console.error('remind-registry-deadline: send failed', { showId: key.showId, error });
             }
           }
-          await deps.logAttempts(candidate.showId, attempts);
         }
 
         const everyoneReached = recipients.every(address => accepted.has(address.toLowerCase()));

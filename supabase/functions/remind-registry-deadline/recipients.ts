@@ -20,13 +20,17 @@ export async function resolveNamedSecretaryEmails(
 ): Promise<string[]> {
   const { data, error } = await supabase
     .from('show_officials')
-    .select('role, people:people!person_id(email)')
+    .select('role, people:people!person_id(email, deleted_at)')
     .eq('show_id', showId)
     .eq('role', 'secretary');
   if (error) throw new HttpError(500, 'Failed to look up the show secretary.');
 
   const byAddress = new Map<string, string>();
-  for (const row of (data ?? []) as unknown as { people: { email?: string | null } | null }[]) {
+  for (const row of (data ?? []) as unknown as {
+    people: { email?: string | null; deleted_at?: string | null } | null;
+  }[]) {
+    // A soft-deleted person keeps their show_officials row; `get_show_officials` skips them too.
+    if (row.people?.deleted_at) continue;
     const email = row.people?.email?.trim();
     if (!email || !email.includes('@')) continue;
     if (!byAddress.has(email.toLowerCase())) byAddress.set(email.toLowerCase(), email);

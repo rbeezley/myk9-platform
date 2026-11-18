@@ -123,6 +123,40 @@ function openLineFor(registryId: string, corrected: boolean): string {
 }
 
 /**
+ * A registry's verified deadline for these trials when it is 0 to {@link REMIND_DAYS_BEFORE} days
+ * away on the calendar in the zone of the show's last trial day; `null` otherwise. "Today" is the
+ * show's own calendar day: the zone of the trial that holds the last day.
+ */
+function registryWindow(
+  allTrials: readonly ReminderTrial[],
+  registryId: string,
+  now: Date
+): { deadline: string; daysUntil: number } | null {
+  if (!RESULTS_DEADLINE_RULES[registryId]) return null;
+  const trials = allTrials.filter(
+    trial =>
+      registryOf(trial) === registryId &&
+      !['cancelled', 'canceled'].includes(normalizeStatus(trial.status)) &&
+      resultsDeadlineCoversTrialType(trial.trialType)
+  );
+  const lastDay = lastTrialDay(
+    trials.map(trial => ({ date: trial.date, timeZone: zoneOf(trial) }))
+  );
+  const deadline = resultsDeadlineFor(registryId, lastDay);
+  if (!deadline || !lastDay) return null;
+  const lastTrial = trials.find(trial => calendarDayInZone(trial.date, zoneOf(trial)) === lastDay);
+  const today = todayInZone(now, lastTrial ? zoneOf(lastTrial) : FALLBACK_TRIAL_TIME_ZONE);
+  const daysUntil = today ? daysBetween(today, deadline) : null;
+  if (daysUntil === null || daysUntil < 0 || daysUntil > REMIND_DAYS_BEFORE) return null;
+  return { deadline, daysUntil };
+}
+
+/** True when any registry's deadline is inside the reminder window: the cheap gate before reading history. */
+export function anyDeadlineInWindow(trials: readonly ReminderTrial[], now: Date): boolean {
+  return REGISTRY_IDS.some(registryId => registryWindow(trials, registryId, now) !== null);
+}
+
+/**
  * The reminders due for one show right now: a registry with a verified deadline, a line still open
  * (nothing sent or submitted for it), and a deadline 0 to {@link REMIND_DAYS_BEFORE} days away on
  * the calendar in the zone of the show's last trial day. The window is open on the day itself so a
@@ -148,18 +182,9 @@ export function dueRegistryReminders(input: {
     if (trial.id) registryByTrial.set(trial.id, registryOf(trial));
   }
   for (const registryId of REGISTRY_IDS) {
-    if (!RESULTS_DEADLINE_RULES[registryId]) continue;
-    const trials = input.trials.filter(
-      trial =>
-        registryOf(trial) === registryId &&
-        !['cancelled', 'canceled'].includes(normalizeStatus(trial.status)) &&
-        resultsDeadlineCoversTrialType(trial.trialType)
-    );
-    const lastDay = lastTrialDay(
-      trials.map(trial => ({ date: trial.date, timeZone: zoneOf(trial) }))
-    );
-    const deadline = resultsDeadlineFor(registryId, lastDay);
-    if (!deadline || !lastDay) continue;
+    const window = registryWindow(input.trials, registryId, input.now);
+    if (!window) continue;
+    const { deadline, daysUntil } = window;
 
     // A submission names the registry it went to; one that names none covers every registry.
     const submitted = input.submissions.some(
@@ -185,14 +210,6 @@ export function dueRegistryReminders(input: {
       });
       if (!corrected) continue;
     }
-
-    // "Today" is the show's own calendar day: the zone of the trial that holds the last day.
-    const lastTrial = trials.find(
-      trial => calendarDayInZone(trial.date, zoneOf(trial)) === lastDay
-    );
-    const today = todayInZone(input.now, lastTrial ? zoneOf(lastTrial) : FALLBACK_TRIAL_TIME_ZONE);
-    const daysUntil = today ? daysBetween(today, deadline) : null;
-    if (daysUntil === null || daysUntil < 0 || daysUntil > REMIND_DAYS_BEFORE) continue;
 
     due.push({
       registryId,

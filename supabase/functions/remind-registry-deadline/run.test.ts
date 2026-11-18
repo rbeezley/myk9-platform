@@ -209,9 +209,40 @@ describe('runRegistryDeadlineReminders', () => {
     });
     deps.sendEmail.mockResolvedValueOnce('msg-a').mockResolvedValueOnce('msg-b');
     await runRegistryDeadlineReminders(deps);
-    expect(deps.logAttempts).toHaveBeenCalledWith(SHOW_ID, [
+    // One row per address, written as each settles, so an early event always finds its row.
+    expect(deps.logAttempts).toHaveBeenNthCalledWith(1, SHOW_ID, [
       { recipient: 'a@example.com', messageId: 'msg-a', error: null },
+    ]);
+    expect(deps.logAttempts).toHaveBeenNthCalledWith(2, SHOW_ID, [
       { recipient: 'b@example.com', messageId: 'msg-b', error: null },
+    ]);
+    expect(deps.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tags: [{ name: 'myk9_email_type', value: 'registry_deadline_reminder' }],
+      })
+    );
+  });
+
+  it('logs the first address before it sends the second', async () => {
+    const deps = makeDeps([candidate()], {
+      recipientsFor: async () => ['a@example.com', 'b@example.com'],
+    });
+    const order: string[] = [];
+    deps.sendEmail.mockImplementation(async (input: { recipient: string }) => {
+      order.push(`send ${input.recipient}`);
+      return `msg-${input.recipient}`;
+    });
+    deps.logAttempts.mockImplementation(
+      async (_show: string, attempts: { recipient: string }[]) => {
+        order.push(`log ${attempts[0]?.recipient}`);
+      }
+    );
+    await runRegistryDeadlineReminders(deps);
+    expect(order).toEqual([
+      'send a@example.com',
+      'log a@example.com',
+      'send b@example.com',
+      'log b@example.com',
     ]);
   });
 

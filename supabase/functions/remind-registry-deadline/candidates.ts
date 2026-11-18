@@ -1,9 +1,10 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-import type {
-  ReminderScoreChange,
-  ReminderSubmission,
-  ReminderTrial,
+import {
+  anyDeadlineInWindow,
+  type ReminderScoreChange,
+  type ReminderSubmission,
+  type ReminderTrial,
 } from '../_shared/showCloseout/registryDeadlineReminder.ts';
 import {
   AKC_FILE_SCORE_FIELDS,
@@ -68,14 +69,20 @@ async function loadScoreChanges(
     const classes = await fetchAllPages<{ id: string; trial_id: string | null }>(
       'Failed to read the changed classes.',
       (from, to) =>
-        supabase.from('classes').select('id, trial_id').in('id', ids).order('id').range(from, to)
+        supabase
+          .from('classes')
+          .select('id, trial_id')
+          .in('id', ids)
+          .is('deleted_at', null)
+          .order('id')
+          .range(from, to)
     );
     for (const cls of classes) trialByClass.set(cls.id, cls.trial_id);
   }
-  return [...latest].map(([classId, changedAt]) => ({
-    trialId: trialByClass.get(classId) ?? null,
-    changedAt,
-  }));
+  // A class that is gone (soft-deleted) is not on the Finish list, so its changes do not count.
+  return [...latest]
+    .filter(([classId]) => trialByClass.has(classId))
+    .map(([classId, changedAt]) => ({ trialId: trialByClass.get(classId) ?? null, changedAt }));
 }
 
 /**
@@ -197,8 +204,9 @@ export async function loadReminderCandidates(
     const sentTimes = APP_SENT_REGISTRIES.map(registry =>
       newestSubmissionAt(coverage, registry, 'sent')
     ).filter((at): at is number => at !== null);
-    if (sentTimes.length > 0) {
-      // Only a show whose app-sent file exists can have a corrected one owed.
+    if (sentTimes.length > 0 && anyDeadlineInWindow(candidate.trials, now)) {
+      // Only a show with an app-sent file AND a deadline inside the window can owe a reminder for
+      // a corrected file; anything else skips the history read.
       try {
         candidate.scoreChanges = await loadScoreChanges(
           supabase,

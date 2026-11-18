@@ -51,6 +51,17 @@ describe('resolveNamedSecretaryEmails', () => {
     expect(await resolveNamedSecretaryEmails(client, SHOW_ID)).toEqual(['Sec@Example.com']);
   });
 
+  it('skips a secretary whose person record was soft-deleted', async () => {
+    const { client } = fakeSupabase({
+      data: [
+        { people: { email: 'former@example.com', deleted_at: '2026-11-01T00:00:00Z' } },
+        { people: { email: 'current@example.com', deleted_at: null } },
+      ],
+      error: null,
+    });
+    expect(await resolveNamedSecretaryEmails(client, SHOW_ID)).toEqual(['current@example.com']);
+  });
+
   it('returns nobody for a successful lookup with no secretary named', async () => {
     const { client } = fakeSupabase({ data: [], error: null });
     expect(await resolveNamedSecretaryEmails(client, SHOW_ID)).toEqual([]);

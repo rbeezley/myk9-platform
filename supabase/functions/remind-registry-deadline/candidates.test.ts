@@ -9,8 +9,10 @@ type Row = Record<string, unknown>;
 /** A tiny PostgREST: tables of rows, `.in`, `.range` and a record of every `.in` list size. */
 function fakeSupabase(tables: Record<string, Row[]>) {
   const inSizes: number[] = [];
+  const tablesRead: string[] = [];
   const client = {
     from(table: string) {
+      tablesRead.push(table);
       let rows = tables[table] ?? [];
       const chain = {
         select: () => chain,
@@ -21,7 +23,10 @@ function fakeSupabase(tables: Record<string, Row[]>) {
           rows = rows.filter(row => row[column] === value);
           return chain;
         },
-        is: () => chain,
+        is: (column: string, value: unknown) => {
+          rows = rows.filter(row => (row[column] ?? null) === value);
+          return chain;
+        },
         order: () => chain,
         in: (column: string, values: unknown[]) => {
           inSizes.push(values.length);
@@ -34,7 +39,7 @@ function fakeSupabase(tables: Record<string, Row[]>) {
       return chain;
     },
   };
-  return { client: client as unknown as SupabaseClient, inSizes };
+  return { client: client as unknown as SupabaseClient, inSizes, tablesRead };
 }
 
 const NOW = new Date('2026-11-22T20:00:00Z');
@@ -139,8 +144,8 @@ describe('loadReminderCandidates', () => {
         },
       ],
       classes: [
-        { id: 'c1', trial_id: 's1-t' },
-        { id: 'c2', trial_id: 's1-t' },
+        { id: 'c1', trial_id: 's1-t', deleted_at: null },
+        { id: 'c2', trial_id: 's1-t', deleted_at: null },
       ],
     });
     const candidates = await loadReminderCandidates(client, NOW);
@@ -149,5 +154,57 @@ describe('loadReminderCandidates', () => {
     // A notes-only change does not touch the file, so only c1 counts.
     expect(sent?.scoreChanges).toEqual([{ trialId: 's1-t', changedAt: '2026-11-19T12:00:00Z' }]);
     expect(notSent?.scoreChanges).toBeUndefined();
+  });
+
+  const sentAkc = (showId: string) => ({
+    id: `r-${showId}`,
+    show_id: showId,
+    organization: 'AKC',
+    status: 'sent',
+    submitted_at: '2026-11-18T12:00:00Z',
+  });
+  const akcTrial = (showId: string, date: string) => ({
+    id: `${showId}-t`,
+    show_id: showId,
+    date,
+    timezone: null,
+    registry_id: 'AKC',
+    trial_type: 'Scent Work',
+    status: 'completed',
+  });
+
+  it('skips the score history for a show whose deadline is outside the reminder window', async () => {
+    const shows = [{ id: 's1', name: 'Too early', status: 'completed' }];
+    // The last day was 12 days ago: the AKC deadline (7 days after it) has already passed.
+    const { client, tablesRead } = fakeSupabase({
+      trials: [akcTrial('s1', '2026-11-10')],
+      shows,
+      result_submissions: [sentAkc('s1')],
+      entry_score_audit: [],
+      classes: [],
+    });
+    const candidates = await loadReminderCandidates(client, NOW);
+    expect(candidates[0]?.scoreChanges).toBeUndefined();
+    expect(tablesRead).not.toContain('entry_score_audit');
+  });
+
+  it('ignores score changes in a deleted or missing class', async () => {
+    const shows = [{ id: 's1', name: 'Sent', status: 'completed' }];
+    const audit = (id: string, classId: string) => ({
+      id,
+      show_id: 's1',
+      class_id: classId,
+      changed_at: '2026-11-19T12:00:00Z',
+      changes: { result_status: { old: 'q', new: 'nq' } },
+    });
+    const { client } = fakeSupabase({
+      trials: [akcTrial('s1', '2026-11-17')],
+      shows,
+      result_submissions: [sentAkc('s1')],
+      entry_score_audit: [audit('a1', 'gone'), audit('a2', 'missing')],
+      classes: [{ id: 'gone', trial_id: 's1-t', deleted_at: '2026-11-20T00:00:00Z' }],
+    });
+    const candidates = await loadReminderCandidates(client, NOW);
+    expect(candidates[0]?.scoreChanges).toEqual([]);
   });
 });

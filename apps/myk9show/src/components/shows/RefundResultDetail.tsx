@@ -3,6 +3,8 @@ import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import type { ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
+import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
+import { buildRefundEntryNames, refundGroupLabels } from './refundResultNames';
 
 // Server-side skip reasons (apps/myk9show/supabase/functions/_shared/showRefundPlan.ts
 // ShowRefundSkipReason, plus 'intent_spans_shows' from stripe-refund-show/index.ts).
@@ -23,6 +25,7 @@ function skipReasonLabel(reason: string): string {
 
 interface RefundResultDetailProps {
   result: ShowRefundAllResult;
+  showId: string;
 }
 
 // A "failed" row can be a refund that went through at Stripe but whose entry
@@ -34,12 +37,18 @@ const FAILED_PAYMENT_LINE =
 /** Per-entry detail behind a disclosure, so a clean run stays compact and a
  * messy one is actionable (spec: refund-result-transparency). INTENT: secretary
  * surface — calm control, detail only when the secretary asks for it. */
-export function RefundResultDetail({ result }: RefundResultDetailProps) {
+export function RefundResultDetail({ result, showId }: RefundResultDetailProps) {
   const [open, setOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const { skipped, failed } = result;
+  const hasDetail = skipped.length > 0 || failed.length > 0;
+  // MYK9-1862: name each line from the show's entries as Entry Management reads them
+  // (replica first), so the secretary sees exhibitors and dogs, not ids.
+  const showEntries = useSecretaryShowEntriesQuery(showId, hasDetail);
+  const names = buildRefundEntryNames(showEntries.data);
+  const namesLoading = showEntries.data === undefined && showEntries.isPending;
 
-  if (skipped.length === 0 && failed.length === 0) {
+  if (!hasDetail) {
     return null;
   }
 
@@ -62,9 +71,9 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
             <div key={reason}>
               <p className="text-sm font-medium">{skipReasonLabel(reason)}</p>
               <div className="mt-1 flex flex-wrap gap-1">
-                {entryIds.map(entryId => (
-                  <Badge key={entryId} variant="secondary" className="font-mono text-xs">
-                    Entry {entryId}
+                {refundGroupLabels(entryIds, names, namesLoading).map(label => (
+                  <Badge key={label} variant="secondary" className="text-xs">
+                    {label}
                   </Badge>
                 ))}
               </div>
@@ -75,9 +84,9 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
             <div key={failure.paymentIntentId}>
               <p className="text-sm font-medium text-destructive">{FAILED_PAYMENT_LINE}</p>
               <div className="mt-1 flex flex-wrap gap-1">
-                {failure.entryIds.map(entryId => (
-                  <Badge key={entryId} variant="destructive" className="font-mono text-xs">
-                    Entry {entryId}
+                {refundGroupLabels(failure.entryIds, names, namesLoading).map(label => (
+                  <Badge key={label} variant="destructive" className="text-xs">
+                    {label}
                   </Badge>
                 ))}
               </div>
@@ -100,7 +109,7 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
                 ))}
                 {failed.map(failure => (
                   <li key={`failed-${failure.paymentIntentId}`}>
-                    {failure.paymentIntentId}: {failure.error}
+                    {failure.paymentIntentId} ({failure.entryIds.join(', ')}): {failure.error}
                   </li>
                 ))}
               </ul>

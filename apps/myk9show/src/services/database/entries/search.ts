@@ -6,7 +6,7 @@
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from '../_shared/replication-fallback';
-import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -91,9 +91,7 @@ async function postgrestSearchEntries(searchTerm: string) {
   const { data, error } = await supabase
     .from('view_authenticated_entry_results')
     .select(SEARCH_ENTRIES_SELECT)
-    .or(
-      `armband.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,handler.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-    )
+    .or(`armband.ilike.${ilikeContains(searchTerm)},handler.ilike.${ilikeContains(searchTerm)}`)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(50);

@@ -136,7 +136,7 @@ vi.mock('../../supabaseClient', () => ({
 // PostgREST filter sanitizer is used by `searchDogHealth` (sibling export);
 // not exercised here but the module is imported, so stub it out.
 vi.mock('@/utils/sanitizePostgRESTFilter', () => ({
-  sanitizePostgRESTFilter: (s: string) => s,
+  ilikeContains: (s: string) => s,
 }));
 
 import { getDogHealthOverview } from '../umbrella';

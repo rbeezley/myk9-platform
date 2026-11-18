@@ -429,13 +429,13 @@ describe('Dog Queries', () => {
       // filtered embeds of this one request, so nothing is capped before it.
       expect(mockSupabase.from.mock.calls).toEqual([['dogs']]);
       const [dogFilter] = orCalls(chain)[0] ?? [];
-      expect(dogFilter).toContain('name.ilike.%rang%');
+      expect(dogFilter).toContain('name.ilike."%rang%"');
       expect(dogFilter).toContain('search_0_registrations.not.is.null');
       expect(dogFilter).toContain('search_0_owner.not.is.null');
       expect(dogFilter).not.toContain('akc_number');
       // MYK9-90: registration number and registered name live on `dog_registrations`.
       expect(embedFilter(chain, 'search_0_registrations')).toBe(
-        'registration_number.ilike.%rang%,registered_name.ilike.%rang%,breed.ilike.%rang%'
+        'registration_number.ilike."%rang%",registered_name.ilike."%rang%",breed.ilike."%rang%"'
       );
       expect(chain.is).toHaveBeenCalledWith('search_0_owner.deleted_at', null);
       expect(chain.limit).toHaveBeenCalledWith(50);
@@ -454,7 +454,7 @@ describe('Dog Queries', () => {
       await searchAllDogs('alice');
 
       expect(embedFilter(chain, 'search_0_owner')).toBe(
-        'first_name.ilike.%alice%,last_name.ilike.%alice%'
+        'first_name.ilike."%alice%",last_name.ilike."%alice%"'
       );
     });
 
@@ -465,7 +465,7 @@ describe('Dog Queries', () => {
       await searchAllDogs('Alice Smith');
 
       expect(embedFilter(chain, 'search_0_owner')).toBe(
-        'first_name.ilike.%Alice Smith%,last_name.ilike.%Alice Smith%,and(first_name.ilike.%Alice%,last_name.ilike.%Smith%)'
+        'first_name.ilike."%Alice Smith%",last_name.ilike."%Alice Smith%",and(first_name.ilike."%Alice%",last_name.ilike."%Smith%")'
       );
     });
 
@@ -476,8 +476,8 @@ describe('Dog Queries', () => {
       await searchAllDogs('Mary Jane Smith');
 
       const filter = embedFilter(chain, 'search_0_owner') ?? '';
-      expect(filter).toContain('and(first_name.ilike.%Mary Jane%,last_name.ilike.%Smith%)');
-      expect(filter).toContain('and(first_name.ilike.%Mary%,last_name.ilike.%Jane Smith%)');
+      expect(filter).toContain('and(first_name.ilike."%Mary Jane%",last_name.ilike."%Smith%")');
+      expect(filter).toContain('and(first_name.ilike."%Mary%",last_name.ilike."%Jane Smith%")');
     });
 
     it('tries at most three splits, keeping later words in the last name', async () => {
@@ -488,21 +488,38 @@ describe('Dog Queries', () => {
 
       const filter = embedFilter(chain, 'search_0_owner') ?? '';
       expect(filter.match(/and\(/g)).toHaveLength(3);
-      expect(filter).toContain('and(first_name.ilike.%a b c%,last_name.ilike.%d e%)');
+      expect(filter).toContain('and(first_name.ilike."%a b c%",last_name.ilike."%d e%")');
     });
 
-    it('keeps commas and parentheses in the term escaped in every filter', async () => {
+    // MYK9-2148: PostgREST has no backslash escape for `,` `(` `)`; a value
+    // carrying them is double-quoted instead (checked against a real PostgREST
+    // in src/utils/__tests__/sanitizePostgRESTFilter.test.ts).
+    it('quotes a term with commas and parentheses in every filter', async () => {
       const chain = createChainableQuery({ data: [], error: null });
       mockSupabase.from.mockReturnValue(chain);
 
       const result = await searchAllDogs('Smith, Jo (Jr)');
 
-      const filter = embedFilter(chain, 'search_0_owner') ?? '';
-      // Strip the escaped characters: what is left has only the filter's own syntax.
-      const structural = filter.replace(/\\[,().*%\\]/g, '');
-      expect(structural).not.toMatch(/Smith,|\(Jr|Jr\)/);
-      expect(filter).toContain('Smith\\, Jo \\(Jr\\)');
+      expect(embedFilter(chain, 'search_0_owner')).toBe(
+        'first_name.ilike."%Smith, Jo (Jr)%",last_name.ilike."%Smith, Jo (Jr)%",and(first_name.ilike."%Smith,%",last_name.ilike."%Jo (Jr)%"),and(first_name.ilike."%Smith, Jo%",last_name.ilike."%(Jr)%")'
+      );
+      expect(embedFilter(chain, 'search_0_registrations')).toBe(
+        'registration_number.ilike."%Smith, Jo (Jr)%",registered_name.ilike."%Smith, Jo (Jr)%",breed.ilike."%Smith, Jo (Jr)%"'
+      );
+      const [dogFilter] = orCalls(chain)[0] ?? [];
+      expect(dogFilter).toContain('name.ilike."%Smith, Jo (Jr)%"');
+      expect(dogFilter).not.toContain('\\,');
       expect(result.error).toBeNull();
+    });
+
+    it('escapes a typed quote, backslash and percent for the LIKE pattern', async () => {
+      const chain = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(chain);
+
+      await searchAllDogs('5" a\\b 100%');
+
+      const [dogFilter] = orCalls(chain)[0] ?? [];
+      expect(dogFilter).toContain('name.ilike."%5\\" a\\\\\\\\b 100\\\\%%"');
     });
 
     it('reports the result as truncated only when the page of dogs is full', async () => {

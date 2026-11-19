@@ -186,6 +186,14 @@ export function ShowPublicLanding({
   const effectivePendingReason =
     entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown');
   const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
+  // A landing left open across the opening day must stop saying "Opens <today>", so the clock
+  // is an input: it ticks once a minute (not every second like the countdown) and the copy is
+  // rebuilt only then.
+  const [clockMinute, setClockMinute] = useState(() => Math.floor(Date.now() / 60_000));
+  useEffect(() => {
+    const id = setInterval(() => setClockMinute(Math.floor(Date.now() / 60_000)), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const pendingCopy = useMemo(
     () =>
       pendingEntryCopy({
@@ -193,8 +201,9 @@ export function ShowPublicLanding({
         entryPendingReason: effectivePendingReason,
         entryOpenDate: show.entryOpenDate,
         timezone: trialTimezone,
+        now: new Date(clockMinute * 60_000),
       }),
-    [hasEntryClassInventory, effectivePendingReason, show.entryOpenDate, trialTimezone]
+    [hasEntryClassInventory, effectivePendingReason, show.entryOpenDate, trialTimezone, clockMinute]
   );
 
   const handleSaveStyle = async (style: ShowStyle) => {

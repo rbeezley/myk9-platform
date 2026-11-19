@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { Users } from 'lucide-react';
+import { WAITLIST_CARD_PAUSED_MESSAGE } from '@/features/payments/cardPausedCopy';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -286,7 +287,10 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                   </div>
                   {displayState === 'offered' && hasPaymentError && (
                     <p className="mt-3 text-sm text-muted-foreground" role="status">
-                      Your spot is still held. Please try payment again.
+                      {/* MYK9-2166: retrying cannot fix a club whose payouts are off. */}
+                      {paymentError === WAITLIST_CARD_PAUSED_MESSAGE
+                        ? WAITLIST_CARD_PAUSED_MESSAGE
+                        : 'Your spot is still held. Please try payment again.'}
                     </p>
                   )}
                   {displayState === 'offered' && hasDeclineError && (

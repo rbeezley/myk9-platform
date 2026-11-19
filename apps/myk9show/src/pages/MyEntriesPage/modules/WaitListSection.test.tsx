@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { WaitListEntry } from '@/types/waitlist-types';
+import { WAITLIST_CARD_PAUSED_MESSAGE } from '@/features/payments/cardPausedCopy';
 import { WaitListSection } from './WaitListSection';
 
 const ACTIVE_OFFER: WaitListEntry = {
@@ -73,6 +74,18 @@ describe('WaitListSection offered payment recovery', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try payment again' }));
     expect(props.onStartPayment).toHaveBeenCalledWith('entry-1', 'offer-1');
+  });
+
+  it('says card payment is paused, not "try again", when the club cannot take card payments', () => {
+    renderSection({
+      paymentError: WAITLIST_CARD_PAUSED_MESSAGE,
+      paymentErrorOfferId: 'offer-1',
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent(WAITLIST_CARD_PAUSED_MESSAGE);
+    expect(
+      screen.queryByText('Your spot is still held. Please try payment again.')
+    ).not.toBeInTheDocument();
   });
 
   it('shows retry state only on the offer whose payment failed', () => {

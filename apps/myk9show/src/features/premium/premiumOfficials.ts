@@ -14,12 +14,31 @@ import { PremiumPublishError } from './premiumPublishErrors';
 
 const fullName = (o: ShowOfficial) => `${o.firstName} ${o.lastName}`.trim() || null;
 
+const norm = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
+
+type DraftContact = { name: string | null; email: string | null; phone: string | null };
+
+/**
+ * The draft's phone, only when the draft contact is the current holder (MYK9-2204): generate-premium
+ * reads the holder's phone at generation time, but the officials read carries none and a draft
+ * contact has no person id. Same person = equal non-empty emails; with an email missing on either
+ * side, equal non-empty full names. A replaced holder, or identity that cannot be established, gets
+ * no phone, never the predecessor's.
+ */
+function phoneForHolder(draft: DraftContact | null, holder: ShowOfficial, name: string) {
+  if (!draft?.phone) return null;
+  const draftEmail = norm(draft.email);
+  const holderEmail = norm(holder.email);
+  if (draftEmail && holderEmail) return draftEmail === holderEmail ? draft.phone : null;
+  const draftName = norm(draft.name);
+  return draftName && draftName === norm(name) ? draft.phone : null;
+}
+
 /**
  * The premium with its secretary and chairman taken from the officials, which were read
  * successfully (a failed read throws in `fetchOfficialsForPublish` and never reaches here). A role
  * with no holder is cleared whole: a draft's former volunteer prints nothing. The RPC carries no
- * phone and a draft contact has no person id, so a draft phone cannot be verified as the current
- * holder's and is dropped (MYK9-2204). The mailing address is the one the club typed for the premium
+ * phone, so a draft phone is kept only for the same person (see `phoneForHolder`, MYK9-2204). The mailing address is the one the club typed for the premium
  * (MYK9-2065); an official without one prints none, never the premium's earlier value.
  */
 export function applyOfficialsToPremium(
@@ -38,9 +57,7 @@ export function applyOfficialsToPremium(
             ...premium.secretary,
             name: secretaryName,
             email: secretary.email,
-            // The RPC carries no phone and the draft contact has no person id, so a draft phone
-            // cannot be verified as this holder's: it never prints.
-            phone: null,
+            phone: phoneForHolder(premium.secretary, secretary, secretaryName),
             mailingAddress: secretary.mailingAddress ?? null,
           }
         : // The lookup succeeded and nobody holds the role: a draft's former volunteer must not
@@ -53,7 +70,7 @@ export function applyOfficialsToPremium(
           ? {
               name: chairName,
               email: chair.email,
-              phone: null,
+              phone: phoneForHolder(premium.officials.chairman, chair, chairName),
               mailingAddress: chair.mailingAddress ?? null,
             }
           : null,

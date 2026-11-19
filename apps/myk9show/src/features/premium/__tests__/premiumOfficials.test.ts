@@ -103,6 +103,56 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
     expect(premium.officials.chairman?.phone).toBeNull();
   });
 
+  it('keeps the draft phone for the same person, by email ignoring case and spaces', () => {
+    const draft = generatedPremium();
+    draft.secretary = {
+      name: 'S. Person',
+      email: ' SAM@Example.com ',
+      phone: '9185550000',
+      mailingAddress: null,
+    };
+    draft.officials = {
+      chairman: { name: 'C', email: 'cara@example.com', phone: '9185550001', mailingAddress: null },
+    };
+    const premium = applyOfficialsToPremium(draft, {
+      secretaries: [official('secretary', 'Sam', null)],
+      chairmen: [official('chairman', 'Cara', null)],
+      stewards: [],
+    });
+
+    expect(premium.secretary.phone).toBe('9185550000');
+    expect(premium.officials.chairman?.phone).toBe('9185550001');
+  });
+
+  it('keeps the phone when an email is missing on one side but the full name matches', () => {
+    const draft = generatedPremium();
+    draft.secretary = {
+      name: 'sam person',
+      email: null,
+      phone: '9185550000',
+      mailingAddress: null,
+    };
+    const premium = applyOfficialsToPremium(draft, {
+      secretaries: [official('secretary', 'Sam', null)],
+      chairmen: [],
+      stewards: [],
+    });
+
+    expect(premium.secretary.phone).toBe('9185550000');
+  });
+
+  it('clears the phone when no email exists and the name differs', () => {
+    const draft = generatedPremium();
+    draft.secretary = { name: 'Old Sec', email: null, phone: '9185550000', mailingAddress: null };
+    const premium = applyOfficialsToPremium(draft, {
+      secretaries: [{ ...official('secretary', 'Sam', null), email: null }],
+      chairmen: [],
+      stewards: [],
+    });
+
+    expect(premium.secretary.phone).toBeNull();
+  });
+
   it('keeps the draft only when the officials could not be read: the publish fails instead', async () => {
     mocks.fetchShowOfficials.mockRejectedValueOnce(new Error('offline'));
     await expect(fetchOfficialsForPublish('show-1')).rejects.toBeInstanceOf(PremiumPublishError);

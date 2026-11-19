@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import { buildExperienceSnapshot, getLiveExperienceSnapshot } from '../experienceSnapshot';
 
 describe('experienceSnapshot', () => {
@@ -34,6 +35,21 @@ describe('experienceSnapshot', () => {
     expect(snapshot.narratives.showHours).toBe('Doors open at 7:00 AM.');
     // MYK9-2044: a UKC premium states no recording fee.
     expect(snapshot.recordingFee).toBeNull();
+  });
+
+  it('never stores the full premium (officials contact details) on the show row (MYK9-2230)', () => {
+    const premium = generatedPremium();
+    premium.secretary = {
+      name: 'Jane Smith',
+      email: 'jane@test.com',
+      phone: '555-0100',
+      mailingAddress: '1 Main St',
+    };
+    const snapshot = buildExperienceSnapshot({ premium, premiumPath: 'p.pdf', premiumUrl: 'u' });
+
+    expect(snapshot).not.toHaveProperty('premium');
+    expect(JSON.stringify(snapshot)).not.toContain('jane@test.com');
+    expect(JSON.stringify(snapshot)).not.toContain('555-0100');
   });
 
   it('returns published snapshot only when the show is published', () => {

@@ -24,5 +24,18 @@ export function composePremiumVenue(parts: PremiumVenueParts): string {
   const city = clean(parts.city);
   const stateZip = [clean(parts.state), clean(parts.zipCode)].filter(Boolean).join(' ');
   const locality = [city, stateZip].filter(Boolean).join(', ');
-  return [label, address, locality].filter(Boolean).join(', ');
+  // A part equal to one already printed (case aside) is not repeated: a location typed as the
+  // street itself, or as the whole address, prints once. Whole-part equality only, no guessing.
+  const printed: string[] = [];
+  for (const part of [label, address, locality]) {
+    if (part && !printed.some(p => p.toLowerCase() === part.toLowerCase())) printed.push(part);
+  }
+  const whole = printed.join(', ');
+  if (
+    label &&
+    label.toLowerCase() === [address, locality].filter(Boolean).join(', ').toLowerCase()
+  ) {
+    return label;
+  }
+  return whole;
 }

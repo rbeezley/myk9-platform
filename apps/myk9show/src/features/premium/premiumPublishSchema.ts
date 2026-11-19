@@ -32,6 +32,12 @@ const generatedPremiumSchema = z.object({
     // clubs.name via a nullable club_id); the PDF templates render them as
     // '—' / 'Host Club'. Requiring them failed publish for sparse drafts.
     venue: nullableText,
+    // MYK9-2230: the address parts; optional so older premiums parse, and listed so zod keeps them.
+    venueName: nullableText.optional(),
+    address: nullableText.optional(),
+    city: nullableText.optional(),
+    state: nullableText.optional(),
+    zipCode: nullableText.optional(),
     entryOpenDate: nullableText,
     entryCloseDate: nullableText,
     preEntryFee: nullableAmount,

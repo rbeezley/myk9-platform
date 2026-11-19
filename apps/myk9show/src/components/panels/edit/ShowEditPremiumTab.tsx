@@ -254,7 +254,8 @@ function buildLocalPremiumDraft(
         eventNumber: trial.trialNumber,
         type: trial.trialType ?? '',
         maxTotalEntries: normalizeEntryLimit(trial.maxTotalEntries),
-        judges: formJudges.length > 0 ? formJudges : (prior?.judges ?? []),
+        // An emptied judge list is an edit; only a form that never loaded judges keeps the stored ones.
+        judges: data.assignedJudges !== undefined ? formJudges : (prior?.judges ?? []),
         classes: (trial.classes ?? []).map(cls => {
           const element = cls.element ?? '';
           const level = cls.level ?? '';

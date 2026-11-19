@@ -86,7 +86,7 @@ describe('drainAutoEmailJobs for pulled_out (MYK9-2001)', () => {
 
     const sent = sentBody(fetch);
     expect(sent.to).toBe('jamie@example.com');
-    expect(sent.subject).toBe('You are out of Spring Scent Trial');
+    expect(sent.subject).toBe('Entries removed at Spring Scent Trial');
     expect(sent.html).toContain(
       'Vesper is out of Novice Interior (Saturday Trial, Saturday, November 21, 2026).'
     );

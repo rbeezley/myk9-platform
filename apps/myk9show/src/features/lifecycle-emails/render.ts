@@ -243,7 +243,7 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
     // (send-lifecycle-email, lifecycle-email-pullOut.ts); no screen drafts it.
     case 'pulled_out':
       return {
-        subject: `You are out of ${showName}`,
+        subject: `Entries removed at ${showName}`,
         body: joinLines([
           greeting,
           '',

@@ -7,7 +7,7 @@
  * only REPORTS what the exhibitor did. The job stores only ids: { kind: 'removed', entry_id }.
  *
  * What it says about money:
- *   paid online, club not yet paid   "Your refund is waiting for the trial secretary."
+ *   paid online, club not yet paid   "The trial secretary will decide whether to issue a refund."
  *   paid online, club already paid   "The club will contact you about a refund." (MYK9-1953 is
  *                                     undecided: that sentence promises nothing else.)
  *   anything else (check, cash, unpaid, or a refund already recorded or decided)   nothing about money.
@@ -24,7 +24,7 @@ import {
 
 /** Said once a club has been paid out; MYK9-1953 has not decided more than this. */
 export const CLUB_CONTACTS_YOU = 'The club will contact you about a refund.';
-export const SECRETARY_DECIDES = 'Your refund is waiting for the trial secretary.';
+export const SECRETARY_DECIDES = 'The trial secretary will decide whether to issue a refund.';
 
 export interface RenderedPullOutEmail {
   subject: string;
@@ -212,13 +212,13 @@ export function renderPulledOutEmail(args: {
 }): RenderedPullOutEmail {
   const showName = clean(args.showName) || 'your show';
   return {
-    subject: `You are out of ${showName}`,
+    subject: `Entries removed at ${showName}`,
     body: [
       `Hi ${firstName(args.recipientName)},`,
       `Here is what we recorded for you at ${showName}.`,
       args.lines.join('\n'),
       ...(args.moneyNote ? [args.moneyNote] : []),
-      `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
+      `Your entries: https://myk9show.com/exhibitor/entries?show=${args.showId}`,
     ].join('\n\n'),
   };
 }

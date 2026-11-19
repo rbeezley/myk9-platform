@@ -198,7 +198,7 @@ BEGIN
     p.id,
     btrim(p.email),
     nullif(btrim(coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')), ''),
-    'You are out of ' || coalesce(v_show_name, 'your show'),
+    'Entries removed at ' || coalesce(v_show_name, 'your show'),
     -- A job is one email; a change after it went out is a new job, so a new key.
     'show-lifecycle-email:' || v_show_id::text || ':' || p_step_type || ':person:' || p.id::text
       || ':' || gen_random_uuid()::text,

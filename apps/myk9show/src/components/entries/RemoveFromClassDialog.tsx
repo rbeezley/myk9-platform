@@ -255,7 +255,7 @@ function RemoveFromClassBody({
           className="rounded-lg border bg-muted/40 p-3 text-sm"
           data-testid="pull-out-paid-summary"
         >
-          <p className="font-medium">What you paid for this class</p>
+          <p className="font-medium">Payment for this class</p>
           {paidSummary.map(line => (
             <p key={line} className="mt-1 text-muted-foreground">
               {line}

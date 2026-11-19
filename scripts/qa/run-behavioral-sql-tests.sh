@@ -144,6 +144,7 @@ TEST_FILES=(
   "$TEST_DIR/pre_rule_table_grants_test.sql"
   "$TEST_DIR/show_officials_label_not_permission_test.sql"
   "$TEST_DIR/myk9_2065_official_premium_mailing_address_test.sql"
+  "$TEST_DIR/myk9_2204_show_officials_phone_test.sql"
   "$TEST_DIR/show_announcements_scope_test.sql"
   "$TEST_DIR/show_message_tenant_isolation_test.sql"
   "$TEST_DIR/show_organization_immutability_test.sql"

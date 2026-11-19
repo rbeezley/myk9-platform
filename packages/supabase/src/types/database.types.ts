@@ -15057,6 +15057,7 @@ export type Database = {
           email: string
           first_name: string
           last_name: string
+          phone: string
           premium_mailing_address: string
           role: string
           user_id: string

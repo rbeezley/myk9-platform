@@ -57,7 +57,7 @@ export function GazetteBody({ data, tokens }: Props) {
   const hasClasses = trials.some(t => t.classLabels.length > 0);
   const hasFees = f.fees.hasAny;
   // MYK9-2065: an official's contact is never an entry method; the entry section is online only.
-  const hasEntry = Boolean(f.entry.opens || f.entry.closes);
+  // MYK9-2204: every show takes online entries, so the section prints even with no dates set.
   const hasLodging = f.accommodations.length > 0;
   const hasAwards = Boolean(f.awardsDescription);
   const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes);
@@ -157,17 +157,15 @@ export function GazetteBody({ data, tokens }: Props) {
           </View>
         )}
 
-        {hasEntry && (
-          <View style={sectionStyle} wrap={false}>
-            <View style={headerWrapStyle}>
-              <Text style={headerTextStyle}>Entry Methods</Text>
-            </View>
-            <Text style={{ ...bodyTextStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
-            <Text style={bodyTextStyle}>myk9show.com</Text>
-            {f.entry.opens && <Text style={bodyTextStyle}>Opens: {f.entry.opens}</Text>}
-            {f.entry.closes && <Text style={bodyTextStyle}>Closes: {f.entry.closes}</Text>}
+        <View style={sectionStyle} wrap={false}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>Entry Methods</Text>
           </View>
-        )}
+          <Text style={{ ...bodyTextStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
+          <Text style={bodyTextStyle}>myk9show.com</Text>
+          {f.entry.opens && <Text style={bodyTextStyle}>Opens: {f.entry.opens}</Text>}
+          {f.entry.closes && <Text style={bodyTextStyle}>Closes: {f.entry.closes}</Text>}
+        </View>
 
         {hasLodging && (
           <View style={sectionStyle} wrap={false}>

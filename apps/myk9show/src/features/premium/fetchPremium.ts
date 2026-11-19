@@ -9,13 +9,13 @@ import { parseGeneratedPremium } from './premiumPublishSchema';
 const GENERATION_FAILURE_MESSAGE = "We couldn't generate the premium list. Please try again.";
 
 /**
- * One call to generate-premium and everything the client adds to its answer. `factsOnly`
- * (MYK9-2244) asks for the show's current facts without the paid narrative call and without
- * using the generation allowance; the premium is otherwise identical.
+ * One call to generate-premium and everything the client adds to its answer: the show's current
+ * facts, with the narratives built from them (MYK9-2055; no model call), except a narrative
+ * already published, which is kept.
  */
-export async function fetchPremium(showId: string, factsOnly: boolean): Promise<GeneratedPremium> {
+export async function fetchPremium(showId: string): Promise<GeneratedPremium> {
   const { data, error: fnError } = await supabase.functions.invoke('generate-premium', {
-    body: factsOnly ? { show_id: showId, factsOnly: true } : { show_id: showId },
+    body: { show_id: showId },
   });
   if (fnError) {
     console.error('[premium-generation] request failed', { showId, error: fnError });
@@ -49,7 +49,7 @@ export async function fetchPremium(showId: string, factsOnly: boolean): Promise<
   }
 }
 
-/** The show's current facts, with no narrative generation and no allowance used (MYK9-2244). */
+/** The show's current facts (MYK9-2244), the same call every premium surface uses. */
 export function fetchPremiumFacts(showId: string): Promise<GeneratedPremium> {
-  return fetchPremium(showId, true);
+  return fetchPremium(showId);
 }

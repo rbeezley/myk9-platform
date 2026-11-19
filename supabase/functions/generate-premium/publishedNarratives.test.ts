@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeNarratives, publishedNarratives } from './publishedNarratives';
+import { publishedNarratives } from './publishedNarratives';
 
 describe('publishedNarratives', () => {
   it('returns the published narratives', () => {
@@ -39,53 +39,5 @@ describe('publishedNarratives', () => {
         },
       })
     ).toEqual({ showHours: '', trialInformation: 'Real trial information.' });
-  });
-});
-
-describe('completeNarratives', () => {
-  const published = { showHours: 'Published hours.', trialInformation: 'Published info.' };
-
-  it('keeps a complete model answer as is', () => {
-    expect(
-      completeNarratives({ showHours: 'New hours.', trialInformation: 'New info.' }, published)
-    ).toEqual({
-      narratives: { showHours: 'New hours.', trialInformation: 'New info.' },
-      incomplete: false,
-    });
-  });
-
-  it('fills a blank section from the published text and marks the answer incomplete', () => {
-    expect(
-      completeNarratives({ showHours: 'New hours.', trialInformation: '  ' }, published)
-    ).toEqual({
-      narratives: { showHours: 'New hours.', trialInformation: 'Published info.' },
-      incomplete: true,
-    });
-  });
-
-  it('leaves a section blank when nothing was ever published', () => {
-    expect(
-      completeNarratives(
-        { showHours: '', trialInformation: 'New info.' },
-        { showHours: '', trialInformation: '' }
-      )
-    ).toEqual({
-      narratives: { showHours: '', trialInformation: 'New info.' },
-      incomplete: true,
-    });
-  });
-});
-
-describe('completeNarratives with a placeholder answer', () => {
-  it('treats a legacy placeholder from the model as blank and keeps the published text', () => {
-    expect(
-      completeNarratives(
-        { showHours: 'Show hours to be announced.', trialInformation: 'New info.' },
-        { showHours: 'Published hours.', trialInformation: 'Published info.' }
-      )
-    ).toEqual({
-      narratives: { showHours: 'Published hours.', trialInformation: 'New info.' },
-      incomplete: true,
-    });
   });
 });

@@ -122,19 +122,19 @@ BEGIN
   END IF;
   RESET ROLE;
 
-  -- The same free account may not select a Premium style.
+  -- MYK9-2055: the same free account may select every one of the eight styles.
   SET LOCAL ROLE authenticated;
-  BEGIN
-    PERFORM public.update_show_style(v_show_id, 'heritage');
-    RAISE EXCEPTION 'FAIL free account selected a Premium style';
-  EXCEPTION WHEN insufficient_privilege THEN
-    IF SQLSTATE <> '42501' THEN
-      RAISE EXCEPTION 'FAIL free Premium denial returned SQLSTATE %', SQLSTATE;
+  FOREACH v_style IN ARRAY ARRAY[
+    'banner', 'headline', 'magazine', 'poster', 'gazette', 'fieldGuide', 'heritage', 'monogram'
+  ] LOOP
+    PERFORM public.update_show_style(v_show_id, v_style);
+    IF (SELECT s.style FROM public.shows s WHERE s.id = v_show_id) <> v_style THEN
+      RAISE EXCEPTION 'FAIL free account could not save style %', v_style;
     END IF;
-    RAISE NOTICE 'PASS free account is denied Premium style with SQLSTATE 42501';
-  END;
+  END LOOP;
+  RAISE NOTICE 'PASS free account can save all eight styles';
 
-  -- The manager's broad table UPDATE grant must not bypass the Premium/RPC gate.
+  -- The manager's broad table UPDATE grant must not bypass the RPC boundary.
   BEGIN
     UPDATE public.shows SET style = 'heritage' WHERE id = v_show_id;
     RAISE EXCEPTION 'FAIL direct authenticated shows.style UPDATE was accepted';
@@ -143,7 +143,7 @@ BEGIN
   END;
   RESET ROLE;
 
-  -- Club-A manager with active Premium access may select the Premium style.
+  -- A Club-A manager with active Premium access still saves a style (and nothing else changes).
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000691102', true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object(
     'sub', '00000000-0000-0000-0000-000000691102', 'role', 'authenticated')::text, true);
@@ -173,8 +173,7 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS Premium style save changes style only and increments version once';
 
-  -- Direct inserts are still used by some show-creation paths. They must
-  -- apply the same Premium entitlement check as the Preview RPC.
+  -- Direct inserts are still used by some show-creation paths.
   INSERT INTO public.shows (
     id, name, organization, start_date, end_date, club_id, status, style
   ) VALUES (
@@ -182,28 +181,25 @@ BEGIN
     current_date + 12, current_date + 13,
     '00000000-0000-0000-0000-000000691001', 'draft', 'heritage'
   );
-  RAISE NOTICE 'PASS active Premium manager can insert a Premium style';
+  RAISE NOTICE 'PASS active Premium manager can insert a styled show';
   RESET ROLE;
 
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000691101', true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object(
     'sub', '00000000-0000-0000-0000-000000691101', 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
-  BEGIN
-    INSERT INTO public.shows (
-      id, name, organization, start_date, end_date, club_id, status, style
-    ) VALUES (
-      '00000000-0000-0000-0000-000000691023', 'MYK9-691 Free Premium Insert', 'AKC',
-      current_date + 14, current_date + 15,
-      '00000000-0000-0000-0000-000000691001', 'draft', 'heritage'
-    );
-    RAISE EXCEPTION 'FAIL free manager inserted a Premium style';
-  EXCEPTION WHEN insufficient_privilege THEN
-    IF SQLSTATE <> '42501' THEN
-      RAISE EXCEPTION 'FAIL free Premium insert denial returned SQLSTATE %', SQLSTATE;
-    END IF;
-    RAISE NOTICE 'PASS free manager is denied Premium style on direct insert';
-  END;
+  INSERT INTO public.shows (
+    id, name, organization, start_date, end_date, club_id, status, style
+  ) VALUES (
+    '00000000-0000-0000-0000-000000691023', 'MYK9-691 Free Styled Insert', 'AKC',
+    current_date + 14, current_date + 15,
+    '00000000-0000-0000-0000-000000691001', 'draft', 'heritage'
+  );
+  IF (SELECT s.style FROM public.shows s
+      WHERE s.id = '00000000-0000-0000-0000-000000691023') IS DISTINCT FROM 'heritage' THEN
+    RAISE EXCEPTION 'FAIL free manager could not insert a non-Monogram style';
+  END IF;
+  RAISE NOTICE 'PASS free manager can insert any style (MYK9-2055)';
 
   INSERT INTO public.shows (
     id, name, organization, start_date, end_date, club_id, status
@@ -218,38 +214,32 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS free manager can insert a show with the Monogram default';
 
-  -- The SECURITY DEFINER wizard must apply the same entitlement boundary as
-  -- the direct INSERT trigger and the style-only RPC. A rejected show must not
-  -- leave its show or any child rows behind.
-  BEGIN
-    PERFORM public.create_show_with_children(
-      jsonb_build_object(
-        'id', '00000000-0000-0000-0000-000000691025',
-        'name', 'MYK9-691 Free Premium Wizard', 'organization', 'AKC',
-        'start_date', (current_date + 18)::text,
-        'end_date', (current_date + 19)::text,
-        'club_id', '00000000-0000-0000-0000-000000691001',
-        'status', 'draft', 'style', 'heritage',
-        'accept_check_payments', true, 'accept_cash_payments', false
-      ),
-      jsonb_build_array(jsonb_build_object(
-        'id', '00000000-0000-0000-0000-000000691125',
-        'name', 'Rejected Premium Wizard Trial',
-        'date', (current_date + 18)::text
-      )),
-      '[]'::jsonb,
-      NULL
-    );
-    RAISE EXCEPTION 'FAIL free manager created a Premium-style show';
-  EXCEPTION WHEN SQLSTATE '42501' THEN
-    RAISE NOTICE 'PASS free manager Premium-style wizard creation is denied with SQLSTATE 42501';
-  END;
-  IF EXISTS (SELECT 1 FROM public.shows
-             WHERE id = '00000000-0000-0000-0000-000000691025')
-     OR EXISTS (SELECT 1 FROM public.trials
-                WHERE id = '00000000-0000-0000-0000-000000691125') THEN
-    RAISE EXCEPTION 'FAIL rejected Premium wizard creation left show or trial rows';
+  -- MYK9-2055: the SECURITY DEFINER wizard creates a non-Monogram show for a free manager.
+  PERFORM public.create_show_with_children(
+    jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000000691025',
+      'name', 'MYK9-691 Free Styled Wizard', 'organization', 'AKC',
+      'start_date', (current_date + 18)::text,
+      'end_date', (current_date + 19)::text,
+      'club_id', '00000000-0000-0000-0000-000000691001',
+      'status', 'draft', 'style', 'heritage',
+      'accept_check_payments', true, 'accept_cash_payments', false
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000000691125',
+      'name', 'Free Styled Wizard Trial',
+      'date', (current_date + 18)::text
+    )),
+    '[]'::jsonb,
+    NULL
+  );
+  IF NOT EXISTS (SELECT 1 FROM public.shows
+                 WHERE id = '00000000-0000-0000-0000-000000691025' AND style = 'heritage')
+     OR NOT EXISTS (SELECT 1 FROM public.trials
+                    WHERE id = '00000000-0000-0000-0000-000000691125') THEN
+    RAISE EXCEPTION 'FAIL free manager could not create a Heritage show through the wizard';
   END IF;
+  RAISE NOTICE 'PASS free manager can create any style through the wizard (MYK9-2055)';
 
   -- Monogram remains available to a free manager through the same wizard.
   PERFORM public.create_show_with_children(

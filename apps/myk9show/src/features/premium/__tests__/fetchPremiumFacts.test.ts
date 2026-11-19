@@ -13,21 +13,19 @@ vi.mock('../../../services/database/supabaseClient', () => ({
   supabase: { functions: { invoke: invokeMock }, rpc: rpcMock },
 }));
 
-describe('fetchPremiumFacts (MYK9-2244)', () => {
+describe('fetchPremiumFacts (MYK9-2244, MYK9-2055)', () => {
   beforeEach(() => {
     invokeMock.mockReset().mockResolvedValue({ data: generatedPremium(), error: null });
     rpcMock.mockReset().mockResolvedValue({ data: [], error: null });
   });
 
-  it('asks generate-premium for the facts only', async () => {
+  it('asks generate-premium for the show, with no model or facts-only switch', async () => {
     await fetchPremiumFacts('show-1');
-    expect(invokeMock).toHaveBeenCalledWith('generate-premium', {
-      body: { show_id: 'show-1', factsOnly: true },
-    });
+    expect(invokeMock).toHaveBeenCalledWith('generate-premium', { body: { show_id: 'show-1' } });
   });
 
-  it('a normal generation still asks for the narratives', async () => {
-    await fetchPremium('show-1', false);
+  it('a regeneration makes the same call', async () => {
+    await fetchPremium('show-1');
     expect(invokeMock).toHaveBeenCalledWith('generate-premium', { body: { show_id: 'show-1' } });
   });
 });

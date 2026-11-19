@@ -12,7 +12,7 @@ interface UseGeneratePremiumResult {
 export function useGeneratePremium(): UseGeneratePremiumResult {
   const mutation = useMutation<GeneratedPremium, Error, string>({
     mutationFn: async (showId: string) => {
-      return fetchPremium(showId, false);
+      return fetchPremium(showId);
     },
   });
 

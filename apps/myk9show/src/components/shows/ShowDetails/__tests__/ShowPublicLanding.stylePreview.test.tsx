@@ -3,24 +3,8 @@ import { onlineManager } from '@tanstack/react-query';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
-import {
-  ShowStyleEntitlementError,
-  ShowStyleSaveError,
-} from '@/features/premium/showStylePersistence';
+import { ShowStyleSaveError } from '@/features/premium/showStylePersistence';
 import { ShowPublicLanding } from '../ShowPublicLanding';
-
-const entitlement = vi.hoisted(() => ({
-  canAuthorizePremium: false,
-  isLoading: false,
-  isTrusted: true,
-  effective: null,
-  isError: false,
-  refetch: vi.fn(),
-}));
-
-vi.mock('@/features/entitlement/useEntitlement', () => ({
-  useEntitlement: () => entitlement,
-}));
 
 vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
   MonogramLandingPage: ({ show }: { show: { style?: string | null } }) => (
@@ -65,8 +49,6 @@ function renderPreview(overrides: Partial<React.ComponentProps<typeof ShowPublic
 
 describe('ShowPublicLanding style preview', () => {
   beforeEach(() => {
-    entitlement.canAuthorizePremium = false;
-    entitlement.isLoading = false;
     onlineManager.setOnline(true);
   });
 
@@ -74,16 +56,27 @@ describe('ShowPublicLanding style preview', () => {
     onlineManager.setOnline(true);
   });
 
-  it('shows Monogram as the current default and filters premium styles without entitlement', () => {
+  it('shows Monogram as the current default and offers every style with no paid access (MYK9-2055)', () => {
     renderPreview();
 
     expect(screen.getByText('Current: Monogram')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Monogram' })).toBeInTheDocument();
-    expect(screen.queryByRole('radio', { name: 'Heritage' })).not.toBeInTheDocument();
+    for (const name of [
+      'Banner',
+      'Headline',
+      'Magazine',
+      'Poster',
+      'Gazette',
+      'Field Guide',
+      'Heritage',
+    ]) {
+      expect(screen.getByRole('radio', { name })).toBeInTheDocument();
+    }
+    expect(screen.getAllByRole('radio')).toHaveLength(8);
+    expect(screen.queryByText(/Premium access|entitlement|Upgrade/i)).not.toBeInTheDocument();
   });
 
-  it('previews a selected entitled style before save and persists the exact style value', async () => {
-    entitlement.canAuthorizePremium = true;
+  it('previews a selected style before save and persists the exact style value', async () => {
     const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
     const user = renderPreview({ onSaveDraftStyle }).user;
 
@@ -101,7 +94,6 @@ describe('ShowPublicLanding style preview', () => {
   });
 
   it('keeps the local preview while offline and enables Save again after reconnecting', async () => {
-    entitlement.canAuthorizePremium = true;
     onlineManager.setOnline(false);
     const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
     const user = renderPreview({ onSaveDraftStyle }).user;
@@ -123,7 +115,6 @@ describe('ShowPublicLanding style preview', () => {
   });
 
   it('moves through styles with arrow keys and previews the selected option', async () => {
-    entitlement.canAuthorizePremium = true;
     const user = renderPreview().user;
 
     // MYK9-856: the "Back to setup" exit link is now first in tab order.
@@ -140,7 +131,6 @@ describe('ShowPublicLanding style preview', () => {
   });
 
   it('cancels a pending style without changing the preview or persistence', async () => {
-    entitlement.canAuthorizePremium = true;
     const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
     const user = renderPreview({ onSaveDraftStyle }).user;
 
@@ -153,7 +143,6 @@ describe('ShowPublicLanding style preview', () => {
   });
 
   it('does not claim the prior style remained active after an ambiguous save error', async () => {
-    entitlement.canAuthorizePremium = true;
     const onSaveDraftStyle = vi.fn().mockRejectedValue(new Error('server response was lost'));
     const user = renderPreview({ onSaveDraftStyle }).user;
 
@@ -167,7 +156,6 @@ describe('ShowPublicLanding style preview', () => {
   });
 
   it('preserves specific save guidance from the persistence boundary', async () => {
-    entitlement.canAuthorizePremium = true;
     const message = 'Wait for this show’s saved changes to be sent before saving its style.';
     const user = renderPreview({
       onSaveDraftStyle: vi.fn().mockRejectedValue(new ShowStyleSaveError(message)),
@@ -179,26 +167,7 @@ describe('ShowPublicLanding style preview', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
   });
 
-  // MYK9-744: the server refused on Premium; nothing was saved, so the
-  // committed style stays and the copy says so instead of "could not confirm".
-  it('shows the entitlement refusal when the server rejects the Premium style', async () => {
-    entitlement.canAuthorizePremium = true;
-    const user = renderPreview({
-      onSaveDraftStyle: vi.fn().mockRejectedValue(new ShowStyleEntitlementError()),
-    }).user;
-
-    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
-    await user.click(screen.getByRole('button', { name: 'Save style' }));
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Premium access is no longer available');
-    expect(alert).toHaveTextContent('Your current style is still Monogram');
-    expect(alert).not.toHaveTextContent('Could not confirm');
-  });
-
   it('uses the draft style as the manager baseline when public experience is published', () => {
-    entitlement.canAuthorizePremium = true;
-
     renderPreview({
       show: makeShow({
         style: 'poster',
@@ -211,35 +180,7 @@ describe('ShowPublicLanding style preview', () => {
     expect(screen.getByText('Published: Heritage')).toBeInTheDocument();
   });
 
-  it('rechecks Premium authorization when saving a pending premium style', async () => {
-    entitlement.canAuthorizePremium = true;
-    const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
-    const view = renderPreview({ onSaveDraftStyle });
-    const user = view.user;
-
-    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
-    entitlement.canAuthorizePremium = false;
-    view.rerender(
-      <ShowPublicLanding
-        show={makeShow()}
-        landingTrials={[makeTrial('trial-1')]}
-        hasEntryClassInventory={null}
-        entryPendingReason={undefined}
-        styleMode="manager-draft-preview"
-        onSaveDraftStyle={onSaveDraftStyle}
-      />
-    );
-    await user.click(screen.getByRole('button', { name: 'Save style' }));
-
-    expect(onSaveDraftStyle).not.toHaveBeenCalled();
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Premium access is no longer available'
-    );
-    expect(screen.getByText('Current: Monogram')).toBeInTheDocument();
-  });
-
   it('disables style selection while a save is in flight', async () => {
-    entitlement.canAuthorizePremium = true;
     let resolveSave!: () => void;
     const onSaveDraftStyle = vi.fn(
       () =>
@@ -265,7 +206,6 @@ describe('ShowPublicLanding style preview', () => {
   });
 
   it('does not carry an in-flight save state into a keyed preview for another show', async () => {
-    entitlement.canAuthorizePremium = true;
     let resolveSave!: () => void;
     const onSaveDraftStyle = vi.fn(
       () =>

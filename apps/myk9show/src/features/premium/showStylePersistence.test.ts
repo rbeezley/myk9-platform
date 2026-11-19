@@ -2,11 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import {
-  ShowStyleEntitlementError,
-  ShowStyleSaveError,
-  saveShowDraftStyle,
-} from './showStylePersistence';
+import { ShowStyleSaveError, saveShowDraftStyle } from './showStylePersistence';
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -170,19 +166,17 @@ describe('saveShowDraftStyle', () => {
 
   // MYK9-744: a definitive server rejection saved nothing; it must not read as
   // an ambiguous "could not confirm" outcome.
-  it.each([
-    ['Premium access is required for this show style', ShowStyleEntitlementError, undefined],
-    [
-      'Not authorized to update this show style',
-      ShowStyleSaveError,
-      'You no longer have permission to change this show’s style. Nothing was saved.',
-    ],
-  ])('maps a 42501 "%s" to a definite refusal', async (message, errorClass, copy) => {
-    mocks.rpc.mockResolvedValue({ data: null, error: { code: '42501', message } });
+  it('maps a 42501 to a definite refusal', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { code: '42501', message: 'Not authorized to update this show style' },
+    });
 
     const save = saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' });
-    await expect(save).rejects.toBeInstanceOf(errorClass);
-    if (copy) await expect(save).rejects.toThrow(copy);
+    await expect(save).rejects.toBeInstanceOf(ShowStyleSaveError);
+    await expect(save).rejects.toThrow(
+      'You no longer have permission to change this show’s style. Nothing was saved.'
+    );
   });
 
   it('maps a 22023 refusal to "this show can no longer be updated"', async () => {

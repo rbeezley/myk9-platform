@@ -12,17 +12,6 @@ import { ShowPublicLanding } from '../ShowPublicLanding';
 // either. These tests pin the fix: a visible "Back to setup" control that
 // works by click and by Escape, landing on the setup step `returnTo` names.
 
-vi.mock('@/features/entitlement/useEntitlement', () => ({
-  useEntitlement: () => ({
-    canAuthorizePremium: true,
-    isLoading: false,
-    isTrusted: true,
-    effective: null,
-    isError: false,
-    refetch: vi.fn(),
-  }),
-}));
-
 vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
   MonogramLandingPage: () => <div data-testid="monogram-landing" />,
 }));

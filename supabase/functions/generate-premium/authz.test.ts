@@ -96,19 +96,15 @@ describe('generate-premium authorization', () => {
 describe('generate-premium authorization ordering (source contract)', () => {
   const source = readFileSync(join(__dirname, 'index.ts'), 'utf8');
 
-  it('authorizes before the rate limiter and the model call', () => {
+  it('authorizes before the show fetch', () => {
     // The acceptance criterion is not just "denied calls 403" — it is that a
-    // denied call never reaches the limiter (which would record an attempt) or
-    // Anthropic (which costs money). Ordering is the property; assert it.
+    // denied call never reads the show. Ordering is the property; assert it.
     const authorizeAt = source.indexOf('resolvePremiumGenerationAuthorization({');
-    const limiterAt = source.indexOf('runPremiumGenerationAttempt({');
     const showFetchAt = source.indexOf(".from('shows')");
 
     expect(authorizeAt).toBeGreaterThan(-1);
-    expect(limiterAt).toBeGreaterThan(-1);
     expect(showFetchAt).toBeGreaterThan(-1);
 
-    expect(authorizeAt).toBeLessThan(limiterAt);
     expect(authorizeAt).toBeLessThan(showFetchAt);
   });
 

@@ -170,7 +170,6 @@ export interface GeneratedPremium {
     }>;
   }>;
   supplemental: PremiumSupplemental;
-  narrativeGenerationError?: string | null;
   narratives: {
     showHours: string;
     trialInformation: string;

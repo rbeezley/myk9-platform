@@ -31,15 +31,9 @@ describe('generate-premium edge function style contract', () => {
     expect(resolvePremiumStyle('minimal', null)).toBe('headline');
   });
 
-  it('aborts slow narrative generation so premium generation can return fallback content', () => {
-    expect(source).toMatch(/const NARRATIVE_TIMEOUT_MS = [\d_]+;/);
-    expect(source).toMatch(/new AbortController\(\)/);
-    expect(source).toMatch(/signal: controller\.signal/);
-    expect(source).toMatch(/clearTimeout\(timeoutId\)/);
-  });
-
-  it('returns sanitized narrative-generation errors instead of raw exception messages', () => {
-    expect(source).toMatch(/describeNarrativeGenerationFailure/);
-    expect(source).not.toMatch(/narrativeGenerationError = err instanceof Error \? err\.message/);
+  it('makes no model call and uses no generation allowance (MYK9-2055)', () => {
+    expect(source).not.toMatch(/api\.anthropic\.com|ANTHROPIC_API_KEY|anthropic-version/i);
+    expect(source).not.toMatch(/check_and_record_premium_generation_attempt|premiumRateLimit/);
+    expect(source).toMatch(/buildPremiumNarratives\(show\)/);
   });
 });

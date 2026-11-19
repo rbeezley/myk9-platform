@@ -70,14 +70,14 @@ describe('PremiumContentEditor', () => {
 
     render(<PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active />);
 
-    expect(screen.getByText(/Generating narratives/i)).toBeInTheDocument();
+    expect(screen.getByText(/Building from the show details/i)).toBeInTheDocument();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_000);
     });
 
     expect(screen.getByText(/could not finish generating/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Generating narratives/i)).toBeNull();
+    expect(screen.queryByText(/Building from the show details/i)).toBeNull();
   });
 
   it('reports generated content with the currently selected show style', async () => {
@@ -480,84 +480,6 @@ describe('PremiumContentEditor', () => {
     );
 
     expect(await screen.findByText(/could not be loaded for the PDF/i)).toBeInTheDocument();
-  });
-
-  it('offers a retry when narrative generation returns fallback copy', async () => {
-    generateMock.mockResolvedValueOnce({
-      org: 'AKC',
-      style: 'magazine',
-      templateId: null,
-      show: {
-        name: 'Test Show',
-        startDate: '2026-05-01',
-        endDate: '2026-05-02',
-        venue: 'Test Venue',
-        entryOpenDate: null,
-        entryCloseDate: null,
-        preEntryFee: 0,
-        dayOfFee: 0,
-        acceptChecks: false,
-        acceptCash: false,
-      },
-      club: { name: 'Test Club', logoUrl: null },
-      secretary: { name: null, email: null, phone: null, mailingAddress: null },
-      officials: { chairman: null },
-      trials: [],
-      supplemental: {
-        vetClinic: null,
-        accommodations: [],
-        coverImageUrl: null,
-        hospitalityNotes: null,
-        awardsDescription: null,
-        additionalNotes: null,
-      },
-      narrativeGenerationError: 'Claude timed out',
-      narratives: {
-        showHours: 'Show hours to be announced.',
-        trialInformation: 'Trial information to be announced.',
-      },
-    });
-    generateMock.mockResolvedValueOnce({
-      org: 'AKC',
-      style: 'magazine',
-      templateId: null,
-      show: {
-        name: 'Test Show',
-        startDate: '2026-05-01',
-        endDate: '2026-05-02',
-        venue: 'Test Venue',
-        entryOpenDate: null,
-        entryCloseDate: null,
-        preEntryFee: 0,
-        dayOfFee: 0,
-        acceptChecks: false,
-        acceptCash: false,
-      },
-      club: { name: 'Test Club', logoUrl: null },
-      secretary: { name: null, email: null, phone: null, mailingAddress: null },
-      officials: { chairman: null },
-      trials: [],
-      supplemental: {
-        vetClinic: null,
-        accommodations: [],
-        coverImageUrl: null,
-        hospitalityNotes: null,
-        awardsDescription: null,
-        additionalNotes: null,
-      },
-      narratives: {
-        showHours: 'Show hours.',
-        trialInformation: 'Trial information.',
-      },
-    });
-
-    render(<PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active />);
-
-    await screen.findByText(/Claude timed out/i);
-    fireEvent.click(screen.getByRole('button', { name: /Try narrative generation again/i }));
-
-    await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.queryByText(/Claude timed out/i)).toBeNull());
   });
 
   it('blanks legacy placeholder narratives in saved content on load', async () => {

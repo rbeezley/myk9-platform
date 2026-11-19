@@ -14,7 +14,7 @@ import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplate
 import { uploadShowCover } from '../../services/imageUploadService';
 import { computePremiumDiff } from './logPremiumGeneration';
 import { fileToDataUrl, resolvePdfCoverImageSrc } from './coverImageDataUrl';
-import { narrativeGenerationFailed, stripPlaceholderNarratives } from './premiumNarratives';
+import { stripPlaceholderNarratives } from './premiumNarratives';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 const GENERATION_TIMEOUT_MS = 20_000;
@@ -85,7 +85,6 @@ export function PremiumContentEditor({
   const [narratives, setNarratives] = useState<GeneratedPremium['narratives'] | null>(() =>
     initialPremium ? stripPlaceholderNarratives(initialPremium.narratives) : null
   );
-  const [hasNarrativeError, setHasNarrativeError] = useState(false);
   const [inkSaver, setInkSaver] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfCoverImageSrc, setPdfCoverImageSrc] = useState<string | null>(null);
@@ -156,7 +155,6 @@ export function PremiumContentEditor({
       setOriginal(cleaned);
       setSupplemental(cleaned.supplemental);
       setNarratives(cleaned.narratives);
-      setHasNarrativeError(narrativeGenerationFailed(cleaned));
     } catch (err) {
       if (latestRequestRef.current !== requestId) return;
       setGenerationError(
@@ -213,7 +211,6 @@ export function PremiumContentEditor({
     setOriginal(null);
     setSupplemental(null);
     setNarratives(null);
-    setHasNarrativeError(false);
     setInkSaver(false);
     setPdfUrl(null);
     setPdfCoverImageSrc(null);
@@ -392,7 +389,7 @@ export function PremiumContentEditor({
             }
           >
             <Loader2 className={original ? 'h-4 w-4 animate-spin' : 'h-6 w-6 animate-spin'} />
-            <p className="text-sm">Generating narratives... (~5-10 seconds)</p>
+            <p className="text-sm">Building from the show details...</p>
           </div>
         )}
 
@@ -404,28 +401,6 @@ export function PremiumContentEditor({
 
         {original && supplemental && narratives && (
           <>
-            {hasNarrativeError && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="space-y-3">
-                  <p>
-                    {original.narrativeGenerationError
-                      ? `Couldn't refresh the narratives (${original.narrativeGenerationError}). Check the text below, or try again.`
-                      : 'Narrative generation did not return text. You can retry or edit the fields below before downloading.'}
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={isGenerating || Boolean(regenerateBlockedReason)}
-                    onClick={() => void handleGenerate()}
-                  >
-                    Try narrative generation again
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
-
             {!original.supplemental.vetClinic && (
               <Alert>
                 <AlertDescription>

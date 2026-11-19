@@ -21,7 +21,6 @@ const STYLE_TAGLINES: Record<PremiumStyle, string> = {
 export interface PremiumStyleSelectorProps {
   selectedStyle: PremiumStyle;
   onSelect: (style: PremiumStyle) => void;
-  availableStyles?: readonly PremiumStyle[];
   ariaLabel?: string;
   disabled?: boolean;
 }
@@ -30,12 +29,9 @@ export interface PremiumStyleSelectorProps {
 export function PremiumStyleSelector({
   selectedStyle,
   onSelect,
-  availableStyles,
   ariaLabel = 'Show experience style',
   disabled = false,
 }: PremiumStyleSelectorProps) {
-  const available = availableStyles ? new Set(availableStyles) : null;
-
   return (
     <RadioGroup
       value={resolvePremiumStyle(selectedStyle)}
@@ -44,43 +40,39 @@ export function PremiumStyleSelector({
       aria-label={ariaLabel}
       disabled={disabled}
     >
-      {getPremiumStyleOptions()
-        .filter(option => !available || available.has(option.value))
-        .map(option => {
-          const selected = resolvePremiumStyle(selectedStyle) === option.value;
-          const id = `premium-style-${option.value}`;
-          return (
-            <div key={option.value}>
-              <RadioGroupItem
-                value={option.value}
-                id={id}
-                aria-labelledby={`${id}-name`}
-                className="peer sr-only"
-              />
-              <Label
-                htmlFor={id}
-                className={`flex min-h-11 cursor-pointer flex-col rounded-md border p-3 text-left normal-case tracking-normal transition-colors peer-disabled:cursor-not-allowed peer-disabled:opacity-50 ${
-                  selected
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                } peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2`}
-              >
-                <span className="flex items-center gap-2">
-                  <span
-                    id={`${id}-name`}
-                    className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}
-                  >
-                    {PREMIUM_STYLE_LABELS[option.value]}
-                  </span>
-                  {selected && <span aria-hidden="true">✓</span>}
+      {getPremiumStyleOptions().map(option => {
+        const selected = resolvePremiumStyle(selectedStyle) === option.value;
+        const id = `premium-style-${option.value}`;
+        return (
+          <div key={option.value}>
+            <RadioGroupItem
+              value={option.value}
+              id={id}
+              aria-labelledby={`${id}-name`}
+              className="peer sr-only"
+            />
+            <Label
+              htmlFor={id}
+              className={`flex min-h-11 cursor-pointer flex-col rounded-md border p-3 text-left normal-case tracking-normal transition-colors peer-disabled:cursor-not-allowed peer-disabled:opacity-50 ${
+                selected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+              } peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2`}
+            >
+              <span className="flex items-center gap-2">
+                <span
+                  id={`${id}-name`}
+                  className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}
+                >
+                  {PREMIUM_STYLE_LABELS[option.value]}
                 </span>
-                <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-                  {STYLE_TAGLINES[option.value]}
-                </span>
-              </Label>
-            </div>
-          );
-        })}
+                {selected && <span aria-hidden="true">✓</span>}
+              </span>
+              <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                {STYLE_TAGLINES[option.value]}
+              </span>
+            </Label>
+          </div>
+        );
+      })}
     </RadioGroup>
   );
 }

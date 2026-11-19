@@ -9245,6 +9245,7 @@ export type Database = {
           style: string
           updated_at: string | null
           uses_device_scoring: boolean
+          uses_landing_page: boolean
           uses_paper_packet: boolean
           uses_volunteers: boolean
           venue_name: string | null
@@ -9325,6 +9326,7 @@ export type Database = {
           style?: string
           updated_at?: string | null
           uses_device_scoring?: boolean
+          uses_landing_page?: boolean
           uses_paper_packet?: boolean
           uses_volunteers?: boolean
           venue_name?: string | null
@@ -9405,6 +9407,7 @@ export type Database = {
           style?: string
           updated_at?: string | null
           uses_device_scoring?: boolean
+          uses_landing_page?: boolean
           uses_paper_packet?: boolean
           uses_volunteers?: boolean
           venue_name?: string | null
@@ -14734,6 +14737,7 @@ export type Database = {
           style: string
           updated_at: string | null
           uses_device_scoring: boolean
+          uses_landing_page: boolean
           uses_paper_packet: boolean
           uses_volunteers: boolean
           venue_name: string | null
@@ -15988,6 +15992,7 @@ export type Database = {
           style: string
           updated_at: string | null
           uses_device_scoring: boolean
+          uses_landing_page: boolean
           uses_paper_packet: boolean
           uses_volunteers: boolean
           venue_name: string | null

@@ -37,7 +37,9 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
   const info = infoQuery.data;
   const link = linkQuery.data ?? null;
   const unreadable = infoQuery.isError || linkQuery.isError;
-  const [downloadFailed, setDownloadFailed] = useState(false);
+  // The document a download failed for; the alert shows only while that same document is up,
+  // so replacing, switching to a link or unpublishing clears it.
+  const [downloadFailedFor, setDownloadFailedFor] = useState<string | null>(null);
   const refresh = useRefreshPremiumState(showId);
   const fileInput = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState('');
@@ -46,6 +48,8 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
 
   const hasFile = Boolean(info?.hasPublishedPremium);
   const announced = info?.experienceIsPublished === true;
+  const documentKey = hasFile ? `file|${info?.publishedAt ?? ''}` : null;
+  const downloadFailed = documentKey !== null && downloadFailedFor === documentKey;
   // Unknown (a read failed) keeps Unpublish on offer: a live document must never look absent.
   const published = hasFile || Boolean(link) || announced || unreadable;
 
@@ -130,8 +134,11 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
             size="touch"
             variant="outline"
             onClick={() => {
-              setDownloadFailed(false);
-              void openPublishedPremium(showId).then(opened => setDownloadFailed(!opened));
+              const tried = documentKey;
+              setDownloadFailedFor(null);
+              void openPublishedPremium(showId).then(opened =>
+                setDownloadFailedFor(opened ? null : tried)
+              );
             }}
           >
             Download PDF

@@ -80,4 +80,29 @@ describe('OwnPremiumCard', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("Couldn't prepare"));
   });
+
+  it('drops the download error once that document is no longer published', async () => {
+    state.info = {
+      data: {
+        hasPublishedPremium: true,
+        experienceIsPublished: true,
+        publishedAt: '2026-11-01T00:00:00Z',
+      },
+      isError: false,
+      refetch: vi.fn(),
+    };
+    state.open.mockResolvedValue(false);
+    const { rerender } = render(<OwnPremiumCard showId="show-1" canManageShow />);
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("Couldn't prepare"));
+
+    state.info = {
+      data: { hasPublishedPremium: false, experienceIsPublished: false, publishedAt: null },
+      isError: false,
+      refetch: vi.fn(),
+    };
+    rerender(<OwnPremiumCard showId="show-1" canManageShow />);
+
+    expect(screen.queryByText(/Couldn't prepare/)).toBeNull();
+  });
 });

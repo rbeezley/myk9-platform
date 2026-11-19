@@ -36,6 +36,8 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   show_changed: 'Date or venue changed',
   judge_changed: 'Judge changed',
   entry_changed: 'Entry changed',
+  // MYK9-2001: told when she pulls or withdraws.
+  pulled_out: 'Pulled out',
   show_cancelled: 'Show cancelled',
 };
 
@@ -51,6 +53,7 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
   'show_changed',
   'judge_changed',
   'entry_changed',
+  'pulled_out',
   'show_cancelled',
 ]);
 
@@ -66,13 +69,15 @@ const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'show_changed',
   'judge_changed',
   'entry_changed',
+  'pulled_out',
   'show_cancelled',
 ]);
 
-// Always sent (MYK9-2126): the secretary cannot hold an entry change email back, so its row
-// shows what went out and has no switch.
+// Always sent (MYK9-2126, MYK9-2001): the secretary cannot hold an entry change or a pulling-out email
+// back, so its row shows what went out and has no switch.
 const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'entry_changed',
+  'pulled_out',
   'show_cancelled',
 ]);
 
@@ -159,8 +164,7 @@ function ScheduledEmailStepRow({
 }) {
   // An entry-change email waits out a quiet window before it can send, so its count is
   // "waiting", not "ready" (MYK9-2126).
-  const pendingWord =
-    step.stepType === 'entry_changed' || step.stepType === 'show_cancelled' ? 'waiting' : 'ready';
+  const pendingWord = ALWAYS_ON_STEP_TYPES.has(step.stepType) ? 'waiting' : 'ready';
   const readyLabel =
     step.readyCount > 0 ? `${step.readyCount} ${pendingWord}` : `None ${pendingWord}`;
   const sentLabel = step.sentCount > 0 ? `${step.sentCount} sent` : null;

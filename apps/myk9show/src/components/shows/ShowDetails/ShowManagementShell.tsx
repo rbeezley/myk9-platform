@@ -27,6 +27,7 @@ import {
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
 import { fetchShowJudgesForPublish, saveShowJudgeChanges } from '@/services/database/judges';
+import { waitForShowSync } from '@/features/premium/waitForShowSync';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -40,11 +41,9 @@ import { publishAnchorFromHash } from '@/features/show-workbench/setupReadinessS
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { applyShowFormDataToPremium, premiumOrganizationMismatch } from './showFormPremiumSync';
-import {
-  applyOfficialsToPremium,
-  fetchOfficialsForPublish,
-} from '@/features/premium/premiumOfficials';
+import { premiumOrganizationMismatch } from './showFormPremiumSync';
+import { fetchPremiumFacts } from '@/features/premium/fetchPremium';
+import { applyEditorCopyToPremium } from '@/features/premium/premiumEditorCopy';
 import { showHeroParent } from './showHeroParent';
 import { showPublishBlockersQueryKey } from '@/features/publishing/usePublishBlockers';
 import { carriedClassSearch } from './showTabClass';
@@ -408,21 +407,31 @@ function AuthorizedShowManagementShell({
               );
               if (orgMismatch) throw new PremiumPublishError(orgMismatch, 'experience-snapshot');
               try {
-                // The form's judge list is a device read and is empty when that
-                // read failed; the published premium lists the server's judges,
-                // and only when this device agrees with them (MYK9-774).
-                const judges = await fetchShowJudgesForPublish(id);
-                // The secretary and chair come from show_officials, which the generated
-                // premium does not read (MYK9-2053); an unreadable read fails the publish.
-                const officials = await fetchOfficialsForPublish(id);
-                const premium = applyOfficialsToPremium(
-                  applyShowFormDataToPremium(
-                    publishableShowData.generatedPremium,
-                    showData as Partial<ShowInput>,
-                    judges
-                  ),
-                  officials
-                );
+                // MYK9-2244: the published facts are the server's current ones (the same
+                // facts-only call the Edit show preview uses); the editor contributes only its
+                // narratives, supplemental fields and style. Never copied onto the show row.
+                await waitForShowSync(id);
+                // Refuses (judges-syncing) while this device's judge picks have not reached the
+                // server; the judges printed are the server's own, from the facts call.
+                await fetchShowJudgesForPublish(id);
+                const facts = await fetchPremiumFacts(id);
+                // Narratives written for another organization are never printed under this one's
+                // facts (the organization may have changed on another device since the editor
+                // opened).
+                if (facts.org !== publishableShowData.generatedPremium.org) {
+                  throw new PremiumPublishError(
+                    `The premium was built for ${publishableShowData.generatedPremium.org} but the show is now ${facts.org}`,
+                    'experience-snapshot',
+                    'organization-changed'
+                  );
+                }
+                const premium = applyEditorCopyToPremium(facts, {
+                  style:
+                    (showData as Partial<ShowInput>).style ??
+                    publishableShowData.generatedPremium.style,
+                  supplemental: publishableShowData.generatedPremium.supplemental,
+                  narratives: publishableShowData.generatedPremium.narratives,
+                });
                 await runPremiumPublishOperation({
                   showId: id,
                   mode: 'draft',

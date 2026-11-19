@@ -1,4 +1,8 @@
-import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
+import {
+  livePremiumClasses,
+  livePremiumTrials,
+  type PremiumScheduleTrialRow,
+} from './liveTrials.ts';
 
 /**
  * MYK9-2186: what Regenerate reads from the show's trials (template choice and the narrative
@@ -38,12 +42,18 @@ export function buildShowSummary(show: Record<string, unknown>): string {
       name: string;
       date: string;
       trial_type: string | null;
-      classes: Array<{ name: string; level: string | null; element: string | null }>;
+      classes: Array<{
+        name: string;
+        level: string | null;
+        element: string | null;
+        status?: string | null;
+        deleted_at?: string | null;
+      }>;
     }>) ?? []
   );
 
   const trialLines = trials.map(t => {
-    const classNames = (t.classes ?? [])
+    const classNames = livePremiumClasses(t.classes)
       .map(c => [c.level, c.element, c.name].filter(Boolean).join(' '))
       .join(', ');
     return `  - ${t.name} (${formatDateForPrompt(t.date)}): ${t.trial_type ?? 'unknown type'} — classes: ${classNames || 'none'}`;

@@ -11,6 +11,7 @@ import {
   type PremiumOfficialRow,
 } from './showOfficialsRow.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
+import { resolvePremiumNarratives } from './premiumNarratives.ts';
 import {
   PREMIUM_JUDGE_ASSIGNMENTS_SELECT,
   premiumTrialJudges,
@@ -22,7 +23,11 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
-import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
+import {
+  livePremiumClasses,
+  livePremiumTrials,
+  type PremiumScheduleTrialRow,
+} from './liveTrials.ts';
 import { buildShowSummary, premiumTemplateTrialType } from './showSummary.ts';
 import { resolvePremiumStyle, SHOW_STYLE_COLUMN } from './premiumStyle.ts';
 
@@ -35,6 +40,8 @@ const NARRATIVE_TIMEOUT_MS = 14_000;
 
 interface GeneratePremiumPayload {
   show_id?: string;
+  /** MYK9-2244: return the current facts only; no narrative model call, no allowance used. */
+  factsOnly?: boolean;
 }
 
 handle<GeneratePremiumPayload>(
@@ -44,9 +51,11 @@ handle<GeneratePremiumPayload>(
       throw new HttpError(401, 'Unauthorized');
     }
 
-    // Step 2: Validate required env vars
+    const factsOnly = body.factsOnly === true;
+
+    // Step 2: Validate required env vars (a facts-only request never calls the model)
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!anthropicKey) {
+    if (!anthropicKey && !factsOnly) {
       console.error('Missing required env var: ANTHROPIC_API_KEY');
       throw new HttpError(500, 'Service configuration error');
     }
@@ -99,12 +108,13 @@ handle<GeneratePremiumPayload>(
         id, name, organization, start_date, end_date, location, venue_name, address, city, state, zip_code, ${SHOW_STYLE_COLUMN},
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
+        allow_waitlist, allow_class_changes_after_close,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
           deleted_at, max_total_entries,
-          classes(id, name, level, element, section, deleted_at)
+          classes(id, name, level, element, section, status, deleted_at, entry_fee, allow_waitlist)
         )
       `
       )
@@ -175,63 +185,72 @@ handle<GeneratePremiumPayload>(
 
     // Step 9: Claude API call — generate narrative sections
     const showSummary = buildShowSummary(show);
-    let narratives: { showHours: string; trialInformation: string } = {
-      showHours: '',
-      trialInformation: '',
-    };
-    let narrativeGenerationError: string | null = null;
-
-    try {
-      narratives = await runPremiumGenerationAttempt({
-        authUserId: user.id,
-        showId: show_id,
-        checkRateLimit: ({ authUserId, showId }) =>
-          supabase.rpc('check_and_record_premium_generation_attempt', {
-            p_auth_user_id: authUserId,
-            p_show_id: showId,
-          }),
-        generate: () => generateNarratives(showSummary, anthropicKey),
-      });
-      const completed = completeNarratives(
-        narratives,
-        publishedNarratives(show.experience_published_content)
-      );
-      narratives = completed.narratives;
-      if (completed.incomplete) {
-        narrativeGenerationError =
-          'The AI service returned an incomplete answer. Please try again.';
-      }
-    } catch (err) {
-      if (err instanceof HttpError) {
-        throw err;
-      }
-      console.error('Claude narrative generation failed:', err);
-      narrativeGenerationError = describeNarrativeGenerationFailure(err);
-      // Never invent placeholder narratives: fall back to what is already published.
-      narratives = publishedNarratives(show.experience_published_content);
-    }
+    const { narratives, narrativeGenerationError } = await resolvePremiumNarratives({
+      factsOnly,
+      published: publishedNarratives(show.experience_published_content),
+      generate: async () => {
+        let generated: { showHours: string; trialInformation: string } = {
+          showHours: '',
+          trialInformation: '',
+        };
+        let generationError: string | null = null;
+        try {
+          generated = await runPremiumGenerationAttempt({
+            authUserId: user.id,
+            showId: show_id,
+            checkRateLimit: ({ authUserId, showId }) =>
+              supabase.rpc('check_and_record_premium_generation_attempt', {
+                p_auth_user_id: authUserId,
+                p_show_id: showId,
+              }),
+            generate: () => generateNarratives(showSummary, anthropicKey as string),
+          });
+          const completed = completeNarratives(
+            generated,
+            publishedNarratives(show.experience_published_content)
+          );
+          generated = completed.narratives;
+          if (completed.incomplete) {
+            generationError = 'The AI service returned an incomplete answer. Please try again.';
+          }
+        } catch (err) {
+          if (err instanceof HttpError) {
+            throw err;
+          }
+          console.error('Claude narrative generation failed:', err);
+          generationError = describeNarrativeGenerationFailure(err);
+          // Never invent placeholder narratives: fall back to what is already published.
+          generated = publishedNarratives(show.experience_published_content);
+        }
+        return { narratives: generated, narrativeGenerationError: generationError };
+      },
+    });
 
     // Step 10: Assemble and return GeneratedPremium. The schedule prints live trials only
     // (MYK9-2044): a cancelled or soft-deleted trial is not advertised.
-    const trials = (
-      livePremiumTrials(show.trials as PremiumScheduleTrialRow[] | null) as unknown as Array<{
+    const liveTrials = livePremiumTrials(
+      show.trials as PremiumScheduleTrialRow[] | null
+    ) as unknown as Array<{
+      id: string;
+      name: string;
+      date: string;
+      planned_start_time: string | null;
+      event_number: string | null;
+      trial_type: string | null;
+      classes: Array<{
         id: string;
         name: string;
-        date: string;
-        planned_start_time: string | null;
-        event_number: string | null;
-        trial_type: string | null;
-        classes: Array<{
-          id: string;
-          name: string;
-          level: string | null;
-          element: string | null;
-          section: string | null;
-          deleted_at: string | null;
-        }>;
-        max_total_entries: number | null;
-      }>
-    ).map(trial => ({
+        level: string | null;
+        element: string | null;
+        section: string | null;
+        status: string | null;
+        deleted_at: string | null;
+        entry_fee: number | null;
+        allow_waitlist: boolean | null;
+      }>;
+      max_total_entries: number | null;
+    }>;
+    const trials = liveTrials.map(trial => ({
       name: trial.name,
       date: trial.date,
       startTime: trial.planned_start_time,
@@ -239,11 +258,16 @@ handle<GeneratePremiumPayload>(
       type: trial.trial_type ?? '',
       // MYK9-2229: this trial's own entry limit.
       maxTotalEntries: trial.max_total_entries ?? null,
-      judges: premiumTrialJudges(judgeAssignments, trial),
-      classes: (trial.classes ?? []).map(cls => ({
+      judges: premiumTrialJudges(judgeAssignments, trial, liveTrials),
+      classes: livePremiumClasses(trial.classes).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',
         section: cls.section,
+        // MYK9-2231: the label of a class with no element or level.
+        name: cls.name ?? null,
+        // MYK9-2231: the class's own pre-entry fee and waitlist setting (null follows the show).
+        entryFee: cls.entry_fee ?? null,
+        allowWaitlist: cls.allow_waitlist ?? null,
       })),
     }));
 
@@ -293,6 +317,9 @@ handle<GeneratePremiumPayload>(
         acceptCash: show.accept_cash_payments,
         // MYK9-2220: the total entry limit a UKC premium states.
         maxTotalEntries: show.max_total_entries ?? null,
+        // MYK9-2231: the show's waitlist default and its after-close class-change setting.
+        allowWaitlist: show.allow_waitlist ?? null,
+        allowClassChangesAfterClose: show.allow_class_changes_after_close ?? null,
         // MYK9-1976: raw policy columns; the app resolves the text exhibitors read.
         withdrawal: buildPremiumWithdrawalRow(show as Record<string, unknown>),
       },

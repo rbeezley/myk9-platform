@@ -23,6 +23,9 @@
  *                                             Producers make these jobs `held` so a sender deployed
  *                                             before this one never mails them as show_changed; the
  *                                             drain releases them (held to ready) before it claims
+ *   pulled_out (MYK9-2001)                    same drain, same `held` rule: "you are out" after the
+ *                                             exhibitor's own Pull or Withdraw. It issues and
+ *                                             schedules nothing and promises no amount or date.
  *   show_cancelled (MYK9-2127)                same drain, same `held` release; sent only while the show
  *                                             is still cancelled and the person still has an entry
  */
@@ -40,6 +43,7 @@ import {
 import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
 import { planEntryChangedEmail, renderEntryChangedEmail } from './lifecycle-email-entryChanged.ts';
 import { isCancelledShow, renderShowCancelledEmail } from './lifecycle-email-showCancelled.ts';
+import { planPulledOutEmail, renderPulledOutEmail } from './lifecycle-email-pullOut.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -47,6 +51,10 @@ import {
 } from './lifecycle-email-showChanged.ts';
 
 export const AUTO_SEND_BATCH_SIZE = 25;
+/** Jobs a producer makes `held`, for a sender deployed before this one never to mail them wrongly. */
+const HELD_UNTIL_SENDER_STEP_TYPES = ['entry_changed', 'show_cancelled', 'pulled_out'];
+/** Steps the secretary cannot switch off: a change or a pulling-out email is never held back. */
+const ALWAYS_ON_STEP_TYPES = HELD_UNTIL_SENDER_STEP_TYPES;
 /** Longer than the function's wall-clock cap, so an attempt cannot still run once its lease ends. */
 export const AUTO_SEND_LEASE_MS = 10 * 60 * 1000;
 export const AUTO_SEND_MAX_FAILED_ATTEMPTS = 5;
@@ -117,11 +125,11 @@ export async function drainAutoEmailJobs(args: {
   };
   if (!args.deps.resendApiKey) throw new Error('Email service not configured');
 
-  // MYK9-2126/2127: this sender can send an entry change and a cancelled show, so it frees the jobs the producers held.
+  // MYK9-2126, MYK9-2127, MYK9-2001: this sender can send these, so it frees the jobs the producers held.
   const released = await args.supabase
     .from('show_lifecycle_email_jobs')
     .update({ status: 'ready' })
-    .in('step_type', ['entry_changed', 'show_cancelled'])
+    .in('step_type', HELD_UNTIL_SENDER_STEP_TYPES)
     .eq('status', 'held');
   // A failed release leaves them held for the next drain; it must not stop the other emails.
   if (released.error) console.error('drain_auto: release failed', getErrorMessage(released.error));
@@ -228,10 +236,10 @@ async function processClaimedJob(args: {
   }
   row.recipient_email = currentEmail;
   // The secretary may switch the step off during the quiet minutes: honour it at send time.
-  // An entry change or a cancel has no switch (MYK9-2126, MYK9-2127): the secretary cannot hold one back.
+  // An entry change, a cancel and the pulling-out emails have no switch (MYK9-2126, MYK9-2127, MYK9-2001): the
+  // secretary cannot hold one back.
   if (
-    job.step_type !== 'entry_changed' &&
-    job.step_type !== 'show_cancelled' &&
+    !ALWAYS_ON_STEP_TYPES.includes(job.step_type) &&
     !(await stepIsEnabled(supabase, job.show_id, job.step_type))
   ) {
     await finishJob(args, { status: 'skipped' });
@@ -287,6 +295,25 @@ async function processClaimedJob(args: {
       showName: show.name,
       recipientName: job.recipient_name,
       lines: plan.lines,
+    });
+  } else if (job.step_type === 'pulled_out') {
+    // MYK9-2001: told only what still stands on the person's own entries.
+    const plan = await planPulledOutEmail({
+      supabase,
+      jobId: job.job_id,
+      showId: job.show_id,
+      personId: job.recipient_person_id,
+    });
+    if (plan.kind === 'skip') {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderPulledOutEmail({
+      showId: job.show_id,
+      showName: show.name,
+      recipientName: job.recipient_name,
+      lines: plan.lines,
+      moneyNote: plan.moneyNote,
     });
   } else {
     if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {

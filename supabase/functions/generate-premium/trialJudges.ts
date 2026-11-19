@@ -1,3 +1,5 @@
+import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
+
 /**
  * MYK9-2056 / MYK9-2067: a trial's judges as the premium prints them, "Name, City, ST" with the
  * classes each one judges (AKC Ch. 3 §15: judges' names, cities of residence, assignments).
@@ -70,7 +72,10 @@ export function formatClassLabel(cls: PremiumTrialClassRow): string | null {
  */
 export function premiumTrialJudges(
   rows: ReadonlyArray<PremiumJudgeAssignmentRow> | null | undefined,
-  trial: { id: string; classes: ReadonlyArray<PremiumTrialClassRow> | null | undefined }
+  trial: { id: string; classes: ReadonlyArray<PremiumTrialClassRow> | null | undefined },
+  showTrials?: ReadonlyArray<
+    PremiumScheduleTrialRow & { classes?: ReadonlyArray<PremiumTrialClassRow> | null }
+  > | null
 ): PremiumTrialJudge[] {
   const liveClasses = (trial.classes ?? []).filter(cls => !cls.deleted_at);
   const classOrder = new Map(liveClasses.map((cls, index) => [cls.id, index]));
@@ -80,11 +85,36 @@ export function premiumTrialJudges(
     { name: string; residence: string | null; classIds: Set<string>; wholeTrial: boolean }
   >();
 
+  // A show-level row (no class, no trial) is roster membership, which the wizard writes beside
+  // the class picks: it must not turn a judge with class assignments into a whole-show judge.
+  // Only assignments to LIVE classes (not soft-deleted, on a live trial) count as class picks.
+  // Without the show's trials there is nothing to check a pick against, so every pick counts.
+  const liveClassIds = showTrials
+    ? new Set(
+        livePremiumTrials(showTrials)
+          .flatMap(t => t.classes ?? [])
+          .filter(cls => !cls.deleted_at)
+          .map(cls => cls.id)
+      )
+    : null;
+  const peopleWithClassRows = new Set(
+    (rows ?? [])
+      .filter(
+        row =>
+          row.people &&
+          row.class_id !== null &&
+          (liveClassIds === null || liveClassIds.has(row.class_id)) &&
+          !INACTIVE_STATUSES.has(row.status ?? '')
+      )
+      .map(row => row.people!.id)
+  );
+
   for (const row of rows ?? []) {
     const person = row.people;
     if (!person || INACTIVE_STATUSES.has(row.status ?? '')) continue;
+    const rosterOnly = row.trial_id === null && peopleWithClassRows.has(person.id);
     const wholeTrial =
-      row.class_id === null && (row.trial_id === null || row.trial_id === trial.id);
+      row.class_id === null && !rosterOnly && (row.trial_id === null || row.trial_id === trial.id);
     const classHere = row.class_id !== null && classById.has(row.class_id);
     if (!wholeTrial && !classHere) continue;
     const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();

@@ -9,9 +9,11 @@ const premiumEditorProps: Array<{
   style?: string;
   initialPremium?: unknown;
   regenerateBlockedReason?: string;
+  deferGeneration?: boolean;
 }> = [];
 let publishedExperienceContentMock: unknown = null;
 let officialsMock: unknown;
+let premiumFactsMock: { data?: unknown; isLoading: boolean } = { isLoading: false };
 
 vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs'));
 vi.mock('react-router-dom', () => ({
@@ -27,6 +29,7 @@ vi.mock('@/features/premium/PremiumContentEditor', () => ({
     onInkSaverChange?: (value: boolean) => void;
     style?: string;
     initialPremium?: unknown;
+    deferGeneration?: boolean;
   }) => {
     premiumEditorProps.push(props);
     return <div data-testid="premium-content-editor" />;
@@ -36,17 +39,21 @@ vi.mock('@/features/experience/usePublishedExperienceContent', () => ({
   usePublishedExperienceContent: () => ({ data: publishedExperienceContentMock, isLoading: false }),
 }));
 
+vi.mock('@/features/premium/usePremiumFacts', () => ({
+  usePremiumFacts: () => premiumFactsMock,
+}));
+
 vi.mock('@/hooks/queries/useShowOfficials', () => ({
   useShowOfficials: () => ({ data: officialsMock }),
 }));
 
 import { ShowEditPremiumTab } from '../ShowEditPremiumTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
-import { applyShowFormDataToPremium } from '@/components/shows/ShowDetails/showFormPremiumSync';
 import { buildExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { buildPremiumFacts } from '@/features/premium/premiumFacts';
 import { NEW_YEAR_SHOW } from '@/test/fixtures/recordingFeeCalendar';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { generatedPremium as baseGeneratedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import type { ShowTrial } from '@/types/show-types';
 
 const baseData: ShowEditFormData = {
@@ -68,13 +75,16 @@ const baseData: ShowEditFormData = {
   style: 'monogram',
 };
 
-describe('ShowEditPremiumTab', () => {
-  beforeEach(() => {
-    premiumEditorProps.length = 0;
-    publishedExperienceContentMock = null;
-    officialsMock = undefined;
-  });
+// Every describe below reads these module-level mocks, so each test starts from the same state
+// whatever order CI shuffles them into (a facts call left loading hands over no premium).
+beforeEach(() => {
+  premiumEditorProps.length = 0;
+  publishedExperienceContentMock = null;
+  officialsMock = undefined;
+  premiumFactsMock = { isLoading: false };
+});
 
+describe('ShowEditPremiumTab', () => {
   it('links the settings surface to the canonical show Preview editor', () => {
     render(
       <ShowEditPremiumTab
@@ -220,6 +230,78 @@ describe('ShowEditPremiumTab', () => {
         vetClinic: { name: 'Vet', address: '1 Main', phone: '555-0100' },
       },
       trials: [{ name: 'Trial 1', eventNumber: '2026123401' }],
+    });
+  });
+
+  describe('online, the preview starts from the server facts (MYK9-2244)', () => {
+    const published = {
+      style: 'fieldGuide',
+      generatedAt: '2026-05-09T14:00:00.000Z',
+      narratives: { showHours: 'Edited hours.', trialInformation: 'Edited info.' },
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: 'Coffee.',
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      outputs: {},
+    };
+    const renderTab = () =>
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, style: 'poster' }}
+          clubId="c1"
+          showOrg="AKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+
+    it('hands the editor the server facts with only its own copy and style laid over them', () => {
+      publishedExperienceContentMock = published;
+      const facts = {
+        ...baseGeneratedPremium(),
+        templateId: 'club-template-1',
+        show: { ...baseGeneratedPremium().show, address: '12 Pine Rd', maxTotalEntries: 60 },
+      };
+      premiumFactsMock = { data: facts, isLoading: false };
+
+      renderTab();
+
+      expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
+        style: 'poster',
+        // Detached from the club template, so a cover edit never rewrites it.
+        templateId: null,
+        show: { address: '12 Pine Rd', maxTotalEntries: 60 },
+        narratives: published.narratives,
+        supplemental: { hospitalityNotes: 'Coffee.' },
+      });
+    });
+
+    it('hands over nothing, and holds generation, until the facts call settles', () => {
+      publishedExperienceContentMock = published;
+      premiumFactsMock = { isLoading: true };
+
+      renderTab();
+
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
+      expect(premiumEditorProps.at(-1)?.deferGeneration).toBe(true);
+    });
+
+    it('keeps the form-built draft when there are no server facts (offline or failed)', () => {
+      publishedExperienceContentMock = published;
+      premiumFactsMock = { data: undefined, isLoading: false };
+
+      renderTab();
+
+      expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
+        org: 'AKC',
+        show: { name: 'Test Show' },
+        narratives: published.narratives,
+      });
     });
   });
 
@@ -372,7 +454,7 @@ describe('republishing an edited premium without Regenerate keeps the recording 
       ...draft,
       narratives: { ...draft.narratives, showHours: 'Doors at 6:30.' },
     };
-    const premium = applyShowFormDataToPremium(edited, data, []);
+    const premium = edited;
     const snapshot = buildExperienceSnapshot({
       premium,
       premiumPath: 'show-1/artifact-2.pdf',

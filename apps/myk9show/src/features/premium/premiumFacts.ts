@@ -13,10 +13,10 @@
 import { stripPlaceholderNarrative } from './premiumNarratives';
 import { formatPremiumClassLabel } from './premiumClassLabel';
 import {
-  OFFICER_POSITION_LABELS,
-  OFFICER_POSITION_ORDER,
-  type OfficerPosition,
-} from '@/types/club-membership-types';
+  buildCommitteeFacts,
+  buildOfficerFacts,
+  type PremiumOfficerFact,
+} from './premiumOfficerFacts';
 import {
   getPremiumRequiredStatement,
   getPremiumScoutingStatement,
@@ -30,6 +30,11 @@ import { makeClassComparator } from './pdf/bodies/classOrder';
 import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
 import { premiumEntryLimitText, premiumTrialEntryLimitText } from './premiumEntryLimit';
 import { composePremiumVenue } from './premiumVenue';
+import {
+  premiumClassChangeText,
+  premiumTrialClassFeeText,
+  premiumTrialWaitlistText,
+} from './premiumEntryTerms';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -295,35 +300,7 @@ export function buildScoutingStatementFact(
   return getPremiumRequiredStatement(registry);
 }
 
-/** One line of the club's officers: "Club secretary: Sam Typed". */
-export interface PremiumOfficerFact {
-  title: string;
-  name: string;
-}
-
-/**
- * MYK9-2045: the club's officers as "Title: Name" facts in the Officers list's own position
- * order (president first), ties by name so the order is stable. A title is a label only; it
- * grants nothing. Empty (nothing printed, never a placeholder) when the club lists none.
- */
-export function buildOfficerFacts(
-  officers: ReadonlyArray<{ position: string; name: string }> | null | undefined
-): PremiumOfficerFact[] {
-  const rank = (position: string) => OFFICER_POSITION_ORDER.indexOf(position as OfficerPosition);
-  return (officers ?? [])
-    .map(o => ({ position: o.position, name: o.name.trim() }))
-    .filter(o => o.name && rank(o.position) >= 0)
-    .sort((a, b) => rank(a.position) - rank(b.position) || a.name.localeCompare(b.name))
-    .map(o => ({ title: OFFICER_POSITION_LABELS[o.position as OfficerPosition], name: o.name }));
-}
-
-/**
- * MYK9-2064: the Event Committee as trimmed names in the list's own order. Empty (nothing
- * printed, never a placeholder) when the club and the show list none.
- */
-export function buildCommitteeFacts(names: ReadonlyArray<string> | null | undefined): string[] {
-  return (names ?? []).map(name => name.trim()).filter(Boolean);
-}
+export { buildOfficerFacts, buildCommitteeFacts, type PremiumOfficerFact };
 
 export interface PremiumTrialFacts {
   name: string;
@@ -336,6 +313,10 @@ export interface PremiumTrialFacts {
   classLabels: string[];
   /** MYK9-2229: "Trial entry limit: N entries." when this trial has its own limit, else null. */
   entryLimit: string | null;
+  /** MYK9-2231: "Classes taking a waitlist: ..." for this trial, else null. */
+  waitlist: string | null;
+  /** MYK9-2231: "Class fees (pre-entry): ..." for classes with a fee of their own, else null. */
+  classFees: string | null;
 }
 
 export interface PremiumFacts {
@@ -368,6 +349,8 @@ export interface PremiumFacts {
   recordingFee: string | null;
   /** "Total entry limit: N entries." on a UKC (MYK9-2220) or ASCA (§1.5.12) premium whose show has a limit; else null. */
   entryLimit: string | null;
+  /** MYK9-2231: the after-close class-change (move-up) sentence; null on an older premium. */
+  classChanges: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
   /** The registry's fixed statement (AKC scouting, ASCA §1.5 statements); null for UKC. */
@@ -440,6 +423,7 @@ export function buildPremiumFacts(
     },
     recordingFee: premiumRecordingFeeText(data),
     entryLimit: premiumEntryLimitText(data),
+    classChanges: premiumClassChangeText(show),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {
@@ -477,6 +461,8 @@ export function buildPremiumFacts(
         })),
         classLabels,
         entryLimit: premiumTrialEntryLimitText(trial),
+        waitlist: premiumTrialWaitlistText(trial, show, comparator),
+        classFees: premiumTrialClassFeeText(trial, show, comparator),
       };
     }),
     vetClinic: supplemental.vetClinic

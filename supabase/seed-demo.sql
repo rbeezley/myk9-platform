@@ -768,7 +768,9 @@ WHERE dog_id IN (
 )
   AND (show_id = 'dededede-0000-0000-0000-000000000014'
        OR (show_id >= 'dededede-0000-0000-0731-000000000000'::uuid
-           AND show_id <  'dededede-0000-0000-0732-000000000000'::uuid));
+           AND show_id <  'dededede-0000-0000-0732-000000000000'::uuid))
+  -- MYK9-2202: an entry on a fixture form somebody worked on is kept, as at the range delete above.
+  AND (registration_id IS NULL OR public.seed_demo_fixture_form_untouched(registration_id));
 DELETE FROM public.dog_registrations WHERE dog_id IN (
   'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
   'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',

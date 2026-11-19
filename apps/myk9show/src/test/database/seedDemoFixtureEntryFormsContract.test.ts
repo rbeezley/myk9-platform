@@ -109,4 +109,13 @@ describe('show-day fixture entry forms (MYK9-2202)', () => {
       'registration_id IS NULL OR public.seed_demo_fixture_form_untouched(registration_id)'
     );
   });
+
+  it('the by-dog fixture entry delete keeps a touched form's entries too', () => {
+    const at = seed.indexOf('DELETE FROM public.entries\nWHERE dog_id IN (');
+    expect(at).toBeGreaterThan(-1);
+    const statement = seed.slice(at, seed.indexOf(';\nDELETE FROM public.dog_registrations', at));
+    expect(statement).toContain(
+      'registration_id IS NULL OR public.seed_demo_fixture_form_untouched(registration_id)'
+    );
+  });
 });

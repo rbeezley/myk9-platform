@@ -42,26 +42,26 @@ The hosted `max_rows` has not been read. It is 1,000 in `supabase/config.toml`. 
 Each was put to the owner with a recommendation on 2026-11-19.
 
 1. **A device holds show by show.** It holds, in full and checked against the server, each show its user works on: a secretary's shows, a judge's assigned shows, an exhibitor's entered shows, from a few weeks before to a few weeks after. This happens automatically, with no button to remember. Lists that span the platform (Find Shows, all clubs) are looked up online. Every download also pages, as a safety net.
-2. **People are looked up online and saved for the club.** Online, pickers and the duplicate check ask the server as the user types. Offline, a secretary's or club admin's device holds everyone who has ever shown with the club, with name, phone and email. A judge's or steward's device holds the names of their show's people. No device holds a street address. Offline, the duplicate check covers the club's people and says so. [EXPANDED] The owner widened this later the same day from "the show's people": in mySWT people carry over from show to show, and the club is the unit because secretaries change.
-3. **Sign-out removes phone and email, and keeps names and the show.** The old platform-wide directory is cleared. Work not yet sent to the server is never removed. The saved people are private to the account that saved them.
+2. **People: everyone for now, the club's people at a trigger.** For now a secretary's or admin's device keeps every person on the platform, with name, phone and email. No device holds a street address. The end state is everyone who has ever shown with the club, with the same details; a judge or steward never holds contact details. The switch comes at 10 live clubs or 10,000 people, whichever is first, with an alert to the owner (MYK9-2274). [EXPANDED] This took three steps on 2026-11-19. First, the show's people only. Then the club's people, because in mySWT people carry over from show to show and secretaries change. Then the owner asked why people should differ from dogs, and chose everyone for now: the limit on people is whose phone numbers sit on each laptop, not size, and with a handful of clubs that exposure is small.
+3. **Sign-out removes phone and email, and keeps names and the show.** On the saved people directory this means phone, email and address go and names stay (MYK9-2255). Work not yet sent to the server is never removed.
 4. **A short download is a failure, reported quietly.** Volunteers see it only where the offline copy is already reported: the "Couldn't save the offline copy" line with Try again, and the checklist line "This device is ready to work offline". No banner and no pop-up. The owner gets a Sentry alert naming the table and the two counts. A screen that needs missing data says "can't check" and never shows a guess.
 5. **Three phases, set by the dates.** The safety net lands before the December mock show. The people work lands before entries open on 2027-01-22. Show-by-show saving lands after that and before the real show's day.
 
-[ADDED] Decision 1 was put in terms of shows, trials and classes. The other tables were decided later the same day (MYK9-2268). Dogs and their registrations stay platform-wide for now, with an alert to the owner at 10,000 dogs; the end state is every dog that has shown with the club (MYK9-2272, parked until the alert). Each saved dog carries its owner's name, name only (MYK9-2271). Entries stay as they are: the club's shows, all years. Judge assignments are saved per show, like classes, plus a person's own (MYK9-2264). Clubs stay platform-wide.
+[ADDED] Decision 1 was put in terms of shows, trials and classes. The other tables were decided later the same day (MYK9-2268). Dogs and their registrations stay platform-wide for now, with an alert to the owner at 10,000 dogs; the end state is every dog that has shown with the club (MYK9-2272, parked until the alert). Entries stay as they are: the club's shows, all years. Judge assignments are saved per show, like classes, plus a person's own (MYK9-2264). Clubs stay platform-wide.
 
 ## What a device holds, once all three phases land
 
-| Role                  | Shows saved                          | People saved                                                  |
-| --------------------- | ------------------------------------ | ------------------------------------------------------------- |
-| Secretary, club admin | Their club's shows inside the window | Everyone who has ever shown with the club: name, phone, email |
-| Judge                 | Shows they are assigned to           | The show's people, names only                                 |
-| Steward (passcode)    | The show they opened                 | The show's people, names only                                 |
-| Exhibitor             | Shows they have entered              | None beyond what entries already show                         |
-| Site admin            | A show they open                     | That show's people: name, phone, email                        |
+| Role                  | Shows saved                          | People saved                                                                                                     |
+| --------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Secretary, club admin | Their club's shows inside the window | For now everyone on the platform: name, phone, email. At the trigger, everyone who has ever shown with the club. |
+| Judge                 | Shows they are assigned to           | None. Entries carry the names a judge sees.                                                                      |
+| Steward (passcode)    | The show they opened                 | None. Entries carry the names a steward sees.                                                                    |
+| Exhibitor             | Shows they have entered              | None beyond what entries already show                                                                            |
+| Site admin            | A show they open                     | Everyone on the platform: name, phone, email                                                                     |
 
 The window is the plan's proposal: 30 days before a show's first trial to 14 days after its last. The owner said "a few weeks before to a few weeks after".
 
-[ADDED] A person has shown with a club if they own, co-own or handle a dog entered in any of its shows, including withdrawn and pulled entries (the desk still lists them), or are a judge or official of one of its shows. A secretary's access comes from the club. When the club revokes it, her device drops that club's people at its next sync, and a newly appointed secretary gets the club's whole history. A secretary's device also holds every dog on the platform, each with its owner's name.
+[ADDED] At the trigger: a person has shown with a club if they own, co-own or handle a dog entered in any of its shows, including withdrawn and pulled entries (the desk still lists them), or are a judge or official of one of its shows. A secretary's access comes from the club. When the club revokes it, her device drops that club's people at its next sync, and a newly appointed secretary gets the club's whole history. A secretary's device also holds every dog on the platform (MYK9-2268).
 
 ## Phase 1: the safety net (before the December mock show)
 
@@ -71,12 +71,12 @@ Due 2026-12-01. Each issue is its own PR.
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | MYK9-2252 | Classes, trials, shows, waitlist entries and `getAllClubs` page. Each pager stops on an empty page, so a lower hosted limit cannot cut it off. |
 | MYK9-2254 | A download short of the server's count is a failure, and sends one Sentry alert.                                                               |
-| MYK9-2255 | Sign-out clears the saved people directory.                                                                                                    |
+| MYK9-2255 | Sign-out removes phone, email and address from the saved people directory, and keeps names.                                                    |
 | MYK9-2256 | Offline, Entry Forms and the check-in desk never show the handler as the owner.                                                                |
 | MYK9-2257 | Add Person says when the duplicate check could not run.                                                                                        |
 | MYK9-2258 | The owner records the hosted `max_rows`.                                                                                                       |
 
-The people directory is not paged in this phase. Phase 2 deletes it. If phase 2 slips past 2027-01-22, page it.
+The people directory is not paged in this phase. Phase 2 pages it (MYK9-2273).
 
 [EXPANDED] Two details the first draft left out:
 
@@ -85,29 +85,34 @@ The people directory is not paged in this phase. Phase 2 deletes it. If phase 2 
 
 ## Phase 2: people (before entries open on 2027-01-22)
 
-Due 2027-01-15. Sub-issues of MYK9-2253, in this order.
+Due 2027-01-15. [EXPANDED] Changed by the owner on 2026-11-19: every person stays on a secretary's device for now. So this phase fixes the directory that already exists, and the per-club work is parked.
 
-| Issue             | What changes                                                                                                                                           | Waits on             |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
-| MYK9-2259         | Server: one read of a club's people for its desk, with phone and email, and of a show's names for its judges and stewards. A migration, so its own PR. |                      |
-| MYK9-2263         | A secretary's device holds her club's people, and a judge's holds the show's names. Private to the account, counted by "Offline ready".                | MYK9-2259            |
-| MYK9-2265         | Offline at the desk: real owner names, an exhibitor's phone in the existing person details, a duplicate check over the club's people.                  | MYK9-2263            |
-| MYK9-2266         | Sign-out removes phone and email from saved people.                                                                                                    | MYK9-2263            |
-| MYK9-2271 [ADDED] | Each saved dog carries its owner's name, name only, so a dog from another club still shows its owner offline.                                          |                      |
-| MYK9-2260         | Pickers, name lookups and the duplicate check ask the server as the user types.                                                                        |                      |
-| MYK9-2267         | The platform-wide people directory download and its saved copy are deleted.                                                                            | MYK9-2260, MYK9-2265 |
+| Issue     | What changes                                                                                                                                          | Waits on  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| MYK9-2273 | The people directory pages, a short load is a failure, it stops saving street addresses, and it counts toward "Offline ready".                        |           |
+| MYK9-2265 | Offline at the desk: real owner names, an exhibitor's phone in the existing person details, and a duplicate check, all read from the saved directory. | MYK9-2273 |
+| MYK9-2274 | An alert to the owner at 10 live clubs or 10,000 people, whichever comes first.                                                                       |           |
 
-MYK9-2260 touches about 30 files. Survey the readers first and split it by surface if it does not fit one PR.
+Cases these issues must handle:
 
-[EXPANDED] Cases each issue must handle, added to its "Done when":
+- **A short load (MYK9-2273).** The fuller copy already on the device is kept, never overwritten, and the owner is alerted.
+- **Addresses (MYK9-2273).** A screen that shows or edits an address reads that one person from the server when it opens. Saving a person from the edit panel never blanks an address.
+- **A device with no directory (MYK9-2273).** It reads "not saved", and Add Person says it could not check (MYK9-2257).
 
-- **A late entry (MYK9-2259).** A person who joins the show after a device's last sync arrives on its next sync, even though their own record did not change.
-- **An empty show (MYK9-2259, MYK9-2263).** The server answers a positive zero. A device reads "saved" only after that answer, never because nothing arrived.
-- **Two roles (MYK9-2263).** A user who is the secretary of one show and a judge at another keeps the phone and email saved for the first when the second syncs.
-- **Walk-ins saved before the change (MYK9-2263).** A person created at the desk and not yet sent is still sent and still readable.
-- **Sign-out during a sync (MYK9-2266).** A sync that is running at sign-out writes no phone or email back afterwards.
-- **A failed removal (MYK9-2266).** Sign-out still completes, and the removal runs again on the next load before any saved person is read.
-- **The search (MYK9-2260).** It starts after a few characters, returns a limited number of matches and only the columns the picker shows. Names for a list are fetched in one request, not one per row. A failed search says so and offers Try again; it never shows an empty list as "no match". The query is checked at 50,000 people, and gets an index if it scans the table.
+### Parked until the alert fires
+
+The end state is unchanged: a secretary's device holds everyone who has ever shown with the club. These wait for the alert in MYK9-2274, and are picked up in this order.
+
+| Issue     | What changes                                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| MYK9-2259 | Server: one read of a club's people for its desk, with phone and email, and of a show's names for its judges and stewards. A migration, so its own PR. |
+| MYK9-2263 | A secretary's device holds her club's people, private to her account. A club that revokes her appointment removes them at the next sync.               |
+| MYK9-2266 | Sign-out removes phone and email from that saved copy.                                                                                                 |
+| MYK9-2260 | Pickers, name lookups and the duplicate check ask the server as the user types. About 30 files.                                                        |
+| MYK9-2267 | The platform-wide people directory download and its saved copy are deleted.                                                                            |
+| MYK9-2271 | Each saved dog carries its owner's name, name only.                                                                                                    |
+
+Their "Done when" lines already carry the cases the plan check found: a late entry, an empty show, two roles, walk-ins saved before the change, sign-out during a sync, a failed removal, and a search with a limit.
 
 ## Phase 3: show by show (after 2027-01-22, before the real show's day)
 
@@ -129,7 +134,7 @@ This phase changes what "everything on the device" means, so it lands last, with
 
 **Order, for every issue.** Merge, then deploy. A merge is not a deploy.
 
-- MYK9-2259 has a migration. After it merges: dry run, `supabase db push` from `main`, then read the grants from the applied database. This happens before any build that calls the new read is deployed. The read is additive; nothing is dropped.
+- No issue in phases 1 to 3 has a migration. The parked MYK9-2259 has one. When it is picked up: dry run, `supabase db push` from `main` after the merge, then read the grants from the applied database, all before any build that calls the new read is deployed.
 - The frontend moves only when Deploy myK9Show runs.
 - A device gets a new build only after its user accepts the update prompt. Before the mock show and before the real show, each show device is opened online and updated.
 
@@ -137,11 +142,11 @@ This phase changes what "everything on the device" means, so it lands last, with
 
 **Rolling back.**
 
-- Every change except MYK9-2259 is app code. To roll back, revert the PR on `main` and run Deploy myK9Show.
+- Every change in phases 1 to 3 is app code. To roll back, revert the PR on `main` and run Deploy myK9Show.
 - Phase 3 has a build-time switch. Off restores the platform-wide pass. It still needs a deploy.
-- Nothing on the server is changed or deleted by phases 1 and 3. Phase 2 adds one read and may add one index.
-- What a device removes (the old directory, phone and email at sign-out) is a copy. The server still holds it, and the next sync brings back what the role allows.
-- MYK9-2263 changes the shape of the saved people. It must not need a storage version that an older build cannot open. If it does, the PR says so, because a rollback would then leave devices unable to read saved data.
+- Nothing on the server is changed or deleted by phases 1 to 3.
+- What a device removes (phone, email and address at sign-out) is a copy. The server still holds it, and the next sign-in brings back what the role allows.
+- The parked MYK9-2263 changes the shape of the saved people. When it is picked up, it must not need a storage version that an older build cannot open.
 
 ## New wording [ADDED]
 
@@ -151,9 +156,7 @@ Proposed, for the owner to approve before it ships. `plan-recheck` compares the 
 | ----------------------------------------------------------- | ---------------------------------------------- | --------- |
 | Entry Forms and the check-in desk, offline, owner not saved | "Owner name not on this device"                | MYK9-2256 |
 | Add Person, the check could not run                         | "Can't check for an existing person right now" | MYK9-2257 |
-| Add Person, offline, checked the club's people              | "Checked this club's people only"              | MYK9-2265 |
-| A people picker, offline, with no show in context           | "Connect to the internet to search people"     | MYK9-2260 |
-| A people picker, the search failed                          | "We couldn't search. Try again."               | MYK9-2260 |
+| Add Person, offline                                         | "Checked the people saved on this device"      | MYK9-2265 |
 
 Wording that stays as it is: "Couldn't save the offline copy", "Offline copy: not saved on this device", "Save for show day", "Try again", "This device is ready to work offline".
 
@@ -167,7 +170,7 @@ Each issue carries its own tests. This phase is what must be true before a phase
 - [ADDED] A unit test per fixed adapter pages across more than one page of rows that share one `updated_at`.
 - Engine tests: a short download fails and alerts once. A pending local create, a pending delete, and a row deleted on the server between the count and the fetch raise no alarm.
 - [ADDED] A test Sentry event for a short download is seen to reach the owner.
-- Sign-out tests: the saved directory is empty after sign-out and stays empty after a reload.
+- Sign-out tests: after sign-out no person in the saved directory has a phone, an email or an address, names stay, and it is still so after a reload.
 - The whole app suite once with `pnpm vitest run --sequence.shuffle`, because the engine and the sign-out handler touch shared state.
 - A browser walk on the local stack, offline: Entry Forms and the check-in desk with a dog handled by someone other than its owner. Add Person on a device that never loaded the directory.
 - At the December mock show: one secretary laptop saves the show, turns Wi-Fi off, and checks owner names on Entry Forms.
@@ -175,16 +178,13 @@ Each issue carries its own tests. This phase is what must be true before a phase
 
 **Phase 2**
 
-- A behavioral SQL test for the show's people read, with positive and negative controls for each role. These run only in CI, so read the CI result.
-- Grants read from the applied database, not from the migration text.
-- A unit test syncs more than 1,000 people for one show.
-- A two-account test on one browser: the second account reads none of the first account's saved people.
-- A browser walk on the local stack, offline, as a secretary and as a judge: owner names, phone in person details, the duplicate check. The judge's device holds no phone or email.
-- A test seeds more than 1,000 people and finds one late in the alphabet through each picker.
-- After the deploy: a device that held the old directory no longer has it.
-- [ADDED] Tests for the cases listed under Phase 2: a late entry, an empty show, two roles, a walk-in saved before the change, sign-out during a sync, and a failed removal.
-- [ADDED] A revoked secretary's device drops the club's people at its next sync. A newly appointed secretary's device gets the club's whole history. A dog from another club shows its owner's name offline.
-- [ADDED] The search query plan at 50,000 seeded people on the local stack.
+- A test seeds more than 1,000 people, loads them all, and finds one late in the alphabet.
+- A test: a short load keeps the earlier copy and sends one alert.
+- A test reads the stored directory and finds no address field. A test saves a person from the edit panel and the address on the server is unchanged.
+- A browser walk on the local stack, offline, as a secretary: owner names on Entry Forms and the check-in desk, phone in person details, and the duplicate check for a person from another club.
+- A judge's device holds no directory.
+- The trigger alert: a test for each threshold and for the once-only rule, and a test alert seen to arrive.
+- When the parked work is picked up: a behavioral SQL test for the club's people read with positive and negative controls for each role (these run only in CI), grants read from the applied database, a two-account test on one browser, and the search query plan at 50,000 seeded people.
 
 **Phase 3**
 
@@ -213,20 +213,21 @@ Each issue carries its own tests. This phase is what must be true before a phase
 - **The real show's date.** Phase 3 needs it for a due date.
 - [ADDED] **The new wording** in the table above.
 - [ADDED] **The three-day lead time** for sync changes before a show.
+- [ADDED] **The privacy policy.** It should say that secretaries of participating clubs can see exhibitor contact details. The wording is with the attorney review.
 
 ## Risks
 
 - **A screen that read the platform-wide copy shows "nothing here" after phase 3.** A read that spans shows cannot trust the saved copy alone. MYK9-2264 moves each one to ask the server first and to say "can't check" when it cannot.
-- **Phone and email blanked at sign-out do not come back.** A sync that only asks for changed rows would not restore them. MYK9-2266 requires a full download of the show's people at the next sign-in.
+- **Phone and email blanked at sign-out do not come back.** MYK9-2255 reloads the directory at the next sign-in online, without anyone pressing a button.
 - **A false alarm from a stale count.** MYK9-2254 confirms with a second count before it fails a sync.
-- **Phase 2 slips past 2027-01-22.** Then real exhibitors' details reach every secretary device. Phase 1's sign-out clear limits the exposure, and the directory must then be paged.
+- **The interim outlives its trigger.** Every person stays on every secretary's laptop for longer than intended. MYK9-2274 alerts the owner at 10 live clubs or 10,000 people, and the parked issues are written and ordered.
 - [ADDED] **The alert is sent and nobody sees it.** Sentry holds the event but no rule notifies the owner. MYK9-2254 does not close until a test event arrives.
 - [ADDED] **Saving more shows loads the database on show day.** Each saved show adds requests to every pass. MYK9-2261 slows the pass for shows that are not open and records the measured count.
 - [ADDED] **A show device runs an old build.** The update is a prompt the user must accept. The pre-show check above covers it.
-- [ADDED] **More contact details sit on a secretary's laptop.** It holds the club's whole history, not one show. They are the club's own exhibitors, they are private to her account, and phone and email are removed at sign-out.
+- [ADDED] **Every club's exhibitors' phone and email sit on every secretary's laptop, for now.** The server already lets a secretary read them. Sign-out removes them, though staff are told to stay signed in. The exposure grows with each club, which is why the trigger counts clubs.
 
 ## Validation Profile
 
 - Risk: high
 - Validation: full
-- Rationale: the plan changes offline replication, adds a migration with role-based access to contact details, and touches sign-out and about 30 files that read people.
+- Rationale: the plan changes offline replication and sign-out, and changes the people directory that about 30 files read. The parked people work adds a migration with role-based access to contact details.

@@ -22,7 +22,7 @@
  * passcode grant, so QR/passcode ringside access works without account RBAC.
  */
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Route, useParams } from 'react-router-dom';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { PageTransition } from '@/components/common/PageTransition';
@@ -78,6 +78,22 @@ const AtShowLeaderboardPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowLeaderboardPage'),
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowLeaderboardPage' }
 );
+
+/**
+ * MYK9-2224: a confirmed save returns the judge to the class entry list (MYK9-2012). A judge who
+ * opened the scoresheet directly has never loaded that route's chunk, and a first request made
+ * after the network drops fails into the route error boundary, so the score saved on the device
+ * looked lost. Request both list chunks while the sheet is open and the network is still there.
+ */
+function ScoresheetReturnPreload({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    for (const page of [AtShowEntryListPage, AtShowCombinedEntryListPage]) {
+      // Offline already or a flaky venue network: the sheet still works, so a miss is silent.
+      page.preload().catch(() => undefined);
+    }
+  }, []);
+  return <>{children}</>;
+}
 
 /**
  * Broadcast show presence while an at-show page is open. Reads `:showId` from the
@@ -148,7 +164,11 @@ export const AtShowRoutes = () => {
       {/* Live scoresheet (judge's mobile timer) — entry cards navigate here. */}
       <Route
         path="/at-show/:showId/class/:classId/score/:entryId"
-        element={atShowElement(<AtShowScoresheetPage />)}
+        element={atShowElement(
+          <ScoresheetReturnPreload>
+            <AtShowScoresheetPage />
+          </ScoresheetReturnPreload>
+        )}
       />
     </>
   );

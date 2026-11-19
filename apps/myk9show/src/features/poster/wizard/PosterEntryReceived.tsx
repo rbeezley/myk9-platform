@@ -47,6 +47,7 @@ export function PosterEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -203,7 +204,7 @@ export function PosterEntryReceived({
               color: posterColors.mute,
             }}
           >
-            TOTAL · FEES DUE
+            {totalLabel.toUpperCase()}
           </span>
           <span
             style={{

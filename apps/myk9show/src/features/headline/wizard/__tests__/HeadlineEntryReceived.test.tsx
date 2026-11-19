@@ -18,6 +18,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
+  totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000427',
   fullConfirmationNote:
     'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',

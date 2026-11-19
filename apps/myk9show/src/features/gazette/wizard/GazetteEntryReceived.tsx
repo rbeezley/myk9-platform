@@ -20,6 +20,8 @@ export interface GazetteEntryReceivedProps {
   dogCallName: string | null;
   classSummary: string;
   totalFeesFormatted: string;
+  /** MYK9-2235: says whether the total is paid or still due (`receiptTotalLabel`). */
+  totalLabel: string;
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "Jun 6, 2026". Null if none set. */
   /** What happens next by email (MYK9-1999): the full confirmation once the entry is accepted. */
@@ -48,6 +50,7 @@ export function GazetteEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -157,7 +160,7 @@ export function GazetteEntryReceived({
             className="text-[10px] font-medium"
             style={{ color: QUILL, letterSpacing: '0.18em', fontFamily: META }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Total fees'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : totalLabel}
           </span>
           <span style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: 28, color: BROWN }}>
             {totalFeesFormatted}

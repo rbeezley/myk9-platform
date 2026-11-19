@@ -18,6 +18,7 @@ const BASE_PROPS = {
   dogCallName: 'Pointe',
   classSummary: '3 runs · Excellent Containers, Excellent Interiors, Excellent Buried',
   totalFeesFormatted: '$69.00',
+  totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
   fullConfirmationNote:
     'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',

@@ -20,6 +20,8 @@ export interface MagazineEntryReceivedProps {
   dogCallName: string | null;
   classSummary: string;
   totalFeesFormatted: string;
+  /** MYK9-2235: says whether the total is paid or still due (`receiptTotalLabel`). */
+  totalLabel: string;
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
   /** What happens next by email (MYK9-1999): the full confirmation once the entry is accepted. */
@@ -76,6 +78,7 @@ export function MagazineEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -233,7 +236,7 @@ export function MagazineEntryReceived({
               color: MUTE,
             }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Fees due'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : totalLabel}
           </span>
           <span
             style={{

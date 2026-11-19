@@ -26,6 +26,7 @@ export function HeadlineEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -216,7 +217,7 @@ export function HeadlineEntryReceived({
               color: MUTE,
             }}
           >
-            Total · Fees due
+            {totalLabel}
           </span>
           <span
             style={{

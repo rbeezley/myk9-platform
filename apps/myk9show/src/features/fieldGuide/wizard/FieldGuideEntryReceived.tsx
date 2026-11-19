@@ -55,6 +55,7 @@ export function FieldGuideEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -204,7 +205,7 @@ export function FieldGuideEntryReceived({
               color: fieldGuideColors.mute,
             }}
           >
-            TOTAL · FEES DUE
+            {totalLabel.toUpperCase()}
           </span>
           <span
             style={{

@@ -43,6 +43,7 @@ export function MonogramEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -196,7 +197,7 @@ export function MonogramEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Fees due'}
+            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : totalLabel}
           </span>
           <span
             style={{

@@ -22,6 +22,7 @@ const BASE_PROPS = {
   dogCallName: 'Cooper',
   classSummary: 'Excellent · Containers, Interiors, Buried',
   totalFeesFormatted: '$69.00',
+  totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
   fullConfirmationNote:
     'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
@@ -85,9 +86,9 @@ describe('MagazineEntryReceived', () => {
     expect(screen.queryByText(/Registration #/)).not.toBeTruthy();
   });
 
-  it('renders "Fees due" instead of "Confirmation number" when no number', () => {
+  it('renders the payment label instead of "Confirmation number" when no number', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.getByText('Fees due')).toBeTruthy();
+    expect(screen.getByText('Total · Paid by check')).toBeTruthy();
   });
 
   it('renders confirmation date caption', () => {

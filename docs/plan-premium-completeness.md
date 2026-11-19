@@ -183,3 +183,31 @@ Source: `docs/rulebooks/asca-scent-detection-rules.txt:226-306` ("The premium mu
 | 1.5.30 | "Cancellation and Refund Policy"                                                                                                                                  | Knows                                         | `shows.withdrawal_policy_text`, `withdrawal_cutoff_date`, `withdrawal_retention_type`, `withdrawal_retention_value`; club defaults `clubs.default_withdrawal_policy_*` (fact `withdrawalPolicy`)          |
 
 Totals: **10 Knows** (1.5.1, 1.5.4, 1.5.5, 1.5.6, 1.5.10, 1.5.11, 1.5.12, 1.5.14, 1.5.15, 1.5.30), **9 the club enters once** (1.5.8, 1.5.13, 1.5.16, 1.5.17, 1.5.20, 1.5.21, 1.5.23, 1.5.25, 1.5.26), **10 new** (1.5.2, 1.5.3, 1.5.9, 1.5.18, 1.5.19, 1.5.22, 1.5.24, 1.5.27, 1.5.28, 1.5.29), and 1.5.7 split: names and assignments known, affiliation new.
+
+**UKC (MYK9-2219, criterion 2).** The only UKC rulebook in the repo, `docs/rulebooks/ukc-nose-work-rules.txt`, has no list of what a premium must contain. Its one mention is line 504: places filled by "Trial Workers" count toward the "Total Entry Limit" stated in the premium list. So the only UKC-specific requirement found is the total entry limit (MYK9-2220). Any further UKC list would have to come from UKC directly; none is in the repo.
+
+**Phase 6: testing.**
+
+- One test per registry asserting every required fact appears in the PDF text and on the public page, run across all eight styles.
+- A show with every optional fact empty prints no placeholder text.
+- A fact changed on the club appears in the next show's premium and does not change one already published.
+- The checklist lists exactly the required facts that are empty, and each link lands on the field.
+- A club with its own premium is never nudged to generate one, and its link appears on the public page.
+- A club with no paid access can save and publish each of the eight styles.
+- The same show generates the same "Show Hours" and "Trial Information" text every time, with no network call to an AI.
+- Unpublish removes the PDF link and the announcement and changes no entry.
+- An ASCA show generates a premium containing every item in §1.5.
+- Print one premium per style on paper and read it; record the result on the issue.
+
+## Connections
+
+- MYK9-1929 (class change requests): its two show switches are the move-up policy this premium prints.
+- MYK9-1931 (class fees): once a class can have its own fee, the fees section lists the exceptions.
+- MYK9-1949 (entry lists): the waitlist settings are the waitlist rules the premium prints.
+- MYK9-1924 (print packets): the premium is a before-the-show document and belongs in that library.
+
+## Non-goals
+
+- A new style, or restyling an existing one.
+- Building the premium in the entry wizard.
+- Submitting the premium to the registry from the app.

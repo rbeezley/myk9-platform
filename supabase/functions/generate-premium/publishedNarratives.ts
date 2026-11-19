@@ -1,7 +1,7 @@
 /**
- * MYK9-2139: when the AI narrative call fails, the premium falls back to the narratives already
- * published for the show (`shows.experience_published_content.narratives`), never to invented
- * placeholder text. The column is jsonb, so everything here is checked defensively.
+ * The narratives already published for the show (`shows.experience_published_content.narratives`),
+ * which a secretary may have edited (MYK9-2055 keeps them). The column is jsonb, so everything
+ * here is checked defensively.
  */
 
 export interface PremiumNarratives {
@@ -32,26 +32,5 @@ export function publishedNarratives(content: unknown): PremiumNarratives {
   return {
     showHours: cleanNarrative(row.showHours),
     trialInformation: cleanNarrative(row.trialInformation),
-  };
-}
-
-/**
- * A model answer with a blank section is incomplete: each blank section falls back to the
- * published text, so a partial answer never erases what exhibitors can already read.
- */
-export function completeNarratives(
-  generated: PremiumNarratives,
-  published: PremiumNarratives
-): { narratives: PremiumNarratives; incomplete: boolean } {
-  // A legacy placeholder in the model's answer counts as blank, so the published text wins.
-  const showHours = cleanNarrative(generated.showHours);
-  const trialInformation = cleanNarrative(generated.trialInformation);
-  const incomplete = !showHours.trim() || !trialInformation.trim();
-  return {
-    narratives: {
-      showHours: showHours.trim() ? showHours : published.showHours,
-      trialInformation: trialInformation.trim() ? trialInformation : published.trialInformation,
-    },
-    incomplete,
   };
 }

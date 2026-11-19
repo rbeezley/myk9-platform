@@ -147,7 +147,7 @@ describe('PremiumContentEditor while Regenerate is pending', () => {
     expect(screen.queryByDisplayValue('First request')).toBeNull();
   });
 
-  it('keeps the saved draft when Try narrative generation again fails', async () => {
+  it('keeps the saved draft when Regenerate fails', async () => {
     generateMock.mockRejectedValue(new Error('Claude timed out'));
     render(
       <PremiumContentEditor
@@ -155,7 +155,7 @@ describe('PremiumContentEditor while Regenerate is pending', () => {
         clubId="club-1"
         showOrg="AKC"
         active
-        initialPremium={{ ...premiumWith('Saved hours'), narrativeGenerationError: 'Earlier' }}
+        initialPremium={premiumWith('Saved hours')}
       />
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Regenerate' }));

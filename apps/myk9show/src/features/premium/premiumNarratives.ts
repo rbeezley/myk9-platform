@@ -9,9 +9,6 @@ const LEGACY_PLACEHOLDERS = new Set([
   'trial information to be announced.',
 ]);
 
-export const NARRATIVE_REFRESH_FAILED_MESSAGE =
-  "Couldn't refresh the narratives. Your current text is kept. Try again.";
-
 export function stripPlaceholderNarrative(text: string): string {
   return LEGACY_PLACEHOLDERS.has(text.trim().toLowerCase()) ? '' : text;
 }
@@ -21,13 +18,4 @@ export function stripPlaceholderNarratives(narratives: Narratives): Narratives {
     showHours: stripPlaceholderNarrative(narratives.showHours),
     trialInformation: stripPlaceholderNarrative(narratives.trialInformation),
   };
-}
-
-/** True when a generation result did not produce usable narratives. */
-export function narrativeGenerationFailed(result: GeneratedPremium): boolean {
-  return (
-    Boolean(result.narrativeGenerationError) ||
-    !result.narratives.showHours.trim() ||
-    !result.narratives.trialInformation.trim()
-  );
 }

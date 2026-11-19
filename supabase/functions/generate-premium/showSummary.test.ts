@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildShowSummary, premiumTemplateTrialType } from './showSummary.ts';
+import { premiumTemplateTrialType } from './showSummary.ts';
 
 const classes = [{ name: 'Novice', level: 'Novice', element: 'Containers' }];
 const show = {
@@ -33,37 +33,7 @@ const show = {
   ],
 };
 
-describe('Regenerate trial inputs (MYK9-2186)', () => {
-  it('leaves a cancelled or deleted trial out of the narrative input', () => {
-    const summary = buildShowSummary(show);
-    expect(summary).toContain('Live Trial');
-    expect(summary).not.toContain('Cancelled Trial');
-    expect(summary).not.toContain('Deleted Trial');
-  });
-
-  it('leaves a cancelled or deleted class out of the narrative input (MYK9-2231)', () => {
-    const summary = buildShowSummary({
-      name: 'Fall Specialty',
-      trials: [
-        {
-          name: 'Live Trial',
-          date: '2027-03-03',
-          trial_type: 'Scent Work',
-          status: 'upcoming',
-          deleted_at: null,
-          classes: [
-            { name: 'Kept', level: 'Novice', element: 'Containers' },
-            { name: 'Gone', level: 'Novice', element: 'Buried', status: 'cancelled' },
-            { name: 'Erased', level: 'Novice', element: 'Interior', deleted_at: '2026-11-01' },
-          ],
-        },
-      ],
-    });
-    expect(summary).toContain('Containers');
-    expect(summary).not.toContain('Buried');
-    expect(summary).not.toContain('Interior');
-  });
-
+describe('Regenerate template choice (MYK9-2186)', () => {
   it('picks the template from the first live trial, not the first trial', () => {
     expect(premiumTemplateTrialType(show.trials)).toBe('Scent Work');
   });

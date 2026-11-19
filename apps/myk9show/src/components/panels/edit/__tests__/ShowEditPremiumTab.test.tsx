@@ -276,8 +276,26 @@ describe('ShowEditPremiumTab', () => {
         // Detached from the club template, so a cover edit never rewrites it.
         templateId: null,
         show: { address: '12 Pine Rd', maxTotalEntries: 60 },
-        narratives: published.narratives,
+        narratives: facts.narratives,
         supplemental: { hospitalityNotes: 'Coffee.' },
+      });
+    });
+
+    it('seeds the narratives from the server, so a blank published section is filled', () => {
+      publishedExperienceContentMock = {
+        ...published,
+        narratives: { showHours: 'Edited hours.', trialInformation: '' },
+      };
+      const facts = {
+        ...baseGeneratedPremium(),
+        narratives: { showHours: 'Edited hours.', trialInformation: 'Built from the show.' },
+      };
+      premiumFactsMock = { data: facts, isLoading: false };
+
+      renderTab();
+
+      expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
+        narratives: { showHours: 'Edited hours.', trialInformation: 'Built from the show.' },
       });
     });
 

@@ -53,9 +53,8 @@ export const PREMIUM_MANAGER_PREDICATES = ['can_manage_show', 'is_show_secretary
 /**
  * Resolve whether the caller may generate a premium for `showId`.
  *
- * Callers must run this BEFORE the show fetch, the rate limiter and the model
- * call, so a denied request costs one round trip and is never recorded as an
- * attempt against the limiter.
+ * Callers must run this BEFORE the show fetch, so a denied request costs
+ * one round trip.
  */
 export async function resolvePremiumGenerationAuthorization({
   user,

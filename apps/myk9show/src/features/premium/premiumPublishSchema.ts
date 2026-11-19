@@ -134,7 +134,6 @@ const generatedPremiumSchema = z.object({
     awardsDescription: nullableText,
     additionalNotes: nullableText,
   }),
-  narrativeGenerationError: nullableText.optional(),
   narratives: z.object({ showHours: z.string(), trialInformation: z.string() }),
 });
 

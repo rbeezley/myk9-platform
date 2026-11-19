@@ -13,22 +13,24 @@ vi.mock('../../../services/database/supabaseClient', () => ({
   supabase: { functions: { invoke: invokeMock }, rpc: rpcMock },
 }));
 
-describe('fetchPremiumFacts (MYK9-2244)', () => {
+describe('fetchPremiumFacts (MYK9-2244, MYK9-2055)', () => {
   beforeEach(() => {
     invokeMock.mockReset().mockResolvedValue({ data: generatedPremium(), error: null });
     rpcMock.mockReset().mockResolvedValue({ data: [], error: null });
   });
 
-  it('asks generate-premium for the facts only', async () => {
+  it('still sends factsOnly so an older deployed function never runs a paid generation', async () => {
     await fetchPremiumFacts('show-1');
     expect(invokeMock).toHaveBeenCalledWith('generate-premium', {
       body: { show_id: 'show-1', factsOnly: true },
     });
   });
 
-  it('a normal generation still asks for the narratives', async () => {
-    await fetchPremium('show-1', false);
-    expect(invokeMock).toHaveBeenCalledWith('generate-premium', { body: { show_id: 'show-1' } });
+  it('a regeneration makes the same call', async () => {
+    await fetchPremium('show-1');
+    expect(invokeMock).toHaveBeenCalledWith('generate-premium', {
+      body: { show_id: 'show-1', factsOnly: true },
+    });
   });
 });
 

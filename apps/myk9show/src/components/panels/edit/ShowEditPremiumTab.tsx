@@ -83,7 +83,9 @@ export function ShowEditPremiumTab({
         ...applyEditorCopyToPremium(serverFacts, {
           style: data.style || 'monogram',
           supplemental: publishedContent.supplemental,
-          narratives: publishedContent.narratives,
+          // The server's narratives already keep a non-blank published edit and fill a blank or
+          // legacy-placeholder section; the local snapshot is only the offline fallback below.
+          narratives: serverFacts.narratives,
         }),
         templateId: null,
       };

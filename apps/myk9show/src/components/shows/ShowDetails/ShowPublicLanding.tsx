@@ -1,7 +1,7 @@
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
-import { getShowStyle } from '@/features/registries';
+import { getShowStyle, getTrialTimezone } from '@/features/registries';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import type { ShowStyle } from '@/features/registries';
 import { useEntitlement } from '@/features/entitlement/useEntitlement';
@@ -15,6 +15,8 @@ import {
 import { StaleShowNotice } from './StaleShowNotice';
 import { ServiceFeeNote, useServiceFeeLabel } from '@/features/payments/ServiceFeeNote';
 import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { ShowResultsSection } from '@/features/_shared/landing/ShowResultsSection';
 import { buildShowResults, hasShowHappened } from '@/features/_shared/landing/showResults';
 import {
@@ -179,6 +181,22 @@ export function ShowPublicLanding({
   // Monogram default for null/default/unknown values.
   const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
 
+  // Built once here, not per style page: a style's countdown re-renders every second, and the
+  // copy (a date formatted in the trial's zone) only changes with these inputs.
+  const effectivePendingReason =
+    entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown');
+  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
+  const pendingCopy = useMemo(
+    () =>
+      pendingEntryCopy({
+        hasEntryClassInventory,
+        entryPendingReason: effectivePendingReason,
+        entryOpenDate: show.entryOpenDate,
+        timezone: trialTimezone,
+      }),
+    [hasEntryClassInventory, effectivePendingReason, show.entryOpenDate, trialTimezone]
+  );
+
   const handleSaveStyle = async (style: ShowStyle) => {
     if (!onSaveDraftStyle || isSaving) return;
     setIsSaving(true);
@@ -253,15 +271,15 @@ export function ShowPublicLanding({
       )}
       <LateEntryContactContext.Provider value={lateEntryContact}>
         <ShowHasHappenedContext.Provider value={hasShowHappened(previewShow)}>
-          <StyledLanding
-            show={previewShow}
-            trial={landingTrials[0] ?? null}
-            allTrials={landingTrials}
-            hasEntryClassInventory={hasEntryClassInventory}
-            entryPendingReason={
-              entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown')
-            }
-          />
+          <PendingEntryCopyProvider value={pendingCopy}>
+            <StyledLanding
+              show={previewShow}
+              trial={landingTrials[0] ?? null}
+              allTrials={landingTrials}
+              hasEntryClassInventory={hasEntryClassInventory}
+              entryPendingReason={effectivePendingReason}
+            />
+          </PendingEntryCopyProvider>
         </ShowHasHappenedContext.Provider>
       </LateEntryContactContext.Provider>
     </>

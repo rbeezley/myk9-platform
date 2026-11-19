@@ -59,3 +59,13 @@ export function livePremiumTrials<T extends PremiumScheduleTrialRow>(
     .filter(trial => !trial.deleted_at && trial.status !== 'cancelled')
     .sort(compareSchedule);
 }
+
+/**
+ * MYK9-2231: the classes a premium prints (labels, waitlist and fee lines): not cancelled
+ * (classes.status, MYK9-1863) and not soft-deleted, in the order the trial lists them.
+ */
+export function livePremiumClasses<
+  T extends { status?: string | null; deleted_at?: string | null },
+>(classes: readonly T[] | null | undefined): T[] {
+  return (classes ?? []).filter(cls => !cls.deleted_at && cls.status !== 'cancelled');
+}

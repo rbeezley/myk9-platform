@@ -22,7 +22,11 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
-import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
+import {
+  livePremiumClasses,
+  livePremiumTrials,
+  type PremiumScheduleTrialRow,
+} from './liveTrials.ts';
 import { buildShowSummary, premiumTemplateTrialType } from './showSummary.ts';
 import { resolvePremiumStyle, SHOW_STYLE_COLUMN } from './premiumStyle.ts';
 
@@ -99,12 +103,13 @@ handle<GeneratePremiumPayload>(
         id, name, organization, start_date, end_date, location, venue_name, address, city, state, zip_code, ${SHOW_STYLE_COLUMN},
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
+        allow_waitlist, allow_class_changes_after_close,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
           deleted_at, max_total_entries,
-          classes(id, name, level, element, section, deleted_at)
+          classes(id, name, level, element, section, status, deleted_at, entry_fee, allow_waitlist)
         )
       `
       )
@@ -227,7 +232,10 @@ handle<GeneratePremiumPayload>(
           level: string | null;
           element: string | null;
           section: string | null;
+          status: string | null;
           deleted_at: string | null;
+          entry_fee: number | null;
+          allow_waitlist: boolean | null;
         }>;
         max_total_entries: number | null;
       }>
@@ -240,10 +248,15 @@ handle<GeneratePremiumPayload>(
       // MYK9-2229: this trial's own entry limit.
       maxTotalEntries: trial.max_total_entries ?? null,
       judges: premiumTrialJudges(judgeAssignments, trial),
-      classes: (trial.classes ?? []).map(cls => ({
+      classes: livePremiumClasses(trial.classes).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',
         section: cls.section,
+        // MYK9-2231: the label of a class with no element or level.
+        name: cls.name ?? null,
+        // MYK9-2231: the class's own pre-entry fee and waitlist setting (null follows the show).
+        entryFee: cls.entry_fee ?? null,
+        allowWaitlist: cls.allow_waitlist ?? null,
       })),
     }));
 
@@ -293,6 +306,9 @@ handle<GeneratePremiumPayload>(
         acceptCash: show.accept_cash_payments,
         // MYK9-2220: the total entry limit a UKC premium states.
         maxTotalEntries: show.max_total_entries ?? null,
+        // MYK9-2231: the show's waitlist default and its after-close class-change setting.
+        allowWaitlist: show.allow_waitlist ?? null,
+        allowClassChangesAfterClose: show.allow_class_changes_after_close ?? null,
         // MYK9-1976: raw policy columns; the app resolves the text exhibitors read.
         withdrawal: buildPremiumWithdrawalRow(show as Record<string, unknown>),
       },

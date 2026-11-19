@@ -5,6 +5,7 @@ import {
 import { PublishBlockersList, type PublishBlockerFix } from './PublishBlockersList';
 import { computeWizardPublishBlockers, type PublishBlocker } from './publishBlockers';
 import { useClubPublishBlockers } from './usePublishBlockers';
+import { useClubAdminEmail } from './useClubAdminEmail';
 
 interface WizardPublishBlockersProps {
   clubId: string | undefined;
@@ -35,6 +36,16 @@ export function WizardPublishBlockers({
     entryCloseDate,
   });
 
+  // MYK9-2217: no show exists yet, so the club's admins are read by club.
+  const waitsOnClubAdminPayouts = blockers.some(
+    blocker => blocker.key === 'payouts_not_enabled' && blocker.waitingOn === 'club_admin'
+  );
+  const clubAdminEmail = useClubAdminEmail(
+    undefined,
+    clubId,
+    waitsOnClubAdminPayouts && !canOpenPayments
+  );
+
   const fixFor = (blocker: PublishBlocker): PublishBlockerFix | undefined => {
     switch (blocker.key) {
       case 'entry_dates_missing':
@@ -52,6 +63,7 @@ export function WizardPublishBlockers({
       state={{ state: 'ready', blockers }}
       fixFor={fixFor}
       viewerIsClubAdmin={canOpenPayments}
+      clubAdminEmail={clubAdminEmail}
       clubPart={club.state === 'ready' ? undefined : club}
     />
   );

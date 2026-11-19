@@ -11,6 +11,7 @@ import {
 import type { PublishBlocker } from '@/features/publishing/publishBlockers';
 import { useClubQuery } from '@/hooks/queries/useClubsDatabase';
 import { useClubPublishBlockers } from '@/features/publishing/usePublishBlockers';
+import { useClubAdminEmail } from '@/features/publishing/useClubAdminEmail';
 
 interface FirstShowCardProps {
   clubId: string;
@@ -27,6 +28,15 @@ interface FirstShowCardProps {
 export function FirstShowCard({ clubId, draftShowId }: FirstShowCardProps) {
   const blockers = useClubPublishBlockers(clubId);
   const canOpenPayments = useCanOpenClubPayments(clubId);
+  // MYK9-2217: name the club's admins on the payouts line; by show when a draft exists, else by club.
+  const waitsOnClubAdminPayouts = blockers.blockers.some(
+    blocker => blocker.key === 'payouts_not_enabled' && blocker.waitingOn === 'club_admin'
+  );
+  const clubAdminEmail = useClubAdminEmail(
+    draftShowId ?? undefined,
+    clubId,
+    blockers.state === 'ready' && waitsOnClubAdminPayouts && !canOpenPayments
+  );
   // MYK9-2214: a secretary with several clubs must see which club this is about, so the links
   // (payments, draft, wizard) appear only once the club is named; a failed lookup offers a retry.
   const clubQuery = useClubQuery(clubId);
@@ -79,7 +89,12 @@ export function FirstShowCard({ clubId, draftShowId }: FirstShowCardProps) {
         is left for {clubName}.
       </p>
       <div className="mt-3">
-        <PublishBlockersList state={blockers} fixFor={fixFor} viewerIsClubAdmin={canOpenPayments} />
+        <PublishBlockersList
+          state={blockers}
+          fixFor={fixFor}
+          viewerIsClubAdmin={canOpenPayments}
+          clubAdminEmail={clubAdminEmail}
+        />
         {blockers.state === 'ready' && blockers.blockers.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nothing is holding your club back. Publish your show when it is ready.

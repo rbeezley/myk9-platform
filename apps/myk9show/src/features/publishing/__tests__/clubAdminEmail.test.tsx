@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ShowPublishBlockers } from '../ShowPublishBlockers';
+import { WizardPublishBlockers } from '../WizardPublishBlockers';
 import { buildClubAdminEmail, parseClubAdminContacts } from '../clubAdminContacts';
 import type { PublishBlockersState } from '../usePublishBlockers';
 
@@ -18,6 +19,10 @@ vi.mock('@/lib/supabase', async importOriginal => {
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => harness.online }));
 vi.mock('../usePublishBlockers', async importOriginal => ({
   ...(await importOriginal<typeof import('../usePublishBlockers')>()),
+  useClubPublishBlockers: (): PublishBlockersState => ({
+    state: 'ready',
+    blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
+  }),
   usePublishBlockers: (): PublishBlockersState => ({
     state: 'ready',
     blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
@@ -108,6 +113,52 @@ describe('payouts line names the club admins (MYK9-2208)', () => {
     await waitFor(() => expect(harness.rpc).toHaveBeenCalled());
     expect(screen.getByText('Waiting on your club admin')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Email them the link' })).not.toBeInTheDocument();
+  });
+});
+
+describe('payouts line in the new-show wizard, where no show exists (MYK9-2217)', () => {
+  const renderWizard = () =>
+    render(
+      <WizardPublishBlockers
+        clubId="club-1"
+        entryOpenDate="2026-06-01T12:00:00.000Z"
+        entryCloseDate="2026-06-25T12:00:00.000Z"
+        onEditDetails={vi.fn()}
+      />
+    );
+
+  it('reads the admins by club and offers the mailto', async () => {
+    harness.rpc.mockResolvedValue({ data: [PAT], error: null });
+    renderWizard();
+
+    expect(await screen.findByText(/Waiting on Pat Lee, the club admin$/)).toBeInTheDocument();
+    expect(harness.rpc).toHaveBeenCalledWith('get_club_admin_contacts', { p_club_id: 'club-1' });
+    expect(screen.getByRole('link', { name: 'Email them the link' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^mailto:pat@example\.test\?/)
+    );
+  });
+
+  it('keeps today’s wording, with no mailto, when the read fails', async () => {
+    harness.rpc.mockResolvedValue({ data: null, error: new Error('Failed to fetch') });
+    renderWizard();
+
+    await waitFor(() => expect(harness.rpc).toHaveBeenCalled());
+    expect(await screen.findByText(/Waiting on your club admin$/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Email them the link' })).not.toBeInTheDocument();
+  });
+
+  it('keeps today’s wording offline without asking the server', () => {
+    harness.online = false;
+    renderWizard();
+    expect(harness.rpc).not.toHaveBeenCalled();
+    expect(screen.getByText(/Waiting on your club admin$/)).toBeInTheDocument();
+  });
+
+  it('never asks the server for a club admin', () => {
+    harness.canOpenPayments = true;
+    renderWizard();
+    expect(harness.rpc).not.toHaveBeenCalled();
   });
 });
 

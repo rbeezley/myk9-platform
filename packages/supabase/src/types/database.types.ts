@@ -14496,6 +14496,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_club_admin_contacts: {
+        Args: { p_club_id: string }
+        Returns: {
+          display_name: string
+          email: string
+        }[]
+      }
       get_club_officials: {
         Args: { p_club_id: string }
         Returns: {

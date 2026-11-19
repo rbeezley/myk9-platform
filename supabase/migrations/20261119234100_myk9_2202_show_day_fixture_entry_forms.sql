@@ -18,10 +18,11 @@
 --      every reseed and make every fixture show unretirable (retire keeps a show with a
 --      Stripe order, and the seed never deletes from stripe_orders).
 --   2. Retire (body from 20261101221700, the latest definition): an enrollment in the fixture's
---      own id range no longer keeps a show, exactly as its entries do not; the show delete
---      cascades them. Any other enrollment still keeps the show.
--- Money: nothing here writes the ledger, a refund, a payout or Stripe. supabase/seed-demo.sql
--- section 0 deletes the range's forms with its entries.
+--      own id range that is untouched (pending, nothing received or refunded) no longer keeps a
+--      show, exactly as its entries do not; the show delete cascades it. Any other enrollment, or
+--      a range form with money recorded, still keeps the show.
+-- Money: nothing here writes the ledger, a refund, a payout or Stripe. The seed deletes no form:
+-- a retired fixture show cascades its forms, and a kept show keeps its own.
 
 CREATE OR REPLACE FUNCTION public.seed_demo_retire_stale_fixture_shows()
 RETURNS integer
@@ -68,11 +69,14 @@ BEGIN
                      OR e.class_id IN (SELECT c.id FROM public.classes c
                                        JOIN public.trials t ON t.id = c.trial_id
                                        WHERE t.show_id = v_show.id)))
-      -- MYK9-2202: the fixture's own entry forms (same id range) do not count, like its entries.
+      -- MYK9-2202: the fixture's own untouched entry forms (same id range) do not count, like its entries.
       OR EXISTS (SELECT 1 FROM public.enrollments en
                  WHERE en.show_id = v_show.id
                    AND NOT (en.id >= 'dededede-0000-0000-0731-000000000000'::uuid
-                            AND en.id <  'dededede-0000-0000-0732-000000000000'::uuid))
+                            AND en.id <  'dededede-0000-0000-0732-000000000000'::uuid
+                            AND en.payment_status = 'pending'
+                            AND COALESCE(en.paid_amount, 0) = 0
+                            AND COALESCE(en.refund_amount, 0) = 0))
       OR EXISTS (SELECT 1 FROM public.waitlist_entries we
                  WHERE we.class_id IN (SELECT c.id FROM public.classes c
                                        JOIN public.trials t ON t.id = c.trial_id

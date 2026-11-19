@@ -713,12 +713,6 @@ WHERE id IN ('dededede-0000-0000-0000-000000000070', 'dededede-0000-0000-0000-00
        AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'))
    OR (show_id = 'dededede-0000-0000-0000-000000000010'
        AND handler_id = (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'));
--- MYK9-2202: the entry forms the fixture function minted for its entries (same id range, one
--- per exhibitor per show, nothing received) go with them, now that no entry points at them and
--- the guard has run and the entries by registration_id are gone.
-DELETE FROM public.enrollments
-WHERE id >= 'dededede-0000-0000-0731-000000000000'::uuid
-  AND id <  'dededede-0000-0000-0732-000000000000'::uuid;
 DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
   'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',

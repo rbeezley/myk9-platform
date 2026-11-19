@@ -312,6 +312,25 @@ VALUES (pg_temp.d_show(10), '00000000-0000-0000-0000-000001309001');
 SELECT pg_temp.d_mk(11, pg_temp.d_today() - 30, true);
 INSERT INTO public.entry_carts (show_id, exhibitor_id)
 VALUES (pg_temp.d_show(11), '00000000-0000-0000-1309-400000000001');
+-- MYK9-2202: stale, seeded entries plus the fixture's own untouched entry form: retired
+SELECT pg_temp.d_mk(12, pg_temp.d_today() - 30, true);
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+VALUES ('dededede-0000-0000-0731-1309b0000012', pg_temp.d_show(12),
+        '00000000-0000-0000-0000-000001309001', 'pending');
+-- ... plus a range form with money recorded: kept
+SELECT pg_temp.d_mk(13, pg_temp.d_today() - 30, true);
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, paid_amount)
+VALUES ('dededede-0000-0000-0731-1309b0000013', pg_temp.d_show(13),
+        '00000000-0000-0000-0000-000001309001', 'pending', 30);
+-- ... plus an untouched range form and a real entry (outside the range) on it: kept
+SELECT pg_temp.d_mk(14, pg_temp.d_today() - 30, true);
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+VALUES ('dededede-0000-0000-0731-1309b0000014', pg_temp.d_show(14),
+        '00000000-0000-0000-0000-000001309001', 'pending');
+INSERT INTO public.entries (id, show_id, trial_id, class_id, entry_status, payment_status,
+                            registration_id)
+VALUES ('00000000-0000-0000-1309-d00000000014', pg_temp.d_show(14), pg_temp.d_trial(14),
+        pg_temp.d_class(14), 'confirmed', 'pending', 'dededede-0000-0000-0731-1309b0000014');
 SET LOCAL session_replication_role = origin;
 
 CREATE TEMP TABLE d_before ON COMMIT DROP AS
@@ -382,10 +401,28 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS D4c a stale fixture with an enrollment, or with an entry cart, is kept';
 
-  IF v_retired IS DISTINCT FROM 5 THEN
-    RAISE EXCEPTION 'FAIL D5 expected 5 shows retired (1, 2, 3, 8, 9), the function reported %', v_retired;
+  -- D4d (MYK9-2202). The fixture's own untouched form does not keep the show (it is retired
+  -- and its form cascades); a form with money, or one a real entry hangs off, keeps it.
+  IF EXISTS (SELECT 1 FROM public.shows WHERE id = pg_temp.d_show(12))
+     OR EXISTS (SELECT 1 FROM public.enrollments WHERE show_id = pg_temp.d_show(12)) THEN
+    RAISE EXCEPTION 'FAIL D4d a stale fixture with only its own untouched form was kept';
   END IF;
-  RAISE NOTICE 'PASS D5 the function reports 5 shows retired';
+  IF NOT EXISTS (SELECT 1 FROM public.shows WHERE id = pg_temp.d_show(13))
+     OR NOT EXISTS (SELECT 1 FROM public.enrollments
+                    WHERE id = 'dededede-0000-0000-0731-1309b0000013') THEN
+    RAISE EXCEPTION 'FAIL D4d a stale fixture whose form has money recorded was retired';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.shows WHERE id = pg_temp.d_show(14))
+     OR NOT EXISTS (SELECT 1 FROM public.entries
+                    WHERE id = '00000000-0000-0000-1309-d00000000014') THEN
+    RAISE EXCEPTION 'FAIL D4d a stale fixture with a real entry on its form was retired';
+  END IF;
+  RAISE NOTICE 'PASS D4d an untouched fixture form is retired with its show; a form with money, or with a real entry, keeps it';
+
+  IF v_retired IS DISTINCT FROM 6 THEN
+    RAISE EXCEPTION 'FAIL D5 expected 6 shows retired (1, 2, 3, 8, 9, 12), the function reported %', v_retired;
+  END IF;
+  RAISE NOTICE 'PASS D5 the function reports 6 shows retired';
 
   -- D6. Retiring paid seeded entries is not money movement: no refund request
   -- and no payment row appears, so no DELETE trigger on the cascade writes one.

@@ -67,23 +67,19 @@ describe('show-day fixture entry forms (MYK9-2202)', () => {
     }
   });
 
-  it('retire ignores the fixture-range forms but still keeps a show for any other form', () => {
+  it('retire ignores only untouched fixture-range forms; any other form keeps the show', () => {
     const at = retireBody.indexOf('FROM public.enrollments en');
     const clause = retireBody.slice(at, retireBody.indexOf('waitlist_entries', at));
     expect(clause).toContain('en.show_id = v_show.id');
     expect(clause).toContain("AND NOT (en.id >= 'dededede-0000-0000-0731-000000000000'::uuid");
+    expect(clause).toContain("en.payment_status = 'pending'");
+    expect(clause).toContain('COALESCE(en.paid_amount, 0) = 0');
+    expect(clause).toContain('COALESCE(en.refund_amount, 0) = 0');
   });
 
-  it('the reseed deletes the fixture range forms after its entries and the guard', () => {
-    const entries = seed.indexOf(
-      "DELETE FROM public.entries\nWHERE id >= 'dededede-0000-0000-0731-000000000000'::uuid"
+  it('the reseed deletes no form from the fixture range (retire cascades them)', () => {
+    expect(seed).not.toMatch(
+      /DELETE FROM public\.enrollments\s+WHERE id >= 'dededede-0000-0000-0731/
     );
-    const forms = seed.indexOf(
-      "DELETE FROM public.enrollments\nWHERE id >= 'dededede-0000-0000-0731-000000000000'::uuid"
-    );
-    const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
-    expect(entries).toBeGreaterThan(-1);
-    expect(forms).toBeGreaterThan(entries);
-    expect(forms).toBeGreaterThan(guard);
   });
 });

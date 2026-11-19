@@ -19,6 +19,9 @@ export {
   fetchShowClubOfficers,
 } from './officers';
 
+export { getClubAdmins, addClubAdminByEmail, removeClubAdmin } from './club-admins';
+export type { ClubAdmin, AddClubAdminResult } from './club-admins';
+
 export { getClubShowManagers, setClubShowManagerAccess } from './show-managers';
 export type { ClubShowManager } from './show-managers';
 

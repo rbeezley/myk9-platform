@@ -21,6 +21,7 @@ import { Plus, Shield, AlertTriangle } from 'lucide-react';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { ClubShowAccessRequests } from './ClubShowAccessRequests';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
+import { ClubAdminsTab } from './ClubAdminsTab';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import { ClubRemovalDialogs } from './ClubRemovalDialogs';
 import { ClubCommitteeSection } from '@/components/committee/ClubCommitteeSection';
@@ -258,6 +259,11 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
                   upcomingShowCount={upcomingShowsQuery.data ?? 0}
                   {...roleRequestsTabProps}
                 />
+              </TabsContent>
+
+              {/* Admins Tab (MYK9-2209) */}
+              <TabsContent value="admins" className="mt-6 space-y-4">
+                <ClubAdminsTab clubId={clubId} />
               </TabsContent>
             </PrimaryTabs>
           </CardContent>

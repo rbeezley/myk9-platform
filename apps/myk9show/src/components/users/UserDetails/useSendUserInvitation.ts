@@ -38,6 +38,8 @@ export interface SendInvitationArgs {
    * keeps re-inviting by design.
    */
   onlyIfNeverSignedIn?: boolean | undefined;
+  /** A club admin inviting the person they just added as an admin of this club (MYK9-2209). */
+  clubId?: string | undefined;
 }
 
 export interface InviteResponse {
@@ -57,6 +59,7 @@ export async function invokeAdminInvite({
   firstName,
   roleNames,
   onlyIfNeverSignedIn,
+  clubId,
 }: SendInvitationArgs): Promise<{ data: InviteResponse | null }> {
   if (!email) {
     throw new Error('NO_EMAIL');
@@ -71,6 +74,7 @@ export async function invokeAdminInvite({
       // function resolves the identity from this instead. MYK9-134.
       personId,
       ...(onlyIfNeverSignedIn ? { onlyIfNeverSignedIn: true } : {}),
+      ...(clubId ? { clubId } : {}),
     },
   });
   if (error) throw (await isEdgeStepUpRefusal(error)) ? stepUpRefusalError() : error;

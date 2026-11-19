@@ -38,7 +38,11 @@
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
 import { HttpError } from '../_shared/http/responses.ts';
-import { applyActiveRoleValidity, rolesInclude } from '../_shared/roleValidity.ts';
+import {
+  applyActiveRoleValidity,
+  rolesInclude,
+  rolesIncludeInClub,
+} from '../_shared/roleValidity.ts';
 import { STEP_UP_REQUIRED_CODE, stepUpRefusal } from '../_shared/stepUpReauth.ts';
 import { buildAuthActionUrl } from '../send-auth-email/actionUrl.ts';
 import { buildAdminInviteHtml } from './inviteEmail.ts';
@@ -55,6 +59,11 @@ export interface InviteUserRequest {
    * flow has no person to resolve yet.
    */
   personId?: string;
+  /**
+   * Set only by a club admin inviting the person they just added as an admin of
+   * this club (MYK9-2209). Without it only a site admin may invite.
+   */
+  clubId?: string;
   /**
    * Bulk invites set this (initial dispatch AND every retry). A single resend
    * deliberately re-invites an existing account by magic link, but a bulk send
@@ -103,13 +112,18 @@ export interface InviteUserDeps {
 }
 
 /**
- * Only a site admin may mint an identity. Same gate as admin-generate-reset-link
- * and admin-delete-user — `ctx.supabase` is the SERVICE ROLE client, so RLS is
- * not doing this for us and the check must be explicit.
+ * Who may mint an identity. A site admin may invite anyone (same gate as
+ * admin-generate-reset-link and admin-delete-user). A club admin may invite ONLY
+ * the person they just made an admin of THEIR OWN club (MYK9-2209): the request
+ * must carry that club's id and a personId, and the server confirms the caller is
+ * an active admin of that club and the target holds an active club_admin grant
+ * there. `ctx.supabase` is the SERVICE ROLE client, so RLS is not doing this for
+ * us and every check is explicit.
  */
-async function assertSiteAdmin(
+async function assertMayInvite(
   supabase: HandlerCtx<InviteUserRequest>['supabase'],
-  authUserId: string
+  authUserId: string,
+  body: InviteUserRequest
 ): Promise<string> {
   const { data: callerPerson, error: callerError } = await supabase
     .from('people')
@@ -123,17 +137,38 @@ async function assertSiteAdmin(
   }
 
   const { data: rbacRoles, error: rbacError } = await applyActiveRoleValidity(
-    supabase.from('user_roles').select('role:roles(name)').eq('user_id', callerPerson.id)
+    supabase
+      .from('user_roles')
+      .select('club_id, show_id, role:roles(name)')
+      .eq('user_id', callerPerson.id)
   );
 
   if (rbacError) {
     throw new HttpError(500, 'Failed to verify caller role');
   }
 
-  const isSiteAdmin = rolesInclude(rbacRoles, 'site_admin');
+  if (rolesInclude(rbacRoles, 'site_admin')) {
+    return callerPerson.id;
+  }
 
-  if (!isSiteAdmin) {
+  const clubId = body.clubId;
+  const callerAdminsClub =
+    !!clubId && !!body.personId && rolesIncludeInClub(rbacRoles, 'club_admin', clubId);
+  if (!callerAdminsClub) {
     throw new HttpError(403, 'Unauthorized: requires site_admin role');
+  }
+
+  const { data: targetRoles, error: targetError } = await applyActiveRoleValidity(
+    supabase
+      .from('user_roles')
+      .select('club_id, show_id, role:roles(name)')
+      .eq('user_id', body.personId as string)
+  );
+  if (targetError) {
+    throw new HttpError(500, 'Failed to verify the person being invited');
+  }
+  if (!rolesIncludeInClub(targetRoles, 'club_admin', clubId as string)) {
+    throw new HttpError(403, 'Unauthorized: add this person as a club admin first');
   }
 
   return callerPerson.id;
@@ -248,7 +283,7 @@ export async function inviteUserHandler(
     throw new HttpError(401, 'Authentication failed');
   }
 
-  await assertSiteAdmin(supabase, user.id);
+  await assertMayInvite(supabase, user.id, body);
 
   // MYK9-1393: an invitation mints a sign-in for an account that may already hold roles
   // (staff are created with their roles assigned), so it needs a password confirmed in the

@@ -30,7 +30,13 @@ interface MockOptions {
   targetError?: unknown;
   /** auth.admin.getUserById result for that person's identity. */
   identityUser?: { user: { email: string; last_sign_in_at?: string | null } | null } | null;
-  rbacRoles?: Array<{ role: { name: string } | null }> | null;
+  rbacRoles?: Array<{
+    club_id?: string | null;
+    show_id?: string | null;
+    role: { name: string } | null;
+  }> | null;
+  /** The invited person's role rows (MYK9-2209): the second user_roles query a club admin triggers. */
+  targetRoles?: MockOptions['rbacRoles'];
   rbacError?: unknown;
   /** Queued generateLink results, consumed in call order. */
   linkResults?: Array<{ data: unknown; error: { message?: string; code?: string } | null }>;
@@ -57,6 +63,7 @@ function makeSupabase(opts: MockOptions = {}) {
   }));
 
   let peopleCall = 0;
+  let rolesCall = 0;
   const from = vi.fn((table: string) => {
     if (table === 'people') {
       // First people query is the caller's site_admin check; the second (only
@@ -71,6 +78,7 @@ function makeSupabase(opts: MockOptions = {}) {
       return chain(opts.callerPerson === undefined ? { id: 'caller-1' } : opts.callerPerson);
     }
     if (table === 'user_roles') {
+      if (rolesCall++ > 0) return chain(opts.targetRoles ?? [], null);
       return chain(
         opts.rbacRoles === undefined ? [{ role: { name: 'site_admin' } }] : opts.rbacRoles,
         opts.rbacError ?? null
@@ -197,6 +205,79 @@ describe('inviteUserHandler — authorization', () => {
     await expect(
       invoke(supabase, deps, undefined, { id: 'auth-caller' }, reqSignedIn(3600))
     ).rejects.toThrow('Unauthorized: requires site_admin role');
+  });
+});
+
+describe('inviteUserHandler — club admin invites their new co-admin (MYK9-2209)', () => {
+  const CLUB = 'club-1';
+  const clubAdmin = [{ club_id: CLUB, show_id: null, role: { name: 'club_admin' } }];
+  const body = { email: 'new.admin@example.test', personId: 'person-1', clubId: CLUB };
+  const target = { auth_user_id: null, email: 'new.admin@example.test' };
+
+  it('lets a club admin invite a person who holds club_admin at that club', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      rbacRoles: clubAdmin,
+      targetRoles: clubAdmin,
+      targetPerson: target,
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await expect(invoke(supabase, deps, body)).resolves.toMatchObject({ outcome: 'invited' });
+    expect(generateLink).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a club admin of a DIFFERENT club', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      rbacRoles: [{ club_id: 'other-club', show_id: null, role: { name: 'club_admin' } }],
+      targetRoles: clubAdmin,
+      targetPerson: target,
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await expect(invoke(supabase, deps, body)).rejects.toMatchObject({ status: 403 });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('refuses a club admin with no personId or clubId: no free-form invites', async () => {
+    const { supabase, generateLink } = makeSupabase({ rbacRoles: clubAdmin });
+    const { deps } = makeDeps();
+
+    await expect(
+      invoke(supabase, deps, { email: 'anyone@example.test', clubId: CLUB })
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      invoke(supabase, deps, { email: 'anyone@example.test', personId: 'person-1' })
+    ).rejects.toMatchObject({ status: 403 });
+    expect(generateLink).not.toHaveBeenCalled();
+  });
+
+  it('refuses to invite someone who is not an admin of that club', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      rbacRoles: clubAdmin,
+      targetRoles: [{ club_id: CLUB, show_id: null, role: { name: 'secretary' } }],
+      targetPerson: target,
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await expect(invoke(supabase, deps, body)).rejects.toMatchObject({ status: 403 });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('still asks a club admin for a recent password', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      rbacRoles: clubAdmin,
+      targetRoles: clubAdmin,
+      targetPerson: target,
+    });
+    const { deps } = makeDeps();
+
+    await expect(
+      invoke(supabase, deps, body, { id: 'auth-caller' }, reqSignedIn(3600))
+    ).rejects.toMatchObject({ status: 403, message: 'step_up_required' });
+    expect(generateLink).not.toHaveBeenCalled();
   });
 });
 

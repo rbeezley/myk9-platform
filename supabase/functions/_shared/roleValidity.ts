@@ -37,6 +37,23 @@ export function rolesInclude(rows: unknown, roleName: string): boolean {
   );
 }
 
+/**
+ * True when a `select('club_id, show_id, role:roles(name)')` result holds a
+ * club-scoped (no show) row naming `roleName` for exactly `clubId`.
+ */
+export function rolesIncludeInClub(rows: unknown, roleName: string, clubId: string): boolean {
+  if (!Array.isArray(rows)) return false;
+
+  return rows.some(row => {
+    const r = row as {
+      club_id?: unknown;
+      show_id?: unknown;
+      role?: { name?: unknown } | null;
+    } | null;
+    return r?.role?.name === roleName && r.club_id === clubId && r.show_id == null;
+  });
+}
+
 export interface RoleValidityRow {
   is_active: boolean | null | undefined;
   expires_at: string | null | undefined;

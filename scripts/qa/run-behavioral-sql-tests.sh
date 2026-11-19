@@ -53,6 +53,7 @@ TEST_FILES=(
   "$TEST_DIR/request_new_club_test.sql"
   "$TEST_DIR/club_secretary_grant_test.sql"
   "$TEST_DIR/club_show_managers_visibility_test.sql"
+  "$TEST_DIR/myk9_2209_club_admin_grant_revoke_test.sql"
   "$TEST_DIR/club_officials_visibility_test.sql"
   "$TEST_DIR/club_delete_restrict_test.sql"
   "$TEST_DIR/stripe_ledger_fks_restrict_test.sql"

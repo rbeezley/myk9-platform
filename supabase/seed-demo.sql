@@ -1999,16 +1999,20 @@ WHERE id IN (
 -- entry_ids of succeeded orders). paid_amount stays 0, so the desk-refund limit is $0 and the
 -- form owes only the $90 of the three pending entries. customer_id stays NULL so the checkout
 -- sync trigger leaves the form and entries alone (the same shape supabase/tests/
--- myk9_1634_enrollment_total_derived_test.sql uses). The upsert re-scopes the order section 0
+-- myk9_1634_enrollment_total_derived_test.sql uses). It is an ENTRY order with its whole
+-- amount as the entry subtotal and no platform fee, so financial_reconciliation_summary counts
+-- it as entry receipts (amount = subtotal + fee); the Stripe processing fee stays NULL (pending),
+-- never an invented zero. The upsert re-scopes the order section 0
 -- detached; on a first run it inserts. Never deleted by the seed.
 INSERT INTO public.stripe_orders (
-  id, show_id, enrollment_id, status, amount_cents, entry_ids, stripe_payment_intent_id, paid_at
+  id, show_id, enrollment_id, status, order_type, amount_cents, entry_subtotal_cents,
+  platform_fee_cents, platform_fee_rate, entry_ids, stripe_payment_intent_id, paid_at
 )
 VALUES (
   'dededede-0000-0000-0000-000000000072',
   'dededede-0000-0000-0000-000000000010',
   'dededede-0000-0000-0000-000000000070',
-  'succeeded', 18000,
+  'succeeded', 'entry', 18000, 18000, 0, 0,
   ARRAY[
     'dededede-0000-0000-0000-000000000051', 'dededede-0000-0000-0000-000000000052',
     'dededede-0000-0000-0000-000000000055', 'dededede-0000-0000-0000-000000000056',
@@ -2021,7 +2025,11 @@ ON CONFLICT (id) DO UPDATE
 SET show_id = EXCLUDED.show_id,
     enrollment_id = EXCLUDED.enrollment_id,
     status = EXCLUDED.status,
+    order_type = EXCLUDED.order_type,
     amount_cents = EXCLUDED.amount_cents,
+    entry_subtotal_cents = EXCLUDED.entry_subtotal_cents,
+    platform_fee_cents = EXCLUDED.platform_fee_cents,
+    platform_fee_rate = EXCLUDED.platform_fee_rate,
     entry_ids = EXCLUDED.entry_ids,
     stripe_payment_intent_id = EXCLUDED.stripe_payment_intent_id,
     paid_at = EXCLUDED.paid_at;

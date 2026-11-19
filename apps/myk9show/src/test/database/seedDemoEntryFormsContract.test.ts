@@ -50,7 +50,10 @@ describe('seed-demo entry forms (MYK9-2190)', () => {
     // (entry_ids of a succeeded order), so paid_amount must stay unwritten.
     const insert = block.slice(block.indexOf('INSERT INTO public.stripe_orders'));
     expect(insert).toContain(`'${ORDER}'`);
-    expect(insert).toContain("'succeeded', 18000");
+    // An entry order whose amount is all entry subtotal, so reconciliation reports entry receipts.
+    expect(insert).toContain("'succeeded', 'entry', 18000, 18000, 0, 0,");
+    expect(insert).toContain('order_type = EXCLUDED.order_type');
+    expect(insert).not.toContain('stripe_processing_fee_cents');
     expect(insert).toContain(`'${EXHIBITOR_FORM}'`);
     const listed = [
       ...insert

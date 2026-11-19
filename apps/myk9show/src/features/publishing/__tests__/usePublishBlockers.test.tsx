@@ -137,6 +137,36 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     }
   });
 
+  it('expiry aborts the underlying request, for both reads', async () => {
+    vi.useFakeTimers();
+    try {
+      const signals: AbortSignal[] = [];
+      rpc.mockImplementation(() => {
+        const call = {
+          abortSignal(signal: AbortSignal) {
+            signals.push(signal);
+            return new Promise(() => {});
+          },
+          then(resolve: (value: unknown) => unknown) {
+            return new Promise(() => {}).then(resolve);
+          },
+        };
+        return call;
+      });
+      renderHook(() => usePublishBlockers('show-1'), { wrapper });
+      renderHook(() => useClubPublishBlockers('club-1'), { wrapper });
+      expect(signals).toHaveLength(2);
+      expect(signals.every(signal => !signal.aborted)).toBe(true);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PUBLISH_BLOCKERS_DEADLINE_MS + 100);
+      });
+      expect(signals.every(signal => signal.aborted)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not ask when disabled', () => {
     renderHook(() => usePublishBlockers('show-1', false), { wrapper });
     expect(rpc).not.toHaveBeenCalled();

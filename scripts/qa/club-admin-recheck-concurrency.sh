@@ -40,6 +40,7 @@ new_uuid() {
 
 cleanup() {
   set +e
+  { exec 3>&-; } 2>/dev/null
   if [ -n "$holder_pid" ]; then
     kill "$holder_pid" >/dev/null 2>&1
     wait "$holder_pid" >/dev/null 2>&1
@@ -50,6 +51,9 @@ DELETE FROM public.permission_audit_log WHERE user_id IN ('$holder_person_id', '
 DELETE FROM public.user_roles WHERE user_id IN ('$holder_person_id', '$grant_caller_person_id', '$grant_target_person_id', '$revoke_caller_person_id', '$revoke_target_person_id');
 DELETE FROM public.people WHERE id IN ('$holder_person_id', '$grant_caller_person_id', '$grant_target_person_id', '$revoke_caller_person_id', '$revoke_target_person_id');
 DELETE FROM auth.users WHERE id IN ('$holder_auth_id', '$grant_caller_auth_id', '$grant_target_auth_id', '$revoke_caller_auth_id', '$revoke_target_auth_id');
+-- Deleting user_roles fires trg_user_roles_touch_access_epoch; the epoch table has no foreign
+-- key to auth.users, so its rows for these accounts are removed here, after the roles.
+DELETE FROM private.user_access_epoch WHERE auth_user_id IN ('$holder_auth_id', '$grant_caller_auth_id', '$grant_target_auth_id', '$revoke_caller_auth_id', '$revoke_target_auth_id');
 DELETE FROM public.clubs WHERE id = '$club_id';
 SQL
   fi
@@ -85,7 +89,7 @@ done
 # holder stays an admin, so the last-admin guard is never the reason for a refusal).
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 >/dev/null <<SQL
 BEGIN;
-INSERT INTO public.clubs (id, name) VALUES ('$club_id', 'MYK9-2212 concurrency');
+INSERT INTO public.clubs (id, name) VALUES ('$club_id', 'MYK9-2212 concurrency $club_id');
 INSERT INTO public.people (id, first_name, last_name, email) VALUES
   ('$holder_person_id', 'MYK9-2212', 'Holder', '$holder_person_id@example.test'),
   ('$grant_caller_person_id', 'MYK9-2212', 'GrantCaller', '$grant_caller_person_id@example.test'),
@@ -141,7 +145,7 @@ wait_for_holder() {
   local app_name="$1" attempt=0
   while [ "$attempt" -lt 100 ]; do
     if [ "$(psql "$DATABASE_URL" -X -Atq -c \
-      "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_stat_activity WHERE application_name = '$app_name' AND state = 'active' AND query LIKE '%pg_sleep(6)%');" \
+      "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_stat_activity WHERE application_name = '$app_name' AND state = 'idle in transaction' AND query LIKE '%myk9_2212_holding%');" \
       2>/dev/null || true)" = "t" ]; then
       return 0
     fi
@@ -168,25 +172,36 @@ wait_for_blocked_caller() {
 }
 
 # The holder is a real admin removing the caller through revoke_club_admin, which takes the
-# per-club lock; it then keeps its transaction open (pg_sleep) so the caller can queue behind it.
+# per-club lock; it then keeps its transaction open, reading the rest of its script from a FIFO,
+# until release_holder sends COMMIT once the caller is seen queued behind it. Closing the FIFO
+# without COMMIT (any failure path) ends psql's input, which rolls the transaction back.
 start_holder() {
   local scenario="$1" caller_person_id="$2"
-  local app_name="myk9-2212-holder-$scenario"
+  local app_name="myk9-2212-holder-$scenario-$club_id"
+  local fifo="$scratch_dir/$scenario-holder.fifo"
+  mkfifo "$fifo"
   PGAPPNAME="$app_name" psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
-    >"$scratch_dir/$scenario-holder.log" 2>&1 <<SQL &
+    >"$scratch_dir/$scenario-holder.log" 2>&1 <"$fifo" &
+  holder_pid="$!"
+  exec 3>"$fifo"
+  cat >&3 <<SQL
 BEGIN;
 SELECT pg_catalog.set_config('request.jwt.claim.sub', '$holder_auth_id', true);
 SELECT pg_catalog.set_config('request.jwt.claims', jsonb_build_object('sub', '$holder_auth_id', 'role', 'authenticated', 'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', extract(epoch FROM pg_catalog.now())::bigint)))::text, true);
 SET LOCAL ROLE authenticated;
 SELECT public.revoke_club_admin('$club_id', '$caller_person_id');
-SELECT pg_sleep(6);
-COMMIT;
+SELECT 'myk9_2212_holding';
 SQL
-  holder_pid="$!"
   wait_for_holder "$app_name" || {
+    exec 3>&-
     cat "$scratch_dir/$scenario-holder.log" >&2
     return 1
   }
+}
+
+release_holder() {
+  printf 'COMMIT;\n' >&3
+  exec 3>&-
 }
 
 # The caller is an admin until the holder commits, so it passes the first check, then queues on
@@ -206,17 +221,20 @@ SQL
 
 expect_recheck_refusal() {
   local scenario="$1" caller_person_id="$2" caller_auth_id="$3" sql="$4"
-  local caller_app="myk9-2212-caller-$scenario"
+  local caller_app="myk9-2212-caller-$scenario-$club_id"
   local log_file="$scratch_dir/$scenario-caller.log" caller_pid status
 
   start_holder "$scenario" "$caller_person_id"
   run_caller "$caller_auth_id" "$sql" "$caller_app" >"$log_file" 2>&1 &
   caller_pid="$!"
   wait_for_blocked_caller "$caller_app" || {
+    exec 3>&-
     wait "$caller_pid" || true
     cat "$log_file" >&2
     return 1
   }
+  # The caller is queued on the club lock: let the holder's removal of the caller commit now.
+  release_holder
 
   set +e
   wait "$caller_pid"

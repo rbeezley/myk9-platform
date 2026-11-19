@@ -3,6 +3,7 @@
  * @module MyEntriesPage/types
  */
 
+import type { PaidAs } from '@/features/payments/pullOutMoney';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import type { ResultStatus } from '@/components/common/ResultBadge';
@@ -340,6 +341,10 @@ export interface LeaveClassTarget {
   dogCardId: string;
   /** Resolves the show's withdrawal rulebook. */
   showId: string;
+  /** MYK9-2001: the row's own recorded fee, in dollars, for "what you paid". */
+  entryFee: number;
+  /** MYK9-2001: how the row's own money arrived; null while nothing has been paid. */
+  paidAs: PaidAs | null;
 }
 
 /** Dialog state for leaving one class. */

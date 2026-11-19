@@ -17,6 +17,11 @@ const mocks = vi.hoisted(() => ({
   withdrawEntry: vi.fn(),
   getRemoveFromClassEligibilityForEntries: vi.fn(),
   getTrialsByShow: vi.fn(),
+  useEntryReceiptOrders: vi.fn(),
+}));
+
+vi.mock('@/features/payments/entryReceiptOrder', () => ({
+  useEntryReceiptOrders: mocks.useEntryReceiptOrders,
 }));
 
 vi.mock('@/services/database/entries', () => ({
@@ -44,6 +49,8 @@ const target = {
   dogId: 'dog-juni',
   dogCardId: 'e-juni',
   showId: 'show-flint',
+  entryFee: 0,
+  paidAs: null,
 };
 
 beforeEach(() => {
@@ -53,6 +60,7 @@ beforeEach(() => {
     [target.classId]: { withdraw: ALLOWED, pull: ALLOWED },
   });
   mocks.getTrialsByShow.mockResolvedValue([{ registryId: 'AKC' }]);
+  mocks.useEntryReceiptOrders.mockReturnValue({ data: undefined });
 });
 
 function renderDialog(onUpdate = vi.fn(), onClose = vi.fn()) {
@@ -61,6 +69,124 @@ function renderDialog(onUpdate = vi.fn(), onClose = vi.fn()) {
   );
   return { onUpdate, onClose };
 }
+
+describe('LeaveClassDialog: what she paid (MYK9-2001)', () => {
+  const paidOnline = { ...target, entryFee: 30, paidAs: 'online' as const };
+
+  it('shows the entry fee and the recorded service fee before she confirms', async () => {
+    mocks.useEntryReceiptOrders.mockReturnValue({
+      data: [
+        { id: 'order-1', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 210 },
+      ],
+    });
+    const user = userEvent.setup();
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: paidOnline }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+        viewerId="user-1"
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Entry fee $30.00: the secretary decides on a refund.')).toBeVisible();
+    expect(dialog.getByText('Service fee $2.10: not refunded.')).toBeVisible();
+    // The order read is for THIS class row, scoped to the viewer, and only because it paid online.
+    expect(mocks.useEntryReceiptOrders).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestedOrderId: null,
+        viewerId: 'user-1',
+        entryIds: [target.classId],
+        enabled: true,
+      })
+    );
+
+    // Still there on the step where she confirms.
+    await user.click(dialog.getByRole('button', { name: /^pull$/i }));
+    expect(dialog.getByText('Entry fee $30.00: the secretary decides on a refund.')).toBeVisible();
+    expect(dialog.getByText('Service fee $2.10: not refunded.')).toBeVisible();
+  });
+
+  it('quotes the settled charge’s service fee, not an earlier attempt that covers the same entry', async () => {
+    mocks.useEntryReceiptOrders.mockReturnValue({
+      data: [
+        { id: 'retry', status: 'pending', entryIds: [target.classId], platformFeeCents: 999 },
+        { id: 'paid', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 210 },
+      ],
+    });
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: paidOnline }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Service fee $2.10: not refunded.')).toBeVisible();
+    expect(dialog.queryByText(/9\.99/)).not.toBeInTheDocument();
+  });
+
+  it('omits the service fee when two settled charges cover the entry', async () => {
+    mocks.useEntryReceiptOrders.mockReturnValue({
+      data: [
+        { id: 'a', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 210 },
+        { id: 'b', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 175 },
+      ],
+    });
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: paidOnline }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Entry fee $30.00: the secretary decides on a refund.')).toBeVisible();
+    expect(dialog.queryByText(/^Service fee( \$|:)/)).not.toBeInTheDocument();
+  });
+
+  it('shows the entry fee alone for a check entry and does not read an order', async () => {
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: { ...target, entryFee: 25, paidAs: 'check' } }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Entry fee $25.00: the secretary decides on a refund.')).toBeVisible();
+    // (The club's own policy text says service fees are non-refundable; that is not these lines.)
+    expect(dialog.queryByText(/^Service fee( \$|:)/)).not.toBeInTheDocument();
+    expect(mocks.useEntryReceiptOrders).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it('shows the entry fee, and no service fee, for a confirmed payment with no card, check or cash method', async () => {
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: { ...target, entryFee: 30, paidAs: 'other' } }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Entry fee $30.00: the secretary decides on a refund.')).toBeVisible();
+    expect(dialog.queryByText(/^Service fee( \$|:)/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about money for an unpaid entry', async () => {
+    renderDialog();
+
+    const dialog = within(await chooser());
+    expect(dialog.queryByText(/what you paid/i)).not.toBeInTheDocument();
+  });
+});
 
 describe('LeaveClassDialog', () => {
   it('names the class the row owns', async () => {

@@ -95,6 +95,12 @@ export interface RemoveFromClassDialogProps {
   withdrawDisabledReason?: string | null;
   pullDisabledReason?: string | null;
   /**
+   * MYK9-2001: what she paid for this class, one sentence per line, said before she confirms
+   * (`pullOutMoneyLines`). Empty or absent when nothing was paid. The caller builds it from the
+   * entry's own recorded amounts; this dialog only shows it and promises no refund amount.
+   */
+  paidSummary?: readonly string[] | undefined;
+  /**
    * Where focus goes when the dialog closes; the primitive's own restore (to
    * the trigger) when omitted. A caller whose trigger unmounts on success
    * supplies a surviving target (MYK9-658).
@@ -146,6 +152,7 @@ function RemoveFromClassBody({
   isSaving,
   withdrawDisabledReason = null,
   pullDisabledReason = null,
+  paidSummary = [],
   onConfirm,
 }: RemoveFromClassBodyProps) {
   // The class, named unambiguously. The body is keyed on `classId` precisely
@@ -242,6 +249,20 @@ function RemoveFromClassBody({
           )}
         </AlertDialogDescription>
       </AlertDialogHeader>
+
+      {effectiveStep !== 'reason' && paidSummary.length > 0 && (
+        <div
+          className="rounded-lg border bg-muted/40 p-3 text-sm"
+          data-testid="pull-out-paid-summary"
+        >
+          <p className="font-medium">Payment for this class</p>
+          {paidSummary.map(line => (
+            <p key={line} className="mt-1 text-muted-foreground">
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
 
       {effectiveStep === 'choose' && (
         <div className="space-y-3">

@@ -588,3 +588,52 @@ describe('unresolved show id (Codex, PR #2198)', () => {
     expect(menu.getByRole('menuitem', { name: 'Receipts' })).toBeInTheDocument();
   });
 });
+
+describe('what she paid, handed to the Pull or withdraw dialog (MYK9-2001)', () => {
+  async function leaveTarget(
+    paymentStatus: PaymentStatus,
+    paymentMethod: string,
+    raw?: PaymentStatus
+  ) {
+    const onLeaveClass = vi.fn();
+    renderRows(
+      [
+        futureShowRow({
+          id: 'e-scout',
+          dogId: 'dog-scout',
+          dogName: 'Scout',
+          classes: [
+            makeClass({
+              id: 'c-scout-1',
+              fee: 30,
+              trialDate: day('2026-11-14'),
+              paymentStatus,
+              ...(raw ? { rawPaymentStatus: raw } : {}),
+              paymentMethod,
+            }),
+          ],
+        }),
+      ],
+      { onLeaveClass }
+    );
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: /^Pull or withdraw: Scout from/ }));
+    return onLeaveClass.mock.calls[0]?.[0];
+  }
+
+  it('reads the reconciled status: a reopened desk payment has paid nothing', async () => {
+    const target = await leaveTarget(PaymentStatus.PENDING, 'online', PaymentStatus.PAID_ONLINE);
+    expect(target).toEqual(expect.objectContaining({ entryFee: 30, paidAs: null }));
+  });
+
+  it('reads the recorded method: a generic paid on a check is a check, not a card', async () => {
+    const target = await leaveTarget(PaymentStatus.PAID_ONLINE, 'check');
+    expect(target).toEqual(expect.objectContaining({ entryFee: 30, paidAs: 'check' }));
+  });
+
+  it('a card payment reads as online', async () => {
+    const target = await leaveTarget(PaymentStatus.PAID_ONLINE, 'online');
+    expect(target).toEqual(expect.objectContaining({ paidAs: 'online' }));
+  });
+});

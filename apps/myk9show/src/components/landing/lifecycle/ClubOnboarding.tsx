@@ -211,10 +211,10 @@ export function ClubOnboarding() {
             </>
           ) : (
             <Link
-              to={`/clubs/${createdClubId}`}
+              to="/secretary/dashboard"
               className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
             >
-              Open your club
+              Get your first show published
             </Link>
           )}
         </div>

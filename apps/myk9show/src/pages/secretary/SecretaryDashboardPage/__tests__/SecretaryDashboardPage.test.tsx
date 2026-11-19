@@ -25,15 +25,21 @@ let mockPendingEntries: Array<{
 // The Home entries card has its own test and reads My Shows' data hooks.
 vi.mock('../YourEntriesTodayCard', () => ({ YourEntriesTodayCard: () => null }));
 
+const mockScopes = vi.hoisted(() => ({
+  value: [{ scopeType: 'club', scopeId: 'club-1' }] as Array<Record<string, string>>,
+}));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     firstName: 'Sam',
     isAdmin: false,
     hasRole: () => false,
-    userWithRoles: {
-      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-1' }],
-    },
+    userWithRoles: { scopes: mockScopes.value },
   }),
+}));
+vi.mock('../FirstShowCard', () => ({
+  FirstShowCard: ({ clubId }: { clubId: string }) => (
+    <div data-testid="first-show-card">{clubId}</div>
+  ),
 }));
 
 vi.mock('@/store/showStore', () => ({
@@ -94,6 +100,7 @@ describe('SecretaryDashboardPage', () => {
     useCurrentShowPinStore.setState({ pinnedId: null });
     mockCurrentShow.managingShows = [];
     mockPendingEntries = [];
+    mockScopes.value = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1' }];
     mockEntryCounts = new Map();
     mockUseShowEntryCounts.mockImplementation(() => mockEntryCounts);
     mockUseSecretaryTasks.mockReturnValue({ data: [] });
@@ -102,6 +109,26 @@ describe('SecretaryDashboardPage', () => {
       isLoading: false,
       classesByStage: new Map(),
     });
+  });
+
+  it('shows the first-show card above Needs attention until a club show is public', () => {
+    mockScopes.value = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: 'club_admin' }];
+    mockUseMissionControlData.mockReturnValue({
+      shows: [showFactory.build({ clubId: 'club-1', status: 'draft' })],
+      isLoading: false,
+      classesByStage: new Map(),
+    });
+    const { unmount } = renderPage();
+    expect(screen.getByTestId('first-show-card')).toHaveTextContent('club-1');
+    unmount();
+
+    mockUseMissionControlData.mockReturnValue({
+      shows: [showFactory.build({ clubId: 'club-1', status: 'published' })],
+      isLoading: false,
+      classesByStage: new Map(),
+    });
+    renderPage();
+    expect(screen.queryByTestId('first-show-card')).not.toBeInTheDocument();
   });
 
   it("renders TasksTab which queries useSecretaryTasks scoped to personal tasks ('general' filter)", () => {

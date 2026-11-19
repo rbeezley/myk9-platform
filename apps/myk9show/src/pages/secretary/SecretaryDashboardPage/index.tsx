@@ -13,6 +13,8 @@ import {
   type AttentionCounts,
 } from '@/features/show-map/attention';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
+import { FirstShowCard } from './FirstShowCard';
+import { findFirstShowClub } from './firstShowClub';
 import { YourEntriesTodayCard } from './YourEntriesTodayCard';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
@@ -30,7 +32,7 @@ function greeting(): string {
 }
 
 export function SecretaryDashboardPage() {
-  const { firstName } = useAuthContext();
+  const { firstName, userWithRoles } = useAuthContext();
   // The rail's current show, overridden only by a pin here (MYK9-1490). Only shows still in
   // Managing can be pinned: an ended show's pin is ignored anyway.
   const { managingShows, pinnedShowId } = useCurrentShow();
@@ -111,6 +113,9 @@ export function SecretaryDashboardPage() {
   );
   const entryCountsByShow = useShowEntryCounts(allShowIds);
 
+  // The club still waiting on its first public show (MYK9-2199); none while shows load.
+  const firstShowClub = showsLoading ? null : findFirstShowClub(userWithRoles?.scopes, shows);
+
   // first show's clubId; used by TasksTab to scope new tasks
   const clubId = shows[0]?.clubId ?? '';
 
@@ -129,6 +134,10 @@ export function SecretaryDashboardPage() {
           </p>
         </div>
       </div>
+
+      {firstShowClub ? (
+        <FirstShowCard clubId={firstShowClub.clubId} draftShowId={firstShowClub.draftShowId} />
+      ) : null}
 
       {/* Attention strip */}
       <AttentionNeededStrip items={attentionNeeded} countFailed={pendingEntriesError} />

@@ -91,9 +91,9 @@ describe('ClubOnboarding', () => {
 
     expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
     expect(screen.queryByText(/unauthorized/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open your club/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /get your first show published/i })).toHaveAttribute(
       'href',
-      '/clubs/club-9'
+      '/secretary/dashboard'
     );
     expect(mockSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -130,7 +130,9 @@ describe('ClubOnboarding', () => {
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
     submitForm();
 
-    expect(await screen.findByRole('link', { name: /open your club/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('link', { name: /get your first show published/i })
+    ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /back to your show/i })).not.toBeInTheDocument();
   });
 

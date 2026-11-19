@@ -84,6 +84,20 @@ describe('Gazette (MYK9-2229)', () => {
     premium.supplemental.vetClinic = null;
     expect(textOf(premium)).not.toContain('Emergency Vet');
   });
+
+  it('prints no vet section when the editor cleared every clinic field', () => {
+    const premium = premiumFor('AKC', 'gazette', 37);
+    premium.supplemental.vetClinic = { name: '', address: ' ', phone: '' };
+    expect(textOf(premium)).not.toContain('Emergency Vet');
+  });
+
+  it('lists a dated, capped trial before any class is assigned', () => {
+    const premium = premiumFor('AKC', 'gazette', 37);
+    premium.trials[0].classes = [];
+    const text = textOf(premium);
+    expect(text).toContain(`Saturday · ${formatPremiumDate('2026-05-01')}`);
+    expect(text).toContain(TRIAL_LIMIT);
+  });
 });
 
 describe('premiumTrialEntryLimitText (MYK9-2229)', () => {

@@ -196,9 +196,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">
             <span>Owner: {entry.ownerName}</span>
             <span>Handler: {entry.handlerName}</span>
-            <span>
-              Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})
-            </span>
+            <span>Fee: ${entry.totalFee}</span>
 
             {/* MYK9-879: the exhibitor declared the handler a junior at checkout and
                 was charged the junior fee. Shown so the secretary can check it. The

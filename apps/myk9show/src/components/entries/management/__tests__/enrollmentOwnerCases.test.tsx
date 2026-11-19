@@ -123,7 +123,7 @@ describe('owner case 1: money still held covers a later add-on (MYK9-1961)', () 
 
   it("shows the add-on's own row as paid, not $30 owed", () => {
     const registration = renderForm(entries());
-    expect(rowMoney('Addie')).toBe('Fee: $30 (Paid: $30)');
+    expect(rowMoney('Addie')).toBe('Fee: $30');
     const addOn = registration.entries.find(entry => entry.id === 'b3')!;
     expect(entryAmountOwed(addOn)).toBe(0);
     expect(entryAttentionReasons(addOn)).not.toContain('payment_due');
@@ -157,13 +157,14 @@ describe('owner case 2: a payment covers only what it is for (MYK9-1961)', () =>
 
   it('lists $30.00 due on the checklist', () => {
     renderForm(entries());
-    expect(screen.getByText('1 of 3 entries unpaid')).toBeInTheDocument();
+    expect(screen.getByText('The payment record shows a balance.')).toBeInTheDocument();
+    expect(screen.queryByText(/entries unpaid/)).toBeNull();
     expect(screen.queryByText('Entries still marked unpaid')).toBeNull();
   });
 
   it("shows the add-on's own row owing $30, and the refunded rows owing nothing", () => {
     const registration = renderForm(entries());
-    expect(rowMoney('Addie')).toBe('Fee: $30 (Paid: $0)');
+    expect(rowMoney('Addie')).toBe('Fee: $30');
     const owed = Object.fromEntries(
       registration.entries.map(entry => [entry.id, entryAmountOwed(entry)])
     );
@@ -191,7 +192,7 @@ describe('owner case 2: a payment covers only what it is for (MYK9-1961)', () =>
     ]);
     expect(screen.getByRole('contentinfo')).toHaveTextContent('Paid in full');
     expect(screen.queryByText('Entries still marked unpaid')).toBeNull();
-    expect(rowMoney('Addie')).toBe('Fee: $30 (Paid: $30)');
+    expect(rowMoney('Addie')).toBe('Fee: $30');
     expect(registration.entries.map(entry => entry.rawPaymentStatus)).toEqual([
       'refunded',
       'refunded',

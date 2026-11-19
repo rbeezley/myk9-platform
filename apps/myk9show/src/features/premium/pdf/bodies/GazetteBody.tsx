@@ -148,6 +148,8 @@ export function GazetteBody({ data, tokens }: Props) {
                   <Text style={denseStyle}>{trial.classLabels.join(' · ')}</Text>
                 )}
                 {trial.entryLimit && <Text style={denseStyle}>{trial.entryLimit}</Text>}
+                {trial.classFees && <Text style={denseStyle}>{trial.classFees}</Text>}
+                {trial.waitlist && <Text style={denseStyle}>{trial.waitlist}</Text>}
               </View>
             ))}
           </View>
@@ -229,6 +231,12 @@ export function GazetteBody({ data, tokens }: Props) {
       {f.entryLimit && (
         <View style={{ marginTop: 16 }} wrap={false}>
           <Text style={bodyTextStyle}>{f.entryLimit}</Text>
+        </View>
+      )}
+
+      {f.classChanges && (
+        <View style={{ marginTop: 16 }} wrap={false}>
+          <Text style={bodyTextStyle}>{f.classChanges}</Text>
         </View>
       )}
 

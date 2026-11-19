@@ -46,6 +46,9 @@ const generatedPremiumSchema = z.object({
     acceptCash: z.boolean(),
     // MYK9-2220: optional so older premiums parse; without it zod would strip the limit.
     maxTotalEntries: nullableAmount.optional(),
+    // MYK9-2231: optional and nullable, so an older premium parses and zod keeps them.
+    allowWaitlist: z.boolean().nullable().optional(),
+    allowClassChangesAfterClose: z.boolean().nullable().optional(),
     // MYK9-1976: optional, so a premium generated before it still parses (and prints no
     // policy row). Without it here zod would strip the policy from every new premium.
     withdrawal: z
@@ -110,7 +113,16 @@ const generatedPremiumSchema = z.object({
           classes: z.array(z.string()).default([]),
         })
       ),
-      classes: z.array(z.object({ element: z.string(), level: z.string(), section: nullableText })),
+      classes: z.array(
+        z.object({
+          element: z.string(),
+          level: z.string(),
+          section: nullableText,
+          // MYK9-2231: optional and nullable; zod would strip them otherwise.
+          entryFee: nullableAmount.optional(),
+          allowWaitlist: z.boolean().nullable().optional(),
+        })
+      ),
     })
   ),
   supplemental: z.object({

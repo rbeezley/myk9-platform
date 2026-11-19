@@ -117,6 +117,12 @@ export function PosterBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.classChanges && (
+        <View style={sectionGap}>
+          <Text style={bodyStyle}>{f.classChanges}</Text>
+        </View>
+      )}
+
       {f.withdrawalPolicy && (
         <View style={sectionGap}>
           <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>
@@ -193,6 +199,8 @@ export function PosterBody({ data, tokens }: Props) {
               <Text style={bodyStyle}>{trial.classLabels.join(' · ')}</Text>
             )}
             {trial.entryLimit && <Text style={bodyStyle}>{trial.entryLimit}</Text>}
+            {trial.classFees && <Text style={bodyStyle}>{trial.classFees}</Text>}
+            {trial.waitlist && <Text style={bodyStyle}>{trial.waitlist}</Text>}
           </View>
         ))}
       </View>

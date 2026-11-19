@@ -1,3 +1,6 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { useEffect, useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -31,7 +34,7 @@ interface MagazineLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 /**
@@ -50,7 +53,7 @@ export function MagazineLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: MagazineLandingPageProps) {
   useEffect(() => {
     ensureMagazineFontsLoaded();
@@ -60,9 +63,9 @@ export function MagazineLandingPage({
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
 
   const editionLabel = useMemo(() => {
     const year = data.trialStartDate
@@ -71,156 +74,168 @@ export function MagazineLandingPage({
     return `Edition · ${year}`;
   }, [data.trialStartDate]);
 
+  const pendingCopy = pendingEntryCopy({
+    hasEntryClassInventory,
+    entryPendingReason,
+    entryOpenDate: data.entryOpenDate,
+    timezone: data.timezone,
+  });
+
   return (
-    <div
-      data-magazine
-      className="min-h-screen"
-      style={{ background: 'var(--mz-paper)', color: 'var(--mz-ink)' }}
-    >
-      <title>
-        {data.showName} · {data.clubName}
-      </title>
-      <meta
-        name="description"
-        content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
-      />
-      <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
-      <meta property="og:description" content={data.showSubtitle} />
-      <meta property="og:type" content="event" />
-      <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
-      <meta name="twitter:card" content="summary_large_image" />
-      {data.coverImageUrl && <meta property="og:image" content={data.coverImageUrl} />}
+    <PendingEntryCopyProvider value={pendingCopy}>
+      <div
+        data-magazine
+        className="min-h-screen"
+        style={{ background: 'var(--mz-paper)', color: 'var(--mz-ink)' }}
+      >
+        <title>
+          {data.showName} · {data.clubName}
+        </title>
+        <meta
+          name="description"
+          content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
+        />
+        <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
+        <meta property="og:description" content={data.showSubtitle} />
+        <meta property="og:type" content="event" />
+        <meta
+          property="og:url"
+          content={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        {data.coverImageUrl && <meta property="og:image" content={data.coverImageUrl} />}
 
-      <StickyNav
-        clubName={data.clubName}
-        editionLabel={editionLabel}
-        entryWizardUrl={data.entryWizardUrl}
-        canEnterOnline={canEnterOnline}
-        entryClosed={entryClosed}
-      />
-
-      <main>
-        <HeroSpread
+        <StickyNav
           clubName={data.clubName}
-          showName={data.showName}
-          showSubtitle={data.showSubtitle}
-          trialStartDate={data.trialStartDate}
-          trialEndDate={data.trialEndDate}
-          venueCity={data.venueCity}
-          venueName={data.venueName}
-          timezone={data.timezone}
-          coverImageUrl={data.coverImageUrl}
-          coverCaption={data.coverCaption}
-          monogramLetters={data.monogramLetters}
-          trialChairName={data.trialChairName}
-        />
-
-        <IssueStrip
-          trialStartDate={data.trialStartDate}
-          trialEndDate={data.trialEndDate}
-          entryCloseDate={data.entryCloseDate}
-          entryLimit={data.entryLimit}
-          licenseLanguage={data.licenseLanguage}
-          timezone={data.timezone}
-        />
-
-        <WelcomeSection
-          welcomeText={data.welcomeText}
-          trialChairName={data.trialChairName}
-          pullQuote={data.pullQuote}
-          pullQuoteAttribution={data.pullQuoteAttribution}
-        />
-
-        <JudgesSection judges={data.judges} />
-
-        <ParticularsSection
-          licenseLanguage={data.licenseLanguage}
-          entryOpenDate={data.entryOpenDate}
-          entryCloseDate={data.entryCloseDate}
-          confirmationDate={data.confirmationDate}
-          entryLimit={data.entryLimit}
-          fees={data.fees}
-          timezone={data.timezone}
-        />
-        <WithdrawalPolicySection
-          showId={show?.id}
-          className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
-        />
-        <RecordingFeeSection
-          statement={data.recordingFee}
-          className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
-        />
-        <ScoutingStatementSection
-          statement={data.scoutingStatement}
-          className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
-        />
-        <PremiumDownloadSection
-          show={show}
-          className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
-        />
-
-        <RosterSection
-          entryCount={data.entryCount}
-          entryLimit={data.entryLimit}
-          journeySteps={data.journeySteps}
-          timezone={data.timezone}
-          pastShow={data.showHasHappened}
-        />
-
-        <PlanSection
-          accommodations={data.accommodations}
-          hospitalityNotes={data.hospitalityNotes}
-        />
-
-        <OnTheDaySection
-          venueName={data.venueName}
-          venueAddress={data.venueAddress}
-          awardsDescription={data.awardsDescription}
-          houseRulesNotes={data.houseRulesNotes}
-          hospitalityNotes={data.hospitalityNotes}
-        />
-
-        <OfficersSection
-          officers={data.officers}
-          secretaryName={data.secretaryName}
-          secretaryEmail={data.secretaryEmail}
-        />
-
-        <OfferedClassesSection show={show} className="mz-section" />
-
-        <FinalEditorialBand
-          classesHref={classesHref}
-          entryCloseDate={data.entryCloseDate}
-          timezone={data.timezone}
+          editionLabel={editionLabel}
+          entryWizardUrl={data.entryWizardUrl}
           canEnterOnline={canEnterOnline}
           entryClosed={entryClosed}
         />
-      </main>
 
-      <MagazineFooter
-        clubName={data.clubName}
-        memberClubLanguage={data.memberClubLanguage}
-        secretaryName={data.secretaryName}
-        secretaryEmail={data.secretaryEmail}
-        editionLabel={editionLabel}
-      />
+        <main>
+          <HeroSpread
+            clubName={data.clubName}
+            showName={data.showName}
+            showSubtitle={data.showSubtitle}
+            trialStartDate={data.trialStartDate}
+            trialEndDate={data.trialEndDate}
+            venueCity={data.venueCity}
+            venueName={data.venueName}
+            timezone={data.timezone}
+            coverImageUrl={data.coverImageUrl}
+            coverCaption={data.coverCaption}
+            monogramLetters={data.monogramLetters}
+            trialChairName={data.trialChairName}
+          />
 
-      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          <IssueStrip
+            trialStartDate={data.trialStartDate}
+            trialEndDate={data.trialEndDate}
+            entryCloseDate={data.entryCloseDate}
+            entryLimit={data.entryLimit}
+            licenseLanguage={data.licenseLanguage}
+            timezone={data.timezone}
+          />
+
+          <WelcomeSection
+            welcomeText={data.welcomeText}
+            trialChairName={data.trialChairName}
+            pullQuote={data.pullQuote}
+            pullQuoteAttribution={data.pullQuoteAttribution}
+          />
+
+          <JudgesSection judges={data.judges} />
+
+          <ParticularsSection
+            licenseLanguage={data.licenseLanguage}
+            entryOpenDate={data.entryOpenDate}
+            entryCloseDate={data.entryCloseDate}
+            confirmationDate={data.confirmationDate}
+            entryLimit={data.entryLimit}
+            fees={data.fees}
+            timezone={data.timezone}
+          />
+          <WithdrawalPolicySection
+            showId={show?.id}
+            className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
+          />
+          <RecordingFeeSection
+            statement={data.recordingFee}
+            className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
+          />
+          <ScoutingStatementSection
+            statement={data.scoutingStatement}
+            className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
+          />
+          <PremiumDownloadSection
+            show={show}
+            className="mz-section mx-auto w-full max-w-[1280px] px-6 py-16 md:px-16 md:py-24"
+          />
+
+          <RosterSection
+            entryCount={data.entryCount}
+            entryLimit={data.entryLimit}
+            journeySteps={data.journeySteps}
+            timezone={data.timezone}
+            pastShow={data.showHasHappened}
+          />
+
+          <PlanSection
+            accommodations={data.accommodations}
+            hospitalityNotes={data.hospitalityNotes}
+          />
+
+          <OnTheDaySection
+            venueName={data.venueName}
+            venueAddress={data.venueAddress}
+            awardsDescription={data.awardsDescription}
+            houseRulesNotes={data.houseRulesNotes}
+            hospitalityNotes={data.hospitalityNotes}
+          />
+
+          <OfficersSection
+            officers={data.officers}
+            secretaryName={data.secretaryName}
+            secretaryEmail={data.secretaryEmail}
+          />
+
+          <OfferedClassesSection show={show} className="mz-section" />
+
+          <FinalEditorialBand
+            classesHref={classesHref}
+            entryCloseDate={data.entryCloseDate}
+            timezone={data.timezone}
+            canEnterOnline={canEnterOnline}
+            entryClosed={entryClosed}
+          />
+        </main>
+
+        <MagazineFooter
+          clubName={data.clubName}
+          memberClubLanguage={data.memberClubLanguage}
+          secretaryName={data.secretaryName}
+          secretaryEmail={data.secretaryEmail}
+          editionLabel={editionLabel}
+        />
+
+        {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
           doc comment for why placement matters. */}
-      <StickyEntryCtaBar
-        entryWizardUrl={data.entryWizardUrl}
-        canShowEntryCta={canEnterOnline}
-        label="Enter the trial"
-        surface={{
-          background: 'var(--mz-ink)',
-          buttonBackground: 'var(--mz-paper)',
-          buttonColor: 'var(--mz-ink)',
-          fontFamily: 'var(--mz-display)',
-          fontStyle: 'italic',
-          fontWeight: 500,
-          fontSize: 16,
-        }}
-      />
-    </div>
+        <StickyEntryCtaBar
+          entryWizardUrl={data.entryWizardUrl}
+          canShowEntryCta={canEnterOnline}
+          label="Enter the trial"
+          surface={{
+            background: 'var(--mz-ink)',
+            buttonBackground: 'var(--mz-paper)',
+            buttonColor: 'var(--mz-ink)',
+            fontFamily: 'var(--mz-display)',
+            fontStyle: 'italic',
+            fontWeight: 500,
+            fontSize: 16,
+          }}
+        />
+      </div>
+    </PendingEntryCopyProvider>
   );
 }

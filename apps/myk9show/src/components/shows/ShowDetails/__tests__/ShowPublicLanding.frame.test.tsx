@@ -30,7 +30,7 @@ function renderLanding(show: Show, styleMode?: 'public' | 'manager-draft-preview
   const props = {
     landingTrials: [{ id: 'trial-1' } as unknown as Trial],
     hasEntryClassInventory: null,
-    entryWindowNotOpen: false,
+    entryPendingReason: undefined,
     ...(styleMode ? { styleMode } : {}),
   };
   return render(<ShowPublicLanding show={show} {...props} />);
@@ -79,7 +79,7 @@ describe('ShowPublicLanding frame (MYK9-1288)', () => {
         show={makeShow({ name: 'Spring Trial (moved)' })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
     expect(document.title).toBe('Spring Trial (moved) | myK9Show');
@@ -97,7 +97,7 @@ describe('ShowPublicLanding frame (MYK9-1288)', () => {
         show={makeShow({ id: 'show-2' })}
         landingTrials={[]}
         hasEntryClassInventory={null}
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
     expect(scrollTo).toHaveBeenCalledTimes(2);
@@ -122,7 +122,7 @@ describe('ShowPublicLanding frame (MYK9-1288)', () => {
           landingTrials={[{ id: 'trial-1' } as unknown as Trial]}
           offeredClasses={offeredClasses}
           hasEntryClassInventory
-          entryWindowNotOpen={false}
+          entryPendingReason={undefined}
         />
       );
     }
@@ -158,7 +158,7 @@ describe('ShowPublicLanding frame (MYK9-1288)', () => {
           offeredClasses={[]}
           resultClasses={classes}
           hasEntryClassInventory
-          entryWindowNotOpen={false}
+          entryPendingReason={undefined}
         />
       );
     }

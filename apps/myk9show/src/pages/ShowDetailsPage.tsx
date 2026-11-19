@@ -37,7 +37,7 @@ import {
   resolveResultsTabCount,
 } from './ShowDetailsPage.tabDefs';
 import { useShowResults } from '@/hooks/queries/useShowResults';
-import { getEntryStatus, isEntryWindowNotOpen } from '@/utils/entryStatusUtils';
+import { getEntryStatus, entryPendingReasonFor } from '@/utils/entryStatusUtils';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -508,7 +508,7 @@ const ShowDetailsPage: React.FC = () => {
         offeredClasses={publicShowClasses}
         resultClasses={effectiveShowClasses}
         hasEntryClassInventory={hasEntryClassInventory}
-        entryWindowNotOpen={isEntryWindowNotOpen(entryStatus.status)}
+        entryPendingReason={entryPendingReasonFor(entryStatus.status)}
         refreshFailed={refreshFailed}
         onRetry={() => void refetchShow()}
         styleMode={canManageShow ? 'manager-draft-preview' : 'public'}

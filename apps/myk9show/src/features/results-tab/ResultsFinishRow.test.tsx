@@ -199,60 +199,79 @@ describe('ResultsFinishRow', () => {
     expect(screen.getByRole('button', { name: 'After-show packet' })).toBeInTheDocument();
   });
 
-  it('lists dogs sharing a handler in a class and drops the line once one is changed (MYK9-2031)', () => {
-    const entry = (id: string, classId: string, handlerId: string) =>
-      fromAny<SecretaryEntry, unknown>({
-        id,
-        class_id: classId,
-        handler_id: handlerId,
-        entry_status: 'confirmed',
-      });
-    const clash = [entry('e1', 'open-1', 'p1'), entry('e2', 'open-1', 'p1')];
-    const { unmount } = render(
+  // MYK9-2184: one accessible query for presence AND absence. The absence checks used to search
+  // for /share a handler/, which never matches the real label, so they passed with the warning up.
+  const HANDLER_LINE = {
+    name: /^\d+ dogs? have the same handler as another dog in their class\./,
+  };
+  const handlerEntry = (id: string, handlerId?: string | null, overrides = {}) =>
+    fromAny<SecretaryEntry, unknown>({
+      id,
+      class_id: 'open-1',
+      entry_status: 'confirmed',
+      ...(handlerId === undefined ? {} : { handler_id: handlerId }),
+      ...overrides,
+    });
+  const renderHandlers = (entries: SecretaryEntry[], entriesTrusted = true) => {
+    render(
       <ResultsFinishRow
         showId="show-1"
         trials={[trialFor('AKC')]}
         rows={SHOW_ROWS}
-        entries={clash}
-        entriesTrusted
+        entries={entries}
+        entriesTrusted={entriesTrusted}
       />
     );
-    const link = screen.getByRole('link', {
-      name: '2 dogs have the same handler as another dog in their class. Choose who handles each before printing the marked catalog.',
-    });
-    expect(link).toHaveAttribute('href', '/shows/show-1/entries?class=open-1');
-    unmount();
+    return within(screen.getByRole('region', { name: 'Finish the show' }));
+  };
 
-    const list = renderList(
-      SHOW_ROWS,
-      [trialFor('AKC')],
-      [entry('e1', 'open-1', 'p1'), entry('e2', 'open-1', 'p2')]
+  it('positive control: two dogs sharing a handler show the link to those entries (MYK9-2031)', () => {
+    const list = renderHandlers([handlerEntry('e1', 'p1'), handlerEntry('e2', 'p1')]);
+
+    const link = list.getByRole('link', HANDLER_LINE);
+    expect(link).toHaveAccessibleName(
+      '2 dogs have the same handler as another dog in their class. Choose who handles each before printing the marked catalog.'
     );
-    expect(list.queryByText(/share a handler/)).not.toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/shows/show-1/entries?class=open-1');
   });
 
-  it('says nothing about handlers while the entries read is stale or lacks handler_id (MYK9-2031)', () => {
-    const entry = (id: string, handlerId?: string) =>
-      fromAny<SecretaryEntry, unknown>({
-        id,
-        class_id: 'open-1',
-        entry_status: 'confirmed',
-        ...(handlerId ? { handler_id: handlerId } : {}),
-      });
-    const { unmount } = render(
-      <ResultsFinishRow
-        showId="show-1"
-        trials={[trialFor('AKC')]}
-        rows={SHOW_ROWS}
-        entries={[entry('e1', 'p1'), entry('e2', 'p1')]}
-        entriesTrusted={false}
-      />
-    );
-    expect(screen.queryByText(/share a handler/)).not.toBeInTheDocument();
-    unmount();
+  it('the old absence matcher cannot see the warning, the shared query can', () => {
+    const list = renderHandlers([handlerEntry('e1', 'p1'), handlerEntry('e2', 'p1')]);
 
-    renderList(SHOW_ROWS, [trialFor('AKC')], [entry('e1', 'p1'), entry('e2')]);
-    expect(screen.queryByText(/share a handler/)).not.toBeInTheDocument();
+    expect(list.queryByText(/share a handler/)).not.toBeInTheDocument();
+    expect(list.queryByRole('link', HANDLER_LINE)).toBeInTheDocument();
+  });
+
+  it('drops the line once one dog is reassigned to another handler', () => {
+    const list = renderHandlers([handlerEntry('e1', 'p1'), handlerEntry('e2', 'p2')]);
+
+    expect(list.queryByRole('link', HANDLER_LINE)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about handlers while the entries read is stale, even with a clash in it', () => {
+    const list = renderHandlers([handlerEntry('e1', 'p1'), handlerEntry('e2', 'p1')], false);
+
+    expect(list.queryByRole('link', HANDLER_LINE)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about handlers while a live entry lacks handler_id (incomplete projection)', () => {
+    const list = renderHandlers([
+      handlerEntry('e1', 'p1'),
+      handlerEntry('e2', 'p1'),
+      handlerEntry('e3'),
+    ]);
+
+    expect(list.queryByRole('link', HANDLER_LINE)).not.toBeInTheDocument();
+  });
+
+  it('ignores a withdrawn entry that lacks handler_id when the rest is complete and clashing', () => {
+    const list = renderHandlers([
+      handlerEntry('e1', 'p1'),
+      handlerEntry('e2', 'p1'),
+      handlerEntry('e3', undefined, { entry_status: 'withdrawn' }),
+    ]);
+
+    expect(list.getByRole('link', HANDLER_LINE)).toBeInTheDocument();
   });
 
   // MYK9-2145: a flag stays a flag until the secretary confirms it at the Check-in desk.

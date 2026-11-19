@@ -212,7 +212,7 @@ describe.each(FLAGS)('Banner landing page with flag %s (MYK9-765)', flag => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
   }

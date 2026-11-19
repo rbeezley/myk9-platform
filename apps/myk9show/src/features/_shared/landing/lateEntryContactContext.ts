@@ -6,7 +6,7 @@ import type { ShowOfficials } from '@/hooks/queries/useShowOfficials';
  *
  * ShowPublicLanding reads the show's officials and provides the first secretary
  * here (null = none listed, or the read failed or has not landed). A context
- * rather than a prop for the same reason as LandingMailInContext: the closed-
+ * rather than a prop because the closed-
  * entries sentence lives in a dozen section components across the styles.
  */
 export interface LateEntryContactInfo {

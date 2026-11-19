@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { MonogramEmboss } from '../../components/MonogramEmboss';
@@ -11,7 +12,6 @@ import {
 } from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
 import { formatDateInTimezone, formatDateRange } from '../utils/dateFormat';
-import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeroBlockProps {
@@ -82,7 +82,7 @@ export function HeroBlock({
   classesHref,
   canEnterOnline = true,
 }: HeroBlockProps) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(entryCloseDate, timezone);
   const entryClosed = countdown.closed;
   const canShowEntryCta = canEnterOnline && !entryClosed;
@@ -288,10 +288,7 @@ export function HeroBlock({
                 <LateEntryContact lead="Entries are closed for this show. " />
               </>
             ) : (
-              pendingEntryCopy(
-                mailInOnly,
-                'Entries are not available yet because no classes are assigned yet.'
-              )
+              pending.sentence
             )}
           </p>
         )}

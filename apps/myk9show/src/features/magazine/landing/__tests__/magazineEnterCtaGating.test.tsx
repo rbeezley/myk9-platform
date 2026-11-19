@@ -1,3 +1,5 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { describe, it, expect } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { StickyNav } from '../sections/StickyNav';
@@ -36,12 +38,14 @@ describe('Magazine landing Enter CTA gating', () => {
 
     it('hides the Enter link and shows the fallback when canEnterOnline is false', () => {
       const { queryByRole, getByText } = render(
-        <StickyNav
-          clubName="Test Kennel Club"
-          editionLabel="Edition · 2026"
-          entryWizardUrl={ENTRY_URL}
-          canEnterOnline={false}
-        />
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <StickyNav
+            clubName="Test Kennel Club"
+            editionLabel="Edition · 2026"
+            entryWizardUrl={ENTRY_URL}
+            canEnterOnline={false}
+          />
+        </PendingEntryCopyProvider>
       );
 
       expect(queryByRole('link', { name: /enter the trial/i })).toBeNull();
@@ -87,12 +91,14 @@ describe('Magazine landing Enter CTA gating', () => {
 
     it('hides the Enter link and shows the fallback copy when canEnterOnline is false', () => {
       const { queryByRole, getByText } = render(
-        <FinalEditorialBand
-          classesHref={null}
-          entryCloseDate={null}
-          timezone="America/New_York"
-          canEnterOnline={false}
-        />
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <FinalEditorialBand
+            classesHref={null}
+            entryCloseDate={null}
+            timezone="America/New_York"
+            canEnterOnline={false}
+          />
+        </PendingEntryCopyProvider>
       );
 
       expect(queryByRole('link', { name: /open the entry wizard/i })).toBeNull();

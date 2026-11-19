@@ -141,7 +141,8 @@ describe('ReplicatedClubsTable visibility reconcile cadence (MYK9-1302)', () => 
     await table.sync();
 
     // A principal change makes the clubs table force a full resync (MYK9-572).
-    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+    // sync() reads the session before the pull and again before it commits
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: { id: 'secretary-2' } } },
     } as never);
     const forced = installServer({ liveIds: ['c1'] });

@@ -1,6 +1,8 @@
 # Merge queue: test a PR once against current `main`, then do not test it again (MYK9-2239)
 
-> **Status:** Active
+> **Status:** Abandoned
+>
+> On hold, 2026-11-19: GitHub does not offer "Require merge queue" on this personal-account repository (Phase 0 answered no). The merged wiring (#4219) stays switched off (`MERGE_QUEUE_ENABLED` unset). If the repository moves to an organization, resume at Order step (2). See MYK9-2239.
 
 Tracking: MYK9-2239. Rejected alternative: MYK9-2238 (cancel superseded `main` runs; it would bring back the 2026-09 gap that #2110 closed). Related: MYK9-2237 (#4215, PRs stay drafts during review so PR CI runs once), MYK9-2240 (the deploy job refuses a pinned commit that would roll production back).
 

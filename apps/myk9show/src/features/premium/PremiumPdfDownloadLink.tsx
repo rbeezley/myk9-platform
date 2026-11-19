@@ -79,7 +79,15 @@ function usePremiumPdfBuild(
     return () => {
       cancelled = true;
       clearTimeout(timer);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (objectUrl) {
+        const revoked = objectUrl;
+        URL.revokeObjectURL(revoked);
+        // A revoked URL must never be offered again: if the inputs flip back to these, the
+        // cached result would match and point Preview and Download at a dead link.
+        setResult(prev =>
+          prev && 'url' in prev.value && prev.value.url === revoked ? null : prev
+        );
+      }
     };
   }, [showId, premium, inkSaver, attempt]);
 

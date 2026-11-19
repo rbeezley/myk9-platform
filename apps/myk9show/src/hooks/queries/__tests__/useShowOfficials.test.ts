@@ -63,6 +63,38 @@ describe('useShowOfficials', () => {
     expect(result.current.fetchStatus).toBe('idle');
   });
 
+  it('carries the premium mailing address of the secretary and chair, trimmed, else null (MYK9-2065)', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          user_id: 'p1',
+          first_name: 'Jane',
+          last_name: 'Doe',
+          email: null,
+          role: 'secretary',
+          premium_mailing_address: '  PO Box 9\nTulsa, OK ',
+        },
+        {
+          user_id: 'p2',
+          first_name: 'John',
+          last_name: 'Smith',
+          email: null,
+          role: 'chairman',
+          premium_mailing_address: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useShowOfficials('show-1'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.secretaries[0].mailingAddress).toBe('PO Box 9\nTulsa, OK');
+    expect(result.current.data?.chairmen[0].mailingAddress).toBeNull();
+  });
+
   it('groups officials by role', async () => {
     const mockData = [
       {
@@ -96,6 +128,7 @@ describe('useShowOfficials', () => {
       firstName: 'Jane',
       lastName: 'Doe',
       email: 'jane@test.com',
+      mailingAddress: null,
       role: 'secretary',
     });
     expect(result.current.data?.chairmen).toHaveLength(1);

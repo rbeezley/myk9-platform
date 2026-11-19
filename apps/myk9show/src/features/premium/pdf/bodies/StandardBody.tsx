@@ -69,7 +69,9 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         <Text style={s.label}>Entry Method</Text>
         <Text style={{ ...s.value, fontWeight: 700 }}>Online entries via myK9Show</Text>
       </View>
-      {secretary.mailingAddress && (
+      {/* MYK9-2065: the official's mailing address is not an entry method. The mail-in line
+          follows the show's own check acceptance. */}
+      {secretary.mailingAddress && f.fees.paymentMethods.includes('Checks') && (
         <View style={s.row}>
           <Text style={s.label}> </Text>
           <Text style={s.value}>Mail-in entries also accepted (see Trial Secretary).</Text>
@@ -144,6 +146,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
             <View style={s.row}>
               <Text style={s.label}>Phone</Text>
               <Text style={s.value}>{chair.phone}</Text>
+            </View>
+          )}
+          {chair.mailingAddress && (
+            <View style={s.row}>
+              <Text style={s.label}>Address</Text>
+              <Text style={s.value}>{chair.mailingAddress}</Text>
             </View>
           )}
         </>

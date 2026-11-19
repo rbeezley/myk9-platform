@@ -17,7 +17,8 @@ const fullName = (o: ShowOfficial) => `${o.firstName} ${o.lastName}`.trim() || n
 /**
  * The premium with its secretary and chairman taken from the officials. An official the show does
  * not have leaves the premium's own value alone. The RPC carries no phone, so a phone the
- * premium already has is kept.
+ * premium already has is kept. The mailing address is the one the club typed for the premium
+ * (MYK9-2065); an official without one prints none, never the premium's earlier value.
  */
 export function applyOfficialsToPremium(
   premium: GeneratedPremium,
@@ -31,7 +32,12 @@ export function applyOfficialsToPremium(
     ...premium,
     secretary:
       secretary && secretaryName
-        ? { ...premium.secretary, name: secretaryName, email: secretary.email }
+        ? {
+            ...premium.secretary,
+            name: secretaryName,
+            email: secretary.email,
+            mailingAddress: secretary.mailingAddress ?? null,
+          }
         : premium.secretary,
     officials: {
       ...premium.officials,
@@ -41,6 +47,7 @@ export function applyOfficialsToPremium(
               name: chairName,
               email: chair.email,
               phone: premium.officials.chairman?.phone ?? null,
+              mailingAddress: chair.mailingAddress ?? null,
             }
           : premium.officials.chairman,
     },

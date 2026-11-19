@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { pickPremiumOfficial, type PremiumOfficialRow } from './showOfficialsRow.ts';
+import {
+  PREMIUM_OFFICIALS_SELECT,
+  pickPremiumOfficial,
+  type PremiumOfficialRow,
+} from './showOfficialsRow.ts';
 
 const person = (
   first: string,
@@ -28,12 +32,30 @@ describe('pickPremiumOfficial (MYK9-2056)', () => {
       name: 'Sam Sec',
       email: 's@example.com',
       phone: '555',
+      mailingAddress: null,
     });
     expect(pickPremiumOfficial(rows, 'chairman')).toEqual({
       name: 'Cara Chair',
       email: null,
       phone: null,
+      mailingAddress: null,
     });
+  });
+
+  it('carries the mailing address typed on the show official, never one from the person (MYK9-2065)', () => {
+    const rows: PremiumOfficialRow[] = [
+      {
+        role: 'secretary',
+        premium_mailing_address: '  PO Box 9\nTulsa, OK  ',
+        people: person('Sam', 'Sec'),
+      },
+      { role: 'chairman', premium_mailing_address: '   ', people: person('Cara', 'Chair') },
+    ];
+
+    expect(pickPremiumOfficial(rows, 'secretary')?.mailingAddress).toBe('PO Box 9\nTulsa, OK');
+    expect(pickPremiumOfficial(rows, 'chairman')?.mailingAddress).toBeNull();
+    expect(PREMIUM_OFFICIALS_SELECT).toContain('premium_mailing_address');
+    expect(PREMIUM_OFFICIALS_SELECT).not.toMatch(/street_address|city|zip/);
   });
 
   it('prints the one named first when a role has several people', () => {

@@ -8568,6 +8568,7 @@ export type Database = {
           created_by: string | null
           id: string
           person_id: string
+          premium_mailing_address: string | null
           role: string
           show_id: string
         }
@@ -8576,6 +8577,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           person_id: string
+          premium_mailing_address?: string | null
           role: string
           show_id: string
         }
@@ -8584,6 +8586,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           person_id?: string
+          premium_mailing_address?: string | null
           role?: string
           show_id?: string
         }
@@ -15053,6 +15056,7 @@ export type Database = {
           email: string
           first_name: string
           last_name: string
+          premium_mailing_address: string
           role: string
           user_id: string
         }[]
@@ -16068,6 +16072,10 @@ export type Database = {
       send_waitlist_withdrawal_message_internal: {
         Args: { p_sender_auth_user_id: string; p_waitlist_entry_id: string }
         Returns: string
+      }
+      set_show_official_mailing_address: {
+        Args: { p_address: string; p_role_name: string; p_show_id: string }
+        Returns: undefined
       }
       set_class_judge: {
         Args: { p_class_id: string; p_person_id: string }

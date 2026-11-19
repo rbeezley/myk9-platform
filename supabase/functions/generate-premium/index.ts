@@ -155,6 +155,7 @@ handle<GeneratePremiumPayload>(
     const secretaryName = secretaryOfficial?.name ?? null;
     const secretaryEmail = secretaryOfficial?.email ?? null;
     const secretaryPhone = secretaryOfficial?.phone ?? null;
+    const secretaryMailingAddress = secretaryOfficial?.mailingAddress ?? null;
     const chairman = pickPremiumOfficial(officials, 'chairman');
 
     // Step 8: Template resolution — find best matching template for this show's trial type
@@ -304,7 +305,7 @@ handle<GeneratePremiumPayload>(
       secretary: {
         name: secretaryName,
         email: secretaryEmail,
-        mailingAddress: null,
+        mailingAddress: secretaryMailingAddress,
         phone: secretaryPhone,
       },
       officials: {

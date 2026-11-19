@@ -29,6 +29,31 @@ describe('premiumFacts', () => {
     expect(facts.club).toBe('Bluegrass KC');
   });
 
+  describe('official mailing addresses (MYK9-2065)', () => {
+    it('carries the address the club typed for the Secretary and the Chair, trimmed', () => {
+      const premium = generatedPremium();
+      premium.secretary.mailingAddress = '  PO Box 9\nTulsa, OK  ';
+      premium.officials.chairman = {
+        name: 'Bob Jones',
+        email: null,
+        phone: null,
+        mailingAddress: 'PO Box 77',
+      };
+      const facts = buildPremiumFacts(premium);
+      expect(facts.secretary.mailingAddress).toBe('PO Box 9\nTulsa, OK');
+      expect(facts.chair?.mailingAddress).toBe('PO Box 77');
+    });
+
+    it('is null, never a placeholder, when empty, blank or absent on an older premium', () => {
+      const premium = generatedPremium();
+      premium.secretary.mailingAddress = '   ';
+      premium.officials.chairman = { name: 'Bob Jones', email: null, phone: null };
+      const facts = buildPremiumFacts(premium);
+      expect(facts.secretary.mailingAddress).toBeNull();
+      expect(facts.chair?.mailingAddress).toBeNull();
+    });
+  });
+
   describe('accepted payment methods', () => {
     const methods = (checks: boolean, cash: boolean) => {
       const premium = generatedPremium();

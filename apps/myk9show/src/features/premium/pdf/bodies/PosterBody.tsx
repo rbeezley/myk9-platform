@@ -139,6 +139,7 @@ export function PosterBody({ data, tokens }: Props) {
             {chair ? `Chair: ${chair.name}` : ''}
             {chair?.email ? ` · ${chair.email}` : ''}
             {chair?.phone ? ` · ${chair.phone}` : ''}
+            {chair?.mailingAddress ? `\n${chair.mailingAddress}` : ''}
           </Text>
           {f.officers.map(o => (
             <Text key={`${o.title}-${o.name}`} style={bodyStyle}>

@@ -364,6 +364,7 @@ Chair
 Bob Jones · bob@test.com · (918) 555-0001
 Secretary
 Jane Smith · jane@test.com · (918) 555-0000
+456 Oak Ave
 §02
 Judges
 Saturday Trial 1
@@ -463,6 +464,7 @@ Chair
 Bob Jones · bob@test.com · (918) 555-0001
 Secretary
 Jane Smith · jane@test.com · (918) 555-0000
+456 Oak Ave
 §02
 Judges
 Saturday Trial 1
@@ -601,6 +603,7 @@ Chair
 Bob Jones · bob@test.com · (918) 555-0001
 Secretary
 Jane Smith · jane@test.com · (918) 555-0000
+456 Oak Ave
 §02
 Judges
 Saturday Trial 1
@@ -687,6 +690,7 @@ Chair: Bob Jones
 Chair Email: bob@test.com
 Chair Phone: (918) 555-0001
 Secretary: Jane Smith
+Secretary Mail: 456 Oak Ave
 Judges
 Alice Judge, Springfield, IL
 Container Novice A
@@ -767,6 +771,7 @@ Chair: Bob Jones
 Chair Email: bob@test.com
 Chair Phone: (918) 555-0001
 Secretary: Jane Smith
+Secretary Mail: 456 Oak Ave
 Judges
 Alice Judge, Springfield, IL
 Container Novice A
@@ -862,6 +867,7 @@ Chair: Bob Jones
 Chair Email: bob@test.com
 Chair Phone: (918) 555-0001
 Secretary: Jane Smith
+Secretary Mail: 456 Oak Ave
 Judges
 Alice Judge, Springfield, IL
 Container Novice A

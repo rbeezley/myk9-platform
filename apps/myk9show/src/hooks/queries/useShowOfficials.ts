@@ -7,6 +7,8 @@ export interface ShowOfficial {
   firstName: string;
   lastName: string;
   email: string | null;
+  /** MYK9-2065: typed for the premium; null for a steward and until the club enters one. */
+  mailingAddress?: string | null;
   role: 'secretary' | 'chairman' | 'steward';
 }
 
@@ -25,6 +27,7 @@ interface ShowOfficialRow {
   last_name: string | null;
   email: string | null;
   role: string;
+  premium_mailing_address?: string | null;
 }
 
 export async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
@@ -42,6 +45,7 @@ export async function fetchShowOfficials(showId: string): Promise<ShowOfficials>
       firstName: row.first_name || '',
       lastName: row.last_name || '',
       email: row.email || null,
+      mailingAddress: row.premium_mailing_address?.trim() || null,
       role: role as ShowOfficial['role'],
     };
 

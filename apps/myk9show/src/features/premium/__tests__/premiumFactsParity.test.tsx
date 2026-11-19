@@ -409,3 +409,57 @@ describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
     expect(pdfText('AKC', unknown)).not.toMatch(/recording fee/i);
   });
 });
+
+describe('premium PDF prints the official mailing addresses (MYK9-2065)', () => {
+  const CHAIR_ADDRESS = 'PO Box 77, Tulsa, OK 74101';
+  const SECRETARY_ADDRESS = 'PO Box 9, Broken Arrow, OK 74012';
+
+  function withAddresses(style: PremiumStyle, chair: string | null, secretary: string | null) {
+    const premium = fullPremium('AKC', style);
+    return {
+      ...premium,
+      secretary: { ...premium.secretary, mailingAddress: secretary },
+      officials: { chairman: { ...premium.officials.chairman!, mailingAddress: chair } },
+    };
+  }
+
+  it.each(ALL_STYLES)('%s prints the Chair and Secretary addresses the club typed', style => {
+    const text = pdfText('AKC', withAddresses(style, CHAIR_ADDRESS, SECRETARY_ADDRESS));
+    expect(text).toContain(CHAIR_ADDRESS);
+    expect(text).toContain(SECRETARY_ADDRESS);
+  });
+
+  it.each(ALL_STYLES)('%s prints no address, and no placeholder, when none was typed', style => {
+    const text = pdfText('AKC', withAddresses(style, null, null));
+    expect(text).not.toContain('PO Box');
+    expect(text).not.toMatch(/Chair Mail|\bAddress\b|undefined|null/);
+  });
+});
+
+describe('a mailing address is not a mail-in entry method (MYK9-2065)', () => {
+  const ADDRESS = 'PO Box 9, Broken Arrow, OK 74012';
+
+  function premiumWith(style: PremiumStyle, acceptChecks: boolean): GeneratedPremium {
+    const premium = fullPremium('AKC', style);
+    return {
+      ...premium,
+      show: { ...premium.show, acceptChecks },
+      secretary: { ...premium.secretary, mailingAddress: ADDRESS },
+    };
+  }
+
+  it.each(ALL_STYLES)('%s prints the address but no mail-in claim when checks are off', style => {
+    const text = pdfText('AKC', premiumWith(style, false));
+    expect(text).toContain(ADDRESS);
+    expect(text).not.toMatch(/Mail-in entries/);
+    expect(text).not.toMatch(/^Mail: /m);
+  });
+
+  it.each<PremiumStyle>(['monogram', 'gazette'])(
+    '%s offers mail entries when the show takes checks',
+    style => {
+      const text = pdfText('AKC', premiumWith(style, true));
+      expect(text).toMatch(/Mail-in entries also accepted|^Mail: /m);
+    }
+  );
+});

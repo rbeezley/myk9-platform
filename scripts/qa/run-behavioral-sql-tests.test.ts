@@ -60,6 +60,7 @@ const launchCriticalSqlTests = [
   'account_today_entries_show_timezone_test.sql',
   'create_show_with_children_junior_fee_test.sql',
   'show_officials_label_not_permission_test.sql',
+  'myk9_2065_official_premium_mailing_address_test.sql',
   'show_announcements_scope_test.sql',
   'show_message_tenant_isolation_test.sql',
   'show_organization_immutability_test.sql',

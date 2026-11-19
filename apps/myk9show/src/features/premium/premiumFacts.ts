@@ -41,9 +41,11 @@ export type PremiumFactId =
   | 'classes'
   | 'judges'
   | 'secretary'
+  | 'secretaryAddress'
   | 'officers'
   | 'committee'
   | 'chair'
+  | 'chairAddress'
   | 'entryWindow'
   | 'vetClinic'
   | 'accommodations'
@@ -90,6 +92,14 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
   { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
   { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
+  // MYK9-2065: AKC Ch. 3 §15 wants each official's address. It is typed for the premium on the
+  // show's official, never taken from their profile, so a home address prints only by choice.
+  {
+    id: 'secretaryAddress',
+    label: 'Trial Secretary mailing address',
+    source: 'person',
+    requiredBy: ['AKC'],
+  },
   // MYK9-2045: the club's Officers list (Club admin > Officers), the one list the premium prints.
   { id: 'officers', label: 'Club officers', source: 'club', requiredBy: [] },
   // MYK9-2064: the club's Event Committee (Club admin > Officers > Committee), which a show may
@@ -102,6 +112,12 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     minimumBy: { AKC: AKC_EVENT_COMMITTEE_MINIMUM },
   },
   { id: 'chair', label: 'Trial Chair', source: 'person', requiredBy: ['AKC'] },
+  {
+    id: 'chairAddress',
+    label: 'Trial Chair mailing address',
+    source: 'person',
+    requiredBy: ['AKC'],
+  },
   { id: 'entryWindow', label: 'Entries open and close', source: 'show', requiredBy: ['AKC'] },
   { id: 'vetClinic', label: 'Veterinary services', source: 'template', requiredBy: [] },
   { id: 'accommodations', label: 'Accommodations', source: 'template', requiredBy: [] },
@@ -197,11 +213,19 @@ export function pickSupplementalFacts(
 
 // ─── The list of facts ──────────────────────────────────────────────────────────────────
 
+/** A typed mailing address with its edge whitespace gone, or null when nothing was typed. */
+function cleanAddress(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export interface PremiumContact {
   name: string;
   email: string | null;
   /** Display-formatted; empty string when there is none. */
   phone: string;
+  /** MYK9-2065: the address the club typed for the premium; null prints nothing. */
+  mailingAddress: string | null;
 }
 
 /** The premium's label for the refund and withdrawal policy row, in every style. */
@@ -401,13 +425,14 @@ export function buildPremiumFacts(
       name: secretary.name,
       email: secretary.email,
       phone: formatPhone(secretary.phone),
-      mailingAddress: secretary.mailingAddress,
+      mailingAddress: cleanAddress(secretary.mailingAddress),
     },
     chair: officials.chairman
       ? {
           name: officials.chairman.name,
           email: officials.chairman.email,
           phone: formatPhone(officials.chairman.phone),
+          mailingAddress: cleanAddress(officials.chairman.mailingAddress),
         }
       : null,
     officers: buildOfficerFacts(data.officers),

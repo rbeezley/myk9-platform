@@ -51,9 +51,10 @@ export function GazetteBody({ data, tokens }: Props) {
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.some(t => t.classLabels.length > 0);
   const hasFees = f.fees.hasAny;
-  const hasEntry = Boolean(
-    f.entry.opens || f.entry.closes || secretary.email || secretary.mailingAddress
-  );
+  // MYK9-2065: a mailing address is not an entry method; mail is offered only to a show that
+  // takes checks.
+  const mailEntries = Boolean(secretary.mailingAddress) && f.fees.paymentMethods.includes('Checks');
+  const hasEntry = Boolean(f.entry.opens || f.entry.closes || secretary.email || mailEntries);
   const hasLodging = f.accommodations.length > 0;
   const hasAwards = Boolean(f.awardsDescription);
   const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes);
@@ -79,7 +80,13 @@ export function GazetteBody({ data, tokens }: Props) {
             {chair && <Text style={bodyTextStyle}>Chair: {chair.name}</Text>}
             {chair?.email && <Text style={bodyTextStyle}>Chair Email: {chair.email}</Text>}
             {chair?.phone && <Text style={bodyTextStyle}>Chair Phone: {chair.phone}</Text>}
+            {chair?.mailingAddress && (
+              <Text style={bodyTextStyle}>Chair Mail: {chair.mailingAddress}</Text>
+            )}
             {secretary.name && <Text style={bodyTextStyle}>Secretary: {secretary.name}</Text>}
+            {secretary.name && secretary.mailingAddress && (
+              <Text style={bodyTextStyle}>Secretary Mail: {secretary.mailingAddress}</Text>
+            )}
             {f.officers.map(o => (
               <Text key={`${o.title}-${o.name}`} style={bodyTextStyle}>
                 {o.title}: {o.name}
@@ -150,15 +157,13 @@ export function GazetteBody({ data, tokens }: Props) {
             <Text style={bodyTextStyle}>myk9show.com</Text>
             {f.entry.opens && <Text style={bodyTextStyle}>Opens: {f.entry.opens}</Text>}
             {f.entry.closes && <Text style={bodyTextStyle}>Closes: {f.entry.closes}</Text>}
-            {(secretary.email || secretary.mailingAddress || secretary.phone) && (
+            {(secretary.email || mailEntries || secretary.phone) && (
               <Text style={{ ...bodyTextStyle, marginTop: 6, color: tokens.secondaryColor }}>
                 Alternate methods:
               </Text>
             )}
             {secretary.email && <Text style={bodyTextStyle}>Email: {secretary.email}</Text>}
-            {secretary.mailingAddress && (
-              <Text style={bodyTextStyle}>Mail: {secretary.mailingAddress}</Text>
-            )}
+            {mailEntries && <Text style={bodyTextStyle}>Mail: {secretary.mailingAddress}</Text>}
             {secretary.phone && <Text style={bodyTextStyle}>Phone: {secretary.phone}</Text>}
           </View>
         )}

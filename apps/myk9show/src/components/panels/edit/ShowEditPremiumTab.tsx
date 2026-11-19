@@ -77,12 +77,8 @@ export function ShowEditPremiumTab({
       : undefined;
 
   return (
-    // MYK9-2201: keepMounted, so the premium editor's own state (its edits, the generation it
-    // compares them with, a narrative-generation warning) survives a visit to another tab, and
-    // Save still asks about edits made before it. Nothing is restored from a copy.
     <TabsContent
       value="premium"
-      keepMounted
       className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
     >
       <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
@@ -160,7 +156,6 @@ export function ShowEditPremiumTab({
               {...(regenerateBlockedReason ? { regenerateBlockedReason } : {})}
               style={(data.style || 'monogram') as PremiumStyle}
               active={isActive}
-              resetWhenInactive={false}
               {...(initialPremium ? { initialPremium } : {})}
               deferGeneration={
                 hasShowId && !data.experiencePublishedContent && publishedContentLoading

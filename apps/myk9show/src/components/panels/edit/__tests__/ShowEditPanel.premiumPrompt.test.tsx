@@ -19,36 +19,27 @@ vi.mock('@/hooks/queries/useShowOfficials', () => ({
   useShowOfficials: () => ({ data: undefined }),
 }));
 // The editor reports the premium it holds and whether it was edited; two buttons stand in for it.
-const editorMounts = vi.hoisted(() => ({ count: 0 }));
-vi.mock('@/features/premium/PremiumContentEditor', async () => {
-  const { useEffect } = await import('react');
-  return {
-    PremiumContentEditor: (props: {
-      onPremiumChange?: (premium: GeneratedPremium) => void;
-      onEditedChange?: (edited: boolean) => void;
-    }) => {
-      useEffect(() => {
-        editorMounts.count += 1;
-      }, []);
-      return (
-        <>
-          <button type="button" onClick={() => props.onPremiumChange?.(generatedPremium())}>
-            Load premium
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              props.onPremiumChange?.(generatedPremium());
-              props.onEditedChange?.(true);
-            }}
-          >
-            Edit premium
-          </button>
-        </>
-      );
-    },
-  };
-});
+vi.mock('@/features/premium/PremiumContentEditor', () => ({
+  PremiumContentEditor: (props: {
+    onPremiumChange?: (premium: GeneratedPremium) => void;
+    onEditedChange?: (edited: boolean) => void;
+  }) => (
+    <>
+      <button type="button" onClick={() => props.onPremiumChange?.(generatedPremium())}>
+        Load premium
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          props.onPremiumChange?.(generatedPremium());
+          props.onEditedChange?.(true);
+        }}
+      >
+        Edit premium
+      </button>
+    </>
+  ),
+}));
 
 const SHOW: Partial<Show> = {
   id: 'show-1',
@@ -163,19 +154,6 @@ describe('Publish these premium changes? (MYK9-2201)', () => {
     await user.click(await screen.findByRole('button', { name: 'Discard premium changes' }));
 
     await waitFor(() => expect(screen.queryByText(TITLE)).not.toBeInTheDocument());
-    expect(onSave).not.toHaveBeenCalled();
-  });
-
-  it('keeps the premium editor mounted across a tab round trip, so its edits survive', async () => {
-    const { onSave, user } = setup();
-    await user.click(await screen.findByRole('tab', { name: /premium/i }));
-    await user.click(await screen.findByRole('button', { name: 'Edit premium' }));
-    const mounts = editorMounts.count;
-    await user.click(screen.getByRole('tab', { name: /basic/i }));
-    await user.click(screen.getByRole('tab', { name: /premium/i }));
-    expect(editorMounts.count).toBe(mounts);
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-    expect(await screen.findByText(TITLE)).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });
 

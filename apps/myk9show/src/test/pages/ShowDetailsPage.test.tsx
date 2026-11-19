@@ -9,6 +9,7 @@ import { friendlySaveError } from '@/utils/friendlySaveError';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const runPremiumPublishOperationMock = vi.hoisted(() => vi.fn());
+const generatePremiumMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const updateShowMutationMock = vi.hoisted(() => vi.fn());
 const saveShowDraftStyleMock = vi.hoisted(() => vi.fn());
@@ -218,6 +219,9 @@ vi.mock('@/services/database/judges', () => ({
 
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: (args: unknown) => publishExperienceMock(args),
+}));
+vi.mock('@/features/premium/useGeneratePremium', () => ({
+  useGeneratePremium: () => ({ generate: generatePremiumMock }),
 }));
 vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
   premiumPublishDraftKey: vi.fn(() => 'draft-intent-key'),
@@ -483,6 +487,9 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
     runPremiumPublishOperationMock.mockReset();
+    generatePremiumMock
+      .mockReset()
+      .mockImplementation(async () => makeGeneratedPremium('heritage'));
     runPremiumPublishOperationMock.mockImplementation(
       async (operation: { createPremium: () => Promise<unknown> }) => operation.createPremium()
     );

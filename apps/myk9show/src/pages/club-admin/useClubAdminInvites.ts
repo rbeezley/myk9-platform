@@ -21,7 +21,7 @@ export function clubAdminInvitesQueryKey(clubId: string) {
   return ['club-admin-invites', clubId] as const;
 }
 
-function errorFields(error: unknown): { message?: string; code?: string } {
+function errorFields(error: unknown): { message: string | undefined; code: string | undefined } {
   const { message, code } = (error ?? {}) as { message?: unknown; code?: unknown };
   return {
     message: typeof message === 'string' ? message : undefined,

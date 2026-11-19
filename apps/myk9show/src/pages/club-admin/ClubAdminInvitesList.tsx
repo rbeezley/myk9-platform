@@ -9,8 +9,8 @@ import type { ClubAdminInvite } from '@/services/database/club-memberships';
 
 interface ClubAdminInvitesListProps {
   invites: ClubAdminInvite[];
-  resendingId?: string;
-  cancellingId?: string;
+  resendingId?: string | undefined;
+  cancellingId?: string | undefined;
   onResend: (invite: { inviteId: string; email: string }) => void;
   onCancel: (invite: { inviteId: string; email: string }) => void;
 }

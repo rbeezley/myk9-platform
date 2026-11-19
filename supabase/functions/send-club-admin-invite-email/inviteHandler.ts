@@ -26,9 +26,7 @@ export interface InviteSendDeps {
   fromEmail: string;
   sendEmail: (init: ResendEmailRequestInit) => Promise<Response>;
   /** Calls resend_club_admin_invite as the caller. */
-  prepareSend: (
-    inviteId: string
-  ) => Promise<{
+  prepareSend: (inviteId: string) => Promise<{
     data: PreparedInviteSend[] | null;
     error: { code?: string; message?: string } | null;
   }>;

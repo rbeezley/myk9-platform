@@ -29,6 +29,8 @@ interface PremiumContentEditorProps {
   /** Why generating is held (MYK9-2213); disables Regenerate and shows this line. */
   regenerateBlockedReason?: string;
   onPremiumChange?: (premium: GeneratedPremium | undefined) => void;
+  /** True once the narratives or supplemental details differ from what first loaded (MYK9-2201). */
+  onEditedChange?: (edited: boolean) => void;
   onInkSaverChange?: (inkSaver: boolean) => void;
   /** True while a Regenerate is pending, so the parent can hold Save-with-publish. */
   onPendingChange?: (pending: boolean) => void;
@@ -68,6 +70,7 @@ export function PremiumContentEditor({
   deferGeneration = false,
   regenerateBlockedReason,
   onPremiumChange,
+  onEditedChange,
   onInkSaverChange,
   onPendingChange,
 }: PremiumContentEditorProps) {
@@ -352,6 +355,20 @@ export function PremiumContentEditor({
   useEffect(() => {
     onPremiumChangeRef.current?.(finalPremium ?? undefined);
   }, [finalPremium]);
+
+  // MYK9-2201: the content the editor first held is the baseline; the raw state is compared, so
+  // the async cover-image resolve in finalPremium never reads as an edit.
+  const loadedContentKeyRef = useRef<string | null>(null);
+  const onEditedChangeRef = useRef(onEditedChange);
+  useEffect(() => {
+    onEditedChangeRef.current = onEditedChange;
+  }, [onEditedChange]);
+  useEffect(() => {
+    if (!supplemental || !narratives) return;
+    const key = JSON.stringify([supplemental, narratives]);
+    loadedContentKeyRef.current ??= key;
+    onEditedChangeRef.current?.(key !== loadedContentKeyRef.current);
+  }, [supplemental, narratives]);
 
   useEffect(() => {
     onInkSaverChangeRef.current?.(inkSaver);

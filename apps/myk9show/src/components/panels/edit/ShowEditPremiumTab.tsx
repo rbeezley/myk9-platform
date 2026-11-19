@@ -30,6 +30,8 @@ interface ShowEditPremiumTabProps {
   ) => (value: ShowEditFormData[K]) => void;
   /** Told when a Regenerate starts and settles, so the panel can hold Save (MYK9-2144). */
   onPremiumPendingChange?: (pending: boolean) => void;
+  /** Told whether the premium narratives or details were edited since they loaded (MYK9-2201). */
+  onPremiumEditedChange?: (edited: boolean) => void;
 }
 
 export function ShowEditPremiumTab({
@@ -41,6 +43,7 @@ export function ShowEditPremiumTab({
   handleCheckboxChange,
   handleValueChange,
   onPremiumPendingChange,
+  onPremiumEditedChange,
 }: ShowEditPremiumTabProps) {
   const hasShowId = typeof data.id === 'string' && data.id.length > 0;
   const showId = hasShowId ? (data.id as string) : undefined;
@@ -159,6 +162,7 @@ export function ShowEditPremiumTab({
               }
               onPremiumChange={handleGeneratedPremiumChange}
               onInkSaverChange={handleInkSaverChange}
+              {...(onPremiumEditedChange ? { onEditedChange: onPremiumEditedChange } : {})}
               {...(onPremiumPendingChange ? { onPendingChange: onPremiumPendingChange } : {})}
             />
           ) : (

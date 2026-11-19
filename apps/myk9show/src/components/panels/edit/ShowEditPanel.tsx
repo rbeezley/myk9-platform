@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
-import { savedMessage } from './panelSaveErrors';
-import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
+import { PanelSaveHandledError, savedMessage } from './panelSaveErrors';
+import { usePremiumPublishPrompt } from './usePremiumPublishPrompt';
+import type { ShowEditPanelProps, ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 import { showToFormData, changedShowSaveData, hasShowChanges } from './ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
@@ -70,6 +71,13 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   // MYK9-2144: while the Premium tab regenerates, Save holds so the old premium cannot go out.
   const [premiumPending, setPremiumPending] = useState(false);
 
+  // MYK9-2201: premium edits with the publish box unticked are asked about at Save.
+  const premiumEditedRef = useRef(false);
+  const onPremiumEditedChange = useCallback((edited: boolean) => {
+    premiumEditedRef.current = edited;
+  }, []);
+  const { ask: askPremiumChoice, dialog: premiumPromptDialog } = usePremiumPublishPrompt();
+
   // Convert show data to form data
   const initialFormData = useMemo(() => showToFormData(initialShowData), [initialShowData]);
 
@@ -88,42 +96,60 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
     async (formData: ShowEditFormData) => {
       // Nothing changed: nothing to save; the panel just closes.
       if (!hasShowChanges(openedFormData, formData)) return;
-      if (onSave) {
-        await onSave(changedShowSaveData(openedFormData, formData));
+      if (!onSave) return;
+      const changes = changedShowSaveData(openedFormData, formData);
+      if (formData.publishExperience || !premiumEditedRef.current || !changes.generatedPremium) {
+        await onSave(changes);
+        return;
       }
+      const choice = await askPremiumChoice();
+      // Nothing is saved; the panel stays open with the edits, and no failure toast appears.
+      if (choice === 'cancel') throw new PanelSaveHandledError();
+      if (choice === 'publish') {
+        await onSave({ ...changes, publishExperience: true });
+        return;
+      }
+      const restOfShow: ShowEditSaveData = { ...changes };
+      delete restOfShow.generatedPremium;
+      delete restOfShow.inkSaver;
+      if (Object.keys(restOfShow).length > 0) await onSave(restOfShow);
     },
-    [onSave, openedFormData]
+    [onSave, openedFormData, askPremiumChoice]
   );
 
   return (
-    <EditPanelWrapper<ShowEditFormData>
-      open={open}
-      onClose={onClose}
-      title="Edit Show"
-      subtitle={`Editing details for ${showName}`}
-      size="xl"
-      initialData={initialFormData}
-      onSave={handleSave}
-      schema={showEditSchema}
-      enableAutoSave={enableAutoSave}
-      saveLabel="Save Changes"
-      cancelLabel="Cancel"
-      onDelete={deleteOption}
-      successMessage={data => savedMessage(data.name || showName)}
-      onValidationFail={handleValidationFail}
-      {...(premiumPending ? { saveBlockedReason: PREMIUM_PENDING_REASON } : {})}
-    >
-      {/* Advisory heads-up if another staff member already has this show open. */}
-      <EditingBadge entityType="show" entityId={showId} className="mb-3" />
-      <ShowEditForm
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        initialStatus={initialShowData?.status}
-        savedOrganization={initialShowData?.organization}
+    <>
+      <EditPanelWrapper<ShowEditFormData>
+        open={open}
         onClose={onClose}
-        onPremiumPendingChange={setPremiumPending}
-      />
-    </EditPanelWrapper>
+        title="Edit Show"
+        subtitle={`Editing details for ${showName}`}
+        size="xl"
+        initialData={initialFormData}
+        onSave={handleSave}
+        schema={showEditSchema}
+        enableAutoSave={enableAutoSave}
+        saveLabel="Save Changes"
+        cancelLabel="Cancel"
+        onDelete={deleteOption}
+        successMessage={data => savedMessage(data.name || showName)}
+        onValidationFail={handleValidationFail}
+        {...(premiumPending ? { saveBlockedReason: PREMIUM_PENDING_REASON } : {})}
+      >
+        {/* Advisory heads-up if another staff member already has this show open. */}
+        <EditingBadge entityType="show" entityId={showId} className="mb-3" />
+        <ShowEditForm
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          initialStatus={initialShowData?.status}
+          savedOrganization={initialShowData?.organization}
+          onClose={onClose}
+          onPremiumPendingChange={setPremiumPending}
+          onPremiumEditedChange={onPremiumEditedChange}
+        />
+      </EditPanelWrapper>
+      {premiumPromptDialog}
+    </>
   );
 };
 

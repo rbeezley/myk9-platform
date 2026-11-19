@@ -54,7 +54,7 @@ INSERT INTO storage.objects (bucket_id, name, owner_id, metadata) VALUES
    '00000000-0000-0000-0000-000000205431',
    jsonb_build_object('mimetype', 'application/pdf', 'size', 2048));
 
--- Structure: the switch's column is gone, the link column is public, the RPCs are not anon's,
+-- Structure: the switch's column is gone, the link column is readable like its siblings, the RPCs are not anon's,
 -- and neither RPC touches entries ("changes no entry").
 DO $$
 BEGIN

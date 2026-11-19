@@ -25,8 +25,9 @@
 -- it the "Legacy premium state is read-only" refusal blocks clearing the url/at columns, and
 -- unpublish could never run. A non-postgres writer is still refused by the first block.
 --
--- GRANTS. No new table. The new column is covered by shows' table-level SELECT (anon and
--- authenticated); the explicit column grant below states it. It is written only through
+-- GRANTS. No new table, and shows has table-level SELECT for anon and authenticated (no column
+-- allowlist), so the new column is readable exactly like its siblings. A column-level GRANT here
+-- would turn shows into a column-allowlisted table, which it is not. It is written only through
 -- set_own_premium (SECURITY DEFINER), never by a client UPDATE: the guard trigger above refuses
 -- any other writer, like the published_premium_* columns.
 -- =============================================================================
@@ -44,8 +45,6 @@ ALTER TABLE public.shows
 
 COMMENT ON COLUMN public.shows.own_premium_link IS
   'MYK9-2054: the club''s own premium list as an http(s) link (publishes_own_premium). Public: the show''s landing page offers it as "Download premium". Written only by public.set_own_premium; cleared by set_own_premium (upload) and public.unpublish_premium.';
-
-GRANT SELECT (own_premium_link) ON public.shows TO anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- The guard: latest definition plus the "all cleared" pass-through.

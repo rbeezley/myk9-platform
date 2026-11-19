@@ -159,7 +159,11 @@ describe('PremiumDownloadCard', () => {
           screen.getAllByText("You're offline — publishing needs a connection").length
         ).toBeGreaterThan(0)
       );
-      expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();
+      expect(
+        screen.getByRole('button', {
+          name: /^(generate & publish premium|republish premium|publish landing page)$/i,
+        })
+      ).toBeDisabled();
     } finally {
       onlineManager.setOnline(true);
     }

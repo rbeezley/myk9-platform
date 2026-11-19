@@ -18,6 +18,9 @@ vi.mock('@/hooks/queries/useShowVenueWifi', () => ({ useShowVenueWifi: () => har
 vi.mock('@/features/payments/useEffectiveWithdrawalPolicy', () => ({
   useEffectiveWithdrawalPolicy: () => harness.policy,
 }));
+vi.mock('@/features/premium/OwnPremiumCard', () => ({
+  OwnPremiumCard: () => <div id="setup-publish-premium" data-testid="own-premium-card" />,
+}));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
   PremiumDownloadCard: () => <div id="setup-publish-premium" data-testid="premium-card" />,
 }));
@@ -45,7 +48,6 @@ const show = {
   clubName: 'Heartland Club',
   preEntryFee: '25',
   assignedJudges: [],
-  usesLandingPage: true,
 } as unknown as Show;
 
 beforeEach(() => {
@@ -178,56 +180,39 @@ describe('ShowAboutPage (MYK9-1683)', () => {
     expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it('hides the Landing page card when the landing page switch is off, and keeps Premium (MYK9-1686)', () => {
-    harness.outlet = {
-      show: { ...show, usesLandingPage: false } as Show,
-      canManageShow: true,
-      judges: [],
-      managerEntryCount: 12,
-    };
+  it('always shows the Landing page card: a show is published or not, with no switch (MYK9-2054)', () => {
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
-    expect(screen.queryByTestId('landing-card')).toBeNull();
+    expect(screen.getByTestId('landing-card')).toBeInTheDocument();
     expect(screen.getByTestId('premium-card')).toBeInTheDocument();
   });
 
-  it('hides the Landing page card for a show that has never set the switch', () => {
-    harness.outlet = {
-      show: { ...show, usesLandingPage: undefined } as Show,
-      canManageShow: true,
-      judges: [],
-      managerEntryCount: 12,
-    };
-    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
-    expect(screen.queryByTestId('landing-card')).toBeNull();
-  });
-
-  it('falls back to the premium card when a link targets the hidden landing card', async () => {
-    harness.outlet = {
-      show: { ...show, usesLandingPage: false } as Show,
-      canManageShow: true,
-      judges: [],
-      managerEntryCount: 12,
-    };
+  it('scrolls to the landing card when a link targets it', async () => {
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about#setup-publish-landing' });
     await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());
     expect(
       vi
         .mocked(Element.prototype.scrollIntoView)
-        .mock.contexts.some(el => (el as Element).id === 'setup-publish-premium')
+        .mock.contexts.some(el => (el as Element).id === 'setup-publish-landing')
     ).toBe(true);
   });
 
-  it('follows a switch flipped locally before the cached show catches up', () => {
+  it('swaps the generated premium card for the own-premium card when the club publishes its own', () => {
     harness.outlet = {
-      show: { ...show, usesLandingPage: false } as Show,
+      show: { ...show, publishesOwnPremium: true } as Show,
       canManageShow: true,
       judges: [],
       managerEntryCount: 12,
     };
-    useShowStore.setState({ shows: [{ ...show, usesLandingPage: true } as Show] });
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.getByTestId('own-premium-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-card')).toBeNull();
+  });
+
+  it('follows the own-premium switch flipped locally before the cached show catches up', () => {
+    useShowStore.setState({ shows: [{ ...show, publishesOwnPremium: true } as Show] });
     try {
       render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
-      expect(screen.getByTestId('landing-card')).toBeInTheDocument();
+      expect(screen.getByTestId('own-premium-card')).toBeInTheDocument();
     } finally {
       useShowStore.setState({ shows: [] });
     }

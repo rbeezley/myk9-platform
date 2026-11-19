@@ -238,7 +238,7 @@ describe('computeSetupReadinessSignals', () => {
     // PremiumDownloadCard, so the chip must land there — the landing card
     // itself has no publish control.
     const signals = computeSetupReadinessSignals({
-      show: show({ experienceIsPublished: false, usesLandingPage: true }),
+      show: show({ experienceIsPublished: false }),
       trials: [trial()],
       classes: [cls()],
       judges: ['j1'],
@@ -361,26 +361,15 @@ describe('isSetupReady', () => {
     const ids = (overrides: Partial<Show>) =>
       computeSetupReadinessSignals({ ...base, show: show(overrides) }).map(s => s.id);
 
-    it('emits no landing signal while the landing page switch is off, and restores it when on', () => {
-      expect(ids({ experienceIsPublished: false, usesLandingPage: false })).not.toContain(
-        'landing-content-unpublished'
-      );
-      expect(ids({ experienceIsPublished: false })).not.toContain('landing-content-unpublished');
-      expect(ids({ experienceIsPublished: false, usesLandingPage: true })).toContain(
-        'landing-content-unpublished'
-      );
-    });
-
-    it('still warns about an unpublished landing page when the club publishes its own premium', () => {
+    it('emits no landing signal for a club that publishes its own premium (MYK9-2054)', () => {
       expect(
         ids({
-          usesLandingPage: true,
           publishesOwnPremium: true,
           publishedPremiumUrl: null,
           publishedPremiumAt: null,
           experienceIsPublished: false,
         })
-      ).toEqual(['landing-content-unpublished']);
+      ).toEqual([]);
     });
 
     it('emits no premium signal when the club publishes its own, either state, and restores it when off', () => {

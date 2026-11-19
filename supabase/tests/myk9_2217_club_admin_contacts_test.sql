@@ -131,7 +131,7 @@ BEGIN
     PERFORM set_config('request.jwt.claim.sub', who::text, true);
     BEGIN
       PERFORM * FROM public.get_club_admin_contacts('00000000-0000-0000-0000-000000220801');
-      RAISE EXCEPTION 'FAIL % read the admin contacts of a show they do not manage', who;
+      RAISE EXCEPTION 'FAIL % read the admin contacts of a club they do not manage', who;
     EXCEPTION WHEN insufficient_privilege THEN
       NULL;
     END;

@@ -354,7 +354,7 @@ describe('renderEntryChangedEmail', () => {
     });
     expect(one.body).toContain('Hi Jamie,');
     expect(one.body).toContain('made a change to your entry at Spring Scent Trial.');
-    expect(one.body).toContain('https://myk9show.com/exhibitor/entries?showId=show-1');
+    expect(one.body).toContain('https://myk9show.com/exhibitor/entries?show=show-1');
     const many = renderEntryChangedEmail({
       showId: 'show-1',
       showName: null,

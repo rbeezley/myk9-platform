@@ -14,7 +14,11 @@
  * entry was put back, an edit changed back) says nothing, and a later change emails its own
  * new state. Every read is scoped to the job's show.
  */
-import type { LifecycleEmailSupabaseClient, QueryResult } from './lifecycle-email-shared.ts';
+import {
+  myShowsEntriesUrl,
+  type LifecycleEmailSupabaseClient,
+  type QueryResult,
+} from './lifecycle-email-shared.ts';
 import { formatTrialDate } from './lifecycle-email-showChanged.ts';
 
 export interface RenderedEntryChangedEmail {
@@ -31,7 +35,7 @@ interface RecordedEvent {
   from?: string | null;
 }
 
-interface DogRow {
+export interface DogRow {
   name: string | null;
   call_name: string | null;
   owner_id: string | null;
@@ -50,14 +54,14 @@ interface EntryRow {
   dogs: DogRow | DogRow[] | null;
 }
 
-interface TrialRow {
+export interface TrialRow {
   name: string | null;
   date: string | null;
   show_id: string | null;
   deleted_at: string | null;
 }
 
-interface ClassRow {
+export interface ClassRow {
   id: string;
   name: string | null;
   element: string | null;
@@ -73,7 +77,7 @@ interface ClassRow {
  * the show and judge change emails use), so a dog marked absent or declined is not told it
  * is in a class it will not run.
  */
-const LIVE_ENTRY_STATUSES = [
+export const LIVE_ENTRY_STATUSES = [
   'confirmed',
   'accepted',
   'scheduled',
@@ -92,11 +96,11 @@ const LIVE_ENTRY_STATUSES = [
   'pending-payment',
 ];
 
-function clean(value: string | null | undefined): string {
+export function clean(value: string | null | undefined): string {
   return (value ?? '').trim();
 }
 
-function first<T>(value: T | T[] | null | undefined): T | null {
+export function first<T>(value: T | T[] | null | undefined): T | null {
   return (Array.isArray(value) ? value[0] : value) ?? null;
 }
 
@@ -115,7 +119,7 @@ function parseEvents(value: unknown): RecordedEvent[] {
  * The same related-row rules as live_entry_person_class_pairs: a class that is deleted or
  * cancelled, or whose trial is deleted or of another show, is not one to tell anyone about.
  */
-function classIsLive(row: ClassRow, showId: string): boolean {
+export function classIsLive(row: ClassRow, showId: string): boolean {
   const trial = first(row.trials);
   return (
     !!trial &&
@@ -126,7 +130,7 @@ function classIsLive(row: ClassRow, showId: string): boolean {
   );
 }
 
-function classLabel(row: ClassRow): string {
+export function classLabel(row: ClassRow): string {
   const name =
     clean(row.name) ||
     [clean(row.element), clean(row.level), clean(row.section)].filter(Boolean).join(' ') ||
@@ -345,7 +349,7 @@ export function renderEntryChangedEmail(args: {
       intro,
       args.lines.join('\n'),
       'If this is not what you expected, contact the trial secretary.',
-      `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
+      `Your entries: ${myShowsEntriesUrl(args.showId)}`,
     ].join('\n\n'),
   };
 }

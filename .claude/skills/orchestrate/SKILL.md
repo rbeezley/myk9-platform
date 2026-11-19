@@ -114,6 +114,44 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    whether the design is wrong (shared rules, Gates § 3). If the paths are only known once the
    implementer reports, run the same check on its diff before opening the PR.
 
+   **Design first means no code first.** An issue that says "design first", or whose fix
+   touches sign-in, permissions, sync or replication, or money, gets a design before any
+   implementer. Write it as a plan file, `docs/plan-<topic>.md` (the Planning rule in CLAUDE.md),
+   of about one page with these parts:
+   - the existing design it touches, and why that design is the way it is, read from the code's
+     comments and from `git log -S`;
+   - the shape you propose;
+   - the "do nothing / delete it / link to what exists" option, weighed honestly.
+
+   Write it in its own worktree (branch `claude/myk9-<n>-plan-<topic>`, the prefix the cloud tooling accepts, created like any issue worktree),
+   never the primary checkout. Open it as a docs-only PR whose body says `Ignore MYK9-<n>`,
+   so neither the plan PR nor its merge moves the issue. `pnpm qa:codex-review --post` reviews
+   that diff and posts the verdict on the PR, so Codex reads the design, not code, and the
+   owner can see the review. Link the PR on the issue, label it `needs:decision`, and put the
+   delete-or-do-nothing option to the owner before building, not after a convergence stop.
+   Record `size: design first` in the ledger.
+
+   **Resume:** the owner's answer on the issue releases the hold. If the owner chooses delete,
+   defer or do nothing, close the plan PR and apply that disposition. If the owner approves the
+   shape, merge the plan PR and remove the label. The issue then re-enters at step 1 of this
+   section with `approach: per docs/plan-<topic>.md`. Its worktree and dispatch follow, as for
+   any issue.
+
+   **One failed design, then ask.** After the FIRST convergence stop on an issue, do not
+   dispatch a second design. Hold it as `needs:decision` with a restructure proposal that leads
+   with "delete it" or "defer it". Count earlier attempts from both places, since a partial PR
+   may not be linked in Linear:
+   - the issue's Linear attachments;
+   - GitHub: `gh pr list --state all --search "MYK9-<n>" --json number,state,title`, which
+     includes closed PRs.
+
+   Why these rules exist: on 2026-11-19 three issues closed six PRs unmerged after three
+   attempts each, and each was resolved in minutes by an owner answer that was available from
+   the start:
+   - MYK9-2168, clubs replica account boundary: deferred.
+   - MYK9-2211, invite with no account: deleted.
+   - MYK9-2111, a fix that fought the deliberate OCC token design: no code change.
+
    For an escaped bug (found after merge by a walk, staging, Sentry or a user), also record
    `verifier gap:` in the ledger row and the `approach:` line, per **Escaped bugs** in
    `docs/agents/issue-tracker.md`; the dispatch carries the check to update.

@@ -13,6 +13,7 @@
 # asked per commit (`--commit <sha>`), newest first, within the behind window.
 #
 #   REQUESTED_SHA  optional full 40-char SHA; explicit pins skip the behind guard
+#                  (deploy-live-guard.sh, run next, still refuses a rollback)
 #   MAX_BEHIND     default 50; an auto-picked commit further behind main fails
 #   MAIN_REF       default origin/main
 #

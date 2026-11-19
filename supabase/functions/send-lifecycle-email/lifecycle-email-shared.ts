@@ -3,6 +3,11 @@ import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 import { storeEmailContent, type EmailContentClient } from '../_shared/emailLogContent.ts';
 
+/** My Shows deep link that anchors on the show (`SELECTED_SHOW_PARAM`). */
+export function myShowsEntriesUrl(showId: string): string {
+  return `https://myk9show.com/exhibitor/entries?show=${showId}`;
+}
+
 /** Types and database/provider helpers shared by the generic send and the number-needed step. */
 export interface SendLifecycleEmailPayload {
   action?: 'preview' | 'save_ready' | 'send' | 'send_registration_number_needed' | 'drain_auto';

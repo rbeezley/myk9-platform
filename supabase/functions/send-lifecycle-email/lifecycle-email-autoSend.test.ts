@@ -370,7 +370,7 @@ describe('renderShowChangedEmail', () => {
     expect(email.body).toContain('Sunday Trial: Sunday, November 22, 2026');
     expect(email.body).not.toContain('November 23');
     expect(email.body).toContain('Riverside Barn\n12 River Road\nFairfield, OH 45014');
-    expect(email.body).toContain('https://myk9show.com/exhibitor/entries?showId=show-1');
+    expect(email.body).toContain('https://myk9show.com/exhibitor/entries?show=show-1');
     expect(email.body).not.toMatch(/—/);
   });
 });

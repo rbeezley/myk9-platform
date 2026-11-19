@@ -239,6 +239,18 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
           showLine,
         ]),
       };
+    // MYK9-2001: written and sent by the server from the entries' recorded state at send time
+    // (send-lifecycle-email, lifecycle-email-pullOut.ts); no screen drafts it.
+    case 'pulled_out':
+      return {
+        subject: `Entries removed at ${showName}`,
+        body: joinLines([
+          greeting,
+          '',
+          `Here is what we recorded for you at ${showName}.`,
+          showLine,
+        ]),
+      };
     case 'registration_number_needed': {
       const dogName = input.entry?.dogName?.trim() || 'your dog';
       const registry = input.entry?.registryName?.trim();

@@ -46,6 +46,7 @@ import {
   fetchOfficialsForPublish,
 } from '@/features/premium/premiumOfficials';
 import { showHeroParent } from './showHeroParent';
+import { showPublishBlockersQueryKey } from '@/features/publishing/usePublishBlockers';
 import { carriedClassSearch } from './showTabClass';
 import { useClassSelectedOnLaptop } from './useClassSelectedOnLaptop';
 import type { HeroViewer } from '@/components/common/heroParentLink';
@@ -436,6 +437,7 @@ function AuthorizedShowManagementShell({
                 );
               }
               queryClient.invalidateQueries({ queryKey: ['shows', id, 'publish-info'] });
+              queryClient.invalidateQueries({ queryKey: showPublishBlockersQueryKey(id) });
               queryClient.invalidateQueries({
                 queryKey: ['shows', id, 'published-experience-content'],
               });

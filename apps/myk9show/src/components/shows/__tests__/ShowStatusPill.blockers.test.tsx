@@ -1,0 +1,138 @@
+/**
+ * MYK9-2198: the pill no longer pre-checks club approval or the entry window with a toast. The
+ * server's "Before you can publish" list is the one answer: with lines on it, Publish opens the
+ * list instead of trying; the server's refusal stays as the backstop.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { render } from '@/test/utils/testUtils';
+import { ShowStatusPill } from '../ShowStatusPill';
+import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import { ENTRY_WINDOW_REQUIRED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import type { PublishBlockersState } from '@/features/publishing/usePublishBlockers';
+import { toast } from 'sonner';
+
+const { navigate, blockersState, online } = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  online: { value: true },
+  blockersState: { value: { state: 'ready', blockers: [] } as PublishBlockersState },
+}));
+
+vi.mock('react-router-dom', async importOriginal => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
+  useNavigate: () => navigate,
+}));
+vi.mock('@/features/publishing/usePublishBlockers', () => ({
+  showPublishBlockersQueryKey: (id: string) => ['shows', id, 'publish-blockers'],
+  usePublishBlockers: () => blockersState.value,
+}));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => online.value }));
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({
+  useUpdateShowMutation: vi.fn(),
+}));
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
+describe('ShowStatusPill and the publish blockers list (MYK9-2198)', () => {
+  let mutateAsync: ReturnType<typeof vi.fn>;
+  const onSeeBlockers = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    online.value = true;
+    mutateAsync = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateShowMutation).mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateShowMutation>);
+    blockersState.value = { state: 'ready', blockers: [] };
+  });
+
+  async function clickFirstItem() {
+    render(
+      <ShowStatusPill
+        showId="show-1"
+        status="draft"
+        clubId="club-1"
+        onSeeBlockers={onSeeBlockers}
+      />
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByRole('menuitem'));
+  }
+
+  it('opens the list instead of publishing when the server lists a blocker, with no toast', async () => {
+    blockersState.value = {
+      state: 'ready',
+      blockers: [{ key: 'entry_dates_missing', waitingOn: 'secretary', eta: null }],
+    };
+    render(
+      <ShowStatusPill
+        showId="show-1"
+        status="draft"
+        clubId="club-1"
+        onSeeBlockers={onSeeBlockers}
+      />
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByRole('menuitem', { name: 'See what blocks publishing' }));
+
+    expect(onSeeBlockers).toHaveBeenCalledTimes(1);
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('publishes when the list is empty, with no client-side club or date toast', async () => {
+    await clickFirstItem();
+
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('offline: the publish item is disabled with "Reconnect to publish." and nothing is queued', async () => {
+    online.value = false;
+    blockersState.value = { state: 'offline', blockers: [] };
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
+
+    const item = await screen.findByRole('menuitem', { name: 'Reconnect to publish.' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.setup().click(item);
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('disables the publish item while the list is still loading', async () => {
+    blockersState.value = { state: 'checking', blockers: [] };
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
+
+    const item = await screen.findByRole('menuitem', { name: /Checking what blocks publishing/ });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('notes that the check failed, and still offers the attempt, when the list could not be read', async () => {
+    blockersState.value = { state: 'failed', blockers: [], retry: vi.fn() };
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Publish Show' })).toBeInTheDocument();
+    expect(screen.getByText(/Could not check what blocks publishing/)).toBeInTheDocument();
+  });
+
+  it('still tries when the list could not be read, and the server refusal is the answer', async () => {
+    blockersState.value = { state: 'failed', blockers: [], retry: vi.fn() };
+    mutateAsync.mockRejectedValueOnce({ code: 'MK005', message: ENTRY_WINDOW_REQUIRED_MESSAGE });
+    await clickFirstItem();
+
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(
+      ENTRY_WINDOW_REQUIRED_MESSAGE,
+      expect.objectContaining({ action: expect.objectContaining({ label: 'Set entry window' }) })
+    );
+  });
+});

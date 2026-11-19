@@ -14,6 +14,12 @@
 
 BEGIN;
 
+-- MYK9-2197: publishing also needs the premium list (or publishes_own_premium).
+-- This test is about its own gate, so every show here starts exempt from the
+-- premium line; the premium line is tested in myk9_2197_show_publish_blockers_test.sql.
+-- Rolled back with the rest of the transaction.
+ALTER TABLE public.shows ALTER COLUMN publishes_own_premium SET DEFAULT true;
+
 -- MYK9-979: this file predates the per-show online-entries switch
 -- (shows.online_entries_enabled, DEFAULT false) and exercises the online-
 -- entries-ON path: exhibitor submit_show_entries calls and/or the Stripe

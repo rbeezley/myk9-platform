@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { FixItRow } from '@/features/publishing/FixItRow';
 import { AlertTriangle } from 'lucide-react';
 import type { PremiumRequirementItem } from './premiumRequirements';
 
@@ -26,18 +26,7 @@ export function PremiumRequirementsNotice({ items, registry }: PremiumRequiremen
       </p>
       <ul className="mt-2 space-y-1">
         {items.map(item => (
-          <li key={item.key} className="flex flex-wrap items-center gap-x-2">
-            <span>{item.message}</span>
-            {item.href && (
-              <Link
-                to={item.href}
-                aria-label={`Fix it: ${item.message}`}
-                className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Fix it
-              </Link>
-            )}
-          </li>
+          <FixItRow key={item.key} message={item.message} href={item.href ?? undefined} />
         ))}
       </ul>
     </section>

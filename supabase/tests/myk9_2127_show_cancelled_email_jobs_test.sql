@@ -151,21 +151,25 @@ declare
   v_hal uuid := '00000000-0000-0000-0000-000002127325';
   v_claimed_due timestamptz := now() - interval '1 minute';
 begin
+  -- Ada's job waits out a retry delay: a lease time but no attempt, so it is re-timed.
   update public.show_lifecycle_email_jobs
-     set status = 'ready', due_at = now() - interval '3 minutes', claimed_until = NULL
+     set status = 'ready', due_at = now() - interval '3 minutes', attempt_id = NULL,
+         claimed_until = now() + interval '2 minutes'
    where show_id = v_show and recipient_person_id = v_ada and step_type = 'show_cancelled';
+  -- Hal's job is being sent right now: an attempt and a live lease, so it is left alone.
   update public.show_lifecycle_email_jobs
-     set status = 'ready', due_at = v_claimed_due, claimed_until = now() + interval '2 minutes'
+     set status = 'ready', due_at = v_claimed_due, attempt_id = gen_random_uuid(),
+         claimed_until = now() + interval '2 minutes'
    where show_id = v_show and recipient_person_id = v_hal and step_type = 'show_cancelled';
   update public.shows set status = 'published' where id = v_show;
   update public.shows set status = 'cancelled' where id = v_show;
   if (select due_at from public.show_lifecycle_email_jobs where show_id = v_show and recipient_person_id = v_ada and step_type = 'show_cancelled')
      <> now() + interval '5 minutes' then
-    raise exception 'FAIL D2 a waiting job was not re-timed by the repeat cancel';
+    raise exception 'FAIL D2 a job in a retry delay was not re-timed by the repeat cancel';
   end if;
   if (select due_at from public.show_lifecycle_email_jobs where show_id = v_show and recipient_person_id = v_hal and step_type = 'show_cancelled')
      <> v_claimed_due then
-    raise exception 'FAIL D2 a claimed job was re-timed';
+    raise exception 'FAIL D2 a job being sent was re-timed';
   end if;
   raise notice 'PASS D2 a repeat cancel restarts the quiet window for unclaimed jobs only';
 end $$;

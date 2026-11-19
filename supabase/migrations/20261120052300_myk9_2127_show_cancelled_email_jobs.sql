@@ -190,10 +190,13 @@ BEGIN
     recipient_email = excluded.recipient_email,
     recipient_name = excluded.recipient_name
   -- A job that never went out is revived or re-timed: one skipped by a reopen, or one still
-  -- waiting (held or ready) and not claimed by a sender, so a cancel, reopen, cancel inside the
-  -- quiet window restarts the five minutes. A sent, failed, dismissed or claimed job stays as is.
+  -- waiting (held or ready) that no sender is sending right now, so a cancel, reopen, cancel
+  -- inside the quiet window restarts the five minutes. A send in progress holds both an
+  -- attempt_id and an unexpired lease (MYK9-1212); a retry delay keeps claimed_until with no
+  -- attempt_id and is re-timed too. A sent, failed, dismissed or in-progress job stays as is.
   WHERE j.status = 'skipped'
-     OR (j.status IN ('held', 'ready') AND (j.claimed_until IS NULL OR j.claimed_until < now()));
+     OR (j.status IN ('held', 'ready')
+         AND NOT (j.attempt_id IS NOT NULL AND j.claimed_until IS NOT NULL AND j.claimed_until > now()));
 END;
 $$;
 

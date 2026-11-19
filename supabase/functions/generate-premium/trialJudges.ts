@@ -80,11 +80,22 @@ export function premiumTrialJudges(
     { name: string; residence: string | null; classIds: Set<string>; wholeTrial: boolean }
   >();
 
+  // A show-level row (no class, no trial) is roster membership, which the wizard writes beside
+  // the class picks: it must not turn a judge with class assignments into a whole-show judge.
+  const peopleWithClassRows = new Set(
+    (rows ?? [])
+      .filter(
+        row => row.people && row.class_id !== null && !INACTIVE_STATUSES.has(row.status ?? '')
+      )
+      .map(row => row.people!.id)
+  );
+
   for (const row of rows ?? []) {
     const person = row.people;
     if (!person || INACTIVE_STATUSES.has(row.status ?? '')) continue;
+    const rosterOnly = row.trial_id === null && peopleWithClassRows.has(person.id);
     const wholeTrial =
-      row.class_id === null && (row.trial_id === null || row.trial_id === trial.id);
+      row.class_id === null && !rosterOnly && (row.trial_id === null || row.trial_id === trial.id);
     const classHere = row.class_id !== null && classById.has(row.class_id);
     if (!wholeTrial && !classHere) continue;
     const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();

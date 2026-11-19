@@ -26,7 +26,8 @@ import {
   PremiumPublishError,
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
-import { saveShowJudgeChanges } from '@/services/database/judges';
+import { fetchShowJudgesForPublish, saveShowJudgeChanges } from '@/services/database/judges';
+import { waitForShowSync } from '@/features/premium/waitForShowSync';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -409,7 +410,22 @@ function AuthorizedShowManagementShell({
                 // MYK9-2244: the published facts are the server's current ones (the same
                 // facts-only call the Edit show preview uses); the editor contributes only its
                 // narratives, supplemental fields and style. Never copied onto the show row.
-                const premium = applyEditorCopyToPremium(await fetchPremiumFacts(id), {
+                await waitForShowSync(id);
+                // Refuses (judges-syncing) while this device's judge picks have not reached the
+                // server; the judges printed are the server's own, from the facts call.
+                await fetchShowJudgesForPublish(id);
+                const facts = await fetchPremiumFacts(id);
+                // Narratives written for another organization are never printed under this one's
+                // facts (the organization may have changed on another device since the editor
+                // opened).
+                if (facts.org !== publishableShowData.generatedPremium.org) {
+                  throw new PremiumPublishError(
+                    `The premium was built for ${publishableShowData.generatedPremium.org} but the show is now ${facts.org}`,
+                    'experience-snapshot',
+                    'organization-changed'
+                  );
+                }
+                const premium = applyEditorCopyToPremium(facts, {
                   style:
                     (showData as Partial<ShowInput>).style ??
                     publishableShowData.generatedPremium.style,

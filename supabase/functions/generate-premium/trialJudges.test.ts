@@ -144,3 +144,36 @@ describe('generate-premium wiring', () => {
     expect(source).not.toContain('elements: [] as string[]');
   });
 });
+
+describe('a roster judge with class assignments (MYK9-2244)', () => {
+  const t1 = {
+    id: 't-1',
+    classes: [{ id: 'c-t1', element: 'Buried', level: 'Novice', section: null }],
+  };
+  const t2 = {
+    id: 't-2',
+    classes: [{ id: 'c-t2', element: 'Buried', level: 'Novice', section: null }],
+  };
+  const rosterRow = row(donovan, null, { trial_id: null });
+  const classRow = row(donovan, 'c-t1', { trial_id: null });
+
+  it('lists the judge only on the trial of their class, with that class', () => {
+    expect(premiumTrialJudges([rosterRow, classRow], t1)).toEqual([
+      { name: 'Pat Donovan', residence: 'Demoville, KS', classes: ['Buried Novice'] },
+    ]);
+    expect(premiumTrialJudges([rosterRow, classRow], t2)).toEqual([]);
+  });
+
+  it('a roster-only judge still lists on every trial with no class line', () => {
+    for (const trialRow of [t1, t2]) {
+      expect(premiumTrialJudges([rosterRow], trialRow)).toEqual([
+        { name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] },
+      ]);
+    }
+  });
+
+  it('a trial-level row with no class still covers that whole trial', () => {
+    const wholeTrial = row(donovan, null, { trial_id: 't-1' });
+    expect(premiumTrialJudges([wholeTrial, classRow], t1)[0]?.classes).toEqual([]);
+  });
+});

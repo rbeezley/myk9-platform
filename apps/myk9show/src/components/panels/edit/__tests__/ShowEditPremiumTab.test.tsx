@@ -262,6 +262,7 @@ describe('ShowEditPremiumTab', () => {
       publishedExperienceContentMock = published;
       const facts = {
         ...baseGeneratedPremium(),
+        templateId: 'club-template-1',
         show: { ...baseGeneratedPremium().show, address: '12 Pine Rd', maxTotalEntries: 60 },
       };
       premiumFactsMock = { data: facts, isLoading: false };
@@ -270,6 +271,8 @@ describe('ShowEditPremiumTab', () => {
 
       expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
         style: 'poster',
+        // Detached from the club template, so a cover edit never rewrites it.
+        templateId: null,
         show: { address: '12 Pine Rd', maxTotalEntries: 60 },
         narratives: published.narratives,
         supplemental: { hospitalityNotes: 'Coffee.' },

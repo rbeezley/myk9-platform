@@ -78,11 +78,15 @@ export function ShowEditPremiumTab({
   const initialPremium = useMemo(() => {
     if (factsLoading) return undefined;
     if (serverFacts && publishedContent && serverFacts.org === showOrg) {
-      return applyEditorCopyToPremium(serverFacts, {
-        style: data.style || 'monogram',
-        supplemental: publishedContent.supplemental,
-        narratives: publishedContent.narratives,
-      });
+      // templateId null: a published show's cover edits never write to the club's shared template.
+      return {
+        ...applyEditorCopyToPremium(serverFacts, {
+          style: data.style || 'monogram',
+          supplemental: publishedContent.supplemental,
+          narratives: publishedContent.narratives,
+        }),
+        templateId: null,
+      };
     }
     const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;

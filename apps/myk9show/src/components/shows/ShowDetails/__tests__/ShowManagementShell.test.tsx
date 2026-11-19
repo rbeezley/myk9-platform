@@ -18,6 +18,8 @@ const saveHarness = vi.hoisted(() => ({
   runPublish: vi.fn(),
   persistJudges: vi.fn(),
   facts: vi.fn(),
+  judgesSynced: vi.fn(),
+  showSynced: vi.fn(),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
@@ -30,6 +32,10 @@ vi.mock('@/features/premium/fetchPremium', () => ({
 }));
 vi.mock('@/services/database/judges', () => ({
   saveShowJudgeChanges: saveHarness.persistJudges,
+  fetchShowJudgesForPublish: saveHarness.judgesSynced,
+}));
+vi.mock('@/features/premium/waitForShowSync', () => ({
+  waitForShowSync: (...args: unknown[]) => saveHarness.showSynced(...args),
 }));
 
 // Who is looking: Delete show is offered only to the viewer soft_delete_show admits.
@@ -830,6 +836,8 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
     saveHarness.facts.mockReset().mockResolvedValue(generatedPremium());
+    saveHarness.judgesSynced.mockReset().mockResolvedValue([]);
+    saveHarness.showSynced.mockReset().mockResolvedValue(undefined);
     // Reservation fails (e.g. the RPC is not deployed yet), so the operation
     // rejects before it would ever call createPremium.
     saveHarness.runPublish.mockReset().mockRejectedValue(new Error('function not found'));
@@ -858,6 +866,8 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), organization: 'UKC' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
     saveHarness.facts.mockReset().mockResolvedValue(generatedPremium());
+    saveHarness.judgesSynced.mockReset().mockResolvedValue([]);
+    saveHarness.showSynced.mockReset().mockResolvedValue(undefined);
     saveHarness.runPublish.mockReset().mockResolvedValue(undefined);
     saveHarness.payload = {
       organization: 'UKC',
@@ -953,6 +963,8 @@ describe('Save & Publish prints the server facts with the editor copy (MYK9-2244
       mailingAddress: null,
     };
     saveHarness.facts.mockReset().mockResolvedValue(serverFacts);
+    saveHarness.judgesSynced.mockReset().mockResolvedValue([]);
+    saveHarness.showSynced.mockReset().mockResolvedValue(undefined);
     let published: ReturnType<typeof generatedPremium> | undefined;
     saveHarness.runPublish
       .mockReset()
@@ -1002,6 +1014,8 @@ describe('Save & Publish prints the server facts with the editor copy (MYK9-2244
     saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
     saveHarness.facts.mockReset().mockRejectedValue(new Error('boom'));
+    saveHarness.judgesSynced.mockReset().mockResolvedValue([]);
+    saveHarness.showSynced.mockReset().mockResolvedValue(undefined);
     saveHarness.runPublish
       .mockReset()
       .mockImplementation(async (op: { createPremium: () => Promise<unknown> }) => {
@@ -1017,6 +1031,57 @@ describe('Save & Publish prints the server facts with the editor copy (MYK9-2244
     fireEvent.click(await screen.findByTestId('edit-panel-save'));
 
     await waitFor(() => expect(saveHarness.facts).toHaveBeenCalled());
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+
+  it('does not read or publish server facts while the show edit has not synced', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.facts.mockReset().mockResolvedValue(generatedPremium());
+    saveHarness.judgesSynced.mockReset().mockResolvedValue([]);
+    saveHarness.showSynced.mockReset().mockRejectedValue(new Error('not synced'));
+    saveHarness.runPublish
+      .mockReset()
+      .mockImplementation(async (op: { createPremium: () => Promise<unknown> }) => {
+        await op.createPremium();
+      });
+    saveHarness.payload = {
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: generatedPremium(),
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(saveHarness.showSynced).toHaveBeenCalledWith('show-1'));
+    expect(saveHarness.facts).not.toHaveBeenCalled();
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+
+  it('refuses to print narratives written for another organization under the new one', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.facts.mockReset().mockResolvedValue({ ...generatedPremium(), org: 'UKC' });
+    saveHarness.judgesSynced.mockReset().mockResolvedValue([]);
+    saveHarness.showSynced.mockReset().mockResolvedValue(undefined);
+    let published: unknown;
+    saveHarness.runPublish
+      .mockReset()
+      .mockImplementation(async (op: { createPremium: () => Promise<unknown> }) => {
+        published = await op.createPremium();
+      });
+    saveHarness.payload = {
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: { ...generatedPremium(), org: 'AKC' },
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(saveHarness.facts).toHaveBeenCalled());
+    expect(published).toBeUndefined();
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 });

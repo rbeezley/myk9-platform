@@ -204,8 +204,12 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/services/database/judges', () => ({
   persistShowJudgeAssignments: vi.fn(async () => undefined),
   saveShowJudgeChanges: vi.fn(async () => undefined),
+  fetchShowJudgesForPublish: vi.fn(async () => []),
 }));
 
+vi.mock('@/features/premium/waitForShowSync', () => ({
+  waitForShowSync: vi.fn(async () => undefined),
+}));
 // MYK9-2244: a copy-only publish prints the server's current facts (the facts-only call).
 vi.mock('@/features/premium/fetchPremium', () => ({
   fetchPremiumFacts: vi.fn(async () => {

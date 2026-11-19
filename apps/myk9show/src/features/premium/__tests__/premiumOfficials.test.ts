@@ -75,6 +75,34 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
     expect(premium.officials.chairman).toBeNull();
   });
 
+  it('prints no draft phone for a replaced secretary or chair (MYK9-2204)', () => {
+    const draft = generatedPremium();
+    draft.secretary = {
+      name: 'Old Sec',
+      email: 'old-sec@example.com',
+      phone: '9185550000',
+      mailingAddress: null,
+    };
+    draft.officials = {
+      chairman: {
+        name: 'Old Chair',
+        email: 'old-chair@example.com',
+        phone: '9185550001',
+        mailingAddress: null,
+      },
+    };
+    const premium = applyOfficialsToPremium(draft, {
+      secretaries: [official('secretary', 'Sam', null)],
+      chairmen: [official('chairman', 'Cara', null)],
+      stewards: [],
+    });
+
+    expect(premium.secretary.name).toBe('Sam Person');
+    expect(premium.secretary.phone).toBeNull();
+    expect(premium.officials.chairman?.name).toBe('Cara Person');
+    expect(premium.officials.chairman?.phone).toBeNull();
+  });
+
   it('keeps the draft only when the officials could not be read: the publish fails instead', async () => {
     mocks.fetchShowOfficials.mockRejectedValueOnce(new Error('offline'));
     await expect(fetchOfficialsForPublish('show-1')).rejects.toBeInstanceOf(PremiumPublishError);

@@ -137,4 +137,20 @@ describe('Gazette masthead — org-conditional license line', () => {
 
     expect(screen.queryByText('At a Glance')).toBeNull();
   });
+
+  it('prints the online entry lines with no entry dates, and no date rows (MYK9-2204)', () => {
+    const base = makePremium('AKC', 'gazette');
+    const premium: GeneratedPremium = {
+      ...base,
+      show: { ...base.show, entryOpenDate: null, entryCloseDate: null },
+    };
+
+    renderTemplate('AKC', premium);
+
+    expect(screen.queryByText('Entry Methods')).not.toBeNull();
+    expect(screen.queryByText('Online entries via myK9Show')).not.toBeNull();
+    expect(screen.queryByText('myk9show.com')).not.toBeNull();
+    expect(screen.queryByText(/^Opens:/)).toBeNull();
+    expect(screen.queryByText(/^Closes:/)).toBeNull();
+  });
 });

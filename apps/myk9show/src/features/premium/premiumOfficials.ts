@@ -18,7 +18,8 @@ const fullName = (o: ShowOfficial) => `${o.firstName} ${o.lastName}`.trim() || n
  * The premium with its secretary and chairman taken from the officials, which were read
  * successfully (a failed read throws in `fetchOfficialsForPublish` and never reaches here). A role
  * with no holder is cleared whole: a draft's former volunteer prints nothing. The RPC carries no
- * phone, so a phone the draft already has for the current chairman is kept. The mailing address is the one the club typed for the premium
+ * phone and a draft contact has no person id, so a draft phone cannot be verified as the current
+ * holder's and is dropped (MYK9-2204). The mailing address is the one the club typed for the premium
  * (MYK9-2065); an official without one prints none, never the premium's earlier value.
  */
 export function applyOfficialsToPremium(
@@ -37,6 +38,9 @@ export function applyOfficialsToPremium(
             ...premium.secretary,
             name: secretaryName,
             email: secretary.email,
+            // The RPC carries no phone and the draft contact has no person id, so a draft phone
+            // cannot be verified as this holder's: it never prints.
+            phone: null,
             mailingAddress: secretary.mailingAddress ?? null,
           }
         : // The lookup succeeded and nobody holds the role: a draft's former volunteer must not
@@ -49,7 +53,7 @@ export function applyOfficialsToPremium(
           ? {
               name: chairName,
               email: chair.email,
-              phone: premium.officials.chairman?.phone ?? null,
+              phone: null,
               mailingAddress: chair.mailingAddress ?? null,
             }
           : null,

@@ -8,7 +8,7 @@ vi.mock('@/hooks/queries/useShowOfficials', async importOriginal => ({
 
 import { generatedPremium } from './fixtures/generatedPremium';
 import { applyOfficialsToPremium, fetchOfficialsForPublish } from '../premiumOfficials';
-import { PremiumPublishError } from '../premiumPublishErrors';
+import { PremiumPublishError, premiumPublishFailureMessage } from '../premiumPublishErrors';
 import {
   ShowOfficialsPhoneMissingError,
   type ShowOfficial,
@@ -154,10 +154,15 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
 
   it('fails the publish, retryable, when the RPC predates the phone column (MYK9-2204)', async () => {
     mocks.fetchShowOfficials.mockRejectedValueOnce(new ShowOfficialsPhoneMissingError('old rpc'));
-    await expect(fetchOfficialsForPublish('show-1')).rejects.toMatchObject({
+    const error = await fetchOfficialsForPublish('show-1').catch((e: unknown) => e);
+    expect(error).toMatchObject({
       name: 'PremiumPublishError',
       message: "Could not read the officials' phone numbers. Try again in a moment.",
+      code: 'officials-phone',
     });
+    expect(premiumPublishFailureMessage(error as PremiumPublishError)).toBe(
+      "Could not read the officials' phone numbers. Try again in a moment."
+    );
     expect(mocks.fetchShowOfficials).toHaveBeenLastCalledWith('show-1', { requirePhone: true });
   });
 

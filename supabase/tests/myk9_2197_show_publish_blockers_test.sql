@@ -11,8 +11,8 @@
 --      publishes; otherwise the refusal is the FIRST listed key's code and
 --      text (MK004 / MK003 / MK005, the existing messages, and the new premium
 --      message). The refusal leaves the row a draft.
---   2. The list's other fields: waiting_on and eta per key (a club with a bank
---      account under review waits on stripe).
+--   2. The list's other fields: waiting_on and eta per key (a club whose bank
+--      account is submitted but has payouts off still waits on the club admin).
 --   3. Premium: a club that publishes its own is exempt; a stale premium
 --      (updated after publishing) counts as published; a blank url or a missing
 --      timestamp does not.
@@ -89,6 +89,7 @@ VALUES
   ('00000000-0000-0000-0000-000002197003', 'acct_myk92197_c', true, true, false),
   ('00000000-0000-0000-0000-000002197006', 'acct_myk92197_f', true, false, false);
 
+-- NOTE: the production default for publishes_own_premium (false) is left in place.
 -- 24 draft shows, one per combination, spelled in the name as well as the id:
 --   a: club approved (1) / not (0)      p: payouts (1) / not (0)
 --   r: premium published (1) / not (0)  d: dates 0 ok, 1 missing, 2 out of order
@@ -166,6 +167,11 @@ VALUES
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002197001', 'published',
    (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true,
    false, NULL, NULL),
+  -- 211 legacy draft stored with online entries off, everything else clear
+  ('00000000-0000-0000-0000-000002197211', 'MYK9-2197 Online Off', 'UKC',
+   current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002197001', 'draft',
+   (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, false,
+   true, NULL, NULL),
   -- 209 bypass: every blocker at once (unapproved, no payouts, no premium, no dates)
   ('00000000-0000-0000-0000-000002197209', 'MYK9-2197 Bypass A', 'UKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002197004', 'draft',
@@ -318,8 +324,10 @@ BEGIN
     RAISE EXCEPTION 'FAIL 2 wrong waiting_on / eta: %', v_list;
   END IF;
   v_list := public.show_publish_blockers('00000000-0000-0000-0000-000002197207');
-  IF v_list IS DISTINCT FROM '[{"key":"payouts_not_enabled","waiting_on":"stripe","eta":"a day or two"}]'::jsonb THEN
-    RAISE EXCEPTION 'FAIL 2 a club under Stripe review waits on stripe: %', v_list;
+  -- No pending-review signal is stored, so an account that finished onboarding
+  -- but has payouts off still waits on the club admin, with no eta.
+  IF v_list IS DISTINCT FROM '[{"key":"payouts_not_enabled","waiting_on":"club_admin","eta":null}]'::jsonb THEN
+    RAISE EXCEPTION 'FAIL 2 an account with payouts off waits on the club admin: %', v_list;
   END IF;
   RAISE NOTICE 'PASS 2 waiting_on and eta per key';
 
@@ -336,6 +344,21 @@ BEGIN
   END IF;
   UPDATE public.shows SET status = 'published' WHERE id = '00000000-0000-0000-0000-000002197201';
   UPDATE public.shows SET status = 'published' WHERE id = '00000000-0000-0000-0000-000002197202';
+  -- A draft stored with online entries off lists it and the publish agrees.
+  IF public.show_publish_blockers('00000000-0000-0000-0000-000002197211') IS DISTINCT FROM
+     '[{"key":"online_entries_off","waiting_on":"secretary","eta":null}]'::jsonb THEN
+    RAISE EXCEPTION 'FAIL 3 an online-entries-off draft: %',
+      public.show_publish_blockers('00000000-0000-0000-0000-000002197211');
+  END IF;
+  v_state := NULL;
+  BEGIN
+    UPDATE public.shows SET status = 'published' WHERE id = '00000000-0000-0000-0000-000002197211';
+  EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    v_state := SQLERRM;
+  END;
+  IF v_state IS DISTINCT FROM 'A published show always takes online entries. Turn online entries on, or keep this show as a draft.' THEN
+    RAISE EXCEPTION 'FAIL 3 the online-entries-off publish was not refused with its text: %', v_state;
+  END IF;
   RAISE NOTICE 'PASS 3 own-premium exempt; stale counts; blank url / no timestamp do not';
 
   -- 4. Demo clubs.
@@ -388,6 +411,28 @@ BEGIN
   IF public.show_publish_blockers('00000000-0000-0000-0000-000002197208') <> '[]'::jsonb THEN
     RAISE EXCEPTION 'FAIL 5 an already-public show lists a blocker: %',
       public.show_publish_blockers('00000000-0000-0000-0000-000002197208');
+  END IF;
+  -- The exemption works for an INSERT, with the production column default
+  -- (false) in place: the RPC takes publishes_own_premium from the payload.
+  PERFORM public.create_show_with_children(
+    jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000002197303',
+      'name', 'MYK9-2197 Insert Published, Own Premium',
+      'organization', 'UKC',
+      'start_date', (current_date + 5)::text,
+      'end_date', (current_date + 6)::text,
+      'club_id', '00000000-0000-0000-0000-000002197001',
+      'status', 'published',
+      'publishes_own_premium', true,
+      'entry_open_date', (current_date - 10)::text,
+      'entry_close_date', (current_date + 4)::text,
+      'accept_check_payments', true,
+      'accept_cash_payments', true
+    ),
+    '[]'::jsonb, '[]'::jsonb, NULL);
+  IF (SELECT status || '/' || publishes_own_premium FROM public.shows
+       WHERE id = '00000000-0000-0000-0000-000002197303') IS DISTINCT FROM 'published/true' THEN
+    RAISE EXCEPTION 'FAIL 5 an own-premium published insert was not stored as such';
   END IF;
   -- A second INSERT combination: an unapproved club is refused first (MK004).
   v_state := NULL;
